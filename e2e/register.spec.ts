@@ -180,7 +180,7 @@ for (const [rhythm, date] of [
     );
     const created = await savedResponse.json();
     const row = page.locator(`[data-booking="${created.id}"]`);
-    await row.getByRole('button', { name: /bearbeiten$/ }).click();
+    await row.getByRole('button', { name: / bearbeiten · / }).click();
     const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
     await edit.getByLabel('Notiz').fill('Synthetic edit');
     gets.length = 0;

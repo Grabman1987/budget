@@ -1,3 +1,4 @@
+import type { GoalLifecycle } from '@budget/domain';
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import type { WriteResult } from '../ledger/types';
@@ -16,6 +17,16 @@ export interface GoalView {
   categoryId: string | null;
   accountId: string | null;
   note: string | null;
+  startMonth?: string | null;
+  effectiveStartMonth?: string;
+  manualCompletedOn?: string | null;
+  lifecycle?: GoalLifecycle;
+  funding?: {
+    monthlyCents: number;
+    remainingCents: number;
+    conflict: string | null;
+    reviewToken: string;
+  } | null;
   /** Saved at the end of the viewed month. */
   savedCents: number;
   remainingCents: number;
@@ -28,6 +39,7 @@ export interface GoalView {
 }
 
 export interface GoalInput {
+  startMonth?: string | null;
   name: string;
   targetCents: number;
   targetDate: string | null;
@@ -56,4 +68,16 @@ export const adoptGoal = (id: string, validFrom: string) =>
     'POST',
     `/api/goals/${encodeURIComponent(id)}/adopt`,
     { validFrom },
+  );
+
+export const fundGoalRate = (id: string, month: string, reviewToken: string) =>
+  request<WriteResult & { changedCount: number; assignedCents: number }>(
+    'POST',
+    `/api/goals/${encodeURIComponent(id)}/fund?month=${month}`,
+    { reviewToken },
+  );
+export const completeGoal = (id: string) =>
+  request<WriteResult & { changedCount: number }>(
+    'POST',
+    `/api/goals/${encodeURIComponent(id)}/complete`,
   );

@@ -1,0 +1,44 @@
+{
+  "source": "synthetic-only",
+  "engine": "webkit",
+  "project": "webkit-iphone",
+  "profile": "phone",
+  "runtime": {
+    "viewport": {
+      "width": 390,
+      "height": 664
+    },
+    "dpr": 3,
+    "maxTouchPoints": 0,
+    "coarse": true,
+    "themePreference": null,
+    "resolvedTheme": "light"
+  },
+  "linkSize": {
+    "width": 167,
+    "height": 44
+  },
+  "sourceBytesPreserved": true,
+  "salaryCents": 287500,
+  "reimbursementCents": 10000,
+  "payoutCents": 297500,
+  "balances": [
+    62345,
+    359845,
+    62345
+  ],
+  "groupedUndoReached": true,
+  "duplicateDidNotRepost": true,
+  "clickedPayoutDestination": false,
+  "unobstructedPayoutLinkClaim": false,
+  "physicalTouchClaim": false,
+  "privacyToggleExercised": true,
+  "toastGeometry": {
+    "actionLeft": 247.78125,
+    "actionRight": 362,
+    "bodyLeft": 16,
+    "bodyRight": 374,
+    "labelLeft": 259.787353515625,
+    "labelRight": 349.993896484375
+  }
+}

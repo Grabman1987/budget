@@ -144,6 +144,9 @@ it('shows the faded assignment with its source and retains the zero value for ed
   );
   const button = screen.getByRole('button', { name: /Zugewiesen 0,00 € für Lebensmittel ändern/ });
   expect(button.textContent).toBe('≈ 120,00 €');
+  expect(button.getAttribute('aria-label')).toBe(
+    'Zugewiesen 0,00 € für Lebensmittel ändern · Vorschlag ≈ 120,00 €',
+  );
   expect(button.getAttribute('title')).toContain('Median der Ausgaben');
   expect(button.getAttribute('title')).toContain('Juni 2026');
   await userEvent.click(button);
@@ -329,6 +332,8 @@ it('selects a category into the inspector, keeps amount editing separate and cle
       }),
     'GET /api/accounts': () => ok({ accounts: [] }),
     'GET /api/expected': () => ok({ payments: [] }),
+    'GET /api/expected/income': () =>
+      ok({ receivedCents: 2500, expectedCents: 10000, byPayment: [], byIncomeType: [] }),
     'GET /api/categories': () => ok(categories),
   });
   renderPage(<PlanMonthPage />, '/plan/monat?monat=2026-09');

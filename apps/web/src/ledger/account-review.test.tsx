@@ -129,7 +129,9 @@ it('shows type-specific due and quiet review dates and updates a manual account 
       </QueryClientProvider>,
     );
     const user = userEvent.setup();
-    await screen.findByRole('link', { name: 'Muster stale' }, { timeout: 10000 });
+    await screen.findByRole('link', { name: /^Muster stale / }, { timeout: 10000 });
+    for (const id of ['stale', 'fresh', 'quiet', 'never', 'value', 'asset'])
+      await user.click(screen.getByRole('button', { name: `Details zu Muster ${id}` }));
     expect(screen.getByText('Fällig · geprüft am 06.09.2026').classList.contains('is-stale')).toBe(
       true,
     );
@@ -139,7 +141,7 @@ it('shows type-specific due and quiet review dates and updates a manual account 
       true,
     );
     expect(screen.getAllByText('nie geprüft')).toHaveLength(2);
-    await user.click(screen.getByRole('link', { name: 'Muster value' }));
+    await user.click(screen.getByRole('link', { name: /^Muster value / }));
     await user.click(await screen.findByRole('button', { name: 'Wert aktualisieren' }));
     expect(screen.queryByRole('button', { name: 'Kontostand prüfen' })).toBeNull();
     expect(screen.getByText(/Letzter Wert: 125,01 €/)).toBeTruthy();

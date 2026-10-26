@@ -26,7 +26,7 @@ async function expectPhoneSelectionTargets(page: Page) {
   for (const heading of await headings.all())
     await expect(heading.locator('.plan-select-toggle')).toHaveCount(1);
   await expect(
-    page.getByRole('button', { name: 'Alle Kategorien auswählen', exact: true }),
+    page.getByRole('button', { name: /^Alle Kategorien auswählen · \d+\/\d+$/ }),
   ).toHaveCount(1);
   for (const controls of [categories, toggles]) {
     for (let index = 0; index < (await controls.count()); index++) {
@@ -174,14 +174,12 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   );
   if (page.viewportSize()!.width < 768) {
     await enterPhoneSelection(page);
-    const all = page.getByRole('button', { name: 'Alle Kategorien auswählen', exact: true });
+    const all = page.getByRole('button', { name: /^Alle Kategorien auswählen · \d+\/\d+$/ });
     const firstParent = page.getByRole('button', {
-      name: 'Gruppe Mustergruppe 1 auswählen',
-      exact: true,
+      name: /^Gruppe Mustergruppe 1 auswählen · \d+\/\d+$/,
     });
     const secondParent = page.getByRole('button', {
-      name: 'Gruppe Mustergruppe 2 auswählen',
-      exact: true,
+      name: /^Gruppe Mustergruppe 2 auswählen · \d+\/\d+$/,
     });
     const selectedCategories = page.locator('.ptable .pname[aria-pressed="true"]');
     await expect(page.locator('.ptable .pname')).toHaveCount(18);
@@ -412,7 +410,7 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
       }
     }
     const axe = await new AxeBuilder({ page }).include('main').analyze();
-    expect(axe.violations.map((v) => v.id)).toEqual([]);
+    expect(axe.violations).toEqual([]);
     await page.screenshot({ path: info.outputPath(`plan-compact-${scheme}.png`) });
   }
 });

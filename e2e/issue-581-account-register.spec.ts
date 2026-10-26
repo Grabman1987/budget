@@ -184,6 +184,10 @@ test('inline writes keep exact cents, undo and reconciled locks', async ({
       },
       { date: '2026-10-16' },
     );
+    // Undo restores the API before the date-grouped row finishes refreshing.
+    await expect(row.getByRole('button', { name: /^Datum ändern/ })).toHaveText(
+      'Datum ändern: Laden Muster · 17.10.',
+    );
     await change(
       async () => {
         await row.getByRole('button', { name: /^Kategorie ändern/ }).click();
@@ -192,7 +196,7 @@ test('inline writes keep exact cents, undo and reconciled locks', async ({
       { splits: [{ categoryId: category.id, amountCents: -1234 }] },
     );
   } else {
-    await row.getByRole('button', { name: /bearbeiten$/ }).click();
+    await row.getByRole('button', { name: / bearbeiten · / }).click();
     const dialog = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();

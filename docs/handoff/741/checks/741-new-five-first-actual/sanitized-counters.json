@@ -1,0 +1,11 @@
+[
+  {
+    "sourceLogName": "new-five.log",
+    "sha256": "0adba69c141ea7ff3b90dff33279a3f79a270851f732d37879d826c2b99f8bae",
+    "summaryLines": [
+      "Test Files  1 failed | 4 passed (5)",
+      "Tests  1 failed | 57 passed (58)",
+      "Duration  16.49s (tests 51%, transform 30%, import 16%, environment 3%)"
+    ]
+  }
+]

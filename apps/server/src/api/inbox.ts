@@ -1,6 +1,13 @@
 import { readInbox, readInboxCount, resolveInboxItem, type Db } from '@budget/db';
 import { Hono } from 'hono';
-import { inboxCause, inboxMatchesPeriod, inboxSegment, type InboxSegment } from '@budget/domain';
+import {
+  inboxCause,
+  inboxMatchesPeriod,
+  inboxSegment,
+  inboxTaskSource,
+  type InboxTaskSource,
+  type InboxSegment,
+} from '@budget/domain';
 import { z } from 'zod';
 import { ACTOR, readBody, readQuery } from './http';
 
@@ -16,6 +23,7 @@ const page = z.object({
   title: z.string().min(1).max(300).optional(),
   /** Konten › Prüfen: one part of the queue, without overspent categories. */
   segment: z.enum(['auto', 'umsaetze', 'aufgaben']).optional(),
+  taskSource: z.enum(['plan', 'payslips', 'other']).optional(),
 });
 
 /** Actual queue behind the common session/origin guard; stored acknowledgement has one undo group. */
@@ -33,6 +41,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
       readSource,
       title,
       segment,
+      taskSource,
     } = readQuery(c, page);
     const inbox = readInbox(db, today(), bankSource, readSource, {
       excludeOverspent: segment !== undefined,
@@ -49,7 +58,17 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
             ? 'umsaetze'
             : 'aufgaben'
           : segment;
-    const segmentFields = shown ? { segment: shown, segments } : {};
+    // Full outstanding items, independent of period, source drilldown and pagination.
+    const taskSources: Record<InboxTaskSource, number> = {
+      accounts: inbox.accountReminders.length,
+      receipts: inbox.unlinkedReceiptCount,
+      plan: 0,
+      payslips: 0,
+      other: 0,
+    };
+    for (const entry of inbox.entries)
+      if (inboxSegment(entry) === 'aufgaben') taskSources[inboxTaskSource(entry)] += 1;
+    const segmentFields = shown ? { segment: shown, segments, taskSources } : {};
     const countsByTitle: Record<string, number> = {};
     if (readSource)
       for (const entry of inbox.entries) {
@@ -65,6 +84,8 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
     const filtered = inbox.entries.filter(
       (entry) =>
         (!shown || inboxSegment(entry) === shown) &&
+        (!taskSource ||
+          (inboxSegment(entry) === 'aufgaben' && inboxTaskSource(entry) === taskSource)) &&
         inboxMatchesPeriod({ ...entry, date: date(entry) }, period, inbox.asOf) &&
         (!fromDate || date(entry) >= fromDate) &&
         (!title || (entry.type === 'stored' && entry.title === title)),

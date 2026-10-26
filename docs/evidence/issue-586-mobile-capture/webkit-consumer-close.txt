@@ -1,0 +1,19 @@
+Runtime lacks git; booking-acceptance evidence case remains uncovered for canonical CI.
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+[WebServer] npm notice
+[WebServer] npm notice New major version of npm available! 10.9.9 -> 12.2.1
+[WebServer] npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+[WebServer] npm notice To update run: npm install -g npm@12.2.1
+[WebServer] npm notice
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+
+Running 4 tests using 1 worker
+
+  ✓  1 [setup] › e2e/auth.setup.ts:10:1 › register the first passkey and store the session (87ms)
+  ✓  2 [setup] › e2e/ledger.setup.ts:17:1 › seed categories for the ledger tests (50ms)
+  ✓  3 [setup-sample] › e2e/sample.setup.ts:6:1 › register the first passkey on the sample server (251ms)
+  ✓  4 [webkit-iphone] › e2e/mobile-panels.spec.ts:307:5 › behaviour › M04: Buchung erfassen (FormDialog): inside stays open; backdrop or full-screen close dismisses (5.2s)
+
+  4 passed (21.9s)

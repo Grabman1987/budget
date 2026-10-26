@@ -1,0 +1,10 @@
+{
+  "state": "WIP / UNINTEGRATED",
+  "sha": "1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48",
+  "parentBase": "a25ffd011d491d3ee5d16b0e626ffe6c1ba50790",
+  "subject": "fix(db): preserve exact optional read types",
+  "paths": [
+    "packages/db/src/repos/statement-receipt-links.ts"
+  ],
+  "scope": "Exact per-path diff; no unrelated file, branch ancestor or full batch diff."
+}

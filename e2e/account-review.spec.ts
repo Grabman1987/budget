@@ -60,8 +60,19 @@ test('checks off-budget accounts, updates manual values with undo and prepares t
     statementBalanceCents: 0,
   });
   await page.goto('/konten');
+  for (const name of [
+    'Muster checking',
+    'Muster quiet',
+    'Muster loan',
+    'Muster p2p',
+    'Muster brokerage',
+  ])
+    await page.getByRole('button', { name: `Details zu ${name}`, exact: true }).click();
   const row = (name: string) =>
-    page.locator('.ktable .krow').filter({ has: page.getByRole('link', { name, exact: true }) });
+    page
+      .locator('.overview-account-row')
+      .filter({ has: page.getByRole('link', { name: `${name} `, exact: false }) })
+      .locator('xpath=following-sibling::tr[1]');
   await expect(row('Muster checking').getByText('Fällig · geprüft am 06.09.2026')).toHaveClass(
     /is-stale/,
   );

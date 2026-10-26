@@ -1,0 +1,16 @@
+{
+  "engine": "webkit",
+  "project": "webkit-iphone",
+  "profile": "webkit-iphone",
+  "theme": "light",
+  "viewport": {
+    "width": 390,
+    "height": 664
+  },
+  "synthetic": true,
+  "scopedAxe": "both open lifecycle dialogs, all rules enabled",
+  "paymentWrites": [],
+  "coarse": true,
+  "maxTouchPoints": 0,
+  "dpr": 3
+}

@@ -206,9 +206,13 @@ sampleTest(
 sampleTest(
   'explicit empty, unavailable and request failure states preserve unknowns',
   async ({ page }) => {
-    await page.route('**/api/portfolio/positions', (route) =>
-      route.fulfill({ status: 503, json: { error: 'unavailable' } }),
-    );
+    await page.route('**/api/portfolio/positions', async (route) => {
+      const retryClicked = await page.evaluate(
+        () => document.documentElement.dataset['portfolioRetryClicked'] === 'true',
+      );
+      if (retryClicked) await route.continue();
+      else await route.fulfill({ status: 503, json: { error: 'unavailable' } });
+    });
     await page.goto('/vermoegen/portfolio');
     // Let the accounts render and their shared sidebar observer settle before releasing the
     // synthetic failure; a late observer can otherwise remove the retry button by refetching.
@@ -220,9 +224,21 @@ sampleTest(
         ),
     );
     await expect(page.getByRole('button', { name: 'Erneut versuchen' })).toBeVisible();
-    await page.unrouteAll({ behavior: 'wait' });
+    // Keep background refetches failing until the real pointer click reaches this button.
+    // Capture runs synchronously before React's retry handler can start its request.
+    await page.getByRole('button', { name: 'Erneut versuchen' }).evaluate((button) => {
+      button.addEventListener(
+        'click',
+        () => {
+          document.documentElement.dataset['portfolioRetryClicked'] = 'true';
+        },
+        { capture: true, once: true },
+      );
+    });
     await page.getByRole('button', { name: 'Erneut versuchen' }).click();
     await expect(page.getByTestId('portfolio-value')).toHaveText('88.000,00 €');
+    await page.unrouteAll({ behavior: 'wait' });
+    await page.evaluate(() => delete document.documentElement.dataset['portfolioRetryClicked']);
     await page.route('**/api/portfolio/positions', async (route) => {
       const original = (await (await route.fetch()).json()) as PortfolioPositionsView;
       const p = original.classes[0]!.positions[0]!;

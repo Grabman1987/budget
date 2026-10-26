@@ -74,7 +74,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
     staged.close();
   }
   await page.goto('/konten/posteingang');
-  await page.locator('.bank-review summary').click();
+  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
   await expect(page.getByRole('button', { name: /Mit Buchung .* zusammenführen/ })).toBeVisible();
   expect((await new AxeBuilder({ page }).include('.kinbox').analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -106,7 +106,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
     splits: [{ categoryId: category.id }, { categoryId: category.id }],
   });
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
-  await page.locator('.bank-review summary').click();
+  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
   await expect(page.getByRole('button', { name: /Mit Buchung .* zusammenführen/ })).toBeVisible();
   await page.getByRole('button', { name: /Mit Buchung .* zusammenführen/ }).click();
   await expect(
@@ -165,7 +165,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
     db.close();
   }
   await page.goto('/konten/posteingang');
-  await page.locator('.bank-review summary').click();
+  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
   await page.getByRole('button', { name: 'Als Umbuchung verbinden', exact: true }).click();
   await expect(page.getByText('Als Umbuchung verbunden.', { exact: true })).toBeVisible();
   const balanceDb = openDatabase(databasePath);
@@ -201,6 +201,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
     balanceDb.close();
   }
   await page.goto('/konten');
+  await page.getByRole('button', { name: 'Details zu Girokonto A', exact: true }).click();
   await expect(page.getByText('Bankstand: 975,98 €', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Abgleich sperren bis heute' })).toBeVisible();
   expect((await new AxeBuilder({ page }).include('.kview').analyze()).violations).toEqual([]);

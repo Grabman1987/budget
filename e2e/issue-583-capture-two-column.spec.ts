@@ -256,7 +256,7 @@ test('Mehr is open on load exactly when Markierung or Projekt is filled', async 
     const id = await book(extra, day);
     await page.goto(`/konten/buchungen?buchung=${id}`);
     await page
-      .getByRole('button', { name: `Buchung am ${day.slice(8)}.02. bearbeiten`, exact: true })
+      .getByRole('button', { name: `Buchung am ${day.slice(8)}.02. bearbeiten ·`, exact: false })
       .click();
     const dialog = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
     await expect(dialog).toBeVisible();

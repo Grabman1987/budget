@@ -141,6 +141,13 @@ function transport(reply: (url: URL, init?: RequestInit) => Response | Promise<R
     };
     calls.push(call);
     const keys = [...url.searchParams.keys()].sort().join(',');
+    const linkIntake = [ID, ID_B].find((id) => url.pathname === `${PATH}/${id}/booking-links`);
+    const linkRead =
+      linkIntake !== undefined &&
+      keys === 'attachedOffset,limit,offset' &&
+      url.searchParams.get('offset') === '0' &&
+      url.searchParams.get('attachedOffset') === '0' &&
+      url.searchParams.get('limit') === '25';
     const candidate =
       url.pathname === '/api/statement-settlements/candidates' &&
       url.searchParams.get('cardAccountId') === A &&
@@ -173,8 +180,13 @@ function transport(reply: (url: URL, init?: RequestInit) => Response | Promise<R
         `${PATH}/${ID_B}`,
         `/api/statement-settlements?cardAccountId=${A}`,
         '/api/lookups',
+        `${PATH}/automation/config?accountId=${A}`,
+        `${PATH}/${ID}/automation`,
+        `${PATH}/${ID_B}/automation`,
+        '/api/expected',
       ]).has(call.path) ||
       candidate ||
+      linkRead ||
       (url.pathname === '/api/expected/occurrences' &&
         keys === 'from,to' &&
         url.searchParams.get('from') === '2026-10-10' &&
@@ -189,6 +201,40 @@ function transport(reply: (url: URL, init?: RequestInit) => Response | Promise<R
       throw new Error(`Unexpected synthetic request: ${call.method} ${call.path}`);
     }
     if (knownWrite) remainingWrites--;
+    if (call.method === 'GET') {
+      if (linkRead)
+        return json({
+          source: {
+            intakeId: linkIntake,
+            revision: linkIntake === ID_B ? REV_B : REV,
+            sha256: linkIntake === ID_B ? HASH_B : HASH,
+            accountId: A,
+            receiptId: linkIntake === ID_B ? RECEIPT_B : RECEIPT,
+            currency: 'EUR',
+            accountName: 'Konto Muster',
+          },
+          linksRevision: 'd'.repeat(64),
+          items: [],
+          attached: [],
+          nextOffset: null,
+          nextAttachedOffset: null,
+          unavailableReason: null,
+        });
+      if (call.path === `${PATH}/automation/config?accountId=${A}`)
+        return json({
+          config: {
+            accountId: A,
+            enabled: false,
+            revision: null,
+            mappedCards: [],
+            scheduledPayment: null,
+            mappingKey: 'c'.repeat(64),
+          },
+        });
+      if (call.path === '/api/expected') return json({ payments: [] });
+      if (call.path === `${PATH}/${ID}/automation` || call.path === `${PATH}/${ID_B}/automation`)
+        return json({ automation: null });
+    }
     if (url.pathname === '/api/accounts')
       return json({
         accounts: [

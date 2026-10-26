@@ -10,6 +10,8 @@ vi.mock('@tanstack/react-router', () => ({ useSearch: () => ({}), useNavigate: (
 vi.mock('../shell/app-link', () => ({
   AppLink: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }));
+// jsdom has no layout; the new chart has dedicated real-chart coverage in the 608 suite.
+vi.mock('./year-scenario-chart', () => ({ YearScenarioChart: () => null }));
 afterEach(cleanup);
 function show(events: PlannedEventView[] = []) {
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
@@ -54,13 +56,16 @@ it('shows only the base amount and planning action without events', () => {
   const { container } = show();
   expect(screen.getByRole('button', { name: 'Ereignis planen' })).toBeTruthy();
   expect(screen.getByText(/Noch keine Ereignisse geplant/)).toBeTruthy();
-  expect(container.querySelectorAll('.event-grid tfoot tr')).toHaveLength(1);
-  expect(container.querySelector('.event-grid tfoot')?.textContent).toContain('Zu verteilen');
+  expect(screen.getByTestId('scenario-year-end').textContent).toBe('100,00 €');
+  fireEvent.click(container.querySelector('.year-instructions > summary')!);
+  expect(
+    screen.getByRole('button', { name: 'Zu verteilen mit Ereignissen erklären' }),
+  ).toBeTruthy();
   expect(container.textContent).not.toContain('Ereigniseffekt');
-  expect(container.querySelector('.year-phone dl')?.children).toHaveLength(1);
+  expect(container.querySelector('.year-scenario-lead')?.children).toHaveLength(2);
 });
 it('explains each scenario row on keyboard focus when events exist', () => {
-  show([
+  const { container } = show([
     {
       id: 'synthetic-event',
       name: 'Geplante Ausgabe',
@@ -78,19 +83,19 @@ it('explains each scenario row on keyboard focus when events exist', () => {
       status: 'in_horizon',
     } satisfies PlannedEventView,
   ]);
+  fireEvent.click(container.querySelector('.year-instructions > summary')!);
   const help = screen.getAllByRole('button', {
-    name: 'Geplante Ereignisse in diesem Monat erklären',
+    name: 'Zu verteilen mit Ereignissen erklären',
   })[0]!;
   fireEvent.focus(help);
-  expect(screen.getByRole('tooltip').textContent).toContain('geplanten Beträge');
+  expect(screen.getByRole('tooltip').textContent).toContain('ausgewählten geplanten Beträge');
   fireEvent.click(help);
-  expect(screen.getByRole('tooltip').textContent).toContain('geplanten Beträge');
+  expect(screen.getByRole('tooltip').textContent).toContain('ausgewählten geplanten Beträge');
   fireEvent.keyDown(help, { key: 'Escape' });
   expect(screen.queryByRole('tooltip')).toBeNull();
   expect(
-    screen.getAllByRole('button', { name: 'Ereignisse bis dahin zusammen erklären' }),
-  ).toHaveLength(2);
-  expect(
     screen.getAllByRole('button', { name: 'Zu verteilen mit Ereignissen erklären' }),
-  ).toHaveLength(2);
+  ).toHaveLength(1);
+  expect(screen.getByTestId('scenario-year-effect').textContent).toBe('−100,00 €');
+  expect(screen.getByTestId('scenario-year-end').textContent).toBe('0,00 €');
 });

@@ -219,7 +219,7 @@ test('pending and confirmed account rows remain distinct, readable and read-only
     expect(writes).toEqual([]);
   }
 
-  await pendingRow.getByRole('button', { name: /bearbeiten$/ }).click();
+  await pendingRow.getByRole('button', { name: / bearbeiten · / }).click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await expect(edit).toBeVisible();
   await expect(edit.getByRole('button', { name: 'Vorgemerkt', exact: true })).toBeVisible();

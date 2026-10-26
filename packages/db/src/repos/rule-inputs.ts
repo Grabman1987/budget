@@ -1,3 +1,4 @@
+import { readPaymentLifecycles, type PaymentLifecycle } from './expected-lifecycle-invariants';
 import { allocationInputsAsOf } from './allocation-inputs';
 import { cashlessContactBookingIds } from './contact-invariants';
 import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
@@ -95,6 +96,7 @@ export interface RuleFacts {
   categories: CategoryRow[];
   targets: (typeof categoryTarget.$inferSelect)[];
   payments: PaymentRow[];
+  paymentLifecycles?: Map<string, PaymentLifecycle>;
   versions: Map<string, VersionRow[]>;
   incomePauses: (typeof incomePause.$inferSelect)[];
   /**
@@ -236,11 +238,17 @@ function readFacts(db: Executor, upTo: string, ledger: ReturnType<typeof budgetL
         : [];
     });
 
+  const payments = db.select().from(expectedPayment).where(isNull(expectedPayment.deletedAt)).all();
+  const paymentLifecycles = readPaymentLifecycles(
+    db,
+    payments.map((p) => p.id),
+  );
   return {
     accounts,
     categories,
     targets: db.select().from(categoryTarget).where(isNull(categoryTarget.deletedAt)).all(),
-    payments: db.select().from(expectedPayment).where(isNull(expectedPayment.deletedAt)).all(),
+    payments,
+    paymentLifecycles,
     versions,
     incomePauses,
     planMarks,
@@ -367,7 +375,12 @@ export function scheduled(
   const replaced = statementLegacyKeys(f.db);
   for (const p of f.payments) {
     const versions = f.versions.get(p.id) ?? [];
-    for (const occ of occurrences(schedulePayment(p), versions.map(scheduleVersion), from, to)) {
+    for (const occ of occurrences(
+      schedulePayment(p, f.paymentLifecycles?.get(p.id)),
+      versions.map(scheduleVersion),
+      from,
+      to,
+    )) {
       if (replaced.has(p.id + '|' + occ.dueDate)) continue;
       if (!isPlannedOccurrence(f, p.id, occ.dueDate, options)) continue;
       const v = versionOn(versions, occ.dueDate);

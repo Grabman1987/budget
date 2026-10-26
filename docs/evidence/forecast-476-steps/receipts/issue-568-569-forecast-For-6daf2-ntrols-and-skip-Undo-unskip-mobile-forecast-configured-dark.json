@@ -1,0 +1,169 @@
+{
+  "profile": "configured",
+  "theme": "dark",
+  "engine": "chromium",
+  "project": "mobile",
+  "width": 390,
+  "height": 844,
+  "documentHeight": 2649,
+  "scrollWidth": 390,
+  "coarse": true,
+  "rawTouch": 1,
+  "compactGeometry": {
+    "svg": {
+      "left": 16,
+      "right": 374,
+      "top": 1023.625,
+      "bottom": 1243.625,
+      "width": 358,
+      "height": 220
+    },
+    "texts": [
+      {
+        "left": 140,
+        "right": 193.9375,
+        "top": 1177.625,
+        "bottom": 1194.625,
+        "width": 53.9375,
+        "height": 17
+      },
+      {
+        "left": 140,
+        "right": 251.25,
+        "top": 1194.625,
+        "bottom": 1208.625,
+        "width": 111.25,
+        "height": 14
+      }
+    ],
+    "dot": {
+      "left": 135,
+      "right": 145,
+      "top": 1093.2916259765625,
+      "bottom": 1103.2916259765625,
+      "width": 10,
+      "height": 10
+    },
+    "markers": [
+      {
+        "left": 76,
+        "right": 110.8125,
+        "top": 1025.625,
+        "bottom": 1039.625,
+        "width": 34.8125,
+        "height": 14
+      },
+      {
+        "left": 212,
+        "right": 287.21875,
+        "top": 1025.625,
+        "bottom": 1039.625,
+        "width": 75.21875,
+        "height": 14
+      }
+    ],
+    "forecast": {
+      "left": 72,
+      "right": 310,
+      "top": 1069.2919921875,
+      "bottom": 1098.2919921875,
+      "width": 238,
+      "height": 29
+    }
+  },
+  "detailGeometry": {
+    "svg": {
+      "left": 33,
+      "right": 357,
+      "top": 436.921875,
+      "bottom": 696.921875,
+      "width": 324,
+      "height": 260
+    },
+    "texts": [
+      {
+        "left": 147.28570556640625,
+        "right": 201.22320556640625,
+        "top": 630.921875,
+        "bottom": 647.921875,
+        "width": 53.9375,
+        "height": 17
+      },
+      {
+        "left": 147.28570556640625,
+        "right": 258.53570556640625,
+        "top": 647.921875,
+        "bottom": 661.921875,
+        "width": 111.25,
+        "height": 14
+      }
+    ],
+    "dot": {
+      "left": 142.28570556640625,
+      "right": 152.28570556640625,
+      "top": 519.921875,
+      "bottom": 529.921875,
+      "width": 10,
+      "height": 10
+    },
+    "markers": [
+      {
+        "left": 93,
+        "right": 127.8125,
+        "top": 438.921875,
+        "bottom": 452.921875,
+        "width": 34.8125,
+        "height": 14
+      },
+      {
+        "left": 209.57142639160156,
+        "right": 284.7901611328125,
+        "top": 438.921875,
+        "bottom": 452.921875,
+        "width": 75.21873474121094,
+        "height": 14
+      }
+    ],
+    "forecast": {
+      "left": 89,
+      "right": 293,
+      "top": 485.921875,
+      "bottom": 524.921875,
+      "width": 204,
+      "height": 39
+    }
+  },
+  "financial": {
+    "beforeCents": 70000,
+    "skippedCents": 100000,
+    "restoredCents": 70000,
+    "lowDay": "2026-09-27",
+    "ruleUnchanged": true,
+    "bookingCount": 0,
+    "skipGroupId": "9ebe4053-d68c-4ad7-af4f-cb851a37b3dc"
+  },
+  "writes": [
+    {
+      "path": "/api/expected/84756e8c-f3e5-4935-9efa-d3bf8a591603/skip",
+      "body": {
+        "dueDate": "2026-09-27"
+      }
+    },
+    {
+      "path": "/api/undo",
+      "body": {
+        "groupId": "9ebe4053-d68c-4ad7-af4f-cb851a37b3dc"
+      }
+    },
+    {
+      "path": "/api/expected/84756e8c-f3e5-4935-9efa-d3bf8a591603/skip",
+      "body": {
+        "dueDate": "2026-09-27"
+      }
+    },
+    {
+      "path": "/api/expected/occurrences/f5295ec8-ffd3-4fc2-ae2b-dd7079feecd2/unskip",
+      "body": {}
+    }
+  ]
+}

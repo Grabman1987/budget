@@ -2715,26 +2715,94 @@
   cursor: pointer;
   font-weight: 620;
 }
-.plan .activity-terms {
-  padding: 0;
-  list-style: none;
+/* One native table; compact phone columns keep all metadata available in the booking cell. */
+.plan .activity-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--fs-table);
+  font-variant-numeric: tabular-nums;
 }
-.plan .activity-term {
-  border-top: 1px solid var(--card-border);
-  padding-block: 8px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
+.plan .activity-table th,
+.plan .activity-table td {
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
 }
-.plan .activity-term .btn {
+.plan .activity-table th {
+  font-weight: 620;
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--rule-strong);
+}
+.plan .activity-table td {
+  border-bottom: 1px solid var(--card-border);
+  vertical-align: middle;
+}
+.plan .activity-table .activity-date {
+  width: 7rem;
+}
+.plan .activity-table .activity-account,
+.plan .activity-table .activity-status {
+  width: 15%;
+}
+.plan .activity-table .activity-amount {
+  width: 9rem;
+  text-align: right;
+}
+.plan .activity-table .activity-source-button {
+  display: flex;
+  min-width: 44px;
   min-height: 44px;
   height: auto;
+  max-width: 100%;
+  padding: 0;
+  justify-content: flex-start;
   white-space: normal;
-  justify-self: start;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
 }
-.plan .activity-term p {
-  margin: 0;
+.plan .activity-note {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.plan .activity-note,
+.plan .activity-detail,
+.plan .activity-mobile-meta {
+  font-size: var(--fs-meta);
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+.plan .activity-detail {
+  display: block;
+}
+.plan .activity-mobile-meta {
+  display: none;
+}
+@media (max-width: 599px) {
+  .plan .activity-table th,
+  .plan .activity-table td {
+    padding-inline: 4px;
+  }
+  .plan .activity-table .activity-amount {
+    width: 7.25rem;
+  }
+  .plan .activity-table .activity-date,
+  .plan .activity-table .activity-account,
+  .plan .activity-table .activity-status {
+    display: none;
+  }
+  .plan .activity-mobile-meta,
+  .plan .activity-mobile-account {
+    display: block;
+  }
+  .plan .activity-mobile-date {
+    white-space: nowrap;
+  }
 }
 
 @media (max-width: 767px), (pointer: coarse) {
@@ -2748,15 +2816,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-}
-
-.plan .activity-term > div {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.plan .activity-term .btn {
-  max-width: 100%;
-  text-align: left;
 }
 
 /* Shareable category filters (#589); the existing budget figures and actions stay authoritative. */

@@ -1,5 +1,39 @@
 # Budget — Specification
 
+Owner savings-goal decision (2026-10-21, #604): category-goal funding uses the
+existing Plan target including the current month. “Rate zuweisen” adds only the
+remaining current-month need through the existing guarded, audited assignment
+path; it does not add a second full rate. Preserve the separate future-month
+forecast where still used. New goals have a selectable start month; existing
+goals retain their previous start until explicitly edited. A goal completes after
+proven reaching followed by its first actual expense, or by explicit manual
+completion. Assignment changes do not qualify as expenses. Undo must restore the
+derived or stored state; goals and bookings are never deleted by completion.
+Unproven historical ordering must remain explicit rather than inventing an
+automatic completion. These decisions supplement the existing goal requirements.
+
+Owner delivery continuation (2026-10-25): separate verified integration on main from production release. The orchestrator may batch independently reviewed, required-CI-green PRs using the merge helper's hold-release mode. Production stays at a verified ancestor until an explicit exact-main-SHA release; no live/completed claim before health verification. A separate authenticated Fly preview uses only synthetic fixtures, its own database volume and app-scoped credentials, with production integrations disabled. This supersedes automatic deployment of every main merge and the requirement that every merged PR immediately become live. Financial, security, migration and privacy invariants remain unchanged. See docs/queue/README.md and docs/development-fast-path.md.
+
+Owner funding-plan addition (2026-10-25): an editable private instrument-level scenario connects current market values, one-off cash, free settlement cash and a monthly contribution to recurring rates and deficit-based purchase budgets. The requested six-sleeve template splits the previous gold sleeve equally between gold and direct Bitcoin. Exact products and tax research remain private owner data. Persist only the planning snapshot through audited settings with conflict/undo guards; preparing a schedule reuses the explicit existing EUR savings form. No ledger, existing schedule or global class-target policy changes on plan save. This is a separately labelled scenario, not a change to the central allocation resolver or its month-end stage buffer. See [funding plan contract](docs/portfolio-funding-plan.md).
+
+Owner document-automation directive (2026-10-21, #741): a new explicit manual PDF
+upload may automatically save fully validated, unambiguous payroll or issued-card
+statement results and link their retained originals to the matching bookings.
+Parsing and reconciliation are deterministic scripts, without AI. A configured
+source account and counterpart, source-derived dates and integer-cent amounts,
+complete reconciliation and unique matching are required; unresolved portions
+remain in Prüfen. This supersedes the older payroll statements that upload alone
+never books money for this explicit automatic path only; legacy callers and
+scheduled source scans retain their existing manual-review behavior. Automatic
+decisions preserve source provenance, atomic audit and grouped Undo, and retries
+or a repeated upload never silently recreate undone money. Card settlement uses
+the previously issued statement amount, never the current account deficit.
+Existing gross fuel purchases stay unchanged; an independently evidenced rebate
+is a separate credit. A new purchase already recorded at its discounted net
+charge must not receive a second rebate. Missing or ambiguous evidence never
+becomes an invented date, guessed category, balance correction or bank-confirmed
+status. See the bounded implementation and acceptance scope in #741.
+
 Owner reference-adoption decision (2026-10-15): Portfolio Performance is the default return convention, superseding the research proposal to retain Budget's end-flow convention and conflicting prototype examples. Daily TTWROR chains `(closing value + withdrawals) / (previous close + deposits) - 1`, with gross deposits at day start and gross withdrawals at day end. The first holding-establishing trade needs the preceding closing valuation so its fees count. Held-security returns include fees and exclude taxes; a portfolio including cash uses actual external boundary flows, with retained trades/dividends internal and costs reflected in valuation. XIRR uses actual/365 and PP's security tax conversion convention. Modified Dietz remains a separately labelled after-tax approximation until the 2026-10-16 page review's removal from user-facing figures is implemented (#487, #525). Contribution/gain facts remain after tax; no stored financial data is rewritten. Missing capital/valuation stays visibly unavailable instead of adopting PP's warning-plus-zero presentation. Cost-basis preference, risk estimators and quote quality remain separate contracts. The owner also approved database-backed cross-device Explorer views and preparing a limited explicit-FX / same-security-known-basis transfer scope. See [adoption decisions](docs/product/reference-adoption.md).
 
 Owner allocation addition (2026-10-15; delivered in #507): users select the accounts/depots counted for both wealth thresholds and cash share, map existing instruments to asset classes, and enter editable lower-bound stages ("ab Vermögen"). Preserve the existing explicit universe, signed cash, dated target versions and inclusive upper-bound storage: translate each next lower bound to one cent below it without moving legacy boundaries. The requested generic seven-stage example is an explicitly mapped template, never a production seed or trading instruction. Account-scope/cash-class edits and targets must save atomically with conflict detection and grouped undo. Owner decision 2026-10-16: every stage activates by its threshold (conditions are hints) and a reached stage holds until the month-end sum falls below 90 % of its lower bound; see [contract](docs/allocation-wealth-stages.md).
@@ -207,7 +241,7 @@ Build pages to match `design/prototype/` and `design/screens/`. When in doubt, o
 
 | Layer | Choice |
 | --- | --- |
-| Language | TypeScript (strict), Node 22 LTS (cloud default; concept said 24, 22 is fine); `engines`: `^22.14.0 \|\| ^24.0.0` |
+| Language | TypeScript (strict), Node 22 LTS (cloud default; concept said 24, 22 is fine); `engines`: `^22.22.2 \|\| ^24.15.0` |
 | Repo | npm workspaces monorepo (layout below) |
 | Frontend | React, Vite, TanStack Router + Query, Tailwind (theme only) with tokens generated from DESIGN.md, own accessible primitives in `packages/ui` on native elements (`<dialog>` panels); Radix is not used |
 | Charts | **Own SVG components** on d3-scale/d3-shape, ported from the prototype (the blueprint grammar is custom). Apache ECharts only if the P1 spike shows a clear need (proposed change to O1, confirm in P1a). |

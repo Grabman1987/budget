@@ -11,6 +11,7 @@ import {
 } from './audit';
 import { AuditError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
+import { assertStatementAutomationReceiptWrite } from './statement-automation-invariants';
 
 export function getReceipt(db: Executor, id: string) {
   const row = db
@@ -110,6 +111,7 @@ export function unlinkReceipt(
   return runInTransaction(db, (tx) => {
     getReceipt(tx, receiptId);
     liveBooking(tx, bookingId);
+    assertStatementAutomationReceiptWrite(tx, receiptId, bookingId);
     updateTracked(
       tx,
       bookingReceipt,
@@ -127,6 +129,7 @@ export function removeReceipt(db: Executor, id: string, ctx: AuditContext) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     getReceipt(tx, id);
+    assertStatementAutomationReceiptWrite(tx, id);
     if (!listReceipts(tx).some((r) => r.id === id))
       throw new AuditError('Unlink the receipt before removing it');
     // Historical links on deleted bookings must not become live through a later booking undo.

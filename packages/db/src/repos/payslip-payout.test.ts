@@ -383,3 +383,255 @@ it.each([-1, 0, 1])(
     expect(getPayslipIntake(opened.db, id).status).toBe('pending');
   },
 );
+import { PAYSLIP_PARSER_VERSION } from '@budget/domain';
+import { importMapping, importRun, auditLog, appSetting } from '../schema';
+import { importBooking, updateBooking } from './bookings';
+import { setPayslipSourceConfig } from './payslip-intake';
+import { previewPayslipPayoutSplit } from './payslip-payout-split';
+
+// Use actual ledger writers; each produces its complete original audit snapshots.
+function provenOriginal(origin: 'import' | 'manual' = 'import') {
+  setPayslipSourceConfig(
+    opened.db,
+    {
+      salaryAccountId: 'giro',
+      automation: { payeeId: 'p1' },
+      wageTypes: {},
+    },
+    testCtx,
+  );
+  if (origin === 'import') {
+    opened.db
+      .insert(importRun)
+      .values({
+        id: 'synthetic-609',
+        source: 'csv',
+        status: 'committed',
+        mappingVersion: 1,
+        committedAt: '2026-09-30T12:00:00Z',
+      })
+      .run();
+    opened.db
+      .insert(importMapping)
+      .values({
+        id: 'synthetic-609-map',
+        importRunId: 'synthetic-609',
+        version: 1,
+        mappingJson: '{}',
+      })
+      .run();
+  }
+  const input = {
+    accountId: 'giro',
+    date: '2026-09-30',
+    amountCents: 297500,
+    payeeId: 'p1',
+    splits: [{ categoryId: null, amountCents: 297500, incomeTypeId: 'income-salary' }],
+  };
+  const payout =
+    origin === 'import'
+      ? importBooking(
+          opened.db,
+          {
+            ...input,
+            source: 'import',
+            importRunId: 'synthetic-609',
+            importKey: 'synthetic-row-1',
+          },
+          { ...testCtx, groupId: 'import:synthetic-609' },
+        ).id
+      : createBooking(
+          opened.db,
+          { ...input, status: 'pending' },
+          { ...testCtx, groupId: 'manual:synthetic-609' },
+        );
+  const id = stage({ ...parsed, parserVersion: PAYSLIP_PARSER_VERSION });
+  const context = { accountId: 'giro', payoutDate: '2026-09-30', expectedOccurrenceId: null };
+  const preview = () =>
+    previewPayslipPayoutSplit(opened.db, getPayslipIntake(opened.db, id), payout, context);
+  const confirm = (splitToken?: string) =>
+    decidePayslipIntake(
+      opened.db,
+      id,
+      {
+        action: 'confirm',
+        bookingId: payout,
+        ...context,
+        splitToken,
+      },
+      testCtx,
+    );
+  return { id, payout, preview, confirm };
+}
+const payoutRows = (id: string) => ({
+  booking: opened.db.select().from(booking).where(eq(booking.id, id)).get(),
+  splits: opened.db.select().from(bookingSplit).where(eq(bookingSplit.bookingId, id)).all(),
+});
+
+it('explicitly splits one proven original import into literal salary/refund cents and Undo restores every original column', () => {
+  const fixture = provenOriginal();
+  const before = payoutRows(fixture.payout);
+  expect(fixture.preview()).toMatchObject({
+    status: 'eligible',
+    salaryCents: 287500,
+    reimbursementsCents: 10000,
+  });
+  const saved = fixture.confirm(fixture.preview().token!);
+  expect(liveBookings()).toHaveLength(1);
+  expect(payoutRows(fixture.payout).booking).toEqual(before.booking);
+  expect(payoutRows(fixture.payout).splits).toMatchObject([
+    { amountCents: 287500, incomeTypeId: 'income-salary' },
+    { amountCents: 10000, incomeTypeId: 'income-refund' },
+  ]);
+  expect(listReceipts(opened.db, fixture.payout)).toHaveLength(1);
+  undo(opened.db, { groupId: saved.groupId }, testCtx);
+  expect(payoutRows(fixture.payout)).toEqual(before);
+  expect(listPayslips(opened.db)).toHaveLength(0);
+  expect(listReceipts(opened.db, fixture.payout)).toHaveLength(0);
+  expect(getPayslipIntake(opened.db, fixture.id).status).toBe('pending');
+  // Equal restored values do not erase the audit history of the consumed split.
+  expect(fixture.preview().status).toBe('unavailable');
+});
+
+it('rejects a stale configuration token, including an ABA change, without partial financial or audit writes', () => {
+  const fixture = provenOriginal();
+  const token = fixture.preview().token!;
+  const config = getPayslipSourceConfig(opened.db);
+  const changed = setPayslipSourceConfig(
+    opened.db,
+    { ...config, wageTypes: { '999': 'earning' } },
+    testCtx,
+  );
+  undo(opened.db, { groupId: changed.groupId }, testCtx);
+  expect(
+    JSON.parse(
+      opened.db.select().from(appSetting).where(eq(appSetting.id, 'payslip.source')).get()!.value,
+    ),
+  ).toEqual(config);
+  expect(fixture.preview().token).not.toBe(token);
+  const before = payoutRows(fixture.payout);
+  const audits = opened.db.select().from(auditLog).all();
+  expect(() => fixture.confirm(token)).toThrow(/geändert/);
+  expect(payoutRows(fixture.payout)).toEqual(before);
+  expect(opened.db.select().from(auditLog).all()).toEqual(audits);
+  expect(listPayslips(opened.db)).toHaveLength(0);
+  expect(getPayslipIntake(opened.db, fixture.id).status).toBe('pending');
+});
+
+it('rolls back an accepted split if a later payslip write fails', () => {
+  const fixture = provenOriginal();
+  const token = fixture.preview().token!;
+  const before = payoutRows(fixture.payout);
+  const audits = opened.db.select().from(auditLog).all();
+  opened.sqlite.exec(
+    "CREATE TRIGGER synthetic_609_failure BEFORE INSERT ON payslip BEGIN SELECT RAISE(ABORT, 'synthetic later failure'); END",
+  );
+  expect(() => fixture.confirm(token)).toThrow(/synthetic later failure/);
+  expect(payoutRows(fixture.payout)).toEqual(before);
+  expect(opened.db.select().from(auditLog).all()).toEqual(audits);
+  expect(listReceipts(opened.db, fixture.payout)).toHaveLength(0);
+  expect(getPayslipIntake(opened.db, fixture.id).status).toBe('pending');
+});
+
+it('keeps corrected imports link-only and links a reconciled payout without changing its splits', () => {
+  const fixture = provenOriginal();
+  updateBooking(
+    opened.db,
+    fixture.payout,
+    { memo: 'Synthetic correction' },
+    { ...testCtx, groupId: 'synthetic-correction' },
+  );
+  undo(opened.db, { groupId: 'synthetic-correction' }, testCtx);
+  expect(fixture.preview().status).toBe('unavailable');
+  opened.db
+    .update(booking)
+    .set({ status: 'reconciled' })
+    .where(eq(booking.id, fixture.payout))
+    .run();
+  const before = payoutRows(fixture.payout);
+  expect(fixture.preview().status).toBe('locked');
+  const saved = fixture.confirm();
+  expect(payoutRows(fixture.payout)).toEqual(before);
+  expect(listPayslips(opened.db)[0]?.bookingId).toBe(fixture.payout);
+  undo(opened.db, { groupId: saved.groupId }, testCtx);
+  expect(payoutRows(fixture.payout)).toEqual(before);
+});
+
+it('excludes the literal reimbursement from earned income and the savings-rate denominator after splitting', () => {
+  const fixture = provenOriginal();
+  fixture.confirm(fixture.preview().token!);
+  createBooking(
+    opened.db,
+    {
+      accountId: 'giro',
+      date: '2026-09-30',
+      amountCents: -100000,
+      splits: [{ categoryId: 'essen', amountCents: -100000 }],
+    },
+    testCtx,
+  );
+  expect(monthResultRead(opened.db, '2026-09-30', '2026-09')).toMatchObject({
+    earnedCents: 287500,
+    consumptionCents: 100000,
+    savedCents: 187500,
+    savingsRateBp: 6522,
+  });
+});
+import { monthResultRead } from './month-reports';
+
+it('splits a proven untouched manual pending payout with exact metadata/Undo and the existing savings reader', () => {
+  const fixture = provenOriginal('manual');
+  const before = payoutRows(fixture.payout);
+  expect(before.booking).toMatchObject({ source: 'manual', status: 'pending' });
+  expect(fixture.preview()).toMatchObject({
+    status: 'eligible',
+    salaryCents: 287500,
+    reimbursementsCents: 10000,
+  });
+  const saved = fixture.confirm(fixture.preview().token!);
+  expect(liveBookings()).toHaveLength(1);
+  expect(payoutRows(fixture.payout).booking).toEqual(before.booking);
+  expect(payoutRows(fixture.payout).splits).toMatchObject([
+    { amountCents: 287500, incomeTypeId: 'income-salary' },
+    { amountCents: 10000, incomeTypeId: 'income-refund' },
+  ]);
+  expect(monthResultRead(opened.db, '2026-09-30', '2026-09')).toMatchObject({
+    earnedCents: 287500,
+    savedCents: 287500,
+    savingsRateBp: 10000,
+  });
+  undo(opened.db, { groupId: saved.groupId }, testCtx);
+  expect(payoutRows(fixture.payout)).toEqual(before);
+  expect(listPayslips(opened.db)).toHaveLength(0);
+  expect(listReceipts(opened.db, fixture.payout)).toHaveLength(0);
+  expect(getPayslipIntake(opened.db, fixture.id).status).toBe('pending');
+});
+
+it.each(['correction', 'correction-undo', 'creation-undo-redo'] as const)(
+  'refuses an original manual payout after %s without any decision/audit writes',
+  (change) => {
+    const fixture = provenOriginal('manual');
+    const token = fixture.preview().token!;
+    expect(token).toMatch(/^[a-f0-9]{64}$/);
+    if (change === 'creation-undo-redo') {
+      const undone = undo(opened.db, { groupId: 'manual:synthetic-609' }, testCtx);
+      undo(opened.db, { groupId: undone.groupId }, testCtx);
+    } else {
+      updateBooking(
+        opened.db,
+        fixture.payout,
+        { memo: 'Synthetic owner correction' },
+        { ...testCtx, groupId: 'manual-correction-609' },
+      );
+      if (change === 'correction-undo')
+        undo(opened.db, { groupId: 'manual-correction-609' }, testCtx);
+    }
+    const before = payoutRows(fixture.payout);
+    const audits = opened.db.select().from(auditLog).all();
+    expect(fixture.preview().status).toBe('unavailable');
+    expect(() => fixture.confirm(token)).toThrow(/geändert/);
+    expect(payoutRows(fixture.payout)).toEqual(before);
+    expect(opened.db.select().from(auditLog).all()).toEqual(audits);
+    expect(getPayslipIntake(opened.db, fixture.id).status).toBe('pending');
+  },
+);

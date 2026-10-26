@@ -26,7 +26,7 @@ test('Z4: account list, remembered collapse, active selection and light/dark acc
     expect(response.ok(), await response.text()).toBe(true);
   }
   await page.goto('/konten');
-  await expect(page.getByTestId('net-worth')).toBeVisible();
+  await expect(page.getByTestId('budget-accounts-balance')).toBeVisible();
   const sidebar = page.locator('.sidebar');
   if (!isMobile) {
     await expect(sidebar).toBeVisible();

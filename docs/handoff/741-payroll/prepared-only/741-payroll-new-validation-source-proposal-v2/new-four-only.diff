@@ -1,0 +1,649 @@
+--- /dev/null
++++ b/apps/server/src/api/payslip-automation-741.test.ts
+@@ -0,0 +1,146 @@
++import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++import { afterEach, beforeEach, expect, it, vi } from 'vitest';
++import { accounts, createEntity, createTestDatabase, getBooking, schema, type OpenedDatabase } from '@budget/db';
++import type { PayslipAutomationOutcome } from '@budget/domain';
++import { createApp } from '../app';
++import { createAuth } from '../auth/routes';
++import { AuthStore } from '../auth/store';
++import { sha256Hex } from '../auth/crypto';
++import { syntheticPayslipPdf, syntheticWageRows } from '../payslips/testing';
++import * as receiptFiles from '../receipts/files';
++
++const ACCOUNT = '74100000-0000-4000-8000-000000000601';
++const EMPLOYER = '74100000-0000-4000-8000-000000000602';
++const origin = 'http://localhost:3000', token = 'synthetic-payroll-automation-session';
++const headers = { origin, cookie: `budget_session=${token}` };
++let opened: OpenedDatabase, dir: string, app: ReturnType<typeof createApp>;
++type Upload = { id: string; duplicate: boolean; automation?: PayslipAutomationOutcome };
++beforeEach(() => {
++  vi.stubEnv('DROPBOX_PAYSLIP_ROOT', '');
++  vi.stubEnv('DROPBOX_PAYSLIP_WRITE', '0');
++  vi.stubEnv('PAYSLIP_PDF_PASSWORD', '');
++  opened = createTestDatabase();
++  const ctx = { actor: 'synthetic-payroll-api-fixture' };
++  accounts.create(opened.db, { id: ACCOUNT, name: 'Synthetic payroll account', type: 'checking',
++    role: 'budget', onBudget: true, openingDate: '2025-01-01', openingBalanceCents: 50000 }, ctx);
++  createEntity(opened.db, schema.payee, { id: EMPLOYER, name: 'Synthetic payroll sender' }, ctx);
++  dir = mkdtempSync(join(tmpdir(), 'synthetic-payroll-api-741-'));
++  const now = new Date('2026-10-03T12:00:00Z'), store = new AuthStore(opened.db);
++  store.createSession({ id: sha256Hex(token), passkeyId: null, now,
++    expiresAt: new Date('2026-11-01T12:00:00Z'), stepUp: false, viaRecovery: true });
++  const auth = createAuth({ store, clock: () => now, config: {
++    rpID: 'localhost', rpName: 'Budget', origin, cookieSecure: false, setupToken: undefined,
++    trustProxy: false, sessionDays: 30, sessionMaxDays: 90, stepUpMinutes: 5,
++    pepper: Buffer.from('synthetic-payroll-pepper-0123456789abcdef'),
++  } });
++  app = createApp({ webDir: join(dir, 'web'), auth,
++    ledger: { db: opened.db, receiptsDir: join(dir, 'receipts'), today: () => '2026-10-03' } });
++});
++afterEach(() => {
++  vi.restoreAllMocks(); vi.unstubAllEnvs();
++  opened.close(); rmSync(dir, { recursive: true, force: true });
++});
++const json = (method: string, path: string, body?: unknown) => app.request(path, {
++  method, headers: { ...headers, 'content-type': 'application/json' },
++  ...(body === undefined ? {} : { body: JSON.stringify(body) }),
++});
++async function configure() {
++  const response = await json('PUT', '/api/payslip-intake/config', {
++    salaryAccountId: ACCOUNT, automation: { payeeId: EMPLOYER }, wageTypes: {},
++  });
++  expect(response.status).toBe(200);
++}
++async function upload(bytes: Buffer, automatic = true, requestHeaders = headers) {
++  const form = new FormData();
++  form.set('file', new File([new Uint8Array(bytes)], 'synthetic-payroll-741.pdf', { type: 'application/pdf' }));
++  if (automatic) form.set('automation', 'eligible');
++  return app.request('/api/payslip-intake/upload', { method: 'POST', headers: requestHeaders, body: form });
++}
++const snapshot = () => JSON.stringify((opened.sqlite.prepare(
++  "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'auth_%' ORDER BY name",
++).all() as { name: string }[]).map(({ name }) => [name,
++  opened.sqlite.prepare(`SELECT * FROM "${name}" ORDER BY rowid`).all()]));
++
++it('uses the actual authenticated PDF worker, persists the exact payout link across GET, and never rebooks after Undo', async () => {
++  await configure();
++  const pdf = await syntheticPayslipPdf(syntheticWageRows, ''), response = await upload(pdf);
++  expect(response.status).toBe(201);
++  const body = await response.json() as Upload;
++  expect(body.automation).toMatchObject({ status: 'booked', reason: 'unambiguous_source' });
++  const booking = getBooking(opened.db, body.automation!.bookingId!)!;
++  expect(booking).toMatchObject({ accountId: ACCOUNT, amountCents: 297500, date: '2026-09-30', status: 'pending', payeeId: EMPLOYER });
++  expect(booking.splits).toMatchObject([{ amountCents: 287500, incomeTypeId: 'income-salary' },
++    { amountCents: 10000, incomeTypeId: 'income-refund' }]);
++  const read = async () => {
++    const reply = await json('GET', `/api/payslip-intake/${body.id}`);
++    expect(reply.status).toBe(200);
++    return reply.json() as Promise<{ status: string; receiptId: string;
++      payout: { payslipId: string; bookingId: string; accountId: string } | null }>;
++  };
++  const current = await read();
++  expect(current).toMatchObject({ status: 'confirmed', payout: {
++    payslipId: body.automation!.payslipId, bookingId: booking.id, accountId: ACCOUNT,
++  } });
++  expect((await read()).payout).toEqual(current.payout);
++  expect(readFileSync(join(dir, 'receipts', receiptFiles.digest(pdf))).equals(pdf)).toBe(true);
++  const source = await app.request(`/api/receipts/${current.receiptId}/download`, { headers });
++  expect(source.status).toBe(200);
++  expect(Buffer.from(await source.arrayBuffer()).equals(pdf)).toBe(true);
++  const beforeReplay = snapshot(), replay = await upload(pdf);
++  expect(await replay.json()).toMatchObject({ duplicate: true, automation: { status: 'unchanged', groupId: null } });
++  expect(snapshot()).toBe(beforeReplay);
++  const reversed = await json('POST', '/api/undo', { groupId: body.automation!.groupId });
++  expect(reversed.status).toBe(200);
++  expect(await read()).toMatchObject({ status: 'pending', payout: null });
++  const afterUndo = snapshot(), retry = await upload(pdf);
++  expect(await retry.json()).toMatchObject({ duplicate: true, automation: { status: 'unchanged', groupId: null } });
++  expect(snapshot()).toBe(afterUndo);
++  expect(opened.sqlite.prepare('SELECT id FROM booking WHERE deleted_at IS NULL').all()).toEqual([]);
++});
++
++it('keeps no-intent uploads manual and missing date evidence unresolved without creating money', async () => {
++  await configure();
++  const pdf = await syntheticPayslipPdf(syntheticWageRows, ''), legacy = await upload(pdf, false);
++  expect(legacy.status).toBe(201);
++  const body = await legacy.json() as Upload;
++  expect(body.automation).toBeUndefined();
++  expect(opened.sqlite.prepare('SELECT id FROM booking').all()).toEqual([]);
++  const noDate = await syntheticPayslipPdf(syntheticWageRows.filter((row) => !row.startsWith('Auszahlungsdatum:')), '');
++  const unresolved = await upload(noDate), result = await unresolved.json() as Upload;
++  expect(unresolved.status).toBe(201);
++  expect(result.automation).toMatchObject({ status: 'pruefen', reason: 'payout_date_missing', groupId: null });
++  expect(opened.sqlite.prepare('SELECT id FROM booking').all()).toEqual([]);
++  expect(await (await json('GET', `/api/payslip-intake/${result.id}`)).json()).toMatchObject({ payout: null });
++});
++
++it('rejects unauthenticated upload and untrusted financial plans before a source can be saved', async () => {
++  const pdf = await syntheticPayslipPdf(syntheticWageRows, ''), before = snapshot();
++  expect((await upload(pdf, true, { origin, cookie: '' })).status).toBe(401);
++  const form = new FormData();
++  form.set('file', new File([new Uint8Array(pdf)], 'synthetic-payroll.pdf', { type: 'application/pdf' }));
++  form.set('automation', 'eligible'); form.set('bookingId', 'untrusted-financial-plan');
++  expect((await app.request('/api/payslip-intake/upload', { method: 'POST', headers, body: form })).status).toBe(400);
++  expect(snapshot()).toBe(before);
++});
++
++it('rechecks the pre-worker config revision after actual PDF and retained-file verification', async () => {
++  await configure();
++  const verify = receiptFiles.verifyReceiptFile;
++  let changed = false, afterChange = '';
++  vi.spyOn(receiptFiles, 'verifyReceiptFile').mockImplementation(async (...args) => {
++    const path = await verify(...args);
++    if (!changed) {
++      changed = true;
++      expect((await json('PUT', '/api/payslip-intake/config', { salaryAccountId: ACCOUNT, wageTypes: {} })).status).toBe(200);
++      afterChange = snapshot();
++    }
++    return path;
++  });
++  const pdf = await syntheticPayslipPdf(syntheticWageRows, ''), response = await upload(pdf);
++  expect(changed).toBe(true);
++  expect(response.status).toBe(201);
++  expect(await response.json()).toMatchObject({ automation: { status: 'pruefen', reason: 'source_changed', groupId: null } });
++  expect(snapshot()).toBe(afterChange);
++});
+--- /dev/null
++++ b/apps/web/src/reports/payslip-automation-741.test.tsx
+@@ -0,0 +1,116 @@
++// @vitest-environment jsdom
++import { useState, type ReactNode } from 'react';
++import { cleanup, render, screen, waitFor } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
++import { setAmountsHidden, ToastProvider } from '@budget/ui';
++import { afterEach, beforeEach, expect, it, vi } from 'vitest';
++import { PAYSLIP_PARSER_VERSION, type ParsedPayrollDocument } from '@budget/domain';
++import { PayslipIntakeDetail, PayslipSourceSection, PayslipUpload } from './payslip-intake';
++
++const ID = '74100000-0000-4000-8000-000000000701';
++const ACCOUNT = '74100000-0000-4000-8000-000000000702';
++const EMPLOYER = '74100000-0000-4000-8000-000000000703';
++const PAYOUT = '74100000-0000-4000-8000-000000000704';
++const FINANCIAL_GROUP = '74100000-0000-4000-8000-000000000705';
++const parsed: ParsedPayrollDocument = { documentType: 'payslip', periodSource: 'content',
++  parserVersion: PAYSLIP_PARSER_VERSION, payoutDate: '2031-01-31', differenceCents: 0, warnings: [],
++  draft: { month: '2031-01', kind: 'regular', specialType: null, grossCents: 400000,
++    svCents: 68000, taxCents: 44000, netCents: 297500, bookingId: null, receiptId: null,
++    lines: [{ section: 'deduction', label: 'Synthetic deduction', amountCents: 500 },
++      { section: 'reimbursement', label: 'Synthetic reimbursement', amountCents: 10000 }] } };
++const account = { id: ACCOUNT, name: 'Muster Gehaltskonto', type: 'checking', onBudget: true, sortOrder: 0, closedAt: null };
++const clients: QueryClient[] = [];
++type Call = { method: string; path: string; body: unknown };
++function transport(initial: 'confirmed' | 'pending' | 'rejected' | 'legacy' = 'confirmed') {
++  const calls: Call[] = [];
++  let state = initial;
++  vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
++    const path = new URL(String(input), 'http://localhost').pathname, method = init?.method ?? 'GET';
++    const body: unknown = init?.body instanceof FormData ? init.body : init?.body ? JSON.parse(String(init.body)) : undefined;
++    calls.push({ method, path, body });
++    const json = (value: unknown) => Response.json(value);
++    if (path === '/api/payslip-intake/upload') {
++      state = 'confirmed';
++      return json({ id: ID, duplicate: false, sourceGroupId: 'synthetic-source-only-group', groupId: FINANCIAL_GROUP,
++        automation: { status: 'booked', reason: 'unambiguous_source', groupId: FINANCIAL_GROUP,
++          payslipId: 'synthetic-payslip', bookingId: PAYOUT } });
++    }
++    if (path === '/api/undo') { state = 'pending'; return json({ groupId: 'synthetic-undone-group' }); }
++    if (path === `/api/payslip-intake/${ID}`) return json({ id: ID, receiptId: 'synthetic-receipt',
++      status: state === 'legacy' ? 'confirmed' : state, parsed, payoutAccountId: ACCOUNT,
++      proposedPayoutDate: '2031-01-31', accounts: [account], matches: [], payees: [],
++      proposedPayeeId: null, selectedExpectedOccurrenceId: null, expectedPayouts: [],
++      ...(state === 'legacy' ? {} : { payout: state === 'confirmed'
++        ? { payslipId: 'synthetic-payslip', bookingId: PAYOUT, accountId: ACCOUNT } : null }) });
++    if (path === '/api/payslip-intake/status') return json({ accounts: [account],
++      payees: [{ id: EMPLOYER, name: 'Muster Arbeitgeber' }], config: { salaryAccountId: null, wageTypes: {} },
++      passwordSet: false, passwordSource: null, passwordRememberAvailable: false,
++      dropboxConnected: false, dropboxConfigured: false, dropboxWrite: false, lastScanAt: null,
++      filesFound: 0, errors: 0, errorCode: null });
++    if (path === '/api/payslip-intake/config' && method === 'PUT') return json({ groupId: 'synthetic-config-group' });
++    return new Response(JSON.stringify({ error: 'unexpected' }), { status: 500 });
++  });
++  return calls;
++}
++function mount(child: ReactNode) {
++  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
++  clients.push(client);
++  render(<QueryClientProvider client={client}><ToastProvider>{child}</ToastProvider></QueryClientProvider>);
++}
++function UploadAndResult() {
++  const [id, setId] = useState<string>();
++  return <><PayslipUpload onUploaded={(result) => setId(result.id)} />
++    {id && <PayslipIntakeDetail id={id} inline />}</>;
++}
++beforeEach(() => {
++  vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
++  vi.stubGlobal('CSS', { escape: (value: string) => value });
++});
++afterEach(() => {
++  cleanup(); clients.splice(0).forEach((client) => client.clear()); setAmountsHidden(false);
++  vi.restoreAllMocks(); vi.unstubAllGlobals();
++});
++
++it('sends eligible intent and targets the committed financial group rather than source staging when Undo is clicked', async () => {
++  const calls = transport(); mount(<UploadAndResult />);
++  await userEvent.upload(screen.getByLabelText('Gehaltszettel-PDF auswählen'),
++    new File(['%PDF- transport-only fixture'], 'synthetic-payroll.pdf', { type: 'application/pdf' }));
++  const link = await screen.findByRole('link', { name: 'Gespeicherte Auszahlung öffnen' });
++  expect(link.getAttribute('href')).toBe(`/konten/buchungen?konto=${ACCOUNT}&buchung=${PAYOUT}`);
++  const upload = calls.find((call) => call.path === '/api/payslip-intake/upload')!;
++  const body = upload.body as FormData;
++  expect([...body.keys()].sort()).toEqual(['automation', 'file']);
++  expect(body.get('automation')).toBe('eligible');
++  await userEvent.click(screen.getByRole('button', { name: 'Rückgängig' }));
++  await waitFor(() => expect(screen.queryByRole('link', { name: 'Gespeicherte Auszahlung öffnen' })).toBeNull());
++  expect(calls.filter((call) => call.path === '/api/undo').map((call) => call.body)).toEqual([{ groupId: FINANCIAL_GROUP }]);
++  expect(calls.filter((call) => call.method === 'POST')).toHaveLength(2);
++});
++
++it('loads the actual association again after a new component mount instead of relying on upload state', async () => {
++  const calls = transport(); mount(<PayslipIntakeDetail id={ID} inline />);
++  await screen.findByRole('link', { name: 'Gespeicherte Auszahlung öffnen' });
++  cleanup(); clients.splice(0).forEach((client) => client.clear());
++  mount(<PayslipIntakeDetail id={ID} inline />);
++  expect((await screen.findByRole('link', { name: 'Gespeicherte Auszahlung öffnen' })).getAttribute('href'))
++    .toBe(`/konten/buchungen?konto=${ACCOUNT}&buchung=${PAYOUT}`);
++  expect(calls.filter((call) => call.method === 'GET' && call.path === `/api/payslip-intake/${ID}`)).toHaveLength(2);
++});
++
++it.each(['pending', 'rejected', 'legacy'] as const)('does not infer a payout result from %s source data', async (state) => {
++  const calls = transport(state); mount(<PayslipIntakeDetail id={ID} inline />);
++  await screen.findByRole('link', { name: 'Original-PDF herunterladen' });
++  expect(screen.queryByRole('link', { name: 'Gespeicherte Auszahlung öffnen' })).toBeNull();
++  expect(calls.filter((call) => call.method !== 'GET')).toEqual([]);
++});
++
++it('saves the explicitly selected real sender and account through the existing source configuration', async () => {
++  const calls = transport(); mount(<PayslipSourceSection />);
++  await userEvent.selectOptions(await screen.findByLabelText('Gehaltskonto'), ACCOUNT);
++  await userEvent.selectOptions(screen.getByLabelText('Arbeitgeber / Absender für automatische Gehaltszettel'), EMPLOYER);
++  await userEvent.click(screen.getByRole('button', { name: 'Zuordnung speichern' }));
++  await waitFor(() => expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(1));
++  expect(calls.find((call) => call.method === 'PUT')!.body).toEqual({ salaryAccountId: ACCOUNT,
++    automation: { payeeId: EMPLOYER }, wageTypes: {} });
++});
+--- /dev/null
++++ b/e2e/issue-741-payroll-automation.spec.ts
+@@ -0,0 +1,211 @@
++import AxeBuilder from '@axe-core/playwright';
++import { randomUUID } from 'node:crypto';
++import { writeFile } from 'node:fs/promises';
++import { accounts, createBooking, createEntity, getBooking, history, openDatabase,
++  readPayslipPayoutAssociation, schema, setPayslipSourceConfig } from '@budget/db';
++import type { PayslipAutomationOutcome } from '@budget/domain';
++import { expect, type Locator, type Page } from '@playwright/test';
++import { syntheticPayslipPdf, syntheticWageRows } from '../apps/server/src/payslips/testing';
++import { test } from './isolated-ledger';
++
++test.use({ ledgerToday: '2026-10-03' });
++const ctx = { actor: 'synthetic-payroll-native-741' };
++type Uploaded = { id: string; duplicate: boolean; automation: PayslipAutomationOutcome };
++async function theme(page: Page, desired: 'light' | 'dark') {
++  const resolved = () => page.evaluate(() => {
++    const explicit = document.documentElement.dataset['theme'];
++    return explicit === 'light' || explicit === 'dark' ? explicit
++      : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
++  });
++  if (await resolved() !== desired) {
++    if (page.viewportSize()!.width === 390) {
++      const menu = page.locator('.m-profile > summary');
++      await menu.click();
++      await page.locator('.m-profile').getByRole('button', {
++        name: desired === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm', exact: true,
++      }).click();
++      await menu.click();
++    } else await page.locator('.sidebar-foot').getByRole('button', {
++      name: 'Hell/Dunkel umschalten', exact: true,
++    }).click();
++  }
++  await expect.poll(resolved).toBe(desired);
++}
++async function hit(control: Locator) {
++  await control.scrollIntoViewIfNeeded();
++  const box = await control.evaluate((element) => {
++    const r = element.getBoundingClientRect();
++    return { width: r.width, height: r.height, left: r.left, right: r.right, top: r.top,
++      bottom: r.bottom, viewportWidth: innerWidth, viewportHeight: innerHeight,
++      ownsCenter: element.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)) };
++  });
++  expect(box.width).toBeGreaterThanOrEqual(44);
++  expect(box.height).toBeGreaterThanOrEqual(44);
++  expect(box.left).toBeGreaterThanOrEqual(0);
++  expect(box.right).toBeLessThanOrEqual(box.viewportWidth);
++  expect(box.top).toBeGreaterThanOrEqual(0);
++  expect(box.bottom).toBeLessThanOrEqual(box.viewportHeight);
++  expect(box.ownsCenter).toBe(true);
++  return box;
++}
++async function choose(page: Page, pdf: Buffer): Promise<Uploaded> {
++  const opener = page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true });
++  await hit(opener);
++  await opener.click();
++  const dialog = page.getByRole('dialog', { name: 'Gehaltszettel hochladen', exact: true });
++  const responseReady = page.waitForResponse((response) =>
++    response.url().endsWith('/api/payslip-intake/upload') && response.request().method() === 'POST');
++  const chooserReady = page.waitForEvent('filechooser');
++  await dialog.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
++  const chooser = await chooserReady;
++  expect(chooser.isMultiple()).toBe(false);
++  await chooser.setFiles({ name: 'synthetic-payroll-741.pdf', mimeType: 'application/pdf', buffer: pdf });
++  const response = await responseReady;
++  expect(response.status()).toBe(201);
++  return response.json() as Promise<Uploaded>;
++}
++function seed(databasePath: string, linked = false) {
++  const opened = openDatabase(databasePath), accountId = randomUUID(), payeeId = randomUUID();
++  accounts.create(opened.db, { id: accountId, name: 'Muster Gehaltskonto', type: 'checking',
++    role: 'budget', onBudget: true, openingDate: '2025-01-01', openingBalanceCents: 50000 }, ctx);
++  createEntity(opened.db, schema.payee, { id: payeeId, name: 'Muster Arbeitgeber' }, ctx);
++  setPayslipSourceConfig(opened.db, { salaryAccountId: accountId, automation: { payeeId }, wageTypes: {} }, ctx);
++  const originalId = createBooking(opened.db, { accountId, payeeId, date: linked ? '2026-09-30' : '2026-08-31',
++    amountCents: linked ? 297500 : 12345, status: 'confirmed', memo: 'Synthetic preserved payout',
++    splits: linked ? [{ categoryId: null, amountCents: 287500, incomeTypeId: 'income-salary' },
++      { categoryId: null, amountCents: 10000, incomeTypeId: 'income-refund' }]
++      : [{ categoryId: null, amountCents: 12345, incomeTypeId: 'income-salary' }] }, ctx);
++  return { opened, accountId, originalId, original: getBooking(opened.db, originalId),
++    originalHistory: history(opened.db, 'booking', originalId) };
++}
++
++for (const profile of ['desktop', 'phone'] as const)
++  for (const selectedTheme of ['light', 'dark'] as const)
++    test(`741 actual payroll PDF, persisted payout and financial Undo in ${profile} ${selectedTheme}`, async ({
++      browser, isolatedLedger,
++    }, info) => {
++      const seeded = seed(isolatedLedger.databasePath);
++      const viewport = profile === 'desktop' ? { width: 1440, height: 900 }
++        : { width: 390, height: info.project.use.viewport?.width === 390 ? info.project.use.viewport.height : 844 };
++      let context: Awaited<ReturnType<typeof browser.newContext>> | undefined;
++      let failed = false;
++      try {
++        context = await browser.newContext({ baseURL: isolatedLedger.origin,
++          storageState: isolatedLedger.storageState, viewport, isMobile: profile === 'phone',
++          hasTouch: profile === 'phone', deviceScaleFactor: profile === 'phone' ? 3 : 1 });
++        const page = await context.newPage();
++        await page.clock.setFixedTime(new Date('2026-10-03T12:00:00+02:00'));
++        await page.goto('/reports/gehalt?monat=2026-09');
++        await theme(page, selectedTheme);
++        const balances = async () => {
++          const reply = await page.request.get('/api/accounts?asOf=2026-10-03');
++          expect(reply.status()).toBe(200);
++          const body = await reply.json() as { accounts: { id: string; balanceCents: number }[] };
++          return body.accounts.find((account) => account.id === seeded.accountId)!.balanceCents;
++        };
++        expect(await balances()).toBe(62345);
++        const pdf = await syntheticPayslipPdf(syntheticWageRows, ''), result = await choose(page, pdf);
++        expect(result.automation).toMatchObject({ status: 'booked', reason: 'unambiguous_source' });
++        const dialog = page.getByRole('dialog', { name: 'Gehaltszettel hochladen', exact: true });
++        const undo = dialog.getByRole('button', { name: 'Rückgängig', exact: true });
++        // Ordinary focus pauses the existing toast expiry; it does not change any timer.
++        await undo.focus();
++        const payout = getBooking(seeded.opened.db, result.automation.bookingId!)!;
++        expect(payout).toMatchObject({ amountCents: 297500, accountId: seeded.accountId,
++          date: '2026-09-30', status: 'pending' });
++        expect(payout.splits).toMatchObject([{ amountCents: 287500, incomeTypeId: 'income-salary' },
++          { amountCents: 10000, incomeTypeId: 'income-refund' }]);
++        expect(await balances()).toBe(359845);
++        const read = async () => {
++          const reply = await page.request.get(`/api/payslip-intake/${result.id}`);
++          expect(reply.status()).toBe(200);
++          return reply.json() as Promise<{ status: string; receiptId: string;
++            payout: { payslipId: string; bookingId: string; accountId: string } | null }>;
++        };
++        const saved = await read();
++        expect(saved.payout).toEqual({ payslipId: result.automation.payslipId,
++          bookingId: payout.id, accountId: seeded.accountId });
++        expect((await read()).payout).toEqual(saved.payout);
++        const source = await page.request.get(`/api/receipts/${saved.receiptId}/download`);
++        expect(source.status()).toBe(200);
++        expect((await source.body()).equals(pdf)).toBe(true);
++        const link = dialog.getByRole('link', { name: 'Gespeicherte Auszahlung öffnen', exact: true });
++        await expect(link).toHaveAttribute('href', `/konten/buchungen?konto=${seeded.accountId}&buchung=${payout.id}`);
++        // Keep the real Undo toast available. A screenshot is not an unobstructed-link claim;
++        // the separate route scenario dismisses that toast and actually clicks the link.
++        const linkSize = await link.evaluate((element) => {
++          const r = element.getBoundingClientRect();
++          return { width: r.width, height: r.height };
++        });
++        expect(linkSize.width).toBeGreaterThanOrEqual(44);
++        expect(linkSize.height).toBeGreaterThanOrEqual(44);
++        expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual([]);
++        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
++        const screenshot = info.outputPath(`payroll-result-${profile}-${selectedTheme}.png`);
++        await page.screenshot({ path: screenshot, fullPage: false, animations: 'disabled' });
++        await info.attach('payroll-result', { path: screenshot, contentType: 'image/png' });
++        await hit(undo);
++        await undo.click();
++        await expect.poll(balances).toBe(62345);
++        await expect(dialog.getByRole('link', { name: 'Gespeicherte Auszahlung öffnen', exact: true })).toHaveCount(0);
++        expect(await read()).toMatchObject({ status: 'pending', payout: null });
++        expect(readPayslipPayoutAssociation(seeded.opened.db, result.id)).toBeNull();
++        expect(getBooking(seeded.opened.db, seeded.originalId)).toEqual(seeded.original);
++        expect(history(seeded.opened.db, 'booking', seeded.originalId)).toEqual(seeded.originalHistory);
++        // Re-upload through the actual endpoint: same bytes must never redo undone money.
++        const repeated = await page.request.post('/api/payslip-intake/upload', { headers: { origin: isolatedLedger.origin },
++          multipart: { automation: 'eligible', file: { name: 'same-source.pdf', mimeType: 'application/pdf', buffer: pdf } } });
++        expect(repeated.status()).toBe(201);
++        expect(await repeated.json()).toMatchObject({ duplicate: true,
++          automation: { status: 'unchanged', reason: 'duplicate_source', groupId: null } });
++        expect(await balances()).toBe(62345);
++        expect(await read()).toMatchObject({ status: 'pending', payout: null });
++        const runtime = await page.evaluate(() => ({ viewport: { width: innerWidth, height: innerHeight },
++          dpr: devicePixelRatio, maxTouchPoints: navigator.maxTouchPoints,
++          coarse: matchMedia('(pointer: coarse)').matches,
++          themePreference: document.documentElement.dataset['theme'] ?? null,
++          resolvedTheme: document.documentElement.dataset['theme'] === 'dark' ||
++            (document.documentElement.dataset['theme'] !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light' }));
++        expect(runtime.viewport).toEqual(viewport);
++        expect(runtime.resolvedTheme).toBe(selectedTheme);
++        const path = info.outputPath('payroll-source-payout-proof.json');
++        await writeFile(path, JSON.stringify({ source: 'synthetic-only', engine: browser.browserType().name(),
++          project: info.project.name, profile, runtime, linkSize, sourceBytesPreserved: true,
++          salaryCents: 287500, reimbursementCents: 10000, payoutCents: 297500,
++          balances: [62345, 359845, 62345], groupedUndoReached: true, duplicateDidNotRepost: true,
++          clickedPayoutDestination: false, unobstructedPayoutLinkClaim: false, physicalTouchClaim: false, privacyToggleExercised: false }, null, 2));
++        await info.attach('payroll-source-payout-proof', { path, contentType: 'application/json' });
++      } catch (error) { failed = true; throw error; }
++      finally {
++        try { await context?.close(); } catch (error) { if (!failed) throw error; }
++        finally { seeded.opened.close(); }
++      }
++    });
++
++test('741 links an existing payout, opens its actual booking route and reloads it without changing existing money', async ({
++  page, isolatedLedger,
++}) => {
++  const seeded = seed(isolatedLedger.databasePath, true);
++  try {
++    await page.goto('/reports/gehalt?monat=2026-09');
++    const pdf = await syntheticPayslipPdf(syntheticWageRows, ''), result = await choose(page, pdf);
++    expect(result.automation).toMatchObject({ status: 'linked', bookingId: seeded.originalId });
++    const dialog = page.getByRole('dialog', { name: 'Gehaltszettel hochladen', exact: true });
++    const undo = dialog.getByRole('button', { name: 'Rückgängig', exact: true });
++    await undo.focus();
++    // Dismiss only the focused toast using its real Escape handler, before leaving the page.
++    await undo.press('Escape');
++    const link = dialog.getByRole('link', { name: 'Gespeicherte Auszahlung öffnen', exact: true });
++    await hit(link);
++    await link.click();
++    await expect(page).toHaveURL(new RegExp(`/konten/buchungen\\?konto=${seeded.accountId}&buchung=${seeded.originalId}$`));
++    await expect(page.getByRole('dialog', { name: 'Buchung bearbeiten', exact: true })).toBeVisible();
++    await page.reload();
++    await expect(page.getByRole('dialog', { name: 'Buchung bearbeiten', exact: true })).toBeVisible();
++    const current = await page.request.get(`/api/payslip-intake/${result.id}`);
++    expect(current.status()).toBe(200);
++    expect(await current.json()).toMatchObject({ payout: { bookingId: seeded.originalId, accountId: seeded.accountId } });
++    expect(getBooking(seeded.opened.db, seeded.originalId)).toEqual(seeded.original);
++    expect(history(seeded.opened.db, 'booking', seeded.originalId)).toEqual(seeded.originalHistory);
++  } finally { seeded.opened.close(); }
++});
+--- /dev/null
++++ b/packages/db/src/repos/payslip-automation-741.test.ts
+@@ -0,0 +1,164 @@
++import { afterEach, beforeEach, expect, it } from 'vitest';
++import type { ParsedPayrollDocument } from '@budget/domain';
++import { PAYSLIP_PARSER_VERSION } from '@budget/domain';
++import { createTestDatabase, type OpenedDatabase } from '../client';
++import * as schema from '../schema';
++import { accounts, createEntity } from './entities';
++import { createBooking, getBooking } from './bookings';
++import { history, undo } from './audit';
++import { balanceSeries } from './ledger-queries';
++import {
++  automaticallyDecidePayslip, decidePayslipIntake, getPayslipIntake,
++  payslipAutomationConfigSnapshot, payslipAutomationSnapshot, readPayslipPayoutAssociation,
++  setPayslipSourceConfig, stagePayslip,
++} from './payslip-intake';
++
++const ACCOUNT = '74100000-0000-4000-8000-000000000501';
++const EMPLOYER = '74100000-0000-4000-8000-000000000502';
++const ctx = { actor: 'synthetic-payroll-owner-741' };
++let opened: OpenedDatabase;
++const document = (): ParsedPayrollDocument => ({
++  documentType: 'payslip', periodSource: 'content', parserVersion: PAYSLIP_PARSER_VERSION,
++  payoutDate: '2031-01-31', differenceCents: 0, warnings: [],
++  draft: { month: '2031-01', kind: 'regular', specialType: null, grossCents: 400000,
++    svCents: 68000, taxCents: 44000, netCents: 297500, bookingId: null, receiptId: null,
++    lines: [{ section: 'deduction', label: 'Synthetic deduction', amountCents: 500 },
++      { section: 'reimbursement', label: 'Synthetic reimbursement', amountCents: 10000 }] },
++});
++const config = () => ({ salaryAccountId: ACCOUNT, automation: { payeeId: EMPLOYER }, wageTypes: {} });
++beforeEach(() => {
++  opened = createTestDatabase();
++  accounts.create(opened.db, { id: ACCOUNT, name: 'Synthetic payroll account', type: 'checking',
++    role: 'budget', onBudget: true, openingDate: '2030-01-01', openingBalanceCents: 50000 }, ctx);
++  createEntity(opened.db, schema.payee, { id: EMPLOYER, name: 'Synthetic payroll sender' }, ctx);
++  setPayslipSourceConfig(opened.db, config(), ctx);
++});
++afterEach(() => opened.close());
++function stage(parsed = document(), sha = 'a'.repeat(64)) {
++  const parsedWith = payslipAutomationConfigSnapshot(opened.db);
++  const source = stagePayslip(opened.db, { sha256: sha, source: 'manual', sizeBytes: 100,
++    filename: 'synthetic-payroll-741.pdf', parsed }, ctx);
++  return { id: source.id, snapshot: payslipAutomationSnapshot(opened.db, source.id, parsedWith) };
++}
++const perform = (source: ReturnType<typeof stage>) =>
++  automaticallyDecidePayslip(opened.db, source.id, source.snapshot, ctx);
++const balance = () => balanceSeries(opened.db, ACCOUNT, { from: '2031-01-31', to: '2031-01-31' })[0]!.balanceCents;
++const snapshot = () => JSON.stringify((opened.sqlite.prepare(
++  "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
++).all() as { name: string }[]).map(({ name }) => [name,
++  opened.sqlite.prepare(`SELECT * FROM "${name}" ORDER BY rowid`).all()]));
++const existing = (payeeId: string | null = EMPLOYER) => createBooking(opened.db, {
++  accountId: ACCOUNT, date: '2031-01-31', amountCents: 297500, payeeId, status: 'confirmed',
++  splits: [{ categoryId: null, amountCents: 287500, incomeTypeId: 'income-salary' },
++    { categoryId: null, amountCents: 10000, incomeTypeId: 'income-refund' }],
++}, ctx);
++
++it('records the literal payout and persisted source association, then removes that live result through whole Undo', () => {
++  const source = stage(), result = perform(source);
++  expect(result).toMatchObject({ status: 'booked', reason: 'unambiguous_source' });
++  expect(result.groupId).toEqual(expect.any(String));
++  const booking = getBooking(opened.db, result.bookingId!)!;
++  expect(booking).toMatchObject({ accountId: ACCOUNT, amountCents: 297500, date: '2031-01-31', status: 'pending', payeeId: EMPLOYER });
++  expect(booking.splits).toMatchObject([{ amountCents: 287500, incomeTypeId: 'income-salary', categoryId: null },
++    { amountCents: 10000, incomeTypeId: 'income-refund', categoryId: null }]);
++  expect(balance()).toBe(347500);
++  expect(readPayslipPayoutAssociation(opened.db, source.id)).toEqual({
++    payslipId: result.payslipId, bookingId: result.bookingId, accountId: ACCOUNT,
++  });
++  const beforeReplay = snapshot();
++  expect(perform(source)).toMatchObject({ status: 'unchanged', groupId: null });
++  expect(snapshot()).toBe(beforeReplay);
++  const entries = opened.sqlite.prepare('SELECT actor FROM audit_log WHERE group_id=?').all(result.groupId) as { actor: string }[];
++  expect(entries.length).toBeGreaterThan(3);
++  expect(entries.every((entry) => entry.actor.startsWith('document-automation:payroll@'))).toBe(true);
++  const reversed = undo(opened.db, { groupId: result.groupId! }, ctx);
++  expect(balance()).toBe(50000);
++  expect(readPayslipPayoutAssociation(opened.db, source.id)).toBeNull();
++  expect(getPayslipIntake(opened.db, source.id).status).toBe('pending');
++  const undone = snapshot();
++  expect(perform(source)).toMatchObject({ status: 'pruefen', reason: 'source_changed', groupId: null });
++  expect(snapshot()).toBe(undone);
++  undo(opened.db, { groupId: reversed.groupId }, ctx);
++  expect(readPayslipPayoutAssociation(opened.db, source.id)?.bookingId).toBe(result.bookingId);
++  expect(balance()).toBe(347500);
++  expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);
++});
++
++it('links a genuine existing payout without changing its money, splits, status or booking history', () => {
++  const bookingId = existing(), before = getBooking(opened.db, bookingId), audit = history(opened.db, 'booking', bookingId);
++  const source = stage(), result = perform(source);
++  expect(result).toMatchObject({ status: 'linked', bookingId });
++  expect(readPayslipPayoutAssociation(opened.db, source.id)).toEqual({ payslipId: result.payslipId, bookingId, accountId: ACCOUNT });
++  expect(getBooking(opened.db, bookingId)).toEqual(before);
++  expect(history(opened.db, 'booking', bookingId)).toEqual(audit);
++  expect(balance()).toBe(347500);
++  undo(opened.db, { groupId: result.groupId! }, ctx);
++  expect(getBooking(opened.db, bookingId)).toEqual(before);
++  expect(history(opened.db, 'booking', bookingId)).toEqual(audit);
++  expect(readPayslipPayoutAssociation(opened.db, source.id)).toBeNull();
++  expect(balance()).toBe(347500);
++});
++
++it('keeps an amount-only incoming movement under review instead of creating a second salary', () => {
++  existing(null);
++  const source = stage(), before = snapshot();
++  expect(perform(source)).toEqual({ status: 'pruefen', reason: 'booking_needs_review', groupId: null });
++  expect(snapshot()).toBe(before);
++  expect(readPayslipPayoutAssociation(opened.db, source.id)).toBeNull();
++});
++
++it('keeps two genuine equal payouts ambiguous without changing either original booking', () => {
++  const first = existing(), second = existing();
++  expect(first).not.toBe(second);
++  const source = stage(), before = snapshot();
++  expect(perform(source)).toEqual({ status: 'pruefen', reason: 'booking_ambiguous', groupId: null });
++  expect(snapshot()).toBe(before);
++  expect(balance()).toBe(645000);
++  expect(readPayslipPayoutAssociation(opened.db, source.id)).toBeNull();
++});
++
++it('keeps a rejected source read-only and never presents a payout association', () => {
++  const source = stage();
++  decidePayslipIntake(opened.db, source.id, { action: 'reject', bookingId: null }, ctx);
++  const before = snapshot();
++  expect(perform(source)).toEqual({ status: 'unchanged', reason: 'already_decided', groupId: null });
++  expect(snapshot()).toBe(before);
++  expect(readPayslipPayoutAssociation(opened.db, source.id)).toBeNull();
++});
++
++it('rejects a config ABA even when the current serialized source configuration is restored', () => {
++  const source = stage();
++  setPayslipSourceConfig(opened.db, { salaryAccountId: ACCOUNT, wageTypes: {} }, ctx);
++  setPayslipSourceConfig(opened.db, config(), ctx);
++  const before = snapshot();
++  expect(perform(source)).toEqual({ status: 'pruefen', reason: 'source_changed', groupId: null });
++  expect(snapshot()).toBe(before);
++  expect(balance()).toBe(50000);
++});
++
++it('does not repost an undone payroll slot from a different-byte source', () => {
++  const result = perform(stage());
++  undo(opened.db, { groupId: result.groupId! }, ctx);
++  const variant = stage(document(), 'b'.repeat(64)), before = snapshot();
++  expect(perform(variant)).toEqual({ status: 'pruefen', reason: 'payroll_previously_undone', groupId: null });
++  expect(snapshot()).toBe(before);
++  expect(balance()).toBe(50000);
++  expect(readPayslipPayoutAssociation(opened.db, variant.id)).toBeNull();
++});
++
++it('rolls back a late payslip insert failure including payout, splits, receipt edge and audit', () => {
++  const source = stage();
++  let observedPayoutInsert = 0;
++  opened.sqlite.function('synthetic_payroll_observe', () => { observedPayoutInsert++; return 0; });
++  opened.sqlite.exec('CREATE TRIGGER synthetic_payroll_741_observe AFTER INSERT ON booking BEGIN SELECT synthetic_payroll_observe(); END');
++  opened.sqlite.exec("CREATE TRIGGER synthetic_payroll_741_late BEFORE INSERT ON payslip BEGIN SELECT RAISE(ABORT, 'synthetic payroll late failure'); END");
++  const before = snapshot();
++  expect(() => perform(source)).toThrow('synthetic payroll late failure');
++  expect(observedPayoutInsert).toBe(1);
++  expect(snapshot()).toBe(before);
++  expect(balance()).toBe(50000);
++  expect(readPayslipPayoutAssociation(opened.db, source.id)).toBeNull();
++  opened.sqlite.exec('DROP TRIGGER synthetic_payroll_741_late');
++  opened.sqlite.exec('DROP TRIGGER synthetic_payroll_741_observe');
++  expect(perform(source)).toMatchObject({ status: 'booked' });
++});

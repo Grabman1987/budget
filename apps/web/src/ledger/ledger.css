@@ -2004,10 +2004,11 @@ button.kstatus-btn:focus-visible {
 }
 .bk-calendar input {
   position: absolute;
-  inset: -1px;
+  /* Keep the native hit area above the 44px floor during fractional dialog translation. */
+  inset: -2px;
   opacity: 0;
-  width: calc(100% + 2px);
-  height: calc(100% + 2px);
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
   cursor: pointer;
 }
 .bk-calendar input::-webkit-calendar-picker-indicator {
@@ -2271,5 +2272,42 @@ button.kstatus-btn:focus-visible {
   }
   .bk-split-cols .bk-share {
     align-items: end;
+  }
+}
+
+/* Capture fills the phone's visible viewport, including when the keyboard pans or resizes it.
+   The body owns scrolling; the save bar stays in the sheet above the bottom safe area. */
+@media (max-width: 767px) {
+  .bk-focus-scope dialog.sheet-bottom:has(.bkform) {
+    inset: var(--bk-viewport-top, 0px) 0 auto;
+    width: 100%;
+    height: var(--bk-viewport-height, 100dvh);
+    max-height: var(--bk-viewport-height, 100dvh);
+    border: 0;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top);
+    overflow: hidden;
+  }
+  .bk-focus-scope dialog.sheet-bottom:has(.bkform) .overlay-inner {
+    height: 100%;
+    max-height: 100%;
+  }
+  .bk-focus-scope dialog.sheet-bottom:has(.bkform) .sheet-grip {
+    display: none;
+  }
+  .bk-focus-scope dialog.sheet-bottom .bkform {
+    height: 100%;
+  }
+  .bk-focus-scope .bk-body {
+    flex: 1 1 auto;
+  }
+  .bk-focus-scope .bk-foot {
+    border-radius: 0;
+  }
+  .bk-focus-scope .bk-discard,
+  .bk-focus-scope .bk-save-reason {
+    flex-shrink: 1;
+    min-height: 44px;
+    overflow: auto;
   }
 }

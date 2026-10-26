@@ -9,37 +9,12 @@
 .year-planning .seg button {
   min-height: 44px;
 }
-.event-grid small,
-.event-phone-row > small {
-  display: block;
-  color: var(--ink-2);
-  font-size: var(--fs-meta);
-  margin-top: 6px;
-}
 .event-check {
   display: flex;
   align-items: center;
   gap: 8px;
   min-height: 44px;
   overflow-wrap: anywhere;
-}
-.event-plan {
-  display: inline-block;
-  border: 1px dashed var(--line-2);
-  border-radius: 4px;
-  padding: 8px;
-  min-height: 44px;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  font-variant-numeric: tabular-nums;
-}
-button.event-plan {
-  cursor: pointer;
-}
-.event-phone-row {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--rule);
 }
 .event-actions {
   display: flex;
@@ -82,6 +57,10 @@ button.event-plan {
 .year-toolbar h2 {
   margin: 0;
   font-size: var(--fs-headline);
+}
+.year-toolbar h3 {
+  margin: 0;
+  font-size: var(--fs-body);
 }
 .year-note {
   color: var(--ink-2);
@@ -216,13 +195,22 @@ button.event-plan {
 .year-phone {
   display: none;
 }
+.year-month-choice {
+  display: none;
+}
 @media (max-width: 767px) {
   .plan-year {
-    padding: 20px 16px 96px;
+    padding: 0;
+  }
+  .year-planning {
+    margin-bottom: 8px;
   }
   .year-toolbar {
-    padding: 16px;
-    gap: 12px;
+    padding: 4px 16px;
+    gap: 8px;
+  }
+  .year-toolbar h2 {
+    font-size: var(--fs-body);
   }
   .year-metric {
     width: 100%;
@@ -234,19 +222,19 @@ button.event-plan {
     padding-inline: 7px;
   }
   .year-note {
-    padding: 0 16px 16px;
+    padding: 0 16px 8px;
     font-size: var(--fs-meta);
   }
-  .year-desktop {
+  .year-desktop,
+  .year-desktop-totals {
     display: none;
   }
   .year-phone {
     display: block;
   }
   .year-month-choice {
-    padding: 0 16px 16px;
-    display: grid;
-    gap: 6px;
+    display: block;
+    width: min(48%, 11rem);
     color: var(--ink-2);
   }
   .year-phone-head,
@@ -260,8 +248,7 @@ button.event-plan {
     align-items: baseline;
   }
   .year-phone-head {
-    font-size: var(--fs-label);
-    color: var(--ink-2);
+    display: none;
   }
   .year-phone-row > span:first-child {
     overflow-wrap: anywhere;
@@ -313,4 +300,175 @@ button.event-plan {
     gap: 16px;
     display: grid;
   }
+}
+
+/* Calendar-year scenario: existing monthly values and local event selection. */
+.year-scenario-lead {
+  margin: 0;
+  padding: 8px 24px;
+}
+.year-scenario-lead dt {
+  color: var(--ink-2);
+}
+.year-scenario-lead dd {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: var(--fs-display);
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.year-scenario-lead .seg {
+  flex-shrink: 0;
+  font-size: var(--fs-body);
+  font-weight: 400;
+}
+.year-scenario-lead .seg button {
+  padding-inline: 8px;
+}
+.year-event-controls {
+  position: relative;
+}
+.year-event-controls > .btn {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  min-height: 44px;
+}
+.year-event-controls > .year-empty {
+  padding-top: 68px;
+}
+.year-event-controls .year-events > summary {
+  width: calc(100% - 176px);
+  padding: 16px;
+}
+.year-scenario-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 24px;
+  padding: 0 24px 16px;
+  color: var(--ink-2);
+}
+.year-scenario-context strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.year-scenario-context small {
+  flex-basis: 100%;
+}
+.year-scenario-chart {
+  padding: 0 24px;
+  min-width: 0;
+}
+.year-chart-low {
+  color: var(--ink-2);
+  margin-block: 8px 16px;
+  font-size: var(--fs-meta);
+}
+.year-events,
+.year-instructions {
+  border-top: 1px solid var(--rule);
+}
+.year-events > summary,
+.year-instructions > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 24px;
+  cursor: pointer;
+}
+.year-events > summary:focus-visible,
+.year-instructions > summary:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: -2px;
+}
+.year-events > summary svg,
+.year-instructions > summary svg {
+  flex-shrink: 0;
+}
+.year-events[open] > summary svg {
+  transform: rotate(180deg);
+}
+.year-event-list {
+  padding: 0;
+  margin: 0 24px 16px;
+  list-style: none;
+}
+.year-event-list > li {
+  display: grid;
+  grid-template-columns: minmax(9ch, auto) minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding-block: 8px;
+  border-top: 1px solid var(--rule);
+}
+.year-event-list small {
+  display: block;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.year-event-list .btn {
+  min-height: 44px;
+}
+.year-event-amount {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 767px) {
+  .year-scenario-lead,
+  .year-scenario-chart {
+    padding-inline: 16px;
+  }
+  .year-scenario-lead {
+    padding-block: 0;
+  }
+  .year-scenario-lead dd {
+    margin-block: 4px;
+  }
+  .year-scenario-context {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding-inline: 16px;
+    padding-bottom: 4px;
+    gap: 4px 8px;
+    font-size: var(--fs-meta);
+  }
+  .year-scenario-context > span {
+    display: grid;
+    gap: 4px;
+    overflow-wrap: anywhere;
+  }
+  .year-scenario-context > small,
+  .year-scenario-context > :not(span):not(small) {
+    grid-column: 1 / -1;
+    order: 1;
+  }
+  .year-events > summary,
+  .year-instructions > summary {
+    padding-inline: 16px;
+  }
+  .year-event-list {
+    margin-inline: 16px;
+  }
+  .year-chart-low {
+    margin-block: 4px 8px;
+  }
+  .year-event-list > li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .year-event-date,
+  .year-event-list > li > div:nth-child(2) {
+    grid-column: 1 / -1;
+  }
+}
+
+.year-planning .scenario-label .btn {
+  min-width: 44px;
+  min-height: 44px;
 }

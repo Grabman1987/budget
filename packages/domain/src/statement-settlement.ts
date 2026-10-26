@@ -205,7 +205,7 @@ export type StatementAcceptedSource = {
   sourceSha256: string;
   sourceRevision: string;
   cardAccountId: string;
-  reference: string;
+  reference: string | null;
   issueDate: string;
   currency: string;
   originsJson: string;

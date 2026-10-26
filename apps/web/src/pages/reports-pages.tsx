@@ -90,9 +90,7 @@ function ReportRegisters({ current }: { current: string }) {
 }
 
 /**
- * Report catalog (Zeichnungsverzeichnis) as in the prototype: one table, a quiet heading row per
- * assembly, positions 1.1 … 5.5. The name is the link; the whole row is a larger click target.
- * On the phone the rows stack (position, name, question, chart form).
+ * Report catalog: assembly headings with positions, report names and plain-language questions.
  */
 function ReportCatalogTable({
   groups,
@@ -110,8 +108,6 @@ function ReportCatalogTable({
             <th className="tech col-pos">Pos</th>
             <th className="tech">Report</th>
             <th className="tech">Frage</th>
-            <th className="tech">Diagrammform</th>
-            <th className="tech">Steuerung</th>
             <th>
               <span className="sr-only">Öffnen</span>
             </th>
@@ -121,7 +117,7 @@ function ReportCatalogTable({
           <tbody key={group.slug}>
             <tr className="rcat-grp">
               <td className="col-pos">{group.no}</td>
-              <td colSpan={5}>
+              <td colSpan={3}>
                 <strong>{group.name}</strong>
                 <span className="rcat-count">{group.items.length} Reports</span>
               </td>
@@ -140,10 +136,6 @@ function ReportCatalogTable({
                   <AppLink to={`/reports/${report.id}`}>{report.name}</AppLink>
                 </td>
                 <td className="rcat-q">{report.question}</td>
-                <td className="rcat-form tech">{report.form}</td>
-                <td className="rcat-ctl">
-                  <Controls report={report} />
-                </td>
                 <td className="rcat-go" aria-hidden="true">
                   <ChevronRight size={16} strokeWidth={1.75} />
                 </td>

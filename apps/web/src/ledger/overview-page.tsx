@@ -1,49 +1,40 @@
-import { BankBalance } from './bank-balance';
-import {
-  useAmountPrivacy,
-  ChartValue,
-  privateAmount,
-  Button,
-  CircleNumber,
-  DimensionChain,
-  type DimensionChainTerm,
-  cx,
-} from '@budget/ui';
-import { addDays, cents, todayInVienna } from '@budget/domain';
+import { Button, CircleNumber, cx, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { AlertTriangle, Check, Pencil, Plus, TrendingDown, TrendingUp } from 'lucide-react';
-import { useState } from 'react';
-import { PageFrame } from '../pages/placeholder-page';
+import { AlertTriangle, Check, ChevronDown, ChevronUp, Pencil, Plus } from 'lucide-react';
+import { useId, useState, type ReactNode } from 'react';
 import { KONTEN_META } from '../nav/pages';
+import { PageFrame } from '../pages/placeholder-page';
 import { AccountFormPanel } from './account-form';
 import { useOrderedAccounts, useReorder } from './account-order';
-import { fetchAccounts } from './api';
-import { eur, eurParts, eurWhole, nativeCurrencyWhole, nativeCurrency } from './format';
-import {
-  ACCOUNT_TYPE_LABEL,
-  accountValueEur,
-  valuationMissingText,
-  type AccountGroupId,
-} from './labels';
+import { BankBalance } from './bank-balance';
+import { eur, longDay, nativeCurrency, valuedCurrency } from './format';
+import { ACCOUNT_TYPE_LABEL, accountValueEur, valuationMissingText } from './labels';
 import { MiniLine } from './mini-line';
 import {
-  netWorthChange,
   accountCheck,
+  accountOverviewPresentation,
   overviewModel,
   seriesChange,
   utilisation,
   type GroupView,
 } from './overview-model';
-import { accountsQuery, LEDGER_KEY, seriesBatchQuery } from './queries';
+import { accountsQuery, seriesBatchQuery } from './queries';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import { treePositionsQuery, treeValues, type TreeValue } from './tree-values';
 import { ValuationSourceHint, type ValuationSource } from './valuation-hint';
-import type { AccountRow, SeriesPoint } from './types';
+import type { AccountRow, AccountSeriesBatch, AccountSeriesDayQuality, SeriesPoint } from './types';
+import './overview.css';
 
-const META = KONTEN_META;
-/** Window of the sparklines and of the net-worth change figure. */
-const WINDOW_DAYS = 90;
+const WINDOW_DAYS = 30;
+const CHECK_LABEL: Record<string, string> = {
+  checked: 'geprüft',
+  due: 'Fällig',
+  unreviewed: 'Offen',
+  inactive: 'Noch kein Prüfstand',
+  unsupported: 'Prüfung nicht unterstützt',
+  unavailable: 'Prüfstatus nicht verfügbar',
+};
 
 /** Match the existing tree's cash presentation; no money is recalculated here. */
 export function overviewValuationSources(
@@ -90,7 +81,7 @@ export function overviewGroupValuationSources(
   ]);
 }
 
-/** Konten › Übersicht: net worth with its chain by group, then the parts list of the accounts. */
+/** Operational account figures; valuation/group producers and all write controllers stay shared. */
 export function OverviewPage() {
   useAmountPrivacy();
   const accounts = useQuery(accountsQuery());
@@ -98,20 +89,23 @@ export function OverviewPage() {
   const [ordering, setOrdering] = useState(false);
   const ordered = useOrderedAccounts(accounts.data?.accounts);
   const positions = useQuery(treePositionsQuery(ordered.accounts));
-  // Depots show their Depotwert, their cash sits on the Verrechnungskonto (same figures as the
-  // sidebar tree); depots are unknown ("–") while the positions load. Only when they cannot be read
-  // the shared EUR value per account is shown.
   const values =
     ordered.accounts && !positions.isError
       ? treeValues(ordered.accounts, positions.data)
       : undefined;
   const model = ordered.accounts ? overviewModel(ordered.accounts, values) : undefined;
-
+  const presentation = model ? accountOverviewPresentation(model) : undefined;
+  const sourcesByRow = overviewValuationSources(presentation?.visible ?? []);
+  const asOf = accounts.data?.asOf;
+  const series = useQuery({
+    ...seriesBatchQuery(WINDOW_DAYS, { ...(asOf ? { asOf } : {}), quality: true }),
+    enabled: Boolean(asOf && presentation?.visible.length),
+  });
   return (
-    <PageFrame meta={META}>
-      <div className="kview">
-        <div className="kbar">
-          {model && model.groups.length > 0 && (
+    <PageFrame meta={KONTEN_META}>
+      <div className="kview account-overview-577">
+        <div className="overview-actions">
+          {presentation && presentation.visible.length > 0 && (
             <Button
               size="sm"
               variant="ghost"
@@ -119,15 +113,15 @@ export function OverviewPage() {
               onClick={() => setOrdering(!ordering)}
             >
               {ordering ? (
-                <Check size={16} strokeWidth={1.75} aria-hidden="true" />
+                <Check size={16} aria-hidden="true" />
               ) : (
-                <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
+                <Pencil size={16} aria-hidden="true" />
               )}
               {ordering ? 'Fertig' : 'Reihenfolge ändern'}
             </Button>
           )}
           <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
+            <Plus size={16} aria-hidden="true" />
             Konto anlegen
           </Button>
         </div>
@@ -135,31 +129,76 @@ export function OverviewPage() {
         {accounts.isError && (
           <ErrorNote what="Konten" error={accounts.error} onRetry={() => void accounts.refetch()} />
         )}
-        {model && model.groups.length === 0 && model.closed.length === 0 && (
-          <EmptyNote
-            action={
-              <Button size="sm" onClick={() => setCreating(true)}>
-                Erstes Konto anlegen
-              </Button>
-            }
-          >
-            Noch keine Konten. Lege ein Konto mit Startsaldo an, dann kannst du Buchungen erfassen.
-          </EmptyNote>
-        )}
-        {model && (model.groups.length > 0 || model.closed.length > 0) && (
+        {model && presentation && (
           <>
-            <NetWorth
-              model={model}
-              accounts={accounts.data?.accounts ?? []}
-              asOf={accounts.data?.asOf ?? todayInVienna()}
-            />
-            <AccountsTable
-              model={model}
-              values={values}
-              loading={positions.isFetching && !positions.data}
-              ordering={ordering}
-              onReorder={ordered.save}
-            />
+            <OverviewLead presentation={presentation} asOf={asOf} sourcesByRow={sourcesByRow} />
+            {presentation.visible.length === 0 ? (
+              <EmptyNote>
+                Keine offenen Konten. Lege ein Konto an, um hier Saldo und Prüfstand zu sehen.
+              </EmptyNote>
+            ) : (
+              <>
+                {series.isError && (
+                  <ErrorNote
+                    what="Kontoverläufe"
+                    error={series.error}
+                    onRetry={() => void series.refetch()}
+                  />
+                )}
+                <section className="overview-accounts" aria-labelledby="accts-title">
+                  <h2 id="accts-title" className="sr-only">
+                    Offene Konten nach Gruppe
+                  </h2>
+                  <table className={cx('ktable', 'overview-table', ordering && 'is-ordering')}>
+                    <caption className="sr-only">
+                      Offene Konten mit Prüfstand, Verlauf der letzten 30 Tage und EUR-Wert
+                    </caption>
+                    <colgroup>
+                      <col />
+                      <col className="overview-col-check" />
+                      <col className="overview-col-line" />
+                      <col className="overview-col-value" />
+                      <col className="overview-col-details" />
+                      {ordering && <col className="overview-col-order" />}
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th scope="col">Konto</th>
+                        <th scope="col">Prüfstand</th>
+                        <th scope="col">30 Tage</th>
+                        <th scope="col" className="overview-row-value">
+                          Wert in EUR
+                        </th>
+                        <th scope="col">
+                          <span className="sr-only">Details</span>
+                        </th>
+                        {ordering && (
+                          <th scope="col">
+                            <span className="sr-only">Reihenfolge</span>
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    {model.groups.map((group, index) => (
+                      <tbody key={group.group.id}>
+                        <OverviewGroup
+                          group={group}
+                          index={index + 1}
+                          values={values}
+                          loading={positions.isFetching && !positions.data}
+                          series={series.data}
+                          seriesLoading={series.isPending}
+                          ordering={ordering}
+                          related={presentation.related}
+                          sourcesByRow={sourcesByRow}
+                          onReorder={(ids) => ordered.save(group.group.id, ids)}
+                        />
+                      </tbody>
+                    ))}
+                  </table>
+                </section>
+              </>
+            )}
           </>
         )}
       </div>
@@ -168,416 +207,356 @@ export function OverviewPage() {
   );
 }
 
-function NetWorth({
-  model,
-  accounts,
-  asOf,
+/** The shared hint is reused with presentation-only masking of every editable source label. */
+function OverviewValueSource({
+  sources,
+  label,
 }: {
-  model: ReturnType<typeof overviewModel>;
-  accounts: AccountRow[];
-  asOf: string;
+  sources: ReadonlyArray<ValuationSource> | undefined;
+  label: string;
 }) {
   useAmountPrivacy();
-  const before = addDays(asOf, -WINDOW_DAYS);
-  const prior = useQuery({
-    queryKey: [...LEDGER_KEY, 'accounts', before],
-    queryFn: () => fetchAccounts(before),
-  });
-  const change = prior.data ? netWorthChange(accounts, prior.data.accounts, before) : null;
-
-  const jump = (target: string) => () => {
-    const row = document.getElementById(target === 'closed' ? 'kaccts-closed' : `kg-${target}`);
-    if (!row) return;
-    if (row instanceof HTMLDetailsElement) row.open = true;
-    row.scrollIntoView({ block: 'center' });
-    row.classList.add('is-flash');
-    window.setTimeout(() => row.classList.remove('is-flash'), 900);
-  };
-  const terms: DimensionChainTerm[] = [];
-  if (
-    model.netWorthCents !== null &&
-    model.closedValueCents !== null &&
-    model.groups.every((g) => g.sumCents !== null)
-  ) {
-    // Chain in the order of the groups: the first term stands as it is, the following ones add or
-    // subtract by sign (Kreditkarten and Kredite are negative and so get a minus).
-    for (const { group, sumCents } of model.groups) {
-      if (sumCents === null) continue;
-      const first = terms.length === 0;
-      terms.push({
-        label: group.title,
-        value: cents(first ? sumCents : Math.abs(sumCents)),
-        ...(first ? {} : { op: sumCents < 0 ? ('-' as const) : ('+' as const) }),
-        onSelect: jump(group.id),
-      });
-    }
-    if (model.closedValueCents !== 0) {
-      const closedIsNegative = model.closedValueCents < 0;
-      terms.push({
-        label: 'Geschlossene Konten',
-        value: cents(Math.abs(model.closedValueCents)),
-        op: closedIsNegative ? '-' : '+',
-        onSelect: jump('closed'),
-      });
-    }
-    terms.push({ label: 'Nettovermögen', value: cents(model.netWorthCents), op: '=' });
-  }
-
-  const parts = model.netWorthCents === null ? null : eurParts(model.netWorthCents);
-
   return (
-    <section className="knw" aria-labelledby="nw-title">
-      <div className="tbd-head">
-        <h2 id="nw-title">Nettovermögen</h2>
-        {change !== null && (
-          <span className="tbd-state">
-            <span className={change < 0 ? 'ink' : 'ok'}>
-              {change < 0 ? (
-                <TrendingDown
-                  className="icon icon-sm"
-                  size={16}
-                  strokeWidth={1.75}
-                  aria-hidden="true"
-                />
-              ) : (
-                <TrendingUp
-                  className="icon icon-sm"
-                  size={16}
-                  strokeWidth={1.75}
-                  aria-hidden="true"
-                />
-              )}
-              {eurWhole(change, true)} in {WINDOW_DAYS} Tagen
-            </span>
-          </span>
-        )}
-      </div>
-      <div className="tbd-fig">
-        <span data-testid="net-worth">
-          {parts ? (
-            <>
-              {parts.whole}
-              <span className="cents">,{parts.fraction} €</span>
-            </>
-          ) : (
-            <span>Nicht verfügbar</span>
-          )}
-        </span>
-        <ValuationSourceHint
-          sources={accounts.flatMap((a) => a.valuationSources ?? [])}
-          label="Nettovermögen"
+    <ValuationSourceHint
+      label={maskMoneyText(label)}
+      sources={sources?.map((source) => ({
+        ...source,
+        name: source.name === null ? null : maskMoneyText(source.name),
+        source: source.source === null ? null : maskMoneyText(source.source),
+        fx: {
+          ...source.fx,
+          source: source.fx.source === null ? null : maskMoneyText(source.fx.source),
+        },
+      }))}
+    />
+  );
+}
+
+function OverviewLead({
+  presentation,
+  asOf,
+  sourcesByRow,
+}: {
+  presentation: ReturnType<typeof accountOverviewPresentation>;
+  asOf: string | undefined;
+  sourcesByRow: ReadonlyMap<string, ValuationSource[]>;
+}) {
+  const budget = presentation.budget;
+  const value = budget ? budget.sumCents : 0;
+  return (
+    <section className="overview-lead" aria-labelledby="overview-lead-title">
+      <h2 id="overview-lead-title">Saldo Budget-Konten</h2>
+      <div className="overview-lead-value" data-testid="budget-accounts-balance">
+        {value === null ? 'Nicht verfügbar' : `${budget?.sumApprox ? '≈ ' : ''}${eur(value)}`}
+        <OverviewValueSource
+          sources={budget ? overviewGroupValuationSources(budget.accounts, sourcesByRow) : []}
+          label="Saldo Budget-Konten"
         />
       </div>
-      {model.netWorthCents === null ? (
-        <p role="status" className="ksum">
-          EUR-Wert nicht verfügbar · {valuationMissingText(model)}
+      <div className="overview-lead-links">
+        <Link to="/konten/pruefen">
+          {presentation.checked} von {presentation.visible.length} Konten geprüft
+        </Link>
+        <Link to="/vermoegen/nettovermoegen">Vermögen ansehen</Link>
+        {asOf && <span>Stand {longDay(asOf)}</span>}
+      </div>
+      {presentation.reviewUnavailable > 0 && (
+        <p role="status">
+          Prüfstatus für {presentation.reviewUnavailable}{' '}
+          {presentation.reviewUnavailable === 1 ? 'Konto' : 'Konten'} nicht verfügbar.
         </p>
-      ) : (
-        <DimensionChain terms={terms} label="Maßkette Nettovermögen nach Kontogruppen" />
+      )}
+      {value === null && budget && (
+        <p role="status">
+          {valuationMissingText({
+            missingFxCurrencies: [
+              ...new Set(budget.accounts.flatMap((a) => a.missingFxCurrencies)),
+            ],
+            missingPriceSecurityIds: [
+              ...new Set(budget.accounts.flatMap((a) => a.missingPriceSecurityIds)),
+            ],
+          })}
+        </p>
       )}
     </section>
   );
 }
 
-function AccountsTable({
-  model,
-  values,
-  loading,
-  ordering,
-  onReorder,
-}: {
-  model: ReturnType<typeof overviewModel>;
-  values: ReadonlyMap<string, TreeValue> | undefined;
-  /** The positions are still loading: unknown figures show a dash. */
-  loading: boolean;
-  ordering: boolean;
-  onReorder: (groupId: AccountGroupId, ids: string[]) => void;
-}) {
-  useAmountPrivacy();
-  const sourcesByRow = overviewValuationSources([
-    ...model.groups.flatMap((g) => g.accounts),
-    ...model.closed,
-  ]);
-  const open = model.groups.flatMap((g) => g.accounts);
-  // One request for all accounts instead of one per account.
-  const series = useQuery(seriesBatchQuery(WINDOW_DAYS));
-  const byId = new Map<string, SeriesPoint[]>();
-  for (const a of open) {
-    const points = series.data?.series[a.id]?.points;
-    if (points) byId.set(a.id, points);
-  }
-
-  return (
-    <section className="kaccts" aria-labelledby="accts-title">
-      <h2 className="sr-only" id="accts-title">
-        Konten nach Gruppe
-      </h2>
-      <table className={cx('ktable', ordering && 'is-ordering')}>
-        <caption className="sr-only">
-          Konten mit Saldo und Verlauf der letzten {WINDOW_DAYS} Tage
-        </caption>
-        <thead>
-          <tr>
-            <th className="tech kc-pos" scope="col">
-              Pos.
-            </th>
-            <th className="tech" scope="col">
-              Konto
-            </th>
-            <th className="tech kc-line" scope="col">
-              {WINDOW_DAYS} Tage
-            </th>
-            <th className="tech kc-num" scope="col">
-              Wert in EUR
-            </th>
-            {ordering && (
-              <th className="tech kc-order" scope="col">
-                <span className="sr-only">Reihenfolge</span>
-              </th>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {model.groups.map((g, gi) => (
-            <GroupRows
-              key={g.group.id}
-              view={g}
-              values={values}
-              loading={loading}
-              sourcesByRow={sourcesByRow}
-              index={gi + 1}
-              series={byId}
-              ordering={ordering}
-              onReorder={(ids) => onReorder(g.group.id, ids)}
-            />
-          ))}
-        </tbody>
-      </table>
-      {model.closed.length > 0 && (
-        <details className="kclosed" id="kaccts-closed">
-          <summary>
-            Geschlossen <span className="kclosed-n">({model.closed.length})</span>
-          </summary>
-          <ul>
-            {model.closed.map((a) => (
-              <li key={a.id}>
-                <Link className="kname prow-link" to="/konten/$id" params={{ id: a.id }}>
-                  {a.name}
-                </Link>
-                <span className="kmeta">{ACCOUNT_TYPE_LABEL[a.type]}</span>
-                <span className={cx('kclosed-val', (accountValueEur(a) ?? 0) < 0 && 'is-neg')}>
-                  {accountValueEur(a) === null ? valuationMissingText(a) : eur(accountValueEur(a)!)}
-                  <ValuationSourceHint sources={a.valuationSources} label={a.name} />
-                </span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-    </section>
-  );
-}
-
-function GroupRows({
-  view,
-  values,
-  sourcesByRow,
-  loading,
+function OverviewGroup({
+  group,
   index,
+  values,
+  loading,
   series,
+  seriesLoading,
+  related,
+  sourcesByRow,
   ordering,
   onReorder,
 }: {
-  view: GroupView;
+  group: GroupView;
+  index: number;
   values: ReadonlyMap<string, TreeValue> | undefined;
   loading: boolean;
+  series: AccountSeriesBatch | undefined;
+  seriesLoading: boolean;
+  related: ReadonlyMap<string, AccountRow[]>;
   sourcesByRow: ReadonlyMap<string, ValuationSource[]>;
-  index: number;
-  series: Map<string, SeriesPoint[]>;
   ordering: boolean;
   onReorder: (ids: string[]) => void;
 }) {
-  useAmountPrivacy();
-  const names = new Map(view.accounts.map((a) => [a.id, a.name]));
+  const names = new Map(group.accounts.map((a) => [a.id, maskMoneyText(a.name)]));
   const reorder = useReorder(
-    view.accounts.map((a) => a.id),
+    group.accounts.map((a) => a.id),
     onReorder,
     (id) => names.get(id) ?? '',
   );
   return (
     <>
-      <tr className="kgroup" id={`kg-${view.group.id}`}>
-        <td className="kc-pos">
+      <tr className="kgroup overview-group" id={`kg-${group.group.id}`}>
+        <th scope="rowgroup" colSpan={3}>
           <CircleNumber n={index} size="sm" />
-        </td>
-        <td>
-          <span className="grp-title">{view.group.title}</span>
-          <span className="grp-sub">{view.group.sub}</span>
+          <span className="grp-title">{group.group.title}</span>
           {ordering && reorder.status}
+        </th>
+        <td className="kc-num overview-row-value">
+          <span className="overview-group-amount" data-testid="account-group-value">
+            {group.sumCents === null ? '–' : `${group.sumApprox ? '≈ ' : ''}${eur(group.sumCents)}`}
+          </span>
+          <OverviewValueSource
+            sources={overviewGroupValuationSources(group.accounts, sourcesByRow)}
+            label={group.group.title}
+          />
         </td>
-        <td className="kc-line" />
-        <td className="kc-num">
-          <span
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
-            }}
+        <td />
+        {ordering && <td />}
+      </tr>
+      {group.accounts.map((a) => (
+        <OverviewAccount
+          key={a.id}
+          account={a}
+          value={values?.get(a.id)}
+          useTreeValues={values !== undefined}
+          loading={loading}
+          sources={sourcesByRow.get(a.id)}
+          related={related.get(a.id) ?? []}
+          points={series?.series[a.id]?.points ?? []}
+          quality={series?.quality?.[a.id]}
+          seriesLoading={seriesLoading}
+          ordering={ordering}
+          rowProps={reorder.rowProps(a.id)}
+          controls={reorder.controls(a.id)}
+        />
+      ))}
+    </>
+  );
+}
+
+function OverviewAccount({
+  account: a,
+  value: shown,
+  useTreeValues,
+  loading,
+  sources,
+  related,
+  points,
+  quality,
+  seriesLoading,
+  ordering,
+  rowProps,
+  controls,
+}: {
+  account: AccountRow;
+  value: TreeValue | undefined;
+  useTreeValues: boolean;
+  loading: boolean;
+  sources: ValuationSource[] | undefined;
+  related: AccountRow[];
+  points: ReadonlyArray<SeriesPoint>;
+  quality: Readonly<Record<string, AccountSeriesDayQuality>> | undefined;
+  seriesLoading: boolean;
+  ordering: boolean;
+  rowProps: ReturnType<ReturnType<typeof useReorder>['rowProps']>;
+  controls: ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const detailId = useId();
+  const checkId = useId();
+  const name = maskMoneyText(a.name);
+  const value = useTreeValues ? (shown?.cents ?? null) : accountValueEur(a);
+  const check = accountCheck(a);
+  const delta =
+    points.length > 1 && points.every((p) => quality?.[p.date]?.known === true)
+      ? seriesChange(points)
+      : null;
+  const util = utilisation(a);
+  return (
+    <>
+      <tr
+        {...rowProps}
+        className={cx(rowProps.className, 'krow', 'overview-account-row')}
+        data-account-id={a.id}
+      >
+        <th scope="row" colSpan={2} className="overview-row-name">
+          <Link
+            className="overview-account-link"
+            to="/konten/$id"
+            params={{ id: a.id }}
+            aria-describedby={checkId}
           >
+            <span>
+              <span className="kname">{name}</span>
+              {related.length > 0 && (
+                <span
+                  className="overview-platform-mark"
+                  title="Depot und Verrechnungskonto sind verknüpft"
+                >
+                  Plattform
+                </span>
+              )}
+            </span>{' '}
             <span
-              data-testid="account-group-value"
-              style={
-                view.sumCents === null
-                  ? { minWidth: 0, whiteSpace: 'normal', overflowWrap: 'anywhere' }
-                  : { whiteSpace: 'nowrap' }
-              }
+              id={checkId}
+              data-review-state={check.state}
+              className={cx('kcheck', 'overview-check', check.stale && 'is-due is-stale')}
             >
-              {view.sumCents === null
-                ? loading
-                  ? '–'
-                  : 'Kurs fehlt'
-                : `${view.sumApprox && !view.accounts.some((a) => a.valuationSources) ? '≈ ' : ''}${eur(view.sumCents)}`}
+              {check.stale && <AlertTriangle size={14} aria-hidden="true" />}
+              {CHECK_LABEL[check.state] ?? CHECK_LABEL['unavailable']}
             </span>
-            <ValuationSourceHint
-              sources={overviewGroupValuationSources(view.accounts, sourcesByRow)}
-              label={view.group.title}
+          </Link>
+        </th>
+        <td className="overview-row-line">
+          {seriesLoading ? (
+            <span className="overview-line-empty">Verlauf lädt …</span>
+          ) : (
+            <MiniLine
+              points={points}
+              currency={a.currency}
+              days={WINDOW_DAYS}
+              requireQuality
+              quality={quality}
+              label={name}
             />
+          )}
+        </td>
+        <td className={cx('kc-num', 'overview-row-value', value !== null && value < 0 && 'is-neg')}>
+          <span data-testid="account-value">
+            {value === null
+              ? loading
+                ? '–'
+                : 'Nicht verfügbar'
+              : `${shown?.approx ? '≈ ' : ''}${eur(value)}`}
           </span>
         </td>
-        {ordering && <td className="kc-order" />}
+        <td className="overview-row-details">
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-controls={detailId}
+            aria-expanded={expanded}
+            aria-label={`Details zu ${name}`}
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? (
+              <ChevronUp size={16} aria-hidden="true" />
+            ) : (
+              <ChevronDown size={16} aria-hidden="true" />
+            )}
+          </Button>
+        </td>
+        {ordering && <td className="overview-row-order">{controls}</td>}
       </tr>
-      {view.accounts.map((a, i) => {
-        const points = series.get(a.id);
-        const delta = points ? seriesChange(points) : null;
-        const util = utilisation(a);
-        const shown = values?.get(a.id);
-        const value = shown ? shown.cents : accountValueEur(a);
-        const check = accountCheck(a);
-        const row = reorder.rowProps(a.id);
-        return (
-          <tr {...row} className={cx(row.className, 'krow')} key={a.id}>
-            <td className="kc-pos">
-              <span className="pos">{`${index}.${i + 1}`}</span>
-            </td>
-            <td>
-              <Link className="kname prow-link" to="/konten/$id" params={{ id: a.id }}>
-                {a.name}
-              </Link>
-              <span className="kmeta">
-                {ACCOUNT_TYPE_LABEL[a.type]}
-                {a.pendingCount > 0 && <span>{a.pendingCount} vorgemerkt</span>}
-              </span>
-              <span
-                className={cx('kmeta', 'kcheck', check.stale && 'is-stale')}
-                data-review-state={check.state}
-              >
-                {check.stale && (
-                  <AlertTriangle
-                    size={14}
-                    strokeWidth={1.75}
-                    role="img"
-                    aria-label="Prüfung fällig"
-                  />
-                )}
-                {check.text}
-              </span>
+      {expanded && (
+        <tr className="overview-detail">
+          <td colSpan={ordering ? 6 : 5} id={detailId}>
+            <dl className="overview-detail-facts">
+              <div>
+                <dt>Kontotyp</dt>
+                <dd>
+                  {ACCOUNT_TYPE_LABEL[a.type]} · {a.currency}
+                </dd>
+              </div>
+              <div>
+                <dt>Prüfstand</dt>
+                <dd className={check.stale ? 'is-stale' : undefined}>{check.text}</dd>
+              </div>
+              {a.reviewStatus?.dueOn && (
+                <div>
+                  <dt>Nächste Prüffrist bei Aktivität</dt>
+                  <dd>{longDay(a.reviewStatus.dueOn)}</dd>
+                </div>
+              )}
+              <div>
+                <dt>Buchungssaldo</dt>
+                <dd>
+                  {maskMoneyText(valuedCurrency(a.balanceCents, a.currency, a.cashValuation))}
+                </dd>
+              </div>
+              <div>
+                <dt>Vorgemerkt</dt>
+                <dd>
+                  {a.pendingCount} Buchungen ·{' '}
+                  {maskMoneyText(valuedCurrency(a.unclearedCents, a.currency, a.pendingValuation))}
+                </dd>
+              </div>
+              <div>
+                <dt>Veränderung im Verlauf</dt>
+                <dd>
+                  {delta === null ? 'Nicht verfügbar' : nativeCurrency(delta, a.currency, true)}
+                </dd>
+              </div>
               {shown?.cashCents != null && (
-                <span
-                  className={cx('kmeta', shown.cashCents < 0 && 'is-neg')}
-                  data-testid="depot-own-cash"
-                >
-                  Cash im Depot {eur(shown.cashCents)}
-                  <ValuationSourceHint
-                    sources={a.valuationSources?.filter((source) => source.securityId === null)}
-                    label={`Cash · ${a.name}`}
-                  />
-                </span>
+                <div>
+                  <dt>Zusätzliches Cash im Depot (in Gruppensumme)</dt>
+                  <dd>{eur(shown.cashCents)}</dd>
+                </div>
               )}
               {shown?.includedCashCents != null && (
-                <span
-                  className={cx('kmeta', shown.includedCashCents < 0 && 'is-neg')}
-                  data-testid="included-depot-cash"
-                >
-                  inkl. Cash im Depot {eur(shown.includedCashCents)}
-                  <ValuationSourceHint
-                    sources={sourcesByRow.get(a.id)?.filter((source) => source.accountId !== a.id)}
-                    label={`Depot-Cash · ${a.name}`}
-                  />
-                </span>
+                <div>
+                  <dt>Davon zugeordnetes Depot-Cash</dt>
+                  <dd>{eur(shown.includedCashCents)}</dd>
+                </div>
               )}
-              <BankBalance account={a} />
+              {value === null && (
+                <div>
+                  <dt>Bewertung</dt>
+                  <dd>{valuationMissingText(a)}</dd>
+                </div>
+              )}
               {util !== null && a.creditLimitCents !== null && (
-                <span className="kutil">
-                  <ChartValue
-                    label={`Kreditnutzung ${a.name}`}
-                    date={points?.at(-1)?.date ?? todayInVienna()}
-                    series={[
-                      {
-                        name: 'Genutzt',
-                        value: nativeCurrency(Math.max(0, -a.balanceCents), a.currency),
-                        color: 'var(--line)',
-                      },
-                      {
-                        name: 'Rahmen',
-                        value: nativeCurrency(a.creditLimitCents, a.currency),
-                        color: 'var(--line-2)',
-                      },
-                      {
-                        name: 'Auslastung',
-                        value: `${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(util * 100)} %`,
-                      },
-                    ]}
-                  >
-                    <span className="pbar" aria-hidden="true">
-                      <i className="pbar-fill" style={{ width: `${util * 100}%` }} />
-                    </span>
-                  </ChartValue>
-                  {Math.round(util * 100)} % von{' '}
-                  {nativeCurrencyWhole(a.creditLimitCents, a.currency)} Limit
-                </span>
+                <div>
+                  <dt>Kreditrahmen</dt>
+                  <dd>
+                    {Math.round(util * 100)} % von {nativeCurrency(a.creditLimitCents, a.currency)}
+                  </dd>
+                </div>
               )}
-            </td>
-            <td className="kc-line">
-              {points && <MiniLine points={points} currency={a.currency} />}
-              {delta !== null && (
-                <span className="kdelta">
-                  {Math.abs(delta) < 50
-                    ? privateAmount(`±0 ${a.currency}`)
-                    : nativeCurrencyWhole(delta, a.currency, true)}
-                </span>
-              )}
-            </td>
-            <td className={cx('kc-num', value !== null && value < 0 && 'is-neg')}>
-              <span
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  justifyContent: 'flex-end',
-                  alignItems: 'center',
-                }}
-              >
-                <span
-                  data-testid="account-value"
-                  style={
-                    value === null
-                      ? { minWidth: 0, whiteSpace: 'normal', overflowWrap: 'anywhere' }
-                      : { whiteSpace: 'nowrap' }
-                  }
-                >
-                  {value === null
-                    ? loading && !shown?.approx
-                      ? '–'
-                      : valuationMissingText(a)
-                    : `${shown?.approx && !a.valuationSources ? '≈ ' : ''}${eur(value)}`}
-                </span>
-                <ValuationSourceHint sources={sourcesByRow.get(a.id)} label={a.name} />
-              </span>
-            </td>
-            {ordering && <td className="kc-order">{reorder.controls(a.id)}</td>}
-          </tr>
-        );
-      })}
+            </dl>
+            <OverviewValueSource sources={sources} label={name} />
+            {related.length > 0 && (
+              <p className="overview-platform-links">
+                Plattformzuordnung:{' '}
+                {related.map((other) => (
+                  <Link key={other.id} to="/konten/$id" params={{ id: other.id }}>
+                    {maskMoneyText(other.name)}
+                  </Link>
+                ))}
+                <span>Jedes Konto bleibt einmal in seiner Gruppe enthalten.</span>
+              </p>
+            )}
+            <BankBalance account={{ ...a, name }} />
+            <MiniLine
+              points={points}
+              currency={a.currency}
+              days={WINDOW_DAYS}
+              requireQuality
+              quality={quality}
+              label={name}
+              table
+            />
+          </td>
+        </tr>
+      )}
     </>
   );
 }

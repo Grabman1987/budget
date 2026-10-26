@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-21T18:05:32.086591+00:00",
+  "source": "ad4a34dac18f00d3dd36f3e9dcbf1286b54bba54",
+  "nativeArchive": "745-phone-two-columns-webkit-seven-second-actual",
+  "resultSha256": "7a742da34a7ee4d33a3ce5672b9c137c76fb70a658beb2aaa08eb045932192fa",
+  "visualAcceptance": true,
+  "personallyViewedCurrent": [
+    "configured light table original",
+    "configured dark table original"
+  ],
+  "desktopReview": "Desktop markup/style unchanged by phone correction; first-run desktop light table and desktop dark full page personally viewed.",
+  "findings": [
+    "Phone date complete on one line, booking names readable, amount beside descriptive context.",
+    "Current phone table originals show all three fixture contributions without fixed-navigation overlay.",
+    "Fixture purchase rows reduced from207px to125px; description column from128px to204px.",
+    "No new financial formula, deduplication or writer."
+  ],
+  "limits": [
+    "Desktop1440 and configured WebKit390x664 browser evidence; no physical iPhone certification.",
+    "Required full check/build and canonical Chromium CI pending; OLD735 adapter approval pending.",
+    "New native flow verifies read-only open/cancel, not a new Save/Undo browser exercise."
+  ]
+}

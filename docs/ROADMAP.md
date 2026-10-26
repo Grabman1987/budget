@@ -1,3 +1,10 @@
+## #568/#569 forecast tools and shared 35-day card — adoption pending validation
+
+- [x] Reconstruct the reviewed eight-source package with controlled disclosure state and salary occurrence provenance, preserving current task navigation and Plan filters.
+- [x] Adopt final prepared domain/API/UI/native acceptance tests and document technical existing-test adapters in [adoption notes](evidence/forecast-568-569/ADOPTION.md).
+- [ ] Independent combined review and required focused/full/build/browser/CI checks.
+- [ ] Verify all acceptance criteria on the live revision; issues remain open.
+
 # Roadmap
 
 ### #731 — punctuation-capable shared date entry (2026-10-20)
@@ -1793,6 +1800,16 @@ explicit reanalysis/review. Upload and reanalysis never post money.
 - [ ] Exact-head CI, serial integration and verified LIVE; no queue-completion claim.
 
 
+## #741 — Card upload automation (partial delivery; gates pending)
+
+- [x] Deterministic configured card upload uses original-source evidence, exact cents and audited pending writers; issued settlement preserves newer purchases and recorded originals unchanged. Payroll and manual receipt selection remain separate.
+- [x] Focused synthetic domain 21, DB 16 (13+3 separate runs), actual PDF/API 7, UI 7 and migration 10 passed; the initial rollback-negative failure was corrected without weakening its assertion. DB/server/Web types and scoped code checks passed.
+- [x] Canonical WebKit 7/7 (three setup plus four profile/theme cases), fresh E2E build and source/process guards passed on 88ee863b. Real posting/wholeUndo/no-repost and two phone manual nonmonetary reviews passed. [Four unchanged originals and exact evidence limits](evidence/card-automation-741/README.md).
+- [x] Standing technical-test authorization applied to the two preserved UI transport adapters. Fresh AGE-enabled card-statement selection: 18 files / 196 tests passed, including OLD726 9/9 and OLD727 15/15; financial oracles remain unchanged. Independent source/delta reviews passed.
+- [x] Normal production/E2E builds and workspace types passed (domain inference corrected and rerun separately). Supplemental real result-link desktop/mobile 5/5 including setup; corrected phone Undo scenarios 5/5 including setup after normal Redo-toast dismissal. Initial overlay failures and exact scope retained in linked evidence.
+- [ ] Required full CI, serial integration and verified LIVE.
+- [ ] Payroll and #740 manual receipt selection remain separate. No whole-issue closure, physical-device certification or real-data-change claim.
+
 ## #589 — URL-backed Plan filters: isolated acceptance packet
 
 URL-backed category search/counts and the strict missing-category reader retain
@@ -1825,6 +1842,41 @@ Required aggregate run 25727 passed 547 files / 4,889 tests (419.87s) with AGE1 
 
 Continuation: reviewed pointer/scroll-end test mechanics passed the full AGE check (592 files / 5,254 tests) and production build on `445c03e3`; the final mobile-project regression passed 33/33. CI `39660649882` on `38c8c430` passed 20 jobs and found the separate savings-navigation defect. Main `fb7490d3` now supplies its independently reviewed, CI-green and live #747 repair unchanged. Both ROADMAP append sections were retained. Required CI on the updated #719 head and its own serial live delivery remain pending.
 
+Current refresh (2026-10-26): normally merge main `928c2409` into existing PR #719 ancestry `943e54b2`, retaining all main changes and unchanged #626 product/test bytes. Only ROADMAP append conflicts required resolution. Node22 targeted checks pass 13 files / 104 tests; web types, scoped lint/format/CSS and fresh web production build pass. Retained PWA-host/native-label test reasons and historical-proof limits are recorded in the evidence. Independent current review, canonical Linux browser proof, exact-head required CI and serial live delivery remain pending; unattended loops remain disabled.
+
+## #745 — compact category activity table (acceptance pending)
+
+The category/month detail uses a semantic table with distinct source totals and
+signed category contributions. Canonical totals, order, pagination and derived
+reserve explanations remain; the existing booking editor and writers are reused.
+Desktop shows five columns; the phone layout shows booking metadata and amount.
+
+- [x] Initial targeted validation: six NEW component cases plus seven unchanged UI and five unchanged API cases passed (18/18). The six affected component cases passed again after the phone layout correction.
+- [x] Canonical WebKit: seven passing cases including three setup cases, covering desktop1440 and phone390, light/dark, privacy, focus, 44px controls and scoped accessibility. Real synthetic source booking opens and cancels without writes.
+- [x] Current original screenshots and phone geometry (107–126px rows, 204px booking column, unbroken dates) personally reviewed; see [activity-table evidence](evidence/activity-table-745/README.md).
+- [x] Apply the preserved technical date/account assertion adapter under the owner’s standing authorization; all audited edit/Undo and financial expectations remain unchanged. Independent review and fresh targeted results are recorded in the activity-table evidence.
+- [x] Required AGE-enabled full check: 590 test files / 5219 tests passed, no failures/skips; normal production build passed.
+- [x] Fresh continuation: targeted UI/API 18/18, E2E build and scoped static checks; existing activity Chromium 12/12 plus final new table Chromium 11/11 (including three setup cases). Exact technical adapter and unobscured native scrolling independently reviewed, financial/Undo/44px/viewport/hit expectations unchanged.
+- [ ] Canonical Chromium CI, final required checks, serial integration and verified LIVE.
+
+No publication claim. This follow-up preserves the earlier #735 financial behavior.
+
+
+## #584 — Capture line transition and stale remainder feedback
+
+- [x] NEW real isolated-ledger one → two → one regression: one gross field, exact 1-cent remainder refusal including Ctrl+Enter, unchanged 1000-cent head total after removal, one stored split of −1000 cents and public Undo.
+- [x] Literal UI odd cents: −1000 → −334/−333/−333, real API and SQLite readback; both Save/Undo paths restore the literal 100000-cent account balance.
+- [x] Exact local stale remainder-save feedback is suppressed only after current split validation clears; unrelated errors, financial rules, save guards and writers remain unchanged. No existing test changed.
+- [x] Corrected source `3a1210cc`: actual WebKit 7/7 in 81.135s (three setup + four feature cases), desktop 1440×900/configured iPhone 390×664, both themes, scoped Axe, phone44px and no horizontal overflow. [Four byte-identical one-after originals and limits](evidence/capture-transition-584/README.md).
+- [x] Root reviewed all four corrected one-after originals and two odd-cent originals. The first functional PASS / visual HOLD for stale red feedback remains retained; corrected originals remove that defect.
+- [x] Required AGE-enabled full check on frozen source `3a1210cc`: 589 files / 5,213 tests; normal production build passed. The handoff only adds documentation/evidence, leaving product and test bytes unchanged.
+- [ ] Exact-head Chromium/required CI, serial integration and verified LIVE.
+
+CI `39661416902` on `e188323c` passed all 22 jobs; the additional first-booking regression `39661417099` also passed. Live Main `fb7490d3` is now inherited unchanged. Capture product/test files remain byte-identical to the checked source. Both ROADMAP append sections were retained; required CI on the updated PR #746 head and its own serial live delivery remain pending.
+
+The body scrolls; screenshots do not claim every split row is visible at once.
+Physical-device/keyboard/fullscreen acceptance belongs separately to #586.
+
 ## #747 — Today savings action opens the task segment
 
 - [x] Identify the contextual-navigation defect: the generic inbox auto-selects movements while savings execution proposals belong to tasks.
@@ -1833,4 +1885,46 @@ Continuation: reviewed pointer/scroll-end test mechanics passed the full AGE che
 - [x] Independent Codex full-diff review: no findings; existing tests, financial writers, locks, audit and Undo unchanged.
 - [x] Required full AGE-enabled check: typecheck, lint/format and 589 files / 5,213 tests passed (386.97 s Vitest); normal production build passed. Supplemental system Chromium is not canonical visual or WebKit evidence.
 - [x] Exact-head canonical CI `39664783674` passed.
-- [x] Protected serial merge PR #748 is LIVE at `fb7490d3bb2855d618df89625f5166f4cf24ae13`: Main CI `39666973044` and deployment `39667052323` succeeded. Owner local CLI reported fresh matching health on 2026-10-21 at 22:06 Europe/Vienna; cloud coordinator independently verified GitHub evidence. #747 closed; board reconciliation remains pending without board access.
+- [x] PR #748 is LIVE at `fb7490d3bb2855d618df89625f5166f4cf24ae13`: Main CI `39666973044` and deployment `39667052323` succeeded. Owner local CLI reported fresh matching health on 2026-10-21 at 22:06 Europe/Vienna; the coordinator independently verified GitHub evidence. #747 closed; board reconciliation remains pending without board access.
+
+
+### #577 — Operational account overview (targeted checks passed; delivery pending)
+
+- Replaced the overview’s net-worth hero with the existing Budget-Konten group balance and an explicit checked/visible-account count linking to Prüfen. Closed accounts are omitted; each physical account retains its original group, order, value and check state. Platform/reference relationships are visual links only, including shared or cross-group references.
+- Added a compact token-based list with the existing account/reorder controllers, 30-day sparklines and explicit details for source, cash, pending/review/bank/limit metadata. Main rows and their checked count use one account projection; no new deadline, financial formula or write path was introduced.
+- Enriched history is explicitly requested with quality=1, a separate client key and sibling quality facts from the same read transaction. Default batch/single JSON and old callers are preserved; daily missing/absent metadata produces gaps/unavailable, never invented zero. Native cash balances retain their actual currency even when EUR conversion is unknown. Legacy MiniLine defaults remain unchanged.
+- [x] Fresh focused 51/51 plus legacy MiniLine 2/2; affected workspace types, scoped lint/format/CSS and E2E build pass. Supplemental Chromium 15 passed / two existing project skips, including all eight new profile/theme cases with actual1440 fit,390 targets, keyboard/Axe/privacy and real reorder/Undo. Independent source/delta reviews passed. [Unedited images, per-file mappings and limits](evidence/account-overview-577/README.md).
+- [ ] Complete initial-CI follow-up: large-amount/source-target layout and WebKit target ownership; diagnose the month-close retry and inherited Plan-filter failures. Legacy mappings retain independently reviewed finance/lock/Undo expectations (see evidence). Required full CI, protected integration, deployment and actual LIVE revision remain pending; no complete #577 acceptance claim.
+
+## #740 — Retained statement PDF links
+
+- [x] Account-local explicit selection of existing bookings, immutable original download, same-account/currency candidates, current n:m links and protected machine pairs; no payment or financial-record creation.
+- [x] Source/target/pair-history CAS, complete batch validation before writes, audit-free no-ops and real grouped Undo/redo use existing receipt/audit writers.
+- [x] Independent full-diff HIGH review, scoped technical test-adapter review, targeted DB/API/UI regressions and fresh E2E build. Desktop/phone Chromium and native WebKit: 9/9 including three setup cases, both themes, exact financial state, real Undo/redo, privacy, keyboard, 44px/hit/Axe checks. [Original captures, provenance and evidence limits](evidence/statement-receipt-links-740/README.md).
+- [x] [PR #754](https://github.com/Grabman1987/budget/pull/754) verified live at `1c19a465649490417f174787a9806b3347b7b7a6` on 2026-10-22: exact-head CI `39764114897`, Main CI `39770495472`, deployment `39770557570` and fresh matching health. The PR retains the diagnosed installation-timeout rerun and unrelated existing report-test retry. Private historical archive linking remains separate; #719 remains stopped.
+
+
+### #604 — goal funding and retained lifecycle (source checkpoint, 2026-10-21)
+
+- Source implementation: explicit goal start month with preserved legacy fallback; current-month Plan rate and remaining-need assignment through the existing guarded writer; grouped Undo for manual completion; reached/open/retained completed groups and category history from the selected start.
+- Category target synchronization preserves conflicting manual targets and competing goals; these remain explicitly blocked until the source association is resolved. No automatic winner or historical target deletion.
+- Automatic completion reads coherent retained audit groups and canonical ledger projections only. New category goals and actual changes to their economic intent now capture an internal prospective anchor in the authenticated goal transaction. This can establish a current basis on seeded/imported data without inventing an earlier reaching date. Name/note-only and equal-value patches preserve the anchor; GET, import and migration do not create one. Public goal responses omit the internal anchor, which stores a digest rather than source rows.
+- Legacy goals without an anchor still require a fully audited empty initial ledger basis. Views before capture, pre-anchor financial Undo, missing/ambiguous/over-bound chronology, account-goal evidence and pre-entered future expense chronology remain explicitly unavailable; manual completion is retained. Existing financial writers and Undo machinery are unchanged.
+- Unpublished migration48 adds nullable start-month/manual-completion intent and the internal anchor; copy rollback rejects retained/audited use. Migration execution, new acceptance coverage, required checks, browser evidence, independent anchor review and live delivery remain pending. This entry is source implementation, not verified completion of #604.
+
+## #741 — Deterministic payroll upload continuation
+
+- [x] Adopt the independently preserved payroll continuation on verified live #754, with source/manifest correspondence and only the owned shared-barrel export.
+- [x] Require fully reconciled known source evidence and unique configured matching; preserve existing payout values and original bytes, use existing atomic audited writers and the financial Undo group, and prevent replay after Undo or concurrent duplicate uploads.
+- [x] Independent full-product HIGH source review; new pure/DB/API 46/46, new UI 7/7, existing regressions and reproduced/corrected live amount-privacy regression. Existing test adaptations are limited to provider/status context and readiness copy. [Evidence and qualifications](evidence/payroll-automation-741/README.md).
+- [x] Complete workspace typecheck, scoped lint/format and fresh build; final browser30/30 across desktop/mobile/WebKit, including actual result links/reload, original downloads, privacy, grouped Undo and the existing toast/dialog regression. Reproduce and correct the visible Undo-label overflow with two CSS declarations;15/15 existing Toast/Layer tests passed.
+- [x] Final independent whole-diff HIGH review CLEAR, including final source hashes, original browser artifacts and preserved archive.
+- [ ] Complete exact-head CI, protected serial integration and exact live verification. This payroll packet is not yet delivered; the already-live card packet #752 is separate. No private historical archive operation is claimed, and #719 stays stopped.
+
+## Owner addition — portfolio funding plan (2026-10-25)
+
+- [x] Implement an editable six-sleeve scenario with separate recurring rate, one-off cash, free cash and current position values; gold/Bitcoin split in the explicit owner template.
+- [x] Exact-cent deficit budgets, fractional/whole units, fee guard and residual cash; no implicit trades or changes to class risk policy.
+- [x] Persist through audited settings with concurrency/undo guards; reuse the savings form for explicit confirmation.
+- [x] Full typecheck/lint, nine domain/API tests, desktop/phone acceptance and independent review; [synthetic evidence](evidence/portfolio-funding-plan/README.md).
+- [ ] Exact-head required CI, serial integration and verified live revision recorded on the delivery PR.

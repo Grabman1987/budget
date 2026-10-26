@@ -1,0 +1,41 @@
+{
+  "runs": [
+    {
+      "revision": "97313b4a0290a2accf930e1417f5aaf762801713",
+      "scope": "3 new domain/migration/repository suites",
+      "files": 3,
+      "tests_passed": 25,
+      "duration_seconds": 4.98
+    },
+    {
+      "revision": "97313b4a0290a2accf930e1417f5aaf762801713",
+      "scope": "6 existing compatibility suites",
+      "tests_passed": 40,
+      "tests_failed": 6,
+      "diagnosis": "2 legacy goal-target fixtures; 2 group/wording display expectations; 2 report current-month contract regression"
+    },
+    {
+      "revision": "dc5ddf784e0b5a4713499b4631083dc4a7c1e0a2",
+      "scope": "6 existing suites plus new API2",
+      "tests_passed": 47,
+      "tests_failed": 1,
+      "existing_compatibility": "46/46 pass",
+      "diagnosis": "new history assertion omitted two future null points; source-preserving correction61fa9da2 awaiting rerun"
+    },
+    {
+      "revision": "6c521d2cbd93b8c364cb5905f38fedff39ee9680",
+      "scope": "GitHub snapshot workflow39775332788, actual Playwright check-run annotation",
+      "tests_passed": 12,
+      "tests_failed": 3,
+      "duration": "1.6m",
+      "overall_workflow": "success, regeneration deliberately uses || true",
+      "baseline_commit": "2d412ca49efcd03e6a84c512965b3293dcfd2952",
+      "baseline_pngs_changed": 4,
+      "failures": [
+        "desktop goal detail: original measure group absent",
+        "mobile goal detail: original measure group absent",
+        "mobile create/edit/delete/Undo: click exceeds unchanged30s timeout"
+      ]
+    }
+  ]
+}

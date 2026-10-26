@@ -1,4 +1,6 @@
 import { benchmarkSelection, setBenchmarkSelection, BENCHMARKS } from '@budget/db';
+import { fundingPlan, saveFundingPlan } from '@budget/db';
+import { fundingPlanSchema } from '@budget/domain';
 import { checkedReportPeriod, reportPeriodSchema } from './report-period';
 import {
   assetExposureOfSecurityAsOf,
@@ -695,6 +697,16 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
   // Report 4.5: costs, broker taxes and income of the last 12 months, illustrative latent tax.
   app.get('/costs-taxes', (c) => c.json({ costs: costsTaxesReport(db, { today: today() }) }));
   app.get('/preferences', (c) => c.json(investmentPreferences(db)));
+  app.get('/funding-plan', (c) => c.json(fundingPlan(db)));
+  app.put('/funding-plan', async (c) => {
+    const input = await readBody(
+      c,
+      z.strictObject({ revision: z.string().min(1).max(64), plan: fundingPlanSchema }),
+    );
+    return c.json(
+      saveFundingPlan(db, input.revision, input.plan, { actor: ACTOR, groupId: randomUUID() }),
+    );
+  });
   app.patch('/preferences', async (c) => {
     const { costMethod } = await readBody(
       c,

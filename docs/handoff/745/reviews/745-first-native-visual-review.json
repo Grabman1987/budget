@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-21T17:58:33.271418+00:00",
+  "source": "85309a6d04a9e229f23636a3fe86d246816badff",
+  "functionalNativePassed": true,
+  "visualAcceptance": false,
+  "personallyViewed": [
+    "activity-table-detail-desktop-light.png",
+    "activity-table-detail-configured-light.png",
+    "activity-table-desktop-dark.png"
+  ],
+  "findings": [
+    "Desktop table clearly separates source and category contribution; keyboard-sized source actions visibly underlined.",
+    "390px three-column layout breaks date year after 202; description width128px creates rows207px high. Must refine phone layout before visual acceptance.",
+    "Phone table screenshot includes fixed navigation over a lower row; do not claim the whole table is visible at once from this full-element capture."
+  ],
+  "next": "Two visible phone columns; date/status/account in booking metadata. Preserve five desktop columns and all money/source identities. Repeat focused UI and native checks before final full check."
+}

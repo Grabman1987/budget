@@ -1,9 +1,21 @@
 import {
   payrollTotals,
+  cents,
   type ParsedPayrollDocument,
   type PayslipSourceConfig,
+  type PayslipAutomationOutcome,
 } from '@budget/domain';
-import { Button, Field, SectionHead, Select, TextInput, useToast, WideDialog } from '@budget/ui';
+import {
+  Button,
+  DimensionChain,
+  Field,
+  SectionHead,
+  Select,
+  TextInput,
+  useAmountPrivacy,
+  useToast,
+  WideDialog,
+} from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { ApiError, notifyApiWrite, request } from '../api/http';
@@ -13,6 +25,7 @@ import { eur, longDay } from '../ledger/format';
 import { errorText } from '../ledger/labels';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { AccountRow } from '../ledger/types';
+import { ReceiptPdfPreview } from '../receipts/pdf-preview';
 import './payslip-intake.css';
 
 const PATH = '/api/payslip-intake';
@@ -73,6 +86,7 @@ export type PayslipUploadResult = {
   duplicate: boolean;
   dropboxCopy?: 'saved' | 'failed' | 'off';
   passwordRemember?: RememberResult;
+  automation?: PayslipAutomationOutcome;
 };
 export function PayslipUpload({
   onBusyChange,
@@ -90,6 +104,8 @@ export function PayslipUpload({
     [remember, setRemember] = useState(false),
     [rememberNote, setRememberNote] = useState('');
   const qc = useQueryClient();
+  const acknowledgeWrite = useBudgetWrite();
+  const toast = useToast();
   function receive(files: File[]) {
     if (busy || !files.length) return;
     const file = files[0]!;
@@ -114,6 +130,7 @@ export function PayslipUpload({
     try {
       const body = new FormData();
       body.set('file', file);
+      body.set('automation', 'eligible');
       if (password) {
         body.set('password', password);
         if (remember) body.set('remember', '1');
@@ -128,6 +145,7 @@ export function PayslipUpload({
         duplicate: boolean;
         dropboxCopy?: 'saved' | 'failed' | 'off';
         passwordRemember?: RememberResult;
+        automation?: PayslipAutomationOutcome;
         error?: string;
         message?: string;
       };
@@ -136,12 +154,36 @@ export function PayslipUpload({
       if (!result.id) throw new ApiError(0, 'invalid_upload_response');
       notifyApiWrite();
       setMessage(
-        result.duplicate
-          ? 'Dieses PDF wurde bereits aufgenommen. Die vorhandene Prüfung wird geöffnet.'
-          : 'PDF ausgewertet. Die Prüfung ist jetzt geöffnet.',
+        result.automation?.status === 'booked'
+          ? 'Gehaltszettel gespeichert und Auszahlung erfasst.'
+          : result.automation?.status === 'linked'
+            ? 'Gehaltszettel gespeichert und mit der vorhandenen Auszahlung verknüpft.'
+            : result.duplicate
+              ? 'Dieses PDF wurde bereits aufgenommen. Die vorhandene Abrechnung wird geöffnet.'
+              : 'PDF gespeichert. Nicht eindeutige Angaben bleiben unter Prüfen.',
       );
       setDropbox(result.duplicate ? 'off' : (result.dropboxCopy ?? 'off'));
       setRememberNote(rememberText(result.passwordRemember));
+      if (result.automation?.groupId && ['booked', 'linked'].includes(result.automation.status)) {
+        // Acknowledge the already committed financial group through the shared Undo/redo UI.
+        // The earlier staging group is deliberately NOT the financial Undo target.
+        const groupId = result.automation.groupId;
+        await acknowledgeWrite(
+          async () => ({ groupId }),
+          () => 'Gehaltszettel automatisch gespeichert.',
+        );
+      }
+      if (result.automation?.status === 'pruefen') {
+        const reason = result.automation.reason;
+        toast.show({
+          message:
+            reason === 'source_not_configured'
+              ? 'PDF gespeichert. Bitte Gehaltskonto und Arbeitgeber/Absender einmal einrichten.'
+              : reason === 'payroll_already_exists'
+                ? 'PDF gespeichert. Eine Abrechnung ist bereits erfasst; bitte die Zuordnung unter Prüfen kontrollieren.'
+                : 'PDF gespeichert. Auszahlung oder Angaben sind nicht eindeutig; bitte unter Prüfen kontrollieren.',
+        });
+      }
       onUploaded?.(result);
       await qc.invalidateQueries();
     } catch (e) {
@@ -185,6 +227,11 @@ export function PayslipUpload({
       </Button>
       <span>PDF · höchstens 15 MB{busy ? ' · Wird ausgewertet …' : ''}</span>
       <p className="payslip-drop-hint">PDF hier ablegen oder über den Button auswählen.</p>
+      <p>
+        Mit eingerichteter Gehaltsquelle werden eindeutige neue Gehaltszettel automatisch
+        gespeichert und passende Auszahlungen verknüpft. Neue Auszahlungen werden vorgemerkt
+        (Bargeld bestätigt). Unklare Angaben bleiben unter Prüfen.
+      </p>
       <details className="payslip-password-details">
         <summary>PDF-Passwort eingeben (optional)</summary>
         <PasswordFields
@@ -213,6 +260,8 @@ export function PayslipUpload({
 type Intake = {
   id: string;
   receiptId: string;
+  /** Older responses may omit the live, persisted source association. */
+  payout?: { payslipId: string; bookingId: string; accountId: string } | null;
   status: string;
   parsed: ParsedPayrollDocument & {
     unmappedWageTypes?: { code: string; label: string; amountCents: number }[];
@@ -226,6 +275,12 @@ type Intake = {
     amountCents: number;
     differenceCents: number;
     exact: boolean;
+    splitPreview?: {
+      status: 'eligible' | 'already_correct' | 'locked' | 'unavailable';
+      token?: string;
+      salaryCents?: number;
+      reimbursementsCents?: number;
+    };
   }[];
   proposedPayeeId: string | null;
   selectedExpectedOccurrenceId: string | null;
@@ -252,12 +307,14 @@ export function PayslipIntakeDetail({
   inline?: boolean;
   duplicate?: boolean;
 }) {
+  useAmountPrivacy();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [accountId, setAccountId] = useState<string>();
   const [payoutDate, setPayoutDate] = useState<string | null | undefined>();
   const [expectedOccurrenceId, setExpectedOccurrenceId] = useState<string | null | undefined>();
   const [payeeId, setPayeeId] = useState<string | null | undefined>();
   const [wageMappings, setWageMappings] = useState<Record<string, string>>({});
+  const [acceptedSplitToken, setAcceptedSplitToken] = useState<string>();
   const [mappingPassword, setMappingPassword] = useState('');
   const query = useQuery({
     queryKey: ['payslip-intake', id, accountId, payoutDate, expectedOccurrenceId],
@@ -265,7 +322,9 @@ export function PayslipIntakeDetail({
       const params = new URLSearchParams();
       if (accountId) params.set('accountId', accountId);
       if (payoutDate) params.set('payoutDate', payoutDate);
-      if (expectedOccurrenceId) params.set('expectedOccurrenceId', expectedOccurrenceId);
+      // A deliberate empty selection must not reapply the server's initial sole-expectation default.
+      if (expectedOccurrenceId !== undefined)
+        params.set('expectedOccurrenceId', expectedOccurrenceId ?? 'none');
       return request<Intake>('GET', `${PATH}/${id}${params.size ? `?${params}` : ''}`);
     },
     enabled: inline || dialogOpen,
@@ -286,6 +345,11 @@ export function PayslipIntakeDetail({
   const p = data?.parsed,
     totals = p?.draft ? payrollTotals([p.draft]) : null;
   const selectedMatch = data?.matches.find((m) => m.id === match);
+  const splitPreview = selectedMatch?.splitPreview;
+  const splitAccepted =
+    splitPreview?.status === 'eligible' &&
+    Boolean(splitPreview.token) &&
+    acceptedSplitToken === splitPreview.token;
   const payoutAccount = data?.accounts.find((a) => a.id === data.payoutAccountId);
   const selectedExpectation = data?.expectedPayouts.find(
     (item) => item.occurrenceId === effectiveExpectedId,
@@ -326,6 +390,9 @@ export function PayslipIntakeDetail({
             : {
                 action,
                 bookingId: match || null,
+                ...(action === 'confirm' && splitAccepted
+                  ? { splitToken: splitPreview!.token }
+                  : {}),
                 ...(action === 'confirm' && payoutAccount
                   ? {
                       accountId: payoutAccount.id,
@@ -398,6 +465,31 @@ export function PayslipIntakeDetail({
           )}
           {totals && (
             <>
+              <DimensionChain
+                label="Zusammensetzung der Auszahlung"
+                precision="cent"
+                terms={[
+                  { label: 'Brutto', value: cents(totals.grossCents) },
+                  { label: 'SV', value: cents(totals.svCents), op: '-' },
+                  { label: 'Lohnsteuer', value: cents(totals.taxCents), op: '-' },
+                  { label: 'Abzüge', value: cents(totals.otherCents), op: '-' },
+                  {
+                    label: 'Steuerfreie Erstattungen',
+                    value: cents(totals.reimbursementsCents),
+                    op: '+',
+                  },
+                  ...(totals.calculatedNetCents !== totals.netCents
+                    ? [
+                        {
+                          label: 'Summendifferenz',
+                          value: cents(totals.calculatedNetCents - totals.netCents),
+                          op: '-' as const,
+                        },
+                      ]
+                    : []),
+                  { label: 'Auszahlung', value: cents(totals.netCents), op: '=' },
+                ]}
+              />
               <dl className="source-status">
                 {[
                   ['Brutto', totals.grossCents],
@@ -594,6 +686,45 @@ export function PayslipIntakeDetail({
                   {eur(selectedMatch.differenceCents)}
                 </p>
               )}
+              {splitPreview?.status === 'eligible' && data.status === 'pending' && (
+                <div>
+                  <label className="check-row">
+                    <input
+                      type="checkbox"
+                      disabled={busy}
+                      checked={splitAccepted}
+                      onChange={(event) =>
+                        setAcceptedSplitToken(event.target.checked ? splitPreview.token : undefined)
+                      }
+                    />
+                    Vorhandene Auszahlung ausdrücklich in Gehalt und steuerfreie Erstattungen
+                    aufteilen
+                  </label>
+                  <p className="panel-sub">
+                    Gehalt{' '}
+                    <span className="payslip-split-amount">{eur(splitPreview.salaryCents!)}</span> ·
+                    steuerfreie Erstattungen{' '}
+                    <span className="payslip-split-amount">
+                      {eur(splitPreview.reimbursementsCents!)}
+                    </span>
+                    . Gesamtbetrag, Konto, Datum und Status bleiben erhalten. Aufteilung und
+                    Verknüpfung gehören zu einer Rücknahme.
+                  </p>
+                </div>
+              )}
+              {splitPreview?.status === 'locked' && (
+                <p className="panel-sub">
+                  Diese Auszahlung ist geprüft. Sie wird nur verknüpft; ihre Aufteilung bleibt
+                  erhalten.
+                </p>
+              )}
+              {splitPreview?.status === 'unavailable' && (
+                <p className="panel-sub">
+                  Eine unveränderte ursprüngliche Zuordnung ist nicht vollständig nachgewiesen. Die
+                  Auszahlung wird nur verknüpft; bestehende Korrekturen und Zuordnungen bleiben
+                  erhalten.
+                </p>
+              )}
               {!data.matches.length && (
                 <p>
                   Keine Gehaltsbuchung im Zeitfenster gefunden. Nach der Bestätigung wird die
@@ -602,7 +733,9 @@ export function PayslipIntakeDetail({
               )}
               <p>
                 {selectedMatch
-                  ? 'Die vorhandene Buchung wird verknüpft. Ihre Zuordnung bleibt erhalten.'
+                  ? splitAccepted
+                    ? 'Die nachgewiesene ursprüngliche Auszahlung wird aufgeteilt und verknüpft.'
+                    : 'Die vorhandene Buchung wird verknüpft. Ihre Zuordnung bleibt erhalten.'
                   : payoutAccount?.type === 'cash'
                     ? 'Die neue Bargeldauszahlung wird sofort bestätigt.'
                     : 'Die neue Auszahlung wird vorgemerkt. Gehalt und steuerfreie Erstattungen werden getrennt zugeordnet.'}
@@ -613,6 +746,14 @@ export function PayslipIntakeDetail({
             <a className="btn btn-ghost" href={`/api/receipts/${data.receiptId}/download`}>
               Original-PDF herunterladen
             </a>
+            {data.status === 'confirmed' && data.payout && (
+              <a
+                className="btn btn-ghost"
+                href={`/konten/buchungen?konto=${encodeURIComponent(data.payout.accountId)}&buchung=${encodeURIComponent(data.payout.bookingId)}`}
+              >
+                Gespeicherte Auszahlung öffnen
+              </a>
+            )}
             <Button
               disabled={busy || !canConfirm || data.status !== 'pending'}
               onClick={() => void act('confirm')}
@@ -638,14 +779,34 @@ export function PayslipIntakeDetail({
       )}
     </>
   );
+  const documentReview = (
+    <div className="payslip-document-review">
+      <div className="payslip-document-original">
+        {data && (
+          <ReceiptPdfPreview
+            key={`${id}:${data.receiptId}:${accountId ?? data.payoutAccountId ?? ''}`}
+            receiptId={data.receiptId}
+            visible={inline || dialogOpen}
+          />
+        )}
+      </div>
+      <div className="payslip-document-fields">{review}</div>
+    </div>
+  );
   if (inline)
     return (
       <section className="payslip-intake-review" aria-label="Gehaltszettelprüfung">
         {duplicate && (
           <p role="status">Duplikat erkannt. Die bestehende Abrechnung wird angezeigt.</p>
         )}
-        {!duplicate && <p role="status">PDF ausgewertet. Prüfung ohne automatische Buchung.</p>}
-        {review}
+        {!duplicate && (
+          <p role="status">
+            {data?.status === 'confirmed'
+              ? 'Gehaltszettel gespeichert.'
+              : 'PDF gespeichert. Offene Angaben bitte prüfen.'}
+          </p>
+        )}
+        {documentReview}
       </section>
     );
   return (
@@ -659,7 +820,7 @@ export function PayslipIntakeDetail({
         title="Gehaltszettel prüfen"
         beforeClose={() => !busy}
       >
-        <div className="payslip-review-dialog">{review}</div>
+        <div className="payslip-review-dialog">{documentReview}</div>
       </WideDialog>
     </>
   );
@@ -676,6 +837,7 @@ type SourceStatus = {
   filesFound: number;
   errors: number;
   config: PayslipSourceConfig;
+  payees?: { id: string; name: string }[];
 };
 export function PayslipSourceSection() {
   const query = useQuery({
@@ -741,7 +903,11 @@ export function PayslipSourceSection() {
             source={query.data.passwordSource}
             available={query.data.passwordRememberAvailable}
           />
-          <PayslipSourceForm initial={query.data.config} accounts={query.data.accounts} />
+          <PayslipSourceForm
+            initial={query.data.config}
+            accounts={query.data.accounts}
+            payees={query.data.payees ?? []}
+          />
         </>
       )}
       <p>Dropbox wird nachts gelesen. PDFs erscheinen zur Bestätigung unter Prüfen.</p>
@@ -841,11 +1007,14 @@ const WAGE_LABELS = {
 function PayslipSourceForm({
   initial,
   accounts,
+  payees,
 }: {
   initial: PayslipSourceConfig;
   accounts: SourceStatus['accounts'];
+  payees: { id: string; name: string }[];
 }) {
   const [salaryAccountId, setAccount] = useState(initial.salaryAccountId ?? '');
+  const [automaticPayeeId, setAutomaticPayee] = useState(initial.automation?.payeeId ?? '');
   const [rows, setRows] = useState(() =>
     Object.entries(initial.wageTypes).map(([code, type]) => ({ code, type })),
   );
@@ -868,6 +1037,7 @@ function PayslipSourceForm({
       () =>
         request<{ groupId: string }>('PUT', PATH + '/config', {
           salaryAccountId: salaryAccountId || null,
+          ...(automaticPayeeId ? { automation: { payeeId: automaticPayeeId } } : {}),
           wageTypes: Object.fromEntries(rows.map((r) => [r.code, r.type])),
         }),
       () => 'Gehaltsquelle gespeichert.',
@@ -894,6 +1064,27 @@ function PayslipSourceForm({
           </Select>
         )}
       </Field>
+      <Field label="Arbeitgeber / Absender für automatische Gehaltszettel">
+        {({ id }) => (
+          <Select
+            id={id}
+            value={automaticPayeeId}
+            disabled={busy}
+            onChange={(event) => setAutomaticPayee(event.target.value)}
+          >
+            <option value="">Automatische Speicherung aus</option>
+            {payees.map((person) => (
+              <option key={person.id} value={person.id}>
+                {person.name}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Field>
+      <p>
+        Einmal dem Gehaltskonto und einem vorhandenen Absender zuordnen. Nur eindeutig validierte
+        neue Uploads werden automatisch gespeichert; bestehende Buchungen bleiben unverändert.
+      </p>
       <p>
         Lohnarten aus dem Dokument zuordnen. Bezüge sind bereits in der Bruttosumme enthalten.
         Aufrollungen behalten ihr Vorzeichen.

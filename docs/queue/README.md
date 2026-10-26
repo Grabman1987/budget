@@ -1,102 +1,64 @@
 # Delivery process
 
-How work reaches `main` and production today (state 2026-10-19). Measured numbers:
-[delivery-audit-2026-10-17.md](delivery-audit-2026-10-17.md), CI layout: [ci-speed.md](ci-speed.md).
-`CLAUDE.md` holds the hard guardrails and wins on any conflict.
+This is the single authoritative source for queue work: roles, tests, review, integration and issue status. Product, finance, design and security requirements remain in [`SPEC.md`](../../SPEC.md), [`DESIGN.md`](../../DESIGN.md) and `CLAUDE.md`. Historical decisions and prompts are superseded where they conflict with this process.
 
-## Process
+## Work and coordination
 
-1. The owner or the orchestrator writes a small issue (acceptance criteria, `risk:*`, `area:*`, file scope).
-2. The orchestrator (Opus or Codex, interactive session) dispatches implementation to an agent in its own worktree and branch.
-3. The agent implements, runs targeted checks, opens a PR with `Refs #N` and stops. It never merges.
-4. CI runs on the PR. The orchestrator checks scope, reviews as the risk class requires (below) and merges with `scripts/queue/merge-pr.sh <pr>`.
-5. The issue closes only when the merge is live and every acceptance criterion is verified (closing rules).
+Start with the next ready integration candidate. The owner-authorized batch mode may collect verified merges before one publication; otherwise finish publication before starting more work. Existing advanced work has priority. Normally one issue maps to one branch and PR; closely related issues may share a small PR only when each issue's scope and acceptance are clear. Do not create mixed backlog branches or duplicate board entries. Inspect any prepared test diff or relevant existing evidence before recreating work. Preserve existing changes and approvals; do not interfere with other worktrees, branches, PRs or issues outside the assigned scope.
 
-## Roles and lanes
+At most two implementation packages may be active, plus one independent reviewer when needed. Do not reserve an extra infrastructure lane. Resolve dependencies before dispatch. Use one writer per shared file or migration sequence, and run at most one heavy test job at a time. When ready work is waiting, do not start more implementation.
 
-| Who                          | Does                                                                                                                 |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Orchestrator (Opus or Codex) | Triage, dispatch, scope check, test-change decisions, merges, sets `queue:complete`                                  |
-| Implementer                  | One issue, one PR; no merge, no `queue:complete`, no `tests-change-approved`                                         |
-| Search, log reading          | Small models (Explore/Haiku) or plain `gh`/shell                                                                     |
-| Independent reviewer         | Independent Opus or Codex agent, never the implementer; reviews the same full diff, not the implementer's conclusion |
+Choose a model for the task: Astra coordinates and handles difficult diagnosis or high-risk decisions; Sol handles normal bounded implementation; Luna or the least costly suitable available model handles simple research and changes. Use only available models. State the actual execution path (cloud agent, local agent, or independent reviewer); do not claim a tool or model was used if it was not. Implementer and reviewer must be different agents. Independent Codex review is allowed; no specific vendor model is required. Financial, security and migration changes need a capable independent full-diff review.
 
-- At most 2 feature lanes at once: **A** UI, Plan, Konten; **B** finance, data, API. Plus 1 infra slot **C** (CI, scripts, docs).
-- One writer per critical area at a time: `router.tsx`, shared components in `packages/ui`, ledger, migrations. Queue the second issue instead of running it in parallel.
+Give each agent only the task, owned files, acceptance criteria, dependencies and relevant approvals it needs. Keep one compact coordination record: ticket, branch, commit, verified revision, dependency and next step. Keep reports short and include evidence. Ask only about new product decisions, missing necessary permissions or protected-rule changes; bundle necessary questions, do not repeat answered questions, and continue independent work. After two failed diagnostic approaches, record the cause, evidence and next needed action; use a permitted alternate route or continue independent work rather than looping.
 
-## Risk classes
+## Tests and local checks
 
-| Class    | Examples                                                       | Needs                                                                    |
-| -------- | -------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| LOW      | UI copy/layout, docs, no existing test touched                 | Green CI and the orchestrator's scope check. No separate long review.    |
-| MEDIUM   | Existing tests or baselines change, shared components          | LOW plus independent review of the test and baseline changes             |
-| HIGH     | Money, ledger, DB, auth, migrations, CI, deploy, queue scripts | Label `risk:high`, independent Opus or Codex review of the whole diff    |
-| CRITICAL | Calculation rules, production data, secrets, branch protection | Documented owner approval first; migrations reversible, tested on a copy |
+Use suitable existing tests to cover acceptance criteria. Do not create a test solely to satisfy a documentation rule. For a calculation defect, reproduce it with a literal expected result independent of the implementation and write or update that regression check before changing the calculation. Implementers may make necessary technical edits to existing tests for an authorized UI/API change, including selectors and labels, table or dialog structure, expanding details, and fixtures for new read queries or approved upload fields. This permission includes files containing finance tests when protected expectations remain unchanged; it does not authorize changing their financial meaning.
 
-Unsure means one class higher. Independent review is mandatory for every change to existing tests and for `risk:high`.
+For each changed test file, include a brief per-file reason and have an independent reviewer inspect the change and its effect on coverage. No new owner approval is needed for these scoped technical adaptations; after the scope and review are documented, the orchestrator may set `tests-change-approved` to record them. Existing explicit approvals remain valid. Changes to financial oracles, booking semantics, security, locks, audit, undo, tolerances, timeouts, or weakening/removing/skipping checks require separate owner approval. Never loosen timeouts, skip tests, or weaken coverage to get a green result.
 
-## Test-change policy
+Run affected tests and static checks while implementing. A reviewable PR may be opened after suitable targeted local checks; `npm run check` does not have to pass locally before every PR. Before merge, every required check must pass on the exact PR head. Compare CI coverage with the required check set: when CI covers it all, an identical local full run is not routinely needed; run only uncovered checks locally. Use a local full run when risk or diagnosis warrants it. Finish code, necessary test changes and docs before the full CI run where possible. Reuse evidence only for the revision it tested or for relevant content proven unchanged. Diagnose failures before retrying; do not report old results as current CI.
 
-Owner decision (Fabian, 2026-10-17): "Test changes for already decided UI changes are allowed if each change traces to a documented owner decision and is justified per test file in the PR; old expectations on text/structure/interaction may be replaced by matching checks of the new behaviour with coverage kept; an independent Opus review checks them before merge. Not covered: looser tolerances, skip, disabled rules, lower coverage, removed checks without equivalent replacement. Changes to finance, security, locking and undo rules stay separately subject to owner approval."
+Owner authorization (2026-10-25): CI now selects checks by the committed changed-file scope, using `scripts/ci/change-plan.mjs`. Documentation-only changes retain static, Docker and restore checks. Explicitly mapped UI changes also retain all Linux unit/API tests and the mapped browser flows, including their screenshot assertions and configured profiles. Unknown files, shared code, calculations, database/auth code, tests/baselines, dependencies and workflow changes require the full suite. Mapped UI scopes are the funding-plan and price-history components and their stylesheets, with their explicitly listed browser specs. Do not infer that every UI change is on the fast lane. Expand mappings only with independently reviewed coverage evidence.
 
-Owner model/integration authorization (2026-10-19, [#694](https://github.com/Grabman1987/budget/issues/694)): "Ja, Codex-Reviews und reguläre Integration erlauben". An independent Codex reviewer may replace the named Opus reviewer with the same full-diff scope, including existing-test/baseline and high-risk changes; the reviewer must never be the implementer. This supersedes the named-model restriction in the historical decision above, preserving all its test-change conditions. The owner also authorizes subsequent serial merges through the existing required CI and main/live gates, including regular deployment by the orchestrator. Implementers still never merge. Role separation, required checks, branch protection and closing criteria remain binding; this authorization does not enable the old queue loops or release binding STOP files.
+Keep all four required GitHub check names and branch protection. Required aggregates must fail on missing plans and unexpected skipped, cancelled or failed jobs. Full regression remains scheduled nightly and manually runnable, without deploying. No financial/security oracle, timeout or assertion is relaxed by selecting the affected checks. The owner-authorized scope selection supersedes the earlier requirement to run every suite for every PR; all other protections and exact-head integration gates remain. See the [practical local/cloud guide](../development-fast-path.md).
 
-- Implementing agents never edit existing tests (`*.test.*`, `e2e/**/*.spec.ts`, tolerances, lint or coverage config). They add tests for new criteria and list the existing-test changes they need in the PR.
-- The orchestrator applies a listed change only under the decision above: per-file justification table (file, change, decision cited), independent review, label `tests-change-approved`.
-- The orchestrator sets `tests-change-approved` only for issues the owner approved in chat; the PR quotes that approval.
-- Tests guarding finance, security, locking or undo always need the owner's explicit approval for that specific change.
-- Not covered by the decision (explicit owner approval for that PR): looser tolerances, `skip`/`only`, disabled lint rules, lower coverage, removed checks without an equivalent replacement.
-- Isolation or root-cause fixes that make a test stricter follow the same review and table.
-- Obsolete test with no matching decision: `needs-human`, reason in a comment.
+Separate implementation/preview from publication: a PR can be ready for user review before the full delivery gate completes. Do not duplicate a full CI run locally or repeatedly rebuild evidence after an unrelated documentation edit. On actual failures distinguish infrastructure, contract/fixture and product failures before a targeted retry. Use the five-task timing pilot in the guide to measure the change; do not claim an unmeasured speedup.
 
-Residual limitation: `checkScope` protects existing `*.test.*` and `e2e/**/*.spec.ts`
-files, but test helpers and fixtures with other names (for example `test-utils.ts`
-or `fixtures/data.ts`) can still weaken what tests verify without triggering that
-existing-test guard. This is caught only by orchestrator review: Opus must inspect
-helper/fixture changes and their effect on the tests before integration. The guard
-does not establish that test coverage or assertions remain equally strict.
+## Review and risk
 
-## Screenshot baselines
+Every completed change gets an independent review of the final diff. For a small change, a short explanation and relevant evidence are enough. After edits, review the affected portion again unless the change has wider effects. Existing-test changes always need independent review; financial, security and migration changes need a capable reviewer of the complete diff. The reviewer must not be the implementer.
 
-Intended UI changes regenerate only the affected specs on the PR branch: run `update-snapshots.yml` with the `specs` input (for example `e2e/shell.spec.ts`). The orchestrator opens the new PNGs and judges them before the merge. The bot's push does not start CI, so push an empty commit afterwards. Never regenerate all baselines to get green.
+| Risk      | Examples                                                                                             | Review and gates                                                                     |
+| --------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Routine   | Copy, layout, documentation                                                                          | Independent diff review and required CI                                              |
+| Elevated  | Existing tests or baselines, shared components                                                       | Above, with focused review of test/baseline impact                                   |
+| High      | Money, ledger, database, auth, migrations, CI, deploy or queue scripts                               | `risk:high`, capable independent full-diff review, required CI and integration gates |
+| Protected | Calculation semantics, security/locking/undo behavior, production data, secrets or branch protection | Separate owner approval before the protected change; preserve all existing gates     |
 
-## Merging
+If a technical change crosses risk levels, follow the higher level. `risk:high` forces the full CI lane even inside an allowlisted UI file. Set the risk before the final push; when elevating risk after CI started, push an empty commit so the new pull-request event includes the label and wait for that exact-head run. Merely editing a label does not restart CI, and rerunning an old event may retain its old label context. Routine technical test adaptations described above do not become protected changes unless their semantics alter protected expectations.
 
-`scripts/queue/merge-pr.sh <pr>` (orchestrator, local `gh` login):
+## Screenshots and UI evidence
 
-1. Waits until `main` is green, deployed and live (`/health` revision equals the main head).
-2. Updates the PR branch once if it is behind.
-3. Waits for CI on the exact PR head, then re-checks the gate and the main head.
-4. Merges `--squash --match-head-commit`, then waits until the merge commit is live.
+For an intended UI change, regenerate only the affected screenshot specs using `update-snapshots.yml` and its `specs` input (for example `e2e/shell.spec.ts`). Inspect the resulting PNGs against the intended change before merge. The bot push does not start CI; after verifying it contains only intended baselines, push an empty commit to trigger checks on the new head. Never regenerate all baselines to get green. Limit evidence to affected views and needed desktop/mobile profiles; browser emulation is not a physical-device test.
 
-One merge per live revision: the next merge starts only after the previous one is live. Main CI reuses the validated identical PR tree (PR #657): merge to live took about 2.5 min instead of 11 min. Exit codes: 0 live, 1 stopped before the merge, 2 main CI failed after the merge, 3 not live after 45 min.
+## Integration and deployment
 
-## Closing rules
+Normal serial merges and deployments by the orchestrator are preauthorized once independent review, required checks and existing integration conditions pass. Implementers do not merge. Use only `scripts/queue/merge-pr.sh <pr>` for integration; do not use direct GitHub merge, auto-merge or bypass flags.
 
-- Close an issue only when every acceptance criterion is verified (including `webkit-iphone` where the issue names it) and the merge is live. The orchestrator then sets `queue:complete` on the PR.
-- Partial delivery: comment "live in <rev>, open items" and leave the issue open.
-- Epics and parents never close because their children closed.
-- PRs say `Refs #N`, never `Closes`: closing means live, not merged.
+Owner continuation (2026-10-25): integration and release are separate. The helper requires green current-main CI, exact-head PR CI, and a healthy successfully deployed production revision that is an ancestor of main. It stops if main moves while waiting, a deployment is pending/failed, or verification fails. `merge-pr.sh PR --hold-release` merges and waits for main verification without publishing; multiple reviewed PRs may form a batch. Default `merge-pr.sh PR` also calls the release helper. `release.sh FULL_MAIN_SHA` explicitly publishes the current checked main revision through the main-only Deploy workflow and verifies exact live health. A merge awaiting release is not live and must not receive queue:complete. Releases remain serial; required check names, branch protection and data protections remain unchanged. No direct merge, auto-merge, bypass or force push.
 
-## Labels
+Do not perform destructive production operations. Migrations must be reversible and tested on a copy first. Never expose secrets, private financial data, raw logs, or real PDFs in code, issues, PRs, or public evidence. Share only synthetic evidence needed for review and make it accessible to the next agent. Suspected data loss or a security issue means stop and open an `incident` issue. No production secrets, credentials, settings, or deploy configuration changes without separate owner approval.
 
-`ready`, `needs-human`, `blocked`, `epic`, `in-progress`, `ui-change`, `incident`, `flaky-test`, `risk:low|high`, `area:*`, `size:S|M|L`, `tests-change-approved` (orchestrator, per policy), `queue:complete` (orchestrator, after live). Create the set with `bash scripts/queue/labels.sh`.
+## Issue status and unattended loops
 
-## Unattended loop: not in use
+Set `in-progress` when work starts and record a concrete blocker when it stops. Set live/complete status only after publication is verified and every acceptance criterion is met, including any explicitly required profile such as `webkit-iphone`. The orchestrator sets `queue:complete` on the PR after all criteria pass and the merge is live. Do not close a parent or epic solely because its children closed. If board access is missing, record the needed reconciliation and do not claim the board was updated. Otherwise, board evidence should describe actual work and publication; do not create duplicate entries. PRs say `Refs #N`, never `Closes`.
 
-`loop.sh`, `automerge.sh`, `run_queue.sh` and `live.sh` (with `gate.sh`, `policy.mjs`, `scope-lib.sh`, `board.sh`) are **not in use; restart only with owner approval.** The owner made STOP files binding, and an unexplained STOP on 2026-10-17 16:36 is unresolved. Do not start, schedule or call them from CI. The protected-path list in `policy.mjs` (`.github/**`, `scripts/queue/**`, `scripts/ci/**`, `.claude/**`, `.agents/**`, `AGENTS.md`, `CLAUDE.md`, deploy files, migrations, test and lint configs, lockfiles, snapshot directories) still tells the orchestrator what to review by hand.
+The unattended `loop.sh`, `automerge.sh`, `run_queue.sh` and `live.sh` workflows remain disabled. Existing STOP files are binding; the unresolved STOP must not be cleared. Do not start, schedule, or invoke those loops without separate owner approval. This authorization for normal serial integration does not release STOP files or authorize unattended loops.
 
-## Cost rules
+## Labels and references
 
-grep or line ranges instead of whole files; `gh` with `--json`/`--jq`/`--limit`; no polling loops; agent reports at most 10 lines; a handoff file at about 60 % context. Ponytail for code ([ponytail-summary.md](ponytail-summary.md)); "a test per acceptance criterion" wins over its "one small check".
+Useful labels include `ready`, `needs-human`, `blocked`, `epic`, `in-progress`, `ui-change`, `incident`, `flaky-test`, `risk:low|high`, `area:*`, `size:S|M|L`, `tests-change-approved` (scoped technical adaptations after justification and independent review), and `queue:complete` (only after live acceptance). Create labels with `bash scripts/queue/labels.sh` when needed.
 
-## Troubleshooting
-
-- `gate: main not live/green yet` for long: check the last `ci.yml` and `deploy.yml` runs on `main` and the `/health` revision. A red main blocks all merges until fixed.
-- `CI red <sha> run <id>`: read the listed specs, fix on the branch, push, run the script again.
-- `main moved, stop`: another merge landed; run the script again.
-- `MAIN CI FAILED on merge`: stop all merges, fix forward or revert, tell the owner.
-- No CI on the head after a bot push (baselines): push an empty commit.
-- "cannot lock ref" or transient `gh` errors: the script retries three times; if it persists, look for a parallel `git` process in the same checkout.
-- Leftover worktree of a crashed agent: `git worktree remove --force <path>`, then delete the branch.
-- Limitation: all agents act under the owner's GitHub login, so `tests-change-approved` cannot be restricted technically. It is a rule by instruction; the label event is auditable in the timeline.
+Use `rg` or line ranges for focused reading; use `gh` with `--json`, `--jq` and `--limit` where practical. Do not poll in tight loops. Follow the minimal-code principles in [the Ponytail summary](ponytail-summary.md), while this document governs delivery and test policy.

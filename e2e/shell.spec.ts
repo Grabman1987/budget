@@ -116,16 +116,37 @@ test.describe('routes', () => {
 
   test('the report catalog lists 33 reports in five assemblies with positions', async ({
     page,
-  }) => {
+  }, info) => {
     await page.goto('/reports');
     await expect(page.locator('.rcat-row')).toHaveCount(33);
     await expect(page.locator('.rcat-grp')).toHaveCount(5);
     await expect(page.locator('.rcat-row .col-pos').first()).toHaveText('1.1');
     await expect(page.locator('.rcat-row .col-pos').last()).toHaveText('5.5');
-    // As in the prototype: chart form and Steuerung per row; a click on the row opens the report.
-    await expect(page.locator('.rcat-row').first().locator('.rcat-form')).toHaveText(
-      'Druckblatt A4',
-    );
+    // The catalog keeps the question; chart implementation and period controls belong to reports.
+    const first = page.locator('.rcat-row').first();
+    await expect(first.locator('.rcat-q')).toHaveText('Wie lief der Monat, auf einem Blatt?');
+    await expect(page.locator('.rcat-form, .rcat-ctl')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Kontoprognose in Plan öffnen' })).toHaveCount(0);
+    if ((page.viewportSize()?.width ?? 0) >= 1440) {
+      const headings = page.locator('.rcat-grp');
+      const left = await headings.nth(0).boundingBox();
+      const right = await headings.nth(1).boundingBox();
+      expect(left?.y).toBe(right?.y);
+    }
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+      await first.hover();
+      const colors = await first.evaluate((row) => ({
+        row: getComputedStyle(row).backgroundColor,
+        cells: Array.from(row.children, (cell) => getComputedStyle(cell).backgroundColor),
+      }));
+      expect(colors.row).not.toBe('rgba(0, 0, 0, 0)');
+      expect(colors.cells.every((color) => color === 'rgba(0, 0, 0, 0)')).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      await page.screenshot({ path: info.outputPath(`catalog-${theme}.png`), fullPage: true });
+    }
     await page.locator('.rcat-row').nth(3).locator('.rcat-q').click();
     await expect(page).toHaveURL(/\/reports\/geldfluss$/);
   });

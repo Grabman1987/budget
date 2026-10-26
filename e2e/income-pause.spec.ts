@@ -111,6 +111,7 @@ isolatedTest(
     expect(monthIncome(before, '2026-10')).toBe(520_123);
     await assertScheduleAndNoBookings();
     await page.goto('/reports/liquiditaet');
+    await page.locator('details.rf-tools > summary').click();
 
     const pauseCard = page.locator('section[aria-labelledby="liq-pauses"]');
     const source = pauseCard.getByLabel('Einnahmequelle');
@@ -386,11 +387,21 @@ isolatedTest(
       data: { sourceId: deletedSourceId, startDate: '2026-10-15', endDate: '2026-10-15' },
     });
     expect(stalePause.status(), await stalePause.text()).toBe(201);
-    const removedSource = await page.request.delete(`/api/expected/${deletedSourceId}`, {
-      headers: { origin },
-    });
+    const reviewedResponse = await page.request.get('/api/expected');
+    expect(reviewedResponse.status()).toBe(200);
+    const reviewed = (await reviewedResponse.json()).payments.find(
+      (p: { id: string }) => p.id === deletedSourceId,
+    );
+    expect(reviewed.lifecycle.reviewToken).toMatch(/^[a-f0-9]{64}$/);
+    const removedSource = await page.request.delete(
+      `/api/expected/${deletedSourceId}?reviewToken=${reviewed.lifecycle.reviewToken}`,
+      {
+        headers: { origin },
+      },
+    );
     expect(removedSource.status(), await removedSource.text()).toBe(200);
     await page.reload();
+    await page.locator('details.rf-tools > summary').click();
     await expect(pauseCard).toContainText(`Synthetic deleted source ${info.project.name}`);
     await expect(pauseCard).toContainText('Quelle gelöscht');
   },

@@ -1,0 +1,8 @@
+.preview-banner {
+  padding: 8px 16px;
+  background: var(--surface-2);
+  color: var(--ink);
+  border-bottom: var(--stroke-hairline) solid var(--primary);
+  font-size: var(--fs-meta);
+  text-align: center;
+}

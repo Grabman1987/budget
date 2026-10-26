@@ -1,3 +1,4 @@
+import { openPruefenSource } from './pruefen-part';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
 import { join } from 'node:path';
@@ -139,6 +140,7 @@ test('monthly savings proposals require actual execution confirmation and suppor
     ).toEqual([]);
   }
   await step.getByRole('button', { name: 'Ausführung prüfen' }).click();
+  await openPruefenSource(page, 'Plan');
   const row = page.getByTestId('inbox-row').filter({ hasText: name });
   await row.getByRole('button', { name: 'Ausführung prüfen' }).focus();
   await page.keyboard.press('Enter');

@@ -1,0 +1,8 @@
+{
+  "startTime": "2026-10-21T16:42:41.793Z",
+  "duration": 63712.016,
+  "expected": 3,
+  "skipped": 0,
+  "unexpected": 4,
+  "flaky": 0
+}

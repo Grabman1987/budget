@@ -124,7 +124,9 @@ async function knownOnlyFixture(request: APIRequestContext, origin: string, data
 }
 
 function accountRow(page: Page, name: string) {
-  return page.locator('tr.krow').filter({ has: page.getByRole('link', { name, exact: true }) });
+  return page
+    .locator('tr.overview-account-row')
+    .filter({ has: page.getByRole('link', { name: `${name} `, exact: false }) });
 }
 
 async function record(page: Page, info: TestInfo, phase: string) {
@@ -146,7 +148,7 @@ async function record(page: Page, info: TestInfo, phase: string) {
       pointer: matchMedia('(pointer: coarse)').matches ? 'coarse' : 'fine',
       deviceScaleFactor: devicePixelRatio,
       maxTouchPoints: navigator.maxTouchPoints,
-      cells: [...document.querySelectorAll('.kaccts .kc-num')].map((cell) => ({
+      cells: [...document.querySelectorAll('.account-overview-577 .kc-num')].map((cell) => ({
         text: cell.textContent,
         box: box(cell),
         parts: [
@@ -230,9 +232,11 @@ async function checkFigure(
   phase: string,
   row: Locator,
   explanation: string,
+  source: Locator = row,
 ) {
   await containedFigure(row.locator('.kc-num'));
-  const marker = row.getByRole('button', { name: /^Bewertungsgrundlage ·/ });
+  await containedFigure(source.locator('.kc-num, td').first());
+  const marker = source.getByRole('button', { name: /^Bewertungsgrundlage ·/ });
   const markerBox = await marker.boundingBox();
   expect(markerBox).not.toBeNull();
   expect(markerBox!.width).toBeGreaterThanOrEqual(44);
@@ -271,13 +275,20 @@ async function checkOverview(page: Page, info: TestInfo, label: string) {
   const partial = accountRow(page, 'Layout partial depot');
   const unknown = accountRow(page, 'Layout unpriced crypto');
   const large = accountRow(page, 'Layout large estimate');
-  await expect(partial.getByTestId('account-value')).toHaveText('24,68 €');
+  await expect(partial.getByTestId('account-value')).toHaveText('≈ 24,68 €');
   // 12345 - 2468 gross - 99 fee - 500 checking booking - 123 linked depot cash = 9155.
   await expect(accountRow(page, 'Layout clearing').getByTestId('account-value')).toHaveText(
     '91,55 €',
   );
-  await expect(unknown.getByTestId('account-value')).toHaveText('Wertpapierkurs fehlt');
-  await expect(large.getByTestId('account-value')).toHaveText('1.234.567,89 €');
+  await expect(unknown.getByTestId('account-value')).toHaveText('Nicht verfügbar');
+  for (const row of [partial, unknown, large])
+    await row.getByRole('button', { name: /^Details zu / }).click();
+  await expect(
+    unknown
+      .locator('xpath=following-sibling::tr[1]')
+      .getByText('Wertpapierkurs fehlt', { exact: true }),
+  ).toHaveText('Wertpapierkurs fehlt');
+  await expect(large.getByTestId('account-value')).toHaveText('≈ 1.234.567,89 €');
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
@@ -290,7 +301,14 @@ async function checkOverview(page: Page, info: TestInfo, label: string) {
       [unknown, 'unknown', 'Bewertung fehlt'],
       [large, 'large', 'Einstandswert als Schätzung'],
     ] as const) {
-      await checkFigure(page, info, `${label}-${theme}-${name}`, row, explanation);
+      await checkFigure(
+        page,
+        info,
+        `${label}-${theme}-${name}`,
+        row,
+        explanation,
+        row.locator('xpath=following-sibling::tr[1]'),
+      );
     }
   }
 }
@@ -300,8 +318,9 @@ async function checkKnownGroup(page: Page, info: TestInfo, label: string) {
   await page.evaluate(() => document.fonts.ready);
   const account = accountRow(page, 'Layout large estimate');
   const group = page.locator('tr.kgroup#kg-investments');
-  await expect(account.getByTestId('account-value')).toHaveText('1.234.567,89 €');
-  await expect(group.getByTestId('account-group-value')).toHaveText('1.234.567,89 €');
+  await expect(account.getByTestId('account-value')).toHaveText('≈ 1.234.567,89 €');
+  await expect(group.getByTestId('account-group-value')).toHaveText('≈ 1.234.567,89 €');
+  await account.getByRole('button', { name: /^Details zu / }).click();
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
@@ -316,6 +335,7 @@ async function checkKnownGroup(page: Page, info: TestInfo, label: string) {
       `${label}-${theme}-known-account`,
       account,
       'Einstandswert als Schätzung',
+      account.locator('xpath=following-sibling::tr[1]'),
     );
     await checkFigure(
       page,

@@ -119,8 +119,10 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     const box = await dialog.boundingBox();
     expect(box!.y).toBeGreaterThanOrEqual(0);
     expect(box!.y + box!.height).toBeLessThanOrEqual(page.viewportSize()!.height + 1);
-    if (info.project.name === 'mobile') {
-      expect(box!.height).toBeLessThanOrEqual(844 * 0.88 + 1);
+    if (page.viewportSize()!.width < 768) {
+      // #586: capture fills the visible phone viewport; other sheets retain their own caps.
+      expect(box!.y).toBe(0);
+      expect(box!.height).toBe(await page.evaluate(() => window.visualViewport!.height));
       const small = await dialog
         .locator('button, input, textarea, select, summary')
         .evaluateAll((els) =>
@@ -303,7 +305,9 @@ sampleTest(
   async ({ page }, info) => {
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
     await page.goto('/');
-    const chart = page.getByTestId('heute-balance-chart');
+    await expect(page.getByTestId('liquidity-chart')).toBeVisible();
+    await page.goto('/reports/finanzcheck');
+    const chart = page.getByTestId('r07-balance-chart');
     await expect(chart).toBeVisible();
     const inspection = chart.locator('..');
     await inspection.focus();
@@ -314,6 +318,8 @@ sampleTest(
       'stroke-dasharray',
       '7px, 5px',
     );
+    await page.goto('/');
+    await expect(page.getByTestId('liquidity-chart')).toBeVisible();
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,

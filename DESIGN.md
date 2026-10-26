@@ -249,6 +249,14 @@ Owner Q2 directive (2026-10-15, #465): historical report negatives use quiet ink
 
 # Design System: Finanz-App
 
+Owner document-automation decision (2026-10-21, #741): new explicit app uploads may
+save fully verified, unambiguous payroll results with the configured salary source.
+The upload view explains this before selection; the result reports saved/linked
+items or remaining review needs, retains original download and links the actual
+persisted payout. Normal financial Undo and live amount privacy apply. This
+supersedes the manual-only upload wording below for this explicit automatic path;
+legacy callers and scheduled scans keep manual review, as specified in `SPEC.md`.
+
 Owner direct payroll review directive (2026-10-15, #499): a manually uploaded PDF opens its result immediately in the wide upload/review dialog; the retained inbox task remains a recovery entry. Known wage codes are parsed automatically. Unknown numeric wage codes can be assigned at the review to the existing earning, deduction, reimbursement, tax-adjustment or social-insurance-adjustment sections and reparsed; this neither adds database columns nor changes payroll formulas. Saving the mapping, parsed result and inbox urgency is one audited group, guarded against concurrent changes. New payout confirmation exposes account, explicit payout date, sender and an eligible unbooked salary expectation. A printed date or the selected expectation can propose the date; no missing date silently becomes month end. Confirmation links the expectation and creates or links the payout atomically with the payslip and receipt. Existing matched booking dates, senders and manually corrected records remain unchanged. Desktop PDF/download/confirm/reject/reanalyse actions share one row; phone layout preserves readable fields and touch targets. Upload alone never books money.
 
 Owner payslip directive (2026-10-15, #499): review preselects the configured salary account and permits another active EUR payout account. Confirmation links an existing matching booking or creates a pending payout (cash: confirmed), with salary/special income and reimbursements kept separate. Payslip, payout, receipt and inbox decision are atomic and undoable. Upload alone never books money. The PDF drop alternative preserves the native chooser; Linux browser evidence does not establish a fix for the reported Windows Chrome chooser hang.
