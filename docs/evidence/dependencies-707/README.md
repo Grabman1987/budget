@@ -175,3 +175,27 @@ for the same old selector patterns. Additional per-file rationale:
 Only the three failing specs need a focused rerun. The successful unchanged
 control cases above are retained as revision-qualified evidence; exact-head
 required CI, integration and publication remain pending.
+
+### Final focused verification
+
+The bounded follow-up is independently reviewed CLEAR at `115536eb`. Its sidebar
+unit suite passed all 4 cases; scoped ESLint, formatting and diff checks passed.
+The prior full changed-file lint and web typecheck at `875b4c9a` remain qualified
+to that revision; the follow-up changes only the reviewed name and test adapters.
+
+Linux run `40255063325` checked out exact source `115536eb` and ran only
+`sidebar-zerosum.spec.ts`, `issue-581-account-register.spec.ts` and
+`ledger.spec.ts`. Its actual result was **20 passed, 1 existing profile skip** in
+1.7 minutes, with no failures, retries or baseline changes. The skip is the
+existing desktop-only sidebar case on the mobile project. The register's real
+inline cent/date/category writes, Undo and reconciled locks passed across its
+configured desktop, mobile Chromium and WebKit profiles. The shared ledger
+helper and collapsed-profile accessibility cases passed too.
+
+Together with the unchanged successful cases in `40253453145`, this is focused
+native-browser evidence for the identified populated-control regressions, not a
+claim of a passing full CI run or physical-device testing. Counts overlap and
+must not be summed as distinct tests. The additional same-pattern adapters in
+other specs remain subject to the upcoming exact-head full CI. No baseline,
+financial expectation, timeout, skip policy or verification gate was relaxed.
+Required CI, integration and publication are still pending.
