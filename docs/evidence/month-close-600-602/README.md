@@ -93,3 +93,33 @@ push, merge or release was started here. Desktop 1440 / mobile 390 /
 webkit-iphone light/dark, Axe, no horizontal scroll, touch-target checks and
 affected visual evidence remain browser gates; JSDOM does not establish them.
 No live or complete acceptance is claimed. #573/#603 remain separate work.
+
+## Independent review correction: historical change followed by Undo
+
+Review found that the retained event predicate covered bookings/splits only in
+the selected month. An August booking can affect September's reviewed balance
+and carry, so editing it and actually undoing the edit restored the hashed facts
+without changing the event count. The old September revision was then accepted
+by both close and individual reconciliation, and a stored close incorrectly
+reported no change.
+
+Before changing product code, two new cases in the existing API test reproduced
+the defect: an August amount/split edit and an August split-only edit. Both
+proved equal restored figures/accounts, unchanged revision, false
+`changedSinceClose`, accepted stale close (200) and individual reconciliation
+(201), and an unwanted reconciliation audit. The fixture uses literal opening
+100,000 cents minus a confirmed 400-cent historical expense = 99,600 cents.
+
+The correction includes historical booking before/after dates through the
+selected month end and split events whose current or retained parent booking
+has such a date. Before/after predicates continue to cover moves out of scope.
+No snapshot version, property/array order, money calculation or locking/Undo
+rule changes. The API regressions retain the restored-fact equality checks and
+now require a changed revision, visible changed state, both stale writes refused
+(409), and exact unchanged audits/reconciliations after those refusals.
+
+After correction: **all 26 tests in `apps/server/src/api/month-close.test.ts`
+passed** with Node 22 / `--maxWorkers=1` (19.69 seconds). Scoped ESLint, Prettier
+and `git diff --check` passed. Earlier six-file results above remain evidence of
+the original package; this correction reran the complete affected API file.
+Browser/full-CI/release gates remain pending as described above.

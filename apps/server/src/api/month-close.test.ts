@@ -394,6 +394,87 @@ it('retains report figures and close time idempotently and fences a source chang
   expect((await call('GET')).body.state.snapshot).toBeUndefined();
 });
 
+it.each(['amount-and-split', 'split-only'] as const)(
+  'fences a historical August %s edit followed by Undo when reviewing September',
+  async (change) => {
+    const historical = createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-08-12',
+        amountCents: -400,
+        status: 'confirmed',
+        splits: [{ amountCents: -400, categoryId: 'essen' }],
+      },
+      { actor: 'test' },
+    );
+    expect(
+      (
+        await call('PUT', '/budget/2026-10/assigned', {
+          items: [{ categoryId: 'miete', assignedCents: 99600 }],
+        })
+      ).status,
+    ).toBe(200);
+    const before = (await call('GET')).body;
+    expect(
+      (
+        await call('PATCH', undefined, {
+          decisions: before.work.map((w: any) => ({ ...w, reason: 'Synthetic explicit deferral' })),
+        })
+      ).status,
+    ).toBe(200);
+    const reviewed = (await call('GET')).body;
+    expect(reviewed.accounts.find((a: any) => a.id === 'giro').balanceCents).toBe(99600);
+    expect(
+      (
+        await call('PATCH', undefined, {
+          close: true,
+          sourceRevision: reviewed.sourceRevision,
+        })
+      ).status,
+    ).toBe(200);
+    const edit = await call(
+      'PATCH',
+      `/bookings/${historical}`,
+      change === 'amount-and-split'
+        ? { amountCents: -500, splits: [{ amountCents: -500, categoryId: 'essen' }] }
+        : { splits: [{ amountCents: -400, categoryId: 'miete' }] },
+    );
+    expect(edit.status).toBe(200);
+    expect((await call('POST', '/undo', { groupId: edit.body.groupId })).status).toBe(200);
+    const restored = (await call('GET')).body;
+    expect(restored.result).toEqual(reviewed.result);
+    expect(restored.accounts).toEqual(reviewed.accounts);
+    expect.soft(restored.sourceRevision).not.toBe(reviewed.sourceRevision);
+    expect.soft(restored.close.changedSinceClose).toBe(true);
+    const audits = opened.db.select().from(schema.auditLog).all();
+    const checks = opened.db.select().from(schema.accountReconciliation).all();
+    expect
+      .soft(
+        (
+          await call('PATCH', undefined, {
+            close: true,
+            sourceRevision: reviewed.sourceRevision,
+          })
+        ).status,
+      )
+      .toBe(409);
+    expect
+      .soft(
+        (
+          await call('POST', '/month-close/2026-09/accounts/spar/reconciliation', {
+            date: '2026-09-30',
+            statementBalanceCents: 0,
+            sourceRevision: reviewed.sourceRevision,
+          })
+        ).status,
+      )
+      .toBe(409);
+    expect(opened.db.select().from(schema.auditLog).all()).toEqual(audits);
+    expect(opened.db.select().from(schema.accountReconciliation).all()).toEqual(checks);
+  },
+);
+
 it('lists every open booking-based account and manual assets in month close', async () => {
   const types = [
     'checking',
