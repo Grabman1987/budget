@@ -103,7 +103,7 @@ it('groups the unchanged eligible IDs and confirms only the explicitly chosen du
     </QueryClientProvider>,
   );
   const user = userEvent.setup();
-  await user.click(screen.getByRole('button', { name: 'Übernehmen', exact: true }));
+  await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
   const select = await screen.findByRole('combobox', { name: 'Kategorie' });
   await waitFor(() => expect(within(select).getAllByRole('option')).toHaveLength(7));
   expect(Array.from(select.querySelectorAll('optgroup')).map((g) => g.label)).toEqual([
@@ -130,10 +130,10 @@ it('groups the unchanged eligible IDs and confirms only the explicitly chosen du
     throw new TypeError('Expected native category select');
   expect(select.value).toBe('cat-b');
   expect(writes).toEqual([]);
-  await user.click(screen.getByRole('button', { name: 'Abbrechen', exact: true }));
+  await user.click(screen.getByRole('button', { name: 'Abbrechen' }));
   expect(screen.queryByRole('dialog', { name: 'Buchung übernehmen' })).toBeNull();
   expect(writes).toEqual([]);
-  await user.click(screen.getByRole('button', { name: 'Übernehmen', exact: true }));
+  await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
   expect((screen.getByRole('combobox', { name: 'Kategorie' }) as HTMLSelectElement).value).toBe(
     'cat-b',
   );

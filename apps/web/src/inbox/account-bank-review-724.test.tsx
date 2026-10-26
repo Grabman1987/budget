@@ -455,7 +455,7 @@ it('retains the real learning offer after confirming the last candidate and refe
   });
   const { client } = mount(`/konten/${a}`);
   await screen.findByText(/Letzter Umsatz · −12,01\s€/);
-  await userEvent.click(screen.getByRole('button', { name: 'Übernehmen', exact: true }));
+  await userEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
   await screen.findByRole('option', { name: 'Kategorie A' });
   await userEvent.selectOptions(
     screen.getByRole('combobox', { name: 'Kategorie' }),

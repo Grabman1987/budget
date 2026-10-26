@@ -51,7 +51,7 @@ it('keeps 65 candidates unopened without row requests and loads checks only on o
   );
   expect(screen.queryByRole('button', { name: 'Als Buchung bestätigen' })).toBeNull();
   expect(paths.length).toBeLessThan(10);
-  fireEvent.click(screen.getAllByRole('button', { name: 'Übernehmen', exact: true })[0]!);
+  fireEvent.click(screen.getAllByRole('button', { name: 'Übernehmen' })[0]!);
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Als Buchung bestätigen' })).toBeTruthy(),
   );
@@ -113,7 +113,7 @@ it('prepares no suggestion while the match check is still loading, then prefers 
       </ToastProvider>
     </QueryClientProvider>,
   );
-  fireEvent.click(screen.getAllByRole('button', { name: 'Übernehmen', exact: true })[0]!);
+  fireEvent.click(screen.getAllByRole('button', { name: 'Übernehmen' })[0]!);
   await waitFor(() => expect(screen.getByText('Shop A zuordnen')).toBeTruthy());
   expect(seen.filter(Boolean)).toEqual([]);
   release();
