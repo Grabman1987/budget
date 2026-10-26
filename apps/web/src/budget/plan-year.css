@@ -200,13 +200,13 @@
 }
 @media (max-width: 767px) {
   .plan-year {
-    padding: 8px 0 0;
+    padding: 0;
   }
   .year-planning {
     margin-bottom: 8px;
   }
   .year-toolbar {
-    padding: 8px 16px;
+    padding: 4px 16px;
     gap: 8px;
   }
   .year-toolbar h2 {
@@ -435,7 +435,7 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     padding-inline: 16px;
-    padding-bottom: 8px;
+    padding-bottom: 4px;
     gap: 4px 8px;
     font-size: var(--fs-meta);
   }
@@ -455,6 +455,9 @@
   }
   .year-event-list {
     margin-inline: 16px;
+  }
+  .year-chart-low {
+    margin-block: 4px 8px;
   }
   .year-event-list > li {
     grid-template-columns: minmax(0, 1fr) auto;
