@@ -58,7 +58,9 @@ test('Today groups work, preserves its review destinations and distinguishes sel
     const collapsed = await tasks.boundingBox();
     expect(collapsed).not.toBeNull();
     expect(collapsed!.y).toBeGreaterThanOrEqual(0);
-    expect(collapsed!.y + collapsed!.height).toBeLessThan(900);
+    // Owner 26 Oct: retain the accepted chart-first order and permit scrolling.
+    await tasks.scrollIntoViewIfNeeded();
+    await expect(tasks).toBeInViewport({ ratio: 1 });
   }
   await remaining.locator('summary').click();
   await preferences.locator('summary').click();
