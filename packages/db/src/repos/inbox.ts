@@ -16,6 +16,7 @@ import { ConflictError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
 import { readSourceDisplayDetail, readSourceMappings } from './read-source';
 import { listReceipts } from './receipts';
+import { accountReminders } from './account-reminders';
 import { savingsExecutionProposals, type SavingsExecutionProposal } from './savings-plans';
 
 export interface InboxBooking {
@@ -240,10 +241,16 @@ export function readInbox(
           ];
     if (bankSource) entries = filterBankSourceInbox(tx, entries, bankSource);
     const unlinkedReceipts = options.bankAccountId ? [] : listReceipts(tx);
+    const reminders =
+      bankSource || readSource || options.bankAccountId ? [] : accountReminders(tx, today);
     return {
       asOf: today,
+      accountReminders: reminders,
+      unlinkedReceiptCount:
+        bankSource || readSource || options.bankAccountId ? 0 : unlinkedReceipts.length,
       count:
         entries.length +
+        reminders.length +
         (bankSource || readSource || options.bankAccountId ? 0 : unlinkedReceipts.length),
       entries,
       readSourceSummaries:
@@ -319,7 +326,8 @@ export function readInboxCount(db: Executor, today: string, options: InboxOption
         bookings +
         stored +
         listReceipts(tx).length +
-        savingsExecutionProposals(tx, today).length,
+        savingsExecutionProposals(tx, today).length +
+        accountReminders(tx, today).length,
     };
   });
 }

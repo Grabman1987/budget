@@ -111,8 +111,14 @@ describe('/api/goals', () => {
   });
 
   it('adopt writes the category target, one undo removes it again', async () => {
-    const { body } = await call('POST', '/goals', urlaub);
-    const adopted = await call('POST', `/goals/${body.goal.id}/adopt`, {});
+    // A retained pre-sync goal has no category target; adoption remains independently undoable.
+    const legacy = createEntity(
+      db,
+      schema.savingsGoal,
+      { id: 'legacy-goal-http', ...urlaub },
+      { actor: 'synthetic-legacy-fixture' },
+    );
+    const adopted = await call('POST', `/goals/${legacy.id}/adopt`, {});
     expect(adopted.status).toBe(200);
     const targets = () => call('GET', '/categories').then((r) => r.body.targets);
     expect(await targets()).toMatchObject([

@@ -5,7 +5,7 @@ import {
   Band,
   ChartSvg,
   Graticule,
-  Line,
+  StepLine,
   XTicks,
   type BandPoint,
   type Point,
@@ -157,9 +157,9 @@ function Drawing({
     >
       <Graticule x1={L} x2={W - R} lines={grid} />
       <AxisLine x1={L} x2={W - R} y={y(0)} />
-      <Band points={band} />
-      <Line kind="previous" points={pts((p) => p.plainCents)} />
-      <Line kind="forecast" points={pts((p) => p.balanceCents)} />
+      <Band points={band} stepped />
+      <StepLine kind="previous" points={pts((p) => p.plainCents)} />
+      <StepLine kind="forecast" points={pts((p) => p.balanceCents)} />
       {report.eventMarks.map((e) => {
         const i = indexOfDay.get(e.day);
         const p = i === undefined ? undefined : points[i];

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
+import { accountReconciliation } from '../schema';
 import { createBooking } from './bookings';
 import { heute } from './heute';
 import { readInbox, readInboxCount } from './inbox';
@@ -9,6 +10,17 @@ let opened: OpenedDatabase;
 beforeEach(() => {
   opened = createTestDatabase();
   seedBasics(opened.db);
+  // This literal two-movement fixture has a recent account review, not an additional due task.
+  opened.db
+    .insert(accountReconciliation)
+    .values({
+      id: 'recent-giro',
+      accountId: 'giro',
+      date: '2026-09-17',
+      statementBalanceCents: 100000,
+      clearedBalanceCents: 100000,
+    })
+    .run();
 });
 afterEach(() => opened.close());
 

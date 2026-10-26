@@ -1,0 +1,112 @@
+{
+  "revision": "176e3f5bb340d471e6d6beb23489bfe5e664fa69",
+  "date": "2026-10-25",
+  "node": "22.23.3",
+  "webVite": "8.3.5",
+  "jsdom": "30.1.3",
+  "unitTests": 16,
+  "unitSuites": 3,
+  "browserPassed": 15,
+  "browserSetup": 3,
+  "browserFeatureCases": 12,
+  "browserRetry": 0,
+  "browserSecondsApprox": 300,
+  "projects": [
+    "desktop",
+    "mobile",
+    "webkit-iphone"
+  ],
+  "command": "npx playwright test e2e/issue-568-569-forecast.spec.ts --project=desktop --project=mobile --project=webkit-iphone --workers=1 --reporter=list",
+  "sourceHashes": [
+    {
+      "path": "packages/ui/src/charts/lines.tsx",
+      "sha256": "04eef45a5b1219ae47a89cbab92b52eefcbc3dde60e0279f70808cbec444ed32"
+    },
+    {
+      "path": "packages/ui/src/charts/lines.test.tsx",
+      "sha256": "fffe288a3db4dd9cc609e105c4ea92203426361dab79476a884d45844d6a2368"
+    },
+    {
+      "path": "apps/web/src/reports/liquidity-chart.tsx",
+      "sha256": "3ca982cee1f7a71cd97964bf9915232ad5af2cea2b5d31462eb924bcddb20c98"
+    },
+    {
+      "path": "apps/web/src/reports/liquidity-chart.test.tsx",
+      "sha256": "f34d72eef259da6aa4a69dde2ad353485735defda89ae05da5abfd261113a483"
+    },
+    {
+      "path": "e2e/issue-568-569-forecast.spec.ts",
+      "sha256": "f33adfea44e15d3c72626637248b9697c2fcc0ecfba2df3e6d02f423a1ce2831"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "05101b991f53df9499a9e3525ba41703bd8de2f9114f5e055a2042637e19a138"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/forecast-476-steps/browser/forecast-card-configured-dark.png",
+      "sha256": "c5857a015d7a3655057efec02051d107127386388e4b664af312d10b8505c4cb"
+    },
+    {
+      "path": "docs/evidence/forecast-476-steps/browser/forecast-card-desktop-light.png",
+      "sha256": "213116ae1e1c15f35c8712d3b7c79c0b460b16f61ba9dd2c424c0a08af2fdbc1"
+    },
+    {
+      "path": "docs/evidence/forecast-476-steps/browser/forecast-detail-configured-dark.png",
+      "sha256": "76effae0e83253dd1846593a788781764da6d55b77190ca6e48cd2b29a63a55b"
+    },
+    {
+      "path": "docs/evidence/forecast-476-steps/browser/forecast-detail-desktop-light.png",
+      "sha256": "061c55a6207620e163929a7a4fcad7cdeedfa645a4e96ad7ca090f7c7dd1d451"
+    },
+    {
+      "path": "docs/evidence/forecast-476-steps/receipts/issue-568-569-forecast-For-4fcf7-ntrols-and-skip-Undo-unskip-desktop-forecast-configured-light.json",
+      "sha256": "024b553b0fa2e16f05813dcd228c262fddf681dd84550e5a2360921d3a04416b"
+    },
+    {
+      "path": "docs/evidence/forecast-476-steps/receipts/issue-568-569-forecast-For-4fcf7-ntrols-and-skip-Undo-unskip-mobile-forecast-configured-light.json",
+      "sha256": "19b12bce64c96e3f7245b3a5f0941892b1ab1418ed525d9806241fdc7b031377"
+    },
+    {
+      "path": "docs/evidence/forecast-476-steps/receipts/issue-568-569-forecast-For-4fcf7-ntrols-and-skip-Undo-unskip-webkit-iphone-forecast-configured-light.json",
+      "sha256": "cab7b7def399c36778467f3360a7c80d1eabf2e3531caeb47f0a63dfe800f005"
+    },
+    {
+      "path": "docs/evidence/forecast-476-steps/receipts/issue-568-569-forecast-For-6daf2-ntrols-and-skip-Undo-unskip-desktop-forecast-configured-dark.json",
+      "sha256": "b9587f7a0d6d73e64f8162c59fefe74bf04ebf941775588bb9309e53bc3fc55c"
+    },
+    {
+      "path": "docs/evidence/forecast-476-steps/receipts/issue-568-569-forecast-For-6daf2-ntrols-and-skip-Undo-unskip-mobile-forecast-configured-dark.json",
+      "sha256": "d73326519e19ecce50605cc737337870813b7310741f1b7cbe12ab3b7f32cfa8"
+    },
+    {
+      "path": "docs/evidence/forecast-476-steps/receipts/issue-568-569-forecast-For-6daf2-ntrols-and-skip-Undo-unskip-webkit-iphone-forecast-configured-dark.json",
+      "sha256": "9c0af7ee7bf1dd86385c38b63e1f5053a00a83fc77c0e0472df05dcbea3e5fe9"
+    },
+    {
+      "path": "docs/evidence/forecast-476-steps/receipts/issue-568-569-forecast-For-7bd00-ntrols-and-skip-Undo-unskip-desktop-forecast-desktop-light.json",
+      "sha256": "8a4b13ccb5735e76506f5ae499baf83856de3d7f9220e5e63fac866c23e04db9"
+    },
+    {
+      "path": "docs/evidence/forecast-476-steps/receipts/issue-568-569-forecast-For-7bd00-ntrols-and-skip-Undo-unskip-mobile-forecast-desktop-light.json",
+      "sha256": "7bd2f247ce59c30469fffb7c1f50847b7dbb3bd603215d89de0db92628ff4a32"
+    },
+    {
+      "path": "docs/evidence/forecast-476-steps/receipts/issue-568-569-forecast-For-7bd00-ntrols-and-skip-Undo-unskip-webkit-iphone-forecast-desktop-light.json",
+      "sha256": "6388534cb6774e9f5d8355e39085a8e2c2c95df035d7fed09948f8030d54e7a2"
+    },
+    {
+      "path": "docs/evidence/forecast-476-steps/receipts/issue-568-569-forecast-For-9b8b4-ntrols-and-skip-Undo-unskip-desktop-forecast-desktop-dark.json",
+      "sha256": "60879a55b4998e76419f92e9adfe8f4b510ae80050b0a59faa1bd82e00c760d1"
+    },
+    {
+      "path": "docs/evidence/forecast-476-steps/receipts/issue-568-569-forecast-For-9b8b4-ntrols-and-skip-Undo-unskip-mobile-forecast-desktop-dark.json",
+      "sha256": "da013244e6756321d0b07ac29d04cf8078592958f1da7bfdf5d5ad1865a0fa18"
+    },
+    {
+      "path": "docs/evidence/forecast-476-steps/receipts/issue-568-569-forecast-For-9b8b4-ntrols-and-skip-Undo-unskip-webkit-iphone-forecast-desktop-dark.json",
+      "sha256": "d24a6ba5f011e8501a64133bfa50f87c0e2ec9901c9ab1387a8fb8e79e050b87"
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "base": "43e869b8e76ba5584bd4f8a996518e67f28f28c8",
+  "syntheticOnly": true,
+  "sourceFiles": {
+    "apps/server/src/api/receipts.test.ts": "6219d6a37c167a1b63d11913a4bb0393a6729b368d7e9a78360904df85c08537",
+    "apps/web/src/inbox/task-source-summary-566.test.tsx": "72ddc6a598a9706eac676f057efc1893e92128eecbec4d1b6842835427d6548f",
+    "apps/web/src/inbox/task-source-summary.tsx": "4e63938294c56dbc01992195b6a232b5f8dda111cc45bdb049ec9c1e5227b3d5",
+    "e2e/a11y-strict-q2.spec.ts": "bf2667d0a379a4cc8e0ab99137d4fbc97e33e2f75631ac46317c1e36b90a3abb",
+    "e2e/account-reminders.spec.ts": "ff5a987da59ff2586c16d405334f4d0691a47fc39d6cd133a095eeed8d1c5824",
+    "e2e/global-search.spec.ts": "a1c90518bb9a8447062e22f6a0b3251586c8ea4d0c013a518842ac158ff9881f",
+    "e2e/inbox-context.spec.ts": "01708d94429004437cfd886e7ff3e6868b1a6fbf0615a5f98c0bb9af09affbe9",
+    "e2e/inbox-pagination.spec.ts": "eb3f59376623ab78a2af14e2c3ab5017c0170e8a7924c62367adf4d7ab08c8bd",
+    "e2e/inbox-read-source-summary.spec.ts": "a3975d385f4d975270230e610d42d16844fde06813ce2bd5973919311700dfca",
+    "e2e/issue-747-savings-task-navigation.spec.ts": "29fee7311b160562dcbff3a367756036f5d14605068d21296364149c61ffb0d6",
+    "e2e/payslip-intake.spec.ts": "f2bd0d74fe4e4531abdb0cc87777c42f1ade089202c146ca1e4ccaf8ae2fbd8d",
+    "e2e/portfolio-trades.spec.ts": "d393147f2f914731fca8e8222c6f9d0cb26ed8d699707e1ecd1a1f797619770c",
+    "e2e/pruefen-part.ts": "774a57a068bf8c82a014a60722e9faceee419aed7960080ffcb155264dca21c1",
+    "e2e/receipts.spec.ts": "5e7e0cd63b1fa0c3b52759c809d766a008d8fbf50d442794954776ffddfc3d29",
+    "e2e/trade-confirmation.spec.ts": "eac12a384f5be7c39fb6d307677bbd9a47f0eb88348b7891c0a17db554c49b67",
+    "e2e/undo-feedback.spec.ts": "2840af6f644aa9834fbbb213fd3e0dd7fea34613b0b23338fd0f6da1e6c5d683"
+  },
+  "artifacts": {
+    "desktop-task-sources-desktop-light.png": {
+      "sha256": "7de8528af1655af92ef1546040c7bd0282b85ee32f588593d0128edc68659e03",
+      "source": "issue-566-task-sources-566-b594e-ly-actions-in-desktop-light-desktop/task-sources-desktop-light.png",
+      "run": "acceptance-first"
+    },
+    "desktop-task-sources-desktop-light.json": {
+      "sha256": "799f8d7e9e72fded4b0dc335f4fb82b4f19235e4f93b08ec6fc9b9cc01aff167",
+      "source": "issue-566-task-sources-566-b594e-ly-actions-in-desktop-light-desktop/task-sources-desktop-light.json",
+      "run": "acceptance-first"
+    },
+    "desktop-task-sources-desktop-dark.png": {
+      "sha256": "42f52ca631e3da590cc71d4760c43af608b1aa59680d980b0bfe6d80d8c99f52",
+      "source": "issue-566-task-sources-566-43b0a-nly-actions-in-desktop-dark-desktop/task-sources-desktop-dark.png",
+      "run": "acceptance-first"
+    },
+    "desktop-task-sources-desktop-dark.json": {
+      "sha256": "a3acff7282148fcfc2b1d29ecfd7d0975147c7b6b1ee8cba81b680daef5a2ac0",
+      "source": "issue-566-task-sources-566-43b0a-nly-actions-in-desktop-dark-desktop/task-sources-desktop-dark.json",
+      "run": "acceptance-first"
+    },
+    "desktop-task-sources-phone-light.png": {
+      "sha256": "3ce9b4fd3af3701c2729ddd47db0ba348934688647d2353eeddeaa62da05c90b",
+      "source": "issue-566-task-sources-566-4441b-only-actions-in-phone-light-desktop/task-sources-phone-light.png",
+      "run": "acceptance-first"
+    },
+    "desktop-task-sources-phone-light.json": {
+      "sha256": "58dc2595b92f23216ea594d16206bff471c7fc2a6efe29f425dbd1fefea95c2d",
+      "source": "issue-566-task-sources-566-4441b-only-actions-in-phone-light-desktop/task-sources-phone-light.json",
+      "run": "acceptance-first"
+    },
+    "desktop-task-sources-phone-dark.png": {
+      "sha256": "fc4db02d749323f4e20f036c79029f2b9455a3f35c3e3ce87f9d8c9f0eb781a5",
+      "source": "issue-566-task-sources-566-2178b--only-actions-in-phone-dark-desktop/task-sources-phone-dark.png",
+      "run": "acceptance-first"
+    },
+    "desktop-task-sources-phone-dark.json": {
+      "sha256": "f8253bf742de6aaf36ddd692c91aa1900ff587256ead95936f5ce4b4e26b626e",
+      "source": "issue-566-task-sources-566-2178b--only-actions-in-phone-dark-desktop/task-sources-phone-dark.json",
+      "run": "acceptance-first"
+    },
+    "webkit-iphone-task-sources-desktop-light.png": {
+      "sha256": "77d7eed125de6ca7a365eaffe86f5f622e2fef894f07913ed9f94abd5bf8201c",
+      "source": "issue-566-task-sources-566-b594e-ly-actions-in-desktop-light-webkit-iphone/task-sources-desktop-light.png",
+      "run": "native-focused"
+    },
+    "webkit-iphone-task-sources-desktop-light.json": {
+      "sha256": "9b9b44e338faecbb9289e83311e0f04561a6e908c24cb933f3abdce7acda12f2",
+      "source": "issue-566-task-sources-566-b594e-ly-actions-in-desktop-light-webkit-iphone/task-sources-desktop-light.json",
+      "run": "native-focused"
+    },
+    "webkit-iphone-task-sources-desktop-dark.png": {
+      "sha256": "6dba2cd2fd451ef9da64daface0014e3ab0cb7aad6d84c949dc877ff42f0a9da",
+      "source": "issue-566-task-sources-566-43b0a-nly-actions-in-desktop-dark-webkit-iphone/task-sources-desktop-dark.png",
+      "run": "native-focused"
+    },
+    "webkit-iphone-task-sources-desktop-dark.json": {
+      "sha256": "8e2a0566f21330bb14f3be128d027bb599d83d6bc43927bb0ff2bba7dd61c764",
+      "source": "issue-566-task-sources-566-43b0a-nly-actions-in-desktop-dark-webkit-iphone/task-sources-desktop-dark.json",
+      "run": "native-focused"
+    },
+    "webkit-iphone-task-sources-phone-light.png": {
+      "sha256": "e688c8b2cbbff000c0cdc7103c5b0c3c170a6f82599ee69666c45a8b58f73485",
+      "source": "issue-566-task-sources-566-4441b-only-actions-in-phone-light-webkit-iphone/task-sources-phone-light.png",
+      "run": "native-focused"
+    },
+    "webkit-iphone-task-sources-phone-light.json": {
+      "sha256": "a24301f7d68690b684465199fc467b9c09a75c9143ade124d42b8b6be35c8a4c",
+      "source": "issue-566-task-sources-566-4441b-only-actions-in-phone-light-webkit-iphone/task-sources-phone-light.json",
+      "run": "native-focused"
+    },
+    "webkit-iphone-task-sources-phone-dark.png": {
+      "sha256": "a905d3120ed662990750921e166f0f1dcdf2a45f4c2cfdcdfcd0f2e7754779b8",
+      "source": "issue-566-task-sources-566-2178b--only-actions-in-phone-dark-webkit-iphone/task-sources-phone-dark.png",
+      "run": "native-focused"
+    },
+    "webkit-iphone-task-sources-phone-dark.json": {
+      "sha256": "b08bcd682dec66d53101a8daaa5f61a14f799e45337bc9e9b7218e5dd9842749",
+      "source": "issue-566-task-sources-566-2178b--only-actions-in-phone-dark-webkit-iphone/task-sources-phone-dark.json",
+      "run": "native-focused"
+    }
+  }
+}

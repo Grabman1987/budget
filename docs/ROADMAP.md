@@ -1891,6 +1891,15 @@ Physical-device/keyboard/fullscreen acceptance belongs separately to #586.
 - [x] Independent full-diff HIGH review, scoped technical test-adapter review, targeted DB/API/UI regressions and fresh E2E build. Desktop/phone Chromium and native WebKit: 9/9 including three setup cases, both themes, exact financial state, real Undo/redo, privacy, keyboard, 44px/hit/Axe checks. [Original captures, provenance and evidence limits](evidence/statement-receipt-links-740/README.md).
 - [x] [PR #754](https://github.com/Grabman1987/budget/pull/754) verified live at `1c19a465649490417f174787a9806b3347b7b7a6` on 2026-10-22: exact-head CI `39764114897`, Main CI `39770495472`, deployment `39770557570` and fresh matching health. The PR retains the diagnosed installation-timeout rerun and unrelated existing report-test retry. Private historical archive linking remains separate; #719 remains stopped.
 
+
+### #604 — goal funding and retained lifecycle (source checkpoint, 2026-10-21)
+
+- Source implementation: explicit goal start month with preserved legacy fallback; current-month Plan rate and remaining-need assignment through the existing guarded writer; grouped Undo for manual completion; reached/open/retained completed groups and category history from the selected start.
+- Category target synchronization preserves conflicting manual targets and competing goals; these remain explicitly blocked until the source association is resolved. No automatic winner or historical target deletion.
+- Automatic completion reads coherent retained audit groups and canonical ledger projections only. New category goals and actual changes to their economic intent now capture an internal prospective anchor in the authenticated goal transaction. This can establish a current basis on seeded/imported data without inventing an earlier reaching date. Name/note-only and equal-value patches preserve the anchor; GET, import and migration do not create one. Public goal responses omit the internal anchor, which stores a digest rather than source rows.
+- Legacy goals without an anchor still require a fully audited empty initial ledger basis. Views before capture, pre-anchor financial Undo, missing/ambiguous/over-bound chronology, account-goal evidence and pre-entered future expense chronology remain explicitly unavailable; manual completion is retained. Existing financial writers and Undo machinery are unchanged.
+- Unpublished migration48 adds nullable start-month/manual-completion intent and the internal anchor; copy rollback rejects retained/audited use. Migration execution, new acceptance coverage, required checks, browser evidence, independent anchor review and live delivery remain pending. This entry is source implementation, not verified completion of #604.
+
 ## #741 — Deterministic payroll upload continuation
 
 - [x] Adopt the independently preserved payroll continuation on verified live #754, with source/manifest correspondence and only the owned shared-barrel export.
@@ -1899,3 +1908,11 @@ Physical-device/keyboard/fullscreen acceptance belongs separately to #586.
 - [x] Complete workspace typecheck, scoped lint/format and fresh build; final browser30/30 across desktop/mobile/WebKit, including actual result links/reload, original downloads, privacy, grouped Undo and the existing toast/dialog regression. Reproduce and correct the visible Undo-label overflow with two CSS declarations;15/15 existing Toast/Layer tests passed.
 - [x] Final independent whole-diff HIGH review CLEAR, including final source hashes, original browser artifacts and preserved archive.
 - [ ] Complete exact-head CI, protected serial integration and exact live verification. This payroll packet is not yet delivered; the already-live card packet #752 is separate. No private historical archive operation is claimed, and #719 stays stopped.
+
+## Owner addition — portfolio funding plan (2026-10-25)
+
+- [x] Implement an editable six-sleeve scenario with separate recurring rate, one-off cash, free cash and current position values; gold/Bitcoin split in the explicit owner template.
+- [x] Exact-cent deficit budgets, fractional/whole units, fee guard and residual cash; no implicit trades or changes to class risk policy.
+- [x] Persist through audited settings with concurrency/undo guards; reuse the savings form for explicit confirmation.
+- [x] Full typecheck/lint, nine domain/API tests, desktop/phone acceptance and independent review; [synthetic evidence](evidence/portfolio-funding-plan/README.md).
+- [ ] Exact-head required CI, serial integration and verified live revision recorded on the delivery PR.
