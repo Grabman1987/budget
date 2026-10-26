@@ -391,3 +391,17 @@ workflow still permits a failing test step, so its actual test summary must be
 inspected; workflow success alone is not acceptance. A scoped Linux run and
 independent review of this runner change are pending. No measured speedup or new
 browser pass is claimed by changing the workflow.
+
+The independent review of the two synchronization changes (`9896d71f`) and
+runner change (`bf5b33fd`) is CLEAR. Scoped Linux run
+[40288539774](https://github.com/Grabman1987/budget/actions/runs/40288539774)
+checked out exact `bf5b33fd40eeeb13be449152358a275511fc34f5` and ran only
+`e2e/month-close.spec.ts` and `e2e/portfolio-positions.spec.ts` with their
+configured projects. The actual browser summary is **17 passed in 1.2 minutes**,
+without retries, failures or skips. This includes the complete month-close flow
+and portfolio error/retry scenarios; it supersedes the partial Windows evidence
+for these Linux flows only. The baseline step reported **No baseline changes**,
+and the remote branch stayed at the tested commit. The existing browser container,
+checkout, Node setup, build and tests all ran successfully. Required complete PR
+CI and publication still remain outstanding. This is not a measured overall
+workflow speedup or a physical-device result.
