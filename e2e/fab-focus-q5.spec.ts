@@ -117,12 +117,18 @@ test('detail has one name, one return path and keyboard-only focus in both theme
       const focus = page.locator(':focus');
       await expect(focus).toHaveCSS('outline-width', '2px');
       await expect(focus).toHaveCSS('outline-style', 'solid');
-      // Acceptance (#468): no horizontal page overflow at 390 px. The desktop account register shows
-      // a 30-45 px overflow seen only on Linux CI (not on Windows); tracked separately (#542).
-      if (info.project.name !== 'desktop')
-        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
-          page.viewportSize()!.width,
-        );
+      if (path === '/konten/acc-giro') {
+        // The first Tab now reaches capture; retain #542's original reconciliation focus case.
+        await expect(page.locator('.ktx-account tr[data-booking]').first()).toBeVisible();
+        await page.evaluate(() => document.fonts.ready);
+        await page.keyboard.press('Tab');
+        await expect(page.getByTestId('account-review-badge')).toBeFocused();
+        await expect(focus).toHaveCSS('outline-width', '2px');
+        await expect(focus).toHaveCSS('outline-style', 'solid');
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+        page.viewportSize()!.width,
+      );
       expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
       await page.screenshot({
         path: info.outputPath(`${heading.replace(/\W/g, '')}-${colorScheme}.png`),
