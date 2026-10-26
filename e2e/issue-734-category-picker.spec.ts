@@ -256,7 +256,7 @@ for (const profile of ['configured', 'desktop1440'] as const) {
           expect(actual.dpr).toBe(expected.deviceScaleFactor ?? 1);
           expect(actual.coarse).toBe(expected.hasTouch ?? false);
           const queue = page.getByRole('region', { name: 'Bankumsätze prüfen', exact: true });
-          await queue.locator('.bank-review summary').click();
+          await queue.getByRole('button', { name: 'Übernehmen', exact: true }).click();
           const bankSelect = queue.getByRole('combobox', { name: 'Kategorie', exact: true });
           await expect(bankSelect.locator('optgroup')).toHaveCount(2);
           expect(
