@@ -182,14 +182,23 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
 }) => {
   test.setTimeout(60_000);
   const requests: string[] = [];
+  const writes: string[] = [];
   page.on('request', (request) => {
     if (request.url().includes('/api/heute?')) requests.push(request.url());
+    if (request.url().includes('/api/') && !['GET', 'HEAD'].includes(request.method()))
+      writes.push(`${request.method()} ${new URL(request.url()).pathname}`);
   });
 
   await page.goto('/?monat=2026-09&period=month');
   const response = await page.request.get('/api/heute?period=month&month=2026-09');
   expect(response.ok()).toBe(true);
-  expect((await response.json()).lead.freeCents).toBe(98_826);
+  const initial: Heute = await response.json();
+  expect(initial.lead.freeCents).toBe(98_826);
+  const badRules =
+    'unavailable' in initial.financeCheck
+      ? []
+      : initial.financeCheck.actionRules.filter((rule) => rule.status === 'bad');
+  expect(badRules.length).toBeGreaterThan(0);
   await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible({
     timeout: 30_000,
   });
@@ -232,11 +241,31 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   await page.getByRole('button', { name: /^Bedarf/ }).click();
   await expect(page.getByRole('heading', { name: 'Envelopes Bedarf' })).toBeVisible();
 
-  await expect(page.getByRole('heading', { name: 'Angepinnte Envelopes' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Angepinnte Kategorien' })).toHaveCount(0);
+  await page.getByText('Ansicht anpassen', { exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Angepinnte Kategorien anzeigen' }).check();
+  await expect(page.getByRole('heading', { name: 'Angepinnte Kategorien' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Angepinnte Kategorien' })).toBeVisible();
+  expect(writes).toEqual([]);
   await expect(page.getByRole('heading', { name: 'Fällig 14 Tage' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Finanz-Check' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Zu tun' })).toContainText(
+    `${badRules.length} ${badRules.length === 1 ? 'Regelbefund' : 'Regelbefunde'} zum Handeln`,
+  );
   await expect(page.getByRole('heading', { name: 'Nettovermögen · 12 Monate' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
+  const ordered = [
+    'heute-wealth-title',
+    'attention-title',
+    'heute-upcoming-title',
+    'heute-bookings-title',
+  ];
+  expect(
+    await page
+      .locator(ordered.map((id) => `#${id}`).join(','))
+      .evaluateAll((els) => els.map((el) => el.id)),
+  ).toEqual(ordered);
   const forecastPath = await page
     .locator('[data-testid="heute-pace-chart"] .l-forecast')
     .getAttribute('d');
@@ -247,17 +276,16 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   expect(Math.abs(forecastStart - todayX)).toBeLessThan(0.01);
   // #570: the section heads carry no circle numbers any more.
   await expect(page.locator('.heute-detail-grid .circle-no')).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toBeVisible();
-  const nonAcuteStates = await page
-    .locator('.heute-state.is-bad, .heute-state.is-warn')
-    .evaluateAll((elements) => {
-      const probe = document.createElement('span');
-      probe.style.color = 'var(--red)';
-      document.body.append(probe);
-      const red = getComputedStyle(probe).color;
-      probe.remove();
-      return elements.map((element) => getComputedStyle(element).color === red);
-    });
+  const ruleRow = page.locator('.attention-row').filter({ hasText: 'Regelbefund' });
+  const nonAcuteStates = await ruleRow.evaluateAll((elements) => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--red)';
+    document.body.append(probe);
+    const red = getComputedStyle(probe).color;
+    probe.remove();
+    return elements.map((element) => getComputedStyle(element).color === red);
+  });
+  expect(nonAcuteStates).toHaveLength(1);
   expect(nonAcuteStates).not.toContain(true);
   const axe = await new AxeBuilder({ page }).include('main').analyze();
   expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
@@ -391,7 +419,9 @@ test('empty due and next-step blocks disappear while data-list empty states stay
   page,
 }) => {
   const response = await page.request.get('/api/heute?period=month&month=2026-09');
-  const data = (await response.json()) as Record<string, unknown>;
+  const data: Heute = await response.json();
+  if ('unavailable' in data.financeCheck)
+    throw new Error('The quiet fixture needs evaluated rules');
   const empty = {
     ...data,
     pinned: [],
@@ -399,12 +429,35 @@ test('empty due and next-step blocks disappear while data-list empty states stay
     upcomingEvents: [],
     lastBookings: [],
     nextSteps: { items: [], count: 0 },
+    attention: {
+      ...data.attention,
+      inboxCount: 0,
+      pendingCount: 0,
+      loanTermsMissing: false,
+      quoteReview: { count: 0, securityIds: [] },
+      monthCloseTasks: { tasks: [], unavailable: [] },
+    },
+    accountReminders: [],
+    financeCheck: {
+      ...data.financeCheck,
+      actionRules: [],
+      counts: {
+        ...data.financeCheck.counts,
+        bad: 0,
+        warn: 0,
+        notEvaluated: 0,
+      },
+    },
   };
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: empty }));
   await page.goto('/?monat=2026-09');
-  await expect(page.getByText('Keine Envelopes angepinnt.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Angepinnte Kategorien' })).toHaveCount(0);
+  await page.getByText('Ansicht anpassen', { exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Angepinnte Kategorien anzeigen' }).check();
+  await expect(page.getByText('Keine Kategorien angepinnt.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Fällig 14 Tage' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Nächste Schritte' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Zu tun' })).toHaveCount(0);
   await expect(page.getByText('Noch keine Buchungen vorhanden.')).toBeVisible();
 });
 
@@ -455,13 +508,16 @@ test('attention leaves overspending to the top-bar chip and links to the inbox',
 
 test('source-view links open the corresponding live pages', async ({ page }) => {
   for (const [heading, link, target] of [
-    ['Angepinnte Envelopes', 'Plan öffnen', '/plan/monat'],
+    ['Angepinnte Kategorien', 'Plan öffnen', '/plan/monat'],
     ['Fällig 14 Tage', 'Alle', '/plan/erwartet'],
-    ['Finanz-Check', 'Alle Regeln', '/einstellungen/regelwerk'],
     ['Vermögensaufteilung', 'Details', '/vermoegen/nettovermoegen'],
     ['Letzte Buchungen', 'Alle', '/konten/buchungen'],
   ]) {
     await page.goto('/?monat=2026-09');
+    if (heading === 'Angepinnte Kategorien') {
+      await page.getByText('Ansicht anpassen', { exact: true }).click();
+      await page.getByRole('checkbox', { name: 'Angepinnte Kategorien anzeigen' }).check();
+    }
     await page
       .locator('section')
       .filter({ has: page.getByRole('heading', { name: heading, exact: true }) })
@@ -470,6 +526,9 @@ test('source-view links open the corresponding live pages', async ({ page }) => 
     await expect.poll(() => new URL(page.url()).pathname).toBe(target);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   }
+  await page.goto('/?monat=2026-09');
+  await page.getByRole('region', { name: 'Zu tun' }).getByRole('link', { name: 'Handeln' }).click();
+  await expect(page).toHaveURL(/\/einstellungen\/regelwerk#rule-result-/);
 });
 
 test('negative lead uses the action colour and attention precedes the month fold', async ({

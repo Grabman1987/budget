@@ -74,6 +74,7 @@ test('Heute has eight warning items once, two first, neutral debts and accessibl
   const today: Heute = await (await page.request.get('/api/heute')).json();
   today.nextSteps.items = Array.from({ length: 8 }, (_, i) => ({
     kind: 'overspent',
+    urgent: true,
     categoryId: `synthetic-over-${i}`,
     categoryName: `Testenvelope ${i + 1}`,
     cents: 1000 + i,
@@ -91,7 +92,8 @@ test('Heute has eight warning items once, two first, neutral debts and accessibl
   await expect(tasks).toContainText('8 Kategorien überzogen');
   await expect(tasks).not.toContainText('Testenvelope');
   // Q3 #466 and #511: loan terms share the account-check source row.
-  await expect(tasks.locator('.attention-row')).toHaveCount(4);
+  await expect(tasks.locator(':scope > .attention-row')).toHaveCount(4);
+  await expect(tasks.locator('.attention-row')).toHaveCount(5);
   const accounts = tasks
     .locator('.attention-row')
     .filter({ hasText: '8 Konten warten auf Prüfung' });
@@ -102,6 +104,8 @@ test('Heute has eight warning items once, two first, neutral debts and accessibl
     accounts.getByRole('link', { name: 'Konditionen ergänzen', exact: true }),
   ).toHaveAttribute('href', '/einstellungen/konten');
   await expect(tasks).toContainText('Kreditkonditionen fehlen');
+  await page.getByText('Ansicht anpassen', { exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Angepinnte Kategorien anzeigen' }).check();
   await expect(page.locator('.heute-envelope .heute-alert')).toHaveCount(1);
   await expect(page.locator('.heute-envelope')).not.toContainText('überzogen');
   if (info.project.name === 'desktop') {

@@ -13,6 +13,11 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
   const data: Heute = await (
     await page.request.get('/api/heute?month=2026-09&period=payday')
   ).json();
+  if ('unavailable' in data.financeCheck) throw new Error('Expected evaluated synthetic rules');
+  const liveCounts = data.financeCheck.counts;
+  expect(liveCounts.ok + liveCounts.warn + liveCounts.bad + liveCounts.notEvaluated).toBe(
+    liveCounts.total,
+  );
   data.financeCheck = {
     counts: { ok: 0, warn: 1, bad: 2, notEvaluated: 3, total: 6 },
     keyRules: [],
@@ -20,8 +25,16 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
       {
         code: 'R02',
         name: 'Notgroschen',
+        status: 'bad',
         valueText: '2,5 Monate',
         actionText: 'Notgroschen aufstocken.',
+      },
+      {
+        code: 'R15',
+        name: 'Spekulativer Anteil',
+        status: 'bad',
+        valueText: 'Über Schwelle',
+        actionText: 'Anteil prüfen.',
       },
     ],
   };
@@ -68,10 +81,14 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
   if ((await more.getAttribute('aria-expanded')) === 'false') await more.click();
   await expect(page.getByRole('heading', { name: 'Nächste Schritte' })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Zu tun' })).toContainText('2 unter Prüfen');
-  await expect(page.locator('.heute-check-counts')).toContainText('0 erfüllt');
-  await expect(page.locator('.heute-check-counts')).toContainText('1 Warnung');
-  await expect(page.locator('.heute-check-counts')).toContainText('2 verletzt');
-  await expect(page.locator('.heute-check-counts')).toContainText('3 nicht auswertbar');
+  const tasks = page.getByRole('region', { name: 'Zu tun' });
+  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  await expect(tasks.locator('.attention-row').filter({ hasText: 'Regelbefund' })).toHaveCount(1);
+  await expect(tasks).toContainText('2 Regelbefunde zum Handeln');
+  await tasks.locator('.attention-availability summary').click();
+  await expect(tasks.locator('.attention-availability')).toContainText(
+    '3 Regeln konnten nicht ausgewertet werden.',
+  );
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
@@ -81,7 +98,7 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
       (
         await new AxeBuilder({ page })
           .include('.heute-answers')
-          .include('.heute-check-counts')
+          .include('.heute-attention')
           .analyze()
       ).violations,
     ).toEqual([]);
@@ -93,9 +110,8 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
       animations: 'disabled',
     });
   }
-  await page.getByRole('link', { name: 'Fehlende Angaben ansehen' }).click();
-  await expect(page).toHaveURL(/regelwerk#rw-pending$/);
-  await expect(page.locator('#rw-pending')).toBeFocused();
+  await tasks.getByRole('link', { name: 'Regeln prüfen' }).click();
+  await expect(page).toHaveURL(/\/einstellungen\/regelwerk$/);
   await expect(page.locator('#rw-pending').locator('..')).toContainText('Nicht prüfbar:');
   await page.goBack();
   await page.getByRole('link', { name: 'Handeln', exact: true }).click();

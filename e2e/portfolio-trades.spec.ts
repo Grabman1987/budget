@@ -126,7 +126,7 @@ test('monthly savings proposals require actual execution confirmation and suppor
   const fold = page.getByRole('button', { name: 'Mehr zum Monat' });
   if ((await fold.getAttribute('aria-expanded')) === 'false') await fold.click();
   const tasks = page.getByRole('region', { name: 'Zu tun', exact: true });
-  expect(await tasks.locator('.attention-row').count()).toBeLessThanOrEqual(4);
+  expect(await tasks.locator(':scope > .attention-row').count()).toBeLessThanOrEqual(4);
   await tasks.getByText(/^\d+ Sparplanausführung(?:en)? prüfen$/).click();
   const step = tasks
     .locator('.attention-proposals .rev-row')
