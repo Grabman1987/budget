@@ -30,14 +30,14 @@ preserves the #611 actual-history gaps, native currency, exact tooltip values an
   previous failed-refetch assertion remains unchanged. jsdom is used for stateful controls.
 - `e2e/issue-612-debt-live.spec.ts`: creates only a synthetic loan, checks the visible V16 result,
   monthly response, no API writes, reload reset, 1440/390/WebKit light/dark Axe and overflow,
-  touch sizes and privacy. Browser execution and screenshot inspection remain for CI.
+  touch sizes and privacy. Canonical browser execution and image inspection are recorded below.
 
 At the initial implementation `0133c2ac`, Node 22.23.3 web TypeScript, three focused Vitest files
 (nine tests), scoped ESLint, Prettier, CSS scale and `git diff --check` passed. The label correction
 `a5774010` passed the focused refresh suite (three tests, including USD), scoped ESLint, Prettier
 and the diff check. Its repeated web TypeScript check aborted with a fatal Node out-of-memory
-error; it was not retried, and no successful current-head typecheck is claimed. Browser/build and
-required exact-head CI remain deferred to the queue gate while #777 occupies the heavy test lane.
+error; it was not retried, and no successful current-head typecheck is claimed. Scoped browser
+builds and runs are complete as recorded below; required exact-head PR CI remains pending.
 The independent full financial/UI review found only the corrected currency label; independent
 delta review accepted the code and requested this revision-specific evidence clarification.
 
