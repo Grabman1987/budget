@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { setAmountsHidden } from '@budget/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { expect, it, vi } from 'vitest';
 import { BookingTable } from './booking-table';
@@ -96,6 +97,26 @@ it('opens the existing dialog from the two-line phone content', () => {
   const { container, onOpen } = setup();
   fireEvent.click(container.querySelector('.kaccount-mobile-meta')!);
   expect(onOpen).toHaveBeenCalledWith(booking);
+});
+
+it('includes visible fallback, date, category and amount in control names without exposing hidden money', () => {
+  const { container } = setup([{ ...booking, payeeName: null, memo: null }]);
+  const row = within(container.querySelector('[data-booking]') as HTMLElement);
+  expect(
+    row.getByRole('button', { name: 'Buchung am 02.10. bearbeiten · Ohne Empfänger' }),
+  ).toBeTruthy();
+  expect(row.getByRole('button', { name: 'Datum ändern: Buchung · 02.10.' })).toBeTruthy();
+  expect(
+    row.getByRole('button', { name: 'Kategorie ändern: Buchung am 02.10. · ohne Kategorie' }),
+  ).toBeTruthy();
+  expect(row.getByRole('button', { name: 'Betrag ändern: Buchung · −12,34 €' })).toBeTruthy();
+  try {
+    act(() => setAmountsHidden(true));
+    expect(row.getByRole('button', { name: 'Betrag ändern: Buchung · ••• €' })).toBeTruthy();
+    expect(container.textContent).not.toContain('12,34');
+  } finally {
+    act(() => setAmountsHidden(false));
+  }
 });
 
 it('keeps reconciled category and status read-only and delegates the amount to dialog unlock', () => {

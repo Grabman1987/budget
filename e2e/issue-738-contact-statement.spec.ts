@@ -187,7 +187,9 @@ for (const profile of ['desktop', 'phone'] as const)
         await region.screenshot({
           path: info.outputPath(`contact-statement-${profile}-${theme}.png`),
         });
-        await region.getByRole('button', { name: 'Zahlungen im Oktober 2026 kopieren' }).click();
+        await region
+          .getByRole('button', { name: 'Abschnitt kopieren: Zahlungen im Oktober 2026' })
+          .click();
         const fallback = region.getByRole('textbox', { name: 'Text zum Kopieren' });
         await expect(fallback).toHaveValue(
           [

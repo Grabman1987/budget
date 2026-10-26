@@ -239,14 +239,13 @@ for (const profile of ['configured', 'desktop', 'phone-tall'] as const) {
           if (phone) {
             await enterPhoneSelection(page);
             const group = page.getByRole('button', {
-              name: 'Gruppe Wohnen auswählen',
-              exact: true,
+              name: /^Gruppe Wohnen auswählen · \d+\/\d+$/,
             });
             await group.click();
             for (const id of ['miete', 'strom', 'internet', 'haushalt'])
               await expect(nameButton(page, `cat-${id}`)).toHaveAttribute('aria-pressed', 'true');
             await expect(
-              page.getByRole('button', { name: 'Alle Kategorien auswählen', exact: true }),
+              page.getByRole('button', { name: /^Alle Kategorien auswählen · \d+\/\d+$/ }),
             ).toHaveAttribute('aria-pressed', 'mixed');
             for (const controls of [table.locator('.pname'), table.locator('.plan-select-toggle')])
               for (const control of await controls.all()) {

@@ -227,8 +227,10 @@ describe('#481 separate multi-category headings preserve independent category id
     expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
     await userEvent.click(screen.getByText(/^Optionen/, { selector: 'summary' }));
     await userEvent.click(screen.getByRole('button', { name: 'Auswählen' }));
-    const group = screen.getByRole('button', { name: 'Gruppe Mustergruppe auswählen' });
-    const all = screen.getByRole('button', { name: 'Alle Kategorien auswählen' });
+    const group = screen.getByRole('button', {
+      name: /^Gruppe Mustergruppe auswählen · \d+\/\d+$/,
+    });
+    const all = screen.getByRole('button', { name: /^Alle Kategorien auswählen · \d+\/\d+$/ });
     await userEvent.click(group);
     expect(category('first').getAttribute('aria-pressed')).toBe('true');
     expect(category('second').getAttribute('aria-pressed')).toBe('true');

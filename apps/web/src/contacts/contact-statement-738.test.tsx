@@ -208,7 +208,9 @@ it('keeps every movement in its exact section and copies only the named month wi
   expect(document.querySelector('details.contacts-closed-history')?.hasAttribute('open')).toBe(
     false,
   );
-  await user.click(screen.getByRole('button', { name: 'Zahlungen im Oktober 2026 kopieren' }));
+  await user.click(
+    screen.getByRole('button', { name: 'Abschnitt kopieren: Zahlungen im Oktober 2026' }),
+  );
   expect(clipboard).toHaveBeenCalledExactlyOnceWith(EXPECTED_COPY);
   expect(screen.getByText('Abschnitt kopiert.').getAttribute('role')).toBe('status');
   expect(screen.getByRole('link', { name: 'Zurück zu Kontakte' }).getAttribute('href')).toBe(
@@ -222,7 +224,7 @@ it('copies masked money under privacy mode without retaining an unmasked fallbac
   setAmountsHidden(true);
   mount();
   await user.click(
-    await screen.findByRole('button', { name: 'Zahlungen im Oktober 2026 kopieren' }),
+    await screen.findByRole('button', { name: 'Abschnitt kopieren: Zahlungen im Oktober 2026' }),
   );
   expect(clipboard).toHaveBeenCalledExactlyOnceWith(
     [
@@ -243,7 +245,7 @@ it('masks money embedded in descriptions as well as copied numeric columns', asy
   setAmountsHidden(true);
   mount();
   await user.click(
-    await screen.findByRole('button', { name: 'Zahlungen im Oktober 2026 kopieren' }),
+    await screen.findByRole('button', { name: 'Abschnitt kopieren: Zahlungen im Oktober 2026' }),
   );
   expect(clipboard).toHaveBeenCalledOnce();
   expect(clipboard.mock.calls[0]![0]).toContain('Synthetische Auslage ••• €');
@@ -261,7 +263,7 @@ it('offers selectable plain text after clipboard denial and updates it when priv
   vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('denied'));
   mount();
   await user.click(
-    await screen.findByRole('button', { name: 'Zahlungen im Oktober 2026 kopieren' }),
+    await screen.findByRole('button', { name: 'Abschnitt kopieren: Zahlungen im Oktober 2026' }),
   );
   const fallback = (await screen.findByRole('textbox', {
     name: 'Text zum Kopieren',

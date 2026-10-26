@@ -67,7 +67,10 @@ export function MobileHeader({
         </div>
         <GlobalSearch mobile onOpenChange={onSearchChange} />
         <details className="m-profile" ref={profileMenu}>
-          <summary className="avatar" aria-label={`${identity.name}: Profilmenü`}>
+          <summary
+            className="avatar"
+            aria-label={`${identity.initials} · ${identity.name}: Profilmenü`}
+          >
             {identity.initials}
           </summary>
           <div className="m-profile-actions">

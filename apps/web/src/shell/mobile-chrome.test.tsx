@@ -48,6 +48,9 @@ it('offers search in the phone header and only booking capture below the page', 
   const header = await screen.findByRole('banner');
   expect(within(header).getByRole('button', { name: 'Suchen' })).toBeTruthy();
   expect(screen.getAllByRole('button', { name: 'Suchen' })).toHaveLength(1);
+  const profile = header.querySelector('summary')!;
+  expect(profile.textContent).toBe('NU');
+  expect(profile.getAttribute('aria-label')).toBe('NU · Profil: Profilmenü');
   const capture = screen.getByRole('navigation', { name: 'Schnellerfassung' });
   expect(within(capture).getByRole('link', { name: 'Buchung erfassen' })).toBeTruthy();
   expect(within(capture).queryByRole('button')).toBeNull();

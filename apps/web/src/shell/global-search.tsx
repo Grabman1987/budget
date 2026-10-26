@@ -155,7 +155,7 @@ export function GlobalSearch({
         id={mobile ? 'global-search-mobile' : 'global-search'}
         type="button"
         className={mobile ? 'icon-btn global-search-trigger' : 'search global-search-launch'}
-        aria-label="Suchen"
+        aria-label={mobile ? 'Suchen' : undefined}
         aria-keyshortcuts="Control+k Meta+k"
         onClick={() => open()}
       >

@@ -246,7 +246,7 @@ function mount(options: { holdAccounts?: boolean; omitReview?: boolean } = {}) {
 
 it('shows literal Budget figures and the existing physical account groups once, excluding closed accounts', async () => {
   const { container } = mount();
-  await screen.findByRole('link', { name: 'Synthetic Alpha' });
+  await screen.findByRole('link', { name: /^Synthetic Alpha / });
   await waitFor(() =>
     expect(screen.getByTestId('budget-accounts-balance').textContent).toBe('120,00 €'),
   );
@@ -298,7 +298,7 @@ it('waits for actual server asOf and uses a separate quality cache while preserv
   await waitFor(() => expect(reads).toContain('GET /api/accounts'));
   expect(reads.some((entry) => entry.includes('/series'))).toBe(false);
   act(() => releaseAccounts?.());
-  await screen.findByRole('link', { name: 'Synthetic Alpha' });
+  await screen.findByRole('link', { name: /^Synthetic Alpha / });
   await waitFor(() =>
     expect(reads).toContain('GET /api/accounts/series?from=2026-09-21&to=2026-10-21&quality=1'),
   );

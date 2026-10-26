@@ -672,7 +672,7 @@ test('741 clicked automatic result opens its persisted booking destination', asy
     await expect(row).toContainText('Synthetic current merchant');
     await expect(row).toContainText('Muster Link Einkauf');
     await expect(row).toContainText('−70,00');
-    await row.getByRole('button', { name: / bearbeiten$/ }).click();
+    await row.getByRole('button', { name: / bearbeiten · / }).click();
     const editor = page.getByRole('dialog', { name: 'Buchung bearbeiten', exact: true });
     await expect(editor).toBeVisible();
     await expect(editor.getByLabel('Betrag', { exact: true })).toHaveValue('70,00');

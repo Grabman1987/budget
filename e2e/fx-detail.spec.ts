@@ -57,7 +57,7 @@ test('native detail, dated EUR history and reconciliation undo', async ({
   await page.goto('/konten');
   const overview = page
     .locator('.krow')
-    .filter({ has: page.getByRole('link', { name: 'Synthetic USD', exact: true }) });
+    .filter({ has: page.getByRole('link', { name: /^Synthetic USD / }) });
   await expect(overview).toContainText('75,68 €');
   await page.goto(`/konten/${account.id}`);
   await expect(page.getByTestId('account-balance')).toHaveText('75,68 €');

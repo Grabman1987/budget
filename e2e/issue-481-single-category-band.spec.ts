@@ -31,7 +31,7 @@ async function expectPhoneSelectionTargets(page: Page) {
   for (const heading of await headings.all())
     await expect(heading.locator('.plan-select-toggle')).toHaveCount(1);
   await expect(
-    page.getByRole('button', { name: 'Alle Kategorien auswählen', exact: true }),
+    page.getByRole('button', { name: /^Alle Kategorien auswählen · \d+\/\d+$/ }),
   ).toHaveCount(1);
   for (const controls of [categories, toggles]) {
     for (let index = 0; index < (await controls.count()); index++) {
@@ -416,7 +416,7 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   await expect(name).toHaveAttribute('aria-pressed', 'true');
   if (page.viewportSize()!.width < 768) {
     await expect(
-      page.getByRole('button', { name: 'Alle Kategorien auswählen', exact: true }),
+      page.getByRole('button', { name: /^Alle Kategorien auswählen · \d+\/\d+$/ }),
     ).toHaveAttribute('aria-pressed', 'mixed');
     await expectPhoneSelectionTargets(page);
     await exitPhoneSelection(page);
@@ -479,7 +479,7 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   });
   await page.reload();
   await expect(band).toHaveClass(/is-over/);
-  await band.getByRole('button', { name: 'Musterposten decken', exact: true }).click();
+  await band.getByRole('button', { name: 'Musterposten decken' }).click();
   await inspector.getByRole('button', { name: 'Decken · 0,01 €', exact: true }).click();
   expect(writes[3]).toEqual({
     path: `/api/budget/${month}/cover`,
@@ -541,8 +541,7 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   if (page.viewportSize()!.width < 768) {
     await enterPhoneSelection(page);
     const groupSelection = band.getByRole('button', {
-      name: 'Gruppe Musterband auswählen',
-      exact: true,
+      name: /^Gruppe Musterband auswählen · \d+\/\d+$/,
     });
     await groupSelection.click();
     await expect(page.locator(`.pname[data-category-id="${category.id}"]`)).toHaveAttribute(
