@@ -75,14 +75,14 @@ button {
   border-radius: var(--radius-xs);
 }
 
-/* One disclosure shape across native details; summaries with an explicit SVG keep their own icon. */
+/* One disclosure shape across native details; explicit SVG and avatar summaries keep their own content. */
 summary {
   list-style: none;
 }
 summary::-webkit-details-marker {
   display: none;
 }
-summary:not(:has(.lucide-chevron-down, .lucide-chevron-right, .kmore-caret))::before {
+summary:not(.avatar):not(:has(.lucide-chevron-down, .lucide-chevron-right, .kmore-caret))::before {
   content: '';
   display: inline-block;
   flex: none;
@@ -95,7 +95,9 @@ summary:not(:has(.lucide-chevron-down, .lucide-chevron-right, .kmore-caret))::be
     center / contain no-repeat;
 }
 details[open]
-  > summary:not(:has(.lucide-chevron-down, .lucide-chevron-right, .kmore-caret))::before {
+  > summary:not(.avatar):not(
+    :has(.lucide-chevron-down, .lucide-chevron-right, .kmore-caret)
+  )::before {
   transform: rotate(90deg);
 }
 details:not([open]) > summary .disclosure-chevron,

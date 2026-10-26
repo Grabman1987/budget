@@ -62,7 +62,10 @@ async function expectStatusContentInsideButton(status: Locator) {
   expect(bounds.button.right).toBeLessThanOrEqual(bounds.viewportWidth);
 }
 
-test('icon sizes, swatches and disclosure carets use their rendered styles', async ({ page }) => {
+test('icon sizes, swatches and disclosure carets use their rendered styles', async ({
+  page,
+  isMobile,
+}) => {
   await page.goto('/plan/monat?monat=2026-09');
   await expectVisibleIconScale(page);
   const planNavIcon = page.locator('a[href="/plan/monat"] svg:visible').first();
@@ -131,6 +134,30 @@ test('icon sizes, swatches and disclosure carets use their rendered styles', asy
   expect(await returnSummary.evaluate((el) => getComputedStyle(el, '::before').maskImage)).not.toBe(
     'none',
   );
+
+  if (isMobile) {
+    await page.goto('/');
+    const profileMenu = page.locator('details.m-profile');
+    const avatar = profileMenu.locator(':scope > summary.avatar');
+    await expect(profileMenu).toBeVisible();
+    await expect(avatar).toBeVisible();
+    const initials = (await avatar.textContent())?.trim() ?? '';
+    expect(initials).not.toBe('');
+    const avatarMarker = () =>
+      avatar.evaluate((element) => getComputedStyle(element, '::before').maskImage);
+    expect(await avatarMarker()).toBe('none');
+
+    await avatar.click();
+    await expect(profileMenu).toHaveAttribute('open', '');
+    await expect(profileMenu.getByRole('link', { name: 'Profil und Einstellungen' })).toBeVisible();
+    await expect(avatar).toHaveText(initials);
+    expect(await avatarMarker()).toBe('none');
+
+    await avatar.click();
+    await expect(profileMenu).not.toHaveAttribute('open', '');
+    await expect(avatar).toHaveText(initials);
+    expect(await avatarMarker()).toBe('none');
+  }
 });
 
 test('labelled booking status and capture caret remain usable on phone and desktop', async ({
