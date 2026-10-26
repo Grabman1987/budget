@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, type TestInfo } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,14 +12,33 @@ test.describe.configure({ timeout: 120000 });
 
 async function captureReviewViewport(page: Page, info: TestInfo) {
   const dir = process.env['BUDGET_SPENDING_EVIDENCE'];
-  if (!dir) return;
-  mkdirSync(dir, { recursive: true });
+
+  if (dir) mkdirSync(dir, { recursive: true });
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
+      [],
+    );
+    if (page.viewportSize()!.width === 390) {
+      const sizes = await page
+        .locator('dialog[open] .receipt-pdf-preview button')
+        .evaluateAll((buttons) =>
+          buttons.map((button) => ({
+            width: button.getBoundingClientRect().width,
+            height: button.getBoundingClientRect().height,
+          })),
+        );
+      for (const size of sizes) {
+        expect(size.width).toBeGreaterThanOrEqual(44);
+        expect(size.height).toBeGreaterThanOrEqual(44);
+      }
+    }
     await page.screenshot({
       fullPage: false,
       animations: 'disabled',
-      path: join(dir, `payslip-review-viewport-${theme}-${info.project.name}.png`),
+      path: dir
+        ? join(dir, `payslip-review-viewport-${theme}-${info.project.name}.png`)
+        : info.outputPath(`payslip-review-viewport-${theme}.png`),
     });
     await page.locator('dialog.overlay .panel-body').evaluate((body) => {
       body.scrollTop = body.scrollHeight;
@@ -26,7 +46,9 @@ async function captureReviewViewport(page: Page, info: TestInfo) {
     await page.screenshot({
       fullPage: false,
       animations: 'disabled',
-      path: join(dir, `payslip-review-actions-${theme}-${info.project.name}.png`),
+      path: dir
+        ? join(dir, `payslip-review-actions-${theme}-${info.project.name}.png`)
+        : info.outputPath(`payslip-review-actions-${theme}.png`),
     });
     await page.locator('dialog.overlay .panel-body').evaluate((body) => {
       body.scrollTop = 0;
@@ -74,7 +96,17 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   await source.getByRole('button', { name: 'Zuordnung speichern' }).click();
   await expect(source).toContainText('PDF-Passwort hinterlegt');
   await inspectReport(page, info, 'payslip-source');
+  await page.goto('/plan/monat/einnahmen?monat=2026-09');
+  await expect(
+    page.locator('.titleblock .tb-field').filter({ hasText: 'Einnahmen' }).locator('.tb-value'),
+  ).toHaveText(await page.getByTestId('income-received').innerText());
+  await inspectReport(page, info, '609-income');
   await page.goto('/reports/gehalt?monat=2026-09');
+  await expect(
+    page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }),
+  ).toHaveCount(0);
+  await inspectReport(page, info, '609-payroll-report');
+  await page.goto('/plan/monat/einnahmen?monat=2026-09');
   const bytes = await syntheticPayslipPdf();
   // Upload transitions directly into the extracted intake inside the wide review dialog.
   await page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
@@ -100,6 +132,15 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   await expect(review).toContainText('2.975,00');
   await review.getByLabel('Auszahlungsdatum').fill('30.09.2026');
   await expect(review.getByLabel('Gehaltsbuchung (±5 Tage)')).toHaveValue(salary.id);
+  const preview = review.getByRole('region', { name: 'Original-PDF', exact: true });
+  await preview.getByRole('button', { name: 'PDF-Vorschau öffnen' }).click();
+  await preview.getByRole('alert').waitFor();
+  await preview.getByLabel('PDF-Passwort für diese Vorschau').fill('synthetic-pdf-password');
+  await preview.getByRole('button', { name: 'Vorschau erneut laden' }).click();
+  await expect(preview.getByRole('img', { name: 'Originalbeleg, Seite 1' })).toBeVisible();
+  await expect(review.getByRole('group', { name: 'Zusammensetzung der Auszahlung' })).toContainText(
+    '2.975,00',
+  );
   await inspectReport(page, info, 'payslip-intake');
   await captureReviewViewport(page, info);
   await review.getByRole('button', { name: 'Bestätigen', exact: true }).click();
@@ -114,8 +155,8 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   await expect(inboxReview).toContainText('innerhalb 1 Cent');
   await inboxReview.getByRole('button', { name: 'Ablehnen', exact: true }).click();
   await expect(row).toHaveCount(0);
-  // The payslip upload no longer sits inside Prüfen (#561); it stays reachable from the Gehaltszettel report.
-  await page.goto('/reports/gehalt?monat=2026-09');
+  // Upload remains on Plan income; Prüfen keeps the recovery entry.
+  await page.goto('/plan/monat/einnahmen?monat=2026-09');
   await page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
   await page
     .getByRole('dialog', { name: 'Gehaltszettel hochladen' })
@@ -154,9 +195,19 @@ for (const intakeMethod of ['chooser', 'drop'] as const) {
       data: { salaryAccountId: suggested.id, wageTypes: {} },
     });
     expect(config.ok()).toBe(true);
-    await page.goto('/reports/gehalt?monat=2026-09');
+    await page.goto('/plan/monat/einnahmen?monat=2026-09');
     await page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
     const upload = page.getByRole('dialog', { name: 'Gehaltszettel hochladen' });
+    await expect(
+      page.locator('.titleblock .tb-field').filter({ hasText: 'Einnahmen' }).locator('.tb-value'),
+    ).toHaveText(await page.getByTestId('income-received').innerText());
+    await inspectReport(page, info, '609-income');
+    await page.goto('/reports/gehalt?monat=2026-09');
+    await expect(
+      page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }),
+    ).toHaveCount(0);
+    await inspectReport(page, info, '609-payroll-report');
+    await page.goto('/plan/monat/einnahmen?monat=2026-09');
     const bytes = await syntheticPayslipPdf();
     if (intakeMethod === 'chooser') {
       const chooserReady = page.waitForEvent('filechooser');

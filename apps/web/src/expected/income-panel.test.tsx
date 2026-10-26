@@ -48,11 +48,9 @@ function showOctoberIncome() {
 it('labels October expected receipts separately from budget-relevant plan-month inflows', () => {
   showOctoberIncome();
 
+  expect(screen.getByText(/von erwartet 300,00 €.*Oktober 2026/)).toBeTruthy();
   expect(
-    screen.getByText(/Zu erwarteten Zahlungen eingegangen im Oktober.*erwartet 300,00 €/),
-  ).toBeTruthy();
-  expect(
-    screen.getByText(/Budgetrelevante Zuflüsse im Planmonat.*Oktober 2026.*1\.000,00 €/),
+    screen.getByText(/Zählt für Zu verteilen: 1\.000,00 € im Planmonat Oktober 2026/),
   ).toBeTruthy();
   expect(screen.getByText(/Erwartete Zahlungen sind Planwerte/)).toBeTruthy();
   expect(
@@ -69,7 +67,7 @@ it('keeps the scope explanation while amount privacy masks expected and booked v
   act(() => setAmountsHidden(true));
   showOctoberIncome();
 
-  expect(screen.getByText(/Budgetrelevante Zuflüsse im Planmonat.*Oktober 2026/)).toBeTruthy();
+  expect(screen.getByText(/Zählt für Zu verteilen:.*im Planmonat Oktober 2026/)).toBeTruthy();
   expect(screen.getByTestId('income-received').textContent).toBe('••• €');
   expect(screen.queryByText(/300,00 €|1\.000,00 €/)).toBeNull();
 });

@@ -154,8 +154,33 @@ PDF.js extracts text in a bounded worker thread (20 seconds, 128 MiB JavaScript
 heap, 30 pages, 200,000 text characters). Evaluation and font rendering are disabled;
 library diagnostics are discarded. The password and extracted text never enter
 the database, application logs or client responses. Original bytes use the existing
-content-addressed `RECEIPTS_DIR`, outside static hosting. PDFs are download-only.
+content-addressed `RECEIPTS_DIR`, outside static hosting. Raw PDFs remain download-only; a separate inert PNG page preview does not change text extraction.
 No decrypted PDF is written. Plain PDFs remain plain on the protected volume.
+
+### Original page beside payroll review (#609, validation pending)
+
+The existing wide upload/review dialog and the inbox review share a receipt-local
+PDF preview on the left, with the existing review on the right. On narrow screens
+they stack. Explicit **PDF-Vorschau öffnen** requests one protected PNG page;
+previous/next page and fit/detail controls never embed the PDF itself. Zoom pans
+inside the bounded page region. **Vorschau schließen** removes its image/password
+and aborts pending work; closing the review or changing its source does the same.
+
+An encrypted PDF can use **PDF-Passwort für diese Vorschau**, kept only for that
+open preview session. It is not remembered or retrieved from the payroll password
+store. Preview failure, a wrong password, busy renderer or a processing limit does
+not discard review fields, reanalyse the document, change payout eligibility or
+disable the existing original download/manual review. It never confirms a payout
+or changes an existing allocation. Privacy mode removes the entire image/session
+and requires an explicit new open after privacy is turned off.
+
+The [receipt preview contract](receipts.md#inert-pdf-page-preview-609-source-implementation-validation-pending)
+documents finite page/surface/image/output limits, process-wide admission and the
+distinction between the cancellation deadline, V8 heap and unbounded native RSS.
+No private document has been used for this source-only implementation. Actual
+synthetic rendering, platform/limit/security checks and 1440/390 light/dark,
+keyboard/touch/privacy/draft verification are still pending. Existing payout
+split normalization is never authorized by opening the preview. The separate explicit action below is limited to proven untouched imports.
 
 The pure adapter interface accepts extracted text plus owner mappings. The Austrian
 wage-line adapter supports LGV/BMD/ZFA2-style labels, final amount columns, signed
@@ -222,3 +247,38 @@ browser tests use a fresh local database and passkey session per viewport; run
 `npm run build:e2e`, then
 `npx playwright test --config e2e/payslip-intake.config.ts`.
 The isolated configuration avoids unrelated seed servers on memory-limited machines.
+
+## Explicit original-payout split (#609, source only; NOT VALIDATED)
+
+An optional, unchecked confirmation in the review can split one proven untouched
+original salary lump into salary and tax-free reimbursement through the ordinary
+booking writer. The action preserves total, account, date, payee, status and other
+booking metadata, then links the payslip/receipt/expectation in the same existing
+outer decision transaction and audit group. No new payout is created for that path.
+
+Eligibility requires the current known parser, document-derived period and payout
+date, complete wage mapping and reconciled integer cents, the configured salary
+account/employer, an exact EUR payout, and an actual committed import run/mapping.
+The booking and every original split must still equal their complete audited
+creation snapshots in that import group, with no later mutation, removed/recreated
+child, Undo/redo or consumed association history. Existing ordinary ledger guards
+remain authoritative. A server-generated preview token binds source, receipt,
+booking, splits, account, sender, configuration, expectation, import and audit
+identities and is recomputed inside the transaction before the split write.
+
+Reconciled payouts are only linked, with an explicit notice. Already canonical
+payouts need no replacement. Manually corrected, custom-assigned, provenance-unknown
+and otherwise unsupported records remain unchanged and may still use the original
+link-only path. In particular, this is not blanket normalization for every bank or
+historical payout; missing provenance leaves that acceptance scope blocked.
+#741 automatic upload remains strict and never supplies the explicit split token.
+
+Plan income owns upload and review. Its received/expected figure uses the same
+existing income query as the Plan month title-block income button; the separate
+budget-month inflow definition is the “Zählt für Zu verteilen” footnote. The salary
+report has no upload control, and its 14-salary table lists recorded positions only
+with missing positions on one line. No financial report formula is changed.
+
+No tests, typecheck/build, browser or financial Undo proof were run for this port.
+Exact rollback/Undo, CAS and ABA rejection, savings-rate classification and every
+rendering/security/responsive acceptance item remain unverified.

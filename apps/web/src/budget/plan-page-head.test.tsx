@@ -28,7 +28,12 @@ vi.mock('../shell/app-link', () => ({
   ),
 }));
 vi.mock('../pages/placeholder-page', () => ({
-  PageFrame: ({ children }: { children: ReactNode }) => <main>{children}</main>,
+  PageFrame: ({ children, income }: { children: ReactNode; income?: ReactNode }) => (
+    <main>
+      <header>{income}</header>
+      {children}
+    </main>
+  ),
 }));
 
 const view = (toBeAssignedCents: number) => ({
@@ -57,6 +62,13 @@ function renderPlan(toBeAssignedCents: number) {
     'fetch',
     vi.fn(async (path: string) => {
       const route = path.split('?')[0]!;
+      if (route === '/api/expected/income')
+        return Response.json({
+          receivedCents: 2500,
+          expectedCents: 10000,
+          byPayment: [],
+          byIncomeType: [],
+        });
       const body = route.startsWith('/api/budget/')
         ? view(toBeAssignedCents)
         : route === '/api/accounts'
@@ -100,6 +112,10 @@ it('shows a positive "Zu verteilen" as is-positive and keeps "Geld verteilen" on
   renderPlan(12_345);
   const figure = await screen.findByTestId('to-be-assigned');
   expect(figure.textContent).toBe('123,45 €');
+  // Received cash (25 EUR) is distinct from the budget-month income fixture (100 EUR).
+  expect(
+    (await screen.findByRole('button', { name: /25,00 €.*Einnahmen im Detail/ })).textContent,
+  ).toContain('25,00 €');
   expect(figure.closest('summary')!.className).toMatch(/is-positive/);
   expect(
     (screen.getByRole('button', { name: 'Geld verteilen' }) as HTMLButtonElement).disabled,

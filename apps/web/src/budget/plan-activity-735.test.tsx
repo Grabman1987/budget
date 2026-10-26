@@ -393,6 +393,13 @@ it('735 regression: real router Back preserves two selected rows, unrelated coll
     vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = new URL(String(input), 'http://localhost');
       calls.push({ method: init?.method ?? 'GET', path: url.pathname, body: null });
+      if (url.pathname === '/api/expected/income')
+        return Response.json({
+          receivedCents: 2500,
+          expectedCents: 10000,
+          byPayment: [],
+          byIncomeType: [],
+        });
       const body =
         url.pathname === '/api/budget/2026-10'
           ? data

@@ -165,6 +165,7 @@ function mount(at = '/plan/monat?monat=2026-10', restoredTriage = false) {
     const allowed =
       method === 'GET' &&
       ((plain.has(url.pathname) && !url.search) ||
+        (url.pathname === '/api/expected/income' && /^\?month=2026-(10|11)$/.test(url.search)) ||
         uncategorized ||
         (url.pathname === '/api/budget/months' && url.search === '?months=2026-10,2026-11'));
     if (!allowed) {

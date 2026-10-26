@@ -150,6 +150,13 @@ beforeEach(() => {
       const method = init?.method ?? 'GET';
       if (method !== 'GET') writes.push(`${method} ${url.pathname}`);
       const month = url.pathname.match(/^\/api\/budget\/(\d{4}-\d{2})$/)?.[1];
+      if (url.pathname === '/api/expected/income')
+        return Response.json({
+          receivedCents: 2500,
+          expectedCents: 10000,
+          byPayment: [],
+          byIncomeType: [],
+        });
       const body = month
         ? budget(month)
         : url.pathname === '/api/categories'
