@@ -105,8 +105,8 @@ export function Sidebar({
           aria-label={
             collapsed
               ? named
-                ? `${identity.name} Profil / Einstellungen`
-                : `Profil / Einstellungen ${authMethod}`
+                ? `${identity.initials} · ${identity.name} Profil / Einstellungen`
+                : `${identity.initials} · Profil / Einstellungen ${authMethod}`
               : undefined
           }
           aria-current={area === 'einstellungen' ? 'page' : undefined}

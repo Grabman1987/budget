@@ -132,3 +132,46 @@ single complete-suite run. All checks used the final lock and Node 22.23.3.
 The repair is awaiting a different agent's independent review and focused native
 browser evidence before another exact-head required CI run. No claim that the
 full accessibility failure is resolved is made from the unit checks alone.
+
+### Focused Linux result and bounded follow-up
+
+Independent review of the new repair is CLEAR at `875b4c9a`. Scoped ESLint,
+the additional FX selector lint and web TypeScript checks passed. Linux run
+`40253453145` checked out that exact revision (rather than the workflow's main
+revision). Its actual summary is **53 passed, 12 failed, 1 existing profile skip**
+in 11.5 minutes; the workflow reports success because it permits test failures.
+It produced no baseline changes. Every failed case also failed its configured
+retry; this is not a passing runtime result.
+
+Successful unchanged cases cover Plan suggestions and selection, native FX,
+contact copying/source actions, account overview, upcoming bookings and the
+register's layout/Axe scans. The failures have three bounded causes:
+
+- Eight ledger cases stop at the shared account-link helper, which still expects
+  the old name without the visible review state.
+- Three inline-write cases use an old end-anchored booking name or expect date
+  text without the newly included screen-reader prefix. Their original literal
+  date, cent values, reconciliation locks and Undo assertions are retained.
+- One collapsed-sidebar case still fails Axe: only the avatar initials are
+  visible when collapsed, and the explicit name omitted them. The corrected
+  name includes those same initials as well as owner/session context.
+
+The follow-up changes only that sidebar name plus its literal unit expectations,
+and the necessary selectors identified in the failed run and a bounded search
+for the same old selector patterns. Additional per-file rationale:
+
+| Test file | Scoped reason |
+| --- | --- |
+| `sidebar.test.tsx` | Include literal visible `NU` initials in both collapsed-name expectations; expanded names remain unchanged. |
+| `e2e/ledger-helpers.ts` | Keep the link role and literal account-name prefix, escaped as a regex and scoped to overview rows, while allowing the review-state suffix. |
+| `e2e/issue-581-account-register.spec.ts` | Keep the exact restored `17.10.` date with its action prefix and select the existing edit action with its rendered suffix. |
+| `e2e/issue-632-pending-account.spec.ts` | Adapt the same end-anchored edit selector; pending-state and no-write checks remain. |
+| `e2e/issue-741-payroll-automation.spec.ts` | Adapt the existing row edit selector; automation cents, source linkage, audit and Undo remain. |
+| `e2e/issue-741-card-automation.spec.ts` | Adapt the same row edit selector; statement reconciliation and grouped Undo remain. |
+| `e2e/register.spec.ts` | Adapt the same row edit selector; capture/edit and timing observations remain. |
+| `e2e/issue-511-overview-figure-layout.spec.ts` | Match the same scoped account row with the link's review text; figure and geometry assertions remain. |
+| `e2e/issue-578-account-review.spec.ts` | Match the named quiet account including review text; review-state, Axe and overflow assertions remain. |
+
+Only the three failing specs need a focused rerun. The successful unchanged
+control cases above are retained as revision-qualified evidence; exact-head
+required CI, integration and publication remain pending.

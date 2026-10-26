@@ -77,8 +77,8 @@ it('includes the visible owner name and keeps an icon-only profile link named', 
   const { rerender } = render(view(false));
   expect(screen.getByRole('link', { name: 'Ada Profil / Einstellungen' })).toBeTruthy();
   rerender(view(true));
-  expect(screen.getByRole('link', { name: 'Ada Profil / Einstellungen' })).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'NU · Ada Profil / Einstellungen' })).toBeTruthy();
   identity.name = 'Profil';
   rerender(view(true));
-  expect(screen.getByRole('link', { name: 'Profil / Einstellungen Passkey' })).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'NU · Profil / Einstellungen Passkey' })).toBeTruthy();
 });
