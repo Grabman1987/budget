@@ -210,3 +210,36 @@ after the full financial review and historical/next-month fence corrections.
 Exact-head required CI, main integration and preview/production publication are
 still pending. Browser emulation is not a physical-device check. No live or
 complete claim is made for #600/#601/#602 at this checkpoint.
+
+## Existing account-review consumer
+
+Full run `40326747651` at `e90ae129` found the same existing account-review
+consumer failure in desktop shard 1 and mobile shard 5. The test required an
+individual heading for every account, but its untouched loan has an original
+personal check and no later movement. It now correctly appears as an exact
+account link in the new unchanged-account cohort. The retained failure snapshot
+shows both `Muster loan` and `Muster quiet` in “Gemeinsam bestätigen”, while the
+other accounts retain individual headings. This is a rendered-structure mismatch,
+not a missing account or a demonstrated financial failure.
+
+Per-file reason: `e2e/account-review.spec.ts` checks the fixture's quiet loan as
+the exact link in `.close-unchanged`, keeps every other original account-heading
+assertion, and additionally requires the independently quiet checking account's
+link there. Existing balance/staleness, manual valuation/Undo, current-month
+preparation, date, Axe/overflow, screenshot, 44px and 120-second checks are
+unchanged. No product code, financial expectation, assertion budget or retry
+setting changes in this adapter. Independent review and the affected browser
+execution remained pending at that adapter checkpoint.
+
+The final first full run completed with only the account-review case failing on
+desktop and mobile (shards 1 and 5); the other ten browser groups and selected
+static, Linux/Windows unit, visual, Docker and restore jobs passed. Its merge
+helper exited without merging. Independent review cleared the exact two-file
+adapter and its preserved coverage. Scoped Prettier, ESLint and diff checks passed.
+[Run 40329976124](https://github.com/Grabman1987/budget/actions/runs/40329976124)
+then checked out `472e8b9a4e755bc4f607b2b7ce41ffa60e6cbfcf` and passed all
+**five cases in 1.0 minute** (three setup plus the actual account-review flow on
+desktop and mobile), with no retries, failures, skips or baseline changes.
+The actual summary and checkout SHA were inspected. Product code and all other
+test assertions remain unchanged; full exact-head CI must pass on the corrected
+PR head before integration.
