@@ -74,14 +74,14 @@ export function BankCandidate({
       >
         Übernehmen
       </Button>
-      <FormDialog
-        open={open}
-        onClose={() => setOpen(false)}
-        title="Buchung übernehmen"
-        beforeClose={() => !busy}
-      >
-        {/* Retain choices and prepared bulk suggestions when the popup is closed. Opening only reads. */}
-        {visited && (
+      {visited && (
+        <FormDialog
+          open={open}
+          onClose={() => setOpen(false)}
+          title="Buchung übernehmen"
+          beforeClose={() => !busy}
+        >
+          {/* Retain choices and prepared bulk suggestions when the popup is closed. Opening only reads. */}
           <BankCandidateForm
             id={id}
             onConfirmed={onConfirmed}
@@ -90,8 +90,8 @@ export function BankCandidate({
             onClose={() => setOpen(false)}
             onBusy={setBusy}
           />
-        )}
-      </FormDialog>
+        </FormDialog>
+      )}
     </>
   );
 }
