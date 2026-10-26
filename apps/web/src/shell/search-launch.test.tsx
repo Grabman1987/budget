@@ -54,7 +54,9 @@ it('opens an overlay without navigation, limits the empty state and returns focu
       <GlobalSearch />
     </QueryClientProvider>,
   );
-  const trigger = screen.getByRole('button', { name: 'Suchen' });
+  const trigger = screen.getByRole('button', {
+    name: 'Suchen: Seiten, Reports, Buchungen, Aktionen',
+  });
   fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
   const dialog = screen.getByRole('dialog', { name: 'Suchen' });
   const input = within(dialog).getByRole('combobox', { name: 'Suchen' });
