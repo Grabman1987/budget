@@ -1832,6 +1832,18 @@ all old browser cases or current CI green. Later4dbab Goals visual failures are
 addressed by the month-only CSS boundary; updated exact-head Goals CI is pending.
 
 
+## #626 — Explorer Tabelle / Diagramm (local verification; delivery pending)
+
+Custom Pivot and the four fixed templates now offer a local Tabelle/Diagramm toggle, default Tabelle. Lines retain original row/source identity and separate units/cohorts; first eight rows plus exact per-column Weitere preserve original independent summaries, null gaps, CSV and booking drilldown. The table retains its real horizontal position across mode changes. No existing test, financial writer, API/schema/router or shared component changed.
+
+Actual local verification: NEW3 unit files 41/41 (7.54s) plus types/lint/CSS/format; clean Main-e020 inheritance at 37e85f52; fresh E2E build and genuine canonical WebKit 33/33 (30 feature +3 setup, 4.9m), all three profiles/both themes. Strict original financial/source/CSV/read-only, 44px/Axe/overflow and native scroll-memory checks passed. Earlier selector failures and 29/4 scroll-memory failure remain archived. See [safe results and original viewport captures](evidence/explorer-chart-626/README.md), including FAB/tabbar/sticky-header framing and raw-touch0/DPR limits.
+
+Required aggregate run 25727 passed 547 files / 4,889 tests (419.87s) with AGE1 / Node22 / two workers; normal production build and all source/process/lock guards exited 0 at source37e85f52 + reviewed 25-path evidence freeze59bf40d3. Only this factual two-document result update follows; native JSON / 12 PNGs and source10 remain unchanged. Exact Chromium/GitHub CI and live delivery remain pending.
+
+Continuation: reviewed pointer/scroll-end test mechanics passed the full AGE check (592 files / 5,254 tests) and production build on `445c03e3`; the final mobile-project regression passed 33/33. CI `39660649882` on `38c8c430` passed 20 jobs and found the separate savings-navigation defect. Main `fb7490d3` now supplies its independently reviewed, CI-green and live #747 repair unchanged. Both ROADMAP append sections were retained. Required CI on the updated #719 head and its own serial live delivery remain pending.
+
+Current refresh (2026-10-26): normally merge main `928c2409` into existing PR #719 ancestry `943e54b2`, retaining all main changes and unchanged #626 product/test bytes. Only ROADMAP append conflicts required resolution. Node22 targeted checks pass 13 files / 104 tests; web types, scoped lint/format/CSS and fresh web production build pass. Retained PWA-host/native-label test reasons and historical-proof limits are recorded in the evidence. Independent current review, canonical Linux browser proof, exact-head required CI and serial live delivery remain pending; unattended loops remain disabled.
+
 ## #745 — compact category activity table (acceptance pending)
 
 The category/month detail uses a semantic table with distinct source totals and
