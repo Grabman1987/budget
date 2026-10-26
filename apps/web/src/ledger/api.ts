@@ -47,6 +47,7 @@ export const fetchSeries = (
 ) =>
   request<{
     accountId: string;
+    currency: string;
     points: SeriesPoint[];
     previewPoints?: SeriesPoint[];
     unavailableCurrencies?: string[];

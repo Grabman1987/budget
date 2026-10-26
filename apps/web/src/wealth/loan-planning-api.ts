@@ -7,6 +7,7 @@ import { LEDGER_KEY } from '../ledger/queries';
 export type { DebtCandidate, LoanPlanView, StrategyView };
 
 export const LOAN_PLAN_KEY = [...LEDGER_KEY, 'loan-plan'] as const;
+export const LOAN_HISTORY_KEY = [...LEDGER_KEY, 'debt-plan-history'] as const;
 export const DEBT_STRATEGY_KEY = [...LEDGER_KEY, 'debt-strategy'] as const;
 const root = '/api/wealth/debts';
 const enc = encodeURIComponent;
