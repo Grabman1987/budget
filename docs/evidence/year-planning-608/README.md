@@ -101,3 +101,19 @@ width, Axe and screenshot assertions passed after opening the real group. The
 baseline step reported **No baseline changes** and the remote branch stayed at
 the tested commit. Product source is unchanged. This focused result does not
 replace the required full CI on the final PR revision or establish publication.
+
+## Shared popup geometry consumer
+
+The next complete run `40306173072` reported a mobile failure in the unchanged
+`e2e/bank-sync.spec.ts` popup test inherited from #772. Its title/close boxes were
+read in separate browser calls during an animated sheet entry. The retained
+trace confirms non-overlapping reads on both attempts and the shared 104%-to-zero
+sheet transition; animation is a supported timing explanation, not direct
+rectangle-coordinate proof from the trace.
+
+The technical correction reads both rectangles synchronously in one header
+`evaluate`, preserving the null checks, title-before-close order, original
+one-pixel center threshold, native animation, themes, Axe, cancellation/no-write,
+focus, confirmation and all deadlines. It additionally requires the named close
+button to be visible. No product source or financial expectation changes. Scoped
+Linux proof and independent review remain required before the final full run.
