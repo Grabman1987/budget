@@ -20,6 +20,7 @@ import {
   useAmountPrivacy,
 } from '@budget/ui';
 import { queryOptions, useQuery } from '@tanstack/react-query';
+import { ChevronRight } from 'lucide-react';
 import type { WholePicture } from '@budget/db';
 import { scaleLinear } from 'd3-scale';
 import { request } from '../api/http';
@@ -159,7 +160,7 @@ export function WholePictureReport({ report, meta }: { report: ReportEntry; meta
                 disabled={!canNext}
                 aria-label="Nächster Zeitraum"
               >
-                ›
+                <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
               </Button>
             </div>
           ),

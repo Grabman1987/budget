@@ -69,7 +69,7 @@ export function RuleStatusContent({ rule }: { rule: RuleRow }) {
       {Array.isArray(latest?.detail?.['strip']) && (
         <p className="rw-now-sub">
           {(latest.detail['strip'] as { month: string; fulfilled: boolean }[])
-            .map((r) => `${r.month} ${r.fulfilled ? '✓' : '–'}`)
+            .map((r) => `${r.month} ${r.fulfilled ? 'erfüllt' : 'offen'}`)
             .join(' · ')}
         </p>
       )}

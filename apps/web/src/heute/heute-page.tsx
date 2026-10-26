@@ -13,7 +13,7 @@ import { addDays, cents } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, ArrowDown, ArrowUp, ChevronRight } from 'lucide-react';
+import { TriangleAlert, ArrowDown, ArrowUp, ChevronRight } from 'lucide-react';
 import { PaceAccuracyNote } from '../reports/planning-accuracy-report';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
@@ -740,7 +740,7 @@ function ValuationNote({ message }: { message: string }) {
   useAmountPrivacy();
   return (
     <div className="rev-empty">
-      <AlertTriangle className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
+      <TriangleAlert className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
       <div className="kstate">
         <p>Bewertung nicht verfügbar. {message}</p>
       </div>

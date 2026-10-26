@@ -14,7 +14,7 @@ import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
 import { rulesQuery } from '../rules/use-rule-writes';
 import { useRuleDerivation } from './overview-api';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { TriangleAlert, CircleCheck } from 'lucide-react';
 import { useMemo } from 'react';
 import { eur } from '../ledger/format';
 import type { PageMeta } from '../nav/pages';
@@ -162,14 +162,14 @@ function SavingsBody({
             <span className="tbd-state">
               <span className={reached ? 'ok' : 'ink'}>
                 {reached ? (
-                  <CheckCircle2
+                  <CircleCheck
                     className="icon icon-sm"
                     size={16}
                     strokeWidth={1.75}
                     aria-hidden="true"
                   />
                 ) : (
-                  <AlertTriangle
+                  <TriangleAlert
                     className="icon icon-sm"
                     size={16}
                     strokeWidth={1.75}
@@ -258,14 +258,14 @@ function SavingsBody({
               <span className="tbd-state">
                 <span className={now.days >= goal ? 'ok' : 'ink'}>
                   {now.days >= goal ? (
-                    <CheckCircle2
+                    <CircleCheck
                       className="icon icon-sm"
                       size={16}
                       strokeWidth={1.75}
                       aria-hidden="true"
                     />
                   ) : (
-                    <AlertTriangle
+                    <TriangleAlert
                       className="icon icon-sm"
                       size={16}
                       strokeWidth={1.75}

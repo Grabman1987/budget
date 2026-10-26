@@ -1,6 +1,6 @@
 import type { PlannedEventOccurrence } from '@budget/domain';
 import { Button, useAmountPrivacy, SectionHead } from '@budget/ui';
-import { ChevronRight, CircleCheck, Clock3 } from 'lucide-react';
+import { ChevronRight, CircleCheck, Clock } from 'lucide-react';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { skipOccurrence } from '../expected/api';
 import { eur, shortDay } from '../ledger/format';
@@ -110,11 +110,13 @@ export function Upcoming({
                   >
                     {item.covered === true ? (
                       <>
-                        <CircleCheck size={14} aria-hidden="true" /> Budgetrücklage reicht
+                        <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />{' '}
+                        Budgetrücklage reicht
                       </>
                     ) : item.covered === false ? (
                       <>
-                        <Clock3 size={14} aria-hidden="true" /> Budgetrücklage reicht nicht
+                        <Clock size={16} strokeWidth={1.75} aria-hidden="true" /> Budgetrücklage
+                        reicht nicht
                       </>
                     ) : (
                       statusText(item.status)

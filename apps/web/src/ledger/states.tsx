@@ -1,5 +1,5 @@
 import { Button, useAmountPrivacy } from '@budget/ui';
-import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
+import { TriangleAlert, CircleCheck, Loader2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { errorText } from './labels';
 
@@ -26,7 +26,7 @@ export function ErrorNote({
   useAmountPrivacy();
   return (
     <div className="rev-empty" role="alert">
-      <AlertTriangle className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
+      <TriangleAlert className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
       <div className="kstate">
         <p>
           <strong>{what} konnten nicht geladen werden.</strong> {errorText(error, '')}
@@ -43,7 +43,7 @@ export function ErrorNote({
 export function EmptyNote({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div className="rev-empty">
-      <CheckCircle2 className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
+      <CircleCheck className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
       <div className="kstate">
         <p>{children}</p>
         {action}

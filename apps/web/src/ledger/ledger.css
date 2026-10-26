@@ -1932,8 +1932,11 @@ button.kstatus-btn:focus-visible {
 }
 .bk-status {
   flex: none;
-  width: 44px;
-  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  width: auto;
+  gap: 6px;
+  padding-inline: 10px;
 }
 .bk-status[aria-pressed='true'] {
   background: var(--good);

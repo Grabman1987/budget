@@ -2356,10 +2356,8 @@
   background: var(--surface-2);
   font-weight: 600;
 }
-.plan .plan-menu-item[aria-pressed='true']::after {
-  content: '✓';
-  /* Empty alt text: aria-pressed already says it, the mark stays out of the accessible name. */
-  content: '✓' / '';
+.plan .plan-menu-selected {
+  margin-inline-start: auto;
   color: var(--line);
 }
 .plan .plan-menu-item[aria-disabled='true'] {

@@ -12,7 +12,7 @@ import {
 } from '@budget/ui';
 import { manualTransferStatus, todayInVienna, type ManualBankStatus } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Trash2, X } from 'lucide-react';
+import { CalendarDays, Check, ChevronDown, Trash2, X } from 'lucide-react';
 import {
   useEffect,
   useMemo,
@@ -619,20 +619,8 @@ export function CaptureForm({
           set('status', effectiveStatus === 'confirmed' ? 'pending' : 'confirmed');
         }}
       >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          strokeWidth="1.75"
-          stroke="currentColor"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path
-            d="m4 12 5 5L20 6l-2-2-9 9-3-3z"
-            fill={shownStatus === 'confirmed' ? 'currentColor' : 'none'}
-          />
-        </svg>
+        <Check size={16} strokeWidth={1.75} aria-hidden="true" />
+        <span>{shownStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}</span>
       </button>
     );
   const dateAndRepeat = (
@@ -908,7 +896,7 @@ export function CaptureForm({
                 Mehr{moreSummary && <span className="bk-more-summary"> · {moreSummary}</span>}
                 <span aria-hidden="true" className="kmore-caret">
                   {' '}
-                  ▾
+                  <ChevronDown size={16} strokeWidth={1.75} />
                 </span>
               </summary>
               <div className="kform">

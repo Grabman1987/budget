@@ -3,6 +3,7 @@ import { todayInVienna, type CloseWork } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
+import { Check } from 'lucide-react';
 import { budgetQuery, assign } from '../budget/budget-api';
 import { EnvelopeBody } from '../budget/envelope-panel';
 import { planRows } from '../budget/plan-model';
@@ -194,7 +195,13 @@ function CloseFlow({
           {step}. {status.title}
         </h2>
         <p role="status">
-          {step < 5 && !status.hasTasks ? '✓ nichts offen' : CLOSE_STATUS[status.status]}
+          {step < 5 && !status.hasTasks ? (
+            <>
+              <Check size={16} strokeWidth={1.75} aria-hidden="true" /> nichts offen
+            </>
+          ) : (
+            CLOSE_STATUS[status.status]
+          )}
           {status.openCount > 0 ? ` · ${status.openCount} offen` : ''}
         </p>
         {status.reasons.map((reason) => (

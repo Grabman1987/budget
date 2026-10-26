@@ -1,5 +1,5 @@
 import { useAmountPrivacy, Button, ClassSwatch, cx } from '@budget/ui';
-import { ArrowRightLeft, ChevronDown } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { currentMonth } from '../shell/use-month';
 import { eur } from '../ledger/format';
@@ -209,7 +209,7 @@ export function MultiTable({
                                 aria-label={`${r.name}: Decken im ${monthName.format(dateOf(m))}`}
                                 onClick={() => onOpen(r.id, m)}
                               >
-                                <ArrowRightLeft size={16} aria-hidden="true" />
+                                <ArrowLeftRight size={16} strokeWidth={1.75} aria-hidden="true" />
                               </button>
                             )}
                           </td>,

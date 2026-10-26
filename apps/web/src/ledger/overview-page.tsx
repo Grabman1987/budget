@@ -1,7 +1,7 @@
 import { Button, CircleNumber, cx, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { AlertTriangle, Check, ChevronDown, ChevronUp, Pencil, Plus } from 'lucide-react';
+import { TriangleAlert, Check, ChevronDown, ChevronUp, Pencil, Plus } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 import { KONTEN_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
@@ -113,7 +113,7 @@ export function OverviewPage() {
               onClick={() => setOrdering(!ordering)}
             >
               {ordering ? (
-                <Check size={16} aria-hidden="true" />
+                <Check size={16} strokeWidth={1.75} aria-hidden="true" />
               ) : (
                 <Pencil size={16} aria-hidden="true" />
               )}
@@ -420,7 +420,7 @@ function OverviewAccount({
               data-review-state={check.state}
               className={cx('kcheck', 'overview-check', check.stale && 'is-due is-stale')}
             >
-              {check.stale && <AlertTriangle size={14} aria-hidden="true" />}
+              {check.stale && <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />}
               {CHECK_LABEL[check.state] ?? CHECK_LABEL['unavailable']}
             </span>
           </Link>
@@ -460,7 +460,7 @@ function OverviewAccount({
             {expanded ? (
               <ChevronUp size={16} aria-hidden="true" />
             ) : (
-              <ChevronDown size={16} aria-hidden="true" />
+              <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
             )}
           </Button>
         </td>

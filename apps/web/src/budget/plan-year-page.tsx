@@ -251,7 +251,7 @@ function YearOverview({
       </div>
       <details className="year-instructions">
         <summary>
-          <Info aria-hidden="true" size={16} /> Kennzahlen der Jahrestabelle
+          <Info aria-hidden="true" size={16} strokeWidth={1.75} /> Kennzahlen der Jahrestabelle
         </summary>
         <p className="year-note">
           Zugewiesen und Aktivität: Summe des Jahres. Verfügbar: Stand im Dezember, inklusive
@@ -300,6 +300,7 @@ function YearOverview({
                       >
                         <ChevronDown
                           size={16}
+                          strokeWidth={1.75}
                           aria-hidden="true"
                           className={cx(isCollapsed(group.id) && 'is-closed')}
                         />
@@ -347,6 +348,7 @@ function YearOverview({
                   <span>
                     <ChevronDown
                       size={16}
+                      strokeWidth={1.75}
                       aria-hidden="true"
                       className={cx(isCollapsed(group.id) && 'is-closed')}
                     />

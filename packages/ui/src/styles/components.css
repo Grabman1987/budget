@@ -51,9 +51,7 @@
 
 /* ---------- Buttons ---------- */
 .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-block;
   gap: 8px;
   height: 40px;
   padding: 0 16px;
@@ -898,11 +896,18 @@ button.ct-term .ct-val {
 
 /* ---------- Class swatches ---------- */
 .sw {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
   border-radius: 1px;
   flex: none;
+}
+.sw-abbr {
+  margin-inline-start: 4px;
+  font-size: var(--fs-label);
+  font-weight: 600;
 }
 .sw-need {
   background: var(--need);

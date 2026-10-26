@@ -1,4 +1,4 @@
-import { BarChart3, Home, Landmark, TrendingUp, Wallet, type LucideIcon } from 'lucide-react';
+import { ChartColumn, Home, Landmark, Table2, TrendingUp, type LucideIcon } from 'lucide-react';
 
 /** The five areas of the sitemap (SPEC §3) plus settings. Same order on desktop and phone. */
 export type AreaId = 'heute' | 'plan' | 'konten' | 'vermoegen' | 'reports' | 'einstellungen';
@@ -26,7 +26,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
     label: 'Plan',
     no: '02',
     to: '/plan/monat',
-    icon: Wallet,
+    icon: Table2,
     registers: [
       { id: 'monat', label: 'Monat', to: '/plan/monat' },
       { id: 'jahr', label: 'Jahr', to: '/plan/jahr' },
@@ -66,7 +66,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
     label: 'Reports',
     no: '05',
     to: '/reports',
-    icon: BarChart3,
+    icon: ChartColumn,
     registers: [
       { id: 'katalog', label: 'Katalog', to: '/reports' },
       { id: 'monat', label: 'Monat', to: '/reports/gruppe/monat' },

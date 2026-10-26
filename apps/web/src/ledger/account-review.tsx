@@ -1,7 +1,7 @@
 import { Button } from '@budget/ui';
 import { lastDayOfMonth, monthOf } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { CheckCircle2 } from 'lucide-react';
+import { CircleCheck } from 'lucide-react';
 import { useState } from 'react';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
 import { canReconcile } from './labels';
@@ -44,7 +44,7 @@ export function AccountReview({
           data-testid={compact ? 'account-review-badge' : undefined}
           onClick={() => setChecking(true)}
         >
-          <CheckCircle2 size={16} strokeWidth={1.75} aria-hidden="true" />
+          <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
           {compact ? badgeLabel : 'Kontostand prüfen'}
         </Button>
       )}

@@ -5,7 +5,7 @@ import { useAmountPrivacy, ClassSwatch, DimensionChain } from '@budget/ui';
 import { cents } from '@budget/domain';
 import type { AllocationRow, BudgetAdherenceReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TriangleAlert, CircleCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import { request } from '../api/http';
 import { eur, longDay, MINUS } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -148,12 +148,12 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
           </h2>
           {data.overCount > 0 ? (
             <span className={`sr-status ${data.live ? 'is-action' : ''}`}>
-              <AlertTriangle size={15} strokeWidth={1.75} aria-hidden="true" />
+              <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
               {data.overCount} über Plan
             </span>
           ) : (
             <span className="sr-status is-ok">
-              <CheckCircle2 size={15} strokeWidth={1.75} aria-hidden="true" />
+              <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
               {data.items.length ? 'alles im Plan' : 'nichts geplant'}
             </span>
           )}
@@ -224,7 +224,7 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
                         {x.over ? (
                           <span className="sr-status is-action">
                             {data.live ? (
-                              <AlertTriangle size={14} strokeWidth={1.75} aria-hidden="true" />
+                              <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
                             ) : null}
                             {eur(x.istCents - x.planCents, { cents: false, sign: true })}
                           </span>
@@ -338,12 +338,12 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
                         <span className="sr-status">Abweichung in Euro</span>
                       ) : r.inBand ? (
                         <span className="sr-status is-ok">
-                          <CheckCircle2 size={14} strokeWidth={1.75} aria-hidden="true" />
+                          <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
                           im Band
                         </span>
                       ) : (
                         <span className="sr-status">
-                          <AlertTriangle size={14} strokeWidth={1.75} aria-hidden="true" />
+                          <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
                           Plan anpassen?
                         </span>
                       )}

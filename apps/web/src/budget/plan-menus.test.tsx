@@ -193,8 +193,8 @@ it('includes visible waterfall rail numbers and status without financial writes'
 it('replaces "Schnell zuweisen", the "Ansicht" select and the ⋯ menu by two named menus', async () => {
   const { container } = renderPlan(10_000);
   await screen.findByTestId('to-be-assigned');
-  expect(summaryOf('Verteilen').textContent).toBe('Verteilen ▾');
-  expect(summaryOf('Optionen').textContent).toBe('Optionen ▾');
+  expect(summaryOf('Verteilen').textContent).toBe('Verteilen');
+  expect(summaryOf('Optionen').textContent).toBe('Optionen');
   expect(screen.queryByText(/Schnell zuweisen/)).toBeNull();
   expect(screen.queryByLabelText('Weitere Monatsaktionen')).toBeNull();
   expect(container.querySelector('select')).toBeNull();

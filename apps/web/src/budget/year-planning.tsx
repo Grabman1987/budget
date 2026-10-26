@@ -166,7 +166,7 @@ export function YearPlanning({
         ) : (
           <details className="year-events">
             <summary>
-              <ChevronDown aria-hidden="true" size={16} /> {rows.length}{' '}
+              <ChevronDown aria-hidden="true" size={16} strokeWidth={1.75} /> {rows.length}{' '}
               {rows.length === 1 ? 'Ereignis' : 'Ereignisse'}
               <span className="sr-only"> ansehen und auswählen</span>
             </summary>
@@ -223,7 +223,7 @@ export function YearPlanning({
       </div>
       <details className="year-instructions">
         <summary>
-          <Info aria-hidden="true" size={16} /> Grundlage und Grenzen der Planung
+          <Info aria-hidden="true" size={16} strokeWidth={1.75} /> Grundlage und Grenzen der Planung
         </summary>
         <p className="year-note">
           <ScenarioLabel kind="available" />
@@ -300,7 +300,7 @@ function ScenarioLabel({ kind }: { kind: keyof typeof SCENARIO_LABELS }) {
           if (e.key === 'Escape') setOpen(false);
         }}
       >
-        <Info size={14} aria-hidden="true" />
+        <Info size={16} strokeWidth={1.75} aria-hidden="true" />
       </Button>
       {open && (
         <span id={id} role="tooltip" className="scenario-help">

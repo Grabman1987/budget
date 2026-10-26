@@ -4,7 +4,7 @@ import { AxisLine, ChartSvg, Line, XTicks, ChartValue } from '@budget/ui';
 import { useAmountPrivacy, ClassSwatch, type SwatchKind } from '@budget/ui';
 import { lastDayOfMonth } from '@budget/domain';
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Check } from 'lucide-react';
+import { TriangleAlert, Check } from 'lucide-react';
 import { ApiError, request } from '../api/http';
 import { fetchCategories } from '../budget/api';
 import { GoalFigures } from '../budget/goals-panel';
@@ -220,7 +220,7 @@ function ReportBody({
                 </>
               ) : (
                 <p className="goal-report-unknown">
-                  <AlertTriangle size={16} aria-hidden="true" />
+                  <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
                   Fortschritt nicht verfügbar. {row.reason}
                 </p>
               )}
@@ -343,10 +343,10 @@ function GoalBar({ goal, month }: { goal: GoalView; month: string }) {
 function GoalStatus({ goal, month }: { goal: GoalView; month: string }) {
   useAmountPrivacy();
   const line = goalLine(goal, month);
-  const Icon = line.tone === 'warn' ? AlertTriangle : Check;
+  const Icon = line.tone === 'warn' ? TriangleAlert : Check;
   return (
     <span className="goal-report-status">
-      <Icon size={16} aria-hidden="true" />
+      <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
       {line.text}
     </span>
   );

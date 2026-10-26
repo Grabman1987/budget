@@ -30,7 +30,7 @@ export function StatusMark({ status, actionNeeded = false, children }: StatusMar
   const Icon = status === 'met' ? Check : TriangleAlert;
   return (
     <span className={cx('status-mark', `status-${status}`, actionNeeded && 'is-action')}>
-      <Icon size={15} strokeWidth={1.75} aria-hidden="true" />
+      <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
       {children ?? STATUS_LABEL[status]}
     </span>
   );

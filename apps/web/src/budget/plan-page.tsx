@@ -13,14 +13,7 @@ import {
 import { cents, coverShortfall, overspentEnvelopes, todayInVienna } from '@budget/domain';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
-import {
-  AlertTriangle,
-  ArrowRightLeft,
-  Check,
-  CheckCircle2,
-  ChevronDown,
-  Info,
-} from 'lucide-react';
+import { TriangleAlert, ArrowLeftRight, Check, CircleCheck, ChevronDown, Info } from 'lucide-react';
 import {
   useEffect,
   useLayoutEffect,
@@ -935,7 +928,7 @@ function PlanBody({
                             setCollapsed(collapsed.size ? new Set() : new Set(collapsibleKeys))
                           }
                         >
-                          <ChevronDown size={16} aria-hidden="true" />
+                          <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
                         </button>
                         <span>Kategoriegruppe</span>
                         <Button
@@ -1052,7 +1045,7 @@ function PlanBody({
                             <tr key={`${g.key}-empty`} className="prow is-empty">
                               <td className="col-name" colSpan={4}>
                                 <span className="pempty">
-                                  <CheckCircle2 size={14} strokeWidth={1.75} aria-hidden="true" />
+                                  <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
                                   {g.emptyNote ?? g.emptyText}
                                 </span>
                               </td>
@@ -1417,9 +1410,9 @@ function MonthOverview({
         {status.map((l) => (
           <li key={l.text} className={`is-${l.tone}`}>
             {l.tone === 'good' ? (
-              <CheckCircle2 size={15} strokeWidth={1.75} aria-hidden="true" />
+              <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
             ) : (
-              <AlertTriangle size={15} strokeWidth={1.75} aria-hidden="true" />
+              <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
             )}
             {l.text}
           </li>
@@ -1482,12 +1475,12 @@ export function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow
             <span className="muted">–</span>
           ) : inSoll ? (
             <span className="ok">
-              <CheckCircle2 size={15} strokeWidth={1.75} aria-hidden="true" />
+              <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
               im Soll
             </span>
           ) : (
             <span className="ink">
-              <AlertTriangle size={15} strokeWidth={1.75} aria-hidden="true" />
+              <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
               {shares.need > 50
                 ? 'Bedarf über 50 %'
                 : shares.want > 30
@@ -1534,7 +1527,7 @@ export function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow
       </div>
       {reason && (
         <p className="sb-note">
-          <Info size={13} strokeWidth={1.75} aria-hidden="true" />
+          <Info size={16} strokeWidth={1.75} aria-hidden="true" />
           {reason}
         </p>
       )}
@@ -1603,7 +1596,7 @@ function Rail({
                     <span className="neg-alert">{text}</span>
                   ) : st.state === 'full' ? (
                     <>
-                      <Check size={13} strokeWidth={2} aria-hidden="true" />
+                      <Check size={16} strokeWidth={1.75} aria-hidden="true" />
                       gedeckt
                     </>
                   ) : (
@@ -2022,7 +2015,7 @@ function EnvelopeRow({
               )}
             >
               {eur(r.availableCents)}
-              {over && <ArrowRightLeft size={16} aria-hidden="true" />}
+              {over && <ArrowLeftRight size={16} strokeWidth={1.75} aria-hidden="true" />}
             </button>
           ) : (
             <>
@@ -2039,7 +2032,7 @@ function EnvelopeRow({
                   aria-label={`${r.name} decken`}
                   onClick={onCover}
                 >
-                  <ArrowRightLeft size={16} aria-hidden="true" />
+                  <ArrowLeftRight size={16} strokeWidth={1.75} aria-hidden="true" />
                 </button>
               )}
             </>
