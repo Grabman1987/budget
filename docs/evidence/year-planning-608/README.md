@@ -50,3 +50,17 @@ update's Axe 4.14 is not claimed by this result.
 
 Scoped ESLint, Prettier and the design-scale CSS check passed. Required full CI
 and publication remain pending. No live or physical-device acceptance is claimed.
+
+## Dependency compatibility
+
+Prepared integration `ffa7b494` merges the independently reviewed dependency
+candidate `115536eb`, including Axe 4.14, into the annual branch. Independent
+binary-diff comparison confirms both the incoming dependency change and the
+annual feature are unchanged. This prepares compatibility before main integration;
+it does not claim the dependency PR is already published.
+
+The focused Linux run 40278198919 checked out exact `ffa7b494` and passed the same
+14 annual tests in 1.1 minutes without retries or baseline changes, now with the
+updated lockfile and Axe 4.14. This repeats the earlier cases for the changed
+dependency graph; the counts are not an additional set of unique acceptance
+cases. Required full CI and exact-main publication still remain outstanding.
