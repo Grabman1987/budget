@@ -215,9 +215,19 @@
   border-bottom: 1px solid var(--rule);
   vertical-align: baseline;
 }
+.rcat .col-pos {
+  width: 56px;
+  font-family: var(--font-tech);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
 .rcat-grp td {
   padding-top: 16px;
   border-bottom-color: var(--line-2);
+}
+.rcat-grp .col-pos {
+  color: var(--line);
 }
 .rcat-grp strong {
   font-size: var(--fs-title);
@@ -253,6 +263,11 @@
 .rcat-q {
   color: var(--ink-2);
 }
+.rcat-go {
+  width: 28px;
+  color: var(--line-2);
+  text-align: right;
+}
 @media (max-width: 767px) {
   .rcat thead {
     display: none;
@@ -263,8 +278,9 @@
   }
   .rcat tr {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: 4px;
+    grid-template-columns: 40px minmax(0, 1fr) 20px;
+    column-gap: 8px;
+    row-gap: 3px;
     padding: 12px 0;
     border-bottom: 1px solid var(--rule);
   }
@@ -273,12 +289,23 @@
     padding: 0;
     border: 0;
   }
+  .rcat .col-pos {
+    grid-column: 1;
+    grid-row: 1;
+    width: auto;
+  }
   .rcat-name {
+    grid-column: 2;
     grid-row: 1;
     white-space: normal;
   }
+  .rcat-go {
+    grid-column: 3;
+    grid-row: 1;
+    width: auto;
+  }
   .rcat-q {
-    grid-column: 1;
+    grid-column: 2 / 4;
     font-size: var(--fs-table);
   }
   .rcat-grp {
@@ -286,7 +313,7 @@
     border-bottom-color: var(--line-2) !important;
   }
   .rcat-grp td[colspan] {
-    grid-column: 1;
+    grid-column: 2 / 4;
   }
   .rcat-name a {
     display: block;
@@ -317,8 +344,8 @@
   }
   .rcat tr {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: 4px;
+    grid-template-columns: 40px minmax(0, 1fr) 20px;
+    gap: 4px 8px;
     padding: 12px 0;
     border-bottom: 1px solid var(--rule);
   }
@@ -326,12 +353,20 @@
     padding: 0;
     border: 0;
   }
+  .rcat .col-pos,
+  .rcat-go {
+    width: auto;
+  }
   .rcat-name {
     white-space: normal;
   }
+  .rcat-go {
+    grid-column: 3;
+    grid-row: 1;
+  }
   .rcat-q,
   .rcat-grp td[colspan] {
-    grid-column: 1;
+    grid-column: 2 / -1;
   }
   .rcat .rcat-grp {
     padding-top: 16px;

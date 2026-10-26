@@ -6,7 +6,7 @@ import { ProjectsReport } from '../reports/projects-report';
 import { ReportTrendContext } from '@budget/ui';
 import { useSearch } from '@tanstack/react-router';
 import { Registers, SectionHead, type RegisterItem } from '@budget/ui';
-import { Printer } from 'lucide-react';
+import { ChevronRight, Printer } from 'lucide-react';
 import { BookRuleMetric } from '../rules/book-rule-metric';
 import { areaById } from '../nav/areas';
 import { REPORTS_CATALOG, REPORT_GROUP_PAGES, type PageMeta } from '../nav/pages';
@@ -90,7 +90,7 @@ function ReportRegisters({ current }: { current: string }) {
 }
 
 /**
- * Report catalog: assembly headings with each report's name and plain-language question.
+ * Report catalog: assembly headings with positions, report names and plain-language questions.
  */
 function ReportCatalogTable({
   groups,
@@ -105,14 +105,17 @@ function ReportCatalogTable({
       <table className="rcat">
         <thead>
           <tr>
+            <th className="tech col-pos">Pos</th>
             <th className="tech">Report</th>
             <th className="tech">Frage</th>
+            <th><span className="sr-only">Öffnen</span></th>
           </tr>
         </thead>
         {groups.map((group) => (
           <tbody key={group.slug}>
             <tr className="rcat-grp">
-              <td colSpan={2}>
+              <td className="col-pos">{group.no}</td>
+              <td colSpan={3}>
                 <strong>{group.name}</strong>
                 <span className="rcat-count">{group.items.length} Reports</span>
               </td>
@@ -126,10 +129,14 @@ function ReportCatalogTable({
                   void navigate({ to: `/reports/${report.id}` });
                 }}
               >
+                <td className="col-pos">{report.pos}</td>
                 <td className="rcat-name">
                   <AppLink to={`/reports/${report.id}`}>{report.name}</AppLink>
                 </td>
                 <td className="rcat-q">{report.question}</td>
+                <td className="rcat-go" aria-hidden="true">
+                  <ChevronRight size={16} strokeWidth={1.75} />
+                </td>
               </tr>
             ))}
           </tbody>
