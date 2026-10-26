@@ -133,6 +133,12 @@
   .debt-rechenweg {
     padding: 16px;
   }
+  .debt-live-refresh .btn {
+    max-width: 100%;
+    height: auto;
+    min-height: 44px;
+    white-space: normal;
+  }
   .debt-quick-scenario {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
