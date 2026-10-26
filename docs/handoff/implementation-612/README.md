@@ -32,7 +32,11 @@ preserves the #611 actual-history gaps, native currency, exact tooltip values an
   monthly response, no API writes, reload reset, 1440/390/WebKit light/dark Axe and overflow,
   touch sizes and privacy. Browser execution and screenshot inspection remain for CI.
 
-Local focused checks on Node 22.23.3: web TypeScript, three focused Vitest files, scoped ESLint,
-Prettier, CSS scale and `git diff --check` passed. Browser/build and required full CI are deferred
-to the queue gate so the concurrent #777 CI remains the only heavy test job. A capable independent
-full-diff financial/UI review is required before integration.
+At the initial implementation `0133c2ac`, Node 22.23.3 web TypeScript, three focused Vitest files
+(nine tests), scoped ESLint, Prettier, CSS scale and `git diff --check` passed. The label correction
+`a5774010` passed the focused refresh suite (three tests, including USD), scoped ESLint, Prettier
+and the diff check. Its repeated web TypeScript check aborted with a fatal Node out-of-memory
+error; it was not retried, and no successful current-head typecheck is claimed. Browser/build and
+required exact-head CI remain deferred to the queue gate while #777 occupies the heavy test lane.
+The independent full financial/UI review found only the corrected currency label; independent
+delta review accepted the code and requested this revision-specific evidence clarification.
