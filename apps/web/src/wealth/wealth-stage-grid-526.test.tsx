@@ -311,7 +311,14 @@ it('shows all seven rows and six class controls together instead of a selected-s
   for (let rowIndex = 0; rowIndex < 7; rowIndex++) {
     const row = within(table).getByRole('row', { name: `Stufe ${rowIndex + 1}` });
     for (let classIndex = 0; classIndex < 6; classIndex++) {
-      const input = within(row).getByLabelText(`${CLASS_NAMES[classIndex]} · Soll (%)`);
+      const label = within(row).getByText(`${CLASS_NAMES[classIndex]} · Soll (%)`, {
+        selector: 'label',
+        exact: true,
+      });
+      if (!(label instanceof HTMLLabelElement))
+        throw new TypeError('Expected a native class-share label');
+      const input = label.control;
+      expect(row.contains(input)).toBe(true);
       expect(input).toBeInstanceOf(HTMLInputElement);
       if (!(input instanceof HTMLInputElement))
         throw new TypeError('Expected a native class-share input');

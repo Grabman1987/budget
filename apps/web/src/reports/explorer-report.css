@@ -209,3 +209,102 @@
     scroll-padding-inline-start: 150px;
   }
 }
+
+/* Explorer's local presentation controls retain native table/booking semantics. */
+.ex-view-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 12px;
+}
+.ex-view-toggle .btn {
+  min-width: var(--touch);
+  min-height: var(--touch);
+  border: var(--stroke-hairline) solid var(--rule-strong);
+}
+.ex-view-toggle .btn[aria-pressed='true'] {
+  background: var(--tint-2);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.ex-native-view,
+.ex-table-inspector-626,
+.ex-chart-626,
+.ex-chart-drawing {
+  min-width: 0;
+  max-width: 100%;
+}
+.ex-native-view[hidden] {
+  display: none;
+}
+.ex-chart-cohort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.ex-chart-cohort select {
+  min-height: var(--touch);
+  min-width: 0;
+  max-width: 100%;
+  border: var(--stroke-hairline) solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  padding-inline: 12px;
+}
+.ex-chart-series .l-actual,
+.ex-series-marker,
+.ex-series-rule {
+  stroke: var(--line);
+  stroke-width: var(--stroke-measure);
+  fill: none;
+}
+.ex-series-marker {
+  fill: var(--surface);
+}
+.ex-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  list-style: none;
+  padding: 0;
+  font-family: var(--font-tech);
+  font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
+}
+.ex-chart-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ex-chart-legend svg {
+  flex-shrink: 0;
+}
+.ex-chart-originals summary {
+  min-height: var(--touch);
+  cursor: pointer;
+}
+.ex-chart-original-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.ex-chart-original-scroll table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  font-size: var(--fs-table);
+  line-height: var(--lh-table);
+}
+.ex-chart-original-scroll th,
+.ex-chart-original-scroll td {
+  padding: 8px 12px;
+  border-bottom: var(--stroke-hairline) solid var(--rule);
+  text-align: right;
+}
+.ex-chart-original-scroll th:first-child {
+  text-align: left;
+}
