@@ -139,19 +139,6 @@ function HeuteBody({ data }: { data: Heute }) {
         onLeadClick={() => setChainOpen((open) => !open)}
       />
       <VerdictLine facts={heuteFacts} />
-      <AttentionBar
-        data={data}
-        savingsRows={savingsRows}
-        savingsError={
-          savings.isError && (
-            <ErrorNote
-              what="Sparplanvorschläge"
-              error={savings.error}
-              onRetry={() => void savings.refetch()}
-            />
-          )
-        }
-      />
       <section className="heute-lead" aria-labelledby="heute-lead-title">
         <div className="heute-lead-head">
           <div>
@@ -272,6 +259,20 @@ function HeuteBody({ data }: { data: Heute }) {
         </p>
       </section>
 
+      <HeuteWealthLine data={data} />
+      <AttentionBar
+        data={data}
+        savingsRows={savingsRows}
+        savingsError={
+          savings.isError && (
+            <ErrorNote
+              what="Sparplanvorschläge"
+              error={savings.error}
+              onRetry={() => void savings.refetch()}
+            />
+          )
+        }
+      />
       <Upcoming
         items={data.upcoming14}
         id="heute-upcoming-title"
@@ -409,7 +410,6 @@ function HeuteBody({ data }: { data: Heute }) {
         </section>
       )}
 
-      <HeuteWealthLine data={data} />
       <MoreMonth key={phone ? 'phone' : 'desktop'} phone={phone}>
         <div className="heute-detail-grid">
           <section className="heute-section heute-net-worth" aria-labelledby="heute-net-title">

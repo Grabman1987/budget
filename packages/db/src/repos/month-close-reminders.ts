@@ -86,15 +86,17 @@ export function readMonthCloseReminders(db: Db, today: string): MonthCloseTaskRe
         (a.entity_type = 'booking' AND
           (substr(json_extract(a.before_json, '$.date'), 1, 7) = ${month}
             OR substr(json_extract(a.after_json, '$.date'), 1, 7) = ${month}))
+        -- A split uses its parent's latest retained state at the split event. An older
+        -- September booking version does not make an October-only split a September change.
         OR (a.entity_type = 'booking_split' AND (
-          EXISTS (SELECT 1 FROM booking b WHERE b.id IN
-            (json_extract(a.before_json, '$.booking_id'), json_extract(a.after_json, '$.booking_id'))
-            AND substr(b.date, 1, 7) = ${month})
-          OR EXISTS (SELECT 1 FROM audit_log parent WHERE parent.entity_type = 'booking'
+          EXISTS (SELECT 1 FROM audit_log parent WHERE parent.entity_type = 'booking'
             AND parent.entity_id IN
               (json_extract(a.before_json, '$.booking_id'), json_extract(a.after_json, '$.booking_id'))
-            AND (substr(json_extract(parent.before_json, '$.date'), 1, 7) = ${month}
-              OR substr(json_extract(parent.after_json, '$.date'), 1, 7) = ${month}))
+            AND parent.rowid = (SELECT MAX(latest.rowid) FROM audit_log latest
+              WHERE latest.entity_type = 'booking' AND latest.entity_id = parent.entity_id
+                AND latest.rowid <= a.rowid)
+            AND substr(COALESCE(json_extract(parent.after_json, '$.date'),
+              json_extract(parent.before_json, '$.date')), 1, 7) = ${month})
         ))
       )) AS changed
     `)[0]?.changed;

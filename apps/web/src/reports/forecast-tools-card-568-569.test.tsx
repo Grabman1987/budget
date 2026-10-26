@@ -247,8 +247,12 @@ it('keeps pinned categories off by default, persists the view switch and orders 
   const view = mount('/?monat=2026-09&period=month');
   await screen.findByRole('heading', { name: 'Letzte Buchungen' });
   expect(screen.queryByRole('heading', { name: 'Angepinnte Kategorien' })).toBeNull();
+  const wealth = screen.getByRole('heading', { name: 'Nettovermögen · 12 Monate' });
+  const tasks = screen.getByRole('heading', { name: 'Zu tun' });
   const due = screen.getByRole('heading', { name: 'Fällig 14 Tage' });
   const bookings = screen.getByRole('heading', { name: 'Letzte Buchungen' });
+  expect(wealth.compareDocumentPosition(tasks) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(tasks.compareDocumentPosition(due) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(due.compareDocumentPosition(bookings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   await userEvent.setup().click(screen.getByText('Ansicht anpassen'));
   await userEvent
