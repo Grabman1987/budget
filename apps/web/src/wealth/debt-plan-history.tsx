@@ -110,19 +110,25 @@ export function DebtPlanHistory({
       };
     },
   });
-  const basis = query.data;
+  // React Query keeps old data during invalidation and after a failed refetch. Never present it
+  // as the current financial basis while a replacement read is pending or has failed.
+  const basis = query.isSuccess && !query.isFetching ? query.data : null;
   return (
     <section
       className="vcomp debt-full debt-plan-history"
       aria-labelledby="debt-plan-history-title"
     >
       <div className="head">
-        <h2 id="debt-plan-history-title">Restschuld und Tilgungsplan</h2>
+        <h2 id="debt-plan-history-title">
+          Kreditverlauf und Tilgungsplan: {maskMoneyText(loan.name)}
+        </h2>
         <span className="aside">Ist und Modell getrennt</span>
       </div>
       {choice}
-      {query.isPending && <LoadingNote what="Kreditbasis und Monatsverlauf" />}
-      {query.isError && (
+      {(query.isPending || query.isFetching) && (
+        <LoadingNote what="Kreditbasis und Monatsverlauf" />
+      )}
+      {query.isError && !query.isFetching && (
         <ErrorNote
           what="Kreditbasis und Monatsverlauf"
           error={query.error}
@@ -204,9 +210,9 @@ function PlanResult({ basis }: { basis: Basis }) {
         </p>
       )}
       <p className="vnote">
-        Durchgezogen: erfasste Monatsendstände und gesonderter aktueller Kontostand. Gestrichelt:
-        Zahlungen des gespeicherten Tilgungsplans zum Monatsende. Die Modellwerte sind keine
-        Buchungen.
+        Durchgezogen: erfasste Monatsendstände des ausgewählten Kredits und gesonderter aktueller
+        Kontostand. Gestrichelt: Zahlungen des gespeicherten Tilgungsplans zum Monatsende. Die
+        Modellwerte sind keine Buchungen.
       </p>
       {plan.missing.length > 0 && (
         <p role="status">
