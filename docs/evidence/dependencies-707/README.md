@@ -15,6 +15,10 @@ same; no Axe rule is disabled.
 Fresh mobile browser scans additionally identified the avatar summary: its visible
 initials were absent from its explicit profile-menu name. That name now includes
 both initials and owner name, preserving the visible label for voice navigation.
+That initial native run passed10cases, failed4Axe cases (mobile Chromium and
+WebKit, each light/dark) and had3existing desktop-only profile skips. All four
+failures identified the same avatar summary; desktop Axe, real Freedom capture/
+Undo and the three search-focus cases passed. It is not a passing whole run.
 
 Scoped test adaptations:
 
@@ -54,6 +58,13 @@ shell run40249619850 passed44tests with9configured profile skips in53.1seconds,
 without baseline changes. Its images establish unchanged visual rendering, not
 the subsequently discovered mobile avatar accessibility fix.
 
-Mobile-fix review, final strict browser acceptance, required CI and publication
-remain pending. This document does not claim current live delivery or a clean
-audit with zero findings.
+Independent mobile-fix review is CLEAR at `fef3fff6`; scoped ESLint for that
+component and its test also passed. The final scoped Linux strict Axe run
+40250485932 passed all45cases in1.8minutes, including desktop, mobile Chromium
+and WebKit light/dark scans, without weakening any rule or adding skips.
+The actual test summary was checked because the snapshot workflow itself permits
+test failures. No screenshot baseline change was produced.
+
+`npm audit --omit=dev` reports zero known production-dependency findings; the
+four moderate development-tool findings above remain. Required full CI,
+integration and publication are pending; this is not a live-delivery claim.
