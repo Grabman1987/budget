@@ -5,14 +5,20 @@
  */
 
 .icon {
-  width: 18px;
-  height: 18px;
   flex: none;
   stroke: currentColor;
   fill: none;
-  stroke-width: 1.75;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+.icon:not([width]) {
+  width: 18px;
+}
+.icon:not([height]) {
+  height: 18px;
+}
+.icon:not([stroke-width]) {
+  stroke-width: 1.75;
 }
 
 .icon-btn {
@@ -51,7 +57,9 @@
 
 /* ---------- Buttons ---------- */
 .btn {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
   height: 40px;
   padding: 0 16px;

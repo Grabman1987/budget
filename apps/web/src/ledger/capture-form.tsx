@@ -896,7 +896,7 @@ export function CaptureForm({
                 Mehr{moreSummary && <span className="bk-more-summary"> · {moreSummary}</span>}
                 <span aria-hidden="true" className="kmore-caret">
                   {' '}
-                  <ChevronDown size={16} strokeWidth={1.75} />
+                  <ChevronDown className="disclosure-chevron" size={16} strokeWidth={1.75} />
                 </span>
               </summary>
               <div className="kform">

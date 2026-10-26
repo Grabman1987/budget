@@ -2218,10 +2218,6 @@ button.kstatus-btn:focus-visible {
 .bkform .kmore > summary::-webkit-details-marker {
   display: none;
 }
-.kmore[open] > summary .kmore-caret {
-  display: inline-block;
-  transform: rotate(180deg);
-}
 @media (min-width: 768px) {
   dialog.overlay.modal:has(.bk-split-cols) {
     width: min(960px, calc(100vw - 32px));

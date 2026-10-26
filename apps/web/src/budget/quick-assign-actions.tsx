@@ -86,7 +86,13 @@ export function QuickAssignActions({
   ) : (
     <details className="quick-assign-actions plan-popover">
       <summary>
-        Schnell zuweisen <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+        Schnell zuweisen{' '}
+        <ChevronDown
+          className="disclosure-chevron"
+          size={16}
+          strokeWidth={1.75}
+          aria-hidden="true"
+        />
       </summary>
       {actions}
     </details>

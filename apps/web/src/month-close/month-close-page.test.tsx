@@ -167,7 +167,7 @@ it('opens a quiet month directly at Ergebnis and closes it with one click', asyn
   );
   try {
     await screen.findByRole('heading', { name: '5. Ergebnis' });
-    expect(screen.getAllByText(/nichts offen/)).toHaveLength(4);
+    expect(screen.getAllByText('nichts offen')).toHaveLength(4);
     expect(screen.queryByRole('progressbar')).toBeNull();
     expect(screen.getByText('Warum')).toBeTruthy();
     expect(screen.getByText('Danach')).toBeTruthy();

@@ -232,7 +232,13 @@ export function SplitEditor({
                     })
                   }
                 >
-                  Teilen <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+                  Teilen{' '}
+                  <ChevronDown
+                    className="disclosure-chevron"
+                    size={16}
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                  />
                 </Button>
               )}
             </div>

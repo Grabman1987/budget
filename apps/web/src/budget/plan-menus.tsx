@@ -88,7 +88,12 @@ function PlanMenu({
     <details ref={ref} className={cx('plan-popover plan-menu', className)}>
       <summary title={title}>
         {label}
-        <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+        <ChevronDown
+          className="disclosure-chevron"
+          size={16}
+          strokeWidth={1.75}
+          aria-hidden="true"
+        />
       </summary>
       <div className="plan-menu-panel" role="group" aria-label={label}>
         {children}
