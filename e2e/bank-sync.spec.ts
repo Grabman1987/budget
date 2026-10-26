@@ -387,6 +387,16 @@ test('bank inbox suggestion requires an explicit posting decision', async ({ pag
     for (const frame of ['.bk-head', '.bk-body', '.bk-foot']) {
       await expect(candidateDialog.locator(frame)).toBeVisible();
     }
+    const title = await candidateDialog.locator('.bk-kind').boundingBox();
+    const close = await candidateDialog
+      .getByRole('button', { name: 'Schließen', exact: true })
+      .boundingBox();
+    expect(title).not.toBeNull();
+    expect(close).not.toBeNull();
+    expect(title!.x).toBeLessThan(close!.x);
+    expect(
+      Math.abs(title!.y + title!.height / 2 - close!.y - close!.height / 2),
+    ).toBeLessThanOrEqual(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );

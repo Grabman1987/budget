@@ -108,7 +108,9 @@ function ReportCatalogTable({
             <th className="tech col-pos">Pos</th>
             <th className="tech">Report</th>
             <th className="tech">Frage</th>
-            <th><span className="sr-only">Öffnen</span></th>
+            <th>
+              <span className="sr-only">Öffnen</span>
+            </th>
           </tr>
         </thead>
         {groups.map((group) => (
