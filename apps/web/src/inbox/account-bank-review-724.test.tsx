@@ -25,6 +25,12 @@ const b = '72400000-0000-4000-8000-000000000002';
 const clients: QueryClient[] = [];
 const forbiddenWrites: string[] = [];
 beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = function () {
+    this.open = true;
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.open = false;
+  };
   vi.stubGlobal('matchMedia', (media: string) => ({
     matches: false,
     media,
@@ -449,7 +455,7 @@ it('retains the real learning offer after confirming the last candidate and refe
   });
   const { client } = mount(`/konten/${a}`);
   await screen.findByText(/Letzter Umsatz · −12,01\s€/);
-  await userEvent.click(screen.getByText('Vorschläge beim Öffnen prüfen', { exact: true }));
+  await userEvent.click(screen.getByRole('button', { name: 'Übernehmen', exact: true }));
   await screen.findByRole('option', { name: 'Kategorie A' });
   await userEvent.selectOptions(
     screen.getByRole('combobox', { name: 'Kategorie' }),

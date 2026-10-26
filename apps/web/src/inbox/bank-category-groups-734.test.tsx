@@ -3,12 +3,26 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '@budget/ui';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Lookups } from '../ledger/types';
 import { BankCandidate } from './bank-candidate';
 
 const clients: QueryClient[] = [];
 const unexpected: string[] = [];
+beforeEach(() => {
+  vi.stubGlobal('matchMedia', (media: string) => ({
+    matches: false,
+    media,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  HTMLDialogElement.prototype.showModal = function () {
+    this.open = true;
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.open = false;
+  };
+});
 afterEach(() => {
   cleanup();
   clients.splice(0).forEach((client) => client.clear());
@@ -89,7 +103,7 @@ it('groups the unchanged eligible IDs and confirms only the explicitly chosen du
     </QueryClientProvider>,
   );
   const user = userEvent.setup();
-  await user.click(screen.getByText('Vorschläge beim Öffnen prüfen'));
+  await user.click(screen.getByRole('button', { name: 'Übernehmen', exact: true }));
   const select = await screen.findByRole('combobox', { name: 'Kategorie' });
   await waitFor(() => expect(within(select).getAllByRole('option')).toHaveLength(7));
   expect(Array.from(select.querySelectorAll('optgroup')).map((g) => g.label)).toEqual([
@@ -116,6 +130,13 @@ it('groups the unchanged eligible IDs and confirms only the explicitly chosen du
     throw new TypeError('Expected native category select');
   expect(select.value).toBe('cat-b');
   expect(writes).toEqual([]);
+  await user.click(screen.getByRole('button', { name: 'Abbrechen', exact: true }));
+  expect(screen.queryByRole('dialog', { name: 'Buchung übernehmen' })).toBeNull();
+  expect(writes).toEqual([]);
+  await user.click(screen.getByRole('button', { name: 'Übernehmen', exact: true }));
+  expect((screen.getByRole('combobox', { name: 'Kategorie' }) as HTMLSelectElement).value).toBe(
+    'cat-b',
+  );
   await user.click(screen.getByRole('button', { name: 'Als Buchung bestätigen' }));
   await waitFor(() => expect(onConfirmed).toHaveBeenCalledWith('booking-734'));
   expect(writes).toEqual([

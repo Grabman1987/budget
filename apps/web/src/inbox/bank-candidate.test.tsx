@@ -2,11 +2,25 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '@budget/ui';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { BankCandidate } from './bank-candidate';
 
+beforeEach(() => {
+  vi.stubGlobal('matchMedia', (media: string) => ({
+    matches: false,
+    media,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  HTMLDialogElement.prototype.showModal = function () {
+    this.open = true;
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.open = false;
+  };
+});
 afterEach(() => vi.unstubAllGlobals());
-it('keeps 65 candidates collapsed without row requests and loads checks only on expansion', async () => {
+it('keeps 65 candidates unopened without row requests and loads checks only on opening', async () => {
   const paths: string[] = [];
   vi.stubGlobal('fetch', async (url: string) => {
     paths.push(String(url));
@@ -37,9 +51,7 @@ it('keeps 65 candidates collapsed without row requests and loads checks only on 
   );
   expect(screen.queryByRole('button', { name: 'Als Buchung bestätigen' })).toBeNull();
   expect(paths.length).toBeLessThan(10);
-  const details = document.querySelector('details')!;
-  details.open = true;
-  fireEvent(details, new Event('toggle'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Übernehmen', exact: true })[0]!);
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Als Buchung bestätigen' })).toBeTruthy(),
   );
@@ -101,9 +113,7 @@ it('prepares no suggestion while the match check is still loading, then prefers 
       </ToastProvider>
     </QueryClientProvider>,
   );
-  const details = document.querySelector('details')!;
-  details.open = true;
-  fireEvent(details, new Event('toggle'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Übernehmen', exact: true })[0]!);
   await waitFor(() => expect(screen.getByText('Shop A zuordnen')).toBeTruthy());
   expect(seen.filter(Boolean)).toEqual([]);
   release();
