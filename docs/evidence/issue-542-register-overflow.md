@@ -30,7 +30,11 @@ Validation:
   `libgtk-4`, `libgraphene`, `libharfbuzz-icu`, `libmanette`, `libhyphen` and
   `libGLESv2`. The provisioned tools directory contains no extracted replacements;
   no repeated launch or browser substitution was attempted. WebKit remains a CI
-  acceptance gate.
+  acceptance gate. The supported provisioning script requires root; this session
+  runs as UID 1000 and has no `sudo` executable. A project-local
+  `playwright install-deps webkit --dry-run` also fails because the available apt
+  metadata cannot locate the required packages. A privileged setup phase or the
+  canonical GitHub CI environment is required for native WebKit verification.
 - Changed-file ESLint, Prettier and `git diff --check` passed.
 
 No application code, money calculations, write paths, security settings or visual
