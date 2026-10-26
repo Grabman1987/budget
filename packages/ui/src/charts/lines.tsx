@@ -1,5 +1,5 @@
 import { TrendLine } from './trend';
-import { area, curveStepAfter, line } from 'd3-shape';
+import { area, curveLinear, curveStepAfter, line } from 'd3-shape';
 import type { Point } from './types';
 
 /**
@@ -88,20 +88,27 @@ export interface BandPoint {
   y1: number;
 }
 
-const band = area<BandPoint>()
-  .x((p) => p.x)
-  .y0((p) => p.y0)
-  .y1((p) => p.y1);
-
 /** Tolerance or buffer band: tinted area with dashed edges (never hatched). */
-export function Band({ points }: { points: ReadonlyArray<BandPoint> }) {
+export function Band({
+  points,
+  stepped = false,
+}: {
+  points: ReadonlyArray<BandPoint>;
+  stepped?: boolean;
+}) {
+  const band = area<BandPoint>()
+    .x((p) => p.x)
+    .y0((p) => p.y0)
+    .y1((p) => p.y1)
+    .curve(stepped ? curveStepAfter : curveLinear);
   const fill = band(points as BandPoint[]) ?? '';
+  const path = stepped ? stepPath : linePath;
   const edge = (pick: (p: BandPoint) => number): Point[] => points.map((p) => [p.x, pick(p)]);
   return (
     <g>
       <path d={fill} className="band-fill" />
-      <path d={linePath(edge((p) => p.y0))} className="band-edge" />
-      <path d={linePath(edge((p) => p.y1))} className="band-edge" />
+      <path d={path(edge((p) => p.y0))} className="band-edge" />
+      <path d={path(edge((p) => p.y1))} className="band-edge" />
     </g>
   );
 }
