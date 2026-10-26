@@ -81,6 +81,9 @@
 .loan-editor-foot {
   border-bottom: 0;
   border-top: 1px solid var(--rule);
+  position: relative;
+  z-index: 1;
+  background: var(--ground);
 }
 .loan-editor-body {
   min-height: 0;
