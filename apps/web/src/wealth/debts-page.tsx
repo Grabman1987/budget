@@ -23,6 +23,7 @@ import { DebtStrategies } from './debt-strategies';
 import { DebtLiquidityCheck } from './debt-liquidity-check';
 import { LoanPlanning } from './loan-planning';
 import { DebtHistory } from './debt-history';
+import { DebtPlanHistory } from './debt-plan-history';
 import './debts.css';
 
 const modelMonthText = (month: string | null) =>
@@ -71,6 +72,14 @@ export function DebtsPage() {
         {view && (
           <>
             <DebtLead view={view} />
+            {loan && (
+              <DebtPlanHistory
+                key={`${loan.id}:${view.asOf}`}
+                loan={loan}
+                asOf={view.asOf}
+                choice={choice}
+              />
+            )}
             <DebtHistory />
             <DebtOverview view={view} />
             <details className="debt-rechenweg debt-full">
