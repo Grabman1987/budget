@@ -237,5 +237,27 @@
     "merge": "0958d43d8e19b342837453cb31082dc64c387cea",
     "conflicts": false,
     "paymentSourceChanged": false
+  },
+  "firstFinalCiRepair": {
+    "failedRun": 40247872642,
+    "cause": [
+      "snapshot JSON formatting",
+      "schema46 predecessor fixture invoked schema49-aware payment writer"
+    ],
+    "productLogicChanged": false,
+    "snapshotSemanticJsonEquality": true,
+    "affectedMigrationSuites": 3,
+    "passed": 21,
+    "seconds": 21.6,
+    "hashes": [
+      {
+        "path": "packages/db/drizzle/meta/0049_snapshot.json",
+        "sha256": "4de825cd3dde76017758d9070b8f3c5c0ce2f8187b620a24632d47fb8bdb0aa7"
+      },
+      {
+        "path": "packages/db/src/statement-automation-migration-741.test.ts",
+        "sha256": "c94bd327b12b2c83f2acfb045af3804375b87e93670de42de20fb1de95d4d159"
+      }
+    ]
   }
 }

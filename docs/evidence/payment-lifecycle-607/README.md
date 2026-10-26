@@ -28,6 +28,7 @@ the retained patch blobs, not an invented checkout, are the provenance.
 - New apps/server/src/api/expected-lifecycle-607.test.ts: added byte-neutral missing/malformed/stale DELETE-token checks and a current-token success case for the source checkpoint's mandatory-token correction.
 - New domain, migration-copy, UI and native browser tests are adopted from the handoff; their literal financial expectations are retained.
 - e2e/expected.spec.ts: four additive framing lines establish page-top scroll and a visible named payment heading before the existing detail screenshot. The first generated mobile image clipped the heading because navigation retained uncontrolled scroll. Finance, Axe, screenshot tolerances and timeouts remain unchanged.
+- packages/db/src/statement-automation-migration-741.test.ts: its deliberately old schema46 fixture now seeds the original payment/version and 13 monthly occurrences directly, with full CREATE audit snapshots in one group. The current payment writer requires schema49 and cannot construct a predecessor fixture. All existing financial, copy, rollback and Undo assertions remain unchanged; no production missing-table fallback was added.
 - Client deletePayment now requires a token at the TypeScript boundary, matching the existing mandatory server contract. The dialog ignores a null-token callback; no tokenless server fallback is introduced.
 
 The additional repository regression at `430f0971` compares the complete prior
@@ -83,3 +84,14 @@ was merged without conflicts at `0958d43d`; payment source and tests are unchang
 
 Final required CI, remaining browser acceptance and verified publication are still
 pending. Migration49 has not been applied to production. #607 remains open.
+
+## First final-head CI diagnosis
+
+[40247872642](https://github.com/Grabman1987/budget/actions/runs/40247872642) failed
+before the browser/Windows stages. Static checks found only formatting in generated
+`0049_snapshot.json`; parsing before and after formatting proves identical JSON.
+Unit shard1 had ten failures in one historical migration fixture before reaching
+its assertions: the schema46 seed called the new schema49-aware payment writer.
+The fixture adaptation above retains the literal monthly horizon and audit rows.
+The three affected migration suites now pass **21/21**. This is a targeted repair,
+not a claim that the failed full CI or remaining browser gate passed.
