@@ -55,6 +55,14 @@ and legacy snapshot reads.
 | `apps/web/src/month-close/month-close-page.test.tsx` | Adds quiet-month one-click completion through the real API. Supplies JSDOM's missing ResizeObserver/scroll APIs; original account-date, amount and Undo checks remain. |
 | `e2e/month-close.spec.ts` | Renamed headings, expands the new report disclosure before the existing report/verdict assertions, checks stored time and retained source revision. Existing amounts, plan Undo, accessibility, overflow and screenshot assertions remain. |
 | `e2e/inbox-pagination.spec.ts` | Only the renamed Prüfen heading; pagination assertions remain unchanged. |
+| `playwright.config.ts` | Add the existing month-close spec to the WebKit iPhone match, so the required engine actually executes this flow. Profile settings, assertions, timeouts and retries are unchanged. |
+
+The existing scoped Linux snapshot workflow now retains only `test-results` PNG
+screenshots as a seven-day artifact. This permits inspecting synthetic browser
+evidence without repeating the same flow on the memory-constrained Windows host.
+Auth state, JSON, databases and PDF originals are not included in this new artifact.
+The workflow's existing test command, baseline selection, commit behavior and CI
+gates are unchanged; its `|| true` still requires inspecting the actual test summary.
 
 ## Local checks and remaining gates
 
