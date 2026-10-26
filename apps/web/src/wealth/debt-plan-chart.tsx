@@ -27,10 +27,12 @@ export function DebtPlanChart({
   basis,
   history,
   baseline,
+  scenario = null,
 }: {
   basis: LoanPlanView;
   history: readonly SeriesPoint[];
   baseline: LoanSchedule | null;
+  scenario?: LoanSchedule | null;
 }) {
   useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
@@ -50,7 +52,8 @@ export function DebtPlanChart({
         ]
       : [];
   const base = model(baseline);
-  const all = [...actual, ...base];
+  const extra = model(scenario);
+  const all = [...actual, ...base, ...extra];
   const from = Math.min(...all.map((point) => dayNumber(point.date)));
   const to = Math.max(...all.map((point) => dayNumber(point.date)));
   const low = Math.min(0, ...all.map((point) => point.amount));
@@ -98,6 +101,15 @@ export function DebtPlanChart({
       ),
     );
   }
+  if (scenario) {
+    add(anchor, 'Szenario · Ausgangspunkt');
+    scenario.rows.forEach((row) =>
+      add(
+        { date: lastDayOfMonth(row.month), amount: row.closingCents },
+        'Szenario · nach Modellzahlung am Monatsende',
+      ),
+    );
+  }
   const inspection = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
   const ticks = [from, from + (to - from) / 2, to].filter(
     (value, i, values) => values.indexOf(value) === i,
@@ -108,7 +120,7 @@ export function DebtPlanChart({
         <ChartSvg
           width={width}
           height={height}
-          label={`Restschuld ${maskMoneyText(basis.name)} in ${basis.currency}: tatsächliche Monatsenden, Kontostand ${longDay(basis.asOf)} und Tilgungsplan.`}
+          label={`Restschuld ${maskMoneyText(basis.name)} in ${basis.currency}: tatsächliche Monatsenden, Kontostand ${longDay(basis.asOf)}, Basis und lokales Szenario.`}
           testId="debt-plan-chart"
           points={inspection}
           table
@@ -137,6 +149,7 @@ export function DebtPlanChart({
             />
           ))}
           {base.length > 1 && <Line points={line(base)} kind="plan" draw={false} />}
+          {extra.length > 1 && <Line points={line(extra)} kind="forecast" draw={false} />}
           {baseline?.payoffMonth &&
             (() => {
               const position = x(lastDayOfMonth(baseline.payoffMonth));
@@ -150,6 +163,23 @@ export function DebtPlanChart({
                     className="svg-label"
                   >
                     Basis: {baseline.payoffMonth.slice(5)}.{baseline.payoffMonth.slice(0, 4)}
+                  </text>
+                </g>
+              );
+            })()}
+          {scenario?.payoffMonth &&
+            (() => {
+              const position = x(lastDayOfMonth(scenario.payoffMonth));
+              return (
+                <g>
+                  <path d={`M${position - 5},${y(0) - 9}h10l-5,8Z`} className="kote" />
+                  <text
+                    x={position}
+                    y={y(0) - 32}
+                    textAnchor={position > right - 80 ? 'end' : 'start'}
+                    className="svg-label"
+                  >
+                    Szenario: {scenario.payoffMonth.slice(5)}.{scenario.payoffMonth.slice(0, 4)}
                   </text>
                 </g>
               );
@@ -171,6 +201,7 @@ export function DebtPlanChart({
         items={[
           { kind: 'actual', label: 'Ist des ausgewählten Kredits' },
           ...(baseline ? [{ kind: 'plan' as const, label: 'Basis ohne Sondertilgung' }] : []),
+          ...(scenario ? [{ kind: 'forecast' as const, label: 'Lokale Sondertilgung' }] : []),
         ]}
       />
     </div>
