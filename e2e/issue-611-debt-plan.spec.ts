@@ -55,6 +55,7 @@ test('twelve actual month ends and the saved loan plan share exact chart and tab
     await expect(table.locator('tbody tr').filter({ hasText: date })).toContainText(amount);
   }
   await page.getByText('Rechenweg', { exact: true }).click();
+  await expect(page.getByLabel('Kredit für das Modell')).toHaveCount(1);
   const saved = page.getByTestId('loan-baseline');
   await expect(saved).toContainText('Jänner 2027');
   await expect(saved).toContainText('4 Monate');
@@ -89,7 +90,8 @@ test('twelve actual month ends and the saved loan plan share exact chart and tab
     await page.screenshot({ path: info.outputPath(`debt-plan-611-${theme}.png`), fullPage: true });
   }
 
-  await page.getByRole('button', { name: 'Beträge verbergen' }).first().click();
+  if (info.project.name !== 'desktop') await page.locator('.m-head .m-profile summary').click();
+  await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
   await expect(table).not.toContainText('100,00 €');
   await expect(table).toContainText('•••');
   await expect(chart.locator('line.graticule + text').first()).toHaveText('•••');

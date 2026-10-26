@@ -2,7 +2,7 @@ import { useAmountPrivacy, Button, DimensionChain, maskMoneyText } from '@budget
 import { addDays, cents, formatDecimal, parseAmount } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useId, useState, type ReactNode, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { ApiError } from '../api/http';
 import { fetchSeries } from '../ledger/api';
 import { eur, eurParts, longDay, monthName, nativeCurrency } from '../ledger/format';
@@ -98,7 +98,6 @@ export function DebtsPage() {
                       loan={loan}
                       asOf={view.asOf}
                       onBusy={setBusy}
-                      choice={choice}
                     />
                     <LoanPlanning loanId={loan.id} asOf={view.asOf} />
                   </>
@@ -298,12 +297,10 @@ function Scenario({
   loan,
   asOf,
   onBusy,
-  choice,
 }: {
   loan: DebtAccount;
   asOf: string;
   onBusy: (busy: boolean) => void;
-  choice: ReactNode;
 }) {
   useAmountPrivacy();
   const [payment, setPayment] = useState(
@@ -380,7 +377,6 @@ function Scenario({
             Restschuld {nativeCurrency(-loan.balanceCents, loan.currency)}
           </span>
         </div>
-        {choice}
         <LoanTerms loan={loan} />
         <DebtLiquidityCheck />
         <p className="vnote">

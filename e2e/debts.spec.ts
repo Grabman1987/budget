@@ -53,7 +53,9 @@ sampleTest(
     await expect(page.getByTestId('debt-total')).toHaveText('12.626,00 €');
     await expect(page.getByLabel('Monatsrate (EUR)', { exact: true })).toHaveValue('');
     await page.getByRole('button', { name: 'Modell berechnen', exact: true }).click();
-    await expect(page.getByRole('alert')).toContainText('ausdrücklich');
+    await expect(page.locator('.debt-assumptions').getByRole('alert')).toContainText(
+      'ausdrücklich',
+    );
     await assumptions(page);
     let release!: () => void;
     const held = new Promise<void>((resolve) => {
@@ -202,7 +204,9 @@ sampleTest(
     await page.getByLabel('Monatliche Gebühr (USD)', { exact: true }).fill('0');
     await page.getByLabel('Nominaler Jahreszins (%)', { exact: true }).fill('0');
     await page.getByRole('button', { name: 'Modell berechnen', exact: true }).click();
-    await expect(page.getByRole('alert')).toContainText('Monatsrate muss');
+    await expect(page.locator('.debt-assumptions').getByRole('alert')).toContainText(
+      'Monatsrate muss',
+    );
     await expect(page.getByRole('region', { name: 'Modellvergleich' })).toHaveCount(0);
   },
 );
