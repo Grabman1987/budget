@@ -1,3 +1,4 @@
+import { openPruefenSource } from './pruefen-part';
 import AxeBuilder from '@axe-core/playwright';
 import { inboxItem, insertTracked, openDatabase, receipt } from '@budget/db';
 import { expect } from '@playwright/test';
@@ -73,6 +74,7 @@ test('global inbox loads bounded API pages and keeps total and kind counts', asy
   const firstUrl = new URL(firstResponse.url());
   expect(firstUrl.searchParams.get('limit')).toBe('100');
   expect(firstUrl.searchParams.get('offset')).toBe('0');
+  await openPruefenSource(page, 'Weitere Aufgaben');
   const rows = page.getByTestId('inbox-row');
   await expect(rows).toHaveCount(100);
   await expect(page.locator('.kinbox').getByText('302 offen', { exact: true })).toBeVisible();
@@ -108,13 +110,19 @@ test('global inbox loads bounded API pages and keeps total and kind counts', asy
   expect(
     requests.map((value) => {
       const url = new URL(value);
-      return [url.searchParams.get('limit'), url.searchParams.get('offset')];
+      return [
+        url.searchParams.get('limit'),
+        url.searchParams.get('offset'),
+        url.searchParams.get('segment'),
+        url.searchParams.get('taskSource'),
+      ];
     }),
   ).toEqual([
-    ['100', '0'],
-    ['100', '100'],
-    ['100', '200'],
-    ['100', '300'],
+    ['100', '0', 'auto', null],
+    ['100', '0', 'aufgaben', 'other'],
+    ['100', '100', 'aufgaben', 'other'],
+    ['100', '200', 'aufgaben', 'other'],
+    ['100', '300', 'aufgaben', 'other'],
   ]);
   await expect(rows).toHaveCount(301);
   await expect(page.getByRole('button', { name: /Weitere anzeigen/ })).toHaveCount(0);
@@ -209,6 +217,7 @@ test('month close filters the complete inbox beyond the global first page', asyn
   });
   await page.goto('/konten/posteingang');
   await firstGlobalPage;
+  await openPruefenSource(page, 'Weitere Aufgaben');
   await expect(page.getByTestId('inbox-row')).toHaveCount(100);
   for (const title of expectedTitles)
     await expect(page.getByText(title, { exact: true })).toHaveCount(0);

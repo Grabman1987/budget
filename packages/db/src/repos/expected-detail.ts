@@ -13,6 +13,8 @@ import {
   desc,
   eq,
   gt,
+  gte,
+  not,
   inArray,
   isNull,
   lte,
@@ -28,9 +30,14 @@ import {
   expectedPaymentVersion,
 } from '../schema';
 import { getEntity } from './entities';
-import { EntityNotFoundError } from './errors';
+import { ConflictError, EntityNotFoundError } from './errors';
 import { listExpectedVersions, schedulePayment, scheduleVersion } from './expected';
-import type { Executor } from './types';
+import { runInTransaction, type Executor } from './types';
+import {
+  readPaymentLifecycles,
+  paymentOpenSuppressed,
+  isPaymentLifecycleDay,
+} from './expected-lifecycle-invariants';
 
 const HISTORY_COUNT = 12;
 const FUTURE_COUNT = 12;
@@ -249,9 +256,13 @@ export interface PaymentDetail {
 
 /** Payment-scoped read only. No materialisation, matching, status refresh or history backfill. */
 export function readPaymentDetail(db: Executor, paymentId: string, asOf: string): PaymentDetail {
+  return runInTransaction(db, (tx) => readPaymentDetailInSnapshot(tx, paymentId, asOf));
+}
+function readPaymentDetailInSnapshot(db: Executor, paymentId: string, asOf: string): PaymentDetail {
   const payment = getEntity(db, expectedPayment, paymentId);
   if (!payment) throw new EntityNotFoundError('expected_payment', paymentId);
   const versions = listExpectedVersions(db, paymentId);
+  const lifecycle = readPaymentLifecycles(db, [paymentId]).get(paymentId);
   const selectStored = () =>
     db
       .select({
@@ -279,8 +290,30 @@ export function readPaymentDetail(db: Executor, paymentId: string, asOf: string)
     .orderBy(desc(expectedOccurrence.dueDate), desc(expectedOccurrence.id))
     .limit(HISTORY_COUNT + 1)
     .all();
+  const suppressedDates = or(
+    ...(lifecycle?.pauses ?? []).map((p) =>
+      and(
+        gte(expectedOccurrence.dueDate, p.fromDate),
+        lte(expectedOccurrence.dueDate, p.throughDate),
+      ),
+    ),
+    lifecycle?.endedFrom ? gte(expectedOccurrence.dueDate, lifecycle.endedFrom) : undefined,
+  );
+  // Filter before the limit so retained hidden obligations cannot hide later real assignments.
+  const suppressedOpen =
+    suppressedDates &&
+    and(
+      suppressedDates,
+      sql`((${expectedOccurrence.status}='expected' AND ${expectedOccurrence.bookingId} IS NULL) OR (${expectedOccurrence.bookingId} IS NOT NULL AND ${booking.id} IS NULL))`,
+    );
   const storedFuture = selectStored()
-    .where(and(live, gt(expectedOccurrence.dueDate, asOf)))
+    .where(
+      and(
+        live,
+        gt(expectedOccurrence.dueDate, asOf),
+        suppressedOpen ? not(suppressedOpen) : undefined,
+      ),
+    )
     .orderBy(asc(expectedOccurrence.dueDate), asc(expectedOccurrence.id))
     .limit(FUTURE_COUNT + 1)
     .all();
@@ -335,7 +368,21 @@ export function readPaymentDetail(db: Executor, paymentId: string, asOf: string)
     };
   };
 
-  const future = new Map(storedFuture.map((row) => [row.occurrence.dueDate, storedRow(row)]));
+  const future = new Map(
+    storedFuture
+      .filter(
+        (row) =>
+          !paymentOpenSuppressed(lifecycle, {
+            dueDate: row.occurrence.dueDate,
+            status:
+              row.occurrence.bookingId !== null && !row.linked?.id
+                ? 'expected'
+                : row.occurrence.status,
+            bookingId: row.linked?.id ?? null,
+          }),
+      )
+      .map((row) => [row.occurrence.dueDate, storedRow(row)]),
+  );
   if (versions.length > 0) {
     // Start at the first possible current-rule date, including a far-future first version.
     const from = [addDays(asOf, 1), payment.startDate ?? '', versions[0]!.validFrom].sort().at(-1)!;
@@ -345,14 +392,48 @@ export function readPaymentDetail(db: Executor, paymentId: string, asOf: string)
         payment.rhythm === 'weekly'
           ? Math.ceil(((FUTURE_COUNT + 1) * 7 * weekInterval(payment.intervalWeeks)) / 28) + 2
           : (FUTURE_COUNT + 1) * monthStep[payment.rhythm] + 2;
-      const horizon = lastDayOfMonth(addMonths(monthOf(from), months));
-      const to = payment.endDate !== null && payment.endDate < horizon ? payment.endDate : horizon;
-      const projected = occurrences(
-        schedulePayment(payment),
-        versions.map(scheduleVersion),
-        from,
-        to,
-      ).slice(0, FUTURE_COUNT + 1);
+      const projected: ReturnType<typeof occurrences> = [];
+      let cursor = from;
+      const collect = (segmentEnd?: string) => {
+        if (
+          projected.length > FUTURE_COUNT ||
+          (payment.endDate !== null && cursor > payment.endDate)
+        )
+          return;
+        const horizonMonth = addMonths(monthOf(cursor), months);
+        if (!/^\d{4}-\d{2}$/.test(horizonMonth))
+          throw new ConflictError(
+            'Die nächste Fälligkeit liegt außerhalb des unterstützten Kalenderbereichs.',
+          );
+        const horizon = lastDayOfMonth(horizonMonth);
+        if (!isPaymentLifecycleDay(horizon))
+          throw new ConflictError(
+            'Die nächste Fälligkeit liegt außerhalb des unterstützten Kalenderbereichs.',
+          );
+        const to = [horizon, segmentEnd ?? horizon, payment.endDate ?? horizon].sort()[0]!;
+        if (to < cursor) return;
+        projected.push(
+          ...occurrences(
+            schedulePayment(payment, lifecycle),
+            versions.map(scheduleVersion),
+            cursor,
+            to,
+          ).slice(0, FUTURE_COUNT + 1 - projected.length),
+        );
+      };
+      // Jump excluded intervals; never iterate every month of a potentially very long pause.
+      for (const pause of [...(lifecycle?.pauses ?? [])].sort((a, b) =>
+        a.fromDate.localeCompare(b.fromDate),
+      )) {
+        if (pause.throughDate < cursor || projected.length > FUTURE_COUNT) continue;
+        if (pause.fromDate > cursor) collect(addDays(pause.fromDate, -1));
+        if (pause.throughDate === '9999-12-31') {
+          cursor = '';
+          break;
+        }
+        cursor = addDays(pause.throughDate, 1);
+      }
+      if (cursor) collect();
       for (const row of projected) {
         // Stored received/deviating/skipped/missed states remain authoritative, even outside
         // the current rule's dates. Only absent identities are labelled nonpersistent previews.

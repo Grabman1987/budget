@@ -1,0 +1,263 @@
+{
+  "sourceRevision": "e35fbe4f751e06b3cc5ea8464a0c71f67486d8f8",
+  "additionalReportRegressionRevision": "430f09710b100cf186c2e5b5b6e66f5411ef8b8f",
+  "node": "22.23.3",
+  "webVite": "8.3.5",
+  "synthetic": true,
+  "targeted": {
+    "initialSuites": 8,
+    "initialPassed": 94,
+    "uiCompatibilitySuites": 4,
+    "uiCompatibilityPassed": 14,
+    "finalReportRepositorySuitePassed": 20,
+    "note": "Report suite rerun overlaps initial94; do not sum these as unique tests."
+  },
+  "localBrowser": {
+    "projects": [
+      "desktop",
+      "mobile",
+      "webkit-iphone"
+    ],
+    "passed": 11,
+    "failed": 1,
+    "setupCases": 3,
+    "retry": "Unchanged WebKit light only: three setup pass, feature case again exceeds60000ms in additional desktop context. Initial anchored grep selected no tests and is not counted as verification.",
+    "limitation": "iPhone light receipt covers completed phone phase inside failed combined test. It is not a passing full case. No WebKit desktop light receipt is claimed.",
+    "command": "node node_modules/@playwright/test/cli.js test e2e/issue-607-payment-lifecycle.spec.ts --project=desktop --project=mobile --project=webkit-iphone --workers=1 --reporter=list"
+  },
+  "linuxSnapshots": {
+    "run": 40247016090,
+    "spec": "e2e/expected.spec.ts",
+    "passed": 15,
+    "seconds": 36.5,
+    "baselineReview": "Rejected uncontrolled framing; superseded by framing revision and run40247452561."
+  },
+  "sourceHashes": [
+    {
+      "path": "apps/server/src/api/expected-lifecycle-607.test.ts",
+      "sha256": "fdb8638d829aa514e4145632cb0f4d0784f88b16836a187cfe3c5684900eb724"
+    },
+    {
+      "path": "apps/server/src/api/expected.test.ts",
+      "sha256": "bc49e415a24bdfdfa5aa4bec4de7b69b0aab09c7bf0514ce75230827c63aa43c"
+    },
+    {
+      "path": "apps/server/src/api/expected.ts",
+      "sha256": "c22aca5da857b141fc2dae98191332ae4fa531ddcc9580501e755b4cc80f50fc"
+    },
+    {
+      "path": "apps/server/src/api/income-pause.test.ts",
+      "sha256": "44dcdbb0c0b947e2e366a69e1d472b884e4cd015e5cfdaa648d5885dcbea0b3c"
+    },
+    {
+      "path": "apps/server/src/api/schemas.ts",
+      "sha256": "37c56a28623a583055f12059e57178774b05cbe2688f52cb3c438c7c92047d34"
+    },
+    {
+      "path": "apps/web/src/expected/api.ts",
+      "sha256": "62bd6c36ef57ce448668eed15a1bd1b5923e7c578833c7c133c1c89889186f95"
+    },
+    {
+      "path": "apps/web/src/expected/expected.css",
+      "sha256": "60132d5fe864f5ef1321b9c4e4b2ec080485c0188cd8a86fa7877d201a913178"
+    },
+    {
+      "path": "apps/web/src/expected/payment-draft.ts",
+      "sha256": "2a2857ebfd5e459ee2cdead004ccd8bbad07bb3d0e8f0cbe2920a1d2536ce470"
+    },
+    {
+      "path": "apps/web/src/expected/payment-form.tsx",
+      "sha256": "05cba8c4ea358f9dd77e58c25249be78cb43e7958deda43b7741751823aca782"
+    },
+    {
+      "path": "apps/web/src/expected/payment-lifecycle-607.test.tsx",
+      "sha256": "14475e6ff1ace14af54905349e4638087308e6b806c53431d1a88c128fabc2ce"
+    },
+    {
+      "path": "apps/web/src/expected/payment-panel.tsx",
+      "sha256": "cf6b6c58f1ec6fa52902ca4e7bd6b799d6b203ec4b59d9a01e7686cfd2325886"
+    },
+    {
+      "path": "e2e/income-pause.spec.ts",
+      "sha256": "1d30c9d04eeb7febf6af00d3947324d8000569e41561f39414d02dc3d6e013bf"
+    },
+    {
+      "path": "e2e/issue-607-payment-lifecycle.spec.ts",
+      "sha256": "9b7967020832f7b58199ab7726ac51d8df9b7e16d450a162c7b075122bf71a7b"
+    },
+    {
+      "path": "packages/db/drizzle/0049_expected_payment_pause.sql",
+      "sha256": "fe0117c289d9938751357d065b7c258672d833865ec2a29360525f3839455c21"
+    },
+    {
+      "path": "packages/db/drizzle/meta/0049_snapshot.json",
+      "sha256": "5e604e410b19fba0ed1f3d558fe70626c571c3ad6ed3c090939c244f51cf335f"
+    },
+    {
+      "path": "packages/db/drizzle/meta/_journal.json",
+      "sha256": "ade8ffad6624c3ffad7ff5379993181e6551fe4be5f26e775ceeb663a578f7f4"
+    },
+    {
+      "path": "packages/db/drizzle/rollback/0049_expected_payment_pause.sql",
+      "sha256": "8cd11cde51471c1a40b3ac30b082ac5712f74bbf0b4bc71416bf08a6bf2196c5"
+    },
+    {
+      "path": "packages/db/src/payment-pause-migration-607.test.ts",
+      "sha256": "05a3757efa767e0b5799e07c4884015dddd7420bbf4b0c51ca4448787859538e"
+    },
+    {
+      "path": "packages/db/src/repos/audit.ts",
+      "sha256": "92c5b747a1e1cdae4b9d5e51fccce33c0adbb3b050f516ea5617e49e04987ad6"
+    },
+    {
+      "path": "packages/db/src/repos/expected-detail.ts",
+      "sha256": "be73b52323ccf2532f09a2f17bba9e89061c6a9b369b10e2410e1ac79a0813a2"
+    },
+    {
+      "path": "packages/db/src/repos/expected-lifecycle-607.test.ts",
+      "sha256": "cd3dfb286ac531e35975d336b4bcffd5f2ee82854767604e51f23c2fefee75a5"
+    },
+    {
+      "path": "packages/db/src/repos/expected-lifecycle-invariants.ts",
+      "sha256": "1e4b974bd9e4bf5332a329d4c6b429ca17d7486b91395f224fe062bdacb23eac"
+    },
+    {
+      "path": "packages/db/src/repos/expected.test.ts",
+      "sha256": "90a057190cd3dbd64c53094c35e4f641c5712ec3c9e4731b6799b012a3d358b5"
+    },
+    {
+      "path": "packages/db/src/repos/expected.ts",
+      "sha256": "b2b70f0e71d77431254ae9e802c833e6b9a1fc0da72abb9735fe8b82e09862f3"
+    },
+    {
+      "path": "packages/db/src/repos/income-targets.ts",
+      "sha256": "9e02a1a9f98df7e789535adef52262e3dd4952d567da03bac64737dd25c37d51"
+    },
+    {
+      "path": "packages/db/src/repos/payments-preview.ts",
+      "sha256": "40d0438900ad408a2ab4ef02a39d1aeda4db54a64225dd540262f13d9897e6d0"
+    },
+    {
+      "path": "packages/db/src/repos/rule-inputs.ts",
+      "sha256": "f40ad86c0515d44397c7e34b983d490cd924efeeab81a12d423d43836c466bbd"
+    },
+    {
+      "path": "packages/db/src/schema/budget.ts",
+      "sha256": "c5ab23b8e47b8b91593fe690a3a3d61889333f74c37090c09a1b3e605c9e706a"
+    },
+    {
+      "path": "packages/domain/src/schedule/due-dates.ts",
+      "sha256": "42484c0cf3953633f1be1d0839bd63da659e86891a4eb63c6cbdba6693843986"
+    },
+    {
+      "path": "packages/domain/src/schedule/payment-lifecycle-607.test.ts",
+      "sha256": "2e1819fab586c336e00ba1dde7dd847f8c2e7bbe2605db1e814667d8c01990e4"
+    },
+    {
+      "path": "e2e/expected.spec.ts",
+      "sha256": "11ebcea1478c09f38d8733e0ccf1ace91f3c62149d9744eb7bea1f8b1327d172"
+    }
+  ],
+  "artifactHashes": [
+    {
+      "path": "receipts/lifecycle-desktop-light-runtime.json",
+      "sha256": "cb382c3a162ed4241bbab86366d88c4b7989ac4da8d9b1e5f9aa020c8afb760c"
+    },
+    {
+      "path": "receipts/lifecycle-mobile-light-runtime.json",
+      "sha256": "3fe0d9153e2c37378994e9e670b092503c235ec78053e33af470840020382a89"
+    },
+    {
+      "path": "receipts/lifecycle-webkit-iphone-light-runtime.json",
+      "sha256": "a6d2bacb8392c7c1105a3c0b454ef08d10f8d8813c22b3c01266f915bb360484"
+    },
+    {
+      "path": "receipts/lifecycle-desktop-dark-runtime.json",
+      "sha256": "202750f2fc12c4914190d9bdac95cc88144ea9b573bb8d72a7cdc51db23df94f"
+    },
+    {
+      "path": "receipts/lifecycle-mobile-dark-runtime.json",
+      "sha256": "64a84fa2e899173c1f3804f4aa5439f50dc2fdd31168d55a59f4a2a7c3d0666a"
+    },
+    {
+      "path": "receipts/lifecycle-webkit-desktop-layout1440-dark-runtime.json",
+      "sha256": "99ae23b65d60fb3a3600d3c1053bb0460adec32d8a566fff37942f41ee1247bc"
+    },
+    {
+      "path": "receipts/lifecycle-webkit-iphone-dark-runtime.json",
+      "sha256": "875374823a6e70ba3130e6964b73a8272b796e85404aad539efa18b8da17f9af"
+    },
+    {
+      "path": "browser/lifecycle-desktop-light-pause.png",
+      "sha256": "5ad5ed5acdfae0bec10c406492a62082394834e8acf29d260d761e856ce12795"
+    },
+    {
+      "path": "browser/lifecycle-desktop-dark-end.png",
+      "sha256": "dc3392365349620eebb1f33ec3991ad590fa614d29d05e9db96dd9f5d775e10c"
+    },
+    {
+      "path": "browser/lifecycle-mobile-light-pause.png",
+      "sha256": "164e54cc443e781ad85c740e192997671a573cadb0db3301ba2f63872184b12b"
+    },
+    {
+      "path": "browser/lifecycle-mobile-dark-end.png",
+      "sha256": "0f82f83f0017d52f1645c7a1a4d0ddb67d1d6c8bae34d6e11c63f72990696060"
+    },
+    {
+      "path": "browser/lifecycle-webkit-iphone-light-pause.png",
+      "sha256": "f371ec3a7b8ac364fb61c9146744ec132b2d0f5bb60415f3f714ff37021798cd"
+    },
+    {
+      "path": "browser/lifecycle-webkit-iphone-dark-end.png",
+      "sha256": "875737e21a0953e8ed291026b85b305c68d19148af38d7c7f7a69f5ca17b3dfd"
+    },
+    {
+      "path": "browser/lifecycle-webkit-desktop-layout1440-dark-end.png",
+      "sha256": "59197c2a69716b7806d5cad2ffd589bec46335f71e12028ae5440ac486430d87"
+    }
+  ],
+  "acceptance": "Exact-head Linux CI and verified publication pending. Not physical-device evidence.",
+  "sourceHashesRevision": "d717b640d4d758f8c12ebe0610793b2cc5bc174a",
+  "snapshotFraming": {
+    "revision": "d717b640d4d758f8c12ebe0610793b2cc5bc174a",
+    "localPassed": 5,
+    "setupCases": 3,
+    "seconds": 30.6,
+    "independentReview": "CLEAR",
+    "reason": "The first generated image had uncontrolled scroll and clipped the heading. Four additive framing lines establish page top and visible heading. Existing finance/Axe/timeouts unchanged.",
+    "linuxRun": 40247452561,
+    "linuxStatus": "passed",
+    "linuxPassed": 15,
+    "linuxSeconds": 37.2,
+    "baselineReview": "CLEAR at5d5f2abb1aa8633df8b648cd5bebf2f482dfffbe"
+  },
+  "independentEvidenceReview": "CLEAR at1f93fa7aa6bdb1ba026a5824cdaa9857be8a04ab; all45hashes match working and immutable Git bytes.",
+  "mainRefresh": {
+    "main": "7b77a5748c121e2f876006a8ba2c73ad33af3cee",
+    "merge": "0958d43d8e19b342837453cb31082dc64c387cea",
+    "conflicts": false,
+    "paymentSourceChanged": false
+  },
+  "firstFinalCiRepair": {
+    "failedRun": 40247872642,
+    "cause": [
+      "snapshot JSON formatting",
+      "schema46 predecessor fixture invoked schema49-aware payment writer"
+    ],
+    "productLogicChanged": false,
+    "snapshotSemanticJsonEquality": true,
+    "affectedMigrationSuites": 3,
+    "passed": 21,
+    "seconds": 21.6,
+    "hashes": [
+      {
+        "path": "packages/db/drizzle/meta/0049_snapshot.json",
+        "sha256": "4de825cd3dde76017758d9070b8f3c5c0ce2f8187b620a24632d47fb8bdb0aa7"
+      },
+      {
+        "path": "packages/db/src/statement-automation-migration-741.test.ts",
+        "sha256": "c94bd327b12b2c83f2acfb045af3804375b87e93670de42de20fb1de95d4d159"
+      }
+    ]
+  }
+}

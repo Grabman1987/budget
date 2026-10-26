@@ -181,7 +181,7 @@ export interface ReadResult {
 }
 
 /** Reads the draft; `errors` is empty when `fields` (and, when creating, `version`) are usable. */
-export function readDraft(d: PaymentDraft, creating: boolean): ReadResult {
+export function readDraft(d: PaymentDraft, creating: boolean, original?: PaymentDraft): ReadResult {
   const errors: DraftErrors = {};
   const name = d.name.replace(/\s+/g, ' ').trim();
   if (!name) errors.name = 'Bitte einen Namen eintragen.';
@@ -212,7 +212,12 @@ export function readDraft(d: PaymentDraft, creating: boolean): ReadResult {
     errors.startDate = 'Bitte das erste Fälligkeitsdatum wählen.';
   if (d.startDate && !isDay(d.startDate)) errors.startDate = 'Bitte ein Datum wählen.';
   if (d.endDate && !isDay(d.endDate)) errors.endDate = 'Bitte ein Datum wählen.';
-  if (d.startDate && d.endDate && d.endDate < d.startDate)
+  if (
+    d.startDate &&
+    d.endDate &&
+    d.endDate < d.startDate &&
+    (creating || !original || d.startDate !== original.startDate || d.endDate !== original.endDate)
+  )
     errors.endDate = 'Das Ende liegt vor dem Start.';
 
   let version: ReadResult['version'];

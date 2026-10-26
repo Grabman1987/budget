@@ -165,6 +165,11 @@ export function ReportsCatalogPage() {
         subtitle={`${REPORTS.length} Zeichnungen aus einem Hauptbuch`}
       />
       <ReportRegisters current="katalog" />
+      <p className="muted">
+        <AppLink className="btn btn-ghost" to="/plan/prognose">
+          Kontoprognose in Plan öffnen
+        </AppLink>
+      </p>
       <ReportCatalogTable groups={REPORT_GROUPS} caption="Katalog der Reports" />
     </>
   );

@@ -53,7 +53,7 @@ export function planIncomeTargets(
     const ruleNext = incomeMonthDefault(rules, p.payeeId, p.categoryId, p.incomeTypeId);
     // The previous month is read too: a payment due then may be assigned to this month.
     for (const day of dueDates(
-      schedulePayment(p),
+      schedulePayment(p, facts.paymentLifecycles?.get(p.id)),
       `${addMonths(month, -1)}-01`,
       lastDayOfMonth(month),
     )) {

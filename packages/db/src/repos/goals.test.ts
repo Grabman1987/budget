@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { categoryTarget } from '../schema';
+import { categoryTarget, savingsGoal } from '../schema';
+import { createEntity } from './entities';
 import { undo } from './audit';
 import { createBooking } from './bookings';
 import { CategoryRuleError, EntityNotFoundError } from './errors';
@@ -149,7 +150,19 @@ describe('writes', () => {
 
 describe('adoptGoalAsCategoryTarget', () => {
   it('writes a by_date target in one audit group that one undo removes', () => {
-    const goal = travel();
+    // Model a retained pre-sync goal without inventing a new-goal target deletion.
+    const goal = createEntity(
+      db,
+      savingsGoal,
+      {
+        id: 'legacy-goal-repo',
+        name: 'Urlaub',
+        targetCents: 300_000,
+        targetDate: '2027-07-31',
+        categoryId: 'reise',
+      },
+      ctx,
+    );
     const { groupId } = adoptGoalAsCategoryTarget(db, goal.id, MONTH, ctx);
     const tree = db.select().from(categoryTarget).all();
     expect(tree).toHaveLength(1);

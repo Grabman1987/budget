@@ -1,0 +1,16 @@
+{
+  "engine": "chromium",
+  "project": "desktop",
+  "profile": "desktop",
+  "theme": "light",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "synthetic": true,
+  "scopedAxe": "both open lifecycle dialogs, all rules enabled",
+  "paymentWrites": [],
+  "coarse": false,
+  "maxTouchPoints": 10,
+  "dpr": 1
+}

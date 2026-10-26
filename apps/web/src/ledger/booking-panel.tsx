@@ -14,7 +14,7 @@ export type BookingPanelState =
 const FADE_OUT_MS = 260;
 
 /**
- * Buchung erfassen / bearbeiten as a centred dialog (desktop) or bottom sheet (phone). Closing
+ * Buchung erfassen / bearbeiten as a centred dialog (desktop) or full-screen sheet (phone). Closing
  * with Esc, the close button or the scrim asks first when there is unsaved input.
  */
 export function BookingPanel({
@@ -29,6 +29,28 @@ export function BookingPanel({
   const [asking, setAsking] = useState(false);
   const focusScope = useRef<HTMLDivElement>(null);
   const resumeFocus = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (state === null) return;
+    // Mobile keyboards shrink/pan the visual viewport without resizing 100dvh on iOS.
+    // Scope the visible bounds to this capture sheet; other dialogs keep their own geometry.
+    const viewport = window.visualViewport;
+    const update = () => {
+      focusScope.current?.style.setProperty(
+        '--bk-viewport-height',
+        `${viewport?.height ?? window.innerHeight}px`,
+      );
+      focusScope.current?.style.setProperty('--bk-viewport-top', `${viewport?.offsetTop ?? 0}px`);
+    };
+    update();
+    viewport?.addEventListener('resize', update);
+    viewport?.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    return () => {
+      viewport?.removeEventListener('resize', update);
+      viewport?.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [state]);
   useEffect(() => {
     if (asking)
       focusScope.current?.querySelector<HTMLElement>('[role="alertdialog"] button')?.focus();

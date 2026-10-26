@@ -211,7 +211,7 @@ function ReportBody({
                     </span>
                     <GoalStatus goal={row.progress} month={month} />
                     <span>
-                      {eur(row.progress.averageRateCents)} je Monat · nötig{' '}
+                      {eur(row.progress.averageRateCents)} je Monat zuletzt · künftig nötig{' '}
                       {row.progress.neededMonthlyCents === null
                         ? 'ohne Zieldatum'
                         : eur(row.progress.neededMonthlyCents)}
@@ -363,7 +363,15 @@ function Forecast({ goal }: { goal: GoalView }) {
     </span>
   );
 }
-export function GoalDetail({ row, month }: { row: GoalReportRow; month: string }) {
+export function GoalDetail({
+  row,
+  month,
+  showPlanLink = true,
+}: {
+  row: GoalReportRow;
+  month: string;
+  showPlanLink?: boolean;
+}) {
   useAmountPrivacy();
   const g = row.progress;
   return (
@@ -374,19 +382,22 @@ export function GoalDetail({ row, month }: { row: GoalReportRow; month: string }
       {g ? (
         <>
           <GoalBar goal={g} month={month} />
-          <GoalFigures
-            goal={g}
-            month={month}
-            category={row.source?.kind === 'category' ? row.source : undefined}
-          />
-          <p>
-            Prognose: <Forecast goal={g} />
-          </p>
-          <p className="vnote">
-            {row.source?.kind === 'account'
-              ? 'Gespart ist der Geldsaldo am Monatsende. Die Rate ist der mittlere Geldsaldozuwachs der letzten drei Monate; Wertpapierbestände sind keine Quelle dieses Zielstands.'
-              : 'Gespart ist Verfügbar am Monatsende. Die Rate ist die mittlere Zuweisung der letzten drei Monate.'}
-          </p>
+          <details>
+            <summary>ⓘ Beträge und Prognose erklärt</summary>
+            <GoalFigures
+              goal={g}
+              month={month}
+              category={row.source?.kind === 'category' ? row.source : undefined}
+            />
+            <p>
+              Prognose: <Forecast goal={g} />
+            </p>
+            <p className="vnote">
+              {row.source?.kind === 'account'
+                ? 'Gespart ist der Geldsaldo am Monatsende. Die Rate ist der mittlere Geldsaldozuwachs der letzten drei Monate; Wertpapierbestände sind keine Quelle dieses Zielstands.'
+                : 'Gespart ist Verfügbar am Monatsende. Die Rate ist die mittlere Zuweisung der letzten drei Monate.'}
+            </p>
+          </details>
           {row.source && (
             <AppLink
               to="/konten/buchungen"
@@ -412,11 +423,13 @@ export function GoalDetail({ row, month }: { row: GoalReportRow; month: string }
         <p role="status">Fortschritt und Status nicht verfügbar. {row.reason}</p>
       )}
       {row.note && <p>{row.note}</p>}
-      <p>
-        <AppLink to="/plan/sparziele" search={{ monat: month }}>
-          Sparziel im Plan ansehen
-        </AppLink>
-      </p>
+      {showPlanLink && (
+        <p>
+          <AppLink to="/plan/sparziele" search={{ monat: month }}>
+            Sparziel im Plan ansehen
+          </AppLink>
+        </p>
+      )}
     </div>
   );
 }
@@ -429,9 +442,11 @@ export function GoalHistory({
   name: string;
 }) {
   if (!points.length) return null;
-  const max = Math.max(1, ...points.flatMap((p) => [p.actualCents ?? 0, p.sollCents ?? 0]));
+  const values = points.flatMap((p) => [p.actualCents ?? 0, p.sollCents ?? 0]);
+  const max = Math.max(1, ...values);
+  const min = Math.min(0, ...values);
   const x = (i: number) => 54 + (i / Math.max(1, points.length - 1)) * 650;
-  const y = (v: number) => 170 - (v / max) * 150;
+  const y = (v: number) => 170 - ((v - min) / (max - min)) * 150;
   return (
     <>
       <ChartSvg
@@ -452,7 +467,7 @@ export function GoalHistory({
           ],
         )}
       >
-        <AxisLine x1={54} x2={704} y={170} />
+        <AxisLine x1={54} x2={704} y={y(0)} />
         <Line
           kind="plan"
           points={points.flatMap((p, i) =>
@@ -473,9 +488,9 @@ export function GoalHistory({
         />
       </ChartSvg>
       <p className="vnote">
-        Durchgezogen: gespeicherter Quellenstand. Gestrichelt: linear von 0 im Anlagemonat zum
-        Zielbetrag am Zieldatum; vorhandenes Startguthaben kann darüber liegen. Ohne Zieldatum gibt
-        es keine Soll-Linie.
+        Durchgezogen: gespeicherter Quellenstand. Gestrichelt: linear von 0 im gewählten Startmonat
+        zum Zielbetrag am Zieldatum; vorhandenes Startguthaben kann darüber liegen. Ohne Zieldatum
+        gibt es keine Soll-Linie.
       </p>
     </>
   );

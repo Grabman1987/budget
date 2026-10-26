@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { account, auditLog, bankSyncCandidate, booking, bookingSplit, inboxItem } from '../schema';
+import {
+  accountReconciliation,
+  account,
+  auditLog,
+  bankSyncCandidate,
+  booking,
+  bookingSplit,
+  inboxItem,
+} from '../schema';
 import { resolveInboxItem, readInbox } from './inbox';
 import { undo } from './audit';
 import { createBooking } from './bookings';
@@ -24,6 +32,18 @@ beforeEach(() => {
         onBudget: true,
         openingDate: '2026-10-01',
         openingBalanceCents: 100_000,
+      })
+      .run();
+  // Existing account-scoped queue fixtures have recent checks, not extra global due work.
+  for (const accountId of [A, B])
+    opened.db
+      .insert(accountReconciliation)
+      .values({
+        id: `recent-${accountId}`,
+        accountId,
+        date: DAY,
+        statementBalanceCents: 100000,
+        clearedBalanceCents: 100000,
       })
       .run();
   bookedId = createBooking(
@@ -126,7 +146,14 @@ it('filters unresolved candidates by real account identity, with no balance, boo
   expect(first.readSourceSummaries).toEqual([]);
   expect(scoped(B).entries.map((entry) => entry.id)).toEqual(['b-one']);
   expect(scoped(B).count).toBe(1);
-  expect(scoped(MISSING)).toEqual({ asOf: DAY, count: 0, entries: [], readSourceSummaries: [] });
+  expect(scoped(MISSING)).toEqual({
+    asOf: DAY,
+    count: 0,
+    entries: [],
+    readSourceSummaries: [],
+    accountReminders: [],
+    unlinkedReceiptCount: 0,
+  });
   const global = readInbox(opened.db, DAY);
   expect(global.entries.map((entry) => entry.id)).toEqual([
     `booking:${bookedId}`,

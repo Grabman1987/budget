@@ -2,7 +2,7 @@
 import { expect, test } from '@playwright/test';
 import { PDF, PNG } from '../apps/server/src/receipts/testing';
 import { MAIN_URL } from '../playwright.config';
-import { openPruefenPart } from './pruefen-part';
+import { openPruefenPart, openPruefenSource } from './pruefen-part';
 
 test('capture receipt first, link, attach PDF, remove and undo', async ({
   page,
@@ -33,6 +33,7 @@ test('capture receipt first, link, attach PDF, remove and undo', async ({
     pdfname = `${tag}.pdf`;
   await page.goto('/konten/posteingang');
   await openPruefenPart(page, 'Aufgaben');
+  await openPruefenSource(page, 'Belege ohne Buchung');
   const unlinked = page.getByRole('region', { name: 'Beleg ohne Buchung' });
   await unlinked
     .getByLabel('Belegdatei auswählen')

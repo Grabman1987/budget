@@ -29,6 +29,7 @@ export function SavingsPanel({
   today,
   onClose,
   initiallyEnding = false,
+  initialFunding,
 }: {
   id: string;
   plans: SavingsPlanRecord[];
@@ -37,16 +38,21 @@ export function SavingsPanel({
   today: string;
   onClose: () => void;
   initiallyEnding?: boolean;
+  initialFunding?: { securityId: string; amountCents: number };
 }) {
   useAmountPrivacy();
   const plan = plans.find((p) => p.id === id);
   const creating = id === 'neu';
   const editable = creating || plan?.validTo === null;
   const [original] = useState(() => ({
-    securityId: plan?.securityId ?? '',
+    securityId: plan?.securityId ?? initialFunding?.securityId ?? '',
     accountId: plan?.accountId ?? '',
     sourceAccountId: plan?.sourceAccountId ?? '',
-    amount: plan ? formatDecimal(cents(plan.amountCents)) : '',
+    amount: plan
+      ? formatDecimal(cents(plan.amountCents))
+      : initialFunding
+        ? formatDecimal(cents(initialFunding.amountCents))
+        : '',
     day: String(plan?.dayOfMonth ?? 5),
     date: creating ? today : '',
     note: plan?.note ?? '',

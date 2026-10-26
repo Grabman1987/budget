@@ -1,4 +1,4 @@
-// Decides on `push` to main whether this exact tree already passed the full CI as a pull request,
+// Decides on `push` to main whether this exact tree already passed its required CI as a pull request,
 // so ci.yml can skip the duplicate run (see the `reuse` job). Fails closed: anything missing,
 // unreadable or different means reuse=false and the full suite runs.
 import { execFileSync } from 'node:child_process';

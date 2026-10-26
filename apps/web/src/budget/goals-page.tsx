@@ -9,12 +9,19 @@ import { PLAN_SPARZIELE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { useMonth } from '../shell/use-month';
 import { AppLink } from '../shell/app-link';
-import { categoriesQuery } from './use-category-writes';
+import { categoriesQuery, useBudgetWrite } from './use-category-writes';
 import type { CategoryRow } from './api';
 import { budgetQuery } from './budget-api';
 import { CategoryIcon } from './category-icon';
-import { goalsQuery, type GoalView } from './goals-api';
-import { goalBar, goalGroups, goalLine, planSummary, type GoalGroup } from './goals-model';
+import { goalsQuery, fundGoalRate, type GoalView } from './goals-api';
+import {
+  goalBar,
+  goalGroups,
+  goalLine,
+  goalForecastLine,
+  planSummary,
+  type GoalGroup,
+} from './goals-model';
 import { GoalPanel, type GoalPanelState } from './goals-panel';
 import { CLASS_TEXT } from './plan-model';
 
@@ -48,7 +55,7 @@ function GoalsBody({ month, goals }: { month: string; goals: GoalView[] }) {
   const categories = tree?.categories ?? [];
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const [panel, setPanel] = useState<GoalPanelState>({ mode: 'closed' });
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set(['completed']));
   const catById = new Map(categories.map((c) => [c.id, c]));
   const groups = goalGroups(goals);
   const open = panel.mode === 'edit' ? goals.find((g) => g.id === panel.id) : undefined;
@@ -210,7 +217,19 @@ function GroupRow({
       </td>
       <td className="col-date" />
       <td className="col-num col-rate" data-label="Nötige Rate">
-        {g.key === 'open' ? eur(g.totals.neededMonthlyCents) : <span className="muted">–</span>}
+        {g.key !== 'open' ? (
+          <span className="muted">–</span>
+        ) : g.rateIncomplete ? (
+          <span className="muted">nicht vollständig</span>
+        ) : (
+          eur(g.totals.neededMonthlyCents)
+        )}
+        {g.key === 'open' && (
+          <span className="goal-future-projection">
+            <span>Nötige künftige Rate</span>
+            <span data-testid="goal-future-rate-total">{eur(g.futureRateCents)}</span>
+          </span>
+        )}
       </td>
     </tr>
   );
@@ -230,6 +249,7 @@ function GoalRow({
   accountName: string | undefined;
 }) {
   useAmountPrivacy();
+  const write = useBudgetWrite();
   const bar = goalBar(g);
   const line = goalLine(g, month);
   const cls = category?.class ?? null;
@@ -293,10 +313,39 @@ function GoalRow({
         {g.targetDate ? longDay(g.targetDate) : <span className="muted">ohne Datum</span>}
       </td>
       <td className="col-num col-rate" data-label="Nötige Rate">
-        {g.status === 'reached' || g.neededMonthlyCents === null ? (
+        {g.funding?.conflict ? (
+          <span className="muted">Ziel abstimmen</span>
+        ) : g.funding ? (
+          eur(g.funding.monthlyCents)
+        ) : g.neededMonthlyCents === null ? (
           <span className="muted">–</span>
         ) : (
-          eur(g.neededMonthlyCents)
+          <span>{eur(g.neededMonthlyCents)} · künftig</span>
+        )}
+        <span className="goal-future-projection">
+          <span>Nötige künftige Rate</span>
+          <span data-testid="goal-future-rate">
+            {g.neededMonthlyCents === null ? '–' : eur(g.neededMonthlyCents)}
+          </span>
+          <span data-testid="goal-future-line">{goalForecastLine(g, month).text}</span>
+        </span>
+        {g.funding && g.lifecycle?.state !== 'completed' && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={!!g.funding.conflict || g.funding.remainingCents <= 0}
+            onClick={() =>
+              void write(
+                () => fundGoalRate(g.id, month, g.funding!.reviewToken),
+                (result) =>
+                  result.changedCount === 0
+                    ? 'Die Rate ist bereits zugewiesen.'
+                    : `${eur(result.assignedCents)} zugewiesen`,
+              )
+            }
+          >
+            Rate zuweisen
+          </Button>
         )}
       </td>
     </tr>

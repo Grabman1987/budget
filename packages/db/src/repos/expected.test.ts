@@ -38,11 +38,18 @@ import {
   versionSuggestions,
 } from './expected';
 import { forecastInputs, loadFacts, scheduled } from './rule-inputs';
+import { readPaymentLifecycles } from './expected-lifecycle-invariants';
 import { seedBasics, testCtx as ctx } from './test-helpers';
 
 let opened: OpenedDatabase;
 let db: OpenedDatabase['db'];
 const TODAY = '2026-03-20';
+
+const reviewToken = (id: string) => {
+  const value = readPaymentLifecycles(db, [id]).get(id)?.reviewToken;
+  expect(value).toMatch(/^[a-f0-9]{64}$/);
+  return value!;
+};
 
 beforeEach(() => {
   opened = createTestDatabase();
@@ -185,7 +192,7 @@ describe('payments', () => {
     // past rows stay as they were
     expect(days).toContain('2026-02-01');
 
-    deleteExpectedPayment(db, p.id, ctx, TODAY);
+    deleteExpectedPayment(db, p.id, ctx, TODAY, reviewToken(p.id));
     expect(occurrencesOf(p.id).every((o) => o.dueDate < TODAY)).toBe(true);
     expect(upcoming(db, '2026-01-01', '2027-12-31')).toEqual([]);
     expect(listExpectedPayments(db, TODAY)).toEqual([]);
@@ -197,7 +204,7 @@ describe('payments', () => {
 
   it('undo of a delete group restores the plan', () => {
     const p = rent();
-    const { groupId } = deleteExpectedPayment(db, p.id, ctx, TODAY);
+    const { groupId } = deleteExpectedPayment(db, p.id, ctx, TODAY, reviewToken(p.id));
     undo(db, { groupId }, ctx);
     expect(upcoming(db, '2026-04-01', '2026-04-30')).toHaveLength(1);
   });
@@ -847,7 +854,7 @@ describe('skipping one occurrence (gestrichen)', () => {
     updateExpectedPayment(db, p.id, { dueDay: 20 }, ctx, TODAY);
     expect(row(p.id, '2026-04-15')).toMatchObject({ status: 'skipped' });
     expect(row(p.id, '2026-04-20')?.status).toBe('expected');
-    deleteExpectedPayment(db, p.id, ctx, TODAY);
+    deleteExpectedPayment(db, p.id, ctx, TODAY, reviewToken(p.id));
     restoreExpectedPayment(db, p.id, ctx, TODAY);
     expect(row(p.id, '2026-04-15')).toMatchObject({ status: 'skipped' });
   });

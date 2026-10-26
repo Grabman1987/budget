@@ -118,16 +118,23 @@ test('bank candidates precede reminders and remain isolated review work in the a
     await page.goto('/konten/pruefen?von=%2F');
     const globalCandidate = page.getByTestId('inbox-row').filter({ hasText: 'Bankkandidat A 724' });
     await expect(globalCandidate).toBeVisible();
+    await page
+      .getByRole('group', { name: 'Teil von Prüfen' })
+      .getByRole('button', { name: /^Aufgaben · \d+$/ })
+      .click();
+    await page.getByRole('button', { name: 'Konten prüfen öffnen', exact: true }).click();
     const reminder = page.getByRole('heading', { name: 'Konten prüfen', exact: true });
     await expect(reminder).toBeVisible();
-    expect(
-      await globalCandidate.evaluate((node) =>
-        Boolean(
-          node.compareDocumentPosition(document.getElementById('account-reminder-title')!) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-        ),
-      ),
-    ).toBe(true);
+    await expect(page.locator('.account-reminders')).toContainText('Gleiches Konto');
+    await expect(
+      page.locator(`.account-reminder a[href="/konten/${first.id}?pruefen=reconcile"]`),
+    ).toBeVisible();
+    // Return to the unchanged movement workflow before its financial/Undo assertions.
+    await page
+      .getByRole('group', { name: 'Teil von Prüfen' })
+      .getByRole('button', { name: /^Umsätze · \d+$/ })
+      .click();
+    await expect(globalCandidate).toBeVisible();
     const proof: object[] = [];
     const desktop = await browser.newContext({
       baseURL: origin,

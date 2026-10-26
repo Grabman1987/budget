@@ -1,0 +1,67 @@
+{
+  "source": "synthetic-only",
+  "engine": "webkit",
+  "project": "webkit-iphone",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "theme": "dark",
+  "model": {
+    "asOf": "2026-10-20",
+    "accountReminders": [
+      {
+        "accountId": "09d69626-b55d-4ae5-9bff-db36d8c40388",
+        "accountName": "Muster Prüfkonto",
+        "days": 657,
+        "action": "reconcile",
+        "dueOn": "2025-01-15",
+        "checkedOn": null,
+        "policy": "14-days",
+        "supported": true
+      }
+    ],
+    "unlinkedReceiptCount": 1,
+    "count": 6,
+    "entries": [
+      {
+        "type": "stored",
+        "id": "2934f447-76af-4b2a-94f1-e69edb0f8606",
+        "kind": "revision",
+        "title": "Gehaltszettel: Prüfung erforderlich",
+        "detail": null,
+        "refType": "payslip-intake",
+        "refId": "5898e201-dc00-400d-a0f5-5d5a26c22778",
+        "urgent": true,
+        "createdAt": "2026-10-22T13:55:08.361Z"
+      }
+    ],
+    "readSourceSummaries": [],
+    "segment": "aufgaben",
+    "segments": {
+      "umsaetze": 1,
+      "aufgaben": 5
+    },
+    "taskSources": {
+      "accounts": 1,
+      "receipts": 1,
+      "plan": 1,
+      "payslips": 1,
+      "other": 1
+    },
+    "totalEntries": 3,
+    "countsByKind": {
+      "revision": 1,
+      "consent": 1,
+      "other": 1
+    },
+    "countsByCause": {},
+    "limit": 1,
+    "offset": 0,
+    "next": 1
+  },
+  "noWrites": true,
+  "preservedFinancialSnapshot": true,
+  "assistedScrollHitChecks": true,
+  "physicalDeviceClaim": false
+}

@@ -1,4 +1,5 @@
-import { InboxAccountReminders } from '../heute/account-reminders';
+import { TaskSourceSummary } from './task-source-summary';
+import { AccountReminderRows } from '../heute/account-reminders';
 import {
   BankBookingMerge,
   BankCandidate,
@@ -12,7 +13,7 @@ import { InboxTypeIcon } from './type-icon';
 import { ReadSourceDetail, sourceWarningReason } from './read-source-detail';
 import { ReadSourceSummaries } from './read-source-summaries';
 import { inboxCause, type InboxSegment } from '@budget/domain';
-import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
+import { useLocation, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { InboxBack, type InboxSearch } from './navigation';
 import {
   useAmountPrivacy,
@@ -73,6 +74,7 @@ export function InboxPage() {
   return (
     <PageFrame meta={META}>
       {search.von && <InboxBack to={search.von} label="Zurück zur vorherigen Ansicht" />}
+      <BankStatusBlock />
       {search.bankSource && (
         <p>
           Aufgaben dieser Bankquelle.{' '}
@@ -88,8 +90,56 @@ export function InboxPage() {
         </p>
       )}
       <InboxWorkflow bankSource={search.bankSource} />
-      {!search.bankSource && <InboxAccountReminders />}
     </PageFrame>
+  );
+}
+
+type BankStatus = {
+  configured: boolean;
+  connections: { status: string; lastSuccessAt: string | null }[];
+};
+
+function BankStatusBlock() {
+  const query = useQuery({
+    queryKey: ['bank-sync'],
+    queryFn: () => request<BankStatus>('GET', '/api/bank-sync'),
+    refetchInterval: 30_000,
+  });
+  const connected = query.data?.connections.some((connection) => connection.status === 'active');
+  const lastSuccessAt = query.data?.connections
+    .filter((connection) => connection.status === 'active' && connection.lastSuccessAt)
+    .reduce<string | null>(
+      (latest, connection) =>
+        connection.lastSuccessAt && (!latest || connection.lastSuccessAt > latest)
+          ? connection.lastSuccessAt
+          : latest,
+      null,
+    );
+  const lastSuccess = lastSuccessAt
+    ? new Intl.DateTimeFormat('de-AT', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Europe/Vienna',
+      }).format(new Date(lastSuccessAt))
+    : null;
+
+  return (
+    <section className="inbox-bank-status" aria-label="Bankstatus" aria-busy={query.isPending}>
+      {query.isPending ? (
+        <LoadingNote what="Bankstatus" />
+      ) : query.isError ? (
+        <ErrorNote what="Bankstatus" error={query.error} onRetry={() => void query.refetch()} />
+      ) : connected ? (
+        <p>Bank: verbunden · zuletzt {lastSuccess ?? 'noch kein erfolgreicher Abruf'}</p>
+      ) : (
+        <>
+          <p>Bank: nicht verbunden</p>
+          <AppLink className="btn btn-ghost" to="/einstellungen/datenquellen" search={{}}>
+            Einrichten
+          </AppLink>
+        </>
+      )}
+    </section>
   );
 }
 export function InboxDetailPage() {
@@ -404,24 +454,47 @@ function FilteredInboxBody({
   );
 }
 
-function PaginatedInboxBody({
+function PaginatedInboxBody(props: InboxBodyProps & { bankSource?: string | undefined }) {
+  const hash = useLocation({ select: (location) => location.hash });
+  const accountAnchor = !props.bankSource && hash === 'account-reminder-title';
+  // A new anchor landing initializes its source once; later user selections keep this lifecycle.
+  return (
+    <PaginatedInboxBodyContent
+      key={accountAnchor ? 'account-anchor' : 'queue'}
+      {...props}
+      accountAnchor={accountAnchor}
+    />
+  );
+}
+
+function PaginatedInboxBodyContent({
   bankSource,
+  accountAnchor,
   ...props
-}: InboxBodyProps & { bankSource?: string | undefined }) {
+}: InboxBodyProps & { bankSource?: string | undefined; accountAnchor: boolean }) {
   useAmountPrivacy();
   const search = useSearch({ strict: false }) as InboxSearch;
   const navigate = useNavigate();
   // `auto` lets the server open on the part with open work; the part then stays put while the
   // user works through it, even when it empties.
   const [pinned, setPinned] = useState<InboxSegment>();
+  const [taskSource, setTaskSource] = useState<
+    'accounts' | 'plan' | 'receipts' | 'payslips' | 'other' | undefined
+  >(() => (accountAnchor ? 'accounts' : undefined));
   const queue = useInfiniteQuery(
     inboxPagesQuery(
       search.aufgaben,
       bankSource,
       bankSource ? (search.dateSort ?? 'newest') : undefined,
       bankSource ? search.fromDate : undefined,
-      search.teil ?? 'auto',
+      search.teil ?? (accountAnchor ? 'aufgaben' : 'auto'),
       pinned,
+      undefined,
+      !bankSource &&
+        (search.teil === 'aufgaben' || (!search.teil && pinned === 'aufgaben')) &&
+        (taskSource === 'plan' || taskSource === 'payslips' || taskSource === 'other')
+        ? taskSource
+        : undefined,
     ),
   );
   const loadingNextPage = useRef(false);
@@ -442,6 +515,13 @@ function PaginatedInboxBody({
   if (!search.teil && !pinned && resolved) setPinned(resolved);
   const segmentCounts =
     !bankSource && firstPage?.segments && shown ? { shown, counts: firstPage.segments } : undefined;
+  const fatalError = queue.isError && !queue.isFetchNextPageError ? queue.error : null;
+  useEffect(() => {
+    if (accountAnchor && shown === 'aufgaben' && taskSource === 'accounts' && !fatalError)
+      document.getElementById('account-reminder-title')?.scrollIntoView?.({ block: 'start' });
+  }, [accountAnchor, shown, taskSource, fatalError, firstPage]);
+  const entrySourceSelected =
+    taskSource === 'plan' || taskSource === 'payslips' || taskSource === 'other';
   return (
     <>
       {segmentCounts && (
@@ -530,28 +610,69 @@ function PaginatedInboxBody({
             : 'Zeitraum wird geladen.'}
         </p>
       </div>
-      <InboxBodyContent
-        {...props}
-        entries={entries}
-        count={firstPage?.count}
-        segmentCounts={segmentCounts}
-        readSourceSummaries={
-          segmentCounts?.shown === 'umsaetze' ? undefined : firstPage?.readSourceSummaries
-        }
-        totalEntries={firstPage?.totalEntries}
-        countsByKind={firstPage?.countsByKind}
-        countsByCause={firstPage?.countsByCause}
-        pending={queue.isPending}
-        error={queue.isError && !queue.isFetchNextPageError ? queue.error : null}
-        nextPageError={queue.isFetchNextPageError ? queue.error : null}
-        onRetry={() => void queue.refetch()}
-        onRetryNextPage={() => void fetchNextPage()}
-        showReceipts={!bankSource && segmentCounts?.shown !== 'umsaetze'}
-        serverPaginated
-        hasMore={queue.hasNextPage}
-        loadingMore={queue.isFetching}
-        loadMore={() => void fetchNextPage()}
-      />
+      {segmentCounts?.shown === 'aufgaben' && firstPage?.taskSources && (
+        <section aria-label="Aufgaben nach Quelle">
+          {fatalError && !entrySourceSelected && (
+            <ErrorNote what="Aufgaben" error={fatalError} onRetry={() => void queue.refetch()} />
+          )}
+          {!queue.isPending && !fatalError && (
+            <>
+              {firstPage.readSourceSummaries && (
+                <ReadSourceSummaries summaries={firstPage.readSourceSummaries} />
+              )}
+              <h2>Offene Aufgaben · {segmentCounts.counts.aufgaben}</h2>
+              <p>
+                Der Zeitraum gilt für Plan, Gehaltszettel und Weitere Aufgaben. Kontoprüfungen und
+                Belege bleiben unabhängig davon sichtbar.
+              </p>
+              <TaskSourceSummary
+                counts={firstPage.taskSources}
+                selected={taskSource}
+                onSelect={setTaskSource}
+              />
+              {taskSource === 'accounts' && (
+                <section aria-labelledby="account-reminder-title">
+                  <h3 id="account-reminder-title">Konten prüfen</h3>
+                  <AccountReminderRows items={firstPage.accountReminders ?? []} />
+                </section>
+              )}
+              {taskSource === 'receipts' && <ReceiptSection />}
+            </>
+          )}
+        </section>
+      )}
+      {(segmentCounts?.shown !== 'aufgaben' ||
+        !firstPage?.taskSources ||
+        taskSource === 'plan' ||
+        taskSource === 'payslips' ||
+        taskSource === 'other') && (
+        <InboxBodyContent
+          {...props}
+          entries={entries}
+          count={firstPage?.count}
+          segmentCounts={segmentCounts}
+          readSourceSummaries={
+            segmentCounts?.shown === 'umsaetze' || firstPage?.taskSources
+              ? undefined
+              : firstPage?.readSourceSummaries
+          }
+          totalEntries={firstPage?.totalEntries}
+          countsByKind={firstPage?.countsByKind}
+          countsByCause={firstPage?.countsByCause}
+          pending={queue.isPending}
+          error={queue.isError && !queue.isFetchNextPageError ? queue.error : null}
+          nextPageError={queue.isFetchNextPageError ? queue.error : null}
+          onRetry={() => void queue.refetch()}
+          onRetryNextPage={() => void fetchNextPage()}
+          showReceipts={
+            !bankSource && segmentCounts?.shown !== 'umsaetze' && !firstPage?.taskSources
+          }
+          serverPaginated
+          hasMore={queue.hasNextPage}
+          loadingMore={queue.isFetching}
+          loadMore={() => void fetchNextPage()}
+        />
+      )}
     </>
   );
 }

@@ -223,7 +223,14 @@ describe('income pauses for one expected payment', () => {
       endDate: '2026-08-01',
     });
     expect(attachedPause.status).toBe(201);
-    const sourceDeleted = await call('DELETE', `/expected/${deleted}`);
+    const reviewed = (await call('GET', '/expected')).body.payments.find(
+      (p: any) => p.id === deleted,
+    );
+    expect(reviewed.lifecycle.reviewToken).toMatch(/^[a-f0-9]{64}$/);
+    const sourceDeleted = await call(
+      'DELETE',
+      `/expected/${deleted}?reviewToken=${reviewed.lifecycle.reviewToken}`,
+    );
     expect(sourceDeleted.status).toBe(200);
     expect(
       (await call('GET', '/liquidity/income-pauses')).body.pauses.find(
