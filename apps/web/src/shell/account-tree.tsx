@@ -103,7 +103,7 @@ export function AccountTree() {
             title="Neues Konto anlegen"
             onClick={() => setCreating(true)}
           >
-            <Plus size={18} strokeWidth={1.75} aria-hidden="true" />
+            <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
           </button>
           <AppLink
             className="acct-head-action"
@@ -111,7 +111,7 @@ export function AccountTree() {
             aria-label="Konten verwalten"
             title="Konten verwalten"
           >
-            <Settings size={18} strokeWidth={1.75} aria-hidden="true" />
+            <Settings size={16} strokeWidth={1.75} aria-hidden="true" />
           </AppLink>
         </div>
         {groups.map((g) => (
@@ -148,7 +148,7 @@ function PencilButton(props: {
       aria-hidden={props.mouseOnly ? true : undefined}
       onClick={props.onClick}
     >
-      <Pencil size={13} strokeWidth={1.75} aria-hidden="true" />
+      <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
     </button>
   );
 }

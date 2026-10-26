@@ -328,7 +328,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                   setQuery(preset.query);
                 }}
               >
-                <Bookmark size={13} strokeWidth={1.75} aria-hidden="true" />
+                <Bookmark size={16} strokeWidth={1.75} aria-hidden="true" />
                 {preset.name}
               </button>
             ))}
@@ -343,7 +343,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                     setQuery(view.query);
                   }}
                 >
-                  <Bookmark size={13} strokeWidth={1.75} aria-hidden="true" />
+                  <Bookmark size={16} strokeWidth={1.75} aria-hidden="true" />
                   {view.name}
                 </button>
                 <button
@@ -359,7 +359,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                     setReplace(undefined);
                   }}
                 >
-                  <Pencil size={13} strokeWidth={1.75} aria-hidden="true" />
+                  <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -368,7 +368,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                   disabled={saved.busy}
                   onClick={() => void remove(view)}
                 >
-                  <X size={13} strokeWidth={1.75} aria-hidden="true" />
+                  <X size={16} strokeWidth={1.75} aria-hidden="true" />
                 </button>
               </span>
             ))}
@@ -477,7 +477,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                   size="sm"
                   disabled={!saved.data || saved.data.unavailable || saved.busy}
                 >
-                  <Bookmark size={15} strokeWidth={1.75} aria-hidden="true" />
+                  <Bookmark size={16} strokeWidth={1.75} aria-hidden="true" />
                   Speichern
                 </Button>
                 {editingId && (
@@ -655,7 +655,7 @@ function Pivot({
           disabled={exportDisabled}
           onClick={onExport}
         >
-          <Download size={15} strokeWidth={1.75} aria-hidden="true" />
+          <Download size={16} strokeWidth={1.75} aria-hidden="true" />
           {exporting ? 'CSV wird geprüft …' : 'CSV exportieren'}
         </Button>
       </div>

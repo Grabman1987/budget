@@ -115,13 +115,13 @@ export function OverviewPage() {
               {ordering ? (
                 <Check size={16} strokeWidth={1.75} aria-hidden="true" />
               ) : (
-                <Pencil size={16} aria-hidden="true" />
+                <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
               )}
               {ordering ? 'Fertig' : 'Reihenfolge ändern'}
             </Button>
           )}
           <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus size={16} aria-hidden="true" />
+            <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
             Konto anlegen
           </Button>
         </div>
@@ -458,7 +458,7 @@ function OverviewAccount({
             onClick={() => setExpanded(!expanded)}
           >
             {expanded ? (
-              <ChevronUp size={16} aria-hidden="true" />
+              <ChevronUp size={16} strokeWidth={1.75} aria-hidden="true" />
             ) : (
               <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
             )}

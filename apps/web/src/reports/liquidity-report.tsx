@@ -807,7 +807,7 @@ function EventsCard({ view }: { view: LiquidityReportView }) {
           />
         </div>
         <Button variant="ghost" size="sm" type="submit">
-          <Plus size={14} strokeWidth={1.75} aria-hidden="true" />
+          <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
           Ereignis
         </Button>
         {error && error.field !== 'amount' && (
@@ -1060,7 +1060,7 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
                           );
                         }}
                       >
-                        <CircleMinus size={18} aria-hidden="true" />
+                        <CircleMinus size={16} strokeWidth={1.75} aria-hidden="true" />
                       </Button>
                     )}
                   </td>

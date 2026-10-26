@@ -35,7 +35,7 @@ export function Upcoming({
         title={title}
         aside={
           <AppLink to="/plan/erwartet">
-            Alle <ChevronRight size={15} aria-hidden="true" />
+            Alle <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
           </AppLink>
         }
       />

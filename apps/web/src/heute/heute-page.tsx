@@ -188,12 +188,12 @@ function HeuteBody({ data }: { data: Heute }) {
           aside={
             data.pace.figures.over ? (
               <span className="heute-alert">
-                <ArrowUp size={16} aria-hidden="true" />
+                <ArrowUp size={16} strokeWidth={1.75} aria-hidden="true" />
                 {eur(data.pace.figures.deltaCents, { cents: false })} über Plan
               </span>
             ) : (
               <span className="heute-good">
-                <ArrowDown size={16} aria-hidden="true" />
+                <ArrowDown size={16} strokeWidth={1.75} aria-hidden="true" />
                 {eur(-data.pace.figures.deltaCents, { cents: false })} unter Plan
               </span>
             )
@@ -286,7 +286,7 @@ function HeuteBody({ data }: { data: Heute }) {
           title="Letzte Buchungen"
           aside={
             <AppLink to="/konten/buchungen">
-              Alle <ChevronRight size={15} aria-hidden="true" />
+              Alle <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
             </AppLink>
           }
         />
@@ -341,7 +341,7 @@ function HeuteBody({ data }: { data: Heute }) {
             title="Angepinnte Kategorien"
             aside={
               <AppLink to="/plan/monat" search={{ monat: data.stand.month }}>
-                Plan öffnen <ChevronRight size={15} aria-hidden="true" />
+                Plan öffnen <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
               </AppLink>
             }
           />
@@ -418,7 +418,7 @@ function HeuteBody({ data }: { data: Heute }) {
               title="Vermögensaufteilung"
               aside={
                 <AppLink to="/vermoegen/nettovermoegen">
-                  Details <ChevronRight size={15} aria-hidden="true" />
+                  Details <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
                 </AppLink>
               }
             />
@@ -427,9 +427,9 @@ function HeuteBody({ data }: { data: Heute }) {
               <>
                 <div className={`heute-delta ${net.deltaCents < 0 ? 'text-bad' : 'text-good'}`}>
                   {net.deltaCents < 0 ? (
-                    <ArrowDown size={16} aria-hidden="true" />
+                    <ArrowDown size={16} strokeWidth={1.75} aria-hidden="true" />
                   ) : (
-                    <ArrowUp size={16} aria-hidden="true" />
+                    <ArrowUp size={16} strokeWidth={1.75} aria-hidden="true" />
                   )}
                   {eur(net.deltaCents, { cents: false, sign: true })} · {deltaText}
                 </div>

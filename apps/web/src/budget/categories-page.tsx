@@ -373,7 +373,7 @@ function GroupRows(props: {
                 {target && <span>Ziel {targetText(target)}</span>}
                 {c.hiddenAt && (
                   <span className="cat-hidden">
-                    <EyeOff size={14} strokeWidth={1.75} aria-hidden="true" />
+                    <EyeOff size={16} strokeWidth={1.75} aria-hidden="true" />
                     ausgeblendet
                   </span>
                 )}

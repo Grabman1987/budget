@@ -185,7 +185,7 @@ function SidebarResizeHandle({
       onPointerCancel={onPointerEnd}
       onKeyDown={onKeyDown}
     >
-      <GripVertical size={14} strokeWidth={1.75} aria-hidden="true" />
+      <GripVertical size={16} strokeWidth={1.75} aria-hidden="true" />
     </button>
   );
 }

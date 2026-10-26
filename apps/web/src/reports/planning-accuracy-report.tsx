@@ -89,7 +89,7 @@ export function PlanningAccuracyReportPage({
                 aria-label="Vormonat"
                 onClick={() => shift(-1)}
               >
-                <ChevronLeft size={18} aria-hidden="true" />
+                <ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" />
               </button>
               <span>{monthLabel(month)}</span>
               <button
@@ -98,7 +98,7 @@ export function PlanningAccuracyReportPage({
                 aria-label="Nächster Monat"
                 onClick={() => shift(1)}
               >
-                <ChevronRight size={18} aria-hidden="true" />
+                <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
               </button>
             </span>
           ),

@@ -114,7 +114,7 @@ export function TabBar({ area }: { area: AreaId | undefined }) {
           aria-label="Buchung erfassen"
           hidden={!fabVisible}
         >
-          <Plus size={26} strokeWidth={2} aria-hidden="true" />
+          <Plus size={24} strokeWidth={1.5} aria-hidden="true" />
         </PanelLink>
       </nav>
     </>

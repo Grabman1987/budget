@@ -715,7 +715,7 @@ export function CaptureForm({
           title="Schließen"
           onClick={requestClose}
         >
-          <X size={18} strokeWidth={1.75} aria-hidden="true" />
+          <X size={16} strokeWidth={1.75} aria-hidden="true" />
         </button>
       </div>
       <div className="bk-body kform">
@@ -1056,7 +1056,7 @@ function DateField({
               onBlur={() => parsed && set('date', parsed)}
             />
             <span className="bk-calendar">
-              <CalendarDays size={18} aria-hidden="true" />
+              <CalendarDays size={16} strokeWidth={1.75} aria-hidden="true" />
               <input
                 type="date"
                 aria-label="Datum im Kalender"

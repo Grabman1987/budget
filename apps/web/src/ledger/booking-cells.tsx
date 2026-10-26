@@ -114,7 +114,7 @@ export function CategoryCell({
   if (booking.splits.length > 1) {
     return (
       <span className="kcat">
-        <Split className="icon" size={14} strokeWidth={1.75} aria-hidden="true" />
+        <Split className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
         Aufgeteilt ({booking.splits.length})
       </span>
     );

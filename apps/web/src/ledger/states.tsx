@@ -7,7 +7,7 @@ import { errorText } from './labels';
 export function LoadingNote({ what }: { what: string }) {
   return (
     <p className="rev-empty" role="status" aria-busy="true">
-      <Loader2 className="icon spin" size={18} strokeWidth={1.75} aria-hidden="true" />
+      <Loader2 className="icon spin" size={16} strokeWidth={1.75} aria-hidden="true" />
       {what} werden geladen …
     </p>
   );

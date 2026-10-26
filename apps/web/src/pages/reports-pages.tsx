@@ -62,7 +62,7 @@ function Controls({ report }: { report: ReportEntry }) {
       {report.controls.includes('print') && (
         <>
           {' · '}
-          <Printer className="icon icon-xs" size={13} strokeWidth={1.75} aria-label="Druckblatt" />
+          <Printer className="icon icon-xs" size={16} strokeWidth={1.75} aria-label="Druckblatt" />
         </>
       )}
     </>

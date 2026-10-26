@@ -1,8 +1,28 @@
 import AxeBuilder from '@axe-core/playwright';
+import type { Page } from '@playwright/test';
 import { expect, sampleTest as test } from './sample';
+
+async function expectVisibleIconScale(page: Page) {
+  const failures = await page.locator('svg.lucide:visible').evaluateAll((icons) =>
+    icons.flatMap((icon) => {
+      const style = getComputedStyle(icon);
+      const width = Number.parseFloat(style.width);
+      const height = Number.parseFloat(style.height);
+      const stroke = Number.parseFloat(style.strokeWidth);
+      const expected = width === 16 ? 1.75 : 1.5;
+      return [16, 20, 24].includes(width) && height === width && stroke === expected
+        ? []
+        : [
+            `${icon.getAttribute('class')}: ${style.width} × ${style.height}, stroke ${style.strokeWidth}`,
+          ];
+    }),
+  );
+  expect(failures).toEqual([]);
+}
 
 test('icon sizes, swatches and disclosure carets use their rendered styles', async ({ page }) => {
   await page.goto('/plan/monat?monat=2026-09');
+  await expectVisibleIconScale(page);
   const planNavIcon = page.locator('a[href="/plan/monat"] svg:visible').first();
   await expect(planNavIcon).toBeVisible();
   const navStyle = await planNavIcon.evaluate((svg) => {
@@ -49,6 +69,7 @@ test('icon sizes, swatches and disclosure carets use their rendered styles', asy
   await menu.locator('summary').click();
 
   await page.goto('/plan/jahr?monat=2026-09');
+  await expectVisibleIconScale(page);
   const infoSummary = page.locator('.year-instructions > summary').first();
   await expect(infoSummary.locator('svg.lucide-info')).toBeVisible();
   expect(await infoSummary.evaluate((el) => getComputedStyle(el, '::before').maskImage)).not.toBe(
@@ -62,6 +83,7 @@ test('icon sizes, swatches and disclosure carets use their rendered styles', asy
 
   await page.goto('/vermoegen/portfolio');
   await page.getByRole('button', { name: 'Rendite %', exact: true }).click();
+  await expectVisibleIconScale(page);
   const returnSummary = page.getByTestId('portfolio-return');
   await expect(returnSummary.locator('svg.lucide-info')).toBeVisible();
   expect(await returnSummary.evaluate((el) => getComputedStyle(el, '::before').maskImage)).not.toBe(
@@ -72,10 +94,11 @@ test('icon sizes, swatches and disclosure carets use their rendered styles', asy
 test('labelled booking status and capture caret remain usable on phone and desktop', async ({
   page,
   isMobile,
-}) => {
+}, info) => {
   await page.goto('/?panel=buchung');
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await expect(dialog).toBeVisible();
+  await expectVisibleIconScale(page);
   const status = dialog.getByRole('button', { name: 'Vorgemerkt', exact: true });
   await expect(status).toHaveText('Vorgemerkt');
   await expect(status).toHaveAttribute('aria-pressed', 'false');
@@ -103,5 +126,43 @@ test('labelled booking status and capture caret remain usable on phone and deskt
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
     const axe = await new AxeBuilder({ page }).include('dialog').analyze();
     expect(axe.violations.map((violation) => violation.id)).toEqual([]);
+    if (
+      (info.project.name === 'desktop' && scheme === 'light') ||
+      (info.project.name === 'webkit-iphone' && scheme === 'dark')
+    ) {
+      await page.screenshot({
+        path: info.outputPath(`icons-471-capture-${scheme}.png`),
+        fullPage: true,
+      });
+    }
   }
 });
+
+for (const [name, route] of [
+  ['plan-month', '/plan/monat?monat=2026-09'],
+  ['plan-year', '/plan/jahr?monat=2026-09'],
+  ['portfolio', '/vermoegen/portfolio'],
+] as const) {
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`${name} icons and page accessibility in ${scheme}`, async ({ page }, info) => {
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+      await page.goto(route);
+      await expect(page.locator('main')).toBeVisible();
+      await expectVisibleIconScale(page);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      const axe = await new AxeBuilder({ page }).include('main').analyze();
+      expect(axe.violations.map((violation) => violation.id)).toEqual([]);
+      if (
+        (info.project.name === 'desktop' && scheme === 'light') ||
+        (info.project.name === 'webkit-iphone' && scheme === 'dark')
+      ) {
+        await page.screenshot({
+          path: info.outputPath(`icons-471-${name}-${scheme}.png`),
+          fullPage: true,
+        });
+      }
+    });
+  }
+}
