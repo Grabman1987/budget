@@ -117,3 +117,14 @@ one-pixel center threshold, native animation, themes, Axe, cancellation/no-write
 focus, confirmation and all deadlines. It additionally requires the named close
 button to be visible. No product source or financial expectation changes. Scoped
 Linux proof and independent review remain required before the final full run.
+
+Independent review is CLEAR at `78a6905e`. The completed run `40306173072`
+failed the shared mobile popup case only; the other eleven browser groups and
+static/unit/Windows/visual/Docker/restore checks passed. Scoped Linux run
+[40309581970](https://github.com/Grabman1987/budget/actions/runs/40309581970)
+checked out exact `78a6905e12f7fd3ecc510dc64c5f12876aa23ebe` and passed **4/4
+in 18.6 seconds** (three setup cases and the mobile bank-popup flow), without
+retries, failures, skips or baseline changes. It retains both themes and the
+original strict geometry and financial/action assertions. The remote test branch
+remained at the tested commit. No product source changed. Final complete PR CI
+and live publication remain outstanding.
