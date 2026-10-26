@@ -296,6 +296,26 @@ export const expectedPayment = sqliteTable(
   ],
 );
 
+/** Inclusive forward pause ranges. Retained rows and audit preserve Undo/history. */
+export const expectedPaymentPause = sqliteTable(
+  'expected_payment_pause',
+  {
+    id: id(),
+    expectedPaymentId: text('expected_payment_id')
+      .notNull()
+      .references(() => expectedPayment.id),
+    fromDate: text('from_date').notNull(),
+    throughDate: text('through_date').notNull(),
+    ...timestamps(),
+  },
+  (t) => [
+    isoDay('expected_pause_from_chk', t.fromDate),
+    isoDay('expected_pause_through_chk', t.throughDate),
+    check('expected_pause_order_chk', sql`${t.fromDate} <= ${t.throughDate}`),
+    index('expected_pause_payment_range_idx').on(t.expectedPaymentId, t.fromDate, t.throughDate),
+  ],
+);
+
 /**
  * Amount of an expected payment from `valid_from` on. Versions are immutable (a trigger in the
  * migration refuses changes to anything but `deleted_at`/`updated_at`): a price change is a new

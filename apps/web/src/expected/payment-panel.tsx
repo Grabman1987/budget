@@ -9,7 +9,7 @@ import {
   TextInput,
   maskMoneyText,
 } from '@budget/ui';
-import { addMonths, monthOf, parseAmount, todayInVienna } from '@budget/domain';
+import { addDays, addMonths, monthOf, parseAmount, todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { useBudgetWrite } from '../budget/use-category-writes';
@@ -21,6 +21,8 @@ import {
   addVersion,
   createPayment,
   deletePayment,
+  pausePayment,
+  endPayment,
   expectedQuery,
   linkOccurrence,
   markMissed,
@@ -161,7 +163,9 @@ function ViewBody({ payment: p, onDone }: { payment: ExpectedPayment; onDone: ()
   const write = useBudgetWrite();
   const currency = p.version?.currency ?? 'EUR';
   const [editing, setEditing] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [action, setAction] = useState<{ kind: 'pause' | 'end'; reviewToken: string } | null>(null);
+  const reviewToken = p.lifecycle?.reviewToken;
   const [busy, setBusy] = useState(false);
   return (
     <div className="kform xp-panel">
@@ -172,35 +176,97 @@ function ViewBody({ payment: p, onDone }: { payment: ExpectedPayment; onDone: ()
         <p className="panel-sub">
           {cadenceText(p)}
           {p.nextDueDate && ` · nächste Fälligkeit ${longDay(p.nextDueDate)}`}
+          {!p.nextDueDate && ' · keine Fälligkeit im Vorschauzeitraum'}
         </p>
       </div>
+      {p.lifecycle?.pauses.map((pause) => (
+        <p className="field-hint" key={pause.fromDate}>
+          Pause von {longDay(pause.fromDate)} bis einschließlich {longDay(pause.throughDate)}.
+        </p>
+      ))}
+      {p.lifecycle?.endedFrom && (
+        <p className="field-hint">
+          Beendet ab {longDay(p.lifecycle.endedFrom)}. Der bisherige Verlauf bleibt erhalten.
+        </p>
+      )}
+      {!reviewToken && (
+        <p className="field-hint">
+          Pausieren und Beenden sind derzeit nicht sicher prüfbar. Bitte die Zahlung neu laden.
+        </p>
+      )}
       <VersionsSection payment={p} />
       <OccurrencesSection payment={p} />
       <div className="panel-actions">
         <Button variant="ghost" onClick={() => setEditing(true)}>
           Bearbeiten
         </Button>
-        <Button variant="ghost" onClick={() => setDeleting(true)}>
-          Löschen
+        <Button
+          variant="ghost"
+          disabled={!reviewToken}
+          onClick={() => reviewToken && setAction({ kind: 'pause', reviewToken })}
+        >
+          Pausieren bis
         </Button>
+        <Button
+          variant="ghost"
+          disabled={!reviewToken}
+          onClick={() => reviewToken && setAction({ kind: 'end', reviewToken })}
+        >
+          Beenden ab
+        </Button>
+        {p.lifecycle?.deletion === 'neverAssigned' && (
+          <Button
+            variant="ghost"
+            disabled={!reviewToken}
+            onClick={() => reviewToken && setDeleting(reviewToken)}
+          >
+            Löschen
+          </Button>
+        )}
       </div>
+      {p.lifecycle?.deletion !== 'neverAssigned' && (
+        <p className="field-hint">
+          {p.lifecycle?.deletion === 'everAssigned'
+            ? 'Dieser Zahlung war bereits eine Buchung zugeordnet.'
+            : 'Eine durchgehend leere Zuordnungshistorie ist nicht belegt.'}{' '}
+          Bitte „Beenden ab“ verwenden; der Verlauf bleibt erhalten.
+        </p>
+      )}
+      <PaymentDialog
+        open={action !== null}
+        title={action?.kind === 'pause' ? 'Zahlung pausieren' : 'Zahlung beenden'}
+        busy={busy}
+        onClose={() => setAction(null)}
+      >
+        {action && (
+          <LifecycleAction
+            payment={p}
+            action={action}
+            write={write}
+            busy={busy}
+            setBusy={setBusy}
+            onDone={() => setAction(null)}
+          />
+        )}
+      </PaymentDialog>
       <PaymentDialog open={editing} title="Zahlung bearbeiten" onClose={() => setEditing(false)}>
         {editing && <EditSection payment={p} onDone={() => setEditing(false)} write={write} />}
       </PaymentDialog>
       <PaymentDialog
-        open={deleting}
+        open={deleting !== null}
         title="Zahlung löschen"
         busy={busy}
-        onClose={() => setDeleting(false)}
+        onClose={() => setDeleting(null)}
       >
         <p>„{p.name}“ als wiederkehrende Zahlung löschen? Bestehende Buchungen bleiben erhalten.</p>
-        <div className="panel-actions">
+        <div className="panel-actions xp-lifecycle-actions">
           <Button
             disabled={busy}
             onClick={async () => {
+              if (deleting === null) return;
               setBusy(true);
               const done = await write(
-                () => deletePayment(p.id),
+                () => deletePayment(p.id, deleting),
                 () => `${p.name}: wiederkehrende Zahlung gelöscht`,
               );
               setBusy(false);
@@ -209,12 +275,98 @@ function ViewBody({ payment: p, onDone }: { payment: ExpectedPayment; onDone: ()
           >
             Löschen bestätigen
           </Button>
-          <Button variant="ghost" disabled={busy} onClick={() => setDeleting(false)}>
+          <Button variant="ghost" disabled={busy} onClick={() => setDeleting(null)}>
             Abbrechen
           </Button>
         </div>
       </PaymentDialog>
     </div>
+  );
+}
+
+/** The reviewed token stays with this dialog, even if background data refreshes. */
+function LifecycleAction({
+  payment,
+  action,
+  write,
+  busy,
+  setBusy,
+  onDone,
+}: {
+  payment: ExpectedPayment;
+  action: { kind: 'pause' | 'end'; reviewToken: string };
+  write: ReturnType<typeof useBudgetWrite>;
+  busy: boolean;
+  setBusy: (value: boolean) => void;
+  onDone: () => void;
+}) {
+  const [today] = useState(todayInVienna);
+  const [day, setDay] = useState(() => (action.kind === 'pause' ? addDays(today, 30) : today));
+  const [error, setError] = useState<string>();
+  const pause = action.kind === 'pause';
+  const submit = async () => {
+    const time = Date.parse(day + 'T12:00:00Z');
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(day) ||
+      !Number.isFinite(time) ||
+      new Date(time).toISOString().slice(0, 10) !== day ||
+      day < today
+    ) {
+      setError('Bitte heute oder einen späteren Tag wählen.');
+      return;
+    }
+    setError(undefined);
+    setBusy(true);
+    const done = await write(
+      () =>
+        pause
+          ? pausePayment(payment.id, day, action.reviewToken)
+          : endPayment(payment.id, day, action.reviewToken),
+      () =>
+        `${payment.name}: ${pause ? 'pausiert bis einschließlich' : 'beendet ab'} ${longDay(day)}`,
+    );
+    setBusy(false);
+    if (done) onDone();
+  };
+  return (
+    <form
+      className="kform xp-lifecycle"
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        void submit();
+      }}
+    >
+      <p>
+        {pause
+          ? 'Ab heute entfallen noch offene Termine bis einschließlich zum gewählten Tag. Danach gilt wieder der bisherige Rhythmus.'
+          : 'Ab dem gewählten Tag entstehen keine neuen offenen Termine mehr.'}{' '}
+        Vergangene Termine und bestehende Buchungszuordnungen bleiben erhalten.
+      </p>
+      <Field label={pause ? 'Pausieren bis einschließlich' : 'Beenden ab'} error={error}>
+        {({ id, describedBy, invalid }) => (
+          <TextInput
+            id={id}
+            type="date"
+            min={today}
+            value={day}
+            disabled={busy}
+            aria-describedby={describedBy}
+            aria-invalid={invalid}
+            onChange={(event) => setDay(event.target.value)}
+          />
+        )}
+      </Field>
+      <p className="field-hint">Die gesamte Aktion kann über „Rückgängig“ zurückgenommen werden.</p>
+      <div className="panel-actions">
+        <Button type="submit" disabled={busy}>
+          {pause ? 'Pause speichern' : 'Beenden bestätigen'}
+        </Button>
+        <Button variant="ghost" disabled={busy} onClick={onDone}>
+          Abbrechen
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -665,17 +817,18 @@ function EditSection({
   write: ReturnType<typeof useBudgetWrite>;
 }) {
   useAmountPrivacy();
-  const [draft, setDraft] = useState<PaymentDraft>(() => draftFromPayment(p));
+  const [original] = useState(p);
+  const [draft, setDraft] = useState<PaymentDraft>(() => draftFromPayment(original));
   const [errors, setErrors] = useState<DraftErrors>({});
   const [busy, setBusy] = useState(false);
   const set = <K extends DraftField>(key: K, value: PaymentDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
   const save = async () => {
-    const read = readDraft(draft, false);
+    const read = readDraft(draft, false, draftFromPayment(original));
     setErrors(read.errors);
     if (!read.fields) return;
-    const patch = changedFields(p, read.fields);
+    const patch = changedFields(original, read.fields);
     if (Object.keys(patch).length === 0) return;
     setBusy(true);
     const done = await write(

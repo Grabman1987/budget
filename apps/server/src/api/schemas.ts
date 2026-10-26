@@ -395,6 +395,15 @@ export const expectedOccurrencesQuery = z.object({
 export const expectedIncomeQuery = z.object({ month });
 export const expectedLinkBody = z.object({ bookingId: id });
 export const expectedSkipBody = z.object({ dueDate: day });
+export const expectedPauseBody = z
+  .object({ throughDate: day, reviewToken: z.string().regex(/^[a-f0-9]{64}$/) })
+  .strict();
+export const expectedEndBody = z
+  .object({ fromDate: day, reviewToken: z.string().regex(/^[a-f0-9]{64}$/) })
+  .strict();
+export const expectedDeleteQuery = z.object({
+  reviewToken: z.string().regex(/^[a-f0-9]{64}$/),
+});
 
 // ---------- savings goals ----------
 const goalFields = {
