@@ -443,6 +443,7 @@ test('empty due and next-step blocks disappear while data-list empty states stay
       actionRules: [],
       counts: {
         ...data.financeCheck.counts,
+        ok: data.financeCheck.counts.total,
         bad: 0,
         warn: 0,
         notEvaluated: 0,

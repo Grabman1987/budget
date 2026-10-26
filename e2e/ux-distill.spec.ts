@@ -1,7 +1,6 @@
 import { sampleTest as test, expect as baseExpect } from './sample';
 import { test as isolatedTest } from './isolated-ledger';
 import AxeBuilder from '@axe-core/playwright';
-import { mkdirSync } from 'node:fs';
 import type { Heute } from '../apps/web/src/heute/api';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
@@ -9,8 +8,6 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 test('UX-2 sample evidence: Heute and Plan', async ({ page }, info) => {
   test.setTimeout(60_000);
   const phase = process.env['UX_CAPTURE_BEFORE'] ? 'before' : 'after';
-  const dir = 'docs/evidence/ux-distill-1005';
-  mkdirSync(dir, { recursive: true });
   for (const [name, path] of [
     ['heute', '/?monat=2026-09'],
     ['plan', '/plan/monat?monat=2026-09'],
@@ -20,7 +17,7 @@ test('UX-2 sample evidence: Heute and Plan', async ({ page }, info) => {
     else await expect(page.locator('.ptable')).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({
-      path: `${dir}/${phase}-${name}-${info.project.name}.png`,
+      path: info.outputPath(`${phase}-${name}-${info.project.name}.png`),
       fullPage: true,
       animations: 'disabled',
     });

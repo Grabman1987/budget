@@ -1,5 +1,4 @@
 import AxeBuilder from '@axe-core/playwright';
-import { mkdirSync } from 'node:fs';
 import { sampleTest as test, expect as baseExpect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
 import type { RuleBook } from '../apps/web/src/rules/api';
@@ -102,10 +101,8 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
           .analyze()
       ).violations,
     ).toEqual([]);
-    const dir = 'docs/evidence/heute-hints-1009';
-    mkdirSync(dir, { recursive: true });
     await page.screenshot({
-      path: `${dir}/${info.project.name}-${theme}.png`,
+      path: info.outputPath(`heute-hints-${info.project.name}-${theme}.png`),
       fullPage: true,
       animations: 'disabled',
     });

@@ -32,7 +32,7 @@ The accepted #573/#603 UI removes the standalone Finanz-Check tile and defaults 
 | --- | --- |
 | `e2e/attention.spec.ts` | Its intended quiet GET fixture now explicitly clears server-provided close tasks, account/loan/quote tasks and missing-rule availability before asserting no task block. |
 | `e2e/heute.spec.ts` | Replaces default-on pin and removed tile selectors with default-off → opt-in → reload persistence, a bad-only summary backed by the actual Heute response, order, rule destination and zero write checks. Its empty fixture clears all task sources; money, forecast, capture, Undo, source amounts and existing deadlines remain. |
-| `e2e/heute-attention-mobile-shell.spec.ts` | Counts the first four rows separately from the reachable fifth close action; checks accepted order, stored pin switch, no API writes, both-theme Axe/overflow and 44 px controls including new view controls. Quiet missing-rule data stays explicit in availability, then a truly clean fixture hides the section. The obsolete 900 px fold check followed the superseded section order. |
+| `e2e/heute-attention-mobile-shell.spec.ts` | Counts the first four rows separately from the reachable fifth close action; checks accepted order, stored pin switch, no API writes, both-theme Axe/overflow and 44 px controls including new view controls. Quiet missing-rule data stays explicit in availability, then a truly clean fixture hides the section. The original desktop 900 px bound is retained for the collapsed four-row state after a deliberate scroll to the top. Both disclosures are then opened before measuring their visible controls. |
 | `e2e/heute-hints-1009.spec.ts` | Two bad rule facts now make one summary row, with three unavailable inputs in the disclosure. The real API count conservation and rulebook destinations remain checked; old tile text is no longer a UI oracle. |
 | `e2e/missing-quotes.spec.ts` | Replaces tile visibility with the quote-review task before a real quote and its absence after redo; existing valuation amount/source/Undo assertions stay. |
 | `e2e/issue-570-heute-titelblatt.spec.ts` | Current-only labels now target the retained wealth and task sections instead of the removed Finanz-Check tile. |
@@ -40,6 +40,15 @@ The accepted #573/#603 UI removes the standalone Finanz-Check tile and defaults 
 | `e2e/ux-distill.spec.ts` | Counts four visible plus one reachable source row and opts into pinned categories before asserting its red amount. Adds the required `urgent` flag to the existing synthetic overspent fixture; original amount and destination assertions remain. |
 
 Scoped changed-file ESLint, Prettier and `git diff --check` passed. A diagnostic ad hoc E2E TypeScript invocation exposed one new Playwright option typo and one pre-existing incomplete synthetic `urgent` field; both were corrected. With the web project's ES2023/Vite type options, only two existing `e2e/sample.ts` Playwright fixture-option errors remain. The repository has no E2E tsconfig, so this ad hoc invocation is not reported as a passing typecheck. Required browser, Axe, touch and screenshots are pending canonical execution.
+
+Review did not establish that the accepted section order superseded the 900 px
+bound; its earlier removal was corrected before any browser run. The quiet
+fixture now also marks the retained total as `ok` when bad/warn/not-evaluated
+counts are zero, preserving its count conservation. Current captures in the
+mobile-shell, hints and UX-distill specs use `info.outputPath` so the scoped PNG
+artifact retains them without overwriting revision-scoped historical images.
+These corrections change test setup/evidence only, not product code, financial
+expectations, budgets or retry settings. Actual browser results remain pending.
 
 Suggested bounded Linux runs (after the E2E build) are:
 

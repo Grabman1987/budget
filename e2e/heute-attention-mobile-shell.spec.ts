@@ -1,5 +1,4 @@
 import AxeBuilder from '@axe-core/playwright';
-import { mkdirSync } from 'node:fs';
 import { sampleTest as test, expect as baseExpect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
 
@@ -50,6 +49,20 @@ test('Today groups work, preserves its review destinations and distinguishes sel
   await expect(page.getByRole('heading', { name: 'Fällig 14 Tage', exact: true })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: /Danach/ })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  const remaining = tasks.locator('.attention-remaining');
+  const preferences = page.locator('.heute-view-preferences details');
+  await expect(remaining).not.toHaveAttribute('open', /.*/);
+  await expect(preferences).not.toHaveAttribute('open', /.*/);
+  if (info.project.name === 'desktop') {
+    await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
+    const collapsed = await tasks.boundingBox();
+    expect(collapsed).not.toBeNull();
+    expect(collapsed!.y).toBeGreaterThanOrEqual(0);
+    expect(collapsed!.y + collapsed!.height).toBeLessThan(900);
+  }
+  await remaining.locator('summary').click();
+  await preferences.locator('summary').click();
+  await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
   if (info.project.name !== 'desktop') await tasks.scrollIntoViewIfNeeded();
 
   for (const theme of ['light', 'dark']) {
@@ -69,10 +82,8 @@ test('Today groups work, preserves its review destinations and distinguishes sel
         }),
       );
     expect(targets.filter((box) => box.width < 44 || box.height < 44)).toEqual([]);
-    const dir = 'docs/evidence/heute-attention-q3';
-    mkdirSync(dir, { recursive: true });
     await page.screenshot({
-      path: `${dir}/${info.project.name}-${theme}.png`,
+      path: info.outputPath(`heute-tasks-${info.project.name}-${theme}.png`),
       fullPage: false,
       animations: 'disabled',
     });
