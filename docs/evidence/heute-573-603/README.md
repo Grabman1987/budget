@@ -56,3 +56,18 @@ Suggested bounded Linux runs (after the E2E build) are:
 npx playwright test e2e/attention.spec.ts e2e/heute.spec.ts e2e/heute-attention-mobile-shell.spec.ts e2e/heute-hints-1009.spec.ts e2e/missing-quotes.spec.ts e2e/issue-570-heute-titelblatt.spec.ts e2e/portfolio-trades.spec.ts e2e/ux-distill.spec.ts --project=desktop --project=mobile
 npx playwright test e2e/heute-attention-mobile-shell.spec.ts e2e/issue-570-heute-titelblatt.spec.ts --project=webkit-iphone
 ```
+
+## First canonical Linux browser run and bounded follow-up
+
+The first Linux run at `da28b3ed` selected 91 cases: 84 passed, five failed and two existing intentional cases skipped. The five failures reduce to three causes; the run log and screenshots are retained in `private/573-603-first-linux.log` and `private/573-603-first-browser-screenshots`. The follow-up keeps all money, quote, Undo, write, deadline, retry and accessibility assertions.
+
+| File | Follow-up reason |
+| --- | --- |
+| `apps/web/src/heute/heute-page.tsx` | Puts the existing Pace section before the existing compact forecast, as the 16 October accepted order says; no chart, calculation or data source changed. |
+| `e2e/ux-distill.spec.ts` | Replaces the obsolete physical section list with answers → lead → Pace → forecast → wealth → tasks → due → recent → more; checks every section exists and retains the ordered geometry, fold persistence and independent net-worth equality. |
+| `e2e/pace-marker.spec.ts` | Updates only its immediate DOM-neighbor assertion to the accepted Pace → forecast order. The chart lines, values, tooltip, keyboard and marker checks stay intact. |
+| `e2e/missing-quotes.spec.ts` | The account/quote action can be the fifth task in the complete pool. Opens its existing reachable **Weitere Aufgaben** disclosure when that row is there, then asserts the unique visible row, exact quote count and visible **Kurse prüfen** link. The API count, valuation, manual quote and Undo checks remain. |
+
+The protected desktop `e2e/heute-attention-mobile-shell.spec.ts` check still requires the collapsed task section to end before 900 px. It failed at **2046.84 px** in the first Linux run. The 1440×4245 screenshot shows the title, three KPIs, lead, full forecast and Pace charts, wealth and five task rows in the accepted sequence. The current SVGs alone are 280 px (Pace) and 248 px (compact forecast); their headings, Pace figures, labels and notes add height, and `.heute` uses 38 px section gaps. A desktop two-column chart row could save approximately 350–450 px, still leaving the tasks around 1550–1650 px. Even removing both complete chart sections would not plausibly place the wealth and task rows before 900 px. This is a measured layout/acceptance conflict; the bound, chart content and task priority remain unchanged pending an owner-reviewed layout decision. No local browser attempt was made.
+
+Follow-up checks on Node 22: web typecheck passed; scoped ESLint and Prettier passed; affected forecast/attention Vitest files passed **15/15** with `--maxWorkers=1`. Canonical Linux rerun remains pending.

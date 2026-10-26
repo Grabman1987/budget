@@ -36,14 +36,17 @@ test('Heute keeps its device fold choice and the primary order, net worth matche
   const boxes = await Promise.all(
     [
       '.heute-answers',
-      '.heute-attention',
       '.heute-lead',
       '.heute-pace',
-      '#heute-upcoming-title',
+      '.heute-compact-forecast',
       '.heute-wealth-line',
+      '.heute-attention',
+      '#heute-upcoming-title',
+      '#heute-bookings-title',
       '.heute-more',
     ].map((selector) => page.locator(selector).boundingBox()),
   );
+  expect(boxes.every((box) => box !== null)).toBe(true);
   for (let i = 1; i < boxes.length; i++) expect(boxes[i]!.y).toBeGreaterThan(boxes[i - 1]!.y);
   const today: Heute = await (await page.request.get('/api/heute')).json();
   const wealth = await (await page.request.get('/api/wealth/networth?period=1J')).json();

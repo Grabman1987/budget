@@ -105,8 +105,19 @@ test('a position without market quote is valued at cost and flagged; the first q
   await expect(todaySource).toContainText('Einstandswert als Schätzung');
   await expect(page.getByTestId('valuation-hint')).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await expect(page.getByText('1 Wertpapier ohne aktuellen Kurs', { exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Kurse prüfen', exact: true })).toHaveCount(1);
+  const quoteTask = page
+    .getByRole('region', { name: 'Zu tun', exact: true })
+    .locator('.attention-row')
+    .filter({ hasText: 'Wertpapier ohne aktuellen Kurs' });
+  await expect(quoteTask).toHaveCount(1);
+  const remainingQuoteTask = page
+    .locator('.heute-attention .attention-remaining .attention-row')
+    .filter({ hasText: 'Wertpapier ohne aktuellen Kurs' });
+  if (await remainingQuoteTask.count())
+    await page.locator('.heute-attention .attention-remaining summary').click();
+  await expect(quoteTask).toBeVisible();
+  await expect(quoteTask).toContainText('1 Wertpapier ohne aktuellen Kurs');
+  await expect(quoteTask.getByRole('link', { name: 'Kurse prüfen', exact: true })).toBeVisible();
   const todayResponse = await request.get(`${origin}/api/heute`);
   expect(todayResponse.status()).toBe(200);
   expect((await todayResponse.json()).attention.quoteReview).toEqual({

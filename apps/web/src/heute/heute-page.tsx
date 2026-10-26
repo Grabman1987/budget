@@ -181,8 +181,6 @@ function HeuteBody({ data }: { data: Heute }) {
         )}
       </section>
 
-      <CompactForecastCard />
-
       <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">
         <SectionHead
           id="heute-pace-title"
@@ -258,6 +256,8 @@ function HeuteBody({ data }: { data: Heute }) {
             ' Für eine Prognose braucht es einen positiven Plan.'}
         </p>
       </section>
+
+      <CompactForecastCard />
 
       <HeuteWealthLine data={data} />
       <AttentionBar
