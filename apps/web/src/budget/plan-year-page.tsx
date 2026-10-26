@@ -11,7 +11,7 @@ import {
   type PlanYearRow,
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { eur } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
@@ -97,46 +97,44 @@ export function PlanYearPage() {
           <LoadingNote what="Jahresplan" />
         ) : (
           <>
-            {reports.isError ? (
-              <ErrorNote
-                what="Jahressummen"
-                error={reports.error}
-                onRetry={() => void reports.refetch()}
-              />
-            ) : reports.data ? (
-              (() => {
-                const source = reports.data;
-                const period = buildYearView(
-                  source.months,
-                  year,
-                  source.lastFullMonth,
-                ).months.filter((m) => m !== null);
-                const totals = savingsRateOf(period, source);
-                return (
-                  <section className="card year-sheet" aria-label="Jahressummen des Haushalts">
-                    <dl className="year-totals">
-                      <div>
-                        <dt>Haushaltseinnahmen</dt>
-                        <dd>{eur(totals.incomeCents)}</dd>
-                      </div>
-                      <div>
-                        <dt>Konsum (Bedarf und Wunsch)</dt>
-                        <dd>{eur(totals.consumptionCents)}</dd>
-                      </div>
-                    </dl>
-                    <p className="year-note">
-                      Abgeschlossene Monate wie im Jahresreport. Erstattungen mindern Konsum;
-                      Kapitalerträge, Umbuchungen und Eröffnungssalden sind keine
-                      Haushaltseinnahmen. Die Envelope-Tabelle zeigt Budgetbewegungen und den
-                      gespeicherten Plan.
-                    </p>
-                  </section>
-                );
-              })()
-            ) : (
-              <LoadingNote what="Jahressummen" />
-            )}
-            <YearPlanning key={`events-${year}`} year={year} selectedMonth={month} views={views} />
+            <YearPlanning
+              key={`events-${year}`}
+              year={year}
+              selectedMonth={month}
+              views={views}
+              context={
+                reports.isError ? (
+                  <ErrorNote
+                    what="Jahressummen"
+                    error={reports.error}
+                    onRetry={() => void reports.refetch()}
+                  />
+                ) : reports.data ? (
+                  (() => {
+                    const source = reports.data;
+                    const period = buildYearView(
+                      source.months,
+                      year,
+                      source.lastFullMonth,
+                    ).months.filter((m) => m !== null);
+                    const totals = savingsRateOf(period, source);
+                    return (
+                      <>
+                        <span>
+                          Einnahmen: <strong>{eur(totals.incomeCents)}</strong>
+                        </span>
+                        <span>
+                          Konsum: <strong>{eur(totals.consumptionCents)}</strong>
+                        </span>
+                        <small>Abgeschlossene Monate · wie im Jahresreport</small>
+                      </>
+                    );
+                  })()
+                ) : (
+                  <LoadingNote what="Jahressummen" />
+                )
+              }
+            />
             <YearOverview
               key={year}
               year={year}
@@ -165,7 +163,8 @@ function YearOverview({
   useAmountPrivacy();
   const [metric, setMetric] = useState<Metric>('assignedCents');
   const [phoneMonth, setPhoneMonth] = useState(selectedMonth);
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const isCollapsed = (id: string) => !expanded.has(id);
   const rows = planYearRows(
     year,
     views.map((v) => v.summary),
@@ -205,7 +204,7 @@ function YearOverview({
   const total = sumPlanYearRows(shown);
   const monthIndex = months.indexOf(phoneMonth);
   const toggle = (id: string) =>
-    setCollapsed((previous) => {
+    setExpanded((previous) => {
       const next = new Set(previous);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -213,10 +212,30 @@ function YearOverview({
     });
   const name = (id: string) => metadata.get(id)?.name ?? 'Kategorie nicht mehr verfügbar';
   const label = metrics.find(([key]) => key === metric)![1];
+  const totals = (
+    <dl className="year-totals" aria-label="Jahreswerte aller Envelopes">
+      {metrics.map(([key, text]) => (
+        <div key={key}>
+          <dt>{key === 'availableCents' ? 'Verfügbar · Dezember' : `${text} · Jahr`}</dt>
+          <dd>{eur(total.year[key])}</dd>
+        </div>
+      ))}
+    </dl>
+  );
   return (
     <section className="card year-sheet" aria-labelledby="year-title">
       <div className="year-toolbar">
         <h2 id="year-title">Jahresübersicht</h2>
+        <label className="year-month-choice">
+          <span className="sr-only">Monat</span>
+          <Select value={phoneMonth} onChange={(e) => setPhoneMonth(e.target.value)}>
+            {months.map((m) => (
+              <option key={m} value={m}>
+                {monthLabel(m)}
+              </option>
+            ))}
+          </Select>
+        </label>
         <div className="seg year-metric" role="group" aria-label="Kennzahl im Jahresplan">
           {metrics.map(([key, text]) => (
             <button
@@ -230,10 +249,15 @@ function YearOverview({
           ))}
         </div>
       </div>
-      <p className="year-note">
-        Zugewiesen und Aktivität: Summe des Jahres. Verfügbar: Stand im Dezember, inklusive
-        Übertrag. Künftige Monate zeigen den gespeicherten Plan, keine Prognose.
-      </p>
+      <details className="year-instructions">
+        <summary>
+          <Info aria-hidden="true" size={16} /> Kennzahlen der Jahrestabelle
+        </summary>
+        <p className="year-note">
+          Zugewiesen und Aktivität: Summe des Jahres. Verfügbar: Stand im Dezember, inklusive
+          Übertrag. Künftige Monate zeigen den gespeicherten Plan, keine Prognose.
+        </p>
+      </details>
       {shown.length === 0 ? (
         <p className="year-empty">
           Noch keine Envelopes vorhanden. Kategorien legst du unter Einstellungen an.
@@ -271,20 +295,20 @@ function YearOverview({
                     <th scope="row">
                       <button
                         type="button"
-                        aria-expanded={!collapsed.has(group.id)}
+                        aria-expanded={!isCollapsed(group.id)}
                         onClick={() => toggle(group.id)}
                       >
                         <ChevronDown
                           size={16}
                           aria-hidden="true"
-                          className={cx(collapsed.has(group.id) && 'is-closed')}
+                          className={cx(isCollapsed(group.id) && 'is-closed')}
                         />
                         {group.name}
                       </button>
                     </th>
                     <YearCells row={sumPlanYearRows(group.rows)} metric={metric} />
                   </tr>
-                  {!collapsed.has(group.id) &&
+                  {!isCollapsed(group.id) &&
                     group.rows.map((row) => (
                       <tr key={row.id}>
                         <th scope="row">
@@ -308,16 +332,6 @@ function YearOverview({
             </table>
           </div>
           <div className="year-phone">
-            <label className="year-month-choice">
-              Monat
-              <Select value={phoneMonth} onChange={(e) => setPhoneMonth(e.target.value)}>
-                {months.map((m) => (
-                  <option key={m} value={m}>
-                    {monthLabel(m)}
-                  </option>
-                ))}
-              </Select>
-            </label>
             <div className="year-phone-head">
               <span>Kategorie</span>
               <span>{label}</span>
@@ -327,14 +341,14 @@ function YearOverview({
                 <button
                   className="year-phone-summary"
                   type="button"
-                  aria-expanded={!collapsed.has(group.id)}
+                  aria-expanded={!isCollapsed(group.id)}
                   onClick={() => toggle(group.id)}
                 >
                   <span>
                     <ChevronDown
                       size={16}
                       aria-hidden="true"
-                      className={cx(collapsed.has(group.id) && 'is-closed')}
+                      className={cx(isCollapsed(group.id) && 'is-closed')}
                     />
                     {group.name}
                   </span>
@@ -343,7 +357,7 @@ function YearOverview({
                     metric={metric}
                   />
                 </button>
-                {!collapsed.has(group.id) &&
+                {!isCollapsed(group.id) &&
                   group.rows.map((row) => (
                     <div className="year-phone-row" key={row.id}>
                       <span>
@@ -364,6 +378,7 @@ function YearOverview({
             </div>
             <details className="year-phone-annual">
               <summary>Jahreswerte je Kategorie</summary>
+              {totals}
               {groups.map((group) => (
                 <section key={group.id}>
                   <h3>{group.name}</h3>
@@ -377,14 +392,7 @@ function YearOverview({
               ))}
             </details>
           </div>
-          <dl className="year-totals" aria-label="Jahreswerte aller Envelopes">
-            {metrics.map(([key, text]) => (
-              <div key={key}>
-                <dt>{key === 'availableCents' ? 'Verfügbar · Dezember' : `${text} · Jahr`}</dt>
-                <dd>{eur(total.year[key])}</dd>
-              </div>
-            ))}
-          </dl>
+          <div className="year-desktop-totals">{totals}</div>
         </>
       )}
     </section>

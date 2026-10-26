@@ -387,10 +387,21 @@ test('bank inbox suggestion requires an explicit posting decision', async ({ pag
     for (const frame of ['.bk-head', '.bk-body', '.bk-foot']) {
       await expect(candidateDialog.locator(frame)).toBeVisible();
     }
-    const title = await candidateDialog.locator('.bk-kind').boundingBox();
-    const close = await candidateDialog
-      .getByRole('button', { name: 'Schließen', exact: true })
-      .boundingBox();
+    await expect(
+      candidateDialog.getByRole('button', { name: 'Schließen', exact: true }),
+    ).toBeVisible();
+    // Read both boxes in one frame while the shared sheet may still be entering.
+    const { title, close } = await candidateDialog.locator('.bk-head').evaluate((head) => {
+      const rect = (element: Element | null) => {
+        if (!element) return null;
+        const { x, y, width, height } = element.getBoundingClientRect();
+        return { x, y, width, height };
+      };
+      return {
+        title: rect(head.querySelector('.bk-kind')),
+        close: rect(head.querySelector('.bk-close')),
+      };
+    });
     expect(title).not.toBeNull();
     expect(close).not.toBeNull();
     expect(title!.x).toBeLessThan(close!.x);
