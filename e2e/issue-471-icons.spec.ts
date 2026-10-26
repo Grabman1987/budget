@@ -3,21 +3,31 @@ import type { Page } from '@playwright/test';
 import { expect, sampleTest as test } from './sample';
 
 async function expectVisibleIconScale(page: Page) {
-  const failures = await page.locator('svg.lucide:visible').evaluateAll((icons) =>
-    icons.flatMap((icon) => {
-      const style = getComputedStyle(icon);
-      const width = Number.parseFloat(style.width);
-      const height = Number.parseFloat(style.height);
-      const stroke = Number.parseFloat(style.strokeWidth);
-      const expected = width === 16 ? 1.75 : 1.5;
-      return [16, 20, 24].includes(width) && height === width && stroke === expected
-        ? []
-        : [
-            `${icon.getAttribute('class')}: ${style.width} × ${style.height}, stroke ${style.strokeWidth}`,
-          ];
-    }),
-  );
-  expect(failures).toEqual([]);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Array.from(document.querySelectorAll<SVGSVGElement>('svg.lucide'))
+          .filter(
+            (icon) =>
+              icon.isConnected &&
+              icon.getClientRects().length > 0 &&
+              getComputedStyle(icon).visibility !== 'hidden',
+          )
+          .flatMap((icon) => {
+            const style = getComputedStyle(icon);
+            const width = Number.parseFloat(style.width);
+            const height = Number.parseFloat(style.height);
+            const stroke = Number.parseFloat(style.strokeWidth);
+            const expected = width === 16 ? 1.75 : 1.5;
+            return [16, 20, 24].includes(width) && height === width && stroke === expected
+              ? []
+              : [
+                  `${icon.getAttribute('class')}: ${style.width} × ${style.height}, stroke ${style.strokeWidth}`,
+                ];
+          }),
+      ),
+    )
+    .toEqual([]);
 }
 
 test('icon sizes, swatches and disclosure carets use their rendered styles', async ({ page }) => {
@@ -99,7 +109,8 @@ test('labelled booking status and capture caret remain usable on phone and deskt
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await expect(dialog).toBeVisible();
   await expectVisibleIconScale(page);
-  const status = dialog.getByRole('button', { name: 'Vorgemerkt', exact: true });
+  const status = dialog.locator('button.bk-status');
+  await expect(status).toHaveAccessibleName('Vorgemerkt');
   await expect(status).toHaveText('Vorgemerkt');
   await expect(status).toHaveAttribute('aria-pressed', 'false');
   if (isMobile) {
@@ -108,9 +119,12 @@ test('labelled booking status and capture caret remain usable on phone and deskt
     expect(bounds!.width).toBeGreaterThanOrEqual(44);
   }
   await status.click();
+  await expect(status).toHaveAccessibleName('Bestätigt');
   await expect(status).toHaveText('Bestätigt');
   await expect(status).toHaveAttribute('aria-pressed', 'true');
   await status.click();
+  await expect(status).toHaveAccessibleName('Vorgemerkt');
+  await expect(status).toHaveText('Vorgemerkt');
   await expect(status).toHaveAttribute('aria-pressed', 'false');
 
   const more = dialog.locator('details.kmore');
