@@ -1039,7 +1039,9 @@ function InboxRow({
   return (
     <tr className={`rev-row${item.urgent ? ' is-urgent' : ''}`} data-testid="inbox-row">
       <td className="rev-mark">
-        <InboxTypeIcon entry={item} />
+        <div className="inbox-row-mark">
+          <InboxTypeIcon entry={item} />
+        </div>
       </td>
       <td className="rev-what">
         <strong>
@@ -1078,61 +1080,68 @@ function InboxRow({
         )}
       </td>
       <td className="rev-act kact">
-        {item.type === 'booking' ? (
-          <>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={busy}
-              onClick={() => onEdit(item.bookingId)}
-            >
-              Zuordnen
-            </Button>
-            {item.status === 'pending' && (
+        <div className="inbox-row-actions">
+          {item.type === 'booking' ? (
+            <>
               <Button
                 size="sm"
                 variant="ghost"
-                disabled={confirming}
-                onClick={() => onConfirm(item.bookingId)}
+                disabled={busy}
+                onClick={() => onEdit(item.bookingId)}
               >
-                Bestätigen
+                Zuordnen
               </Button>
-            )}
-            {item.status === 'pending' && item.source === 'bank' && (
-              <BankBookingMerge bookingId={item.bookingId} />
-            )}
-          </>
-        ) : item.type === 'savings' ? (
-          <Button variant="ghost" onClick={() => onSavings(item)}>
-            Ausführung prüfen
-          </Button>
-        ) : item.refType === 'payslip-intake' && item.refId ? (
-          <AppLink className="btn btn-ghost btn-sm" to="/reports/gehalt">
-            Gehaltsreport
-          </AppLink>
-        ) : (
-          <>
-            {item.refType === 'bank-sync-candidate' && item.refId && (
-              <BankCandidate id={item.refId} onConfirmed={onBankConfirmed} />
-            )}
-            {item.kind === 'import' && !detailView && (
-              <AppLink
-                className="btn btn-ghost btn-sm"
-                to={`/konten/pruefen/${encodeURIComponent(item.id)}`}
-                search={search}
-                state={{ inboxOpenedInApp: true }}
-              >
-                Warnung erklären
-              </AppLink>
-            )}
-            <SourceLink item={item} />
-            <Button size="sm" variant="ghost" disabled={busy} onClick={onResolve}>
-              {item.refType === 'bank-sync-candidate'
-                ? 'Nicht übernehmen'
-                : 'Als erledigt markieren'}
+              {item.status === 'pending' && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={confirming}
+                  onClick={() => onConfirm(item.bookingId)}
+                >
+                  Bestätigen
+                </Button>
+              )}
+              {item.status === 'pending' && item.source === 'bank' && (
+                <BankBookingMerge bookingId={item.bookingId} />
+              )}
+            </>
+          ) : item.type === 'savings' ? (
+            <Button variant="ghost" onClick={() => onSavings(item)}>
+              Ausführung prüfen
             </Button>
-          </>
-        )}
+          ) : item.refType === 'payslip-intake' && item.refId ? (
+            <AppLink className="btn btn-ghost btn-sm" to="/reports/gehalt">
+              Gehaltsreport
+            </AppLink>
+          ) : (
+            <>
+              {item.refType === 'bank-sync-candidate' && item.refId && (
+                <BankCandidate
+                  id={item.refId}
+                  disabled={busy}
+                  description={item.title}
+                  onConfirmed={onBankConfirmed}
+                />
+              )}
+              {item.kind === 'import' && !detailView && (
+                <AppLink
+                  className="btn btn-ghost btn-sm"
+                  to={`/konten/pruefen/${encodeURIComponent(item.id)}`}
+                  search={search}
+                  state={{ inboxOpenedInApp: true }}
+                >
+                  Warnung erklären
+                </AppLink>
+              )}
+              <SourceLink item={item} />
+              <Button size="sm" variant="ghost" disabled={busy} onClick={onResolve}>
+                {item.refType === 'bank-sync-candidate'
+                  ? 'Nicht übernehmen'
+                  : 'Als erledigt markieren'}
+              </Button>
+            </>
+          )}
+        </div>
       </td>
     </tr>
   );
@@ -1194,18 +1203,20 @@ function BankInboxRow({
   return (
     <tr className="rev-row bank-inbox-row" data-testid="inbox-row">
       <td className="rev-mark">
-        <InboxTypeIcon entry={item} />
-        {onSelect && (
-          <label className="bank-select">
-            <input
-              type="checkbox"
-              checked={selected}
-              disabled={busy}
-              aria-label={`Bankzeile auswählen: ${data?.payeeName ?? data?.memo ?? item.id}`}
-              onChange={(event) => onSelect(event.target.checked)}
-            />
-          </label>
-        )}
+        <div className="inbox-row-mark">
+          <InboxTypeIcon entry={item} />
+          {onSelect && (
+            <label className="bank-select">
+              <input
+                type="checkbox"
+                checked={selected}
+                disabled={busy}
+                aria-label={`Bankzeile auswählen: ${data?.payeeName ?? data?.memo ?? item.id}`}
+                onChange={(event) => onSelect(event.target.checked)}
+              />
+            </label>
+          )}
+        </div>
       </td>
       <td className="rev-what">
         <strong>
@@ -1224,39 +1235,47 @@ function BankInboxRow({
         </span>
       </td>
       <td className="rev-act kact">
-        {item.type === 'stored' && item.refId ? (
-          <>
-            <BankCandidate
-              id={item.refId}
-              onConfirmed={onConfirmed}
-              onPrepared={prepareCandidate}
-            />
-            <Button size="sm" variant="ghost" disabled={busy} onClick={onResolve}>
-              Nicht übernehmen
-            </Button>
-          </>
-        ) : item.type === 'booking' ? (
-          <BankReview suggestion={prepared}>
-            <BookingAssignmentReview
-              id={item.bookingId}
-              onPrepared={prepareRule}
-              onApplied={(canLearn) => {
-                if (canLearn) onConfirmed(item.bookingId);
-              }}
-            />
-            {item.status === 'pending' && (
-              <BankBookingMerge bookingId={item.bookingId} onPrepared={setMerge} />
-            )}
-            <Button variant="ghost" disabled={busy} onClick={() => onEdit(item.bookingId)}>
-              Zuordnen
-            </Button>
-            {item.status === 'pending' && (
-              <Button variant="ghost" disabled={busy} onClick={() => onConfirm(item.bookingId)}>
-                Bestätigen
+        <div className="inbox-row-actions">
+          {item.type === 'stored' && item.refId ? (
+            <>
+              <BankCandidate
+                id={item.refId}
+                disabled={busy}
+                description={
+                  data
+                    ? `${data.payeeName || data.memo || 'Bankumsatz'} · ${nativeCurrency(data.amountCents, data.currency)} · ${longDay(data.date)} · ${data.accountName}`
+                    : item.title
+                }
+                onConfirmed={onConfirmed}
+                onPrepared={prepareCandidate}
+              />
+              <Button size="sm" variant="ghost" disabled={busy} onClick={onResolve}>
+                Nicht übernehmen
               </Button>
-            )}
-          </BankReview>
-        ) : null}
+            </>
+          ) : item.type === 'booking' ? (
+            <BankReview suggestion={prepared}>
+              <BookingAssignmentReview
+                id={item.bookingId}
+                onPrepared={prepareRule}
+                onApplied={(canLearn) => {
+                  if (canLearn) onConfirmed(item.bookingId);
+                }}
+              />
+              {item.status === 'pending' && (
+                <BankBookingMerge bookingId={item.bookingId} onPrepared={setMerge} />
+              )}
+              <Button variant="ghost" disabled={busy} onClick={() => onEdit(item.bookingId)}>
+                Zuordnen
+              </Button>
+              {item.status === 'pending' && (
+                <Button variant="ghost" disabled={busy} onClick={() => onConfirm(item.bookingId)}>
+                  Bestätigen
+                </Button>
+              )}
+            </BankReview>
+          ) : null}
+        </div>
       </td>
     </tr>
   );

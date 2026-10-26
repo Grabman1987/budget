@@ -110,12 +110,19 @@
   font-size: var(--fs-label);
 }
 .kinbox-table .kact {
+  display: table-cell;
+  width: auto;
+}
+.inbox-row-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
   gap: 6px;
   width: auto;
+}
+.bank-inbox-row .inbox-row-actions {
+  flex-wrap: nowrap;
 }
 .kinbox .rev-what > span {
   display: block;
@@ -217,7 +224,10 @@
     grid-column: 2;
   }
   .kinbox-table .kact {
+    display: block;
     grid-column: 2;
+  }
+  .inbox-row-actions {
     justify-content: flex-start;
   }
   .kinbox-table .kact .btn {
@@ -252,7 +262,7 @@
 .rev-row.is-urgent .inbox-type {
   color: var(--red);
 }
-.bank-inbox-row .rev-mark {
+.inbox-row-mark {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -292,4 +302,22 @@
   min-height: var(--touch);
   padding-inline: var(--space-sm);
   white-space: nowrap;
+}
+
+.bank-candidate-dialog .bank-candidate {
+  width: 100%;
+}
+.bank-candidate-dialog {
+  text-align: left;
+}
+.bank-candidate-dialog .bk-head {
+  flex-wrap: nowrap;
+}
+.bank-candidate-dialog .bk-kind {
+  order: 0;
+  flex: 1;
+}
+.bank-candidate-dialog .btn,
+.bank-candidate-dialog .icon-btn {
+  min-height: 44px;
 }
