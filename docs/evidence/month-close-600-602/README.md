@@ -229,4 +229,17 @@ link there. Existing balance/staleness, manual valuation/Undo, current-month
 preparation, date, Axe/overflow, screenshot, 44px and 120-second checks are
 unchanged. No product code, financial expectation, assertion budget or retry
 setting changes in this adapter. Independent review and the affected browser
-execution remain pending for this correction.
+execution remained pending at that adapter checkpoint.
+
+The final first full run completed with only the account-review case failing on
+desktop and mobile (shards 1 and 5); the other ten browser groups and selected
+static, Linux/Windows unit, visual, Docker and restore jobs passed. Its merge
+helper exited without merging. Independent review cleared the exact two-file
+adapter and its preserved coverage. Scoped Prettier, ESLint and diff checks passed.
+[Run 40329976124](https://github.com/Grabman1987/budget/actions/runs/40329976124)
+then checked out `472e8b9a4e755bc4f607b2b7ce41ffa60e6cbfcf` and passed all
+**five cases in 1.0 minute** (three setup plus the actual account-review flow on
+desktop and mobile), with no retries, failures, skips or baseline changes.
+The actual summary and checkout SHA were inspected. Product code and all other
+test assertions remain unchanged; full exact-head CI must pass on the corrected
+PR head before integration.
