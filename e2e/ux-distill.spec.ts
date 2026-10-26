@@ -1,7 +1,6 @@
 import { sampleTest as test, expect as baseExpect } from './sample';
 import { test as isolatedTest } from './isolated-ledger';
 import AxeBuilder from '@axe-core/playwright';
-import { mkdirSync } from 'node:fs';
 import type { Heute } from '../apps/web/src/heute/api';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
@@ -9,8 +8,6 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 test('UX-2 sample evidence: Heute and Plan', async ({ page }, info) => {
   test.setTimeout(60_000);
   const phase = process.env['UX_CAPTURE_BEFORE'] ? 'before' : 'after';
-  const dir = 'docs/evidence/ux-distill-1005';
-  mkdirSync(dir, { recursive: true });
   for (const [name, path] of [
     ['heute', '/?monat=2026-09'],
     ['plan', '/plan/monat?monat=2026-09'],
@@ -20,7 +17,7 @@ test('UX-2 sample evidence: Heute and Plan', async ({ page }, info) => {
     else await expect(page.locator('.ptable')).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({
-      path: `${dir}/${phase}-${name}-${info.project.name}.png`,
+      path: info.outputPath(`${phase}-${name}-${info.project.name}.png`),
       fullPage: true,
       animations: 'disabled',
     });
@@ -39,14 +36,17 @@ test('Heute keeps its device fold choice and the primary order, net worth matche
   const boxes = await Promise.all(
     [
       '.heute-answers',
-      '.heute-attention',
       '.heute-lead',
       '.heute-pace',
-      '#heute-upcoming-title',
+      '.heute-compact-forecast',
       '.heute-wealth-line',
+      '.heute-attention',
+      '#heute-upcoming-title',
+      '#heute-bookings-title',
       '.heute-more',
     ].map((selector) => page.locator(selector).boundingBox()),
   );
+  expect(boxes.every((box) => box !== null)).toBe(true);
   for (let i = 1; i < boxes.length; i++) expect(boxes[i]!.y).toBeGreaterThan(boxes[i - 1]!.y);
   const today: Heute = await (await page.request.get('/api/heute')).json();
   const wealth = await (await page.request.get('/api/wealth/networth?period=1J')).json();
@@ -74,6 +74,7 @@ test('Heute has eight warning items once, two first, neutral debts and accessibl
   const today: Heute = await (await page.request.get('/api/heute')).json();
   today.nextSteps.items = Array.from({ length: 8 }, (_, i) => ({
     kind: 'overspent',
+    urgent: true,
     categoryId: `synthetic-over-${i}`,
     categoryName: `Testenvelope ${i + 1}`,
     cents: 1000 + i,
@@ -91,7 +92,8 @@ test('Heute has eight warning items once, two first, neutral debts and accessibl
   await expect(tasks).toContainText('8 Kategorien überzogen');
   await expect(tasks).not.toContainText('Testenvelope');
   // Q3 #466 and #511: loan terms share the account-check source row.
-  await expect(tasks.locator('.attention-row')).toHaveCount(4);
+  await expect(tasks.locator(':scope > .attention-row')).toHaveCount(4);
+  await expect(tasks.locator('.attention-row')).toHaveCount(5);
   const accounts = tasks
     .locator('.attention-row')
     .filter({ hasText: '8 Konten warten auf Prüfung' });
@@ -102,6 +104,8 @@ test('Heute has eight warning items once, two first, neutral debts and accessibl
     accounts.getByRole('link', { name: 'Konditionen ergänzen', exact: true }),
   ).toHaveAttribute('href', '/einstellungen/konten');
   await expect(tasks).toContainText('Kreditkonditionen fehlen');
+  await page.getByText('Ansicht anpassen', { exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Angepinnte Kategorien anzeigen' }).check();
   await expect(page.locator('.heute-envelope .heute-alert')).toHaveCount(1);
   await expect(page.locator('.heute-envelope')).not.toContainText('überzogen');
   if (info.project.name === 'desktop') {

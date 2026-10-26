@@ -1,5 +1,4 @@
 import AxeBuilder from '@axe-core/playwright';
-import { mkdirSync } from 'node:fs';
 import { sampleTest as test, expect as baseExpect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
 
@@ -10,11 +9,23 @@ test('Today groups work, preserves its review destinations and distinguishes sel
 }, info) => {
   test.setTimeout(300_000);
   await page.addInitScript(() => localStorage.setItem('budget-heute-more-phone', '1'));
+  const writes: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/api/') && !['GET', 'HEAD'].includes(request.method()))
+      writes.push(`${request.method()} ${new URL(request.url()).pathname}`);
+  });
   await page.goto('/?monat=2026-09');
   const tasks = page.getByRole('region', { name: 'Zu tun', exact: true });
   await expect(tasks).toBeVisible();
   // Q3 #466 and #511: loan terms share the account-check source row.
-  await expect(tasks.locator('.attention-row')).toHaveCount(4);
+  await expect(tasks.locator(':scope > .attention-row')).toHaveCount(4);
+  await expect(tasks.locator('.attention-row')).toHaveCount(5);
+  await expect(tasks.locator('.attention-remaining summary')).toContainText('Weitere 1 Aufgaben');
+  await tasks.locator('.attention-remaining summary').click();
+  await expect(tasks.getByRole('link', { name: 'Monatsabschluss öffnen' })).toHaveAttribute(
+    'href',
+    '/monatsabschluss/2026-08',
+  );
   const accounts = tasks
     .locator('.attention-row')
     .filter({ hasText: '8 Konten warten auf Prüfung' });
@@ -27,10 +38,33 @@ test('Today groups work, preserves its review destinations and distinguishes sel
   await expect(tasks).toContainText('Kreditkonditionen fehlen');
   await expect(tasks).toContainText('8 Konten warten auf Prüfung');
   await expect(tasks.getByRole('link', { name: 'Kontostand prüfen' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Angepinnte Kategorien' })).toHaveCount(0);
+  await page.getByText('Ansicht anpassen', { exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Angepinnte Kategorien anzeigen' }).check();
+  await expect(page.getByRole('heading', { name: 'Angepinnte Kategorien' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Angepinnte Kategorien' })).toBeVisible();
+  expect(writes).toEqual([]);
   await expect(page.getByRole('heading', { name: 'Nächste Schritte' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Fällig 14 Tage', exact: true })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: /Danach/ })).toHaveCount(0);
-  await expect(page.locator('.heute-finance-check .heute-rule')).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  const remaining = tasks.locator('.attention-remaining');
+  const preferences = page.locator('.heute-view-preferences details');
+  await expect(remaining).not.toHaveAttribute('open', /.*/);
+  await expect(preferences).not.toHaveAttribute('open', /.*/);
+  if (info.project.name === 'desktop') {
+    await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
+    const collapsed = await tasks.boundingBox();
+    expect(collapsed).not.toBeNull();
+    expect(collapsed!.y).toBeGreaterThanOrEqual(0);
+    // Owner 26 Oct: retain the accepted chart-first order and permit scrolling.
+    await tasks.scrollIntoViewIfNeeded();
+    await expect(tasks).toBeInViewport({ ratio: 1 });
+  }
+  await remaining.locator('summary').click();
+  await preferences.locator('summary').click();
+  await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
   if (info.project.name !== 'desktop') await tasks.scrollIntoViewIfNeeded();
 
   for (const theme of ['light', 'dark']) {
@@ -41,7 +75,7 @@ test('Today groups work, preserves its review destinations and distinguishes sel
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     const targets = await page
       .locator(
-        '.heute-attention a, .heute-finance-check a, .heute-upcoming a, .heute-upcoming button',
+        '.heute-attention a, .heute-attention summary, .heute-upcoming a, .heute-upcoming button, .heute-view-preferences summary, .heute-view-preferences label',
       )
       .evaluateAll((elements) =>
         elements.map((element) => {
@@ -50,18 +84,19 @@ test('Today groups work, preserves its review destinations and distinguishes sel
         }),
       );
     expect(targets.filter((box) => box.width < 44 || box.height < 44)).toEqual([]);
-    const dir = 'docs/evidence/heute-attention-q3';
-    mkdirSync(dir, { recursive: true });
     await page.screenshot({
-      path: `${dir}/${info.project.name}-${theme}.png`,
+      path: info.outputPath(`heute-tasks-${info.project.name}-${theme}.png`),
       fullPage: false,
       animations: 'disabled',
     });
   }
-  if (info.project.name === 'desktop') {
-    const box = await tasks.boundingBox();
-    expect(box!.y + box!.height).toBeLessThan(900);
-  }
+  const wealth = await page.locator('.heute-wealth-line').boundingBox();
+  const box = await tasks.boundingBox();
+  const due = await page.locator('#heute-upcoming-title').boundingBox();
+  const recent = await page.locator('#heute-bookings-title').boundingBox();
+  expect(box!.y).toBeGreaterThan(wealth!.y);
+  expect(box!.y + box!.height).toBeLessThan(due!.y);
+  expect(due!.y).toBeLessThan(recent!.y);
   await tasks.getByRole('link', { name: 'Prüfen', exact: true }).click();
   await expect(page).toHaveURL(/\/konten\/pruefen#account-reminder-title$/);
   const reminder = page.locator('.account-reminder').first();
@@ -75,7 +110,7 @@ test('Today groups work, preserves its review destinations and distinguishes sel
   await expect(note).not.toContainText('Pace');
   await expect(page.locator('.heute-answers')).toContainText('Stand heute · 17.09.2026');
   await expect(tasks).toContainText('Stand heute · 17.09.2026');
-  await expect(page.locator('.heute-finance-check')).toContainText('Stand heute · 17.09.2026');
+  await expect(page.locator('.heute-wealth-line')).toContainText('Stand heute · 17.09.2026');
   await expect(page.getByRole('heading', { name: 'August 2026 · Pace' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Monat', exact: true })).toHaveAttribute(
     'aria-pressed',
@@ -102,7 +137,14 @@ test('empty tasks and due dates disappear while missing rule inputs remain expli
 }) => {
   const data: Heute = await (await page.request.get('/api/heute?month=2026-09')).json();
   data.accountReminders = [];
-  data.attention = { inboxCount: 0, pendingCount: 0, pendingBefore: '2026-09-10' };
+  data.attention = {
+    inboxCount: 0,
+    pendingCount: 0,
+    pendingBefore: '2026-09-10',
+    loanTermsMissing: false,
+    quoteReview: { count: 0, securityIds: [] },
+    monthCloseTasks: { tasks: [], unavailable: [] },
+  };
   data.nextSteps = { items: [], count: 0 };
   data.upcoming14 = [];
   data.upcomingEvents = [];
@@ -114,8 +156,17 @@ test('empty tasks and due dates disappear while missing rule inputs remain expli
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: data }));
   await page.goto('/?monat=2026-09');
   await expect(page.locator('[data-kennzahl="verfuegbar"]')).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Zu tun' })).toHaveCount(0);
+  const taskBlock = page.getByRole('region', { name: 'Zu tun' });
+  await expect(taskBlock.locator('.attention-row')).toHaveCount(0);
+  await expect(taskBlock.locator('.attention-availability')).toContainText(
+    '3 Regeln konnten nicht ausgewertet werden.',
+  );
   await expect(page.getByRole('region', { name: 'Fällig 14 Tage' })).toHaveCount(0);
-  await expect(page.locator('.heute-finance-check')).toContainText('3 nicht auswertbar');
-  await expect(page.getByRole('link', { name: 'Fehlende Angaben ansehen' })).toBeVisible();
+  await expect(
+    taskBlock.getByRole('link', { name: 'Regeln prüfen', includeHidden: true }),
+  ).toHaveAttribute('href', '/einstellungen/regelwerk');
+  if ('unavailable' in data.financeCheck) throw new Error('Expected evaluated synthetic rules');
+  data.financeCheck.counts.notEvaluated = 0;
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Zu tun' })).toHaveCount(0);
 });

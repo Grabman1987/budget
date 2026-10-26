@@ -88,7 +88,10 @@ test('a position without market quote is valued at cost and flagged; the first q
   await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
   // This ledger contains only the synthetic holding; an empty due list stays hidden.
   await expect(page.getByRole('heading', { name: 'Fällig 14 Tage' })).toHaveCount(0);
-  await expect(page.locator('.heute-check-counts')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Zu tun' })).toContainText(
+    'Wertpapier ohne aktuellen Kurs',
+  );
   await expect(page.locator('.heute-net-worth')).not.toContainText('Bewertung nicht verfügbar');
   const todayMarker = page.locator('.heute-net-worth').getByRole('button', {
     name: 'Bewertungsgrundlage · Nettovermögen',
@@ -102,8 +105,19 @@ test('a position without market quote is valued at cost and flagged; the first q
   await expect(todaySource).toContainText('Einstandswert als Schätzung');
   await expect(page.getByTestId('valuation-hint')).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await expect(page.getByText('1 Wertpapier ohne aktuellen Kurs', { exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Kurse prüfen', exact: true })).toHaveCount(1);
+  const quoteTask = page
+    .getByRole('region', { name: 'Zu tun', exact: true })
+    .locator('.attention-row')
+    .filter({ hasText: 'Wertpapier ohne aktuellen Kurs' });
+  await expect(quoteTask).toHaveCount(1);
+  const remainingQuoteTask = page
+    .locator('.heute-attention .attention-remaining .attention-row')
+    .filter({ hasText: 'Wertpapier ohne aktuellen Kurs' });
+  if (await remainingQuoteTask.count())
+    await page.locator('.heute-attention .attention-remaining summary').click();
+  await expect(quoteTask).toBeVisible();
+  await expect(quoteTask).toContainText('1 Wertpapier ohne aktuellen Kurs');
+  await expect(quoteTask.getByRole('link', { name: 'Kurse prüfen', exact: true })).toBeVisible();
   const todayResponse = await request.get(`${origin}/api/heute`);
   expect(todayResponse.status()).toBe(200);
   expect((await todayResponse.json()).attention.quoteReview).toEqual({
@@ -145,7 +159,8 @@ test('a position without market quote is valued at cost and flagged; the first q
 
   await page.goto('/');
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
-  await expect(page.locator('.heute-check-counts')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  await expect(page.getByText('1 Wertpapier ohne aktuellen Kurs', { exact: true })).toHaveCount(0);
   await expect(page.locator('.heute-net-worth')).not.toContainText('Bewertung nicht verfügbar');
   await page.evaluate(() => document.fonts.ready);
   for (const theme of ['light', 'dark']) {
