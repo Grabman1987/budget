@@ -216,8 +216,8 @@ it('immediately masks and restores already rendered payroll figures without refe
   const calls = transport();
   mount(<PayslipIntakeDetail id={ID} inline />);
   const payout = await screen.findByRole('link', { name: 'Gespeicherte Auszahlung öffnen' });
-  expect(screen.getByText(/2\.975,00\s*€/)).toBeTruthy();
-  expect(screen.getByText(/4\.000,00\s*€/)).toBeTruthy();
+  expect(screen.getAllByText(/2\.975,00\s*€/)).toHaveLength(2);
+  expect(screen.getAllByText(/4\.000,00\s*€/)).toHaveLength(2);
   const beforeCalls = [...calls];
   act(() => setAmountsHidden(true));
   expect(screen.queryByText(/2\.975,00\s*€/)).toBeNull();
@@ -226,8 +226,8 @@ it('immediately masks and restores already rendered payroll figures without refe
   expect(payout.getAttribute('href')).toBe(`/konten/buchungen?konto=${ACCOUNT}&buchung=${PAYOUT}`);
   expect(calls).toEqual(beforeCalls);
   act(() => setAmountsHidden(false));
-  expect(screen.getByText(/2\.975,00\s*€/)).toBeTruthy();
-  expect(screen.getByText(/4\.000,00\s*€/)).toBeTruthy();
+  expect(screen.getAllByText(/2\.975,00\s*€/)).toHaveLength(2);
+  expect(screen.getAllByText(/4\.000,00\s*€/)).toHaveLength(2);
   expect(calls).toEqual(beforeCalls);
 });
 

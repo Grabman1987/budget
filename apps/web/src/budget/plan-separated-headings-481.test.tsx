@@ -123,6 +123,13 @@ beforeEach(() => {
           path: url.pathname,
           body: init?.body ? JSON.parse(String(init.body)) : null,
         });
+      if (method === 'GET' && url.pathname === '/api/expected/income')
+        return Response.json({
+          receivedCents: 2500,
+          expectedCents: 10000,
+          byPayment: [],
+          byIncomeType: [],
+        });
       const body =
         url.pathname === `/api/budget/${month}`
           ? data

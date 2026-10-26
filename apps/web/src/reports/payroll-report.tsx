@@ -12,7 +12,7 @@ import { AppLink } from '../shell/app-link';
 import { MonthReportFrame, shortMonth, useReportMonth } from './month-frame';
 import { payrollQuery, type PayrollData } from './payroll-projects-api';
 import { PayrollProjectChart } from './payroll-project-chart';
-import { PayslipPanel, PayslipUploadDialog } from './payslip-panel';
+import { PayslipPanel } from './payslip-panel';
 import { ReportDetailNav } from './report-detail-nav';
 import './payroll-projects.css';
 
@@ -47,6 +47,11 @@ export function PayrollReport({
   const router = useRouter();
   const state = useLocation({ select: (location) => location.state });
   const navigate = useNavigate();
+  useEffect(() => {
+    if (gehaltszettel === 'upload') {
+      void navigate({ to: '/plan/monat/einnahmen', search: { monat: month }, replace: true });
+    }
+  }, [gehaltszettel, month, navigate]);
   const formOpener = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (!gehaltszettel && formOpener.current) {
@@ -79,6 +84,11 @@ export function PayrollReport({
       ? data.captured.filter((p) => p.id === zettel)
       : data.slips
     : [];
+  const salaryPosition = (position: number) =>
+    position <= 12
+      ? shortMonth(`${month.slice(0, 4)}-${String(position).padStart(2, '0')}`)
+      : `${position}. Gehalt`;
+  const missingSalaries = data?.salaries.filter((salary) => !salary.ids.length) ?? [];
   const details = data && (
     <section className="mr-card">
       <div className="tbd-head">
@@ -179,9 +189,6 @@ export function PayrollReport({
             >
               Gehaltszettel-Historie
             </AppLink>
-            <Button variant="ghost" onClick={(event) => open('upload', event.currentTarget)}>
-              Gehaltszettel hochladen
-            </Button>
           </div>
         )}
         {query.isFetching && <LoadingNote what="Gehaltsreport" />}
@@ -425,38 +432,47 @@ export function PayrollReport({
                       </tr>
                     </thead>
                     <tbody>
-                      {data.salaries.map((s) => (
-                        <tr key={s.position}>
-                          <th>
-                            {s.position <= 12
-                              ? shortMonth(
-                                  `${month.slice(0, 4)}-${String(s.position).padStart(2, '0')}`,
-                                )
-                              : `${s.position}. Gehalt`}
-                          </th>
-                          {[s.salaryNetCents, s.reimbursementsCents, s.netCents].map((value, i) => (
-                            <td className="n" key={i}>
-                              {value === null ? 'nicht erfasst' : eur(value)}
+                      {data.salaries
+                        .filter((salary) => salary.ids.length > 0)
+                        .map((s) => (
+                          <tr key={s.position}>
+                            <th>{salaryPosition(s.position)}</th>
+                            {[s.salaryNetCents, s.reimbursementsCents, s.netCents].map(
+                              (value, i) => (
+                                <td className="n" key={i}>
+                                  {value === null ? 'nicht erfasst' : eur(value)}
+                                </td>
+                              ),
+                            )}
+                            <td>
+                              {s.ids.map((id) => (
+                                <AppLink
+                                  className="pp-history-link"
+                                  key={id}
+                                  to="/reports/gehalt/historie"
+                                  search={{ monat: month, zettel: id }}
+                                  state={{ reportDetailOpenedInApp: true }}
+                                >
+                                  Zettel öffnen
+                                </AppLink>
+                              ))}
                             </td>
-                          ))}
-                          <td>
-                            {s.ids.map((id) => (
-                              <AppLink
-                                className="pp-history-link"
-                                key={id}
-                                to="/reports/gehalt/historie"
-                                search={{ monat: month, zettel: id }}
-                                state={{ reportDetailOpenedInApp: true }}
-                              >
-                                Zettel öffnen
-                              </AppLink>
-                            ))}
-                          </td>
+                          </tr>
+                        ))}
+                      {!data.salaries.some((salary) => salary.ids.length > 0) && (
+                        <tr>
+                          <td colSpan={5}>Für dieses Jahr sind keine Gehälter erfasst.</td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </ScrollRegion>
+                {missingSalaries.length > 0 && (
+                  <p className="vnote">
+                    fehlt:{' '}
+                    {missingSalaries.map((salary) => salaryPosition(salary.position)).join(', ')}
+                  </p>
+                )}
                 <p className="vnote">
                   Sonstige Sonderzahlungen separat: {eur(data.otherSpecialCents)}. Steuerwerte laut
                   Zettel; keine Steuerberechnung.
@@ -465,7 +481,6 @@ export function PayrollReport({
             </>
           ))}
       </div>
-      {gehaltszettel === 'upload' && <PayslipUploadDialog onClose={() => open()} />}
       {panelData && (gehaltszettel === 'neu' || selected) && (
         <PayslipPanel
           key={gehaltszettel}

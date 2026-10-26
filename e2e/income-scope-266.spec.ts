@@ -127,10 +127,10 @@ test('Today and Plan explain a real booking-month shift beside October expected 
   await expect(page.getByRole('navigation', { name: 'Brotkrumen' })).toContainText('Monat');
   const planDetail = page.locator('.plan-detail');
   await expect(planDetail.getByTestId('income-received')).toHaveText('0,00 €');
-  await expect(planDetail).toContainText('Zu erwarteten Zahlungen eingegangen im Oktober');
+  await expect(planDetail).toContainText('Eingegangen');
   await expect(planDetail).toContainText('erwartet 300,00 €');
   await expect(planDetail).toContainText(
-    'Budgetrelevante Zuflüsse im Planmonat Oktober 2026: 1.000,00 €',
+    'Zählt für Zu verteilen: 1.000,00 € im Planmonat Oktober 2026',
   );
   await expect(planDetail).toContainText('Erwartete Zahlungen sind Planwerte');
 
@@ -174,7 +174,7 @@ test('Today and Plan explain a real booking-month shift beside October expected 
   await page.goto('/plan/monat/einnahmen?monat=2026-10');
   await expect(page.getByTestId('income-received')).toHaveText('••• €');
   await expect(page.locator('.plan-detail')).toContainText(
-    'Budgetrelevante Zuflüsse im Planmonat Oktober 2026: ••• €',
+    'Zählt für Zu verteilen: ••• € im Planmonat Oktober 2026',
   );
   expect(await moneyLeaks(page)).toEqual([]);
 });

@@ -101,6 +101,13 @@ function renderPlan() {
     vi.fn(async (path: string, init?: RequestInit) => {
       const route = path.split('?')[0]!;
       const method = init?.method ?? 'GET';
+      if (method === 'GET' && route === '/api/expected/income')
+        return Response.json({
+          receivedCents: 2500,
+          expectedCents: 10000,
+          byPayment: [],
+          byIncomeType: [],
+        });
       if (method !== 'GET') {
         writes.push({ method, path: route, body: JSON.parse(String(init?.body ?? 'null')) });
         return new Response(JSON.stringify({ groupId: 'g-1' }), { status: 200 });

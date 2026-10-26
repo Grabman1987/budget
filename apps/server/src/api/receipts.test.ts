@@ -101,7 +101,7 @@ async function call(method: string, path: string, data?: unknown) {
   return { status: res.status, body: (await res.json()) as any };
 }
 async function upload(
-  bytes = PNG,
+  bytes: Buffer = PNG,
   target: string | null = bookingId,
   name = 'synthetic.png',
   customHeaders: Record<string, string> = headers,
@@ -249,4 +249,125 @@ describe('authenticated receipts', () => {
     ).toBe(400);
     expect((await app.request('/api/receipts/not-a-uuid/download', { headers })).status).toBe(400);
   });
+});
+
+// Exercise the real PDF.js/native worker, not a mocked renderer.
+it('renders an authenticated synthetic PDF as no-store inert PNG and bounds page/input errors', async () => {
+  const { syntheticPayslipPdf } = await import('../payslips/testing');
+  const bytes = await syntheticPayslipPdf(['Synthetic preview only'], '');
+  const uploaded = await upload(bytes, null, 'synthetic-preview.pdf');
+  expect(uploaded.status).toBe(201);
+  const path = `/api/receipts/${uploaded.body.receipt.id}/pdf-preview`;
+  const request = (body: unknown, custom = headers) =>
+    app.request(path, {
+      method: 'POST',
+      headers: { ...custom, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  const unauthenticated = await request({ page: 1 }, { origin: ORIGIN, cookie: '' });
+  expect(unauthenticated.status).toBe(401);
+  const foreign = await request({ page: 1 }, { ...headers, origin: 'https://untrusted.invalid' });
+  expect(foreign.status).toBe(403);
+  const invalid = await request({ page: 31 });
+  expect(invalid.status).toBe(400);
+  const extra = await request({ page: 1, persistPassword: true });
+  expect(extra.status).toBe(400);
+  const rendered = await request({ page: 1, preset: 'fit' });
+  expect(rendered.status).toBe(200);
+  expect(rendered.headers.get('content-type')).toBe('image/png');
+  expect(rendered.headers.get('cache-control')).toContain('no-store');
+  expect(rendered.headers.get('x-content-type-options')).toBe('nosniff');
+  expect(rendered.headers.get('x-pdf-pages')).toBe('1');
+  expect(Number(rendered.headers.get('x-pdf-width'))).toBe(960);
+  const png = Buffer.from(await rendered.arrayBuffer());
+  expect(png.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+  expect(png.readUInt32BE(16)).toBe(960);
+  const missing = await request({ page: 2 });
+  expect(missing.status).toBe(422);
+  expect(await missing.json()).toMatchObject({ error: 'pdf_preview_page' });
+  // A completed/error worker releases admission for a later native render.
+  expect((await request({ page: 1, preset: 'detail' })).status).toBe(200);
+});
+
+it('uses a transient PDF password and never exposes parser diagnostics on malformed originals', async () => {
+  const { syntheticPayslipPdf } = await import('../payslips/testing');
+  const uploaded = await upload(
+    await syntheticPayslipPdf(['Synthetic encrypted preview']),
+    null,
+    'synthetic-encrypted.pdf',
+  );
+  const id = uploaded.body.receipt.id;
+  const before = getReceipt(opened.db, id);
+  const preview = (password?: string) =>
+    app.request(`/api/receipts/${id}/pdf-preview`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({ page: 1, ...(password === undefined ? {} : { password }) }),
+    });
+  const denied = await preview('synthetic-wrong-password');
+  expect(denied.status).toBe(422);
+  expect(await denied.json()).toMatchObject({ error: 'pdf_preview_password' });
+  expect((await preview('synthetic-pdf-password')).status).toBe(200);
+  expect((await preview()).status).toBe(422);
+  expect(getReceipt(opened.db, id)).toEqual(before);
+  expect(
+    opened.db
+      .select()
+      .from(schema.auditLog)
+      .all()
+      .some((row) => JSON.stringify(row).includes('synthetic-pdf-password')),
+  ).toBe(false);
+  const malformed = await upload(PDF, null, 'synthetic-malformed.pdf');
+  const result = await app.request(`/api/receipts/${malformed.body.receipt.id}/pdf-preview`, {
+    method: 'POST',
+    headers: { ...headers, 'content-type': 'application/json' },
+    body: JSON.stringify({ page: 1 }),
+  });
+  expect(result.status).toBe(503);
+  expect(await result.json()).toMatchObject({ error: 'pdf_preview_unavailable' });
+  expect(result.headers.get('cache-control')).toContain('no-store');
+});
+
+it('holds one native-render admission slot, cancels safely, and rejects a source removed during rendering', async () => {
+  const { syntheticPayslipPdf } = await import('../payslips/testing');
+  const { receiptPdfPreview } = await import('../receipts/pdf-preview');
+  const uploaded = await upload(
+    await syntheticPayslipPdf(['Synthetic cancellation'], ''),
+    null,
+    'synthetic-cancel.pdf',
+  );
+  const id = uploaded.body.receipt.id;
+  const controller = new AbortController();
+  const pending = receiptPdfPreview(
+    opened.db,
+    join(dir, 'receipts'),
+    id,
+    { page: 1, preset: 'fit' },
+    controller.signal,
+  );
+  await expect(
+    receiptPdfPreview(
+      opened.db,
+      join(dir, 'receipts'),
+      id,
+      { page: 1, preset: 'fit' },
+      new AbortController().signal,
+    ),
+  ).rejects.toMatchObject({ code: 'busy' });
+  controller.abort();
+  await expect(pending).rejects.toMatchObject({ code: 'aborted' });
+  // Cancellation finishes before capacity is released. A new real render can enter immediately.
+  const replacement = receiptPdfPreview(
+    opened.db,
+    join(dir, 'receipts'),
+    id,
+    { page: 1, preset: 'fit' },
+    new AbortController().signal,
+  );
+  opened.db
+    .update(schema.receipt)
+    .set({ deletedAt: '2026-09-17T12:00:00Z' })
+    .where(eq(schema.receipt.id, id))
+    .run();
+  await expect(replacement).rejects.toMatchObject({ code: 'source_changed' });
 });

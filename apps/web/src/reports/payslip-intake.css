@@ -20,6 +20,64 @@
   width: min(100%, 920px);
   max-width: 920px;
 }
+.payslip-document-review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+.payslip-document-original,
+.payslip-document-fields {
+  min-width: 0;
+}
+.payslip-document-fields .chain-inline {
+  flex-wrap: wrap;
+}
+.payslip-document-fields .ct-val,
+.payslip-document-fields .source-status dd,
+.payslip-split-amount {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.payslip-document-fields .check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.income-payslips-head,
+.income-payslips-list > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.income-payslips-list {
+  padding: 0;
+  list-style: none;
+}
+.income-payslips-list > li {
+  padding-block: 12px;
+  border-bottom: 1px solid var(--card-border);
+}
+.income-payslip-amount {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.income-payslips .btn {
+  min-height: 44px;
+}
+.xp-panel progress {
+  width: 100%;
+  accent-color: var(--line);
+}
+@media (max-width: 767px) {
+  .payslip-document-review {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}
 .payslip-intake-review {
   max-width: 100%;
   text-align: left;

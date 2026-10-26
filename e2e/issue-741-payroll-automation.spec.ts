@@ -181,7 +181,7 @@ for (const profile of ['desktop', 'phone'] as const)
         });
         const page = await context.newPage();
         await page.clock.setFixedTime(new Date('2026-10-03T12:00:00+02:00'));
-        await page.goto('/reports/gehalt?monat=2026-09');
+        await page.goto('/plan/monat/einnahmen?monat=2026-09');
         await theme(page, selectedTheme);
         const balances = async () => {
           const reply = await page.request.get('/api/accounts?asOf=2026-10-03');
@@ -264,6 +264,7 @@ for (const profile of ['desktop', 'phone'] as const)
         expect(linkSize.width).toBeGreaterThanOrEqual(44);
         expect(linkSize.height).toBeGreaterThanOrEqual(44);
         const parsedPayout = dialog
+          .locator('.source-status')
           .getByText('Auszahlung', { exact: true })
           .locator('..')
           .locator('dd');
@@ -377,7 +378,7 @@ test('741 links an existing payout, opens its actual booking route and reloads i
 }, info) => {
   const seeded = seed(isolatedLedger.databasePath, true);
   try {
-    await page.goto('/reports/gehalt?monat=2026-09');
+    await page.goto('/plan/monat/einnahmen?monat=2026-09');
     const pdf = await syntheticPayslipPdf(syntheticWageRows, ''),
       result = await choose(page, pdf);
     expect(result.automation).toMatchObject({ status: 'linked', bookingId: seeded.originalId });
