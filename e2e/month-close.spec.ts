@@ -71,7 +71,7 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   await expect(
     page.getByRole('heading', { name: 'Monatsabschluss · September 2026', exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole('heading', { name: '1. Posteingang leeren' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '1. Prüfen' })).toBeVisible();
   await expect(page.getByTestId('inbox-row')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Weiter', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Zuordnen', exact: true }).click();
@@ -167,7 +167,10 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   }
   if (info.project.name === 'mobile') await expectNextClear();
   await page.getByRole('button', { name: 'Weiter', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '5. Rückblick' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '5. Ergebnis' })).toBeVisible();
+  await page
+    .locator('summary', { hasText: 'Monatsbericht, Abweichungen und offene Regeln' })
+    .click();
   await expect(
     page.getByRole('article', { name: 'Monats-One-Pager September 2026' }),
   ).toBeVisible();
@@ -182,16 +185,22 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   }
   await page.getByRole('button', { name: 'Monat abschließen', exact: true }).click();
   await expect(
-    page.getByText('Abgeschlossen am 02.10.2026. Buchungen bleiben bearbeitbar.'),
+    page.getByText(
+      /Stand gespeichert am .*Buchungen bleiben nach den bisherigen Regeln bearbeitbar\./,
+    ),
   ).toBeVisible();
   await page.reload();
   await expect(
-    page.getByText('Abgeschlossen am 02.10.2026. Buchungen bleiben bearbeitbar.'),
+    page.getByText(
+      /Stand gespeichert am .*Buchungen bleiben nach den bisherigen Regeln bearbeitbar\./,
+    ),
   ).toBeVisible();
   const state = await page.request.get(`${isolatedLedger.origin}/api/month-close/2026-09`);
   const result = await state.json();
   expect(result.state.currentStep).toBe(5);
   expect(result.state.closedOn).toBe('2026-10-02');
+  expect(Number.isFinite(Date.parse(result.state.closedAt))).toBe(true);
+  expect(result.state.snapshot.sourceRevision).toBe(result.sourceRevision);
   expect(result.steps.map((s: { status: string }) => s.status)).toEqual([
     'done',
     'done',
@@ -215,5 +224,5 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
     .getByRole('listbox', { name: 'Suchergebnisse' })
     .getByRole('option', { name: /Monatsabschluss starten/ })
     .click();
-  await expect(page.getByRole('heading', { name: '5. Rückblick' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '5. Ergebnis' })).toBeVisible();
 });

@@ -12,20 +12,43 @@ export const closeDecisionSchema = z.strictObject({
   fingerprint: z.string().min(1).max(100),
   reason: z.string().trim().min(1).max(500),
 });
+/** A bounded historical result; current figures remain a separately computed read model. */
+export const closeResultSnapshotSchema = z.strictObject({
+  version: z.literal(1),
+  sourceRevision: z.string().regex(/^[a-f0-9]{64}$/),
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  checkedAccounts: z.int().min(0),
+  totalAccounts: z.int().min(0),
+  deferredAccounts: z.int().min(0),
+  assignedCents: z.int(),
+  overspentCount: z.int().min(0),
+  overspentCents: z.int().min(0),
+  carryInCents: z.int(),
+  destinationMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  savingsRateBp: z.int().nullable(),
+  /** Existing 50/30/20 report share; absent on earlier version-1 snapshots. */
+  allocationSavingsPercent: z.int().nullable().optional(),
+  spentCents: z.int(),
+  plannedCents: z.int(),
+});
+export type CloseResultSnapshot = z.infer<typeof closeResultSnapshotSchema>;
+
 export const monthCloseStateSchema = z.strictObject({
   currentStep: z.int().min(1).max(5).default(1),
   decisions: z.array(closeDecisionSchema).max(1000).default([]),
   closedOn: z.iso.date().optional(),
+  closedAt: z.iso.datetime().optional(),
+  snapshot: closeResultSnapshotSchema.optional(),
 });
 export type CloseDecision = z.infer<typeof closeDecisionSchema>;
 export type MonthCloseState = z.infer<typeof monthCloseStateSchema>;
 export type CloseWork = Pick<CloseDecision, 'step' | 'id' | 'fingerprint'>;
 export const CLOSE_TITLES = [
-  'Posteingang leeren',
+  'Prüfen',
   'Konten abgleichen',
   'Überzogenes ausgleichen',
   'Nächsten Monat planen',
-  'Rückblick',
+  'Ergebnis',
 ] as const;
 export function closeSteps(
   work: CloseWork[],
@@ -45,6 +68,8 @@ export function closeSteps(
       step,
       title,
       openCount: step === 4 && plan ? Number(plan.remainingCents !== 0) : openCount,
+      hasTasks:
+        step <= 3 ? items.length > 0 : step === 4 && Boolean(plan && plan.remainingCents !== 0),
       reasons: [...new Set(accepted.map((d) => d.reason))],
       status:
         step === 4 && plan
@@ -66,6 +91,29 @@ export function closeSteps(
   });
 }
 export type CloseStep = ReturnType<typeof closeSteps>[number];
+
+/** Navigation skips empty/completed work without recording a decision or closing on read. */
+export function closeNavigation(steps: readonly CloseStep[]) {
+  const tasks = steps.filter((step) => step.step < 5 && step.hasTasks);
+  const currentStep = steps.find((step) => step.step < 5 && step.status === 'open')?.step ?? 5;
+  const nextByStep = Object.fromEntries(
+    steps.map((step) => [
+      step.step,
+      steps.find(
+        (candidate) =>
+          candidate.step > step.step && candidate.step < 5 && candidate.status === 'open',
+      )?.step ?? 5,
+    ]),
+  ) as Record<number, number>;
+  return {
+    currentStep,
+    nextStep: nextByStep[currentStep] ?? 5,
+    nextByStep,
+    completedTasks: tasks.filter((step) => step.status === 'done' || step.status === 'skipped')
+      .length,
+    totalTasks: tasks.length,
+  };
+}
 
 /** Tracked zero-spend months count; partial and pre-tracking months never dilute the mean. */
 export function closePlanHistory(

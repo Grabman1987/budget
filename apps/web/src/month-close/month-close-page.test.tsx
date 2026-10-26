@@ -126,3 +126,66 @@ it.each(['2026-10', '2026-09'])(
     }
   },
 );
+
+it('opens a quiet month directly at Ergebnis and closes it with one click', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-11T12:00:00+02:00'));
+  vi.stubGlobal('scrollTo', () => {});
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  const opened = createTestDatabase();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const api = createLedgerApi({
+    db: opened.db,
+    today: () => '2026-10-11',
+    stepUp: async (_c, next) => next(),
+  });
+  vi.stubGlobal('fetch', (path: string, options: RequestInit) =>
+    api.request(path.replace(/^\/api/, ''), options),
+  );
+  const root = createRootRoute();
+  const route = createRoute({
+    getParentRoute: () => root,
+    path: '/close/$month',
+    component: MonthClosePage,
+  });
+  const router = createRouter({
+    routeTree: root.addChildren([route]),
+    history: createMemoryHistory({ initialEntries: ['/close/2026-09'] }),
+  });
+  const view = render(
+    <QueryClientProvider client={client}>
+      <ToastProvider>
+        <RouterProvider router={router} />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  try {
+    await screen.findByRole('heading', { name: '5. Ergebnis' });
+    expect(screen.getAllByText('✓ nichts offen')).toHaveLength(4);
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    expect(screen.getByText('Warum')).toBeTruthy();
+    expect(screen.getByText('Danach')).toBeTruthy();
+    await userEvent.click(await screen.findByRole('button', { name: 'Monat abschließen' }));
+    await screen.findByText(/Stand gespeichert am/);
+    expect(screen.queryByRole('button', { name: 'Monat abschließen' })).toBeNull();
+    const saved = opened.db
+      .select()
+      .from(schema.appSetting)
+      .all()
+      .find((row) => row.id === 'month_close.2026-09');
+    expect(JSON.parse(saved!.value)).toMatchObject({
+      closedOn: '2026-10-11',
+      snapshot: { month: '2026-09', version: 1 },
+    });
+  } finally {
+    view.unmount();
+    client.clear();
+    opened.close();
+  }
+});

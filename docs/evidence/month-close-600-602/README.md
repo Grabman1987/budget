@@ -1,0 +1,87 @@
+# Month close #600 / #601 / #602
+
+Local implementation on base `8962cf7817125995abc22ca634e1d60a1a03fc55`.
+Only the month-close portions of prepared source `496b4e02` were reused, with
+the shared reconciliation category guard and close-mode form hooks. No Heute
+charts, section readers, reminders, task UI, request memo changes, migration or
+dependency changes are included. Earlier source-only reviews are provenance,
+not validation of this runtime or diff.
+
+- #600: Prüfen / Konten abgleichen / Überzogenes ausgleichen / Nächsten Monat
+  planen / Ergebnis; empty steps are skipped, progress counts steps with work,
+  and each step explains Warum and Danach. A synthetic quiet month opens at
+  Ergebnis and saves with one click.
+- #601: bank-first conservative quiet-account cohort, transactional revision and
+  exact cohort recheck, canonical reconciliation per account and one audit/Undo
+  group. Movement, pending work, missing lineage, later changes, holdings and
+  contradictions remain individual. A newer contradictory bank observation uses
+  its observed day or Vienna fetch day. Individual residual adjustments require
+  a reason and keep the existing category, cents and booking-lock guards.
+- #602: current report-reader figures and a bounded version-1 retained result,
+  server close time, no additional month lock, idempotent unchanged close,
+  required reviewed source revision and retained audit-event fence against
+  change followed by Undo. Earlier markers and snapshots remain readable;
+  presentation sorting does not reorder the retained revision facts.
+
+## Regression evidence
+
+The first extracted-source run reproduced `SQLITE_ERROR: near "AS": syntax
+error` in `month-close-reconciliation.ts` when an earlier personal check existed.
+The existing account-completion API test failed; a direct synthetic read showed
+the query location. Its changed-event subquery lacked a closing parenthesis.
+The correction changes syntax only. The literal quiet cohort regression now
+expects Giro 98,750 cents after a 1,250-cent expense from 100,000 opening cents,
+Sparen 0 cents and USD 0 native cents. It verifies exactly one new check each,
+the grouped audit, retained financial locks and exact original rows after Undo.
+Another regression forces the second canonical insert to fail and proves the
+whole group's accounts, checks and audits roll back.
+
+Report/close fixtures retain independent expected values: spending 400 cents,
+income 0, saved -400, assignments 99,600, open overspending 400 and unassigned
+carry 400 (100,000 opening cents less 99,600 assigned). Overspending and
+unassigned carry remain distinct existing measures. Tests also cover report
+reader equality, idempotent time/state with no extra audit, actual financial
+editing after close, stale close and stale batch rejection after change/Undo,
+bank-date fallback, pending/moved/unproven exclusions, residual-reason rollback,
+and legacy snapshot reads.
+
+## Changed-test reasons
+
+| File | Reason |
+| --- | --- |
+| `apps/server/src/api/month-close.test.ts` | Existing close requests now send the reviewed revision required by the API. Original financial, stale-work, lock and Undo expectations remain. New scoped cases prove transactional writes, rollback, exact grouped Undo, report parity, source CAS and retained close behavior. |
+| `packages/domain/src/month-close.test.ts` | New task-only navigation and legacy marker/version-1 parsing checks; existing calculation assertions are unchanged. |
+| `apps/web/src/month-close/stepper.test.tsx` | Renamed Prüfen selector and task-only progress/empty-step labels; retains five-step, current-step and keyboard assertions. |
+| `apps/web/src/month-close/month-close-page.test.tsx` | Adds quiet-month one-click completion through the real API. Supplies JSDOM's missing ResizeObserver/scroll APIs; original account-date, amount and Undo checks remain. |
+| `e2e/month-close.spec.ts` | Renamed headings, expands the new report disclosure before the existing report/verdict assertions, checks stored time and retained source revision. Existing amounts, plan Undo, accessibility, overflow and screenshot assertions remain. |
+| `e2e/inbox-pagination.spec.ts` | Only the renamed Prüfen heading; pagination assertions remain unchanged. |
+
+## Local checks and remaining gates
+
+Node `v22.23.3`; `npm ci --no-audit --no-fund` refreshed the old installed graph
+without manifest or lock changes. All-workspace `npm run typecheck` passed.
+Changed-path ESLint passed (the supplied CSS path produced its normal ignored
+warning); the final browser-test/component edits passed scoped ESLint too.
+CSS scale check passed. `npm run build` passed for web and server; existing Vite
+config-loader and ineffective dynamic-import warnings remain.
+
+The first current-graph parallel run hit fork startup timeouts on the
+memory-constrained Windows host. No timeouts, assertions, heap limits or worker
+configuration files changed. The next run used `--maxWorkers=1`: 49/50 passed;
+the new quiet component case exposed the missing JSDOM ResizeObserver fixture.
+Its focused rerun passed all 3 component cases after that fixture was supplied.
+Final run: **6 files / 50 tests passed**, 39.19 seconds, using:
+
+```powershell
+node node_modules/vitest/vitest.mjs run --maxWorkers=1 packages/domain/src/month-close.test.ts apps/server/src/api/month-close.test.ts apps/web/src/month-close/stepper.test.tsx apps/web/src/month-close/month-close-page.test.tsx apps/web/src/month-close/next-month-plan.test.tsx apps/web/src/ledger/reconcile-panel.test.tsx
+```
+
+The existing account-flow cases emit JSDOM's nonfatal scrollTo notice; no test
+failed. The new quiet-month case supplies that fixture explicitly.
+
+Required independent full-diff financial review and exact-head required CI are
+still pending. No full local suite, Docker/restore, browser run, workflow, PR,
+push, merge or release was started here. Desktop 1440 / mobile 390 /
+webkit-iphone light/dark, Axe, no horizontal scroll, touch-target checks and
+affected visual evidence remain browser gates; JSDOM does not establish them.
+No live or complete acceptance is claimed. #573/#603 remain separate work.

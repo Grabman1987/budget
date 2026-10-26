@@ -18,6 +18,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AppLink } from '../shell/app-link';
+import { ApiError } from '../api/http';
 import { previewReconciliation, reconcileAccount, type ReconcileRequest } from './api';
 import { nativeCurrency, valuedCurrency, longDay, shortDay } from './format';
 import { errorText } from './labels';
@@ -25,7 +26,7 @@ import { useLedgerWrites } from './mutations';
 import { LEDGER_KEY, lookupsQuery } from './queries';
 import { findingOf } from './reconcile-model';
 import { ErrorNote, LoadingNote } from './states';
-import type { AccountRow } from './types';
+import type { AccountRow, ReconcileResult } from './types';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { categoriesFor, pickableCategories } from './capture-model';
@@ -62,15 +63,32 @@ export function ReconcileFlow({
   account,
   onDone,
   initialDate,
+  monthClose,
 }: {
   account: AccountRow;
   onDone: () => void;
   initialDate?: string | undefined;
+  monthClose?: {
+    asOf: string;
+    confirm: (input: ReconcileRequest & { note?: string }) => Promise<{ result: ReconcileResult }>;
+    onReload: () => void;
+    onBusy: (busy: boolean) => void;
+  };
 }) {
   useAmountPrivacy();
   const qc = useQueryClient();
   const writes = useLedgerWrites();
   const today = todayInVienna();
+  // A dirty form retains the close revision captured when it was opened, never a silent refresh.
+  const [closeContext] = useState(monthClose);
+  const [reason, setReason] = useState('');
+  const [staleClose, setStaleClose] = useState(false);
+  useEffect(
+    () => () => {
+      closeContext?.onBusy(false);
+    },
+    [closeContext],
+  );
   const [date, setDate] = useState(initialDate ?? today);
   const [text, setText] = useState('');
   const [adjustDate, setAdjustDate] = useState<string | null>(null);
@@ -134,12 +152,21 @@ export function ReconcileFlow({
     !preview.isError;
 
   const confirm = useMutation({
-    mutationFn: (extra: Partial<ReconcileRequest>) =>
-      reconcileAccount(account.id, {
+    onMutate: () => {
+      closeContext?.onBusy(true);
+    },
+    mutationFn: (extra: Partial<ReconcileRequest>) => {
+      const input = {
         date: asked.date,
         statementBalanceCents: asked.statement as number,
         ...extra,
-      }),
+        ...(closeContext && extra.adjust && reason.trim() ? { note: reason.trim() } : {}),
+      };
+      return closeContext ? closeContext.confirm(input) : reconcileAccount(account.id, input);
+    },
+    onSettled: () => {
+      closeContext?.onBusy(false);
+    },
     onSuccess: ({ result }) => {
       void qc.invalidateQueries({ queryKey: LEDGER_KEY });
       writes.offerUndo(
@@ -150,13 +177,27 @@ export function ReconcileFlow({
       );
       onDone();
     },
-    onError: (e) => setError(errorText(e)),
+    onError: (e) => {
+      if (
+        closeContext &&
+        e instanceof ApiError &&
+        (e.code === 'stale_close' || e.code === 'close_account_unavailable')
+      )
+        setStaleClose(true);
+      setError(errorText(e));
+    },
   });
   const run = (extra: Partial<ReconcileRequest>) => {
+    if (closeContext && (confirm.isPending || staleClose || (extra.adjust && !reason.trim())))
+      return;
     setError(null);
     confirm.mutate(extra);
   };
   const dropDuplicate = (id: string) => {
+    if (closeContext) {
+      run({ removeBookingIds: [id] });
+      return;
+    }
     setError(null);
     writes.remove.mutate(
       { id },
@@ -173,7 +214,7 @@ export function ReconcileFlow({
       {bank && bank.amountCents !== null && bankDate && (
         <Button
           variant="ghost"
-          disabled={confirm.isPending}
+          disabled={confirm.isPending || Boolean(closeContext && bankDate !== closeContext.asOf)}
           onClick={() => {
             setDate(bankDate);
             setText(formatDecimal(cents(bank.amountCents!)));
@@ -187,6 +228,7 @@ export function ReconcileFlow({
           <TextInput
             id={id}
             type="date"
+            disabled={Boolean(closeContext)}
             min={account.openingDate}
             max={today}
             value={date}
@@ -327,6 +369,26 @@ export function ReconcileFlow({
               </span>
             </p>
             <div className="kform">
+              {closeContext && (
+                <Field label="Grund für den Ausgleich">
+                  {({ id }) => (
+                    <TextInput
+                      id={id}
+                      value={reason}
+                      maxLength={500}
+                      disabled={confirm.isPending}
+                      onChange={(event) => setReason(event.target.value)}
+                      aria-required="true"
+                    />
+                  )}
+                </Field>
+              )}
+              {closeContext && (
+                <p className="kmeta">
+                  Ein Grund ist nur erforderlich, wenn ein verbleibender Unterschied als Ausgleich
+                  gebucht wird.
+                </p>
+              )}
               <Field label="Ausgleichsdatum">
                 {({ id }) => (
                   <TextInput
@@ -405,10 +467,15 @@ export function ReconcileFlow({
               )}
               {finding.kind === 'duplicate' && (
                 <Button
-                  disabled={writes.remove.isPending}
+                  disabled={
+                    writes.remove.isPending ||
+                    Boolean(closeContext && (confirm.isPending || staleClose))
+                  }
                   onClick={() => dropDuplicate(finding.candidate.removeId)}
                 >
-                  Doppelte Buchung entfernen
+                  {closeContext
+                    ? 'Doppelte Buchung entfernen und festschreiben'
+                    : 'Doppelte Buchung entfernen'}
                 </Button>
               )}
               {finding.kind === 'pending' && (
@@ -425,6 +492,8 @@ export function ReconcileFlow({
                 }
                 disabled={
                   confirm.isPending ||
+                  staleClose ||
+                  Boolean(closeContext && !reason.trim()) ||
                   !adjustmentValid ||
                   (locked && !unlock) ||
                   (categoryId !== '' && !categories.some((c) => c.id === categoryId))
@@ -451,6 +520,11 @@ export function ReconcileFlow({
           </>
         )}
       </div>
+      {staleClose && closeContext && (
+        <Button variant="ghost" disabled={confirm.isPending} onClick={closeContext.onReload}>
+          Prüfung schließen und Abschluss neu laden
+        </Button>
+      )}
       {error && (
         <p className="field-error" role="alert">
           {maskMoneyText(error)}
