@@ -337,13 +337,11 @@ test('proven original manual payout splits only after explicit acceptance and on
       response.url().endsWith('/api/payslip-intake/upload') &&
       response.request().method() === 'POST',
   );
-  await dialog
-    .getByLabel('Gehaltszettel-PDF auswählen')
-    .setInputFiles({
-      name: 'synthetic-original-609.pdf',
-      mimeType: 'application/pdf',
-      buffer: await syntheticPayslipPdf(),
-    });
+  await dialog.getByLabel('Gehaltszettel-PDF auswählen').setInputFiles({
+    name: 'synthetic-original-609.pdf',
+    mimeType: 'application/pdf',
+    buffer: await syntheticPayslipPdf(),
+  });
   const upload = await uploaded;
   expect(upload.ok()).toBe(true);
   const intake = await upload.json();
