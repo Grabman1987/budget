@@ -71,4 +71,34 @@ The two retained existing-test adaptations remain additive against current main:
 
 Fresh merged-tree targeted verification uses installed dependencies, Node **22.23.3** and one Vitest worker: **13 files / 104 tests passed (83.65s)**. This includes all three #626 suites, existing template/CSV/saved-view UI and domain regressions, and the existing stage-grid suite. JSDOM's existing unimplemented `scrollTo` notices remain. Web TypeScript, scoped ESLint for all eleven changed TS/TSX files, repository CSS-scale validation and scoped Prettier passed. Fresh `npm run build -w @budget/web` passed with Vite **8.3.5**, 2,987 modules, **10.08s**. Existing native-config extension and ineffective dynamic-import warnings remain; no warning suppression was added.
 
-The former PR head's green CI `39690088342` and all browser images/results above remain historical, scoped to their stated source. Current shared dependencies and UI primitives changed on main, so these do not establish browser acceptance of this refresh. Independent full financial-presentation/test review, fresh canonical Linux browser proof, exact-head required CI and coordinator-controlled serial integration/live verification remain open. Unattended loops remain disabled.
+The former PR head's green CI `39690088342` and all browser images/results above remain historical, scoped to their stated source. Current shared dependencies and UI primitives changed on main, so these do not establish browser acceptance of this refresh. The current evidence below supersedes the pending full-review/focused-browser gates, but exact-head required CI and coordinator-controlled serial integration/live verification remain open. Unattended loops remain disabled.
+
+## Current canonical Linux proof
+
+Independent full financial-presentation/security/test review cleared merged source
+`c21fe4a8aa2dbce0ee58df930f20feb4714e351b`. The reviewer verified that all 25
+non-document PR paths retain their original PR blobs and that the ROADMAP merge
+preserves every current-main section. Native source/CSV ordering, exact integer
+aggregation, cohort units, null gaps, read-only guards, privacy and the retained
+PWA/stage-grid assertions were reviewed; no financial writer was added.
+
+[Scoped run 40321078818](https://github.com/Grabman1987/budget/actions/runs/40321078818)
+actually checked out `c21fe4a8` from the temporary no-PR proof branch. It passed
+**33 tests in 2.8 minutes**, including three setup cases and all five views in both
+themes on configured desktop, Chromium mobile and WebKit iPhone (30 feature cases).
+There were no retries, failures, skips or baseline changes. The existing test
+retains its literal table/chart/CSV identities, native keyboard pan and strict
+restoration, privacy, 44px/Axe/overflow, zero-write and financial-fingerprint checks.
+Manual viewport variants remain for required full CI; they are not counted in
+this focused selection. WebKit emulation is not a physical-device test.
+
+The manual workflow definition came from the independently reviewed screenshot
+artifact step on branch `codex/continue-month-close-600-602` at `cec56cc2`; its
+checkout input selected the separate #626 source at `c21fe4a8`. This is a harness
+revision, not a claim that the month-close product code was part of this test.
+The checked-out SHA, actual test summary and “No baseline changes” step were
+inspected because this workflow retains `|| true`. Its seven-day
+`scoped-browser-screenshots` artifact contains current synthetic PNGs; private
+copies are retained as `719-current-browser-screenshots`. These do not replace
+the revision-scoped historical images above. Full exact-head CI and publication
+are still required before any live/completed claim.
