@@ -268,7 +268,7 @@ test('bank candidates precede reminders and remain isolated review work in the a
     expect(await balances(request)).toEqual([98022, 100000]);
     await page.goto(`/konten/${first.id}`);
     const queue = page.getByRole('region', { name: 'Bankumsätze prüfen', exact: true });
-    await queue.locator('.bank-review summary').click();
+    await queue.getByRole('button', { name: 'Übernehmen', exact: true }).click();
     const confirmed = page.waitForResponse(
       (response) =>
         response.request().method() === 'POST' &&

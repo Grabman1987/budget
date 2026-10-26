@@ -352,7 +352,15 @@ test('bank inbox suggestion requires an explicit posting decision', async ({ pag
   await expect(page.getByText('Bankumsatz prüfen', { exact: true })).toBeVisible();
   expect(confirmed).toBe(false);
   await expect(page.getByRole('button', { name: 'Nicht übernehmen', exact: true })).toBeVisible();
-  await page.locator('.bank-review summary').click();
+  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  const candidateDialog = page.getByRole('dialog', { name: 'Buchung übernehmen', exact: true });
+  await expect(candidateDialog).toBeVisible();
+  expect(confirmed).toBe(false);
+  await candidateDialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await expect(candidateDialog).not.toBeVisible();
+  expect(confirmed).toBe(false);
+  await expect(page.getByRole('button', { name: 'Übernehmen', exact: true })).toBeFocused();
+  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
   await page.getByRole('button', { name: 'Als Buchung bestätigen' }).click();
   await expect(page.getByText('Prüfen leer.', { exact: false })).toBeVisible();
   expect(confirmed).toBe(true);

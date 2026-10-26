@@ -1,4 +1,5 @@
-import { Button, Field, Select, useAmountPrivacy } from '@budget/ui';
+import { Button, Field, FormDialog, Select, maskMoneyText, useAmountPrivacy } from '@budget/ui';
+import { X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { request } from '../api/http';
@@ -44,23 +45,54 @@ export function BankCandidate({
   id,
   onConfirmed,
   onPrepared,
+  description,
+  disabled,
 }: {
   id: string;
   onConfirmed?: ((id: string) => void) | undefined;
   onPrepared?: PreparedCallback | undefined;
+  description?: string | undefined;
+  disabled?: boolean | undefined;
 }) {
-  const [prepared, setPrepared] = useState<PreparedBankSuggestion>();
+  useAmountPrivacy();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [visited, setVisited] = useState(false);
   const prepare = useCallback<PreparedCallback>(
-    (suggestion) => {
-      setPrepared(suggestion);
-      onPrepared?.(suggestion);
-    },
+    (suggestion) => onPrepared?.(suggestion),
     [onPrepared],
   );
   return (
-    <BankReview suggestion={prepared}>
-      <BankCandidateForm id={id} onConfirmed={onConfirmed} onPrepared={prepare} />
-    </BankReview>
+    <>
+      <Button
+        size="sm"
+        disabled={disabled}
+        onClick={() => {
+          setVisited(true);
+          setOpen(true);
+        }}
+      >
+        Übernehmen
+      </Button>
+      <FormDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Buchung übernehmen"
+        beforeClose={() => !busy}
+      >
+        {/* Retain choices and prepared bulk suggestions when the popup is closed. Opening only reads. */}
+        {visited && (
+          <BankCandidateForm
+            id={id}
+            onConfirmed={onConfirmed}
+            onPrepared={prepare}
+            description={description}
+            onClose={() => setOpen(false)}
+            onBusy={setBusy}
+          />
+        )}
+      </FormDialog>
+    </>
   );
 }
 /**
@@ -71,10 +103,16 @@ function BankCandidateForm({
   id,
   onConfirmed,
   onPrepared,
+  description,
+  onClose,
+  onBusy,
 }: {
   id: string;
   onConfirmed?: ((bookingId: string) => void) | undefined;
   onPrepared: PreparedCallback;
+  description?: string | undefined;
+  onClose: () => void;
+  onBusy: (busy: boolean) => void;
 }) {
   useAmountPrivacy();
   const lookups = useQuery(lookupsQuery()),
@@ -104,6 +142,7 @@ function BankCandidateForm({
     [busy, setBusy] = useState(false);
   const [mergeId, setMerge] = useState(''),
     [transferId, setTransfer] = useState('');
+  useEffect(() => onBusy(busy), [busy, onBusy]);
   const matches = useQuery({
     queryKey: [...LEDGER_KEY, 'bank-matches', id],
     queryFn: () =>
@@ -164,210 +203,241 @@ function BankCandidateForm({
     payeeId,
   ]);
   return (
-    <div className="bank-candidate assignment-review">
-      {matches.isError && (
-        <ErrorNote
-          what="Buchungsvorschläge"
-          error={matches.error}
-          onRetry={() => void matches.refetch()}
-        />
-      )}
-      {(['merge', 'transfer'] as const).map((action) => {
-        const rows =
-          action === 'merge'
-            ? [...(matches.data?.merge ?? []), ...(matches.data?.link ?? [])]
-            : matches.data?.transfers;
-        if (!rows?.length) return null;
-        const selected = (action === 'merge' ? mergeId : transferId) || rows[0]!.id;
-        const setSelected = action === 'merge' ? setMerge : setTransfer;
-        return (
-          <div key={action}>
-            <Field
-              label={
-                action === 'merge'
-                  ? 'Passende Buchung (geringster Datumsabstand zuerst)'
-                  : 'Passende Gegenbuchung'
-              }
-            >
-              {({ id: fieldId }) => (
-                <Select
-                  id={fieldId}
-                  value={selected}
-                  disabled={busy}
-                  onChange={(e) => setSelected(e.target.value)}
-                >
-                  {rows.map((row) => (
-                    <option key={row.id} value={row.id}>
-                      {shortDay(row.date)} · {row.accountName} · {row.memo || 'Buchung'} ·{' '}
-                      {eur(row.amountCents, { sign: true })}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-            <p className="kmeta">
-              {action === 'merge'
-                ? 'Kategorie, Anteile und Notiz bleiben erhalten. Die Bankreferenz wird übernommen; bei eigenen Buchungen auch das Bankdatum.'
-                : 'Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.'}
-            </p>
-            <Button
-              size="sm"
-              disabled={busy}
-              onClick={() => {
-                setBusy(true);
-                void write(
-                  () =>
-                    request<{ groupId: string }>(
-                      'POST',
-                      '/api/bank-sync/candidates/' + encodeURIComponent(id) + '/' + action,
-                      { bookingId: selected },
-                    ),
-                  () =>
-                    action === 'merge'
-                      ? 'Bankumsatz mit Buchung zusammengeführt.'
-                      : 'Als Umbuchung verbunden.',
-                ).finally(() => setBusy(false));
-              }}
-            >
-              {action === 'merge'
-                ? 'Mit Buchung ' +
-                  shortDay(rows.find((r) => r.id === selected)?.date ?? rows[0]!.date) +
-                  ' zusammenführen'
-                : 'Als Umbuchung verbinden'}
-            </Button>
-          </div>
-        );
-      })}
-      {review.isPending && <LoadingNote what="Vorschläge" />}
-      {review.isError && (
-        <ErrorNote what="Vorschläge" error={review.error} onRetry={() => void review.refetch()} />
-      )}
-      {review.data?.existingTransfer && (
-        <p>
-          Dieser Umsatz ergänzt eine bereits gebuchte Umbuchung. Die Bestätigung verbindet die
-          Bankdaten mit der Gegenbuchung.
-        </p>
-      )}
-      {review.data && !review.data.existingTransfer && (
-        <>
-          <span>
-            Bereinigter Empfänger:{' '}
-            {review.data.cleanup.payeeName ?? (review.data.cleanup.cleaned || 'nicht erkannt')}
-            {review.data.cleanup.learned ? ' · gemerkter Alias' : ''}
-          </span>
-          {!!review.data.suggestions.length && (
-            <Field label="Regelvorschlag">
-              {({ id }) => (
-                <Select
-                  id={id}
-                  disabled={busy}
-                  value={ruleId ?? ''}
-                  onChange={(e) => setSelected(e.target.value || null)}
-                >
-                  <option value="">Manuell zuordnen</option>
-                  {review.data.suggestions.map((r) => (
-                    <option value={r.id} key={r.id}>
-                      {r.name}
-                      {r.unavailable
-                        ? ' · prüfen'
-                        : r.automatic
-                          ? ' · automatisch vorbereitet'
-                          : ''}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
+    <form className="bkform bank-candidate-dialog" onSubmit={(event) => event.preventDefault()}>
+      <div className="bk-head">
+        <strong className="bk-kind">Buchung übernehmen</strong>
+        <button
+          type="button"
+          className="icon-btn bk-close"
+          aria-label="Schließen"
+          disabled={busy}
+          onClick={onClose}
+        >
+          <X size={18} strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      </div>
+      <div className="bk-body kform">
+        {description && <p className="kmeta">{maskMoneyText(description)}</p>}
+        <div className="bank-candidate assignment-review">
+          {matches.isError && (
+            <ErrorNote
+              what="Buchungsvorschläge"
+              error={matches.error}
+              onRetry={() => void matches.refetch()}
+            />
           )}
-          {rule && (
+          {(['merge', 'transfer'] as const).map((action) => {
+            const rows =
+              action === 'merge'
+                ? [...(matches.data?.merge ?? []), ...(matches.data?.link ?? [])]
+                : matches.data?.transfers;
+            if (!rows?.length) return null;
+            const selected = (action === 'merge' ? mergeId : transferId) || rows[0]!.id;
+            const setSelected = action === 'merge' ? setMerge : setTransfer;
+            return (
+              <div key={action}>
+                <Field
+                  label={
+                    action === 'merge'
+                      ? 'Passende Buchung (geringster Datumsabstand zuerst)'
+                      : 'Passende Gegenbuchung'
+                  }
+                >
+                  {({ id: fieldId }) => (
+                    <Select
+                      id={fieldId}
+                      value={selected}
+                      disabled={busy}
+                      onChange={(e) => setSelected(e.target.value)}
+                    >
+                      {rows.map((row) => (
+                        <option key={row.id} value={row.id}>
+                          {shortDay(row.date)} · {row.accountName} · {row.memo || 'Buchung'} ·{' '}
+                          {eur(row.amountCents, { sign: true })}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
+                <p className="kmeta">
+                  {action === 'merge'
+                    ? 'Kategorie, Anteile und Notiz bleiben erhalten. Die Bankreferenz wird übernommen; bei eigenen Buchungen auch das Bankdatum.'
+                    : 'Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.'}
+                </p>
+                <Button
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => {
+                    setBusy(true);
+                    void write(
+                      () =>
+                        request<{ groupId: string }>(
+                          'POST',
+                          '/api/bank-sync/candidates/' + encodeURIComponent(id) + '/' + action,
+                          { bookingId: selected },
+                        ),
+                      () =>
+                        action === 'merge'
+                          ? 'Bankumsatz mit Buchung zusammengeführt.'
+                          : 'Als Umbuchung verbunden.',
+                    )
+                      .then((result) => {
+                        if (result) onClose();
+                      })
+                      .finally(() => setBusy(false));
+                  }}
+                >
+                  {action === 'merge'
+                    ? 'Mit Buchung ' +
+                      shortDay(rows.find((r) => r.id === selected)?.date ?? rows[0]!.date) +
+                      ' zusammenführen'
+                    : 'Als Umbuchung verbinden'}
+                </Button>
+              </div>
+            );
+          })}
+          {review.isPending && <LoadingNote what="Vorschläge" />}
+          {review.isError && (
+            <ErrorNote
+              what="Vorschläge"
+              error={review.error}
+              onRetry={() => void review.refetch()}
+            />
+          )}
+          {review.data?.existingTransfer && (
+            <p>
+              Dieser Umsatz ergänzt eine bereits gebuchte Umbuchung. Die Bestätigung verbindet die
+              Bankdaten mit der Gegenbuchung.
+            </p>
+          )}
+          {review.data && !review.data.existingTransfer && (
             <>
-              <AssignmentSummary rule={rule} />
-              <Button variant="ghost" disabled={busy} onClick={() => setSelected(null)}>
-                Vorschlag ablehnen
-              </Button>
+              <span>
+                Bereinigter Empfänger:{' '}
+                {review.data.cleanup.payeeName ?? (review.data.cleanup.cleaned || 'nicht erkannt')}
+                {review.data.cleanup.learned ? ' · gemerkter Alias' : ''}
+              </span>
+              {!!review.data.suggestions.length && (
+                <Field label="Regelvorschlag">
+                  {({ id }) => (
+                    <Select
+                      id={id}
+                      disabled={busy}
+                      value={ruleId ?? ''}
+                      onChange={(e) => setSelected(e.target.value || null)}
+                    >
+                      <option value="">Manuell zuordnen</option>
+                      {review.data.suggestions.map((r) => (
+                        <option value={r.id} key={r.id}>
+                          {r.name}
+                          {r.unavailable
+                            ? ' · prüfen'
+                            : r.automatic
+                              ? ' · automatisch vorbereitet'
+                              : ''}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
+              )}
+              {rule && (
+                <>
+                  <AssignmentSummary rule={rule} />
+                  <Button variant="ghost" disabled={busy} onClick={() => setSelected(null)}>
+                    Vorschlag ablehnen
+                  </Button>
+                </>
+              )}
             </>
           )}
-        </>
-      )}
-      {!rule && !review.data?.existingTransfer && (
-        <>
-          <Field label="Empfänger">
-            {({ id }) => (
-              <Select
-                id={id}
-                disabled={busy}
-                value={recipient}
-                onChange={(e) => setPayee(e.target.value)}
-              >
-                <option value="">Ohne Empfänger</option>
-                {payees.data?.payees
-                  .filter((p) => !p.systemKind)
-                  .map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-              </Select>
-            )}
-          </Field>
-          <Field label="Kategorie">
-            {({ id }) => (
-              <Select
-                id={id}
-                value={categoryId}
-                disabled={busy}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                <option value="">Später zuordnen / Zu verteilen</option>
-                {categoryGroups.map((g) => (
-                  <optgroup key={g.id} label={g.name}>
-                    {g.categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
+          {!rule && !review.data?.existingTransfer && (
+            <>
+              <Field label="Empfänger">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    disabled={busy}
+                    value={recipient}
+                    onChange={(e) => setPayee(e.target.value)}
+                  >
+                    <option value="">Ohne Empfänger</option>
+                    {payees.data?.payees
+                      .filter((p) => !p.systemKind)
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                  </Select>
+                )}
+              </Field>
+              <Field label="Kategorie">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={categoryId}
+                    disabled={busy}
+                    onChange={(e) => setCategory(e.target.value)}
+                  >
+                    <option value="">Später zuordnen / Zu verteilen</option>
+                    {categoryGroups.map((g) => (
+                      <optgroup key={g.id} label={g.name}>
+                        {g.categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
-                  </optgroup>
-                ))}
-              </Select>
-            )}
-          </Field>
-        </>
-      )}
-      <Button
-        disabled={busy || review.isPending || review.isError || !!rule?.unavailable}
-        size="sm"
-        onClick={() => {
-          setBusy(true);
-          void write(
-            () =>
-              request<{ groupId: string; bookingId: string }>(
-                'POST',
-                '/api/bank-sync/candidates/' + encodeURIComponent(id) + '/confirm',
-                rule
-                  ? {
-                      categoryId: null,
-                      ruleId: rule.id,
-                      revision: rule.revision,
-                      candidateRevision: review.data?.candidateRevision,
-                    }
-                  : {
-                      categoryId: categoryId || null,
-                      candidateRevision: review.data?.candidateRevision,
-                      actions: { categoryId: categoryId || null, payeeId: recipient || null },
-                    },
-              ),
-            () => 'Bankumsatz als Buchung bestätigt.',
-          )
-            .then((result) => {
-              if (result && (rule?.actions.categoryId || rule?.actions.splits || categoryId))
-                onConfirmed?.(result.bookingId);
-            })
-            .finally(() => setBusy(false));
-        }}
-      >
-        {rule?.id.startsWith('inbox-learn:') ? 'Übernehmen' : 'Als Buchung bestätigen'}
-      </Button>
-    </div>
+                  </Select>
+                )}
+              </Field>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="bk-foot">
+        <Button variant="ghost" disabled={busy} onClick={onClose}>
+          Abbrechen
+        </Button>
+        <Button
+          disabled={busy || review.isPending || review.isError || !!rule?.unavailable}
+          size="sm"
+          onClick={() => {
+            setBusy(true);
+            void write(
+              () =>
+                request<{ groupId: string; bookingId: string }>(
+                  'POST',
+                  '/api/bank-sync/candidates/' + encodeURIComponent(id) + '/confirm',
+                  rule
+                    ? {
+                        categoryId: null,
+                        ruleId: rule.id,
+                        revision: rule.revision,
+                        candidateRevision: review.data?.candidateRevision,
+                      }
+                    : {
+                        categoryId: categoryId || null,
+                        candidateRevision: review.data?.candidateRevision,
+                        actions: { categoryId: categoryId || null, payeeId: recipient || null },
+                      },
+                ),
+              () => 'Bankumsatz als Buchung bestätigt.',
+            )
+              .then((result) => {
+                if (result && (rule?.actions.categoryId || rule?.actions.splits || categoryId))
+                  onConfirmed?.(result.bookingId);
+                if (result) onClose();
+              })
+              .finally(() => setBusy(false));
+          }}
+        >
+          {rule?.id.startsWith('inbox-learn:') ? 'Übernehmen' : 'Als Buchung bestätigen'}
+        </Button>
+      </div>
+    </form>
   );
 }
 
