@@ -44,7 +44,7 @@ test('stored terms show results first, live extra repayment and principal progre
   await expect(page.locator('.debt-overview')).toContainText('0,41 € Zinsen gespart');
   await page.getByLabel('+ Sondertilgung/Monat (EUR)').fill('-1');
   await expect(page.getByRole('alert')).toContainText('Betrag ab 0');
-  await expect(page.getByRole('heading', { name: 'Tilgungsplan' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tilgungsplan', exact: true })).toBeVisible();
   await page.getByLabel('+ Sondertilgung/Monat (EUR)').fill('50');
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => {

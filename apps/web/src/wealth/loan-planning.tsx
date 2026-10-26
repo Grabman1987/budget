@@ -27,6 +27,7 @@ import {
   deleteScenario,
   DEBT_STRATEGY_KEY,
   LOAN_PLAN_KEY,
+  LOAN_HISTORY_KEY,
   loanPlanQuery,
   previewLoanScenario,
   saveRateChange,
@@ -64,6 +65,7 @@ export function useLoanWrite() {
   const refresh = () =>
     Promise.all([
       qc.invalidateQueries({ queryKey: [...LOAN_PLAN_KEY] }),
+      qc.invalidateQueries({ queryKey: [...LOAN_HISTORY_KEY] }),
       qc.invalidateQueries({ queryKey: [...DEBT_STRATEGY_KEY] }),
     ]);
   return async function write<T extends { groupId: string }>(
