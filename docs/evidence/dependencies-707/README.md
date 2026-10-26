@@ -301,3 +301,79 @@ Unfinished/cancelled jobs are not counted as passing. This is distinct from the
 earlier auxiliary run cancelled during package installation. A new complete
 exact-head required run, independent final-delta review and publication remain
 pending; no full-CI success or live-delivery claim is made here.
+
+### Existing browser synchronization failures exposed by the next run
+
+Required run `40284480127` at `c9f6dc67` passed both corrected desktop rail and
+annual flows. Shard 4 instead failed the unchanged month-close scenario on both
+configured attempts; portfolio positions recovered on its configured retry and
+was flaky, not a final failure. This follow-up changes two existing browser test
+files only, with no product, query policy, deadline, retry or financial-oracle
+changes.
+
+- `e2e/month-close.spec.ts`: wait for the visible booking editor's own entry
+  animations to finish before the existing category fill and pointer click.
+  The CI trace shows three unstable attempts during the 240 ms native modal
+  translation. Playwright's fourth pointer attempt uses `scrollIntoView` with
+  `block: 'start'`, moving `.bk-body` to scrollTop 131 and the category anchor
+  outside its clip. The picker then hides as designed. The group heading
+  intercepts hit testing; no option/group mousedown was actually dispatched.
+  This is a readiness correction, not a forced click, keyboard substitution,
+  reduced-motion override or fixed sleep. Also require the previous reconciliation
+  input to disappear after its save before opening the next account's editor;
+  this proves completion of the intended sequential flow. All five-step, save,
+  whole-Undo and close-marker assertions remain unchanged.
+- `e2e/portfolio-positions.spec.ts`: keep the synthetic 503 route active until
+  a synchronous capture listener observes the existing real retry-button click,
+  then allow the real positions response. Remove interception and the temporary
+  DOM flag after the unchanged `88.000,00 €` assertion. The earlier #702 sidebar
+  attachment/two-frame barrier remains intact. The current trace proves a real
+  successful background request after premature route removal and before the
+  click; it does not establish which observer/focus event initiated that request.
+  Every unavailable, missing-price, missing-FX, empty-state and navigation
+  assertion and all financial fixtures remain unchanged.
+
+Before the tracked correction, a private instrumented copy completed the real
+category pointer click and save but exhausted the unchanged 30-second scenario
+deadline during a later Axe scan. It is not a passing full scenario. A separate
+bounded native segment then passed the original category/PATCH/inbox assertions
+in 10.1 seconds. Its recorded geometry shows the entry translation ending before
+the actual option pointerdown, with body scrollTop remaining zero. These local
+diagnostics explain the timing dependency; they do not replace exact-head CI.
+Records are `private/707-monthclose-diagnostic.log`,
+`707-monthclose-focused.log`, `707-monthclose-geometry.json` and the downloaded
+CI shard trace. Scoped formatting and ESLint passed for both changed test files.
+The single run of both affected existing desktop scenarios finished with
+**4 passed (3 setup cases + the portfolio scenario), 1 failed**, no retries.
+The complete portfolio scenario passed in 12.3 seconds with its original
+unavailable, missing-price, missing-FX and empty-state expectations. Month close
+passed the repaired category pointer/save segment, then timed out at the existing
+step-2 `Wert in EUR` fill. It is not a passing whole scenario or an Axe timeout.
+The local trace shows the value-update click while the preceding reconciliation
+POST was still pending; its success callback clears the shared selected row.
+The click action was recorded at 75650.525 ms; the preceding reconciliation
+request began at 75541.555 ms and its 201 response completed approximately
+75667.727 ms. The added hidden-input assertion waits for that preceding flow
+to finish before the unchanged next click. This does not claim that rapid
+overlapping user actions have been validated or that product behavior changed.
+Local result: `private/707-ci-sync-browser.log`. The already-passing portfolio
+scenario was not repeated. No full-CI success is claimed.
+The step-2 timings above were extracted before the next standard Playwright run
+cleaned its temporary `test-results` trace. That local trace is not a retained
+artifact; the failure log and extracted timings remain available. The downloaded
+CI category-failure traces and bounded native geometry record are retained.
+
+After the additional reconciliation-completion assertion, the original full
+desktop month-close scenario ran exactly once more with its original 30-second
+deadline and no retries. Both repaired transitions passed, followed by the
+manual value save, overdraft coverage, light/dark step-3 Axe scans, plan apply,
+whole-plan Undo and reapply, and the light step-4 Axe scan. The scenario exhausted
+its deadline during the dark step-4 Axe scan; it did not reach the final close
+marker. Result: **3 setup passed, 1 scenario timed out** (34.2 seconds including
+cleanup; 1.7 minutes overall). This is partial execution evidence, not a passing
+full flow, and no further local repetition or deadline change was made.
+The final log and failure trace were retained at
+`private/707-monthclose-readiness-browser.log`,
+`707-monthclose-readiness-trace.zip` and `707-monthclose-readiness-error.md`.
+Scoped ESLint and formatting passed after the final assertion. Independent
+review and exact-head full CI remain required.

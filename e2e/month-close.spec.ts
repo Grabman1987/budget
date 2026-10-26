@@ -76,6 +76,12 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   await expect(page.getByRole('button', { name: 'Weiter', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Zuordnen', exact: true }).click();
   const editor = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+  await expect(editor).toBeVisible();
+  // Finish the native entry motion before opening the anchored picker. Pointer retries
+  // during that motion can scroll its anchor out of the dialog's clipped body.
+  await editor.evaluate(async (dialog) => {
+    await Promise.all(dialog.getAnimations().map((animation) => animation.finished));
+  });
   await editor.getByLabel('Kategorie', { exact: true }).fill('Musterbedarf');
   await editor
     .getByRole('listbox', { name: 'Kategorie, Vorschläge', exact: true })
@@ -106,6 +112,9 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   await page.getByRole('button', { name: 'Kontostand prüfen', exact: true }).click();
   await page.getByLabel('Saldo laut Bank').fill('96');
   await page.getByRole('button', { name: /Festschreiben/ }).click();
+  // The previous mutation's onDone clears the shared selected row. Wait for that
+  // completion before opening the next account's value editor.
+  await expect(page.getByLabel('Saldo laut Bank')).toBeHidden();
   await page.getByRole('button', { name: 'Wert aktualisieren', exact: true }).click();
   await page.getByLabel('Wert in EUR').fill('125');
   await page.getByRole('button', { name: 'Wert speichern', exact: true }).click();
