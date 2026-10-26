@@ -91,3 +91,13 @@ page-width, Axe and screenshot assertions. It keeps the 30-second readiness and
 90-second scenario deadlines and all other routes unchanged. No product,
 financial oracle, source data, retry count or protection changes. Scoped browser
 proof and independent review of this adaptation remain pending.
+
+Independent review is CLEAR for the adaptation. Scoped Linux run
+[40304830923](https://github.com/Grabman1987/budget/actions/runs/40304830923)
+checked out exact `6ecd447d40ad0e89538bdf6131829e1f01545e2f`, ran only the
+mobile annual-page consumer and its three setup cases, and passed **4/4 in
+14.4 seconds**, without retries, failures or skips. The original both-theme
+width, Axe and screenshot assertions passed after opening the real group. The
+baseline step reported **No baseline changes** and the remote branch stayed at
+the tested commit. Product source is unchanged. This focused result does not
+replace the required full CI on the final PR revision or establish publication.
