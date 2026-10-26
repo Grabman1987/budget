@@ -13,6 +13,12 @@ test.describe('UX-3c phone chart and table containers', () => {
   ]) {
     test(`${path} stays inside the phone in both themes`, async ({ page }, info) => {
       await page.goto(path!);
+      if (path!.startsWith('/plan/jahr')) {
+        const group = page.locator('.year-phone-summary').first();
+        await expect(group).toHaveAttribute('aria-expanded', 'false');
+        await group.click();
+        await expect(group).toHaveAttribute('aria-expanded', 'true');
+      }
       await expect(page.locator(ready!).first()).toBeVisible({ timeout: 30_000 });
       await page.evaluate(() => document.fonts.ready);
       for (const theme of ['light', 'dark']) {

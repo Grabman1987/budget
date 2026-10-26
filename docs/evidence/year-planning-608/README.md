@@ -73,3 +73,21 @@ byte-for-byte. The incoming waterfall naming correction and both strict Axe
 error-diagnostic improvements remain. No old matrix is restored. The event-list
 view retains its own privacy regression and the Axe 4.14 browser evidence above;
 this merge does not claim a new browser or full-CI run.
+
+## Generic phone-container consumer
+
+The first full PR run `40302177547` reported a failure in the mobile annual-page
+case in `e2e/mobile-chart-containers.spec.ts`: its readiness selector resolved to a
+hidden row inside the annual disclosure because category groups now start
+collapsed. Both configured attempts failed at the same visibility assertion,
+not a financial or overflow check. This generic consumer was absent from the
+initial focused annual suite.
+At the time of this diagnosis, the other completed groups had passed and WebKit
+groups 11/12 were still running; no complete-run success is claimed.
+
+The technical adaptation opens the first real category group and requires its
+collapsed-to-expanded transition before the original row visibility, both-theme
+page-width, Axe and screenshot assertions. It keeps the 30-second readiness and
+90-second scenario deadlines and all other routes unchanged. No product,
+financial oracle, source data, retry count or protection changes. Scoped browser
+proof and independent review of this adaptation remain pending.
