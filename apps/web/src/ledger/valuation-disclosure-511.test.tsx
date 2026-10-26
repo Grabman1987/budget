@@ -70,6 +70,42 @@ it('retains the reason, keyboard trigger and no amount in hidden-mode labels, to
     '18.09.2026',
   );
 });
+it('opens the valuation explanation above a low trigger without covering its click target', () => {
+  vi.stubGlobal('innerHeight', 768);
+  try {
+    render(<ValuationSourceHint sources={[quote]} label="Synthetic account" />);
+    const marker = screen.getByRole('button', { name: 'Bewertungsgrundlage · Synthetic account' });
+    const popup = document.getElementById(marker.getAttribute('aria-describedby')!)!;
+    vi.spyOn(marker, 'getBoundingClientRect').mockReturnValue({
+      x: 24,
+      y: 600,
+      top: 600,
+      bottom: 644,
+      left: 24,
+      right: 68,
+      width: 44,
+      height: 44,
+      toJSON: () => ({}),
+    });
+    vi.spyOn(popup, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      top: 0,
+      bottom: 300,
+      left: 0,
+      right: 300,
+      width: 300,
+      height: 300,
+      toJSON: () => ({}),
+    });
+    vi.spyOn(popup, 'matches').mockReturnValue(true);
+    fireEvent(popup, new Event('toggle'));
+    expect(popup.style.top).toBe('292px');
+    expect(Number.parseFloat(popup.style.top) + 300).toBeLessThan(600);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
 it('differentiates lookahead execution, cost estimate and missing conversion, rather than inventing a quote or parity', () => {
   expect(
     valuationSourceText({
