@@ -85,7 +85,12 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expect(page).toHaveURL(/monat=2026-08/);
       await expect(page.getByRole('heading', { name: 'August 2026', exact: true })).toBeVisible();
       await expect(page.getByText('August 2026 · Pace')).toBeVisible();
-      for (const name of ['Letzte Buchungen', 'Vermögensaufteilung', 'Finanz-Check']) {
+      for (const name of [
+        'Letzte Buchungen',
+        'Vermögensaufteilung',
+        'Nettovermögen · 12 Monate',
+        'Zu tun',
+      ]) {
         await expect(
           page.getByRole('region', { name, exact: true }).getByText('Stand heute · '),
         ).toBeVisible();

@@ -243,6 +243,29 @@ function moneyState() {
   };
 }
 
+it('keeps pinned categories off by default, persists the view switch and orders due before bookings', async () => {
+  const view = mount('/?monat=2026-09&period=month');
+  await screen.findByRole('heading', { name: 'Letzte Buchungen' });
+  expect(screen.queryByRole('heading', { name: 'Angepinnte Kategorien' })).toBeNull();
+  const wealth = screen.getByRole('heading', { name: 'Nettovermögen · 12 Monate' });
+  const tasks = screen.getByRole('heading', { name: 'Zu tun' });
+  const due = screen.getByRole('heading', { name: 'Fällig 14 Tage' });
+  const bookings = screen.getByRole('heading', { name: 'Letzte Buchungen' });
+  expect(wealth.compareDocumentPosition(tasks) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(tasks.compareDocumentPosition(due) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(due.compareDocumentPosition(bookings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  await userEvent.setup().click(screen.getByText('Ansicht anpassen'));
+  await userEvent
+    .setup()
+    .click(screen.getByRole('checkbox', { name: 'Angepinnte Kategorien anzeigen' }));
+  expect(screen.getByRole('heading', { name: 'Angepinnte Kategorien' })).toBeTruthy();
+  expect(localStorage.getItem('budget-heute-pinned-categories')).toBe('1');
+  view.unmount();
+  mount('/?monat=2026-09&period=month');
+  expect(await screen.findByRole('heading', { name: 'Angepinnte Kategorien' })).toBeTruthy();
+  expect(writes).toEqual([]);
+});
+
 it('shares the real35d low/date from Heute to Details with explicit empty levers despite a saved scenario and another selected month', async () => {
   localStorage.setItem(SELECTION, JSON.stringify({ horizon: '12m', levers: ['trim-variable'] }));
   const before = moneyState();

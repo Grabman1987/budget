@@ -41,8 +41,19 @@ test('attention hides the entire block when Heute has no open items', async ({ p
     const response = await route.fetch();
     const body = await response.json();
     body.nextSteps = { items: [], count: 0 };
-    body.attention = { inboxCount: 0, pendingCount: 0, pendingBefore: '2026-09-10' };
-    body.financeCheck.actionRules = [];
+    body.attention = {
+      inboxCount: 0,
+      pendingCount: 0,
+      pendingBefore: '2026-09-10',
+      loanTermsMissing: false,
+      quoteReview: { count: 0, securityIds: [] },
+      monthCloseTasks: { tasks: [], unavailable: [] },
+    };
+    body.financeCheck = {
+      counts: { ok: 0, warn: 0, bad: 0, total: 0, notEvaluated: 0 },
+      keyRules: [],
+      actionRules: [],
+    };
     body.accountReminders = [];
     await route.fulfill({ response, json: body });
   });
