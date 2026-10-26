@@ -146,8 +146,16 @@ test('checks off-budget accounts, updates manual values with undo and prepares t
   }
   await write('PATCH', '/month-close/2026-10', { currentStep: 2 });
   await page.goto('/monatsabschluss/2026-10');
-  for (const account of accounts)
-    await expect(page.getByRole('heading', { name: account.name, exact: true })).toBeVisible();
+  for (const account of accounts) {
+    const entry =
+      account.type === 'loan'
+        ? page.locator('.close-unchanged').getByRole('link', { name: account.name, exact: true })
+        : page.getByRole('heading', { name: account.name, exact: true });
+    await expect(entry).toBeVisible();
+  }
+  await expect(
+    page.locator('.close-unchanged').getByRole('link', { name: quiet.name, exact: true }),
+  ).toBeVisible();
   const checking = page
     .locator('.close-row')
     .filter({ has: page.getByRole('heading', { name: 'Muster checking', exact: true }) });

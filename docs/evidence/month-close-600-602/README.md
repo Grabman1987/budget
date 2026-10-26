@@ -210,3 +210,23 @@ after the full financial review and historical/next-month fence corrections.
 Exact-head required CI, main integration and preview/production publication are
 still pending. Browser emulation is not a physical-device check. No live or
 complete claim is made for #600/#601/#602 at this checkpoint.
+
+## Existing account-review consumer
+
+Full run `40326747651` at `e90ae129` found the same existing account-review
+consumer failure in desktop shard 1 and mobile shard 5. The test required an
+individual heading for every account, but its untouched loan has an original
+personal check and no later movement. It now correctly appears as an exact
+account link in the new unchanged-account cohort. The retained failure snapshot
+shows both `Muster loan` and `Muster quiet` in “Gemeinsam bestätigen”, while the
+other accounts retain individual headings. This is a rendered-structure mismatch,
+not a missing account or a demonstrated financial failure.
+
+Per-file reason: `e2e/account-review.spec.ts` checks the fixture's quiet loan as
+the exact link in `.close-unchanged`, keeps every other original account-heading
+assertion, and additionally requires the independently quiet checking account's
+link there. Existing balance/staleness, manual valuation/Undo, current-month
+preparation, date, Axe/overflow, screenshot, 44px and 120-second checks are
+unchanged. No product code, financial expectation, assertion budget or retry
+setting changes in this adapter. Independent review and the affected browser
+execution remain pending for this correction.
