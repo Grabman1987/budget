@@ -21,10 +21,10 @@ it('shows five statuses, exposes the current step and supports keyboard navigati
       .getByRole('button', { name: /2.*Konten abgleichen.*offen/ })
       .getAttribute('aria-current'),
   ).toBe('step');
-  expect(screen.getAllByText('folgt')).toHaveLength(2);
-  const button = screen.getByRole('button', { name: /1.*Posteingang leeren/ });
+  expect(screen.getAllByText('✓ nichts offen')).toHaveLength(3);
+  const button = screen.getByRole('button', { name: /1.*Prüfen/ });
   button.focus();
   await userEvent.keyboard('{Enter}');
   expect(onSelect).toHaveBeenCalledWith(1);
-  expect(screen.getByRole('progressbar').getAttribute('value')).toBe('2');
+  expect(screen.getByRole('progressbar').getAttribute('value')).toBe('0');
 });

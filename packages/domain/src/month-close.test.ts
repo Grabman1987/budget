@@ -2,11 +2,61 @@ import { expect, it } from 'vitest';
 import {
   closeEntryMonth,
   closeSteps,
+  closeNavigation,
+  monthCloseStateSchema,
   closePlanHistory,
   closePlanProjection,
   closeDeviations,
   monthCloseVerdict,
 } from './month-close';
+
+it('skips empty steps and counts only steps containing work', () => {
+  expect(closeNavigation(closeSteps([], [], { remainingCents: 0 }))).toMatchObject({
+    currentStep: 5,
+    completedTasks: 0,
+    totalTasks: 0,
+  });
+  const work = [{ step: 2 as const, id: 'a', fingerprint: 'v' }];
+  const steps = closeSteps(work, [], { remainingCents: 100 });
+  expect(closeNavigation(steps)).toMatchObject({
+    currentStep: 2,
+    totalTasks: 2,
+    completedTasks: 0,
+    nextByStep: { 2: 4, 4: 5 },
+  });
+  expect(
+    closeNavigation(
+      closeSteps(work, [{ ...work[0]!, reason: 'Synthetic explicit deferral' }], {
+        remainingCents: 100,
+      }),
+    ),
+  ).toMatchObject({ currentStep: 4, totalTasks: 2, completedTasks: 1 });
+});
+
+it('reads legacy close markers and earlier version-1 snapshots without adding new facts', () => {
+  expect(monthCloseStateSchema.parse({ closedOn: '2026-10-02' })).toEqual({
+    currentStep: 1,
+    decisions: [],
+    closedOn: '2026-10-02',
+  });
+  const snapshot = {
+    version: 1,
+    sourceRevision: 'a'.repeat(64),
+    month: '2026-09',
+    checkedAccounts: 1,
+    totalAccounts: 1,
+    deferredAccounts: 0,
+    assignedCents: 100,
+    overspentCount: 0,
+    overspentCents: 0,
+    carryInCents: 0,
+    destinationMonth: '2026-10',
+    savingsRateBp: null,
+    spentCents: 0,
+    plannedCents: 100,
+  };
+  expect(monthCloseStateSchema.parse({ snapshot }).snapshot).toEqual(snapshot);
+});
 
 it('uses twelve complete tracked months including zero spending, never partial or pre-tracking months', () => {
   const rows = [

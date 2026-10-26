@@ -1,5 +1,7 @@
 import { expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { openDatabase } from '../packages/db/src/client';
+import { INCOME_TYPES } from '../packages/db/src/schema/budget';
 import { test } from './isolated-ledger';
 
 test('guided month close walks all five steps, undoes the whole plan and keeps an editable close marker', async ({
@@ -71,7 +73,7 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   await expect(
     page.getByRole('heading', { name: 'Monatsabschluss · September 2026', exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole('heading', { name: '1. Posteingang leeren' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '1. Prüfen' })).toBeVisible();
   await expect(page.getByTestId('inbox-row')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Weiter', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Zuordnen', exact: true }).click();
@@ -167,7 +169,10 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   }
   if (info.project.name === 'mobile') await expectNextClear();
   await page.getByRole('button', { name: 'Weiter', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '5. Rückblick' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '5. Ergebnis' })).toBeVisible();
+  await page
+    .locator('summary', { hasText: 'Monatsbericht, Abweichungen und offene Regeln' })
+    .click();
   await expect(
     page.getByRole('article', { name: 'Monats-One-Pager September 2026' }),
   ).toBeVisible();
@@ -182,16 +187,22 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   }
   await page.getByRole('button', { name: 'Monat abschließen', exact: true }).click();
   await expect(
-    page.getByText('Abgeschlossen am 02.10.2026. Buchungen bleiben bearbeitbar.'),
+    page.getByText(
+      /Stand gespeichert am .*Buchungen bleiben nach den bisherigen Regeln bearbeitbar\./,
+    ),
   ).toBeVisible();
   await page.reload();
   await expect(
-    page.getByText('Abgeschlossen am 02.10.2026. Buchungen bleiben bearbeitbar.'),
+    page.getByText(
+      /Stand gespeichert am .*Buchungen bleiben nach den bisherigen Regeln bearbeitbar\./,
+    ),
   ).toBeVisible();
   const state = await page.request.get(`${isolatedLedger.origin}/api/month-close/2026-09`);
   const result = await state.json();
   expect(result.state.currentStep).toBe(5);
   expect(result.state.closedOn).toBe('2026-10-02');
+  expect(Number.isFinite(Date.parse(result.state.closedAt))).toBe(true);
+  expect(result.state.snapshot.sourceRevision).toBe(result.sourceRevision);
   expect(result.steps.map((s: { status: string }) => s.status)).toEqual([
     'done',
     'done',
@@ -215,5 +226,223 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
     .getByRole('listbox', { name: 'Suchergebnisse' })
     .getByRole('option', { name: /Monatsabschluss starten/ })
     .click();
-  await expect(page.getByRole('heading', { name: '5. Rückblick' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '5. Ergebnis' })).toBeVisible();
+});
+
+test('quiet accounts are reviewed and confirmed together with one exact grouped Undo', async ({
+  page,
+  isolatedLedger,
+}, info) => {
+  const write = async (path: string, data: unknown) => {
+    const response = await page.request.post(`${isolatedLedger.origin}/api${path}`, {
+      data,
+      headers: { origin: isolatedLedger.origin },
+    });
+    expect(response.ok()).toBeTruthy();
+    return response.json();
+  };
+  const read = async (path: string) => {
+    const response = await page.request.get(`${isolatedLedger.origin}/api${path}`);
+    expect(response.ok()).toBeTruthy();
+    return response.json();
+  };
+  const first = (
+    await write('/accounts', {
+      name: 'Muster Giro ruhig',
+      type: 'checking',
+      currency: 'EUR',
+      openingDate: '2026-09-01',
+      openingBalanceCents: 10000,
+    })
+  ).account;
+  const second = (
+    await write('/accounts', {
+      name: 'Muster Sparen ruhig',
+      type: 'savings',
+      currency: 'EUR',
+      openingDate: '2026-09-01',
+      openingBalanceCents: 70000,
+    })
+  ).account;
+  const group = (await write('/categories/groups', { name: 'Muster Ruhe' })).group;
+  const category = (
+    await write('/categories', { name: 'Muster Bedarf', groupId: group.id, class: 'need' })
+  ).category;
+  await write('/bookings', {
+    type: 'booking',
+    accountId: first.id,
+    date: '2026-09-10',
+    amountCents: 2345,
+    status: 'confirmed',
+    splits: [{ amountCents: 2345, incomeTypeId: INCOME_TYPES.salary.id }],
+  });
+  await write('/bookings', {
+    type: 'booking',
+    accountId: second.id,
+    date: '2026-09-11',
+    amountCents: -2110,
+    status: 'confirmed',
+    splits: [{ amountCents: -2110, categoryId: category.id }],
+  });
+  await page.request
+    .put(`${isolatedLedger.origin}/api/budget/2026-09/assigned`, {
+      data: { items: [{ categoryId: category.id, assignedCents: 2110 }] },
+      headers: { origin: isolatedLedger.origin },
+    })
+    .then((response) => expect(response.ok()).toBeTruthy());
+  for (const [id, balance] of [
+    [first.id, 12345],
+    [second.id, 67890],
+  ] as const) {
+    await write(`/accounts/${id}/reconciliation`, {
+      date: '2026-09-15',
+      statementBalanceCents: balance,
+    });
+  }
+  const snapshot = () => {
+    const opened = openDatabase(isolatedLedger.databasePath);
+    try {
+      return {
+        accounts: opened.sqlite.prepare('SELECT * FROM account ORDER BY id').all(),
+        bookings: opened.sqlite.prepare('SELECT * FROM booking ORDER BY id').all(),
+        splits: opened.sqlite.prepare('SELECT * FROM booking_split ORDER BY id').all(),
+        checks: opened.sqlite
+          .prepare('SELECT * FROM account_reconciliation WHERE deleted_at IS NULL ORDER BY id')
+          .all(),
+        audits: opened.sqlite
+          .prepare(
+            'SELECT id, group_id, entity_type, entity_id, action, undo_of_id FROM audit_log ORDER BY rowid',
+          )
+          .all() as {
+          id: string;
+          group_id: string;
+          entity_type: string;
+          entity_id: string;
+          action: string;
+          undo_of_id: string | null;
+        }[],
+      };
+    } finally {
+      opened.close();
+    }
+  };
+  const original = snapshot();
+  const reviewed = await read('/month-close/2026-09');
+  expect(
+    reviewed.unchangedConfirmation.accounts.map(
+      (account: { id: string; statementBalanceCents: number }) => [
+        account.id,
+        account.statementBalanceCents,
+      ],
+    ),
+  ).toEqual([
+    [first.id, 12345],
+    [second.id, 67890],
+  ]);
+  await page.goto('/monatsabschluss/2026-09');
+  const row = page.locator('.close-unchanged');
+  const confirm = row.getByRole('button', { name: 'Gemeinsam bestätigen', exact: true });
+  await expect(confirm).toBeEnabled();
+  await expect(row).toContainText('123,45');
+  await expect(row).toContainText('678,90');
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    if ((page.viewportSize()?.width ?? 1440) < 768) {
+      for (const target of [confirm, ...(await row.getByRole('link').all())]) {
+        const box = await target.boundingBox();
+        expect(box).not.toBeNull();
+        expect(box!.height).toBeGreaterThanOrEqual(44);
+        expect(box!.width).toBeGreaterThanOrEqual(44);
+      }
+    }
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({
+      path: info.outputPath(`month-close-bulk-${scheme}.png`),
+      fullPage: true,
+      animations: 'disabled',
+    });
+  }
+  expect(snapshot()).toEqual(original);
+  const posting = page.waitForRequest(
+    (request) =>
+      request.method() === 'POST' &&
+      new URL(request.url()).pathname === '/api/month-close/2026-09/reconcile-unchanged',
+  );
+  const saved = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      new URL(response.url()).pathname === '/api/month-close/2026-09/reconcile-unchanged',
+  );
+  await confirm.click();
+  expect((await posting).postDataJSON()).toEqual({
+    accountIds: [first.id, second.id],
+    asOf: reviewed.unchangedConfirmation.asOf,
+    revision: reviewed.unchangedConfirmation.revision,
+  });
+  const response = await saved;
+  expect(response.status()).toBe(201);
+  const result = await response.json();
+  expect(result.changedCount).toBe(2);
+  expect(result.reconciliations.map((check: { accountId: string }) => check.accountId)).toEqual([
+    first.id,
+    second.id,
+  ]);
+  const checked = snapshot();
+  expect(checked.checks).toHaveLength(4);
+  for (const [id, balance] of [
+    [first.id, 12345],
+    [second.id, 67890],
+  ] as const) {
+    expect((await read(`/accounts/${id}/reconciliations`)).reconciliations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          date: '2026-09-30',
+          statementBalanceCents: balance,
+          clearedBalanceCents: balance,
+          adjustmentBookingId: null,
+        }),
+      ]),
+    );
+  }
+  const created = checked.audits.filter((entry) => entry.group_id === result.groupId);
+  expect(created).toHaveLength(2);
+  expect(created.map((entry) => entry.entity_id).sort()).toEqual(
+    result.reconciliations
+      .map((check: { reconciliationId: string }) => check.reconciliationId)
+      .sort(),
+  );
+  expect(
+    created.every(
+      (entry) => entry.entity_type === 'account_reconciliation' && entry.action === 'create',
+    ),
+  ).toBe(true);
+  const undoResponse = page.waitForResponse(
+    (answer) =>
+      answer.request().method() === 'POST' && new URL(answer.url()).pathname === '/api/undo',
+  );
+  await page
+    .locator('.toast.is-open')
+    .getByRole('button', { name: 'Rückgängig', exact: true })
+    .click();
+  const undone = await undoResponse;
+  expect(undone.request().postDataJSON()).toEqual({ groupId: result.groupId });
+  expect(undone.status()).toBe(200);
+  const undoResult = await undone.json();
+  const restored = snapshot();
+  expect(restored.accounts).toEqual(original.accounts);
+  expect(restored.bookings).toEqual(original.bookings);
+  expect(restored.splits).toEqual(original.splits);
+  expect(restored.checks).toEqual(original.checks);
+  expect(restored.audits.slice(0, original.audits.length)).toEqual(original.audits);
+  expect(restored.audits).toHaveLength(original.audits.length + 4);
+  expect(
+    restored.audits
+      .filter((entry) => entry.group_id === undoResult.groupId)
+      .map((entry) => entry.undo_of_id)
+      .sort(),
+  ).toEqual(created.map((entry) => entry.id).sort());
 });

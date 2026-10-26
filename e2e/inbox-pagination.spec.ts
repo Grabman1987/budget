@@ -242,7 +242,7 @@ test('month close filters the complete inbox beyond the global first page', asyn
   await expect(
     page.getByRole('heading', { name: 'Monatsabschluss · September 2026', exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole('heading', { name: '1. Posteingang leeren' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '1. Prüfen' })).toBeVisible();
   const rows = page.getByTestId('inbox-row');
   await expect(rows).toHaveCount(2);
   await expect(rows.locator('strong')).toHaveText(expectedTitles);

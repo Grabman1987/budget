@@ -2,7 +2,7 @@ import { useAmountPrivacy, Button, Field, TextInput, TitleBlock } from '@budget/
 import { todayInVienna, type CloseWork } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { budgetQuery, assign } from '../budget/budget-api';
 import { EnvelopeBody } from '../budget/envelope-panel';
 import { planRows } from '../budget/plan-model';
@@ -16,11 +16,45 @@ import { ReconcileFlow } from '../ledger/reconcile-panel';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel } from '../nav/month';
 import { AppLink } from '../shell/app-link';
-import { monthCloseQuery, saveMonthClose, type MonthCloseView } from './api';
+import {
+  monthCloseQuery,
+  saveMonthClose,
+  confirmUnchangedCloseAccounts,
+  reconcileCloseAccount,
+  type MonthCloseView,
+} from './api';
 import { CloseStepper, CLOSE_STATUS } from './stepper';
 import { NextMonthPlan } from './next-month-plan';
 import { MonthReview } from './month-review';
 import './month-close.css';
+
+const STEP_HELP = [
+  {
+    why: 'Offene Buchungen und Vorschläge brauchen eine Entscheidung.',
+    after:
+      'Deine Entscheidungen sind gespeichert; ausdrücklich aufgeschobene Aufgaben bleiben sichtbar.',
+  },
+  {
+    why: 'Der Kontostand im Plan soll zum tatsächlichen Stand am Monatsende passen.',
+    after:
+      'Geprüfte Buchungen bleiben wie bisher abgeglichen. Der Monatsabschluss setzt keine zusätzliche Sperre.',
+  },
+  {
+    why: 'Überzogene Kategorien zeigen, wo Geld fehlt.',
+    after:
+      'Verschiebungen sind gespeichert; akzeptierte Überziehungen bleiben mit ihrem Grund nachvollziehbar.',
+  },
+  {
+    why: 'Ein verteilter Plan macht den nächsten Monat überschaubar.',
+    after:
+      'Die übernommenen Zuweisungen stehen im nächsten Monat und lassen sich gemeinsam rückgängig machen.',
+  },
+  {
+    why: 'Die Ergebnisse zeigen, was geprüft wurde und wie der Monat ausgegangen ist.',
+    after:
+      'Der Abschluss merkt diesen Stand. Buchungen bleiben nach den bisherigen Regeln bearbeitbar.',
+  },
+] as const;
 
 export function MonthClosePage() {
   const { month } = useParams({ strict: false }) as { month: string };
@@ -48,18 +82,38 @@ export function MonthClosePage() {
           onRetry={() => void query.refetch()}
         />
       )}
-      {query.data && <CloseFlow key={month} data={query.data} />}
+      {query.isFetching && !query.isPending && <LoadingNote what="Aktueller Abschlussstand" />}
+      {query.data && (
+        <CloseFlow
+          key={month}
+          data={query.data}
+          fresh={query.isSuccess && !query.isFetching}
+          onReload={() => void query.refetch()}
+        />
+      )}
     </>
   );
 }
 
-function CloseFlow({ data }: { data: MonthCloseView }) {
+function CloseFlow({
+  data,
+  fresh,
+  onReload,
+}: {
+  data: MonthCloseView;
+  fresh: boolean;
+  onReload: () => void;
+}) {
   const write = useBudgetWrite();
   const [busy, setBusy] = useState(false);
+  const bulkSubmitting = useRef(false);
+  const [bulkFailed, setBulkFailed] = useState(false);
   const [dirtyPlan, setDirtyPlan] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [deferring, setDeferring] = useState<CloseWork[] | null>(null);
-  const step = data.state.currentStep;
+  // Explicit inspection stays put while a child editor or Plan draft is active.
+  const [chosenStep, setChosenStep] = useState<number | null>(null);
+  const step = chosenStep ?? data.navigation.currentStep;
   const status = data.steps[step - 1]!;
   const budget = useQuery({ ...budgetQuery(data.month), enabled: step === 3 });
   const accounts = useQuery({
@@ -75,8 +129,42 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
         (d) => d.step === w.step && d.id === w.id && d.fingerprint === w.fingerprint,
       ),
   );
+  const unchanged = data.unchangedConfirmation;
+  const groupedIds = new Set(
+    unchanged && unchanged.accounts.length <= 500 ? unchanged.accounts.map((row) => row.id) : [],
+  );
+  const confirmUnchanged = async () => {
+    if (
+      bulkSubmitting.current ||
+      busy ||
+      !fresh ||
+      selected !== null ||
+      bulkFailed ||
+      !unchanged?.accounts.length ||
+      unchanged.accounts.length > 500
+    )
+      return;
+    // Capture exactly the displayed cohort and its source revision, never a later refreshed set.
+    const captured = {
+      accountIds: unchanged.accounts.map((row) => row.id),
+      asOf: unchanged.asOf,
+      revision: unchanged.revision,
+    };
+    bulkSubmitting.current = true;
+    setBusy(true);
+    try {
+      const result = await write(
+        () => confirmUnchangedCloseAccounts(data.month, captured),
+        (saved) => `${saved.reconciliations.length} unveränderte Kontostände gemeinsam bestätigt.`,
+      );
+      if (!result) setBulkFailed(true);
+    } finally {
+      bulkSubmitting.current = false;
+      setBusy(false);
+    }
+  };
   const select = async (currentStep: number) => {
-    if (busy || dirtyPlan) return;
+    if (busy || dirtyPlan || !fresh) return;
     setBusy(true);
     if (
       await write(
@@ -84,6 +172,7 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
         () => 'Fortschritt gespeichert.',
       )
     ) {
+      setChosenStep(currentStep);
       setSelected(null);
       setDeferring(null);
       requestAnimationFrame(() => document.getElementById('close-step-title')?.focus());
@@ -96,7 +185,8 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
       <CloseStepper
         steps={data.steps}
         current={step}
-        disabled={busy || dirtyPlan}
+        progress={data.navigation}
+        disabled={busy || dirtyPlan || !fresh}
         onSelect={(s) => void select(s)}
       />
       <section aria-labelledby="close-step-title" className="close-body">
@@ -104,12 +194,22 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
           {step}. {status.title}
         </h2>
         <p role="status">
-          {CLOSE_STATUS[status.status]}
+          {step < 5 && !status.hasTasks ? '✓ nichts offen' : CLOSE_STATUS[status.status]}
           {status.openCount > 0 ? ` · ${status.openCount} offen` : ''}
         </p>
         {status.reasons.map((reason) => (
           <p key={reason}>Grund: {reason}</p>
         ))}
+        <dl className="close-step-help">
+          <div>
+            <dt>Warum</dt>
+            <dd>{STEP_HELP[step - 1]!.why}</dd>
+          </div>
+          <div>
+            <dt>Danach</dt>
+            <dd>{STEP_HELP[step - 1]!.after}</dd>
+          </div>
+        </dl>
         {step === 1 && (
           <>
             <p>
@@ -119,7 +219,14 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
             <AppLink to="/reports/gesamttabelle" search={{ monat: data.month }}>
               {data.inbox.length} offene Aufgaben im Monat
             </AppLink>
-            <InboxWorkflow entryIds={data.inbox.map((e) => e.id)} />
+            <div
+              role="group"
+              aria-label="Aufgaben im Monat prüfen"
+              onFocusCapture={() => setChosenStep(1)}
+              onPointerDownCapture={() => setChosenStep(1)}
+            >
+              <InboxWorkflow entryIds={data.inbox.map((e) => e.id)} />
+            </div>
           </>
         )}
         {step === 2 && (
@@ -139,80 +246,171 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
                 onRetry={() => void accounts.refetch()}
               />
             )}
-            {data.accounts.map((a) => {
-              const work = data.work.find((w) => w.step === 2 && w.id === a.id);
-              const decision =
-                work &&
-                data.state.decisions.find(
-                  (d) => d.step === 2 && d.id === a.id && d.fingerprint === work.fingerprint,
-                );
-              const account = accounts.data?.accounts.find((r) => r.id === a.id);
-              return (
-                <div className="close-row" key={a.id}>
-                  <h3>{a.name}</h3>
-                  <AppLink to="/reports/vermoegen-schulden" search={{ monat: data.month }}>
-                    {nativeCurrency(a.manual ? a.valueCents : a.balanceCents, a.currency)}
-                  </AppLink>
-                  <p>
-                    {a.manual
-                      ? `Wert zuletzt: ${a.lastValuedOn ? longDay(a.lastValuedOn) : 'noch nicht erfasst'}`
-                      : `Zuletzt geprüft: ${a.lastReconciledOn ? longDay(a.lastReconciledOn) : 'noch nie'}`}
-                  </p>
-                  <p>
-                    {a.done
-                      ? 'erledigt'
-                      : decision
-                        ? `übersprungen mit Grund: ${decision.reason}`
-                        : 'offen'}
-                  </p>
-                  {!a.done && (
-                    <div className="close-actions">
-                      <Button
-                        variant="ghost"
-                        disabled={(!a.manual && !account) || busy}
-                        onClick={() => setSelected(selected === a.id ? null : a.id)}
+            {unchanged && unchanged.accounts.length > 0 && (
+              <div
+                className="close-row close-unchanged"
+                aria-labelledby="close-unchanged-title"
+                aria-busy={busy}
+              >
+                <h3 id="close-unchanged-title">Gemeinsam bestätigen</h3>
+                <p>
+                  Diese {unchanged.accounts.length} Konten haben seit der letzten persönlichen
+                  Prüfung keine nachgewiesene Bewegung oder spätere Änderung. Bestätigt wird der
+                  unveränderte frühere Saldo zum {longDay(unchanged.asOf)}. Es wurde kein neuer
+                  Bankstand abgerufen.
+                </p>
+                <ul>
+                  {unchanged.accounts.map((row) => (
+                    <li key={row.id}>
+                      <AppLink
+                        to="/konten/buchungen"
+                        search={{ konto: row.id, bis: unchanged.asOf }}
                       >
-                        {selected === a.id
-                          ? 'Einklappen'
-                          : a.manual
-                            ? 'Wert aktualisieren'
-                            : 'Kontostand prüfen'}
-                      </Button>
-                      {work && !decision && (
+                        {row.name}
+                      </AppLink>
+                      {' · '}
+                      {nativeCurrency(row.statementBalanceCents, row.currency)}
+                      {' · '}zuletzt persönlich geprüft am {longDay(row.priorDate)}
+                    </li>
+                  ))}
+                </ul>
+                <p>
+                  Je Konto wird eine echte Kontoprüfung gespeichert. Ein Rückgängig nimmt die ganze
+                  Gruppe zurück. Es entsteht kein Ausgleich und keine zusätzliche Monatssperre.
+                </p>
+                <div className="close-actions">
+                  <Button
+                    disabled={
+                      busy ||
+                      !fresh ||
+                      selected !== null ||
+                      bulkFailed ||
+                      unchanged.accounts.length > 500
+                    }
+                    onClick={() => void confirmUnchanged()}
+                  >
+                    Gemeinsam bestätigen
+                  </Button>
+                  {bulkFailed && (
+                    <Button
+                      variant="ghost"
+                      disabled={busy || !fresh}
+                      onClick={() => {
+                        setBulkFailed(false);
+                        onReload();
+                      }}
+                    >
+                      Abschluss neu laden
+                    </Button>
+                  )}
+                </div>
+                {bulkFailed && (
+                  <p role="alert">
+                    Die Sammelbestätigung ist fehlgeschlagen. Es wurde keine Teilgruppe bestätigt.
+                    Lade den aktuellen Abschlussstand, bevor du erneut bestätigst.
+                  </p>
+                )}
+                {selected !== null && <p>Schließe zuerst die offene Einzelprüfung.</p>}
+                {unchanged.accounts.length > 500 && (
+                  <p>Mehr als 500 Konten: bitte die Konten einzeln prüfen.</p>
+                )}
+              </div>
+            )}
+            {data.accounts
+              .filter((a) => !groupedIds.has(a.id) || selected === a.id)
+              .map((a) => {
+                const work = data.work.find((w) => w.step === 2 && w.id === a.id);
+                const decision =
+                  work &&
+                  data.state.decisions.find(
+                    (d) => d.step === 2 && d.id === a.id && d.fingerprint === work.fingerprint,
+                  );
+                const account = accounts.data?.accounts.find((r) => r.id === a.id);
+                return (
+                  <div className="close-row" key={a.id}>
+                    <h3>{a.name}</h3>
+                    <AppLink to="/reports/vermoegen-schulden" search={{ monat: data.month }}>
+                      {nativeCurrency(a.manual ? a.valueCents : a.balanceCents, a.currency)}
+                    </AppLink>
+                    <p>
+                      {a.manual
+                        ? `Wert zuletzt: ${a.lastValuedOn ? longDay(a.lastValuedOn) : 'noch nicht erfasst'}`
+                        : `Zuletzt geprüft: ${a.lastReconciledOn ? longDay(a.lastReconciledOn) : 'noch nie'}`}
+                    </p>
+                    <p>
+                      {a.done
+                        ? 'erledigt'
+                        : decision
+                          ? `übersprungen mit Grund: ${decision.reason}`
+                          : 'offen'}
+                    </p>
+                    {!a.done && (
+                      <div className="close-actions">
                         <Button
                           variant="ghost"
-                          disabled={busy}
-                          onClick={() => setDeferring([work])}
+                          disabled={(!a.manual && !account) || busy}
+                          onClick={() => {
+                            setChosenStep(step);
+                            setSelected(selected === a.id ? null : a.id);
+                          }}
                         >
-                          Nicht nötig · Grund angeben
+                          {selected === a.id
+                            ? 'Einklappen'
+                            : a.manual
+                              ? 'Wert aktualisieren'
+                              : 'Kontostand prüfen'}
                         </Button>
-                      )}
-                    </div>
-                  )}
-                  {selected === a.id &&
-                    (a.manual ? (
-                      <ManualValue
-                        accountId={a.id}
-                        end={data.end}
-                        openingDate={a.openingDate}
-                        lastReconciledOn={a.lastReconciledOn}
-                        valueCents={a.valueCents}
-                        currency={a.currency}
-                        onDone={() => setSelected(null)}
-                      />
-                    ) : (
-                      account && (
-                        <ReconcileFlow
-                          key={a.id}
-                          account={account}
-                          initialDate={data.asOf}
+                        {work && !decision && (
+                          <Button
+                            variant="ghost"
+                            disabled={busy}
+                            onClick={() => {
+                              setChosenStep(step);
+                              setDeferring([work]);
+                            }}
+                          >
+                            Nicht nötig · Grund angeben
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    {selected === a.id &&
+                      (a.manual ? (
+                        <ManualValue
+                          accountId={a.id}
+                          end={data.end}
+                          openingDate={a.openingDate}
+                          lastReconciledOn={a.lastReconciledOn}
+                          valueCents={a.valueCents}
+                          currency={a.currency}
                           onDone={() => setSelected(null)}
                         />
-                      )
-                    ))}
-                </div>
-              );
-            })}
+                      ) : (
+                        account && (
+                          <ReconcileFlow
+                            key={a.id}
+                            account={account}
+                            initialDate={data.asOf}
+                            monthClose={{
+                              asOf: data.asOf,
+                              confirm: (input) =>
+                                reconcileCloseAccount(data.month, a.id, {
+                                  ...input,
+                                  sourceRevision: data.sourceRevision,
+                                }),
+                              onBusy: setBusy,
+                              onReload: () => {
+                                setSelected(null);
+                                onReload();
+                              },
+                            }}
+                            onDone={() => setSelected(null)}
+                          />
+                        )
+                      ))}
+                  </div>
+                );
+              })}
             {data.accounts.length === 0 && <p>Keine offenen Konten zu prüfen.</p>}
           </>
         )}
@@ -237,7 +435,10 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
                   <div className="close-actions">
                     <Button
                       variant="ghost"
-                      onClick={() => setSelected(selected === r.id ? null : r.id)}
+                      onClick={() => {
+                        setChosenStep(step);
+                        setSelected(selected === r.id ? null : r.id);
+                      }}
                     >
                       {selected === r.id ? 'Einklappen' : 'Geld verschieben'}
                     </Button>
@@ -260,7 +461,10 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
         {step === 4 && (
           <NextMonthPlan
             data={data.nextPlan}
-            onDirtyChange={setDirtyPlan}
+            onDirtyChange={(dirty) => {
+              if (dirty) setChosenStep(4);
+              setDirtyPlan(dirty);
+            }}
             onApply={async (items) => {
               setBusy(true);
               const result = await write(
@@ -275,14 +479,28 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
         {step === 4 && dirtyPlan && (
           <p>Übernimm oder verwirf den Entwurf vor dem nächsten Schritt.</p>
         )}
-        {step === 5 && <MonthReview data={data} />}
+        {step === 5 && <MonthReview data={data} fresh={fresh} onReload={onReload} />}
         {step === 1 && open.length > 0 && (
-          <Button variant="ghost" disabled={busy} onClick={() => setDeferring(open)}>
+          <Button
+            variant="ghost"
+            disabled={busy}
+            onClick={() => {
+              setChosenStep(step);
+              setDeferring(open);
+            }}
+          >
             Rest ausdrücklich aufschieben
           </Button>
         )}
         {step === 3 && open.length > 0 && (
-          <Button variant="ghost" disabled={busy} onClick={() => setDeferring(open)}>
+          <Button
+            variant="ghost"
+            disabled={busy}
+            onClick={() => {
+              setChosenStep(step);
+              setDeferring(open);
+            }}
+          >
             Übertrag akzeptieren · Grund angeben
           </Button>
         )}
@@ -302,8 +520,8 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
           </AppLink>
           {step < 5 && (
             <Button
-              disabled={busy || dirtyPlan || status.status === 'open'}
-              onClick={() => void select(step + 1)}
+              disabled={busy || dirtyPlan || !fresh || status.status === 'open'}
+              onClick={() => void select(data.navigation.nextByStep[step] ?? 5)}
             >
               Weiter
             </Button>

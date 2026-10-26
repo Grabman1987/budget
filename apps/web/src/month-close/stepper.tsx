@@ -11,17 +11,31 @@ export function CloseStepper({
   current,
   onSelect,
   disabled = false,
+  progress,
 }: {
   steps: CloseStep[];
   current: number;
   onSelect: (step: number) => void;
   disabled?: boolean;
+  progress?: { completedTasks: number; totalTasks: number };
 }) {
-  const completed = steps.filter((s) => s.status === 'done' || s.status === 'skipped').length;
+  const tasks = steps.filter((s) => s.hasTasks);
+  const total = progress?.totalTasks ?? tasks.length;
+  const completed =
+    progress?.completedTasks ??
+    tasks.filter((s) => s.status === 'done' || s.status === 'skipped').length;
   return (
     <nav className="close-stepper" aria-label="Monatsabschluss">
-      <label htmlFor="close-progress">{completed} von 5 Schritten bearbeitet</label>
-      <progress id="close-progress" max={5} value={completed} />
+      {total > 0 ? (
+        <>
+          <label htmlFor="close-progress">
+            {completed} von {total} {total === 1 ? 'Schritt' : 'Schritten'} mit Aufgaben bearbeitet
+          </label>
+          <progress id="close-progress" max={total} value={completed} />
+        </>
+      ) : (
+        <p role="status">Nichts offen. Prüfe das Ergebnis und merke den Stand.</p>
+      )}
       <ol>
         {steps.map((s) => (
           <li key={s.step}>
@@ -34,7 +48,7 @@ export function CloseStepper({
               <span>
                 {s.step}. {s.title}
               </span>
-              <small>{CLOSE_STATUS[s.status]}</small>
+              <small>{s.step < 5 && !s.hasTasks ? '✓ nichts offen' : CLOSE_STATUS[s.status]}</small>
             </button>
           </li>
         ))}

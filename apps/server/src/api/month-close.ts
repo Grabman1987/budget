@@ -1,186 +1,116 @@
 import {
-  accountSummaries,
   appSetting,
   createEntity,
   getEntity,
   updateEntity,
-  readInbox,
-  planMonthViews,
-  valuation,
-  bankSyncCandidate,
-  booking,
-  holdingValuationAsOf,
-  listReconciliations,
-  reportTables,
-  occurrencesBetween,
-  loadFacts,
+  readMonthClose,
+  confirmMonthCloseReconciliation,
+  reconcileAccount,
   type Db,
 } from '@budget/db';
 import {
-  closeSteps,
-  lastDayOfMonth,
+  closeResultSnapshotSchema,
   monthCloseStateSchema,
   closeDecisionSchema,
-  addMonths,
-  nextPayday,
-  closePlanHistory,
-  closeDeviations,
-  type CloseWork,
 } from '@budget/domain';
-import { and, desc, eq, isNull, lte } from 'drizzle-orm';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { ACTOR, ApiError, readBody } from './http';
-import { month } from './schemas';
+import { ACTOR, ApiError, defined, readBody } from './http';
+import { assertReconcileAdjustmentCategory } from './accounts';
+import { month, day, reconcileBody } from './schemas';
 
-const fingerprint = (value: unknown) =>
-  createHash('sha256').update(JSON.stringify(value)).digest('hex');
+// Preserve existing direct imports while the implementation lives below HTTP.
+export { readMonthClose };
 const key = (m: string) => `month_close.${m}`;
-
-export function readMonthClose(db: Db, m: string, today: string) {
-  const end = lastDayOfMonth(m);
-  const asOf = end < today ? end : today;
-  const holdings = holdingValuationAsOf(db, asOf);
-  const holdingAccounts = new Set(
-    [...holdings.values, ...holdings.missingPricePositions, ...holdings.missingFxPositions].map(
-      (h) => h.accountId,
-    ),
-  );
-  const stored = getEntity(db, appSetting, key(m));
-  const state = monthCloseStateSchema.parse(stored ? JSON.parse(stored.value) : {});
-  // Overspent envelopes are handled in the dedicated step 3, not as inbox work in step 1.
-  const inbox = readInbox(db, asOf)
-    .entries.filter((e) => e.type !== 'envelope')
-    .filter((e) => {
-      let date = e.type === 'stored' ? e.createdAt.slice(0, 10) : e.date;
-      if (e.type === 'stored' && e.refId) {
-        if (e.refType === 'bank-sync-candidate')
-          date =
-            db.select().from(bankSyncCandidate).where(eq(bankSyncCandidate.id, e.refId)).get()
-              ?.date ?? date;
-        if (e.refType === 'booking')
-          date = db.select().from(booking).where(eq(booking.id, e.refId)).get()?.date ?? date;
-      }
-      return date.slice(0, 7) === m;
-    });
-  const accounts = accountSummaries(db, asOf)
-    .filter(
-      (a) =>
-        !a.closedAt &&
-        a.openingDate <= asOf &&
-        ([
-          'checking',
-          'cash',
-          'savings',
-          'credit_card',
-          'loan',
-          'other_liability',
-          'brokerage',
-          'crypto',
-        ].includes(a.type) ||
-          ((a.type === 'p2p' || a.type === 'other_asset') && !holdingAccounts.has(a.id))),
-    )
-    .map((a) => {
-      const manual = a.type === 'p2p' || a.type === 'other_asset';
-      const value = manual
-        ? db
-            .select()
-            .from(valuation)
-            .where(
-              and(
-                eq(valuation.accountId, a.id),
-                isNull(valuation.deletedAt),
-                lte(valuation.date, asOf),
-              ),
-            )
-            .orderBy(desc(valuation.date))
-            .get()
-        : undefined;
-      const reconciled = listReconciliations(db, a.id).some((r) => r.date >= end);
-      return {
-        ...a,
-        manual,
-        valueCents: value?.valueCents ?? a.balanceCents,
-        lastValuedOn: value?.date ?? null,
-        done: manual ? value?.date === end : reconciled,
-      };
-    });
-  const nextMonth = addMonths(m, 1);
-  const plans = planMonthViews(db, [m, nextMonth], {}, today);
-  const plan = plans[m]!;
-  const nextBudget = plans[nextMonth]!;
-  const facts = loadFacts(db, lastDayOfMonth(nextMonth));
-  const nextPlan = {
-    month: nextMonth,
-    payday: nextPayday(`${nextMonth}-01`).day,
-    budget: nextBudget,
-    previousAssigned: Object.fromEntries(
-      plan.summary.envelopes.map((e) => [e.categoryId, e.assignedCents]),
-    ),
-    history: closePlanHistory(
-      nextBudget.categories.map((c) => c.id),
-      m,
-      today,
-      reportTables(db, { today }).months,
-    ),
-    payments: occurrencesBetween(
-      db,
-      facts,
-      `${nextMonth}-01`,
-      lastDayOfMonth(nextMonth),
-      today,
-      facts.budgetByMonth.get(nextMonth),
-    ),
-  };
-  const overspent = plan.summary.envelopes.filter((e) => e.overspentCents > 0);
-  const work: CloseWork[] = [
-    ...inbox.map((e) => ({ step: 1 as const, id: e.id, fingerprint: fingerprint(e) })),
-    ...accounts
-      .filter((a) => !a.done)
-      .map((a) => ({
-        step: 2 as const,
-        id: a.id,
-        fingerprint: fingerprint([
-          a.balanceCents,
-          a.clearedCents,
-          a.lastReconciledOn,
-          a.lastValuedOn,
-          a.valueCents,
-        ]),
-      })),
-    ...overspent.map((e) => ({
-      step: 3 as const,
-      id: e.categoryId,
-      fingerprint: fingerprint(e.overspentCents),
-    })),
-  ];
-  return {
-    month: m,
-    end,
-    asOf,
-    state,
-    work,
-    inbox,
-    accounts,
-    overspent,
-    nextPlan,
-    deviations: closeDeviations(
-      plan.summary.envelopes.flatMap((e) => {
-        const c = plan.categories.find((c) => c.id === e.categoryId);
-        return c?.class ? [{ ...e, name: c.name }] : [];
-      }),
-    ),
-    steps: closeSteps(work, state.decisions, {
-      remainingCents: nextBudget.summary.toBeAssignedCents,
-      ...(state.closedOn && { closedOn: state.closedOn }),
-    }),
-  };
-}
 
 export function monthCloseRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   app.get('/:month', (c) => c.json(readMonthClose(db, month.parse(c.req.param('month')), today())));
+  app.post('/:month/reconcile-unchanged', async (c) => {
+    const m = month.parse(c.req.param('month')),
+      currentToday = today();
+    const body = await readBody(
+      c,
+      z
+        .object({
+          accountIds: z
+            .array(z.string().min(1).max(64))
+            .min(1)
+            .max(500)
+            .refine(
+              (ids) => new Set(ids).size === ids.length,
+              'Duplicate accounts are not allowed',
+            ),
+          asOf: day,
+          revision: z.string().regex(/^[a-f0-9]{64}$/),
+        })
+        .strict(),
+    );
+    const ctx = { actor: ACTOR, groupId: randomUUID() };
+    const result = db.transaction((tx) => {
+      const view = readMonthClose(tx, m, currentToday);
+      return confirmMonthCloseReconciliation(
+        tx,
+        { ...body, month: m, today: currentToday },
+        view.accounts.map((a) => ({
+          id: a.id,
+          manual: a.manual,
+          done: a.done,
+          hasHoldings: a.holdingValued,
+        })),
+        ctx,
+      );
+    });
+    return c.json({ ...result, changedCount: result.reconciliations.length }, 201);
+  });
+
+  app.post('/:month/accounts/:id/reconciliation', async (c) => {
+    const m = month.parse(c.req.param('month')),
+      id = c.req.param('id'),
+      currentToday = today();
+    const { sourceRevision, ...input } = await readBody(
+      c,
+      reconcileBody.extend({ sourceRevision: z.string().regex(/^[a-f0-9]{64}$/) }).strict(),
+    );
+    const ctx = { actor: ACTOR, groupId: randomUUID() };
+    const result = db.transaction((tx) => {
+      const view = readMonthClose(tx, m, currentToday);
+      if (sourceRevision !== view.sourceRevision || input.date !== view.asOf)
+        throw new ApiError(
+          409,
+          'stale_close',
+          'Der Abschlussstand hat sich geändert. Bitte neu laden.',
+        );
+      if (!view.accounts.some((a) => a.id === id && !a.manual && !a.done))
+        throw new ApiError(
+          409,
+          'close_account_unavailable',
+          'Dieses Konto bleibt außerhalb dieser Kontoprüfung. Bitte den Abschluss neu laden.',
+        );
+      assertReconcileAdjustmentCategory(tx, input.categoryId);
+      const checked = reconcileAccount(
+        tx,
+        defined({ ...input, accountId: id, today: currentToday, note: input.note?.trim() || null }),
+        ctx,
+      );
+      // Enforce the actual residual difference, after the existing explicit duplicate/pending
+      // actions. Missing reason rolls this whole request back; this is not a preview dry-run.
+      if (
+        checked.adjustmentBookingId !== null &&
+        checked.differenceCents !== 0 &&
+        !input.note?.trim()
+      )
+        throw new ApiError(
+          400,
+          'reconciliation_reason_required',
+          'Gib einen Grund für den verbleibenden Ausgleich an.',
+        );
+      return checked;
+    });
+    return c.json({ result }, 201);
+  });
+
   app.patch('/:month', async (c) => {
     const m = month.parse(c.req.param('month'));
     const patch = await readBody(
@@ -190,12 +120,32 @@ export function monthCloseRoutes(db: Db, today: () => string): Hono {
           currentStep: z.int().min(1).max(5).optional(),
           decisions: z.array(closeDecisionSchema).max(1000).optional(),
           close: z.literal(true).optional(),
+          sourceRevision: z
+            .string()
+            .regex(/^[a-f0-9]{64}$/)
+            .optional(),
         })
-        .refine((v) => v.currentStep !== undefined || v.decisions !== undefined || v.close),
+        .refine((v) => v.currentStep !== undefined || v.decisions !== undefined || v.close)
+        .refine(
+          (v) => !v.close || (v.currentStep === undefined && v.decisions === undefined),
+          'Close separately after reviewing the current decisions',
+        )
+        .refine(
+          (v) => !v.close || v.sourceRevision !== undefined,
+          'Closing requires the reviewed source revision',
+        ),
     );
     const ctx = { actor: ACTOR, groupId: randomUUID() };
     const result = db.transaction((tx) => {
       const view = readMonthClose(tx, m, today());
+      if (patch.close && patch.sourceRevision !== view.sourceRevision)
+        throw new ApiError(
+          409,
+          'stale_close',
+          'Der Monatsstand hat sich geändert. Bitte neu laden und erneut prüfen.',
+        );
+      if (patch.close && view.state.snapshot?.sourceRevision === view.sourceRevision)
+        return { state: view.state, changedCount: 0 };
       if (
         patch.close &&
         (view.end > today() || view.steps.slice(0, 4).some((s) => s.status === 'open'))
@@ -219,14 +169,39 @@ export function monthCloseRoutes(db: Db, today: () => string): Hono {
         ...view.state,
         currentStep: patch.close ? 5 : (patch.currentStep ?? view.state.currentStep),
         decisions: [...decisions.values()],
-        ...(patch.close && { closedOn: view.state.closedOn ?? today() }),
+        ...(patch.close && {
+          closedOn: view.state.closedOn ?? today(),
+          closedAt: new Date().toISOString(),
+          snapshot: closeResultSnapshotSchema.parse({
+            version: 1,
+            sourceRevision: view.sourceRevision,
+            month: m,
+            checkedAccounts: view.result!.checkedAccounts,
+            totalAccounts: view.result!.totalAccounts,
+            deferredAccounts: view.result!.deferredAccounts,
+            assignedCents: view.result!.assignedCents,
+            overspentCount: view.result!.overspentCount,
+            overspentCents: view.result!.overspentCents,
+            carryInCents: view.result!.carryInCents,
+            destinationMonth: view.result!.destinationMonth,
+            savingsRateBp: view.result!.report.result.savingsRateBp,
+            allocationSavingsPercent:
+              view.result!.report.allocation.incomeCents > 0
+                ? view.result!.report.allocation.shares.future
+                : null,
+            spentCents: view.result!.report.pace.figures.spentCents,
+            plannedCents: view.result!.report.pace.figures.limitCents,
+          }),
+        }),
       });
       const current = getEntity(tx, appSetting, key(m));
-      if (current) updateEntity(tx, appSetting, key(m), { value: JSON.stringify(state) }, ctx);
-      else createEntity(tx, appSetting, { id: key(m), value: JSON.stringify(state) }, ctx);
-      return state;
+      const value = JSON.stringify(state);
+      if (current?.value === value) return { state, changedCount: 0 };
+      if (current) updateEntity(tx, appSetting, key(m), { value }, ctx);
+      else createEntity(tx, appSetting, { id: key(m), value }, ctx);
+      return { state, changedCount: 1 };
     });
-    return c.json({ state: result, groupId: ctx.groupId });
+    return c.json({ ...result, groupId: ctx.groupId });
   });
   return app;
 }

@@ -72,6 +72,10 @@
   padding: 12px 0;
   border-top: 1px solid var(--rule);
 }
+.close-footer .btn {
+  max-width: 100%;
+  white-space: normal;
+}
 .month-close .btn {
   min-height: 44px;
 }
@@ -129,6 +133,70 @@
 .close-stepper button:disabled {
   cursor: default;
 }
+.close-step-help {
+  margin-block: 16px 24px;
+  color: var(--ink-2);
+}
+.close-step-help > div {
+  display: grid;
+  grid-template-columns: 5ch minmax(0, 1fr);
+  gap: 12px;
+  padding-block: 4px;
+}
+.close-step-help dt {
+  font-weight: 600;
+}
+.close-step-help dd,
+.close-result-metrics dd {
+  margin: 0;
+}
+.close-result-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-block: 24px;
+  border-block: 1px solid var(--rule-strong);
+}
+.close-result-metrics > div {
+  min-width: 0;
+  padding: 16px;
+  border-bottom: 1px solid var(--rule);
+}
+.close-result-metrics dt {
+  margin-bottom: 8px;
+  color: var(--ink-2);
+}
+.close-result-metrics dd {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.close-result-metrics small {
+  display: block;
+  margin-top: 8px;
+  color: var(--ink-2);
+  font-weight: 400;
+}
+.close-result-details {
+  border-block: 1px solid var(--rule);
+  margin-block: 24px;
+}
+.close-result-details > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.close-result-details > summary:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.close-result-details > summary svg {
+  flex-shrink: 0;
+}
+.close-result-details[open] > summary svg {
+  transform: rotate(180deg);
+}
 @media (max-width: 767px) {
   .close-stepper ol {
     grid-template-columns: 1fr;
@@ -148,6 +216,12 @@
     padding-inline-end: 80px;
     background: var(--surface);
     z-index: 2;
+  }
+  .close-result-metrics {
+    grid-template-columns: 1fr;
+  }
+  .close-result-metrics > div {
+    padding-inline: 0;
   }
   .close-row .kform {
     min-width: 0;
@@ -180,4 +254,20 @@
     font: var(--fs-label) var(--font-tech);
     color: var(--ink-2);
   }
+}
+
+/* One explicit membership list, no mixed-currency aggregate or new visual token. */
+.close-unchanged {
+  overflow-wrap: anywhere;
+}
+.close-unchanged ul {
+  padding-inline-start: 24px;
+}
+.close-unchanged li {
+  padding-block: 8px;
+}
+.close-unchanged a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
 }

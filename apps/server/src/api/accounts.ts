@@ -64,6 +64,26 @@ interface AccountSeriesDayQuality {
 }
 type PositionSeriesQuality = Pick<AccountSeriesDayQuality, 'quality' | 'missing'>;
 
+/** Shared existing category guard for ordinary and month-close reconciliation. */
+export function assertReconcileAdjustmentCategory(
+  db: Executor,
+  categoryId: string | undefined,
+): void {
+  if (categoryId !== undefined) {
+    const picked = db
+      .select({ kind: category.kind })
+      .from(category)
+      .where(eq(category.id, categoryId))
+      .get();
+    if (picked && !isReconcileAdjustCategoryKind(picked.kind))
+      throw new ApiError(
+        400,
+        'invalid',
+        'Für den Ausgleich ist nur eine Ausgaben-Kategorie erlaubt (keine Einnahmen-, Auslagen-, Karten-, Schulden- oder Investment-Kategorie).',
+      );
+  }
+}
+
 /** Role and budget membership that follow from an account type when the request says nothing. */
 const DEFAULTS = {
   checking: { role: 'budget', onBudget: true },
@@ -626,19 +646,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   app.post('/:id/reconciliation', async (c) => {
     const id = c.req.param('id');
     const input = await readBody(c, reconcileBody);
-    if (input.categoryId !== undefined) {
-      const picked = db
-        .select({ kind: category.kind })
-        .from(category)
-        .where(eq(category.id, input.categoryId))
-        .get();
-      if (picked && !isReconcileAdjustCategoryKind(picked.kind))
-        throw new ApiError(
-          400,
-          'invalid',
-          'Für den Ausgleich ist nur eine Ausgaben-Kategorie erlaubt (keine Einnahmen-, Auslagen-, Karten-, Schulden- oder Investment-Kategorie).',
-        );
-    }
+    assertReconcileAdjustmentCategory(db, input.categoryId);
     const ctx = audit();
     const result = reconcileAccount(db, defined({ ...input, accountId: id, today: today() }), ctx);
     return c.json({ result, account: summary(id) }, 201);

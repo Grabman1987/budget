@@ -11,6 +11,7 @@ import {
   type OpenedDatabase,
 } from '@budget/db';
 import { beforeEach, afterEach, expect, it } from 'vitest';
+import { eq, isNull } from 'drizzle-orm';
 import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
 import { createLedgerApi } from './index';
 
@@ -40,6 +41,485 @@ async function call(method: string, path = '/month-close/2026-09', body?: unknow
       : {},
   };
 }
+
+async function confirmQuiet() {
+  const view = (await call('GET')).body;
+  const preview = view.unchangedConfirmation;
+  return call('POST', '/month-close/2026-09/reconcile-unchanged', {
+    accountIds: preview.accounts.map((a: any) => a.id),
+    asOf: preview.asOf,
+    revision: preview.revision,
+  });
+}
+
+it('confirms one canonical check per quiet account as one exactly undoable group', async () => {
+  createBooking(
+    opened.db,
+    {
+      accountId: 'giro',
+      date: '2026-09-10',
+      amountCents: -1250,
+      splits: [{ amountCents: -1250, categoryId: 'essen' }],
+    },
+    { actor: 'test' },
+  );
+  for (const [accountId, balance] of [
+    ['giro', 98750],
+    ['spar', 0],
+    ['usd', 0],
+  ] as const)
+    reconcileAccount(
+      opened.db,
+      { accountId, date: '2026-09-15', statementBalanceCents: balance },
+      { actor: 'test' },
+    );
+  const originalAccounts = opened.db.select().from(schema.account).all();
+  const originalBookings = opened.db.select().from(schema.booking).all();
+  const originalChecks = opened.db.select().from(schema.accountReconciliation).all();
+  const result = await confirmQuiet();
+  expect(result.status).toBe(201);
+  expect(result.body.changedCount).toBe(3);
+  const checks = opened.db
+    .select()
+    .from(schema.accountReconciliation)
+    .where(isNull(schema.accountReconciliation.deletedAt))
+    .all();
+  expect(
+    checks
+      .filter((r) => r.date === '2026-09-30')
+      .map((r) => [r.accountId, r.statementBalanceCents])
+      .sort(),
+  ).toEqual([
+    ['giro', 98750],
+    ['spar', 0],
+    ['usd', 0],
+  ]);
+  const events = opened.db
+    .select()
+    .from(schema.auditLog)
+    .where(eq(schema.auditLog.groupId, result.body.groupId))
+    .all();
+  expect(events.filter((e) => e.entityType === 'account_reconciliation')).toHaveLength(3);
+  expect(
+    (
+      await call('PATCH', `/bookings/${originalBookings[0]!.id}`, {
+        amountCents: -1300,
+        splits: [{ amountCents: -1300, categoryId: 'essen' }],
+      })
+    ).status,
+  ).toBe(409);
+  expect((await call('POST', '/undo', { groupId: result.body.groupId })).status).toBe(200);
+  expect(opened.db.select().from(schema.account).all()).toEqual(originalAccounts);
+  expect(opened.db.select().from(schema.booking).all()).toEqual(originalBookings);
+  expect(
+    opened.db
+      .select()
+      .from(schema.accountReconciliation)
+      .where(isNull(schema.accountReconciliation.deletedAt))
+      .all(),
+  ).toEqual(originalChecks);
+});
+
+it('rejects a stale batch atomically after new movement, even when that movement is undone', async () => {
+  for (const [accountId, statementBalanceCents] of [
+    ['giro', 100000],
+    ['spar', 0],
+  ] as const)
+    reconcileAccount(
+      opened.db,
+      { accountId, date: '2026-09-15', statementBalanceCents },
+      { actor: 'test' },
+    );
+  const preview = (await call('GET')).body.unchangedConfirmation;
+  const added = await call('POST', '/bookings', {
+    type: 'booking',
+    accountId: 'giro',
+    date: '2026-09-18',
+    amountCents: -100,
+    splits: [{ amountCents: -100, categoryId: 'essen' }],
+  });
+  expect(added.status).toBe(201);
+  expect((await call('POST', '/undo', { groupId: added.body.groupId })).status).toBe(200);
+  const before = opened.db.select().from(schema.auditLog).all().length;
+  const result = await call('POST', '/month-close/2026-09/reconcile-unchanged', {
+    accountIds: preview.accounts.map((a: any) => a.id),
+    asOf: preview.asOf,
+    revision: preview.revision,
+  });
+  expect(result.status).toBe(409);
+  expect(opened.db.select().from(schema.auditLog).all()).toHaveLength(before);
+  expect(opened.db.select().from(schema.accountReconciliation).all()).toHaveLength(2);
+  expect((await call('GET')).body.unchangedConfirmation.excluded).toContainEqual({
+    id: 'giro',
+    reason: 'changed_since_check',
+  });
+});
+
+it.each([
+  ['2026-09-29', null],
+  [null, '2026-09-28T22:30:00.000Z'],
+])(
+  'excludes a contradictory newer bank balance using observed or Vienna fetch day (%s)',
+  async (balanceDate, balanceFetchedAt) => {
+    reconcileAccount(
+      opened.db,
+      { accountId: 'giro', date: '2026-09-15', statementBalanceCents: 100000 },
+      { actor: 'test' },
+    );
+    opened.db
+      .insert(schema.bankSyncConsent)
+      .values({
+        id: 'consent',
+        initiator: 'test',
+        stateHash: 'synthetic',
+        expiresAt: '2026-10-03',
+        label: 'Synthetic',
+        nextRunAt: '2026-10-03',
+      })
+      .run();
+    opened.db
+      .insert(schema.bankSyncAccount)
+      .values({
+        id: 'bank',
+        consentId: 'consent',
+        secret: 'synthetic',
+        label: 'Synthetic',
+        currency: 'EUR',
+        accountId: 'giro',
+        balanceCents: 90000,
+        balanceDate,
+        balanceFetchedAt,
+      })
+      .run();
+    const preview = (await call('GET')).body.unchangedConfirmation;
+    expect(preview.accounts).toEqual([]);
+    expect(preview.excluded).toContainEqual({ id: 'giro', reason: 'bank_difference' });
+  },
+);
+
+it('keeps pending work, moved bookings and unproven checks outside the quiet cohort', async () => {
+  createBooking(
+    opened.db,
+    {
+      accountId: 'giro',
+      date: '2026-09-10',
+      amountCents: -100,
+      status: 'pending',
+      splits: [{ amountCents: -100, categoryId: 'essen' }],
+    },
+    { actor: 'test' },
+  );
+  for (const [accountId, statementBalanceCents] of [
+    ['giro', 100000],
+    ['spar', 0],
+    ['usd', 0],
+  ] as const)
+    reconcileAccount(
+      opened.db,
+      { accountId, date: '2026-09-15', statementBalanceCents },
+      { actor: 'test' },
+    );
+  const moved = await call('POST', '/bookings', {
+    type: 'booking',
+    accountId: 'spar',
+    date: '2026-09-18',
+    amountCents: 100,
+    splits: [{ amountCents: 100, incomeTypeId: INCOME_TYPES.salary.id }],
+  });
+  expect(moved.status).toBe(201);
+  expect((await call('PATCH', `/bookings/${moved.body.id}`, { date: '2026-10-01' })).status).toBe(
+    200,
+  );
+  // Synthetic retained legacy check without its ceremony cannot prove a personal statement.
+  opened.sqlite
+    .prepare(
+      'DELETE FROM audit_log WHERE entity_type = ? AND entity_id IN (SELECT id FROM account_reconciliation WHERE account_id = ?)',
+    )
+    .run('account_reconciliation', 'usd');
+  const preview = (await call('GET')).body.unchangedConfirmation;
+  expect(preview.accounts).toEqual([]);
+  expect(preview.excluded).toEqual(
+    expect.arrayContaining([
+      { id: 'giro', reason: 'unresolved' },
+      { id: 'spar', reason: 'changed_since_check' },
+      { id: 'usd', reason: 'incomplete_history' },
+    ]),
+  );
+});
+
+it('requires a reason only for an individual residual adjustment and rolls back a missing reason', async () => {
+  const revision = (await call('GET')).body.sourceRevision;
+  const body = {
+    date: '2026-09-30',
+    statementBalanceCents: 99900,
+    adjust: true,
+    categoryId: 'essen',
+    sourceRevision: revision,
+  };
+  const before = opened.db.select().from(schema.auditLog).all().length;
+  expect(
+    (await call('POST', '/month-close/2026-09/accounts/giro/reconciliation', body)).status,
+  ).toBe(400);
+  expect(opened.db.select().from(schema.auditLog).all()).toHaveLength(before);
+  expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
+  const saved = await call('POST', '/month-close/2026-09/accounts/giro/reconciliation', {
+    ...body,
+    note: 'Synthetic residual',
+  });
+  expect(saved.status).toBe(201);
+  expect(saved.body.result.differenceCents).toBe(-100);
+  expect((await call('POST', '/undo', { groupId: saved.body.result.groupId })).status).toBe(200);
+  expect(
+    opened.db.select().from(schema.booking).where(isNull(schema.booking.deletedAt)).all(),
+  ).toHaveLength(0);
+  const noDifference = await call('POST', '/month-close/2026-09/accounts/giro/reconciliation', {
+    date: '2026-09-30',
+    statementBalanceCents: 100000,
+    sourceRevision: (await call('GET')).body.sourceRevision,
+  });
+  expect(noDifference.status).toBe(201);
+});
+
+it('rolls back the complete quiet group if a later canonical reconciliation fails', async () => {
+  for (const [accountId, statementBalanceCents] of [
+    ['giro', 100000],
+    ['spar', 0],
+  ] as const)
+    reconcileAccount(
+      opened.db,
+      { accountId, date: '2026-09-15', statementBalanceCents },
+      { actor: 'test' },
+    );
+  const checks = opened.db.select().from(schema.accountReconciliation).all();
+  const accounts = opened.db.select().from(schema.account).all();
+  const audits = opened.db.select().from(schema.auditLog).all();
+  opened.sqlite.exec(`CREATE TRIGGER synthetic_later_failure BEFORE INSERT ON account_reconciliation
+    WHEN NEW.account_id = 'spar' AND NEW.date = '2026-09-30'
+    BEGIN SELECT RAISE(ABORT, 'Synthetic canonical reconciliation failure'); END;`);
+  expect((await confirmQuiet()).status).toBe(422);
+  expect(opened.db.select().from(schema.accountReconciliation).all()).toEqual(checks);
+  expect(opened.db.select().from(schema.account).all()).toEqual(accounts);
+  expect(opened.db.select().from(schema.auditLog).all()).toEqual(audits);
+});
+
+it('retains report figures and close time idempotently and fences a source change followed by Undo', async () => {
+  createBooking(
+    opened.db,
+    {
+      accountId: 'giro',
+      date: '2026-09-12',
+      amountCents: -400,
+      splits: [{ amountCents: -400, categoryId: 'essen' }],
+    },
+    { actor: 'test' },
+  );
+  expect(
+    (
+      await call('PUT', '/budget/2026-09/assigned', {
+        items: [{ categoryId: 'miete', assignedCents: 99600 }],
+      })
+    ).status,
+  ).toBe(200);
+  const before = (await call('GET')).body;
+  expect(
+    (
+      await call('PATCH', undefined, {
+        decisions: before.work.map((w: any) => ({ ...w, reason: 'Synthetic deferred review' })),
+      })
+    ).status,
+  ).toBe(200);
+  const ready = (await call('GET')).body;
+  const report = monthOnePager(opened.db, '2026-10-02', '2026-09');
+  expect(ready.result.report).toEqual(JSON.parse(JSON.stringify(report)));
+  expect(ready.result).toMatchObject({
+    checkedAccounts: 0,
+    totalAccounts: 3,
+    deferredAccounts: 3,
+    assignedCents: 99600,
+    overspentCents: 400,
+    overspentCount: 1,
+    carryInCents: 400,
+  });
+  expect(ready.result.report.result).toMatchObject({
+    earnedCents: 0,
+    consumptionCents: 400,
+    savedCents: -400,
+    savingsRateBp: null,
+  });
+  expect(ready.result.report.pace.figures.spentCents).toBe(400);
+  expect((await call('PATCH', undefined, { close: true })).status).toBe(400);
+  const closed = await call('PATCH', undefined, {
+    close: true,
+    sourceRevision: ready.sourceRevision,
+  });
+  expect(closed.status).toBe(200);
+  const saved = (await call('GET')).body;
+  expect(saved.close.changedSinceClose).toBe(false);
+  expect(saved.state.snapshot).toMatchObject({
+    version: 1,
+    sourceRevision: ready.sourceRevision,
+    assignedCents: 99600,
+    overspentCents: 400,
+    carryInCents: 400,
+    spentCents: 400,
+    savingsRateBp: null,
+  });
+  const auditCount = opened.db.select().from(schema.auditLog).all().length;
+  const again = await call('PATCH', undefined, {
+    close: true,
+    sourceRevision: ready.sourceRevision,
+  });
+  expect(again.status).toBe(200);
+  expect(again.body.changedCount).toBe(0);
+  expect((await call('GET')).body.state).toEqual(saved.state);
+  expect(opened.db.select().from(schema.auditLog).all()).toHaveLength(auditCount);
+  // Closing alone did not reconcile or lock the existing booking.
+  const bookingId = opened.db.select().from(schema.booking).get()!.id;
+  const edit = await call('PATCH', `/bookings/${bookingId}`, {
+    amountCents: -500,
+    splits: [{ amountCents: -500, categoryId: 'essen' }],
+  });
+  expect(edit.status).toBe(200);
+  expect((await call('POST', '/undo', { groupId: edit.body.groupId })).status).toBe(200);
+  const changed = (await call('GET')).body;
+  expect(changed.close.changedSinceClose).toBe(true);
+  expect(changed.state.snapshot).toEqual(saved.state.snapshot);
+  expect(changed.sourceRevision).not.toBe(ready.sourceRevision);
+  const afterUndoCount = opened.db.select().from(schema.auditLog).all().length;
+  expect(
+    (await call('PATCH', undefined, { close: true, sourceRevision: ready.sourceRevision })).status,
+  ).toBe(409);
+  expect(opened.db.select().from(schema.auditLog).all()).toHaveLength(afterUndoCount);
+  expect((await call('POST', '/undo', { groupId: closed.body.groupId })).status).toBe(200);
+  expect((await call('GET')).body.state.snapshot).toBeUndefined();
+});
+
+it.each([
+  { month: 'August', change: 'amount-and-split' },
+  { month: 'August', change: 'split-only' },
+  { month: 'October', change: 'amount-and-split' },
+  { month: 'October', change: 'split-only' },
+])(
+  'fences an $month $change edit followed by Undo when reviewing September',
+  async ({ month, change }) => {
+    const priorMonth = month === 'August';
+    const historical = createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: priorMonth ? '2026-08-12' : '2026-10-01',
+        amountCents: priorMonth ? -400 : 10000,
+        status: 'confirmed',
+        splits: priorMonth
+          ? [{ amountCents: -400, categoryId: 'essen' }]
+          : [{ amountCents: 10000, incomeTypeId: INCOME_TYPES.salary.id }],
+      },
+      { actor: 'test' },
+    );
+    expect(
+      (
+        await call('PUT', '/budget/2026-10/assigned', {
+          items: [{ categoryId: 'miete', assignedCents: priorMonth ? 99600 : 110000 }],
+        })
+      ).status,
+    ).toBe(200);
+    const before = (await call('GET')).body;
+    expect(
+      (
+        await call('PATCH', undefined, {
+          decisions: before.work.map((w: any) => ({ ...w, reason: 'Synthetic explicit deferral' })),
+        })
+      ).status,
+    ).toBe(200);
+    const reviewed = (await call('GET')).body;
+    expect(reviewed.accounts.find((a: any) => a.id === 'giro').balanceCents).toBe(
+      priorMonth ? 99600 : 100000,
+    );
+    expect(reviewed.nextPlan.budget.summary.toBeAssignedCents).toBe(0);
+    expect(reviewed.nextPlan.budget.summary.assignedCents).toBe(priorMonth ? 99600 : 110000);
+    expect(
+      (
+        await call('PATCH', undefined, {
+          close: true,
+          sourceRevision: reviewed.sourceRevision,
+        })
+      ).status,
+    ).toBe(200);
+    const edit = await call(
+      'PATCH',
+      `/bookings/${historical}`,
+      priorMonth
+        ? change === 'amount-and-split'
+          ? { amountCents: -500, splits: [{ amountCents: -500, categoryId: 'essen' }] }
+          : { splits: [{ amountCents: -400, categoryId: 'miete' }] }
+        : change === 'amount-and-split'
+          ? {
+              amountCents: 12000,
+              splits: [{ amountCents: 12000, incomeTypeId: INCOME_TYPES.salary.id }],
+            }
+          : { splits: [{ amountCents: 10000, incomeTypeId: INCOME_TYPES.other.id }] },
+    );
+    expect(edit.status).toBe(200);
+    expect((await call('POST', '/undo', { groupId: edit.body.groupId })).status).toBe(200);
+    const restored = (await call('GET')).body;
+    expect(restored.result).toEqual(reviewed.result);
+    expect(restored.accounts).toEqual(reviewed.accounts);
+    expect(restored.nextPlan.budget.summary).toEqual(reviewed.nextPlan.budget.summary);
+    expect.soft(restored.sourceRevision).not.toBe(reviewed.sourceRevision);
+    expect.soft(restored.close.changedSinceClose).toBe(true);
+    const audits = opened.db.select().from(schema.auditLog).all();
+    const checks = opened.db.select().from(schema.accountReconciliation).all();
+    expect
+      .soft(
+        (
+          await call('PATCH', undefined, {
+            close: true,
+            sourceRevision: reviewed.sourceRevision,
+          })
+        ).status,
+      )
+      .toBe(409);
+    expect
+      .soft(
+        (
+          await call('POST', '/month-close/2026-09/accounts/spar/reconciliation', {
+            date: '2026-09-30',
+            statementBalanceCents: 0,
+            sourceRevision: reviewed.sourceRevision,
+          })
+        ).status,
+      )
+      .toBe(409);
+    expect(opened.db.select().from(schema.auditLog).all()).toEqual(audits);
+    expect(opened.db.select().from(schema.accountReconciliation).all()).toEqual(checks);
+  },
+);
+
+it('excludes November-only booking events but retains a move into October followed by Undo', async () => {
+  const before = (await call('GET')).body;
+  const id = createBooking(
+    opened.db,
+    {
+      accountId: 'giro',
+      date: '2026-11-01',
+      amountCents: 10000,
+      status: 'confirmed',
+      splits: [{ amountCents: 10000, incomeTypeId: INCOME_TYPES.salary.id }],
+    },
+    { actor: 'test' },
+  );
+  const future = (await call('GET')).body;
+  expect(future.sourceRevision).toBe(before.sourceRevision);
+  expect(future.nextPlan.budget.summary).toEqual(before.nextPlan.budget.summary);
+  const moved = await call('PATCH', `/bookings/${id}`, { date: '2026-10-01' });
+  expect(moved.status).toBe(200);
+  expect((await call('POST', '/undo', { groupId: moved.body.groupId })).status).toBe(200);
+  const restored = (await call('GET')).body;
+  expect(restored.result).toEqual(before.result);
+  expect(restored.accounts).toEqual(future.accounts);
+  expect(restored.nextPlan.budget.summary).toEqual(before.nextPlan.budget.summary);
+  expect(restored.sourceRevision).not.toBe(before.sourceRevision);
+});
 
 it('lists every open booking-based account and manual assets in month close', async () => {
   const types = [
@@ -195,16 +675,33 @@ it('plans to zero via the existing bulk API and undoes all groups without bookin
 });
 
 it('stores an undoable close marker only after all work and next-month distribution are complete', async () => {
-  expect((await call('PATCH', undefined, { close: true })).status).toBe(409);
+  expect(
+    (
+      await call('PATCH', undefined, {
+        close: true,
+        sourceRevision: (await call('GET')).body.sourceRevision,
+      })
+    ).status,
+  ).toBe(409);
   const before = (await call('GET')).body;
   await call('PATCH', undefined, {
     decisions: before.work.map((w: any) => ({ ...w, reason: 'Musterprüfung folgt' })),
   });
-  expect((await call('PATCH', undefined, { close: true })).status).toBe(409);
+  expect(
+    (
+      await call('PATCH', undefined, {
+        close: true,
+        sourceRevision: (await call('GET')).body.sourceRevision,
+      })
+    ).status,
+  ).toBe(409);
   await call('PUT', '/budget/2026-10/assigned', {
     items: [{ categoryId: 'miete', assignedCents: 100000 }],
   });
-  const closed = await call('PATCH', undefined, { close: true });
+  const closed = await call('PATCH', undefined, {
+    close: true,
+    sourceRevision: (await call('GET')).body.sourceRevision,
+  });
   expect(closed.status).toBe(200);
   expect((await call('GET')).body.state.closedOn).toBe('2026-10-02');
   expect((await call('GET')).body.steps[4].status).toBe('done');
@@ -228,7 +725,14 @@ it('stores an undoable close marker only after all work and next-month distribut
   expect((await call('POST', '/undo', { groupId: edit.body.groupId })).status).toBe(200);
   expect((await call('POST', '/undo', { groupId: closed.body.groupId })).status).toBe(200);
   expect((await call('GET')).body.state.closedOn).toBeUndefined();
-  expect((await call('PATCH', '/month-close/2026-10', { close: true })).status).toBe(409);
+  expect(
+    (
+      await call('PATCH', '/month-close/2026-10', {
+        close: true,
+        sourceRevision: (await call('GET', '/month-close/2026-10')).body.sourceRevision,
+      })
+    ).status,
+  ).toBe(409);
 });
 
 it('renders a review for a newly tracked month with no household income', () => {

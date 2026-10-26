@@ -118,7 +118,7 @@ export default defineConfig({
       workers: 1,
       dependencies: ['setup', 'setup-sample'],
       testMatch:
-        /(fab-focus-q5|header-q5|nav-registers|portfolio-overview|mobile-panels|mobile-shell|tap-targets|loan-sheet|asset-classes-settings|accounts-settings|glossary|global-search|plan-compact-grid|checkbox-appearance|wealth-ux-v1|asset-exposure|contrast-tokens|capture-dialog-layout|payslip-intake|overspent-counts|assets-debts-report|cashflow-report|compare-report|payroll-projects|report-tables|contacts|a11y-strict-q2|issue-[0-9]+[a-z]?-[a-z0-9-]+|loan-terms-todo).spec.ts/,
+        /(fab-focus-q5|header-q5|nav-registers|portfolio-overview|mobile-panels|mobile-shell|tap-targets|loan-sheet|asset-classes-settings|accounts-settings|glossary|global-search|plan-compact-grid|checkbox-appearance|month-close|wealth-ux-v1|asset-exposure|contrast-tokens|capture-dialog-layout|payslip-intake|overspent-counts|assets-debts-report|cashflow-report|compare-report|payroll-projects|report-tables|contacts|a11y-strict-q2|issue-[0-9]+[a-z]?-[a-z0-9-]+|loan-terms-todo).spec.ts/,
       use: { ...iphone, storageState: STORAGE_STATE },
     },
     // Real passkey ceremonies with the browser's virtual authenticator on a separate, empty server.
