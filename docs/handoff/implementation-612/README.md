@@ -40,3 +40,27 @@ error; it was not retried, and no successful current-head typecheck is claimed. 
 required exact-head CI remain deferred to the queue gate while #777 occupies the heavy test lane.
 The independent full financial/UI review found only the corrected currency label; independent
 delta review accepted the code and requested this revision-specific evidence clarification.
+
+## Canonical Linux browser evidence
+
+- [40380389506](https://github.com/Grabman1987/budget/actions/runs/40380389506) checked out
+  `a24891859e48f10b291a1297b408fc85536bf9eb`: nine passed in 38.2 seconds, with no failures,
+  retries, skips or baseline changes. It selected the new #612 and existing #611 cases on desktop,
+  Chromium mobile and WebKit iPhone, plus their setup dependencies. Both-theme images were inspected.
+- Published Docker main `d859067b` was merged at `a9c49b8d` without conflicts. All eight feature
+  file blobs stayed identical to the reviewed browser source; only the separately reviewed Docker
+  pin update arrived from main.
+- Visual review found that the phone table needed a discoverable sideways-scroll cue. Correction
+  `460749e4` reuses the Reports hint stylesheet and labels the existing focusable scroll region.
+  Its E2E addition moves that region to the right and proves the complete payment-column header is
+  reachable, then restores its position. No financial or privacy assertion was removed or changed.
+- [40381825656](https://github.com/Grabman1987/budget/actions/runs/40381825656) checked out
+  `460749e42f458c817307ffe19068e71c8d78bfe6`: six passed in 27.1 seconds, with no failures,
+  retries, skips or baseline changes. This follow-up selected only #612 and its setup dependencies;
+  it covers the three configured profiles, both themes, native horizontal scrolling, Axe, phone
+  target sizes, privacy and the unchanged no-write and literal V16 expectations. Updated images
+  were inspected. These overlapping runs are separate checkpoints, not fifteen unique tests.
+
+The full financial/source review and the currency-label, evidence-documentation and scroll-cue
+delta reviews are clear. Exact-head required PR CI, including the current typecheck, and publication
+remain pending; successful scoped browser workflows do not replace those gates.
