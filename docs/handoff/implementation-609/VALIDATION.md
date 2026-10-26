@@ -3,7 +3,9 @@
 Prepared source `813854c29ec095f47179f928fa43b5beb1b8679b` was merged into
 `1caaa84b9e26e607b6fb47ce50fa419f99f9872d` on `codex/continue-609`.
 The historical NOT-VALIDATED and SOURCE-REVIEW documents describe the earlier
-checkpoint; this file records the new bounded local evidence. No live acceptance.
+checkpoint; this file records successive validation checkpoints. The final
+executed-browser section below supersedes earlier pending-browser statements.
+No live acceptance.
 
 ## Implementation correction
 
@@ -49,7 +51,7 @@ The financial/provenance guards and matching tolerance were preserved.
 | `apps/web/src/expected/income-panel.test.tsx` | Adapt intended head/footnote labels; preserve literal amounts and privacy assertions. |
 | `apps/web/src/reports/payslip-automation-741.test.tsx` | Require each existing literal amount twice (new chain plus retained detail), preserving mask/no-refetch/payout-link checks. |
 
-## Remaining acceptance and delivery gates
+## Initial checkpoint: remaining acceptance and delivery gates
 
 - Independent full-diff financial/security/test review of the final merged packet
   is required; the archived earlier source review cannot approve this revision.
@@ -65,7 +67,7 @@ The financial/provenance guards and matching tolerance were preserved.
   termination guarantees remain unestablished. The process-local limits are not
   a native sandbox or deployment-wide quota.
 
-## Browser handoff (not yet executed)
+## Initial browser handoff (not yet executed at that checkpoint)
 
 Existing `e2e/payslip-intake.spec.ts`, grep
 `synthetic encrypted PDF upload, confirm, undo and reject`, on `desktop`, `mobile`
@@ -213,7 +215,8 @@ fixtures/oracles, timeouts and retry settings are unchanged. Per-file rationale:
 this case covers the newly supported manual provenance branch and its checkbox/token
 wire through the real UI, rather than repeating every repository guard boundary.
 
-The new case is formatted and linted but NOT EXECUTED. Root coordinates the only
+At this financial freeze the new case was formatted and linted but NOT EXECUTED.
+Root coordinated the only
 new affected browser flow after building this frozen revision:
 
 ```sh
@@ -222,3 +225,63 @@ npx playwright test e2e/payslip-intake.spec.ts --grep "proven original manual pa
 
 Earlier browser evidence remains scoped to its tested pre-extension revision and
 is not represented here as runtime proof of the new financial helper.
+
+## Executed browser evidence
+
+All documents, people, accounts and amounts used for these checks are synthetic.
+Counts overlap with earlier unit batches and include setup cases where stated;
+they must not be added together as unique product scenarios. Scoped browser runs
+used existing profile settings and deadlines without adding retries or relaxing
+assertions. The manual snapshot workflow retains `|| true`, so its workflow status
+alone is not proof: the actual test summary, checked-out revision and baseline
+changes were inspected for each run.
+
+| Run / tested source | Actual result and scope |
+| --- | --- |
+| Local Windows, `86b200c64717961b9f1b1b6dd8bb41e84383f47a` | 11 passed (3 setup, 8 desktop/mobile feature cases), 4 WebKit failures/timeouts, 13.2 minutes. The failed WebKit cases are not represented as passing. Private traces were retained; the cause was not conclusively assigned to product or infrastructure. |
+| [40309822159](https://github.com/Grabman1987/budget/actions/runs/40309822159), `86b200c6` | Linux WebKit iPhone: 7 passed / 1.8 minutes (3 setup plus encrypted native preview/confirm/Undo/reject, chooser/drop and salary-history navigation). No retry, failure, skip or baseline change. |
+| [40310960189](https://github.com/Grabman1987/budget/actions/runs/40310960189), `86b200c6` | Linux WebKit iPhone: 5 passed / 27.5 seconds. Existing #741 automatic upload/payout/Undo/privacy paths. No retry, failure, skip or baseline change. |
+| [40312186567](https://github.com/Grabman1987/budget/actions/runs/40312186567), `66cdd779ec2b63bffb12268409134608f5c22aca` | 6 passed / 30 seconds (3 setup plus the new proven-original manual payout case on desktop, Chromium mobile and WebKit iPhone). Upload/checkbox selection writes nothing; explicit acceptance splits the same booking into literal 287500 salary + 10000 reimbursement; one Undo restores the original booking exactly. No retry, failure, skip or baseline change. |
+| [40312543365](https://github.com/Grabman1987/budget/actions/runs/40312543365), `66cdd779` | 7 passed / 38 seconds for existing income header/detail/scope cases on desktop and Chromium mobile. No retry, failure or skip. Exactly the two intended expected-income dark PNGs changed, in bot commit `c397e8d5ac364700e45608a975c536726e9b1908`, whose parent is `66cdd779`. |
+
+The Linux jobs used the pinned Playwright 1.64.1 Noble image, with the existing
+`webkit-iphone` profile rather than a substituted engine. The four feature cases
+at `86b200c6` exercise the unchanged UI/native implementation; they are not runtime
+proof of the later financial helper extension. That extension has separate real
+provider/repository tests (25 payout + 14 bank-origin tests) and the three-profile
+manual UI flow at `66cdd779` above. Bank-origin guard coverage is service-level,
+not a claim of a new real bank browser flow.
+
+The existing encrypted-preview flow checks both themes, page overflow, all Axe
+violations and phone preview targets >=44px. Desktop and mobile synthetic review
+captures were inspected: the PDF and payroll chain render side by side on desktop
+and stack on phone. These checks cover the changed flows, not every application
+screen or a physical iPhone. The two refreshed expected-income dark baselines were
+also visually inspected at desktop 1440 and phone 390: received/expected totals
+and the beginning of the new breakdown appear at the intended widths. On phone,
+lower rows continue below the captured viewport; this single image does not prove
+their visibility after scrolling past the fixed navigation. Per-file baseline rationale:
+
+| File | Reason |
+| --- | --- |
+| `e2e/expected.spec.ts-snapshots/expected-income-dark-desktop-linux.png` | Intended received-income heading, progress and income-type breakdown; existing September literal totals retained. |
+| `e2e/expected.spec.ts-snapshots/expected-income-dark-mobile-linux.png` | Same intended income presentation at 390px; no unrelated screenshot was regenerated. |
+
+## Independent review and remaining gates
+
+Independent Sol full-diff review covered the initial merged financial/native/UI
+packet; the privacy, GET-only mock and browser-navigation findings were corrected
+in `86b200c6` and the affected delta was cleared. A separate full review of the
+new financial/provenance delta through `66cdd779` also cleared it, including safe
+mapping/audit projections, CAS/history checks, exact-cent splits and grouped Undo.
+The reviewer was not the implementer. No financial oracle, lock, timeout, retry or
+existing Undo expectation was relaxed. The stale imports-only product-document
+sentence has been corrected to describe the three bounded proven-original paths.
+
+Exact-head required CI, Linux/Docker packaging of the final integrated packet,
+preview and production publication remain pending. A successful focused run is
+not full delivery acceptance. Older edited/unknown/historical records remain
+link-only when original provenance cannot be proven; this is not blanket
+normalization of every matching payout. Automatic #741 uploads still supply no
+split token. Native RSS/encoder peaks, deployment-wide concurrency and hard
+wall-clock termination guarantees remain unestablished, as documented above.

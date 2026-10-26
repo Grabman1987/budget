@@ -177,10 +177,13 @@ and requires an explicit new open after privacy is turned off.
 The [receipt preview contract](receipts.md#inert-pdf-page-preview-609-source-implementation-validation-pending)
 documents finite page/surface/image/output limits, process-wide admission and the
 distinction between the cancellation deadline, V8 heap and unbounded native RSS.
-No private document has been used for this source-only implementation. Actual
-synthetic rendering, platform/limit/security checks and 1440/390 light/dark,
-keyboard/touch/privacy/draft verification are still pending. Existing payout
-split normalization is never authorized by opening the preview. The separate explicit action below is limited to proven untouched imports.
+Only synthetic documents were used. The [current validation record](handoff/implementation-609/VALIDATION.md#executed-browser-evidence)
+identifies the tested revisions, browser profiles, native rendering and security
+checks, including the failed Windows WebKit run and remaining delivery gates.
+Opening the preview never authorizes payout split normalization. The separate
+explicit action below is limited to proven untouched original imports, manual
+bookings and fresh explicit bank confirmations under its origin/history guards;
+unknown or subsequently edited records remain link-only.
 
 The pure adapter interface accepts extracted text plus owner mappings. The Austrian
 wage-line adapter supports LGV/BMD/ZFA2-style labels, final amount columns, signed
@@ -206,9 +209,10 @@ with Auszahlung; the difference is visible.
 A single exact match is preselected. The owner can choose another disclosed
 candidate or explicitly create a new payout. A matching exact payout in that
 account blocks accidental duplicate creation; choose the existing booking instead. Confirmation rechecks live account/booking
-availability and the date window. No automatic split reassignment occurs: owner
-booking splits must separately classify reimbursements to exclude them from
-ledger-based savings-rate reports. New payouts separate salary/special income and
+availability and the date window. No automatic split reassignment occurs. The
+separate explicit guarded action below can classify reimbursements in an eligible
+original payout; other linked bookings need a separately reviewed allocation to
+exclude reimbursements from ledger-based savings-rate reports. New payouts separate salary/special income and
 tax-free reimbursements in integer cents. Payout, captured payroll, receipt link and
 inbox decision share one transaction and undo group. Invalid, closed, non-EUR or
 not-yet-open accounts roll back the whole action. Legacy API callers without
