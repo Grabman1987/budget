@@ -32,7 +32,7 @@ test('rate changes, scenarios and strategies on Schulden', async ({
   request,
   isolatedLedger,
   isMobile,
-}) => {
+}, testInfo) => {
   test.setTimeout(180_000);
   const origin = isolatedLedger.origin;
   await post(request, origin, '/accounts', {
@@ -104,7 +104,99 @@ test('rate changes, scenarios and strategies on Schulden', async ({
   await page.getByRole('button', { name: 'Zinsänderung erfassen', exact: true }).click();
   await rate.getByLabel('Gültig ab').fill('2027-01-01');
   await rate.getByLabel('Nominaler Jahreszins (%)').fill('2');
-  await rate.getByRole('button', { name: 'Speichern', exact: true }).click();
+  const duplicateSave = rate.getByRole('button', { name: 'Speichern', exact: true });
+  if (isMobile) {
+    await duplicateSave.scrollIntoViewIfNeeded();
+    const geometry = await duplicateSave.evaluate((button) => {
+      const dialog = button.closest('dialog');
+      const describe = (element: Element | null) => {
+        if (!element) return null;
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return {
+          tag: element.tagName.toLowerCase(),
+          className: element.getAttribute('class'),
+          text: element.textContent?.trim().slice(0, 90),
+          rect: rect.toJSON(),
+          position: style.position,
+          zIndex: style.zIndex,
+          background: style.backgroundColor,
+          transform: style.transform,
+          overflow: style.overflow,
+          pointerEvents: style.pointerEvents,
+          scrollTop: element.scrollTop,
+          scrollHeight: element.scrollHeight,
+          clientHeight: element.clientHeight,
+        };
+      };
+      const rect = button.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const hit = document.elementFromPoint(x, y);
+      const hitAncestors: string[] = [];
+      for (let el = hit; el; el = el.parentElement)
+        hitAncestors.push(
+          `${el.tagName.toLowerCase()}${el.className ? `.${String(el.className).replaceAll(' ', '.')}` : ''}`,
+        );
+      const visual = window.visualViewport;
+      return {
+        point: { x, y },
+        button: describe(button),
+        hit: describe(hit),
+        hitAncestors,
+        hint: describe(dialog?.querySelector('.field-hint') ?? null),
+        footer: describe(dialog?.querySelector('.loan-editor-foot') ?? null),
+        body: describe(dialog?.querySelector('.loan-editor-body') ?? null),
+        form: describe(dialog?.querySelector('form') ?? null),
+        dialog: describe(dialog),
+        openDialogs: [...document.querySelectorAll('dialog[open]')].map((el) => ({
+          label: el.getAttribute('aria-labelledby'),
+          name: el.getAttribute('aria-labelledby')
+            ? document.getElementById(el.getAttribute('aria-labelledby') ?? '')?.textContent
+            : null,
+          rect: el.getBoundingClientRect().toJSON(),
+        })),
+        viewport: {
+          innerWidth,
+          innerHeight,
+          scrollX,
+          scrollY,
+          visual: visual && {
+            width: visual.width,
+            height: visual.height,
+            scale: visual.scale,
+            offsetLeft: visual.offsetLeft,
+            offsetTop: visual.offsetTop,
+            pageTop: visual.pageTop,
+          },
+        },
+      };
+    });
+    await testInfo.attach('loan-rate-save-geometry', {
+      body: Buffer.from(JSON.stringify(geometry, null, 2)),
+      contentType: 'application/json',
+    });
+    const viewportPath = testInfo.outputPath('loan-rate-save-viewport.png');
+    await page.screenshot({ path: viewportPath });
+    await testInfo.attach('loan-rate-save-viewport', {
+      path: viewportPath,
+      contentType: 'image/png',
+    });
+    // The native click must land on Save; an overlapping hint is a layout regression.
+    await expect
+      .poll(() =>
+        duplicateSave.evaluate((button) => {
+          const rect = button.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            rect.left + rect.width / 2,
+            rect.top + rect.height / 2,
+          );
+          return hit === button || button.contains(hit);
+        }),
+      )
+      .toBe(true);
+  }
+  await duplicateSave.click();
   await expect(toast(page)).toContainText('bereits eine Zinsänderung');
   await rate.getByRole('button', { name: 'Abbrechen' }).click();
   await expect(rate).toBeHidden();
