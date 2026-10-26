@@ -394,24 +394,32 @@ it('retains report figures and close time idempotently and fences a source chang
   expect((await call('GET')).body.state.snapshot).toBeUndefined();
 });
 
-it.each(['amount-and-split', 'split-only'] as const)(
-  'fences a historical August %s edit followed by Undo when reviewing September',
-  async (change) => {
+it.each([
+  { month: 'August', change: 'amount-and-split' },
+  { month: 'August', change: 'split-only' },
+  { month: 'October', change: 'amount-and-split' },
+  { month: 'October', change: 'split-only' },
+])(
+  'fences an $month $change edit followed by Undo when reviewing September',
+  async ({ month, change }) => {
+    const priorMonth = month === 'August';
     const historical = createBooking(
       opened.db,
       {
         accountId: 'giro',
-        date: '2026-08-12',
-        amountCents: -400,
+        date: priorMonth ? '2026-08-12' : '2026-10-01',
+        amountCents: priorMonth ? -400 : 10000,
         status: 'confirmed',
-        splits: [{ amountCents: -400, categoryId: 'essen' }],
+        splits: priorMonth
+          ? [{ amountCents: -400, categoryId: 'essen' }]
+          : [{ amountCents: 10000, incomeTypeId: INCOME_TYPES.salary.id }],
       },
       { actor: 'test' },
     );
     expect(
       (
         await call('PUT', '/budget/2026-10/assigned', {
-          items: [{ categoryId: 'miete', assignedCents: 99600 }],
+          items: [{ categoryId: 'miete', assignedCents: priorMonth ? 99600 : 110000 }],
         })
       ).status,
     ).toBe(200);
@@ -424,7 +432,11 @@ it.each(['amount-and-split', 'split-only'] as const)(
       ).status,
     ).toBe(200);
     const reviewed = (await call('GET')).body;
-    expect(reviewed.accounts.find((a: any) => a.id === 'giro').balanceCents).toBe(99600);
+    expect(reviewed.accounts.find((a: any) => a.id === 'giro').balanceCents).toBe(
+      priorMonth ? 99600 : 100000,
+    );
+    expect(reviewed.nextPlan.budget.summary.toBeAssignedCents).toBe(0);
+    expect(reviewed.nextPlan.budget.summary.assignedCents).toBe(priorMonth ? 99600 : 110000);
     expect(
       (
         await call('PATCH', undefined, {
@@ -436,15 +448,23 @@ it.each(['amount-and-split', 'split-only'] as const)(
     const edit = await call(
       'PATCH',
       `/bookings/${historical}`,
-      change === 'amount-and-split'
-        ? { amountCents: -500, splits: [{ amountCents: -500, categoryId: 'essen' }] }
-        : { splits: [{ amountCents: -400, categoryId: 'miete' }] },
+      priorMonth
+        ? change === 'amount-and-split'
+          ? { amountCents: -500, splits: [{ amountCents: -500, categoryId: 'essen' }] }
+          : { splits: [{ amountCents: -400, categoryId: 'miete' }] }
+        : change === 'amount-and-split'
+          ? {
+              amountCents: 12000,
+              splits: [{ amountCents: 12000, incomeTypeId: INCOME_TYPES.salary.id }],
+            }
+          : { splits: [{ amountCents: 10000, incomeTypeId: INCOME_TYPES.other.id }] },
     );
     expect(edit.status).toBe(200);
     expect((await call('POST', '/undo', { groupId: edit.body.groupId })).status).toBe(200);
     const restored = (await call('GET')).body;
     expect(restored.result).toEqual(reviewed.result);
     expect(restored.accounts).toEqual(reviewed.accounts);
+    expect(restored.nextPlan.budget.summary).toEqual(reviewed.nextPlan.budget.summary);
     expect.soft(restored.sourceRevision).not.toBe(reviewed.sourceRevision);
     expect.soft(restored.close.changedSinceClose).toBe(true);
     const audits = opened.db.select().from(schema.auditLog).all();
@@ -474,6 +494,32 @@ it.each(['amount-and-split', 'split-only'] as const)(
     expect(opened.db.select().from(schema.accountReconciliation).all()).toEqual(checks);
   },
 );
+
+it('excludes November-only booking events but retains a move into October followed by Undo', async () => {
+  const before = (await call('GET')).body;
+  const id = createBooking(
+    opened.db,
+    {
+      accountId: 'giro',
+      date: '2026-11-01',
+      amountCents: 10000,
+      status: 'confirmed',
+      splits: [{ amountCents: 10000, incomeTypeId: INCOME_TYPES.salary.id }],
+    },
+    { actor: 'test' },
+  );
+  const future = (await call('GET')).body;
+  expect(future.sourceRevision).toBe(before.sourceRevision);
+  expect(future.nextPlan.budget.summary).toEqual(before.nextPlan.budget.summary);
+  const moved = await call('PATCH', `/bookings/${id}`, { date: '2026-10-01' });
+  expect(moved.status).toBe(200);
+  expect((await call('POST', '/undo', { groupId: moved.body.groupId })).status).toBe(200);
+  const restored = (await call('GET')).body;
+  expect(restored.result).toEqual(before.result);
+  expect(restored.accounts).toEqual(future.accounts);
+  expect(restored.nextPlan.budget.summary).toEqual(before.nextPlan.budget.summary);
+  expect(restored.sourceRevision).not.toBe(before.sourceRevision);
+});
 
 it('lists every open booking-based account and manual assets in month close', async () => {
   const types = [

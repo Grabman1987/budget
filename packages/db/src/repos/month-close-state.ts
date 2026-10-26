@@ -21,6 +21,7 @@ export function monthCloseAuditCounts(
       month,
       nextMonth: addMonths(month, 1),
       end: lastDayOfMonth(month),
+      bookingEnd: lastDayOfMonth(addMonths(month, 1)),
       accountIds: [...new Set(accountIds)].sort(),
     })),
   );
@@ -31,14 +32,15 @@ export function monthCloseAuditCounts(
       SELECT json_extract(value, '$.month') AS month,
         json_extract(value, '$.nextMonth') AS next_month,
         json_extract(value, '$.end') AS end_day,
+        json_extract(value, '$.bookingEnd') AS booking_end_day,
         json_extract(value, '$.accountIds') AS account_ids
       FROM json_each(${wanted})
     )
     SELECT w.month AS month, COUNT(a.id) AS count
     FROM wanted w LEFT JOIN audit_log a ON (
       (a.entity_type = 'booking' AND
-        (json_extract(a.before_json, '$.date') <= w.end_day
-         OR json_extract(a.after_json, '$.date') <= w.end_day))
+        (json_extract(a.before_json, '$.date') <= w.booking_end_day
+         OR json_extract(a.after_json, '$.date') <= w.booking_end_day))
       OR (a.entity_type IN ('envelope_month', 'budget_month') AND
         (json_extract(a.before_json, '$.month') <= w.next_month
          OR json_extract(a.after_json, '$.month') <= w.next_month))
@@ -54,12 +56,12 @@ export function monthCloseAuditCounts(
       OR (a.entity_type = 'booking_split' AND (
         EXISTS (SELECT 1 FROM booking b WHERE b.id IN
           (json_extract(a.before_json, '$.booking_id'), json_extract(a.after_json, '$.booking_id'))
-          AND b.date <= w.end_day)
+          AND b.date <= w.booking_end_day)
         OR EXISTS (SELECT 1 FROM audit_log parent WHERE parent.entity_type = 'booking'
           AND parent.entity_id IN
             (json_extract(a.before_json, '$.booking_id'), json_extract(a.after_json, '$.booking_id'))
-          AND (json_extract(parent.before_json, '$.date') <= w.end_day
-            OR json_extract(parent.after_json, '$.date') <= w.end_day))
+          AND (json_extract(parent.before_json, '$.date') <= w.booking_end_day
+            OR json_extract(parent.after_json, '$.date') <= w.booking_end_day))
       ))
     ) GROUP BY w.month ORDER BY w.month
   `);
@@ -88,8 +90,9 @@ export function monthCloseRevisionFromCount(
 
 /**
  * Retained booking/split and planning/account audits supply the original ABA fence. Before/after
- * dates include historical carry/balance changes and moves beyond month end. Only counts leave
- * SQLite, never private audit snapshots.
+ * booking dates cover historical balances/carry and the reviewed next-month distribution,
+ * including moves out of that horizon. Other event scopes retain their existing boundaries.
+ * Only counts leave SQLite, never private audit snapshots.
  */
 export function monthCloseSourceRevision(
   db: Executor,

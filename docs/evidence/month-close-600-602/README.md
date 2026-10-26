@@ -123,3 +123,33 @@ passed** with Node 22 / `--maxWorkers=1` (19.69 seconds). Scoped ESLint, Prettie
 and `git diff --check` passed. Earlier six-file results above remain evidence of
 the original package; this correction reran the complete affected API file.
 Browser/full-CI/release gates remain pending as described above.
+
+## Boundary follow-up: reviewed next-month distribution
+
+`fa9dfa3c` was not final review clearance. Re-reading the complete hashed facts
+confirmed that they include both historical balances/current results and the
+next month's assignment pool (`nextSummary` and step 4). The August correction
+alone therefore left October income edit/Undo unfenced for a September close.
+New October amount/split and split-only cases reproduced the unchanged revision,
+false changed state and accepted stale close/individual writes before this fix.
+
+Only booking/split event predicates now use a dedicated horizon through the end
+of the next month. Booking before/after dates, split current-parent dates and
+retained-parent before/after dates all use that same horizon; deleted parents
+are not filtered out. Valuation retains the selected-month end, and other event
+scopes remain unchanged. No version, hashed-fact order or financial formula
+changes. Events solely after next-month end do not cause global invalidation.
+
+Both August regressions remain. October fixtures independently expect 10,000
+cents income plus 100,000 opening cents to support 110,000 assigned next month,
+with zero remaining. After actual Undo, current figures/accounts and the full
+next-month summary must equal the reviewed values while revision/changed state
+retain the event; stale close and individual requests must both refuse with 409
+and leave audits/checks exactly unchanged. An additional November-only fixture
+must preserve September's revision; moving it into October and actually undoing
+that move must retain the change despite equal restored facts.
+
+Final affected-file run: **29/29 API tests passed**, Node 22 / `--maxWorkers=1`,
+16.18 seconds. Scoped ESLint, Prettier and diff checks passed. No full CI,
+browser run, push or release was executed for this correction; exact-head
+independent re-review and the previously listed runtime gates remain required.
