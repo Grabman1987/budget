@@ -1,3 +1,5 @@
+@import '../reports/table-scroll.css';
+
 /* Result first; calculation sections use the full content width. */
 .debt-history {
   min-width: 0;
@@ -131,6 +133,12 @@
   .debt-rechenweg {
     padding: 16px;
   }
+  .debt-live-refresh .btn {
+    max-width: 100%;
+    height: auto;
+    min-height: 44px;
+    white-space: normal;
+  }
   .debt-quick-scenario {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -196,6 +204,64 @@
   min-height: 260px;
   margin: 8px 0;
 }
+.debt-plan-history .debt-live-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.debt-live-inputs > * {
+  min-width: 0;
+}
+.debt-live-result {
+  margin: 20px 0;
+  padding: 12px 0;
+  border-block: 1px solid var(--rule-strong);
+}
+.debt-live-result h3 {
+  margin: 0 0 8px;
+  font-size: var(--fs-headline);
+}
+.debt-live-result p {
+  margin: 8px 0;
+}
+.debt-live-result strong {
+  font-size: var(--fs-figure);
+  font-variant-numeric: tabular-nums;
+}
+.debt-live-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.debt-live-scroll:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.debt-live-scroll .vtable {
+  display: table;
+  min-width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.debt-live-scroll .vtable thead {
+  display: table-header-group;
+}
+.debt-live-scroll .vtable tbody {
+  display: table-row-group;
+}
+.debt-live-scroll .vtable tfoot {
+  display: table-footer-group;
+}
+.debt-live-scroll .vtable tr {
+  display: table-row;
+}
+.debt-live-scroll .vtable th,
+.debt-live-scroll .vtable td {
+  display: table-cell;
+  white-space: nowrap;
+}
+.debt-live-scroll .vtable td {
+  text-align: right;
+}
 .debts-view .vtable {
   width: 100%;
 }
@@ -246,6 +312,9 @@
   }
   .debt-chart {
     min-height: 220px;
+  }
+  .debt-plan-history .debt-live-inputs {
+    grid-template-columns: minmax(0, 1fr);
   }
   .debt-table thead,
   .debt-years thead {
