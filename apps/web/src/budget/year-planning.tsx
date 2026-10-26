@@ -181,7 +181,7 @@ export function YearPlanning({
                           className="event-plan"
                           key={o.date}
                           onClick={() => select(e.id)}
-                          aria-label={`${e.name} am ${longDay(o.date)} bearbeiten`}
+                          aria-label={`${e.name} am ${longDay(o.date)} bearbeiten · ${eur(o.amountCents, { sign: true })}${!e.enabled ? ' ausgeschaltet' : ''}`}
                         >
                           {eur(o.amountCents, { sign: true })}
                           {!e.enabled && <small>ausgeschaltet</small>}

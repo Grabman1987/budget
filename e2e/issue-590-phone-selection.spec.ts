@@ -297,14 +297,14 @@ test('phone mode preserves category/group/all identity and read-only exit; deskt
     await nameButton(page, firstId).focus();
     await page.keyboard.press('Space');
     await expect(nameButton(page, firstId)).toHaveAttribute('aria-pressed', 'true');
-    const group = page.getByRole('button', { name: 'Gruppe Mustergruppe auswählen', exact: true });
+    const group = page.getByRole('button', { name: /^Gruppe Mustergruppe auswählen · \d+\/\d+$/ });
     await expect(group).toHaveAttribute('aria-pressed', 'mixed');
     await nameButton(page, secondId).tap();
     await expect(group).toHaveAttribute('aria-pressed', 'true');
     await page.getByRole('button', { name: 'Gruppe Mustergruppe', exact: true }).tap();
     await expect(nameButton(page, firstId)).toHaveCount(0);
     await expect(
-      page.getByRole('button', { name: 'Gruppe Mustergruppe auswählen', exact: true }),
+      page.getByRole('button', { name: /^Gruppe Mustergruppe auswählen · \d+\/\d+$/ }),
     ).toHaveAttribute('aria-pressed', 'true');
     await page.getByRole('button', { name: 'Gruppe Mustergruppe', exact: true }).tap();
     await expect(nameButton(page, firstId)).toHaveAttribute('aria-pressed', 'true');
@@ -319,7 +319,7 @@ test('phone mode preserves category/group/all identity and read-only exit; deskt
         fullPage: false,
       });
     }
-    const all = page.getByRole('button', { name: 'Alle Kategorien auswählen', exact: true });
+    const all = page.getByRole('button', { name: /^Alle Kategorien auswählen · \d+\/\d+$/ });
     await all.tap();
     await expect(nameButton(page, firstId)).toHaveAttribute('aria-pressed', 'false');
     await expect(nameButton(page, secondId)).toHaveAttribute('aria-pressed', 'false');

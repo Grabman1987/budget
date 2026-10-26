@@ -172,6 +172,17 @@ const summaryOf = (name: string) =>
 const menu = (name: string) =>
   within(summaryOf(name).closest('details')!.querySelector<HTMLElement>('.plan-menu-panel')!);
 
+it('includes visible waterfall rail numbers and status without financial writes', async () => {
+  const { container } = renderPlan(10_000, true);
+  await screen.findByTestId('to-be-assigned');
+  fireEvent.click(menu('Optionen').getByRole('button', { name: 'Wasserfall' }));
+  const rail = within(container.querySelector('.rail')! as HTMLElement);
+  const emptyStage = rail.getByRole('button', { name: '1 Fixkosten & Mindestraten keine Posten' });
+  expect(emptyStage.textContent).toBe('1 Fixkosten & Mindestraten keine Posten');
+  expect(rail.getByRole('button', { name: '2 Laufender Monat 1 überzogen' })).toBeTruthy();
+  expect(writes).toEqual([]);
+});
+
 it('replaces "Schnell zuweisen", the "Ansicht" select and the ⋯ menu by two named menus', async () => {
   const { container } = renderPlan(10_000);
   await screen.findByTestId('to-be-assigned');

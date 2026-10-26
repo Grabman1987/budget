@@ -111,9 +111,13 @@ test('loading, empty and failed searches are explicit, retry works, Escape retur
 
 test('overlay preserves the source URL, history, scroll, focus and month on Escape', async ({
   page,
-}) => {
+}, info) => {
   await page.goto('/plan/monat?monat=2026-08');
-  const trigger = page.getByRole('button', { name: 'Suchen', exact: true });
+  const trigger = page.getByRole('button', {
+    name:
+      info.project.name === 'desktop' ? 'Suchen: Seiten, Reports, Buchungen, Aktionen' : 'Suchen',
+    exact: true,
+  });
   await trigger.focus();
   await page.evaluate(() => window.scrollTo(0, 240));
   const scroll = await page.evaluate(() => scrollY);

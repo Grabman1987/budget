@@ -197,8 +197,10 @@ describe('phone selection has no checkbox dependency or implicit financial write
     category('first').focus();
     await userEvent.keyboard(' ');
     expect(pressed('first')).toBe('true');
-    const group = screen.getByRole('button', { name: 'Gruppe Mustergruppe auswählen' });
-    const all = screen.getByRole('button', { name: 'Alle Kategorien auswählen' });
+    const group = screen.getByRole('button', {
+      name: /^Gruppe Mustergruppe auswählen · \d+\/\d+$/,
+    });
+    const all = screen.getByRole('button', { name: /^Alle Kategorien auswählen · \d+\/\d+$/ });
     expect(group.getAttribute('aria-pressed')).toBe('mixed');
     expect(all.getAttribute('aria-pressed')).toBe('mixed');
     await userEvent.click(group);
@@ -210,7 +212,7 @@ describe('phone selection has no checkbox dependency or implicit financial write
     expect(document.querySelector('.pname[data-category-id="first"]')).toBeNull();
     expect(
       screen
-        .getByRole('button', { name: 'Gruppe Mustergruppe auswählen' })
+        .getByRole('button', { name: /^Gruppe Mustergruppe auswählen · \d+\/\d+$/ })
         .getAttribute('aria-pressed'),
     ).toBe('true');
     await userEvent.click(screen.getByRole('button', { name: 'Gruppe Mustergruppe' }));
@@ -238,7 +240,9 @@ describe('phone selection has no checkbox dependency or implicit financial write
       await userEvent.click(screen.getByRole('button', { name: label }));
       expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
       await enter();
-      await userEvent.click(screen.getByRole('button', { name: 'Alle Kategorien auswählen' }));
+      await userEvent.click(
+        screen.getByRole('button', { name: /^Alle Kategorien auswählen · \d+\/\d+$/ }),
+      );
       expect(categories.map((c) => pressed(c.id))).toEqual(['true', 'true', 'true']);
       expect(writes).toEqual([]);
     },
@@ -341,7 +345,7 @@ describe('phone selection has no checkbox dependency or implicit financial write
     for (const target of [
       screen.getByRole('button', { name: 'Gruppe Mustergruppe' }),
       screen.getByRole('button', { name: 'Kategorie in Mustergruppe anlegen' }),
-      screen.getByRole('button', { name: 'Zugewiesen für Erster Posten ändern' }),
+      screen.getByRole('button', { name: 'Zugewiesen für Erster Posten ändern · 0,00 €' }),
     ]) {
       pointer(target, 'pointerdown');
       waitHold(600);

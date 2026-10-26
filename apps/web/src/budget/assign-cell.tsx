@@ -111,7 +111,7 @@ export function AssignCell({
           className={ghost ? 'assign-btn is-ghost' : 'assign-btn'}
           title={source}
           aria-describedby={ghost ? `${noteId}-source` : undefined}
-          aria-label={`Zugewiesen ${eur(r.assignedCents)} für ${r.name} ändern`}
+          aria-label={`Zugewiesen ${eur(r.assignedCents)} für ${r.name} ändern${ghost ? ` · Vorschlag ≈ ${eur(ghost.ghostCents)}` : ''}`}
           onClick={() => {
             setText(formatDecimal(cents(r.assignedCents)));
             setRelative(false);

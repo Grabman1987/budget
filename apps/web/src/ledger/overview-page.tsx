@@ -402,7 +402,6 @@ function OverviewAccount({
             className="overview-account-link"
             to="/konten/$id"
             params={{ id: a.id }}
-            aria-label={name}
             aria-describedby={checkId}
           >
             <span>
@@ -415,7 +414,7 @@ function OverviewAccount({
                   Plattform
                 </span>
               )}
-            </span>
+            </span>{' '}
             <span
               id={checkId}
               data-review-state={check.state}

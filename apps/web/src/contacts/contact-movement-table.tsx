@@ -77,7 +77,7 @@ export function ContactMovementTable({
         <Button
           variant="ghost"
           disabled={copyState === 'copying'}
-          aria-label={`${title} kopieren`}
+          aria-label={`Abschnitt kopieren: ${title}`}
           onClick={() => void copy()}
         >
           Abschnitt kopieren
@@ -125,10 +125,10 @@ export function ContactMovementTable({
                   <button
                     type="button"
                     className="contact-source"
-                    aria-label={`Ursprungsbuchung öffnen · ${description(movement)} · ${longDay(movement.date)} · Kontaktanteil ${eur(receivableDelta(movement.amountCents), { sign: true })}`}
+                    aria-label={`Ursprungsbuchung öffnen · ${description(movement)} ${longDay(movement.date)} · ${movementKind(movement)} · Kontaktanteil ${eur(receivableDelta(movement.amountCents), { sign: true })}`}
                     onClick={() => onOpen(movement)}
                   >
-                    <span>{description(movement)}</span>
+                    <span>{description(movement)}</span>{' '}
                     <span className="contact-movement-meta">
                       {longDay(movement.date)} · {movementKind(movement)}
                     </span>

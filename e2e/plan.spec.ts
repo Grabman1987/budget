@@ -256,7 +256,7 @@ isolatedTest(
     const cap = ((await money.json()) as { budgetMoney?: { coverCapCents: number } }).budgetMoney
       ?.coverCapCents;
     expect(cap, `cover cap before covering: ${cap}`).toBeGreaterThanOrEqual(10_000);
-    await page.getByRole('button', { name: `${food} decken`, exact: true }).click();
+    await page.getByRole('button', { name: `${food} decken` }).click();
     const coverPanel = page.getByRole('complementary', { name: 'Plan-Inspektor' });
     await coverPanel
       .getByLabel('Aus', { exact: true })
@@ -409,7 +409,7 @@ test('plan: a negative assignment stays editable, Escape keeps it, Decken asks w
     categoryId: tripCat.id,
   });
   await page.reload();
-  await page.getByRole('button', { name: `${trip} decken`, exact: true }).click();
+  await page.getByRole('button', { name: `${trip} decken` }).click();
   const coverPanel = page.getByRole('complementary', { name: 'Plan-Inspektor' });
   if (tba > 0) {
     await coverPanel.getByLabel('Aus', { exact: true }).selectOption('');

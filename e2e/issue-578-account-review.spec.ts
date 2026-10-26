@@ -180,7 +180,7 @@ async function inspect(page: Page, info: TestInfo, label: string) {
     await expect(page.locator('.kcheck.is-stale')).toHaveCount(4);
     const quiet = page
       .locator('.ktable .krow')
-      .filter({ has: page.getByRole('link', { name: 'Synthetic quiet', exact: true }) });
+      .filter({ has: page.getByRole('link', { name: /^Synthetic quiet / }) });
     await expect(quiet.locator('.kcheck')).toHaveAttribute('data-review-state', 'checked');
     await expect(quiet.locator('.kcheck')).not.toHaveClass(/is-stale/);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);

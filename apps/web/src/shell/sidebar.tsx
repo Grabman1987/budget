@@ -102,7 +102,13 @@ export function Sidebar({
           className="profile"
           to="/einstellungen/profil"
           title="Profil / Einstellungen"
-          aria-label="Profil / Einstellungen"
+          aria-label={
+            collapsed
+              ? named
+                ? `${identity.initials} · ${identity.name} Profil / Einstellungen`
+                : `${identity.initials} · Profil / Einstellungen ${authMethod}`
+              : undefined
+          }
           aria-current={area === 'einstellungen' ? 'page' : undefined}
         >
           <span className="avatar" aria-hidden="true">
@@ -110,7 +116,7 @@ export function Sidebar({
           </span>
           {/* One entry: the owner's name when set, otherwise the entry label. */}
           <span className="profile-text">
-            <strong>{named ? identity.name : 'Profil / Einstellungen'}</strong>
+            <strong>{named ? identity.name : 'Profil / Einstellungen'}</strong>{' '}
             <span>{named ? 'Profil / Einstellungen' : authMethod}</span>
           </span>
         </AppLink>

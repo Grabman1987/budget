@@ -21,7 +21,7 @@ async function expectPhoneSelectionTargets(page: Page) {
   for (const heading of await headings.all())
     await expect(heading.locator('.plan-select-toggle')).toHaveCount(1);
   await expect(
-    page.getByRole('button', { name: 'Alle Kategorien auswählen', exact: true }),
+    page.getByRole('button', { name: /^Alle Kategorien auswählen · \d+\/\d+$/ }),
   ).toHaveCount(1);
   for (const controls of [categories, toggles]) {
     for (let index = 0; index < (await controls.count()); index++) {

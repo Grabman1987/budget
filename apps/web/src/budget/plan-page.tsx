@@ -1586,14 +1586,14 @@ function Rail({
               <button
                 type="button"
                 className="rail-btn"
-                aria-label={`${g.title}: ${text}${isNext ? ', hier endet das Geld' : ''}`}
+                aria-label={`${g.no} ${g.title}${g.sub ? ` ${g.sub}` : ''} ${text}${isNext ? ', hier endet das Geld' : ''}`}
                 onClick={() => onJump(g.key)}
               >
-                <span className="rail-no">{g.no}</span>
+                <span className="rail-no">{g.no}</span>{' '}
                 <span className="rail-name">
                   {g.title}
-                  {g.sub && <small>{g.sub}</small>}
-                </span>
+                  {g.sub && <small> {g.sub}</small>}
+                </span>{' '}
                 <span className="rail-fill" aria-hidden="true">
                   <i style={{ width: `${st.fill * 100}%` }} />
                 </span>
@@ -1645,7 +1645,7 @@ function PlanSelection({
       <button
         type="button"
         className="plan-select-toggle"
-        aria-label={label}
+        aria-label={`${label} · ${count}/${rows.length}`}
         title={label}
         aria-pressed={
           count > 0 && count < rows.length ? 'mixed' : rows.length > 0 && count === rows.length
@@ -2014,7 +2014,7 @@ function EnvelopeRow({
             <button
               type="button"
               onClick={over ? onCover : onInspect}
-              aria-label={over ? `${r.name} decken` : `Zugewiesen für ${r.name} ändern`}
+              aria-label={`${over ? `${r.name} decken` : `Zugewiesen für ${r.name} ändern`} · ${eur(r.availableCents)}`}
               className={cx(
                 'plan-available pill',
                 over ? 'is-bad' : r.availableCents > 0 && 'is-good',

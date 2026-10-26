@@ -126,7 +126,7 @@ async function knownOnlyFixture(request: APIRequestContext, origin: string, data
 function accountRow(page: Page, name: string) {
   return page
     .locator('tr.overview-account-row')
-    .filter({ has: page.getByRole('link', { name, exact: true }) });
+    .filter({ has: page.getByRole('link', { name: `${name} `, exact: false }) });
 }
 
 async function record(page: Page, info: TestInfo, phase: string) {
