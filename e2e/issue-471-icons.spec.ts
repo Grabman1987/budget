@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect, sampleTest as test } from './sample';
 
 async function expectVisibleIconScale(page: Page) {
@@ -28,6 +28,38 @@ async function expectVisibleIconScale(page: Page) {
       ),
     )
     .toEqual([]);
+}
+
+async function expectStatusContentInsideButton(status: Locator) {
+  const bounds = await status.evaluate((button) => {
+    const icon = button.querySelector('svg');
+    const label = button.querySelector('span');
+    const dialog = button.closest('[role="dialog"]');
+    if (!icon || !label || !dialog) throw new Error('Capture status content or dialog is missing');
+
+    const rect = (element: Element) => {
+      const { left, top, right, bottom } = element.getBoundingClientRect();
+      return { left, top, right, bottom };
+    };
+    return {
+      button: rect(button),
+      icon: rect(icon),
+      label: rect(label),
+      dialog: rect(dialog),
+      viewportWidth: document.documentElement.clientWidth,
+    };
+  });
+
+  for (const content of [bounds.icon, bounds.label]) {
+    expect(content.left).toBeGreaterThanOrEqual(bounds.button.left);
+    expect(content.top).toBeGreaterThanOrEqual(bounds.button.top);
+    expect(content.right).toBeLessThanOrEqual(bounds.button.right);
+    expect(content.bottom).toBeLessThanOrEqual(bounds.button.bottom);
+  }
+  expect(bounds.button.left).toBeGreaterThanOrEqual(bounds.dialog.left);
+  expect(bounds.button.right).toBeLessThanOrEqual(bounds.dialog.right);
+  expect(bounds.button.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.button.right).toBeLessThanOrEqual(bounds.viewportWidth);
 }
 
 test('icon sizes, swatches and disclosure carets use their rendered styles', async ({ page }) => {
@@ -113,6 +145,7 @@ test('labelled booking status and capture caret remain usable on phone and deskt
   await expect(status).toHaveAccessibleName('Vorgemerkt');
   await expect(status).toHaveText('Vorgemerkt');
   await expect(status).toHaveAttribute('aria-pressed', 'false');
+  await expectStatusContentInsideButton(status);
   if (isMobile) {
     const bounds = await status.boundingBox();
     expect(bounds!.height).toBeGreaterThanOrEqual(44);
@@ -122,10 +155,12 @@ test('labelled booking status and capture caret remain usable on phone and deskt
   await expect(status).toHaveAccessibleName('Bestätigt');
   await expect(status).toHaveText('Bestätigt');
   await expect(status).toHaveAttribute('aria-pressed', 'true');
+  await expectStatusContentInsideButton(status);
   await status.click();
   await expect(status).toHaveAccessibleName('Vorgemerkt');
   await expect(status).toHaveText('Vorgemerkt');
   await expect(status).toHaveAttribute('aria-pressed', 'false');
+  await expectStatusContentInsideButton(status);
 
   const more = dialog.locator('details.kmore');
   const caret = more.locator('.disclosure-chevron');
@@ -144,9 +179,10 @@ test('labelled booking status and capture caret remain usable on phone and deskt
       (info.project.name === 'desktop' && scheme === 'light') ||
       (info.project.name === 'webkit-iphone' && scheme === 'dark')
     ) {
+      await status.scrollIntoViewIfNeeded();
       await page.screenshot({
         path: info.outputPath(`icons-471-capture-${scheme}.png`),
-        fullPage: true,
+        fullPage: false,
       });
     }
   }
