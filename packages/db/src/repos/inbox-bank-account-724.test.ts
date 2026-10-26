@@ -124,7 +124,12 @@ it('filters unresolved candidates by real account identity, with no balance, boo
   expect(first.count).toBe(2);
   expect(first.entries.map((entry) => entry.id)).toEqual(['a-one', 'a-two']);
   expect(
-    first.entries.map((entry) => (entry.type === 'stored' ? entry.bankCandidate : null)),
+    first.entries.map((entry) => {
+      if (entry.type !== 'stored' || !entry.bankCandidate) return null;
+      const { suggestion, ...originalFields } = entry.bankCandidate;
+      expect(suggestion.needsReview).toBe(true);
+      return originalFields;
+    }),
   ).toEqual([
     {
       date: DAY,
@@ -144,10 +149,12 @@ it('filters unresolved candidates by real account identity, with no balance, boo
     },
   ]);
   expect(first.readSourceSummaries).toEqual([]);
+  expect(first.bankProgress).toEqual({ reviewed: 1, total: 3 });
   expect(scoped(B).entries.map((entry) => entry.id)).toEqual(['b-one']);
   expect(scoped(B).count).toBe(1);
   expect(scoped(MISSING)).toEqual({
     asOf: DAY,
+    bankProgress: { reviewed: 0, total: 0 },
     count: 0,
     entries: [],
     readSourceSummaries: [],
@@ -174,14 +181,57 @@ it('filters unresolved candidates by real account identity, with no balance, boo
 it('keeps the existing explicit dismissal and audited Undo path, without booking a candidate', () => {
   const before = state();
   const resolved = resolveInboxItem(opened.db, 'a-one', { actor: 'synthetic-724' });
+  expect(scoped(A).bankProgress).toEqual({ reviewed: 2, total: 3 });
   expect(scoped(A).entries.map((entry) => entry.id)).toEqual(['a-two']);
   expect(scoped(A).count).toBe(1);
   expect(scoped(B).entries.map((entry) => entry.id)).toEqual(['b-one']);
   undo(opened.db, { groupId: resolved.groupId }, { actor: 'synthetic-724' });
+  expect(scoped(A).bankProgress).toEqual({ reviewed: 1, total: 3 });
   expect(scoped(A).entries.map((entry) => entry.id)).toEqual(['a-one', 'a-two']);
   expect(state().bookings).toEqual(before.bookings);
   expect(state().splits).toEqual(before.splits);
   expect(state().accounts).toEqual(before.accounts);
   expect(state().candidates).toEqual(before.candidates);
   expect(state().audit.length).toBeGreaterThan(before.audit.length);
+});
+
+it('returns a prepared merge in the list and marks competing matches for review without writing', () => {
+  const first = createBooking(
+    opened.db,
+    {
+      accountId: A,
+      date: DAY,
+      amountCents: -1201,
+      status: 'confirmed',
+      splits: [{ amountCents: -1201 }],
+    },
+    { actor: 'synthetic-562' },
+  );
+  const before = state();
+  const suggested = scoped(A).entries.find((entry) => entry.id === 'a-one');
+  expect(suggested?.type === 'stored' && suggested.bankCandidate?.suggestion).toEqual({
+    label: `Mit Buchung ${DAY} zusammenführen`,
+    needsReview: false,
+  });
+  expect(state()).toEqual(before);
+
+  const second = createBooking(
+    opened.db,
+    {
+      accountId: A,
+      date: DAY,
+      amountCents: -1201,
+      status: 'confirmed',
+      splits: [{ amountCents: -1201 }],
+    },
+    { actor: 'synthetic-562' },
+  );
+  expect(second).not.toBe(first);
+  const withCompetingMatch = state();
+  const ambiguous = scoped(A).entries.find((entry) => entry.id === 'a-one');
+  expect(ambiguous?.type === 'stored' && ambiguous.bankCandidate?.suggestion).toEqual({
+    label: 'Vorschlag prüfen · mehrere mögliche Buchungen',
+    needsReview: true,
+  });
+  expect(state()).toEqual(withCompetingMatch);
 });

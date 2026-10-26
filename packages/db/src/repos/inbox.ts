@@ -18,6 +18,10 @@ import { readSourceDisplayDetail, readSourceMappings } from './read-source';
 import { listReceipts } from './receipts';
 import { accountReminders } from './account-reminders';
 import { savingsExecutionProposals, type SavingsExecutionProposal } from './savings-plans';
+import { candidateMatches } from './bank-followups';
+import { readAssignmentCandidate } from './assignment-rules';
+
+export type BankSuggestion = { label: string; needsReview: boolean };
 
 export interface InboxBooking {
   type: 'booking';
@@ -53,6 +57,7 @@ export interface InboxStored {
         memo: string;
         payeeName: string | null;
         accountName: string;
+        suggestion: BankSuggestion;
       }
     | undefined;
 }
@@ -164,7 +169,8 @@ export function readInbox(
   return runInTransaction(db, (tx) => {
     const bookings = options.bankAccountId ? [] : uncategorizedBookings(tx, today);
     const mappings = readSourceMappings(tx);
-    // One read for compact bank rows. Matching and assignment checks stay on demand.
+    // Prepare the displayed choice in the list response. The confirmation dialog still
+    // refreshes its own guarded preview before any write.
     const candidates = new Map(
       tx
         .select({
@@ -188,8 +194,55 @@ export function readInbox(
           ),
         )
         .all()
-        .map(({ id, ...row }) => [id, row]),
+        .map(({ id, ...row }) => {
+          let suggestion: BankSuggestion = {
+            label: 'Kategorie prüfen · Zu verteilen',
+            needsReview: true,
+          };
+          try {
+            const matches = candidateMatches(tx, id);
+            const targets = [...matches.merge, ...matches.link];
+            if (targets.length > 1 || matches.transfers.length)
+              suggestion = {
+                label: 'Vorschlag prüfen · mehrere mögliche Buchungen',
+                needsReview: true,
+              };
+            else if (targets.length === 1)
+              suggestion = {
+                label: `Mit Buchung ${targets[0]!.date} zusammenführen`,
+                needsReview: false,
+              };
+            else {
+              const rules = readAssignmentCandidate(tx, id).suggestions.filter(
+                (rule) => !rule.unavailable,
+              );
+              if (rules.length > 1)
+                suggestion = { label: 'Vorschlag prüfen · mehrere Regeln', needsReview: true };
+              else if (rules.length === 1)
+                suggestion = {
+                  label: `Regel: ${rules[0]!.name}`,
+                  needsReview: !(rules[0]!.automatic || rules[0]!.id.startsWith('inbox-learn:')),
+                };
+            }
+          } catch {
+            suggestion = { label: 'Vorschlag prüfen', needsReview: true };
+          }
+          return [id, { ...row, suggestion }];
+        }),
     );
+    const candidateProgress = tx
+      .select({ resolvedAt: inboxItem.resolvedAt })
+      .from(bankSyncCandidate)
+      .innerJoin(inboxItem, eq(inboxItem.id, bankSyncCandidate.id))
+      .where(
+        and(
+          bankSource ? eq(bankSyncCandidate.sourceId, bankSource) : undefined,
+          options.bankAccountId
+            ? eq(bankSyncCandidate.accountId, options.bankAccountId)
+            : undefined,
+        ),
+      )
+      .all();
     const stored: InboxStored[] = tx
       .select()
       .from(inboxItem)
@@ -245,6 +298,10 @@ export function readInbox(
       bankSource || readSource || options.bankAccountId ? [] : accountReminders(tx, today);
     return {
       asOf: today,
+      bankProgress: {
+        reviewed: candidateProgress.filter((row) => row.resolvedAt !== null).length,
+        total: candidateProgress.length,
+      },
       accountReminders: reminders,
       unlinkedReceiptCount:
         bankSource || readSource || options.bankAccountId ? 0 : unlinkedReceipts.length,

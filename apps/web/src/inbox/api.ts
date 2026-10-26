@@ -50,6 +50,7 @@ export interface InboxStored {
         memo: string;
         payeeName: string | null;
         accountName: string;
+        suggestion: { label: string; needsReview: boolean };
       }
     | undefined;
 }
@@ -69,6 +70,7 @@ export type InboxEntry = InboxBooking | InboxStored | InboxEnvelope | SavingsExe
 export interface InboxView {
   asOf: string;
   count: number;
+  bankProgress?: { reviewed: number; total: number };
   entries: InboxEntry[];
   readSourceSummaries: { sourceId: string | null; name: string; count: number }[];
   overspentSummary?: { month: string; count: number; deficitCents: number } | undefined;

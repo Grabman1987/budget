@@ -359,6 +359,7 @@ function AccountBankInboxBody({ accountId, ...props }: InboxBodyProps & { accoun
       {...props}
       entries={pages.flatMap((page) => page.entries)}
       count={firstPage?.count}
+      bankProgress={firstPage?.bankProgress}
       totalEntries={firstPage?.totalEntries}
       countsByKind={firstPage?.countsByKind}
       countsByCause={firstPage?.countsByCause}
@@ -650,6 +651,7 @@ function PaginatedInboxBodyContent({
           {...props}
           entries={entries}
           count={firstPage?.count}
+          bankProgress={firstPage?.bankProgress}
           segmentCounts={segmentCounts}
           readSourceSummaries={
             segmentCounts?.shown === 'umsaetze' || firstPage?.taskSources
@@ -683,6 +685,7 @@ type TaskEntry = Exclude<InboxEntry, InboxEnvelope>;
 function InboxBodyContent({
   entries: received,
   count,
+  bankProgress,
   totalEntries,
   countsByKind,
   countsByCause,
@@ -707,6 +710,7 @@ function InboxBodyContent({
 }: InboxBodyProps & {
   entries: InboxEntry[];
   count: number | undefined;
+  bankProgress?: { reviewed: number; total: number } | undefined;
   totalEntries: number | undefined;
   countsByKind: Partial<Record<InboxKind, number>> | undefined;
   countsByCause?: Record<string, number> | undefined;
@@ -768,6 +772,7 @@ function InboxBodyContent({
     !error &&
     !nextPageError &&
     count === 0 &&
+    !bankProgress?.total &&
     entries.length === 0 &&
     !learnBookingId
   )
@@ -791,6 +796,21 @@ function InboxBodyContent({
               : undefined
         }
       />
+      {(accountScoped || segmentCounts?.shown === 'umsaetze' || search.bankSource) &&
+        bankProgress &&
+        bankProgress.total > 0 && (
+          <div className="bank-review-progress">
+            <p>
+              {bankProgress.total - bankProgress.reviewed} offen · {bankProgress.reviewed} von{' '}
+              {bankProgress.total} geprüft
+            </p>
+            <progress
+              value={bankProgress.reviewed}
+              max={bankProgress.total}
+              aria-label="Geprüfte Bankumsätze"
+            />
+          </div>
+        )}
       {pending && <LoadingNote what="Aufgaben" />}
       {learnBookingId && <AssignmentLearnOffer bookingId={learnBookingId} />}
       {error && <ErrorNote what="Aufgaben" error={error} onRetry={onRetry} />}
@@ -1233,6 +1253,14 @@ function BankInboxRow({
               ? maskMoneyText(item.detail ?? '')
               : ''}
         </span>
+        {item.type === 'stored' && data?.suggestion && (
+          <span>
+            {data.suggestion.needsReview && !data.suggestion.label.startsWith('Vorschlag prüfen')
+              ? 'Vorschlag prüfen · '
+              : ''}
+            {data.suggestion.label}
+          </span>
+        )}
       </td>
       <td className="rev-act kact">
         <div className="inbox-row-actions">

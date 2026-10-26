@@ -68,6 +68,7 @@ function candidate(id: string, memo: string): InboxStored {
       memo,
       payeeName: null,
       accountName: 'Gleiches Konto',
+      suggestion: { label: 'Kategorie prüfen · Zu verteilen', needsReview: true },
     },
   };
 }
@@ -436,7 +437,10 @@ it('retains the real learning offer after confirming the last candidate and refe
       return json({ groupId: 'synthetic-724-confirm', bookingId });
     }
     if (url.pathname === '/api/inbox')
-      return json(page(confirmed ? [] : [candidate(id, 'Letzter Umsatz')]));
+      return json({
+        ...page(confirmed ? [] : [candidate(id, 'Letzter Umsatz')]),
+        bankProgress: { reviewed: confirmed ? 1 : 0, total: 1 },
+      });
     if (url.pathname === '/api/lookups')
       return json({
         categories: [{ id: 'category-724', name: 'Kategorie A', kind: 'variable' }],
@@ -455,6 +459,7 @@ it('retains the real learning offer after confirming the last candidate and refe
   });
   const { client } = mount(`/konten/${a}`);
   await screen.findByText(/Letzter Umsatz · −12,01\s€/);
+  expect(screen.getByText('1 offen · 0 von 1 geprüft')).toBeTruthy();
   await userEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
   await screen.findByRole('option', { name: 'Kategorie A' });
   await userEvent.selectOptions(
@@ -483,6 +488,7 @@ it('retains the real learning offer after confirming the last candidate and refe
     expect(screen.getByRole('button', { name: 'Regel daraus erstellen' })).toBeTruthy();
     expect(screen.queryByText(/Letzter Umsatz · −12,01\s€/)).toBeNull();
     expect(screen.getByRole('region', { name: 'Bankumsätze prüfen' })).toBeTruthy();
+    expect(screen.getByText('0 offen · 1 von 1 geprüft')).toBeTruthy();
   });
   expect(posts).toEqual([
     {
