@@ -152,6 +152,48 @@ function decemberValue(container: HTMLElement) {
   return row?.querySelector('.chart-data-value')?.textContent;
 }
 
+it.each(['loading', 'error'] as const)(
+  'retains independent report totals and their own error while events are %s',
+  async (state) => {
+    const { container, client, fetch } = show();
+    await act(async () => {
+      client
+        .getQueryCache()
+        .find({ queryKey: plannedEventsQuery().queryKey })!
+        .setState({
+          data: undefined,
+          status: state === 'loading' ? 'pending' : 'error',
+          fetchStatus: state === 'loading' ? 'fetching' : 'idle',
+          error: state === 'error' ? new Error('Synthetic event read failure') : null,
+        });
+    });
+    const eventMessage =
+      state === 'loading'
+        ? 'Ereignisse werden geladen …'
+        : 'Ereignisse konnten nicht geladen werden.';
+    expect(await screen.findByText(eventMessage)).toBeTruthy();
+    const context = container.querySelector('.year-scenario-context')!;
+    expect(context.textContent).toContain('Einnahmen: 0,00 €');
+    expect(context.textContent).toContain('Konsum: 0,00 €');
+    expect(context.textContent).toContain('Abgeschlossene Monate · wie im Jahresreport');
+    expect(screen.queryByTestId('scenario-year-end')).toBeNull();
+    expect(screen.queryByTestId('year-scenario-chart')).toBeNull();
+
+    await act(async () => {
+      client
+        .getQueryCache()
+        .find({ queryKey: reportTablesQuery(false).queryKey })!
+        .setState({
+          status: 'error',
+          error: new Error('Synthetic independent report failure'),
+        });
+    });
+    expect(await screen.findByText('Jahressummen konnten nicht geladen werden.')).toBeTruthy();
+    expect(screen.getByText(eventMessage)).toBeTruthy();
+    expect(fetch).not.toHaveBeenCalled();
+  },
+);
+
 it('keeps literal December, lead, cumulative inspection and toggles identical without writes', () => {
   // Saved December 1000.01; November -100.01 + 20.03, December -0.01 => 920.02.
   const { container, fetch } = show([

@@ -114,6 +114,22 @@ test('calendar-year scenario: literal December parity, dated inspection and comp
       fullPage: true,
       animations: 'disabled',
     });
+    await page.locator('.year-events > summary').click();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    expect(
+      (await new AxeBuilder({ page }).include('main').analyze()).violations.map(
+        (violation) => violation.id,
+      ),
+    ).toEqual([]);
+    await page.getByRole('checkbox', { name: 'Geplante Gutschrift im Szenario' }).click({
+      trial: true,
+    });
+    await page.getByRole('button', { name: 'Geplante Gutschrift bearbeiten' }).click({
+      trial: true,
+    });
+    await page.locator('.year-events > summary').click();
   }
   const markerX = Number(await chart.locator('g > line.axis-dashed').nth(1).getAttribute('x1'));
   await chart.click({ position: { x: markerX, y: 70 } });
