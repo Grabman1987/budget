@@ -47,7 +47,7 @@ test('local Sondertilgung reproduces V16 without a write', async ({
   await expect(years).toContainText('Live-Szenario');
   await expect(years).toContainText('2028');
   await expect(years).toContainText('128,94 €');
-  const monthly = section.getByLabel('Sondertilgung € / Monat (EUR)');
+  const monthly = section.getByLabel('Sondertilgung / Monat (EUR)');
   await monthly.fill('10');
   await expect(section.locator('.debt-live-result')).not.toContainText('32,63 €');
   await monthly.fill('0');
@@ -66,7 +66,7 @@ test('local Sondertilgung reproduces V16 without a write', async ({
     if (info.project.name !== 'desktop') {
       for (const control of [
         oneOff,
-        section.getByLabel('Sondertilgung € / Monat (EUR)'),
+        section.getByLabel('Sondertilgung / Monat (EUR)'),
         section.getByLabel('Monat der Einmalzahlung'),
       ])
         expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);

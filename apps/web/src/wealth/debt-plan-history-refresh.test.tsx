@@ -67,6 +67,30 @@ const render = () =>
   renderToStaticMarkup(<DebtPlanHistory loan={loan} asOf={plan.asOf} choice={null} />);
 
 describe('failed loan basis refresh', () => {
+  it('uses the loan currency for a monthly extra and applies it to the matching USD basis', () => {
+    const usdLoan = { ...loan, currency: 'USD' };
+    const usdBasis = {
+      ...basis,
+      plan: { ...plan, currency: 'USD' },
+      history: [{ date: '2026-09-30', balanceCents: -10_000 }],
+    };
+    query.state = {
+      data: usdBasis,
+      isPending: false,
+      isFetching: false,
+      isSuccess: true,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    mount(<DebtPlanHistory loan={usdLoan} asOf={plan.asOf} choice={null} />);
+    const monthly = screen.getByLabelText('Sondertilgung / Monat (USD)');
+    expect(monthly).toBeTruthy();
+    fireEvent.change(monthly, { target: { value: '25' } });
+    expect(screen.getByText(/2 Monate früher schuldenfrei/)).toBeTruthy();
+  });
+
   it('does not display the retained old payoff and recovers when a fresh read succeeds', () => {
     query.state = {
       data: basis,

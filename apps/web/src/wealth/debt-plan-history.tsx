@@ -308,7 +308,7 @@ function PlanResult({
       <fieldset className="debt-live-inputs" disabled={!schedule}>
         <legend className="sr-only">Lokale Sondertilgung für diesen Kredit</legend>
         <MoneyInput
-          label="Sondertilgung € / Monat"
+          label="Sondertilgung / Monat"
           value={monthly}
           onChange={(value) => onDraft({ ...values, monthly: value })}
           currency={plan.currency}

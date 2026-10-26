@@ -25,8 +25,9 @@ preserves the #611 actual-history gaps, native currency, exact tooltip values an
   account/history consistency assertions retain their meanings.
 - `debt-plan-chart.test.tsx`: proves a distinct scenario line and inspection values; existing
   actual-gap and privacy assertions are unchanged.
-- `debt-plan-history-refresh.test.tsx`: adds the edited-draft pending/error/adoption regression;
-  the previous failed-refetch assertion remains unchanged. jsdom is used for stateful controls.
+- `debt-plan-history-refresh.test.tsx`: adds the edited-draft pending/error/adoption regression and
+  verifies a monthly extra uses the matching USD loan/plan basis and changes its payoff; the
+  previous failed-refetch assertion remains unchanged. jsdom is used for stateful controls.
 - `e2e/issue-612-debt-live.spec.ts`: creates only a synthetic loan, checks the visible V16 result,
   monthly response, no API writes, reload reset, 1440/390/WebKit light/dark Axe and overflow,
   touch sizes and privacy. Browser execution and screenshot inspection remain for CI.
