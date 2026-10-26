@@ -1589,11 +1589,11 @@ function Rail({
                 aria-label={`${g.no} ${g.title}${g.sub ? ` ${g.sub}` : ''} ${text}${isNext ? ', hier endet das Geld' : ''}`}
                 onClick={() => onJump(g.key)}
               >
-                <span className="rail-no">{g.no}</span>
+                <span className="rail-no">{g.no}</span>{' '}
                 <span className="rail-name">
                   {g.title}
-                  {g.sub && <small>{g.sub}</small>}
-                </span>
+                  {g.sub && <small> {g.sub}</small>}
+                </span>{' '}
                 <span className="rail-fill" aria-hidden="true">
                   <i style={{ width: `${st.fill * 100}%` }} />
                 </span>

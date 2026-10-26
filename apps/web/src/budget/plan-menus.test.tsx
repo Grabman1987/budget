@@ -177,9 +177,8 @@ it('includes visible waterfall rail numbers and status without financial writes'
   await screen.findByTestId('to-be-assigned');
   fireEvent.click(menu('Optionen').getByRole('button', { name: 'Wasserfall' }));
   const rail = within(container.querySelector('.rail')! as HTMLElement);
-  expect(
-    rail.getByRole('button', { name: '1 Fixkosten & Mindestraten keine Posten' }),
-  ).toBeTruthy();
+  const emptyStage = rail.getByRole('button', { name: '1 Fixkosten & Mindestraten keine Posten' });
+  expect(emptyStage.textContent).toBe('1 Fixkosten & Mindestraten keine Posten');
   expect(rail.getByRole('button', { name: '2 Laufender Monat 1 überzogen' })).toBeTruthy();
   expect(writes).toEqual([]);
 });
