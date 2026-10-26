@@ -12,6 +12,9 @@ their text; icon-only mobile search and collapsed profile retain explicit names.
 A separating space preserves the profile's two text parts in the accessible
 name independently of stylesheet loading. Visible text and destinations stay the
 same; no Axe rule is disabled.
+Fresh mobile browser scans additionally identified the avatar summary: its visible
+initials were absent from its explicit profile-menu name. That name now includes
+both initials and owner name, preserving the visible label for voice navigation.
 
 Scoped test adaptations:
 
@@ -23,6 +26,8 @@ Scoped test adaptations:
   existing URL/history/month/scroll/focus preservation case; assertions unchanged.
 - `freedom.spec.ts` updates only the desktop profile-link selector to its full
   name. Every financial, mutation, cache and Undo assertion remains unchanged.
+- `mobile-chrome.test.tsx` additionally verifies the literal visible initials and
+  complete menu name; no existing assertion is replaced.
 
 The focused accessible-name regressions first failed five cases. After correcting
 the names and DOM text separator, five affected suites passed70/70. These initial
@@ -36,6 +41,19 @@ Linux LZMA optional package belonged to removed Rollup. No override was introduc
 The refreshed audit reports four moderate findings in the existing DrizzleKit/
 esbuild development chain, no high finding; no breaking forced audit fix was run.
 
-Final-lock install/checks, browser acceptance, independent final review, required
-CI and publication remain pending. This document does not claim current live
-delivery or a clean audit with zero findings.
+Final-lock `npm ci --engine-strict` and build passed. The seven-suite final-lock
+run had92passes/one initial header-loading timeout while typed lint was also
+running; the unchanged isolated header suite then passed7/7. After the mobile
+avatar correction, its two affected component suites passed8/8. These counts
+overlap. Scoped ESLint passed for the initial change; CRLF normalization fixed a
+local package.json formatter warning without changing its canonical Git content.
+
+Independent full source/lock/test review is CLEAR at `caa7f4f0`, including all48
+new/relocated registry records and manifest/lock consistency. The scoped Linux
+shell run40249619850 passed44tests with9configured profile skips in53.1seconds,
+without baseline changes. Its images establish unchanged visual rendering, not
+the subsequently discovered mobile avatar accessibility fix.
+
+Mobile-fix review, final strict browser acceptance, required CI and publication
+remain pending. This document does not claim current live delivery or a clean
+audit with zero findings.
