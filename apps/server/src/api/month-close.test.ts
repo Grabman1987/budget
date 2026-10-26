@@ -8,6 +8,7 @@ import {
   createExpectedPayment,
   INCOME_TYPES,
   monthOnePager,
+  readMonthCloseReminders,
   type OpenedDatabase,
 } from '@budget/db';
 import { beforeEach, afterEach, expect, it } from 'vitest';
@@ -375,6 +376,20 @@ it('retains report figures and close time idempotently and fences a source chang
   expect(opened.db.select().from(schema.auditLog).all()).toHaveLength(auditCount);
   // Closing alone did not reconcile or lock the existing booking.
   const bookingId = opened.db.select().from(schema.booking).get()!.id;
+  const splitOnly = await call('PATCH', `/bookings/${bookingId}`, {
+    splits: [{ amountCents: -400, categoryId: 'miete' }],
+  });
+  expect(splitOnly.status).toBe(200);
+  expect(readMonthCloseReminders(opened.db, '2026-10-02').tasks).toEqual([
+    {
+      id: 'close-changed:2026-09',
+      kind: 'close-changed',
+      month: '2026-09',
+      target: '/monatsabschluss/2026-09',
+    },
+  ]);
+  expect((await call('POST', '/undo', { groupId: splitOnly.body.groupId })).status).toBe(200);
+  expect(readMonthCloseReminders(opened.db, '2026-10-02').tasks).toHaveLength(1);
   const edit = await call('PATCH', `/bookings/${bookingId}`, {
     amountCents: -500,
     splits: [{ amountCents: -500, categoryId: 'essen' }],
@@ -675,6 +690,14 @@ it('plans to zero via the existing bulk API and undoes all groups without bookin
 });
 
 it('stores an undoable close marker only after all work and next-month distribution are complete', async () => {
+  const beforeReminderRead = opened.db.select().from(schema.auditLog).all().length;
+  expect(
+    readMonthCloseReminders(opened.db, '2026-09-30').tasks.some((task) => task.month === '2026-09'),
+  ).toBe(false);
+  expect(readMonthCloseReminders(opened.db, '2026-10-01').tasks).toEqual([
+    { id: 'close:2026-09', kind: 'close', month: '2026-09', target: '/monatsabschluss/2026-09' },
+  ]);
+  expect(opened.db.select().from(schema.auditLog).all()).toHaveLength(beforeReminderRead);
   expect(
     (
       await call('PATCH', undefined, {
@@ -703,9 +726,29 @@ it('stores an undoable close marker only after all work and next-month distribut
     sourceRevision: (await call('GET')).body.sourceRevision,
   });
   expect(closed.status).toBe(200);
+  expect(readMonthCloseReminders(opened.db, '2026-10-02').tasks).toEqual([]);
   expect((await call('GET')).body.state.closedOn).toBe('2026-10-02');
   expect((await call('GET')).body.steps[4].status).toBe('done');
   expect((await call('PATCH', undefined, { closedOn: '2026-09-30' })).status).toBe(400);
+  const nextPlanEdit = await call('PUT', '/budget/2026-10/assigned', {
+    items: [{ categoryId: 'miete', assignedCents: 99900 }],
+  });
+  expect(nextPlanEdit.status).toBe(200);
+  expect((await call('GET')).body.close.changedSinceClose).toBe(true);
+  expect(readMonthCloseReminders(opened.db, '2026-10-02').tasks).toEqual([]);
+  expect((await call('POST', '/undo', { groupId: nextPlanEdit.body.groupId })).status).toBe(200);
+  expect(readMonthCloseReminders(opened.db, '2026-10-02').tasks).toEqual([]);
+  const outside = await call('POST', '/bookings', {
+    type: 'booking',
+    accountId: 'giro',
+    date: '2026-10-01',
+    amountCents: -300,
+    splits: [{ amountCents: -300, categoryId: 'essen' }],
+  });
+  expect(outside.status).toBe(201);
+  expect(readMonthCloseReminders(opened.db, '2026-10-02').tasks).toEqual([]);
+  expect((await call('POST', '/undo', { groupId: outside.body.groupId })).status).toBe(200);
+  expect(readMonthCloseReminders(opened.db, '2026-10-02').tasks).toEqual([]);
   const edit = await call('POST', '/bookings', {
     type: 'booking',
     accountId: 'giro',
@@ -714,6 +757,14 @@ it('stores an undoable close marker only after all work and next-month distribut
     splits: [{ amountCents: -100, categoryId: 'essen' }],
   });
   expect(edit.status).toBe(201);
+  expect(readMonthCloseReminders(opened.db, '2026-10-02').tasks).toEqual([
+    {
+      id: 'close-changed:2026-09',
+      kind: 'close-changed',
+      month: '2026-09',
+      target: '/monatsabschluss/2026-09',
+    },
+  ]);
   const reopened = await call('GET');
   expect(reopened.status).toBe(200);
   expect(reopened.body.state.closedOn).toBe('2026-10-02');
@@ -722,7 +773,25 @@ it('stores an undoable close marker only after all work and next-month distribut
   expect(reopened.body.accounts.find((account: any) => account.id === 'giro').balanceCents).toBe(
     99900,
   );
+  const secondEdit = await call('POST', '/bookings', {
+    type: 'booking',
+    accountId: 'giro',
+    date: '2026-09-19',
+    amountCents: -200,
+    splits: [{ amountCents: -200, categoryId: 'essen' }],
+  });
+  expect(secondEdit.status).toBe(201);
+  expect(readMonthCloseReminders(opened.db, '2026-10-02').tasks).toHaveLength(1);
+  expect((await call('POST', '/undo', { groupId: secondEdit.body.groupId })).status).toBe(200);
   expect((await call('POST', '/undo', { groupId: edit.body.groupId })).status).toBe(200);
+  expect(readMonthCloseReminders(opened.db, '2026-10-02').tasks).toHaveLength(1);
+  const reclosed = await call('PATCH', undefined, {
+    close: true,
+    sourceRevision: (await call('GET')).body.sourceRevision,
+  });
+  expect(reclosed.status).toBe(200);
+  expect(readMonthCloseReminders(opened.db, '2026-10-02').tasks).toEqual([]);
+  expect((await call('POST', '/undo', { groupId: reclosed.body.groupId })).status).toBe(200);
   expect((await call('POST', '/undo', { groupId: closed.body.groupId })).status).toBe(200);
   expect((await call('GET')).body.state.closedOn).toBeUndefined();
   expect(
@@ -733,6 +802,47 @@ it('stores an undoable close marker only after all work and next-month distribut
       })
     ).status,
   ).toBe(409);
+});
+
+it('does not notify September for an October split whose parent moved before the September close', async () => {
+  const booking = await call('POST', '/bookings', {
+    type: 'booking',
+    accountId: 'giro',
+    date: '2026-09-18',
+    amountCents: -100,
+    splits: [{ amountCents: -100, categoryId: 'essen' }],
+  });
+  expect(booking.status).toBe(201);
+  expect((await call('PATCH', `/bookings/${booking.body.id}`, { date: '2026-10-01' })).status).toBe(
+    200,
+  );
+  const before = (await call('GET')).body;
+  expect(
+    (
+      await call('PATCH', undefined, {
+        decisions: before.work.map((w: any) => ({ ...w, reason: 'Synthetic reviewed work' })),
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await call('PUT', '/budget/2026-10/assigned', {
+        items: [{ categoryId: 'miete', assignedCents: 100000 }],
+      })
+    ).status,
+  ).toBe(200);
+  const ready = (await call('GET')).body;
+  expect(
+    (await call('PATCH', undefined, { close: true, sourceRevision: ready.sourceRevision })).status,
+  ).toBe(200);
+  expect(readMonthCloseReminders(opened.db, '2026-10-02').tasks).toEqual([]);
+
+  const split = await call('PATCH', `/bookings/${booking.body.id}`, {
+    splits: [{ amountCents: -100, categoryId: 'miete' }],
+  });
+  expect(split.status).toBe(200);
+  expect((await call('GET')).body.close.changedSinceClose).toBe(true);
+  expect(readMonthCloseReminders(opened.db, '2026-10-02').tasks).toEqual([]);
 });
 
 it('renders a review for a newly tracked month with no household income', () => {

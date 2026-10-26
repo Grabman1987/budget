@@ -168,7 +168,11 @@ export function ValuationSourceHint({
               const anchor = trigger.current.getBoundingClientRect();
               const { width, height } = box.getBoundingClientRect();
               box.style.left = `${Math.max(8, Math.min(anchor.left, window.innerWidth - width - 8))}px`;
-              box.style.top = `${Math.max(8, Math.min(anchor.bottom + 8, window.innerHeight - height - 8))}px`;
+              const top =
+                anchor.bottom + height + 8 <= window.innerHeight
+                  ? anchor.bottom + 8
+                  : anchor.top - height - 8;
+              box.style.top = `${Math.max(8, Math.min(top, window.innerHeight - height - 8))}px`;
             }}
           >
             <strong>Bewertungsgrundlage · {label}</strong>

@@ -82,7 +82,9 @@ it('summarizes overspending without duplicating cover actions, with neutral inbo
     nextSteps: { items },
     attention: { inboxCount: 3, pendingCount: 2, pendingBefore: '2026-09-10' },
     financeCheck: {
-      actionRules: [{ code: 'R07', name: 'Liquidität', valueText: 'Handlungsbedarf' }],
+      actionRules: [
+        { code: 'R07', status: 'bad', name: 'Liquidität', valueText: 'Handlungsbedarf' },
+      ],
     },
   } as unknown as Heute;
   const { container } = render(<AttentionBar data={data} />);
@@ -108,7 +110,12 @@ it('groups eight accounts and pending work into at most four source rows, urgent
       action: 'reconcile',
     })),
     attention: { inboxCount: 9, pendingCount: 2, pendingBefore: '2026-09-10' },
-    financeCheck: { actionRules: [{ code: 'R07' }, { code: 'R02' }] },
+    financeCheck: {
+      actionRules: [
+        { code: 'R07', status: 'bad' },
+        { code: 'R02', status: 'bad' },
+      ],
+    },
   } as unknown as Heute;
   const { container } = render(<AttentionBar data={data} />);
   const rows = [...container.querySelectorAll('.attention-row')];
@@ -126,7 +133,7 @@ it('groups eight accounts and pending work into at most four source rows, urgent
   expect(screen.queryByRole('link', { name: 'Kontostand prüfen' })).toBeNull();
 });
 
-it('hides an empty task block without promising all rules were evaluated', () => {
+it('keeps missing rule inputs available without presenting a task row or an all-clear', () => {
   const data = {
     stand: { today: '2026-09-17' },
     nextSteps: { items: [] },
@@ -135,7 +142,9 @@ it('hides an empty task block without promising all rules were evaluated', () =>
     financeCheck: { actionRules: [], counts: { notEvaluated: 3 } },
   } as unknown as Heute;
   const { container } = render(<AttentionBar data={data} />);
-  expect(container.childElementCount).toBe(0);
+  expect(container.querySelectorAll('.attention-row')).toHaveLength(0);
+  expect(screen.getByText('Prüfgrundlagen teilweise nicht verfügbar')).toBeTruthy();
+  expect(screen.getByText(/3 Regeln konnten nicht ausgewertet werden/)).toBeTruthy();
 });
 
 it('keeps savings proposals and their load failures in the review source even without other tasks', () => {
@@ -174,14 +183,117 @@ it('keeps month close in the Plan source rather than adding a separate next-step
     stand: { today: '2026-10-01' },
     nextSteps: { items: [] },
     accountReminders: [],
-    attention: { inboxCount: 0, pendingCount: 0 },
+    attention: {
+      inboxCount: 0,
+      pendingCount: 0,
+      monthCloseTasks: {
+        tasks: [
+          {
+            id: 'close:2026-09',
+            kind: 'close',
+            month: '2026-09',
+            target: '/monatsabschluss/2026-09',
+          },
+        ],
+        unavailable: [],
+      },
+    },
     financeCheck: { actionRules: [] },
   } as unknown as Heute;
   const { container } = render(<AttentionBar data={data} />);
   expect(container.querySelectorAll('.attention-row')).toHaveLength(1);
+  expect(screen.getByRole('link', { name: 'Monatsabschluss öffnen' }).getAttribute('href')).toBe(
+    '/monatsabschluss/2026-09',
+  );
+});
+
+it('keeps the complete deduplicated priority pool reachable after four visible rows', () => {
+  const data = {
+    stand: { today: '2026-10-02', month: '2026-10' },
+    nextSteps: { items: [{ kind: 'overspent', categoryId: 'food', count: 1 }] },
+    financeCheck: { actionRules: [{ code: 'R07', status: 'bad' }] },
+    attention: {
+      inboxCount: 2,
+      pendingCount: 0,
+      loanTermsMissing: true,
+      monthCloseTasks: {
+        tasks: [
+          {
+            id: 'close-changed:2026-08',
+            kind: 'close-changed',
+            month: '2026-08',
+            target: '/monatsabschluss/2026-08',
+          },
+          {
+            id: 'close:2026-09',
+            kind: 'close',
+            month: '2026-09',
+            target: '/monatsabschluss/2026-09',
+          },
+          {
+            id: 'close:2026-09',
+            kind: 'close',
+            month: '2026-09',
+            target: '/monatsabschluss/2026-09',
+          },
+        ],
+        unavailable: [],
+      },
+    },
+  } as unknown as Heute;
+  const { container } = render(<AttentionBar data={data} />);
+  const section = container.querySelector('.heute-attention')!;
+  expect(section.querySelectorAll(':scope > .attention-row')).toHaveLength(4);
+  expect(section.querySelectorAll('.attention-row')).toHaveLength(6);
+  expect(screen.getByText('Weitere 2 Aufgaben')).toBeTruthy();
+  expect(screen.getByText('August 2026 nach Abschluss geändert')).toBeTruthy();
+  expect(screen.getByText('September 2026 abschließen')).toBeTruthy();
   expect(
-    screen.getByRole('link', { name: 'Monatsabschluss · September 2026' }).getAttribute('href'),
-  ).toBe('/monatsabschluss/2026-09');
+    screen.getAllByRole('link', { name: 'Monatsabschluss öffnen', hidden: true }),
+  ).toHaveLength(2);
+});
+
+it('shows one Finanz-Check row only for violated rules', () => {
+  const data = {
+    stand: { today: '2026-10-02', month: '2026-10' },
+    nextSteps: { items: [] },
+    attention: { inboxCount: 0, pendingCount: 0 },
+    financeCheck: { actionRules: [], counts: { notEvaluated: 0 } },
+  } as unknown as Heute;
+  const { container, rerender } = render(<AttentionBar data={data} />);
+  expect(container.querySelectorAll('.attention-row')).toHaveLength(0);
+  rerender(
+    <AttentionBar
+      data={
+        {
+          ...data,
+          financeCheck: {
+            actionRules: [{ code: 'R07', status: 'warn' }],
+            counts: { notEvaluated: 0 },
+          },
+        } as Heute
+      }
+    />,
+  );
+  expect(container.querySelectorAll('.attention-row')).toHaveLength(0);
+  rerender(
+    <AttentionBar
+      data={
+        {
+          ...data,
+          financeCheck: {
+            actionRules: [
+              { code: 'R07', status: 'bad' },
+              { code: 'R02', status: 'bad' },
+            ],
+            counts: { notEvaluated: 0 },
+          },
+        } as Heute
+      }
+    />,
+  );
+  expect(container.querySelectorAll('.attention-row')).toHaveLength(1);
+  expect(screen.getByText('2 Regelbefunde zum Handeln')).toBeTruthy();
 });
 
 it('does not claim there are no open tasks when overspending is the only finding', () => {
