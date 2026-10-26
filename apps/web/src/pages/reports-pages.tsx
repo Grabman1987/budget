@@ -6,7 +6,7 @@ import { ProjectsReport } from '../reports/projects-report';
 import { ReportTrendContext } from '@budget/ui';
 import { useSearch } from '@tanstack/react-router';
 import { Registers, SectionHead, type RegisterItem } from '@budget/ui';
-import { ChevronRight, Printer } from 'lucide-react';
+import { Printer } from 'lucide-react';
 import { BookRuleMetric } from '../rules/book-rule-metric';
 import { areaById } from '../nav/areas';
 import { REPORTS_CATALOG, REPORT_GROUP_PAGES, type PageMeta } from '../nav/pages';
@@ -90,9 +90,7 @@ function ReportRegisters({ current }: { current: string }) {
 }
 
 /**
- * Report catalog (Zeichnungsverzeichnis) as in the prototype: one table, a quiet heading row per
- * assembly, positions 1.1 … 5.5. The name is the link; the whole row is a larger click target.
- * On the phone the rows stack (position, name, question, chart form).
+ * Report catalog: assembly headings with each report's name and plain-language question.
  */
 function ReportCatalogTable({
   groups,
@@ -107,21 +105,14 @@ function ReportCatalogTable({
       <table className="rcat">
         <thead>
           <tr>
-            <th className="tech col-pos">Pos</th>
             <th className="tech">Report</th>
             <th className="tech">Frage</th>
-            <th className="tech">Diagrammform</th>
-            <th className="tech">Steuerung</th>
-            <th>
-              <span className="sr-only">Öffnen</span>
-            </th>
           </tr>
         </thead>
         {groups.map((group) => (
           <tbody key={group.slug}>
             <tr className="rcat-grp">
-              <td className="col-pos">{group.no}</td>
-              <td colSpan={5}>
+              <td colSpan={2}>
                 <strong>{group.name}</strong>
                 <span className="rcat-count">{group.items.length} Reports</span>
               </td>
@@ -135,18 +126,10 @@ function ReportCatalogTable({
                   void navigate({ to: `/reports/${report.id}` });
                 }}
               >
-                <td className="col-pos">{report.pos}</td>
                 <td className="rcat-name">
                   <AppLink to={`/reports/${report.id}`}>{report.name}</AppLink>
                 </td>
                 <td className="rcat-q">{report.question}</td>
-                <td className="rcat-form tech">{report.form}</td>
-                <td className="rcat-ctl">
-                  <Controls report={report} />
-                </td>
-                <td className="rcat-go" aria-hidden="true">
-                  <ChevronRight size={16} strokeWidth={1.75} />
-                </td>
               </tr>
             ))}
           </tbody>
@@ -165,11 +148,6 @@ export function ReportsCatalogPage() {
         subtitle={`${REPORTS.length} Zeichnungen aus einem Hauptbuch`}
       />
       <ReportRegisters current="katalog" />
-      <p className="muted">
-        <AppLink className="btn btn-ghost" to="/plan/prognose">
-          Kontoprognose in Plan öffnen
-        </AppLink>
-      </p>
       <ReportCatalogTable groups={REPORT_GROUPS} caption="Katalog der Reports" />
     </>
   );
