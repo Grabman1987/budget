@@ -34,7 +34,7 @@ async function expectStatusContentInsideButton(status: Locator) {
   const bounds = await status.evaluate((button) => {
     const icon = button.querySelector('svg');
     const label = button.querySelector('span');
-    const dialog = button.closest('[role="dialog"]');
+    const dialog = button.closest('dialog, [role="dialog"]');
     if (!icon || !label || !dialog) throw new Error('Capture status content or dialog is missing');
 
     const rect = (element: Element) => {
