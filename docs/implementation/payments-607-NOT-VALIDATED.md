@@ -1,5 +1,11 @@
 # Payment pause/end lifecycle — source checkpoint, NOT VALIDATED
 
+Historical checkpoint from 2026-10-22. The current owner-authorized continuation,
+prepared-test adoption and fresh validation are recorded in
+[payment lifecycle evidence](../evidence/payment-lifecycle-607/README.md).
+The dependency and restrictions below describe that earlier checkpoint only;
+current delivery follows `docs/queue/README.md`.
+
 Refs #607. Owner implementation-only direction (2026-10-22) applies: no new tests,
 test edits or test runs, typechecks, builds, browser validation, CI dispatch, PR,
 merge or deployment. None were performed. No migration was executed on any database.

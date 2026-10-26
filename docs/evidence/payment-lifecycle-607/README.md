@@ -27,8 +27,51 @@ the retained patch blobs, not an invented checkout, are the provenance.
 - New packages/db/src/repos/expected-lifecycle-607.test.ts: the historical-assignment deletion case supplies a valid token and checks the actual prior-assignment refusal, preventing a missing-token false positive.
 - New apps/server/src/api/expected-lifecycle-607.test.ts: added byte-neutral missing/malformed/stale DELETE-token checks and a current-token success case for the source checkpoint's mandatory-token correction.
 - New domain, migration-copy, UI and native browser tests are adopted from the handoff; their literal financial expectations are retained.
+- e2e/expected.spec.ts: four additive framing lines establish page-top scroll and a visible named payment heading before the existing detail screenshot. The first generated mobile image clipped the heading because navigation retained uncontrolled scroll. Finance, Axe, screenshot tolerances and timeouts remain unchanged.
 - Client deletePayment now requires a token at the TypeScript boundary, matching the existing mandatory server contract. The dialog ignores a null-token callback; no tokenless server fallback is introduced.
 
-Independent full financial/API/migration/source/test review, fresh targeted checks,
-affected browser profiles/baselines, required exact-head CI and verified publication
-remain pending. Migration49 has not been applied to production. #607 remains open.
+The additional repository regression at `430f0971` compares the complete prior
+February income report and assigned occurrence before ending, after ending from
+April and after whole-group Undo. Literal 10,000-cent expectations prove April is
+removed and restored; February remains identical. No existing oracle changed.
+
+## Fresh verification
+
+Independent full financial/API/migration/source/test review is CLEAR at
+`e35fbe4f`; the additional report regression is independently CLEAR at `430f0971`.
+Node 22.23.3 and the current lockfile (web Vite 8.3.5) were used.
+
+- Eight affected suites passed 94 tests, including the migration-on-copy checks.
+- Four existing UI compatibility suites passed 14 tests.
+- The report repository suite subsequently passed 20 tests with the new case.
+  These overlap the initial 94; do not add them as unique tests.
+- Scoped ESLint, all-workspace typechecking and `build:e2e` passed.
+- The three-profile local browser run passed 11 cases and failed one: WebKit
+  light exceeded its unchanged 60-second budget during the additional desktop
+  context, after completing the phone inspection. Desktop and mobile Chromium,
+  all three real mutation/Undo cases, and WebKit dark both layouts passed.
+- Trace inspection found many slow browser actions, not one unresolved locator.
+  One unchanged targeted repeat also timed out, later at desktop Escape. An
+  initial anchored grep selected no tests; that command is not verification.
+  No further local retry loop, timeout extension, test split or assertion change
+  was used. The unchanged Linux CI case must pass before publication.
+
+[Proof](proof.json) records source and synthetic artifact hashes. The seven
+[runtime receipts](receipts) and seven [images](browser) distinguish browser
+engine, viewport, theme and pointer configuration. The iPhone light receipt
+belongs to a completed phase of a failed combined case; it is not proof that the
+whole case passed. No desktop WebKit light receipt is claimed. These are emulated
+browser profiles, not physical-device or authenticated hosted-preview evidence.
+
+The affected Linux snapshot run
+[40247016090](https://github.com/Grabman1987/budget/actions/runs/40247016090), limited
+to `e2e/expected.spec.ts`, passed all 15 tests in 36.5 seconds. Independent review
+rejected its one changed mobile image because uncontrolled scroll clipped the
+heading. The additive framing correction at `d717b640` is independently CLEAR;
+its targeted desktop/mobile check passed five cases (three setup) in 30.6 seconds,
+and scoped ESLint passed. Windows does not compare Linux baseline pixels. The
+corrected Linux regeneration is run `40247452561`; new images still need review.
+The workflow's tolerant exit alone is not used as proof of passing tests.
+
+Final required CI, remaining browser acceptance and verified publication are still
+pending. Migration49 has not been applied to production. #607 remains open.
