@@ -280,3 +280,120 @@ for (const intakeMethod of ['chooser', 'drop'] as const) {
     );
   });
 }
+
+test('proven original manual payout splits only after explicit acceptance and one Undo restores it', async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  const post = async (path: string, data: unknown) => {
+    const response = await request.post('/api' + path, { data, headers: { origin: baseURL! } });
+    expect(response.ok(), await response.text()).toBe(true);
+    return response.json();
+  };
+  const { account } = await post('/accounts', {
+    name: 'Gehaltskonto Original 609',
+    type: 'checking',
+    role: 'budget',
+    onBudget: true,
+    openingDate: '2025-01-01',
+    openingBalanceCents: 0,
+  });
+  const { payee } = await post('/payees', { name: 'Arbeitgeber Original 609' });
+  const payout = await post('/bookings', {
+    type: 'booking',
+    accountId: account.id,
+    payeeId: payee.id,
+    date: '2026-09-30',
+    amountCents: 297500,
+    status: 'pending',
+    memo: 'Unveränderte Originalnotiz 609',
+    splits: [{ amountCents: 297500, incomeTypeId: 'income-salary' }],
+  });
+  const read = async () => {
+    const response = await request.get(`/api/bookings/${payout.id}`);
+    expect(response.ok()).toBe(true);
+    return (await response.json()).booking;
+  };
+  const original = await read();
+  expect(original).toMatchObject({
+    id: payout.id,
+    amountCents: 297500,
+    status: 'pending',
+    date: '2026-09-30',
+    payeeId: payee.id,
+    memo: 'Unveränderte Originalnotiz 609',
+  });
+  const configured = await request.put('/api/payslip-intake/config', {
+    headers: { origin: baseURL! },
+    data: { salaryAccountId: account.id, automation: { payeeId: payee.id }, wageTypes: {} },
+  });
+  expect(configured.ok()).toBe(true);
+  await page.goto('/plan/monat/einnahmen?monat=2026-09');
+  await page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Gehaltszettel hochladen', exact: true });
+  const uploaded = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/payslip-intake/upload') &&
+      response.request().method() === 'POST',
+  );
+  await dialog
+    .getByLabel('Gehaltszettel-PDF auswählen')
+    .setInputFiles({
+      name: 'synthetic-original-609.pdf',
+      mimeType: 'application/pdf',
+      buffer: await syntheticPayslipPdf(),
+    });
+  const upload = await uploaded;
+  expect(upload.ok()).toBe(true);
+  const intake = await upload.json();
+  await expect(dialog.getByLabel('Gehaltsbuchung (±5 Tage)')).toHaveValue(payout.id);
+  const accept = dialog.getByRole('checkbox', {
+    name: 'Vorhandene Auszahlung ausdrücklich in Gehalt und steuerfreie Erstattungen aufteilen',
+  });
+  await expect(accept).not.toBeChecked();
+  expect(await read()).toEqual(original);
+  expect((await (await request.get('/api/bookings')).json()).items).toHaveLength(1);
+  expect((await (await request.get('/api/payslips?month=2026-09')).json()).captured).toHaveLength(
+    0,
+  );
+  await accept.check();
+  expect(await read()).toEqual(original);
+  const decision = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/api/payslip-intake/${intake.id}/decision`) &&
+      response.request().method() === 'POST',
+  );
+  await dialog.getByRole('button', { name: 'Bestätigen', exact: true }).click();
+  const saved = await decision;
+  expect(saved.ok()).toBe(true);
+  expect(saved.request().postDataJSON()).toMatchObject({ action: 'confirm', bookingId: payout.id });
+  expect(saved.request().postDataJSON().splitToken).toMatch(/^[a-f0-9]{64}$/);
+  const undo = toast(page).getByRole('button', { name: 'Rückgängig', exact: true });
+  await undo.focus();
+  const split = await read();
+  expect(split).toMatchObject({
+    id: payout.id,
+    accountId: account.id,
+    payeeId: payee.id,
+    date: '2026-09-30',
+    amountCents: 297500,
+    status: 'pending',
+    memo: 'Unveränderte Originalnotiz 609',
+  });
+  expect(split.splits).toMatchObject([
+    { amountCents: 287500, incomeTypeId: 'income-salary' },
+    { amountCents: 10000, incomeTypeId: 'income-refund' },
+  ]);
+  expect((await (await request.get('/api/bookings')).json()).items).toHaveLength(1);
+  const undone = page.waitForResponse(
+    (response) => response.url().endsWith('/api/undo') && response.request().method() === 'POST',
+  );
+  await undo.click();
+  expect((await undone).ok()).toBe(true);
+  expect(await read()).toEqual(original);
+  expect((await (await request.get('/api/bookings')).json()).items).toHaveLength(1);
+  expect((await (await request.get('/api/payslips?month=2026-09')).json()).captured).toHaveLength(
+    0,
+  );
+});

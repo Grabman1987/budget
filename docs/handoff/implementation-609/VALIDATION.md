@@ -151,3 +151,74 @@ npx playwright test e2e/payslip-intake.spec.ts e2e/payroll-projects.spec.ts --gr
 npx playwright test e2e/issue-741-payroll-automation.spec.ts --grep "in phone dark|741 links an existing payout" --project=webkit-iphone --workers=1
 npx playwright test e2e/expected.spec.ts e2e/income-scope-266.spec.ts --grep "the 90 days and the Einnahmen panel|Today and Plan explain" --project=desktop --project=mobile --workers=1
 ```
+
+## Proven-original manual and bank extension (after independent viability review)
+
+This section supersedes the earlier import-only limitation for the two additional
+proven origins below. It does not authorize blanket historical normalization.
+The original committed-import branch and common parser/date/EUR/exact-cent,
+configured sender/account, one original salary lump, lock, audit, child history,
+association, CAS and grouped financial Undo guards remain in place.
+
+- An original manual `createBooking` may be split only while its complete original
+  booking/split snapshots remain identical, with exactly their creation audits,
+  one group and no bank/import identity. Ordinary pending/confirmed metadata is
+  retained. Later correction, correction+Undo and creation Undo/redo fail closed.
+- A fresh explicit bank confirmation needs its retained original BOOK candidate,
+  matching account/date/cents/currency/raw text/raw payee/source/dedupe identity,
+  an actual callback/account creation, exactly one initial account mapping,
+  successful provider stage watermark, and original inbox confirmation sharing
+  the booking creation group. Audit insertion order verifies that the provider
+  stage preceded the original booking. Unknown mapping/callback history fails.
+- The bank helper selects only the mapping id, consent id, account, EUR currency,
+  start date and watermark; safe audit projections include only these fields and
+  audit identities/actions/groups. It never selects mapping/consent credentials
+  or credential-bearing audit JSON. Candidate, mapping, consent and inbox evidence
+  binds CAS. A legitimate later poll changes the token. Audited candidate/mapping
+  ABA, remapping, restoration, adoption/merging and changed-provider warnings
+  remain unavailable; a warning matters even when retained candidate values stayed
+  equal. Pending-to-booked candidate promotion is outside this new narrow path.
+- An automatically posted unclassified bank row subsequently assigned salary is
+  an edited record and remains link-only. No bank sync posting, mapping, provider,
+  booking, locking, Undo, API or UI implementation was changed.
+
+Additional test reasons:
+
+| File | Reason |
+| --- | --- |
+| `packages/db/src/repos/payslip-payout.test.ts` | Reuse the literal existing fixture through actual import/manual ledger writers. Add original manual pending metadata, one booking, 287500 salary + 10000 reimbursement, savings reader and exact grouped Undo proof, plus correction/Undo/redo no-write rejection. Original import assertions and rollback/lock/association tests remain. |
+| `apps/server/src/bank-sync/payslip-payout-split-609.test.ts` | New focused integration tests use the real start/callback/map/tick/confirm service with a synthetic provider. They prove original bank metadata, exact cents/Undo and the actual savings reader (287500 earned, 100000 consumption, 187500 saved, 6522 bp), missing/mismatched candidate and missing original mapping audit refusal, real poll stale-token rejection, changed-provider warning refusal and actual postBooked-then-classified refusal. ABA and storage corruption are explicitly negative fault injections after real positive provenance, never fabricated positive evidence; existing protocol Undo/permissions remain untouched. |
+
+The bank positive and manual token-eligibility regressions were observed failing against the prior helper
+before implementation. Two affected test files then passed 37 tests, including all
+existing payout regressions. After adding account mismatch and missing-original-
+mapping-audit fault cases, the bank test file was rerun; its result is recorded
+below. Scoped DB/server typechecks and all three financial-source/test ESLint
+checks passed. No UI/E2E, build, browser or full CI was run for this financial delta.
+Independent review of this delta and exact-head integration/delivery gates remain.
+
+Final focused bank result: 14 tests passed. Combined relevant evidence is 25
+repository payout tests plus 14 bank-origin tests (39); no shared source changed
+between the passing two-file run and the final two added negative bank cases.
+
+One additional affected browser case was requested before this financial freeze:
+`e2e/payslip-intake.spec.ts` now appends only
+`proven original manual payout splits only after explicit acceptance and one Undo restores it`.
+It reuses the existing isolated ledger, real API, synthetic PDF generator and toast
+helper. It asserts no booking mutation on upload or checkbox selection, unchecked
+explicit acceptance, a server token in the actual confirmation request, one same-ID
+payout with literal 287500/10000 splits and retained metadata/status, and full
+original API booking equality after one grouped Undo. Existing scenarios, financial
+fixtures/oracles, timeouts and retry settings are unchanged. Per-file rationale:
+this case covers the newly supported manual provenance branch and its checkbox/token
+wire through the real UI, rather than repeating every repository guard boundary.
+
+The new case is formatted and linted but NOT EXECUTED. Root coordinates the only
+new affected browser flow after building this frozen revision:
+
+```sh
+npx playwright test e2e/payslip-intake.spec.ts --grep "proven original manual payout" --project=desktop --project=mobile --project=webkit-iphone --workers=1
+```
+
+Earlier browser evidence remains scoped to its tested pre-extension revision and
+is not represented here as runtime proof of the new financial helper.

@@ -248,7 +248,7 @@ browser tests use a fresh local database and passkey session per viewport; run
 `npx playwright test --config e2e/payslip-intake.config.ts`.
 The isolated configuration avoids unrelated seed servers on memory-limited machines.
 
-## Explicit original-payout split (#609, source only; NOT VALIDATED)
+## Explicit proven-original payout split (#609)
 
 An optional, unchecked confirmation in the review can split one proven untouched
 original salary lump into salary and tax-free reimbursement through the ordinary
@@ -258,13 +258,30 @@ outer decision transaction and audit group. No new payout is created for that pa
 
 Eligibility requires the current known parser, document-derived period and payout
 date, complete wage mapping and reconciled integer cents, the configured salary
-account/employer, an exact EUR payout, and an actual committed import run/mapping.
-The booking and every original split must still equal their complete audited
-creation snapshots in that import group, with no later mutation, removed/recreated
-child, Undo/redo or consumed association history. Existing ordinary ledger guards
-remain authoritative. A server-generated preview token binds source, receipt,
-booking, splits, account, sender, configuration, expectation, import and audit
-identities and is recomputed inside the transaction before the split write.
+account/employer and an exact EUR payout. The booking and every original split
+must still equal their complete audited creation snapshots in the same group,
+with no later mutation, removed/recreated child, Undo/redo or consumed association
+history. Proven origins are bounded as follows:
+
+- The existing committed import run/mapping path retains its original guards.
+- An untouched original manual `createBooking` has no adopted bank/import identity.
+  Pending and confirmed status stay unchanged.
+- A fresh explicit `BankSync.confirm` must match its retained original booked
+  candidate in account, date, cents, EUR currency, raw text/payee, source and dedupe
+  identity. Original candidate audit, callback/account creation, one initial map,
+  successful provider stage and original inbox confirmation form an ordered audit
+  chain. The mapping projection contains only id, consent id, account, currency,
+  start date and watermark; credentials and credential-bearing audit JSON are
+  never selected. A changed-provider warning also refuses the split even if the
+  retained candidate values stayed unchanged.
+
+Existing ordinary ledger guards remain authoritative. The preview token binds
+source, receipt, booking, splits, account, sender, configuration, expectation,
+origin values and audit identities; confirmation recomputes it inside the existing
+transaction. Mapping refreshes invalidate an old token. Candidate/mapping ABA,
+remap, restore, merge/adoption, pending-to-booked promotion and unknown or incomplete
+origin history do not become new split authorization. Automatic bank postings
+later assigned salary remain corrections and link-only.
 
 Reconciled payouts are only linked, with an explicit notice. Already canonical
 payouts need no replacement. Manually corrected, custom-assigned, provenance-unknown
@@ -279,6 +296,8 @@ budget-month inflow definition is the “Zählt für Zu verteilen” footnote. T
 report has no upload control, and its 14-salary table lists recorded positions only
 with missing positions on one line. No financial report formula is changed.
 
-No tests, typecheck/build, browser or financial Undo proof were run for this port.
-Exact rollback/Undo, CAS and ABA rejection, savings-rate classification and every
-rendering/security/responsive acceptance item remain unverified.
+Synthetic local checks cover literal cents, exact grouped Undo, rollback, CAS/ABA,
+the actual month-result savings-rate reader, and the real bank service origin path.
+See [validation](handoff/implementation-609/VALIDATION.md) for revision-scoped
+evidence and remaining independent-review, browser, CI and delivery gates. These
+bounded cases do not establish blanket normalization of existing bank/history rows.
