@@ -64,10 +64,15 @@ it('labels October expected receipts separately from budget-relevant plan-month 
 });
 
 it('keeps the scope explanation while amount privacy masks expected and booked values', () => {
-  act(() => setAmountsHidden(true));
   showOctoberIncome();
+  expect(screen.getByRole('progressbar').getAttribute('max')).toBe('30000');
+  act(() => setAmountsHidden(true));
 
   expect(screen.getByText(/Zählt für Zu verteilen:.*im Planmonat Oktober 2026/)).toBeTruthy();
   expect(screen.getByTestId('income-received').textContent).toBe('••• €');
   expect(screen.queryByText(/300,00 €|1\.000,00 €/)).toBeNull();
+  expect(screen.queryByRole('progressbar', { hidden: true })).toBeNull();
+  act(() => setAmountsHidden(false));
+  expect(screen.getByRole('progressbar').getAttribute('max')).toBe('30000');
+  expect(screen.getByRole('progressbar').getAttribute('value')).toBe('0');
 });

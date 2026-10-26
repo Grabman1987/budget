@@ -103,3 +103,51 @@ The boundary batch passed 4 files / 25 tests. The final affected repeat passed
 4 tests, and the final typed mock cleanup passed both preview component tests.
 Playwright discovery selected the intended three profile cases without starting
 browsers or servers. No full suite or Docker run was performed locally.
+
+## Independent review corrections
+
+The income progress element exposed raw expected/received cents in DOM attributes
+while text was masked. It is now absent in privacy mode; the existing privacy test
+checks visible -> hidden -> visible and absence even from the hidden accessibility
+query, retaining the literal text/masking checks. No financial math changed.
+
+All new Plan income fixture branches now match GET only. In particular, the menus
+and cover mocks continue to record non-GET writes through their original guard,
+and the #481/#590 mocks retain their original non-GET 422 behavior.
+
+Browser consumer search covered upload action/route strings, old income labels,
+and `.plan-detail h2`. The existing chooser/drop flow now opens its dialog after
+its final income/report navigation; the salary-history upload consumer navigates
+from the report to Plan income and verifies the retained month after Escape.
+The expected-income focus assertion targets the named original heading within
+its income region because the payslip list adds a second h2.
+
+| Changed test file in correction packet | Reason |
+| --- | --- |
+| `apps/web/src/expected/income-panel.test.tsx` | Extend the existing mask test to verify unmounted progress attributes and restoration; original amount/scope assertions retained. |
+| `apps/web/src/budget/plan-menus.test.tsx` | Bind the new read fixture to GET, preserving original non-GET write recording. |
+| `apps/web/src/budget/plan-page-cover.test.tsx` | Bind the new read fixture to GET, preserving original non-GET write recording. |
+| `apps/web/src/budget/plan-separated-headings-481.test.tsx` | Bind the read fixture to GET so non-GET requests retain original recording and 422. |
+| `apps/web/src/budget/plan-phone-selection-590.test.tsx` | Bind the read fixture to GET so non-GET requests retain original recording and 422. |
+| `apps/web/src/budget/plan-page-head.test.tsx` | Make the new fixture explicitly GET-only as in other Plan consumers. |
+| `apps/web/src/budget/plan-activity-735.test.tsx` | Make the new fixture explicitly GET-only, preserving original request recording. |
+| `e2e/payslip-intake.spec.ts` | Open the existing chooser/drop dialog after final navigation so both real upload methods remain exercised. |
+| `e2e/payroll-projects.spec.ts` | Preserve report-back assertion and financial/history/focus/cancel checks, then use Plan income for the moved upload and assert its month remains on close. |
+| `e2e/expected.spec.ts` | Scope the original focus assertion to the named income heading, retaining the focus requirement. |
+
+No screenshot baseline, timeout, retry or financial expectation changed. Browser
+execution and the affected `expected-income-dark.png` baseline remain coordinated
+by the root agent after freeze.
+
+Correction validation: 7 affected unit files / 56 tests passed; changed-file
+ESLint, web typecheck, Prettier and diff whitespace checks passed. No browser,
+build, full suite or baseline update was run for this correction packet.
+
+Focused browser commands after final freeze (run serially; use Node 22 and the
+normal E2E build/config). These supersede the earlier first-test-only suggestion:
+
+```sh
+npx playwright test e2e/payslip-intake.spec.ts e2e/payroll-projects.spec.ts --grep "synthetic encrypted PDF upload|new payout via|salary history deep links" --project=desktop --project=mobile --project=webkit-iphone --workers=1
+npx playwright test e2e/issue-741-payroll-automation.spec.ts --grep "in phone dark|741 links an existing payout" --project=webkit-iphone --workers=1
+npx playwright test e2e/expected.spec.ts e2e/income-scope-266.spec.ts --grep "the 90 days and the Einnahmen panel|Today and Plan explain" --project=desktop --project=mobile --workers=1
+```

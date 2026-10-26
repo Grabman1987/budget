@@ -55,7 +55,7 @@ export function IncomeBody({
   month: string;
   bookedCents?: number | undefined;
 }) {
-  useAmountPrivacy();
+  const hidden = useAmountPrivacy();
   const income = useQuery(incomeQuery(month));
   if (income.isPending) return <LoadingNote what="Einnahmen" />;
   if (income.isError)
@@ -74,7 +74,7 @@ export function IncomeBody({
         <p className="panel-sub">
           von erwartet {eur(data.expectedCents)} · {monthLabel(month)}
         </p>
-        {data.expectedCents > 0 && (
+        {!hidden && data.expectedCents > 0 && (
           <progress
             aria-label="Eingegangene erwartete Einnahmen"
             max={data.expectedCents}

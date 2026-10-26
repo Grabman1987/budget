@@ -60,9 +60,9 @@ const view = (toBeAssignedCents: number) => ({
 function renderPlan(toBeAssignedCents: number) {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (path: string) => {
+    vi.fn(async (path: string, init?: RequestInit) => {
       const route = path.split('?')[0]!;
-      if (route === '/api/expected/income')
+      if ((init?.method ?? 'GET') === 'GET' && route === '/api/expected/income')
         return Response.json({
           receivedCents: 2500,
           expectedCents: 10000,

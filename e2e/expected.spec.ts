@@ -188,7 +188,9 @@ test.describe('look', () => {
       );
       await expectScreenshot(page, 'expected-income-dark.png');
       if (testInfo.project.name === 'mobile') {
-        await expect(page.locator('.plan-detail h2')).toBeFocused();
+        await expect(
+          incomeRegion.getByRole('heading', { name: /^Einnahmen /, level: 2 }),
+        ).toBeFocused();
         await page.keyboard.press('PageDown');
         await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
       }

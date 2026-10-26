@@ -196,8 +196,6 @@ for (const intakeMethod of ['chooser', 'drop'] as const) {
     });
     expect(config.ok()).toBe(true);
     await page.goto('/plan/monat/einnahmen?monat=2026-09');
-    await page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
-    const upload = page.getByRole('dialog', { name: 'Gehaltszettel hochladen' });
     await expect(
       page.locator('.titleblock .tb-field').filter({ hasText: 'Einnahmen' }).locator('.tb-value'),
     ).toHaveText(await page.getByTestId('income-received').innerText());
@@ -208,6 +206,8 @@ for (const intakeMethod of ['chooser', 'drop'] as const) {
     ).toHaveCount(0);
     await inspectReport(page, info, '609-payroll-report');
     await page.goto('/plan/monat/einnahmen?monat=2026-09');
+    await page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
+    const upload = page.getByRole('dialog', { name: 'Gehaltszettel hochladen' });
     const bytes = await syntheticPayslipPdf();
     if (intakeMethod === 'chooser') {
       const chooserReady = page.waitForEvent('filechooser');
