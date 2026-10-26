@@ -64,5 +64,15 @@ rebuilt candidate flow then passed **5/5** (the same three setup cases plus both
 candidate profiles), with both-theme Axe, header/cell/button geometry, no
 overflow, no posting on open/cancel, focus return and explicit confirmation.
 These overlapping counts are not added together. Screenshots were visually
-inspected. Reviewed Linux baselines, required complete CI and publication remain
-pending. The wider redesign in #619 remains open.
+inspected. The wider redesign in #619 remains open.
+
+Scoped Linux baseline run
+[40293317714](https://github.com/Grabman1987/budget/actions/runs/40293317714)
+checked out exact UI revision `643a3ce3ff01a22f086be238cd2c9d7ff7d602e0` and
+passed **5/5 in 17.7 seconds**, without retries: three setup cases and the existing
+light report baseline on desktop/mobile. The dispatch used the independently
+reviewed browser-container workflow from the pending dependency candidate; its
+checkout log, rather than that workflow ref, identifies the actual tested UI.
+Bot commit `3658c216` changes exactly those two report PNGs. Both were visually
+inspected by the orchestrator and independently reviewed; no source or unrelated
+baseline changed. Required complete PR CI and publication remain pending.
