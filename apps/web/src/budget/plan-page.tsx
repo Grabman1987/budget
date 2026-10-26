@@ -1645,7 +1645,7 @@ function PlanSelection({
       <button
         type="button"
         className="plan-select-toggle"
-        aria-label={label}
+        aria-label={`${label} · ${count}/${rows.length}`}
         title={label}
         aria-pressed={
           count > 0 && count < rows.length ? 'mixed' : rows.length > 0 && count === rows.length
@@ -2014,7 +2014,7 @@ function EnvelopeRow({
             <button
               type="button"
               onClick={over ? onCover : onInspect}
-              aria-label={over ? `${r.name} decken` : `Zugewiesen für ${r.name} ändern`}
+              aria-label={`${over ? `${r.name} decken` : `Zugewiesen für ${r.name} ändern`} · ${eur(r.availableCents)}`}
               className={cx(
                 'plan-available pill',
                 over ? 'is-bad' : r.availableCents > 0 && 'is-good',

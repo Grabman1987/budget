@@ -109,7 +109,6 @@ export function InlineBookingCell({
         }
       }}
       className="kcell-edit"
-      aria-label={`${label} ändern: ${booking.payeeName ?? 'Buchung'}`}
       title={booking.status === 'reconciled' ? 'Geprüft: im Dialog freigeben' : `${label} ändern`}
       onClick={() => {
         if (booking.status === 'reconciled') return onOpen();
@@ -118,6 +117,9 @@ export function InlineBookingCell({
         setEditing(true);
       }}
     >
+      <span className="sr-only">
+        {label} ändern: {booking.payeeName ?? 'Buchung'} ·
+      </span>{' '}
       {children}
     </button>
   );

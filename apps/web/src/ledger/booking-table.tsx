@@ -388,12 +388,8 @@ function Row({
         </InlineBookingCell>
       </td>
       <td className="kx-payee">
-        <button
-          type="button"
-          className="kname-btn"
-          aria-label={`${label} bearbeiten`}
-          onClick={() => onOpen(b)}
-        >
+        <button type="button" className="kname-btn" onClick={() => onOpen(b)}>
+          <span className="sr-only">{label} bearbeiten ·</span>{' '}
           <PayeeCell
             booking={b}
             {...(variant === 'account'
@@ -462,12 +458,8 @@ function Row({
               ))}
           </select>
         ) : canEditCategory(b) ? (
-          <button
-            type="button"
-            className="kcat-btn"
-            aria-label={`Kategorie ändern: ${label}`}
-            onClick={() => setEditing(true)}
-          >
+          <button type="button" className="kcat-btn" onClick={() => setEditing(true)}>
+            <span className="sr-only">Kategorie ändern: {label} ·</span>{' '}
             <CategoryCell booking={b} classes={classes} showClass={false} />
             <Pencil className="icon kcat-edit" size={12} strokeWidth={1.75} aria-hidden="true" />
           </button>

@@ -308,7 +308,7 @@ isolatedTest(
       const targetRow = page.locator('tr.prow', { hasText: targetName });
       await expect(targetRow.locator('.col-avail .pill')).toHaveText('−50,00 €');
       // The compact row control opens the envelope panel (UX-2 replaced the triage table rows).
-      await page.getByRole('button', { name: `${targetName} decken`, exact: true }).click();
+      await targetRow.getByRole('button', { name: `${targetName} decken` }).click();
       const coverPanel = page.getByRole('complementary', { name: 'Plan-Inspektor' });
       await coverPanel.getByLabel('Aus', { exact: true }).selectOption(source.id);
       const covered = page.waitForResponse(

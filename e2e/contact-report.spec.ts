@@ -120,7 +120,7 @@ test('fixed EUR report preserves credit, running history, source links and recei
   await expect(page.getByRole('table', { name: 'Alle Buchungen nach Tag' })).toContainText(
     data.account.name,
   );
-  await page.getByRole('button', { name: 'Buchung am 01.09. bearbeiten', exact: true }).click();
+  await page.getByRole('button', { name: /^Buchung am 01\.09\. bearbeiten · / }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.goto(`/reports/kontakte?kontakt=${data.contact.id}`);
   await sheet.getByRole('link', { name: 'Kontakt in Konten öffnen', exact: true }).click();

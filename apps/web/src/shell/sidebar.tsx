@@ -102,7 +102,13 @@ export function Sidebar({
           className="profile"
           to="/einstellungen/profil"
           title="Profil / Einstellungen"
-          aria-label={collapsed ? 'Profil / Einstellungen' : undefined}
+          aria-label={
+            collapsed
+              ? named
+                ? `${identity.name} Profil / Einstellungen`
+                : `Profil / Einstellungen ${authMethod}`
+              : undefined
+          }
           aria-current={area === 'einstellungen' ? 'page' : undefined}
         >
           <span className="avatar" aria-hidden="true">

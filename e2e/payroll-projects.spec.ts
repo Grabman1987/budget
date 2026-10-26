@@ -144,7 +144,7 @@ test('project P&L through the real API, retaining archived attribution and mobil
   );
   await inspectReport(page, info, 'projects');
   await page.goto(`/konten/buchungen?buchung=${incomeBooking.id}`);
-  await page.getByRole('button', { name: 'Buchung am 02.09. bearbeiten', exact: true }).click();
+  await page.getByRole('button', { name: /^Buchung am 02\.09\. bearbeiten · / }).click();
   const bookingDialog = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await expect(bookingDialog.getByLabel('Projekt', { exact: true })).toHaveValue(projectId);
   await expect(
