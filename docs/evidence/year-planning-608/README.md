@@ -31,5 +31,22 @@ Scoped test rationale:
 Independent full source/canonical-callers/test review is CLEAR at `e02f99a6`
 plus the two additive test changes. The two affected component suites passed
 10/10 with the published main lock (Vitest5.0.3). The production E2E build passed.
-Browser/layout acceptance, final static checks, required CI and publication are
-pending. No current live or physical-device acceptance is claimed here.
+The first native browser run passed12cases and failed2. Desktop exhausted the
+unchanged30second budget late in the financial sequence after the added open-list
+scans; WebKit measured1354px against the1328px two-screen limit. Mobile Chromium
+and the existing event create/edit/Undo flows passed. This is not a passing whole
+run. Scoped ESLint passed on the reviewed source/tests.
+
+The reviewed correction `e1fdf157` reduces mobile whitespace by40px nominally:
+outer top padding, two toolbar paddings, context bottom padding and the chart-low
+paragraph margins. It changes no font size, chart geometry, 44px target, financial
+value or timeout. The scoped Linux run40252485442 checked out exact `e1fdf157`
+and passed all14tests in1.1minutes without retries or baseline changes. This
+includes desktop1440, Chromium390 and WebKit light/dark, the two-screen bound,
+44px targets, closed/open-list Axe and the unchanged financial/Undo cases.
+The actual test summary was inspected, since the snapshot workflow itself allows
+test failures. This run uses published main's Axe4.13; the pending dependency
+update's Axe4.14 is not claimed by this result.
+
+Scoped ESLint, Prettier and the design-scale CSS check passed. Required full CI
+and publication remain pending. No live or physical-device acceptance is claimed.
