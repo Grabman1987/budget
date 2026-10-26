@@ -18,6 +18,70 @@ async function post(request: APIRequestContext, origin: string, path: string, da
 const noOverflow = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 
+// #612: the mobile layout viewport can diverge from the visible viewport after editing a loan.
+async function logMobileViewport(page: Page, stage: string) {
+  const geometry = await page.evaluate(() => {
+    const visual = window.visualViewport;
+    const visibleRight = (visual?.offsetLeft ?? 0) + (visual?.width ?? innerWidth);
+    const rect = (element: Element | null) => {
+      if (!element) return null;
+      const { x, y, right, bottom, width, height } = element.getBoundingClientRect();
+      return { x, y, right, bottom, width, height };
+    };
+    const overflow = [...document.querySelectorAll('*')]
+      .map((element) => ({ element, bounds: element.getBoundingClientRect() }))
+      .filter(
+        ({ bounds }) => bounds.width > 0 && bounds.height > 0 && bounds.right > visibleRight + 1,
+      )
+      .sort((a, b) => b.bounds.right - a.bounds.right)
+      .slice(0, 8)
+      .map(({ element, bounds }) => {
+        let clip = element.parentElement;
+        while (clip && !/^(auto|scroll|hidden|clip)$/.test(getComputedStyle(clip).overflowX))
+          clip = clip.parentElement;
+        return {
+          tag: element.tagName.toLowerCase(),
+          className: element.getAttribute('class')?.slice(0, 80),
+          text: element.textContent?.trim().slice(0, 60),
+          right: bounds.right,
+          width: bounds.width,
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+          clip: clip && {
+            tag: clip.tagName.toLowerCase(),
+            className: clip.getAttribute('class')?.slice(0, 80),
+            right: clip.getBoundingClientRect().right,
+            clientWidth: clip.clientWidth,
+            scrollWidth: clip.scrollWidth,
+          },
+        };
+      });
+    return {
+      innerWidth,
+      innerHeight,
+      scrollX,
+      scrollY,
+      html: {
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        scrollHeight: document.documentElement.scrollHeight,
+      },
+      body: rect(document.body),
+      main: rect(document.querySelector('main')),
+      visual: visual && {
+        width: visual.width,
+        height: visual.height,
+        scale: visual.scale,
+        offsetLeft: visual.offsetLeft,
+        offsetTop: visual.offsetTop,
+        pageTop: visual.pageTop,
+      },
+      overflow,
+    };
+  });
+  console.log('loan-mobile-viewport', stage, JSON.stringify(geometry));
+}
+
 async function audit(page: Page) {
   const shell = await new AxeBuilder({ page }).analyze();
   expect(shell.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')).toEqual(
@@ -59,6 +123,7 @@ test('rate changes, scenarios and strategies on Schulden', async ({
   await expect(baseline).toContainText('Juni 2029');
   await expect(baseline).toContainText('33 Monate');
   await expect(baseline).toContainText('1.094,05');
+  if (isMobile) await logMobileViewport(page, 'initial');
 
   // Scenario: 300 € extra every month; compared in literal cents.
   await page.getByRole('button', { name: 'Szenario anlegen', exact: true }).click();
@@ -88,6 +153,7 @@ test('rate changes, scenarios and strategies on Schulden', async ({
   const rate = page.getByRole('dialog', { name: 'Zinsänderung erfassen' });
   await rate.getByLabel('Gültig ab').fill('2027-01-01');
   await rate.getByLabel('Nominaler Jahreszins (%)').fill('0');
+  if (isMobile) await logMobileViewport(page, 'first-rate-filled');
   await rate.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(toast(page)).toContainText('Zinsänderung gespeichert.');
   await expect(page.getByRole('cell', { name: '0,00 %' })).toBeVisible();
@@ -99,11 +165,13 @@ test('rate changes, scenarios and strategies on Schulden', async ({
   await toast(page).getByRole('button', { name: 'Wiederholen' }).click();
   await expect(baseline).toContainText('186,87');
   await expect(row).toContainText('früher');
+  if (isMobile) await logMobileViewport(page, 'after-redo-before-second-dialog');
 
   // The same day twice is refused with a German message.
   await page.getByRole('button', { name: 'Zinsänderung erfassen', exact: true }).click();
   await rate.getByLabel('Gültig ab').fill('2027-01-01');
   await rate.getByLabel('Nominaler Jahreszins (%)').fill('2');
+  if (isMobile) await logMobileViewport(page, 'second-rate-filled');
   const duplicateSave = rate.getByRole('button', { name: 'Speichern', exact: true });
   if (isMobile) {
     await duplicateSave.scrollIntoViewIfNeeded();
@@ -133,6 +201,7 @@ test('rate changes, scenarios and strategies on Schulden', async ({
       const x = rect.left + rect.width / 2;
       const y = rect.top + rect.height / 2;
       const hit = document.elementFromPoint(x, y);
+      const visualHit = document.elementFromPoint(x, y - (window.visualViewport?.offsetTop ?? 0));
       const hitAncestors: string[] = [];
       for (let el = hit; el; el = el.parentElement)
         hitAncestors.push(
@@ -143,6 +212,7 @@ test('rate changes, scenarios and strategies on Schulden', async ({
         point: { x, y },
         button: describe(button),
         hit: describe(hit),
+        visualHit: describe(visualHit),
         hitAncestors,
         hint: describe(dialog?.querySelector('.field-hint') ?? null),
         footer: describe(dialog?.querySelector('.loan-editor-foot') ?? null),
@@ -183,6 +253,19 @@ test('rate changes, scenarios and strategies on Schulden', async ({
       path: viewportPath,
       contentType: 'image/png',
     });
+    // The open phone sheet must fit the actual visible viewport, including its horizontal clip.
+    await expect
+      .poll(() =>
+        rate.evaluate((dialog) => {
+          const bounds = dialog.getBoundingClientRect();
+          const visual = window.visualViewport;
+          const left = visual?.offsetLeft ?? 0;
+          return (
+            bounds.left >= left - 1 && bounds.right <= left + (visual?.width ?? innerWidth) + 1
+          );
+        }),
+      )
+      .toBe(true);
     // The native click must land on Save; an overlapping hint is a layout regression.
     await expect
       .poll(() =>
