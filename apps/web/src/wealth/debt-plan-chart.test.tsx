@@ -8,6 +8,46 @@ import { DebtPlanChart } from './debt-plan-chart';
 vi.mock('../charts/use-element-width', () => ({ useElementWidth: () => [{ current: null }, 900] }));
 
 describe('debt plan chart inspection values', () => {
+  it('shows one scenario line and exact month-end values from the scenario schedule', () => {
+    const html = renderToStaticMarkup(
+      <DebtPlanChart
+        basis={
+          {
+            name: 'Kredit Muster',
+            currency: 'EUR',
+            asOf: '2026-10-02',
+            balanceCents: 42_000,
+          } as LoanPlanView
+        }
+        history={[]}
+        baseline={
+          {
+            payoffMonth: '2026-12',
+            rows: [
+              { month: '2026-10', closingCents: 28_000 },
+              { month: '2026-11', closingCents: 14_000 },
+              { month: '2026-12', closingCents: 0 },
+            ],
+          } as LoanSchedule
+        }
+        scenario={
+          {
+            payoffMonth: '2026-11',
+            rows: [
+              { month: '2026-10', closingCents: 28_000 },
+              { month: '2026-11', closingCents: 0 },
+            ],
+          } as LoanSchedule
+        }
+      />,
+    );
+    expect((html.match(/class="l-forecast"/g) ?? []).length).toBe(1);
+    expect(html).toContain('Szenario: 11.2026');
+    expect(html).toContain('Szenario · nach Modellzahlung am Monatsende');
+    expect(html).toContain('280,00 €');
+    expect(html).toContain('0,00 €');
+  });
+
   it('shows exact observed and planned cents in the chart table with a gap in the Ist line', () => {
     const basis = {
       name: 'Kredit Muster',

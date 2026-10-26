@@ -99,12 +99,49 @@ test('rate changes, scenarios and strategies on Schulden', async ({
   await toast(page).getByRole('button', { name: 'Wiederholen' }).click();
   await expect(baseline).toContainText('186,87');
   await expect(row).toContainText('früher');
+  // The refreshed-basis action must not widen the page past the visible phone viewport.
+  if (isMobile)
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth <= (visualViewport?.width ?? innerWidth) + 1,
+        ),
+      )
+      .toBe(true);
 
   // The same day twice is refused with a German message.
   await page.getByRole('button', { name: 'Zinsänderung erfassen', exact: true }).click();
   await rate.getByLabel('Gültig ab').fill('2027-01-01');
   await rate.getByLabel('Nominaler Jahreszins (%)').fill('2');
-  await rate.getByRole('button', { name: 'Speichern', exact: true }).click();
+  const duplicateSave = rate.getByRole('button', { name: 'Speichern', exact: true });
+  if (isMobile) {
+    await duplicateSave.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() =>
+        rate.evaluate((dialog) => {
+          const bounds = dialog.getBoundingClientRect();
+          const visual = window.visualViewport;
+          const left = visual?.offsetLeft ?? 0;
+          return (
+            bounds.left >= left - 1 && bounds.right <= left + (visual?.width ?? innerWidth) + 1
+          );
+        }),
+      )
+      .toBe(true);
+    await expect
+      .poll(() =>
+        duplicateSave.evaluate((button) => {
+          const bounds = button.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            bounds.left + bounds.width / 2,
+            bounds.top + bounds.height / 2,
+          );
+          return hit === button || button.contains(hit);
+        }),
+      )
+      .toBe(true);
+  }
+  await duplicateSave.click();
   await expect(toast(page)).toContainText('bereits eine Zinsänderung');
   await rate.getByRole('button', { name: 'Abbrechen' }).click();
   await expect(rate).toBeHidden();

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { simulateLoan } from '@budget/domain';
 import type { LoanPlanView } from './loan-planning-api';
-import { completedDebtMonthEnds, matchingDebtHistory } from './debt-plan-history';
+import {
+  completedDebtMonthEnds,
+  matchingDebtHistory,
+  parseLiveMeasures,
+} from './debt-plan-history';
 
 const plan = {
   accountId: 'loan-1',
@@ -51,5 +56,40 @@ describe('selected loan history basis', () => {
         ends,
       ),
     ).toBeNull();
+  });
+});
+
+describe('local Sondertilgung inputs', () => {
+  it('matches the independently calculated V16 cent and payoff oracle', () => {
+    const draft = parseLiveMeasures('0', '500', '2026-11', '2026-10');
+    expect(draft.error).toBeNull();
+    const terms = {
+      balanceCents: 420_000,
+      installmentCents: 20_000,
+      rateBp: 400,
+      monthlyFeeCents: 0,
+      startMonth: '2026-10',
+    };
+    const baseline = simulateLoan(terms);
+    const scenario = simulateLoan(terms, draft.measures);
+    expect(baseline).toMatchObject({
+      months: 22,
+      payoffMonth: '2028-07',
+      totalInterestCents: 16_157,
+    });
+    expect(scenario).toMatchObject({
+      months: 20,
+      payoffMonth: '2028-05',
+      totalInterestCents: 12_894,
+    });
+    expect(baseline.totalInterestCents - scenario.totalInterestCents).toBe(3_263);
+    expect(baseline.months - scenario.months).toBe(2);
+  });
+
+  it('requires an explicit valid one-off month and safe nonnegative cents', () => {
+    expect(parseLiveMeasures('0', '500', '', '2026-10').error).toContain('Monat');
+    expect(parseLiveMeasures('0', '500', '2026-09', '2026-10').error).toContain('Monat');
+    expect(parseLiveMeasures('-1', '0', '', '2026-10').error).toContain('gültige');
+    expect(parseLiveMeasures('100000001', '0', '', '2026-10').error).toContain('Modellbetrag');
   });
 });
