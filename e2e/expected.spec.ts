@@ -138,7 +138,7 @@ test('Plan › Monat: the Einnahmen term opens received against expected', async
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const panel = page.locator('.plan-detail');
   await expect(panel).toBeVisible();
-  await expect(panel.getByText('erwartet 4.612,00 €')).toBeVisible();
+  await expect(panel.getByText(/von erwartet 4.612,00 €/)).toBeVisible();
   await expect(panel.getByRole('table', { name: /nach Art/ })).toContainText('Gehalt');
   await expect(panel.getByRole('table', { name: /nach Art/ })).toContainText('3.812,00 €');
   await expect(panel).toContainText('Erwartete Zahlungen sind Planwerte.');
@@ -188,7 +188,9 @@ test.describe('look', () => {
       );
       await expectScreenshot(page, 'expected-income-dark.png');
       if (testInfo.project.name === 'mobile') {
-        await expect(page.locator('.plan-detail h2')).toBeFocused();
+        await expect(
+          incomeRegion.getByRole('heading', { name: /^Einnahmen /, level: 2 }),
+        ).toBeFocused();
         await page.keyboard.press('PageDown');
         await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
       }

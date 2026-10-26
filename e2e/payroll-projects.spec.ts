@@ -212,6 +212,8 @@ test('salary history deep links, form cancellation, focus return and upload reta
   await page.goBack();
   await expect(dialog).not.toBeVisible();
   await page.getByRole('link', { name: 'Zurück zum Gehaltsreport' }).click();
+  await expect(page).toHaveURL(/gehalt\?monat=2024-02/);
+  await page.goto('/plan/monat/einnahmen?monat=2024-02');
   await page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
   const upload = page.getByRole('dialog', { name: 'Gehaltszettel hochladen' });
   await expect(upload.getByLabel('Gehaltszettel-PDF auswählen')).toHaveAttribute(
@@ -223,7 +225,7 @@ test('salary history deep links, form cancellation, focus return and upload reta
   await inspectReport(page, info, 'payslip-upload');
   await page.keyboard.press('Escape');
   await expect(upload).not.toBeVisible();
-  await expect(page).toHaveURL(/gehalt\?monat=2024-02/);
+  await expect(page).toHaveURL(/\/plan\/monat\/einnahmen\?monat=2024-02/);
   await page.goto('/reports/gehalt/historie?monat=2024-02&zettel=missing');
   await expect(page.getByTestId('payroll-report')).toContainText(
     'Dieser Gehaltszettel ist nicht verfügbar.',

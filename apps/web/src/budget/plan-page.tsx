@@ -32,7 +32,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { expectedQuery } from '../expected/api';
+import { expectedQuery, incomeQuery } from '../expected/api';
 import { PLAN_MONAT } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { eur } from '../ledger/format';
@@ -126,6 +126,7 @@ declare module '@tanstack/history' {
 export function PlanMonthPage() {
   useAmountPrivacy();
   const [month] = useMonth();
+  const receivedIncome = useQuery(incomeQuery(month));
   const span = useMonthSpan();
   const months = useMemo(
     () => Array.from({ length: span }, (_, i) => shiftMonth(month, i)),
@@ -148,8 +149,8 @@ export function PlanMonthPage() {
       search: { monat: month },
       state: { planDetailOpenedInApp: true },
     });
-  const income = data ? (
-    <IncomeButton value={eur(data.summary.incomeCents)} onOpen={openIncome} />
+  const income = receivedIncome.data ? (
+    <IncomeButton value={eur(receivedIncome.data.receivedCents)} onOpen={openIncome} />
   ) : (
     '–'
   );

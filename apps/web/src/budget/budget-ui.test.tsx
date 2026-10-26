@@ -332,6 +332,8 @@ it('selects a category into the inspector, keeps amount editing separate and cle
       }),
     'GET /api/accounts': () => ok({ accounts: [] }),
     'GET /api/expected': () => ok({ payments: [] }),
+    'GET /api/expected/income': () =>
+      ok({ receivedCents: 2500, expectedCents: 10000, byPayment: [], byIncomeType: [] }),
     'GET /api/categories': () => ok(categories),
   });
   renderPage(<PlanMonthPage />, '/plan/monat?monat=2026-09');

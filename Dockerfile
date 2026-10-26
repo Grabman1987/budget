@@ -67,6 +67,7 @@ COPY --from=build /repo/apps/server/dist/index.js ./server.js
 COPY --from=build /repo/apps/server/dist/import-worker.js ./import-worker.js
 COPY --from=build /repo/apps/server/dist/bank-sync-worker.js ./bank-sync-worker.js
 COPY --from=build /repo/apps/server/dist/pdf-thread.js ./pdf-thread.js
+COPY --from=build /repo/apps/server/dist/pdf-preview-thread.js ./pdf-preview-thread.js
 # PDF.js loads its own worker module and Node polyfills at runtime; keep them outside esbuild.
 COPY --from=build /repo/node_modules/pdfjs-dist ./node_modules/pdfjs-dist
 COPY --from=build /repo/node_modules/@napi-rs ./node_modules/@napi-rs

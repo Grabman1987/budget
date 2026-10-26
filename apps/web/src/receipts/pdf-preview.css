@@ -1,0 +1,60 @@
+.receipt-pdf-preview {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.receipt-pdf-preview h3 {
+  margin-block: 0 12px;
+  font-size: var(--fs-title);
+}
+.receipt-pdf-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-end: 12px;
+}
+.receipt-pdf-controls > span {
+  font-size: var(--fs-meta);
+  font-variant-numeric: tabular-nums;
+}
+.receipt-pdf-preview .btn,
+.receipt-pdf-preview .input {
+  min-height: 44px;
+  max-width: 100%;
+  white-space: normal;
+}
+.receipt-pdf-frame {
+  width: 100%;
+  min-width: 0;
+  max-height: 64dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--rule-strong);
+  background: var(--surface-2);
+  margin-block-end: 12px;
+}
+.receipt-pdf-frame > p {
+  margin: 12px;
+}
+.receipt-pdf-frame:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.receipt-pdf-frame img {
+  display: block;
+  height: auto;
+}
+.receipt-pdf-fit {
+  width: 100%;
+  max-width: 100%;
+}
+.receipt-pdf-detail {
+  width: auto;
+  min-width: 100%;
+  max-width: none;
+}
+@media (max-width: 767px) {
+  .receipt-pdf-frame {
+    max-height: 45dvh;
+  }
+}
