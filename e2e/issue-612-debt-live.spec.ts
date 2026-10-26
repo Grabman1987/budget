@@ -47,6 +47,31 @@ test('local Sondertilgung reproduces V16 without a write', async ({
   await expect(years).toContainText('Live-Szenario');
   await expect(years).toContainText('2028');
   await expect(years).toContainText('128,94 €');
+  if (info.project.name !== 'desktop') {
+    const scrollRegion = section.locator('.debt-live-scroll');
+    await expect(scrollRegion).toHaveAttribute(
+      'aria-label',
+      'Zins und Tilgung je Jahr, bei Bedarf horizontal verschiebbar',
+    );
+    await scrollRegion.scrollIntoViewIfNeeded();
+    // Phone profiles verify the native scroll container can expose the clipped payment column.
+    const reachedPaymentsColumn = await scrollRegion.evaluate((region) => {
+      const target = region.querySelector('thead th:last-child');
+      if (!target) return false;
+      region.scrollLeft = region.scrollWidth;
+      const regionBounds = region.getBoundingClientRect();
+      const targetBounds = target.getBoundingClientRect();
+      return (
+        targetBounds.left >= regionBounds.left &&
+        targetBounds.right <= regionBounds.right &&
+        region.scrollLeft > 0
+      );
+    });
+    expect(reachedPaymentsColumn).toBe(true);
+    await scrollRegion.evaluate((region) => {
+      region.scrollLeft = 0;
+    });
+  }
   const monthly = section.getByLabel('Sondertilgung / Monat (EUR)');
   await monthly.fill('10');
   await expect(section.locator('.debt-live-result')).not.toContainText('32,63 €');

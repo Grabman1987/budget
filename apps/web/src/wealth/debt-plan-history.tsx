@@ -408,7 +408,11 @@ function PlanResult({
       {active && (
         <div className="debt-live-years">
           <h3>Zins und Tilgung je Jahr · {comparison ? 'Live-Szenario' : 'Basis'}</h3>
-          <ScrollRegion label="Zins und Tilgung je Jahr" className="debt-live-scroll">
+          <ScrollRegion
+            label="Zins und Tilgung je Jahr, bei Bedarf horizontal verschiebbar"
+            className="debt-live-scroll"
+          >
+            <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
             <table className="vtable">
               <caption>
                 {comparison ? 'Live-Szenario' : 'Basis'}: schuldenfrei{' '}

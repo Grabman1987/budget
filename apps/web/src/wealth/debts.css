@@ -1,3 +1,5 @@
+@import '../reports/table-scroll.css';
+
 /* Result first; calculation sections use the full content width. */
 .debt-history {
   min-width: 0;
