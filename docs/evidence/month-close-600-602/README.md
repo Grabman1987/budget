@@ -153,3 +153,39 @@ Final affected-file run: **29/29 API tests passed**, Node 22 / `--maxWorkers=1`,
 16.18 seconds. Scoped ESLint, Prettier and diff checks passed. No full CI,
 browser run, push or release was executed for this correction; exact-head
 independent re-review and the previously listed runtime gates remain required.
+
+## Browser coverage follow-up and carry label
+
+The orchestrator's initial scoped Linux run `40319469838` on the integrated
+pre-follow-up source reported **7 passed / 1 flaky**. WebKit's first guided-flow
+attempt reached the existing 30-second deadline at the final stored-state
+message; its existing retry passed. No baseline changed. PNG-only artifacts
+were retained in private `600-scoped-browser-screenshots`. This is qualified
+evidence for that revision, not a pass for the new case below.
+
+Changed-file reasons for this follow-up:
+
+- `e2e/month-close.spec.ts`: adds the missing actual UI batch path to the existing
+  isolated-ledger fixture. Two API-created EUR accounts have proven original
+  personal checks and pre-check bookings: 10,000 + 2,345 = 12,345 cents and
+  70,000 - 2,110 = 67,890 cents. Reviewing the rendered cohort must write nothing.
+  The real button must post the displayed revision/cohort and create one
+  canonical check per account in one audit group. One real toast Undo must
+  restore exact original accounts, bookings, splits and live checks; original
+  audit history remains and the two creates/two Undo events append. Both themes
+  include Axe, overflow checks and screenshots; actual viewport widths below
+  768 also check 44px targets, including WebKit iPhone. The original guided flow,
+  financial expectations, deadlines and retry settings are unchanged.
+- `apps/web/src/month-close/month-review.tsx`: changes only the label to
+  “Übertrag nach …”. The value is the existing `carryInCents`, which can remain
+  nonzero after the next month's remaining assignment pool reaches zero. The
+  note, retained snapshot and calculations are unchanged; no mirror unit added.
+- This README records the new coverage and its validation limits.
+
+Scoped ESLint, Prettier and diff checks passed for this delta. Local Playwright
+discovery did not establish a result on the memory-constrained host; no browser
+was started. The test uses narrow existing DB client/schema imports for its
+read-only snapshots instead of loading the entire repository barrel. The
+orchestrator will run the new batch and existing guided cases in the
+canonical Linux desktop, mobile and WebKit iPhone profiles and review their
+synthetic PNGs. No local browser, full CI, push, PR or release is claimed here.

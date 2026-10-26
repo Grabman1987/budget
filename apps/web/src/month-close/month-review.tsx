@@ -275,7 +275,7 @@ function ResultMetrics({ figures: f }: { figures: ResultFigures }) {
         </dd>
       </div>
       <div>
-        <dt>Unverteiltes Geld in {monthLabel(f.destinationMonth)}</dt>
+        <dt>Übertrag nach {monthLabel(f.destinationMonth)}</dt>
         <dd>
           {eur(f.carryInCents)}
           <small>Übertrag des unverteilten Geldes; Kategorie-Guthaben sind davon getrennt.</small>
