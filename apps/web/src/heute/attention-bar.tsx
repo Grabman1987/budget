@@ -1,6 +1,6 @@
-import { closeEntryMonth, unfundedSavingsGoals } from '@budget/domain';
+import { unfundedSavingsGoals } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { RevisionTable, useAmountPrivacy, type RevisionRow } from '@budget/ui';
+import { RevisionTable, maskMoneyText, useAmountPrivacy, type RevisionRow } from '@budget/ui';
 import type { ReactNode } from 'react';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote } from '../ledger/states';
@@ -9,70 +9,117 @@ import { goalsQuery } from '../budget/goals-api';
 import { monthLabel, shiftMonth } from '../nav/month';
 import { AppLink } from '../shell/app-link';
 import type { Heute } from './api';
+import { attentionModel, type AttentionData, type AttentionTask } from './attention-model';
 
-/** One row per source; the existing destinations own all writes and undo. */
 export function AttentionBar({
   data,
   savingsRows = [],
   savingsError,
 }: {
-  data: Pick<Heute, 'stand' | 'nextSteps' | 'financeCheck' | 'attention' | 'accountReminders'>;
+  data: AttentionData;
   savingsRows?: RevisionRow[];
   savingsError?: ReactNode;
 }) {
   useAmountPrivacy();
-  const rules = 'unavailable' in data.financeCheck ? [] : data.financeCheck.actionRules;
-  const uncategorized = data.nextSteps.items.find((i) => i.kind === 'uncategorized');
-  const overspending = data.nextSteps.items.filter((i) => i.kind === 'overspent').length;
-  const reminders = data.accountReminders?.length ?? 0;
-  const loanTermsMissing = data.attention.loanTermsMissing;
-  const quoteReview = data.attention.quoteReview?.count ?? 0;
-  const month = data.stand.today.slice(0, 7);
-  const closeMonth = closeEntryMonth(data.stand.today);
+  const model = attentionModel(data, { count: savingsRows.length, unavailable: !!savingsError });
+  const financeMessage =
+    'unavailable' in data.financeCheck ? data.financeCheck.unavailable.message : null;
+  const financeUnavailable = financeMessage !== null;
+  const missingInputs =
+    'unavailable' in data.financeCheck ? 0 : (data.financeCheck.counts?.notEvaluated ?? 0);
   if (
-    !overspending &&
-    !closeMonth &&
-    !rules.length &&
-    !data.attention.inboxCount &&
-    !data.attention.pendingCount &&
-    !savingsRows.length &&
-    !savingsError &&
-    !reminders &&
-    !loanTermsMissing &&
-    !quoteReview
+    !model.tasks.length &&
+    !data.attention.monthCloseTasks?.unavailable.length &&
+    !financeUnavailable &&
+    !missingInputs
   )
     return null;
+  const renderRow = (task: AttentionTask) => (
+    <AttentionRow
+      key={task.id}
+      task={task}
+      data={data}
+      savingsRows={savingsRows}
+      savingsError={savingsError}
+    />
+  );
   return (
-    <section
-      className={`heute-attention${loanTermsMissing ? ' is-dense' : ''}`}
-      aria-labelledby="attention-title"
-    >
+    <section className="heute-attention" aria-labelledby="attention-title">
       <h2 id="attention-title">Zu tun</h2>
-      {data.stand.month && data.stand.month !== month && (
+      {data.stand.month !== data.stand.today.slice(0, 7) && (
         <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>
       )}
-      {(overspending > 0 || closeMonth) && (
+      {model.visible.map(renderRow)}
+      {model.remaining.length > 0 && (
+        <details className="attention-remaining">
+          <summary>Weitere {model.remaining.length} Aufgaben</summary>
+          {model.remaining.map(renderRow)}
+        </details>
+      )}
+      {(financeUnavailable || missingInputs > 0) && (
+        <details className="attention-availability">
+          <summary>Prüfgrundlagen teilweise nicht verfügbar</summary>
+          <p>
+            {financeMessage !== null
+              ? maskMoneyText(financeMessage)
+              : `${missingInputs} ${missingInputs === 1 ? 'Regel konnte' : 'Regeln konnten'} nicht ausgewertet werden.`}{' '}
+            <AppLink to="/einstellungen/regelwerk">Regeln prüfen</AppLink>
+          </p>
+        </details>
+      )}
+      {!!data.attention.monthCloseTasks?.unavailable.length && (
+        <p className="heute-note">
+          Ein gespeicherter Monatsabschluss kann nicht verglichen werden.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function AttentionRow({
+  task,
+  data,
+  savingsRows,
+  savingsError,
+}: {
+  task: AttentionTask;
+  data: AttentionData;
+  savingsRows: RevisionRow[];
+  savingsError?: ReactNode;
+}) {
+  const month = data.stand.today.slice(0, 7);
+  const overspending = data.nextSteps.items.filter((item) => item.kind === 'overspent').length;
+  const uncategorized = data.nextSteps.items.find((item) => item.kind === 'uncategorized');
+  const rules =
+    'unavailable' in data.financeCheck
+      ? []
+      : data.financeCheck.actionRules.filter((rule) => rule.status === 'bad');
+  const reminders = data.accountReminders?.length ?? 0;
+  const quoteReview = data.attention.quoteReview?.count ?? 0;
+  switch (task.kind) {
+    case 'plan':
+      return (
         <div className="attention-row">
           <span>
-            {overspending > 0
-              ? `${overspending} ${overspending === 1 ? 'Kategorie' : 'Kategorien'} überzogen`
-              : 'Monat abschließen'}
+            {overspending} {overspending === 1 ? 'Kategorie' : 'Kategorien'} überzogen
           </span>
-          <div className="attention-actions">
-            {overspending > 0 && (
-              <AppLink to="/plan/monat" search={{ monat: month, ansicht: 'triage' }}>
-                Plan prüfen
-              </AppLink>
-            )}
-            {closeMonth && (
-              <AppLink to={`/monatsabschluss/${closeMonth}`}>
-                Monatsabschluss · {monthLabel(closeMonth)}
-              </AppLink>
-            )}
-          </div>
+          <AppLink to="/plan/monat" search={{ monat: month, ansicht: 'triage' }}>
+            Plan prüfen
+          </AppLink>
         </div>
-      )}
-      {rules.length > 0 && (
+      );
+    case 'month-close':
+      return (
+        <div className="attention-row">
+          <span>
+            {monthLabel(task.task.month)}{' '}
+            {task.task.kind === 'close' ? 'abschließen' : 'nach Abschluss geändert'}
+          </span>
+          <AppLink to={task.task.target}>Monatsabschluss öffnen</AppLink>
+        </div>
+      );
+    case 'rules':
+      return (
         <div className="attention-row">
           <span>
             {rules.length} {rules.length === 1 ? 'Regelbefund' : 'Regelbefunde'} zum Handeln
@@ -81,11 +128,9 @@ export function AttentionBar({
             Handeln
           </AppLink>
         </div>
-      )}
-      {(data.attention.inboxCount > 0 ||
-        data.attention.pendingCount > 0 ||
-        savingsRows.length > 0 ||
-        savingsError) && (
+      );
+    case 'review':
+      return (
         <div className="attention-row">
           <span>
             {data.attention.inboxCount > 0 && (
@@ -124,31 +169,27 @@ export function AttentionBar({
           )}
           {savingsError}
         </div>
-      )}
-      {(reminders > 0 || quoteReview > 0 || loanTermsMissing) && (
+      );
+    case 'accounts':
+      return (
         <div className="attention-row">
           <span>
             {reminders > 0 && (
-              <span>
+              <>
                 {reminders} {reminders === 1 ? 'Konto wartet' : 'Konten warten'} auf Prüfung
-              </span>
+              </>
             )}
             {quoteReview > 0 && (
               <>
                 {reminders > 0 && ' · '}
-                <span>
-                  {quoteReview}{' '}
-                  {quoteReview === 1
-                    ? 'Wertpapier ohne aktuellen Kurs'
-                    : 'Wertpapiere ohne aktuellen Kurs'}
-                </span>
+                {quoteReview}{' '}
+                {quoteReview === 1
+                  ? 'Wertpapier ohne aktuellen Kurs'
+                  : 'Wertpapiere ohne aktuellen Kurs'}
               </>
             )}
-            {loanTermsMissing && (
-              <>
-                {(reminders > 0 || quoteReview > 0) && ' · '}
-                <span>Kreditkonditionen fehlen</span>
-              </>
+            {data.attention.loanTermsMissing && (
+              <>{(reminders > 0 || quoteReview > 0) && ' · '}Kreditkonditionen fehlen</>
             )}
           </span>
           <div className="attention-actions">
@@ -158,12 +199,13 @@ export function AttentionBar({
               </AppLink>
             )}
             {quoteReview > 0 && <AppLink to="/vermoegen/portfolio">Kurse prüfen</AppLink>}
-            {loanTermsMissing && <AppLink to="/einstellungen/konten">Konditionen ergänzen</AppLink>}
+            {data.attention.loanTermsMissing && (
+              <AppLink to="/einstellungen/konten">Konditionen ergänzen</AppLink>
+            )}
           </div>
         </div>
-      )}
-    </section>
-  );
+      );
+  }
 }
 
 /** Ordinary funding work stays available below the fold, in ink. */

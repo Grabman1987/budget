@@ -305,9 +305,15 @@ it('keeps all four populated Q3 sources within four rows while preserving every 
   };
   full.financeCheck = {
     actionRules: [
-      { code: 'R1', name: 'Synthetic rule', valueText: 'Synthetic', actionText: 'Prüfen' },
+      {
+        code: 'R1',
+        status: 'bad',
+        name: 'Synthetic rule',
+        valueText: 'Synthetic',
+        actionText: 'Prüfen',
+      },
     ],
-    counts: { ok: 0, warn: 1, bad: 0, total: 1, notEvaluated: 0 },
+    counts: { ok: 0, warn: 0, bad: 1, total: 1, notEvaluated: 0 },
     keyRules: [],
   };
   full.attention = { ...full.attention, inboxCount: 2, pendingCount: 4, loanTermsMissing: true };

@@ -21,8 +21,10 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
           .locator('.heute-lead')
           .evaluate(
             (el) =>
-              el.nextElementSibling?.classList.contains('heute-compact-forecast') &&
-              el.nextElementSibling.nextElementSibling?.classList.contains('heute-pace'),
+              el.nextElementSibling?.classList.contains('heute-pace') &&
+              el.nextElementSibling.nextElementSibling?.classList.contains(
+                'heute-compact-forecast',
+              ),
           ),
       ).toBe(true);
       await expect(page.getByTestId('liquidity-chart')).toBeVisible();
