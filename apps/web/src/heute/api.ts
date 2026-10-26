@@ -139,6 +139,7 @@ export interface Heute extends WithValuationNotes {
         actionRules: Array<{
           code: string;
           name: string;
+          status: 'warn' | 'bad';
           valueText: string;
           actionText: string | null;
         }>;
@@ -172,6 +173,10 @@ export interface Heute extends WithValuationNotes {
     pendingBefore: string;
     loanTermsMissing: boolean;
     quoteReview?: { securityIds: string[]; count: number };
+    monthCloseTasks?: {
+      tasks: Array<{ id: string; kind: 'close' | 'close-changed'; month: string; target: string }>;
+      unavailable: Array<{ month: string | null; reason: 'legacy' | 'invalid_state' }>;
+    };
   };
   lastBookings: Array<{
     id: string;
