@@ -39,7 +39,7 @@ export function CashflowReportPage({
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
   const query = useQuery(cashflowQuery(period, projectId));
-  const data = query.isSuccess ? query.data : undefined;
+  const data = query.isSuccess && (!projectId || !query.isFetching) ? query.data : undefined;
   const window = data?.windowMonths ?? [];
   return (
     <PageFrame
@@ -90,7 +90,7 @@ export function CashflowReportPage({
         {data && !query.isFetching && !query.isError && (
           <ReportProjectScopeNote project={data.project} asOf={data.asOf} view="cashflow" />
         )}
-        {query.isPending && <LoadingNote what="Cashflow" />}
+        {(query.isPending || (projectId && query.isFetching)) && <LoadingNote what="Cashflow" />}
         {query.isError && (
           <ErrorNote what="Cashflow" error={query.error} onRetry={() => void query.refetch()} />
         )}

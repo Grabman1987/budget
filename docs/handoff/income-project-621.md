@@ -85,3 +85,45 @@ were run. Source/type/format/financial/browser/visual acceptance is unverified.
 Independent full-diff capable HIGH review precedes any proof. All required exact-
 head CI, final integration and verified publication remain future gates; no public
 push/PR, issue/epic closure, schema, new financial engine or writer was introduced.
+
+
+## Candidate proof and deleted-project correction
+
+Private candidate proof 40581309967 ran exact source
+8557b61ab5d58211ed51e6b1118211a5d454bf22. Lint, workspace types, CSS, build,
+136 units in 15 files, 19 old financial browser cases, 14 Hub/browser cases and
+tracked baseline guard passed. The new parity case passed all three profiles;
+the project identity case failed in all three at the second deleted-project
+alert. No public acceptance follows from this candidate proof.
+
+The fixture sets project A's deleted_at, not archived_at. Cashflow correctly
+returned 404, while switching back to Income reused a fresh 100001-cent cached
+result under the application's 20-second default. Archived project B remained
+valid. The correction requests revalidation on every project-scoped mount for
+all three readers, without changing global cache options, keys, URLs or writes.
+Income and overview already hide facts during fetching/error; Cashflow now also
+hides its cached scoped body and provenance during revalidation. This follows
+the owner's explicit no-stale-figures rule for invalid/deleted projects.
+
+Per-test-file rationale:
+
+- income-project-621.test.ts adds a real QueryObserver regression with a fresh
+  100001-cent cache, unchanged global-cache control, held scoped GET and 404;
+  the scoped mount must reread even inside the normal freshness window.
+- issue-621-income-project-views.spec.ts retains every prior literal, privacy,
+  filter, alert, CSV/source and accessibility assertion. It additionally holds
+  the genuine deleted project's Income reread, proving the old amount and scope
+  note are absent before the 404 is delivered, then retains the alert/no-facts
+  assertions after failure. No timeout, retry or skip was changed.
+
+The remote formatting-only patch is 82262 bytes with SHA256
+7b5685a6fe76269b6a27f22677aa546f5ac4e8988ba4fc3932eda88a3e4d1e27,
+retained at the author's external proof-40581309967 artifact directory. Its whole
+18-path diff is limited to intended source/tests; source lexemes and literal
+strings are preserved apart from grouping, trailing commas and statement
+punctuation. Apply-check passed on exact 8557; it was committed separately as
+15398e4b before the product correction. No baseline/config/helper was added.
+
+The correction and additive regressions await independent HIGH delta review and
+one necessary remote proof. No local Node/build/test/browser/formatter was run.
+Hub LIVE dependency, later integration and exact-head delivery gates remain.

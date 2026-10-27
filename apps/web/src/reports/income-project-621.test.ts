@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { validateReportSearch } from './report-search';
 import { cashflowQuery } from './cashflow-api';
 import { incomeReportQuery } from './month-api';
@@ -106,4 +106,46 @@ it('drills into an actual scoped booking ID using supported ledger fields and re
     to: '2026-08-31',
   });
   expect(filterFromSearch(search)).not.toHaveProperty('projectId');
+});
+
+it('rereads a fresh cached project on remount and exposes its deleted-scope error, while global reads stay cached', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: 20_000 } } });
+  const global = incomeReportQuery('2026-08');
+  const scoped = incomeReportQuery('2026-08', 'a');
+  const cached = { income: { earnedCents: 100001 } };
+  client.setQueryData([...global.queryKey], cached);
+  client.setQueryData([...scoped.queryKey], cached);
+  let finish!: (response: Response) => void;
+  const pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  const fetch = vi.fn(() => pending);
+  vi.stubGlobal('fetch', fetch);
+  const globalObserver = new QueryObserver(client, global);
+  const stopGlobal = globalObserver.subscribe(() => undefined);
+  const scopedObserver = new QueryObserver(client, scoped);
+  let stopScoped: () => void = () => undefined;
+  try {
+    expect(globalObserver.getCurrentResult().isFetching).toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+    stopScoped = scopedObserver.subscribe(() => undefined);
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/reports/month/income?month=2026-08&projectId=a',
+      expect.objectContaining({ method: 'GET' }),
+    );
+    expect(scopedObserver.getCurrentResult().isFetching).toBe(true);
+    expect(client.getQueryData(scoped.queryKey)).toEqual({ income: { earnedCents: 100001 } });
+    finish(Response.json({ error: 'Project not found' }, { status: 404 }));
+    await vi.waitFor(() => expect(scopedObserver.getCurrentResult().isError).toBe(true));
+    expect(scopedObserver.getCurrentResult().isFetching).toBe(false);
+    expect(scopedObserver.getCurrentResult().error).toMatchObject({ status: 404 });
+    expect(globalObserver.getCurrentResult().isSuccess).toBe(true);
+    expect(client.getQueryData(global.queryKey)).toEqual({ income: { earnedCents: 100001 } });
+  } finally {
+    finish(Response.json({ error: 'Project not found' }, { status: 404 }));
+    stopScoped();
+    stopGlobal();
+    client.clear();
+  }
 });

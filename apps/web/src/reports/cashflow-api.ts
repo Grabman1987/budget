@@ -12,6 +12,7 @@ export const cashflowQuery = (period: Period, projectId?: string) =>
     queryKey: projectId
       ? [...LEDGER_KEY, 'cashflow-report', period, 'project', projectId]
       : [...LEDGER_KEY, 'cashflow-report', period],
+    ...(projectId ? { refetchOnMount: 'always' as const } : {}),
     retry: false,
     queryFn: () =>
       request<CashflowReport>(

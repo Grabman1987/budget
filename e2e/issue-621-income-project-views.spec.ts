@@ -226,10 +226,32 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
     .getByRole('button', { name: 'Cashflow', exact: true })
     .click();
   await expect(page.getByRole('alert')).toBeVisible();
+  // A fresh cached 100001-cent result must stay hidden while its deleted scope is reread.
+  let releaseIncome!: () => void;
+  const incomeHeld = new Promise<void>((resolve) => {
+    releaseIncome = resolve;
+  });
+  await page.route('**/api/reports/month/income?*', async (route) => {
+    await incomeHeld;
+    await route.continue();
+  });
+  const incomeReread = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return (
+      url.pathname === '/api/reports/month/income' && url.searchParams.get('projectId') === 'a'
+    );
+  });
   await page
     .getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' })
     .getByRole('button', { name: 'Einnahmen', exact: true })
     .click();
+  try {
+    await incomeReread;
+    await expect(page.getByTestId('income-total')).toHaveCount(0);
+    await expect(page.locator('.report-project-note')).toHaveCount(0);
+  } finally {
+    releaseIncome();
+  }
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByTestId('income-total')).toHaveCount(0);
   await expect(page.locator('.report-project-note')).toHaveCount(0);
