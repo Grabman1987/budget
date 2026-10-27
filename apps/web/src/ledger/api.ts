@@ -224,18 +224,61 @@ export const deleteBooking = (id: string, unlock = false) =>
 
 /** Why the server left a booking out of a bulk action. */
 export type BulkSkipReason =
-  'not_found' | 'reconciled_locked' | 'split' | 'transfer' | 'transfer_pair' | 'invalid';
+  | 'not_found'
+  | 'reconciled_locked'
+  | 'split'
+  | 'transfer'
+  | 'transfer_pair'
+  | 'invalid'
+  | 'unchanged'
+  | 'linked_transfer'
+  | 'linked_contact'
+  | 'linked_expected'
+  | 'linked_trade'
+  | 'linked_payroll'
+  | 'linked_statement'
+  | 'linked_document'
+  | 'linked_bank';
+export interface BulkSelectionItem {
+  id: string;
+  date: string;
+  description: string;
+  accountId: string;
+  accountName: string;
+  amountCents: number | null;
+  currency: string;
+  projectId: string | null;
+  reason: BulkSkipReason | null;
+}
+export interface BulkSelection {
+  selectedCount: number;
+  items: BulkSelectionItem[];
+  missingIds: string[];
+  totals: {
+    currency: string;
+    count: number;
+    cents: number | null;
+    unavailable: 'unsafe_total' | null;
+  }[];
+}
+export const readBulkSelection = (ids: string[]) =>
+  request<BulkSelection>('POST', '/api/bookings/selection', { ids });
 
 export interface BulkResult extends WriteResult {
   changed: string[];
-  skipped: { id: string; reason: BulkSkipReason; message: string }[];
+  skipped: { id: string; reason: BulkSkipReason; message: string; booking?: BulkSelectionItem }[];
   /** Transfers with both legs in the selection (one Umbuchung each). */
   transferPairs: number;
 }
 
 export const bulkUpdateBookings = (
   ids: string[],
-  set: { categoryId?: string | null; flag?: BookingFlag | null; status?: 'pending' | 'confirmed' },
+  set: {
+    categoryId?: string | null;
+    flag?: BookingFlag | null;
+    status?: 'pending' | 'confirmed';
+    projectId?: string | null;
+  },
 ) => request<BulkResult>('POST', '/api/bookings/bulk', { action: 'update', ids, set });
 
 export const bulkDeleteBookings = (ids: string[]) =>

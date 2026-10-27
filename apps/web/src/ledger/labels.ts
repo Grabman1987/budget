@@ -145,13 +145,22 @@ export function errorText(
   return fallback;
 }
 
-const SKIP_REASON_LABEL: Record<BulkSkipReason, string> = {
+export const SKIP_REASON_LABEL: Record<BulkSkipReason, string> = {
   split: 'Aufteilung',
   transfer: 'Umbuchung',
   transfer_pair: 'Umbuchung (beide Seiten)',
   reconciled_locked: 'geprüft',
   not_found: 'nicht mehr vorhanden',
   invalid: 'nicht möglich',
+  unchanged: 'bereits im gewünschten Stand',
+  linked_transfer: 'verknüpfte Umbuchung',
+  linked_contact: 'verknüpfte Kontaktauslage',
+  linked_expected: 'zugeordnete erwartete Zahlung',
+  linked_trade: 'Wertpapierabrechnung',
+  linked_payroll: 'erfasste Gehaltsabrechnung',
+  linked_statement: 'angenommener Abrechnungsnachweis',
+  linked_document: 'automatische Dokumentbuchung',
+  linked_bank: 'zugeordnete Bankbewegung',
 };
 
 const transfers = (n: number) => `${n} ${n === 1 ? 'Umbuchung' : 'Umbuchungen'}`;
@@ -164,7 +173,10 @@ export function bulkSummary(result: BulkResult, verb: 'gelöscht' | 'geändert')
   const skippedPairs = Math.floor(
     result.skipped.filter((s) => s.reason === 'transfer_pair').length / 2,
   );
-  const changedPairs = Math.max(0, result.transferPairs - skippedPairs);
+  // Partial legacy results do not identify which attempted pair actually changed.
+  // Keep the actual changed-row count; only claim a paired effect when every item succeeded.
+  const changedPairs =
+    result.skipped.length === 0 ? Math.max(0, result.transferPairs - skippedPairs) : 0;
   let text = `${pluralBookings(result.changed.length)} ${verb}`;
   text += changedPairs > 0 ? `, davon ${transfers(changedPairs)} (beide Seiten).` : '.';
   if (result.skipped.length > 0) {

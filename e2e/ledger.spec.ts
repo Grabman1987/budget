@@ -19,9 +19,19 @@ import {
 
 /** Select-all lives in the table head on desktop and above the list on the phone. */
 const selectAll = async (page: Page) => {
+  const select = page.getByRole('button', { name: 'Auswählen', exact: true });
+  if ((page.viewportSize()?.width ?? 1440) < 768 && (await select.isVisible()))
+    await select.click();
   const head = page.getByLabel('Alle sichtbaren Buchungen auswählen');
   if (await head.isVisible()) await head.check();
   else await page.getByLabel('Alle sichtbaren auswählen').check();
+};
+
+const openBulkMore = async (page: Page) => {
+  const more = page
+    .getByRole('group', { name: 'Auswahl bearbeiten', exact: true })
+    .locator('details');
+  if ((await more.getAttribute('open')) === null) await more.locator('summary').click();
 };
 
 test('accounts, bookings, split, transfer, undo and redo', async ({ page }, testInfo) => {
@@ -203,10 +213,12 @@ test('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
 
   // Bulk delete asks first; cancelling keeps everything, confirming deletes, undo restores.
   await selectAll(page);
+  await openBulkMore(page);
   await page.getByRole('button', { name: 'Löschen', exact: true }).click();
   await expect(page.getByText('3 Buchungen löschen?')).toBeVisible();
   await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
   await expect(page.getByText('3 Buchungen ·')).toBeVisible();
+  await openBulkMore(page);
   await page.getByRole('button', { name: 'Löschen', exact: true }).click();
   await page.getByRole('button', { name: 'Ja, löschen', exact: true }).click();
   await expect(page.getByText('Keine Buchungen für diese Filter.')).toBeVisible();

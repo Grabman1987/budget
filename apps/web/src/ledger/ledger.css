@@ -2314,3 +2314,80 @@ button.kstatus-btn:focus-visible {
     overflow: auto;
   }
 }
+
+/* Account-local bulk surface: immutable ordinary row writers remain in their own controls. */
+.kbulk-readonly-surface,
+.kbulk-controls {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.kselection-bar {
+  position: fixed;
+  z-index: 30;
+  inset-inline-start: calc(var(--sidebar) + 28px);
+  inset-inline-end: 28px;
+  bottom: 16px;
+  margin: 0;
+  max-height: 50dvh;
+  overflow: auto;
+  align-items: stretch;
+  background: var(--raised);
+}
+.kselection-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+.kbulk-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+.kselection-bar .btn,
+.kselection-bar select,
+.kselection-bar summary {
+  min-height: var(--touch);
+  min-width: var(--touch);
+}
+.kselection-bar summary {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.kbulk-result {
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.kbulk-result ul {
+  margin: 0;
+  padding-inline-start: 20px;
+}
+.kbulk-result a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  min-width: var(--touch);
+}
+@media (max-width: 767px) {
+  .kselection-bar {
+    inset-inline: 16px;
+    /* Keep both the safe-area-aware tab bar and the existing capture FAB reachable. */
+    bottom: calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 8px);
+  }
+  .kselection-bar select {
+    flex: 1 1 44%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .kselection-bar .btn {
+    white-space: normal;
+  }
+}

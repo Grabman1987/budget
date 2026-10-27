@@ -19,6 +19,7 @@ export function patchListed(b: ListedBooking, patch: BookingPatch, names: Names)
   if (patch.memo !== undefined) next.memo = patch.memo;
   if (patch.status !== undefined) next.status = patch.status;
   if (patch.flag !== undefined) next.flag = patch.flag;
+  if (patch.projectId !== undefined) next.projectId = patch.projectId;
   if (patch.payeeId !== undefined) {
     next.payeeId = patch.payeeId;
     next.payeeName = names.payee(patch.payeeId);
@@ -47,12 +48,14 @@ export interface BulkSet {
   categoryId?: string | null;
   flag?: BookingFlag | null;
   status?: 'pending' | 'confirmed';
+  projectId?: string | null;
 }
 
 export const patchOfBulk = (set: BulkSet): BookingPatch => {
   const patch: BookingPatch = {};
   if (set.flag !== undefined) patch.flag = set.flag;
   if (set.status !== undefined) patch.status = set.status;
+  if (set.projectId !== undefined) patch.projectId = set.projectId;
   return patch;
 };
 
