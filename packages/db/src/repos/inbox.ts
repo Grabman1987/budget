@@ -57,7 +57,7 @@ export interface InboxStored {
         memo: string;
         payeeName: string | null;
         accountName: string;
-        suggestion: BankSuggestion;
+        suggestion?: BankSuggestion;
       }
     | undefined;
 }
@@ -76,6 +76,60 @@ export interface InboxEnvelope {
 export type InboxEntry = InboxBooking | InboxStored | InboxEnvelope | SavingsExecutionProposal;
 export interface InboxOptions {
   excludeOverspent?: boolean;
+}
+
+/** Enrich only the response page. The booking dialog recomputes guarded choices before writing. */
+export function prepareInboxBankSuggestions(db: Executor, entries: InboxEntry[]): InboxEntry[] {
+  return runInTransaction(db, (tx) =>
+    entries.map((entry) => {
+      if (entry.type !== 'stored' || !entry.bankCandidate || !entry.refId) return entry;
+      let suggestion: BankSuggestion = {
+        label: 'Kategorie prüfen · Zu verteilen',
+        needsReview: true,
+      };
+      try {
+        const matches = candidateMatches(tx, entry.refId);
+        const targets = [...matches.merge, ...matches.link];
+        if (
+          targets.length > 1 ||
+          matches.transfers.length > 1 ||
+          (targets.length && matches.transfers.length)
+        )
+          suggestion = {
+            label: 'Vorschlag prüfen · mehrere mögliche Buchungen',
+            needsReview: true,
+          };
+        else if (matches.transfers.length === 1)
+          suggestion = {
+            label: `Gegenbuchung ${matches.transfers[0]!.date} · Umbuchung prüfen`,
+            needsReview: true,
+          };
+        else if (targets.length === 1)
+          suggestion = {
+            label: `Mit Buchung ${targets[0]!.date} zusammenführen`,
+            needsReview: false,
+          };
+        else {
+          const rules = readAssignmentCandidate(tx, entry.refId).suggestions;
+          const available = rules.filter((rule) => !rule.unavailable);
+          if (available.length > 1)
+            suggestion = { label: 'Vorschlag prüfen · mehrere Regeln', needsReview: true };
+          else if (available.length === 1)
+            suggestion = {
+              label: `${available[0]!.automatic || available[0]!.id.startsWith('inbox-learn:') ? 'Regel' : 'Regelvorschlag prüfen'}: ${available[0]!.name}`,
+              needsReview: !(
+                available[0]!.automatic || available[0]!.id.startsWith('inbox-learn:')
+              ),
+            };
+          else if (rules.length)
+            suggestion = { label: 'Vorschlag prüfen · Regel nicht verfügbar', needsReview: true };
+        }
+      } catch {
+        suggestion = { label: 'Vorschlag prüfen', needsReview: true };
+      }
+      return { ...entry, bankCandidate: { ...entry.bankCandidate, suggestion } };
+    }),
+  );
 }
 
 /** Shared predicates keep task list and lightweight badge count in agreement. */
@@ -169,8 +223,7 @@ export function readInbox(
   return runInTransaction(db, (tx) => {
     const bookings = options.bankAccountId ? [] : uncategorizedBookings(tx, today);
     const mappings = readSourceMappings(tx);
-    // Prepare the displayed choice in the list response. The confirmation dialog still
-    // refreshes its own guarded preview before any write.
+    // Keep full-queue counts cheap; suggestions are prepared only after API pagination.
     const candidates = new Map(
       tx
         .select({
@@ -194,44 +247,17 @@ export function readInbox(
           ),
         )
         .all()
-        .map(({ id, ...row }) => {
-          let suggestion: BankSuggestion = {
-            label: 'Kategorie prüfen · Zu verteilen',
-            needsReview: true,
-          };
-          try {
-            const matches = candidateMatches(tx, id);
-            const targets = [...matches.merge, ...matches.link];
-            if (targets.length > 1 || matches.transfers.length)
-              suggestion = {
-                label: 'Vorschlag prüfen · mehrere mögliche Buchungen',
-                needsReview: true,
-              };
-            else if (targets.length === 1)
-              suggestion = {
-                label: `Mit Buchung ${targets[0]!.date} zusammenführen`,
-                needsReview: false,
-              };
-            else {
-              const rules = readAssignmentCandidate(tx, id).suggestions.filter(
-                (rule) => !rule.unavailable,
-              );
-              if (rules.length > 1)
-                suggestion = { label: 'Vorschlag prüfen · mehrere Regeln', needsReview: true };
-              else if (rules.length === 1)
-                suggestion = {
-                  label: `Regel: ${rules[0]!.name}`,
-                  needsReview: !(rules[0]!.automatic || rules[0]!.id.startsWith('inbox-learn:')),
-                };
-            }
-          } catch {
-            suggestion = { label: 'Vorschlag prüfen', needsReview: true };
-          }
-          return [id, { ...row, suggestion }];
-        }),
+        .map(({ id, ...row }) => [id, row]),
     );
-    const candidateProgress = tx
-      .select({ resolvedAt: inboxItem.resolvedAt })
+    const progressCandidates = tx
+      .select({
+        id: bankSyncCandidate.id,
+        accountId: bankSyncCandidate.accountId,
+        dedupeKey: bankSyncCandidate.dedupeKey,
+        resolvedAt: inboxItem.resolvedAt,
+        resolution: inboxItem.resolution,
+        refType: inboxItem.refType,
+      })
       .from(bankSyncCandidate)
       .innerJoin(inboxItem, eq(inboxItem.id, bankSyncCandidate.id))
       .where(
@@ -243,6 +269,56 @@ export function readInbox(
         ),
       )
       .all();
+    const candidateKeys = new Set(
+      progressCandidates.map((row) => `${row.accountId}:bank-sync:${row.dedupeKey}`),
+    );
+    const progressBookings = tx
+      .select({
+        id: booking.id,
+        accountId: booking.accountId,
+        importKey: booking.importKey,
+        bankSourceId: booking.bankSourceId,
+        status: booking.status,
+      })
+      .from(booking)
+      .where(
+        and(
+          isNull(booking.deletedAt),
+          eq(booking.source, 'bank'),
+          options.bankAccountId ? eq(booking.accountId, options.bankAccountId) : undefined,
+        ),
+      )
+      .all()
+      .filter(
+        (row) =>
+          !bankSource ||
+          row.bankSourceId === bankSource ||
+          candidateKeys.has(`${row.accountId}:${row.importKey}`),
+      );
+    const bookingsById = new Map(progressBookings.map((row) => [row.id, row]));
+    let reviewed = 0;
+    let open = 0;
+    for (const row of progressCandidates) {
+      if (row.refType !== 'bank-sync-candidate') continue;
+      if (!row.resolvedAt) {
+        open++;
+      } else if (
+        /^(Bestätigt:|Zusammengeführt:|Umbuchung:|Vom Nutzer)/.test(row.resolution ?? '')
+      ) {
+        reviewed++;
+      } else if (row.resolution?.startsWith('Als ungeprüfte Buchung angelegt, bitte prüfen: ')) {
+        const bookingId = row.resolution.slice(
+          'Als ungeprüfte Buchung angelegt, bitte prüfen: '.length,
+        );
+        const posted = bookingsById.get(bookingId);
+        if (posted?.status === 'pending') open++;
+        else if (posted?.status === 'confirmed' || posted?.status === 'reconciled') reviewed++;
+      }
+    }
+    // Legacy bank bookings without a retained candidate also need explicit review.
+    open += progressBookings.filter(
+      (row) => row.status === 'pending' && !candidateKeys.has(`${row.accountId}:${row.importKey}`),
+    ).length;
     const stored: InboxStored[] = tx
       .select()
       .from(inboxItem)
@@ -299,8 +375,8 @@ export function readInbox(
     return {
       asOf: today,
       bankProgress: {
-        reviewed: candidateProgress.filter((row) => row.resolvedAt !== null).length,
-        total: candidateProgress.length,
+        reviewed,
+        total: reviewed + open,
       },
       accountReminders: reminders,
       unlinkedReceiptCount:

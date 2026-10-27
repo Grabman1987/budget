@@ -50,7 +50,7 @@ export interface InboxStored {
         memo: string;
         payeeName: string | null;
         accountName: string;
-        suggestion: { label: string; needsReview: boolean };
+        suggestion?: { label: string; needsReview: boolean };
       }
     | undefined;
 }

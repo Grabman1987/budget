@@ -9,9 +9,10 @@ import {
   bookingSplit,
   inboxItem,
 } from '../schema';
-import { resolveInboxItem, readInbox } from './inbox';
+import { prepareInboxBankSuggestions, resolveInboxItem, readInbox } from './inbox';
 import { undo } from './audit';
 import { createBooking } from './bookings';
+import { saveAssignmentRule } from './assignment-rules';
 
 const A = '72400000-0000-4000-8000-000000000001';
 const B = '72400000-0000-4000-8000-000000000002';
@@ -85,6 +86,7 @@ beforeEach(() => {
         refType: 'bank-sync-candidate',
         refId: id,
         resolvedAt,
+        resolution: resolvedAt ? 'Vom Nutzer als erledigt markiert' : null,
         createdAt: '2026-10-20T08:00:00Z',
       })
       .run();
@@ -124,12 +126,7 @@ it('filters unresolved candidates by real account identity, with no balance, boo
   expect(first.count).toBe(2);
   expect(first.entries.map((entry) => entry.id)).toEqual(['a-one', 'a-two']);
   expect(
-    first.entries.map((entry) => {
-      if (entry.type !== 'stored' || !entry.bankCandidate) return null;
-      const { suggestion, ...originalFields } = entry.bankCandidate;
-      expect(suggestion.needsReview).toBe(true);
-      return originalFields;
-    }),
+    first.entries.map((entry) => (entry.type === 'stored' ? entry.bankCandidate : null)),
   ).toEqual([
     {
       date: DAY,
@@ -208,7 +205,9 @@ it('returns a prepared merge in the list and marks competing matches for review 
     { actor: 'synthetic-562' },
   );
   const before = state();
-  const suggested = scoped(A).entries.find((entry) => entry.id === 'a-one');
+  const suggested = prepareInboxBankSuggestions(opened.db, scoped(A).entries).find(
+    (entry) => entry.id === 'a-one',
+  );
   expect(suggested?.type === 'stored' && suggested.bankCandidate?.suggestion).toEqual({
     label: `Mit Buchung ${DAY} zusammenführen`,
     needsReview: false,
@@ -228,10 +227,104 @@ it('returns a prepared merge in the list and marks competing matches for review 
   );
   expect(second).not.toBe(first);
   const withCompetingMatch = state();
-  const ambiguous = scoped(A).entries.find((entry) => entry.id === 'a-one');
+  const ambiguous = prepareInboxBankSuggestions(opened.db, scoped(A).entries).find(
+    (entry) => entry.id === 'a-one',
+  );
   expect(ambiguous?.type === 'stored' && ambiguous.bankCandidate?.suggestion).toEqual({
     label: 'Vorschlag prüfen · mehrere mögliche Buchungen',
     needsReview: true,
   });
   expect(state()).toEqual(withCompetingMatch);
+});
+
+it('does not call an automatically posted pending bank booking or a foreign-currency task reviewed', () => {
+  const posted = createBooking(
+    opened.db,
+    {
+      accountId: A,
+      date: DAY,
+      amountCents: -4404,
+      source: 'bank',
+      importKey: 'bank-sync:auto-posted',
+      status: 'pending',
+      splits: [{ amountCents: -4404 }],
+    },
+    { actor: 'synthetic-562' },
+  );
+  for (const [id, currency, refType, resolution] of [
+    [
+      'auto-posted',
+      'EUR',
+      'bank-sync-candidate',
+      `Als ungeprüfte Buchung angelegt, bitte prüfen: ${posted}`,
+    ],
+    ['foreign', 'USD', 'bank-sync', null],
+  ] as const) {
+    opened.db
+      .insert(bankSyncCandidate)
+      .values({
+        id,
+        accountId: A,
+        dedupeKey: id,
+        date: DAY,
+        amountCents: -4404,
+        currency,
+        memo: id,
+      })
+      .run();
+    opened.db
+      .insert(inboxItem)
+      .values({
+        id,
+        kind: 'import',
+        title: 'Bankumsatz prüfen',
+        refType,
+        refId: refType === 'bank-sync' ? A : id,
+        resolvedAt: resolution ? '2026-10-20T10:00:00Z' : null,
+        resolution,
+      })
+      .run();
+  }
+  const before = state();
+  expect(scoped(A).bankProgress).toEqual({ reviewed: 1, total: 4 });
+  expect(state()).toEqual(before);
+});
+
+it('labels one transfer distinctly and a manual rule as requiring selection in the dialog', () => {
+  createBooking(
+    opened.db,
+    {
+      accountId: B,
+      date: DAY,
+      amountCents: 1201,
+      status: 'confirmed',
+      splits: [{ amountCents: 1201 }],
+    },
+    { actor: 'synthetic-562' },
+  );
+  saveAssignmentRule(
+    opened.db,
+    null,
+    {
+      name: 'Manuelle Regel',
+      enabled: true,
+      automatic: false,
+      match: { mode: 'all', conditions: [{ type: 'contains', text: 'a-two' }] },
+      actions: { memo: 'Manuell zu prüfen' },
+    },
+    { actor: 'synthetic-562' },
+  );
+  const before = state();
+  const entries = prepareInboxBankSuggestions(opened.db, scoped(A).entries);
+  const one = entries.find((entry) => entry.id === 'a-one');
+  const two = entries.find((entry) => entry.id === 'a-two');
+  expect(one?.type === 'stored' && one.bankCandidate?.suggestion).toEqual({
+    label: `Gegenbuchung ${DAY} · Umbuchung prüfen`,
+    needsReview: true,
+  });
+  expect(two?.type === 'stored' && two.bankCandidate?.suggestion).toEqual({
+    label: 'Regelvorschlag prüfen: Manuelle Regel',
+    needsReview: true,
+  });
+  expect(state()).toEqual(before);
 });

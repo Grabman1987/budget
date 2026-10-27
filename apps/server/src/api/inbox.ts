@@ -1,4 +1,10 @@
-import { readInbox, readInboxCount, resolveInboxItem, type Db } from '@budget/db';
+import {
+  prepareInboxBankSuggestions,
+  readInbox,
+  readInboxCount,
+  resolveInboxItem,
+  type Db,
+} from '@budget/db';
 import { Hono } from 'hono';
 import {
   inboxCause,
@@ -109,9 +115,14 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
       );
     // Without `limit` the whole queue, as before; `count` always is the full number of tasks.
     if (limit === undefined)
-      return c.json({ ...inbox, entries: filtered, overspentSummary, ...segmentFields });
+      return c.json({
+        ...inbox,
+        entries: prepareInboxBankSuggestions(db, filtered),
+        overspentSummary,
+        ...segmentFields,
+      });
     const start = offset ?? 0;
-    const entries = filtered.slice(start, start + limit);
+    const entries = prepareInboxBankSuggestions(db, filtered.slice(start, start + limit));
     const next = start + entries.length < filtered.length ? start + entries.length : null;
     const countsByKind: Record<string, number> = {};
     const countsByCause: Record<string, number> = {};

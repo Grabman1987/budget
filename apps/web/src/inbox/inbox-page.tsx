@@ -1253,14 +1253,7 @@ function BankInboxRow({
               ? maskMoneyText(item.detail ?? '')
               : ''}
         </span>
-        {item.type === 'stored' && data?.suggestion && (
-          <span>
-            {data.suggestion.needsReview && !data.suggestion.label.startsWith('Vorschlag prüfen')
-              ? 'Vorschlag prüfen · '
-              : ''}
-            {data.suggestion.label}
-          </span>
-        )}
+        {item.type === 'stored' && data?.suggestion && <span>{data.suggestion.label}</span>}
       </td>
       <td className="rev-act kact">
         <div className="inbox-row-actions">
