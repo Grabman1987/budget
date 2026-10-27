@@ -87,6 +87,11 @@
 .report-switcher-menu p {
   margin: 8px;
 }
+@media (min-width: 768px) {
+  .titleblock-report .report-switcher summary {
+    min-height: 38px;
+  }
+}
 @media (max-width: 767px) {
   /* Reports need their switcher even when the compact shared title block hides all fields.
      Keep the report title in the existing phone app header, not a second visible h1. */
