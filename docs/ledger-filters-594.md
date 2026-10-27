@@ -14,8 +14,10 @@ classified category-spending drilldowns retain their distinct net-spending value
 Existing optimistic row transforms mark every cached copy of the complete-filter
 sum pending until the canonical refetch. They retain the original native groups
 for rollback and never reconstruct full-filter totals from loaded cursor rows.
-Saldo columns and the existing today-balance line are shown only for an explicit
-single account. The existing Kommend disclosure remains collapsed by default.
+Historical Saldo values and the existing today-balance line are shown only for an
+explicit single account. The existing Kommend disclosure remains collapsed by
+default; opening it retains its projected balance column and honest unavailable
+marker. That structural column does not invent a historical multi-account value.
 
 The additional actions menu exports the same filtered history and sort through
 the shown Vienna day; unbooked future projections are excluded. The CSV uses the
@@ -42,6 +44,9 @@ Test rationale:
   the source additions; runtime evidence is pending remote review/checks.
 - `bookings-search.test.ts`: adds malformed-date rejection to the existing URL
   validation assertions; existing valid/invalid expectations stay intact.
+- `booking-table-581.test.tsx`: retains every existing unavailable-balance oracle
+  unchanged and adds an open-Kommend case proving its projected unavailable marker
+  while an unscoped historical row's structural balance cell stays empty.
 - `cache.test.ts` and `mutations.test.tsx`: literal deferred edit/delete, success,
   failed-write rollback and older-page regressions keep EUR -1557/USD -4321 groups
   intact while pending, then use canonical EUR -2323 or -323 results. No paginated

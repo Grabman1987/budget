@@ -166,3 +166,12 @@ it.each([
     expect(container.querySelector('.is-upcoming .kx-run')!.textContent).toBe(expected);
   },
 );
+
+it('retains the projected unavailable marker without showing an unscoped historical balance', () => {
+  const { container } = setup([{ ...booking, id: 'history' }], 'all', {
+    today: '2026-10-01', open: true, toggle: vi.fn(), bookings: [booking], schedules: [],
+    balances: new Map([['sample', null]]), count: 1, balanceLabel: '1.000,00 €',
+  });
+  expect(container.querySelector('.is-upcoming .kx-run')!.textContent).toBe('Saldo offen');
+  expect(container.querySelector('[data-booking="history"] .kx-run')!.textContent).toBe('');
+});

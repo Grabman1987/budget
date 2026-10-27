@@ -80,8 +80,10 @@ export function BookingTable({
   };
   const all = variant === 'all';
   const sectionId = useId();
-  // Einzelkonto always carries the running balance; Alle Buchungen only for the projected rows.
-  const runColumn = !all || showRunningBalance;
+  const showUpcoming = upcoming?.open === true && upcoming.count > 0;
+  // Retain the projected-row balance marker when Kommend is open. Historical All rows
+  // show a balance value only for an explicit single account.
+  const runColumn = !all || showRunningBalance || showUpcoming;
   const columns = (selection ? 1 : 0) + 7 + (runColumn ? 1 : 0);
   const head = (label: string, key?: BookingSort, numeric = false): ReactNode => (
     <th
@@ -159,6 +161,7 @@ export function BookingTable({
           variant={variant}
           classes={classes}
           runColumn={runColumn}
+          showRunningBalance={showRunningBalance}
           {...(selection ? { selection } : {})}
           onOpen={onOpen}
           categories={lookups.data?.categories ?? []}
@@ -348,6 +351,7 @@ function Row({
   projectedBalance,
   blankCheck,
   runColumn,
+  showRunningBalance = false,
 }: {
   booking: ListedBooking;
   variant: 'account' | 'all';
@@ -365,6 +369,7 @@ function Row({
   /** Upcoming rows cannot be selected but keep the checkbox column aligned. */
   blankCheck?: boolean;
   runColumn: boolean;
+  showRunningBalance?: boolean;
 }) {
   useAmountPrivacy();
   const flashing = useFlashing(b.id);
@@ -536,7 +541,10 @@ function Row({
           <small className="kmeta">Kategorie netto {eur(b.categorySpendingCents)}</small>
         )}
       </td>
-      {runColumn && (
+      {runColumn && !(variant === 'account' || upcomingToday || showRunningBalance) && (
+        <td className="kc-num kc-run kx-run" />
+      )}
+      {runColumn && (variant === 'account' || upcomingToday || showRunningBalance) && (
         <td className="kc-num kc-run kx-run">
           <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
             {upcomingToday
