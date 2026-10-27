@@ -1,75 +1,125 @@
 name: Update e2e snapshots
-
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: Branch whose baselines to update (never main)
-        required: true
-      specs:
-        description: Space-separated spec paths (e.g. e2e/shell.spec.ts); empty = every spec that compares screenshots
-        required: false
-        default: ''
-
 permissions:
-  contents: write
-
-concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
-
+  contents: read
 jobs:
   update:
-    if: inputs.branch != 'main'
     runs-on: ubuntu-24.04
-    # Match the CI browser image instead of reinstalling its OS/browser dependencies.
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     defaults:
       run:
         shell: bash
-    # A type-scale change regenerates nearly every baseline; give it room.
-    timeout-minutes: 75
+    timeout-minutes: 35
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ inputs.branch }}
-      - name: Allow Git reads and baseline commits in the container workspace
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify exact source and workflow-only delta
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          test "$(git show -s --format=%P HEAD)" = "01fc37faf4da1f78dd44ed2ad4bfe1fc6193497a"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/update-snapshots.yml"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        env:
-          SPECS: ${{ inputs.specs }}
+      - id: format
+        name: Scoped formatting with pinned patch collection
+        continue-on-error: true
         run: |
-          npm run build:e2e
-          read -r -a specs <<< "$SPECS"
-          if [ "${#specs[@]}" -eq 0 ]; then
-            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
-          fi
-          npx playwright test --update-snapshots=changed "${specs[@]}" || true
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+          paths=(apps/server/src/api/cashflow-report.ts apps/server/src/api/income-project-621.test.ts apps/server/src/api/report-tables.ts apps/server/src/api/reports-month.ts apps/web/src/pages/reports-pages.tsx apps/web/src/reports/cashflow-api.ts apps/web/src/reports/cashflow-report.tsx apps/web/src/reports/income-cashflow-report.tsx apps/web/src/reports/income-expense-report.tsx apps/web/src/reports/income-project-621.test.ts apps/web/src/reports/income-report.tsx apps/web/src/reports/month-api.ts apps/web/src/reports/report-project-scope.tsx apps/web/src/reports/report-search.ts apps/web/src/reports/report-views.css apps/web/src/reports/table-report-frame.tsx docs/handoff/income-project-621.md e2e/issue-621-income-project-views.spec.ts packages/db/src/repos/cashflow-report.ts packages/db/src/repos/month-reports.ts packages/db/src/repos/report-project-scope.ts packages/db/src/repos/report-tables.ts packages/domain/src/report-tables/income-expense.ts packages/domain/src/report-tables/tables.ts)
+          : > proof-format.patch
+          if npx prettier --check "${paths[@]}"; then exit 0; fi
+          npx prettier --write "${paths[@]}"
+          git diff --binary -- "${paths[@]}" > proof-format.patch
+          git restore -- "${paths[@]}"
+          test -s proof-format.patch
+          exit 1
+      - id: lint
+        name: Scoped ESLint
+        continue-on-error: true
+        run: npx eslint apps/server/src/api/cashflow-report.ts apps/server/src/api/income-project-621.test.ts apps/server/src/api/report-tables.ts apps/server/src/api/reports-month.ts apps/web/src/pages/reports-pages.tsx apps/web/src/reports/cashflow-api.ts apps/web/src/reports/cashflow-report.tsx apps/web/src/reports/income-cashflow-report.tsx apps/web/src/reports/income-expense-report.tsx apps/web/src/reports/income-project-621.test.ts apps/web/src/reports/income-report.tsx apps/web/src/reports/month-api.ts apps/web/src/reports/report-project-scope.tsx apps/web/src/reports/report-search.ts apps/web/src/reports/table-report-frame.tsx e2e/issue-621-income-project-views.spec.ts packages/db/src/repos/cashflow-report.ts packages/db/src/repos/month-reports.ts packages/db/src/repos/report-project-scope.ts packages/db/src/repos/report-tables.ts packages/domain/src/report-tables/income-expense.ts packages/domain/src/report-tables/tables.ts
+      - id: types
+        name: Full workspace typecheck
+        continue-on-error: true
+        run: npm run typecheck
+      - id: css
+        name: Design-token CSS check
+        continue-on-error: true
+        run: node packages/ui/scripts/check-css-scale.mjs
+      - id: units
+        name: Literal project parity and old financial and Hub regressions
+        continue-on-error: true
+        run: |
+          npx vitest run apps/server/src/api/income-project-621.test.ts apps/web/src/reports/income-project-621.test.ts apps/server/src/api/cashflow-report.test.ts apps/server/src/api/income-month.test.ts apps/server/src/api/report-tables.test.ts packages/fixtures/src/month-reports.test.ts packages/domain/src/report-tables/tables.test.ts apps/server/src/api/payroll-projects.test.ts packages/db/src/repos/spending-owner-feedback.test.ts packages/db/src/repos/spending-review.test.ts apps/web/src/reports/report-frame.test.tsx apps/web/src/reports/verdict-facts.test.ts apps/web/src/reports/explorer-templates-625.test.tsx apps/web/src/reports/report-hub-619.test.ts apps/web/src/reports/saved-explorer-628.test.tsx
+      - id: build
+        name: Build for browser proof
+        continue-on-error: true
+        run: npm run build:e2e
+      - id: browser
+        name: Full new621 cases in three canonical profiles
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        run: |
+          npx playwright test e2e/issue-621-income-project-views.spec.ts --project=desktop --project=mobile --project=webkit-iphone --workers=1 --retries=0 --update-snapshots=none
+      - name: Preserve new621 evidence before legacy cleanup
+        if: always()
+        run: |
+          if test -d test-results; then cp -a test-results proof-new-case-results; fi
+      - id: compatibility
+        name: Old monthly cashflow table CSV and source consumers
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        run: |
+          npx playwright test e2e/month-reports.spec.ts e2e/cashflow-report.spec.ts e2e/income-expense-report.spec.ts --grep 'Einnahmen:|figure, chain|a shorter Zeitraum|income versus expense|direct invalid report cells' --project=desktop --project=mobile --project=webkit-iphone --workers=1 --retries=0 --update-snapshots=none
+      - name: Preserve legacy financial evidence before Hub cleanup
+        if: always()
+        run: |
+          if test -d test-results; then cp -a test-results proof-legacy-case-results; fi
+      - id: hub
+        name: Hub saved-ID CAS Undo and F exact-window consumers
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        run: |
+          npx playwright test e2e/issue-619-628-reports-hub.spec.ts e2e/issue-624-explorer-persistence.spec.ts e2e/category-trend.spec.ts --grep '619 sixteen-report hub|628 saved-view chips|saved Explorer views survive|heatmap month cell opens' --project=desktop --project=mobile --project=webkit-iphone --workers=1 --retries=0 --update-snapshots=none
+      - id: baselines
+        name: Assert no tracked mutation or baseline update
+        continue-on-error: true
+        run: git diff --exit-code
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
-          name: scoped-browser-screenshots
-          path: test-results/**/*.png
+          name: income-project-621-candidate-evidence
+          path: |
+            proof-format.patch
+            proof-legacy-case-results/**/*.png
+            proof-legacy-case-results/**/*.zip
+            proof-legacy-case-results/**/*.md
+            proof-new-case-results/**/*.png
+            proof-new-case-results/**/*.zip
+            proof-new-case-results/**/*.md
+            test-results/**/*.png
+            test-results/**/*.zip
+            test-results/**/*.md
           if-no-files-found: ignore
-          retention-days: 7
-      - name: Commit the new baselines
+          retention-days: 3
+      - name: Report actual scoped result
+        if: always()
         env:
-          BRANCH: ${{ inputs.branch }}
+          FORMAT: ${{ steps.format.outcome }}
+          LINT: ${{ steps.lint.outcome }}
+          TYPES: ${{ steps.types.outcome }}
+          CSS: ${{ steps.css.outcome }}
+          UNITS: ${{ steps.units.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+          BROWSER: ${{ steps.browser.outcome }}
+          COMPATIBILITY: ${{ steps.compatibility.outcome }}
+          HUB: ${{ steps.hub.outcome }}
+          BASELINES: ${{ steps.baselines.outcome }}
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
+          echo "RESULT format=$FORMAT lint=$LINT types=$TYPES css=$CSS units=$UNITS build=$BUILD browser=$BROWSER compatibility=$COMPATIBILITY hub=$HUB baselines=$BASELINES"
+          test "$FORMAT" = success && test "$LINT" = success && test "$TYPES" = success && test "$CSS" = success && test "$UNITS" = success && test "$BUILD" = success && test "$BROWSER" = success && test "$COMPATIBILITY" = success && test "$HUB" = success && test "$BASELINES" = success
