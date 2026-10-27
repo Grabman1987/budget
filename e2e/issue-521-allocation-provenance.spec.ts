@@ -7,9 +7,30 @@ sampleTest(
   async ({ page }) => {
     let legacyDto = false;
     let selectedAccountCount = 0;
+    let sourceValueCents: number | null = null;
+    let sourceValuationQuality: PortfolioAllocationView['quality']['valuationQuality'] = 'exact';
+    let expectedValueText = '';
+    let expectedQualityText = '';
     await page.route('**/api/portfolio/allocation', async (route) => {
       const data = (await (await route.fetch()).json()) as PortfolioAllocationView;
       selectedAccountCount = data.universe.accountIds.length;
+      sourceValueCents = data.valueCents;
+      sourceValuationQuality = data.quality.valuationQuality;
+      expectedValueText =
+        sourceValueCents === null
+          ? 'Netto-Allokationsuniversum: Wert nicht verfügbar.'
+          : `Netto-Allokationsuniversum: ${new Intl.NumberFormat('de-AT', {
+              maximumFractionDigits: 0,
+            })
+              .format(sourceValueCents / 100)
+              .replace(/^-/, '−')} €.`;
+      const qualityLabel =
+        sourceValuationQuality === 'exact'
+          ? 'vollständig'
+          : sourceValuationQuality === 'estimated'
+            ? 'geschätzt oder veraltet'
+            : 'nicht vollständig verfügbar';
+      expectedQualityText = `Bewertung ${qualityLabel}, Klassifikation`;
       data.asOf = '2026-09-17';
       if (legacyDto) {
         delete data.exposureEvidence;
@@ -38,7 +59,10 @@ sampleTest(
     await expect(allocation).toContainText(
       `in ${selectedAccountCount} ausgewählten Konten und Depots`,
     );
-    await expect(allocation.locator('.vallo')).toContainText('ETF Welt');
+    expect(selectedAccountCount).toBeGreaterThan(0);
+    await expect(allocation.locator('.vallo')).toContainText('Aktien Welt');
+    await expect(allocation).toContainText(expectedValueText);
+    await expect(allocation).toContainText(expectedQualityText);
     await expect(allocation).toContainText(
       'Wirksam ab 01.08.2026 · Quelle: Synthetic feed 123,45 EUR.',
     );
@@ -51,7 +75,19 @@ sampleTest(
     if (mobile) await profile.click();
     const privacy = page.getByRole('button', { name: 'Beträge verbergen', exact: true });
     if ((await privacy.getAttribute('aria-pressed')) !== 'true') await privacy.click();
-    await expect(allocation).toContainText('Synthetic feed ••• EUR');
+    const evidenceList = allocation.getByRole('list', { name: 'Wirksame Exposure-Quellen' });
+    await expect(evidenceList).toContainText('Synthetic feed ••• EUR');
+    await expect(evidenceList).not.toContainText('123,45');
+    const evidenceAttributes = await evidenceList
+      .locator('[aria-label], [title], [data-tooltip]')
+      .evaluateAll((elements) =>
+        elements
+          .flatMap((element) =>
+            ['aria-label', 'title', 'data-tooltip'].map((name) => element.getAttribute(name) ?? ''),
+          )
+          .join(' '),
+      );
+    expect(evidenceAttributes).not.toContain('123,45');
     if (mobile) await profile.press('Escape');
 
     for (const theme of ['light', 'dark']) {
@@ -63,8 +99,10 @@ sampleTest(
       expect(audit.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? ''))).toEqual(
         [],
       );
-      const evidenceLink = allocation.getByRole('link', { name: 'ETF Welt', exact: true });
-      expect((await evidenceLink.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      const evidenceLink = evidenceList.getByRole('link', { name: 'ETF Welt', exact: true });
+      const linkBox = (await evidenceLink.boundingBox())!;
+      expect(linkBox.width).toBeGreaterThanOrEqual(44);
+      expect(linkBox.height).toBeGreaterThanOrEqual(44);
     }
 
     legacyDto = true;
@@ -72,6 +110,8 @@ sampleTest(
     await allocation.getByText('Wie wird gerechnet?', { exact: true }).click();
     await expect(allocation).toContainText('Quelldetails nicht verfügbar.');
     await expect(allocation).toContainText('Datengrundlage am 17.09.2026');
+    await expect(allocation).toContainText(expectedValueText);
+    await expect(allocation).toContainText(expectedQualityText);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const legacyAudit = await new AxeBuilder({ page }).include('main').analyze();
     expect(
