@@ -129,3 +129,35 @@ format patch if needed. No local formatter, Node, build or test was run.
 This correction awaits capable independent HIGH review and scoped runtime proof;
 no public PR or acceptance is claimed. The above body-identity comparison now
 has this explicitly bounded presentation-only WholeChart exception.
+
+
+## Rendered phone selector correction
+
+Proof 40591087605 verified exactly three actual feature selections by --list
+(desktop/mobile/WebKit), then passed all three complete 623 cases first attempt
+plus three setups. This covered both themes, exact original money/FX/estimate/
+CSV/unavailable and existing accessibility/44px/no-page-overflow assertions.
+Lint/types/CSS/build and tracked-file guard passed. A second mechanical Prettier
+wrap remained in WholeChart; its exact one-file patch SHA256 is
+33a4349e3c47d7a951d2e6aad2eae5669b40d23f2bc0849f38d36a3204998514.
+
+Nevertheless actual WebKit dark viewport review showed a REAL visual defect:
+three long wealth-view labels overlapped and wrapped outside the fixed-height
+buttons. The shared Segmented primitive is inline-grid with column auto-flow,
+so the archived flex-wrap rule did nothing. Text wrapping plus min-height44 did
+not allow the label area to grow. This is not a waived or accepted layout.
+
+Only the wealth wrapper now adds report-wealth-switch. At phone widths its
+selector uses one grid column/row flow and auto-height buttons with the same
+44px floor. Desktop and all other selectors (Plan, Hub, 621 and spending) are
+unchanged. No option, selected state, navigation/keyboard handler, data or money
+semantics change. The existing 623 E2E now also measures each visible button's
+real DOM text Range in every phone view/theme. It asserts all three literal
+labels, each text rectangle inside its own button, and pairwise text rectangle
+non-overlap; geometry JSON is attached. The original money/privacy/Axe/44px/
+no-overflow and desktop1800 assertions remain. No baseline is regenerated.
+
+The one-file formatter wrap above is applied only by its exact pinned raw patch
+and apply-check, after the CSS/test edits. This source delta awaits capable HIGH
+review and one necessary visual/runtime proof; prior financial proof is reusable
+only for unchanged financial blobs. No local formatter/test/browser was run.

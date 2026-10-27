@@ -260,6 +260,34 @@ test('623 each fixed-date wealth view preserves literal FX/debt cents, estimates
       await expect(page.locator(body)).toContainText('≈');
       expect(new URL(page.url()).searchParams.get('zeitraum')).toBe(period);
       expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
+      if (info.project.name !== 'desktop') {
+        const labels = await page.getByRole('group', { name: 'Ansicht von Vermögen und Schulden', exact: true }).getByRole('button').evaluateAll((buttons) => buttons.map((button) => {
+          const range = document.createRange();
+          range.selectNodeContents(button);
+          const text = range.getBoundingClientRect();
+          const box = button.getBoundingClientRect();
+          return {
+            label: button.textContent,
+            text: { left: text.left, right: text.right, top: text.top, bottom: text.bottom },
+            button: { left: box.left, right: box.right, top: box.top, bottom: box.bottom },
+          };
+        }));
+        expect(labels.map((label) => label.label)).toEqual(['Vermögen und Schulden', 'Vermögensverlauf', 'Gesamtübersicht']);
+        for (const label of labels) {
+          expect(label.text.left).toBeGreaterThanOrEqual(label.button.left);
+          expect(label.text.right).toBeLessThanOrEqual(label.button.right);
+          expect(label.text.top).toBeGreaterThanOrEqual(label.button.top);
+          expect(label.text.bottom).toBeLessThanOrEqual(label.button.bottom);
+        }
+        for (let first = 0; first < labels.length; first++) {
+          for (let second = first + 1; second < labels.length; second++) {
+            const a = labels[first]!.text;
+            const b = labels[second]!.text;
+            expect(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top).toBe(true);
+          }
+        }
+        await info.attach(`wealth-selector-${figure || 'whole'}-${theme}.json`, { body: JSON.stringify(labels, null, 2), contentType: 'application/json' });
+      }
       await inspect(page, info, `wealth-${name}-${theme}`);
       await privacy(page);
       if (figure) {

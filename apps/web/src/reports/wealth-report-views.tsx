@@ -45,7 +45,7 @@ export function WealthReportViews({ report, meta }: { report: ReportEntry; meta:
   };
   const control = (
     <Segmented
-      className="report-view-switch"
+      className="report-view-switch report-wealth-switch"
       label="Ansicht von Vermögen und Schulden"
       options={WEALTH_VIEWS}
       value={view}

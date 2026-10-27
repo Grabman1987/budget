@@ -385,12 +385,10 @@ export function WholeChart({ data }: { data: Data }) {
           <Graticule
             x1={left}
             x2={right}
-            lines={upper
-              .ticks(3)
-              .map((value) => ({
-                y: upper(value),
-                label: eur(Math.round(value), { cents: false }),
-              }))}
+            lines={upper.ticks(3).map((value) => ({
+              y: upper(value),
+              label: eur(Math.round(value), { cents: false }),
+            }))}
           />
           <text x={left} y={140} className="svg-label">
             Nettovermögen Ende · €
