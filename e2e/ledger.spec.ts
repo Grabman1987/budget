@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { test as isolatedTest } from './isolated-ledger';
 import {
   again,
   balance,
@@ -10,6 +11,8 @@ import {
   openLedgerFilters,
   applyLedgerFilters,
 } from './ledger-helpers';
+
+isolatedTest.use({ ledgerToday: new Date().toISOString().slice(0, 10) });
 
 /**
  * The ledger end to end on the real server: accounts, bookings with split and transfer, edit in
@@ -136,15 +139,27 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await expect(page.getByRole('row', { name: new RegExp(shop) })).toBeVisible();
 });
 
-test('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
+isolatedTest('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
   page,
+  ledgerToday,
 }, testInfo) => {
   const tag = `${testInfo.project.name}${again(testInfo)}`;
   const giro = `Sammel ${tag}`;
   await createAccount(page, giro, 'Giro', '500');
+  const headers = { origin: new URL(page.url()).origin };
+  const groupResponse = await page.request.post('/api/categories/groups', {
+    headers,
+    data: { name: `Bulk ${tag}` },
+  });
+  expect(groupResponse.ok(), await groupResponse.text()).toBe(true);
+  const { group } = (await groupResponse.json()) as { group: { id: string } };
+  const categoryResponse = await page.request.post('/api/categories', {
+    headers,
+    data: { name: 'Essen', groupId: group.id, class: 'need' },
+  });
+  expect(categoryResponse.ok(), await categoryResponse.text()).toBe(true);
   // Uncategorised bookings cannot be captured any more (a category is required), so they are
   // seeded through the API like an import would.
-  const headers = { origin: new URL(page.url()).origin };
   const accounts = (await (await page.request.get('/api/accounts')).json()) as {
     accounts: { id: string; name: string }[];
   };
@@ -161,7 +176,7 @@ test('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
       data: {
         type: 'booking',
         accountId,
-        date: new Date().toISOString().slice(0, 10),
+        date: ledgerToday,
         amountCents: cents,
         payeeId,
         splits: [{ categoryId: null, amountCents: cents }],
