@@ -59,8 +59,7 @@ function endKnownSession(): void {
     // Revocation runs synchronously before this promise reaches IndexedDB.
     void clearDeviceFinancialData().catch(() => undefined);
   }
-  if (typeof window !== 'undefined')
-    window.dispatchEvent(new Event('budget-session-expired'));
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('budget-session-expired'));
 }
 export function onApiWrite(listener: () => void): () => void {
   writeListeners.add(listener);
@@ -145,9 +144,11 @@ export async function request<T>(
     );
   }
   if (method !== 'GET') notifyApiWrite();
-  if (authGeneration !== null &&
+  if (
+    authGeneration !== null &&
     snapshotGeneration() === authGeneration &&
-    (payload as { authenticated?: boolean }).authenticated === false)
+    (payload as { authenticated?: boolean }).authenticated === false
+  )
     endKnownSession();
   if (
     method === 'POST' &&

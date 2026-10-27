@@ -61,11 +61,12 @@ export async function snapshotEpoch(): Promise<string | null> {
       return await new Promise<string | null>((resolve) => {
         const tx = db.transaction('meta', 'readonly');
         const get = tx.objectStore('meta').get('epoch');
-        get.onsuccess = () => resolve(
-          !revoked && readPermission() === permission && get.result === permission
-            ? permission
-            : null,
-        );
+        get.onsuccess = () =>
+          resolve(
+            !revoked && readPermission() === permission && get.result === permission
+              ? permission
+              : null,
+          );
         get.onerror = () => resolve(null);
       });
     } finally {
@@ -121,7 +122,11 @@ export function subscribeSnapshotEpoch(changed: () => void): () => void {
     if (!revoked) {
       revoked = true;
       generation += 1;
-      try { localStorage.removeItem(READ_PERMISSION); } catch { /* Clear still runs in sender. */ }
+      try {
+        localStorage.removeItem(READ_PERMISSION);
+      } catch {
+        /* Clear still runs in sender. */
+      }
     }
     if (deliveredGeneration !== generation) {
       deliveredGeneration = generation;
@@ -133,9 +138,10 @@ export function subscribeSnapshotEpoch(changed: () => void): () => void {
   };
   window.addEventListener('storage', storage);
   const channel = 'BroadcastChannel' in globalThis ? new BroadcastChannel(CHANNEL) : null;
-  if (channel) channel.onmessage = (event: MessageEvent<{ source: string }>) => {
-    if (event.data?.source !== TAB_ID) receive();
-  };
+  if (channel)
+    channel.onmessage = (event: MessageEvent<{ source: string }>) => {
+      if (event.data?.source !== TAB_ID) receive();
+    };
   return () => {
     window.removeEventListener('storage', storage);
     channel?.close();
@@ -173,11 +179,15 @@ export async function readSnapshots(): Promise<Partial<Record<SnapshotKind, Snap
       const current = tx.objectStore('meta').get('epoch');
       const rows = tx.objectStore('views').getAll();
       tx.oncomplete = () => {
-        resolve(revoked || readPermission() !== permission || current.result !== permission ? {} : Object.fromEntries(
-          (rows.result as Snapshot[])
-            .filter((row) => row.epoch === permission)
-            .map((row) => [row.kind, row]),
-        ));
+        resolve(
+          revoked || readPermission() !== permission || current.result !== permission
+            ? {}
+            : Object.fromEntries(
+                (rows.result as Snapshot[])
+                  .filter((row) => row.epoch === permission)
+                  .map((row) => [row.kind, row]),
+              ),
+        );
       };
       tx.onerror = tx.onabort = () => reject(tx.error);
     });
@@ -225,9 +235,13 @@ export function snapshotRequest(path: string): { kind: SnapshotKind; key: string
   }
   if (url.pathname === '/api/bookings') {
     const keys = [...url.searchParams.keys()];
-    if (keys.length === 2 && keys.includes('to') && keys.includes('limit') &&
+    if (
+      keys.length === 2 &&
+      keys.includes('to') &&
+      keys.includes('limit') &&
       url.searchParams.get('limit') === '50' &&
-      url.searchParams.get('to') === todayInVienna())
+      url.searchParams.get('to') === todayInVienna()
+    )
       return { kind: 'bookings', key: path };
   }
   return null;

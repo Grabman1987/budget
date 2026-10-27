@@ -11,9 +11,12 @@ it('persists only the four approved primary response keys', () => {
   expect(snapshotRequest('/api/budget/2026-09')?.kind).toBe('plan');
   expect(snapshotRequest('/api/bookings?to=2026-09-17&limit=50')?.kind).toBe('bookings');
   for (const path of [
-    '/api/auth/status', '/api/lookups', '/api/budget/2026-08',
+    '/api/auth/status',
+    '/api/lookups',
+    '/api/budget/2026-08',
     '/api/bookings?to=2026-09-16&limit=50',
     '/api/bookings?accountId=a&to=2026-09-17&limit=50',
     '/api/bookings?to=2026-09-17&cursor=older&limit=50',
-  ]) expect(snapshotRequest(path)).toBeNull();
+  ])
+    expect(snapshotRequest(path)).toBeNull();
 });

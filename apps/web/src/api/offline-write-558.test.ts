@@ -7,10 +7,17 @@ it('does not send an offline financial write outside the existing idempotent cap
   const fetch = vi.fn().mockResolvedValue(new Response('{"ok":true}', { status: 200 }));
   vi.stubGlobal('navigator', { onLine: false });
   vi.stubGlobal('fetch', fetch);
-  await expect(request('PUT', '/api/budget/2026-09/assigned', { items: [] }))
-    .rejects.toMatchObject({ status: 0, code: 'offline_read_only' });
+  await expect(request('PUT', '/api/budget/2026-09/assigned', { items: [] })).rejects.toMatchObject(
+    { status: 0, code: 'offline_read_only' },
+  );
   expect(fetch).not.toHaveBeenCalled();
-  await expect(request('POST', '/api/bookings', { amountCents: -1250 }, { 'Idempotency-Key': 'synthetic-key' }))
-    .resolves.toEqual({ ok: true });
+  await expect(
+    request(
+      'POST',
+      '/api/bookings',
+      { amountCents: -1250 },
+      { 'Idempotency-Key': 'synthetic-key' },
+    ),
+  ).resolves.toEqual({ ok: true });
   expect(fetch).toHaveBeenCalledTimes(1);
 });

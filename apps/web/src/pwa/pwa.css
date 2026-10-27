@@ -1,4 +1,6 @@
-.pwa-live:not([hidden]) { display: contents; }
+.pwa-live:not([hidden]) {
+  display: contents;
+}
 .pwa-update {
   position: fixed;
   z-index: 1000;
@@ -42,13 +44,20 @@
   border-top: 1px solid var(--rule-strong);
   padding-block: 16px;
 }
-.offline-nav { display: flex; flex-wrap: wrap; gap: 8px; }
-.offline-nav .btn { min-height: 44px; }
+.offline-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.offline-nav .btn {
+  min-height: 44px;
+}
 .offline-view ul {
   list-style: none;
   padding: 0;
 }
-.offline-view li, .offline-view dl > div {
+.offline-view li,
+.offline-view dl > div {
   display: flex;
   justify-content: space-between;
   flex-wrap: wrap;
@@ -57,10 +66,21 @@
   border-bottom: 1px solid var(--rule);
   overflow-wrap: anywhere;
 }
-.offline-view li > *, .offline-view dl > div > * { min-width: 0; }
-.offline-view strong { font-variant-numeric: tabular-nums; }
-.offline-view summary { display: flex; align-items: center; min-height: 44px; }
-.offline-stamp { color: var(--ink-2); }
+.offline-view li > *,
+.offline-view dl > div > * {
+  min-width: 0;
+}
+.offline-view strong {
+  font-variant-numeric: tabular-nums;
+}
+.offline-view summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.offline-stamp {
+  color: var(--ink-2);
+}
 .queue-detail a {
   display: inline-flex;
   align-items: center;

@@ -10,7 +10,10 @@ import {
 const clearChoices = vi.hoisted(() => vi.fn());
 vi.mock('./queue-store', () => ({ clearChoices }));
 const snapshots = vi.hoisted(() => ({ clear: vi.fn(), revoke: vi.fn() }));
-vi.mock('./snapshots', () => ({ clearSnapshots: snapshots.clear, revokeSnapshots: snapshots.revoke }));
+vi.mock('./snapshots', () => ({
+  clearSnapshots: snapshots.clear,
+  revokeSnapshots: snapshots.revoke,
+}));
 
 const cacheNames = vi.hoisted(() => ({ list: [] as string[] }));
 const deleted: string[] = [];
