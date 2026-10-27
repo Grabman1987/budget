@@ -148,3 +148,36 @@ new three-profile browser and specifically affected old networth consumer proof.
 Any concrete failure must be diagnosed without weakening financial/security/
 Undo/timeouts/skips/retries or blindly regenerating baselines. Parent524 is not
 closed by this package. Refs #550 and #551.
+
+## Current combined wealth package, 2026-10-27
+
+This section supersedes the historical source-only and pending-runtime statements above.
+The reviewed composition source `360bfb21a0dbeaa18d1419f1a154be0e3174fbf7`
+was merged without conflict into checked main
+`a16757e466bacf6f8244a83dfc8c6620bc09a840`. The separately reviewed
+allocation provenance source `28cc64c1304a024692e6f08c4774f1efa0ad0812`
+was then merged into the same private wealth package. The two owned path sets
+are disjoint; the combined source is `743b514339b3fbcc020992c64ee4a244ce2e6b3e`.
+Both issue-specific independent reviews are retained under `private/` outside
+the repository. No existing producer, writer, audit, FX, lock or Undo rule was
+replaced by the combination.
+
+Composition proof
+[40545144848](https://github.com/Grabman1987/budget/actions/runs/40545144848)
+passed scoped format, lint, types, build, 55 literal units and 10 browser cases
+first attempt. Root inspected the corrected desktop and WebKit viewport images
+and approved exactly four changed net-worth baselines, with no broader
+regeneration. Allocation proof
+[40556171312](https://github.com/Grabman1987/budget/actions/runs/40556171312)
+passed scoped format, lint, types, build and the full new desktop, Chromium 390
+and WebKit iPhone case (six total including three setup cases) first attempt.
+Its earlier literal API regression passed 13/13 in
+[40554077678](https://github.com/Grabman1987/budget/actions/runs/40554077678).
+The intermediate #521 browser failures were repaired without changing money
+logic or existing test oracles: unconditional canonical selected-scope disclosure
+and a literal `8_800_000` cents / `88.000 €` synthetic expectation.
+
+The combined commit, public PR, mandatory exact-head full CI, serial release and
+each issue's own acceptance closure remain pending. Parent #524 and private
+Portfolio Performance acceptance remain separate. No production financial data
+or settings were used in these synthetic proofs.
