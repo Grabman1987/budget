@@ -163,3 +163,100 @@
 .vview:not(.debts-view, .freedom-view) > :is(.vnw, .vcomp) {
   grid-column: 1 / -1;
 }
+
+/* Net-worth composition: shared rounded producer values, separate from the daily total chart. */
+.composition-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-block: 8px;
+}
+.composition-switch button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+}
+.composition-switch button[aria-pressed='true'] {
+  border-color: var(--line);
+  background: var(--tint);
+  color: var(--ink);
+}
+.asset-composition-groups {
+  margin-top: 12px;
+}
+.asset-composition-group {
+  border-top: 1px solid var(--rule);
+}
+.asset-composition-group summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding-block: 8px;
+  cursor: pointer;
+}
+.asset-composition-amount {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.asset-composition-amount small {
+  color: var(--ink-2);
+  font-size: var(--fs-label);
+}
+.asset-composition table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+.asset-composition :is(th, td) {
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+  font-weight: normal;
+}
+.asset-composition :is(th, td):last-child {
+  text-align: right;
+}
+.asset-composition a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.asset-history .vline {
+  max-height: none;
+}
+.asset-history-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 0;
+  margin: 12px 0;
+  list-style: none;
+  color: var(--ink-2);
+  font-size: var(--fs-label);
+}
+.asset-history-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.asset-history-legend i {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+}
+.asset-history-legend .asset-net-line {
+  height: 0;
+  width: 16px;
+  border-top: var(--stroke-measure) solid var(--line);
+}

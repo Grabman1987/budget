@@ -21,6 +21,14 @@ export interface AllocationSecurity {
   held: boolean;
 }
 
+/** Stored provenance of the effective exposure, not the current valuation/classification quality. */
+export interface AllocationExposureEvidence {
+  securityId: string;
+  validFrom: string | null;
+  source: string | null;
+  storedComplete: boolean | null;
+}
+
 /** Current dated assignments, including products that have never been bought. */
 export function allocationSecuritiesAsOf(db: Executor, asOf: string) {
   const exposures = exposuresAsOf(db, asOf);
@@ -188,10 +196,26 @@ export function allocationInputsAsOf(db: Executor, asOf: string) {
     missingFxSecurityIds: valuation.missingFxPositions.filter(included).map((h) => h.securityId),
     missingFxAccountIds,
   });
+  const heldSecurityIds = new Set([
+    ...values.map((position) => position.securityId),
+    ...unavailable.flatMap((position) => (position.securityId ? [position.securityId] : [])),
+  ]);
+  const exposureEvidence: AllocationExposureEvidence[] = [...heldSecurityIds]
+    .sort()
+    .map((securityId) => {
+      const exposure = exposures.get(securityId);
+      return {
+        securityId,
+        validFrom: exposure?.validFrom ?? null,
+        source: exposure?.source ?? null,
+        storedComplete: exposure?.complete ?? null,
+      };
+    });
   return {
     positions,
     quality,
     unavailable,
+    exposureEvidence,
     valueCents:
       quality.valuationQuality === 'incomplete'
         ? null
