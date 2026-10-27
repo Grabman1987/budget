@@ -93,6 +93,44 @@ The selected-category envelope, quick assignment, cover and Undo remain intact.
 - issue-571-heute-kennzahlen.spec.ts: ONLY the old overview available-row locator
   changes to the new Monatsaufstellung container/Verfügbar label. The exact
   cross-page Heute/Plan available amount and all TBA/net-worth oracles remain.
+- plan-activity-735.test.tsx: the new next-month GET previously fell through the
+  old test stub to `{}` with status200. The raw stack at NextMonthCoverage showed
+  undefined summary.month and the router error boundary, before the second row
+  could be selected. Add an explicit valid November empty-target DTO only; all
+  original two-row selection, unrelated group collapse, Back/source month and
+  GET-only assertions remain. No selection handler or timing change.
+- plan-compact-grid.spec.ts: owner450 comment6209536493 requires BOTH month and
+  50/30/20 open. Replace the obsolete count1 with exactly2 AND their exact named
+  summaries, preserving every existing unrelated-group, row/cents, geometry,
+  keyboard, selection, multiple-month and focus assertion. No blanket count
+  relaxation or change to the owner defaults.
+
+## First focused proof and source-grounded corrections
+
+Exact943 focused40512927930/job122219087488 returned format1/lint0/type0/css0/
+unit1/build0/overview1/parity0/compatibility1. Old571 cross-page parity passed6/6.
+The new browser case reached its final income-jump selector in all3 profiles
+after its financial, privacy, both-theme Axe/touch/no-overflow, persistence and
+desktop geometry assertions. The selector matched both the header money action
+and the filter pill; scope it to the intended plan-topbar action without first,
+force or any assertion change. The account fixture lacked required role; add
+only role=budget and retain literal1600+4600−2100=4100 unchanged.
+
+The full8-path formatter patch from artifact12738341431 was inspected, its SHA256
+ff298fd107da667a45d610cb6287972bf17f9252f50a94db6b7a30fef6c7253d verified and
+git-apply checked on clean943 before mechanical application. It changes wrapping,
+indentation and parentheses only; no finance literal, handler or oracle changes.
+No evidence image or baseline is part of that allowlisted patch.
+
+Raw trace geometry (before the end-of-case selector failure), both themes:
+side320×812, main grid788×1998 at1440×900. Top y values were175.6875/light and
+88.6875/dark as the page scrolled. Thus the actual side<=grid height assertion
+passed; these measurements do not claim the whole side content fits one screen.
+Actual desktop-light and WebKit-dark viewport images were inspected. The shared
+AllocationBar target tick labels appear crowded at this sample's unusually high
+assignment/income ratio; that existing chart was not redesigned in these fixture
+and selector corrections and should remain visible to independent visual review.
+All original timeouts/retries/skips and financial/focus/Undo oracles remain.
 
 ## Evidence limits and next steps
 

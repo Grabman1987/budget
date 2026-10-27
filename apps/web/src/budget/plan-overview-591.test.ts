@@ -28,7 +28,7 @@ it('shows the canonical fixed-ledger envelope carry + assignment + activity = av
   const opened = createTestDatabase();
   try {
     opened.sqlite.exec(`
-      INSERT INTO account(id,name,type,on_budget,opening_date) VALUES('a','Synthetic cash','checking',1,'2026-09-01');
+      INSERT INTO account(id,name,type,role,on_budget,opening_date) VALUES('a','Synthetic cash','checking','budget',1,'2026-09-01');
       INSERT INTO category_group(id,name) VALUES('g','Synthetic group');
       INSERT INTO category(id,name,group_id,class,kind,opening_available_cents)
         VALUES('c1','Synthetic fixed','g','need','fixed',1000),('c2','Synthetic variable','g','want','variable',600);

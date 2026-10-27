@@ -128,7 +128,7 @@ test('591 no-selection overview preserves cents, canonical target shortfalls and
   for (const section of [income, money, rail]) await expect(section).toHaveAttribute('open', '');
   await expect(month).toHaveAttribute('open', '');
   await inspector.getByRole('button', { name: 'Monatsüberblick einklappen', exact: true }).click();
-  await page.getByRole('button', { name: /^Unterfinanziert / }).click();
+  await page.locator('.plan-topbar').getByRole('button', { name: /^Unterfinanziert / }).click();
   await expect(
     inspector.getByRole('button', { name: 'Monatsüberblick einklappen', exact: true }),
   ).toHaveAttribute('aria-expanded', 'true');
