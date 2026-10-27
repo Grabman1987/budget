@@ -134,15 +134,16 @@ All original timeouts/retries/skips and financial/focus/Undo oracles remain.
 
 ## Evidence limits and next steps
 
-Source-only local agent path. No local Node/npm/build/test/browser/install/lint or
-formatter was run under the host RAM restriction. No remote VM, public source
-push/PR or full CI. No runtime geometry or green test result is claimed.
-Independent capable HIGH whole-diff review precedes a bounded focused proof of
-new literal units, affected existing Plan/Heute tests, native disclosure
-persistence and all three browser profiles/themes. Measure actual default
-side-list/grid boxes at1440×900 and inspect viewport images; repair a real layout
-failure in source rather than weakening the height oracle. Preserve exact cents,
-privacy, Axe, touch, no-overflow, timeouts, retries and skips. Retain and inspect
-any formatter patch outside browser cleanup. Publication remains coordinator-owned.
+No local Node/npm/build/test/browser/install/lint or formatter was run under the
+host RAM restriction. The exact943 focused result and its limitations are above;
+the corrected checkpoint is not yet runtime-validated. No public source push/PR
+or full CI. Independent capable HIGH delta review precedes one narrow proof of
+the affected units, new complete591 browser case and old compact-grid case.
+Reuse unchanged static/571 and head-browser passes only by content identity.
+Preserve exact cents, privacy, Axe, touch, no-overflow, timeouts, retries and skips.
+Retain and inspect any formatter patch outside browser cleanup. The two existing
+587 evidence PNGs changed inside the disposable proof; neither is a comparison
+baseline or part of this source branch/formatter patch. Publication remains
+coordinator-owned.
 
 Refs #591
