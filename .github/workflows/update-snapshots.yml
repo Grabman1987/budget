@@ -1,75 +1,85 @@
-name: Update e2e snapshots
-
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+name: Mounted Plan icon scale canonical proof
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch whose baselines to update (never main)
+        description: Disposable exact-source branch
         required: true
-      specs:
-        description: Space-separated spec paths (e.g. e2e/shell.spec.ts); empty = every spec that compares screenshots
-        required: false
-        default: ''
-
 permissions:
-  contents: write
-
+  contents: read
 concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
-
+  group: month-overview-${{ inputs.branch }}
+  cancel-in-progress: false
 jobs:
-  update:
-    if: inputs.branch != 'main'
+  focused:
+    if: inputs.branch == 'codex/plan-icon-proof-f907c2d5'
     runs-on: ubuntu-24.04
-    # Match the CI browser image instead of reinstalling its OS/browser dependencies.
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     defaults:
       run:
         shell: bash
-    # A type-scale change regenerates nearly every baseline; give it room.
-    timeout-minutes: 75
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.branch }}
-      - name: Allow Git reads and baseline commits in the container workspace
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+          fetch-depth: 0
+          persist-credentials: false
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        env:
-          SPECS: ${{ inputs.specs }}
+      - name: Exact mounted Plan icon scale full canonical spec
         run: |
-          npm run build:e2e
-          read -r -a specs <<< "$SPECS"
-          if [ "${#specs[@]}" -eq 0 ]; then
-            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
+          set +e
+          set -o pipefail
+          mkdir -p proof-output
+          source_sha=f907c2d5f67f9d642e5bf6f03626b46a498d5447
+          test "$(git rev-parse HEAD^)" = "$source_sha" || exit 70
+          git diff --exit-code "$source_sha" HEAD -- apps packages e2e docs || exit 71
+          printf 'SOURCE=%s PROOF=%s\n' "$source_sha" "$(git rev-parse HEAD)" | tee proof-output/source.txt
+          : > proof-output/format.patch
+          git cat-file -e a820e56bb354e336f4b3c2aa81fcddfd9ed8f689^{commit} || exit 72
+          mapfile -t targets < <(git diff --name-only 2a0ca6154dd7cd62e3ce8dde60b7addd4d7c7df3 "$source_sha" -- apps e2e docs)
+          printf '%s\n' "${targets[@]}" > proof-output/allowlist.txt
+          npx prettier --check "${targets[@]}" 2>&1 | tee proof-output/format.log
+          format_code=${PIPESTATUS[0]}
+          if [ "$format_code" -ne 0 ]; then
+            npx prettier --write "${targets[@]}" 2>&1 | tee proof-output/format-write.log
+            git diff --binary -- "${targets[@]}" > proof-output/format.patch
+            git diff --numstat -- "${targets[@]}" > proof-output/format-numstat.txt
+            sha256sum proof-output/format.patch | tee proof-output/format.sha256
+            git restore -- "${targets[@]}"
           fi
-          npx playwright test --update-snapshots=changed "${specs[@]}" || true
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+          mapfile -t ts < <(printf '%s\n' "${targets[@]}" | grep -E '\.(ts|tsx)$')
+          npx eslint "${ts[@]}" 2>&1 | tee proof-output/eslint.log
+          lint_code=${PIPESTATUS[0]}
+          npm run typecheck 2>&1 | tee proof-output/typecheck.log
+          type_code=${PIPESTATUS[0]}
+          node packages/ui/scripts/check-css-scale.mjs 2>&1 | tee proof-output/css-scale.log
+          css_code=${PIPESTATUS[0]}
+          npm run build:e2e 2>&1 | tee proof-output/build.log
+          build_code=${PIPESTATUS[0]}
+          browser=1
+          if [ "$build_code" -eq 0 ]; then
+            date -u '+browser-start %FT%TZ' | tee proof-output/timing.log
+            npx playwright test e2e/issue-471-icons.spec.ts --project=desktop --project=mobile --project=webkit-iphone --workers=1 --retries=0 --trace=on --update-snapshots=none 2>&1 | tee proof-output/browser.log
+            browser=${PIPESTATUS[0]}
+            cp -a test-results proof-output/browser-results
+            date -u '+browser-end %FT%TZ' | tee -a proof-output/timing.log
+          fi
+          sha256sum proof-output/format.patch | tee proof-output/format.sha256
+          git diff --binary -- apps packages e2e docs > proof-output/source.patch
+          git diff --stat | tee proof-output/final-diff.txt
+          printf 'RESULT format=%s lint=%s type=%s css=%s build=%s browser=%s\n' "$format_code" "$lint_code" "$type_code" "$css_code" "$build_code" "$browser" | tee proof-output/result.txt
+          [ "$format_code" -eq 0 ] && [ "$lint_code" -eq 0 ] && [ "$type_code" -eq 0 ] && [ "$css_code" -eq 0 ] && [ "$build_code" -eq 0 ] && [ "$browser" -eq 0 ]
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
-          name: scoped-browser-screenshots
-          path: test-results/**/*.png
-          if-no-files-found: ignore
+          name: plan-icon-f907c2d5
+          path: proof-output/
+          if-no-files-found: warn
           retention-days: 7
-      - name: Commit the new baselines
-        env:
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
