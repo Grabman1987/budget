@@ -51,6 +51,108 @@ function snapshot(path: string) {
     opened.close();
   }
 }
+async function privacy(page: Page, hidden: boolean) {
+  const profile = page.locator('.m-profile summary');
+  const mobile = await profile.isVisible();
+  if (mobile) await profile.click();
+  const toggle = page.getByRole('button', { name: 'Beträge verbergen', exact: true });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', String(hidden));
+  if (mobile) await profile.press('Escape');
+}
+async function compactDesktop(page: Page, info: TestInfo, state: string) {
+  if (info.project.name !== 'desktop') return;
+  expect(page.viewportSize()).toEqual({ width: 1440, height: 900 });
+  const geometry = await page.evaluate(() => ({ height: document.documentElement.scrollHeight, width: document.documentElement.scrollWidth }));
+  await info.attach(state, { body: JSON.stringify(geometry), contentType: 'application/json' });
+  expect(geometry.height).toBeLessThanOrEqual(1800);
+}
+async function instrumentPrivacy(page: Page, info: TestInfo, theme: string) {
+  const history = page.getByRole('region', { name: 'Wert und Kurs', exact: true });
+  for (const mode of ['Wert €', 'Kurs']) {
+    await history.getByRole('button', { name: mode, exact: true }).click();
+    const chart = history.getByTestId(mode === 'Wert €' ? 'instrument-value-chart' : 'price-history-chart');
+    const table = history.locator('.chart-data-table');
+    await table.locator('summary').click();
+    const cells = table.locator('.chart-data-value');
+    const publicValues = await cells.allTextContents();
+    expect(publicValues.length).toBeGreaterThan(0);
+    expect(publicValues).toContain(mode === 'Wert €' ? '24,69 €' : '12,345 €');
+    const axes = chart.locator('.graticule + text');
+    const publicAxes = await axes.allTextContents();
+    expect(publicAxes.length).toBeGreaterThan(0);
+    await privacy(page, true);
+    await expect(cells).toHaveText(publicValues.map(() => '•••'));
+    await expect(axes).toHaveText(publicAxes.map(() => '•••'));
+    await expect(table).toContainText('11.09.2026');
+    const inspect = chart.locator('..');
+    await inspect.focus();
+    await inspect.press('ArrowRight');
+    const tooltip = page.locator('.chart-tooltip');
+    await expect(tooltip).toContainText('11.09.2026');
+    const values = tooltip.locator('strong');
+    expect(await values.count()).toBeGreaterThan(0);
+    await expect(values).toHaveText(Array.from({ length: await values.count() }, () => '•••'));
+    await expect(tooltip).not.toContainText('24,69');
+    await expect(tooltip).not.toContainText('12,345');
+    await inspect.press('Escape');
+    await table.locator('summary').click();
+    await expect(table).not.toHaveAttribute('open', '');
+    await table.locator('summary').click();
+    await expect(cells).toHaveText(publicValues.map(() => '•••'));
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+    await page.screenshot({ path: info.outputPath(`instrument-${mode === 'Kurs' ? 'price' : 'value'}-private-${theme}.png`), fullPage: false });
+    await privacy(page, false);
+    await expect(cells).toHaveText(publicValues);
+    await expect(axes).toHaveText(publicAxes);
+    await table.locator('summary').click();
+  }
+  await history.getByRole('button', { name: 'Wert €', exact: true }).click();
+  await compactDesktop(page, info, `instrument-all-thirteen-trades-${theme}`);
+}
+async function savingsPrivacy(page: Page, info: TestInfo, theme: string) {
+  const purchases = page.locator('.savings-purchases');
+  const versions = page.locator('.savings-versions');
+  await purchases.locator(':scope > summary').click();
+  await versions.locator(':scope > summary').click();
+  await expect(purchases.locator('tbody tr')).toHaveCount(3);
+  await compactDesktop(page, info, `savings-purchases-and-versions-expanded-${theme}`);
+  const months = page.getByRole('region', { name: 'Letzte zwölf Monate', exact: true });
+  const may = months.getByRole('listitem').filter({ has: page.getByText('2026-05', { exact: true }) });
+  const july = months.getByRole('listitem').filter({ has: page.getByText('2026-07', { exact: true }) });
+  const august = months.getByRole('listitem').filter({ has: page.getByText('2026-08', { exact: true }) });
+  const extra = purchases.locator('[data-trade-id="extra-manual"]');
+  const publicPurchase = await extra.locator('.num').allTextContents();
+  expect(publicPurchase.length).toBe(4);
+  await privacy(page, true);
+  await expect(page.getByTestId('savings-next')).toHaveText('15.10.2026 · ••• €');
+  await expect(page.getByTestId('savings-paid')).toHaveText('••• €');
+  await expect(may).toContainText('••• €');
+  await expect(may).toContainText('Stück: •••');
+  await expect(may).not.toContainText('100,00');
+  await expect(july).toContainText('Geplant: ••• €');
+  await expect(july).toContainText('Zuordnung fehlt');
+  await expect(august).toContainText('Stück: •••');
+  await expect(august).not.toContainText('200,00');
+  await expect(extra.locator('.num')).toHaveText(['•••', '••• €', '••• €', '••• €']);
+  await expect(versions.locator('li strong')).toHaveText(['••• € · am 15.', '••• € · am 15.']);
+  await purchases.locator(':scope > summary').click();
+  await expect(purchases).not.toHaveAttribute('open', '');
+  await purchases.locator(':scope > summary').click();
+  await expect(extra.locator('.num')).toHaveText(['•••', '••• €', '••• €', '••• €']);
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+  await page.screenshot({ path: info.outputPath(`savings-expanded-private-${theme}.png`), fullPage: false });
+  await privacy(page, false);
+  await expect(page.getByTestId('savings-next')).toHaveText('15.10.2026 · 200,00 €');
+  await expect(page.getByTestId('savings-paid')).toHaveText('350,00 €');
+  await expect(may).toContainText('100,00 €');
+  await expect(may).toContainText('Stück: 10');
+  await expect(august).toContainText('Stück: 20');
+  await expect(extra.locator('.num')).toHaveText(publicPurchase);
+  await expect(versions.locator('li strong')).toHaveText(['200,00 € · am 15.', '100,00 € · am 15.']);
+  await purchases.locator(':scope > summary').click();
+  await versions.locator(':scope > summary').click();
+}
 async function themes(page: Page, info: TestInfo, name: string) {
   if (name === 'instrument') await page.getByTestId('instrument-value-chart').scrollIntoViewIfNeeded();
   else await page.getByRole('region', { name: 'Letzte zwölf Monate', exact: true }).scrollIntoViewIfNeeded();
@@ -67,6 +169,8 @@ async function themes(page: Page, info: TestInfo, name: string) {
       }
     }
     await page.screenshot({ path: info.outputPath(`${name}-${theme}.png`), fullPage: false });
+    if (name === 'instrument') await instrumentPrivacy(page, info, theme);
+    else await savingsPrivacy(page, info, theme);
   }
 }
 

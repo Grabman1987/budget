@@ -1,9 +1,27 @@
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, type PortfolioSummary } from '@budget/db';
-import { expect } from '@playwright/test';
+import { expect, type Page, type TestInfo } from '@playwright/test';
 import { test } from './isolated-ledger';
 
 test.use({ ledgerToday: '2026-12-31' });
+
+async function privacy(page: Page, hidden: boolean) {
+  const profile = page.locator('.m-profile summary');
+  const mobile = await profile.isVisible();
+  if (mobile) await profile.click();
+  const toggle = page.getByRole('button', { name: 'Beträge verbergen', exact: true });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', String(hidden));
+  if (mobile) await profile.press('Escape');
+}
+
+async function compactDesktop(page: Page, info: TestInfo, state: string) {
+  if (info.project.name !== 'desktop') return;
+  expect(page.viewportSize()).toEqual({ width: 1440, height: 900 });
+  const geometry = await page.evaluate(() => ({ height: document.documentElement.scrollHeight, width: document.documentElement.scrollWidth }));
+  await info.attach(state, { body: JSON.stringify(geometry), contentType: 'application/json' });
+  expect(geometry.height).toBeLessThanOrEqual(1800);
+}
 
 function seed(path: string) {
   const opened = openDatabase(path);
@@ -90,12 +108,57 @@ test('546 metrics share the report period and literal deposit-neutral return, fl
     }
     await metrics.scrollIntoViewIfNeeded();
     await page.screenshot({ path: info.outputPath(`metrics-${theme}.png`), fullPage: false });
+    await compactDesktop(page, info, `metrics-open-flow-${theme}`);
+    const riskValues = await metrics.locator('.portfolio-metrics-grid dd').allTextContents();
+    await privacy(page, true);
+    for (const id of ['metrics-period-ttwror', 'metrics-annual-ttwror', 'metrics-xirr']) {
+      await expect(metrics.getByTestId(id)).toHaveText('•••');
+    }
+    await expect(comparison.getByRole('row').nth(1).getByRole('cell')).toHaveText(['•••', '•••']);
+    await expect(metrics.locator('.portfolio-metrics-grid dd')).toHaveText(riskValues.map(value => value === '–' ? '–' : '•••'));
+    await expect(flows.getByRole('row').nth(1).getByRole('cell')).toHaveText(['••• €', '••• €']);
+    await expect(flows.getByRole('row').nth(1)).toContainText('31.12.2026');
+    await metrics.locator('.portfolio-flow-table summary').click();
+    await expect(flows).not.toBeVisible();
+    await metrics.locator('.portfolio-flow-table summary').click();
+    await expect(flows.getByRole('row').nth(1).getByRole('cell')).toHaveText(['••• €', '••• €']);
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+    await page.screenshot({ path: info.outputPath(`metrics-private-${theme}.png`), fullPage: false });
+    await privacy(page, false);
+    await expect(metrics.getByTestId('metrics-period-ttwror')).toHaveText('+10,0 %');
+    await expect(metrics.getByTestId('metrics-annual-ttwror')).toHaveText('+10,0 %');
+    await expect(metrics.getByTestId('metrics-xirr')).toHaveText('+20,0 %');
+    await expect(metrics.locator('.portfolio-metrics-grid dd')).toHaveText(riskValues);
+    await expect(comparison.getByRole('row').nth(1)).toContainText('+5,0 Pp');
+    await expect(flows.getByRole('row').nth(1)).toContainText('+100,00 €');
   }
   await metrics.getByRole('link', { name: 'Portfolio-Auswertung öffnen' }).click();
   await expect(page).toHaveURL(/\/reports\/prendite\?zeitraum=YTD$/);
   await expect(page.getByTestId('period-ttwror')).toHaveText('+10 %');
   await expect(page.locator('.performance-metrics dd').nth(0)).toHaveText('+10 %');
   await expect(page.locator('.performance-metrics dd').nth(1)).toHaveText(/^\+20 %\s*actual\/365$/);
+  expect(snapshot(isolatedLedger.databasePath)).toBe(before);
+});
+
+test('546 representative thirteen-date cash-flow table stays within two desktop screens when open', async ({ page, isolatedLedger }, info) => {
+  seed(isolatedLedger.databasePath);
+  const opened = openDatabase(isolatedLedger.databasePath);
+  try {
+    const insert = opened.sqlite.prepare("INSERT INTO trade (id,security_id,account_id,date,kind,units_e8,amount_cents) VALUES (?,'s','depot',?,'buy',100000000,10000)");
+    for (let month = 1; month <= 12; month++) insert.run(`monthly-${month}`, `2026-${String(month).padStart(2, '0')}-15`);
+  } finally { opened.close(); }
+  const before = snapshot(isolatedLedger.databasePath);
+  await page.goto('/vermoegen/portfolio/kennzahlen?zeitraum=YTD');
+  const details = page.locator('.portfolio-flow-table');
+  await details.locator('summary').click();
+  await expect(details.locator('tbody tr')).toHaveCount(13);
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(value => { document.documentElement.dataset['theme'] = value; }, theme);
+    await compactDesktop(page, info, `metrics-thirteen-open-flows-${theme}`);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await details.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: info.outputPath(`metrics-thirteen-open-flows-${theme}.png`), fullPage: false });
+  }
   expect(snapshot(isolatedLedger.databasePath)).toBe(before);
 });
 

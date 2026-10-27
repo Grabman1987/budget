@@ -127,6 +127,25 @@ placeholder failing the new metric/flow/benchmark assertions, not a harness,
 missing import or fixture failure. Full static checks and formatter remain for
 the coordinator-authorized remote proof; no local Node tool was run.
 
+## Incremental parent #525 acceptance coverage after full source review
+
+Independent HIGH whole-diff review of `98f650cf..4a6e347a` found source clear for
+focused proof, with two P2 coverage gaps: privacy on new surfaces and opened
+compact-state geometry. The following additive changes address the missing
+proof; they do not establish a passing runtime result or alter production code.
+
+| Test file | Addition and retained coverage |
+| --- | --- |
+| `e2e/issue-546-portfolio-metrics.spec.ts` | In each theme, use the existing privacy button (mobile profile menu where applicable), require masked TTWROR period/annual, XIRR, available risk values, benchmark return/difference and opened actual-flow amounts; dates remain visible, flow summary still closes/reopens, then restore original literal10%/10%/20%,5Pp and100EUR assertions. Axe also runs while private. Attach desktop1440×900 geometry and require≤1800px with the original flow table open. A separate representative fixture adds12 monthly100EUR buys, producing13 distinct flow dates; all13 rows must remain present when measuring the open table. The original independent100+100→220 case is unchanged. |
+| `e2e/issue-547-548-portfolio-details.spec.ts` | In both themes and both Wert/Kurs modes, open the actual accessible data table, confirm the independent24.69EUR/12.345EUR public values, then require every table value, monetary axis and inspected tooltip value masked, with dates retained and table controls usable. Restore captured public values/axes and close the table. Savings privacy covers next/paid, assigned and missing-month planned amounts, assigned units, expanded manual-purchase units/amount/fees/tax and both version rates, then restores original literals. Existing finance/proposal/immutable-row and editing, themes/Axe/touch/overflow assertions remain. Desktop geometry is attached and bounded≤1800 for all13 instrument trades (chart table closed after privacy inspection) and savings purchases+versions both expanded. Original collapsed savings≤2-viewport assertion remains on all profiles. |
+
+These issue-spec files remain selected by the configured desktop1440,
+Chromium390 and WebKit iPhone profiles; no timeout/retry/skip/project or original
+oracle changed. New screenshots are viewport-only output artifacts, not committed
+baselines. Actual heights and first-attempt assertions must be inspected in the
+upcoming authorized focused VM before deciding whether a minimal layout change
+is needed. No pre-emptive layout change, hidden rows or financial write was made.
+
 ## Next proof and risk boundaries
 
 1. Independent capable whole-diff review of repository/API/date/FX/account
