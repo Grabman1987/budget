@@ -67,7 +67,7 @@ test('550/551 literal signed composition reconciles lead, monthly chart, account
   const interactive = chart.locator('.chart-interactive');
   await interactive.focus();
   for (let i = 0; i < 3; i++) await interactive.press('ArrowRight');
-  const tooltip = chart.locator('.chart-tooltip');
+  const tooltip = page.getByRole('status');
   await expect(tooltip).toContainText('01.03.2026');
   await expect(tooltip).toContainText('10.000,00 € · 125,0 %');
   await expect(tooltip).toContainText('−2.000,00 € · −25,0 %');
