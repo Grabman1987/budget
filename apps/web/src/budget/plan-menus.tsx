@@ -1,4 +1,5 @@
 import { cx } from '@budget/ui';
+import { Check, ChevronDown } from 'lucide-react';
 import type { QuickAssignMode } from '@budget/domain';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { AppLink } from '../shell/app-link';
@@ -87,7 +88,12 @@ function PlanMenu({
     <details ref={ref} className={cx('plan-popover plan-menu', className)}>
       <summary title={title}>
         {label}
-        <span aria-hidden="true"> ▾</span>
+        <ChevronDown
+          className="disclosure-chevron"
+          size={16}
+          strokeWidth={1.75}
+          aria-hidden="true"
+        />
       </summary>
       <div className="plan-menu-panel" role="group" aria-label={label}>
         {children}
@@ -125,6 +131,9 @@ function MenuAction({
         }}
       >
         {children}
+        {pressed && (
+          <Check className="plan-menu-selected" size={16} strokeWidth={1.75} aria-hidden="true" />
+        )}
       </button>
       {reason && (
         <small id={id} className="plan-menu-reason">

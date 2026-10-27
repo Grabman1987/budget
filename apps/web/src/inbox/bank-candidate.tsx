@@ -213,7 +213,7 @@ function BankCandidateForm({
           disabled={busy}
           onClick={onClose}
         >
-          <X size={18} strokeWidth={1.75} aria-hidden="true" />
+          <X size={16} strokeWidth={1.75} aria-hidden="true" />
         </button>
       </div>
       <div className="bk-body kform">

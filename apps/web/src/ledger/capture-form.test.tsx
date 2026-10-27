@@ -121,7 +121,7 @@ it('places status by account, repeat by date and sharing by category, and expose
   const categoryRow = screen
     .getByLabelText('Kategorie', { exact: true })
     .closest('.bk-line-fields')!;
-  expect(categoryRow.contains(screen.getByRole('button', { name: 'Teilen ▾' }))).toBe(true);
+  expect(categoryRow.contains(screen.getByRole('button', { name: 'Teilen' }))).toBe(true);
   expect(screen.queryByLabelText('Auslage für Kontakt')).toBeNull();
   const picker = container.querySelector<HTMLInputElement>('input[type="date"]')!;
   expect(picker.tabIndex).toBe(0);
@@ -192,7 +192,7 @@ it('bank capture starts pending, has no Budgetmonat, and saves repetition', asyn
     ),
   );
   const status = screen.getByRole('button', { name: 'Vorgemerkt' });
-  expect(status.textContent).toBe('');
+  expect(status.textContent).toBe('Vorgemerkt');
   expect(status.getAttribute('title')).toBe('Vorgemerkt');
   await user.click(status);
   expect(screen.getByRole('button', { name: 'Bestätigt' }).getAttribute('aria-pressed')).toBe(
@@ -501,6 +501,6 @@ it('treats contact-sharing input as dirty before the gross amount is entered', a
     </QueryClientProvider>,
   );
   expect(dirty.current).toBe(false);
-  fireEvent.click(screen.getByRole('button', { name: 'Teilen ▾' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Teilen' }));
   await waitFor(() => expect(dirty.current).toBe(true));
 });

@@ -1,4 +1,10 @@
-import { readInbox, readInboxCount, resolveInboxItem, type Db } from '@budget/db';
+import {
+  prepareInboxBankSuggestions,
+  readInbox,
+  readInboxCount,
+  resolveInboxItem,
+  type Db,
+} from '@budget/db';
 import { Hono } from 'hono';
 import {
   inboxCause,
@@ -43,10 +49,11 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
       segment,
       taskSource,
     } = readQuery(c, page);
-    const inbox = readInbox(db, today(), bankSource, readSource, {
+    const { bankProgress, ...inbox } = readInbox(db, today(), bankSource, readSource, {
       excludeOverspent: segment !== undefined,
       ...(bankAccountId ? { bankAccountId } : {}),
     });
+    const progressFields = segment !== undefined || bankSource ? { bankProgress } : {};
     // Unlinked receipts count as tasks but are not entries; the header pill is the sum of both parts.
     const segments = { umsaetze: 0, aufgaben: inbox.count - inbox.entries.length };
     for (const entry of inbox.entries) segments[inboxSegment(entry)] += 1;
@@ -109,9 +116,15 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
       );
     // Without `limit` the whole queue, as before; `count` always is the full number of tasks.
     if (limit === undefined)
-      return c.json({ ...inbox, entries: filtered, overspentSummary, ...segmentFields });
+      return c.json({
+        ...inbox,
+        ...progressFields,
+        entries: prepareInboxBankSuggestions(db, filtered),
+        overspentSummary,
+        ...segmentFields,
+      });
     const start = offset ?? 0;
-    const entries = filtered.slice(start, start + limit);
+    const entries = prepareInboxBankSuggestions(db, filtered.slice(start, start + limit));
     const next = start + entries.length < filtered.length ? start + entries.length : null;
     const countsByKind: Record<string, number> = {};
     const countsByCause: Record<string, number> = {};
@@ -122,6 +135,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
     }
     return c.json({
       ...inbox,
+      ...progressFields,
       entries,
       overspentSummary,
       ...segmentFields,

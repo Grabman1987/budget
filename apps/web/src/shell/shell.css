@@ -506,10 +506,6 @@ a.btn {
     font-weight: 560;
     position: relative;
   }
-  .tabbar a .icon {
-    width: 22px;
-    height: 22px;
-  }
   .tabbar a[aria-current='page'] {
     color: var(--line);
   }

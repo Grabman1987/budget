@@ -46,7 +46,7 @@ function InfoButton({
         if (e.key === 'Escape' && open) onToggle();
       }}
     >
-      <Info className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
+      <Info className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
     </button>
   );
 }
@@ -217,7 +217,7 @@ export function FreedomContent({
           {[12, 24, 60]
             .map(
               (m) =>
-                `${m} Monate ${monthsFreedom !== null && monthsFreedom >= m * 10 ? '✓' : 'offen'}`,
+                `${m} Monate ${monthsFreedom !== null && monthsFreedom >= m * 10 ? 'erreicht' : 'offen'}`,
             )
             .join(' · ')}
           .

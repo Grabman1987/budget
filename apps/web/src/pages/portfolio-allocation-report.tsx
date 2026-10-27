@@ -3,7 +3,7 @@ import { Fragment } from 'react';
 import { useAmountPrivacy, ChartSvg, Graticule, LineLegend, type GraticuleLine } from '@budget/ui';
 import type { AllocationGroup, AllocationHistory, AllocationReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { TriangleAlert, CircleCheck } from 'lucide-react';
 import { useElementWidth } from '../charts/use-element-width';
 import { request } from '../api/http';
 import { LoadingNote } from '../ledger/states';
@@ -687,13 +687,13 @@ function SollTable({ data }: { data: AllocationReport }) {
                     <span className="prep-muted">kein Soll hinterlegt</span>
                   ) : c.breach ? (
                     <span className={`alloc-status${c.confidence === 'exact' ? ' is-out' : ''}`}>
-                      <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
+                      <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
                       {c.confidence === 'provisional' ? 'vorläufig ' : ''}außerhalb des Bands (R13,
                       ±{bpText(c.bandBp ?? 0)})
                     </span>
                   ) : (
                     <span className="alloc-status">
-                      <CheckCircle2 size={16} strokeWidth={1.75} aria-hidden="true" />
+                      <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
                       im Band (±{bpText(c.bandBp ?? 0)})
                     </span>
                   )}

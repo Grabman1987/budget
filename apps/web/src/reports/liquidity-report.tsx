@@ -19,9 +19,9 @@ import {
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import {
-  AlertCircle,
-  AlertTriangle,
-  CheckCircle2,
+  CircleAlert,
+  TriangleAlert,
+  CircleCheck,
   ChevronDown,
   CircleMinus,
   Plus,
@@ -149,7 +149,7 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
               <summary>
                 <span>Werkzeuge</span>
                 <small>Einkommenspausen · Ereignisse · Stellschrauben · Buchungen streichen</small>
-                <ChevronDown size={18} aria-hidden="true" />
+                <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
               </summary>
               <div className="rf-tools-content">
                 <IncomePausesCard view={view} />
@@ -193,11 +193,7 @@ function ForecastCard({
     (payments.data ?? []).filter((p) => p.incomeTypeId === SALARY_INCOME_TYPE).map((p) => p.id),
   );
   const Icon =
-    verdict.status === 'ok'
-      ? CheckCircle2
-      : verdict.status === 'warn'
-        ? AlertTriangle
-        : AlertCircle;
+    verdict.status === 'ok' ? CircleCheck : verdict.status === 'warn' ? TriangleAlert : CircleAlert;
   const text =
     verdict.status === 'ok'
       ? `Geht sich aus bis ${longDay(report.verdictEnd)}, auch mit ${LIQUIDITY_BUFFER_PERCENT} % Puffer; Tiefpunkt am ${verdict.day ? longDay(verdict.day) : '–'}.`
@@ -263,7 +259,7 @@ function ForecastCard({
         />
       </div>
       <div className={`rf-verdict is-${verdict.status}`} role="status" data-testid="liq-verdict">
-        <Icon className="icon" size={20} strokeWidth={1.75} aria-hidden="true" />
+        <Icon className="icon" size={20} strokeWidth={1.5} aria-hidden="true" />
         <div>
           <strong>{text}</strong>
           <small>
@@ -811,7 +807,7 @@ function EventsCard({ view }: { view: LiquidityReportView }) {
           />
         </div>
         <Button variant="ghost" size="sm" type="submit">
-          <Plus size={14} strokeWidth={1.75} aria-hidden="true" />
+          <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
           Ereignis
         </Button>
         {error && error.field !== 'amount' && (
@@ -1064,7 +1060,7 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
                           );
                         }}
                       >
-                        <CircleMinus size={18} aria-hidden="true" />
+                        <CircleMinus size={16} strokeWidth={1.75} aria-hidden="true" />
                       </Button>
                     )}
                   </td>

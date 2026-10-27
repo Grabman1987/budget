@@ -97,7 +97,7 @@ export function ReportPeriodControl({
         disabled={!previous}
         onClick={() => previous && props.onChange(previous)}
       >
-        <ChevronLeft size={18} aria-hidden="true" />
+        <ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" />
       </button>
       <Segmented {...props} />
       <button
@@ -107,7 +107,7 @@ export function ReportPeriodControl({
         disabled={!next}
         onClick={() => next && props.onChange(next)}
       >
-        <ChevronRight size={18} aria-hidden="true" />
+        <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
       </button>
       <button
         type="button"
@@ -119,7 +119,7 @@ export function ReportPeriodControl({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <CalendarRange size={18} aria-hidden="true" />
+        <CalendarRange size={16} strokeWidth={1.75} aria-hidden="true" />
       </button>
       {open && (
         <div className="rpc-popover" role="dialog" aria-label="Zeitraum und Trendlinie">

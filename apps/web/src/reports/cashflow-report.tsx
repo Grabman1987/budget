@@ -2,7 +2,7 @@ import { ReportPeriodControl } from './period-quick-select';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { cents, todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { CircleAlert, CircleCheck } from 'lucide-react';
 import { eur, eurParts, eurWhole, longDay, monthName } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
@@ -96,7 +96,7 @@ function Body({ data }: { data: CashflowReport }) {
   const inWindow = data.months.filter((m) => m.inWindow);
   const positive = t.netCents > 0;
   const { whole, fraction } = eurParts(t.netCents);
-  const Icon = positive ? CheckCircle2 : AlertCircle;
+  const Icon = positive ? CircleCheck : CircleAlert;
   return (
     <>
       <section className="card rf-card rf-wide" aria-labelledby="cf-title">

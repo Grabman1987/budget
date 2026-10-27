@@ -19,7 +19,7 @@ import {
   type RuleTimeline,
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, AlertTriangle, CheckCircle2, CircleDashed } from 'lucide-react';
+import { CircleAlert, TriangleAlert, CircleCheck, CircleDashed } from 'lucide-react';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
@@ -52,15 +52,15 @@ function StatusMark({ status }: { status: Status }) {
   const key = status ?? 'open';
   const Icon =
     key === 'ok'
-      ? CheckCircle2
+      ? CircleCheck
       : key === 'bad'
-        ? AlertCircle
+        ? CircleAlert
         : key === 'warn'
-          ? AlertTriangle
+          ? TriangleAlert
           : CircleDashed;
   return (
     <span className={`ov-status is-${key}`}>
-      <Icon size={15} strokeWidth={1.75} aria-hidden="true" />
+      <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
       {status === null ? 'nicht bewertbar' : STATUS_TEXT[status]}
     </span>
   );

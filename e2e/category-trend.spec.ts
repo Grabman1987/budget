@@ -20,9 +20,9 @@ test('category choice, period and previous-year month survive reload; month link
   await expect(values.locator('thead th')).toHaveCount(3);
   await expect(page.getByLabel('Vorjahresmonat anzeigen')).toBeChecked();
   await page.locator('.category-trend-picker summary').click();
-  await page.getByLabel(data.categories[1]!.name, { exact: true }).uncheck();
+  await page.getByRole('checkbox', { name: data.categories[1]!.name, exact: true }).uncheck();
   await expect(values.locator('thead th')).toHaveCount(2);
-  await page.getByLabel(data.categories[1]!.name, { exact: true }).check();
+  await page.getByRole('checkbox', { name: data.categories[1]!.name, exact: true }).check();
   await page.getByRole('button', { name: '1M', exact: true }).click();
   await expect(values.locator('tbody tr')).toHaveCount(1);
   await page.getByRole('button', { name: '3M', exact: true }).click();
@@ -35,7 +35,7 @@ test('category choice, period and previous-year month survive reload; month link
   const expected = data.months.find((m) => m.month === '2026-08')!.spending[ids[0]!] ?? 0;
   await expect(link).toHaveText(formatEuro(cents(expected)));
   await page.locator('.category-trend-picker summary').click();
-  await page.getByLabel(data.categories[1]!.name, { exact: true }).uncheck();
+  await page.getByRole('checkbox', { name: data.categories[1]!.name, exact: true }).uncheck();
   await page.locator('[data-testid="category-trend-chart"] a').last().click();
   await expect(page).toHaveURL(/\/konten\/buchungen\?/);
   const params = new URL(page.url()).searchParams;

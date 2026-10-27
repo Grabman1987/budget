@@ -170,8 +170,8 @@ test('a forty-character saved view keeps its edit and delete controls inside the
   const chip = page.getByRole('button', { name, exact: true });
   await expect(chip).toBeVisible();
   const icon = await chip.locator('svg').boundingBox();
-  expect(icon?.width).toBe(13);
-  expect(icon?.height).toBe(13);
+  expect(icon?.width).toBe(16);
+  expect(icon?.height).toBe(16);
   await page.screenshot({ path: info.outputPath('explorer-saved-long-name-mobile.png') });
   const limits = await chip.evaluate((element) => {
     const pair = element.closest('.ex-chip-pair')!;

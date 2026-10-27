@@ -129,8 +129,8 @@ export function MonthReview({
           </p>
           <details className="close-result-details">
             <summary>
-              <ChevronDown aria-hidden="true" size={16} /> Monatsbericht, Abweichungen und offene
-              Regeln
+              <ChevronDown aria-hidden="true" size={16} strokeWidth={1.75} /> Monatsbericht,
+              Abweichungen und offene Regeln
             </summary>
             <div className="mrep onepager-report">
               <OnePagerSheet data={report} linkVerdict />
@@ -188,7 +188,8 @@ export function MonthReview({
       {data.state.snapshot && data.close.changedSinceClose && (
         <details className="close-result-details">
           <summary>
-            <ChevronDown aria-hidden="true" size={16} /> Gespeicherte Abschlusszahlen ansehen
+            <ChevronDown aria-hidden="true" size={16} strokeWidth={1.75} /> Gespeicherte
+            Abschlusszahlen ansehen
           </summary>
           <p>Historischer Stand; spätere Änderungen sind in den aktuellen Zahlen oben enthalten.</p>
           <ResultMetrics figures={data.state.snapshot} />

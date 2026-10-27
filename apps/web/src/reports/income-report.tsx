@@ -2,9 +2,9 @@ import { useAmountPrivacy } from '@budget/ui';
 import type { IncomeLineStatus } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import {
-  AlertCircle,
-  AlertTriangle,
-  CheckCircle2,
+  CircleAlert,
+  TriangleAlert,
+  CircleCheck,
   CircleDashed,
   Clock,
   PlusCircle,
@@ -29,13 +29,13 @@ const fillOf = (typeId: string | null) => (typeId ? FILL[typeId] : undefined) ??
 
 const STATUS: Record<
   IncomeLineStatus,
-  { icon: typeof CheckCircle2; label: string; tone: '' | 'is-ok' | 'is-bad' }
+  { icon: typeof CircleCheck; label: string; tone: '' | 'is-ok' | 'is-bad' }
 > = {
-  ok: { icon: CheckCircle2, label: 'eingegangen', tone: 'is-ok' },
+  ok: { icon: CircleCheck, label: 'eingegangen', tone: 'is-ok' },
   pending: { icon: Clock, label: 'erwartet', tone: '' },
-  diff: { icon: AlertTriangle, label: 'abweichend', tone: '' },
-  missing: { icon: AlertCircle, label: 'fehlt', tone: 'is-bad' },
-  overdue: { icon: AlertCircle, label: 'überfällig', tone: 'is-bad' },
+  diff: { icon: TriangleAlert, label: 'abweichend', tone: '' },
+  missing: { icon: CircleAlert, label: 'fehlt', tone: 'is-bad' },
+  overdue: { icon: CircleAlert, label: 'überfällig', tone: 'is-bad' },
   unplanned: { icon: PlusCircle, label: 'ungeplant', tone: '' },
   unlinked: { icon: CircleDashed, label: 'nicht zugeordnet', tone: '' },
 };
@@ -120,7 +120,7 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
               </span>
             ) : expected.missingCount > 0 ? (
               <span className="mr-state-bad">
-                <AlertCircle
+                <CircleAlert
                   className="icon icon-sm"
                   size={16}
                   strokeWidth={1.75}
@@ -141,7 +141,7 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
               </span>
             ) : expected.lines.length > 0 ? (
               <span className="ok">
-                <CheckCircle2
+                <CircleCheck
                   className="icon icon-sm"
                   size={16}
                   strokeWidth={1.75}

@@ -14,7 +14,7 @@ import {
 import { cents } from '@budget/domain';
 import type { ContractsReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { TriangleAlert, CircleCheck } from 'lucide-react';
 import { request } from '../api/http';
 import { eur, longDay, nativeCurrency } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -116,9 +116,9 @@ function Body({ data }: { data: ContractsReport }) {
           {quote !== null && r10 ? (
             <span className={`sr-status ${ok ? 'is-ok' : 'is-action'}`}>
               {ok ? (
-                <CheckCircle2 size={15} strokeWidth={1.75} aria-hidden="true" />
+                <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
               ) : (
-                <AlertTriangle size={15} strokeWidth={1.75} aria-hidden="true" />
+                <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
               )}
               Fixkostenquote {bpText(quote)} · Ziel ≤ {bpText(r10.maxBp, { digits: 0 })} (R10)
             </span>

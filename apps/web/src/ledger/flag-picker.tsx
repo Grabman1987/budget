@@ -21,7 +21,7 @@ export function FlagGlyph({
   named = true,
 }: {
   flag: BookingFlag | '' | null;
-  size?: number;
+  size?: 16 | 20 | 24;
   /** Add the screen-reader name ("Markierung Rot"); off where the surrounding control names it. */
   named?: boolean;
 }) {
@@ -31,7 +31,7 @@ export function FlagGlyph({
       <Icon
         className={cx('icon kflag-glyph', flag ? `is-${flag}` : 'is-none')}
         size={size}
-        strokeWidth={1.75}
+        strokeWidth={size === 16 ? 1.75 : 1.5}
         aria-hidden="true"
       />
       {named && flag && <span className="sr-only">Markierung {FLAG_LABEL[flag]}</span>}
@@ -150,7 +150,7 @@ export function FlagPicker({
           }
         }}
       >
-        <FlagGlyph flag={value} size={18} named={false} />
+        <FlagGlyph flag={value} size={16} named={false} />
       </button>
       {open && (
         // The menu items are real buttons; the container only routes the number keys and arrows.

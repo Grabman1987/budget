@@ -101,7 +101,7 @@ export function JahresreportPage({ report, meta }: { report: ReportEntry; meta: 
                     disabled={data.report.months.length === 0}
                     onClick={() => window.print()}
                   >
-                    <Printer size={15} strokeWidth={1.75} aria-hidden="true" />
+                    <Printer size={16} strokeWidth={1.75} aria-hidden="true" />
                     Drucken
                   </Button>
                 </div>
@@ -392,7 +392,9 @@ function SharesBar({ report }: { report: YearReport }) {
       <ul className="ov-shares">
         {parts.map((p) => (
           <li key={p.key}>
-            <ClassSwatch kind={p.key} />
+            <span className="ov-share-mark">
+              <ClassSwatch kind={p.key} />
+            </span>
             <span>
               <Term>{p.label}</Term>
             </span>

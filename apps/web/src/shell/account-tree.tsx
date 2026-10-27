@@ -4,7 +4,7 @@ import { Link, useParams } from '@tanstack/react-router';
 import {
   Banknote,
   Bitcoin,
-  ChartNoAxesCombined,
+  ChartColumn,
   ChevronDown,
   CreditCard,
   HandCoins,
@@ -47,7 +47,7 @@ const GROUP_ICON: Record<AccountGroupId, LucideIcon> = {
   budget: Wallet,
   cards: CreditCard,
   loans: HandCoins,
-  investments: ChartNoAxesCombined,
+  investments: ChartColumn,
 };
 const TYPE_ICON: Record<AccountType, LucideIcon> = {
   checking: Landmark,
@@ -55,7 +55,7 @@ const TYPE_ICON: Record<AccountType, LucideIcon> = {
   savings: PiggyBank,
   credit_card: CreditCard,
   loan: HandCoins,
-  brokerage: ChartNoAxesCombined,
+  brokerage: ChartColumn,
   crypto: Bitcoin,
   p2p: Users,
   receivable: HandCoins,
@@ -103,7 +103,7 @@ export function AccountTree() {
             title="Neues Konto anlegen"
             onClick={() => setCreating(true)}
           >
-            <Plus size={18} strokeWidth={1.75} aria-hidden="true" />
+            <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
           </button>
           <AppLink
             className="acct-head-action"
@@ -111,7 +111,7 @@ export function AccountTree() {
             aria-label="Konten verwalten"
             title="Konten verwalten"
           >
-            <Settings size={18} strokeWidth={1.75} aria-hidden="true" />
+            <Settings size={16} strokeWidth={1.75} aria-hidden="true" />
           </AppLink>
         </div>
         {groups.map((g) => (
@@ -148,7 +148,7 @@ function PencilButton(props: {
       aria-hidden={props.mouseOnly ? true : undefined}
       onClick={props.onClick}
     >
-      <Pencil size={13} strokeWidth={1.75} aria-hidden="true" />
+      <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
     </button>
   );
 }
@@ -190,8 +190,8 @@ function AccountGroupBlock({
           disabled={editing}
           onClick={() => setFolded(!storedFolded)}
         >
-          <ChevronDown className="chev" size={14} strokeWidth={2} aria-hidden="true" />
-          <GroupIcon className="acct-group-icon" size={14} strokeWidth={1.75} aria-hidden="true" />
+          <ChevronDown className="chev" size={16} strokeWidth={1.75} aria-hidden="true" />
+          <GroupIcon className="acct-group-icon" size={16} strokeWidth={1.75} aria-hidden="true" />
           <span className="acct-group-title tech">{view.group.title}</span>
         </button>
         {!editing && (

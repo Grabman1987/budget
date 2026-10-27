@@ -65,7 +65,7 @@ export function ReportNavigation({ id }: { id: string }) {
         title={previous ? `${previous.pos} ${previous.name} · Alt+Umschalt+←` : 'Erster Bericht'}
         onClick={() => previous && go(previous.id)}
       >
-        <ChevronLeft size={18} aria-hidden="true" />
+        <ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" />
       </button>
       <button
         type="button"
@@ -76,7 +76,7 @@ export function ReportNavigation({ id }: { id: string }) {
         title={next ? `${next.pos} ${next.name} · Alt+Umschalt+→` : 'Letzter Bericht'}
         onClick={() => next && go(next.id)}
       >
-        <ChevronRight size={18} aria-hidden="true" />
+        <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
       </button>
     </nav>
   );

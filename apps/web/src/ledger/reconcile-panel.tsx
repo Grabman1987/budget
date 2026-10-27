@@ -15,7 +15,7 @@ import {
   todayInVienna,
 } from '@budget/domain';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { TriangleAlert, CircleCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AppLink } from '../shell/app-link';
 import { ApiError } from '../api/http';
@@ -302,7 +302,7 @@ export function ReconcileFlow({
         {data && current && finding?.kind === 'ok' && (
           <>
             <p className="kdiff is-ok">
-              <CheckCircle2
+              <CircleCheck
                 className="icon icon-sm"
                 size={16}
                 strokeWidth={1.75}
@@ -320,7 +320,7 @@ export function ReconcileFlow({
         {data && current && finding && finding.kind !== 'ok' && (
           <>
             <p className="kdiff is-bad">
-              <AlertTriangle
+              <TriangleAlert
                 className="icon icon-sm"
                 size={16}
                 strokeWidth={1.75}

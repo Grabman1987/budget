@@ -5,14 +5,20 @@
  */
 
 .icon {
-  width: 18px;
-  height: 18px;
   flex: none;
   stroke: currentColor;
   fill: none;
-  stroke-width: 1.75;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+.icon:not([width]) {
+  width: 16px;
+}
+.icon:not([height]) {
+  height: 16px;
+}
+.icon:not([stroke-width]) {
+  stroke-width: 1.75;
 }
 
 .icon-btn {
@@ -898,11 +904,18 @@ button.ct-term .ct-val {
 
 /* ---------- Class swatches ---------- */
 .sw {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
   border-radius: 1px;
   flex: none;
+}
+.sw-abbr {
+  margin-inline-start: 4px;
+  font-size: var(--fs-label);
+  font-weight: 600;
 }
 .sw-need {
   background: var(--need);

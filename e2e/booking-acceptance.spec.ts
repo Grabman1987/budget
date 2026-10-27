@@ -229,7 +229,7 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Kategorie', { exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Teilen ▾' })).toBeFocused();
+  await expect(dialog.getByRole('button', { name: 'Teilen' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(
     dialog

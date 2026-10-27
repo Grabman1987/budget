@@ -53,7 +53,7 @@ it('shares a category by percent, keeps cents exact, and guards an unfinished se
       </ToastProvider>
     </QueryClientProvider>,
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Teilen ▾' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Teilen' }));
   fireEvent.change(screen.getByLabelText('Kontakt 1.1'), { target: { value: 'contact-example' } });
   fireEvent.change(screen.getByLabelText('Anteil 1.1 (%)'), { target: { value: '33,33' } });
   expect(JSON.parse(screen.getByTestId('payload').textContent!)).toMatchObject({

@@ -11,7 +11,18 @@ export const CLASS_LABEL = { need: 'Bedarf', want: 'Wunsch', future: 'Zukunft' }
  * Always pair it with text: colour and pattern are never the only signal.
  */
 export function ClassSwatch({ kind }: { kind: SwatchKind }) {
-  return <i className={`sw sw-${kind}`} aria-hidden="true" />;
+  const abbreviation =
+    kind === 'need' ? 'B' : kind === 'want' ? 'W' : kind === 'future' ? 'Z' : null;
+  return (
+    <>
+      <i className={`sw sw-${kind}`} aria-hidden="true" />
+      {abbreviation && (
+        <span className="sw-abbr" aria-hidden="true">
+          {abbreviation}
+        </span>
+      )}
+    </>
+  );
 }
 
 /** Swatch plus its label, e.g. for legends and category chips. */

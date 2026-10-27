@@ -3,7 +3,7 @@ import type { RebalanceProposal } from '@budget/domain';
 import { Button } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { CheckCircle2 } from 'lucide-react';
+import { CircleCheck } from 'lucide-react';
 import { LoadingNote, ErrorNote } from '../ledger/states';
 import { eurWhole } from '../ledger/format';
 import { allocationQuery, type PortfolioAllocationView } from './allocation-api';
@@ -334,7 +334,7 @@ export function PortfolioAllocation() {
           </>
         ) : (
           <p className="rev-empty">
-            <CheckCircle2 size={18} strokeWidth={1.75} aria-hidden="true" />
+            <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
             {view!.classes.some((cls) => cls.targetBp !== null)
               ? `${provisional ? 'Vorläufig: ' : ''}Alle Anlageklassen liegen im Band; keine weiteren Risikohinweise.`
               : 'Keine Sollquoten erfasst; keine weiteren Risikohinweise.'}

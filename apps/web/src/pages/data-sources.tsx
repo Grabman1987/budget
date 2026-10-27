@@ -3,6 +3,7 @@ import { AppLink } from '../shell/app-link';
 import { todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { TriangleAlert } from 'lucide-react';
 import { request } from '../api/http';
 import { AccountOptions } from '../ledger/account-options';
 import { errorText } from '../ledger/labels';
@@ -495,7 +496,8 @@ function ConnectionCard({
           )}
           {a.warnings?.map((w) => (
             <p className="field-error" key={w.id}>
-              ⚠ {w.title}: {w.detail}
+              <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" /> {w.title}:{' '}
+              {w.detail}
             </p>
           ))}
           <AppLink to="/konten/pruefen" search={{ bankSource: a.id }} className="btn btn-ghost">

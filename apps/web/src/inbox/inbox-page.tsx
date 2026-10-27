@@ -650,6 +650,7 @@ function PaginatedInboxBodyContent({
           {...props}
           entries={entries}
           count={firstPage?.count}
+          bankProgress={firstPage?.bankProgress}
           segmentCounts={segmentCounts}
           readSourceSummaries={
             segmentCounts?.shown === 'umsaetze' || firstPage?.taskSources
@@ -683,6 +684,7 @@ type TaskEntry = Exclude<InboxEntry, InboxEnvelope>;
 function InboxBodyContent({
   entries: received,
   count,
+  bankProgress,
   totalEntries,
   countsByKind,
   countsByCause,
@@ -707,6 +709,7 @@ function InboxBodyContent({
 }: InboxBodyProps & {
   entries: InboxEntry[];
   count: number | undefined;
+  bankProgress?: { reviewed: number; total: number } | undefined;
   totalEntries: number | undefined;
   countsByKind: Partial<Record<InboxKind, number>> | undefined;
   countsByCause?: Record<string, number> | undefined;
@@ -768,6 +771,7 @@ function InboxBodyContent({
     !error &&
     !nextPageError &&
     count === 0 &&
+    !bankProgress?.total &&
     entries.length === 0 &&
     !learnBookingId
   )
@@ -791,6 +795,21 @@ function InboxBodyContent({
               : undefined
         }
       />
+      {(segmentCounts?.shown === 'umsaetze' || search.bankSource) &&
+        bankProgress &&
+        bankProgress.total > 0 && (
+          <div className="bank-review-progress">
+            <p>
+              {bankProgress.total - bankProgress.reviewed} offen · {bankProgress.reviewed} von{' '}
+              {bankProgress.total} geprüft
+            </p>
+            <progress
+              value={bankProgress.reviewed}
+              max={bankProgress.total}
+              aria-label="Geprüfte Bankumsätze"
+            />
+          </div>
+        )}
       {pending && <LoadingNote what="Aufgaben" />}
       {learnBookingId && <AssignmentLearnOffer bookingId={learnBookingId} />}
       {error && <ErrorNote what="Aufgaben" error={error} onRetry={onRetry} />}
@@ -1200,6 +1219,7 @@ function BankInboxRow({
   }, [item.type, item.id, onPrepared, prepared]);
   const data =
     item.type === 'booking' ? item : item.type === 'stored' ? item.bankCandidate : undefined;
+  const suggestion = item.type === 'stored' ? item.bankCandidate?.suggestion : undefined;
   return (
     <tr className="rev-row bank-inbox-row" data-testid="inbox-row">
       <td className="rev-mark">
@@ -1233,6 +1253,7 @@ function BankInboxRow({
               ? maskMoneyText(item.detail ?? '')
               : ''}
         </span>
+        {suggestion && <span>{suggestion.label}</span>}
       </td>
       <td className="rev-act kact">
         <div className="inbox-row-actions">

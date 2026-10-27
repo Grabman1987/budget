@@ -1,4 +1,5 @@
 import type { CloseStep } from '@budget/domain';
+import { Check } from 'lucide-react';
 
 export const CLOSE_STATUS = {
   open: 'offen',
@@ -48,7 +49,15 @@ export function CloseStepper({
               <span>
                 {s.step}. {s.title}
               </span>
-              <small>{s.step < 5 && !s.hasTasks ? '✓ nichts offen' : CLOSE_STATUS[s.status]}</small>
+              <small>
+                {s.step < 5 && !s.hasTasks ? (
+                  <>
+                    <Check size={16} strokeWidth={1.75} aria-hidden="true" /> nichts offen
+                  </>
+                ) : (
+                  CLOSE_STATUS[s.status]
+                )}
+              </small>
             </button>
           </li>
         ))}

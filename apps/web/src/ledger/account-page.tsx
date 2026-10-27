@@ -265,7 +265,7 @@ function AccountBody({ account, bankReview }: { account: AccountRow; bankReview?
         <details className="kacct-source">
           <summary>
             Datenstand
-            <ChevronDown size={14} aria-hidden="true" />
+            <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
           </summary>
           <AccountFreshness
             lastReconciledOn={account.lastReconciledOn}
