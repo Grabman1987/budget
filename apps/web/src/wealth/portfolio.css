@@ -230,6 +230,9 @@
   .instrument-transactions > .trade-history {
     min-width: 0;
   }
+  .instrument-transactions .trade-list small {
+    white-space: nowrap;
+  }
 }
 .instrument-detail h3 {
   margin: 4px 0 0;

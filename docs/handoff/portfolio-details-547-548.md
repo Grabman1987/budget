@@ -284,6 +284,36 @@ Instrument proof (both themes/default height plus retained full desktop case,
 responsive coverage as the final source delta warrants). No full CI, feature
 push/PR or current-main integration is authorized by this checkpoint.
 
+## Exact-adb Instrument proof and narrow desktop row correction
+
+Run `40488458206`, artifact `12725654795`, tested exact feature
+`adb53958c22da91c8f2f2e4e2a91e3b6de0ed0e6` through disposable
+`2a361226f4faba7e2e5cd1cf714ba195ee9a4cb3`. Scoped format, ESLint, full type
+and build all passed; no formatter patch was produced. Browser5 passed/1 failed:
+3 setup cases and mobile/WebKit Instrument passed first attempt; the sole desktop
+Instrument failed the first-theme default12 height at1892px>1800. The source
+fix was real but insufficient; do not claim default geometry accepted.
+
+The retained trace geometry JSON is exactly `{"height":1892,"width":1440}`.
+The actual desktop screencast shows the account's `small` label “Synthetic depot”
+wrapping to two lines in every narrow trade row beneath its native edit button.
+This adds a redundant text line in all12 default rows. The existing labelled
+table scroller already provides access to complete wide financial columns.
+
+The next minimal source-only correction is desktop-only
+`.instrument-transactions .trade-list small { white-space: nowrap; }` in
+`portfolio.css`. It retains the full account label, all rows/columns and44px edit
+targets through the existing scroller. It does not clip/ellipsize/hide text,
+reduce chart/font/control sizes, change phone styles or alter any test/height/
+financial/privacy oracle. The expected reduction follows the observed extra
+line per row; actual final height remains unproven until the very narrow desktop
+Instrument proof. The complete desktop Instrument case, including both themes,
+default12 gate and subsequent all13/keyboard/privacy/Axe assertions, must pass.
+
+Independent HIGH review of this exact CSS/handoff delta precedes another focused
+VM; no feature push/PR/rebase or full84-case repetition. A full CI matrix may run
+concurrently under the coordinator's one-focused-job limit.
+
 ## Next proof and risk boundaries
 
 1. Independent capable whole-diff review of repository/API/date/FX/account
