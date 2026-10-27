@@ -77,6 +77,11 @@ export function PortfolioAllocation() {
                 zurückgehalten.
               </p>
             )}
+            {view.quality.valuationQuality === 'estimated' && (
+              <p className="vnote" role="status">
+                Bewertung teilweise geschätzt / veraltet. Einzelheiten unter „Wie wird gerechnet?“.
+              </p>
+            )}
             <details className="wealth-details">
               <summary>Wie wird gerechnet?</summary>
               <p className="vnote">

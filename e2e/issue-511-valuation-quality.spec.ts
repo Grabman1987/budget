@@ -166,7 +166,7 @@ test('one current quote task and local disclosures follow real manual quote save
   await expect(page.getByText('3 Wertpapiere ohne aktuellen Kurs', { exact: true })).toBeVisible();
   const action = page.getByRole('link', { name: 'Kurse prüfen', exact: true });
   await action.click();
-  await expect(page).toHaveURL(/\/vermoegen\/portfolio$/);
+  await expect(page).toHaveURL(/\/vermoegen\/portfolio\/positionen$/);
   const saved = await write(
     page,
     isolatedLedger.origin,

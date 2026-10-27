@@ -152,7 +152,7 @@ test('Portfolio links to the shared settings editor: sums, dirty/template guards
   await expect(page).toHaveURL(/panel=sollquoten/);
   release();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
-  await expect(page).toHaveURL(/vermoegen\/portfolio$/);
+  await expect(page).toHaveURL(/vermoegen\/portfolio\/allokation$/);
   await page.unroute('**/api/asset-classes/targets');
   const versions = async () =>
     (await (await page.request.get('/api/asset-classes/targets')).json()).versions as {

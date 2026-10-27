@@ -41,7 +41,8 @@ Each file below needs independent review of its adapter and retained coverage.
 | `e2e/report-polish.spec.ts` | Direct instrument fallback now returns to Positionen. |
 | `e2e/asset-exposure.spec.ts` | Opens the class-grouped positions table before the unchanged split/rounding/editor checks. |
 | `e2e/missing-quotes.spec.ts` | Opens Positionen before unchanged missing-quote/value/Undo assertions. |
-| `e2e/mobile-chart-containers.spec.ts` | Allocation bar geometry now opens Allokation. |
+| `e2e/mobile-chart-containers.spec.ts` | Both the generic page/theme/overflow matrix and the allocation bar geometry case now open Allokation; their original readiness, Axe, overflow, geometry and timeout assertions remain. |
+| `e2e/issue-511-valuation-quality.spec.ts` | Today quote-review action now expects Positionen; its real quote save, quote-review counts, literal values, audit-group Undo and privacy/disclosure assertions remain. |
 | `apps/web/src/heute/valuation-attention-511.test.tsx` | Two existing literal href expectations now require Positionen for the unchanged quote-review action. |
 | `apps/web/src/rules/rules-page.test.tsx` | Adds rendered per-rule correction links with seven literal contextual destinations. Fixture-only bad statuses expose those actions without changing evaluations or existing oracles. |
 
@@ -127,3 +128,27 @@ switch at600. A new 640px browser case checks actual nonintersecting area/portfo
 nav boxes, 44px link height, horizontal containment and a viewport image. It must
 fail with the former stylesheet and pass after restoring the corrected source.
 The existing required desktop/390 cases and all financial oracles remain unchanged.
+
+## First full CI findings
+
+PR #788 exact-head CI `40467313888` exposed two missed route assertions:
+the pending-save allocation editor correctly returned to `/allokation`, and
+Today's quote-review action correctly opened `/positionen`. Their expected URLs
+now match those contextual destinations; every later save, dirty/template,
+literal target share, audit-group Undo/redo, quote count/value and retry assertion
+remains unchanged. Retry duplicate fixture names were secondary to the first
+allocation-route failure, not a financial defect.
+The phone container matrix also still expected allocation bars on Übersicht;
+its existing allocation row now uses `/allokation`, preserving its loaded-bar,
+both-theme Axe and no-page-overflow checks.
+
+The allocation-only page also lost the monolithic page's visible estimate hint.
+Its own current `quality.valuationQuality` still reported `estimated`, but the
+only explicit wording was inside closed calculation details. The generic
+provisional status did not explicitly identify that estimate. A visible read-only
+line from that existing allocation DTO restores SPEC-008/#512 qualification;
+the securities-scope hint is not reused for a different allocation universe.
+The existing two visible-estimate assertions and cost-fallback/retry scenario
+remain unchanged, and calculation details remain collapsed by default. No source
+valuation, cost-basis, quality resolution or financial writer changed. New focused
+proof and independent complete delta review are required before updating the PR.
