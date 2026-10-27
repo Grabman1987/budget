@@ -89,11 +89,10 @@ it('exposes partial pending minus3000 against a minus4000 difference and preserv
 });
 
 it('deletes a shown equal duplicate to literal zero, then explicitly locks without adjustment and exactly undoes both actions', async () => {
-  for (const id of ['original', 'duplicate'])
+  for (let index = 0; index < 2; index++)
     createBooking(
       opened.db,
       {
-        id,
         accountId: 'giro',
         date: '2026-09-30',
         amountCents: -1234,

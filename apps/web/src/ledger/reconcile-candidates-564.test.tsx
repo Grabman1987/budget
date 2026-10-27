@@ -98,7 +98,7 @@ const show = (
   } as AccountRow;
   render(
     <QueryClientProvider client={client}>
-      <ReconcileFlow account={account} monthClose={monthClose} onDone={() => undefined} />
+      <ReconcileFlow account={account} {...(monthClose ? { monthClose } : {})} onDone={() => undefined} />
     </QueryClientProvider>,
   );
   fireEvent.click(screen.getByRole('button', { name: /Bankstand übernehmen/ }));
@@ -110,9 +110,9 @@ it('requires explicit review of every existing candidate before correction and l
   const pending = screen.getByTestId('candidate-pending-pending');
   expect(screen.queryByLabelText('Ausgleichsdatum')).toBeNull();
   expect(screen.queryByRole('button', { name: /Differenz ausgleichen/ })).toBeNull();
-  fireEvent.click(within(duplicate).getByRole('button', { name: 'Ignorieren', exact: true }));
+  fireEvent.click(within(duplicate).getByRole('button', { name: 'Ignorieren' }));
   expect(screen.queryByLabelText('Ausgleichsdatum')).toBeNull();
-  fireEvent.click(within(pending).getByRole('button', { name: 'Ignorieren', exact: true }));
+  fireEvent.click(within(pending).getByRole('button', { name: 'Ignorieren' }));
   expect(await screen.findByLabelText('Ausgleichsdatum')).toBeTruthy();
   expect(screen.getByRole('button', { name: /Differenz ausgleichen/ }).textContent).toContain(
     '+12,34 €',
@@ -120,18 +120,18 @@ it('requires explicit review of every existing candidate before correction and l
   expect(sends).toEqual([]);
   expect(writes.remove.mutate).not.toHaveBeenCalled();
   fireEvent.click(
-    within(duplicate).getByRole('button', { name: 'Ignorieren rückgängig', exact: true }),
+    within(duplicate).getByRole('button', { name: 'Ignorieren rückgängig' }),
   );
   expect(screen.queryByLabelText('Ausgleichsdatum')).toBeNull();
   expect(sends).toEqual([]);
-  fireEvent.click(within(duplicate).getByRole('button', { name: 'Ignorieren', exact: true }));
+  fireEvent.click(within(duplicate).getByRole('button', { name: 'Ignorieren' }));
   expect(await screen.findByLabelText('Ausgleichsdatum')).toBeTruthy();
   preview = { ...preview, statementBalanceCents: -1235, differenceCents: 1233 };
   fireEvent.change(screen.getByLabelText('Saldo laut Bank', { exact: true }), {
     target: { value: '-12,35' },
   });
   await waitFor(() =>
-    expect(screen.queryByRole('button', { name: 'Ignorieren rückgängig', exact: true })).toBeNull(),
+    expect(screen.queryByRole('button', { name: 'Ignorieren rückgängig' })).toBeNull(),
   );
   expect(await screen.findByTestId('candidate-duplicate-duplicate')).toBeTruthy();
   expect(screen.queryByLabelText('Ausgleichsdatum')).toBeNull();
@@ -141,7 +141,7 @@ it('uses the existing duplicate action, refreshes to literal zero, and reconcile
   const client = show();
   const duplicate = await screen.findByTestId('candidate-duplicate-duplicate');
   fireEvent.click(
-    within(duplicate).getByRole('button', { name: 'Doppelte Buchung entfernen', exact: true }),
+    within(duplicate).getByRole('button', { name: 'Doppelte Buchung entfernen' }),
   );
   expect(writes.remove.mutate.mock.calls[0]?.[0]).toEqual({ id: 'duplicate' });
   expect(sends).toEqual([]);
@@ -153,7 +153,7 @@ it('uses the existing duplicate action, refreshes to literal zero, and reconcile
     duplicates: [],
   };
   await client.invalidateQueries({ queryKey: ['ledger'] });
-  const lock = await screen.findByRole('button', { name: 'Festschreiben (1)', exact: true });
+  const lock = await screen.findByRole('button', { name: 'Festschreiben (1)' });
   expect(screen.queryByRole('button', { name: /Differenz ausgleichen/ })).toBeNull();
   fireEvent.click(lock);
   await waitFor(() =>
@@ -180,7 +180,7 @@ it('shows a partial pending minus3000 against minus4000 and uses canonical statu
   expect(row.textContent).toContain('−30,00 €');
   expect(screen.queryByRole('button', { name: /Differenz ausgleichen/ })).toBeNull();
   expect(sends).toEqual([]);
-  fireEvent.click(within(row).getByRole('button', { name: 'Bestätigen', exact: true }));
+  fireEvent.click(within(row).getByRole('button', { name: 'Bestätigen' }));
   expect(writes.bulk.mutate.mock.calls[0]?.[0]).toEqual({
     ids: ['partial'],
     set: { status: 'confirmed' },
@@ -219,7 +219,6 @@ it('keeps an existing month-close token stale after a separate candidate confirm
   fireEvent.click(
     within(await screen.findByTestId('candidate-pending-partial')).getByRole('button', {
       name: 'Bestätigen',
-      exact: true,
     }),
   );
   expect(close.onBusy).toHaveBeenCalledWith(true);
@@ -244,7 +243,7 @@ it('keeps an existing month-close token stale after a separate candidate confirm
   expect(close.confirm).not.toHaveBeenCalled();
   expect(close.onBusy).toHaveBeenLastCalledWith(false);
   fireEvent.click(
-    screen.getByRole('button', { name: 'Prüfung schließen und Abschluss neu laden', exact: true }),
+    screen.getByRole('button', { name: 'Prüfung schließen und Abschluss neu laden' }),
   );
   expect(close.onReload).toHaveBeenCalledTimes(1);
 });
@@ -264,7 +263,7 @@ it('565 remembers an eligible category per account and falls back for archived o
   show();
   const select = await screen.findByLabelText('Kategorie für den Ausgleich');
   expect((select as HTMLSelectElement).value).toBe('');
-  expect(within(select).getByRole('option', { name: 'Zu verteilen', exact: true })).toBeTruthy();
+  expect(within(select).getByRole('option', { name: 'Zu verteilen' })).toBeTruthy();
   fireEvent.change(select, { target: { value: 'food' } });
   cleanup();
   show();
@@ -284,7 +283,7 @@ it('565 remembers an eligible category per account and falls back for archived o
   expect(
     ((await screen.findByLabelText('Kategorie für den Ausgleich')) as HTMLSelectElement).value,
   ).toBe('');
-  expect(screen.queryByRole('option', { name: 'Synthetic food', exact: true })).toBeNull();
+  expect(screen.queryByRole('option', { name: 'Synthetic food' })).toBeNull();
   await waitFor(() => expect(localStorage.getItem('budget-reconcile-category:a')).toBe(''));
   cleanup();
   localStorage.setItem('budget-reconcile-category:a', 'deleted');
@@ -302,7 +301,6 @@ it('565 retains truthful uncategorised tracking/card defaults and canonical cate
   expect(
     within(await screen.findByLabelText('Kategorie für den Ausgleich')).getByRole('option', {
       name: 'Ohne Kategorie',
-      exact: true,
     }),
   ).toBeTruthy();
   cleanup();
@@ -310,7 +308,6 @@ it('565 retains truthful uncategorised tracking/card defaults and canonical cate
   expect(
     within(await screen.findByLabelText('Kategorie für den Ausgleich')).getByRole('option', {
       name: 'Ohne Kategorie',
-      exact: true,
     }),
   ).toBeTruthy();
   cleanup();

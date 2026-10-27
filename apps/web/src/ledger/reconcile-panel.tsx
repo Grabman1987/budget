@@ -169,12 +169,11 @@ export function ReconcileFlow({
   const categoryId = categories.some((c) => c.id === selectedCategory) ? selectedCategory : '';
   const defaultCategoryLabel = defaultCorrectionCategoryLabel(account);
   const categoryName = categories.find((c) => c.id === categoryId)?.name ?? defaultCategoryLabel;
+  if (lookups.isSuccess && selectedCategory && !categoryId)
+    setCategoryChoice({ accountId: account.id, id: '' });
   useEffect(() => {
-    if (lookups.isSuccess && selectedCategory && !categoryId) {
-      rememberCorrectionCategory(account.id, '');
-      setCategoryChoice({ accountId: account.id, id: '' });
-    }
-  }, [account.id, lookups.isSuccess, selectedCategory, categoryId]);
+    if (lookups.isSuccess) rememberCorrectionCategory(account.id, categoryId);
+  }, [account.id, lookups.isSuccess, categoryId]);
   // The panel shows the answer for what is typed now, not for the previous input.
   const current =
     ready &&
