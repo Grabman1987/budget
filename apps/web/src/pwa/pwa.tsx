@@ -53,11 +53,11 @@ export function PwaShell({ children }: { children: ReactNode }) {
     return () => setOfflineUnavailable(false);
   }, [showLive]);
   useEffect(() => {
-    if (showLive) setMounted(true);
-  }, [showLive]);
-  useEffect(() => {
     const connected = () => {
-      if (!sessionEnded) setHasConnected(true);
+      if (!sessionEnded) {
+        setHasConnected(true);
+        setMounted(true);
+      }
     };
     window.addEventListener('online', connected);
     return () => window.removeEventListener('online', connected);
@@ -81,6 +81,7 @@ export function PwaShell({ children }: { children: ReactNode }) {
       // A confirmed signed-out status is also the ordinary entry to the login page.
       if (location.pathname === '/login' || location.pathname === '/setup') {
         setHasConnected(true);
+        setMounted(true);
         setSessionEnded(false);
         return;
       }
