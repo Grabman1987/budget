@@ -188,6 +188,57 @@ failed/newly reached3-profile privacy/geometry cases. Reuse the84 prior passing
 cases where their source/assertions are unchanged; full PR CI later covers union.
 No second VM or feature push is authorized by this repair checkpoint.
 
+## Exact-d5 narrow proof and final test-scope correction
+
+Run `40485150056`, job `122124966637`, artifact `12725057231` tested exact
+feature `d5bee3f69f1e2609a0d8418e941a2dd9730dc399` through disposable proof
+`9b86f7d2fc28dac92cf249bd2e6ade28cc9a4b03`. Actual scoped ESLint, full type,
+15 unit files/85 tests and build passed. Desktop metrics5 passed (3 setups,
+2 scenarios), register4 passed (3 setups,1 scenario), details8 passed/1 failed
+(3 setups,6 scenarios), and unchanged mobile5 passed (3 setups,2 scenarios),
+all first attempt, workers1/retries0/snapshotsnone. Prior84 passing scenarios
+were not blindly repeated.
+
+The only browser failure was my added instrument-detail height assertion:
+2630px>1800 with all13 trades expanded, after light-theme Wert/Kurs privacy
+and table assertions. Re-read authoritative #547: instrument detail is explicitly
+outside the five registers, and its own AC specifies price/date/basis/markers,
+hover/keyboard, themes/Axe/touch/overflow but no two-screen bound. Parent#525
+binds the five portfolio registers to1440×900≤2 screens. Coordinator confirmed
+this scope. Remove only the overstrict instrument `compactDesktop` call in
+`e2e/issue-547-548-portfolio-details.spec.ts`. Retain all13-row/last12 editing,
+literal cents/date/cost/source/parity, both modes and themes/privacy/table/Axe,
+phone44px/no-overflow, and every genuine #544/#546/#548 geometry assertion.
+No product compression, row hiding, timeout or financial expectation changes.
+The historical instrument-height coverage descriptions above document the prior
+test, not a remaining acceptance obligation.
+
+Both real desktop repairs passed: the13-flow metrics state retained every row
+within1800px; savings trace JSON records closed1276px and purchases+versions
+expanded1740px at1440px width, in both themes. Mobile/WebKit #547/#548 privacy
+passed. The instrument desktop dark-theme privacy section was not reached after
+the overstrict light-theme height failure, so one minimal desktop #547 case
+remains appropriate after independent incremental review.
+
+The exact one-file formatter patch has SHA256
+`7d9c5cb477b7e4181c42fd3cd68dcaa386f8b55686bab9a9dd2826ef980f38d4`.
+Allowlist: only `apps/web/src/wealth/portfolio-metrics.tsx`,4 insertions/3
+deletions of JSX line wrapping/spacing; no value, logic, CSS, image or baseline
+change. Hash/contents and `git apply --check` were verified before applying it.
+No local formatter or other Node tool ran.
+
+Both unchanged old mobile cases passed with trace:on and action timing: positions
+trace~21.2s and trades~23.3s including fixtures/hooks. Correct routes, quote edits,
+cash/holding/source/Undo and final account-link oracles passed. No optimization,
+timeout change or new source cause is established; the earlier30s failures are
+not retrospectively declared harmless. Retain exact trace evidence and normal
+full CI compatibility gates. Raw narrow logs/traces are preserved outside C at
+the source author's `portfolio-followon-d5-proof` temporary directory.
+
+No feature push/PR/rebase or new VM was started for this correction. Independent
+HIGH review of the exact tiny delta precedes the minimal final proof, then safe
+integration with current verified main and full exact-head CI remain necessary.
+
 ## Next proof and risk boundaries
 
 1. Independent capable whole-diff review of repository/API/date/FX/account

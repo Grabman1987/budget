@@ -49,7 +49,8 @@ export function PortfolioMetrics() {
             <div className="portfolio-metrics-columns">
               <div className="portfolio-metrics-values">
                 <p className="vnote">
-                  {longDay(performance.from)} bis {longDay(performance.to)} · {performance.days} Tage
+                  {longDay(performance.from)} bis {longDay(performance.to)} · {performance.days}{' '}
+                  Tage
                 </p>
                 <div className="portfolio-metrics-headline">
                   <div className="portfolio-metrics-lead">
@@ -158,8 +159,8 @@ export function PortfolioMetrics() {
                 )}
                 {summary.benchmarks.some((benchmark) => benchmark.benchmarkReturn === null) && (
                   <p className="vnote">
-                    Kurs- oder Wechselkurslücke: Der betroffene Vergleich ist nicht verfügbar. Lücken
-                    werden nicht interpoliert.
+                    Kurs- oder Wechselkurslücke: Der betroffene Vergleich ist nicht verfügbar.
+                    Lücken werden nicht interpoliert.
                   </p>
                 )}
               </div>

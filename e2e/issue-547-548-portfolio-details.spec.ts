@@ -230,7 +230,6 @@ async function instrumentPrivacy(page: Page, info: TestInfo, theme: string) {
     await table.locator('summary').click();
   }
   await history.getByRole('button', { name: 'Wert €', exact: true }).click();
-  await compactDesktop(page, info, `instrument-all-thirteen-trades-${theme}`);
 }
 async function savingsPrivacy(page: Page, info: TestInfo, theme: string) {
   const purchases = page.locator('.savings-purchases');
