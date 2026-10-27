@@ -130,11 +130,6 @@ export function BookingPanel({
   const dialog = (
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Delegates Tab wrapping for the native dialog and its discard question.
     <div ref={focusScope} className="bk-focus-scope" onKeyDown={wrapFocus}>
-      {!state && learnBookingId && (
-        <aside role="status">
-          <AssignmentLearnOffer bookingId={learnBookingId} />
-        </aside>
-      )}
       <FormDialog open={state !== null} onClose={close} title={title} beforeClose={beforeClose}>
         {current && shown && (
           <CaptureForm
@@ -153,5 +148,14 @@ export function BookingPanel({
   // Keep a closed capture's portal and toast host in place after the form's fade. A toast raised
   // there can return to that same host when capture reopens; edits remain inside live pages.
   if (sessionEnded) return null;
-  return (current?.mode ?? lastMode) === 'create' ? createPortal(dialog, document.body) : dialog;
+  return (
+    <>
+      {!state && learnBookingId && (
+        <aside role="status">
+          <AssignmentLearnOffer bookingId={learnBookingId} />
+        </aside>
+      )}
+      {(current?.mode ?? lastMode) === 'create' ? createPortal(dialog, document.body) : dialog}
+    </>
+  );
 }
