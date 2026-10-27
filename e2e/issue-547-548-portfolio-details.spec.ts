@@ -190,7 +190,9 @@ async function instrumentPrivacy(page: Page, info: TestInfo, theme: string) {
       mode === 'Wert €' ? 'instrument-value-chart' : 'price-history-chart',
     );
     const table = history.locator('.chart-data-table');
-    await table.locator('summary').click();
+    await expect(table.locator('tbody tr')).toHaveCount(0);
+    await table.locator('summary').focus();
+    await table.locator('summary').press('Enter');
     const cells = table.locator('.chart-data-value');
     const publicValues = await cells.allTextContents();
     expect(publicValues.length).toBeGreaterThan(0);
@@ -215,6 +217,7 @@ async function instrumentPrivacy(page: Page, info: TestInfo, theme: string) {
     await inspect.press('Escape');
     await table.locator('summary').click();
     await expect(table).not.toHaveAttribute('open', '');
+    await expect(table.locator('tbody tr')).toHaveCount(0);
     await table.locator('summary').click();
     await expect(cells).toHaveText(publicValues.map(() => '•••'));
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
@@ -227,7 +230,9 @@ async function instrumentPrivacy(page: Page, info: TestInfo, theme: string) {
     await privacy(page, false);
     await expect(cells).toHaveText(publicValues);
     await expect(axes).toHaveText(publicAxes);
-    await table.locator('summary').click();
+    await table.locator('summary').focus();
+    await table.locator('summary').press('Enter');
+    await expect(table.locator('tbody tr')).toHaveCount(0);
   }
   await history.getByRole('button', { name: 'Wert €', exact: true }).click();
 }

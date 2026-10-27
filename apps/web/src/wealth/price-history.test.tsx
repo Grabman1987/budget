@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { setAmountsHidden } from '@budget/ui';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import { PriceHistory, useInstrumentHistory } from './price-history';
 
 afterEach(() => {
+  act(() => setAmountsHidden(false));
   cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -78,6 +80,33 @@ function History() {
   const controller = useInstrumentHistory('synthetic', '2026-09-17', 'Alles');
   return <PriceHistory securityId="synthetic" controller={controller} />;
 }
+
+it('mounts every exact instrument table row only while its native disclosure is open', async () => {
+  page();
+  await userEvent.click(screen.getByRole('button', { name: /^Kurs$/ }));
+  await screen.findByTestId('price-history-chart');
+  const summary = screen.getByText('Tabelle anzeigen');
+  const disclosure = summary.closest('details')!;
+  expect(disclosure.querySelectorAll('tbody tr')).toHaveLength(0);
+  await userEvent.click(summary);
+  const table = await screen.findByRole('table');
+  expect(Array.from(table.querySelectorAll('tbody tr'), (row) =>
+    Array.from(row.children, (cell) => cell.textContent),
+  )).toEqual([
+    ['17.09.2024', 'Kurs je Stück', '0,50 USD'],
+    ['17.09.2025', 'Kurs je Stück', '1,00 USD'],
+    ['17.03.2026', 'Kurs je Stück', '2,00 USD'],
+    ['17.08.2026', 'Kurs je Stück', '3,00 USD'],
+    ['17.09.2026', 'Kurs je Stück', '4,123456 USD'],
+  ]);
+  act(() => setAmountsHidden(true));
+  expect(within(table).getAllByText('•••')).toHaveLength(5);
+  expect(table.textContent).not.toContain('4,123456');
+  expect(table.textContent).toContain('17.09.2026');
+  await userEvent.click(summary);
+  expect(disclosure.open).toBe(false);
+  expect(disclosure.querySelectorAll('tbody tr')).toHaveLength(0);
+});
 
 it('filters stored quotes inclusively for 1M, 6M, 1J and Max and inspects exact native prices', async () => {
   page();
