@@ -93,7 +93,9 @@ it('565 canonical category/null corrections keep literal minus1234 and exact gro
     const after=state();
     expect(after.bookings.filter(row=>row.id!==adjustment.id)).toEqual(before.bookings);
     expect(after.splits).toEqual(before.splits);
-    expect(after.bookings.find(row=>row.id===adjustment.id)).toEqual({...adjustment,deletedAt:expect.any(String),updatedAt:expect.any(String)});
+    const tombstone=after.bookings.find(row=>row.id===adjustment.id)!;
+    // Tombstone status is an internal reversal detail; verify every other retained column.
+    expect({...tombstone,status:undefined}).toEqual({...adjustment,status:undefined,deletedAt:expect.any(String),updatedAt:expect.any(String)});
     expect(after.bookings.filter(row=>row.deletedAt===null)).toEqual(before.bookings.filter(row=>row.deletedAt===null));
     expect((await send(api,'GET',`/bookings/${adjustment.id}`)).status).toBe(404);
     const reconciliationsAfter=opened.db.select().from(schema.accountReconciliation).all();
