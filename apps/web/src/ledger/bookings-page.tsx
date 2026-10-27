@@ -254,6 +254,9 @@ export function BookingsPage() {
                   : first.nativeTotals
                     ? `Summe ${first.nativeTotals.length ? first.nativeTotals.map((total) => (total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents, total.currency, true))).join(' · ') : eur(0)}`
                     : 'Summe nicht verfügbar'}
+              {!first.nativeTotalsPending && filteredAccount && filteredAccount.currency !== 'EUR' && (
+                <> · {first.sumEurCents == null ? 'EUR: Kurs fehlt' : Number.isSafeInteger(first.sumEurCents) ? eur(first.sumEurCents, { sign: true }) : 'EUR: nicht darstellbar'} · EUR je Buchungstag, Kurse in der Tabelle</>
+              )}
             </p>
           )}
         </section>
@@ -304,7 +307,6 @@ export function BookingsPage() {
                 caption="Alle Buchungen nach Tag"
                 variant="all"
                 showRunningBalance={!!filteredAccount}
-                showTodayBalance={!!filteredAccount}
                 upcoming={upcoming.model}
                 {...(!isPhone || selecting ? { selection } : {})}
                 sort={{ key: sortKey, direction, onSort }}

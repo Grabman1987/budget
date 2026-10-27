@@ -14,10 +14,13 @@ classified category-spending drilldowns retain their distinct net-spending value
 Existing optimistic row transforms mark every cached copy of the complete-filter
 sum pending until the canonical refetch. They retain the original native groups
 for rollback and never reconstruct full-filter totals from loaded cursor rows.
-Historical Saldo values and the existing today-balance line are shown only for an
-explicit single account. The existing Kommend disclosure remains collapsed by
-default; opening it retains its projected balance column and honest unavailable
-marker. That structural column does not invent a historical multi-account value.
+Historical Saldo values are shown only for an explicit single account. The
+existing canonical today-balance line stays unchanged. The existing Kommend
+disclosure remains collapsed by default; opening it retains its projected balance
+column and honest unavailable marker. That structural column does not invent a
+historical multi-account value. A foreign single-account filter also retains its
+canonical server-provided EUR equivalent and per-booking-day FX explanation;
+pending, missing and unsafe values remain explicit and use existing privacy formatting.
 
 The additional actions menu exports the same filtered history and sort through
 the shown Vienna day; unbooked future projections are excluded. The CSV uses the
