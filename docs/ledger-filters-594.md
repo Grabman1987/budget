@@ -65,6 +65,11 @@ Test rationale:
   tap and unchecked oracle. Also asserts no selected-mode horizontal overflow.
   The bookings toolbar wraps so the longer selection label and CSV menu remain
   inside the phone viewport; it introduces no new color or size value.
+  In selected mode, both themes additionally verify the actual Auswahl beenden
+  button, CSV summary and opened CSV link: full viewport bounds, at least 44px,
+  and actual center hits on the control or its descendant. Opening the menu does
+  not activate its download. The existing checked/unforced-untap/unchecked sequence
+  remains after these geometry checks on Chromium phone and WebKit profiles.
 
 No timeout, retry, skip, baseline or protected money/security/Undo expectation was
 relaxed. Independent HIGH source/test review and all runtime/publication evidence
