@@ -1,23 +1,20 @@
-import '../nav/registers.css';
 import { WholePictureReport } from '../reports/whole-picture-report';
 import { IncomeExpenseReport } from '../reports/income-expense-report';
 import { PayrollReport } from '../reports/payroll-report';
 import { ProjectsReport } from '../reports/projects-report';
 import { ReportTrendContext } from '@budget/ui';
 import { useSearch } from '@tanstack/react-router';
-import { Registers, SectionHead, type RegisterItem } from '@budget/ui';
-import { ChevronRight, Printer } from 'lucide-react';
+import { SectionHead } from '@budget/ui';
+import { useEffect } from 'react';
+import { Printer } from 'lucide-react';
 import { BookRuleMetric } from '../rules/book-rule-metric';
-import { areaById } from '../nav/areas';
 import { REPORTS_CATALOG, REPORT_GROUP_PAGES, type PageMeta } from '../nav/pages';
 import {
-  REPORTS,
-  REPORT_GROUPS,
   findReport,
   findReportGroup,
   type ReportEntry,
 } from '../nav/reports-catalog';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useParams } from '@tanstack/react-router';
 import { AppLink } from '../shell/app-link';
 import { AreaHead } from './area-head';
 import { PlaceholderPage } from './placeholder-page';
@@ -37,6 +34,8 @@ import { FinanzcheckReport } from '../reports/finanzcheck-report';
 import { CompareReport } from '../reports/compare-report';
 import { JahresreportPage } from '../reports/jahresreport-page';
 import { ExplorerReportPage } from '../reports/explorer-report';
+import { ReportHub } from '../reports/report-hub';
+import { rememberReport, type HubGroup } from '../reports/report-hub-model';
 import { SpendingAnalysisReport } from '../reports/spending-analysis-report';
 import { BudgetAdherenceReportPage } from '../reports/budget-adherence-report';
 import { PlanningAccuracyReportPage } from '../reports/planning-accuracy-report';
@@ -69,109 +68,28 @@ function Controls({ report }: { report: ReportEntry }) {
   );
 }
 
-function ReportRegisters({ current }: { current: string }) {
-  const items: RegisterItem[] = areaById('reports').registers.map((r) => ({
-    id: r.id,
-    label: r.label,
-    href: r.to,
-  }));
-  return (
-    <Registers
-      label="Register von Reports"
-      items={items}
-      current={current}
-      renderLink={(item, props) => (
-        <AppLink to={item.href ?? '/reports'} {...props}>
-          {item.label}
-        </AppLink>
-      )}
-    />
-  );
-}
-
-/**
- * Report catalog: assembly headings with positions, report names and plain-language questions.
- */
-function ReportCatalogTable({
-  groups,
-  caption,
-}: {
-  groups: ReadonlyArray<(typeof REPORT_GROUPS)[number]>;
-  caption: string;
-}) {
-  const navigate = useNavigate();
-  return (
-    <section className="rcat-wrap" aria-label={caption}>
-      <table className="rcat">
-        <thead>
-          <tr>
-            <th className="tech col-pos">Pos</th>
-            <th className="tech">Report</th>
-            <th className="tech">Frage</th>
-            <th>
-              <span className="sr-only">Öffnen</span>
-            </th>
-          </tr>
-        </thead>
-        {groups.map((group) => (
-          <tbody key={group.slug}>
-            <tr className="rcat-grp">
-              <td className="col-pos">{group.no}</td>
-              <td colSpan={3}>
-                <strong>{group.name}</strong>
-                <span className="rcat-count">{group.items.length} Reports</span>
-              </td>
-            </tr>
-            {group.items.map((report) => (
-              <tr
-                key={report.id}
-                className="rcat-row"
-                onClick={(event) => {
-                  if ((event.target as HTMLElement).closest('a')) return;
-                  void navigate({ to: `/reports/${report.id}` });
-                }}
-              >
-                <td className="col-pos">{report.pos}</td>
-                <td className="rcat-name">
-                  <AppLink to={`/reports/${report.id}`}>{report.name}</AppLink>
-                </td>
-                <td className="rcat-q">{report.question}</td>
-                <td className="rcat-go" aria-hidden="true">
-                  <ChevronRight size={16} strokeWidth={1.75} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        ))}
-      </table>
-    </section>
-  );
-}
-
-/** Report catalog: all five assemblies. */
+/** The canonical hub preserves report bodies and old direct links. */
 export function ReportsCatalogPage() {
   return (
     <>
-      <AreaHead
-        meta={REPORTS_CATALOG}
-        subtitle={`${REPORTS.length} Zeichnungen aus einem Hauptbuch`}
-      />
-      <ReportRegisters current="katalog" />
-      <ReportCatalogTable groups={REPORT_GROUPS} caption="Katalog der Reports" />
+      <AreaHead meta={REPORTS_CATALOG} subtitle="16 Berichte aus einem Hauptbuch" />
+      <ReportHub />
     </>
   );
 }
 
-/** One register of the report catalog: the drawings of one assembly. */
+/** Existing group URLs remain useful without retaining the old register navigation. */
 export function ReportGroupPage({ slug }: { slug: string }) {
   const group = findReportGroup(slug);
   const page = REPORT_GROUP_PAGES.find((p) => p.slug === slug);
   if (!group || !page) return <ReportNotFound />;
+  const initial: Record<string, HubGroup> = {
+    monat: 'income', ausgaben: 'income', zukunft: 'wealth', portfolio: 'portfolio', ueberblick: 'reports',
+  };
   return (
     <>
-      <AreaHead meta={REPORTS_CATALOG} subtitle={group.name} />
-      <ReportRegisters current={slug} />
-      <ReportCatalogTable groups={[group]} caption={`Reports der Baugruppe ${group.name}`} />
+      <AreaHead meta={REPORTS_CATALOG} subtitle="16 Berichte aus einem Hauptbuch" />
+      <ReportHub key={slug} initialGroup={initial[slug]} />
     </>
   );
 }
@@ -258,6 +176,7 @@ export function ReportGroupRoute() {
 export function ReportRoute() {
   const { reportId } = useParams({ strict: false }) as { reportId: string };
   const search = useSearch({ strict: false }) as { trend?: boolean };
+  useEffect(() => { rememberReport(reportId); }, [reportId]);
   return (
     <ReportTrendContext.Provider
       value={

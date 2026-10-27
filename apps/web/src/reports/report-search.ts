@@ -9,6 +9,7 @@ const ids = (value: unknown) =>
     : undefined;
 
 export const validateReportSearch = (search: Record<string, unknown>) => ({
+  ansicht: id(search['ansicht']),
   vorlage: isExplorerTemplate(search['vorlage']) ? search['vorlage'] : undefined,
   exakt: search['exakt'] === true || search['exakt'] === 'true' ? true : undefined,
   kategorien: ids(search['kategorien']),

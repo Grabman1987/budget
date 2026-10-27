@@ -305,6 +305,13 @@
   border-bottom: var(--stroke-hairline) solid var(--rule);
   text-align: right;
 }
+.ex-custom-query {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
 .ex-chart-original-scroll th:first-child {
   text-align: left;
 }

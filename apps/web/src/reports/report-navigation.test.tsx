@@ -4,7 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { ReportNavigation, adjacentReports } from './report-navigation';
 import { REPORTS } from '../nav/reports-catalog';
 const navigate = vi.fn();
-vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigate }));
+vi.mock('@tanstack/react-router', () => ({
+  useNavigate: () => navigate,
+  useLinkProps: ({ to, onClick }: { to: string; onClick?: () => void }) => ({ href: to, onClick }),
+}));
 
 describe('report navigation', () => {
   it('follows every catalog position, including group boundaries and both endpoints', () => {
