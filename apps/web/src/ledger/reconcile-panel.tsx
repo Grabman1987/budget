@@ -24,7 +24,7 @@ import { nativeCurrency, valuedCurrency, longDay, shortDay } from './format';
 import { errorText } from './labels';
 import { useLedgerWrites } from './mutations';
 import { LEDGER_KEY, lookupsQuery } from './queries';
-import { findingOf } from './reconcile-model';
+import { candidatesOf, findingOf } from './reconcile-model';
 import { ErrorNote, LoadingNote } from './states';
 import type { AccountRow, ReconcileResult } from './types';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
@@ -133,6 +133,14 @@ export function ReconcileFlow({
     placeholderData: keepPreviousData,
   });
   const data = preview.data;
+  const candidates = data ? candidatesOf(data) : [];
+  const candidateScope = JSON.stringify([account.id, date, statement, data]);
+  const [review, setReview] = useState<{ scope: string; ignored: string[] }>({ scope: '', ignored: [] });
+  if (review.scope !== candidateScope) setReview({ scope: candidateScope, ignored: [] });
+  const ignored = review.scope === candidateScope ? review.ignored : [];
+  const candidateBusy = writes.remove.isPending || writes.bulk.isPending;
+  const unresolvedCandidates = candidates.some(row => !ignored.includes(row.key));
+  const canCorrect = !unresolvedCandidates && !candidateBusy;
   const money = (amount: number, sign = false) => nativeCurrency(amount, account.currency, sign);
   const finding = data ? findingOf(data) : null;
   // The same plain spending categories for a surplus and a shortfall; the server enforces it too.
@@ -201,8 +209,24 @@ export function ReconcileFlow({
     setError(null);
     writes.remove.mutate(
       { id },
-      { onSettled: () => void qc.invalidateQueries({ queryKey: LEDGER_KEY }) },
+      { onError: e => setError(errorText(e)), onSettled: () => void qc.invalidateQueries({ queryKey: LEDGER_KEY }) },
     );
+  };
+  const confirmPending = (ids: string[]) => {
+    setError(null);
+    closeContext?.onBusy(true);
+    writes.bulk.mutate({ ids, set: { status: 'confirmed' } }, {
+      onSuccess: result => {
+        if (result.skipped.length) setError(`${result.skipped.length} Buchungen wurden nicht geändert. Bitte den Vorschlag in Buchungen prüfen.`);
+        // The month-close token is intentionally immutable after a separate canonical write.
+        if (closeContext && result.changed.length) setStaleClose(true);
+      },
+      onError: e => setError(errorText(e)),
+      onSettled: () => {
+        closeContext?.onBusy(false);
+        void qc.invalidateQueries({ queryKey: LEDGER_KEY });
+      },
+    });
   };
 
   return (
@@ -311,7 +335,7 @@ export function ReconcileFlow({
               Differenz {money(0)} · stimmt überein
             </p>
             <div className="panel-actions">
-              <Button disabled={confirm.isPending} onClick={() => run({})}>
+              <Button disabled={confirm.isPending || candidateBusy || staleClose} onClick={() => run({})}>
                 Festschreiben ({data.toReconcileCount})
               </Button>
             </div>
@@ -349,7 +373,7 @@ export function ReconcileFlow({
                     dann geht die Rechnung auf.
                   </>
                 )}
-                {finding.kind === 'missing' && (
+                {finding.kind === 'missing' && canCorrect && (
                   <>
                     <strong>
                       Es fehlt {finding.type === 'expense' ? 'eine Ausgabe' : 'eine Einnahme'}
@@ -360,15 +384,32 @@ export function ReconcileFlow({
                     Buchung passt zu diesem Betrag.
                   </>
                 )}
-                {finding.kind === 'other' && (
+                {finding.kind === 'other' && canCorrect && (
                   <>
                     <strong>Differenz {money(data.differenceCents, true)}.</strong> Keine Buchung
                     erklärt sie.
                   </>
                 )}
+                {!canCorrect && (finding.kind === 'missing' || finding.kind === 'other') && <strong>Differenz {money(data.differenceCents, true)}. Zuerst Kandidaten prüfen.</strong>}
               </span>
             </p>
-            <div className="kform">
+            {candidates.length > 0 && <section className="kform" aria-label="Kandidaten zuerst prüfen">
+              <h3>Kandidaten zuerst prüfen</h3>
+              <p>Prüfe unbestätigte und möglicherweise doppelte Buchungen. Erst nach deiner Auswahl wird ein verbleibender Unterschied als Ausgleich angeboten.</p>
+              {candidates.map((row, index) => <section className="kform" key={row.key} data-testid={`candidate-${row.key}`} aria-label={`Kandidat ${index + 1}`}>
+                <p><strong>{row.kind === 'duplicate' ? 'Mögliche doppelte Buchung' : 'Vorgemerkte Buchung'}</strong> · {maskMoneyText(row.payeeName ?? 'Ohne Empfänger')}{row.date && <> · {shortDay(row.date)}</>} · {valuedCurrency(row.amountCents, account.currency, row.valuation, true)}</p>
+                <div className="panel-actions">
+                  {ignored.includes(row.key) ? <Button variant="ghost" disabled={candidateBusy || confirm.isPending} onClick={() => setReview({scope:candidateScope, ignored:ignored.filter(key=>key!==row.key)})}>Ignorieren rückgängig</Button> : <>
+                    <Button disabled={candidateBusy || confirm.isPending || staleClose} onClick={() => row.kind === 'duplicate' ? dropDuplicate(row.bookingIds[0]!) : confirmPending(row.bookingIds)}>
+                      {row.kind === 'duplicate' ? closeContext ? 'Doppelte Buchung entfernen und festschreiben' : 'Doppelte Buchung entfernen' : 'Bestätigen'}
+                    </Button>
+                    <Button variant="ghost" disabled={candidateBusy || confirm.isPending} onClick={() => setReview({scope:candidateScope, ignored:[...ignored,row.key]})}>Ignorieren</Button>
+                  </>}
+                </div>
+              </section>)}
+              {unresolvedCandidates && <AppLink className="btn btn-ghost" to="/konten/buchungen" search={{konto:account.id,bis:asked.date}}>In Buchungen suchen</AppLink>}
+            </section>}
+            {canCorrect && <><div className="kform">
               {closeContext && (
                 <Field label="Grund für den Ausgleich">
                   {({ id }) => (
@@ -465,27 +506,6 @@ export function ReconcileFlow({
                   Fehlende Buchung erfassen
                 </Button>
               )}
-              {finding.kind === 'duplicate' && (
-                <Button
-                  disabled={
-                    writes.remove.isPending ||
-                    Boolean(closeContext && (confirm.isPending || staleClose))
-                  }
-                  onClick={() => dropDuplicate(finding.candidate.removeId)}
-                >
-                  {closeContext
-                    ? 'Doppelte Buchung entfernen und festschreiben'
-                    : 'Doppelte Buchung entfernen'}
-                </Button>
-              )}
-              {finding.kind === 'pending' && (
-                <Button
-                  disabled={confirm.isPending}
-                  onClick={() => run({ confirmBookingIds: finding.bookingIds })}
-                >
-                  Bestätigen und festschreiben
-                </Button>
-              )}
               <Button
                 variant={
                   finding.kind === 'missing' || finding.kind === 'other' ? 'primary' : 'ghost'
@@ -516,7 +536,7 @@ export function ReconcileFlow({
               >
                 In Buchungen suchen
               </AppLink>
-            </div>
+            </div></>}
           </>
         )}
       </div>
