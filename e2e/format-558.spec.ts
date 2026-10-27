@@ -25,5 +25,5 @@ test('format only the 558 changed source files', async () => {
   }
   const patch = execFileSync('git', ['diff', '--', ...paths], { encoding: 'utf8' });
   console.log('FORMAT558_SHA256=' + createHash('sha256').update(patch).digest('hex'));
-  console.log('FORMAT558_BASE64=' + Buffer.from(patch).toString('base64'));
+  writeFileSync('e2e/format-558-output.txt', patch);
 });
