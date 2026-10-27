@@ -52,3 +52,40 @@ capability review. No heatmap/source/test/baseline/timeouts are changed in this
 repair, pending coordinator/HIGH recommendation and complete old CI failure
 collection. No local Node/build/test/browser/lint/formatter, remote VM, public
 push or full retry. Independent HIGH exact-delta review precedes focused proof.
+
+
+## Relocated old heatmap consumers (private technical adapters)
+
+Independent HIGH source diagnosis approved following the real04 Auswertung
+handoff, rather than restoring a second heatmap into the compact pilot. Only
+category-trend.spec.ts's two old Ausgaben heatmap portions and report-polish's
+one Ausgaben contrast matrix entry change; the first category-trend case, new554
+full case, old verdict tests and other two contrast routes remain unchanged.
+
+- category-trend.spec.ts: genuinely expand the existing section only if collapsed,
+  click its real In Auswertung öffnen link, require template-heatmap and exakt=true.
+  Retain visible private euro text and masked aria-label on the actual per-month
+  button, normalizing ONLY its known decorative up/down arrow. For exact drill,
+  keep the report's first category ID, address the matching cat:id row/month cell,
+  derive that calendar month's bounds and request the SAME canonical classified
+  bookings API. Exact normalized cell cents equal the API (not a tolerance).
+  Preserve44px width/height and both-theme Axe/no-overflow/screenshots via the
+  original inspectReport. Click the real cell, assert BOTH displayed cell value
+  and inline sourceSum exactly equal that same API amount, with no mismatch alert.
+  Then return to the original1M report and use the SAME category's real amount
+  link; require exact category/from/to params, real booking URL and original
+  Kategorie-netto ksum cents. No arbitrary unrelated category or total substitute.
+- report-polish.spec.ts: only Ausgaben now follows that genuine same-period
+  handoff and tests actual template td[data-heat=bad/good] cells. The existing
+  composed-background/text contrast calculation, minimum4.5 in BOTH themes,
+  changed-report Axe/no-overflow/screenshots and Jahresansicht/Prendite entries
+  remain unchanged. The new table uses original Explorer44px buttons/token heat.
+
+Source evidence: ExplorerTemplates renders data-template-row=cat:id and the
+YYYY-MM data-template-column button, canonical explorerTemplateSources and
+sourceSum; its displayed cell/source reconciliation is tested in addition to
+retaining the original filtered-bookings sum. This does not implement517 or
+change a financial/read/write formula. No financial/aria/privacy/contrast oracle,
+timeout/retry/skip/baseline is weakened. Runtime remains unproven until exact-HIGH
+review and bounded first-attempt proof after old CI failure collection completes.
+No local heavy commands, public push, remote VM or full retry were performed.
