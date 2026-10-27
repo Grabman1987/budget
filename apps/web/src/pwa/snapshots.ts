@@ -25,7 +25,7 @@ export const setOfflineUnavailable = (value: boolean) => {
   offlineUnavailable = value;
 };
 export const offlineReadOnly = () =>
-  (typeof navigator !== 'undefined' && !navigator.onLine) || offlineUnavailable;
+  (typeof navigator !== 'undefined' && navigator.onLine === false) || offlineUnavailable;
 /** A completed new login can start a new snapshot generation in the same tab. */
 export const resumeSnapshots = () => {
   revoked = false;

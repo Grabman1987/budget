@@ -14,6 +14,8 @@ The other four security scenarios passed on the earlier source: server logout fa
 
 The first integrated PR static job reported one blocking `react-hooks/set-state-in-effect` error in `PwaShell`. The repair moves the retained-live-wrapper state update to the existing online event and known-unauthenticated login/setup event handlers; cold offline startup, draft retention on disconnect and explicit session-end unmounting keep their prior transitions. This repair is source prepared and awaits independent review and exact-head static/browser verification. The unrelated `panel.tsx` unused-disable warning is pre-existing in the merged main source and is nonblocking.
 
+The integrated PR's second unit job passed 2,836 and failed two cases. The write-invalidation case ran in Vitest's Node environment, whose `navigator.onLine` is undefined: the shared write guard treated that unknown value as an offline browser. It now blocks on the browser's explicit `false` value or PWA offline state, preserving the real successful POST and its cache-invalidation assertion. The initial-auth-network-failure test used a text query that also finds deliberately hidden live DOM; it now asserts that the retained wrapper is both `hidden` and `inert`, while the separate cold-offline test still requires the financial child not to mount at all. These two corrections are unrun and require the exact-head unit retry.
+
 ## Test changes
 
 - `apps/web/src/pwa/pwa.test.tsx` finds the preserved draft input inside the intentionally hidden live wrapper; its existing value assertion remains.

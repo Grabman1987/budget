@@ -49,7 +49,9 @@ describe('static offline shell', () => {
       await auth.fetch().catch(() => undefined);
     });
     expect(screen.getByRole('heading', { name: 'Budget ist offline' })).toBeTruthy();
-    expect(screen.queryByText('Financial page')).toBeNull();
+    const live = screen.getByText('Financial page').closest('.pwa-live');
+    expect(live?.hasAttribute('hidden')).toBe(true);
+    expect(live?.hasAttribute('inert')).toBe(true);
   });
   it('keeps a live page mounted when a later auth refresh fails', async () => {
     connection(true);
