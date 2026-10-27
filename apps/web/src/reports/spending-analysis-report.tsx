@@ -72,8 +72,8 @@ export function SpendingAnalysisReport({
             : 'wird geladen'
       }
       reportStand={{ label: 'Stichtag', value: data?.to ? longDay(data.to) : '–' }}
+      reportControls={viewControl}
       extraFields={[
-        ...(viewControl ? [{ label: 'Ansicht', value: viewControl }] : []),
         {
           label: 'Zeitraum',
           value: <PeriodSwitch period={period} onChange={onPeriodChange ?? setPeriod} />,

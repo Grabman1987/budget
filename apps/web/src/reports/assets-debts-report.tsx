@@ -92,8 +92,8 @@ export function AssetsDebtsReport({
             ? 'nicht verfügbar'
             : 'wird geladen'
       }
+      reportControls={viewControl}
       extraFields={[
-        ...(viewControl ? [{ label: 'Ansicht', value: viewControl }] : []),
         {
           label: 'Zeitraum',
           value: (

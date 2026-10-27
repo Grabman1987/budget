@@ -12,6 +12,7 @@ async function inspect(page: Page, info: TestInfo, label: string) {
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   if (info.project.name === 'desktop') {
+    expect((await page.locator('.titleblock').first().boundingBox())!.height).toBe(64);
     expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(
       1800,
     );

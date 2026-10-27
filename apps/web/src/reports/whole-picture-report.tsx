@@ -148,8 +148,8 @@ export function WholePictureReport({
           ? `${monthLong(data.rows[0]!.month)} bis ${monthLong(data.rows.at(-1)!.month)}`
           : 'Keine Monatsdaten'
       }
+      reportControls={viewControl}
       extraFields={[
-        ...(viewControl ? [{ label: 'Ansicht', value: viewControl }] : []),
         {
           label: 'Zeitraum',
           value: (
