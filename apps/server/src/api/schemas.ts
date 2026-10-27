@@ -187,7 +187,7 @@ export const bookingPatch = z
   })
   .partial();
 
-export const bookingDeleteQuery = z.object({ unlock: z.enum(['1', 'true']).optional() });
+export const bookingDeleteQuery = z.object({ unlock: z.enum(['1', 'true']).optional(), previewRevision: z.string().regex(/^[a-f0-9]{64}$/).optional() });
 
 export const bulkBody = z.discriminatedUnion('action', [
   z.object({
@@ -207,6 +207,7 @@ export const bulkBody = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('delete'),
     ids: z.array(id).min(1).max(500),
+    previewRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
     unlockReconciled: z.boolean().default(false),
   }),
 ]);

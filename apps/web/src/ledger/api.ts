@@ -216,12 +216,12 @@ export const patchBooking = (id: string, patch: BookingPatch, key?: string) =>
     key ? { 'Idempotency-Key': key } : undefined,
   );
 
-export const deleteBooking = (id: string, unlock = false) =>
-  request<WriteResult>(
-    'DELETE',
-    `/api/bookings/${encodeURIComponent(id)}${unlock ? '?unlock=1' : ''}`,
-  );
-
+export const deleteBooking = (id: string, unlock = false, previewRevision?: string) => {
+  const query = new URLSearchParams();
+  if (unlock) query.set('unlock', '1');
+  if (previewRevision) query.set('previewRevision', previewRevision);
+  return request<WriteResult>('DELETE', `/api/bookings/${encodeURIComponent(id)}${query.size ? `?${query}` : ''}`);
+};
 /** Why the server left a booking out of a bulk action. */
 export type BulkSkipReason =
   | 'not_found'
@@ -264,6 +264,17 @@ export interface BulkSelection {
 export const readBulkSelection = (ids: string[]) =>
   request<BulkSelection>('POST', '/api/bookings/selection', { ids });
 
+export interface BookingDeletePreview {
+  ids: string[];
+  affectedIds: string[];
+  affectedTotals: BulkSelection['totals'];
+  selection: BulkSelection;
+  eligibleIds: string[];
+  eligibleTotals: BulkSelection['totals'];
+  skipped: { id: string; reason: BulkSkipReason; booking?: BulkSelectionItem }[];
+  revision: string;
+}
+export const readDeletePreview = (ids: string[]) => request<BookingDeletePreview>('POST', '/api/bookings/delete-preview', { ids });
 export interface BulkResult extends WriteResult {
   changed: string[];
   skipped: { id: string; reason: BulkSkipReason; message: string; booking?: BulkSelectionItem }[];
@@ -281,8 +292,8 @@ export const bulkUpdateBookings = (
   },
 ) => request<BulkResult>('POST', '/api/bookings/bulk', { action: 'update', ids, set });
 
-export const bulkDeleteBookings = (ids: string[]) =>
-  request<BulkResult>('POST', '/api/bookings/bulk', { action: 'delete', ids });
+export const bulkDeleteBookings = (ids: string[], previewRevision: string) =>
+  request<BulkResult>('POST', '/api/bookings/bulk', { action: 'delete', ids, previewRevision });
 
 export const undoGroup = (groupId: string) =>
   request<WriteResult>('POST', '/api/undo', { groupId });

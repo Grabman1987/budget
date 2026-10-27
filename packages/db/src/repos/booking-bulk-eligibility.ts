@@ -58,6 +58,7 @@ export interface BookingBulkSelection {
 export function readBookingBulkSelection(
   db: Executor,
   requested: readonly string[],
+  policy: 'update' | 'delete' = 'update',
 ): BookingBulkSelection {
   const ids = [...new Set(requested)];
   if (ids.length > 500) throw new RangeError('At most500 selected bookings');
@@ -224,7 +225,14 @@ export function readBookingBulkSelection(
       );
       for (const { b, a, p } of rows) {
         const own = splits.filter((s) => s.bookingId === b.id);
-        const reason: BookingBulkReason | null =
+        const deleteReason: BookingBulkReason | null =
+          b.status === 'reconciled' ? 'reconciled_locked'
+            : contacts.has(b.id) || own.some((s) => s.contactId) ? 'linked_contact'
+              : trades.has(b.id) ? 'linked_trade'
+                : documents.has(b.id) ? 'linked_document'
+                  : statements.has(b.id) ? 'linked_statement'
+                    : !Number.isSafeInteger(b.amountCents) ? 'invalid' : null;
+        const reason: BookingBulkReason | null = policy === 'delete' ? deleteReason :
           b.status === 'reconciled'
             ? 'reconciled_locked'
             : b.transferId || own.some((s) => s.transferId)

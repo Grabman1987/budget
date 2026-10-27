@@ -6,6 +6,7 @@ import {
   useAmountPrivacy,
   useIsPhone,
   BottomSheet,
+  FormDialog,
   Button,
   Field,
   Select,
@@ -22,6 +23,7 @@ import { PageFrame } from '../pages/placeholder-page';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { BookingTable, type Selection } from './booking-table';
 import { BookingSelectionBar, type BulkOutcome } from './booking-selection-bar';
+import { BookingDeleteConfirmation } from './booking-delete-confirmation';
 import type { BulkSelection } from './api';
 import type { BulkSet } from './cache';
 import { BookingStatusChips } from './booking-status-chips';
@@ -149,7 +151,7 @@ export function BookingsPage() {
   const bulkDone = (completed = ids) =>
     setSelected((prev) => new Set([...prev].filter((id) => !completed.includes(id))));
   const runBulk = async (
-    vars: { ids: string[]; set: BulkSet } | { ids: string[]; remove: true },
+    vars: { ids: string[]; set: BulkSet } | { ids: string[]; remove: true; previewRevision: string },
     submitted?: BulkSelection,
   ) => {
     if (pending) return;
@@ -162,7 +164,8 @@ export function BookingsPage() {
         ...(submitted ? { submitted } : {}),
       });
       bulkDone(result.changed);
-    } catch {
+    } catch (error) {
+      if ('remove' in vars) throw error;
       /* The mutation reports failure; the selection and its context stay intact. */
     }
   };
@@ -311,6 +314,9 @@ export function BookingsPage() {
             )}
           </>
         )}
+        <FormDialog open={confirmDelete} title="Löschen bestätigen" onClose={() => setConfirmDelete(false)} beforeClose={() => !pending}>
+          {confirmDelete && <BookingDeleteConfirmation key={ids.slice().sort().join('|')} ids={ids} onCancel={() => setConfirmDelete(false)} onConfirm={(preview) => runBulk({ ids: preview.ids, remove: true, previewRevision: preview.revision }, preview.selection)} />}
+        </FormDialog>
         <BookingSelectionBar
           ids={ids}
           pending={pending}
@@ -352,37 +358,9 @@ export function BookingsPage() {
                   Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.
                 </span>
               )}
-              {confirmDelete ? (
-                <span className="kbulk-confirm" role="group" aria-label="Löschen bestätigen">
-                  <span>{pluralBookings(ids.length)} löschen?</span>
-                  <Button
-                    size="sm"
-                    disabled={pending}
-                    onClick={() => {
-                      void runBulk({ ids, remove: true }, facts);
-                    }}
-                  >
-                    Ja, löschen
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={pending}
-                    onClick={() => setConfirmDelete(false)}
-                  >
-                    Abbrechen
-                  </Button>
-                </span>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={pending}
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  Löschen
-                </Button>
-              )}
+              <Button variant="ghost" size="sm" disabled={pending || !facts} onClick={() => setConfirmDelete(true)}>
+                Löschen
+              </Button>
             </>
           )}
         />
