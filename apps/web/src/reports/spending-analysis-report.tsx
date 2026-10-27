@@ -1,10 +1,15 @@
-import { chartShare } from '../charts/tooltip-data';
-import { ChartValue, ChartValues } from '@budget/ui';
-import { useAmountPrivacy, ClassSwatch, DimensionChain } from '@budget/ui';
-import { cents, heatCells } from '@budget/domain';
+import {
+  ChartValue,
+  ClassSwatch,
+  DimensionChain,
+  maskMoneyText,
+  useAmountPrivacy,
+} from '@budget/ui';
+import { cents, type SpendRow, type SpendingPeriod } from '@budget/domain';
 import type { SpendingReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { request } from '../api/http';
 import { eur, longDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -12,17 +17,10 @@ import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
-import { categoryMonthSearch } from './category-trend';
-import {
-  bpText,
-  monthShort,
-  PeriodSwitch,
-  periodName,
-  ReportQuery,
-  ScrollRegion,
-  useReportPeriod,
-} from './spending-shared';
-import type { SpendingPeriod } from '@budget/domain';
+import { ReportAnswer } from './report-answer';
+import { useCollapsibleSections } from './month-frame';
+import { PeriodSwitch, periodName, ReportQuery, useReportPeriod } from './spending-shared';
+import './spending-analysis-report.css';
 
 const analysisQuery = (period: SpendingPeriod) =>
   queryOptions({
@@ -31,15 +29,15 @@ const analysisQuery = (period: SpendingPeriod) =>
     queryFn: () =>
       request<SpendingReport>('GET', `/api/reports/spending/analysis?period=${period}`),
   });
+const DEFAULT_COLLAPSED = ['sa-moves', 'sa-classes', 'sa-explorer'] as const;
 
-const CLASS_NAME = { need: 'Bedarf', want: 'Wunsch', future: 'Zukunft' } as const;
-
-/** 2.1 Ausgabenanalyse: Wofür geben wir Geld aus? */
+/** The pilot report reuses the shared report controls and authoritative spending figures. */
 export function SpendingAnalysisReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   useAmountPrivacy();
   const [period, setPeriod] = useReportPeriod();
   const query = useQuery(analysisQuery(period));
   const data = query.data && !query.isFetching ? query.data : undefined;
+  const sections = useCollapsibleSections(report.id, DEFAULT_COLLAPSED);
   return (
     <PageFrame
       verdict={
@@ -60,13 +58,10 @@ export function SpendingAnalysisReport({ report, meta }: { report: ReportEntry; 
           : data
             ? data.from && data.to
               ? `${longDay(data.from)} bis ${longDay(data.to)}`
-              : 'keine geschlossenen Monate'
+              : 'keine Monatsdaten'
             : 'wird geladen'
       }
-      reportStand={{
-        label: 'Stichtag',
-        value: data?.to ? `${longDay(data.to)} · Monatsende` : 'Monatsende',
-      }}
+      reportStand={{ label: 'Stichtag', value: data?.to ? longDay(data.to) : '–' }}
       extraFields={[
         {
           label: 'Zeitraum',
@@ -74,58 +69,383 @@ export function SpendingAnalysisReport({ report, meta }: { report: ReportEntry; 
         },
       ]}
     >
-      <div className="kview sr" data-testid="spending-analysis">
+      <div ref={sections} className="kview sr spending-analysis" data-testid="spending-analysis">
         <ReportQuery query={query} what="Ausgabenanalyse">
-          {(report) => <Body data={report} />}
+          {(result) => <Body data={result} />}
         </ReportQuery>
       </div>
     </PageFrame>
   );
 }
 
+interface CategoryRow extends SpendRow {
+  previous: number | null;
+  change: number | null;
+}
+interface SpendingGroup {
+  id: string;
+  name: string;
+  rows: CategoryRow[];
+  cents: number;
+  previous: number | null;
+}
+const checkedSum = (values: number[]) => {
+  let total = 0;
+  for (const amount of values) {
+    total += amount;
+    if (!Number.isSafeInteger(amount) || !Number.isSafeInteger(total))
+      throw new RangeError('Spending display exceeds safe integer cents');
+  }
+  return total;
+};
+
+/** Group only the supplied signed rows; previous figures belong to the exact-day comparison. */
+export function spendingGroups(
+  data: Pick<SpendingReport, 'breakdown' | 'answerComparison' | 'consumptionCents'>,
+): SpendingGroup[] {
+  const previous = new Map(data.answerComparison.rows.map((row) => [row.id, row.previousCents]));
+  const groups = new Map<string, SpendingGroup>();
+  for (const row of data.breakdown) {
+    const prior = previous.get(row.id) ?? null;
+    // Older metadata without an ID stays separate, never merged by a nonunique label.
+    const key = row.groupId ?? `category:${row.id}`;
+    const group = groups.get(key) ?? {
+      id: key,
+      name: row.groupName,
+      rows: [],
+      cents: 0,
+      previous: null,
+    };
+    group.rows.push({
+      ...row,
+      previous: prior,
+      change: prior === null ? null : checkedSum([row.cents, -prior]),
+    });
+    groups.set(key, group);
+  }
+  for (const group of groups.values()) {
+    group.cents = checkedSum(group.rows.map((row) => row.cents));
+    group.previous = group.rows.every((row) => row.previous !== null)
+      ? checkedSum(group.rows.map((row) => row.previous!))
+      : null;
+    group.rows.sort((a, b) => b.cents - a.cents || a.id.localeCompare(b.id));
+  }
+  const result = [...groups.values()].sort((a, b) => b.cents - a.cents || a.id.localeCompare(b.id));
+  if (checkedSum(result.map((group) => group.cents)) !== data.consumptionCents)
+    throw new Error('Spending groups do not match the supplied report total');
+  return result;
+}
+
+function SignedBar({
+  current,
+  previous,
+  minimum,
+  maximum,
+  label,
+  date,
+}: {
+  current: number;
+  previous: number | null;
+  minimum: number;
+  maximum: number;
+  label: string;
+  date: string;
+}) {
+  const width = maximum - minimum || 1;
+  const point = (value: number) => ((value - minimum) / width) * 100;
+  const left = point(Math.min(0, current));
+  return (
+    <ChartValue
+      label={label}
+      date={date}
+      series={[
+        { name: 'Aktuell', value: eur(current), color: 'var(--line)' },
+        ...(previous === null
+          ? []
+          : [{ name: 'Vorzeitraum', value: eur(previous), color: 'var(--ink-3)' }]),
+      ]}
+    >
+      <span
+        className="sa-track"
+        aria-hidden="true"
+        style={{ '--sa-zero': `${point(0)}%` } as CSSProperties}
+      >
+        <i
+          className={current < 0 ? 'is-refund' : undefined}
+          style={{ left: `${left}%`, width: `${(Math.abs(current) / width) * 100}%` }}
+        />
+        {previous !== null && (
+          <b className="sa-prior-tick" style={{ left: `${point(previous)}%` }} />
+        )}
+      </span>
+    </ChartValue>
+  );
+}
+
 function Body({ data }: { data: SpendingReport }) {
   useAmountPrivacy();
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [tableOpen, setTableOpen] = useState(false);
   if (data.months.length === 0)
     return (
       <section className="sr-card sr-wide" aria-labelledby="sa-empty">
         <div className="sr-head">
-          <h2 id="sa-empty">Noch keine geschlossenen Monate</h2>
+          <h2 id="sa-empty">Noch keine Monatsdaten</h2>
         </div>
-        <p className="sr-empty" role="status">
-          Sobald ein Budgetkonto einen vollen Monat Buchungen hat, erscheint hier die
-          Ausgabenanalyse.
+        <p role="status">
+          Sobald Monatswerte eines Budgetkontos vorliegen, erscheint hier die Ausgabenanalyse.
         </p>
       </section>
     );
-  const total = data.consumptionCents + data.futureCents;
-  const range = `${longDay(data.from as string)} bis ${longDay(data.to as string)}`;
-  const parts = [
-    { id: 'need', cents: data.needCents, pct: data.classShares.need },
-    { id: 'want', cents: data.wantCents, pct: data.classShares.want },
-    { id: 'future', cents: data.futureCents, pct: data.classShares.future },
-  ] as const;
-  const maxRow = Math.max(1, ...data.rows.map((r) => r.cents));
-  const maxMove = Math.max(1, ...data.moves.map((m) => Math.abs(m.changeCents)));
-  const heatLabels = data.heatMonths.map(monthShort);
+  const groups = spendingGroups(data);
+  const rows = groups.flatMap((group) => group.rows);
+  const riser = rows
+    .filter((row) => row.change !== null && row.change > 0)
+    .sort((a, b) => b.change! - a.change! || a.id.localeCompare(b.id))[0];
+  const moves = rows
+    .filter((row) => row.change !== null && row.change !== 0)
+    .sort((a, b) => Math.abs(b.change!) - Math.abs(a.change!) || a.id.localeCompare(b.id))
+    .slice(0, 6);
+  const amounts = groups.flatMap((group) => [
+    group.cents,
+    group.previous ?? 0,
+    ...group.rows.flatMap((row) => [row.cents, row.previous ?? 0]),
+  ]);
+  const minimum = Math.min(0, ...amounts);
+  const maximum = Math.max(1, ...amounts);
+  const toggle = (id: string) =>
+    setExpanded((old) => {
+      const next = new Set(old);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const drill = (id: string) => ({
     kategorie: id,
-    von: data.from as string,
-    bis: data.to as string,
+    basis: 'category-spending',
+    von: data.from,
+    bis: data.to,
   });
+  const comparison = data.answerComparison;
+  const date = data.from && data.to ? `${data.from} · ${data.to}` : '';
   return (
     <>
-      <section className="sr-card" aria-labelledby="sa-main">
+      <section className="sr-card sr-wide" aria-labelledby="sa-main">
         <div className="sr-head">
-          <h2 id="sa-main">Konsum · {periodName(data.period, data.months)}</h2>
-          <span className="sr-state">
-            Ø {eur(data.averagePerMonthCents, { cents: false })} je Monat
-          </span>
+          <h2 id="sa-main">01 · Konsum nach Gruppe</h2>
+          <span className="sr-state">{periodName(data.period, data.months)}</span>
         </div>
-        <p className="sr-range">{range}</p>
+        <p className="sr-range">
+          {data.from && data.to
+            ? `${longDay(data.from)} bis ${longDay(data.to)}`
+            : 'Zeitraum nicht verfügbar'}
+        </p>
         <div className="sr-fig">
           <span>Bedarf und Wunsch, netto</span>
           <strong data-testid="sa-consumption">{eur(data.consumptionCents)}</strong>
         </div>
+        <ReportAnswer
+          facts={{
+            totalCents: data.consumptionCents,
+            previousCents: comparison.previousCents,
+            metric: 'expenses',
+            ...(riser ? { biggestRiser: { name: riser.name, changeCents: riser.change! } } : {}),
+          }}
+        />
+        {comparison.previousFrom && comparison.previousTo ? (
+          <p className="sa-comparison">
+            Vorzeitraum: {longDay(comparison.previousFrom)} bis {longDay(comparison.previousTo)} ·
+            jeweils {comparison.days} Tage. Der Strich markiert den Vorzeitraum.
+          </p>
+        ) : (
+          <p className="sa-comparison">
+            Für diesen Zeitraum ist kein vollständig abgedeckter, gleich langer Vorzeitraum
+            verfügbar.
+          </p>
+        )}
+        <div
+          role="img"
+          aria-label={`Konsum nach Kategoriegruppe: ${eur(data.consumptionCents)}; ${groups.length} Gruppen, einschließlich Erstattungen. Vorzeitraum als Strich.`}
+        />
+        <ul className="sa-groups" aria-label="Konsum nach Kategoriegruppe">
+          {groups.map((group, index) => {
+            const open = expanded.has(group.id);
+            const detailId = `sa-group-${index}`;
+            return (
+              <li key={group.id} data-group={group.id}>
+                <div className="sa-row sa-group-row">
+                  <button
+                    type="button"
+                    className="sa-group-name"
+                    aria-expanded={open}
+                    aria-controls={detailId}
+                    onClick={() => toggle(group.id)}
+                  >
+                    <ChevronDown size={16} aria-hidden="true" />
+                    <strong>{maskMoneyText(group.name)}</strong>
+                  </button>
+                  <SignedBar
+                    current={group.cents}
+                    previous={group.previous}
+                    minimum={minimum}
+                    maximum={maximum}
+                    label={group.name}
+                    date={date}
+                  />
+                  <AppLink
+                    className="sa-amount"
+                    to="/konten/buchungen"
+                    search={
+                      group.rows[0]?.groupId
+                        ? {
+                            kategoriegruppe: group.rows[0].groupId,
+                            basis: 'category-spending',
+                            von: data.from,
+                            bis: data.to,
+                          }
+                        : drill(group.rows[0]!.id)
+                    }
+                    aria-label={`${maskMoneyText(group.name)} · ${eur(group.cents)} · Buchungen öffnen`}
+                  >
+                    {eur(group.cents)}
+                  </AppLink>
+                  <span className="sa-delta">
+                    {group.previous === null
+                      ? '–'
+                      : eur(checkedSum([group.cents, -group.previous]), { sign: true })}
+                  </span>
+                </div>
+                <ul id={detailId} className="sa-category-rows" hidden={!open}>
+                  {group.rows.map((row) => (
+                    <li key={row.id} className="sa-row" data-category={row.id}>
+                      <span className="sa-category-name">
+                        <ClassSwatch kind={row.class} />
+                        {maskMoneyText(row.name)}
+                      </span>
+                      <SignedBar
+                        current={row.cents}
+                        previous={row.previous}
+                        minimum={minimum}
+                        maximum={maximum}
+                        label={row.name}
+                        date={date}
+                      />
+                      <AppLink
+                        className="sa-amount"
+                        to="/konten/buchungen"
+                        search={drill(row.id)}
+                        aria-label={`${maskMoneyText(row.name)} · ${eur(row.cents)} · Buchungen öffnen`}
+                      >
+                        {eur(row.cents)}
+                      </AppLink>
+                      <span className="sa-delta">
+                        {row.change === null ? '–' : eur(row.change, { sign: true })}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            );
+          })}
+        </ul>
+        <button
+          type="button"
+          className="btn sa-explorer-link"
+          aria-expanded={tableOpen}
+          aria-controls="sa-data-table"
+          onClick={() => setTableOpen(!tableOpen)}
+        >
+          {tableOpen ? 'Tabelle ausblenden' : 'Tabelle anzeigen'}
+        </button>
+        <div id="sa-data-table" hidden={!tableOpen}>
+          <table className="sr-table">
+            <caption>Konsum nach Gruppe und Kategorie, netto in Euro</caption>
+            <thead>
+              <tr>
+                <th scope="col">Position</th>
+                <th scope="col">Aktuell</th>
+                <th scope="col">Vorzeitraum</th>
+                <th scope="col">Differenz</th>
+              </tr>
+            </thead>
+            <tbody>
+              {groups.flatMap((group) => [
+                <tr key={`group:${group.id}`}>
+                  <th scope="row">{maskMoneyText(group.name)}</th>
+                  <td>{eur(group.cents)}</td>
+                  <td>{group.previous === null ? '–' : eur(group.previous)}</td>
+                  <td>
+                    {group.previous === null
+                      ? '–'
+                      : eur(checkedSum([group.cents, -group.previous]), { sign: true })}
+                  </td>
+                </tr>,
+                ...group.rows.map((row) => (
+                  <tr key={row.id}>
+                    <th scope="row">{maskMoneyText(row.name)}</th>
+                    <td>{eur(row.cents)}</td>
+                    <td>{row.previous === null ? '–' : eur(row.previous)}</td>
+                    <td>{row.change === null ? '–' : eur(row.change, { sign: true })}</td>
+                  </tr>
+                )),
+              ])}
+            </tbody>
+          </table>
+        </div>
+        <p className="sr-note">
+          Konsum ist Bedarf plus Wunsch. Erstattungen mindern die jeweilige Kategorie; Zukunft
+          bleibt im Vermögen. Beträge an den Kategorien öffnen die Buchungen dieses Zeitraums.
+        </p>
+      </section>
+      <section className="sr-card sr-wide" aria-labelledby="sa-moves">
+        <div className="sr-head">
+          <h2 id="sa-moves">02 · Größte Veränderungen</h2>
+          <span className="sr-state">
+            {comparison.previousCents === null
+              ? 'Kein Vorzeitraum'
+              : eur(checkedSum([data.consumptionCents, -comparison.previousCents]), { sign: true })}
+          </span>
+        </div>
+        {comparison.previousCents === null ? (
+          <p>Kein gleich langer Vorzeitraum verfügbar.</p>
+        ) : moves.length === 0 ? (
+          <p>Keine Veränderung zum Vorzeitraum.</p>
+        ) : (
+          <ul className="sa-moves">
+            {moves.map((row) => (
+              <li key={row.id}>
+                <AppLink to="/konten/buchungen" search={drill(row.id)}>
+                  {maskMoneyText(row.name)}
+                </AppLink>
+                <span>
+                  {eur(row.previous!)} → {eur(row.cents)}
+                </span>
+                <strong>{eur(row.change!, { sign: true })}</strong>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section className="sr-card sr-wide" aria-labelledby="sa-classes">
+        <div className="sr-head">
+          <h2 id="sa-classes">03 · Klassen und Zukunft</h2>
+          <span className="sr-state">Zukunft {eur(data.futureCents)}</span>
+        </div>
+        {data.consumptionCents + data.futureCents > 0 && (
+          <div
+            className="sr-seg"
+            role="img"
+            aria-label={`Bedarf ${data.classShares.need} %, Wunsch ${data.classShares.want} %, Zukunft ${data.classShares.future} %`}
+          >
+            {(['need', 'want', 'future'] as const).map((kind) => (
+              <span
+                key={kind}
+                className={`sw-${kind}`}
+                style={{ width: `${data.classShares[kind]}%` }}
+              />
+            ))}
+          </div>
+        )}
         <DimensionChain
           label="Maßkette Konsum"
           precision="cent"
@@ -135,259 +455,30 @@ function Body({ data }: { data: SpendingReport }) {
             { label: 'Konsum', op: '=', value: cents(data.consumptionCents), result: true },
           ]}
         />
-        {total > 0 ? (
-          <>
-            <ChartValue
-              label={`Bedarf ${data.classShares.need} %, Wunsch ${data.classShares.want} %, Zukunft ${data.classShares.future} %`}
-              date={`${data.from} · ${data.to}`}
-              series={[
-                ...parts.map((p) => ({
-                  name: CLASS_NAME[p.id],
-                  value: `${eur(p.cents)} · ${chartShare(p.cents, total)}`,
-                  color: `var(--${p.id})`,
-                })),
-              ]}
-            >
-              <div className="sr-seg">
-                {parts.map((p) => (
-                  <span
-                    key={p.id}
-                    className={`sw-${p.id}`}
-                    style={{ width: `${(Math.max(0, p.cents) / total) * 100}%` }}
-                  />
-                ))}
-              </div>
-            </ChartValue>
-            <ul className="sr-seg-leg">
-              {parts.map((p) => (
-                <li key={p.id}>
-                  <ClassSwatch kind={p.id} />
-                  {CLASS_NAME[p.id]} <strong>{p.pct} %</strong> {eur(p.cents, { cents: false })}
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : null}
-        <p className="sr-note">
-          Anteile an allem, was abgeflossen ist; Zukunft bleibt im Vermögen und zählt nicht zum
-          Konsum. Erstattungen mindern die Kategorie, die sie erstatten; sie zählen nicht als
-          Einkommen.
-        </p>
+        <p>Zukunft, außerhalb Konsum: {eur(data.futureCents)}.</p>
       </section>
-
-      <section className="sr-card" aria-labelledby="sa-moves">
+      <section className="sr-card sr-wide" aria-labelledby="sa-explorer">
         <div className="sr-head">
-          <h2 id="sa-moves">Größte Veränderungen</h2>
-          {data.changeCents !== null && (
-            <span className={`sr-state ${data.changeCents <= 0 ? 'is-good' : 'is-bad'}`}>
-              {eur(data.changeCents, { cents: false, sign: true })}
-              {data.changeBp !== null ? ` · ${bpText(data.changeBp, { sign: true })}` : ''}
-            </span>
-          )}
-        </div>
-        {data.previousFrom && data.previousTo ? (
-          data.moves.length ? (
-            <>
-              <ul className="sr-bars sr-moves" aria-label="Veränderung gegen die Vorperiode">
-                {data.moves.map((m) => (
-                  <li key={m.id}>
-                    <span className="sr-name">
-                      <ClassSwatch kind={m.class} />
-                      <span>{m.name}</span>
-                    </span>
-                    <ChartValue
-                      label="Veränderung zur Vorperiode"
-                      date={`${data.from} · ${data.to}`}
-                      series={[
-                        { name: 'Veränderung', value: eur(m.changeCents), color: 'var(--red)' },
-                        {
-                          name: 'Vorperiode',
-                          value: eur(m.previousCents ?? 0),
-                          color: 'var(--ink-3)',
-                        },
-                        { name: 'Aktuell', value: eur(m.cents), color: 'var(--line)' },
-                      ]}
-                    >
-                      <span className="sr-track" aria-hidden="true">
-                        <i
-                          className={m.changeCents < 0 ? 'is-less' : 'is-more'}
-                          style={{ width: `${(Math.abs(m.changeCents) / maxMove) * 50}%` }}
-                        />
-                      </span>
-                    </ChartValue>
-                    <span className="sr-val">
-                      <strong className={m.changeCents <= 0 ? 'is-better' : 'is-worse'}>
-                        {eur(m.changeCents, { cents: false, sign: true })}
-                      </strong>
-                      <small>
-                        {eur(m.previousCents ?? 0, { cents: false })} →{' '}
-                        {eur(m.cents, { cents: false })}
-                      </small>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className="sr-note">
-                Gegen die gleich lange Vorperiode ({longDay(data.previousFrom)} bis{' '}
-                {longDay(data.previousTo)}); rechts mehr, links weniger ausgegeben.
-              </p>
-            </>
-          ) : (
-            <p className="sr-empty">Keine Veränderung gegen die Vorperiode.</p>
-          )
-        ) : (
-          <p className="sr-empty" role="status">
-            Für diesen Zeitraum gibt es keine gleich lange Vorperiode.
-          </p>
-        )}
-      </section>
-
-      <section className="sr-card sr-wide" aria-labelledby="sa-cats">
-        <div className="sr-head">
-          <h2 id="sa-cats">Nach Kategorie</h2>
-          <span className="sr-state">{data.rows.length} Kategorien</span>
-        </div>
-        {data.rows.length === 0 ? (
-          <p className="sr-empty" role="status">
-            In diesem Zeitraum gibt es keine Ausgaben in Bedarf oder Wunsch.
-          </p>
-        ) : (
-          <ul className="sr-bars is-cols" aria-label="Kategorien nach Ausgaben sortiert">
-            {data.rows.map((r) => (
-              <li key={r.id}>
-                <AppLink to="/konten/buchungen" search={drill(r.id)} className="sr-name">
-                  <ClassSwatch kind={r.class} />
-                  <span>{r.name}</span>
-                </AppLink>
-                <ChartValue
-                  label="Ausgaben nach Kategorie"
-                  date={`${data.from} · ${data.to}`}
-                  series={[{ name: 'Ausgaben', value: eur(r.cents), color: 'var(--line)' }]}
-                >
-                  <span className="sr-track" aria-hidden="true">
-                    <i
-                      className={`sw-${r.class}`}
-                      style={{ width: `${(r.cents / maxRow) * 100}%` }}
-                    />
-                  </span>
-                </ChartValue>
-                <span className="sr-val">
-                  {eur(r.cents, { cents: false })}
-                  {r.previousCents ? (
-                    <small
-                      className={r.cents <= r.previousCents ? 'is-better' : 'is-worse'}
-                      aria-label="Veränderung zur Vorperiode"
-                    >
-                      {bpText(
-                        Math.round(((r.cents - r.previousCents) / r.previousCents) * 10_000),
-                        {
-                          sign: true,
-                          digits: 0,
-                        },
-                      )}
-                    </small>
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="sr-note">Jede Zeile öffnet die zugehörigen Buchungen des Zeitraums.</p>
-      </section>
-
-      <section className="sr-card sr-wide" aria-labelledby="sa-heat">
-        <div className="sr-head">
-          <h2 id="sa-heat">Heatmap Kategorie × Monat</h2>
+          <h2 id="sa-explorer">04 · Auswertung</h2>
           <span className="sr-state">
-            {heatLabels[0]} bis {heatLabels[heatLabels.length - 1]}
+            {data.months.length} Monate · {eur(data.consumptionCents)}
           </span>
         </div>
-        {data.heatRows.length === 0 ? (
-          <p className="sr-empty">Keine Ausgaben für die Heatmap.</p>
-        ) : (
-          <ChartValues
-            label="Ausgaben je Kategorie und Monat"
-            points={data.heatRows.flatMap((row) =>
-              row.values.map((v, i) => ({
-                x: 50,
-                date: data.heatMonths[i] ?? '',
-                series: [
-                  { name: row.name, value: eur(v), color: v < 0 ? 'var(--red)' : 'var(--line)' },
-                ],
-              })),
-            )}
-          >
-            <ScrollRegion label="Heatmap Kategorie mal Monat, bei Bedarf horizontal verschiebbar">
-              <table className="sr-table sr-heat">
-                <caption className="sr-only">
-                  Ausgaben je Kategorie und Monat, eingefärbt gegen den Durchschnitt der Zeile
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Kategorie</th>
-                    {heatLabels.map((label) => (
-                      <th key={label} scope="col" className="n">
-                        {label}
-                      </th>
-                    ))}
-                    <th scope="col" className="n">
-                      Summe
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.heatRows.map((row, rowIndex) => {
-                    const cells = heatCells(row.values, 'low');
-                    return (
-                      <tr key={row.id}>
-                        <th scope="row" title={row.name}>
-                          <span className="sr-name">
-                            <ClassSwatch kind={row.class} />
-                            <span>{row.name}</span>
-                          </span>
-                        </th>
-                        {row.values.map((v, i) => {
-                          const cell = cells[i];
-                          const tone =
-                            cell?.tone === 'bad'
-                              ? 'is-red'
-                              : cell?.tone === 'good'
-                                ? 'is-green'
-                                : '';
-                          return (
-                            <td
-                              key={data.heatMonths[i]}
-                              data-chart-point={rowIndex * data.heatMonths.length + i}
-                              className={`n ${tone}${v < 0 ? ' is-refund' : ''}`}
-                              style={{ '--h': cell?.level.toFixed(2) ?? '0' } as CSSProperties}
-                            >
-                              <AppLink
-                                className="category-month-link"
-                                to="/konten/buchungen"
-                                search={categoryMonthSearch(row.id, data.heatMonths[i]!)}
-                                aria-label={`${row.name} · ${monthShort(data.heatMonths[i]!)} · ${eur(v)}`}
-                              >
-                                {v === 0 ? <span aria-label="nichts ausgegeben">·</span> : eur(v)}
-                              </AppLink>
-                            </td>
-                          );
-                        })}
-                        <td className="n">
-                          <strong>{eur(row.totalCents, { cents: false })}</strong>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </ScrollRegion>
-          </ChartValues>
-        )}
-        <p className="sr-note">
-          Farbe je Zeile gegen den Durchschnitt der Kategorie: Rot = teurer Monat, Grün = günstiger;
-          innerhalb von 8 % bleibt die Zelle neutral. Eine gestrichelte Umrandung markiert einen
-          Monat mit Netto-Erstattung. So fallen Saisonmuster auf.
+        <p>
+          Die Kategorie×Monat-Tabelle zeigt denselben Zeitraum und dieselben Netto-Ausgaben
+          einschließlich Erstattungen.
         </p>
+        <AppLink
+          className="sa-explorer-link"
+          to="/reports/explorer"
+          search={{
+            vorlage: 'heatmap',
+            exakt: true,
+            zeitraum: `${data.months[0]}..${data.months.at(-1)}`,
+          }}
+        >
+          In Auswertung öffnen
+        </AppLink>
       </section>
     </>
   );
