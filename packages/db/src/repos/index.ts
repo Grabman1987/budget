@@ -105,3 +105,4 @@ export * from './month-close-state';
 export * from './month-close-read';
 export * from './month-close-reminders';
 export * from './month-close-reconciliation';
+export * from './instrument-history';

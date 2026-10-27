@@ -66,6 +66,7 @@ it('shares literal dated cents, units and basis with canonical positions, and re
   const dated = await read('?from=2026-09-10&to=2026-09-11');
   expect(dated.position).toMatchObject({ valueCents: 2469, costCents: 2000, unitsE8: 200_000_000 });
   const positionResponse = await app.request('/api/portfolio/positions?asOf=2026-09-11');
+  expect(positionResponse.status).toBe(200);
   const positions = (await positionResponse.json()).positions;
   expect(dated.position).toEqual(positions.find((position: { securityId: string }) => position.securityId === 's'));
   expect(dated.events.map(({ id }) => id)).toEqual(['buy']);
@@ -88,6 +89,29 @@ it('keeps a missing quote unavailable and exposes the observation without invent
   const history = await read('?to=2026-09-10');
   expect(history.position?.valueCents).toBeNull();
   expect(history.points[0]).toMatchObject({ unitsE8: 100_000_000, valueCents: null, missing: 'price' });
+});
+
+it('keeps missing FX unavailable while retaining the canonical documented basis', async () => {
+  db.insert(schema.holding).values({ id: 'a', accountId: 'a', securityId: 's', asOf: '2026-09-10', unitsE8: 200_000_000, costBasisCents: 2000 }).run();
+  db.insert(schema.price).values({ securityId: 's', date: '2026-09-10', priceMicro: 12_345_000, currency: 'USD', source: 'manual' }).run();
+  const history = await read('?to=2026-09-10');
+  expect(history.unavailable).toBe('missing_fx');
+  expect(history.points).toEqual([]);
+  expect(history.position).toMatchObject({ valueCents: null, costCents: 2000 });
+});
+
+it('uses the saved FIFO basis for the endpoint without recalculating it in the chart', async () => {
+  db.insert(schema.investmentPreference).values({ id: 'portfolio', costMethod: 'fifo' }).run();
+  db.insert(schema.trade).values([
+    { id: 'one', accountId: 'a', securityId: 's', date: '2026-09-10', kind: 'buy', unitsE8: 100_000_000, amountCents: 1000 },
+    { id: 'two', accountId: 'a', securityId: 's', date: '2026-09-11', kind: 'buy', unitsE8: 100_000_000, amountCents: 2000 },
+    { id: 'sale', accountId: 'a', securityId: 's', date: '2026-09-12', kind: 'sell', unitsE8: -100_000_000, amountCents: 3000 },
+  ]).run();
+  db.insert(schema.price).values({ securityId: 's', date: '2026-09-12', priceMicro: 40_000_000, currency: 'EUR', source: 'manual' }).run();
+  const history = await read();
+  expect(history.costMethod).toBe('fifo');
+  expect(history.position).toMatchObject({ costCents: 2000, valueCents: 4000, unitsE8: 100_000_000 });
+  expect(history.points.at(-1)?.valueCents).toBe(4000);
 });
 
 it('uses the selected day FX literally and retains source-date metadata', async () => {

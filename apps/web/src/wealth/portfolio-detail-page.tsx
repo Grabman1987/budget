@@ -111,6 +111,7 @@ export function InstrumentPage() {
             (p) => p.securityId === id,
           )}
           asOf={view?.asOf}
+          historyPeriod={zeitraum}
           positionState={
             positions.isError ? 'unavailable' : positions.isPending ? 'loading' : 'ready'
           }

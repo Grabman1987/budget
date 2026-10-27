@@ -113,6 +113,7 @@ isolatedTest(
       expect(response.ok()).toBe(true);
     }
     await page.goto(`/vermoegen/portfolio/instrument/${security.id}`);
+    await page.getByRole('button', { name: 'Kurs', exact: true }).click();
     const chart = page.getByTestId('price-history-chart');
     await expect(chart).toBeVisible();
     for (const [range, count] of [
@@ -122,7 +123,7 @@ isolatedTest(
       ['Max', 5],
     ] as const) {
       const chip = page
-        .getByRole('group', { name: 'Zeitraum des Kursverlaufs' })
+        .getByRole('group', { name: 'Zeitraum des Instrumentverlaufs' })
         .getByRole('button', { name: range, exact: true });
       await chip.click();
       await expect(chip).toHaveAttribute('aria-pressed', 'true');

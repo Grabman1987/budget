@@ -63,6 +63,7 @@ it('uses the version effective on the planned date including month-end clamping'
 });
 
 it('does not turn overlapping or unsafe assignments into an executed amount', () => {
+  expect(savingsMonthStrip([plan({ amountCents: Number.MAX_SAFE_INTEGER + 1 })], [], '2026-09-10')[9]).toMatchObject({ status: 'ambiguous', plannedCents: null });
   expect(savingsMonthStrip([plan(), plan({ id: 'overlap' })], [buy()], '2026-09-10')[9]?.status).toBe('ambiguous');
   expect(savingsMonthStrip([plan()], [buy({ amountCents: Number.MAX_SAFE_INTEGER + 1 })], '2026-09-10')[9]).toMatchObject({ status: 'ambiguous', amountCents: null });
   expect(savingsMonthStrip([plan()], [buy({ unitsE8: 0 })], '2026-09-10')[9]?.status).toBe('ambiguous');
