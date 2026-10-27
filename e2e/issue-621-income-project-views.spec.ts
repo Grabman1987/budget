@@ -91,6 +91,7 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
     await expect(page.getByTestId('income-expected')).toHaveCount(0);
     await expect(page.getByText(/Erwartete Zahlungen sind keinem Projekt zugeordnet/)).toBeVisible();
     const filter = page.getByRole('combobox', { name: 'Projektfilter', exact: true });
+    await expect(filter).toBeEnabled();
     await expect(filter).toHaveValue('a');
     expect(await filter.locator('option').evaluateAll((options) => options.map((option) => option.getAttribute('value')).sort())).toEqual(['', 'a', 'b', 'empty']);
     await privacy(page, phone);
