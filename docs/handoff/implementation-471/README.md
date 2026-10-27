@@ -27,6 +27,7 @@ These are technical presentation updates. They retain their original financial a
 | `e2e/booking-acceptance.spec.ts` | Match the `Teilen` button's accessible name after its chevron became decorative; retain the focus and booking assertions. |
 | `e2e/capture-dialog-layout.spec.ts` | Match that same button name in its bounds and click checks; retain layout, split, and action assertions. |
 | `e2e/issue-734-category-picker.spec.ts` | Match that same button name before opening split categories; retain the picker and booking assertions. |
+| `e2e/issue-624-explorer-persistence.spec.ts` | Expect the approved 16 px saved-view Bookmark instead of its former 13 px size; retain the 40-character name, controls-inside-card, and layout assertions. CI run `40422683801` measured the intended 16 px icon. |
 
 No financial oracle, write semantics, timeout or tolerance was changed.
 
