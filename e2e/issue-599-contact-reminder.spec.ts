@@ -101,9 +101,9 @@ test('599 Heute shows one overdue contact row and follows settlement and Undo', 
   expect((await read('/heute')).attention.contactReminders.items).toEqual([]);
   await page.goto('/');
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
-  await expect(
-    page.getByText('Synthetischer Kontakt: 30,00 € seit 01.09.2026 offen'),
-  ).toHaveCount(0);
+  await expect(page.getByText('Synthetischer Kontakt: 30,00 € seit 01.09.2026 offen')).toHaveCount(
+    0,
+  );
 
   await post('/undo', { groupId: payment.groupId });
   expect((await read('/heute')).attention.contactReminders.items).toEqual([
@@ -115,7 +115,7 @@ test('599 Heute shows one overdue contact row and follows settlement and Undo', 
     },
   ]);
   await page.reload();
-  await expect(
-    page.getByText('Synthetischer Kontakt: 30,00 € seit 01.09.2026 offen'),
-  ).toHaveCount(1);
+  await expect(page.getByText('Synthetischer Kontakt: 30,00 € seit 01.09.2026 offen')).toHaveCount(
+    1,
+  );
 });
