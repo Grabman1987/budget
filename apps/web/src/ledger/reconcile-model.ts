@@ -2,19 +2,34 @@ import type { DuplicateCandidate, ReconciliationPreview } from './types';
 
 /** Display existing server suggestions and already loaded pending rows; never infer a match. */
 export function candidatesOf(preview: ReconciliationPreview) {
-  const duplicates = preview.duplicates.map(row => ({
-    key: `duplicate-${row.removeId}`, kind: 'duplicate' as const, bookingIds: [row.removeId],
-    date: row.date, payeeName: row.payeeName, amountCents: row.amountCents, valuation: row.valuation,
+  const duplicates = preview.duplicates.map((row) => ({
+    key: `duplicate-${row.removeId}`,
+    kind: 'duplicate' as const,
+    bookingIds: [row.removeId],
+    date: row.date,
+    payeeName: row.payeeName,
+    amountCents: row.amountCents,
+    valuation: row.valuation,
   }));
   const pending = preview.pendingBookings
-    ? preview.pendingBookings.map(row => ({
-      key: `pending-${row.id}`, kind: 'pending' as const, bookingIds: [row.id],
-      date: row.date, payeeName: row.payeeName, amountCents: row.amountCents, valuation: row.valuation,
-    }))
-    : preview.pendingMatches.map(row => ({
-      key: `pending-${row.bookingIds.join('-')}`, kind: 'pending' as const, bookingIds: row.bookingIds,
-      date: null, payeeName: null, amountCents: row.sumCents, valuation: undefined,
-    }));
+    ? preview.pendingBookings.map((row) => ({
+        key: `pending-${row.id}`,
+        kind: 'pending' as const,
+        bookingIds: [row.id],
+        date: row.date,
+        payeeName: row.payeeName,
+        amountCents: row.amountCents,
+        valuation: row.valuation,
+      }))
+    : preview.pendingMatches.map((row) => ({
+        key: `pending-${row.bookingIds.join('-')}`,
+        kind: 'pending' as const,
+        bookingIds: row.bookingIds,
+        date: null,
+        payeeName: null,
+        amountCents: row.sumCents,
+        valuation: undefined,
+      }));
   return [...duplicates, ...pending];
 }
 

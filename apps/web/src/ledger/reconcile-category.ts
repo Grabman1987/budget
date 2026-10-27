@@ -20,7 +20,9 @@ export function rememberCorrectionCategory(accountId: string, categoryId: string
 }
 
 /** Null is TBA for cash accounts; tracking/card corrections retain their existing semantics. */
-export function defaultCorrectionCategoryLabel(account: Pick<AccountRow, 'onBudget' | 'type'>): string {
+export function defaultCorrectionCategoryLabel(
+  account: Pick<AccountRow, 'onBudget' | 'type'>,
+): string {
   return account.onBudget && ['checking', 'cash', 'savings'].includes(account.type)
     ? 'Zu verteilen'
     : 'Ohne Kategorie';

@@ -30,7 +30,11 @@ import type { AccountRow, ReconcileResult } from './types';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { categoriesFor, pickableCategories } from './capture-model';
-import { defaultCorrectionCategoryLabel, readCorrectionCategory, rememberCorrectionCategory } from './reconcile-category';
+import {
+  defaultCorrectionCategoryLabel,
+  readCorrectionCategory,
+  rememberCorrectionCategory,
+} from './reconcile-category';
 
 /** Value that follows `value` after a pause (the preview is asked for when typing stops). */
 function useDebounced<T>(value: T, ms: number): T {
@@ -93,8 +97,12 @@ export function ReconcileFlow({
   const [date, setDate] = useState(initialDate ?? today);
   const [text, setText] = useState('');
   const [adjustDate, setAdjustDate] = useState<string | null>(null);
-  const [categoryChoice, setCategoryChoice] = useState(() => ({accountId: account.id, id: readCorrectionCategory(account.id)}));
-  if (categoryChoice.accountId !== account.id) setCategoryChoice({accountId: account.id, id: readCorrectionCategory(account.id)});
+  const [categoryChoice, setCategoryChoice] = useState(() => ({
+    accountId: account.id,
+    id: readCorrectionCategory(account.id),
+  }));
+  if (categoryChoice.accountId !== account.id)
+    setCategoryChoice({ accountId: account.id, id: readCorrectionCategory(account.id) });
   const [unlock, setUnlock] = useState(false);
   const [bookingState, setBookingState] = useState<BookingPanelState>(null);
   const [error, setError] = useState<string | null>(null);
@@ -137,26 +145,34 @@ export function ReconcileFlow({
   const data = preview.data;
   const candidates = data ? candidatesOf(data) : [];
   const candidateScope = JSON.stringify([account.id, date, statement, data]);
-  const [review, setReview] = useState<{ scope: string; ignored: string[] }>({ scope: '', ignored: [] });
+  const [review, setReview] = useState<{ scope: string; ignored: string[] }>({
+    scope: '',
+    ignored: [],
+  });
   if (review.scope !== candidateScope) setReview({ scope: candidateScope, ignored: [] });
   const ignored = review.scope === candidateScope ? review.ignored : [];
   const candidateBusy = writes.remove.isPending || writes.bulk.isPending;
-  const unresolvedCandidates = candidates.some(row => !ignored.includes(row.key));
+  const unresolvedCandidates = candidates.some((row) => !ignored.includes(row.key));
   const canCorrect = !unresolvedCandidates && !candidateBusy;
   const money = (amount: number, sign = false) => nativeCurrency(amount, account.currency, sign);
   const finding = data ? findingOf(data) : null;
   // The same plain spending categories for a surplus and a shortfall; the server enforces it too.
   const categories = categoriesFor(pickableCategories(undefined, lookups.data), 'expense').filter(
-    (c) => isReconcileAdjustCategoryKind(c.kind) && !lookups.data?.categories.find(row => row.id === c.id)?.hiddenAt,
+    (c) =>
+      isReconcileAdjustCategoryKind(c.kind) &&
+      !lookups.data?.categories.find((row) => row.id === c.id)?.hiddenAt,
   );
-  const selectedCategory = categoryChoice.accountId === account.id ? categoryChoice.id : readCorrectionCategory(account.id);
-  const categoryId = categories.some(c => c.id === selectedCategory) ? selectedCategory : '';
+  const selectedCategory =
+    categoryChoice.accountId === account.id
+      ? categoryChoice.id
+      : readCorrectionCategory(account.id);
+  const categoryId = categories.some((c) => c.id === selectedCategory) ? selectedCategory : '';
   const defaultCategoryLabel = defaultCorrectionCategoryLabel(account);
   const categoryName = categories.find((c) => c.id === categoryId)?.name ?? defaultCategoryLabel;
   useEffect(() => {
     if (lookups.isSuccess && selectedCategory && !categoryId) {
       rememberCorrectionCategory(account.id, '');
-      setCategoryChoice({accountId: account.id, id: ''});
+      setCategoryChoice({ accountId: account.id, id: '' });
     }
   }, [account.id, lookups.isSuccess, selectedCategory, categoryId]);
   // The panel shows the answer for what is typed now, not for the previous input.
@@ -220,24 +236,33 @@ export function ReconcileFlow({
     setError(null);
     writes.remove.mutate(
       { id },
-      { onError: e => setError(errorText(e)), onSettled: () => void qc.invalidateQueries({ queryKey: LEDGER_KEY }) },
+      {
+        onError: (e) => setError(errorText(e)),
+        onSettled: () => void qc.invalidateQueries({ queryKey: LEDGER_KEY }),
+      },
     );
   };
   const confirmPending = (ids: string[]) => {
     setError(null);
     closeContext?.onBusy(true);
-    writes.bulk.mutate({ ids, set: { status: 'confirmed' } }, {
-      onSuccess: result => {
-        if (result.skipped.length) setError(`${result.skipped.length} Buchungen wurden nicht geändert. Bitte den Vorschlag in Buchungen prüfen.`);
-        // The month-close token is intentionally immutable after a separate canonical write.
-        if (closeContext && result.changed.length) setStaleClose(true);
+    writes.bulk.mutate(
+      { ids, set: { status: 'confirmed' } },
+      {
+        onSuccess: (result) => {
+          if (result.skipped.length)
+            setError(
+              `${result.skipped.length} Buchungen wurden nicht geändert. Bitte den Vorschlag in Buchungen prüfen.`,
+            );
+          // The month-close token is intentionally immutable after a separate canonical write.
+          if (closeContext && result.changed.length) setStaleClose(true);
+        },
+        onError: (e) => setError(errorText(e)),
+        onSettled: () => {
+          closeContext?.onBusy(false);
+          void qc.invalidateQueries({ queryKey: LEDGER_KEY });
+        },
       },
-      onError: e => setError(errorText(e)),
-      onSettled: () => {
-        closeContext?.onBusy(false);
-        void qc.invalidateQueries({ queryKey: LEDGER_KEY });
-      },
-    });
+    );
   };
 
   return (
@@ -346,7 +371,10 @@ export function ReconcileFlow({
               Differenz {money(0)} · stimmt überein
             </p>
             <div className="panel-actions">
-              <Button disabled={confirm.isPending || candidateBusy || staleClose} onClick={() => run({})}>
+              <Button
+                disabled={confirm.isPending || candidateBusy || staleClose}
+                onClick={() => run({})}
+              >
                 Festschreiben ({data.toReconcileCount})
               </Button>
             </div>
@@ -401,158 +429,233 @@ export function ReconcileFlow({
                     erklärt sie.
                   </>
                 )}
-                {!canCorrect && (finding.kind === 'missing' || finding.kind === 'other') && <strong>Differenz {money(data.differenceCents, true)}. Zuerst Kandidaten prüfen.</strong>}
+                {!canCorrect && (finding.kind === 'missing' || finding.kind === 'other') && (
+                  <strong>
+                    Differenz {money(data.differenceCents, true)}. Zuerst Kandidaten prüfen.
+                  </strong>
+                )}
               </span>
             </p>
-            {candidates.length > 0 && <section className="kform" aria-label="Kandidaten zuerst prüfen">
-              <h3>Kandidaten zuerst prüfen</h3>
-              <p>Prüfe unbestätigte und möglicherweise doppelte Buchungen. Erst nach deiner Auswahl wird ein verbleibender Unterschied als Ausgleich angeboten.</p>
-              {candidates.map((row, index) => <section className="kform" key={row.key} data-testid={`candidate-${row.key}`} aria-label={`Kandidat ${index + 1}`}>
-                <p><strong>{row.kind === 'duplicate' ? 'Mögliche doppelte Buchung' : 'Vorgemerkte Buchung'}</strong> · {maskMoneyText(row.payeeName ?? 'Ohne Empfänger')}{row.date && <> · {shortDay(row.date)}</>} · {valuedCurrency(row.amountCents, account.currency, row.valuation, true)}</p>
-                <div className="panel-actions">
-                  {ignored.includes(row.key) ? <Button variant="ghost" disabled={candidateBusy || confirm.isPending} onClick={() => setReview({scope:candidateScope, ignored:ignored.filter(key=>key!==row.key)})}>Ignorieren rückgängig</Button> : <>
-                    <Button disabled={candidateBusy || confirm.isPending || staleClose} onClick={() => row.kind === 'duplicate' ? dropDuplicate(row.bookingIds[0]!) : confirmPending(row.bookingIds)}>
-                      {row.kind === 'duplicate' ? closeContext ? 'Doppelte Buchung entfernen und festschreiben' : 'Doppelte Buchung entfernen' : 'Bestätigen'}
-                    </Button>
-                    <Button variant="ghost" disabled={candidateBusy || confirm.isPending} onClick={() => setReview({scope:candidateScope, ignored:[...ignored,row.key]})}>Ignorieren</Button>
-                  </>}
-                </div>
-              </section>)}
-              {unresolvedCandidates && <AppLink className="btn btn-ghost" to="/konten/buchungen" search={{konto:account.id,bis:asked.date}}>In Buchungen suchen</AppLink>}
-            </section>}
-            {canCorrect && <><div className="kform">
-              {closeContext && (
-                <Field label="Grund für den Ausgleich">
-                  {({ id }) => (
-                    <TextInput
-                      id={id}
-                      value={reason}
-                      maxLength={500}
-                      disabled={confirm.isPending}
-                      onChange={(event) => setReason(event.target.value)}
-                      aria-required="true"
-                    />
-                  )}
-                </Field>
-              )}
-              {closeContext && (
-                <p className="kmeta">
-                  Ein Grund ist nur erforderlich, wenn ein verbleibender Unterschied als Ausgleich
-                  gebucht wird.
+            {candidates.length > 0 && (
+              <section className="kform" aria-label="Kandidaten zuerst prüfen">
+                <h3>Kandidaten zuerst prüfen</h3>
+                <p>
+                  Prüfe unbestätigte und möglicherweise doppelte Buchungen. Erst nach deiner Auswahl
+                  wird ein verbleibender Unterschied als Ausgleich angeboten.
                 </p>
-              )}
-              <Field label="Ausgleichsdatum">
-                {({ id }) => (
-                  <TextInput
-                    id={id}
-                    type="date"
-                    min={account.openingDate}
-                    max={date}
-                    value={adjustmentDay}
-                    onChange={(e) => setAdjustDate(e.target.value)}
-                  />
-                )}
-              </Field>
-              <Field label="Kategorie für den Ausgleich">
-                {({ id }) => (
-                  <Select
-                    id={id}
-                    value={categoryId}
-                    disabled={!lookups.isSuccess || confirm.isPending}
-                    onChange={(e) => {
-                      setCategoryChoice({accountId: account.id, id: e.target.value});
-                      rememberCorrectionCategory(account.id, e.target.value);
-                    }}
+                {candidates.map((row, index) => (
+                  <section
+                    className="kform"
+                    key={row.key}
+                    data-testid={`candidate-${row.key}`}
+                    aria-label={`Kandidat ${index + 1}`}
                   >
-                    <option value="">{defaultCategoryLabel}</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </Select>
+                    <p>
+                      <strong>
+                        {row.kind === 'duplicate'
+                          ? 'Mögliche doppelte Buchung'
+                          : 'Vorgemerkte Buchung'}
+                      </strong>{' '}
+                      · {maskMoneyText(row.payeeName ?? 'Ohne Empfänger')}
+                      {row.date && <> · {shortDay(row.date)}</>} ·{' '}
+                      {valuedCurrency(row.amountCents, account.currency, row.valuation, true)}
+                    </p>
+                    <div className="panel-actions">
+                      {ignored.includes(row.key) ? (
+                        <Button
+                          variant="ghost"
+                          disabled={candidateBusy || confirm.isPending}
+                          onClick={() =>
+                            setReview({
+                              scope: candidateScope,
+                              ignored: ignored.filter((key) => key !== row.key),
+                            })
+                          }
+                        >
+                          Ignorieren rückgängig
+                        </Button>
+                      ) : (
+                        <>
+                          <Button
+                            disabled={candidateBusy || confirm.isPending || staleClose}
+                            onClick={() =>
+                              row.kind === 'duplicate'
+                                ? dropDuplicate(row.bookingIds[0]!)
+                                : confirmPending(row.bookingIds)
+                            }
+                          >
+                            {row.kind === 'duplicate'
+                              ? closeContext
+                                ? 'Doppelte Buchung entfernen und festschreiben'
+                                : 'Doppelte Buchung entfernen'
+                              : 'Bestätigen'}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            disabled={candidateBusy || confirm.isPending}
+                            onClick={() =>
+                              setReview({ scope: candidateScope, ignored: [...ignored, row.key] })
+                            }
+                          >
+                            Ignorieren
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </section>
+                ))}
+                {unresolvedCandidates && (
+                  <AppLink
+                    className="btn btn-ghost"
+                    to="/konten/buchungen"
+                    search={{ konto: account.id, bis: asked.date }}
+                  >
+                    In Buchungen suchen
+                  </AppLink>
                 )}
-              </Field>
-              {!adjustmentValid && (
-                <p className="field-error" role="alert">
-                  Das Ausgleichsdatum muss zwischen Kontoeröffnung und Stichtag liegen.
-                </p>
-              )}
-              {locked && (
-                <>
-                  <p className="field-error" role="alert">
-                    Dieses Datum liegt in einem bereits geprüften Zeitraum (bis{' '}
-                    {longDay(account.lastReconciledOn!)}). Der Ausgleich ändert diesen Zeitraum.
+              </section>
+            )}
+            {canCorrect && (
+              <>
+                <div className="kform">
+                  {closeContext && (
+                    <Field label="Grund für den Ausgleich">
+                      {({ id }) => (
+                        <TextInput
+                          id={id}
+                          value={reason}
+                          maxLength={500}
+                          disabled={confirm.isPending}
+                          onChange={(event) => setReason(event.target.value)}
+                          aria-required="true"
+                        />
+                      )}
+                    </Field>
+                  )}
+                  {closeContext && (
+                    <p className="kmeta">
+                      Ein Grund ist nur erforderlich, wenn ein verbleibender Unterschied als
+                      Ausgleich gebucht wird.
+                    </p>
+                  )}
+                  <Field label="Ausgleichsdatum">
+                    {({ id }) => (
+                      <TextInput
+                        id={id}
+                        type="date"
+                        min={account.openingDate}
+                        max={date}
+                        value={adjustmentDay}
+                        onChange={(e) => setAdjustDate(e.target.value)}
+                      />
+                    )}
+                  </Field>
+                  <Field label="Kategorie für den Ausgleich">
+                    {({ id }) => (
+                      <Select
+                        id={id}
+                        value={categoryId}
+                        disabled={!lookups.isSuccess || confirm.isPending}
+                        onChange={(e) => {
+                          setCategoryChoice({ accountId: account.id, id: e.target.value });
+                          rememberCorrectionCategory(account.id, e.target.value);
+                        }}
+                      >
+                        <option value="">{defaultCategoryLabel}</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                  {!adjustmentValid && (
+                    <p className="field-error" role="alert">
+                      Das Ausgleichsdatum muss zwischen Kontoeröffnung und Stichtag liegen.
+                    </p>
+                  )}
+                  {locked && (
+                    <>
+                      <p className="field-error" role="alert">
+                        Dieses Datum liegt in einem bereits geprüften Zeitraum (bis{' '}
+                        {longDay(account.lastReconciledOn!)}). Der Ausgleich ändert diesen Zeitraum.
+                      </p>
+                      <label className="assignment-check">
+                        <input
+                          type="checkbox"
+                          checked={unlock}
+                          onChange={(e) => setUnlock(e.target.checked)}
+                        />{' '}
+                        Geprüften Zeitraum trotzdem ändern
+                      </label>
+                    </>
+                  )}
+                  <p className="text-muted">
+                    Eine echte Buchung über {money(data.differenceCents, true)} wird am{' '}
+                    {longDay(adjustmentDay)} mit{' '}
+                    {categoryId
+                      ? `Kategorie „${categoryName}“`
+                      : defaultCategoryLabel === 'Zu verteilen'
+                        ? 'Zu verteilen (ohne Kategorie)'
+                        : 'keiner Kategorie'}{' '}
+                    erstellt und festgeschrieben.
                   </p>
-                  <label className="assignment-check">
-                    <input
-                      type="checkbox"
-                      checked={unlock}
-                      onChange={(e) => setUnlock(e.target.checked)}
-                    />{' '}
-                    Geprüften Zeitraum trotzdem ändern
-                  </label>
-                </>
-              )}
-              <p className="text-muted">
-                Eine echte Buchung über {money(data.differenceCents, true)} wird am{' '}
-                {longDay(adjustmentDay)} mit{' '}
-                {categoryId ? `Kategorie „${categoryName}“` : defaultCategoryLabel === 'Zu verteilen' ? 'Zu verteilen (ohne Kategorie)' : 'keiner Kategorie'} erstellt und
-                festgeschrieben.
-              </p>
-            </div>
-            <div className="panel-actions">
-              {finding.kind === 'missing' && (
-                <Button
-                  disabled={confirm.isPending}
-                  onClick={() =>
-                    setBookingState({
-                      mode: 'create',
-                      accountId: account.id,
-                      prefill: {
-                        kind: finding.type,
-                        amount: formatDecimal(cents(finding.amountCents)),
-                        date,
-                        status: 'confirmed',
-                      },
-                    })
-                  }
-                >
-                  Fehlende Buchung erfassen
-                </Button>
-              )}
-              <Button
-                variant={
-                  finding.kind === 'missing' || finding.kind === 'other' ? 'primary' : 'ghost'
-                }
-                disabled={
-                  confirm.isPending ||
-                  !lookups.isSuccess ||
-                  staleClose ||
-                  Boolean(closeContext && !reason.trim()) ||
-                  !adjustmentValid ||
-                  (locked && !unlock) ||
-                  (categoryId !== '' && !categories.some((c) => c.id === categoryId))
-                }
-                onClick={() =>
-                  run({
-                    adjust: true,
-                    ...(adjustDate === null ? {} : { adjustDate }),
-                    ...(categoryId ? { categoryId } : {}),
-                    ...(locked ? { unlockReconciled: true } : {}),
-                  })
-                }
-              >
-                Differenz ausgleichen · {money(data.differenceCents, true)}
-              </Button>
-              <AppLink
-                className="btn btn-ghost"
-                to="/konten/buchungen"
-                search={{ konto: account.id, bis: asked.date }}
-              >
-                In Buchungen suchen
-              </AppLink>
-            </div></>}
+                </div>
+                <div className="panel-actions">
+                  {finding.kind === 'missing' && (
+                    <Button
+                      disabled={confirm.isPending}
+                      onClick={() =>
+                        setBookingState({
+                          mode: 'create',
+                          accountId: account.id,
+                          prefill: {
+                            kind: finding.type,
+                            amount: formatDecimal(cents(finding.amountCents)),
+                            date,
+                            status: 'confirmed',
+                          },
+                        })
+                      }
+                    >
+                      Fehlende Buchung erfassen
+                    </Button>
+                  )}
+                  <Button
+                    variant={
+                      finding.kind === 'missing' || finding.kind === 'other' ? 'primary' : 'ghost'
+                    }
+                    disabled={
+                      confirm.isPending ||
+                      !lookups.isSuccess ||
+                      staleClose ||
+                      Boolean(closeContext && !reason.trim()) ||
+                      !adjustmentValid ||
+                      (locked && !unlock) ||
+                      (categoryId !== '' && !categories.some((c) => c.id === categoryId))
+                    }
+                    onClick={() =>
+                      run({
+                        adjust: true,
+                        ...(adjustDate === null ? {} : { adjustDate }),
+                        ...(categoryId ? { categoryId } : {}),
+                        ...(locked ? { unlockReconciled: true } : {}),
+                      })
+                    }
+                  >
+                    Differenz ausgleichen · {money(data.differenceCents, true)}
+                  </Button>
+                  <AppLink
+                    className="btn btn-ghost"
+                    to="/konten/buchungen"
+                    search={{ konto: account.id, bis: asked.date }}
+                  >
+                    In Buchungen suchen
+                  </AppLink>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>

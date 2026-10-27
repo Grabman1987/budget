@@ -210,7 +210,12 @@ export function previewReconciliation(
     differenceCents: difference,
     toReconcileCount: rows.filter((r) => r.booking.status === 'confirmed').length,
     duplicates,
-    pendingBookings: pending.map(r => ({ id: r.booking.id, date: r.booking.date, payeeName: r.payeeName, amountCents: r.booking.amountCents })),
+    pendingBookings: pending.map((r) => ({
+      id: r.booking.id,
+      date: r.booking.date,
+      payeeName: r.payeeName,
+      amountCents: r.booking.amountCents,
+    })),
     pendingMatches,
     missing:
       difference === 0 || explained
