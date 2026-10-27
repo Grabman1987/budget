@@ -31,6 +31,7 @@ test('553 answer template preserves literal cents, metric direction, missing pri
     await page.getByRole('button', { name: 'Einnahmen', exact: true }).click();
     await expect(answer).toContainText('2.130,00 € eingenommen, 300,00 € mehr');
     await expect(chip).toHaveClass(/is-favourable/);
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
     await expect(lead).toHaveText('••• €');
     await expect(answer).not.toContainText('2.130');
@@ -39,6 +40,7 @@ test('553 answer template preserves literal cents, metric direction, missing pri
     await expect(chip).toHaveText('Vorzeitraum ••• € · ••• €');
     await expect(chart).toHaveAttribute('aria-label', 'Einnahmen: ••• €');
     await expect(page.locator('.chart-data-value')).toHaveText(['•••', '•••', '•••']);
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     await page.getByRole('button', { name: 'Beträge zeigen', exact: true }).click();
     await expect(lead).toHaveText('2.130,00 €');
     await page.getByRole('button', { name: 'Vorzeitraum ausblenden', exact: true }).click();
