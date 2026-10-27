@@ -332,6 +332,29 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
     return c.json(readBookingBulkSelection(db, body.ids));
   });
 
+  // Read-only deletion facts. The canonical writers and their lock/Undo guards remain separate.
+  const deletePreview = (tx: Executor, requested: string[]) => {
+    const ids = [...new Set(requested)].sort();
+    const selection = readBookingBulkSelection(tx, ids);
+    const eligibleIds = selection.items.filter((item) => item.reason === null).map((item) => item.id);
+    const eligible = readBookingBulkSelection(tx, eligibleIds);
+    const skipped: { id: string; reason: BookingBulkReason; booking?: BookingBulkItem }[] = [];
+    for (const id of ids) {
+      const booking = selection.items.find((item) => item.id === id);
+      if (booking?.reason) skipped.push({ id, reason: booking.reason, booking });
+      else if (!booking) skipped.push({ id, reason: 'not_found' });
+    }
+    // Conservative ABA fence: any audited write, including Undo, invalidates this confirmation.
+    // Full row/split snapshots are hashed internally and never returned in the read DTO.
+    const head = tx.get<{ ordinal: string; id: string }>(sql`SELECT CAST(rowid AS TEXT) AS ordinal,id FROM audit_log ORDER BY rowid DESC LIMIT 1`) ?? null;
+    const source = ids.map((id) => getBooking(tx, id));
+    const revision = createHash('sha256').update(JSON.stringify(['booking-delete-v1', ids, head, source, selection])).digest('hex');
+    return { ids, selection, eligibleIds, eligibleTotals: eligible.totals, skipped, revision };
+  };
+  app.post('/delete-preview', async (c) => {
+    const { ids } = await readBody(c, z.object({ ids: z.array(z.string().min(1).max(200)).min(1).max(500) }).strict());
+    return c.json(runInTransaction(db, (tx) => deletePreview(tx, ids)));
+  });
   app.post('/bulk', async (c) => {
     const body = await readBody(c, bulkBody);
     const ctx = audit();
