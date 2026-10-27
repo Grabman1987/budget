@@ -2,17 +2,18 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react
 import { Button } from '@budget/ui';
 import { ApiError } from '../api/http';
 import { AUTH_STATUS_KEY, queryClient } from '../auth/status-query';
+import { router } from '../router';
 import './pwa.css';
 import { QueueCapture, QueueList } from './queue-ui';
+import { OfflineState } from './offline-state';
+import { setOfflineUnavailable, subscribeSnapshotEpoch } from './snapshots';
 
 function subscribeAuthStatus(setHasConnected: (connected: boolean) => void) {
   return queryClient.getQueryCache().subscribe(({ query }) => {
     if (
-      query.queryKey[0] === AUTH_STATUS_KEY[0] &&
-      query.queryKey[1] === AUTH_STATUS_KEY[1] &&
-      query.state.data === undefined &&
       query.state.error instanceof ApiError &&
-      query.state.error.status === 0
+      query.state.error.status === 0 &&
+      (query.queryKey[0] !== AUTH_STATUS_KEY[0] || query.state.data === undefined)
     )
       setHasConnected(false);
   });
@@ -32,7 +33,7 @@ function subscribeOnline(changed: () => void) {
   };
 }
 
-/** No durable financial cache: offline reloads render only the static shell. */
+/** Offline reloads mount only the four approved read snapshots and queued capture. */
 export function PwaShell({ children }: { children: ReactNode }) {
   const online = useSyncExternalStore(
     subscribeOnline,
@@ -44,14 +45,74 @@ export function PwaShell({ children }: { children: ReactNode }) {
     () => navigator.onLine && !authStatusUnavailable(),
   );
   const [capture, setCapture] = useState(false);
+  const [mounted, setMounted] = useState(hasConnected);
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const showLive = online && hasConnected && !sessionEnded;
+  setOfflineUnavailable(!showLive);
   useEffect(() => {
-    const connected = () => setHasConnected(true);
+    setOfflineUnavailable(!showLive);
+    return () => setOfflineUnavailable(false);
+  }, [showLive]);
+  useEffect(() => {
+    const connected = () => {
+      if (!sessionEnded) {
+        setHasConnected(true);
+        setMounted(true);
+      }
+    };
     window.addEventListener('online', connected);
     return () => window.removeEventListener('online', connected);
-  }, []);
+  }, [sessionEnded]);
   useEffect(() => {
     return subscribeAuthStatus(setHasConnected);
   }, []);
+  useEffect(
+    () =>
+      subscribeSnapshotEpoch(() => {
+        queryClient.clear();
+        setHasConnected(false);
+        setMounted(false);
+        setSessionEnded(true);
+      }),
+    [],
+  );
+  useEffect(() => {
+    const expired = (event: Event) => {
+      const fromStatus = event instanceof CustomEvent && event.detail?.fromStatus === true;
+      if (fromStatus)
+        queryClient.removeQueries({
+          predicate: ({ queryKey }) =>
+            queryKey.length !== AUTH_STATUS_KEY.length ||
+            queryKey[0] !== AUTH_STATUS_KEY[0] ||
+            queryKey[1] !== AUTH_STATUS_KEY[1],
+        });
+      else queryClient.clear();
+      // A confirmed signed-out status is also the ordinary entry to the login page.
+      if (location.pathname === '/login' || location.pathname === '/setup') {
+        setHasConnected(true);
+        setMounted(true);
+        setSessionEnded(false);
+        return;
+      }
+      setHasConnected(false);
+      // A status response may still be resolving the router's public redirect.
+      // Keep its provider mounted inside the hidden, inert wrapper until that resolves.
+      setMounted(fromStatus);
+      setSessionEnded(true);
+    };
+    window.addEventListener('budget-session-expired', expired);
+    return () => window.removeEventListener('budget-session-expired', expired);
+  }, []);
+  useEffect(
+    () =>
+      router.subscribe('onResolved', ({ toLocation }) => {
+        if (toLocation.pathname !== '/login' && toLocation.pathname !== '/setup') return;
+        setHasConnected(true);
+        setMounted(true);
+        setSessionEnded(false);
+      }),
+    [],
+  );
   useEffect(() => {
     if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
     let disposed = false;
@@ -113,21 +174,21 @@ export function PwaShell({ children }: { children: ReactNode }) {
           Offline · Angezeigte Daten können veraltet sein. Neue Buchungen warten auf diesem Gerät.
         </div>
       )}
-      {hasConnected ? (
-        children
-      ) : (
+      {(mounted || showLive) && (
+        <div className="pwa-live" hidden={!showLive} inert={!showLive}>
+          {children}
+        </div>
+      )}
+      {!showLive && sessionEnded && online ? (
         <main className="pwa-offline" id="main">
-          <img src="/icons/budget.svg" width="48" height="48" alt="" />
-          <h1>Budget ist offline</h1>
-          <p>
-            Neue Buchungen bleiben auf diesem Gerät und werden bei Verbindung gesendet. Für aktuelle
-            Finanzdaten brauchst du eine Verbindung.
-          </p>
-          <Button onClick={() => window.location.reload()}>Erneut verbinden</Button>
-          <Button onClick={() => setCapture(true)}>Buchung erfassen</Button>
+          <h1>Sitzung beendet</h1>
+          <p>Bitte melde dich erneut an.</p>
+          <Button onClick={() => window.location.assign('/login')}>Zur Anmeldung</Button>
           <QueueList />
         </main>
-      )}
+      ) : !showLive ? (
+        <OfflineState onCapture={() => setCapture(true)} />
+      ) : null}
       {capture && <QueueCapture onClose={() => setCapture(false)} />}
     </>
   );

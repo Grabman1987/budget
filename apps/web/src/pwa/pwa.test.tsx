@@ -49,7 +49,9 @@ describe('static offline shell', () => {
       await auth.fetch().catch(() => undefined);
     });
     expect(screen.getByRole('heading', { name: 'Budget ist offline' })).toBeTruthy();
-    expect(screen.queryByText('Financial page')).toBeNull();
+    const live = screen.getByText('Financial page').closest('.pwa-live');
+    expect(live?.hasAttribute('hidden')).toBe(true);
+    expect(live?.hasAttribute('inert')).toBe(true);
   });
   it('keeps a live page mounted when a later auth refresh fails', async () => {
     connection(true);
@@ -92,9 +94,9 @@ describe('static offline shell', () => {
     expect(screen.getByRole('status').textContent).toContain(
       'Neue Buchungen warten auf diesem Gerät.',
     );
-    expect((screen.getByRole('textbox', { name: 'Notiz' }) as HTMLInputElement).value).toBe(
-      'Noch offen',
-    );
+    expect(
+      (screen.getByRole('textbox', { name: 'Notiz', hidden: true }) as HTMLInputElement).value,
+    ).toBe('Noch offen');
     connection(true);
     expect(screen.queryByRole('status')).toBeNull();
   });

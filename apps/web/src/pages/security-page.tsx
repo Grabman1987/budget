@@ -16,11 +16,12 @@ import {
   logout,
   regenerateRecoveryCodes,
   revokeOtherSessions,
+  type AuthStatus,
   type PasskeyInfo,
 } from '../auth/api';
 import { defaultDeviceName } from '../auth/device-name';
 import { RecoveryCodesGate } from '../auth/recovery-codes';
-import { PASSKEYS_KEY } from '../auth/status-query';
+import { AUTH_STATUS_KEY, PASSKEYS_KEY } from '../auth/status-query';
 import { authErrorMessage, registerPasskey, withStepUp } from '../auth/webauthn';
 import { SECURITY_META } from '../nav/pages';
 import { PageFrame } from './placeholder-page';
@@ -119,12 +120,33 @@ export function SecurityPanel({ onLoggedOut }: SecurityPanelProps) {
     run(async () => {
       try {
         await logout();
-      } finally {
+      } catch (caught) {
         // Also when the server could not be reached: the data must not stay on a device the user
         // meant to sign out of. The error stays visible; the hand-over happens only on success.
         queryClient.clear();
         await clearDeviceFinancialData();
+        throw caught;
       }
+      // Revoke immediately. Keep only a confirmed signed-out status while the router reaches
+      // /login; clearing that live query would fetch it again during the hand-over.
+      const clearing = clearDeviceFinancialData();
+      await queryClient.cancelQueries();
+      queryClient.setQueryData<AuthStatus>(AUTH_STATUS_KEY, {
+        setupRequired: false,
+        authenticated: false,
+        stepUpValidUntil: null,
+        viaRecovery: false,
+      });
+      queryClient.removeQueries({
+        predicate: ({ queryKey }) =>
+          queryKey.length !== AUTH_STATUS_KEY.length ||
+          queryKey[0] !== AUTH_STATUS_KEY[0] ||
+          queryKey[1] !== AUTH_STATUS_KEY[1],
+      });
+      window.dispatchEvent(
+        new CustomEvent('budget-session-expired', { detail: { fromStatus: true } }),
+      );
+      await clearing;
       onLoggedOut();
     });
 
