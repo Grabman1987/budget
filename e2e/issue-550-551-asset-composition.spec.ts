@@ -118,6 +118,19 @@ test('550/551 literal signed composition reconciles lead, monthly chart, account
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
+    const tableBox = (await chart.locator('.chart-data-table').boundingBox())!;
+    const explanationBox = (await chart.locator(':scope > .vnote').nth(1).boundingBox())!;
+    expect(tableBox.y + tableBox.height).toBeLessThanOrEqual(explanationBox.y);
+    const tickBoxes = await drawingSvg.locator(':scope > text').evaluateAll((ticks) =>
+      ticks.map((tick) => {
+        const box = tick.getBoundingClientRect();
+        return { left: box.left, right: box.right };
+      }),
+    );
+    expect(tickBoxes.length).toBeGreaterThanOrEqual(2);
+    for (let i = 1; i < tickBoxes.length; i++) {
+      expect(tickBoxes[i]!.left).toBeGreaterThanOrEqual(tickBoxes[i - 1]!.right);
+    }
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,

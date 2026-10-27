@@ -119,6 +119,25 @@ verified as `579f51a73b869d0bc37675f1cd85098dcc18cd3583d8dc4213617049ac8c0f10`.
 It applied unchanged after the bounded fixes with `git apply --check`; it only
 wraps existing source/test expressions. No baseline or proof helper is included.
 
+## Expanded-table and axis visual follow-up
+
+Exact 7e41 proof 40543217308 passed all static checks, 55/55 units and 20 browser
+cases; only four existing own screenshots differed. Root visually approved
+those exact desktop 1440x1606 and phone 390x1757 light/dark actual PNG bytes.
+Only those four baseline paths are copied, with matching source/destination
+SHA256 hashes; there is no regeneration or broader baseline change.
+
+The same proof's WebKit expanded-table image exposed a real flow defect:
+`.vline` inherited a 400px maximum height although ChartSvg renders its native
+table after the SVG. An asset-history-only override removes that cap so every
+expanded row occupies normal document flow before the explanatory paragraph.
+Month-end and as-of anchors may be one day apart; interior axis labels now
+require 64px clearance from endpoint labels while every dated chart point,
+keyboard position and table row remains unchanged. The new E2E adds table/
+paragraph and pairwise tick-label bounding-box assertions in both themes on
+all configured profiles, retaining every existing literal/privacy assertion.
+These corrections require independent source review and a new scoped proof.
+
 ## Limits and next gate
 
 Source only: no local Node/npm/test/build/browser/install/lint/formatter, no

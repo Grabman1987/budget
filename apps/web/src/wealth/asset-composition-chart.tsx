@@ -218,7 +218,9 @@ function Drawing({ points, width }: { points: AssetCompositionPoint[]; width: nu
       })}
       {points.map(
         (point, i) =>
-          (i % tickEvery === 0 || i === points.length - 1) && (
+          (i === 0 ||
+            i === points.length - 1 ||
+            (i % tickEvery === 0 && x(i) - LEFT >= 64 && x(points.length - 1) - x(i) >= 64)) && (
             <text
               key={point.asOf}
               x={x(i)}

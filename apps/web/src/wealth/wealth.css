@@ -232,6 +232,9 @@
   max-width: 100%;
   overflow-wrap: anywhere;
 }
+.asset-history .vline {
+  max-height: none;
+}
 .asset-history-legend {
   display: flex;
   flex-wrap: wrap;
