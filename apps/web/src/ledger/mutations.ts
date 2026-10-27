@@ -140,7 +140,15 @@ export function useLedgerWrites() {
   });
 
   const remove = useMutation({
-    mutationFn: ({ id, unlock, previewRevision }: { id: string; unlock?: boolean; previewRevision?: string }) => deleteBooking(id, unlock, previewRevision),
+    mutationFn: ({
+      id,
+      unlock,
+      previewRevision,
+    }: {
+      id: string;
+      unlock?: boolean;
+      previewRevision?: string;
+    }) => deleteBooking(id, unlock, previewRevision),
     onMutate: ({ id }) => optimistic(qc, (b) => (b.id === id ? null : b)),
     onError: (error, _vars, snapshot) => {
       rollback(qc, snapshot);
@@ -151,8 +159,13 @@ export function useLedgerWrites() {
   });
 
   const bulk = useMutation({
-    mutationFn: (vars: { ids: string[]; set: BulkSet } | { ids: string[]; remove: true; previewRevision: string }) =>
-      'remove' in vars ? bulkDeleteBookings(vars.ids, vars.previewRevision) : bulkUpdateBookings(vars.ids, vars.set),
+    mutationFn: (
+      vars:
+        { ids: string[]; set: BulkSet } | { ids: string[]; remove: true; previewRevision: string },
+    ) =>
+      'remove' in vars
+        ? bulkDeleteBookings(vars.ids, vars.previewRevision)
+        : bulkUpdateBookings(vars.ids, vars.set),
     // Eligibility is authoritative on the server. Never optimistically alter skipped rows.
     onMutate: () => qc.cancelQueries({ queryKey: BOOKINGS_KEY }),
     onError: (error) => failed('Änderung')(error),

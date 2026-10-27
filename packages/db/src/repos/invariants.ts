@@ -365,12 +365,14 @@ export function relatedTransferBookings(tx: Executor, bookingId: string): string
 
 /** Complete transfer component ONLY for atomic deletion/restoration and their full-group checks. */
 export function connectedTransferBookings(tx: Executor, bookingId: string): string[] {
-  const found = new Set([bookingId]), queue = [bookingId];
+  const found = new Set([bookingId]),
+    queue = [bookingId];
   for (let at = 0; at < queue.length; at += 1) {
-    for (const id of relatedTransferBookings(tx, queue[at]!)) if (!found.has(id)) {
-      found.add(id);
-      queue.push(id);
-    }
+    for (const id of relatedTransferBookings(tx, queue[at]!))
+      if (!found.has(id)) {
+        found.add(id);
+        queue.push(id);
+      }
   }
   return queue;
 }

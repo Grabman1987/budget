@@ -229,41 +229,51 @@ export function readBookingBulkSelection(
         const own = splits.filter((s) => s.bookingId === b.id);
         let deleteContact = false;
         if (policy === 'delete') {
-          try { assertContactBookingWrite(tx, b.id, 'delete'); }
-          catch (error) {
+          try {
+            assertContactBookingWrite(tx, b.id, 'delete');
+          } catch (error) {
             if (!(error instanceof BookingInvariantError)) throw error;
             deleteContact = true;
           }
         }
         const deleteReason: BookingBulkReason | null =
-          b.status === 'reconciled' ? 'reconciled_locked'
-            : deleteContact ? 'linked_contact'
-              : trades.has(b.id) ? 'linked_trade'
-                : documents.has(b.id) ? 'linked_document'
-                  : statements.has(b.id) ? 'linked_statement'
-                    : !Number.isSafeInteger(b.amountCents) ? 'invalid' : null;
-        const reason: BookingBulkReason | null = policy === 'delete' ? deleteReason :
           b.status === 'reconciled'
             ? 'reconciled_locked'
-            : b.transferId || own.some((s) => s.transferId)
-              ? 'linked_transfer'
-              : contacts.has(b.id) || own.some((s) => s.contactId)
-                ? 'linked_contact'
-                : expected.has(b.id)
-                  ? 'linked_expected'
-                  : trades.has(b.id)
-                    ? 'linked_trade'
-                    : payroll.has(b.id)
-                      ? 'linked_payroll'
-                      : documents.has(b.id)
-                        ? 'linked_document'
-                        : statements.has(b.id)
-                          ? 'linked_statement'
-                          : b.bankSourceId !== null || bank.has(b.id)
-                            ? 'linked_bank'
-                            : !Number.isSafeInteger(b.amountCents)
-                              ? 'invalid'
-                              : null;
+            : deleteContact
+              ? 'linked_contact'
+              : trades.has(b.id)
+                ? 'linked_trade'
+                : documents.has(b.id)
+                  ? 'linked_document'
+                  : statements.has(b.id)
+                    ? 'linked_statement'
+                    : !Number.isSafeInteger(b.amountCents)
+                      ? 'invalid'
+                      : null;
+        const reason: BookingBulkReason | null =
+          policy === 'delete'
+            ? deleteReason
+            : b.status === 'reconciled'
+              ? 'reconciled_locked'
+              : b.transferId || own.some((s) => s.transferId)
+                ? 'linked_transfer'
+                : contacts.has(b.id) || own.some((s) => s.contactId)
+                  ? 'linked_contact'
+                  : expected.has(b.id)
+                    ? 'linked_expected'
+                    : trades.has(b.id)
+                      ? 'linked_trade'
+                      : payroll.has(b.id)
+                        ? 'linked_payroll'
+                        : documents.has(b.id)
+                          ? 'linked_document'
+                          : statements.has(b.id)
+                            ? 'linked_statement'
+                            : b.bankSourceId !== null || bank.has(b.id)
+                              ? 'linked_bank'
+                              : !Number.isSafeInteger(b.amountCents)
+                                ? 'invalid'
+                                : null;
         items.push({
           id: b.id,
           date: b.date,

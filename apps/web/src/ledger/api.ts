@@ -220,7 +220,10 @@ export const deleteBooking = (id: string, unlock = false, previewRevision?: stri
   const query = new URLSearchParams();
   if (unlock) query.set('unlock', '1');
   if (previewRevision) query.set('previewRevision', previewRevision);
-  return request<WriteResult>('DELETE', `/api/bookings/${encodeURIComponent(id)}${query.size ? `?${query}` : ''}`);
+  return request<WriteResult>(
+    'DELETE',
+    `/api/bookings/${encodeURIComponent(id)}${query.size ? `?${query}` : ''}`,
+  );
 };
 /** Why the server left a booking out of a bulk action. */
 export type BulkSkipReason =
@@ -274,7 +277,8 @@ export interface BookingDeletePreview {
   skipped: { id: string; reason: BulkSkipReason; booking?: BulkSelectionItem }[];
   revision: string;
 }
-export const readDeletePreview = (ids: string[]) => request<BookingDeletePreview>('POST', '/api/bookings/delete-preview', { ids });
+export const readDeletePreview = (ids: string[]) =>
+  request<BookingDeletePreview>('POST', '/api/bookings/delete-preview', { ids });
 export interface BulkResult extends WriteResult {
   changed: string[];
   skipped: { id: string; reason: BulkSkipReason; message: string; booking?: BulkSelectionItem }[];

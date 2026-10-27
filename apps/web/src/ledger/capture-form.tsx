@@ -23,7 +23,13 @@ import {
 } from 'react';
 import { ApiError } from '../api/http';
 import { budgetQuery } from '../budget/budget-api';
-import { fetchBookings, createPayee, setPayeeDefaultCategory, readDeletePreview, type BookingDeletePreview } from './api';
+import {
+  fetchBookings,
+  createPayee,
+  setPayeeDefaultCategory,
+  readDeletePreview,
+  type BookingDeletePreview,
+} from './api';
 import {
   buildCreate,
   buildPatch,
@@ -135,11 +141,15 @@ export function CaptureForm({
   const payees = useQuery(payeesQuery());
   const writes = useLedgerWrites();
   const [deletion, setDeletion] = useState<BookingDeletePreview | null>(null);
-  const deleteQuestion = useRef<HTMLDivElement>(null), deleteReturn = useRef<HTMLElement | null>(null);
+  const deleteQuestion = useRef<HTMLDivElement>(null),
+    deleteReturn = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (deletion) deleteQuestion.current?.querySelector<HTMLButtonElement>('button')?.focus();
   }, [deletion]);
-  const cancelDeletion = () => { setDeletion(null); deleteReturn.current?.focus(); };
+  const cancelDeletion = () => {
+    setDeletion(null);
+    deleteReturn.current?.focus();
+  };
   const formRef = useRef<HTMLFormElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
@@ -519,14 +529,21 @@ export function CaptureForm({
     saving.current = true;
     setBusy(true);
     try {
-      const preview = confirmed ?? await readDeletePreview([editing.id]);
-      const protectedRow = preview.affectedIds.length > 1 || preview.selection.items.some((item) => item.reason !== null) || preview.skipped.length > 0;
+      const preview = confirmed ?? (await readDeletePreview([editing.id]));
+      const protectedRow =
+        preview.affectedIds.length > 1 ||
+        preview.selection.items.some((item) => item.reason !== null) ||
+        preview.skipped.length > 0;
       if (!confirmed && protectedRow) {
         deleteReturn.current = document.activeElement as HTMLElement | null;
         setDeletion(preview);
         return;
       }
-      await writes.remove.mutateAsync({ id: editing.id, unlock, previewRevision: preview.revision });
+      await writes.remove.mutateAsync({
+        id: editing.id,
+        unlock,
+        previewRevision: preview.revision,
+      });
       onDone();
     } catch (error) {
       setDeletion(null);
@@ -537,8 +554,11 @@ export function CaptureForm({
     }
   };
   const deleteReason = deletion?.selection.items.find((item) => item.reason !== null)?.reason;
-  const canConfirmDelete = !!deletion && deletion.selection.items.length > 0 &&
-    (deletion.skipped.length === 0 || (unlock && deletion.skipped.every((item) => item.reason === 'reconciled_locked')));
+  const canConfirmDelete =
+    !!deletion &&
+    deletion.selection.items.length > 0 &&
+    (deletion.skipped.length === 0 ||
+      (unlock && deletion.skipped.every((item) => item.reason === 'reconciled_locked')));
   const onKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
     if (e.key !== 'Enter' || e.altKey) return;
     if (e.ctrlKey || e.metaKey) {
@@ -1002,14 +1022,53 @@ export function CaptureForm({
           </Button>
         </div>
       )}
-      {deletion && <div ref={deleteQuestion} className="kdiff bk-discard kdelete-question" role="alertdialog" aria-label="Buchung löschen?">
-        <p>{deleteReason ? `Diese Buchung ist geschützt: ${SKIP_REASON_LABEL[deleteReason]}.` : deletion.selection.items.length ? 'Diese Umbuchung wird mit allen verbundenen Seiten gelöscht.' : 'Die Buchung ist nicht mehr verfügbar.'}</p>
-        <p>{deletion.affectedIds.length} Buchungsseiten sind betroffen. {deletion.affectedTotals.map((total) => total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents,total.currency,true)).join(' · ')}</p>
-        {deletion.affectedIds.length > 1 && <p>Alle Seiten der Umbuchung werden gemeinsam gelöscht und mit einem Rückgängig wiederhergestellt.</p>}
-        {!canConfirmDelete && <p>Geprüfte Buchungen zuerst ausdrücklich freigeben. Bei Kontakt- oder Trade-Abrechnungen zuerst die zugehörige Abrechnung öffnen und zurücknehmen. Geschützte Dokumentbuchungen bleiben ihrer Quellaktion zugeordnet.</p>}
-        <Button variant="ghost" disabled={busy} onClick={cancelDeletion}>Weiter bearbeiten</Button>
-        {canConfirmDelete && <Button disabled={busy} onClick={() => void remove(deletion)}>Löschen bestätigen</Button>}
-      </div>}
+      {deletion && (
+        <div
+          ref={deleteQuestion}
+          className="kdiff bk-discard kdelete-question"
+          role="alertdialog"
+          aria-label="Buchung löschen?"
+        >
+          <p>
+            {deleteReason
+              ? `Diese Buchung ist geschützt: ${SKIP_REASON_LABEL[deleteReason]}.`
+              : deletion.selection.items.length
+                ? 'Diese Umbuchung wird mit allen verbundenen Seiten gelöscht.'
+                : 'Die Buchung ist nicht mehr verfügbar.'}
+          </p>
+          <p>
+            {deletion.affectedIds.length} Buchungsseiten sind betroffen.{' '}
+            {deletion.affectedTotals
+              .map((total) =>
+                total.cents === null
+                  ? `${total.currency}: nicht darstellbar`
+                  : nativeCurrency(total.cents, total.currency, true),
+              )
+              .join(' · ')}
+          </p>
+          {deletion.affectedIds.length > 1 && (
+            <p>
+              Alle Seiten der Umbuchung werden gemeinsam gelöscht und mit einem Rückgängig
+              wiederhergestellt.
+            </p>
+          )}
+          {!canConfirmDelete && (
+            <p>
+              Geprüfte Buchungen zuerst ausdrücklich freigeben. Bei Kontakt- oder Trade-Abrechnungen
+              zuerst die zugehörige Abrechnung öffnen und zurücknehmen. Geschützte Dokumentbuchungen
+              bleiben ihrer Quellaktion zugeordnet.
+            </p>
+          )}
+          <Button variant="ghost" disabled={busy} onClick={cancelDeletion}>
+            Weiter bearbeiten
+          </Button>
+          {canConfirmDelete && (
+            <Button disabled={busy} onClick={() => void remove(deletion)}>
+              Löschen bestätigen
+            </Button>
+          )}
+        </div>
+      )}
       {blocked && (
         <p id="booking-save-reason" className="bk-save-reason" role="status">
           {lineProblem}

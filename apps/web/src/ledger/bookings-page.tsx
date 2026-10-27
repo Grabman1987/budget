@@ -151,7 +151,8 @@ export function BookingsPage() {
   const bulkDone = (completed = ids) =>
     setSelected((prev) => new Set([...prev].filter((id) => !completed.includes(id))));
   const runBulk = async (
-    vars: { ids: string[]; set: BulkSet } | { ids: string[]; remove: true; previewRevision: string },
+    vars:
+      { ids: string[]; set: BulkSet } | { ids: string[]; remove: true; previewRevision: string },
     submitted?: BulkSelection,
   ) => {
     if (pending) return;
@@ -314,8 +315,25 @@ export function BookingsPage() {
             )}
           </>
         )}
-        <FormDialog open={confirmDelete} title="Löschen bestätigen" onClose={() => setConfirmDelete(false)} beforeClose={() => !pending}>
-          {confirmDelete && <BookingDeleteConfirmation key={ids.slice().sort().join('|')} ids={ids} onCancel={() => setConfirmDelete(false)} onConfirm={(preview) => runBulk({ ids: preview.ids, remove: true, previewRevision: preview.revision }, preview.selection)} />}
+        <FormDialog
+          open={confirmDelete}
+          title="Löschen bestätigen"
+          onClose={() => setConfirmDelete(false)}
+          beforeClose={() => !pending}
+        >
+          {confirmDelete && (
+            <BookingDeleteConfirmation
+              key={ids.slice().sort().join('|')}
+              ids={ids}
+              onCancel={() => setConfirmDelete(false)}
+              onConfirm={(preview) =>
+                runBulk(
+                  { ids: preview.ids, remove: true, previewRevision: preview.revision },
+                  preview.selection,
+                )
+              }
+            />
+          )}
         </FormDialog>
         <BookingSelectionBar
           ids={ids}
@@ -358,7 +376,12 @@ export function BookingsPage() {
                   Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.
                 </span>
               )}
-              <Button variant="ghost" size="sm" disabled={pending || !facts} onClick={() => setConfirmDelete(true)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={pending || !facts}
+                onClick={() => setConfirmDelete(true)}
+              >
                 Löschen
               </Button>
             </>
