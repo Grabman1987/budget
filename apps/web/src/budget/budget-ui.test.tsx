@@ -354,7 +354,7 @@ it('selects a category into the inspector, keeps amount editing separate and cle
   await userEvent.keyboard('{Escape}');
   expect(within(inspector).getByRole('heading', { name: row.name })).toBeTruthy();
   await userEvent.keyboard('{Escape}');
-  expect(within(inspector).getByText('Monatsüberblick', { selector: 'summary' })).toBeTruthy();
+  expect(within(inspector).getByText('Monatsaufstellung', { selector: 'summary' })).toBeTruthy();
   expect(document.activeElement).toBe(category);
   await userEvent.click(
     screen.getByRole('button', { name: 'Zugewiesen 0,00 € für Lebensmittel ändern' }),
@@ -364,7 +364,7 @@ it('selects a category into the inspector, keeps amount editing separate and cle
   await userEvent.click(category);
   // #588: Optionen ▾ replaces the Ansicht select; any toolbar control outside the selection is an outside click.
   await userEvent.click(screen.getByText(/^Optionen/, { selector: 'summary' }));
-  expect(within(inspector).getByText('Monatsüberblick', { selector: 'summary' })).toBeTruthy();
+  expect(within(inspector).getByText('Monatsaufstellung', { selector: 'summary' })).toBeTruthy();
   await userEvent.click(category);
   await userEvent.click(screen.getByRole('button', { name: 'Unterfinanziert 0,00 €' }));
   await waitFor(() =>

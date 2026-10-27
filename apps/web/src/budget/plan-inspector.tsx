@@ -10,6 +10,7 @@ import { targetText } from './labels';
 import type { PlanRow } from './plan-model';
 import { QuickAssignActions } from './quick-assign-actions';
 import type { PanelState } from './category-panel';
+import { MonthOverviewInspector } from './plan-overview';
 
 declare module '@tanstack/history' {
   interface HistoryState {
@@ -38,6 +39,7 @@ export function PlanInspector({
   onHide,
   onClear,
   overview,
+  next,
   split,
   income,
   money,
@@ -52,20 +54,22 @@ export function PlanInspector({
   onHide: (category: CategoryRow) => void;
   onClear: () => void;
   overview: ReactNode;
+  next?: ReactNode;
   split: ReactNode;
   income: ReactNode;
   money: ReactNode;
   rail: ReactNode;
 }) {
   useAmountPrivacy();
+  if (selected.length === 0)
+    return <MonthOverviewInspector month={month} overview={overview} next={next} split={split} income={income} money={money} rail={rail} />;
   const row = selected.length === 1 ? selected[0] : undefined;
   return (
     <aside className="plan-inspector card" aria-label="Plan-Inspektor">
       <details className="inspector-fold" open key={selected.map((r) => r.id).join(':')}>
         <FoldTitle className="inspector-fold-title">
-          {row ? 'Kategorie-Details' : selected.length ? 'Auswahl' : 'Monatszahlen'}
+          {row ? 'Kategorie-Details' : 'Auswahl'}
         </FoldTitle>
-        {selected.length ? (
           <div className="inspector-selection">
             <div className="inspector-head">
               <h2>{row?.name ?? `${selected.length} Kategorien ausgewählt`}</h2>
@@ -194,27 +198,6 @@ export function PlanInspector({
               </>
             )}
           </div>
-        ) : (
-          <>
-            <details className="inspector-section" open>
-              <FoldTitle>Monatsüberblick</FoldTitle>
-              {overview}
-            </details>
-            <details className="inspector-section">
-              <FoldTitle>50/30/20</FoldTitle>
-              {split}
-            </details>
-            <details className="inspector-section" id="inspector-income">
-              <FoldTitle>Erwartetes Einkommen vs. Monatsziele</FoldTitle>
-              {income}
-            </details>
-            {money}
-            <details className="inspector-section">
-              <FoldTitle>Wasserfall-Stufen</FoldTitle>
-              {rail}
-            </details>
-          </>
-        )}
       </details>
     </aside>
   );
