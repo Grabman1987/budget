@@ -63,7 +63,7 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
   });
   await post('/contacts/' + contact.id + '/settlements', {
     accountId: account.id,
-    date: '2026-10-03',
+    date: '2026-10-02',
     amountCents: 300,
   });
   const transfer = await post('/bookings', {
