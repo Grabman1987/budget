@@ -48,6 +48,8 @@ export interface ReconciliationPreview {
   /** Confirmed bookings that a successful check will stamp as `reconciled`. */
   toReconcileCount: number;
   duplicates: DuplicateCandidate[];
+  /** Already loaded unconfirmed rows, including partial/nonmatching amounts; no new matcher. */
+  pendingBookings: { id: string; date: string; payeeName: string | null; amountCents: number }[];
   /** Sets of pending bookings whose sum is the difference: the bank has booked them already. */
   pendingMatches: PendingMatch[];
   /** Neither a duplicate nor a pending set explains it: a booking is missing. */
@@ -208,6 +210,12 @@ export function previewReconciliation(
     differenceCents: difference,
     toReconcileCount: rows.filter((r) => r.booking.status === 'confirmed').length,
     duplicates,
+    pendingBookings: pending.map((r) => ({
+      id: r.booking.id,
+      date: r.booking.date,
+      payeeName: r.payeeName,
+      amountCents: r.booking.amountCents,
+    })),
     pendingMatches,
     missing:
       difference === 0 || explained

@@ -85,6 +85,7 @@ export function lookupRoutes(db: Db): Hono {
           groupId: category.groupId,
           class: category.class,
           kind: category.kind,
+          hiddenAt: category.hiddenAt,
           sortOrder: category.sortOrder,
         })
         .from(category)
