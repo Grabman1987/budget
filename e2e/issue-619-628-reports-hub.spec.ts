@@ -92,15 +92,34 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
       page.getByRole('navigation', { name: 'Register von Reports', exact: true }),
     ).toHaveCount(0);
     const switcher = page.locator('.report-switcher > summary');
+    await expect(switcher).toBeVisible();
     await switcher.click();
     const chooser = page.getByRole('searchbox', {
       name: 'Bericht nach Name oder Frage suchen',
       exact: true,
     });
+    if (phone) {
+      const viewport = page.viewportSize()!;
+      for (const target of [page.locator('.report-switcher-menu'), chooser]) {
+        await expect(target).toBeVisible();
+        const box = (await target.boundingBox())!;
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+        expect(box.y).toBeGreaterThanOrEqual(0);
+        expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+      }
+      const input = (await chooser.boundingBox())!;
+      expect(input.width).toBeGreaterThanOrEqual(44);
+      expect(input.height).toBeGreaterThanOrEqual(44);
+      expect(await chooser.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+      })).toBe(true);
+    }
     await chooser.fill('Brutto');
     await expect(page.locator('.report-switcher a')).toHaveCount(1);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-    expect((await switcher.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    if (phone) expect((await switcher.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     expect((await page.locator('.report-switcher a').boundingBox())!.height).toBeGreaterThanOrEqual(
       44,
     );

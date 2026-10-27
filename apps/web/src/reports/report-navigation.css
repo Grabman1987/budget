@@ -117,4 +117,8 @@
   .report-switcher {
     flex: 1;
   }
+  .report-switcher-menu {
+    left: 0;
+    right: auto;
+  }
 }
