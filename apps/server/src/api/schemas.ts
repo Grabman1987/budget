@@ -194,7 +194,12 @@ export const bulkBody = z.discriminatedUnion('action', [
     action: z.literal('update'),
     ids: z.array(id).min(1).max(500),
     set: z
-      .object({ categoryId: id.nullable(), flag: flag.nullable(), status: writableStatus })
+      .object({
+        categoryId: id.nullable(),
+        flag: flag.nullable(),
+        status: writableStatus,
+        projectId: id.nullable(),
+      })
       .partial()
       .refine((s) => Object.keys(s).length > 0, 'Nothing to set'),
     unlockReconciled: z.boolean().default(false),

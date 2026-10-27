@@ -13,6 +13,7 @@ export function ScheduledRegisterRow({
   all,
   blankCheck,
   balance,
+  showBalance = true,
 }: {
   occurrence: Occurrence;
   today: string;
@@ -20,6 +21,7 @@ export function ScheduledRegisterRow({
   /** The table has a selection column; scheduled rows leave it empty. */
   blankCheck?: boolean;
   balance: number | null;
+  showBalance?: boolean;
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
@@ -87,9 +89,11 @@ export function ScheduledRegisterRow({
           {nativeCurrency(s.amountCents, s.currency, true)}
         </span>
       </td>
-      <td className="kc-num kc-run kx-run">
-        {balance === null ? (all ? 'Saldo offen' : '–') : nativeCurrency(balance, s.currency)}
-      </td>
+      {showBalance && (
+        <td className="kc-num kc-run kx-run">
+          {balance === null ? (all ? 'Saldo offen' : '–') : nativeCurrency(balance, s.currency)}
+        </td>
+      )}
       <td className="kc-status kx-status">
         <span
           className="kstatus-btn"

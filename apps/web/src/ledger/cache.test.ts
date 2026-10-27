@@ -77,6 +77,28 @@ describe('applyBulk', () => {
 });
 
 describe('mapCachedBookings', () => {
+  it('marks every full-filter summary pending when an older cursor page changes without guessing totals', () => {
+    const nativeTotals = [
+      { currency: 'EUR', count: 3, cents: -1557 },
+      { currency: 'USD', count: 1, cents: -4321 },
+    ];
+    const data = {
+      pages: [
+        { ...page(booking('b', 567)), nativeTotals },
+        { ...page(booking('a', -1234), booking('c', -890)), nativeTotals },
+      ],
+      pageParams: [undefined, 'older'],
+    };
+    const unchanged = mapCachedBookings(data, (row) => row);
+    expect(unchanged.pages[0]?.nativeTotalsPending).toBeUndefined();
+    const changed = mapCachedBookings(data, (row) =>
+      row.id === 'a' ? { ...row, amountCents: -2000 } : row,
+    );
+    expect(changed.pages.map((page) => page.nativeTotalsPending)).toEqual([true, true]);
+    expect(changed.pages.map((page) => page.nativeTotals)).toEqual([nativeTotals, nativeTotals]);
+    expect(data.pages[0]?.nativeTotals).toEqual(nativeTotals);
+    expect(changed.pages[1]?.items[0]?.amountCents).toBe(-2000);
+  });
   it('removes a booking and corrects total and sum, also in infinite results', () => {
     const data = page(booking('b1', -1000), booking('b2', -500));
     const out = mapCachedBookings(data, (b) => (b.id === 'b1' ? null : b));

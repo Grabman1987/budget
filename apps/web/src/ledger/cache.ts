@@ -19,6 +19,7 @@ export function patchListed(b: ListedBooking, patch: BookingPatch, names: Names)
   if (patch.memo !== undefined) next.memo = patch.memo;
   if (patch.status !== undefined) next.status = patch.status;
   if (patch.flag !== undefined) next.flag = patch.flag;
+  if (patch.projectId !== undefined) next.projectId = patch.projectId;
   if (patch.payeeId !== undefined) {
     next.payeeId = patch.payeeId;
     next.payeeName = names.payee(patch.payeeId);
@@ -47,12 +48,14 @@ export interface BulkSet {
   categoryId?: string | null;
   flag?: BookingFlag | null;
   status?: 'pending' | 'confirmed';
+  projectId?: string | null;
 }
 
 export const patchOfBulk = (set: BulkSet): BookingPatch => {
   const patch: BookingPatch = {};
   if (set.flag !== undefined) patch.flag = set.flag;
   if (set.status !== undefined) patch.status = set.status;
+  if (set.projectId !== undefined) patch.projectId = set.projectId;
   return patch;
 };
 
@@ -80,12 +83,14 @@ export function mapCachedBookings<T extends PageLike | undefined>(
   fn: (b: ListedBooking) => ListedBooking | null,
 ): T {
   if (!data) return data;
+  let transformed = false;
   const mapPage = (page: BookingPage): BookingPage => {
     const items: ListedBooking[] = [];
     let sumCents = page.sumCents;
     let removed = 0;
     for (const item of page.items) {
       const next = fn(item);
+      if (next !== item) transformed = true;
       if (next === null) {
         removed += 1;
         sumCents -= item.amountCents;
@@ -96,6 +101,14 @@ export function mapCachedBookings<T extends PageLike | undefined>(
     }
     return { ...page, items, total: page.total - removed, sumCents };
   };
-  if (isInfinite(data)) return { ...data, pages: data.pages.map(mapPage) } as T;
-  return mapPage(data as BookingPage) as T;
+  const mapped = isInfinite(data)
+    ? { ...data, pages: data.pages.map(mapPage) }
+    : mapPage(data as BookingPage);
+  if (!transformed) return mapped as T;
+  // Each cursor page carries complete-filter totals. A changed off-page row invalidates
+  // every copy; only the canonical refetch can prove current filter/currency membership.
+  const pending = (page: BookingPage): BookingPage => ({ ...page, nativeTotalsPending: true });
+  return (
+    isInfinite(mapped) ? { ...mapped, pages: mapped.pages.map(pending) } : pending(mapped)
+  ) as T;
 }

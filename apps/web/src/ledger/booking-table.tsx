@@ -7,6 +7,8 @@ import { ArrowDown, ArrowUp, CalendarDays, ChevronDown, Pencil } from 'lucide-re
 import { Fragment, useId, useState, type ReactNode } from 'react';
 import { CategoryCell, FlagCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
 import { BookingLegend } from './booking-legend';
+import { FlagGlyph } from './flag-picker';
+import { FLAG_LABEL } from './labels';
 import { dayHeading, nativeCurrency, valuedCurrency, shortDay, upcomingDate, eur } from './format';
 import { ScheduledRegisterRow } from './scheduled-register-row';
 import { upcomingEntries, upcomingSummary, type UpcomingModel } from './upcoming-register';
@@ -17,6 +19,9 @@ import type { BookingFlag, BookingSort, ListedBooking } from './types';
 
 export interface Selection {
   selected: ReadonlySet<string>;
+  disabled?: boolean;
+  /** Explicit phone selection mode; metadata stays read-only while choosing rows. */
+  mode?: boolean;
   toggle: (id: string) => void;
   toggleAll: (ids: string[]) => void;
 }
@@ -32,6 +37,8 @@ export interface BookingTableProps {
   /** The "Kommend" section: future captures and next occurrences above the history, same columns. */
   upcoming?: UpcomingModel | null;
   showTodayBalance?: boolean;
+  /** Alle Buchungen may show a Saldo column only for an explicit single account. */
+  showRunningBalance?: boolean;
 }
 
 const canEditCategory = (b: ListedBooking) =>
@@ -51,12 +58,14 @@ export function BookingTable({
   sort,
   upcoming,
   showTodayBalance = true,
+  showRunningBalance = false,
 }: BookingTableProps) {
   useAmountPrivacy();
   const classes = useCategoryClasses();
   const writes = useLedgerWrites();
   const lookups = useQuery(lookupsQuery());
   const setCategory = (b: ListedBooking, categoryId: string | null) => {
+    if (selection?.disabled || selection?.mode) return;
     if ((b.splits[0]?.categoryId ?? null) === categoryId) return;
     writes.patch.mutate({
       id: b.id,
@@ -65,14 +74,16 @@ export function BookingTable({
   };
   // A flag is saved at once, with the usual undo toast.
   const setFlag = (b: ListedBooking, flag: BookingFlag | null) => {
+    if (selection?.disabled || selection?.mode) return;
     if ((b.flag ?? null) === flag) return;
     writes.patch.mutate({ id: b.id, patch: { flag } });
   };
   const all = variant === 'all';
   const sectionId = useId();
   const showUpcoming = upcoming?.open === true && upcoming.count > 0;
-  // Einzelkonto always carries the running balance; Alle Buchungen only for the projected rows.
-  const runColumn = !all || showUpcoming;
+  // Retain the projected-row balance marker when Kommend is open. Historical All rows
+  // show a balance value only for an explicit single account.
+  const runColumn = !all || showRunningBalance || showUpcoming;
   const columns = (selection ? 1 : 0) + 7 + (runColumn ? 1 : 0);
   const head = (label: string, key?: BookingSort, numeric = false): ReactNode => (
     <th
@@ -150,13 +161,18 @@ export function BookingTable({
           variant={variant}
           classes={classes}
           runColumn={runColumn}
+          showRunningBalance={showRunningBalance}
           {...(selection ? { selection } : {})}
           onOpen={onOpen}
           categories={lookups.data?.categories ?? []}
           groups={lookups.data?.groups ?? []}
           onCategory={setCategory}
           onFlag={setFlag}
-          onPatch={(patch) => writes.patch.mutateAsync({ id: b.id, patch })}
+          onPatch={(patch) =>
+            selection?.disabled || selection?.mode
+              ? Promise.reject(new Error('Bitte die laufende Auswahl zuerst beenden.'))
+              : writes.patch.mutateAsync({ id: b.id, patch })
+          }
           busy={writes.patch.isPending}
         />
       ))}
@@ -172,13 +188,20 @@ export function BookingTable({
             <input
               type="checkbox"
               checked={items.length > 0 && items.every((b) => selection.selected.has(b.id))}
+              disabled={selection.disabled}
               onChange={() => selection.toggleAll(items.map((b) => b.id))}
             />
             Alle sichtbaren auswählen
           </label>
         )}
       </div>
-      <table className={cx('ktable ktx', all ? 'ktx-all' : 'ktx-account')}>
+      <table
+        className={cx(
+          'ktable ktx',
+          all ? 'ktx-all' : 'ktx-account',
+          runColumn && 'has-running-balance',
+        )}
+      >
         <caption className="sr-only">{caption}</caption>
         {!all && (
           <colgroup>
@@ -201,6 +224,7 @@ export function BookingTable({
                   type="checkbox"
                   aria-label="Alle sichtbaren Buchungen auswählen"
                   checked={items.length > 0 && items.every((b) => selection.selected.has(b.id))}
+                  disabled={selection.disabled}
                   onChange={() => selection.toggleAll(items.map((b) => b.id))}
                 />
               </th>
@@ -251,6 +275,7 @@ export function BookingTable({
                       all={all}
                       blankCheck={!!selection}
                       balance={upcoming.balances.get(entry.id) ?? null}
+                      showBalance={runColumn}
                     />
                   ) : (
                     <Row
@@ -326,6 +351,7 @@ function Row({
   projectedBalance,
   blankCheck,
   runColumn,
+  showRunningBalance = false,
 }: {
   booking: ListedBooking;
   variant: 'account' | 'all';
@@ -343,11 +369,13 @@ function Row({
   /** Upcoming rows cannot be selected but keep the checkbox column aligned. */
   blankCheck?: boolean;
   runColumn: boolean;
+  showRunningBalance?: boolean;
 }) {
   useAmountPrivacy();
   const flashing = useFlashing(b.id);
   const [editing, setEditing] = useState(false);
   const checked = selection?.selected.has(b.id) ?? false;
+  const selectionMode = selection?.mode === true;
   const label = `${b.payeeName ?? 'Buchung'} am ${shortDay(b.date)}`;
   return (
     // Individual cell controls handle keyboard access; the rest of the row opens the dialog.
@@ -371,25 +399,47 @@ function Row({
             type="checkbox"
             aria-label={`${label} auswählen`}
             checked={checked}
+            disabled={selection.disabled}
             onChange={() => selection.toggle(b.id)}
           />
         </td>
       )}
       <td className="kc-flag kx-flag">
-        <FlagCell
-          booking={b}
-          label={label}
-          onChange={(flag) => onFlag(b, flag === '' ? null : flag)}
-        />
+        {selectionMode ? (
+          <span
+            className="kflag"
+            role="img"
+            aria-label={b.flag ? `Markierung ${FLAG_LABEL[b.flag]}` : 'Keine Markierung'}
+          >
+            <FlagGlyph flag={b.flag} size={16} />
+          </span>
+        ) : (
+          <FlagCell
+            booking={b}
+            label={label}
+            onChange={(flag) => onFlag(b, flag === '' ? null : flag)}
+          />
+        )}
       </td>
       <td className="kc-date kx-date">
-        <InlineBookingCell booking={b} field="date" onSave={onPatch} onOpen={() => onOpen(b)}>
-          {upcomingToday ? upcomingDate(b.date, upcomingToday) : shortDay(b.date)}
-        </InlineBookingCell>
+        {selectionMode ? (
+          <span>{upcomingToday ? upcomingDate(b.date, upcomingToday) : shortDay(b.date)}</span>
+        ) : (
+          <InlineBookingCell booking={b} field="date" onSave={onPatch} onOpen={() => onOpen(b)}>
+            {upcomingToday ? upcomingDate(b.date, upcomingToday) : shortDay(b.date)}
+          </InlineBookingCell>
+        )}
       </td>
       <td className="kx-payee">
-        <button type="button" className="kname-btn" onClick={() => onOpen(b)}>
-          <span className="sr-only">{label} bearbeiten ·</span>{' '}
+        <button
+          type="button"
+          className="kname-btn"
+          disabled={selection?.disabled}
+          onClick={() => onOpen(b)}
+        >
+          <span className="sr-only">
+            {label} {selectionMode ? (checked ? 'abwählen' : 'auswählen') : 'bearbeiten'} ·
+          </span>{' '}
           <PayeeCell
             booking={b}
             {...(variant === 'account'
@@ -422,7 +472,7 @@ function Row({
       )}
       {variant === 'all' && <td className="kc-acct kx-acct">{b.accountName}</td>}
       <td className="kx-cat">
-        {editing ? (
+        {editing && !selectionMode ? (
           <select
             className="select select-sm"
             aria-label={`Kategorie für ${label}`}
@@ -457,7 +507,7 @@ function Row({
                 </option>
               ))}
           </select>
-        ) : canEditCategory(b) ? (
+        ) : canEditCategory(b) && !selectionMode ? (
           <button type="button" className="kcat-btn" onClick={() => setEditing(true)}>
             <span className="sr-only">Kategorie ändern: {label} ·</span>{' '}
             <CategoryCell booking={b} classes={classes} showClass={false} />
@@ -468,29 +518,33 @@ function Row({
         )}
       </td>
       <td className="kc-num kx-amount">
-        <InlineBookingCell
-          booking={b}
-          field="amountCents"
-          onSave={onPatch}
-          onOpen={() => onOpen(b)}
-        >
-          <span
-            className={cx(
-              b.currency !== 'EUR' && 'kfx-money',
-              upcomingToday && (b.amountCents < 0 ? 'kupcoming-negative' : 'kupcoming-positive'),
-            )}
+        {selectionMode ? (
+          <span>{valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}</span>
+        ) : (
+          <InlineBookingCell
+            booking={b}
+            field="amountCents"
+            onSave={onPatch}
+            onOpen={() => onOpen(b)}
           >
-            {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
-          </span>
-        </InlineBookingCell>
+            <span
+              className={cx(
+                b.currency !== 'EUR' && 'kfx-money',
+                upcomingToday && (b.amountCents < 0 ? 'kupcoming-negative' : 'kupcoming-positive'),
+              )}
+            >
+              {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
+            </span>
+          </InlineBookingCell>
+        )}
         {b.categorySpendingCents !== undefined && (
           <small className="kmeta">Kategorie netto {eur(b.categorySpendingCents)}</small>
         )}
       </td>
-      {runColumn && !(variant === 'account' || upcomingToday) && (
+      {runColumn && !(variant === 'account' || upcomingToday || showRunningBalance) && (
         <td className="kc-num kc-run kx-run" />
       )}
-      {runColumn && (variant === 'account' || upcomingToday) && (
+      {runColumn && (variant === 'account' || upcomingToday || showRunningBalance) && (
         <td className="kc-num kc-run kx-run">
           <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
             {upcomingToday
@@ -521,7 +575,7 @@ function Row({
             iconOnly
             disabled={busy}
             onToggle={
-              b.status === 'reconciled'
+              b.status === 'reconciled' || selectionMode
                 ? undefined
                 : () => {
                     void onPatch({

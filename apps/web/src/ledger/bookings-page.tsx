@@ -13,7 +13,7 @@ import {
 } from '@budget/ui';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { Plus, X } from 'lucide-react';
+import { ChevronDown, MoreHorizontal, Plus, X } from 'lucide-react';
 import { todayInVienna } from '@budget/domain';
 import { useEffect, useMemo, useState } from 'react';
 import { budgetQuery } from '../budget/budget-api';
@@ -21,6 +21,9 @@ import { KONTEN_BUCHUNGEN_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { BookingTable, type Selection } from './booking-table';
+import { BookingSelectionBar, type BulkOutcome } from './booking-selection-bar';
+import { filteredBookingsCsvUrl, type BulkSelection } from './api';
+import type { BulkSet } from './cache';
 import { BookingStatusChips } from './booking-status-chips';
 import { useRegisterToday, useUpcomingRegister } from './upcoming-register';
 import { CategoryCombobox } from './category-picker';
@@ -31,7 +34,7 @@ import {
   type BookingsSearch,
 } from './bookings-search';
 import { pickableCategories } from './capture-model';
-import { eur, pluralBookings, valuedMovement } from './format';
+import { eur, nativeCurrency, pluralBookings } from './format';
 import { FLAG_LABEL, STATUS_LABEL } from './labels';
 import { useLedgerWrites } from './mutations';
 import { AccountOptions } from './account-options';
@@ -52,7 +55,8 @@ export function BookingsPage() {
   useAmountPrivacy();
   const search = useSearch({ strict: false }) as BookingsSearch;
   const navigate = useNavigate();
-  const setSearch = (patch: Partial<BookingsSearch>) =>
+  const setSearch = (patch: Partial<BookingsSearch>) => {
+    if (writes.bulk.isPending || linking) return;
     void navigate({
       to: '.',
       search: ((prev: Record<string, unknown>) => {
@@ -63,6 +67,7 @@ export function BookingsPage() {
       }) as never,
       replace: true,
     });
+  };
 
   const filter = useMemo(() => filterFromSearch(search), [search]);
   const today = useRegisterToday();
@@ -78,6 +83,10 @@ export function BookingsPage() {
   const [linking, setLinking] = useState(false);
   const [panel, setPanel] = useState<BookingPanelState>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [selecting, setSelecting] = useState(false),
+    [outcome, setOutcome] = useState<BulkOutcome | null>(null);
+  const isPhone = useIsPhone(),
+    pending = writes.bulk.isPending || linking;
   /** Bulk delete asks once more; any change of the selection withdraws the question. */
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [seenSelected, setSeenSelected] = useState(selected);
@@ -97,18 +106,31 @@ export function BookingsPage() {
   const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
   const first = list.data?.pages[0];
   const filteredAccount = accounts.data?.accounts.find((a) => a.id === filter.accountId);
-  const onlyEurAccounts = accounts.data?.accounts.every((a) => a.currency === 'EUR');
   const selection: Selection = {
     selected,
-    toggle: (id) =>
+    disabled: pending,
+    mode: isPhone && selecting,
+    toggle: (id) => {
+      if (pending) return;
       setSelected((prev) => {
         const next = new Set(prev);
         if (next.has(id)) next.delete(id);
         else next.add(id);
         return next;
-      }),
-    toggleAll: (ids) =>
-      setSelected((prev) => (ids.every((id) => prev.has(id)) ? new Set() : new Set(ids))),
+      });
+    },
+    toggleAll: (ids) => {
+      if (pending || !ids.length) return;
+      setSelected((prev) => {
+        const next = new Set(prev),
+          all = ids.every((id) => prev.has(id));
+        for (const id of ids) {
+          if (all) next.delete(id);
+          else next.add(id);
+        }
+        return next;
+      });
+    },
   };
   const ids = [...selected];
   const pair = items.filter((b) => selected.has(b.id));
@@ -123,7 +145,26 @@ export function BookingsPage() {
         !b.originalCurrency &&
         b.splits.every((s) => !s.transferId && !s.contactId),
     );
-  const bulkDone = () => setSelected(new Set());
+  const bulkDone = (completed = ids) =>
+    setSelected((prev) => new Set([...prev].filter((id) => !completed.includes(id))));
+  const runBulk = async (
+    vars: { ids: string[]; set: BulkSet } | { ids: string[]; remove: true },
+    submitted?: BulkSelection,
+  ) => {
+    if (pending) return;
+    setOutcome(null);
+    try {
+      const result = await writes.bulk.mutateAsync(vars);
+      setOutcome({
+        action: 'remove' in vars ? 'delete' : 'update',
+        result,
+        ...(submitted ? { submitted } : {}),
+      });
+      bulkDone(result.changed);
+    } catch {
+      /* The mutation reports failure; the selection and its context stay intact. */
+    }
+  };
 
   const sortKey: BookingSort = filter.sort ?? 'date';
   const direction = filter.direction ?? (sortKey === 'date' ? 'desc' : 'asc');
@@ -142,147 +183,91 @@ export function BookingsPage() {
             Zurück zur Report-Zelle
           </AppLink>
         )}
-        <div className="kbar">
-          <Button size="sm" onClick={() => setPanel({ mode: 'create', accountId: search.konto })}>
+        <div className="kbar kbookings-bar">
+          {isPhone && (
+            <Button
+              variant="ghost"
+              disabled={pending}
+              aria-pressed={selecting}
+              onClick={() => {
+                setSelecting((value) => !value);
+                setSelected(new Set());
+              }}
+            >
+              {selecting ? 'Auswahl beenden' : 'Auswählen'}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            disabled={pending}
+            onClick={() => setPanel({ mode: 'create', accountId: search.konto })}
+          >
             <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
             Buchung erfassen
           </Button>
+          <details className="kregister-actions">
+            <summary aria-label="Weitere Buchungsaktionen">
+              <MoreHorizontal size={20} strokeWidth={1.5} aria-hidden="true" />
+            </summary>
+            <a
+              className="btn btn-ghost"
+              href={filteredBookingsCsvUrl({
+                ...filter,
+                to: filter.to && filter.to < today ? filter.to : today,
+              })}
+              download
+            >
+              Aktuellen Filter als CSV exportieren
+            </a>
+          </details>
         </div>
         <section aria-labelledby="filter-title">
           <h2 className="sr-only" id="filter-title">
             Filter
           </h2>
-          <FilterRow
-            sortValue={`${sortKey}-${direction}`}
-            onSortValue={(value) => {
-              const [key, dir] = value.split('-');
-              setSearch({ sortierung: key, richtung: dir });
-            }}
-            search={search}
-            setSearch={setSearch}
-            accounts={accounts.data?.accounts ?? []}
-            lookups={lookups.data}
-          />
-          <BookingStatusChips value={filter.status} onChange={(status) => setSearch({ status })} />
-          {selected.size > 0 && (
-            <div className="kbulk" role="group" aria-label="Auswahl bearbeiten">
-              <strong>{selected.size} ausgewählt</strong>
-              <Select
-                className="select-sm"
-                aria-label="Kategorie für die Auswahl setzen"
-                value=""
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (!value) return;
-                  writes.bulk.mutate({ ids, set: { categoryId: value === 'none' ? null : value } });
-                  bulkDone();
-                }}
-              >
-                <option value="">Kategorie setzen …</option>
-                <option value="none">ohne Kategorie</option>
-                {(lookups.data?.categories ?? []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-              <Select
-                className="select-sm"
-                aria-label="Markierung für die Auswahl setzen"
-                value=""
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (!value) return;
-                  writes.bulk.mutate({
-                    ids,
-                    set: { flag: value === 'none' ? null : (value as BookingFlag) },
-                  });
-                  bulkDone();
-                }}
-              >
-                <option value="">Markierung setzen …</option>
-                <option value="none">Markierung entfernen</option>
-                {BOOKING_FLAGS.map((f) => (
-                  <option key={f} value={f}>
-                    {FLAG_LABEL[f]}
-                  </option>
-                ))}
-              </Select>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  writes.bulk.mutate({ ids, set: { status: 'confirmed' } });
-                  bulkDone();
-                }}
-              >
-                Als bestätigt markieren
-              </Button>
-              {canLink && (
-                <Button
-                  className="bank-link-action"
-                  size="sm"
-                  variant="ghost"
-                  disabled={linking}
-                  onClick={() => {
-                    setLinking(true);
-                    void write(
-                      () =>
-                        request<{ groupId: string }>('POST', '/api/bookings/link-transfer', {
-                          ids,
-                        }),
-                      () => 'Als Umbuchung verbunden; Kategorien entfernt.',
-                    )
-                      .then((result) => {
-                        if (result) bulkDone();
-                      })
-                      .finally(() => setLinking(false));
-                  }}
-                >
-                  Als Umbuchung verbinden
-                </Button>
-              )}
-              {canLink && (
-                <span className="kmeta">
-                  Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.
-                </span>
-              )}
-              {confirmDelete ? (
-                <span className="kbulk-confirm" role="group" aria-label="Löschen bestätigen">
-                  <span>{pluralBookings(ids.length)} löschen?</span>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      writes.bulk.mutate({ ids, remove: true });
-                      bulkDone();
-                    }}
-                  >
-                    Ja, löschen
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
-                    Abbrechen
-                  </Button>
-                </span>
-              ) : (
-                <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(true)}>
-                  Löschen
-                </Button>
-              )}
-            </div>
-          )}
+          <fieldset className="kbulk-readonly-surface" disabled={pending}>
+            <legend className="sr-only">Buchungsfilter</legend>
+            <FilterRow
+              sortValue={`${sortKey}-${direction}`}
+              onSortValue={(value) => {
+                const [key, dir] = value.split('-');
+                setSearch({ sortierung: key, richtung: dir });
+              }}
+              search={search}
+              setSearch={setSearch}
+              accounts={accounts.data?.accounts ?? []}
+              lookups={lookups.data}
+            />
+            <BookingStatusChips
+              value={filter.status}
+              onChange={(status) => setSearch({ status })}
+            />
+          </fieldset>
+
           {first && (
             <p className="ksum" aria-live="polite">
               {pluralBookings(first.total)} ·{' '}
-              {first.categorySpendingCents !== undefined
-                ? `Kategorie netto ${eur(first.categorySpendingCents)} (Ausgaben − Erstattungen)`
-                : filteredAccount
-                  ? `Summe ${valuedMovement(first.sumCents, filteredAccount.currency, first.sumEurCents)}`
-                  : onlyEurAccounts
-                    ? `Summe ${eur(first.sumCents, { sign: true })}`
-                    : 'Summe: einzelnes Konto auswählen'}
-              {filteredAccount?.currency !== 'EUR' && filteredAccount && (
-                <> · EUR je Buchungstag, Kurse in der Tabelle</>
-              )}
+              {first.nativeTotalsPending
+                ? 'Summe wird aktualisiert …'
+                : first.categorySpendingCents !== undefined
+                  ? `Kategorie netto ${eur(first.categorySpendingCents)} (Ausgaben − Erstattungen)`
+                  : first.nativeTotals
+                    ? `Summe ${first.nativeTotals.length ? first.nativeTotals.map((total) => (total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents, total.currency, true))).join(' · ') : eur(0)}`
+                    : 'Summe nicht verfügbar'}
+              {!first.nativeTotalsPending &&
+                filteredAccount &&
+                filteredAccount.currency !== 'EUR' && (
+                  <>
+                    {' '}
+                    ·{' '}
+                    {first.sumEurCents == null
+                      ? 'EUR: Kurs fehlt'
+                      : Number.isSafeInteger(first.sumEurCents)
+                        ? eur(first.sumEurCents, { sign: true })
+                        : 'EUR: nicht darstellbar'}{' '}
+                    · EUR je Buchungstag, Kurse in der Tabelle
+                  </>
+                )}
             </p>
           )}
         </section>
@@ -326,15 +311,23 @@ export function BookingsPage() {
         )}
         {(items.length > 0 || hasUpcoming) && (
           <>
-            <BookingTable
-              items={items}
-              caption="Alle Buchungen nach Tag"
-              variant="all"
-              upcoming={upcoming.model}
-              selection={selection}
-              sort={{ key: sortKey, direction, onSort }}
-              onOpen={(booking) => setPanel({ mode: 'edit', booking })}
-            />
+            <fieldset className="kbulk-readonly-surface" disabled={pending}>
+              <legend className="sr-only">Buchungen</legend>
+              <BookingTable
+                items={items}
+                caption="Alle Buchungen nach Tag"
+                variant="all"
+                showRunningBalance={!!filteredAccount}
+                upcoming={upcoming.model}
+                {...(!isPhone || selecting ? { selection } : {})}
+                sort={{ key: sortKey, direction, onSort }}
+                onOpen={(booking) => {
+                  if (pending) return;
+                  if (isPhone && selecting) selection.toggle(booking.id);
+                  else setPanel({ mode: 'edit', booking });
+                }}
+              />
+            </fieldset>
             {list.hasNextPage && (
               <LoadOlder
                 fetching={list.isFetching}
@@ -344,6 +337,81 @@ export function BookingsPage() {
             )}
           </>
         )}
+        <BookingSelectionBar
+          ids={ids}
+          pending={pending}
+          categories={lookups.data?.categories ?? []}
+          projects={lookups.data?.projects ?? []}
+          onApply={(set, facts) => void runBulk({ ids: [...ids], set }, facts)}
+          onClear={() => {
+            if (!pending) setSelected(new Set());
+          }}
+          outcome={outcome}
+          extra={(facts) => (
+            <>
+              {canLink && (
+                <Button
+                  className="bank-link-action"
+                  size="sm"
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() => {
+                    setLinking(true);
+                    void write(
+                      () =>
+                        request<{ groupId: string }>('POST', '/api/bookings/link-transfer', {
+                          ids,
+                        }),
+                      () => 'Als Umbuchung verbunden; Kategorien entfernt.',
+                    )
+                      .then((result) => {
+                        if (result) bulkDone();
+                      })
+                      .finally(() => setLinking(false));
+                  }}
+                >
+                  Als Umbuchung verbinden
+                </Button>
+              )}
+              {canLink && (
+                <span className="kmeta">
+                  Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.
+                </span>
+              )}
+              {confirmDelete ? (
+                <span className="kbulk-confirm" role="group" aria-label="Löschen bestätigen">
+                  <span>{pluralBookings(ids.length)} löschen?</span>
+                  <Button
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => {
+                      void runBulk({ ids, remove: true }, facts);
+                    }}
+                  >
+                    Ja, löschen
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => setConfirmDelete(false)}
+                  >
+                    Abbrechen
+                  </Button>
+                </span>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  Löschen
+                </Button>
+              )}
+            </>
+          )}
+        />
       </div>
       <BookingPanel state={panel} onClose={() => setPanel(null)} />
     </PageFrame>
@@ -366,10 +434,8 @@ function FilterRow({
   lookups: Lookups | undefined;
 }) {
   useAmountPrivacy();
-  const phone = useIsPhone();
-  const [draft, setDraft] = useState<BookingsSearch | null>(null);
+  const [open, setOpen] = useState(false);
   const keys = activeFilterKeys(search);
-  // The search box writes to the URL after a short pause so that every key stroke is not a request.
   const [q, setQ] = useState(search.q ?? '');
   const [seenQ, setSeenQ] = useState(search.q);
   if (search.q !== seenQ) {
@@ -382,116 +448,81 @@ function FilterRow({
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
-  const searchField = (
-    <div className="kf kf-search">
-      <Field label="In Buchungen suchen">
-        {({ id }) => (
-          <TextInput
-            id={id}
-            type="search"
-            value={q}
-            placeholder="Empfänger, Notiz, Kategorie"
-            autoComplete="off"
-            onChange={(e) => setQ(e.target.value)}
-          />
-        )}
-      </Field>
-    </div>
-  );
-  if (!phone)
+  const chips = keys.map((key) => {
+    const label = filterChipLabel(key, search[key]!, accounts, lookups);
     return (
-      <div className="kfilter">
-        {searchField}
-        <FilterControls {...{ search, setSearch, accounts, lookups, sortValue, onSortValue }} />
-      </div>
+      <Button
+        key={key}
+        variant="ghost"
+        className="kfilter-chip"
+        aria-label={`${label} entfernen`}
+        onClick={() => setSearch({ [key]: undefined })}
+      >
+        {label}
+        <X size={16} strokeWidth={1.75} aria-hidden="true" />
+      </Button>
     );
-  const chips = (value: BookingsSearch, remove: (patch: Partial<BookingsSearch>) => void) =>
-    activeFilterKeys(value).map((key) => {
-      const label = filterChipLabel(key, value[key]!, accounts, lookups);
-      return (
-        <Button
-          key={key}
-          variant="ghost"
-          className="kfilter-chip"
-          aria-label={`${label} entfernen`}
-          onClick={() => remove({ [key]: undefined })}
-        >
-          {label}
-          <X size={16} strokeWidth={1.75} aria-hidden="true" />
-        </Button>
-      );
-    });
-  const draftSort = draft?.sortierung ?? 'date';
+  });
   return (
     <>
       <div className="kfilter-phone">
         <div className="kfilter-search-row">
-          {searchField}
+          <div className="kf kf-search">
+            <Field label="In Buchungen suchen">
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  type="search"
+                  value={q}
+                  placeholder="Empfänger, Notiz, Kategorie"
+                  autoComplete="off"
+                  onChange={(event) => setQ(event.target.value)}
+                />
+              )}
+            </Field>
+          </div>
           <Button
             variant="ghost"
             aria-haspopup="dialog"
-            aria-expanded={draft !== null}
-            onClick={() => setDraft({ ...search })}
+            aria-expanded={open}
+            onClick={() => setOpen(true)}
           >
-            Filter ({keys.length})
+            Filter ({keys.length}) <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
           </Button>
         </div>
-        {keys.length > 0 && (
+        {chips.length > 0 && (
           <div className="kfilter-chips" role="group" aria-label="Aktive Filter">
-            {chips(search, setSearch)}
+            {chips}
           </div>
         )}
       </div>
-      <BottomSheet open={draft !== null} onClose={() => setDraft(null)} title="Buchungen filtern">
-        {draft && (
-          <div className="kfilter-sheet">
-            <div className="kfilter">
-              <FilterControls
-                phone
-                search={draft}
-                setSearch={(patch) => setDraft({ ...draft, ...patch })}
-                accounts={accounts}
-                lookups={lookups}
-                sortValue={`${draftSort}-${draft.richtung ?? (draftSort === 'date' ? 'desc' : 'asc')}`}
-                onSortValue={(value) => {
-                  const [sortierung, richtung] = value.split('-');
-                  setDraft({ ...draft, sortierung, richtung });
-                }}
-              />
-            </div>
-            {(draft.buchung || draft.empfaenger) && (
-              <div className="kfilter-chips">
-                {chips({ buchung: draft.buchung, empfaenger: draft.empfaenger }, (patch) =>
-                  setDraft({ ...draft, ...patch }),
-                )}
-              </div>
-            )}
-            <div className="kfilter-actions">
-              <Button variant="ghost" onClick={() => setDraft({ q: draft.q })}>
-                Zurücksetzen
-              </Button>
-              <Button
-                onClick={() => {
-                  const patch: Partial<BookingsSearch> = {
-                    sortierung: draft.sortierung,
-                    richtung: draft.richtung,
-                  };
-                  for (const key of activeFilterKeys(search)) patch[key] = undefined;
-                  for (const key of activeFilterKeys(draft)) patch[key] = draft[key];
-                  setSearch(patch);
-                  setDraft(null);
-                }}
-              >
-                Anwenden
-              </Button>
-            </div>
+      <BottomSheet open={open} onClose={() => setOpen(false)} title="Buchungen filtern">
+        <div className="kfilter-sheet">
+          <p>Änderungen wirken sofort. Der aktuelle Filter steht in der URL.</p>
+          <div className="kfilter">
+            <FilterControls
+              phone
+              {...{ search, setSearch, accounts, lookups, sortValue, onSortValue }}
+            />
           </div>
-        )}
+          <div className="kfilter-actions">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const patch: Partial<BookingsSearch> = {};
+                for (const key of keys) patch[key] = undefined;
+                setSearch(patch);
+              }}
+            >
+              Zurücksetzen
+            </Button>
+            <Button onClick={() => setOpen(false)}>Fertig</Button>
+          </div>
+        </div>
       </BottomSheet>
     </>
   );
 }
-
 function filterChipLabel(
   key: ReturnType<typeof activeFilterKeys>[number],
   value: string,
