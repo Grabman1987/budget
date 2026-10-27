@@ -367,6 +367,7 @@ test('547 instrument shares literal value/basis and dates, hover/keyboard and la
   await inspect.press('Escape');
   const trades = page.locator('.trade-list tbody tr');
   await expect(trades).toHaveCount(12);
+  await expect(trades.first()).toContainText('Synthetic depot');
   if (info.project.name === 'desktop') {
     await expect(page.locator('.price-history .chart-data-table')).not.toHaveAttribute('open', '');
     for (const theme of ['light', 'dark']) {

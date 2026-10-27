@@ -190,6 +190,47 @@
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
+.instrument-detail-actions,
+.instrument-layout,
+.instrument-valuation,
+.instrument-transactions {
+  display: contents;
+}
+@media (min-width: 981px) {
+  .instrument-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+  .instrument-metadata {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-lg);
+  }
+  .instrument-detail .instrument-metadata div {
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+  .instrument-layout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--space-xl);
+  }
+  .instrument-valuation,
+  .instrument-transactions {
+    display: grid;
+    align-content: start;
+    min-width: 0;
+    gap: var(--space-lg);
+  }
+  .instrument-valuation .price-history {
+    margin-block: 0;
+  }
+  .instrument-transactions > .trade-history {
+    min-width: 0;
+  }
+}
 .instrument-detail h3 {
   margin: 4px 0 0;
   font-size: var(--fs-title);

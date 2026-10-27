@@ -239,6 +239,51 @@ No feature push/PR/rebase or new VM was started for this correction. Independent
 HIGH review of the exact tiny delta precedes the minimal final proof, then safe
 integration with current verified main and full exact-head CI remain necessary.
 
+## Binding owner page-height clarification and compact default Instrument
+
+The subsequent HIGH review found the more specific binding owner evidence in
+`docs/product/page-review-2026-10-16.md:280–288` and owner #525 comment
+`6212274696`: Positionen/Instrument/Sparpläne **pages** must fit within two screens
+with test data. This supersedes the narrow reading above based on #547's own
+issue and the five-register AC alone. Removing all instrument height coverage
+was too broad. Instrument height remains a required acceptance gate.
+
+The owner also explicitly requires the routine list to show the last12 with
+“Alle anzeigen”. The normal compact state is therefore12 visible trades, default
+Wert mode, chart data table closed; it is distinct from deliberately expanded
+all13 and the opened accessible data table used in privacy checks. No trade rows
+are collapsed below the required12 or hidden to satisfy height.
+
+`e2e/issue-547-548-portfolio-details.spec.ts` now measures this real default state
+at1440×900≤1800 in **both themes before clicking Alle anzeigen**, after verifying
+12 rows, the loaded synthetic account and closed chart table. Viewport PNGs and
+geometry attachments are produced. Then the original all13, actual pointer and
+keyboard editor opening, literal value/date/basis/source, mode switching,
+hover/keyboard parity, privacy/table, Axe,44px and no-overflow checks continue
+unchanged. No timeout/retry/skip or financial expectation changes.
+
+The measured expanded13 state was2630px. The previous source stacked4 metadata
+rows, two action buttons, quote, chart, dated holdings and trade history in a
+single desktop column. Removing one short row cannot account for its830px excess.
+The minimal real desktop adjustment adds presentation-only wrappers in
+`portfolio-panel.tsx`: metadata uses4 columns, actions share one row, and the
+unchanged valuation/chart/dated-holdings content sits beside the unchanged trade
+history and quote action. Every original node/handler/data expression is retained;
+`git diff -w` isolates the wrapper additions. The table keeps its existing labelled
+horizontal scroller rather than losing columns. The phone wrappers use
+display:contents, preserving the prior single-column visual/DOM reading order,
+spacing, controls and modal forms. Only desktop≥981px uses the new grid; all
+spacing/type/line/color choices are existing tokens. Actual final default height
+and responsive screenshots remain unproven until the next scoped Cloud proof.
+
+Test-first checkpoint `db84df21` restored the default-state gate before source
+layout changes. No additional intentional-RED VM is needed solely to restate the
+source-proven geometry risk; the coordinator authorized the minimal source fix.
+Independent HIGH exact final delta review is required before one focused
+Instrument proof (both themes/default height plus retained full desktop case,
+responsive coverage as the final source delta warrants). No full CI, feature
+push/PR or current-main integration is authorized by this checkpoint.
+
 ## Next proof and risk boundaries
 
 1. Independent capable whole-diff review of repository/API/date/FX/account
