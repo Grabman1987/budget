@@ -76,7 +76,7 @@ test('550/551 literal signed composition reconciles lead, monthly chart, account
   // Pointer parity is checked at the actual last plot x, independent of a fixed desktop width.
   const drawing = (await drawingSvg.boundingBox())!;
   await page.mouse.move(drawing.x + drawing.width - 15, drawing.y + drawing.height / 2);
-  await expect(tooltip).toHaveText(keyboardText);
+  await expect.poll(() => tooltip.innerText()).toBe(keyboardText);
   await chart.locator('.chart-data-table summary').click();
   const lastNet = chart.locator('.chart-data-table tr').filter({ hasText: '01.03.2026' }).filter({ hasText: 'Nettovermögen' });
   await expect(lastNet.locator('td').last()).toHaveText('8.000,00 €');
