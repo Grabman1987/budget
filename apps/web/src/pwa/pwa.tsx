@@ -4,7 +4,7 @@ import { ApiError } from '../api/http';
 import { AUTH_STATUS_KEY, queryClient } from '../auth/status-query';
 import { router } from '../router';
 import './pwa.css';
-import { QueueCapture } from './queue-ui';
+import { QueueCapture, QueueList } from './queue-ui';
 import { OfflineState } from './offline-state';
 import { setOfflineUnavailable, subscribeSnapshotEpoch } from './snapshots';
 
@@ -180,6 +180,7 @@ export function PwaShell({ children }: { children: ReactNode }) {
           <h1>Sitzung beendet</h1>
           <p>Bitte melde dich erneut an.</p>
           <Button onClick={() => window.location.assign('/login')}>Zur Anmeldung</Button>
+          <QueueList />
         </main>
       ) : !showLive ? (
         <OfflineState onCapture={() => setCapture(true)} />
