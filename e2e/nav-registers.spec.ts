@@ -103,9 +103,14 @@ test('other area register rows fit or expose their existing scroll fade', async 
     if (area === 'Reports') {
       await expect(row).toHaveCount(0);
       await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
-      await page.locator('.report-hub-list').getByRole('link', { name: /Ausgabenanalyse/ }).click();
+      await page
+        .locator('.report-hub-list')
+        .getByRole('link', { name: /Ausgabenanalyse/ })
+        .click();
       await expect(page).toHaveURL(/\/reports\/ausgaben$/);
-      await expect(page.getByRole('navigation', { name: 'Register von Reports', exact: true })).toHaveCount(0);
+      await expect(
+        page.getByRole('navigation', { name: 'Register von Reports', exact: true }),
+      ).toHaveCount(0);
       await expect(page.locator('.report-switcher > summary')).toBeVisible();
       continue;
     }

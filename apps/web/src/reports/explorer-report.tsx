@@ -29,7 +29,15 @@ import {
 } from '@budget/domain';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Bookmark, Download, Pencil, X } from 'lucide-react';
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+} from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
@@ -71,7 +79,8 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
     zelle?: string;
     spalte?: string;
   };
-  const template = !search.ansicht && isExplorerTemplate(search.vorlage) ? search.vorlage : undefined;
+  const template =
+    !search.ansicht && isExplorerTemplate(search.vorlage) ? search.vorlage : undefined;
   const navigate = useNavigate();
   const changeTemplateSearch = (patch: Record<string, unknown>) =>
     void navigate({
@@ -108,10 +117,18 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
   const [query, setQuery] = useState<ExplorerQuery>(DEFAULT_EXPLORER_QUERY);
   const entryInstance = useId();
   const [observedEntry, setObservedEntry] = useState({ id: search.ansicht, generation: 0 });
-  const entry = useQuery(savedExplorerEntryQuery(search.ansicht, `${entryInstance}:${observedEntry.generation}`));
+  const entry = useQuery(
+    savedExplorerEntryQuery(search.ansicht, `${entryInstance}:${observedEntry.generation}`),
+  );
   const [capturedEntry, setCapturedEntry] = useState<string>();
-  const entryFresh = entry.isSuccess && !entry.isFetching && !entry.data.unavailable && entry.data.schemaVersion === 1;
-  const requested = entryFresh ? entry.data.views.find((view) => view.id === search.ansicht) : undefined;
+  const entryFresh =
+    entry.isSuccess &&
+    !entry.isFetching &&
+    !entry.data.unavailable &&
+    entry.data.schemaVersion === 1;
+  const requested = entryFresh
+    ? entry.data.views.find((view) => view.id === search.ansicht)
+    : undefined;
   const saved = useExplorerViews();
   const views = saved.views;
   const [name, setName] = useState('');
@@ -134,9 +151,10 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
     placeholderData: keepPreviousData,
     enabled: !template && entryReady,
   });
-  const data = entryReady && (!search.ansicht || (result.data && sameQuery(query, result.data.result.query)))
-    ? result.data
-    : undefined;
+  const data =
+    entryReady && (!search.ansicht || (result.data && sameQuery(query, result.data.result.query)))
+      ? result.data
+      : undefined;
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string>();
   const exportReady =
@@ -318,11 +336,22 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
           {search.ansicht && !entryReady && (
             <div>
               {entry.isFetching && <LoadingNote what="Gespeicherte Auswertung" />}
-              {entry.isError && <ErrorNote what="Gespeicherte Auswertung" error={entry.error} onRetry={() => void entry.refetch()} />}
-              {entry.isSuccess && !entry.isFetching && !requested && (
-                <p role="status">Diese gespeicherte Auswertung ist nicht mehr verfügbar. Es wird keine andere Auswahl geladen.</p>
+              {entry.isError && (
+                <ErrorNote
+                  what="Gespeicherte Auswertung"
+                  error={entry.error}
+                  onRetry={() => void entry.refetch()}
+                />
               )}
-              <Button variant="ghost" onClick={() => chooseTemplate(undefined)}>Eigene Auswertung öffnen</Button>
+              {entry.isSuccess && !entry.isFetching && !requested && (
+                <p role="status">
+                  Diese gespeicherte Auswertung ist nicht mehr verfügbar. Es wird keine andere
+                  Auswahl geladen.
+                </p>
+              )}
+              <Button variant="ghost" onClick={() => chooseTemplate(undefined)}>
+                Eigene Auswertung öffnen
+              </Button>
             </div>
           )}
           {saved.isPending && <LoadingNote what="Gespeicherte Ansichten" />}
@@ -603,9 +632,11 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
               />
             </>
           )}
-        {!template && entryReady && (result.isPending || (search.ansicht && result.isFetching && !data)) && (
-          <LoadingNote what="Explorer" />
-        )}
+        {!template &&
+          entryReady &&
+          (result.isPending || (search.ansicht && result.isFetching && !data)) && (
+            <LoadingNote what="Explorer" />
+          )}
         {!template && entryReady && result.isError && (
           <ErrorNote what="Explorer" error={result.error} onRetry={() => void result.refetch()} />
         )}

@@ -119,17 +119,36 @@ test.describe('routes', () => {
   }, info) => {
     await page.goto('/reports');
     await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
-    await expect(page.getByRole('group', { name: 'Berichtsgruppen' }).getByRole('button')).toHaveText([
-      'Alle', 'Einnahmen/Ausgaben', 'Vermögen', 'Portfolio', 'Berichte',
-    ]);
+    await expect(
+      page.getByRole('group', { name: 'Berichtsgruppen' }).getByRole('button'),
+    ).toHaveText(['Alle', 'Einnahmen/Ausgaben', 'Vermögen', 'Portfolio', 'Berichte']);
     await expect(page.locator('.report-hub-number')).toHaveText([
-      '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16',
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+      '7',
+      '8',
+      '9',
+      '10',
+      '11',
+      '12',
+      '13',
+      '14',
+      '15',
+      '16',
     ]);
     // The catalog keeps the question; chart implementation and period controls belong to reports.
     const first = page.locator('.report-hub-list > li > a').first();
-    await expect(first.locator('.report-hub-question')).toHaveText('Woher kommt das Geld, und was bleibt nach den Ausgaben?');
+    await expect(first.locator('.report-hub-question')).toHaveText(
+      'Woher kommt das Geld, und was bleibt nach den Ausgaben?',
+    );
     await expect(page.locator('.rcat-form, .rcat-ctl')).toHaveCount(0);
-    await expect(page.locator('.report-hub-list form, .report-hub-list input, .report-hub-list select')).toHaveCount(0);
+    await expect(
+      page.locator('.report-hub-list form, .report-hub-list input, .report-hub-list select'),
+    ).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Kontoprognose in Plan öffnen' })).toHaveCount(0);
     if ((page.viewportSize()?.width ?? 0) >= 1440) {
       const rows = page.locator('.report-hub-list > li');

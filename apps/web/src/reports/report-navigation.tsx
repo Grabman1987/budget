@@ -61,18 +61,52 @@ export function ReportNavigation({ id }: { id: string }) {
   }, [navigate, previous, next]);
   return (
     <nav className="report-navigation" aria-label="Weitere Berichte">
-      <details className="report-switcher" ref={switcher} onKeyDown={(event) => {
-        if (event.key === 'Escape' && switcher.current?.open) {
-          event.preventDefault();
-          switcher.current.open = false;
-          switcher.current.querySelector('summary')?.focus();
-        }
-      }}>
-        <summary aria-label="Bericht wechseln">Bericht wechseln <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" /></summary>
+      <details
+        className="report-switcher"
+        ref={switcher}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && switcher.current?.open) {
+            event.preventDefault();
+            switcher.current.open = false;
+            switcher.current.querySelector('summary')?.focus();
+          }
+        }}
+      >
+        <summary aria-label="Bericht wechseln">
+          Bericht wechseln <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+        </summary>
         <div className="report-switcher-menu">
-          <label><span className="sr-only">Bericht nach Name oder Frage suchen</span><input type="search" value={search} maxLength={160} autoComplete="off" placeholder="Name oder Frage suchen" onChange={(event) => setSearch(event.target.value)} /></label>
+          <label>
+            <span className="sr-only">Bericht nach Name oder Frage suchen</span>
+            <input
+              type="search"
+              value={search}
+              maxLength={160}
+              autoComplete="off"
+              placeholder="Name oder Frage suchen"
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
           <ul>
-            {matches.map((report) => <li key={report.id}><AppLink to={`/reports/${report.id}`} aria-current={id === report.id ? 'page' : undefined} search={(prev) => ({ zeitraum: prev['zeitraum'], trend: prev['trend'], monat: prev['monat'] })} onClick={() => { if (switcher.current) switcher.current.open = false; setSearch(''); }}>{report.no}. {report.name}</AppLink></li>)}
+            {matches.map((report) => (
+              <li key={report.id}>
+                <AppLink
+                  to={`/reports/${report.id}`}
+                  aria-current={id === report.id ? 'page' : undefined}
+                  search={(prev) => ({
+                    zeitraum: prev['zeitraum'],
+                    trend: prev['trend'],
+                    monat: prev['monat'],
+                  })}
+                  onClick={() => {
+                    if (switcher.current) switcher.current.open = false;
+                    setSearch('');
+                  }}
+                >
+                  {report.no}. {report.name}
+                </AppLink>
+              </li>
+            ))}
           </ul>
           {matches.length === 0 && <p role="status">Kein passender Bericht.</p>}
         </div>

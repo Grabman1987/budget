@@ -23,16 +23,70 @@
   }
 }
 
-.report-switcher { position: relative; min-width: 0; }
-.report-switcher summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 4px 8px; cursor: pointer; list-style: none; border: 1px solid var(--rule-strong); border-radius: var(--radius-md); font-size: var(--fs-table); }
-.report-switcher summary::-webkit-details-marker { display: none; }
-.report-switcher-menu { position: absolute; z-index: 20; right: 0; top: calc(100% + 4px); width: min(24rem, calc(100vw - 48px)); max-height: min(32rem, 65vh); overflow: auto; padding: 8px; border: 1px solid var(--rule-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); }
-.report-switcher-menu label, .report-switcher-menu input { display: block; width: 100%; min-width: 0; }
-.report-switcher-menu input { min-height: 44px; }
-.report-switcher-menu ul { list-style: none; margin: 4px 0 0; padding: 0; }
-.report-switcher-menu a { display: flex; align-items: center; min-height: 44px; padding: 4px 8px; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
-.report-switcher-menu a[aria-current='page'], .report-switcher-menu a:hover { background: var(--tint); }
-.report-switcher-menu p { margin: 8px; }
+.report-switcher {
+  position: relative;
+  min-width: 0;
+}
+.report-switcher summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 8px;
+  cursor: pointer;
+  list-style: none;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-table);
+}
+.report-switcher summary::-webkit-details-marker {
+  display: none;
+}
+.report-switcher-menu {
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  top: calc(100% + 4px);
+  width: min(24rem, calc(100vw - 48px));
+  max-height: min(32rem, 65vh);
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+}
+.report-switcher-menu label,
+.report-switcher-menu input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+.report-switcher-menu input {
+  min-height: 44px;
+}
+.report-switcher-menu ul {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+.report-switcher-menu a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 4px 8px;
+  color: var(--ink);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.report-switcher-menu a[aria-current='page'],
+.report-switcher-menu a:hover {
+  background: var(--tint);
+}
+.report-switcher-menu p {
+  margin: 8px;
+}
 @media (max-width: 767px) {
   /* Reports need their switcher even when the compact shared title block hides all fields.
      Keep the report title in the existing phone app header, not a second visible h1. */
@@ -40,13 +94,22 @@
     grid-auto-flow: row;
     grid-template-columns: minmax(0, 1fr);
   }
-  .titleblock.titleblock-report.titleblock-compact:not(.titleblock-title-mobile):not(:has(.tb-field:not(.tb-hide-mobile))) {
+  .titleblock.titleblock-report.titleblock-compact:not(.titleblock-title-mobile):not(
+      :has(.tb-field:not(.tb-hide-mobile))
+    ) {
     display: grid;
   }
   .titleblock.titleblock-report.titleblock-compact:not(.titleblock-title-mobile) .tb-title {
     display: block;
   }
-  .titleblock-report .report-heading h1 { display: none; }
-  .report-navigation { width: 100%; justify-content: flex-end; }
-  .report-switcher { flex: 1; }
+  .titleblock-report .report-heading h1 {
+    display: none;
+  }
+  .report-navigation {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .report-switcher {
+    flex: 1;
+  }
 }

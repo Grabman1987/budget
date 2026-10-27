@@ -9,11 +9,7 @@ import { useEffect } from 'react';
 import { Printer } from 'lucide-react';
 import { BookRuleMetric } from '../rules/book-rule-metric';
 import { REPORTS_CATALOG, REPORT_GROUP_PAGES, type PageMeta } from '../nav/pages';
-import {
-  findReport,
-  findReportGroup,
-  type ReportEntry,
-} from '../nav/reports-catalog';
+import { findReport, findReportGroup, type ReportEntry } from '../nav/reports-catalog';
 import { useParams } from '@tanstack/react-router';
 import { AppLink } from '../shell/app-link';
 import { AreaHead } from './area-head';
@@ -84,7 +80,11 @@ export function ReportGroupPage({ slug }: { slug: string }) {
   const page = REPORT_GROUP_PAGES.find((p) => p.slug === slug);
   if (!group || !page) return <ReportNotFound />;
   const initial: Record<string, HubGroup> = {
-    monat: 'income', ausgaben: 'income', zukunft: 'wealth', portfolio: 'portfolio', ueberblick: 'reports',
+    monat: 'income',
+    ausgaben: 'income',
+    zukunft: 'wealth',
+    portfolio: 'portfolio',
+    ueberblick: 'reports',
   };
   return (
     <>
@@ -176,7 +176,9 @@ export function ReportGroupRoute() {
 export function ReportRoute() {
   const { reportId } = useParams({ strict: false }) as { reportId: string };
   const search = useSearch({ strict: false }) as { trend?: boolean };
-  useEffect(() => { rememberReport(reportId); }, [reportId]);
+  useEffect(() => {
+    rememberReport(reportId);
+  }, [reportId]);
   return (
     <ReportTrendContext.Provider
       value={

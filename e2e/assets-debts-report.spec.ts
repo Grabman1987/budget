@@ -153,9 +153,13 @@ test('the Zeitraum switch and a custom range follow the URL and change months an
   await expect(page.getByRole('alert')).toHaveCount(0);
 });
 
-test('the mapped wealth report remains available from the retained wealth group URL', async ({ page }) => {
+test('the mapped wealth report remains available from the retained wealth group URL', async ({
+  page,
+}) => {
   await page.goto('/reports/gruppe/zukunft');
-  const report = page.locator('.report-hub-list').getByRole('link', { name: /Vermögen und Schulden/ });
+  const report = page
+    .locator('.report-hub-list')
+    .getByRole('link', { name: /Vermögen und Schulden/ });
   await expect(report).toBeVisible();
   await expect(report).toHaveAttribute('href', '/reports/vermoegen-schulden');
 });
