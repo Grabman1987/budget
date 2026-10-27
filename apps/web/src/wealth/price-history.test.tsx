@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { setAmountsHidden } from '@budget/ui';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -90,9 +90,12 @@ it('mounts every exact instrument table row only while its native disclosure is 
   expect(disclosure.querySelectorAll('tbody tr')).toHaveLength(0);
   await userEvent.click(summary);
   const table = await screen.findByRole('table');
-  expect(Array.from(table.querySelectorAll('tbody tr'), (row) =>
-    Array.from(row.children, (cell) => cell.textContent),
-  )).toEqual([
+  await waitFor(() => expect(table.querySelectorAll('tbody tr')).toHaveLength(5));
+  expect(
+    Array.from(table.querySelectorAll('tbody tr'), (row) =>
+      Array.from(row.children, (cell) => cell.textContent),
+    ),
+  ).toEqual([
     ['17.09.2024', 'Kurs je Stück', '0,50 USD'],
     ['17.09.2025', 'Kurs je Stück', '1,00 USD'],
     ['17.03.2026', 'Kurs je Stück', '2,00 USD'],
@@ -105,7 +108,7 @@ it('mounts every exact instrument table row only while its native disclosure is 
   expect(table.textContent).toContain('17.09.2026');
   await userEvent.click(summary);
   expect(disclosure.open).toBe(false);
-  expect(disclosure.querySelectorAll('tbody tr')).toHaveLength(0);
+  await waitFor(() => expect(disclosure.querySelectorAll('tbody tr')).toHaveLength(0));
 });
 
 it('filters stored quotes inclusively for 1M, 6M, 1J and Max and inspects exact native prices', async () => {

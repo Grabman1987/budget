@@ -314,7 +314,7 @@ function Drawing({
           : `Gespeicherter Kurs je Stück in ${prices[0]?.currency ?? 'Kurswährung'}`
       }
       points={points}
-      table
+      table="lazy"
     >
       {mode === 'value' && (
         <text x={left} y={12} className="svg-label">

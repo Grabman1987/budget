@@ -20,8 +20,8 @@ export interface ChartSvgProps {
   crosshair?: boolean;
   content?: ReactNode;
   tooltipNote?: string;
-  /** Optional alternative using the same exact values as keyboard/hover inspection. */
-  table?: boolean;
+  /** Same exact values as inspection; lazy mounts rows only while the disclosure is open. */
+  table?: boolean | 'lazy';
 }
 
 export interface ChartTooltipPoint {
@@ -246,7 +246,7 @@ export function ChartSvg({
           )}
       </div>
       {table && points.some((p) => p.series.length > 0) && (
-        <ChartDataTable label={label} points={points} />
+        <ChartDataTable label={label} points={points} deferRows={table === 'lazy'} />
       )}
     </>
   );

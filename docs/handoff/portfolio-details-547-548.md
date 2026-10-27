@@ -374,3 +374,37 @@ started for this source checkpoint.
    canonical integration/publication. Rebase/merge the then-current verified main
    only under checkout ownership handoff. #544's separately verified live
    publication cleared #546; #546–548 remain unvalidated and unpublished here.
+
+## PR791 mobile timeout diagnosis and opt-in table rendering
+
+Full CI40498756310 shard9 failed the unchanged mobile keyboard-detail and
+buy/sell/edit/Undo cases at their original 30-second total budget. Raw artifact
+12731669603 and job122171729026 are retained outside the source checkout in
+`C:/Users/fabia/.codex/tmp/pr791-shard9-diagnosis`. Both initial and retry traces
+show roughly 5,000 rows mounted inside the CLOSED instrument chart disclosure:
+positions maximum5,530/5,518; trades4,997/4,692. History requests completed200 in
+42–79ms; source writes and preceding literal monetary assertions succeeded.
+Positions' repeated Axe evaluations took about2.5–3.1s each. The final modal/API
+messages occur when the total test budget expires; neither proves a modal guard
+or financial API failure. The instrument daily chart introduced the large hidden
+DOM; it is an actionable rendering cost, not classified as harmless flakiness.
+
+The correction opts ONLY instrument ChartSvg into `table="lazy"`. Native summary,
+caption, headers and keyboard access remain present. Opening mounts EVERY exact
+point/series row; closing unmounts only those rows. Chart points, SVG, tooltips,
+masking, dates, finance reads and writers are unchanged. All existing boolean
+ChartSvg table callers retain eager behavior and no new toggle handler.
+
+Test checkpoint6f6c0b50 precedes implementation. Per-file reasons:
+- `price-history.test.tsx`: additive real instrument disclosure regression, exact
+  five native-price/date/series rows, closed/open/closed counts and privacy masks.
+  Waits observe native toggle delivery; no timeout or existing literal changed.
+- `issue-547-548-portfolio-details.spec.ts`: additive zero closed-row assertions
+  and real focused-summary Enter open/close in BOTH instrument modes/themes and
+  configured profiles. Existing full table, tooltip, privacy, Axe, height and
+  financial assertions remain. The two failed old mobile files are unchanged.
+
+No local runtime tools or proof rerun were used. Independent HIGH review and one
+narrow remote proof must establish the source correction, including an old eager
+caller unit and both unchanged mobile cases with their original30s budget. Other
+original full CI shards must finish before any feature push/full retry.
