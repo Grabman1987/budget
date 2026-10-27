@@ -102,7 +102,7 @@ test('shared ranges, custom URL reload and optional trend', async ({ page }, inf
     return cells.every((cell) => {
       const box = cell.getBoundingClientRect();
       return [...cell.querySelectorAll<HTMLElement>('h1, input, select')]
-        .filter((node) => node.getClientRects().length > 0)
+        .filter((node) => node.checkVisibility())
         .every((node) => {
           const inner = node.getBoundingClientRect();
           return inner.left >= box.left && inner.right <= box.right;
