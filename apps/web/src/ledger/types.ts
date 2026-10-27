@@ -178,6 +178,7 @@ export interface BookingFilter {
   from?: string | undefined;
   to?: string | undefined;
   categoryId?: string | undefined;
+  categoryGroupId?: string | undefined;
   payeeId?: string | undefined;
   status?: BookingStatus | undefined;
   flag?: BookingFlag | 'none' | undefined;
@@ -187,6 +188,7 @@ export interface BookingFilter {
 }
 
 export interface Category {
+  hiddenAt?: string | null;
   id: string;
   name: string;
   groupId: string | null;
@@ -247,6 +249,13 @@ export interface ReconciliationPreview {
   toReconcileCount: number;
   duplicates: DuplicateCandidate[];
   pendingMatches: { bookingIds: string[]; sumCents: number }[];
+  pendingBookings?: {
+    id: string;
+    date: string;
+    payeeName: string | null;
+    amountCents: number;
+    valuation?: CashValuation;
+  }[];
   missing: { kind: 'expense' | 'income'; amountCents: number } | null;
 }
 

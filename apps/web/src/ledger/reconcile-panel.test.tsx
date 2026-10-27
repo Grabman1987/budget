@@ -32,6 +32,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 beforeEach(() => {
+  localStorage.removeItem('budget-reconcile-category:a');
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
     addEventListener: () => undefined,
