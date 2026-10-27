@@ -3,7 +3,7 @@ import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import type { Heute } from '../heute/api';
 import type { AccountList, BookingPage, ListedBooking } from '../ledger/types';
 import type { BudgetMonthView } from '../budget/budget-api';
-import { eur, nativeCurrency } from '../ledger/format';
+import { eur, longDay, nativeCurrency } from '../ledger/format';
 import { currentMonth } from '../shell/use-month';
 import {
   readSnapshots,
@@ -39,6 +39,38 @@ const bookingCategories = (row: ListedBooking) =>
     .join(', ');
 const savedMoney = (value: number | undefined | null) =>
   value == null ? 'Nicht verfügbar' : eur(value);
+
+/** Render only the server's saved reminder result; older snapshots have no such field. */
+export function SavedContactReminders({
+  reminders,
+}: {
+  reminders?: Heute['attention']['contactReminders'];
+}) {
+  if (!reminders) return null;
+  return (
+    <>
+      {reminders.items.length > 0 && (
+        <ul aria-label="Kontakt-Erinnerungen">
+          {reminders.items.map((item) => (
+            <li key={item.contactId}>
+              <span>
+                {item.contactName} · seit {longDay(item.oldestDate)} offen
+              </span>
+              <strong>{eur(item.overdueCents)}</strong>
+            </li>
+          ))}
+        </ul>
+      )}
+      {reminders.unavailableCount > 0 && (
+        <p>
+          Kontakt-Erinnerungen für {reminders.unavailableCount}{' '}
+          {reminders.unavailableCount === 1 ? 'Kontakt' : 'Kontakte'} ohne EUR-Kontoblatt nicht
+          verfügbar.
+        </p>
+      )}
+    </>
+  );
+}
 
 /** A separate surface keeps every live page's controls and mutation hooks unmounted offline. */
 export function OfflineState({ onCapture }: { onCapture: () => void }) {
@@ -456,6 +488,7 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
                   nicht verfügbar.
                 </p>
               )}
+              <SavedContactReminders reminders={heute.attention.contactReminders} />
               <ul>
                 {heute.accountReminders.map((item) => (
                   <li key={item.accountId}>
