@@ -1,4 +1,5 @@
 import { AllocationBar } from '../reports/allocation-bar';
+import './plan-allocation-labels.css';
 import { IncomeTargetsCard } from './income-targets-card';
 import {
   useAmountPrivacy,

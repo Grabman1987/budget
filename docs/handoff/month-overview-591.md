@@ -170,3 +170,31 @@ privacy, Axe,44px, side/grid-height and focus oracle; none is removed or relaxed
 The old single-row source fails this new nonintersection gate in the retained
 actual high-ratio state. Exact changed CSS/runtime remains unproven until the
 reviewed narrow remote retry; no local Node/browser/build/test/formatter ran.
+
+## Corrected cascade after exactc038 narrow proof
+
+Run40516384833/job artifact12739828181 returned format1/lint0/type0/css0/unit0/
+build0/overview1/compatibility0:24 literal/state/activity units and6 old compact
+browser cases passed first attempt. All three new591 profile cases failed the
+unchanged label-overlap oracle before the first theme finished. No comparison
+baseline or source artifact change occurred. Formatter patch SHA256
+ d53363edb7494e9c7fa17d2970e2d1786e0036c121804501515a463487db9eff
+was verified and the WHOLE single-path patch inspected/apply-checked: only the
+existing final income-action method chain wraps across four lines.
+
+Actual label rectangles: desktop x1087.203/1096.328/1095.406 with widths28/28/35
+and ALL y791.25,height14.390625; mobile x25.3125/35.6875/35.625 with ALL
+y4996.671875; WebKit x25.646/36.021/36.292 at the same y. Bundled trace CSS
+contains the stagger rules, but styles.css imports plan.css into layer(pages)
+while AllocationBar imports its CSS unlayered. The shared unlayered top:-16px
+and padding shorthand therefore win over the layered Plan rules regardless of
+selector specificity. This explains the identical vertical coordinates.
+
+Move ONLY the16 scoped label rules from layered plan.css to the new directly
+imported plan-allocation-labels.css beside PlanPage, matching the shared chart's
+unlayered cascade. PlanPage imports it after AllocationBar; its Plan-scoped
+selectors are more specific. No important declaration, global layer migration,
+shared report change, chart/label x change or oracle adjustment. The earlier
+geometry assertions are unchanged. The new stylesheet and import are the only
+production correction; retain a HIGH delta review and smallest all-profile
+new591 browser proof with static checks before claiming runtime success.
