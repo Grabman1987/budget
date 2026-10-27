@@ -18,6 +18,8 @@ import { statementAutomationRow } from '../schema/statement-automation';
 import { hasStatementAutomation } from './statement-automation-invariants';
 import { hasStatementSettlementFamily } from './statement-settlement-invariants';
 import { runInTransaction, type Executor } from './types';
+import { assertContactBookingWrite } from './contact-invariants';
+import { BookingInvariantError } from './errors';
 
 export type BookingBulkReason =
   | 'not_found'
@@ -58,6 +60,7 @@ export interface BookingBulkSelection {
 export function readBookingBulkSelection(
   db: Executor,
   requested: readonly string[],
+  policy: 'update' | 'delete' = 'update',
 ): BookingBulkSelection {
   const ids = [...new Set(requested)];
   if (ids.length > 500) throw new RangeError('At most500 selected bookings');
@@ -224,28 +227,53 @@ export function readBookingBulkSelection(
       );
       for (const { b, a, p } of rows) {
         const own = splits.filter((s) => s.bookingId === b.id);
-        const reason: BookingBulkReason | null =
+        let deleteContact = false;
+        if (policy === 'delete') {
+          try {
+            assertContactBookingWrite(tx, b.id, 'delete');
+          } catch (error) {
+            if (!(error instanceof BookingInvariantError)) throw error;
+            deleteContact = true;
+          }
+        }
+        const deleteReason: BookingBulkReason | null =
           b.status === 'reconciled'
             ? 'reconciled_locked'
-            : b.transferId || own.some((s) => s.transferId)
-              ? 'linked_transfer'
-              : contacts.has(b.id) || own.some((s) => s.contactId)
-                ? 'linked_contact'
-                : expected.has(b.id)
-                  ? 'linked_expected'
-                  : trades.has(b.id)
-                    ? 'linked_trade'
-                    : payroll.has(b.id)
-                      ? 'linked_payroll'
-                      : documents.has(b.id)
-                        ? 'linked_document'
-                        : statements.has(b.id)
-                          ? 'linked_statement'
-                          : b.bankSourceId !== null || bank.has(b.id)
-                            ? 'linked_bank'
-                            : !Number.isSafeInteger(b.amountCents)
-                              ? 'invalid'
-                              : null;
+            : deleteContact
+              ? 'linked_contact'
+              : trades.has(b.id)
+                ? 'linked_trade'
+                : documents.has(b.id)
+                  ? 'linked_document'
+                  : statements.has(b.id)
+                    ? 'linked_statement'
+                    : !Number.isSafeInteger(b.amountCents)
+                      ? 'invalid'
+                      : null;
+        const reason: BookingBulkReason | null =
+          policy === 'delete'
+            ? deleteReason
+            : b.status === 'reconciled'
+              ? 'reconciled_locked'
+              : b.transferId || own.some((s) => s.transferId)
+                ? 'linked_transfer'
+                : contacts.has(b.id) || own.some((s) => s.contactId)
+                  ? 'linked_contact'
+                  : expected.has(b.id)
+                    ? 'linked_expected'
+                    : trades.has(b.id)
+                      ? 'linked_trade'
+                      : payroll.has(b.id)
+                        ? 'linked_payroll'
+                        : documents.has(b.id)
+                          ? 'linked_document'
+                          : statements.has(b.id)
+                            ? 'linked_statement'
+                            : b.bankSourceId !== null || bank.has(b.id)
+                              ? 'linked_bank'
+                              : !Number.isSafeInteger(b.amountCents)
+                                ? 'invalid'
+                                : null;
         items.push({
           id: b.id,
           date: b.date,

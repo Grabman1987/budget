@@ -18,6 +18,7 @@ import {
   type BookingBulkReason,
   ReconciledLockedError,
   relatedTransferBookings,
+  connectedTransferBookings,
   runInTransaction,
   updateBooking,
   type AuditContext,
@@ -320,10 +321,18 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
 
   app.delete('/:id', (c) => {
     const id = c.req.param('id');
-    const { unlock } = readQuery(c, bookingDeleteQuery);
+    const { unlock, previewRevision } = readQuery(c, bookingDeleteQuery);
     if (!getBooking(db, id)) throw new ApiError(404, 'not_found', 'Booking not found');
     const ctx = audit();
-    deleteBooking(db, id, ctx, { unlockReconciled: unlock !== undefined });
+    runInTransaction(db, (tx) => {
+      if (previewRevision && deletePreview(tx, [id]).revision !== previewRevision)
+        throw new ApiError(
+          409,
+          'stale_delete_preview',
+          'Die Buchung wurde geändert. Bitte erneut prüfen.',
+        );
+      deleteBooking(tx, id, ctx, { unlockReconciled: unlock !== undefined });
+    });
     return c.json({ deleted: id, groupId: ctx.groupId });
   });
 
@@ -350,6 +359,76 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
     return c.json(readBookingBulkSelection(db, body.ids));
   });
 
+  // Same ownership reader, with the owner-approved delete exception for whole transfer pairs.
+  const deletePreview = (tx: Executor, requested: string[]) => {
+    const ids = [...new Set(requested)].sort();
+    const components = new Map<string, string[]>();
+    for (const id of ids)
+      if (!components.has(id)) {
+        const component = connectedTransferBookings(tx, id);
+        for (const member of component) components.set(member, component);
+      }
+    const affectedIds = [...components.keys()].sort();
+    if (affectedIds.length > 500)
+      throw new ApiError(
+        422,
+        'invalid',
+        'Höchstens 500 Buchungsseiten einschließlich Umbuchungen auswählen.',
+      );
+    const selection = readBookingBulkSelection(tx, ids, 'delete');
+    const affected = readBookingBulkSelection(tx, affectedIds, 'delete');
+    const byId = new Map(affected.items.map((item) => [item.id, item]));
+    const skipped: { id: string; reason: BookingBulkReason; booking?: BookingBulkItem }[] = [];
+    const eligibleIds: string[] = [];
+    for (const id of affectedIds) {
+      const booking = byId.get(id);
+      // A protected or unavailable side excludes the entire pair, even when not selected.
+      const legs = components.get(id)!;
+      const reason = legs
+        .map((leg) => byId.get(leg)?.reason ?? (byId.has(leg) ? null : ('not_found' as const)))
+        .find((value) => value !== null);
+      if (reason) skipped.push({ id, reason, ...(booking ? { booking } : {}) });
+      else eligibleIds.push(id);
+    }
+    const eligible = readBookingBulkSelection(tx, eligibleIds, 'delete');
+    // Any audited write, including Undo, conservatively invalidates this confirmation (ABA fence).
+    // Full current row/split snapshots stay inside the hash; no raw source snapshots leave the API.
+    const head =
+      tx.get<{ ordinal: string; id: string }>(
+        sql`SELECT CAST(rowid AS TEXT) AS ordinal,id FROM audit_log ORDER BY rowid DESC LIMIT 1`,
+      ) ?? null;
+    const source = affectedIds.map((id) => getBooking(tx, id));
+    const transferPairs = new Set(
+      source.flatMap((row) =>
+        row
+          ? [row.transferId, ...row.splits.map((split) => split.transferId)].filter(
+              (id): id is string => !!id,
+            )
+          : [],
+      ),
+    ).size;
+    const revision = createHash('sha256')
+      .update(JSON.stringify(['booking-delete-v1', ids, affectedIds, head, source, affected]))
+      .digest('hex');
+    return {
+      ids,
+      affectedIds,
+      affectedTotals: affected.totals,
+      selection,
+      eligibleIds,
+      eligibleTotals: eligible.totals,
+      skipped,
+      revision,
+      transferPairs,
+    };
+  };
+  app.post('/delete-preview', async (c) => {
+    const { ids } = await readBody(
+      c,
+      z.object({ ids: z.array(z.string().min(1).max(200)).min(1).max(500) }).strict(),
+    );
+    return c.json(runInTransaction(db, (tx) => deletePreview(tx, ids)));
+  });
   app.post('/bulk', async (c) => {
     const body = await readBody(c, bulkBody);
     const ctx = audit();
@@ -369,6 +448,19 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
     runInTransaction(db, (tx) => {
       // One locked transaction snapshot for the batch; metadata updates below cannot create
       // cross-row financial owners. Ordinary writers still check current invariants per item.
+      const deletion = body.action === 'delete' ? deletePreview(tx, ids) : null;
+      if (
+        deletion &&
+        body.action === 'delete' &&
+        body.previewRevision &&
+        deletion.revision !== body.previewRevision
+      )
+        throw new ApiError(
+          409,
+          'stale_delete_preview',
+          'Die Auswahl wurde geändert. Bitte die Löschvorschau neu laden und erneut bestätigen.',
+        );
+      const deleteSkips = new Map(deletion?.skipped.map((item) => [item.id, item]) ?? []);
       const selection = body.action === 'update' ? readBookingBulkSelection(tx, ids) : null;
       const eligibility = new Map(selection?.items.map((item) => [item.id, item]) ?? []);
       for (const id of ids) {
@@ -380,12 +472,25 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
           runInTransaction(tx, (inner) => {
             const current = getBooking(inner, id);
             if (!current) throw new Skip('not_found', 'Booking not found');
-            const partners = relatedTransferBookings(inner, id).filter((leg) => leg !== id);
-            const paired = partners.some((leg) => selected.has(leg));
+            const partners = (
+              body.action === 'delete'
+                ? connectedTransferBookings(inner, id)
+                : relatedTransferBookings(inner, id)
+            ).filter((leg) => leg !== id);
+            const paired = deletion
+              ? partners.length > 0
+              : partners.some((leg) => selected.has(leg));
             if (paired && !pairedLegs.has(id)) transferPairs += 1;
             if (paired) for (const leg of [id, ...partners]) pairedLegs.add(leg);
-            const options = { unlockReconciled: body.unlockReconciled };
+            const options = { unlockReconciled: deletion ? false : body.unlockReconciled };
             if (body.action === 'delete') {
+              const skip = deleteSkips.get(id);
+              // Retain the legacy trade rejection code; eligibility and protection are identical.
+              if (skip)
+                throw new Skip(
+                  !body.previewRevision && skip.reason === 'linked_trade' ? 'invalid' : skip.reason,
+                  'Protected or linked booking left unchanged',
+                );
               deleteBooking(inner, id, ctx, options);
               for (const leg of partners) goneWith.add(leg);
               return;
@@ -438,9 +543,17 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
             id,
             reason,
             message: error instanceof Skip ? error.message : errorAnswer(error).body.message,
-            ...(eligibility.get(id) ? { booking: eligibility.get(id)! } : {}),
+            ...(deleteSkips.get(id)?.booking
+              ? { booking: deleteSkips.get(id)!.booking! }
+              : eligibility.get(id)
+                ? { booking: eligibility.get(id)! }
+                : {}),
           });
         }
+      }
+      if (deletion) {
+        for (const id of goneWith) if (!changed.includes(id)) changed.push(id);
+        transferPairs = deletion.transferPairs;
       }
     });
     return c.json({ changed, skipped, transferPairs, groupId: ctx.groupId });

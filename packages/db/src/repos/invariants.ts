@@ -339,10 +339,7 @@ function assertTransfer(transferId: string, legs: readonly Leg[]): void {
   }
 }
 
-/**
- * Bookings that belong to the same transfers as `row` (both kinds of legs), including `row`:
- * they are deleted and restored together.
- */
+/** Direct incident-transfer neighbours; date/edit callers retain their original scope. */
 export function relatedTransferBookings(tx: Executor, bookingId: string): string[] {
   const own = tx
     .select({ transferId: bookingSplit.transferId })
@@ -364,4 +361,18 @@ export function relatedTransferBookings(tx: Executor, bookingId: string): string
     .where(or(inArray(bookingSplit.transferId, transferIds)))
     .all();
   return [...new Set([bookingId, ...whole.map((r) => r.id), ...parts.map((r) => r.id)])];
+}
+
+/** Complete transfer component ONLY for atomic deletion/restoration and their full-group checks. */
+export function connectedTransferBookings(tx: Executor, bookingId: string): string[] {
+  const found = new Set([bookingId]),
+    queue = [bookingId];
+  for (let at = 0; at < queue.length; at += 1) {
+    for (const id of relatedTransferBookings(tx, queue[at]!))
+      if (!found.has(id)) {
+        found.add(id);
+        queue.push(id);
+      }
+  }
+  return queue;
 }
