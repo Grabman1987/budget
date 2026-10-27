@@ -200,6 +200,8 @@ export interface BookingQuery {
   to?: string;
   /** A category id, or `'none'` for bookings with an uncategorised split. */
   categoryId?: string;
+  /** Classified Bedarf/Wunsch contributions of this stable report group. */
+  categoryGroupId?: string;
   /** Report drill-down: classified net category spending, rather than whole cash movements. */
   basis?: 'category-spending';
   payeeId?: string;
@@ -317,10 +319,16 @@ export function queryBookings(
 
   const conditions: (SQL | undefined)[] = [isNull(booking.deletedAt), isNull(account.deletedAt)];
   const contributions =
-    query.basis === 'category-spending' && query.categoryId ? new Map<string, number>() : null;
+    (query.basis === 'category-spending' && query.categoryId) || query.categoryGroupId
+      ? new Map<string, number>() : null;
   if (contributions) {
-    for (const s of reportTables(db, { today, withSources: true }).splits ?? []) {
-      if (s.kind === 'spend' && s.categoryId === query.categoryId)
+    const facts = reportTables(db, { today, withSources: true });
+    const groupCategories = query.categoryGroupId ? new Set(facts.categories
+      .filter(c => c.groupId === query.categoryGroupId && c.class !== 'future').map(c => c.id)) : null;
+    for (const s of facts.splits ?? []) {
+      if (s.kind === 'spend' && s.categoryId !== null &&
+          (!query.categoryId || s.categoryId === query.categoryId) &&
+          (!groupCategories || groupCategories.has(s.categoryId)))
         contributions.set(s.bookingId, (contributions.get(s.bookingId) ?? 0) + s.amountCents);
     }
     conditions.push(inArray(booking.id, [...contributions.keys()]));

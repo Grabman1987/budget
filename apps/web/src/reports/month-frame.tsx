@@ -13,12 +13,15 @@ import type { VerdictFacts } from '@budget/domain';
 /** Per page, not per report: `/reports/gehalt` and `/reports/gehalt/historie` have their own sections. */
 const sectionsKey = () => `budget.report-sections.${location.pathname}`;
 
-function collapsedSections(): Set<string> {
+const NO_COLLAPSED_SECTIONS: readonly string[] = [];
+function collapsedSections(initial: readonly string[] = NO_COLLAPSED_SECTIONS): Set<string> {
   try {
-    const stored: unknown = JSON.parse(localStorage.getItem(sectionsKey()) ?? '[]');
-    return new Set(Array.isArray(stored) ? stored.filter((k) => typeof k === 'string') : []);
+    const raw = localStorage.getItem(sectionsKey());
+    if (raw === null) return new Set(initial);
+    const stored: unknown = JSON.parse(raw);
+    return new Set(Array.isArray(stored) ? stored.filter((k) => typeof k === 'string') : initial);
   } catch {
-    return new Set(); // no storage or a damaged value: everything stays expanded
+    return new Set(initial); // Existing callers retain their expanded default.
   }
 }
 
@@ -30,7 +33,7 @@ function collapsedSections(): Set<string> {
  * Collapsing hides everything but the marked head by stylesheet.
  * A section is keyed by its heading id, else by its position (ponytail: shifts if sections come and go).
  */
-export function useCollapsibleSections(slug: string) {
+export function useCollapsibleSections(slug: string, initial: readonly string[] = NO_COLLAPSED_SECTIONS) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const root = ref.current;
@@ -63,11 +66,11 @@ export function useCollapsibleSections(slug: string) {
           if (open) section.removeAttribute('data-collapsed');
           else section.setAttribute('data-collapsed', 'true');
         };
-        show(!collapsedSections().has(key));
+        show(!collapsedSections(initial).has(key));
         button.addEventListener('click', () => {
           const open = button.getAttribute('aria-expanded') !== 'true';
           show(open);
-          const collapsed = collapsedSections(); // re-read: other instances may have written
+          const collapsed = collapsedSections(initial); // re-read: other instances may have written
           if (open) collapsed.delete(key);
           else collapsed.add(key);
           try {
@@ -84,7 +87,7 @@ export function useCollapsibleSections(slug: string) {
     const observer = new MutationObserver(enhance);
     observer.observe(root, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [slug]);
+  }, [slug, initial]);
   return ref;
 }
 

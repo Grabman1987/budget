@@ -1,9 +1,13 @@
 import {
+  addDays,
+  daysBetween,
   isCalendarRange,
   analyseSpending,
   lastDayOfMonth,
   monthOf,
   monthsBetween,
+  overviewMonthlyFigures,
+  sumOverviewMonths,
   previousWindow,
   windowMonths,
   type BudgetMonth,
@@ -16,6 +20,7 @@ import { asc, isNull } from 'drizzle-orm';
 import { account, category, categoryGroup } from '../schema';
 import { reportTables, type ReportTables } from './report-tables';
 import { referenceMonth } from './rule-inputs';
+import { overviewData } from './report-ledger';
 import { budget } from './queries';
 import type { Executor } from './types';
 
@@ -75,6 +80,7 @@ export function spendCategories(db: Executor): SpendCategory[] {
             {
               id: c.id,
               name: c.name,
+              groupId: c.groupId,
               groupName: groups.get(c.groupId) ?? 'Ohne Gruppe',
               class: c.class,
               kind: c.kind,
@@ -118,10 +124,72 @@ export interface SpendingReport extends SpendingAnalysis {
   availableFrom: string | null;
   availableTo: string | null;
   availableMonths: number;
+  /** Exact elapsed-day comparison for the answer and group bars; legacy month fields stay intact. */
+  answerComparison: {
+    from: string | null;
+    to: string | null;
+    days: number;
+    previousFrom: string | null;
+    previousTo: string | null;
+    previousCents: number | null;
+    rows: { id: string; previousCents: number | null }[];
+  };
 }
 
 const firstDay = (month: string) => `${month}-01`;
 const lastDay = lastDayOfMonth;
+
+function answerComparison(
+  db: Executor,
+  from: string | null,
+  to: string | null,
+  categories: SpendCategory[],
+): SpendingReport['answerComparison'] {
+  const days = from && to && to >= from ? daysBetween(from, to) + 1 : 0;
+  const before = from && days ? addDays(from, -1) : null;
+  const start = before ? addDays(before, 1 - days) : null;
+  const first = db
+    .select({ day: account.openingDate, onBudget: account.onBudget })
+    .from(account)
+    .where(isNull(account.deletedAt))
+    .all()
+    .filter((a) => a.onBudget)
+    .map((a) => a.day)
+    .sort()[0];
+  const eligible = categories.filter((c) => c.class !== 'future');
+  // A covered period with no movements is a valid zero, unlike unavailable ledger history.
+  if (!start || !before || !first || start < first)
+    return {
+      from,
+      to,
+      days,
+      previousFrom: null,
+      previousTo: null,
+      previousCents: null,
+      rows: eligible.map((c) => ({ id: c.id, previousCents: null })),
+    };
+  const data = overviewData(db);
+  const figures = overviewMonthlyFigures({
+    ...data,
+    splits: data.splits.filter((s) => s.date >= start && s.date <= before),
+  });
+  const totals = sumOverviewMonths(figures, monthsBetween(monthOf(start), monthOf(before)));
+  const rows = eligible.map((c) => ({ id: c.id, previousCents: totals.byCategory[c.id] ?? 0 }));
+  if (
+    !Number.isSafeInteger(totals.consumptionCents) ||
+    rows.some((r) => !Number.isSafeInteger(r.previousCents))
+  )
+    throw new RangeError('Spending comparison exceeds safe integer cents');
+  return {
+    from,
+    to,
+    days,
+    previousFrom: start,
+    previousTo: before,
+    previousCents: totals.consumptionCents,
+    rows,
+  };
+}
 
 /** Ausgabenanalyse (2.1): net consumption per category for the selected period. */
 export function spendingReport(
@@ -141,15 +209,18 @@ export function spendingReport(
   const lastOf = (list: string[] | null) =>
     list && list.length ? (list[list.length - 1] as string) : null;
   const firstOf = (list: string[] | null) => (list && list.length ? (list[0] as string) : null);
+  const from = firstOf(months) ? firstDay(firstOf(months) as string) : null;
+  const to = lastOf(months)
+    ? lastDay(lastOf(months) as string) < today
+      ? lastDay(lastOf(months) as string)
+      : today
+    : null;
   return {
     ...analysis,
     period,
-    from: firstOf(months) ? firstDay(firstOf(months) as string) : null,
-    to: lastOf(months)
-      ? lastDay(lastOf(months) as string) < today
-        ? lastDay(lastOf(months) as string)
-        : today
-      : null,
+    from,
+    to,
+    answerComparison: answerComparison(db, from, to, categories),
     previousFrom: firstOf(previousMonths) ? firstDay(firstOf(previousMonths) as string) : null,
     previousTo: lastOf(previousMonths) ? lastDay(lastOf(previousMonths) as string) : null,
     availableFrom: firstOf(available) ? firstDay(firstOf(available) as string) : null,
