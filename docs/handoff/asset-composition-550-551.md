@@ -153,8 +153,8 @@ closed by this package. Refs #550 and #551.
 
 This section supersedes the historical source-only and pending-runtime statements above.
 The reviewed composition source `360bfb21a0dbeaa18d1419f1a154be0e3174fbf7`
-was merged without conflict into checked main
-`a16757e466bacf6f8244a83dfc8c6620bc09a840`. The separately reviewed
+was combined without conflict with checked main
+`a16757e466bacf6f8244a83dfc8c6620bc09a840` in a private merge. The separately reviewed
 allocation provenance source `28cc64c1304a024692e6f08c4774f1efa0ad0812`
 was then merged into the same private wealth package. The two owned path sets
 are disjoint; the combined source is `743b514339b3fbcc020992c64ee4a244ce2e6b3e`.
@@ -177,7 +177,7 @@ The intermediate #521 browser failures were repaired without changing money
 logic or existing test oracles: unconditional canonical selected-scope disclosure
 and a literal `8_800_000` cents / `88.000 €` synthetic expectation.
 
-The combined commit, public PR, mandatory exact-head full CI, serial release and
-each issue's own acceptance closure remain pending. Parent #524 and private
+The public PR, mandatory exact-head full CI, serial release and each issue's
+own acceptance closure remain pending. Parent #524 and private
 Portfolio Performance acceptance remain separate. No production financial data
 or settings were used in these synthetic proofs.
