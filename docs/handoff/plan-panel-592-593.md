@@ -67,13 +67,32 @@ source is retained; no mixed historical checkpoint or other checkout is edited.
 - `e2e/plan-inspector.spec.ts`: only its two old `Ziel` selectors now address the
   new `Ziele` row; original exact request body/cents, move, Undo, group defaults,
   focus, category actions and screenshots remain unchanged.
-- `e2e/issue-481-single-category-band.spec.ts`: its already-funded zero-delta
-  scenario now asserts the new row is disabled, then uses the unchanged toolbar
-  `Ziel` entry to preserve the original no-op quick-assign request assertion.
+- `e2e/issue-481-single-category-band.spec.ts`: actual first runtime showed its
+  pre-target amount after Undo is the 100,01 EUR ghost, not a funded assignment.
+  An added API literal asserts assigned0, then the actual +100,01 EUR sidebar row
+  is checked enabled and clicked. The original exact target API request remains.
   All existing identity, guard, assignment, penny move/cover and Undo assertions
   remain unchanged. No timeout, retry, skip or financial oracle is relaxed.
 
 ## Bounded old-consumer inventory and next gates
+
+Second exact-source focused proof 40563931002 passed format, lint, types, CSS,
+11 unit files/72 cases, build and the baseline guard. Browser result was 33 pass,
+13 fail, with three actual classes: all-profile #481 incorrectly assumed a ghost
+was funded; all-profile new #592 selected two identical shortfall paragraphs;
+new #593 plus old ghost/inspector cases found Axe label-content-name-mismatch
+in the new rows. The row's span/strong text lacked a literal separator although
+its explicit aria-label contained one. Native content-derived naming plus an
+explicit text separator now makes visible and accessible labels agree; a literal
+UI assertion checks the zero-net row's full displayed text, retaining its enabled
+effective-reset/Undo case. The new shortfall locator waits for the named Ziele
++5,00 EUR row and checks its own exact guard. No first/force/timeout/skip or Axe
+filter is introduced. All original financial, API, grouped Undo, zero-no-op,
+offsetting-reset and missing-history/legacy-skip oracles remain.
+
+Late privacy/nowrap/theme assertions had not been reached in the failed new
+cases; they remain intact and require the next bounded proof. The earlier
+successful stages are evidence for exact3bc only, not runtime acceptance here.
 
 First focused proof 40562333412 found three new test-harness blockers before
 acceptance execution: Testing Library's role lookup does not support `exact`,

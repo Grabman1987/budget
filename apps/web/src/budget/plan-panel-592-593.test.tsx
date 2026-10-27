@@ -106,6 +106,7 @@ it('offsetting reset stays enabled at net zero, sends both assignments and offer
   const negative = row({ id: 'negative', categoryId: 'negative', assignedCents: -500 });
   const calls = setup(<PlanAutomatic month="2026-10" rows={[positive, negative]} tba={0} />, 2);
   const reset = screen.getByRole('button', { name: 'Auf 0 zurücksetzen 0,00 €' });
+  expect(reset.textContent).toBe('Auf 0 zurücksetzen 0,00 €');
   expect(reset.hasAttribute('disabled')).toBe(false);
   fireEvent.click(reset);
   await waitFor(() =>

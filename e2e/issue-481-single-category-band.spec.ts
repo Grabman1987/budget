@@ -449,12 +449,15 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   await expect(assigned).toContainText('10,01 €');
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(assigned).toContainText('100,01 €');
-  await expect(inspector.getByRole('button', { name: 'Ziele 0,00 €', exact: true })).toBeDisabled();
-  await page.locator('.plan-menu-verteilen > summary').click();
-  await page
-    .locator('.plan-menu-verteilen')
-    .getByRole('button', { name: 'Ziel', exact: true })
-    .click();
+  const beforeTarget = (await (
+    await page.request.get(`/api/budget/${month}`)
+  ).json()) as BudgetMonthView;
+  expect(
+    beforeTarget.summary.envelopes.find((r) => r.categoryId === category.id)!.assignedCents,
+  ).toBe(0);
+  const targetFill = inspector.getByRole('button', { name: 'Ziele +100,01 €', exact: true });
+  await expect(targetFill).toBeEnabled();
+  await targetFill.click();
   await expect(assigned).toHaveText(
     info.project.name === 'desktop' ? '100,01 €' : 'Zugewiesen 100,01 €',
   );

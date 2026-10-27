@@ -112,7 +112,10 @@ test('592 all five displayed deltas equal actual selected/visible assignments an
     await expect.poll(state).toEqual({ assigned: [400, 0, 250], tba: 500 });
   }
   await expect(
-    automatic.getByText('3,00 € fehlen für 2 Kategorien · auf Zu verteilen begrenzt'),
+    automatic
+      .getByRole('button', { name: 'Ziele +5,00 €', exact: true })
+      .locator('..')
+      .getByText('3,00 € fehlen für 2 Kategorien · auf Zu verteilen begrenzt'),
   ).toBeVisible();
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {

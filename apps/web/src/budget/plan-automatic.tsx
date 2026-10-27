@@ -59,7 +59,6 @@ export function PlanAutomatic({
             <Button
               variant="ghost"
               className="plan-automatic-row"
-              aria-label={`${label} ${eur(preview.deltaCents, { sign: true })}`}
               disabled={disabled || quick.busy || preview.changedCount === 0}
               onClick={() =>
                 void quick.apply(
@@ -69,7 +68,7 @@ export function PlanAutomatic({
               }
             >
               <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
-              <span>{label}</span>
+              <span>{label}</span>{' '}
               <strong className="plan-money">{eur(preview.deltaCents, { sign: true })}</strong>
               <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
             </Button>
