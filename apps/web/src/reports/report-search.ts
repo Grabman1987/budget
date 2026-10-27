@@ -12,10 +12,14 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
   ansicht: id(search['ansicht']),
   projekt: id(search['projekt']),
   projektUngueltig:
-    search['projektUngueltig'] === true || search['projektUngueltig'] === 'true' ||
-    (search['projekt'] !== undefined && id(search['projekt']) === undefined) ? true : undefined,
+    search['projektUngueltig'] === true ||
+    search['projektUngueltig'] === 'true' ||
+    (search['projekt'] !== undefined && id(search['projekt']) === undefined)
+      ? true
+      : undefined,
   darstellung: ['income', 'overview', 'cashflow'].includes(search['darstellung'] as string)
-    ? search['darstellung'] as 'income' | 'overview' | 'cashflow' : undefined,
+    ? (search['darstellung'] as 'income' | 'overview' | 'cashflow')
+    : undefined,
   vorlage: isExplorerTemplate(search['vorlage']) ? search['vorlage'] : undefined,
   exakt: search['exakt'] === true || search['exakt'] === 'true' ? true : undefined,
   kategorien: ids(search['kategorien']),

@@ -14,7 +14,9 @@ const KEY = [...LEDGER_KEY, 'month-report'] as const;
 
 export const incomeReportQuery = (month: string, projectId?: string) =>
   queryOptions({
-    queryKey: projectId ? [...KEY, 'income', month, 'project', projectId] : [...KEY, 'income', month],
+    queryKey: projectId
+      ? [...KEY, 'income', month, 'project', projectId]
+      : [...KEY, 'income', month],
     retry: false,
     queryFn: () =>
       request<IncomeReportData>(

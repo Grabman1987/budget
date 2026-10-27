@@ -28,7 +28,12 @@ import {
   payee,
   rule,
 } from '../schema';
-import { projectOverviewData, reportProjectScope, type ReportProject, type ReportProjectScope } from './report-project-scope';
+import {
+  projectOverviewData,
+  reportProjectScope,
+  type ReportProject,
+  type ReportProjectScope,
+} from './report-project-scope';
 import { netWorthDaily, earliestAccountDate } from './portfolio';
 import { budget, budgetLedger } from './queries';
 import { referenceMonth } from './rule-inputs';
@@ -90,7 +95,12 @@ function ruleTargets(db: Executor): ReportTables['targets'] {
 
 export function reportTables(
   db: Executor,
-  options: { today: string; withNetWorth?: boolean; withSources?: boolean; projectScope?: ReportProjectScope },
+  options: {
+    today: string;
+    withNetWorth?: boolean;
+    withSources?: boolean;
+    projectScope?: ReportProjectScope;
+  },
 ): ReportTables {
   const { today } = options;
   const currentMonth = monthOf(today);
@@ -209,7 +219,8 @@ export function reportTables(
   // budget accounts counts as spending of its Zukunft category here (Bedarf and Wunsch never do).
   const setAside = new Map<string, Map<string, number>>();
   for (const s of ledgerSplits) {
-    if (options.projectScope && (!s.bookingId || !options.projectScope.bookingIds.has(s.bookingId))) continue;
+    if (options.projectScope && (!s.bookingId || !options.projectScope.bookingIds.has(s.bookingId)))
+      continue;
     if (
       !betweenBudgetAccounts(s) ||
       s.categoryId === null ||
@@ -348,7 +359,8 @@ export function reportTables(
   };
 }
 
-export type ProjectIncomeExpenseReport = Pick<ReportTables,
+export type ProjectIncomeExpenseReport = Pick<
+  ReportTables,
   'asOf' | 'currentMonth' | 'firstMonth' | 'lastFullMonth' | 'categories' | 'incomeTypes' | 'payees'
 > & {
   months: IncomeExpenseMonth[];
@@ -356,21 +368,43 @@ export type ProjectIncomeExpenseReport = Pick<ReportTables,
   project: ReportProject;
   unavailable: readonly ['assigned', 'moneyAgeDays', 'netWorthCents', 'targets'];
 };
-export type IncomeExpenseReportData = (ReportTables & { splits: OverviewSplit[] }) | ProjectIncomeExpenseReport;
+export type IncomeExpenseReportData =
+  (ReportTables & { splits: OverviewSplit[] }) | ProjectIncomeExpenseReport;
 
 /** 1.10 uses the same category/month facts as 1.6/1.8, including Zukunft set-aside. */
-export function incomeExpenseReport(db: Executor, today: string): ReportTables & { splits: OverviewSplit[] };
-export function incomeExpenseReport(db: Executor, today: string, projectId: string | undefined): IncomeExpenseReportData;
-export function incomeExpenseReport(db: Executor, today: string, projectId?: string): IncomeExpenseReportData {
+export function incomeExpenseReport(
+  db: Executor,
+  today: string,
+): ReportTables & { splits: OverviewSplit[] };
+export function incomeExpenseReport(
+  db: Executor,
+  today: string,
+  projectId: string | undefined,
+): IncomeExpenseReportData;
+export function incomeExpenseReport(
+  db: Executor,
+  today: string,
+  projectId?: string,
+): IncomeExpenseReportData {
   const scope = reportProjectScope(db, projectId);
-  const tables = reportTables(db, { today, withSources: true, ...(scope ? { projectScope: scope } : {}) });
+  const tables = reportTables(db, {
+    today,
+    withSources: true,
+    ...(scope ? { projectScope: scope } : {}),
+  });
   if (!scope) return { ...tables, splits: tables.splits ?? [] };
   // Global assignments, rules, wealth and age are not attributable to a booking-level project.
   return {
-    asOf: tables.asOf, currentMonth: tables.currentMonth, firstMonth: tables.firstMonth,
-    lastFullMonth: tables.lastFullMonth, categories: tables.categories, incomeTypes: tables.incomeTypes,
-    payees: tables.payees, splits: tables.splits ?? [],
+    asOf: tables.asOf,
+    currentMonth: tables.currentMonth,
+    firstMonth: tables.firstMonth,
+    lastFullMonth: tables.lastFullMonth,
+    categories: tables.categories,
+    incomeTypes: tables.incomeTypes,
+    payees: tables.payees,
+    splits: tables.splits ?? [],
     months: tables.months.map(({ month, income, spending }) => ({ month, income, spending })),
-    project: scope.project, unavailable: ['assigned', 'moneyAgeDays', 'netWorthCents', 'targets'],
+    project: scope.project,
+    unavailable: ['assigned', 'moneyAgeDays', 'netWorthCents', 'targets'],
   };
 }

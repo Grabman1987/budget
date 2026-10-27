@@ -20,7 +20,10 @@ export function reportTableRoutes(db: Db, today: () => string): Hono {
     return c.json(reportTables(db, { today: today(), withNetWorth: netWorth === '1' }));
   });
   app.get('/income-expense', (c) => {
-    const { projectId } = readQuery(c, z.object({ projectId: z.string().min(1).max(64).optional() }));
+    const { projectId } = readQuery(
+      c,
+      z.object({ projectId: z.string().min(1).max(64).optional() }),
+    );
     return c.json(incomeExpenseReport(db, today(), projectId));
   });
   return app;

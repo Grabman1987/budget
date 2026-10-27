@@ -38,7 +38,12 @@ export interface CashflowReport {
   totals: CashflowTotals;
 }
 
-export function cashflowReport(db: Executor, today: string, period: Period, projectId?: string): CashflowReport {
+export function cashflowReport(
+  db: Executor,
+  today: string,
+  period: Period,
+  projectId?: string,
+): CashflowReport {
   const scope = reportProjectScope(db, projectId);
   const starts = db
     .select({ openingDate: account.openingDate })

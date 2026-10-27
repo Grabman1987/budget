@@ -16,8 +16,23 @@ function seed(databasePath: string) {
       INSERT INTO category (id,group_id,name,class,kind) VALUES ('need','g','Synthetic need','need','variable'),('want','g','Synthetic want','want','variable'),('future','g','Synthetic future','future','saving');
       INSERT INTO project (id,name) VALUES ('a','Synthetic same 123,45 €'),('b','Synthetic same 123,45 €'),('empty','Synthetic empty');
     `);
-    const book = (projectId: string, amountCents: number, split: { incomeTypeId?: string; categoryId?: string }, accountId = 'giro') =>
-      createBooking(opened.db, { accountId, date: '2026-08-15', projectId, amountCents, splits: [{ ...split, amountCents }] }, { actor: 'synthetic-621' });
+    const book = (
+      projectId: string,
+      amountCents: number,
+      split: { incomeTypeId?: string; categoryId?: string },
+      accountId = 'giro',
+    ) =>
+      createBooking(
+        opened.db,
+        {
+          accountId,
+          date: '2026-08-15',
+          projectId,
+          amountCents,
+          splits: [{ ...split, amountCents }],
+        },
+        { actor: 'synthetic-621' },
+      );
     const salary = book('a', 100001, { incomeTypeId: INCOME_TYPES.salary.id });
     book('b', 200002, { incomeTypeId: INCOME_TYPES.salary.id });
     book('a', -10000, { categoryId: 'need' });
@@ -28,14 +43,25 @@ function seed(databasePath: string) {
     book('a', 1300, { incomeTypeId: INCOME_TYPES.capital.id }, 'depot');
     opened.sqlite.exec("UPDATE project SET archived_at='2026-09-01' WHERE id='b'");
     return salary;
-  } finally { opened.close(); }
+  } finally {
+    opened.close();
+  }
 }
-const overviewNet = (page: Page) => page.locator('.income-expense-report tbody tr').filter({ has: page.getByRole('rowheader', { name: 'Netto (Einnahmen − Ausgaben)', exact: true }) }).getByRole('link').nth(0);
+const overviewNet = (page: Page) =>
+  page
+    .locator('.income-expense-report tbody tr')
+    .filter({
+      has: page.getByRole('rowheader', { name: 'Netto (Einnahmen − Ausgaben)', exact: true }),
+    })
+    .getByRole('link')
+    .nth(0);
 async function inspect(page: Page, info: TestInfo, label: string) {
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   if (info.project.name !== 'desktop') {
-    for (const control of await page.locator('.report-income-controls button:visible, .report-income-controls select:visible').all()) {
+    for (const control of await page
+      .locator('.report-income-controls button:visible, .report-income-controls select:visible')
+      .all()) {
       const box = (await control.boundingBox())!;
       expect(box.height).toBeGreaterThanOrEqual(44);
       expect(box.width).toBeGreaterThanOrEqual(44);
@@ -50,7 +76,10 @@ async function privacy(page: Page, phone: boolean) {
   if (phone) await profile.click();
 }
 
-test('621 fixed August views equal each former report to literal cents without replacing distinct net meanings', async ({ page, isolatedLedger }, info) => {
+test('621 fixed August views equal each former report to literal cents without replacing distinct net meanings', async ({
+  page,
+  isolatedLedger,
+}, info) => {
   seed(isolatedLedger.databasePath);
   await page.goto('/reports/einnahmen?monat=2026-08');
   await expect(page.getByTestId('income-total')).toHaveText('3.000,03 €');
@@ -59,41 +88,67 @@ test('621 fixed August views equal each former report to literal cents without r
   await expect(page.getByTestId('cf-figure')).toHaveText('2.705,03 €');
   for (const theme of ['light', 'dark']) {
     await page.goto(`${path}?monat=2026-08&zeitraum=${period}`);
-    await page.evaluate((value) => { document.documentElement.dataset['theme'] = value; }, theme);
+    await page.evaluate((value) => {
+      document.documentElement.dataset['theme'] = value;
+    }, theme);
     await expect(overviewNet(page)).toHaveText('2.675,03 €');
     for (const [view, active, figure] of [
       ['Einnahmen', '.income-report', 'income-total'],
       ['Cashflow', '.cashflow-report', 'cf-figure'],
       ['Einnahmen und Ausgaben', '.income-expense-report', ''],
     ] as const) {
-      await page.getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' }).getByRole('button', { name: view, exact: true }).click();
+      await page
+        .getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' })
+        .getByRole('button', { name: view, exact: true })
+        .click();
       await expect(page.locator(active)).toBeVisible();
-      await expect(page.locator('.income-report, .cashflow-report, .income-expense-report')).toHaveCount(1);
+      await expect(
+        page.locator('.income-report, .cashflow-report, .income-expense-report'),
+      ).toHaveCount(1);
       expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
       expect(new URL(page.url()).searchParams.get('zeitraum')).toBe(period);
-      if (figure) await expect(page.getByTestId(figure)).toHaveText(view === 'Einnahmen' ? '3.000,03 €' : '2.705,03 €');
+      if (figure)
+        await expect(page.getByTestId(figure)).toHaveText(
+          view === 'Einnahmen' ? '3.000,03 €' : '2.705,03 €',
+        );
       else await expect(overviewNet(page)).toHaveText('2.675,03 €');
       await inspect(page, info, `legacy-parity-${view}-${theme}`);
     }
     await page.reload();
     await expect(overviewNet(page)).toHaveText('2.675,03 €');
-    await expect(page.getByRole('link', { name: 'Vollständige Projekt-Ergebnisse und Nebeneinkünfte', exact: true })).toHaveAttribute('href', '/reports/projekte');
+    await expect(
+      page.getByRole('link', {
+        name: 'Vollständige Projekt-Ergebnisse und Nebeneinkünfte',
+        exact: true,
+      }),
+    ).toHaveAttribute('href', '/reports/projekte');
   }
 });
 
-test('621 project identity stays scoped through every view, CSV, sources, privacy and invalid/deleted states', async ({ page, isolatedLedger }, info) => {
+test('621 project identity stays scoped through every view, CSV, sources, privacy and invalid/deleted states', async ({
+  page,
+  isolatedLedger,
+}, info) => {
   const salary = seed(isolatedLedger.databasePath);
   const phone = info.project.name !== 'desktop';
   for (const theme of ['light', 'dark']) {
     await page.goto(`${path}?monat=2026-08&zeitraum=${period}&darstellung=income&projekt=a`);
-    await page.evaluate((value) => { document.documentElement.dataset['theme'] = value; }, theme);
+    await page.evaluate((value) => {
+      document.documentElement.dataset['theme'] = value;
+    }, theme);
     await expect(page.getByTestId('income-total')).toHaveText('1.000,01 €');
     await expect(page.getByTestId('income-expected')).toHaveCount(0);
-    await expect(page.getByText(/Erwartete Zahlungen sind keinem Projekt zugeordnet/)).toBeVisible();
+    await expect(
+      page.getByText(/Erwartete Zahlungen sind keinem Projekt zugeordnet/),
+    ).toBeVisible();
     const filter = page.getByRole('combobox', { name: 'Projektfilter', exact: true });
     await expect(filter).toBeEnabled();
     await expect(filter).toHaveValue('a');
-    expect(await filter.locator('option').evaluateAll((options) => options.map((option) => option.getAttribute('value')).sort())).toEqual(['', 'a', 'b', 'empty']);
+    expect(
+      await filter
+        .locator('option')
+        .evaluateAll((options) => options.map((option) => option.getAttribute('value')).sort()),
+    ).toEqual(['', 'a', 'b', 'empty']);
     await privacy(page, phone);
     await expect(page.getByTestId('income-total')).toContainText('•••');
     await expect(page.getByTestId('income-total')).not.toContainText('1.000,01');
@@ -101,11 +156,19 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
     await privacy(page, phone);
     await expect(page.getByTestId('income-total')).toHaveText('1.000,01 €');
     await inspect(page, info, `project-income-${theme}`);
-    await page.getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' }).getByRole('button', { name: 'Einnahmen und Ausgaben', exact: true }).click();
+    await page
+      .getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' })
+      .getByRole('button', { name: 'Einnahmen und Ausgaben', exact: true })
+      .click();
     await expect(overviewNet(page)).toHaveText('875,01 €');
-    await expect(page.locator('.report-project-note')).toContainText('Zuweisungen, Geldalter, Vermögen und Regelziele sind nicht projektbezogen verfügbar.');
+    await expect(page.locator('.report-project-note')).toContainText(
+      'Zuweisungen, Geldalter, Vermögen und Regelziele sind nicht projektbezogen verfügbar.',
+    );
     const downloadEvent = page.waitForEvent('download');
-    await page.locator('.income-expense-report').getByRole('button', { name: 'CSV', exact: true }).click();
+    await page
+      .locator('.income-expense-report')
+      .getByRole('button', { name: 'CSV', exact: true })
+      .click();
     const download = await downloadEvent;
     expect(download.suggestedFilename()).toBe('einnahmen-ausgaben-projekt-a-2026-08-2026-08.csv');
     const csv = readFileSync((await download.path())!, 'utf8');
@@ -113,7 +176,10 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
     expect(csv).toContain('875,01');
     expect(csv).not.toContain('2000,02');
     await inspect(page, info, `project-overview-${theme}`);
-    await page.getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' }).getByRole('button', { name: 'Cashflow', exact: true }).click();
+    await page
+      .getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' })
+      .getByRole('button', { name: 'Cashflow', exact: true })
+      .click();
     await expect(page.getByTestId('cf-figure')).toHaveText('905,01 €');
     await expect(page.locator('.report-project-note')).toHaveAttribute('data-project-id', 'a');
     await inspect(page, info, `project-cashflow-${theme}`);
@@ -124,7 +190,11 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
   await page.getByRole('combobox', { name: 'Projektfilter', exact: true }).selectOption('empty');
   await expect(page.getByTestId('cf-figure')).toHaveText('0,00 €');
   await page.goto(`${path}?monat=2026-08&zeitraum=${period}&darstellung=overview&projekt=a`);
-  const household = page.locator('.income-expense-report tbody tr').filter({ has: page.getByRole('rowheader', { name: 'Einnahmen · Haushalt', exact: true }) }).getByRole('link').nth(0);
+  const household = page
+    .locator('.income-expense-report tbody tr')
+    .filter({ has: page.getByRole('rowheader', { name: 'Einnahmen · Haushalt', exact: true }) })
+    .getByRole('link')
+    .nth(0);
   await household.click();
   await expect(page.getByTestId('income-expense-sources').getByRole('link')).toHaveCount(1);
   await page.reload();
@@ -146,20 +216,39 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
   await page.goto(`${path}?monat=2026-08&zeitraum=${period}&darstellung=income&projekt=a`);
   await expect(page.getByTestId('income-total')).toHaveText('1.000,01 €');
   const opened = openDatabase(isolatedLedger.databasePath);
-  try { opened.sqlite.exec("UPDATE project SET deleted_at='2026-09-16' WHERE id='a'"); } finally { opened.close(); }
-  await page.getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' }).getByRole('button', { name: 'Cashflow', exact: true }).click();
+  try {
+    opened.sqlite.exec("UPDATE project SET deleted_at='2026-09-16' WHERE id='a'");
+  } finally {
+    opened.close();
+  }
+  await page
+    .getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' })
+    .getByRole('button', { name: 'Cashflow', exact: true })
+    .click();
   await expect(page.getByRole('alert')).toBeVisible();
-  await page.getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' }).getByRole('button', { name: 'Einnahmen', exact: true }).click();
+  await page
+    .getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' })
+    .getByRole('button', { name: 'Einnahmen', exact: true })
+    .click();
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByTestId('income-total')).toHaveCount(0);
   await expect(page.locator('.report-project-note')).toHaveCount(0);
   expect(new URL(page.url()).searchParams.get('projekt')).toBe('a');
   let moneyReads = 0;
-  page.on('request', (request) => { if (/\/api\/(cashflow|reports\/month\/income|report-tables\/income-expense)(\?|$)/.test(request.url())) moneyReads++; });
+  page.on('request', (request) => {
+    if (
+      /\/api\/(cashflow|reports\/month\/income|report-tables\/income-expense)(\?|$)/.test(
+        request.url(),
+      )
+    )
+      moneyReads++;
+  });
   await page.goto(`${path}?darstellung=income&monat=2026-08&projekt=${'x'.repeat(65)}`);
   await expect(page.getByRole('alert')).toContainText('Der Projektfilter ist ungültig.');
   expect(moneyReads).toBe(0);
-  await expect(page.locator('.income-report, .cashflow-report, .income-expense-report')).toHaveCount(0);
+  await expect(
+    page.locator('.income-report, .cashflow-report, .income-expense-report'),
+  ).toHaveCount(0);
   await page.getByRole('button', { name: 'Alle Projekte zeigen', exact: true }).click();
   await expect(page.getByTestId('income-total')).toHaveText('3.000,03 €');
 });

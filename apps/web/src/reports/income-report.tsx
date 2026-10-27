@@ -42,14 +42,26 @@ const STATUS: Record<
   unlinked: { icon: CircleDashed, label: 'nicht zugeordnet', tone: '' },
 };
 
-export function IncomeReport({ report, meta, projectId, viewControl }: {
-  report: ReportEntry; meta: PageMeta; projectId?: string | undefined; viewControl?: ReactNode;
+export function IncomeReport({
+  report,
+  meta,
+  projectId,
+  viewControl,
+}: {
+  report: ReportEntry;
+  meta: PageMeta;
+  projectId?: string | undefined;
+  viewControl?: ReactNode;
 }) {
   useAmountPrivacy();
   const { month, shift, current } = useReportMonth();
   const query = useQuery(incomeReportQuery(month, projectId));
   // Preserve the legacy path; project facts fail closed while rereading or after a scoped error.
-  const data = projectId ? query.isSuccess && !query.isFetching ? query.data : undefined : query.data;
+  const data = projectId
+    ? query.isSuccess && !query.isFetching
+      ? query.data
+      : undefined
+    : query.data;
   return (
     <MonthReportFrame
       verdict={
@@ -82,7 +94,9 @@ export function IncomeReport({ report, meta, projectId, viewControl }: {
       extraFields={viewControl ? [{ label: 'Ansicht und Projekt', value: viewControl }] : []}
     >
       <div className="mrep income-report" data-testid="income-report">
-        {data && !query.isFetching && !query.isError && 'project' in data && <ReportProjectScopeNote project={data.project} asOf={data.asOf} view="income" />}
+        {data && !query.isFetching && !query.isError && 'project' in data && (
+          <ReportProjectScopeNote project={data.project} asOf={data.asOf} view="income" />
+        )}
         {(query.isPending || (projectId && query.isFetching)) && <LoadingNote what="Einnahmen" />}
         {query.isError && (
           <ErrorNote what="Einnahmen" error={query.error} onRetry={() => void query.refetch()} />
@@ -205,77 +219,83 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
 
       {expected === null ? (
         <section className="mr-card" aria-labelledby="inc-exp-title">
-          <div className="tbd-head"><h2 id="inc-exp-title">Erwartet gegen eingegangen</h2></div>
-          <p className="vnote">Erwartete Zahlungen sind keinem Projekt zugeordnet. Für diesen Projektfilter sind Erwartungswerte und Fehlend-Status daher nicht verfügbar; tatsächliche Einnahmen bleiben sichtbar.</p>
+          <div className="tbd-head">
+            <h2 id="inc-exp-title">Erwartet gegen eingegangen</h2>
+          </div>
+          <p className="vnote">
+            Erwartete Zahlungen sind keinem Projekt zugeordnet. Für diesen Projektfilter sind
+            Erwartungswerte und Fehlend-Status daher nicht verfügbar; tatsächliche Einnahmen bleiben
+            sichtbar.
+          </p>
         </section>
       ) : (
-      <section className="mr-card" aria-labelledby="inc-exp-title">
-        <div className="tbd-head">
-          <h2 id="inc-exp-title">Erwartet gegen eingegangen</h2>
-        </div>
-        {expected.lines.length > 0 ? (
-          <div
-            className="mr-scroll"
-            role="region"
-            aria-label="Wiederkehrende Zahlungen, bei Bedarf horizontal verschiebbar"
-            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table.
-            tabIndex={0}
-          >
-            <table className="mr-table is-expected" data-testid="income-expected">
-              <thead>
-                <tr>
-                  <th className="tech">Zahlung</th>
-                  <th className="tech n">Erwartet</th>
-                  <th className="tech n">Eingegangen</th>
-                  <th className="tech">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expected.lines.map((line) => {
-                  const s = STATUS[line.status];
-                  const Icon = s.icon;
-                  return (
-                    <tr key={line.key} data-status={line.status}>
-                      <td>
-                        <strong>{line.name}</strong>
-                        <small>
-                          {line.sub}
-                          {line.dueDate ? ` · ${shortDay(line.dueDate)}` : ''}
-                        </small>
-                      </td>
-                      <td className="n">
-                        {line.status === 'unplanned' ? '–' : eur(line.expectedCents)}
-                      </td>
-                      <td className="n">
-                        {line.receivedCents > 0 ? eur(line.receivedCents) : '–'}
-                      </td>
-                      <td>
-                        <span className={`mr-status ${s.tone}`}>
-                          <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
-                          {s.label}
-                          {line.status === 'diff'
-                            ? ` ${eur(line.differenceCents, { sign: true })}`
-                            : ''}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <section className="mr-card" aria-labelledby="inc-exp-title">
+          <div className="tbd-head">
+            <h2 id="inc-exp-title">Erwartet gegen eingegangen</h2>
           </div>
-        ) : (
-          <p className="vnote">Für diesen Monat sind keine Einnahmen erwartet.</p>
-        )}
-        <p className="vnote">
-          {data.expectedMaterialised
-            ? 'Wiederkehrende Zahlungen ordnet der Nachtlauf automatisch zu; Abweichungen landen unter Prüfen.'
-            : 'Die wiederkehrenden Zahlungen stammen aus dem Zahlungsplan und sind für diesen Monat noch nicht zugeordnet; ob sie eingegangen sind, zeigt die Tabelle darunter.'}
-          {data.foreignCurrencyCount !== null && data.foreignCurrencyCount > 0
-            ? ` ${data.foreignCurrencyCount} wiederkehrende Zahlung${data.foreignCurrencyCount === 1 ? '' : 'en'} in Fremdwährung ${data.foreignCurrencyCount === 1 ? 'ist' : 'sind'} hier nicht enthalten.`
-            : ''}
-        </p>
-      </section>
+          {expected.lines.length > 0 ? (
+            <div
+              className="mr-scroll"
+              role="region"
+              aria-label="Wiederkehrende Zahlungen, bei Bedarf horizontal verschiebbar"
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table.
+              tabIndex={0}
+            >
+              <table className="mr-table is-expected" data-testid="income-expected">
+                <thead>
+                  <tr>
+                    <th className="tech">Zahlung</th>
+                    <th className="tech n">Erwartet</th>
+                    <th className="tech n">Eingegangen</th>
+                    <th className="tech">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expected.lines.map((line) => {
+                    const s = STATUS[line.status];
+                    const Icon = s.icon;
+                    return (
+                      <tr key={line.key} data-status={line.status}>
+                        <td>
+                          <strong>{line.name}</strong>
+                          <small>
+                            {line.sub}
+                            {line.dueDate ? ` · ${shortDay(line.dueDate)}` : ''}
+                          </small>
+                        </td>
+                        <td className="n">
+                          {line.status === 'unplanned' ? '–' : eur(line.expectedCents)}
+                        </td>
+                        <td className="n">
+                          {line.receivedCents > 0 ? eur(line.receivedCents) : '–'}
+                        </td>
+                        <td>
+                          <span className={`mr-status ${s.tone}`}>
+                            <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+                            {s.label}
+                            {line.status === 'diff'
+                              ? ` ${eur(line.differenceCents, { sign: true })}`
+                              : ''}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="vnote">Für diesen Monat sind keine Einnahmen erwartet.</p>
+          )}
+          <p className="vnote">
+            {data.expectedMaterialised
+              ? 'Wiederkehrende Zahlungen ordnet der Nachtlauf automatisch zu; Abweichungen landen unter Prüfen.'
+              : 'Die wiederkehrenden Zahlungen stammen aus dem Zahlungsplan und sind für diesen Monat noch nicht zugeordnet; ob sie eingegangen sind, zeigt die Tabelle darunter.'}
+            {data.foreignCurrencyCount !== null && data.foreignCurrencyCount > 0
+              ? ` ${data.foreignCurrencyCount} wiederkehrende Zahlung${data.foreignCurrencyCount === 1 ? '' : 'en'} in Fremdwährung ${data.foreignCurrencyCount === 1 ? 'ist' : 'sind'} hier nicht enthalten.`
+              : ''}
+          </p>
+        </section>
       )}
 
       <section className="mr-card mr-wide" aria-labelledby="inc-type-title">

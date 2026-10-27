@@ -4,7 +4,10 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { readQuery } from './http';
 
-const query = z.object({ period: reportPeriodSchema.default('1J'), projectId: z.string().min(1).max(64).optional() });
+const query = z.object({
+  period: reportPeriodSchema.default('1J'),
+  projectId: z.string().min(1).max(64).optional(),
+});
 
 /**
  * Report 3.2 Cashflow-Verlauf (`/api/cashflow?period=`): income, consumption and net cashflow per

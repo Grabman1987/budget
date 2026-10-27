@@ -25,8 +25,16 @@ const long = (month: string) => `${monthName(`${month}-01`)} ${month.slice(0, 4)
  * month. Kapitalerträge (dividends, interest) stand on their own line: they are not household
  * income and not part of the net cashflow (owner decision 02.10.2026).
  */
-export function CashflowReportPage({ report, meta, projectId, viewControl }: {
-  report: ReportEntry; meta: PageMeta; projectId?: string | undefined; viewControl?: ReactNode;
+export function CashflowReportPage({
+  report,
+  meta,
+  projectId,
+  viewControl,
+}: {
+  report: ReportEntry;
+  meta: PageMeta;
+  projectId?: string | undefined;
+  viewControl?: ReactNode;
 }) {
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
@@ -79,7 +87,9 @@ export function CashflowReportPage({ report, meta, projectId, viewControl }: {
       ]}
     >
       <div className="kview rf-report cashflow-report">
-        {data && !query.isFetching && !query.isError && <ReportProjectScopeNote project={data.project} asOf={data.asOf} view="cashflow" />}
+        {data && !query.isFetching && !query.isError && (
+          <ReportProjectScopeNote project={data.project} asOf={data.asOf} view="cashflow" />
+        )}
         {query.isPending && <LoadingNote what="Cashflow" />}
         {query.isError && (
           <ErrorNote what="Cashflow" error={query.error} onRetry={() => void query.refetch()} />
