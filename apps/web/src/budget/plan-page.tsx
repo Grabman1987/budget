@@ -1122,7 +1122,12 @@ function PlanBody({
           )
         }
         overview={<MonthStatement data={data} />}
-        next={<NextMonthCoverage month={shiftMonth(month, 1)} view={views?.find((view) => view.summary.month === shiftMonth(month, 1))} />}
+        next={
+          <NextMonthCoverage
+            month={shiftMonth(month, 1)}
+            view={views?.find((view) => view.summary.month === shiftMonth(month, 1))}
+          />
+        }
         split={<SplitBand data={data} rows={rows} />}
         income={
           data.incomeTargets ? (
@@ -1308,7 +1313,9 @@ function PlanTopBar({
                 .querySelector<HTMLDetailsElement>('.inspector-fold')
                 ?.setAttribute('open', '');
               const section = document.querySelector<HTMLDetailsElement>('#inspector-income');
-              document.querySelector<HTMLButtonElement>('.month-overview-head [aria-expanded="false"]')?.click();
+              document
+                .querySelector<HTMLButtonElement>('.month-overview-head [aria-expanded="false"]')
+                ?.click();
               section?.setAttribute('open', '');
               window.requestAnimationFrame(() => section?.querySelector('summary')?.focus());
             });

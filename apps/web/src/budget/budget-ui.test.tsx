@@ -345,7 +345,9 @@ it('selects a category into the inspector, keeps amount editing separate and cle
   expect(within(inspector()).getByLabelText('Zugewiesen')).toBeTruthy();
   expect(within(inspector()).getByRole('link', { name: 'Verlauf und Buchungen' })).toBeTruthy();
   expect(screen.queryByRole('dialog')).toBeNull();
-  await userEvent.click(within(inspector()).getByText('Kategorie-Aktionen', { selector: 'summary' }));
+  await userEvent.click(
+    within(inspector()).getByText('Kategorie-Aktionen', { selector: 'summary' }),
+  );
   await userEvent.click(
     within(inspector()).getByRole('button', { name: 'Umbenennen / Ziel ändern' }),
   );
