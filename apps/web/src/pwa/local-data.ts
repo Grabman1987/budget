@@ -19,8 +19,8 @@ export const SHELL_CACHE_PREFIX = 'budget-shell-';
  * in IndexedDB, capture memory in localStorage and any service-worker cache that is not the app
  * shell (the offline shell stays, it holds no data). Unsent queued bookings
  * (IndexedDB store `bookings`) are deliberately untouched: queue behaviour is unchanged (#557).
- * Every step is best effort and independent; blocked storage never prevents the sign-out. A
- * pending snapshot wipe remains unreadable until its physical clear completes.
+ * Every step is best effort and independent; blocked storage never prevents the sign-out. Snapshot
+ * reads require a positive permission removed before the physical clear starts.
  */
 export async function clearDeviceFinancialData(): Promise<void> {
   revokeSnapshots();
@@ -43,7 +43,7 @@ export async function clearDeviceFinancialData(): Promise<void> {
       clearTimeout(timer);
     }
   } catch {
-    /* IndexedDB unavailable or blocked: the snapshot wipe marker remains until a clear completes. */
+    /* IndexedDB unavailable or blocked: no offline read permission remains after revocation. */
   }
   try {
     for (const name of await caches.keys())

@@ -12,11 +12,14 @@ export interface Snapshot<T = unknown> {
 
 const DATABASE = 'budget-offline-views';
 const CHANNEL = 'budget-offline-signout';
-const WIPE_PENDING = 'budget-offline-wipe-pending';
+const READ_PERMISSION = 'budget-offline-read-epoch';
 const TAB_ID = String(Math.random());
 let revoked = false;
+let generation = 0;
 let offlineUnavailable = false;
-let retryingWipe: Promise<void> | undefined;
+let activating: Promise<void> | undefined;
+let activatingFor: number | undefined;
+export const snapshotGeneration = () => generation;
 
 export const setOfflineUnavailable = (value: boolean) => {
   offlineUnavailable = value;
@@ -27,19 +30,12 @@ export const offlineReadOnly = () =>
 export const resumeSnapshots = () => {
   revoked = false;
 };
-function wipePending(): boolean {
+function readPermission(): string | null {
   try {
-    return localStorage.getItem(WIPE_PENDING) !== null;
+    return localStorage.getItem(READ_PERMISSION);
   } catch {
-    return true;
+    return null;
   }
-}
-
-function retryPendingWipe(): void {
-  if (retryingWipe) return;
-  retryingWipe = physicallyClearSnapshots()
-    .catch(() => undefined)
-    .finally(() => { retryingWipe = undefined; });
 }
 
 function database(): Promise<IDBDatabase> {
@@ -57,14 +53,19 @@ function database(): Promise<IDBDatabase> {
 /** Captured before a network read; null disables persistence when IndexedDB is unavailable. */
 export async function snapshotEpoch(): Promise<string | null> {
   if (revoked) return null;
-  if (wipePending()) { retryPendingWipe(); return null; }
+  const permission = readPermission();
+  if (!permission) return null;
   try {
     const db = await database();
     try {
       return await new Promise<string | null>((resolve) => {
         const tx = db.transaction('meta', 'readonly');
         const get = tx.objectStore('meta').get('epoch');
-        get.onsuccess = () => resolve(revoked ? null : (get.result as string | undefined) ?? '');
+        get.onsuccess = () => resolve(
+          !revoked && readPermission() === permission && get.result === permission
+            ? permission
+            : null,
+        );
         get.onerror = () => resolve(null);
       });
     } finally {
@@ -75,13 +76,37 @@ export async function snapshotEpoch(): Promise<string | null> {
   }
 }
 
+/** A known authenticated session may grant offline reads only after old rows are cleared. */
+export function activateSnapshots(expectedGeneration: number): Promise<void> {
+  if (revoked || generation !== expectedGeneration) return Promise.resolve();
+  if (activating && activatingFor === expectedGeneration) return activating;
+  activatingFor = expectedGeneration;
+  activating = (async () => {
+    if (await snapshotEpoch()) return;
+    const epoch = await physicallyClearSnapshots();
+    if (revoked || generation !== expectedGeneration) return;
+    try {
+      localStorage.setItem(READ_PERMISSION, epoch);
+    } catch {
+      // A quota/blocked store grants no offline read permission.
+    }
+  })().finally(() => {
+    if (activatingFor === expectedGeneration) {
+      activating = undefined;
+      activatingFor = undefined;
+    }
+  });
+  return activating;
+}
+
 /** Immediately fences this tab while the physical wipe opens IndexedDB. */
 export function revokeSnapshots(): void {
   revoked = true;
+  generation += 1;
   try {
-    localStorage.setItem(WIPE_PENDING, '1');
+    localStorage.removeItem(READ_PERMISSION);
   } catch {
-    /* Reads fail closed here. */
+    /* The physical clear is still attempted; no successful-clear claim follows a failure. */
   }
   if ('BroadcastChannel' in globalThis) {
     const channel = new BroadcastChannel(CHANNEL);
@@ -94,10 +119,12 @@ export function subscribeSnapshotEpoch(changed: () => void): () => void {
   const receive = () => {
     if (revoked) return;
     revoked = true;
+    generation += 1;
+    try { localStorage.removeItem(READ_PERMISSION); } catch { /* Clear still runs in sender. */ }
     changed();
   };
   const storage = (event: StorageEvent) => {
-    if (event.key === WIPE_PENDING && event.newValue === '1') receive();
+    if (event.key === READ_PERMISSION && event.newValue === null) receive();
   };
   window.addEventListener('storage', storage);
   const channel = 'BroadcastChannel' in globalThis ? new BroadcastChannel(CHANNEL) : null;
@@ -112,14 +139,14 @@ export function subscribeSnapshotEpoch(changed: () => void): () => void {
 
 /** One atomic transaction prevents a delayed old read from repopulating after a completed wipe. */
 export async function saveSnapshot(snapshot: Snapshot): Promise<void> {
-  if (revoked || wipePending()) return;
+  if (revoked || readPermission() !== snapshot.epoch) return;
   const db = await database();
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(['meta', 'views'], 'readwrite');
       const current = tx.objectStore('meta').get('epoch');
       current.onsuccess = () => {
-        if (!revoked && !wipePending() && ((current.result as string | undefined) ?? '') === snapshot.epoch)
+        if (!revoked && readPermission() === snapshot.epoch && current.result === snapshot.epoch)
           tx.objectStore('views').put(snapshot);
       };
       tx.oncomplete = () => resolve();
@@ -132,7 +159,8 @@ export async function saveSnapshot(snapshot: Snapshot): Promise<void> {
 
 export async function readSnapshots(): Promise<Partial<Record<SnapshotKind, Snapshot>>> {
   if (revoked) return {};
-  if (wipePending()) { retryPendingWipe(); return {}; }
+  const permission = readPermission();
+  if (!permission) return {};
   const db = await database();
   try {
     return await new Promise<Partial<Record<SnapshotKind, Snapshot>>>((resolve, reject) => {
@@ -140,10 +168,9 @@ export async function readSnapshots(): Promise<Partial<Record<SnapshotKind, Snap
       const current = tx.objectStore('meta').get('epoch');
       const rows = tx.objectStore('views').getAll();
       tx.oncomplete = () => {
-        const epoch = (current.result as string | undefined) ?? '';
-        resolve(revoked || wipePending() ? {} : Object.fromEntries(
+        resolve(revoked || readPermission() !== permission || current.result !== permission ? {} : Object.fromEntries(
           (rows.result as Snapshot[])
-            .filter((row) => row.epoch === epoch)
+            .filter((row) => row.epoch === permission)
             .map((row) => [row.kind, row]),
         ));
       };
@@ -155,12 +182,13 @@ export async function readSnapshots(): Promise<Partial<Record<SnapshotKind, Snap
 }
 
 /** Keeps the database schema, but physically removes every financial row. */
-async function physicallyClearSnapshots(): Promise<void> {
+async function physicallyClearSnapshots(): Promise<string> {
+  const epoch = crypto.randomUUID();
   const db = await database();
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(['meta', 'views'], 'readwrite');
-      tx.objectStore('meta').put(crypto.randomUUID(), 'epoch');
+      tx.objectStore('meta').put(epoch, 'epoch');
       tx.objectStore('views').clear();
       tx.oncomplete = () => resolve();
       tx.onerror = tx.onabort = () => reject(tx.error);
@@ -168,11 +196,7 @@ async function physicallyClearSnapshots(): Promise<void> {
   } finally {
     db.close();
   }
-  try {
-    localStorage.removeItem(WIPE_PENDING);
-  } catch {
-    /* Remains unavailable offline. */
-  }
+  return epoch;
 }
 
 export async function clearSnapshots(): Promise<void> {

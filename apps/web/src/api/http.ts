@@ -1,10 +1,14 @@
 import {
+  activateSnapshots,
   offlineReadOnly,
+  revokeSnapshots,
   resumeSnapshots,
   saveSnapshot,
+  snapshotGeneration,
   snapshotEpoch,
   snapshotRequest,
 } from '../pwa/snapshots';
+import { clearDeviceFinancialData } from '../pwa/local-data';
 
 /** Error of an API call: HTTP status plus the machine-readable `error` code of the body. */
 export class ApiError extends Error {
@@ -41,6 +45,14 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
  * page outlives a change, whatever the caller remembers to invalidate by name.
  */
 const writeListeners = new Set<() => void>();
+let expiryCleanupStarted = false;
+const PRE_AUTH_PATHS = new Set([
+  '/api/auth/register/options',
+  '/api/auth/register/verify',
+  '/api/auth/login/options',
+  '/api/auth/login/verify',
+  '/api/auth/recovery/login',
+]);
 export function onApiWrite(listener: () => void): () => void {
   writeListeners.add(listener);
   return () => writeListeners.delete(listener);
@@ -67,6 +79,7 @@ export async function request<T>(
   )
     throw new ApiError(0, 'offline_read_only');
   const snapshot = method === 'GET' ? snapshotRequest(path) : null;
+  const authGeneration = path === '/api/auth/status' ? snapshotGeneration() : null;
   // A blocked device store must not hold up the online API read.
   let epochTimer: ReturnType<typeof setTimeout> | undefined;
   const epoch = snapshot
@@ -102,6 +115,17 @@ export async function request<T>(
     payload = undefined;
   }
   if (!response.ok) {
+    if (
+      response.status === 401 &&
+      !PRE_AUTH_PATHS.has(path)
+    ) {
+      if (typeof window !== 'undefined')
+        window.dispatchEvent(new Event('budget-session-expired'));
+      if (!expiryCleanupStarted) {
+        expiryCleanupStarted = true;
+        void clearDeviceFinancialData().catch(() => undefined);
+      }
+    }
     const fields =
       typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {};
     const ids = Array.isArray(fields['bookingIds'])
@@ -118,8 +142,17 @@ export async function request<T>(
   if (
     method === 'POST' &&
     (path === '/api/auth/login/verify' || path === '/api/auth/recovery/login')
-  )
+  ) {
+    expiryCleanupStarted = false;
+    // A new login must never inherit another session's read permission.
+    revokeSnapshots();
     resumeSnapshots();
+  }
+  if (authGeneration !== null && (payload as { authenticated?: boolean }).authenticated)
+    await Promise.race([
+      activateSnapshots(authGeneration).catch(() => undefined),
+      new Promise<void>((resolve) => setTimeout(resolve, 500)),
+    ]);
   if (snapshot && epoch !== null)
     void saveSnapshot({ ...snapshot, epoch, fetchedAt: Date.now(), data: payload }).catch(() => {
       // Storage may be unavailable; the live response remains usable.

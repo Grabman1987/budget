@@ -59,6 +59,7 @@
 }
 .offline-view li > *, .offline-view dl > div > * { min-width: 0; }
 .offline-view strong { font-variant-numeric: tabular-nums; }
+.offline-view summary { display: flex; align-items: center; min-height: 44px; }
 .offline-stamp { color: var(--ink-2); }
 .queue-detail a {
   display: inline-flex;

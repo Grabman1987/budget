@@ -45,7 +45,8 @@ export function PwaShell({ children }: { children: ReactNode }) {
   );
   const [capture, setCapture] = useState(false);
   const [mounted, setMounted] = useState(hasConnected);
-  const showLive = online && hasConnected;
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const showLive = online && hasConnected && !sessionEnded;
   setOfflineUnavailable(!showLive);
   useEffect(() => {
     setOfflineUnavailable(!showLive);
@@ -55,10 +56,12 @@ export function PwaShell({ children }: { children: ReactNode }) {
     if (showLive) setMounted(true);
   }, [showLive]);
   useEffect(() => {
-    const connected = () => setHasConnected(true);
+    const connected = () => {
+      if (!sessionEnded) setHasConnected(true);
+    };
     window.addEventListener('online', connected);
     return () => window.removeEventListener('online', connected);
-  }, []);
+  }, [sessionEnded]);
   useEffect(() => {
     return subscribeAuthStatus(setHasConnected);
   }, []);
@@ -68,9 +71,20 @@ export function PwaShell({ children }: { children: ReactNode }) {
         queryClient.clear();
         setHasConnected(false);
         setMounted(false);
+        setSessionEnded(true);
       }),
     [],
   );
+  useEffect(() => {
+    const expired = () => {
+      queryClient.clear();
+      setHasConnected(false);
+      setMounted(false);
+      setSessionEnded(true);
+    };
+    window.addEventListener('budget-session-expired', expired);
+    return () => window.removeEventListener('budget-session-expired', expired);
+  }, []);
   useEffect(() => {
     if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
     let disposed = false;
@@ -137,7 +151,15 @@ export function PwaShell({ children }: { children: ReactNode }) {
           {children}
         </div>
       )}
-      {!showLive && <OfflineState onCapture={() => setCapture(true)} />}
+      {!showLive && sessionEnded && online ? (
+        <main className="pwa-offline" id="main">
+          <h1>Sitzung beendet</h1>
+          <p>Bitte melde dich erneut an.</p>
+          <Button onClick={() => window.location.assign('/login')}>Zur Anmeldung</Button>
+        </main>
+      ) : !showLive ? (
+        <OfflineState onCapture={() => setCapture(true)} />
+      ) : null}
       {capture && <QueueCapture onClose={() => setCapture(false)} />}
     </>
   );
