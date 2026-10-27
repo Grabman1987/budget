@@ -171,6 +171,18 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
+    const facts = preview.getByRole('region', { name: 'Löschvorschau', exact: true });
+    await facts.focus();
+    await expect(facts).toBeFocused();
+    if (await facts.evaluate((element) => element.scrollHeight > element.clientHeight)) {
+      await facts.evaluate((element) => (element.scrollTop = 0));
+      await page.keyboard.press('ArrowDown');
+      await expect.poll(() => facts.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    }
+    await page.keyboard.press('Tab');
+    await expect(preview.getByRole('button', { name: 'Abbrechen', exact: true })).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(facts).toBeFocused();
     expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
       [],
     );

@@ -83,7 +83,13 @@ export function BookingDeleteConfirmation({
       <div className="bk-head">
         <h2>Löschen bestätigen</h2>
       </div>
-      <div className="bk-body">
+      <div
+        className="bk-body"
+        role="region"
+        aria-label="Löschvorschau"
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the read-only deletion facts.
+        tabIndex={0}
+      >
         {query.isPending && <LoadingNote what="Löschvorschau" />}
         {query.isError && (
           <ErrorNote what="Löschvorschau" error={query.error} onRetry={() => void reload()} />
