@@ -1,12 +1,7 @@
-name: First booking register regression
+name: First booking register regression (manual)
 
 on:
-  pull_request:
-    paths:
-      - apps/web/src/ledger/**
-      - e2e/ledger.spec.ts
-      - e2e/ledger-helpers.ts
-      - .github/workflows/first-booking-register.yml
+  workflow_dispatch:
 
 permissions:
   contents: read
