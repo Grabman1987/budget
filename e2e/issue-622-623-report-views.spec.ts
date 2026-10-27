@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase, schema } from '@budget/db';
 import { expect, type Page, type TestInfo } from '@playwright/test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { test } from './isolated-ledger';
 
 test.use({ ledgerToday: '2026-09-17' });
@@ -199,42 +199,42 @@ test('622 fixed-period payee cents, refund/detail and filters survive canonical 
   }
 });
 
-test('623 each fixed-date wealth view preserves literal FX/debt cents, estimates, CSV and unavailable states', async ({
-  page,
-  isolatedLedger,
-}, info) => {
-  seedWealth(isolatedLedger.databasePath);
-  const checks = [
-    [
-      '/api/assets-debts-history',
-      {
-        change: { endCents: 99000 },
-        months: [
-          expect.objectContaining({
-            netCents: 99000,
-            assetsCents: 119000,
-            debtsCents: -20000,
-            incomplete: true,
-          }),
-        ],
-      },
-    ],
-    ['/api/networth-history', { chain: { nowCents: 99000 } }],
-    ['/api/overview/whole-picture', { totals: { endCents: 99000 } }],
-  ] as const;
-  for (const [api, expected] of checks) {
-    const response = await page.request.get(`${isolatedLedger.origin}${api}?period=${period}`);
-    expect(response.status()).toBe(200);
-    expect(await response.json()).toMatchObject(expected);
-  }
-  // Independent cents: 100000 EUR cash - 20000 debt + 10000 cost fallback + 9000 converted USD.
-  await page.goto(`/reports/vermoegen?zeitraum=${period}`);
-  await expect(page.getByTestId('wh-figure')).toContainText('990,00 €');
-  await page.goto(`/reports/gesamtuebersicht?zeitraum=${period}`);
-  await expect(
-    page.getByTestId('whole-table').locator('tbody tr').first().locator('td').nth(10),
-  ).toHaveText('≈990,00 €');
-  for (const theme of ['light', 'dark']) {
+for (const theme of ['light', 'dark']) {
+  test(`623 each fixed-date wealth view preserves literal FX/debt cents, estimates, CSV and unavailable states (${theme})`, async ({
+    page,
+    isolatedLedger,
+  }, info) => {
+    seedWealth(isolatedLedger.databasePath);
+    const checks = [
+      [
+        '/api/assets-debts-history',
+        {
+          change: { endCents: 99000 },
+          months: [
+            expect.objectContaining({
+              netCents: 99000,
+              assetsCents: 119000,
+              debtsCents: -20000,
+              incomplete: true,
+            }),
+          ],
+        },
+      ],
+      ['/api/networth-history', { chain: { nowCents: 99000 } }],
+      ['/api/overview/whole-picture', { totals: { endCents: 99000 } }],
+    ] as const;
+    for (const [api, expected] of checks) {
+      const response = await page.request.get(`${isolatedLedger.origin}${api}?period=${period}`);
+      expect(response.status()).toBe(200);
+      expect(await response.json()).toMatchObject(expected);
+    }
+    // Independent cents: 100000 EUR cash - 20000 debt + 10000 cost fallback + 9000 converted USD.
+    await page.goto(`/reports/vermoegen?zeitraum=${period}`);
+    await expect(page.getByTestId('wh-figure')).toContainText('990,00 €');
+    await page.goto(`/reports/gesamtuebersicht?zeitraum=${period}`);
+    await expect(
+      page.getByTestId('whole-table').locator('tbody tr').first().locator('td').nth(10),
+    ).toHaveText('≈990,00 €');
     await page.goto(`${wealthPath}?zeitraum=${period}&monat=2026-08`);
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
@@ -261,18 +261,27 @@ test('623 each fixed-date wealth view preserves literal FX/debt cents, estimates
       expect(new URL(page.url()).searchParams.get('zeitraum')).toBe(period);
       expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
       if (info.project.name !== 'desktop') {
-        const labels = await page.getByRole('group', { name: 'Ansicht von Vermögen und Schulden', exact: true }).getByRole('button').evaluateAll((buttons) => buttons.map((button) => {
-          const range = document.createRange();
-          range.selectNodeContents(button);
-          const text = range.getBoundingClientRect();
-          const box = button.getBoundingClientRect();
-          return {
-            label: button.textContent,
-            text: { left: text.left, right: text.right, top: text.top, bottom: text.bottom },
-            button: { left: box.left, right: box.right, top: box.top, bottom: box.bottom },
-          };
-        }));
-        expect(labels.map((label) => label.label)).toEqual(['Vermögen und Schulden', 'Vermögensverlauf', 'Gesamtübersicht']);
+        const labels = await page
+          .getByRole('group', { name: 'Ansicht von Vermögen und Schulden', exact: true })
+          .getByRole('button')
+          .evaluateAll((buttons) =>
+            buttons.map((button) => {
+              const range = document.createRange();
+              range.selectNodeContents(button);
+              const text = range.getBoundingClientRect();
+              const box = button.getBoundingClientRect();
+              return {
+                label: button.textContent,
+                text: { left: text.left, right: text.right, top: text.top, bottom: text.bottom },
+                button: { left: box.left, right: box.right, top: box.top, bottom: box.bottom },
+              };
+            }),
+          );
+        expect(labels.map((label) => label.label)).toEqual([
+          'Vermögen und Schulden',
+          'Vermögensverlauf',
+          'Gesamtübersicht',
+        ]);
         for (const label of labels) {
           expect(label.text.left).toBeGreaterThanOrEqual(label.button.left);
           expect(label.text.right).toBeLessThanOrEqual(label.button.right);
@@ -283,10 +292,15 @@ test('623 each fixed-date wealth view preserves literal FX/debt cents, estimates
           for (let second = first + 1; second < labels.length; second++) {
             const a = labels[first]!.text;
             const b = labels[second]!.text;
-            expect(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top).toBe(true);
+            expect(
+              a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top,
+            ).toBe(true);
           }
         }
-        await info.attach(`wealth-selector-${figure || 'whole'}-${theme}.json`, { body: JSON.stringify(labels, null, 2), contentType: 'application/json' });
+        const geometryName = `wealth-selector-${figure || 'whole'}-${theme}.json`;
+        const geometryPath = info.outputPath(geometryName);
+        writeFileSync(geometryPath, JSON.stringify(labels, null, 2));
+        await info.attach(geometryName, { path: geometryPath, contentType: 'application/json' });
       }
       await inspect(page, info, `wealth-${name}-${theme}`);
       await privacy(page);
@@ -307,22 +321,25 @@ test('623 each fixed-date wealth view preserves literal FX/debt cents, estimates
     await expect(page.getByTestId('whole-table')).toBeVisible();
     await page.reload();
     await expect(page.getByTestId('whole-table')).toBeVisible();
-  }
-  const opened = openDatabase(isolatedLedger.databasePath);
-  try {
-    opened.sqlite.exec('DELETE FROM fx_rate');
-  } finally {
-    opened.close();
-  }
-  for (const darstellung of ['bilanz', 'verlauf', 'gesamt']) {
-    await page.goto(`${wealthPath}?zeitraum=${period}&monat=2026-08&darstellung=${darstellung}`);
-    await expect(page.getByRole('alert')).toContainText(
-      darstellung === 'gesamt'
-        ? 'Gesamtübersicht konnten nicht geladen werden'
-        : 'Bewertung nicht verfügbar',
-    );
-    await expect(page.getByTestId('ad-net')).toHaveCount(0);
-    await expect(page.getByTestId('wh-figure')).toHaveCount(0);
-    await expect(page.getByTestId('whole-table')).toHaveCount(0);
-  }
-});
+    const opened = openDatabase(isolatedLedger.databasePath);
+    try {
+      opened.sqlite.exec('DELETE FROM fx_rate');
+    } finally {
+      opened.close();
+    }
+    for (const darstellung of ['bilanz', 'verlauf', 'gesamt']) {
+      await page.goto(`${wealthPath}?zeitraum=${period}&monat=2026-08&darstellung=${darstellung}`);
+      await page.evaluate((value) => {
+        document.documentElement.dataset['theme'] = value;
+      }, theme);
+      await expect(page.getByRole('alert')).toContainText(
+        darstellung === 'gesamt'
+          ? 'Gesamtübersicht konnten nicht geladen werden'
+          : 'Bewertung nicht verfügbar',
+      );
+      await expect(page.getByTestId('ad-net')).toHaveCount(0);
+      await expect(page.getByTestId('wh-figure')).toHaveCount(0);
+      await expect(page.getByTestId('whole-table')).toHaveCount(0);
+    }
+  });
+}

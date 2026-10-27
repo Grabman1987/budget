@@ -161,3 +161,41 @@ The one-file formatter wrap above is applied only by its exact pinned raw patch
 and apply-check, after the CSS/test edits. This source delta awaits capable HIGH
 review and one necessary visual/runtime proof; prior financial proof is reusable
 only for unchanged financial blobs. No local formatter/test/browser was run.
+
+
+## Full per-theme case isolation and durable evidence
+
+Visual proof 40592142821 passed desktop/mobile; WebKit reached the final dark
+WholePicture privacy restore after all six phone geometry sets passed, then
+exhausted the unchanged overall 30-second case budget. Trace Before Hooks began
+at 43967ms and After Hooks at 74363ms; final dark privacy began at 74137ms.
+Masking and its assertion succeeded, restoration succeeded (unmasked literal
+990,00 remained in the failure DOM), and the final close started at 75332ms,
+after the overall deadline, with only 381ms before context teardown. An earlier
+ordinary no-op balance-tab click spent 3.26 seconds waiting for stable frames;
+six full Axe scans took about 6.9 seconds. This is evidence of a case containing
+two complete theme journeys exceeding its budget, not proof of a privacy bug or
+an excuse to extend/waive timeouts. WebKit late CSV/FX checks were not reached.
+
+Only the NEW 623 case is now generated separately for light and dark. Each gets
+its own isolated synthetic ledger and the original 30-second budget. Each keeps
+ALL original literal APIs, legacy report parity, all three views, period/month,
+phone rendered-text geometry, Axe, privacy mask/restore, CSV, Back/Forward,
+reload and missing-FX assertions. Missing-FX pages explicitly keep that case's
+theme. No money fixture, check, step, timeout, retry, skip or forceclick changes.
+The next proof must --list exactly six feature cases, two themes in each of the
+three required profiles, before executing the same unique unanchored selection.
+
+Geometry is also written to info.outputPath as actual JSON files before being
+attached by path. Playwright info.attach(body) alone did not persist passed-case
+mobile JSON in the uploaded artifact; the failed WebKit trace did retain all
+six original attachment bytes, extracted outside the checkout. Future artifacts
+must include **/*.json. Existing corrected WebKit/mobile dark viewport bytes
+remain retained externally; no new capture or baseline update occurred locally.
+
+The exact 3448-byte one-file formatting patch SHA256
+bdc92d73941f1a1ae8a0dd0d21297e11d605cff2fb3b45e0a33d290251cbb003
+passed apply-check AFTER the theme split and was applied whole, without changing
+its native geometry oracles. This test/docs-only delta awaits independent HIGH
+review and the necessary complete six-case proof. Source CSS/axis/financial
+blobs remain exactly f10. No local Node/build/test/browser/formatter was run.
