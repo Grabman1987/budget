@@ -38,6 +38,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.branch }}
+          fetch-depth: 0
       - name: Allow Git reads and baseline commits in the container workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -45,25 +46,54 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
+      - name: Focused exact-source portfolio proof
         env:
           SPECS: ${{ inputs.specs }}
         run: |
-          npm run build:e2e
-          read -r -a specs <<< "$SPECS"
-          if [ "${#specs[@]}" -eq 0 ]; then
-            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
+          set +e
+          set -o pipefail
+          mkdir -p test-results proof-output
+          git rev-parse HEAD
+          mapfile -t targets < <(git diff --name-only ae96107794fe3218a4aad408a42f8fa7f473ddee HEAD -- apps e2e docs/handoff/portfolio-registers-544.md)
+          npx prettier --write "${targets[@]}" 2>&1 | tee proof-output/544-format.log
+          format_code=${PIPESTATUS[0]}
+          git diff --binary -- "${targets[@]}" > proof-output/544-format.patch
+          sha256sum proof-output/544-format.patch
+          git restore -- "${targets[@]}"
+          mapfile -t typescript < <(printf '%s\n' "${targets[@]}" | grep -E '\.(ts|tsx)$')
+          npx eslint "${typescript[@]}" 2>&1 | tee proof-output/544-eslint.log
+          lint_code=${PIPESTATUS[0]}
+          npm run typecheck 2>&1 | tee proof-output/544-typecheck.log
+          type_code=${PIPESTATUS[0]}
+          git show bfdf74a8:apps/web/src/heute/attention-bar.tsx > apps/web/src/heute/attention-bar.tsx
+          git show bfdf74a8:apps/web/src/rules/rules-model.ts > apps/web/src/rules/rules-model.ts
+          npx vitest run apps/web/src/heute/valuation-attention-511.test.tsx apps/web/src/rules/rules-page.test.tsx -t 'shows exactly one current source row|sends portfolio corrections directly' --maxWorkers=1 2>&1 | tee proof-output/544-caller-red.log
+          red_code=${PIPESTATUS[0]}
+          git restore -- apps/web/src/heute/attention-bar.tsx apps/web/src/rules/rules-model.ts
+          npx vitest run apps/server/src/api/portfolio-positions.test.ts apps/server/src/api/portfolio-performance.test.ts apps/server/src/api/portfolio-provenance-512.test.ts apps/web/src/wealth/portfolio-overview-disclosure-512.test.tsx apps/web/src/wealth/savings-model.test.ts apps/web/src/wealth/portfolio-format.test.ts apps/web/src/heute/valuation-attention-511.test.tsx apps/web/src/rules/rules-page.test.tsx --maxWorkers=1 2>&1 | tee proof-output/544-unit.log
+          unit_code=${PIPESTATUS[0]}
+          npm run build:e2e 2>&1 | tee proof-output/544-build.log
+          build_code=${PIPESTATUS[0]}
+          browser_code=1
+          if [ "$build_code" -eq 0 ]; then
+            npx playwright test e2e/issue-544-portfolio-registers.spec.ts e2e/portfolio-positions.spec.ts e2e/portfolio-instruments.spec.ts e2e/portfolio-allocation.spec.ts e2e/savings-plans.spec.ts e2e/wealth-detail-pages.spec.ts e2e/wealth-ux-v1.spec.ts e2e/issue-512-visible-quality.spec.ts e2e/rules.spec.ts e2e/shell.spec.ts --grep 'five portfolio|portfolio endpoint|closed calendar|portfolio positions follow|instrument pages restore|savings-plan history restores|V1 wealth answers|prototype allocation bands|schedule details have|integrated portfolio pages|native savings CRUD|asset-class failure|empty portfolio creates|sample-default portfolio|stages and rules show|violations lead|light heute|dark heute|light reports' --project=desktop --project=mobile --project=webkit-iphone --workers=1 --retries=0 --update-snapshots=none 2>&1 | tee proof-output/544-browser.log
+            browser_code=${PIPESTATUS[0]}
           fi
-          npx playwright test --update-snapshots=changed "${specs[@]}" || true
+          git diff --stat
+          printf 'RESULT format=%s lint=%s type=%s expected-red=%s unit=%s build=%s browser=%s\n' "$format_code" "$lint_code" "$type_code" "$red_code" "$unit_code" "$build_code" "$browser_code"
+          [ "$format_code" -eq 0 ] && [ "$lint_code" -eq 0 ] && [ "$type_code" -eq 0 ] && [ "$red_code" -ne 0 ] && [ "$unit_code" -eq 0 ] && [ "$build_code" -eq 0 ] && [ "$browser_code" -eq 0 ]
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: scoped-browser-screenshots
-          path: test-results/**/*.png
+          path: |
+            test-results/**/*.png
+            proof-output/544-*.log
+            proof-output/544-format.patch
           if-no-files-found: ignore
           retention-days: 7
       - name: Commit the new baselines
+        if: false
         env:
           BRANCH: ${{ inputs.branch }}
         run: |
