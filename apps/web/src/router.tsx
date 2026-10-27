@@ -723,6 +723,14 @@ const devRoutes = devRoutesEnabled
       }),
       createRoute({
         getParentRoute: () => rootRoute,
+        path: '/dev/report-answer',
+        component: lazyRouteComponent(
+          () => import('./routes/report-answer-example'),
+          'ReportAnswerExample',
+        ),
+      }),
+      createRoute({
+        getParentRoute: () => rootRoute,
         path: '/dev/panels',
         component: lazyRouteComponent(() => import('./routes/panels-harness'), 'PanelsHarnessPage'),
       }),
