@@ -1060,6 +1060,22 @@
   color: var(--ink);
 }
 
+/* Preserve income-scale tick positions when overflow compresses their labels. */
+.plan .split-band .income-scale {
+  --plan-target-label-row: calc(var(--fs-label) * 1.2 + 4px);
+  padding-top: calc(var(--plan-target-label-row) * 3 + 4px);
+}
+.plan .split-band .income-scale-bar small {
+  line-height: 1.2;
+  top: calc(0px - var(--plan-target-label-row));
+}
+.plan .split-band .income-scale-bar > i:nth-of-type(2) small {
+  top: calc(0px - var(--plan-target-label-row) * 2);
+}
+.plan .split-band .income-scale-bar > i:nth-of-type(3) small {
+  top: calc(0px - var(--plan-target-label-row) * 3);
+}
+
 /* 50/30/20 without a meaningful base: dashes and one sentence. */
 .plan .split-band .sb-note {
   display: flex;

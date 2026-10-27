@@ -61,6 +61,30 @@ test('591 no-selection overview preserves cents, canonical target shortfalls and
     await expect(
       inspector.getByRole('progressbar', { name: 'Zieldeckung nächster Monat' }),
     ).toHaveAttribute('value', '15000');
+    const targetLabels = split.locator('.income-scale-bar > i small');
+    await expect(targetLabels).toHaveText(['50 %', '80 %', '100 %']);
+    const labelBoxes = await targetLabels.evaluateAll((labels) =>
+      labels.map((label) => {
+        const { x, y, width, height } = label.getBoundingClientRect();
+        return { x, y, width, height };
+      }),
+    );
+    const splitBox = (await split.boundingBox())!;
+    for (const [index, box] of labelBoxes.entries()) {
+      expect(box.width).toBeGreaterThan(0);
+      expect(box.height).toBeGreaterThan(0);
+      expect(box.x).toBeGreaterThanOrEqual(splitBox.x);
+      expect(box.x + box.width).toBeLessThanOrEqual(splitBox.x + splitBox.width);
+      for (const other of labelBoxes.slice(index + 1)) {
+        const overlapX = box.x < other.x + other.width && other.x < box.x + box.width;
+        const overlapY = box.y < other.y + other.height && other.y < box.y + box.height;
+        expect(overlapX && overlapY).toBe(false);
+      }
+    }
+    await info.attach(`allocation-label-geometry-${theme}`, {
+      body: JSON.stringify(labelBoxes),
+      contentType: 'application/json',
+    });
     const amounts = (await inspector.locator('.month-statement dd').allTextContents()).map((text) =>
       Number(text.replace(/[^\d−-]/g, '').replace('−', '-')),
     );

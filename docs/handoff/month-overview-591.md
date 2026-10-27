@@ -147,3 +147,26 @@ baseline or part of this source branch/formatter patch. Publication remains
 coordinator-owned.
 
 Refs #591
+
+## Default-open allocation label visual correction
+
+Independent HIGH visual review of the retained desktop-light and WebKit-dark
+viewport PNGs found the shared AllocationBar target labels overlapping at the
+SAMPLE 901% income scale. Tick separations around9.5px/6.3px cannot fit the
+unchanged token-sized50/80/100 labels on a single horizontal row.
+
+The correction is CSS-only and scoped to `.plan .split-band`: reserve three
+label rows and stagger the three existing labels vertically with token-sized
+line height plus4px separation. Tick left positions, label horizontal anchors,
+all three literal targets, shared report CSS/component, chart widths/calculations,
+legend, overflow statement and aria text remain unchanged. No fixture/collapse,
+font shrink, hidden data, financial writer or persistence change.
+
+Per-file regression rationale: issue-591-month-overview.spec.ts adds literal
+50/80/100 target text plus positive-size, horizontal containment and pairwise
+nonintersection bounds in EACH existing theme/profile. It attaches actual label
+geometry to the proof artifact. This supplements every existing financial,
+privacy, Axe,44px, side/grid-height and focus oracle; none is removed or relaxed.
+The old single-row source fails this new nonintersection gate in the retained
+actual high-ratio state. Exact changed CSS/runtime remains unproven until the
+reviewed narrow remote retry; no local Node/browser/build/test/formatter ran.
