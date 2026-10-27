@@ -193,15 +193,36 @@ test('619 supported maximum saved views remain keyboard reachable beside three r
         const container = element.closest('nav')!;
         const outer = container.getBoundingClientRect();
         const inner = element.getBoundingClientRect();
+        const style = getComputedStyle(container);
+        const textRects: { left: number; right: number; top: number; bottom: number }[] = [];
+        let emptyTextRanges = 0;
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          if (!node.textContent?.trim()) continue;
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          const rects = [...range.getClientRects()];
+          if (rects.length === 0) emptyTextRanges++;
+          for (const rect of rects)
+            textRects.push({
+              left: rect.left,
+              right: rect.right,
+              top: rect.top,
+              bottom: rect.bottom,
+            });
+        }
         return {
           left: inner.left,
           right: inner.right,
           top: inner.top,
           bottom: inner.bottom,
-          scrollLeft: outer.left + container.clientLeft,
-          scrollRight: outer.left + container.clientLeft + container.clientWidth,
-          scrollTop: outer.top + container.clientTop,
-          scrollBottom: outer.top + container.clientTop + container.clientHeight,
+          scrollLeft: outer.left + parseFloat(style.borderLeftWidth),
+          scrollRight: outer.right - parseFloat(style.borderRightWidth),
+          scrollTop: outer.top + parseFloat(style.borderTopWidth),
+          scrollBottom: outer.bottom - parseFloat(style.borderBottomWidth),
+          text: element.textContent?.trim(),
+          textRects,
+          emptyTextRanges,
           viewportWidth: innerWidth,
           viewportHeight: innerHeight,
           centerHit: element.contains(
@@ -209,10 +230,15 @@ test('619 supported maximum saved views remain keyboard reachable beside three r
           ),
         };
       });
-      expect(bounds.left).toBeGreaterThanOrEqual(bounds.scrollLeft);
-      expect(bounds.right).toBeLessThanOrEqual(bounds.scrollRight);
-      expect(bounds.top).toBeGreaterThanOrEqual(bounds.scrollTop);
-      expect(bounds.bottom).toBeLessThanOrEqual(bounds.scrollBottom);
+      expect(bounds.text).toBe(imported.views[index]!.name);
+      expect(bounds.emptyTextRanges).toBe(0);
+      expect(bounds.textRects.length).toBeGreaterThan(0);
+      for (const rect of bounds.textRects) {
+        expect(rect.left).toBeGreaterThanOrEqual(bounds.scrollLeft);
+        expect(rect.right).toBeLessThanOrEqual(bounds.scrollRight);
+        expect(rect.top).toBeGreaterThanOrEqual(bounds.scrollTop);
+        expect(rect.bottom).toBeLessThanOrEqual(bounds.scrollBottom);
+      }
       expect(bounds.left).toBeGreaterThanOrEqual(0);
       expect(bounds.right).toBeLessThanOrEqual(bounds.viewportWidth);
       expect(bounds.top).toBeGreaterThanOrEqual(0);
