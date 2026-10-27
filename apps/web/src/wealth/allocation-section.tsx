@@ -1,11 +1,11 @@
 import { ChartValue } from '@budget/ui';
 import type { Period, RebalanceProposal } from '@budget/domain';
-import { Button } from '@budget/ui';
+import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { CircleCheck } from 'lucide-react';
 import { LoadingNote, ErrorNote } from '../ledger/states';
-import { eurWhole } from '../ledger/format';
+import { eurWhole, longDay } from '../ledger/format';
 import { allocationQuery, type PortfolioAllocationView } from './allocation-api';
 import { chartPercent } from '../charts/tooltip-data';
 import { percentText } from './portfolio-format';
@@ -67,8 +67,7 @@ export function PortfolioAllocation() {
                 {view.policy.wealthStage.label ? ' · ' + view.policy.wealthStage.label : ''}.
                 {view.policy.wealthStage.inBuffer &&
                   ` Im Puffer: Die Stufe bleibt bis unter ${eurWhole(Math.ceil((view.policy.wealthStage.fromCents * 9) / 10))} aktiv.`}{' '}
-                Basis: {view.valueCents === null ? 'nicht ermittelbar' : eurWhole(view.valueCents)}{' '}
-                in {view.universe.accountIds.length} ausgewählten Konten und Depots.
+                Basis: {view.valueCents === null ? 'nicht ermittelbar' : eurWhole(view.valueCents)}.
               </p>
             )}
             {provisional && (
@@ -117,6 +116,7 @@ export function PortfolioAllocation() {
                   % liegen.
                 </p>
               )}
+              <AllocationEvidence view={view} />
             </details>
             {view.quality.unclassifiedSecurityIds.length > 0 && (
               <ul
@@ -353,6 +353,101 @@ export function PortfolioAllocation() {
     </>
   );
 }
+function AllocationEvidence({ view }: { view: PortfolioAllocationView }) {
+  useAmountPrivacy();
+  return (
+    <>
+      <p className="vnote">
+        <strong>Datengrundlage am {longDay(view.asOf)}</strong>. Der Stichtag ist nicht das
+        Aktualisierungsdatum aller Quellen. Datenqualität der gesamten Auswertung: Bewertung{' '}
+        {view.quality.valuationQuality === 'exact'
+          ? 'vollständig'
+          : view.quality.valuationQuality === 'estimated'
+            ? 'geschätzt oder veraltet'
+            : 'nicht vollständig verfügbar'}
+        , Klassifikation{' '}
+        {view.quality.classification === 'complete' ? 'vollständig' : 'unvollständig'}. Die
+        gespeicherte Vollständigkeit einer Exposure-Angabe ersetzt diese Prüfung nicht.
+      </p>
+      <p className="vnote">
+        Ausgewähltes Allokationsuniversum: {view.universe.accountIds.length} Konten und Depots.
+      </p>
+      {view.exposureEvidence === undefined ? (
+        <p className="vnote">
+          Quelldetails nicht verfügbar. Die Datenqualität und Hinweise bleiben unverändert.
+        </p>
+      ) : view.exposureEvidence.length === 0 ? (
+        <p className="vnote">Keine gehaltenen Instrumente im ausgewählten Allokationsuniversum.</p>
+      ) : (
+        <ul className="allocation-quality-links" aria-label="Wirksame Exposure-Quellen">
+          {view.exposureEvidence.map((evidence) => (
+            <li key={evidence.securityId}>
+              <AppLink
+                className="allocation-security-link"
+                to="/einstellungen/anlageklassen"
+                search={{ panel: 'instrument', instrument: evidence.securityId }}
+                state={{ panelOpenedInApp: true }}
+              >
+                {maskMoneyText(view.names.securities[evidence.securityId] ?? 'Instrument')}
+              </AppLink>{' '}
+              {evidence.validFrom === null
+                ? 'Keine wirksame Exposure-Version hinterlegt.'
+                : `Wirksam ab ${longDay(evidence.validFrom)} · Quelle: ${maskMoneyText(evidence.source ?? 'nicht hinterlegt')}.`}{' '}
+              Gespeicherte Exposure-Angabe:{' '}
+              {evidence.storedComplete === null
+                ? 'Vollständigkeit nicht hinterlegt'
+                : evidence.storedComplete
+                  ? 'vollständig'
+                  : 'unvollständig'}
+              .
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="vnote">
+        {view.policy.targetValidFrom === null
+          ? 'Keine wirksame Sollversion hinterlegt.'
+          : `Sollversion: ${maskMoneyText(view.policy.targetLabel || 'ohne Bezeichnung')} · wirksam ab ${longDay(view.policy.targetValidFrom)}.`}{' '}
+        {view.policy.tierIndex === null
+          ? 'Keine aktive Vermögensstufe ausgewiesen.'
+          : `Aktive Vermögensstufe ${view.policy.tierIndex + 1}${view.policy.wealthStage?.label ? ` · ${maskMoneyText(view.policy.wealthStage.label)}` : ''}.`}
+      </p>
+      <ul className="allocation-quality-links" aria-label="Wirksame Sollquoten und Bänder">
+        {view.classes.map((cls) => {
+          const mode = view.policy.targets.find((target) => target.assetClass === cls.id)?.bandMode;
+          return (
+            <li key={cls.id}>
+              {maskMoneyText(cls.name)}:{' '}
+              {cls.targetBp === null ? (
+                'unverwaltet, kein Soll festgelegt'
+              ) : (
+                <>
+                  Soll {percentText(cls.targetBp)} ·{' '}
+                  {cls.bandBp === null
+                    ? 'Band nicht ermittelbar'
+                    : `wirksames Band ±${percentText(cls.bandBp)}`}{' '}
+                  ·{' '}
+                  {mode === 'custom'
+                    ? 'eigenes Band'
+                    : mode === 'standard'
+                      ? 'Standardband laut Regelwerk'
+                      : 'Bandmodus nicht gesondert gespeichert'}
+                </>
+              )}
+              .
+            </li>
+          );
+        })}
+      </ul>
+      <p className="vnote">
+        Kontoauswahl, Anlage-Kassa-Zuordnung und Risikoparameter sind aktuelle Einstellungen ohne
+        eigenen historischen Gültigkeitsverlauf. Anlage-Kassa erhält keine erfundene
+        Exposure-Version.
+      </p>
+    </>
+  );
+}
+
 function proposalText(proposal: RebalanceProposal, view: PortfolioAllocationView) {
   const name = proposal.assetClass
     ? (view.classes.find((cls) => cls.id === proposal.assetClass)?.name ?? 'Anlageklasse')
