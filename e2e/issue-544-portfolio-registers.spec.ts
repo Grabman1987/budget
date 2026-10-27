@@ -24,16 +24,23 @@ test('five portfolio registers preserve period and fit accessible desktop and ph
       'aria-current',
       'page',
     );
-    if (label === 'Positionen') await expect(page.locator('.portfolio-table')).toBeVisible();
-    if (label === 'Allokation')
-      await expect(page.getByRole('region', { name: 'Aufteilung Soll/Ist' })).toBeVisible();
-    if (label === 'Sparpläne')
-      await expect(page.getByRole('region', { name: 'Sparpläne', exact: true })).toBeVisible();
     await page.reload();
     await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute(
       'aria-current',
       'page',
     );
+    // Measure the loaded register, not the shorter loading shell after reload.
+    if (label === 'Übersicht')
+      await expect(page.getByTestId('portfolio-overview-chart')).toBeVisible();
+    if (label === 'Übersicht' || label === 'Positionen')
+      await expect(page.getByTestId('portfolio-value')).toHaveText('88.000,00 €');
+    if (label === 'Positionen') await expect(page.locator('.portfolio-table')).toBeVisible();
+    if (label === 'Allokation') await expect(page.locator('.vallo')).toBeVisible();
+    if (label === 'Sparpläne')
+      await expect(page.getByRole('region', { name: 'Sparpläne', exact: true })
+        .getByRole('table')).toBeVisible();
+    if (label === 'Kennzahlen')
+      await expect(page.getByRole('link', { name: 'Portfolio-Auswertung öffnen' })).toBeVisible();
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => {
         document.documentElement.dataset['theme'] = value;
