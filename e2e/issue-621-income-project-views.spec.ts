@@ -215,12 +215,42 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
   expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
   await page.goto(`${path}?monat=2026-08&zeitraum=${period}&darstellung=income&projekt=a`);
   await expect(page.getByTestId('income-total')).toHaveText('1.000,01 €');
+  const projectFilter = page.getByRole('combobox', { name: 'Projektfilter', exact: true });
+  await projectFilter.selectOption('b');
+  await expect(page.getByTestId('income-total')).toHaveText('2.000,02 €');
   const opened = openDatabase(isolatedLedger.databasePath);
   try {
     opened.sqlite.exec("UPDATE project SET deleted_at='2026-09-16' WHERE id='a'");
   } finally {
     opened.close();
   }
+  // A same-mounted selector change must also revalidate the still-cached deleted A.
+  let releaseSelected!: () => void;
+  const selectedHeld = new Promise<void>((resolve) => {
+    releaseSelected = resolve;
+  });
+  await page.route('**/api/reports/month/income?*', async (route) => {
+    await selectedHeld;
+    await route.continue();
+  });
+  const selectedReread = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return (
+      url.pathname === '/api/reports/month/income' && url.searchParams.get('projectId') === 'a'
+    );
+  });
+  await projectFilter.selectOption('a');
+  try {
+    await selectedReread;
+    await expect(page.getByTestId('income-total')).toHaveCount(0);
+    await expect(page.locator('.report-project-note')).toHaveCount(0);
+  } finally {
+    releaseSelected();
+  }
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByTestId('income-total')).toHaveCount(0);
+  expect(new URL(page.url()).searchParams.get('projekt')).toBe('a');
+  await page.unroute('**/api/reports/month/income?*');
   await page
     .getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' })
     .getByRole('button', { name: 'Cashflow', exact: true })

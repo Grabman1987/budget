@@ -127,3 +127,24 @@ punctuation. Apply-check passed on exact 8557; it was committed separately as
 The correction and additive regressions await independent HIGH delta review and
 one necessary remote proof. No local Node/build/test/browser/formatter was run.
 Hub LIVE dependency, later integration and exact-head delivery gates remain.
+
+
+## Same-mounted project transition review correction
+
+HIGH review of 5a893158 found that refetchOnMount alone did not cover changing
+the query key inside the same mounted report. Scoped readers now use staleTime
+0 instead: both mount and project-key changes reread, including a recently
+cached project. The no-project branch continues inheriting the unchanged app
+cache policy; all cache keys, request URLs and financial/write logic remain.
+The existing scoped fetching/error render guards remain in all three views.
+
+The web unit adds a same QueryObserver B-to-A setOptions regression, with fresh
+200002/100001-cent caches under a 20-second client default. It requires B's read,
+then a held A read and its literal 404, without remounting. The existing real
+browser case now selects B while A's successful amount is still cached, deletes
+A in the synthetic database, then selects A in the same renderer. During its
+held GET both amount and provenance must be absent, followed by the real 404
+alert. The prior view-remount, malformed-ID, privacy, source, CSV and cents
+assertions remain. No timeout/retry/skip or existing oracle was relaxed.
+This delta is source-only until independent HIGH re-clear and necessary Cloud
+proof; no public acceptance or LIVE dependency is claimed.

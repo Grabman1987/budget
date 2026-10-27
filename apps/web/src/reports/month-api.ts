@@ -17,7 +17,7 @@ export const incomeReportQuery = (month: string, projectId?: string) =>
     queryKey: projectId
       ? [...KEY, 'income', month, 'project', projectId]
       : [...KEY, 'income', month],
-    ...(projectId ? { refetchOnMount: 'always' as const } : {}),
+    ...(projectId ? { staleTime: 0 } : {}),
     retry: false,
     queryFn: () =>
       request<IncomeReportData>(

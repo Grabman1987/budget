@@ -149,3 +149,43 @@ it('rereads a fresh cached project on remount and exposes its deleted-scope erro
     client.clear();
   }
 });
+
+it('rereads fresh cached A when the same observer switches from B and rejects deleted A', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: 20_000 } } });
+  const a = incomeReportQuery('2026-08', 'a');
+  const b = incomeReportQuery('2026-08', 'b');
+  const cachedA = { income: { earnedCents: 100001 } };
+  const cachedB = { income: { earnedCents: 200002 } };
+  client.setQueryData([...a.queryKey], cachedA);
+  client.setQueryData([...b.queryKey], cachedB);
+  let finish!: (response: Response) => void;
+  const pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  const fetch = vi.fn((path: string) =>
+    path.endsWith('projectId=b') ? Promise.resolve(Response.json(cachedB)) : pending,
+  );
+  vi.stubGlobal('fetch', fetch);
+  const observer = new QueryObserver(client, b);
+  const stop = observer.subscribe(() => undefined);
+  try {
+    await vi.waitFor(() => expect(observer.getCurrentResult().isFetching).toBe(false));
+    expect(observer.getCurrentResult().data?.income.earnedCents).toBe(200002);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    observer.setOptions(a);
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    expect(fetch).toHaveBeenLastCalledWith(
+      '/api/reports/month/income?month=2026-08&projectId=a',
+      expect.objectContaining({ method: 'GET' }),
+    );
+    expect(observer.getCurrentResult().isFetching).toBe(true);
+    expect(client.getQueryData(a.queryKey)).toEqual({ income: { earnedCents: 100001 } });
+    finish(Response.json({ error: 'Project not found' }, { status: 404 }));
+    await vi.waitFor(() => expect(observer.getCurrentResult().isError).toBe(true));
+    expect(observer.getCurrentResult().error).toMatchObject({ status: 404 });
+  } finally {
+    finish(Response.json({ error: 'Project not found' }, { status: 404 }));
+    stop();
+    client.clear();
+  }
+});

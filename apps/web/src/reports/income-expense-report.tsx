@@ -43,7 +43,7 @@ const queryOptionsForReport = (projectId?: string) =>
     queryKey: projectId
       ? [...LEDGER_KEY, 'income-expense', 'project', projectId]
       : [...LEDGER_KEY, 'income-expense'],
-    ...(projectId ? { refetchOnMount: 'always' as const } : {}),
+    ...(projectId ? { staleTime: 0 } : {}),
     retry: false,
     queryFn: () =>
       request<IncomeExpenseReportData>(
