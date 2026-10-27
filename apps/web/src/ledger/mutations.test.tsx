@@ -11,6 +11,38 @@ vi.mock('@budget/ui', async (original) => ({
 }));
 afterEach(() => vi.unstubAllGlobals());
 
+it('holds both canonical foreign native and dated EUR facts pending and restores both on rejected edit', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const key = ['ledger', 'bookings', 'infinite', { accountId: 'synthetic-usd' }];
+  const first: BookingPage = {
+    items: [{ id: 'foreign', amountCents: -101, currency: 'USD', splits: [] } as unknown as ListedBooking],
+    total: 4, sumCents: 190, sumEurCents: 167, nextCursor: 'older',
+    nativeTotals: [{ currency: 'USD', count: 4, cents: 190 }],
+  };
+  client.setQueryData(key, { pages: [first], pageParams: [undefined] });
+  let finish!: (response: Response) => void;
+  const fetch = vi.fn(() => new Promise<Response>((done) => { finish = done; }));
+  vi.stubGlobal('fetch', fetch);
+  const { result, unmount } = renderHook(useLedgerWrites, {
+    wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+  });
+  let writing!: Promise<unknown>;
+  try {
+    act(() => { writing = result.current.patch.mutateAsync({ id: 'foreign', patch: { amountCents: -200 } }).catch((error: unknown) => error); });
+    await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    const pending = client.getQueryData<{ pages: BookingPage[] }>(key)!.pages[0]!;
+    expect(pending.nativeTotalsPending).toBe(true);
+    expect(pending.items[0]?.amountCents).toBe(-200);
+    expect(pending.nativeTotals).toEqual([{ currency: 'USD', count: 4, cents: 190 }]);
+    expect(pending.sumEurCents).toBe(167);
+    await act(async () => {
+      finish(new Response(JSON.stringify({ error: 'invalid', message: 'Synthetic rejection' }), { status: 422 }));
+      await writing;
+    });
+    expect(client.getQueryData<{ pages: BookingPage[] }>(key)!.pages[0]).toEqual(first);
+  } finally { unmount(); client.clear(); }
+});
+
 it('finishes a saved edit without waiting for reads and refreshes visible wealth', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   let finishRead!: () => void;

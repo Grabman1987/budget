@@ -78,6 +78,29 @@ it('marks unsafe native totals unavailable rather than displaying rounded money'
   expect(page.nativeTotals).toEqual([{ currency: 'EUR', count: 2, cents: null }]);
 });
 
+it('retains canonical dated EUR totals for the same full foreign-account filter beyond the visible page', async () => {
+  opened.db.insert(schema.fxRate).values([
+    { currency: 'USD', date: '2026-09-25', rateMicro: 500000, source: 'ecb' },
+    { currency: 'USD', date: '2026-10-02', rateMicro: 750000, source: 'ecb' },
+  ]).run();
+  for (const [date, amountCents] of [['2026-10-01', -101], ['2026-10-02', 201], ['2026-10-02', -10], ['2026-10-02', 100]] as const) {
+    row(amountCents, { accountId: 'usd', currency: 'USD', date, splits: [{ categoryId: null, amountCents }] });
+  }
+  const first = (await (await app.request('/bookings?accountId=usd&limit=1&sort=date&direction=asc')).json()) as BookingPage;
+  expect(first.total).toBe(4);
+  expect(first.items).toHaveLength(1);
+  expect(first.nativeTotals).toEqual([{ currency: 'USD', count: 4, cents: 190 }]);
+  expect(first.sumEurCents).toBe(167);
+  const next = (await (await app.request(`/bookings?accountId=usd&limit=1&sort=date&direction=asc&cursor=${first.nextCursor}`)).json()) as BookingPage;
+  expect(next.nativeTotals).toEqual([{ currency: 'USD', count: 4, cents: 190 }]);
+  expect(next.sumEurCents).toBe(167);
+  row(-100, { accountId: 'usd', currency: 'USD', date: '2026-09-01', splits: [{ categoryId: null, amountCents: -100 }] });
+  const missing = (await (await app.request('/bookings?accountId=usd&limit=1')).json()) as BookingPage;
+  expect(missing.total).toBe(5);
+  expect(missing.nativeTotals).toEqual([{ currency: 'USD', count: 5, cents: 90 }]);
+  expect(missing.sumEurCents).toBeNull();
+});
+
 it('exports exactly all filtered bookings beyond one cursor page with integer cents and safe UTF-8 CSV text', async () => {
   const ids = new Set<string>();
   for (let index = 0; index < 205; index++) ids.add(row(-101, { memo: 'Filtered ü; "quoted"' }));
