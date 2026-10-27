@@ -1,75 +1,94 @@
-name: Update e2e snapshots
-
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+name: Reports 801 readable max state and complete portfolio contracts
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch whose baselines to update (never main)
         required: true
       specs:
-        description: Space-separated spec paths (e.g. e2e/shell.spec.ts); empty = every spec that compares screenshots
         required: false
-        default: ''
-
 permissions:
-  contents: write
-
-concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
-
+  contents: read
 jobs:
-  update:
-    if: inputs.branch != 'main'
+  focused:
     runs-on: ubuntu-24.04
-    # Match the CI browser image instead of reinstalling its OS/browser dependencies.
+    timeout-minutes: 25
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     defaults:
       run:
         shell: bash
-    # A type-scale change regenerates nearly every baseline; give it room.
-    timeout-minutes: 75
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.branch }}
-      - name: Allow Git reads and baseline commits in the container workspace
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+          fetch-depth: 2
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Exact source parent and three changed paths
+        run: |
+          test "$(git rev-parse HEAD^)" = d65bb226a0a106c24f29ceb69b018718b4e4f48b
+          test "$(git diff --name-only HEAD^ HEAD)" = .github/workflows/update-snapshots.yml
+          git fetch --no-tags origin 2de896ee9a1034bdbb4ef71523a1ce58e9602ff0
+          git cat-file -e '2de896ee9a1034bdbb4ef71523a1ce58e9602ff0^{commit}'
+          git diff --name-only 2de896ee9a1034bdbb4ef71523a1ce58e9602ff0 d65bb226a0a106c24f29ceb69b018718b4e4f48b > /tmp/801-final-paths.txt
+          test "$(wc -l < /tmp/801-final-paths.txt)" -eq 3
+          cat /tmp/801-final-paths.txt
+          git rev-parse HEAD HEAD^
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        env:
-          SPECS: ${{ inputs.specs }}
+      - name: Scoped formatter
+        id: format
+        run: xargs -d '\n' npx prettier --check < /tmp/801-final-paths.txt
+      - name: Exact durable full formatting patch
+        if: always()
         run: |
-          npm run build:e2e
-          read -r -a specs <<< "$SPECS"
-          if [ "${#specs[@]}" -eq 0 ]; then
-            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
-          fi
-          npx playwright test --update-snapshots=changed "${specs[@]}" || true
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+          xargs -d '\n' npx prettier --write < /tmp/801-final-paths.txt
+          git diff --binary > /tmp/801-final-format.patch
+          sha256sum /tmp/801-final-format.patch
+          git diff --stat
+      - name: Scoped lint
+        id: lint
+        if: always()
+        run: grep -E '\.(ts|tsx)$' /tmp/801-final-paths.txt | xargs -d '\n' npx eslint
+      - name: CSS scale
+        id: css
+        if: always()
+        run: node packages/ui/scripts/check-css-scale.mjs
+      - name: Full typecheck
+        id: types
+        if: always()
+        run: npm run typecheck
+      - name: Build
+        id: build
+        if: always()
+        run: npm run build:e2e
+      - name: Discover and guard actual current case names in all profiles
+        id: discovery
+        if: always()
+        run: |
+          npx playwright test e2e/issue-544-portfolio-registers.spec.ts e2e/issue-619-628-reports-hub.spec.ts --grep 'portfolio navigation rows|five portfolio registers preserve period across navigation and reload|portfolio register fits accessible light and dark pages|portfolio endpoint|a closed calendar month|619 supported maximum saved views' --project=desktop --project=mobile --project=webkit-iphone --list | tee /tmp/801-final-discovery.txt
+          test "$(grep -c 'portfolio register fits accessible light and dark pages' /tmp/801-final-discovery.txt)" -eq 15
+          test "$(grep -c 'five portfolio registers preserve period across navigation and reload' /tmp/801-final-discovery.txt)" -eq 3
+          test "$(grep -c '619 supported maximum saved views' /tmp/801-final-discovery.txt)" -eq 3
+          grep -F 'Total: 33 tests' /tmp/801-final-discovery.txt
+      - name: Complete existing portfolio spec and maximum keyboard state
+        id: browser
+        if: always() && steps.discovery.outcome == 'success'
+        run: npx playwright test e2e/issue-544-portfolio-registers.spec.ts e2e/issue-619-628-reports-hub.spec.ts --grep 'portfolio navigation rows|five portfolio registers preserve period across navigation and reload|portfolio register fits accessible light and dark pages|portfolio endpoint|a closed calendar month|619 supported maximum saved views' --project=desktop --project=mobile --project=webkit-iphone --workers=1 --retries=0 --update-snapshots=none
+      - name: Baseline guard and honest actual outcomes
+        if: always()
+        run: |
+          test -z "$(git diff --name-only -- 'e2e/*snapshots*')"
+          echo 'RESULT format=${{ steps.format.outcome }} lint=${{ steps.lint.outcome }} CSS=${{ steps.css.outcome }} types=${{ steps.types.outcome }} build=${{ steps.build.outcome }} discovery=${{ steps.discovery.outcome }} browser=${{ steps.browser.outcome }}'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
-          name: scoped-browser-screenshots
-          path: test-results/**/*.png
-          if-no-files-found: ignore
+          name: reports-801-final-impacted-proof
+          path: |
+            /tmp/801-final-format.patch
+            /tmp/801-final-paths.txt
+            /tmp/801-final-discovery.txt
+            test-results/
           retention-days: 7
-      - name: Commit the new baselines
-        env:
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
