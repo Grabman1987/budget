@@ -1,75 +1,60 @@
 name: Update e2e snapshots
 
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: Branch whose baselines to update (never main)
-        required: true
-      specs:
-        description: Space-separated spec paths (e.g. e2e/shell.spec.ts); empty = every spec that compares screenshots
-        required: false
-        default: ''
 
 permissions:
-  contents: write
-
-concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
+  contents: read
 
 jobs:
   update:
-    if: inputs.branch != 'main'
     runs-on: ubuntu-24.04
-    # Match the CI browser image instead of reinstalling its OS/browser dependencies.
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     defaults:
       run:
         shell: bash
-    # A type-scale change regenerates nearly every baseline; give it room.
-    timeout-minutes: 75
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ inputs.branch }}
-      - name: Allow Git reads and baseline commits in the container workspace
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify exact source and workflow-only delta
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          test "$(git rev-parse HEAD^)" = "28cc64c1304a024692e6f08c4774f1efa0ad0812"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/update-snapshots.yml"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        env:
-          SPECS: ${{ inputs.specs }}
+      - name: Check scoped formatting and retain exact patch if needed
         run: |
-          npm run build:e2e
-          read -r -a specs <<< "$SPECS"
-          if [ "${#specs[@]}" -eq 0 ]; then
-            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
+          paths=(apps/server/src/api/portfolio-allocation.test.ts apps/web/src/wealth/allocation-section.tsx packages/db/src/repos/allocation-inputs.ts packages/db/src/repos/portfolio-allocation.ts e2e/issue-521-allocation-provenance.spec.ts)
+          if ! npx prettier --check "${paths[@]}"; then
+            npx prettier --write "${paths[@]}"
+            git diff --binary -- "${paths[@]}" > proof-format.patch
+            exit 1
           fi
-          npx playwright test --update-snapshots=changed "${specs[@]}" || true
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - name: Scoped ESLint
+        run: npx eslint apps/server/src/api/portfolio-allocation.test.ts apps/web/src/wealth/allocation-section.tsx packages/db/src/repos/allocation-inputs.ts packages/db/src/repos/portfolio-allocation.ts e2e/issue-521-allocation-provenance.spec.ts
+      - name: Full workspace typecheck
+        run: npm run typecheck
+      - name: Build for browser proof
+        run: npm run build:e2e
+      - name: Three-profile UI provenance and privacy proof
+        run: npx playwright test e2e/issue-521-allocation-provenance.spec.ts --project=desktop --project=mobile --project=webkit-iphone --workers=1 --retries=0 --update-snapshots=none
+      - name: Assert no baseline mutation
+        run: git diff --exit-code -- e2e
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
-          name: scoped-browser-screenshots
-          path: test-results/**/*.png
+          name: issue-521-focused-evidence
+          path: |
+            proof-format.patch
+            test-results/**/*.png
+            test-results/**/*.zip
           if-no-files-found: ignore
-          retention-days: 7
-      - name: Commit the new baselines
-        env:
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
+          retention-days: 3
