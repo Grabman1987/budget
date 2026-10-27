@@ -383,7 +383,7 @@ function PlanBody({
         event.target instanceof Element &&
         event.target.isConnected &&
         !event.target.closest(
-          '.plan-inspector, .prow, .pgroup, .plan-select, dialog, .toast, .quick-assign-actions, .plan-menu-verteilen',
+          '.plan-inspector, .prow, .pgroup, .plan-select, dialog, .toast, .quick-assign-actions, .plan-menu-verteilen, .m-profile',
         )
       )
         clearSelection();

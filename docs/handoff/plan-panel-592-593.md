@@ -141,12 +141,33 @@ AmountInput operator buttons are intentionally22px and hidden on phone; making
 this new assertion desktop-wide invented a requirement. Axe, page overflow,
 nowrap, all literal cents, cover/Undo and focus remain asserted on every profile.
 
-The phone trace showed profile-summary Escape bubbling into the existing Plan
-Escape handler and clearing selection; the DOM correctly became Monatsüberblick,
-so the cover amount no longer existed. The new privacy test helper now closes
-that native summary by clicking it, matching existing privacy-test convention.
-The actual privacy button and exact visible masked amount remain asserted; the
-existing Plan Escape/deselect behavior and shared mobile header are unchanged.
-No old test, money/write/Undo guard, timeout, retry or skip was changed. These
-late-stage corrections require independent delta review and a narrow full593
-three-profile runtime proof before any publication.
+The phone failure showed no-selection Monatsüberblick after the profile-menu
+privacy interaction. The initial Escape-bubbling diagnosis was incomplete:
+changing the new helper to native summary click did not preserve selection.
+No old test, money/write/Undo guard, timeout, retry or skip was changed.
+
+## Narrow593 proof and actual profile-click source correction
+
+Exact-source47cad proof40569531911 passed format/ESLint/full typecheck/CSS/build
+and baseline mutation guard. Its entire desktop593 case and3 setups passed;
+both phone593 cases remained red at the unchanged masked-cover assertion.
+Formatter patch is empty with the same e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 hash.
+
+Retained mobile trace2-trace.trace call lknx@387 is the FIRST profile-summary
+click. Its after snapshot already replaces the selected inspector with
+month-overview-inspector BEFORE privacy-button call389. PlanBody's actual
+outside-click exclusions omitted the global .m-profile menu, so opening that
+appearance/privacy menu cleared selection. Exempt only .m-profile from Plan's
+outside-click handler; keep its other exclusions, ordinary toolbar/outside
+clicks and Escape behavior unchanged. No new593 browser assertion changes.
+
+In budget-ui.test.tsx, extend the existing selected-category/Escape/outside
+regression with native .m-profile details and the real PrivacyButton. Opening
+the summary, toggling actual privacy both ways and closing it must retain the
+same selected heading; activity text is literally masked to ••• € and restored
+to0,00 €. The entire original editing/dialog/Escape/focus/income/Optionen
+outside-click flow remains. Reset the presentation-only privacy store after
+cleanup so a failed privacy assertion cannot leak hidden state to another test.
+This bounded source/test delta needs independent HIGH review then the full
+unchanged593 case on all3 profiles and this affected unit file. No local heavy
+commands or public feature push were run.
