@@ -58,6 +58,48 @@ const overviewNet = (page: Page) =>
 async function inspect(page: Page, info: TestInfo, label: string) {
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const controls = page.getByRole('region', { name: 'Ansicht und Projekt', exact: true });
+  await expect(controls).toBeVisible();
+  const layout = await controls.evaluate((element) => {
+    const rect = (node: Element) => {
+      const box = node.getBoundingClientRect();
+      return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, height: box.height };
+    };
+    const header = document.querySelector('.titleblock-report')!;
+    return {
+      header: rect(header), controls: rect(element),
+      views: rect(element.querySelector('.report-view-switch')!),
+      project: rect(element.querySelector('.report-project-select')!),
+      labels: Array.from(element.querySelectorAll('button')).map((button) => {
+        const range = document.createRange();
+        range.selectNodeContents(button);
+        const text = range.getBoundingClientRect();
+        return {
+          label: button.textContent, button: rect(button),
+          text: { left: text.left, right: text.right, top: text.top, bottom: text.bottom, width: text.width, height: text.height },
+        };
+      }),
+    };
+  });
+  expect(layout.controls.top).toBeGreaterThanOrEqual(layout.header.bottom);
+  expect(layout.views.right <= layout.project.left || layout.project.right <= layout.views.left || layout.views.bottom <= layout.project.top || layout.project.bottom <= layout.views.top).toBe(true);
+  expect(layout.labels.slice(0, 3).map((entry) => entry.label)).toEqual(['Einnahmen', 'Einnahmen und Ausgaben', 'Cashflow']);
+  for (const entry of layout.labels) {
+    expect(entry.text.width).toBeGreaterThan(0);
+    expect(entry.text.height).toBeGreaterThan(0);
+    expect(entry.text.left).toBeGreaterThanOrEqual(entry.button.left);
+    expect(entry.text.right).toBeLessThanOrEqual(entry.button.right);
+    expect(entry.text.top).toBeGreaterThanOrEqual(entry.button.top);
+    expect(entry.text.bottom).toBeLessThanOrEqual(entry.button.bottom);
+  }
+  for (let first = 0; first < layout.labels.length; first++) {
+    for (let second = first + 1; second < layout.labels.length; second++) {
+      const a = layout.labels[first]!.text;
+      const b = layout.labels[second]!.text;
+      expect(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top).toBe(true);
+    }
+  }
+  if (info.project.name === 'desktop') expect(layout.header.height).toBe(64);
   if (info.project.name !== 'desktop') {
     for (const control of await page
       .locator('.report-income-controls button:visible, .report-income-controls select:visible')

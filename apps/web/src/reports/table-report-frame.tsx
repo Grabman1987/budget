@@ -37,11 +37,13 @@ export function TableReportFrame<T extends FrameFacts = ReportTables>({
   children,
   verdictEnd,
   verdictPeriod,
+  reportControls,
 }: {
   report: ReportEntry;
   verdictEnd?: string | undefined;
   verdictPeriod?: Period | undefined;
   meta: PageMeta;
+  reportControls?: ReactNode;
   through: 'full' | 'current';
   currentAllowed?: boolean;
   query: UseQueryResult<T>;
@@ -79,6 +81,7 @@ export function TableReportFrame<T extends FrameFacts = ReportTables>({
   return (
     <PageFrame
       verdict={verdict}
+      reportControls={reportControls}
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

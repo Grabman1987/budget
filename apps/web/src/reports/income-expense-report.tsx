@@ -130,10 +130,10 @@ export function IncomeExpenseReport({
         verdictEnd={window.at(-1)}
         currentAllowed={period.includes('..')}
         query={query}
+        reportControls={viewControl}
         className="income-expense-report"
         extraFields={[
-          ...(viewControl ? [{ label: 'Ansicht und Projekt', value: viewControl }] : []),
-          {
+            {
             label: 'Zeitraum',
             value: (
               <ReportPeriodControl

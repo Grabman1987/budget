@@ -58,6 +58,7 @@ export function CashflowReportPage({
           : undefined
       }
       meta={meta}
+      reportControls={viewControl}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
       reportDataBasis={
@@ -70,7 +71,6 @@ export function CashflowReportPage({
             : 'wird geladen'
       }
       extraFields={[
-        ...(viewControl ? [{ label: 'Ansicht und Projekt', value: viewControl }] : []),
         {
           label: 'Zeitraum',
           value: (

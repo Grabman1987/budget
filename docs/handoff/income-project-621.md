@@ -1,5 +1,58 @@
 # Income and Cashflow621 — selective source candidate
 
+## Current source-only integration/layout candidate
+
+A NEW isolated branch codex/income-project-views-621-integrated at
+C:/Users/fabia/wt/income-project-views-621-integration starts from immutable final
+Hub 2de896ee9a1034bdbb4ef71523a1ce58e9602ff0. The original frozen 621 checkout and
+01fc37faf4da1f78dd44ed2ad4bfe1fc6193497a remain unchanged. This candidate has no
+public PR, Cloud proof or LIVE/acceptance claim. The older recovery/proof record
+below is historical; it does not substitute for reviewing this new candidate.
+
+The ONLY reviewed 621 owned delta 86bc..01fc is 24 paths, 104445 bytes, SHA256
+63a38bb3ba50e800172b60ab0b4920bafcf5bfa9ba262ce0b50bd4b44cdeead7.
+It applied without any overlap/conflict with the 30 changed Hub/Plan blobs from
+86bc..2de. Before layout edits all 24 adopted blobs matched 01fc exactly; local
+checkpoint 4fe21c05 records that selective application, not old mixed ancestry.
+All 30 incoming Hub delta blobs, including report navigation/default max20
+saved-view fixes, their fixtures, goldens and incoming Plan source remain exact
+2de. No baseline, private proof helper, workflow or unrelated source is adopted.
+
+Actual candidate PNG review found desktop header/title/data-basis/control
+collision and the long middle income-view label spilling into the project field
+on phone. The existing view/project controls now use a dedicated labelled region
+below the ORIGINAL title block and before the answer/body. One optional ReactNode
+slot in PageFrame, threaded by MonthReportFrame and TableReportFrame, is empty by
+default; no default DOM, original header field, navigation or other area's control
+changes. This is two additional shared frame paths beyond the owned 24, for 26
+intended paths. The three readers pass the same existing control node through
+that slot instead of stuffing it into an extra title-block field. Controls stay
+available during loading/error and invalid-project states.
+
+Only .report-income-controls gets the dedicated desktop row grid and phone
+one-column/auto-height view buttons with var(--touch)44px minimum. Other report,
+Plan and Hub selectors are unchanged. Legacy direct report routes supply no
+control node and retain their original headers. The old desktop title block must
+remain exactly 64px; no original month/period control or data-basis text is hidden.
+
+Per-test-file rationale: the existing new issue-621-income-project-views.spec.ts
+retains ALL API, cent, period/filter/source, CSV, privacy and fail-closed assertions.
+Its inspect helper now additionally requires the actual control region below the
+header, mutually separate views/project regions, three exact view names, every
+button's real text Range inside its own button, and pairwise text nonoverlap on
+all profiles/themes. Desktop asserts the binding exact64px head; existing phone
+44px and page no-overflow/Axe checks remain. No timeout/retry/skip is changed.
+
+Twelve critical API/cache/URL/domain/DB blobs were checked identical to 01fc;
+all arithmetic, signed cents, FX, CSV, scoped revalidation/fail-closed logic,
+writers, locks and Undo remain unchanged. Only rendering placement/styles and
+additive geometry checks differ. Prior 01fc financial proof is reusable only for
+identical facts/blobs; these new headers require independent capable HIGH full
+review and a targeted browser/visual proof after source freeze. If checked main
+moves after Hub merge, final exact checked-main integration must be reviewed
+before publication. No local Node/npm/build/test/browser/install/lint/formatter
+was run.
+
 Private isolated branch codex/income-project-views-621 is based on immutable
 reviewed Reports Hub86bce614e6c43d98d8372b6e51f30a4f37dedb59. This is a candidate
 stack, not a LIVE dependency or acceptance claim. Public publication/acceptance

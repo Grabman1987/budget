@@ -8,9 +8,9 @@
   white-space: normal;
 }
 .report-income-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 16rem) auto;
+  align-items: end;
   gap: var(--space-sm);
   min-width: 0;
   max-width: 100%;
@@ -25,7 +25,7 @@
 .report-project-select select {
   min-height: var(--touch);
   max-width: 100%;
-  width: 16rem;
+  width: 100%;
 }
 .report-project-note {
   grid-column: 1 / -1;
@@ -44,6 +44,24 @@
 @media (max-width: 767px), (pointer: coarse) {
   .report-income-controls button,
   .report-project-status button {
+    min-height: var(--touch);
+  }
+}
+
+.report-income-controls .report-view-switch {
+  width: 100%;
+}
+@media (max-width: 767px) {
+  .report-income-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .report-income-controls .report-view-switch {
+    display: grid;
+    grid-auto-flow: row;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .report-income-controls .report-view-switch button {
+    height: auto;
     min-height: var(--touch);
   }
 }

@@ -176,6 +176,7 @@ export function MonthReportFrame({
   extraFields = [],
   children,
   verdict,
+  reportControls,
 }: {
   report: ReportEntry;
   verdict?: VerdictFacts | undefined;
@@ -191,11 +192,13 @@ export function MonthReportFrame({
   print?: boolean;
   extraFields?: Array<{ label: string; value: ReactNode }>;
   children: ReactNode;
+  reportControls?: ReactNode;
 }) {
   const sectionsRef = useCollapsibleSections(report.id);
   return (
     <PageFrame
       verdict={verdict}
+      reportControls={reportControls}
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

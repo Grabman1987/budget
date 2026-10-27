@@ -58,7 +58,7 @@ export function IncomeCashflowReport({
     });
   const heading = { ...report, name: 'Einnahmen und Cashflow' };
   const controls = (
-    <div className="report-income-controls">
+    <div className="report-income-controls" role="region" aria-label="Ansicht und Projekt">
       <Segmented
         className="report-view-switch"
         label="Ansicht von Einnahmen und Cashflow"
@@ -137,7 +137,7 @@ export function IncomeCashflowReport({
         meta={meta}
         title={heading.name}
         reportDataBasis="Projektfilter ungültig"
-        extraFields={[{ label: 'Ansicht und Projekt', value: controls }]}
+        reportControls={controls}
       >
         <p role="alert">
           Der Projektfilter ist ungültig. Wähle ein gültiges Projekt oder ausdrücklich „Alle

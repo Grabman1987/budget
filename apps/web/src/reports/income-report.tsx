@@ -91,7 +91,7 @@ export function IncomeReport({
       firstMonth={data?.firstMonth}
       asOf={data?.asOf}
       basis={query.isError ? 'nicht verfügbar' : undefined}
-      extraFields={viewControl ? [{ label: 'Ansicht und Projekt', value: viewControl }] : []}
+      reportControls={viewControl}
     >
       <div className="mrep income-report" data-testid="income-report">
         {data && !query.isFetching && !query.isError && 'project' in data && (
