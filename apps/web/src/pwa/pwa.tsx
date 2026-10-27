@@ -171,7 +171,12 @@ export function PwaShell({ children }: { children: ReactNode }) {
         </div>
       )}
       {(mounted || showLive) && (
-        <div className="pwa-live" hidden={!showLive} inert={!showLive}>
+        <div className="pwa-live" hidden={!showLive} inert={!showLive}
+          data-proof-show-live={showLive} data-proof-connected={hasConnected}
+          data-proof-mounted={mounted} data-proof-session-ended={sessionEnded}
+          data-proof-router-status={router.state.status}
+          data-proof-router-path={router.state.location.pathname}
+          data-proof-router-matches={router.state.matches.map((match) => match.routeId).join(',')}>
           {children}
         </div>
       )}

@@ -184,7 +184,47 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
     await page.goto('/einstellungen/sicherheit');
     await page.getByRole('button', { name: 'Abmelden' }).click();
     await expect(page).toHaveURL(/\/login$/);
-    await page.getByRole('button', { name: 'Wiederherstellungscode verwenden' }).click();
+    let proofReads = 0;
+    const tracePublicRoute = () => {
+      if (++proofReads > 5) return;
+      void page.evaluate(() => {
+        const live = document.querySelector<HTMLElement>('.pwa-live');
+        const control = [...document.querySelectorAll('button')].find((button) =>
+          /^(Wiederherstellungscode verwenden|Mit Passkey anmelden)$/.test(button.textContent?.trim() ?? ''),
+        );
+        return {
+          path: location.pathname,
+          headings: [...document.querySelectorAll('h1')].map((heading) => ({
+            text: heading.textContent?.trim(),
+            hidden: !!heading.closest('[hidden], [inert]'),
+          })),
+          loginControl: control ? {
+            text: control.textContent?.trim(),
+            hidden: !!control.closest('[hidden], [inert]'),
+            display: getComputedStyle(control).display,
+          } : null,
+          live: live ? {
+            hidden: live.hidden,
+            inert: live.inert,
+            showLive: live.dataset['proofShowLive'],
+            connected: live.dataset['proofConnected'],
+            mounted: live.dataset['proofMounted'],
+            sessionEnded: live.dataset['proofSessionEnded'],
+            routerStatus: live.dataset['proofRouterStatus'],
+            routerPath: live.dataset['proofRouterPath'],
+            routerMatches: live.dataset['proofRouterMatches'],
+          } : null,
+        };
+      }).then((state) => console.log('AUTH_SECOND_LOGOUT_PROOF', JSON.stringify(state)))
+        .catch(() => undefined);
+    };
+    tracePublicRoute();
+    const proofTimer = setInterval(tracePublicRoute, 1000);
+    try {
+      await page.getByRole('button', { name: 'Wiederherstellungscode verwenden' }).click();
+    } finally {
+      clearInterval(proofTimer);
+    }
     await page.getByLabel('Wiederherstellungscode').fill((codes[0] as string).toLowerCase());
     await page.getByRole('button', { name: 'Mit Code anmelden' }).click();
     await expect(page).toHaveURL(/\/$/);
