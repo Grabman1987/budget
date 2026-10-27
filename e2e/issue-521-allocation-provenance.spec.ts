@@ -16,14 +16,12 @@ sampleTest(
       selectedAccountCount = data.universe.accountIds.length;
       sourceValueCents = data.valueCents;
       sourceValuationQuality = data.quality.valuationQuality;
-      expectedValueText =
-        sourceValueCents === null
-          ? 'Netto-Allokationsuniversum: Wert nicht verfügbar.'
-          : `Netto-Allokationsuniversum: ${new Intl.NumberFormat('de-AT', {
-              maximumFractionDigits: 0,
-            })
-              .format(sourceValueCents / 100)
-              .replace(/^-/, '−')} €.`;
+      if (sourceValueCents === null) {
+        expectedValueText = 'Netto-Allokationsuniversum: Wert nicht verfügbar.';
+      } else {
+        expect(sourceValueCents).toBe(8_800_000);
+        expectedValueText = 'Netto-Allokationsuniversum: 88.000 €.';
+      }
       const qualityLabel =
         sourceValuationQuality === 'exact'
           ? 'vollständig'
