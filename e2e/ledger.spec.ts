@@ -12,8 +12,6 @@ import {
   applyLedgerFilters,
 } from './ledger-helpers';
 
-isolatedTest.use({ ledgerToday: new Date().toISOString().slice(0, 10) });
-
 /**
  * The ledger end to end on the real server: accounts, bookings with split and transfer, edit in
  * place, undo and redo, Alle Buchungen with filter and bulk edit. Desktop and phone run in
