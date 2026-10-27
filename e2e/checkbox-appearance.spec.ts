@@ -13,6 +13,8 @@ const SELECTOR = '.ktable tbody tr[data-booking] input[type="checkbox"]';
 async function openBookings(page: Page) {
   await page.goto('/konten/buchungen');
   await expect(page.locator('.ktable tbody tr[data-booking]').first()).toBeVisible();
+  const select = page.getByRole('button', { name: 'Auswählen', exact: true });
+  if (await select.isVisible()) await select.click();
   const checkbox = page.locator(SELECTOR).filter({ visible: true }).first();
   await expect(checkbox).toBeVisible();
   await checkbox.scrollIntoViewIfNeeded();

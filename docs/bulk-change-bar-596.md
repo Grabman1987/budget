@@ -35,3 +35,15 @@ Test changes:
   desktop/phone/WebKit, Axe, horizontal overflow and phone target/tabbar geometry.
 
 No existing timeouts, retries, skips or protected financial expectations changed.
+
+Existing browser-flow adaptations preserve their original assertions:
+
+- `checkbox-appearance.spec.ts` enters phone selection before locating its checkbox;
+  drawn-box, touch geometry, toggle and both-theme Axe checks are unchanged.
+- `tap-targets.spec.ts` measures editable status/flag controls before phone
+  selection, retains the row ID across its read-only transition, then measures
+  and toggles its checkbox before leaving selection for the capture dialog.
+- `ledger.spec.ts` enters phone selection and opens the additional actions menu
+  before both delete attempts; category, Undo, cancellation and restore checks stay.
+- `bank-followups.spec.ts` enters phone selection and opens additional actions for
+  the selected transfer pair. Inbox linking, balances, dates and Undo stay unchanged.

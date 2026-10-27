@@ -48,10 +48,12 @@ test.describe('UX-3b touch controls', () => {
     }
     await expectTouchTargets(page.locator('button.kstatus-btn').first());
     await expectTouchTargets(page.locator('.kflagpick.in-list .kflagbtn').first());
+    const selectableId = await page.locator('tr[data-booking]:has(button.kflagbtn)').first().getAttribute('data-booking');
+    await page.getByRole('button', { name: 'Auswählen', exact: true }).click();
     await expectTouchTargets(
       page.locator('.ktable input[type="checkbox"]').filter({ visible: true }).first(),
     );
-    const selectable = page.locator('tr[data-booking]:has(button.kflagbtn)').first();
+    const selectable = page.locator(`tr[data-booking="${selectableId}"]`);
     const checkbox = selectable.getByRole('checkbox');
     await checkbox.scrollIntoViewIfNeeded();
     const covered = await checkbox.evaluate((el) => {
@@ -66,6 +68,7 @@ test.describe('UX-3b touch controls', () => {
     await expect(checkbox).toBeChecked();
     await checkbox.tap();
 
+    await page.getByRole('button', { name: 'Auswahl beenden', exact: true }).click();
     await page.getByRole('link', { name: 'Buchung erfassen', exact: true }).tap();
     const dialog = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
     await expect(dialog).toBeVisible();
