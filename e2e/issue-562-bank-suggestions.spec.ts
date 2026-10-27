@@ -198,7 +198,34 @@ test('three prepared bank rows are explicitly reviewed with progress and individ
           await dialog.getByRole('combobox', { name: 'Kategorie' }).selectOption(category.id);
         await dialog.getByRole('button', { name: 'Als Buchung bestätigen' }).click();
       }
-      await expect(page.getByText(`${3 - index} offen · ${index} von 3 geprüft`)).toBeVisible();
+      try {
+        await expect(page.getByText(`${3 - index} offen · ${index} von 3 geprüft`)).toBeVisible();
+      } catch (error) {
+        if (index === 2) {
+          const response = await request.get(
+            origin + `/api/inbox?bankSource=${sourceId}&limit=100&offset=0`,
+          );
+          const inbox = (await response.json()) as {
+            bankProgress?: { reviewed: number; total: number };
+            entries?: { id: string }[];
+          };
+          console.log(
+            'SYNTHETIC_562_RULE_PROBE',
+            JSON.stringify({
+              inboxStatus: response.status(),
+              bankProgress: inbox.bankProgress,
+              entryIds: inbox.entries?.map(({ id }) => id),
+              uiProgress: await page.locator('.bank-review-progress').allTextContents(),
+              dialogOpen: await dialog.isVisible(),
+              dialogText: await dialog.allTextContents(),
+              toast: await page.locator('.toast.is-open').allTextContents(),
+              balanceCents: await balance(),
+              writes,
+            }),
+          );
+        }
+        throw error;
+      }
       expect(await balance()).toBe(expectedBalance);
     };
     await accept();
