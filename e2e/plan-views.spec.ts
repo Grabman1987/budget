@@ -21,7 +21,10 @@ test('plan views: status, 50/30/20, triage groups and the time view', async ({ p
   // Assigned money far above the income: the bar runs past 100 % with an overflow label
   // (owner 04.10.2026: overspending must be visible, shares are of income, not renormalised).
   const split = page.locator('.split-band');
-  await page.locator('.inspector-section > summary').filter({ hasText: '50/30/20' }).click();
+  const splitDisclosure = page.locator('[data-overview-section="split"]');
+  if (!(await splitDisclosure.evaluate((element) => element.hasAttribute('open'))))
+    await splitDisclosure.locator(':scope > summary').click();
+  await expect(splitDisclosure).toHaveAttribute('open', '');
   await expect(split).toContainText('über Einnahmen');
   await expect(split.locator('.sb-legend')).toContainText(/Bedarf \d+ %/);
 

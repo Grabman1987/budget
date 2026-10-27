@@ -130,6 +130,25 @@ beforeEach(() => {
           byPayment: [],
           byIncomeType: [],
         });
+      // The no-selection overview also reads next month's canonical target view.
+      if (method === 'GET' && url.pathname === '/api/budget/2026-11') {
+        const nextData: BudgetMonthView = {
+          groups: [],
+          categories: [],
+          summary: {
+            ...data.summary,
+            month: '2026-11',
+            carryInCents: data.summary.toBeAssignedCents,
+            incomeCents: 0,
+            uncoveredCents: 0,
+            assignedCents: 0,
+            activityCents: 0,
+            availableCents: 0,
+            envelopes: [],
+          },
+        };
+        return Response.json(nextData);
+      }
       const body =
         url.pathname === `/api/budget/${month}`
           ? data
@@ -183,10 +202,10 @@ describe('#481 separate multi-category headings preserve independent category id
     mount();
     await screen.findByRole('button', { name: 'Gruppe Mustergruppe' });
     await userEvent.click(parent().querySelector('.col-avail')!);
-    const inspector = screen.getByRole('complementary', { name: 'Plan-Inspektor' });
-    expect(within(inspector).queryByRole('heading', { name: 'Erster Posten' })).toBeNull();
+    const inspector = () => screen.getByRole('complementary', { name: 'Plan-Inspektor' });
+    expect(within(inspector()).queryByRole('heading', { name: 'Erster Posten' })).toBeNull();
     await userEvent.click(category('first'));
-    expect(within(inspector).getByRole('heading', { name: 'Erster Posten' })).toBeTruthy();
+    expect(within(inspector()).getByRole('heading', { name: 'Erster Posten' })).toBeTruthy();
     await userEvent.keyboard('{Escape}');
     expect(document.activeElement).toBe(category('first'));
     expect(writes).toEqual([]);

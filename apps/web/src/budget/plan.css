@@ -1949,6 +1949,68 @@
 }
 
 /* Inspector polish: grid chevrons, inset section bodies, compact head and target (#446). */
+.plan .month-overview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-lg);
+}
+.plan .month-overview-head h2 {
+  margin: 0;
+  font-size: var(--fs-body);
+}
+.plan .month-overview-head h2 span {
+  display: block;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.plan .month-overview-head .btn {
+  flex: 0 0 var(--touch);
+  min-width: var(--touch);
+  min-height: var(--touch);
+  padding: 0;
+}
+.plan .month-statement {
+  padding: 0 var(--space-lg);
+  margin-block: var(--space-xs) var(--space-sm);
+}
+.plan .month-overview-inspector .insp-list dd {
+  white-space: nowrap;
+}
+.plan .next-month-coverage {
+  padding: 0 var(--space-lg) var(--space-sm);
+}
+.plan .next-month-coverage h3 {
+  margin: var(--space-sm) 0;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+.plan .next-month-coverage p {
+  margin-block: var(--space-xs);
+}
+.plan .next-month-coverage progress {
+  width: 100%;
+  height: var(--bar-stacked);
+  accent-color: var(--plus-ink);
+}
+.plan .next-month-coverage .is-short {
+  color: var(--minus-ink);
+}
+.plan .next-month-coverage .is-prepared {
+  color: var(--plus-ink);
+}
+.plan .month-overview-inspector > [hidden] {
+  display: none;
+}
+.plan .month-overview-inspector .sb-comparison a {
+  display: inline-flex;
+  align-items: center;
+  min-width: var(--touch);
+  min-height: var(--touch);
+  max-width: 100%;
+}
+
 .plan .plan-inspector summary {
   display: flex;
   align-items: center;
