@@ -6,7 +6,10 @@ import { AUTH_STATUS_KEY } from '../auth/status-query';
 import { PAGES } from '../nav/pages';
 import { AreaHead } from './area-head';
 
-vi.mock('@tanstack/react-router', () => ({ useParams: () => ({}) }));
+vi.mock('@tanstack/react-router', () => ({
+  useParams: () => ({}),
+  useLinkProps: ({ to, onClick }: { to: string; onClick?: () => void }) => ({ href: to, onClick }),
+}));
 vi.mock('../shell/use-month', () => ({
   useMonth: () => ['2026-10'],
   currentMonth: () => '2026-10',

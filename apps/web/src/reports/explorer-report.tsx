@@ -29,7 +29,15 @@ import {
 } from '@budget/domain';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Bookmark, Download, Pencil, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+} from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
@@ -41,6 +49,7 @@ import { explorerTemplateQuery } from './explorer-template-api';
 import { ExplorerTemplates } from './explorer-templates';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import { useExplorerViews } from './use-explorer-views';
+import { savedExplorerEntryQuery } from './explorer-view-api';
 import { EXPLORER_CSV_CHANGED_MESSAGE, explorerQuery, fetchExplorerCsv } from './overview-api';
 import { euroCellText, monthLong, monthShortYear, wholeText } from './overview-format';
 import './overview-reports.css';
@@ -64,12 +73,14 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
   const toast = useToast();
   const search = useSearch({ strict: false }) as {
     vorlage?: unknown;
+    ansicht?: string;
     exakt?: boolean;
     kategorien?: string[];
     zelle?: string;
     spalte?: string;
   };
-  const template = isExplorerTemplate(search.vorlage) ? search.vorlage : undefined;
+  const template =
+    !search.ansicht && isExplorerTemplate(search.vorlage) ? search.vorlage : undefined;
   const navigate = useNavigate();
   const changeTemplateSearch = (patch: Record<string, unknown>) =>
     void navigate({
@@ -79,6 +90,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
   const chooseTemplate = (id: typeof template) =>
     changeTemplateSearch({
       vorlage: id,
+      ansicht: undefined,
       exakt: undefined,
       zelle: undefined,
       spalte: undefined,
@@ -103,17 +115,46 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
     [template, templateRead.data, templatePeriod, templateCategory, search.exakt],
   );
   const [query, setQuery] = useState<ExplorerQuery>(DEFAULT_EXPLORER_QUERY);
+  const entryInstance = useId();
+  const [observedEntry, setObservedEntry] = useState({ id: search.ansicht, generation: 0 });
+  const entry = useQuery(
+    savedExplorerEntryQuery(search.ansicht, `${entryInstance}:${observedEntry.generation}`),
+  );
+  const [capturedEntry, setCapturedEntry] = useState<string>();
+  const entryFresh =
+    entry.isSuccess &&
+    !entry.isFetching &&
+    !entry.data.unavailable &&
+    entry.data.schemaVersion === 1;
+  const requested = entryFresh
+    ? entry.data.views.find((view) => view.id === search.ansicht)
+    : undefined;
   const saved = useExplorerViews();
   const views = saved.views;
   const [name, setName] = useState('');
   const [editingId, setEditingId] = useState<string>();
   const [replace, setReplace] = useState<PersistedExplorerView>();
+  // Capture once per fresh entry; background reads must not overwrite local edits.
+  if (observedEntry.id !== search.ansicht) {
+    setObservedEntry({ id: search.ansicht, generation: observedEntry.generation + 1 });
+    setCapturedEntry(undefined);
+  } else if (search.ansicht && requested && capturedEntry !== search.ansicht) {
+    setCapturedEntry(search.ansicht);
+    setQuery(requested.query);
+    setName('');
+    setEditingId(undefined);
+    setReplace(undefined);
+  }
+  const entryReady = !search.ansicht || capturedEntry === search.ansicht;
   const result = useQuery({
     ...explorerQuery(query),
     placeholderData: keepPreviousData,
-    enabled: !template,
+    enabled: !template && entryReady,
   });
-  const data = result.data;
+  const data =
+    entryReady && (!search.ansicht || (result.data && sameQuery(query, result.data.result.query)))
+      ? result.data
+      : undefined;
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string>();
   const exportReady =
@@ -195,6 +236,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
   const save = (event: FormEvent) => {
     event.preventDefault();
     const clean = name.trim();
+    if (!entryReady) return;
     if (clean === '') {
       toast.show({ message: 'Bitte einen Namen für die Ansicht eingeben.' });
       return;
@@ -291,6 +333,27 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
               </button>
             )}
           </div>
+          {search.ansicht && !entryReady && (
+            <div>
+              {entry.isFetching && <LoadingNote what="Gespeicherte Auswertung" />}
+              {entry.isError && (
+                <ErrorNote
+                  what="Gespeicherte Auswertung"
+                  error={entry.error}
+                  onRetry={() => void entry.refetch()}
+                />
+              )}
+              {entry.isSuccess && !entry.isFetching && !requested && (
+                <p role="status">
+                  Diese gespeicherte Auswertung ist nicht mehr verfügbar. Es wird keine andere
+                  Auswahl geladen.
+                </p>
+              )}
+              <Button variant="ghost" onClick={() => chooseTemplate(undefined)}>
+                Eigene Auswertung öffnen
+              </Button>
+            </div>
+          )}
           {saved.isPending && <LoadingNote what="Gespeicherte Ansichten" />}
           {saved.isError && (
             <ErrorNote
@@ -377,7 +440,8 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
             ))}
           </div>
           {!template && (
-            <>
+            <fieldset className="ex-custom-query" disabled={!entryReady}>
+              <legend className="sr-only">Auswertungseinstellungen</legend>
               <PeriodQuickSelect
                 period={query.period}
                 onChange={(period) => set('period', period)}
@@ -478,7 +542,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                   type="submit"
                   variant="ghost"
                   size="sm"
-                  disabled={!saved.data || saved.data.unavailable || saved.busy}
+                  disabled={!entryReady || !saved.data || saved.data.unavailable || saved.busy}
                 >
                   <Bookmark size={16} strokeWidth={1.75} aria-hidden="true" />
                   Speichern
@@ -511,7 +575,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                   </Button>
                 </div>
               )}
-            </>
+            </fieldset>
           )}
           <p className="ov-note">
             Gespeicherte Ansichten sind nach dem Neuladen auch auf deinen anderen Geräten verfügbar.
@@ -568,8 +632,12 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
               />
             </>
           )}
-        {!template && result.isPending && <LoadingNote what="Explorer" />}
-        {!template && result.isError && (
+        {!template &&
+          entryReady &&
+          (result.isPending || (search.ansicht && result.isFetching && !data)) && (
+            <LoadingNote what="Explorer" />
+          )}
+        {!template && entryReady && result.isError && (
           <ErrorNote what="Explorer" error={result.error} onRetry={() => void result.refetch()} />
         )}
         {!template && data && (

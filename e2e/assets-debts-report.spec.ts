@@ -153,7 +153,13 @@ test('the Zeitraum switch and a custom range follow the URL and change months an
   await expect(page.getByRole('alert')).toHaveCount(0);
 });
 
-test('the report is listed in the catalog next to Vermögensverläufe', async ({ page }) => {
+test('the mapped wealth report remains available from the retained wealth group URL', async ({
+  page,
+}) => {
   await page.goto('/reports/gruppe/zukunft');
-  await expect(page.getByRole('link', { name: /Vermögen & Schulden/ }).first()).toBeVisible();
+  const report = page
+    .locator('.report-hub-list')
+    .getByRole('link', { name: /Vermögen und Schulden/ });
+  await expect(report).toBeVisible();
+  await expect(report).toHaveAttribute('href', '/reports/vermoegen-schulden');
 });

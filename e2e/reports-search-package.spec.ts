@@ -8,8 +8,10 @@ test('everyday terms keep function routes, data kinds and global actions distinc
   test.setTimeout(Math.max(120_000, info.timeout));
   const mobile = info.project.name === 'mobile';
   await page.goto('/reports');
-  await expect(page.getByRole('link', { name: 'Prognosegenauigkeit', exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Budgettreue', exact: true })).toBeVisible();
+  await expect(page.locator('.report-hub-list a', { hasText: 'Budgettreue' })).toBeVisible();
+  await expect(
+    page.getByRole('searchbox', { name: 'Berichte nach Name oder Frage suchen' }),
+  ).toBeVisible();
   const open = async () => {
     if (mobile) await page.getByRole('button', { name: 'Suchen', exact: true }).click();
     else await page.keyboard.press('Control+k');

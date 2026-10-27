@@ -92,14 +92,21 @@ test('shared ranges, custom URL reload and optional trend', async ({ page }, inf
   await expect(page.getByLabel('Von', { exact: true })).toHaveValue('2026-03');
   await expect(page.getByLabel('Bis', { exact: true })).toHaveValue('2026-05');
   await page.keyboard.press('Escape'); // the popover floats over the head by design
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Einzahlungen und Wert' }),
+  ).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Weitere Berichte' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zeitraum wählen' })).toBeVisible();
   const headerFits = await page.locator('.titleblock').evaluate((header) => {
     const cells = [...header.querySelectorAll<HTMLElement>('.tb-cell')];
     return cells.every((cell) => {
       const box = cell.getBoundingClientRect();
-      return [...cell.querySelectorAll<HTMLElement>('h1, input, select')].every((node) => {
-        const inner = node.getBoundingClientRect();
-        return inner.left >= box.left && inner.right <= box.right;
-      });
+      return [...cell.querySelectorAll<HTMLElement>('h1, input, select')]
+        .filter((node) => node.checkVisibility())
+        .every((node) => {
+          const inner = node.getBoundingClientRect();
+          return inner.left >= box.left && inner.right <= box.right;
+        });
     });
   });
   expect(headerFits).toBe(true);

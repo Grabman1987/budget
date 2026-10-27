@@ -9,6 +9,7 @@ const params = vi.hoisted(() => ({ value: {} as { reportId?: string } }));
 vi.mock('@tanstack/react-router', () => ({
   useParams: () => params.value,
   useNavigate: () => vi.fn(),
+  useLinkProps: ({ to, onClick }: { to: string; onClick?: () => void }) => ({ href: to, onClick }),
 }));
 vi.mock('../shell/use-month', () => ({
   useMonth: () => ['2026-10'],
