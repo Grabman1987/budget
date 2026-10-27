@@ -2421,3 +2421,22 @@ button.kstatus-btn:focus-visible {
     white-space: normal;
   }
 }
+
+/* Deletion facts stay readable inside the existing bounded form dialog. */
+.kdelete-preview,
+.kdelete-question {
+  overflow-wrap: anywhere;
+}
+.kdelete-question p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.kdelete-question {
+  max-height: 50dvh;
+  overflow: auto;
+}
+.kdelete-preview h2,
+.kdelete-preview h3 {
+  margin: 0;
+  font-size: var(--fs-title);
+}

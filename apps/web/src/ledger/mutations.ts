@@ -140,19 +140,32 @@ export function useLedgerWrites() {
   });
 
   const remove = useMutation({
-    mutationFn: ({ id, unlock }: { id: string; unlock?: boolean }) => deleteBooking(id, unlock),
+    mutationFn: ({
+      id,
+      unlock,
+      previewRevision,
+    }: {
+      id: string;
+      unlock?: boolean;
+      previewRevision?: string;
+    }) => deleteBooking(id, unlock, previewRevision),
     onMutate: ({ id }) => optimistic(qc, (b) => (b.id === id ? null : b)),
     onError: (error, _vars, snapshot) => {
       rollback(qc, snapshot);
       failed('Löschen')(error);
     },
-    onSuccess: ({ groupId }: WriteResult) => offerUndo('Buchung gelöscht.', groupId),
+    onSuccess: ({ groupId }: WriteResult) => offerUndo('Gelöscht.', groupId),
     onSettled: settled,
   });
 
   const bulk = useMutation({
-    mutationFn: (vars: { ids: string[]; set: BulkSet } | { ids: string[]; remove: true }) =>
-      'remove' in vars ? bulkDeleteBookings(vars.ids) : bulkUpdateBookings(vars.ids, vars.set),
+    mutationFn: (
+      vars:
+        { ids: string[]; set: BulkSet } | { ids: string[]; remove: true; previewRevision: string },
+    ) =>
+      'remove' in vars
+        ? bulkDeleteBookings(vars.ids, vars.previewRevision)
+        : bulkUpdateBookings(vars.ids, vars.set),
     // Eligibility is authoritative on the server. Never optimistically alter skipped rows.
     onMutate: () => qc.cancelQueries({ queryKey: BOOKINGS_KEY }),
     onError: (error) => failed('Änderung')(error),
@@ -160,8 +173,11 @@ export function useLedgerWrites() {
       const changed = new Set(result.changed),
         names = namesFrom(qc);
       qc.setQueriesData({ queryKey: BOOKINGS_KEY }, (data) =>
-        mapCachedBookings(data as Parameters<typeof mapCachedBookings>[0], (b) =>
-          changed.has(b.id) ? ('remove' in vars ? null : applyBulk(b, vars.set, names)) : b,
+        mapCachedBookings(
+          data as Parameters<typeof mapCachedBookings>[0],
+          (b) =>
+            changed.has(b.id) ? ('remove' in vars ? null : applyBulk(b, vars.set, names)) : b,
+          'remove' in vars && result.changed.length > 0,
         ),
       );
       if (result.changed.length) {

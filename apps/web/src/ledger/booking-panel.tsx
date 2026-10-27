@@ -69,9 +69,9 @@ export function BookingPanel({
   // Native dialogs make the page inert, but Tab at the boundary can reach browser chrome.
   const wrapFocus = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Tab' || event.defaultPrevented) return;
-    const scope = asking
-      ? focusScope.current?.querySelector('[role="alertdialog"]')
-      : focusScope.current?.querySelector('dialog[open]');
+    const scope =
+      focusScope.current?.querySelector('[role="alertdialog"]') ??
+      focusScope.current?.querySelector('dialog[open]');
     const controls = Array.from(
       scope?.querySelectorAll<HTMLElement>(
         'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, [tabindex="0"]',
