@@ -49,6 +49,7 @@ describe('validateBookingsSearch', () => {
     expect(search.q).toBeUndefined();
   });
   it('drops what the server would refuse: impossible days, overlong ids and searches', () => {
+    expect(validateBookingsSearch({ von: '2026-99-99' }).von).toBeUndefined();
     const search = validateBookingsSearch({
       von: '2026-02-30',
       bis: '2026-02-28',

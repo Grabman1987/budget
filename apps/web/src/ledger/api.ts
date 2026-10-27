@@ -35,6 +35,9 @@ const filterParams = (filter: BookingFilter) => ({
   direction: filter.direction,
 });
 
+export const filteredBookingsCsvUrl = (filter: BookingFilter) =>
+  `/api/bookings/csv${queryString(filterParams(filter))}`;
+
 export const fetchAccounts = (asOf?: string) =>
   request<AccountList>('GET', `/api/accounts${queryString({ asOf })}`);
 

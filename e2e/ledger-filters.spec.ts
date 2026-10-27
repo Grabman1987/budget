@@ -1,13 +1,14 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
 
-test('phone search and filter sheet apply, discard, remove and reset URL filters', async ({
+test('phone search and filter sheet immediately update, retain, remove and reset URL filters', async ({
   page,
 }, info) => {
   test.setTimeout(90_000);
   test.skip(info.project.name !== 'mobile', 'Phone filter sheet at 390 px');
   await page.goto('/konten/buchungen');
-  const trigger = page.getByRole('button', { name: 'Filter (0)', exact: true });
+  const trigger = page.getByRole('button', { name: /^Filter \(/ });
+  await expect(page.getByRole('button', { name: 'Filter (0)', exact: true })).toBeVisible();
   const search = page.getByLabel('In Buchungen suchen');
   await expect(search).toBeVisible();
   await expect(page.getByLabel('Status', { exact: true })).toBeHidden();
@@ -26,16 +27,17 @@ test('phone search and filter sheet apply, discard, remove and reset URL filters
   );
   await sheet.getByLabel('Status', { exact: true }).selectOption('pending');
   await sheet.getByLabel('Von', { exact: true }).fill('2026-09-01');
-  await expect(page).not.toHaveURL(/status=|von=/);
+  await expect(page).toHaveURL(/status=pending/);
+  await expect(page).toHaveURL(/von=2026-09-01/);
   await page.keyboard.press('Escape');
   await expect(sheet).toBeHidden();
   await expect(trigger).toBeFocused();
   await trigger.click();
-  await expect(sheet.getByLabel('Status', { exact: true })).toHaveValue('');
+  await expect(sheet.getByLabel('Status', { exact: true })).toHaveValue('pending');
   await sheet.getByLabel('Status', { exact: true }).selectOption('pending');
   await sheet.getByLabel('Markierung', { exact: true }).selectOption('none');
   await sheet.getByLabel('Von', { exact: true }).fill('2026-09-01');
-  await sheet.getByRole('button', { name: 'Anwenden', exact: true }).click();
+  await sheet.getByRole('button', { name: 'Fertig', exact: true }).click();
   await expect(page).toHaveURL(/status=pending/);
   await expect(page.getByRole('button', { name: 'Filter (3)', exact: true })).toBeVisible();
   await page.reload();
@@ -46,8 +48,8 @@ test('phone search and filter sheet apply, discard, remove and reset URL filters
   await expect(page).toHaveURL(/q=Muster/);
   await page.getByRole('button', { name: 'Filter (2)', exact: true }).click();
   await sheet.getByRole('button', { name: 'Zurücksetzen', exact: true }).click();
-  await expect(page).toHaveURL(/markierung=none/);
-  await sheet.getByRole('button', { name: 'Anwenden', exact: true }).click();
+  await expect(page).not.toHaveURL(/markierung=|von=/);
+  await sheet.getByRole('button', { name: 'Fertig', exact: true }).click();
   await expect(trigger).toBeVisible();
   await expect(page).toHaveURL(/q=Muster/);
   await expect(page).not.toHaveURL(/markierung=|von=/);
@@ -70,10 +72,10 @@ test('phone search and filter sheet apply, discard, remove and reset URL filters
   }
 });
 
-test('desktop keeps the inline filter row', async ({ page }, info) => {
-  test.skip(info.project.name !== 'desktop', 'Desktop inline filters');
+test('desktop opens the same immediate filter dialog', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'Desktop filter dialog');
   await page.goto('/konten/buchungen');
-  await expect(page.getByRole('button', { name: /^Filter \(/ })).toHaveCount(0);
+  await page.getByRole('button', { name: /^Filter \(/ }).click();
   await expect(page.getByLabel('Konto', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Status', { exact: true })).toBeVisible();
   await page.getByLabel('Status', { exact: true }).selectOption('pending');

@@ -31,6 +31,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { Hono } from 'hono';
+import { filteredBookingCsv } from './booking-csv';
 import { ACTOR, ApiError, defined, errorAnswer, readBody, readQuery } from './http';
 import { bookingDeleteQuery, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
 
@@ -131,6 +132,23 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
       today(),
     );
     return c.json(page);
+  });
+
+  app.get('/csv', async (c) => {
+    const { q, ids, ...rest } = readQuery(c, bookingQuery);
+    const day = today();
+    return filteredBookingCsv(
+      db,
+      defined({
+        ...rest,
+        text: q,
+        cursor: undefined,
+        ids: ids ? ids.split(',').filter(Boolean).slice(0, 200) : undefined,
+        to: rest.to && rest.to < day ? rest.to : day,
+      }),
+      day,
+      c.req.raw.signal,
+    );
   });
 
   app.get('/:id', (c) => {
