@@ -25,11 +25,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.branch }}
+          fetch-depth: 3
       - name: Verify immutable source and proof-only workflow
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          test "$(git rev-parse HEAD^)" = ae96107794fe3218a4aad408a42f8fa7f473ddee
-          test "$(git diff --name-only HEAD^ HEAD)" = .github/workflows/update-snapshots.yml
+          git cat-file -e ae96107794fe3218a4aad408a42f8fa7f473ddee^{commit}
+          test "$(git diff --name-only ae96107794fe3218a4aad408a42f8fa7f473ddee HEAD)" = .github/workflows/update-snapshots.yml
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
