@@ -194,6 +194,7 @@ async function instrumentPrivacy(page: Page, info: TestInfo, theme: string) {
     await table.locator('summary').focus();
     await table.locator('summary').press('Enter');
     const cells = table.locator('.chart-data-value');
+    await expect(cells.first()).toBeVisible();
     const publicValues = await cells.allTextContents();
     expect(publicValues.length).toBeGreaterThan(0);
     expect(publicValues).toContain(mode === 'Wert €' ? '24,69 €' : '12,345 €');
