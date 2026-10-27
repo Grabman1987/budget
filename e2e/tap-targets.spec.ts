@@ -56,6 +56,27 @@ test.describe('UX-3b touch controls', () => {
     const selectable = page.locator(`tr[data-booking="${selectableId}"]`);
     const checkbox = selectable.getByRole('checkbox');
     await checkbox.scrollIntoViewIfNeeded();
+    const diagnostic = await checkbox.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const row = el.closest('tr')!;
+      const describe = (target: Element | null) => target ? {
+        tag: target.tagName, class: target.getAttribute('class'),
+        control: target.closest('button, a, input, summary')?.tagName ?? null,
+      } : null;
+      return {
+        checkbox: { x: box.x, y: box.y, width: box.width, height: box.height },
+        viewport: { width: innerWidth, height: innerHeight, scrollY },
+        rowGrid: getComputedStyle(row).gridTemplateColumns,
+        cells: [...row.children].slice(0, 4).map((cell) => {
+          const rect = cell.getBoundingClientRect();
+          return { class: cell.className, x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+        }),
+        edges: [box.left + 1, box.right - 1].map((x) => ({ x, y: box.top + box.height / 2,
+          target: describe(document.elementFromPoint(x, box.top + box.height / 2)),
+        })),
+      };
+    });
+    console.log('596_EDGE_DIAGNOSTIC', JSON.stringify(diagnostic));
     const covered = await checkbox.evaluate((el) => {
       const box = el.getBoundingClientRect();
       return [box.left + 1, box.right - 1].some((x) => {
