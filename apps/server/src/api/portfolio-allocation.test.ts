@@ -94,6 +94,33 @@ function fixture(currency = 'EUR', costBasisCents: number | null = null) {
     })
     .run();
 }
+it('reports the effective stored exposure independently of missing valuation and current classification quality', async () => {
+  fixture();
+  const first = await read();
+  expect(first.asOf).toBe(TODAY);
+  expect(first.exposureEvidence).toEqual([
+    { securityId: 's', validFrom: '2026-01-01', source: 'synthetic_fixture', storedComplete: true },
+  ]);
+
+  replaceExposureVersion(
+    db,
+    's',
+    {
+      validFrom: '2026-09-10',
+      complete: false,
+      source: 'synthetic_correction',
+      weights: [{ assetClassId: 'a', weightBp: 9000 }],
+    },
+    { actor: 'tester' },
+  );
+  const current = await read();
+  expect(current.exposureEvidence).toEqual([
+    { securityId: 's', validFrom: '2026-09-10', source: 'synthetic_correction', storedComplete: false },
+  ]);
+  expect(current.quality.valuationQuality).toBe('incomplete');
+  expect(current.valueCents).toBeNull();
+});
+
 it('a reached wealth stage holds until the month-end sum falls below 90 % of its lower bound', async () => {
   fixture();
   db.update(schema.holding).set({ asOf: '2026-07-01' }).run();
