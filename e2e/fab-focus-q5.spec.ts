@@ -120,6 +120,7 @@ test('detail has one name, one return path and keyboard-only focus in both theme
       if (path === '/konten/acc-giro') {
         // Wait for the register and fonts before checking the reconciliation focus state (#542).
         await expect(page.locator('.ktx-account tr[data-booking]').first()).toBeVisible();
+        await expect(page.locator('.ktx-account tr[data-booking]')).toHaveCount(100);
         await page.evaluate(() => document.fonts.ready);
         await page.keyboard.press('Tab');
         await expect(page.getByTestId('account-review-badge')).toBeFocused();
