@@ -32,6 +32,7 @@ import {
   assertLedgerInvariants,
   assertTradeSettlementBookingWrite,
   relatedTransferBookings,
+  connectedTransferBookings,
 } from './invariants';
 import { expectedLinkPatches } from './expected-links';
 import { runInTransaction, type Executor } from './types';
@@ -1045,7 +1046,7 @@ export function updateTradeSettlementBooking(
 
 /** The booking and every booking of its transfers (both kinds of legs): they go together. */
 const transferLegs = (tx: Executor, row: BookingRow): BookingRow[] =>
-  relatedTransferBookings(tx, row.id).map((legId) => loadBooking(tx, legId, true) as BookingRow);
+  connectedTransferBookings(tx, row.id).map((legId) => loadBooking(tx, legId, true) as BookingRow);
 
 /** Soft-delete a booking; both legs of a transfer go together. Splits stay but are ignored. */
 function deleteBookingImpl(
@@ -1117,7 +1118,7 @@ export function restoreBooking(db: Executor, id: string, ctx: AuditContext): voi
       if (leg.deletedAt !== null)
         updateTracked(tx, booking, [leg.id], { deletedAt: null }, grouped, 'restore');
     }
-    const touchedBookings = relatedTransferBookings(tx, id);
+    const touchedBookings = connectedTransferBookings(tx, id);
     assertLedgerInvariants(tx, touchedBookings);
     for (const { id: occurrenceId, patch } of expectedLinkPatches(tx, touchedBookings))
       updateTracked(tx, expectedOccurrence, [occurrenceId], patch, grouped);

@@ -18,6 +18,7 @@ import {
   type BookingBulkReason,
   ReconciledLockedError,
   relatedTransferBookings,
+  connectedTransferBookings,
   runInTransaction,
   updateBooking,
   type AuditContext,
@@ -341,7 +342,7 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
     const ids = [...new Set(requested)].sort();
     const components = new Map<string, string[]>();
     for (const id of ids) if (!components.has(id)) {
-      const component = relatedTransferBookings(tx, id);
+      const component = connectedTransferBookings(tx, id);
       for (const member of component) components.set(member, component);
     }
     const affectedIds = [...components.keys()].sort();
@@ -407,7 +408,7 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
           runInTransaction(tx, (inner) => {
             const current = getBooking(inner, id);
             if (!current) throw new Skip('not_found', 'Booking not found');
-            const partners = relatedTransferBookings(inner, id).filter((leg) => leg !== id);
+            const partners = (body.action === 'delete' ? connectedTransferBookings(inner, id) : relatedTransferBookings(inner, id)).filter((leg) => leg !== id);
             const paired = deletion ? partners.length > 0 : partners.some((leg) => selected.has(leg));
             if (paired && !pairedLegs.has(id)) transferPairs += 1;
             if (paired) for (const leg of [id, ...partners]) pairedLegs.add(leg);
