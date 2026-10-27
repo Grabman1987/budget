@@ -198,3 +198,27 @@ shared report change, chart/label x change or oracle adjustment. The earlier
 geometry assertions are unchanged. The new stylesheet and import are the only
 production correction; retain a HIGH delta review and smallest all-profile
 new591 browser proof with static checks before claiming runtime success.
+
+## Full-CI old481 fixture compatibility correction
+
+PR794 exactfd324 full CI40521019392 unit shard1/job122247977652 reported five
+old plan-separated-headings-481.test.tsx failures (2872 other tests passed).
+Raw first-attempt stack points to NextMonthCoverage89 reading summary.month;
+the old fixture handles only October and returns {}200 for the legitimate new
+November budget GET. Router CatchBoundary then replaces the entire Plan DOM,
+so missing category controls are downstream symptoms, not selection changes.
+
+Per-file rationale: add ONLY an explicit typed valid November empty-target
+BudgetMonthView response in that existing stub, like the previously reviewed
+old735 compatibility correction. October literal parent4509/−1405/3104 and
+child501/−703/−202 remain byte-unchanged. The same file additionally captured
+the no-selection aside before selecting a category and queried that detached
+HTMLElement after the root branch remount. Reacquire the live named inspector
+for BOTH unchanged heading checks, as in the prior budget-ui correction. All
+six original cases and every cent, category identity/order, collapse, native
+Space/Enter, checkbox/mixed selection, Escape focus and GET-only/no-write
+assertion remain unchanged. No production source, timeout, retry or skip change.
+
+This private correction is source-grounded but not yet runtime-proven; independent
+HIGH exact-delta review and focused old481 proof precede any public update. Wait
+for all original full-CI shards and collect every failure class before pushing.
