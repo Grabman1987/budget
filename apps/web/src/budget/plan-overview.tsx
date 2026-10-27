@@ -21,6 +21,7 @@ const DEFAULTS = {
   collapsed: false,
   month: true,
   split: true,
+  automatic: false,
   income: false,
   money: false,
   rail: false,
@@ -145,6 +146,7 @@ export function MonthOverviewInspector({
   income,
   money,
   rail,
+  automatic,
 }: {
   month: string;
   overview: ReactNode;
@@ -153,6 +155,7 @@ export function MonthOverviewInspector({
   income: ReactNode;
   money: ReactNode;
   rail: ReactNode;
+  automatic?: ReactNode;
 }) {
   useAmountPrivacy();
   const [preferences, setPreferences] = useState(readPreferences);
@@ -230,6 +233,7 @@ export function MonthOverviewInspector({
           </>,
         )}
         {section('split', '50/30/20', split)}
+        {automatic && section('automatic', 'Automatisch zuweisen', automatic)}
         {section('income', 'Erwartetes Einkommen vs. Monatsziele', income, 'inspector-income')}
         {rememberedMoney}
         {section('rail', 'Wasserfall-Stufen', rail)}
