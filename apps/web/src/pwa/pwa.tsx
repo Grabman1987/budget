@@ -3,16 +3,16 @@ import { Button } from '@budget/ui';
 import { ApiError } from '../api/http';
 import { AUTH_STATUS_KEY, queryClient } from '../auth/status-query';
 import './pwa.css';
-import { QueueCapture, QueueList } from './queue-ui';
+import { QueueCapture } from './queue-ui';
+import { OfflineState } from './offline-state';
+import { setOfflineUnavailable, subscribeSnapshotEpoch } from './snapshots';
 
 function subscribeAuthStatus(setHasConnected: (connected: boolean) => void) {
   return queryClient.getQueryCache().subscribe(({ query }) => {
     if (
-      query.queryKey[0] === AUTH_STATUS_KEY[0] &&
-      query.queryKey[1] === AUTH_STATUS_KEY[1] &&
-      query.state.data === undefined &&
       query.state.error instanceof ApiError &&
-      query.state.error.status === 0
+      query.state.error.status === 0 &&
+      (query.queryKey[0] !== AUTH_STATUS_KEY[0] || query.state.data === undefined)
     )
       setHasConnected(false);
   });
@@ -32,7 +32,7 @@ function subscribeOnline(changed: () => void) {
   };
 }
 
-/** No durable financial cache: offline reloads render only the static shell. */
+/** Offline reloads mount only the four approved read snapshots and queued capture. */
 export function PwaShell({ children }: { children: ReactNode }) {
   const online = useSyncExternalStore(
     subscribeOnline,
@@ -44,6 +44,16 @@ export function PwaShell({ children }: { children: ReactNode }) {
     () => navigator.onLine && !authStatusUnavailable(),
   );
   const [capture, setCapture] = useState(false);
+  const [mounted, setMounted] = useState(hasConnected);
+  const showLive = online && hasConnected;
+  setOfflineUnavailable(!showLive);
+  useEffect(() => {
+    setOfflineUnavailable(!showLive);
+    return () => setOfflineUnavailable(false);
+  }, [showLive]);
+  useEffect(() => {
+    if (showLive) setMounted(true);
+  }, [showLive]);
   useEffect(() => {
     const connected = () => setHasConnected(true);
     window.addEventListener('online', connected);
@@ -52,6 +62,15 @@ export function PwaShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     return subscribeAuthStatus(setHasConnected);
   }, []);
+  useEffect(
+    () =>
+      subscribeSnapshotEpoch(() => {
+        queryClient.clear();
+        setHasConnected(false);
+        setMounted(false);
+      }),
+    [],
+  );
   useEffect(() => {
     if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
     let disposed = false;
@@ -113,21 +132,12 @@ export function PwaShell({ children }: { children: ReactNode }) {
           Offline · Angezeigte Daten können veraltet sein. Neue Buchungen warten auf diesem Gerät.
         </div>
       )}
-      {hasConnected ? (
-        children
-      ) : (
-        <main className="pwa-offline" id="main">
-          <img src="/icons/budget.svg" width="48" height="48" alt="" />
-          <h1>Budget ist offline</h1>
-          <p>
-            Neue Buchungen bleiben auf diesem Gerät und werden bei Verbindung gesendet. Für aktuelle
-            Finanzdaten brauchst du eine Verbindung.
-          </p>
-          <Button onClick={() => window.location.reload()}>Erneut verbinden</Button>
-          <Button onClick={() => setCapture(true)}>Buchung erfassen</Button>
-          <QueueList />
-        </main>
+      {(mounted || showLive) && (
+        <div className="pwa-live" hidden={!showLive} inert={!showLive}>
+          {children}
+        </div>
       )}
+      {!showLive && <OfflineState onCapture={() => setCapture(true)} />}
       {capture && <QueueCapture onClose={() => setCapture(false)} />}
     </>
   );

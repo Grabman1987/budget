@@ -9,6 +9,8 @@ import {
 
 const clearChoices = vi.hoisted(() => vi.fn());
 vi.mock('./queue-store', () => ({ clearChoices }));
+const snapshots = vi.hoisted(() => ({ clear: vi.fn(), revoke: vi.fn() }));
+vi.mock('./snapshots', () => ({ clearSnapshots: snapshots.clear, revokeSnapshots: snapshots.revoke }));
 
 const cacheNames = vi.hoisted(() => ({ list: [] as string[] }));
 const deleted: string[] = [];
@@ -16,6 +18,8 @@ const deleted: string[] = [];
 beforeEach(() => {
   localStorage.clear();
   clearChoices.mockReset().mockResolvedValue(undefined);
+  snapshots.clear.mockReset().mockResolvedValue(undefined);
+  snapshots.revoke.mockReset();
   deleted.length = 0;
   cacheNames.list = ['budget-shell-abc123', 'api-responses', 'budget-snapshots-v1'];
   vi.stubGlobal('caches', {
@@ -60,9 +64,11 @@ describe('clearDeviceFinancialData (#557)', () => {
     expect(localStorage.getItem('budget-capture-memory')).toBeNull();
   });
 
-  it('asks the store to clear only the cached form choices (queue survival: see e2e/issue-557)', async () => {
+  it('clears form choices and approved view snapshots, leaving the booking queue alone', async () => {
     await clearDeviceFinancialData();
     expect(clearChoices).toHaveBeenCalledTimes(1);
+    expect(snapshots.revoke).toHaveBeenCalledTimes(1);
+    expect(snapshots.clear).toHaveBeenCalledTimes(1);
   });
 
   it('deletes service-worker caches except the app shell', async () => {

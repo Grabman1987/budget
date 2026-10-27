@@ -92,7 +92,7 @@ describe('static offline shell', () => {
     expect(screen.getByRole('status').textContent).toContain(
       'Neue Buchungen warten auf diesem Gerät.',
     );
-    expect((screen.getByRole('textbox', { name: 'Notiz' }) as HTMLInputElement).value).toBe(
+    expect((screen.getByRole('textbox', { name: 'Notiz', hidden: true }) as HTMLInputElement).value).toBe(
       'Noch offen',
     );
     connection(true);

@@ -1,3 +1,11 @@
+import {
+  offlineReadOnly,
+  resumeSnapshots,
+  saveSnapshot,
+  snapshotEpoch,
+  snapshotRequest,
+} from '../pwa/snapshots';
+
 /** Error of an API call: HTTP status plus the machine-readable `error` code of the body. */
 export class ApiError extends Error {
   readonly status: number;
@@ -48,6 +56,28 @@ export async function request<T>(
   body?: unknown,
   headers?: Record<string, string>,
 ): Promise<T> {
+  if (
+    method !== 'GET' &&
+    offlineReadOnly() &&
+    !(method === 'POST' && path === '/api/bookings' && headers?.['Idempotency-Key']) &&
+    !(
+      method === 'POST' &&
+      (path === '/api/auth/login/verify' || path === '/api/auth/recovery/login')
+    )
+  )
+    throw new ApiError(0, 'offline_read_only');
+  const snapshot = method === 'GET' ? snapshotRequest(path) : null;
+  // A blocked device store must not hold up the online API read.
+  let epochTimer: ReturnType<typeof setTimeout> | undefined;
+  const epoch = snapshot
+    ? await Promise.race([
+        snapshotEpoch(),
+        new Promise<null>((resolve) => {
+          epochTimer = setTimeout(() => resolve(null), 500);
+        }),
+      ])
+    : null;
+  if (epochTimer) clearTimeout(epochTimer);
   let response: Response;
   try {
     response = await fetch(path, {
@@ -85,6 +115,15 @@ export async function request<T>(
     );
   }
   if (method !== 'GET') notifyApiWrite();
+  if (
+    method === 'POST' &&
+    (path === '/api/auth/login/verify' || path === '/api/auth/recovery/login')
+  )
+    resumeSnapshots();
+  if (snapshot && epoch !== null)
+    void saveSnapshot({ ...snapshot, epoch, fetchedAt: Date.now(), data: payload }).catch(() => {
+      // Storage may be unavailable; the live response remains usable.
+    });
   return payload as T;
 }
 
