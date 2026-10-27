@@ -194,7 +194,7 @@ test('619 supported maximum saved views remain keyboard reachable beside three r
         const outer = container.getBoundingClientRect();
         const inner = element.getBoundingClientRect();
         const style = getComputedStyle(container);
-        const textRects: {left:number;right:number;top:number;bottom:number}[] = [];
+        const textRects: { left: number; right: number; top: number; bottom: number }[] = [];
         let emptyTextRanges = 0;
         const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
         for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -203,7 +203,13 @@ test('619 supported maximum saved views remain keyboard reachable beside three r
           range.selectNodeContents(node);
           const rects = [...range.getClientRects()];
           if (rects.length === 0) emptyTextRanges++;
-          for (const rect of rects) textRects.push({left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom});
+          for (const rect of rects)
+            textRects.push({
+              left: rect.left,
+              right: rect.right,
+              top: rect.top,
+              bottom: rect.bottom,
+            });
         }
         return {
           left: inner.left,

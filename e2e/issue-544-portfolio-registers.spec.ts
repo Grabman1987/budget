@@ -31,7 +31,7 @@ test('portfolio navigation rows do not overlap at the 640px shell breakpoint', a
   await page.screenshot({ path: info.outputPath('640-registers.png'), fullPage: false });
 });
 
-async function expectLoadedRegister(page: Page, label: typeof registers[number][0]) {
+async function expectLoadedRegister(page: Page, label: (typeof registers)[number][0]) {
   // Measure the loaded register, not the shorter loading shell after reload.
   if (label === 'Übersicht')
     await expect(page.getByTestId('portfolio-overview-chart')).toBeVisible();
@@ -48,9 +48,7 @@ async function expectLoadedRegister(page: Page, label: typeof registers[number][
 }
 
 // Keep the complete sequential journey; accessibility/captures get independent register cases.
-test('five portfolio registers preserve period across navigation and reload', async ({
-  page,
-}) => {
+test('five portfolio registers preserve period across navigation and reload', async ({ page }) => {
   await page.goto('/vermoegen/portfolio?zeitraum=3J');
   for (const [label, path] of registers) {
     const nav = page.getByRole('navigation', { name: 'Portfolio-Register', exact: true });
@@ -72,7 +70,9 @@ test('five portfolio registers preserve period across navigation and reload', as
 
 // Each register retains both themes and every existing accessibility/geometry oracle at 30s.
 for (const [label, path] of registers) {
-  test(`${label}: portfolio register fits accessible light and dark pages`, async ({page}, info) => {
+  test(`${label}: portfolio register fits accessible light and dark pages`, async ({
+    page,
+  }, info) => {
     await page.goto(`${path}?zeitraum=3J`);
     const nav = page.getByRole('navigation', { name: 'Portfolio-Register', exact: true });
     await expectLoadedRegister(page, label);
