@@ -94,11 +94,13 @@ sampleTest(
       await page.evaluate((value) => {
         document.documentElement.dataset['theme'] = value;
       }, theme);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      const audit = await new AxeBuilder({ page }).include('main').analyze();
-      expect(audit.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? ''))).toEqual(
-        [],
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
       );
+      const audit = await new AxeBuilder({ page }).include('main').analyze();
+      expect(
+        audit.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? '')),
+      ).toEqual([]);
       const evidenceLink = evidenceList.getByRole('link', { name: 'ETF Welt', exact: true });
       const linkBox = (await evidenceLink.boundingBox())!;
       expect(linkBox.width).toBeGreaterThanOrEqual(44);
@@ -118,7 +120,9 @@ sampleTest(
     if (mobile) await profile.press('Escape');
     await expect(allocation).toContainText(expectedValueText);
     await expect(allocation).toContainText(expectedQualityText);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
     const legacyAudit = await new AxeBuilder({ page }).include('main').analyze();
     expect(
       legacyAudit.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? '')),

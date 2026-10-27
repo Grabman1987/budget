@@ -396,7 +396,8 @@ function AllocationEvidence({ view }: { view: PortfolioAllocationView }) {
                 ? 'Vollständigkeit nicht hinterlegt'
                 : evidence.storedComplete
                   ? 'vollständig'
-                  : 'unvollständig'}.
+                  : 'unvollständig'}
+              .
             </li>
           ))}
         </ul>
@@ -415,7 +416,9 @@ function AllocationEvidence({ view }: { view: PortfolioAllocationView }) {
           return (
             <li key={cls.id}>
               {maskMoneyText(cls.name)}:{' '}
-              {cls.targetBp === null ? 'unverwaltet, kein Soll festgelegt' : (
+              {cls.targetBp === null ? (
+                'unverwaltet, kein Soll festgelegt'
+              ) : (
                 <>
                   Soll {percentText(cls.targetBp)} ·{' '}
                   {cls.bandBp === null
@@ -428,14 +431,16 @@ function AllocationEvidence({ view }: { view: PortfolioAllocationView }) {
                       ? 'Standardband laut Regelwerk'
                       : 'Bandmodus nicht gesondert gespeichert'}
                 </>
-              )}.
+              )}
+              .
             </li>
           );
         })}
       </ul>
       <p className="vnote">
         Kontoauswahl, Anlage-Kassa-Zuordnung und Risikoparameter sind aktuelle Einstellungen ohne
-        eigenen historischen Gültigkeitsverlauf. Anlage-Kassa erhält keine erfundene Exposure-Version.
+        eigenen historischen Gültigkeitsverlauf. Anlage-Kassa erhält keine erfundene
+        Exposure-Version.
       </p>
     </>
   );

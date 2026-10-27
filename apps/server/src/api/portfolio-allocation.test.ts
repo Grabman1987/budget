@@ -115,7 +115,12 @@ it('reports the effective stored exposure independently of missing valuation and
   );
   const current = await read();
   expect(current.exposureEvidence).toEqual([
-    { securityId: 's', validFrom: '2026-09-10', source: 'synthetic_correction', storedComplete: false },
+    {
+      securityId: 's',
+      validFrom: '2026-09-10',
+      source: 'synthetic_correction',
+      storedComplete: false,
+    },
   ]);
   expect(current.quality.valuationQuality).toBe('incomplete');
   expect(current.valueCents).toBeNull();
