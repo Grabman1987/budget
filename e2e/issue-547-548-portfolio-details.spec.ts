@@ -367,6 +367,18 @@ test('547 instrument shares literal value/basis and dates, hover/keyboard and la
   await inspect.press('Escape');
   const trades = page.locator('.trade-list tbody tr');
   await expect(trades).toHaveCount(12);
+  if (info.project.name === 'desktop') {
+    await expect(page.locator('.price-history .chart-data-table')).not.toHaveAttribute('open', '');
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+      await compactDesktop(page, info, `instrument-default-last-twelve-${theme}`);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({
+        path: info.outputPath(`instrument-default-last-twelve-${theme}.png`),
+        fullPage: false,
+      });
+    }
+  }
   await page.getByRole('button', { name: 'Alle anzeigen (13)', exact: true }).click();
   await expect(trades).toHaveCount(13);
   await trades.first().locator('td').first().click();
