@@ -29,6 +29,7 @@ import {
 import { expectedQuery, incomeQuery } from '../expected/api';
 import { PLAN_MONAT } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
+import { SettingsFormDialog } from '../pages/settings-form-dialog';
 import { eur } from '../ledger/format';
 import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
@@ -231,6 +232,11 @@ function PlanBody({
   );
   const phone = useIsPhone();
   const [distribute, setDistribute] = useState(false);
+  const [targetPreview, setTargetPreview] = useState(false);
+  const [applyingTargets, setApplyingTargets] = useState(false);
+  const [targetPreviewError, setTargetPreviewError] = useState(false);
+  const targetPreviewBusy = useRef(false);
+  const targetPreviewReturn = useRef<HTMLElement | null>(null);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => {
     const keys = new Set(
       planGroups(months.length > 1 ? 'group' : view, planRows(data), data, {
@@ -534,7 +540,12 @@ function PlanBody({
     setDistribute(true);
     setView('stage');
   };
-  const sug = distribute ? suggestions(rows, tba) : {};
+  const sug = distribute || targetPreview ? suggestions(rows, tba) : {};
+  const targetPreviewTotal = Object.values(sug).reduce((sum, value) => sum + value, 0);
+  const closeTargetPreview = () => {
+    setTargetPreview(false);
+    window.requestAnimationFrame(() => targetPreviewReturn.current?.focus());
+  };
   const urgent = overspentEnvelopes({ envelopes: rows });
 
   const setAssigned = (r: PlanRow, value: number) =>
@@ -546,8 +557,8 @@ function PlanBody({
   const take = (ids: string[]) => {
     const list = ids.filter((id) => sug[id]);
     const sum = list.reduce((a, id) => a + (sug[id] ?? 0), 0);
-    if (!list.length) return;
-    void write(
+    if (!list.length) return Promise.resolve(undefined);
+    return write(
       () =>
         assign(
           month,
@@ -557,7 +568,23 @@ function PlanBody({
           })),
         ),
       () => `${eur(sum)} verteilt`,
-    ).then((done) => done && sum >= tba && setDistribute(false));
+    ).then((done) => {
+      if (done && sum >= tba) setDistribute(false);
+      return done;
+    });
+  };
+  const applyTargetPreview = () => {
+    if (targetPreviewBusy.current || targetPreviewTotal <= 0) return;
+    targetPreviewBusy.current = true;
+    setApplyingTargets(true);
+    setTargetPreviewError(false);
+    void take(Object.keys(sug)).then((done) => {
+      if (done) closeTargetPreview();
+      else setTargetPreviewError(true);
+    }).finally(() => {
+      targetPreviewBusy.current = false;
+      setApplyingTargets(false);
+    });
   };
   const coverPool = rows
     .filter((r) => !isCard(r) && freeCoverCents(r) > 0)
@@ -823,6 +850,11 @@ function PlanBody({
               selectedIds={selectedIds}
               distributeBlock={distributeBlock}
               onDistribute={startDistribute}
+              onFillTargets={() => {
+                targetPreviewReturn.current = document.querySelector<HTMLElement>('.plan-menu-verteilen > summary');
+                setTargetPreviewError(false);
+                setTargetPreview(true);
+              }}
               cover={
                 urgent.length > 0
                   ? {
@@ -1212,6 +1244,20 @@ function PlanBody({
           />
         }
       />
+      <SettingsFormDialog open={targetPreview} onClose={closeTargetPreview} beforeClose={() => !targetPreviewBusy.current} title="Alle Ziele füllen">
+        {targetPreview && <div className="kform">
+          <p>{monthLabel(month)} · Vorschau für alle offenen Ziele, unabhängig von Auswahl und Filter. Die aktuelle Ansicht bleibt erhalten.</p>
+          <dl className="kv-list">
+            {rows.filter((row) => (sug[row.id] ?? 0) > 0).map((row) => <div key={row.id}><dt>{row.name}</dt><dd>{eur(sug[row.id]!)}</dd></div>)}
+          </dl>
+          {targetPreviewTotal === 0 && <p>Keine offenen Ziele mit verfügbarem Geld.</p>}
+          {targetPreviewError && <p role="alert">Verteilung nicht übernommen. Bitte den aktuellen Stand prüfen und erneut versuchen.</p>}
+          <div className="panel-actions">
+            <Button disabled={applyingTargets || targetPreviewTotal <= 0} onClick={applyTargetPreview}>{eur(targetPreviewTotal)} zuweisen</Button>
+            <Button variant="ghost" disabled={applyingTargets} onClick={closeTargetPreview}>Abbrechen</Button>
+          </div>
+        </div>}
+      </SettingsFormDialog>
       {categoryForm && categoryTree.isPending && <LoadingNote what="Kategorien" />}
       {categoryForm && categoryTree.isError && (
         <ErrorNote

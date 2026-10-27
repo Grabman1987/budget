@@ -202,7 +202,7 @@ it('replaces "Schnell zuweisen", the "Ansicht" select and the ⋯ menu by two na
     menu('Verteilen')
       .getAllByRole('button')
       .map((b) => b.textContent),
-  ).toEqual(['Leere füllen', 'Wie letzter Monat', 'Ø 3 Monate', 'Ziel', 'Wasserfall-Assistent']);
+  ).toEqual(['Leere füllen', 'Wie letzter Monat', 'Ø 3 Monate', 'Ziel', 'Alle Ziele füllen', 'Wasserfall-Assistent']);
 });
 
 it('"Leere füllen" and the selection actions use the existing quick-assign call', async () => {

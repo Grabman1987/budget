@@ -242,7 +242,8 @@ test('593 preselected cover is capped, one click/Undo restores both categories, 
     .getByRole('button', { name: 'Rückgängig', exact: true })
     .click();
   await expect.poll(state).toEqual([700, 0, 9300]);
-  await expect(side.getByText(/Bedarf · Tempo:/)).toBeVisible();
+  await expect(heading).toHaveAttribute('title', /Bedarf · Tempo:/);
+  await expect(side.locator('.inspector-pace')).toHaveCount(0);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
@@ -252,6 +253,7 @@ test('593 preselected cover is capped, one click/Undo restores both categories, 
     await page.screenshot({ path: info.outputPath(`selected-${theme}.png`), fullPage: false });
     await togglePrivacy(page);
     await expect(side.locator('.inspector-cover-suggestion .plan-money')).toHaveText('••• €');
+    await expect(heading).toHaveAttribute('title', /Bedarf · Tempo:.*•••/);
     await togglePrivacy(page);
   }
   await side.getByRole('button', { name: 'Auswahl aufheben', exact: true }).click();

@@ -223,3 +223,16 @@ it.each([false, true])(
     }
   },
 );
+
+it('450 keeps class and pace only in the focused category heading tooltip and reacts to amount privacy', () => {
+  const selected = row({activityCents:-100,availableCents:300});
+  setup(<PlanInspector month="2026-09" rows={[selected]} visibleRows={[selected]} selected={[selected]} tba={200} category={undefined} onCategory={()=>{}} onHide={()=>{}} onClear={()=>{}} overview={null} split={null} income={null} money={null} rail={null} focusSelection={false}/>);
+  const heading=screen.getByRole('heading',{name:'Synthetic category'});
+  expect(heading.getAttribute('title')).toBe('Bedarf · Tempo: 1,00 € von 4,00 € ausgegeben');
+  expect(screen.queryByText('Bedarf · Tempo: 1,00 € von 4,00 € ausgegeben')).toBeNull();
+  expect(heading.getAttribute('tabindex')).toBe('-1');
+  act(()=>setAmountsHidden(true));
+  expect(heading.getAttribute('title')).toBe('Bedarf · Tempo: ••• € von ••• € ausgegeben');
+  act(()=>setAmountsHidden(false));
+  expect(heading.getAttribute('title')).toBe('Bedarf · Tempo: 1,00 € von 4,00 € ausgegeben');
+});
