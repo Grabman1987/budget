@@ -28,6 +28,8 @@ These are technical presentation updates. They retain their original financial a
 | `e2e/capture-dialog-layout.spec.ts` | Match that same button name in its bounds and click checks; retain layout, split, and action assertions. |
 | `e2e/issue-734-category-picker.spec.ts` | Match that same button name before opening split categories; retain the picker and booking assertions. |
 | `e2e/issue-624-explorer-persistence.spec.ts` | Expect the approved 16 px saved-view Bookmark instead of its former 13 px size; retain the 40-character name, controls-inside-card, and layout assertions. CI run `40422683801` measured the intended 16 px icon. |
+| `e2e/category-trend.spec.ts` | Keep the exact category checkbox lookup, original wait, and finance/drilldown expectations; if the lookup fails, emit the picker accessibility tree and rethrow the original error to distinguish changed label text from missing UI. The full CI failed this lookup twice on mobile. |
+| `e2e/issue-741-payroll-automation.spec.ts` | Keep all link visibility, click, and 44 px hit-target bounds; append scroll ancestor geometry when the link lies below the viewport. The full CI measured its bottom at 1078 px against a viewport of 844 px. The cause is not yet established. |
 
 No financial oracle, write semantics, timeout or tolerance was changed.
 

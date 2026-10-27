@@ -20,7 +20,15 @@ test('category choice, period and previous-year month survive reload; month link
   await expect(values.locator('thead th')).toHaveCount(3);
   await expect(page.getByLabel('Vorjahresmonat anzeigen')).toBeChecked();
   await page.locator('.category-trend-picker summary').click();
-  await page.getByLabel(data.categories[1]!.name, { exact: true }).uncheck();
+  try {
+    await page.getByLabel(data.categories[1]!.name, { exact: true }).uncheck();
+  } catch (error) {
+    console.error(
+      'Category picker accessibility tree:',
+      await page.locator('.category-trend-picker').ariaSnapshot(),
+    );
+    throw error;
+  }
   await expect(values.locator('thead th')).toHaveCount(2);
   await page.getByLabel(data.categories[1]!.name, { exact: true }).check();
   await page.getByRole('button', { name: '1M', exact: true }).click();

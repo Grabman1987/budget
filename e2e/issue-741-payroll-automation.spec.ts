@@ -69,6 +69,25 @@ async function hit(control: Locator) {
       ownsCenter: element.contains(
         document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2),
       ),
+      scrollAncestors: Array.from(
+        { length: 6 },
+        (_, index) => {
+          let parent = element.parentElement;
+          for (let i = 0; i < index; i++) parent = parent?.parentElement ?? null;
+          if (!parent) return null;
+          const rect = parent.getBoundingClientRect();
+          return {
+            tag: parent.tagName,
+            className: parent.className,
+            top: rect.top,
+            bottom: rect.bottom,
+            scrollTop: parent.scrollTop,
+            scrollHeight: parent.scrollHeight,
+            clientHeight: parent.clientHeight,
+            overflowY: getComputedStyle(parent).overflowY,
+          };
+        },
+      ).filter((parent) => parent !== null),
     };
   });
   expect(box.width).toBeGreaterThanOrEqual(44);
@@ -76,7 +95,7 @@ async function hit(control: Locator) {
   expect(box.left).toBeGreaterThanOrEqual(0);
   expect(box.right).toBeLessThanOrEqual(box.viewportWidth);
   expect(box.top).toBeGreaterThanOrEqual(0);
-  expect(box.bottom).toBeLessThanOrEqual(box.viewportHeight);
+  expect(box.bottom, JSON.stringify(box)).toBeLessThanOrEqual(box.viewportHeight);
   expect(box.ownsCenter).toBe(true);
   return box;
 }
