@@ -132,7 +132,10 @@ test('ghosts, selected quick assignment and capped empty-fill share grouped undo
       .getByRole('button', { name: 'Wie letzter Monat', exact: true })
       .click();
   else {
-    await page.getByRole('button', { name: 'Wie letzter Monat', exact: true }).click();
+    await page
+      .getByRole('complementary', { name: 'Plan-Inspektor' })
+      .getByRole('button', { name: /^Wie letzter Monat / })
+      .click();
   }
   await expect(assigned('Testhistorie')).toHaveText(shown('333,33 €'));
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
@@ -143,7 +146,10 @@ test('ghosts, selected quick assignment and capped empty-fill share grouped undo
       .getByRole('button', { name: 'Ø 3 Monate', exact: true })
       .click();
   else {
-    await page.getByRole('button', { name: 'Ø 3 Monate', exact: true }).click();
+    await page
+      .getByRole('complementary', { name: 'Plan-Inspektor' })
+      .getByRole('button', { name: /^Ø 3 Monate / })
+      .click();
   }
   await expect(assigned('Testhistorie')).toHaveText(shown('196,69 €'));
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
@@ -154,7 +160,10 @@ test('ghosts, selected quick assignment and capped empty-fill share grouped undo
       .getByRole('button', { name: 'Ziel', exact: true })
       .click();
   else {
-    await page.getByRole('button', { name: 'Ziel', exact: true }).click();
+    await page
+      .getByRole('complementary', { name: 'Plan-Inspektor' })
+      .getByRole('button', { name: /^Ziele / })
+      .click();
   }
   await expect(assigned('Testziel')).toHaveText(shown('400,01 €'));
   await toast.getByRole('button', { name: 'Rückgängig' }).click();

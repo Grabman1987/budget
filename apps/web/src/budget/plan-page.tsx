@@ -383,7 +383,7 @@ function PlanBody({
         event.target instanceof Element &&
         event.target.isConnected &&
         !event.target.closest(
-          '.plan-inspector, .prow, .pgroup, .plan-select, dialog, .toast, .quick-assign-actions, .plan-menu-verteilen',
+          '.plan-inspector, .prow, .pgroup, .plan-select, dialog, .toast, .quick-assign-actions, .plan-menu-verteilen, .m-profile',
         )
       )
         clearSelection();
@@ -1107,6 +1107,9 @@ function PlanBody({
       <PlanInspector
         month={open?.month ?? month}
         rows={panelRows}
+        visibleRows={shownRows}
+        multi={multi && !open}
+        focusSelection={!phoneSelection}
         selected={(open
           ? panelRows.filter((r) => r.id === open.id)
           : orderedRows.filter((r) => selected.has(r.id))

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { ToastProvider } from '@budget/ui';
+import { ToastProvider, setAmountsHidden } from '@budget/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   RouterProvider,
@@ -19,6 +19,7 @@ import type { PlanRow } from './plan-model';
 import { AssignCell } from './assign-cell';
 import { QuickAssignActions } from './quick-assign-actions';
 import { PlanMonthPage } from './plan-page';
+import { PrivacyButton } from '../shell/privacy-button';
 
 vi.mock('../shell/app-link', () => ({
   AppLink: ({ children }: { children: ReactNode }) => <a href="#k">{children}</a>,
@@ -87,6 +88,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  setAmountsHidden(false);
   vi.unstubAllGlobals();
 });
 
@@ -336,7 +338,16 @@ it('selects a category into the inspector, keeps amount editing separate and cle
       ok({ receivedCents: 2500, expectedCents: 10000, byPayment: [], byIncomeType: [] }),
     'GET /api/categories': () => ok(categories),
   });
-  renderPage(<PlanMonthPage />, '/plan/monat?monat=2026-09');
+  renderPage(
+    <>
+      <details className="m-profile">
+        <summary>Profil</summary>
+        <PrivacyButton text />
+      </details>
+      <PlanMonthPage />
+    </>,
+    '/plan/monat?monat=2026-09',
+  );
   const category = await screen.findByRole('button', { name: 'Alltag· Lebensmittel' });
   await userEvent.click(category);
   // Selection and the month overview have separate roots; always inspect the live region.
@@ -345,6 +356,17 @@ it('selects a category into the inspector, keeps amount editing separate and cle
   expect(within(inspector()).getByLabelText('Zugewiesen')).toBeTruthy();
   expect(within(inspector()).getByRole('link', { name: 'Verlauf und Buchungen' })).toBeTruthy();
   expect(screen.queryByRole('dialog')).toBeNull();
+  const profile = screen.getByText('Profil', { selector: 'summary' });
+  await userEvent.click(profile);
+  expect(within(inspector()).getByRole('heading', { name: row.name })).toBeTruthy();
+  const privacy = screen.getByRole('button', { name: 'Beträge verbergen' });
+  await userEvent.click(privacy);
+  expect(within(inspector()).getByRole('heading', { name: row.name })).toBeTruthy();
+  expect(inspector().querySelector('.inspector-activity a')?.textContent).toBe('••• €');
+  await userEvent.click(privacy);
+  expect(inspector().querySelector('.inspector-activity a')?.textContent).toBe('0,00 €');
+  await userEvent.click(profile);
+  expect(within(inspector()).getByRole('heading', { name: row.name })).toBeTruthy();
   await userEvent.click(
     within(inspector()).getByText('Kategorie-Aktionen', { selector: 'summary' }),
   );

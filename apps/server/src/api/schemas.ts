@@ -339,7 +339,7 @@ export const assignBody = z.object({
 });
 export const quickAssignBody = z
   .object({
-    mode: z.enum(['empty', 'last-month', 'average', 'target']),
+    mode: z.enum(['empty', 'last-month', 'average', 'target', 'reset']),
     categoryIds: z
       .array(id)
       .min(1)
