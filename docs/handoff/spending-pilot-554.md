@@ -90,7 +90,6 @@ timeout/retry/skip/baseline is weakened. Runtime remains unproven until exact-HI
 review and bounded first-attempt proof after old CI failure collection completes.
 No local heavy commands, public push, remote VM or full retry were performed.
 
-
 ## Full-CI mounted Plan icon regression (private)
 
 PR795 exact2a0 full CI's Plan-month icon scan exposed LIVE1ad header chevrons
