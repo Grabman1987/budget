@@ -634,6 +634,10 @@ export function accountRoutes(db: Db, today: () => string): Hono {
           ...d,
           valuation: value(d.amountCents, currency, d.date),
         })),
+        pendingBookings: preview.pendingBookings.map((row) => ({
+          ...row,
+          valuation: value(row.amountCents, currency, row.date),
+        })),
       },
     });
   });

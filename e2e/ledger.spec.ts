@@ -343,6 +343,9 @@ test('ledger pages with data: axe clean in both themes, no sideways scrolling', 
     await page.getByRole('button', { name: 'Kontostand prüfen' }).click();
     const check = page.getByRole('dialog', { name: /Kontostand prüfen/ });
     await check.getByLabel('Saldo laut Bank', { exact: true }).fill('999');
+    // The new pending booking is a candidate; review it before a correction is offered.
+    await expect(check.getByRole('heading', { name: 'Kandidaten zuerst prüfen' })).toBeVisible();
+    await check.getByRole('button', { name: 'Ignorieren', exact: true }).click();
     await expect(check.getByText(/Es fehlt eine Einnahme/)).toBeVisible();
     expect(await violations(), `${scheme} reconcile panel`).toEqual([]);
     await page.keyboard.press('Escape');

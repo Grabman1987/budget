@@ -105,6 +105,9 @@ test('native detail, dated EUR history and reconciliation undo', async ({
   // Full-page capture resizes the native desktop dialog; keep its draft in the real viewport.
   await page.screenshot({ path: join(info.outputDir, 'fx-reconciliation.png') });
   await expect(panel.getByLabel('Saldo laut Bank · USD', { exact: true })).toHaveValue(/102/);
+  // The pending USD booking must be reviewed before the existing correction is offered.
+  await expect(panel.getByRole('heading', { name: 'Kandidaten zuerst prüfen' })).toBeVisible();
+  await panel.getByRole('button', { name: 'Ignorieren', exact: true }).click();
   await panel.getByRole('button', { name: /Differenz ausgleichen/ }).click();
   await expect(page.getByTestId('account-balance')).toHaveText('76,43 €');
   await expect(toast(page)).toContainText('USD');
