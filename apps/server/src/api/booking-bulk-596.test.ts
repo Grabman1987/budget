@@ -204,7 +204,16 @@ it.each([{ flag: 'orange' }, { status: 'pending' }, { categoryId: 'miete' }, { p
     }]);
     expect(getBooking(opened.db, linked)).toEqual(before[0]);
     const audit = opened.db.select().from(schema.auditLog).where(eq(schema.auditLog.groupId, result.groupId)).all();
-    expect([...new Set(audit.map((entry) => entry.entityId))]).toEqual([eligible]);
+    expect(audit.length).toBeGreaterThan(0);
+    for (const entry of audit) {
+      if (entry.entityType === 'booking') expect(entry.entityId).toBe(eligible);
+      else {
+        expect(entry.entityType).toBe('booking_split');
+        for (const snapshot of [entry.beforeJson, entry.afterJson]) {
+          if (snapshot !== null) expect(JSON.parse(snapshot).booking_id).toBe(eligible);
+        }
+      }
+    }
     undo(opened.db, { groupId: result.groupId }, testCtx);
     expect([getBooking(opened.db, linked), getBooking(opened.db, eligible)]).toEqual(before);
   },
