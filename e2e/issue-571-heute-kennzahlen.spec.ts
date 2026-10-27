@@ -55,7 +55,7 @@ test('each value equals the same figure on Plan, the Plan inspector and Vermöge
   await page.goto('/plan/monat?monat=2026-09');
   await expect(page.getByTestId('to-be-assigned')).toHaveText(zuVerteilen);
   if (!isMobile) {
-    const inspector = page.locator('.insp-total').filter({ hasText: 'Verfügbar in Envelopes' });
+    const inspector = page.locator('.month-statement .insp-total').filter({ hasText: 'Verfügbar' });
     await expect(inspector.locator('dd')).toHaveText(verfuegbar);
   }
 

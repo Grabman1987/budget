@@ -274,7 +274,13 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     await page.locator('.plan-tba').evaluate((e) => e.parentElement!.hasAttribute('open')),
   ).toBe(false);
   await expect(page.getByText('Monatsdetails', { exact: true })).toHaveCount(0);
-  await expect(page.locator('.inspector-section[open]')).toHaveCount(1);
+  // Owner450 (16 October): exactly Monatsaufstellung and 50/30/20 start open.
+  const openSections = page.locator('.plan-inspector .inspector-section[open]');
+  await expect(openSections).toHaveCount(2);
+  await expect(openSections.locator(':scope > summary')).toHaveText([
+    'Monatsaufstellung',
+    '50/30/20',
+  ]);
   const desktop = info.project.name === 'desktop';
   if (desktop) {
     const dimensions = await compactDimensions(page);

@@ -388,6 +388,21 @@ it('735 regression: real router Back preserves two selected rows, unrelated coll
       envelopes: categories.map((c) => ({ ...row, categoryId: c.id })),
     },
   };
+  // The overview now reads next month's targets; keep this unrelated route/selection fixture valid.
+  const nextData: BudgetMonthView = {
+    groups: [],
+    categories: [],
+    summary: {
+      ...data.summary,
+      month: '2026-11',
+      carryInCents: 8000,
+      incomeCents: 0,
+      assignedCents: 0,
+      activityCents: 0,
+      availableCents: 0,
+      envelopes: [],
+    },
+  };
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
@@ -403,13 +418,15 @@ it('735 regression: real router Back preserves two selected rows, unrelated coll
       const body =
         url.pathname === '/api/budget/2026-10'
           ? data
-          : url.pathname === '/api/categories'
-            ? { groups, categories, targets: [] }
-            : url.pathname === '/api/accounts'
-              ? { accounts: [] }
-              : url.pathname === '/api/expected'
-                ? { payments: [] }
-                : {};
+          : url.pathname === '/api/budget/2026-11'
+            ? nextData
+            : url.pathname === '/api/categories'
+              ? { groups, categories, targets: [] }
+              : url.pathname === '/api/accounts'
+                ? { accounts: [] }
+                : url.pathname === '/api/expected'
+                  ? { payments: [] }
+                  : {};
       return new Response(JSON.stringify(body), { status: 200 });
     }),
   );
