@@ -80,6 +80,31 @@ const quote = (currency = 'EUR') =>
     })
     .run();
 describe('portfolio positions projection', () => {
+  it('reads the requested past date without using a later quote and rejects invalid future dates', async () => {
+    snapshot('a', 200_000_000, 2000);
+    quote();
+    db.insert(schema.price)
+      .values({
+        securityId: 's',
+        date: '2026-09-15',
+        priceMicro: 12_345_000,
+        currency: 'EUR',
+        source: 'manual',
+      })
+      .run();
+    const response = await call('GET', '/portfolio/positions?asOf=2026-09-15');
+    expect(response.status).toBe(200);
+    const dated = (await response.json()) as PortfolioPositionsView;
+    // Two units at EUR 12.345 = EUR 24.69, independently literal.
+    expect(dated.asOf).toBe('2026-09-15');
+    expect(dated.valueCents).toBe(2469);
+    expect(dated.classes[0]!.positions[0]!.valueCents).toBe(2469);
+    expect((await read()).valueCents).toBe(10000);
+    expect((await call('GET', '/portfolio/positions?asOf=2026-09-18')).status).toBe(400);
+    expect((await call('GET', '/portfolio/positions?asOf=2026-02-30')).status).toBe(400);
+    signedIn = false;
+    expect((await call('GET', '/portfolio/positions?asOf=2026-09-15')).status).toBe(401);
+  });
   it('retains two brokers with one security, literal shared values, metadata, and documented gain', async () => {
     snapshot('a', 200_000_000, 6000);
     snapshot('b', 100_000_000, 4500);

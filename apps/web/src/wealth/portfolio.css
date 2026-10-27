@@ -1,4 +1,31 @@
 /* Original Vermögen prototype: lead/chain, report link and class-grouped positions. */
+.sheet > .portfolio-registers {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-xs);
+  margin-block: var(--space-sm) var(--space-lg);
+}
+.portfolio-registers a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: var(--touch);
+  padding: var(--space-sm) var(--space-xs);
+  text-align: center;
+  white-space: normal;
+  color: var(--ink-2);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule);
+}
+.portfolio-registers a[aria-current='page'] {
+  color: var(--line);
+}
+@media (max-width: 600px) {
+  .sheet > .portfolio-registers {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 .portfolio-positions {
   grid-column: 1 / -1;
 }

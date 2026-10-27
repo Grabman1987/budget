@@ -70,10 +70,14 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
     const chart = await page.getByTestId('portfolio-overview-chart').boundingBox();
     expect(chart!.y + chart!.height).toBeLessThan(page.viewportSize()!.height);
   }
+  await page.getByRole('navigation', { name: 'Portfolio-Register', exact: true })
+    .getByRole('link', { name: 'Positionen', exact: true }).click();
   const instrument = await page
     .locator('[data-portfolio-security]')
     .first()
     .getAttribute('data-portfolio-security');
+  await page.getByRole('navigation', { name: 'Portfolio-Register', exact: true })
+    .getByRole('link', { name: 'Sparpläne', exact: true }).click();
   const savings = await page
     .locator('[data-savings-plan]:not([data-savings-plan="neu"])')
     .first()

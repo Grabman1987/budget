@@ -25,12 +25,15 @@ export const portfolioPerformanceQuery = (period: Period) =>
         `/api/portfolio?period=${period}&view=securities&history=performance&provenance=valuation-v1`,
       ),
   });
-export const portfolioPositionsQuery = () =>
+export const portfolioPositionsQuery = (asOf?: string) =>
   queryOptions({
-    queryKey: [...LEDGER_KEY, 'portfolio-positions'],
+    queryKey: [...LEDGER_KEY, 'portfolio-positions', ...(asOf ? [asOf] : [])],
     retry: false,
     queryFn: () =>
-      request<PortfolioPositionsView & WithValuationNotes>('GET', '/api/portfolio/positions'),
+      request<PortfolioPositionsView & WithValuationNotes>(
+        'GET',
+        `/api/portfolio/positions${asOf ? `?asOf=${encodeURIComponent(asOf)}` : ''}`,
+      ),
   });
 export const instrumentQuery = (id: string) =>
   queryOptions({

@@ -42,7 +42,7 @@ test('empty portfolio creates reachable metadata with validation, reload, creati
     data: { name: `ISIN Vorlage ${tag}`, kind: 'other', isin },
   });
   expect(duplicate.ok()).toBe(true);
-  await page.route('**/api/portfolio/positions', (route) =>
+  await page.route('**/api/portfolio/positions{,?*}', (route) =>
     route.fulfill({
       json: {
         asOf: '2026-10-01',
@@ -55,9 +55,9 @@ test('empty portfolio creates reachable metadata with validation, reload, creati
       },
     }),
   );
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/positionen');
   await expect(page.getByText(/Keine Positionen zum/)).toBeVisible();
-  await page.unroute('**/api/portfolio/positions');
+  await page.unroute('**/api/portfolio/positions{,?*}');
   // Controlled synthetic empty state; concurrent cases own separate instruments on this server.
   // The actual securities API and all writes remain connected throughout.
   await expect(page.getByRole('button', { name: 'Instrument anlegen', exact: true })).toBeVisible();
@@ -170,7 +170,7 @@ test('held instrument editing preserves shared value and quote while undo and re
       })
     ).ok(),
   ).toBe(true);
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/positionen');
   await page.getByRole('button', { name, exact: true }).click();
   const readonly = page.getByRole('region', { name, exact: true });
   let finishQuote!: () => void;
@@ -281,7 +281,7 @@ test('asset-class failure keeps draft and retry restores create access', async (
   await page.route('**/api/asset-classes', (route) =>
     route.fulfill({ status: 503, json: { error: 'unavailable' } }),
   );
-  await page.goto('/vermoegen/portfolio?produkt=neu');
+  await page.goto('/vermoegen/portfolio/positionen?produkt=neu');
   const form = page.getByRole('dialog', { name: 'Instrument anlegen', exact: true });
   await form.getByLabel('Name', { exact: true }).fill(`Entwurf ${info.project.name}`);
   await expect(
@@ -315,7 +315,7 @@ test('asset-class failure keeps draft and retry restores create access', async (
   const positionsPending = new Promise<void>((resolve) => {
     finishPositions = resolve;
   });
-  await page.route('**/api/portfolio/positions', async (route) => {
+  await page.route('**/api/portfolio/positions{,?*}', async (route) => {
     await positionsPending;
     await route.fulfill({ status: 503, json: { error: 'unavailable' } });
   });
@@ -325,7 +325,7 @@ test('asset-class failure keeps draft and retry restores create access', async (
   finishPositions();
   await expect(detail).toContainText('Bestände konnten nicht geladen werden.');
   await expect(detail.getByText('Dieses Instrument hat keinen aktuellen Bestand.')).toHaveCount(0);
-  await page.unroute('**/api/portfolio/positions');
+  await page.unroute('**/api/portfolio/positions{,?*}');
   await detail.getByRole('button', { name: 'Erneut versuchen' }).click();
   await expect(detail).toContainText('Dieses Instrument hat keinen aktuellen Bestand.');
 });

@@ -90,3 +90,30 @@ test('portfolio endpoint, lead and independently summed positions share exact da
     .getByRole('button', { name: 'ETF Welt', exact: true }).click();
   await expect(page).toHaveURL(/\/instrument\/[^?]+\?zeitraum=3J$/);
 });
+
+test('a closed calendar month uses the chart endpoint date for lead and positions', async ({
+  page,
+  request,
+}) => {
+  const response = await request.get(
+    '/api/portfolio?period=2026-08..2026-08&view=securities&history=performance',
+  );
+  expect(response.ok()).toBe(true);
+  const endpoint = (await response.json()).portfolio.performanceHistory.dailyValues.at(-1);
+  expect(endpoint.date).toBe('2026-08-31');
+  const positionsResponse = await request.get('/api/portfolio/positions?asOf=2026-08-31');
+  expect(positionsResponse.ok()).toBe(true);
+  const positions = (await positionsResponse.json()) as PortfolioPositionsView;
+  expect(positions.asOf).toBe('2026-08-31');
+  expect(positions.valueCents).toBe(endpoint.valueCents);
+  expect(positions.classes.flatMap((group) => group.positions)
+    .reduce((sum, position) => sum + position.valueCents!, 0)).toBe(endpoint.valueCents);
+  for (const path of ['/vermoegen/portfolio', '/vermoegen/portfolio/positionen']) {
+    await page.goto(`${path}?zeitraum=2026-08..2026-08`);
+    await expect(page.locator('.vnw')).toContainText('31.08.2026');
+    await expect(page.getByTestId('portfolio-value')).toHaveText(
+      `${new Intl.NumberFormat('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        .format(endpoint.valueCents / 100)} €`,
+    );
+  }
+});

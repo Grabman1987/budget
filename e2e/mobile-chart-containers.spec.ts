@@ -94,7 +94,7 @@ test.describe('UX-3c phone chart and table containers', () => {
   });
 
   test('portfolio tracks fill the whole row below name and values', async ({ page }) => {
-    await page.goto('/vermoegen/portfolio');
+    await page.goto('/vermoegen/portfolio/allokation');
     const track = page.locator('.vallo .va-track').first();
     await expect(track).toBeVisible({ timeout: 30_000 });
     const row = (await page.locator('.vallo li').first().boundingBox())!;

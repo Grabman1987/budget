@@ -78,7 +78,7 @@ test('mixed exposure conserves current cents, preserves September history and wh
       (cls: { assetClassId: string }) => cls.assetClassId === classes[0].id,
     ).istBp[september],
   ).toBe(10000);
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/positionen');
   await page.getByRole('button', { name: 'Mischfonds', exact: true }).first().click();
   const dialog = page.getByRole('region', { name: 'Mischfonds', exact: true });
   await expect(dialog).toContainText('1,01 €');
