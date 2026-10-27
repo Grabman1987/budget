@@ -80,7 +80,7 @@
 
 - [x] Cancel pre-write booking reads before scheduling ledger invalidation so a pending initial empty response cannot satisfy the refresh after the first capture.
 - [x] Deterministic register regression covers out-of-order empty/fresh responses, nonblocking save completion and undo; existing nonblocking edit and cache tests remain unchanged and pass.
-- [ ] Exact-head CI, `ledger.spec.ts:217` with `--repeat-each=5`, controlled integration and live verification remain required. Do not close #677 from unit evidence alone.
+- [x] Delivered in [PR #693](https://github.com/Grabman1987/budget/pull/693), merge `0e17fe05`; #677 closed on 2026-10-19. Current verified production `c436e36` contains that fix. Subsequent exact-head five-repeat checks [40369870676](https://github.com/Grabman1987/budget/actions/runs/40369870676) and [40422683833](https://github.com/Grabman1987/budget/actions/runs/40422683833) passed. The additional acceptance runner is retained for manual use; canonical CI continues to run the financial scenario automatically. See [the acceptance-runner handoff](handoff/ci-manual-acceptance-677/README.md).
 
 ### WP-001 — CASE-001 reference assurance, first bounded slice (#509, 2026-10-17)
 
