@@ -1,75 +1,100 @@
-name: Update e2e snapshots
-
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+name: Reports 801 visible header and open switcher diagnostic
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch whose baselines to update (never main)
         required: true
       specs:
-        description: Space-separated spec paths (e.g. e2e/shell.spec.ts); empty = every spec that compares screenshots
         required: false
-        default: ''
-
 permissions:
-  contents: write
-
-concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
-
+  contents: read
 jobs:
-  update:
-    if: inputs.branch != 'main'
+  focused:
     runs-on: ubuntu-24.04
-    # Match the CI browser image instead of reinstalling its OS/browser dependencies.
+    timeout-minutes: 20
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     defaults:
       run:
         shell: bash
-    # A type-scale change regenerates nearly every baseline; give it room.
-    timeout-minutes: 75
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.branch }}
-      - name: Allow Git reads and baseline commits in the container workspace
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+          fetch-depth: 2
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Pin exact source parent and scope
+        run: |
+          test "$(git rev-parse HEAD^)" = 135d3c8f5b00e736e0b7d539a4a77819adb3dc62
+          test "$(git diff --name-only HEAD^ HEAD)" = .github/workflows/update-snapshots.yml
+          git rev-parse HEAD HEAD^
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        env:
-          SPECS: ${{ inputs.specs }}
+      - name: Scoped formatter check
+        run: npx prettier --check e2e/income-targets-report-ranges.spec.ts docs/handoff/reports-hub-619-628.md
+      - name: Durable exact formatting patch before instrumentation
+        if: always()
         run: |
-          npm run build:e2e
-          read -r -a specs <<< "$SPECS"
-          if [ "${#specs[@]}" -eq 0 ]; then
-            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
-          fi
-          npx playwright test --update-snapshots=changed "${specs[@]}" || true
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+          npx prettier --write e2e/income-targets-report-ranges.spec.ts docs/handoff/reports-hub-619-628.md
+          git diff --binary > /tmp/801-final-format.patch
+          sha256sum /tmp/801-final-format.patch
+          git diff --stat
+      - name: Scoped lint
+        if: always()
+        run: npx eslint e2e/income-targets-report-ranges.spec.ts
+      - name: CSS scale
+        if: always()
+        run: node packages/ui/scripts/check-css-scale.mjs
+      - name: Full types
+        if: always()
+        run: npm run typecheck
+      - name: Build
+        if: always()
+        run: npm run build:e2e
+      - name: Transient read only open switcher geometry logging
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const path = 'e2e/issue-619-628-reports-hub.spec.ts';
+          const original = readFileSync(path, 'utf8');
+          const marker = "    await chooser.fill('Brutto');";
+          if (original.split(marker).length !== 2) throw new Error('Expected one existing open chooser');
+          const logging = `    const openGeometry = await page.locator('.report-switcher[open]').evaluate((details) => {
+            const describe = (node: Element) => { const style = getComputedStyle(node); return { tag: node.tagName, className: node.className, rect: node.getBoundingClientRect().toJSON(), scrollWidth: node.scrollWidth, clientWidth: node.clientWidth, checkVisibility: node.checkVisibility(), display: style.display, visibility: style.visibility, overflow: style.overflow, overflowX: style.overflowX, position: style.position, clipPath: style.clipPath }; };
+            const menu = details.querySelector('.report-switcher-menu')!;
+            return { viewport: { width: innerWidth, height: innerHeight }, details: describe(details), summary: describe(details.querySelector('summary')!), menu: describe(menu), input: describe(menu.querySelector('input')!), containers: [...(function* () { let parent = details.parentElement; while (parent) { yield parent; parent = parent.parentElement; } })()].map(describe) };
+          });
+          console.log('ACTUAL_OPEN_SWITCHER_GEOMETRY ' + info.project.name + ' ' + theme + ' ' + JSON.stringify(openGeometry));
+          await info.attach('open-switcher-' + info.project.name + '-' + theme + '.json', { body: JSON.stringify(openGeometry, null, 2), contentType: 'application/json' });
+          `;
+          writeFileSync(path, original.replace(marker, logging + marker));
+          NODE
+      - name: Complete unchanged original old mobile ranges case
+        id: ranges
+        run: npx playwright test e2e/income-targets-report-ranges.spec.ts --grep 'shared ranges, custom URL reload and optional trend' --project=mobile --workers=1 --retries=0 --update-snapshots=none
+      - name: Retain original mobile results before independent switcher cases
+        if: always()
+        run: cp -a test-results /tmp/801-mobile-ranges-results
+      - name: Existing full new 619 switcher desktop and mobile contracts
+        id: switcher
+        if: always()
+        run: npx playwright test e2e/issue-619-628-reports-hub.spec.ts --grep '619 sixteen-report hub' --project=desktop --project=mobile --workers=1 --retries=0 --update-snapshots=none
+      - name: Restore transient instrumentation and report actual outcomes
+        if: always()
+        run: |
+          git restore -- e2e/issue-619-628-reports-hub.spec.ts
+          git diff --name-only
+          test -z "$(git diff --name-only -- 'e2e/*snapshots*')"
+          echo 'RESULT ranges=${{ steps.ranges.outcome }} switcher=${{ steps.switcher.outcome }}; diagnostic only; no oracle modification'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
-          name: scoped-browser-screenshots
-          path: test-results/**/*.png
-          if-no-files-found: ignore
+          name: reports-801-visible-header-switcher-proof
+          path: |
+            /tmp/801-final-format.patch
+            /tmp/801-mobile-ranges-results/
+            test-results/
           retention-days: 7
-      - name: Commit the new baselines
-        env:
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
