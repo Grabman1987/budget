@@ -520,7 +520,7 @@ export function CaptureForm({
     setBusy(true);
     try {
       const preview = confirmed ?? await readDeletePreview([editing.id]);
-      const protectedRow = preview.selection.items.some((item) => item.reason !== null) || preview.skipped.length > 0;
+      const protectedRow = preview.affectedIds.length > 1 || preview.selection.items.some((item) => item.reason !== null) || preview.skipped.length > 0;
       if (!confirmed && protectedRow) {
         deleteReturn.current = document.activeElement as HTMLElement | null;
         setDeletion(preview);
@@ -1003,7 +1003,7 @@ export function CaptureForm({
         </div>
       )}
       {deletion && <div ref={deleteQuestion} className="kdiff bk-discard kdelete-question" role="alertdialog" aria-label="Buchung löschen?">
-        <p>{deleteReason ? `Diese Buchung ist geschützt: ${SKIP_REASON_LABEL[deleteReason]}.` : 'Die Buchung ist nicht mehr verfügbar.'}</p>
+        <p>{deleteReason ? `Diese Buchung ist geschützt: ${SKIP_REASON_LABEL[deleteReason]}.` : deletion.selection.items.length ? 'Diese Umbuchung wird mit allen verbundenen Seiten gelöscht.' : 'Die Buchung ist nicht mehr verfügbar.'}</p>
         <p>{deletion.affectedIds.length} Buchungsseiten sind betroffen. {deletion.affectedTotals.map((total) => total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents,total.currency,true)).join(' · ')}</p>
         {deletion.affectedIds.length > 1 && <p>Alle Seiten der Umbuchung werden gemeinsam gelöscht und mit einem Rückgängig wiederhergestellt.</p>}
         {!canConfirmDelete && <p>Geprüfte Buchungen zuerst ausdrücklich freigeben. Bei Kontakt- oder Trade-Abrechnungen zuerst die zugehörige Abrechnung öffnen und zurücknehmen. Geschützte Dokumentbuchungen bleiben ihrer Quellaktion zugeordnet.</p>}

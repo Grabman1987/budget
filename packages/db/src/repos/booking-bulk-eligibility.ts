@@ -18,6 +18,8 @@ import { statementAutomationRow } from '../schema/statement-automation';
 import { hasStatementAutomation } from './statement-automation-invariants';
 import { hasStatementSettlementFamily } from './statement-settlement-invariants';
 import { runInTransaction, type Executor } from './types';
+import { assertContactBookingWrite } from './contact-invariants';
+import { BookingInvariantError } from './errors';
 
 export type BookingBulkReason =
   | 'not_found'
@@ -225,9 +227,17 @@ export function readBookingBulkSelection(
       );
       for (const { b, a, p } of rows) {
         const own = splits.filter((s) => s.bookingId === b.id);
+        let deleteContact = false;
+        if (policy === 'delete') {
+          try { assertContactBookingWrite(tx, b.id, 'delete'); }
+          catch (error) {
+            if (!(error instanceof BookingInvariantError)) throw error;
+            deleteContact = true;
+          }
+        }
         const deleteReason: BookingBulkReason | null =
           b.status === 'reconciled' ? 'reconciled_locked'
-            : contacts.has(b.id) || own.some((s) => s.contactId) ? 'linked_contact'
+            : deleteContact ? 'linked_contact'
               : trades.has(b.id) ? 'linked_trade'
                 : documents.has(b.id) ? 'linked_document'
                   : statements.has(b.id) ? 'linked_statement'

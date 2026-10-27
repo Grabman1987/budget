@@ -344,24 +344,22 @@ function assertTransfer(transferId: string, legs: readonly Leg[]): void {
  * they are deleted and restored together.
  */
 export function relatedTransferBookings(tx: Executor, bookingId: string): string[] {
-  const own = tx
-    .select({ transferId: bookingSplit.transferId })
-    .from(bookingSplit)
-    .where(eq(bookingSplit.bookingId, bookingId))
-    .all()
-    .map((r) => r.transferId);
-  const row = tx.select().from(booking).where(eq(booking.id, bookingId)).get();
-  const transferIds = [row?.transferId, ...own].filter((t): t is string => !!t);
-  if (transferIds.length === 0) return [bookingId];
-  const whole = tx
-    .select({ id: booking.id })
-    .from(booking)
-    .where(inArray(booking.transferId, transferIds))
-    .all();
-  const parts = tx
-    .select({ id: bookingSplit.bookingId })
-    .from(bookingSplit)
-    .where(or(inArray(bookingSplit.transferId, transferIds)))
-    .all();
-  return [...new Set([bookingId, ...whole.map((r) => r.id), ...parts.map((r) => r.id)])];
+  const found = new Set([bookingId]), queue = [bookingId];
+  // A split-transfer parent can connect multiple transfers. Walk until no unseen booking
+  // remains, so entering through any leaf returns the same complete component.
+  for (let at = 0; at < queue.length; at += 1) {
+    const id = queue[at]!;
+    const own = tx.select({ transferId: bookingSplit.transferId }).from(bookingSplit)
+      .where(eq(bookingSplit.bookingId, id)).all().map((row) => row.transferId);
+    const row = tx.select({ transferId: booking.transferId }).from(booking).where(eq(booking.id, id)).get();
+    const transferIds = [row?.transferId, ...own].filter((value): value is string => !!value);
+    if (!transferIds.length) continue;
+    const whole = tx.select({ id: booking.id }).from(booking).where(inArray(booking.transferId, transferIds)).all();
+    const parts = tx.select({ id: bookingSplit.bookingId }).from(bookingSplit).where(inArray(bookingSplit.transferId, transferIds)).all();
+    for (const next of [...whole, ...parts]) if (!found.has(next.id)) {
+      found.add(next.id);
+      queue.push(next.id);
+    }
+  }
+  return queue;
 }

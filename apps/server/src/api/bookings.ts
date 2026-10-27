@@ -339,10 +339,15 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
   // Same ownership reader, with the owner-approved delete exception for whole transfer pairs.
   const deletePreview = (tx: Executor, requested: string[]) => {
     const ids = [...new Set(requested)].sort();
-    const affectedIds = [...new Set(ids.flatMap((id) => relatedTransferBookings(tx, id)))].sort();
+    const components = new Map<string, string[]>();
+    for (const id of ids) if (!components.has(id)) {
+      const component = relatedTransferBookings(tx, id);
+      for (const member of component) components.set(member, component);
+    }
+    const affectedIds = [...components.keys()].sort();
     if (affectedIds.length > 500)
       throw new ApiError(422, 'invalid', 'Höchstens 500 Buchungsseiten einschließlich Umbuchungen auswählen.');
-    const selection = readBookingBulkSelection(tx, ids);
+    const selection = readBookingBulkSelection(tx, ids, 'delete');
     const affected = readBookingBulkSelection(tx, affectedIds, 'delete');
     const byId = new Map(affected.items.map((item) => [item.id, item]));
     const skipped: { id: string; reason: BookingBulkReason; booking?: BookingBulkItem }[] = [];
@@ -350,7 +355,7 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
     for (const id of affectedIds) {
       const booking = byId.get(id);
       // A protected or unavailable side excludes the entire pair, even when not selected.
-      const legs = relatedTransferBookings(tx, id);
+      const legs = components.get(id)!;
       const reason = legs.map((leg) => byId.get(leg)?.reason ?? (byId.has(leg) ? null : 'not_found' as const)).find((value) => value !== null);
       if (reason) skipped.push({ id, reason, ...(booking ? { booking } : {}) });
       else eligibleIds.push(id);
@@ -360,8 +365,9 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
     // Full current row/split snapshots stay inside the hash; no raw source snapshots leave the API.
     const head = tx.get<{ ordinal: string; id: string }>(sql`SELECT CAST(rowid AS TEXT) AS ordinal,id FROM audit_log ORDER BY rowid DESC LIMIT 1`) ?? null;
     const source = affectedIds.map((id) => getBooking(tx, id));
+    const transferPairs = new Set(source.flatMap((row) => row ? [row.transferId, ...row.splits.map((split) => split.transferId)].filter((id): id is string => !!id) : [])).size;
     const revision = createHash('sha256').update(JSON.stringify(['booking-delete-v1', ids, affectedIds, head, source, affected])).digest('hex');
-    return { ids, affectedIds, affectedTotals: affected.totals, selection, eligibleIds, eligibleTotals: eligible.totals, skipped, revision };
+    return { ids, affectedIds, affectedTotals: affected.totals, selection, eligibleIds, eligibleTotals: eligible.totals, skipped, revision, transferPairs };
   };
   app.post('/delete-preview', async (c) => {
     const { ids } = await readBody(c, z.object({ ids: z.array(z.string().min(1).max(200)).min(1).max(500) }).strict());
@@ -466,7 +472,10 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
           });
         }
       }
-      if (deletion) for (const id of goneWith) if (!changed.includes(id)) changed.push(id);
+      if (deletion) {
+        for (const id of goneWith) if (!changed.includes(id)) changed.push(id);
+        transferPairs = deletion.transferPairs;
+      }
     });
     return c.json({ changed, skipped, transferPairs, groupId: ctx.groupId });
   });

@@ -21,6 +21,7 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
   const locked = await expense('Synthetic delete reconciled',-890,{accountId:protectedAccount.id,status:'confirmed'});
   await post(`/accounts/${protectedAccount.id}/reconciliation`,{date:'2026-10-02',statementBalanceCents:-890});
   const linked = await expense('Synthetic delete linked',-300,{splits:[{categoryId:advance.id,contactId:contact.id,amountCents:-300}]});
+  await post('/contacts/' + contact.id + '/settlements',{accountId:account.id,date:'2026-10-03',amountCents:300});
   const transfer = await post('/bookings',{type:'transfer',fromAccountId:account.id,toAccountId:partner.id,date:'2026-10-02',amountCents:2500});
   const ids = [a.id,b.id,locked.id,linked.id,transfer.fromBookingId,transfer.toBookingId];
   const readRows = async () => {
@@ -43,6 +44,12 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
   await edit.getByRole('button',{name:'Löschen',exact:true}).click();
   const blocked = page.getByRole('alertdialog',{name:'Buchung löschen?'});
   await expect(blocked).toContainText('geprüft');
+  const keepEditing = blocked.getByRole('button',{name:'Weiter bearbeiten',exact:true});
+  await expect(keepEditing).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(keepEditing).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(keepEditing).toBeFocused();
   await expect(blocked.getByRole('button',{name:'Löschen bestätigen',exact:true})).toHaveCount(0);
   await expect.poll(readRows).toEqual(before);
   for (const theme of ['light','dark'] as const) {
@@ -119,6 +126,11 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
   await page.locator(`tr[data-booking="${transfer.fromBookingId}"] .kname-btn`).click();
   await edit.getByRole('button',{name:'Löschen',exact:true}).click();
   await expect(blocked).toContainText('Alle Seiten der Umbuchung');
+  await expect(keepEditing).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(blocked.getByRole('button',{name:'Löschen bestätigen',exact:true})).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(keepEditing).toBeFocused();
   await blocked.getByRole('button',{name:'Löschen bestätigen',exact:true}).click();
   await expect(edit).not.toBeVisible();
   await expect.poll(async () => (await readRows()).map((row:{id:string}) => row.id).sort()).toEqual([a.id,b.id,locked.id,linked.id].sort());
