@@ -57,6 +57,11 @@ test('564 partial pending and duplicate candidates precede corrections, retain e
   await check.getByRole('button',{name:'Schließen',exact:true}).click();
   await page.getByRole('button',{name:'Rückgängig',exact:true}).click();
   await expect.poll(()=>read(partial.id)).toEqual(beforePartial);
+  await open(partial.id,'960');
+  await expect(pendingRow).toContainText('−30,00 €');
+  await expect(check.locator('.kv-list').getByText('−40,00 €',{exact:true})).toBeVisible();
+  await expect(check.getByRole('button',{name:/Differenz ausgleichen/})).toHaveCount(0);
+  expect(postedChecks).toBe(0);
   await open(duplicates.id,'987,66');
   const candidate=check.locator('[data-testid^="candidate-duplicate-"]').first();
   await expect(candidate).toContainText('−12,34 €');

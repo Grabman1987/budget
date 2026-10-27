@@ -80,7 +80,7 @@ it('uses the existing duplicate action, refreshes to literal zero, and reconcile
 });
 it('shows a partial pending minus3000 against minus4000 and uses canonical status confirmation before offering only the remaining minus1000',async()=>{
   preview={...preview,statementBalanceCents:-4000,bookedBalanceCents:0,pendingCents:-3000,differenceCents:-4000,toReconcileCount:0,
-    duplicates:[],pendingMatches:[],pendingBookings:[{id:'partial',date:'2026-09-10',payeeName:'Synthetic partial',amountCents:-3000}],missing:{kind:'variable',amountCents:4000}};
+    duplicates:[],pendingMatches:[],pendingBookings:[{id:'partial',date:'2026-09-10',payeeName:'Synthetic partial',amountCents:-3000}],missing:{kind:'expense',amountCents:4000}};
   const client=show(-4000);
   const row=await screen.findByTestId('candidate-pending-partial');
   expect(row.textContent).toContain('−30,00 €');
@@ -89,7 +89,7 @@ it('shows a partial pending minus3000 against minus4000 and uses canonical statu
   fireEvent.click(within(row).getByRole('button',{name:'Bestätigen',exact:true}));
   expect(writes.bulk.mutate.mock.calls[0]?.[0]).toEqual({ids:['partial'],set:{status:'confirmed'}});
   expect(sends).toEqual([]);
-  preview={...preview,bookedBalanceCents:-3000,pendingCents:0,differenceCents:-1000,toReconcileCount:1,pendingBookings:[],missing:{kind:'variable',amountCents:1000}};
+  preview={...preview,bookedBalanceCents:-3000,pendingCents:0,differenceCents:-1000,toReconcileCount:1,pendingBookings:[],missing:{kind:'expense',amountCents:1000}};
   await client.invalidateQueries({queryKey:['ledger']});
   const correction=await screen.findByRole('button',{name:/Differenz ausgleichen/});
   expect(correction.textContent).toContain('−10,00 €');
@@ -98,12 +98,12 @@ it('shows a partial pending minus3000 against minus4000 and uses canonical statu
 });
 it('keeps an existing month-close token stale after a separate candidate confirmation and requires reload instead of silently advancing it',async()=>{
   preview={...preview,statementBalanceCents:-4000,bookedBalanceCents:0,pendingCents:-3000,differenceCents:-4000,toReconcileCount:0,
-    duplicates:[],pendingMatches:[],pendingBookings:[{id:'partial',date:'2026-09-10',payeeName:null,amountCents:-3000}],missing:{kind:'variable',amountCents:4000}};
+    duplicates:[],pendingMatches:[],pendingBookings:[{id:'partial',date:'2026-09-10',payeeName:null,amountCents:-3000}],missing:{kind:'expense',amountCents:4000}};
   const close={asOf:'2026-09-30',confirm:vi.fn(),onReload:vi.fn(),onBusy:vi.fn()};
   const client=show(-4000,close);
   fireEvent.click(within(await screen.findByTestId('candidate-pending-partial')).getByRole('button',{name:'Bestätigen',exact:true}));
   expect(close.onBusy).toHaveBeenCalledWith(true);
-  preview={...preview,bookedBalanceCents:-3000,pendingCents:0,differenceCents:-1000,pendingBookings:[],missing:{kind:'variable',amountCents:1000}};
+  preview={...preview,bookedBalanceCents:-3000,pendingCents:0,differenceCents:-1000,pendingBookings:[],missing:{kind:'expense',amountCents:1000}};
   await act(async()=>{
     const options=writes.bulk.mutate.mock.calls[0]![1];
     options.onSuccess({changed:['partial'],skipped:[],groupId:'synthetic-status'});

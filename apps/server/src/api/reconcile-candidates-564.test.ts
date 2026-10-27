@@ -76,18 +76,30 @@ it('deletes a shown equal duplicate to literal zero, then explicitly locks witho
 
 it('565 canonical category/null corrections keep literal minus1234 and exact grouped Undo',async()=>{
   const api=app();
-  const before=state();
   for(const categoryId of [undefined,'essen']){
+    const before=state();
+    const reconciliationsBefore=opened.db.select().from(schema.accountReconciliation).all();
     const response=await send(api,'POST','/accounts/giro/reconciliation',{date:'2026-09-30',statementBalanceCents:98766,adjust:true,...(categoryId?{categoryId}:{})});
     expect(response.status).toBe(201);
     const {result}=await response.json() as {result:ReconcileResult};
     expect(result.differenceCents).toBe(-1234);
     expect(result.adjustmentBookingId).toBeTruthy();
     const adjustment=state().bookings.find(row=>row.id===result.adjustmentBookingId)!;
+    const reconciliation=opened.db.select().from(schema.accountReconciliation).all().find(row=>row.adjustmentBookingId===adjustment.id)!;
+    expect(reconciliation).toBeTruthy();
     expect([adjustment.amountCents,adjustment.status]).toEqual([-1234,'reconciled']);
     expect(state().splits.filter(row=>row.bookingId===adjustment.id).map(row=>[row.amountCents,row.categoryId])).toEqual([[-1234,categoryId??null]]);
     expect((await send(api,'POST','/undo',{groupId:result.groupId})).status).toBe(200);
-    expect(state()).toEqual(before);
+    const after=state();
+    expect(after.bookings.filter(row=>row.id!==adjustment.id)).toEqual(before.bookings);
+    expect(after.splits).toEqual(before.splits);
+    expect(after.bookings.find(row=>row.id===adjustment.id)).toEqual({...adjustment,deletedAt:expect.any(String),updatedAt:expect.any(String)});
+    expect(after.bookings.filter(row=>row.deletedAt===null)).toEqual(before.bookings.filter(row=>row.deletedAt===null));
+    expect((await send(api,'GET',`/bookings/${adjustment.id}`)).status).toBe(404);
+    const reconciliationsAfter=opened.db.select().from(schema.accountReconciliation).all();
+    expect(reconciliationsAfter.filter(row=>row.id!==reconciliation.id)).toEqual(reconciliationsBefore);
+    expect(reconciliationsAfter.find(row=>row.id===reconciliation.id)).toEqual({...reconciliation,deletedAt:expect.any(String),updatedAt:expect.any(String)});
+    expect(reconciliationsAfter.filter(row=>row.deletedAt===null)).toEqual(reconciliationsBefore.filter(row=>row.deletedAt===null));
   }
 });
 
