@@ -1,0 +1,27 @@
+diff --git a/apps/web/src/pwa/pwa.tsx b/apps/web/src/pwa/pwa.tsx
+index b55c58a..29d3d84 100644
+--- a/apps/web/src/pwa/pwa.tsx
++++ b/apps/web/src/pwa/pwa.tsx
+@@ -103,12 +103,16 @@ export function PwaShell({ children }: { children: ReactNode }) {
+     window.addEventListener('budget-session-expired', expired);
+     return () => window.removeEventListener('budget-session-expired', expired);
+   }, []);
+-  useEffect(() => router.subscribe('onResolved', ({ toLocation }) => {
+-    if (toLocation.pathname !== '/login' && toLocation.pathname !== '/setup') return;
+-    setHasConnected(true);
+-    setMounted(true);
+-    setSessionEnded(false);
+-  }), []);
++  useEffect(
++    () =>
++      router.subscribe('onResolved', ({ toLocation }) => {
++        if (toLocation.pathname !== '/login' && toLocation.pathname !== '/setup') return;
++        setHasConnected(true);
++        setMounted(true);
++        setSessionEnded(false);
++      }),
++    [],
++  );
+   useEffect(() => {
+     if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
+     let disposed = false;
