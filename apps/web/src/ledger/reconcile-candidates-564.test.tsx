@@ -98,7 +98,11 @@ const show = (
   } as AccountRow;
   render(
     <QueryClientProvider client={client}>
-      <ReconcileFlow account={account} {...(monthClose ? { monthClose } : {})} onDone={() => undefined} />
+      <ReconcileFlow
+        account={account}
+        {...(monthClose ? { monthClose } : {})}
+        onDone={() => undefined}
+      />
     </QueryClientProvider>,
   );
   fireEvent.click(screen.getByRole('button', { name: /Bankstand übernehmen/ }));
@@ -119,9 +123,7 @@ it('requires explicit review of every existing candidate before correction and l
   );
   expect(sends).toEqual([]);
   expect(writes.remove.mutate).not.toHaveBeenCalled();
-  fireEvent.click(
-    within(duplicate).getByRole('button', { name: 'Ignorieren rückgängig' }),
-  );
+  fireEvent.click(within(duplicate).getByRole('button', { name: 'Ignorieren rückgängig' }));
   expect(screen.queryByLabelText('Ausgleichsdatum')).toBeNull();
   expect(sends).toEqual([]);
   fireEvent.click(within(duplicate).getByRole('button', { name: 'Ignorieren' }));
@@ -140,9 +142,7 @@ it('uses the existing duplicate action, refreshes to literal zero, and reconcile
   preview.pendingMatches = [];
   const client = show();
   const duplicate = await screen.findByTestId('candidate-duplicate-duplicate');
-  fireEvent.click(
-    within(duplicate).getByRole('button', { name: 'Doppelte Buchung entfernen' }),
-  );
+  fireEvent.click(within(duplicate).getByRole('button', { name: 'Doppelte Buchung entfernen' }));
   expect(writes.remove.mutate.mock.calls[0]?.[0]).toEqual({ id: 'duplicate' });
   expect(sends).toEqual([]);
   preview = {
@@ -337,11 +337,16 @@ it('565 preserves an eligible remembered choice while a cold lookup is unresolve
   preview = { ...preview, duplicates: [], pendingMatches: [], pendingBookings: [] };
   localStorage.setItem('budget-reconcile-category:a', 'c');
   let releaseLookup!: (response: Response) => void;
-  const heldLookup = new Promise<Response>((resolve) => { releaseLookup = resolve; });
+  const heldLookup = new Promise<Response>((resolve) => {
+    releaseLookup = resolve;
+  });
   const originalFetch = globalThis.fetch;
-  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
-    String(input).includes('/lookups') ? heldLookup : originalFetch(input, init),
-  ));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
+      String(input).includes('/lookups') ? heldLookup : originalFetch(input, init),
+    ),
+  );
   show();
   const correction = await screen.findByRole('button', { name: /Differenz ausgleichen/ });
   const select = screen.getByLabelText('Kategorie für den Ausgleich') as HTMLSelectElement;
@@ -349,10 +354,28 @@ it('565 preserves an eligible remembered choice while a cold lookup is unresolve
   expect(select.disabled).toBe(true);
   expect((correction as HTMLButtonElement).disabled).toBe(true);
   expect(sends).toEqual([]);
-  await act(async () => releaseLookup(new Response(JSON.stringify({
-    categories: [{ id: 'c', name: 'Synthetic remembered choice', groupId: null, class: 'need', kind: 'variable', sortOrder: 0, hiddenAt: null }],
-    groups: [], projects: [],
-  }), { headers: { 'content-type': 'application/json' } })));
+  await act(async () =>
+    releaseLookup(
+      new Response(
+        JSON.stringify({
+          categories: [
+            {
+              id: 'c',
+              name: 'Synthetic remembered choice',
+              groupId: null,
+              class: 'need',
+              kind: 'variable',
+              sortOrder: 0,
+              hiddenAt: null,
+            },
+          ],
+          groups: [],
+          projects: [],
+        }),
+        { headers: { 'content-type': 'application/json' } },
+      ),
+    ),
+  );
   await waitFor(() => expect(select.value).toBe('c'));
   expect(select.disabled).toBe(false);
   expect((correction as HTMLButtonElement).disabled).toBe(false);
