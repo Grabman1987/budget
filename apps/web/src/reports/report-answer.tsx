@@ -45,7 +45,8 @@ export function reportAnswer(facts: ReportAnswerFacts) {
     previousCents: facts.previousCents,
     changeCents,
     direction: changeCents > 0 ? 'mehr' : changeCents < 0 ? 'weniger' : 'gleich viel',
-    favourable: changeCents !== 0 && (facts.metric === 'income' ? changeCents > 0 : changeCents < 0),
+    favourable:
+      changeCents !== 0 && (facts.metric === 'income' ? changeCents > 0 : changeCents < 0),
     neutral: changeCents === 0,
   };
 }
