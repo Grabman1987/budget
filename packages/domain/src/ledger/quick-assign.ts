@@ -2,7 +2,7 @@ import { addMonths, monthOf } from '../date';
 import type { TableMonth } from '../report-tables';
 import { averageCents, freedomSumCents } from '../wealth/freedom';
 
-export type QuickAssignMode = 'empty' | 'last-month' | 'average' | 'target';
+export type QuickAssignMode = 'empty' | 'last-month' | 'average' | 'target' | 'reset';
 export interface QuickAssignFigures {
   lastMonthCents: number;
   averageCents: number;
@@ -54,6 +54,7 @@ export function quickAssignPlan(
   toBeAssignedCents: number,
 ) {
   const wanted = rows.flatMap((r) => {
+    if (mode === 'reset') return [{ ...r, value: 0 }];
     if (!r.quickAssign || (mode === 'empty' && r.assignedCents !== 0)) return [];
     const value =
       mode === 'empty'

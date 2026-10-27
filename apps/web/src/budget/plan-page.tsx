@@ -1107,6 +1107,9 @@ function PlanBody({
       <PlanInspector
         month={open?.month ?? month}
         rows={panelRows}
+        visibleRows={shownRows}
+        multi={multi && !open}
+        focusSelection={!phoneSelection}
         selected={(open
           ? panelRows.filter((r) => r.id === open.id)
           : orderedRows.filter((r) => selected.has(r.id))
