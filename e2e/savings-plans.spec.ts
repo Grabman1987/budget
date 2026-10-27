@@ -343,14 +343,14 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
   await expect(page.locator('dialog[open]')).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await page.getByRole('navigation', { name: 'Portfolio-Register', exact: true })
+    .getByRole('link', { name: 'Positionen', exact: true }).click();
   await page.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Handel erfassen', exact: true })).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   // The unheld-instrument catalog is a native details element that starts closed.
-  await page.getByRole('navigation', { name: 'Portfolio-Register', exact: true })
-    .getByRole('link', { name: 'Positionen', exact: true }).click();
   await page.locator('.instrument-catalog > summary').click();
   await page
     .locator('.instrument-catalog')

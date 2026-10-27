@@ -218,7 +218,7 @@ function AttentionRow({
                 Prüfen
               </AppLink>
             )}
-            {quoteReview > 0 && <AppLink to="/vermoegen/portfolio">Kurse prüfen</AppLink>}
+            {quoteReview > 0 && <AppLink to="/vermoegen/portfolio/positionen">Kurse prüfen</AppLink>}
             {data.attention.loanTermsMissing && (
               <AppLink to="/einstellungen/konten">Konditionen ergänzen</AppLink>
             )}

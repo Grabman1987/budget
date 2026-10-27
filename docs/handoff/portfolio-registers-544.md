@@ -42,6 +42,8 @@ Each file below needs independent review of its adapter and retained coverage.
 | `e2e/asset-exposure.spec.ts` | Opens the class-grouped positions table before the unchanged split/rounding/editor checks. |
 | `e2e/missing-quotes.spec.ts` | Opens Positionen before unchanged missing-quote/value/Undo assertions. |
 | `e2e/mobile-chart-containers.spec.ts` | Allocation bar geometry now opens Allokation. |
+| `apps/web/src/heute/valuation-attention-511.test.tsx` | Two existing literal href expectations now require Positionen for the unchanged quote-review action. |
+| `apps/web/src/rules/rules-page.test.tsx` | Adds rendered per-rule correction links with seven literal contextual destinations. Fixture-only bad statuses expose those actions without changing evaluations or existing oracles. |
 
 ## Actual evidence and remaining gates
 
@@ -57,3 +59,41 @@ green run. Pending: remote static/unit/focused browsers, capable independent ful
 diff and per-test review, representative image inspection, exact-head required CI,
 canonical integration/preview/publication and fresh live verification. No local
 Node/npm/build/test/browser/install/lint/formatter was run under the host RAM limit.
+
+## First focused proof and bounded corrections
+
+Disposable workflow `a589939b` (parent exact source `bfdf74a8`) ran
+`40463839267`. Scoped ESLint, full typecheck and build passed; six unit files / 47
+tests passed. In that same VM, the additional API regression was first run with
+only `invest.ts` temporarily replaced from base `ae961`: it failed exactly because
+the old endpoint returned 17 September instead of the requested 15 September.
+The workflow then restored the exact source file and all seven positions API
+tests passed as part of the 47-test green unit run. This intentional RED is not a
+failure of the implemented date read.
+
+Browser discovery: 36 tests, 27 first-attempt pass, nine fail, no retry or baseline
+update. Three closed-month failures were only test-side Intl nonbreaking-space
+grouping versus the product's explicit dot grouping. The corrected test uses
+literal 8686069 cents and `86.860,69 €`, retaining date and sum parity. Two
+integrated savings cases attempted the trade opener while still on Allokation;
+the existing register switch now precedes that opener. Four existing desktop
+geometry checks measured the chart bottom at 1033.625, beyond the unchanged
+900px limit. The correction removes the duplicated navigation-level section gap
+and places the same lead value and scope/gain beside each other on desktop;
+the chain, quality cue and chart remain visible. Existing geometry, quality,
+44px, focus and dialog oracles are unchanged.
+
+The independent source review also found old task entry links. Today quote
+review now opens Positionen; rule corrections open Allokation (R13/R15/R21),
+Positionen (R14/R22), or Sparpläne (R17/R20). Existing product-ID links retain the
+valid legacy redirect. No rule evaluation or financial semantics changed.
+
+Baseline audit: all `expectScreenshot`/`toHaveScreenshot` consumers are in auth,
+components, expected, goals, networth, rules and shell specs. None pins a
+portfolio screenshot. Rules/Heute changes alter hrefs only, retaining their
+visible baseline content; no baseline regeneration is justified. Existing
+portfolio browser evidence uses direct screenshots (including tracked evidence
+JPEGs from wealth-ux-v1), not snapshot oracles. Such VM-only outputs must not be
+carried into the feature diff. The first VM's formatter patch/logs were inside
+Playwright's cleaned output directory and were lost before artifact upload; no
+patch was applied. The next proof preserves them outside that directory.

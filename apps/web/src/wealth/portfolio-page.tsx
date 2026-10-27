@@ -325,7 +325,7 @@ function PortfolioLead({ view }: { view: PortfolioPositionsView }) {
   useAmountPrivacy();
   const parts = view.valueCents === null ? null : eurParts(view.valueCents);
   return (
-    <section className="vnw" aria-labelledby="portfolio-title">
+    <section className="vnw portfolio-lead" aria-labelledby="portfolio-title">
       <div className="tbd-head">
         <h2 id="portfolio-title">Portfolio</h2>
         <span className="tbd-state">{longDay(view.asOf)}</span>
@@ -340,7 +340,7 @@ function PortfolioLead({ view }: { view: PortfolioPositionsView }) {
           <span className="portfolio-unavailable">Bewertung unvollständig</span>
         )}
       </div>
-      <p className="vnote">Wertpapiere ohne Depot-Bargeld</p>
+      <p className="vnote portfolio-scope">Wertpapiere ohne Depot-Bargeld</p>
       <p className="portfolio-lead-gain" data-testid="portfolio-gain">
         Gewinn seit Kauf {moneyText(view.gainCents)} ·{' '}
         {percentText(
@@ -353,7 +353,7 @@ function PortfolioLead({ view }: { view: PortfolioPositionsView }) {
       {view.chain ? (
         <DimensionChain terms={view.chain} label="Maßkette Portfoliowert" />
       ) : (
-        <p className="vnote">
+        <p className="vnote portfolio-basis">
           {view.valueCents === null
             ? 'Mindestens ein Kurs oder Wechselkurs fehlt. Der Gesamtwert und die Anteile sind nicht berechenbar.'
             : `${basisReason(view.classes.flatMap((g) => g.positions.flatMap((p) => p.accounts)))}. Der gesamte Wertzuwachs ist nicht berechenbar.`}

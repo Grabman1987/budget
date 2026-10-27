@@ -108,6 +108,7 @@ test('a closed calendar month uses the chart endpoint date for lead and position
   expect(response.ok()).toBe(true);
   const endpoint = (await response.json()).portfolio.performanceHistory.dailyValues.at(-1);
   expect(endpoint.date).toBe('2026-08-31');
+  expect(endpoint.valueCents).toBe(8_686_069);
   const positionsResponse = await request.get('/api/portfolio/positions?asOf=2026-08-31');
   expect(positionsResponse.ok()).toBe(true);
   const positions = (await positionsResponse.json()) as PortfolioPositionsView;
@@ -118,9 +119,6 @@ test('a closed calendar month uses the chart endpoint date for lead and position
   for (const path of ['/vermoegen/portfolio', '/vermoegen/portfolio/positionen']) {
     await page.goto(`${path}?zeitraum=2026-08..2026-08`);
     await expect(page.locator('.vnw')).toContainText('31.08.2026');
-    await expect(page.getByTestId('portfolio-value')).toHaveText(
-      `${new Intl.NumberFormat('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-        .format(endpoint.valueCents / 100)} €`,
-    );
+    await expect(page.getByTestId('portfolio-value')).toHaveText('86.860,69 €');
   }
 });

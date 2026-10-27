@@ -77,17 +77,17 @@ export const RULE_GUIDANCE: Readonly<
   },
   R13: {
     explanation: 'Halte deine Anlageklassen nahe an den festgelegten Zielanteilen.',
-    to: '/vermoegen/portfolio',
+    to: '/vermoegen/portfolio/allokation',
     label: 'Aufteilung prüfen',
   },
   R14: {
     explanation: 'Vermeide zu große Anteile einzelner Produkte oder Plattformen.',
-    to: '/vermoegen/portfolio',
+    to: '/vermoegen/portfolio/positionen',
     label: 'Große Positionen prüfen',
   },
   R15: {
     explanation: 'Begrenze den Anteil besonders riskanter Anlagen.',
-    to: '/vermoegen/portfolio',
+    to: '/vermoegen/portfolio/allokation',
     label: 'Riskante Anlagen prüfen',
   },
   R16: {
@@ -97,7 +97,7 @@ export const RULE_GUIDANCE: Readonly<
   },
   R17: {
     explanation: 'Investiere einen festen Anteil deines Bruttoeinkommens.',
-    to: '/vermoegen/portfolio',
+    to: '/vermoegen/portfolio/sparplaene',
     label: 'Sparpläne prüfen',
   },
   R18: {
@@ -112,17 +112,17 @@ export const RULE_GUIDANCE: Readonly<
   },
   R20: {
     explanation: 'Investiere regelmäßig über das ganze Jahr.',
-    to: '/vermoegen/portfolio',
+    to: '/vermoegen/portfolio/sparplaene',
     label: 'Sparpläne prüfen',
   },
   R21: {
     explanation: 'Begrenze gehebelte Anlagen und Schulden auf Verrechnungskonten.',
-    to: '/vermoegen/portfolio',
+    to: '/vermoegen/portfolio/allokation',
     label: 'Hebel und Konten prüfen',
   },
   R22: {
     explanation: 'Halte die laufenden Kosten deiner Fonds niedrig.',
-    to: '/vermoegen/portfolio',
+    to: '/vermoegen/portfolio/positionen',
     label: 'Fondskosten prüfen',
   },
 };
