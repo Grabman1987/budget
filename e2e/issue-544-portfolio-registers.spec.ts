@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { PortfolioPositionsView } from '@budget/db';
+import type { Page } from '@playwright/test';
 import { expect, sampleTest as test } from './sample';
 
 const registers = [
@@ -30,10 +31,26 @@ test('portfolio navigation rows do not overlap at the 640px shell breakpoint', a
   await page.screenshot({ path: info.outputPath('640-registers.png'), fullPage: false });
 });
 
-// Catches missing/dead register destinations, clipped labels and hidden oversized pages.
-test('five portfolio registers preserve period and fit accessible desktop and phone pages', async ({
+async function expectLoadedRegister(page: Page, label: typeof registers[number][0]) {
+  // Measure the loaded register, not the shorter loading shell after reload.
+  if (label === 'Übersicht')
+    await expect(page.getByTestId('portfolio-overview-chart')).toBeVisible();
+  if (label === 'Übersicht' || label === 'Positionen')
+    await expect(page.getByTestId('portfolio-value')).toHaveText('88.000,00 €');
+  if (label === 'Positionen') await expect(page.locator('.portfolio-table')).toBeVisible();
+  if (label === 'Allokation') await expect(page.locator('.vallo')).toBeVisible();
+  if (label === 'Sparpläne')
+    await expect(
+      page.getByRole('region', { name: 'Sparpläne', exact: true }).getByRole('table'),
+    ).toBeVisible();
+  if (label === 'Kennzahlen')
+    await expect(page.getByRole('link', { name: 'Portfolio-Auswertung öffnen' })).toBeVisible();
+}
+
+// Keep the complete sequential journey; accessibility/captures get independent register cases.
+test('five portfolio registers preserve period across navigation and reload', async ({
   page,
-}, info) => {
+}) => {
   await page.goto('/vermoegen/portfolio?zeitraum=3J');
   for (const [label, path] of registers) {
     const nav = page.getByRole('navigation', { name: 'Portfolio-Register', exact: true });
@@ -49,19 +66,16 @@ test('five portfolio registers preserve period and fit accessible desktop and ph
       'aria-current',
       'page',
     );
-    // Measure the loaded register, not the shorter loading shell after reload.
-    if (label === 'Übersicht')
-      await expect(page.getByTestId('portfolio-overview-chart')).toBeVisible();
-    if (label === 'Übersicht' || label === 'Positionen')
-      await expect(page.getByTestId('portfolio-value')).toHaveText('88.000,00 €');
-    if (label === 'Positionen') await expect(page.locator('.portfolio-table')).toBeVisible();
-    if (label === 'Allokation') await expect(page.locator('.vallo')).toBeVisible();
-    if (label === 'Sparpläne')
-      await expect(
-        page.getByRole('region', { name: 'Sparpläne', exact: true }).getByRole('table'),
-      ).toBeVisible();
-    if (label === 'Kennzahlen')
-      await expect(page.getByRole('link', { name: 'Portfolio-Auswertung öffnen' })).toBeVisible();
+    await expectLoadedRegister(page, label);
+  }
+});
+
+// Each register retains both themes and every existing accessibility/geometry oracle at 30s.
+for (const [label, path] of registers) {
+  test(`${label}: portfolio register fits accessible light and dark pages`, async ({page}, info) => {
+    await page.goto(`${path}?zeitraum=3J`);
+    const nav = page.getByRole('navigation', { name: 'Portfolio-Register', exact: true });
+    await expectLoadedRegister(page, label);
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => {
         document.documentElement.dataset['theme'] = value;
@@ -88,8 +102,8 @@ test('five portfolio registers preserve period and fit accessible desktop and ph
         fullPage: false,
       });
     }
-  }
-});
+  });
+}
 
 // Independent sample arithmetic: 88,000 EUR of securities, excluding depot cash.
 test('portfolio endpoint, lead and independently summed positions share exact dated cents', async ({
