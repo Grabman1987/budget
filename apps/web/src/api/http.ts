@@ -1,3 +1,15 @@
+import {
+  activateSnapshots,
+  offlineReadOnly,
+  revokeSnapshots,
+  resumeSnapshots,
+  saveSnapshot,
+  snapshotGeneration,
+  snapshotEpoch,
+  snapshotRequest,
+} from '../pwa/snapshots';
+import { clearDeviceFinancialData } from '../pwa/local-data';
+
 /** Error of an API call: HTTP status plus the machine-readable `error` code of the body. */
 export class ApiError extends Error {
   readonly status: number;
@@ -33,6 +45,23 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
  * page outlives a change, whatever the caller remembers to invalidate by name.
  */
 const writeListeners = new Set<() => void>();
+let expiryCleanupStarted = false;
+const PRE_AUTH_PATHS = new Set([
+  '/api/auth/register/options',
+  '/api/auth/register/verify',
+  '/api/auth/login/options',
+  '/api/auth/login/verify',
+  '/api/auth/recovery/login',
+]);
+function endKnownSession(fromStatus = false): void {
+  if (!expiryCleanupStarted) {
+    expiryCleanupStarted = true;
+    // Revocation runs synchronously before this promise reaches IndexedDB.
+    void clearDeviceFinancialData().catch(() => undefined);
+  }
+  if (typeof window !== 'undefined')
+    window.dispatchEvent(new CustomEvent('budget-session-expired', { detail: { fromStatus } }));
+}
 export function onApiWrite(listener: () => void): () => void {
   writeListeners.add(listener);
   return () => writeListeners.delete(listener);
@@ -48,6 +77,30 @@ export async function request<T>(
   body?: unknown,
   headers?: Record<string, string>,
 ): Promise<T> {
+  if (
+    method !== 'GET' &&
+    offlineReadOnly() &&
+    !(method === 'POST' && path === '/api/bookings' && headers?.['Idempotency-Key']) &&
+    !(
+      method === 'POST' &&
+      (path === '/api/auth/login/verify' || path === '/api/auth/recovery/login')
+    )
+  )
+    throw new ApiError(0, 'offline_read_only');
+  const snapshot = method === 'GET' ? snapshotRequest(path) : null;
+  const requestGeneration = snapshotGeneration();
+  const authGeneration = path === '/api/auth/status' ? requestGeneration : null;
+  // A blocked device store must not hold up the online API read.
+  let epochTimer: ReturnType<typeof setTimeout> | undefined;
+  const epoch = snapshot
+    ? await Promise.race([
+        snapshotEpoch(),
+        new Promise<null>((resolve) => {
+          epochTimer = setTimeout(() => resolve(null), 500);
+        }),
+      ])
+    : null;
+  if (epochTimer) clearTimeout(epochTimer);
   let response: Response;
   try {
     response = await fetch(path, {
@@ -72,6 +125,13 @@ export async function request<T>(
     payload = undefined;
   }
   if (!response.ok) {
+    if (
+      response.status === 401 &&
+      !PRE_AUTH_PATHS.has(path) &&
+      snapshotGeneration() === requestGeneration
+    ) {
+      endKnownSession();
+    }
     const fields =
       typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {};
     const ids = Array.isArray(fields['bookingIds'])
@@ -85,6 +145,37 @@ export async function request<T>(
     );
   }
   if (method !== 'GET') notifyApiWrite();
+  if (
+    authGeneration !== null &&
+    snapshotGeneration() === authGeneration &&
+    (payload as { authenticated?: boolean }).authenticated === false
+  )
+    endKnownSession(true);
+  const bootstrapRegistration =
+    method === 'POST' &&
+    path === '/api/auth/register/verify' &&
+    typeof payload === 'object' &&
+    payload !== null &&
+    Array.isArray((payload as { recoveryCodes?: unknown }).recoveryCodes);
+  if (
+    bootstrapRegistration ||
+    (method === 'POST' &&
+      (path === '/api/auth/login/verify' || path === '/api/auth/recovery/login'))
+  ) {
+    expiryCleanupStarted = false;
+    // A new login must never inherit another session's read permission.
+    revokeSnapshots();
+    resumeSnapshots();
+  }
+  if (authGeneration !== null && (payload as { authenticated?: boolean }).authenticated)
+    await Promise.race([
+      activateSnapshots(authGeneration).catch(() => undefined),
+      new Promise<void>((resolve) => setTimeout(resolve, 500)),
+    ]);
+  if (snapshot && epoch !== null)
+    void saveSnapshot({ ...snapshot, epoch, fetchedAt: Date.now(), data: payload }).catch(() => {
+      // Storage may be unavailable; the live response remains usable.
+    });
   return payload as T;
 }
 
