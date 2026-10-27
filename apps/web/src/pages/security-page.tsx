@@ -7,7 +7,6 @@ import {
   maskMoneyText,
   useAmountPrivacy,
 } from '@budget/ui';
-import { useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import {
@@ -38,11 +37,10 @@ const formatDate = (iso: string) => {
 /** Einstellungen › Sicherheit inside the page frame (title block and registers). */
 export function SecurityPage() {
   useAmountPrivacy();
-  const navigate = useNavigate();
   return (
     <PageFrame meta={SECURITY_META}>
       <StorageStatus />
-      <SecurityPanel onLoggedOut={() => void navigate({ to: '/login' })} />
+      <SecurityPanel onLoggedOut={() => window.location.assign('/login')} />
     </PageFrame>
   );
 }
