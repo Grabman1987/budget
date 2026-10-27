@@ -1,75 +1,102 @@
-name: Update e2e snapshots
-
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+name: Portfolio follow-on focused proof
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch whose baselines to update (never main)
+        description: Disposable proof branch
         required: true
       specs:
-        description: Space-separated spec paths (e.g. e2e/shell.spec.ts); empty = every spec that compares screenshots
+        description: Reserved; exact spec list is pinned below
         required: false
         default: ''
-
 permissions:
-  contents: write
-
+  contents: read
 concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
-
+  group: portfolio-followon-focused-${{ inputs.branch }}
+  cancel-in-progress: false
 jobs:
-  update:
-    if: inputs.branch != 'main'
+  focused:
+    if: inputs.branch == 'codex/portfolio-followon-proof-d3bde7bc'
     runs-on: ubuntu-24.04
-    # Match the CI browser image instead of reinstalling its OS/browser dependencies.
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     defaults:
       run:
         shell: bash
-    # A type-scale change regenerates nearly every baseline; give it room.
     timeout-minutes: 75
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.branch }}
-      - name: Allow Git reads and baseline commits in the container workspace
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+          fetch-depth: 0
+          persist-credentials: false
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        env:
-          SPECS: ${{ inputs.specs }}
+      - name: Exact source static, literal and first-attempt browser proof
         run: |
-          npm run build:e2e
-          read -r -a specs <<< "$SPECS"
-          if [ "${#specs[@]}" -eq 0 ]; then
-            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
+          set +e
+          set -o pipefail
+          mkdir -p proof-output
+          source_sha=d3bde7bcaa3df73d3cd7b99abb63a279ad872fb5
+          test "$(git rev-parse HEAD^)" = "$source_sha" || exit 70
+          git diff --exit-code "$source_sha" HEAD -- apps packages e2e docs/handoff || exit 71
+          printf 'SOURCE=%s PROOF=%s\n' "$source_sha" "$(git rev-parse HEAD)" | tee proof-output/source.txt
+          mapfile -t targets < <(git diff --name-only 98f650cf6e2ae811a4e7686f0095f2e08626ffe5 "$source_sha" -- apps packages e2e docs/handoff)
+          printf '%s\n' "${targets[@]}" > proof-output/source-allowlist.txt
+          npx prettier --check "${targets[@]}" 2>&1 | tee proof-output/format.log
+          format_code=${PIPESTATUS[0]}
+          if [ "$format_code" -ne 0 ]; then
+            npx prettier --write "${targets[@]}" 2>&1 | tee proof-output/format-write.log
+            git diff --binary -- "${targets[@]}" > proof-output/format.patch
+            git diff --numstat -- "${targets[@]}" > proof-output/format-numstat.txt
+            sha256sum proof-output/format.patch | tee proof-output/format.sha256
+            git restore -- "${targets[@]}"
           fi
-          npx playwright test --update-snapshots=changed "${specs[@]}" || true
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+          mapfile -t typescript < <(printf '%s\n' "${targets[@]}" | grep -E '\.(ts|tsx)$')
+          npx eslint "${typescript[@]}" 2>&1 | tee proof-output/eslint.log
+          lint_code=${PIPESTATUS[0]}
+          npm run typecheck 2>&1 | tee proof-output/typecheck.log
+          type_code=${PIPESTATUS[0]}
+          npx vitest run apps/server/src/api/instrument-history-547.test.ts apps/server/src/api/portfolio-metrics-546.test.ts apps/server/src/api/portfolio-performance.test.ts apps/server/src/api/portfolio-positions.test.ts apps/server/src/api/savings-schedules.test.ts apps/server/src/api/savings-confirmation.test.ts apps/web/src/wealth/price-history.test.tsx apps/web/src/wealth/instrument-axis-547.test.ts apps/web/src/wealth/savings-month-strip-548.test.ts apps/web/src/wealth/savings-model.test.ts apps/web/src/wealth/portfolio-format.test.ts packages/db/src/repos/portfolio-series.test.ts packages/db/src/repos/portfolio-missing-quotes.test.ts packages/db/src/repos/portfolio-risk-policy.test.ts packages/db/src/repos/portfolio-summary-fx.test.ts --maxWorkers=1 2>&1 | tee proof-output/unit.log
+          unit_code=${PIPESTATUS[0]}
+          git show 98f650cf:apps/server/src/api/invest.ts > apps/server/src/api/invest.ts
+          npx vitest run apps/server/src/api/instrument-history-547.test.ts -t 'shares literal dated cents' --maxWorkers=1 2>&1 | tee proof-output/history-red.log
+          api_red=${PIPESTATUS[0]}
+          git restore -- apps/server/src/api/invest.ts
+          git show 94dd6819:apps/web/src/wealth/portfolio-page.tsx > apps/web/src/wealth/portfolio-page.tsx
+          git show 98f650cf:apps/web/src/wealth/savings-detail.tsx > apps/web/src/wealth/savings-detail.tsx
+          npm run build:e2e 2>&1 | tee proof-output/red-build.log
+          red_build=${PIPESTATUS[0]}
+          red_browser=0
+          if [ "$red_build" -eq 0 ]; then
+            npx playwright test e2e/issue-546-portfolio-metrics.spec.ts e2e/issue-547-548-portfolio-details.spec.ts --grep '546 metrics share|548 twelve months' --project=desktop --workers=1 --retries=0 --update-snapshots=none 2>&1 | tee proof-output/browser-red.log
+            red_browser=${PIPESTATUS[0]}
+            mkdir -p proof-output/red-images
+            find test-results -type f -name '*.png' -exec cp --parents '{}' proof-output/red-images/ \;
+          fi
+          git restore -- apps/web/src/wealth/portfolio-page.tsx apps/web/src/wealth/savings-detail.tsx
+          git diff --exit-code "$source_sha" -- apps packages e2e docs/handoff || exit 72
+          npm run build:e2e 2>&1 | tee proof-output/build.log
+          build_code=${PIPESTATUS[0]}
+          browser_code=1
+          if [ "$build_code" -eq 0 ]; then
+            npx playwright test e2e/issue-546-portfolio-metrics.spec.ts e2e/issue-547-548-portfolio-details.spec.ts e2e/issue-544-portfolio-registers.spec.ts e2e/portfolio-positions.spec.ts e2e/portfolio-trades.spec.ts e2e/portfolio-instruments.spec.ts e2e/savings-plans.spec.ts e2e/wealth-detail-pages.spec.ts e2e/report-polish.spec.ts e2e/issue-512-investment-explanations.spec.ts --project=desktop --project=mobile --project=webkit-iphone --workers=1 --retries=0 --update-snapshots=none 2>&1 | tee proof-output/browser.log
+            browser_code=${PIPESTATUS[0]}
+          fi
+          git diff --stat | tee proof-output/final-diff.txt
+          printf 'RESULT format=%s lint=%s type=%s unit=%s history-red=%s red-build=%s browser-red=%s build=%s browser=%s\n' "$format_code" "$lint_code" "$type_code" "$unit_code" "$api_red" "$red_build" "$red_browser" "$build_code" "$browser_code" | tee proof-output/result.txt
+          [ "$format_code" -eq 0 ] && [ "$lint_code" -eq 0 ] && [ "$type_code" -eq 0 ] && [ "$unit_code" -eq 0 ] && [ "$api_red" -ne 0 ] && [ "$red_build" -eq 0 ] && [ "$red_browser" -ne 0 ] && [ "$build_code" -eq 0 ] && [ "$browser_code" -eq 0 ]
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
-          name: scoped-browser-screenshots
-          path: test-results/**/*.png
-          if-no-files-found: ignore
+          name: portfolio-followon-focused-d3
+          path: |
+            proof-output/
+            test-results/**/*.png
+            test-results/**/error-context.md
+          if-no-files-found: warn
           retention-days: 7
-      - name: Commit the new baselines
-        env:
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
