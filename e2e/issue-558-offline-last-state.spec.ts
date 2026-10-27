@@ -389,7 +389,7 @@ test('a native database open released after logout cannot restore an old read', 
   await other.close();
 });
 
-test('quota failure and failed clear never reopen signed-out rows after cold reload', async ({
+test('failed clear leaves old raw rows unreadable after sign-out and cold reload', async ({
   page,
   context,
 }) => {
@@ -412,9 +412,6 @@ test('quota failure and failed clear never reopen signed-out rows after cold rel
   expect(await page.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeTruthy();
   await page.goto('/einstellungen/sicherheit');
   await page.evaluate(() => {
-    Storage.prototype.setItem = () => {
-      throw new DOMException('synthetic quota', 'QuotaExceededError');
-    };
     const nativeClear = IDBObjectStore.prototype.clear;
     IDBObjectStore.prototype.clear = function () {
       if (this.name === 'views') {
@@ -441,6 +438,34 @@ test('quota failure and failed clear never reopen signed-out rows after cold rel
   await expect(page.getByRole('heading', { name: 'Budget ist offline' })).toBeVisible();
   await expect(page.getByText('Kein gespeicherter Abruf vorhanden.')).toBeVisible();
   expect(await viewCount(page)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeNull();
+});
+
+test('quota failure during authenticated grant leaves no offline read permission', async ({
+  page,
+  context,
+}) => {
+  await page.addInitScript(() => {
+    const nativeSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (this === localStorage && key === 'budget-offline-read-epoch') {
+        (window as Window & { failedReadGrant?: boolean }).failedReadGrant = true;
+        throw new DOMException('synthetic quota', 'QuotaExceededError');
+      }
+      return nativeSetItem.call(this, key, value);
+    };
+  });
+  await page.goto('/');
+  await expect.poll(() => page.evaluate(() => (window as Window & { failedReadGrant?: boolean }).failedReadGrant)).toBe(true);
+  expect(await page.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeNull();
+  expect(await viewCount(page)).toBe(0);
+  await expect
+    .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
+    .toBe(true);
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Budget ist offline' })).toBeVisible();
+  await expect(page.getByText('Kein gespeicherter Abruf vorhanden.')).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeNull();
 });
 
