@@ -1,4 +1,6 @@
 import { useAmountPrivacy } from '@budget/ui';
+import type { ReactNode } from 'react';
+import { ReportProjectScopeNote } from './report-project-scope';
 import type { IncomeLineStatus } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -40,11 +42,14 @@ const STATUS: Record<
   unlinked: { icon: CircleDashed, label: 'nicht zugeordnet', tone: '' },
 };
 
-export function IncomeReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function IncomeReport({ report, meta, projectId, viewControl }: {
+  report: ReportEntry; meta: PageMeta; projectId?: string | undefined; viewControl?: ReactNode;
+}) {
   useAmountPrivacy();
   const { month, shift, current } = useReportMonth();
-  const query = useQuery(incomeReportQuery(month));
-  const data = query.data;
+  const query = useQuery(incomeReportQuery(month, projectId));
+  // Preserve the legacy path; project facts fail closed while rereading or after a scoped error.
+  const data = projectId ? query.isSuccess && !query.isFetching ? query.data : undefined : query.data;
   return (
     <MonthReportFrame
       verdict={
@@ -74,9 +79,11 @@ export function IncomeReport({ report, meta }: { report: ReportEntry; meta: Page
       firstMonth={data?.firstMonth}
       asOf={data?.asOf}
       basis={query.isError ? 'nicht verfügbar' : undefined}
+      extraFields={viewControl ? [{ label: 'Ansicht und Projekt', value: viewControl }] : []}
     >
       <div className="mrep income-report" data-testid="income-report">
-        {query.isPending && <LoadingNote what="Einnahmen" />}
+        {data && !query.isFetching && !query.isError && 'project' in data && <ReportProjectScopeNote project={data.project} asOf={data.asOf} view="income" />}
+        {(query.isPending || (projectId && query.isFetching)) && <LoadingNote what="Einnahmen" />}
         {query.isError && (
           <ErrorNote what="Einnahmen" error={query.error} onRetry={() => void query.refetch()} />
         )}
@@ -113,7 +120,7 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
         <div className="tbd-head">
           <h2 id="inc-title">Einnahmen {title}</h2>
           <span className="tbd-state">
-            {expected.pendingCount > 0 ? (
+            {expected === null ? null : expected.pendingCount > 0 ? (
               <span className="ink">
                 <Clock className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
                 {expected.pendingCount} erwartet, {eur(expected.pendingCents, { cents: false })}
@@ -196,6 +203,12 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
         </section>
       )}
 
+      {expected === null ? (
+        <section className="mr-card" aria-labelledby="inc-exp-title">
+          <div className="tbd-head"><h2 id="inc-exp-title">Erwartet gegen eingegangen</h2></div>
+          <p className="vnote">Erwartete Zahlungen sind keinem Projekt zugeordnet. Für diesen Projektfilter sind Erwartungswerte und Fehlend-Status daher nicht verfügbar; tatsächliche Einnahmen bleiben sichtbar.</p>
+        </section>
+      ) : (
       <section className="mr-card" aria-labelledby="inc-exp-title">
         <div className="tbd-head">
           <h2 id="inc-exp-title">Erwartet gegen eingegangen</h2>
@@ -258,11 +271,12 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
           {data.expectedMaterialised
             ? 'Wiederkehrende Zahlungen ordnet der Nachtlauf automatisch zu; Abweichungen landen unter Prüfen.'
             : 'Die wiederkehrenden Zahlungen stammen aus dem Zahlungsplan und sind für diesen Monat noch nicht zugeordnet; ob sie eingegangen sind, zeigt die Tabelle darunter.'}
-          {data.foreignCurrencyCount > 0
+          {data.foreignCurrencyCount !== null && data.foreignCurrencyCount > 0
             ? ` ${data.foreignCurrencyCount} wiederkehrende Zahlung${data.foreignCurrencyCount === 1 ? '' : 'en'} in Fremdwährung ${data.foreignCurrencyCount === 1 ? 'ist' : 'sind'} hier nicht enthalten.`
             : ''}
         </p>
       </section>
+      )}
 
       <section className="mr-card mr-wide" aria-labelledby="inc-type-title">
         <div className="tbd-head">

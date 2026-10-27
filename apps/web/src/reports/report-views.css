@@ -1,0 +1,49 @@
+.report-view-switch.seg {
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+}
+.report-view-switch.seg button {
+  min-width: 0;
+  white-space: normal;
+}
+.report-income-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  max-width: 100%;
+}
+.report-project-select {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 0;
+  max-width: 100%;
+  font-size: var(--fs-meta);
+}
+.report-project-select select {
+  min-height: var(--touch);
+  max-width: 100%;
+  width: 16rem;
+}
+.report-project-note {
+  grid-column: 1 / -1;
+  margin: var(--space-sm) 0 var(--space-md);
+  color: var(--ink-2);
+  font-size: var(--fs-table);
+  line-height: var(--lh-table);
+  overflow-wrap: anywhere;
+}
+.report-project-results-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  margin-bottom: var(--space-sm);
+}
+@media (max-width: 767px), (pointer: coarse) {
+  .report-income-controls button,
+  .report-project-status button {
+    min-height: var(--touch);
+  }
+}

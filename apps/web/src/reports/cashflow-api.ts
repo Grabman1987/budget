@@ -7,9 +7,9 @@ import { LEDGER_KEY } from '../ledger/queries';
 export type { CashflowReport };
 
 /** Under the ledger key: every booking write refreshes the cashflow as well. */
-export const cashflowQuery = (period: Period) =>
+export const cashflowQuery = (period: Period, projectId?: string) =>
   queryOptions({
-    queryKey: [...LEDGER_KEY, 'cashflow-report', period],
+    queryKey: projectId ? [...LEDGER_KEY, 'cashflow-report', period, 'project', projectId] : [...LEDGER_KEY, 'cashflow-report', period],
     retry: false,
-    queryFn: () => request<CashflowReport>('GET', `/api/cashflow?period=${period}`),
+    queryFn: () => request<CashflowReport>('GET', `/api/cashflow?period=${period}${projectId ? `&projectId=${encodeURIComponent(projectId)}` : ''}`),
   });

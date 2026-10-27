@@ -12,14 +12,14 @@ export type FlowSpan = FlowReportData['span'];
 
 const KEY = [...LEDGER_KEY, 'month-report'] as const;
 
-export const incomeReportQuery = (month: string) =>
+export const incomeReportQuery = (month: string, projectId?: string) =>
   queryOptions({
-    queryKey: [...KEY, 'income', month],
+    queryKey: projectId ? [...KEY, 'income', month, 'project', projectId] : [...KEY, 'income', month],
     retry: false,
     queryFn: () =>
       request<IncomeReportData>(
         'GET',
-        `/api/reports/month/income?month=${encodeURIComponent(month)}`,
+        `/api/reports/month/income?month=${encodeURIComponent(month)}${projectId ? `&projectId=${encodeURIComponent(projectId)}` : ''}`,
       ),
   });
 

@@ -40,8 +40,8 @@ export function monthReportRoutes(db: Db, today: () => string): Hono {
     return c.json(run(month, (day, m) => monthOnePager(db, day, m)));
   });
   app.get('/income', (c) => {
-    const { month } = readQuery(c, query);
-    return c.json(run(month, (day, m) => monthIncomeReport(db, day, m)));
+    const { month, projectId } = readQuery(c, query.extend({ projectId: z.string().min(1).max(64).optional() }));
+    return c.json(run(month, (day, m) => monthIncomeReport(db, day, m, projectId)));
   });
   app.get('/flow', (c) => {
     const { month, span } = readQuery(c, query);

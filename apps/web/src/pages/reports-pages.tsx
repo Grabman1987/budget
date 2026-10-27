@@ -1,5 +1,5 @@
 import { WholePictureReport } from '../reports/whole-picture-report';
-import { IncomeExpenseReport } from '../reports/income-expense-report';
+import { IncomeCashflowReport } from '../reports/income-cashflow-report';
 import { PayrollReport } from '../reports/payroll-report';
 import { ProjectsReport } from '../reports/projects-report';
 import { ReportTrendContext } from '@budget/ui';
@@ -139,7 +139,7 @@ export function ReportPage({ reportId, detail = false }: { reportId: string; det
   if (report.id === 'kategorien') return <CategoryReport report={report} meta={meta} />;
   if (report.id === 'sparquote') return <SavingsReport report={report} meta={meta} />;
   if (report.id === 'einnahmen-ausgaben')
-    return <IncomeExpenseReport report={report} meta={meta} sources={detail} />;
+    return <IncomeCashflowReport report={report} meta={meta} sources={detail} />;
   if (report.id === 'gesamttabelle') return <TotalTableReport report={report} meta={meta} />;
   return (
     <PlaceholderPage
