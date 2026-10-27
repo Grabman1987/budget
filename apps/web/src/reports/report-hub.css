@@ -3,6 +3,11 @@
   gap: 8px;
   min-width: 0;
 }
+@media (min-width: 768px) {
+  .sheet:has(> .report-hub) {
+    row-gap: var(--space-md);
+  }
+}
 .report-hub h2 {
   margin: 0;
   font-size: var(--fs-title);

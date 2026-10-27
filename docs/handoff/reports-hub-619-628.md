@@ -50,3 +50,47 @@ The entire `ReportPage` financial dispatch/fallback block through `ReportGroupRo
 Bounded consumer review covered area/nav/global-search, report-frame/header, full-width/phone-layout and existing Explorer625/626/627/624. Existing routes remain; old Explorer financial/CSV/Undo/browser oracles remain unchanged. No compared screenshot baseline was regenerated or added. Old full-width captures are evidence only. Independent review and a coordinator-scheduled focused proof must validate actual layout and unchanged consumers before publication.
 
 No local Node/npm/test/build/browser/lint/formatter or remote reports proof was run. New browser coverage is source-only and unverified; no passing runtime/visual/one-screen claim is made. Formatting is intentionally left to the approved remote proof/patch workflow. No public push/PR, redirects/consolidation, financial writer or parent closure. Parents487/488/517 stay open; this package does not adopt a report template across all sixteen reports.
+
+## First exact-source proof and bounded corrections
+
+Exact9703 proof40573209635 actually passed CSS tokens, all4 scoped unit files,
+build, all15 directly affected old browser cases and the tracked-mutation guard.
+New browser cases:5 passed (3 setups plus complete619 mobile/WebKit),4 failed.
+Desktop619 ended at920.6875px against the unchanged900px acceptance bound.
+All3 saved-entry cases stopped before their first UI request because the new
+fixture omitted required category.group_id. Saved-entry runtime acceptance is
+therefore still unproven; no passing saved-ID/privacy/CAS claim is made.
+
+Static failures: ESLint rejected a keyboard listener directly on native details;
+typecheck rejected spreading the tagged one-element savedViews query key while
+replacing it with the four-element entry key. Neither required a money/API rule
+change. Move Escape handling into the existing document listener, restricted to
+an open switcher containing its event target; preserve native summary focus and
+all old adjacent-report keyboard/input/dialog guards. Extend its existing unit
+with literal inside/outside Escape and focus checks. Construct entry query
+options explicitly with the same authenticated GET, retryfalse, fresh4-tuple,
+gc0 and always-refetch behavior, without a type cast.
+
+The desktop shell gap before this hub is44px. A hub-only desktop override uses
+the existing12px --space-md token, saving32px without shrinking fonts, changing
+rows/controls or affecting report-body spacing; expected bottom888.7px must be
+measured by the unchanged900px test. Phone44px rules remain. Add only a synthetic
+category_group and its group_id to the fixture; the independent12345-cent booking
+and all saved-query/result/URL/privacy/deletion assertions remain unchanged.
+
+The complete15-path remote formatter patch at
+C:/Users/fabia/.codex/tmp/reports-619-628-proof-40573209635/proof-format.patch
+is68094bytes, SHA2564d2d5e2314958730ea8e579f4bb89b031bdee96a57ec76c59226b46079d64f21.
+Every hunk and the allowlist were inspected; apply-check on clean9703 and reverse
+check immediately after exact application both passed. No local formatter ran.
+
+Artifact12765911449 retains OLD catalog/search PNGs, not the earlier new-test
+traces: the later compatibility invocation cleaned default test-results before
+upload. Raw failure frames and numeric geometry are retained in the full log.
+The next disposable proof must copy the default new-case results to a separate
+durable artifact directory BEFORE invoking compatibility tests, without changing
+canonical configuration, retries0, snapshotsnone or failure outcomes.
+
+No protected money/body/URL/Undo/privacy/timeout/skip assertion or baseline was
+weakened. These source/fixture/static changes require independent HIGH full-delta
+review, then one coordinator-scheduled necessary focused proof before publication.

@@ -118,7 +118,7 @@ test('628 saved-view chips reload across contexts and resolve only the current s
   const opened = openDatabase(isolatedLedger.databasePath);
   try {
     opened.sqlite.exec(
-      "INSERT INTO account (id,name,type,role,on_budget,opening_date) VALUES ('budget','Synthetic report','checking','budget',1,'2026-09-01'); INSERT INTO category (id,name,class,kind) VALUES ('want','Synthetic want','want','variable');",
+      "INSERT INTO account (id,name,type,role,on_budget,opening_date) VALUES ('budget','Synthetic report','checking','budget',1,'2026-09-01'); INSERT INTO category_group (id,name) VALUES ('g','Synthetic group'); INSERT INTO category (id,group_id,name,class,kind) VALUES ('want','g','Synthetic want','want','variable');",
     );
     createBooking(
       opened.db,

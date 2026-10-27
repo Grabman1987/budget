@@ -33,6 +33,18 @@ export function ReportNavigation({ id }: { id: string }) {
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
+        e.key === 'Escape' &&
+        !e.defaultPrevented &&
+        switcher.current?.open &&
+        e.target instanceof Node &&
+        switcher.current.contains(e.target)
+      ) {
+        e.preventDefault();
+        switcher.current.open = false;
+        switcher.current.querySelector('summary')?.focus();
+        return;
+      }
+      if (
         !e.altKey ||
         !e.shiftKey ||
         e.ctrlKey ||
@@ -61,17 +73,7 @@ export function ReportNavigation({ id }: { id: string }) {
   }, [navigate, previous, next]);
   return (
     <nav className="report-navigation" aria-label="Weitere Berichte">
-      <details
-        className="report-switcher"
-        ref={switcher}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape' && switcher.current?.open) {
-            event.preventDefault();
-            switcher.current.open = false;
-            switcher.current.querySelector('summary')?.focus();
-          }
-        }}
-      >
+      <details className="report-switcher" ref={switcher}>
         <summary aria-label="Bericht wechseln">
           Bericht wechseln <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
         </summary>

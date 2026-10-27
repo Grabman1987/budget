@@ -41,6 +41,20 @@ describe('report navigation', () => {
       key: 'ArrowRight',
     });
     expect(navigate).not.toHaveBeenCalled();
+    const summary = screen.getByText('Bericht wechseln', { selector: 'summary' });
+    const disclosure = summary.parentElement as HTMLDetailsElement;
+    fireEvent.click(summary);
+    expect(disclosure.open).toBe(true);
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
+    expect(disclosure.open).toBe(true);
+    const search = screen.getByRole('searchbox', {
+      name: 'Bericht nach Name oder Frage suchen',
+    });
+    search.focus();
+    fireEvent.keyDown(search, { key: 'Escape' });
+    expect(disclosure.open).toBe(false);
+    expect(document.activeElement).toBe(summary);
+    expect(navigate).not.toHaveBeenCalled();
     fireEvent.keyDown(screen.getByRole('button', { name: 'Dialogaktion' }), {
       altKey: true,
       shiftKey: true,
