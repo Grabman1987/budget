@@ -18,11 +18,11 @@ const row = (over: Partial<PlanRow> = {}): PlanRow => ({
   goalCents: 0, needCents: 0, dueMonth: null, target: null,
   quickAssign: { lastMonthCents: 1000, averageCents: 300, ghostCents: 0, ghostSource: 'median', historyMonths: [] }, ...over,
 });
-function setup(ui: ReactNode) {
+function setup(ui: ReactNode, changedCount = 1) {
   const calls: { path: string; body: unknown }[] = [];
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
     calls.push({ path, body: init?.body ? JSON.parse(String(init.body)) : undefined });
-    return new Response(JSON.stringify({ groupId: path === '/api/undo' ? 'undone' : 'one-group', changedCount: 1, missingCents: 0, openCount: 0, coveredCents: 200 }));
+    return new Response(JSON.stringify({ groupId: path === '/api/undo' ? 'undone' : 'one-group', changedCount, missingCents: 0, openCount: 0, coveredCents: 200 }));
   }));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={client}><ToastProvider>{ui}</ToastProvider></QueryClientProvider>);
@@ -42,6 +42,17 @@ it('renders the five signed previews, disables zero and sends only supplied sele
   await waitFor(() => expect(calls).toContainEqual({ path: '/api/undo', body: { groupId: 'one-group' } }));
   act(() => setAmountsHidden(true));
   expect(screen.getByRole('button', { name: /^Auf 0 zurücksetzen/ }).textContent).not.toContain('4,00');
+});
+it('offsetting reset stays enabled at net zero, sends both assignments and offers one Undo', async () => {
+  const positive = row({ assignedCents: 500 });
+  const negative = row({ id: 'negative', categoryId: 'negative', assignedCents: -500 });
+  const calls = setup(<PlanAutomatic month="2026-10" rows={[positive, negative]} tba={0} />, 2);
+  const reset = screen.getByRole('button', { name: 'Auf 0 zurücksetzen 0,00 €' });
+  expect(reset.hasAttribute('disabled')).toBe(false);
+  fireEvent.click(reset);
+  await waitFor(() => expect(calls).toContainEqual({ path: '/api/budget/2026-10/quick-assign', body: { mode: 'reset', categoryIds: ['a', 'negative'] } }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Rückgängig' }));
+  await waitFor(() => expect(calls).toContainEqual({ path: '/api/undo', body: { groupId: 'one-group' } }));
 });
 it('a single suggested cover uses only 200 free cents, preserves the 300-cent shortfall and one Undo', async () => {
   const target = row({ id: 'target', categoryId: 'target', assignedCents: 0, availableCents: -500, activityCents: -500, overspentCents: 500, cashOverspentCents: 500 });

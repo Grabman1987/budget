@@ -18,7 +18,10 @@ source is retained; no mixed historical checkpoint or other checkout is edited.
   existing eligibility, transaction, guard and grouped Undo unchanged.
 - The five sidebar rows preview that same planner and use a shared safe integer
   sum of its absolute items minus loaded assigned cents. Labels show the signed
-  booked delta, including positive capped resets; zero deltas are disabled.
+  booked delta, including positive capped resets; no-op plans are disabled.
+  Offsetting changes remain enabled even at a displayed net zero: +500/−500
+  resets to both0, keeps TBA0 and Undo restores both exactly. UI and API literal
+  cases cover this independent HIGH review correction without changing policy.
   Missing amounts remain visible. The click sends the same ordered category IDs
   to the existing quick-assign call. Selection takes precedence; otherwise the
   existing filtered displayed row universe is used, including collapsed groups

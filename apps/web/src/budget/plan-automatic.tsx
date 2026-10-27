@@ -36,7 +36,7 @@ export function PlanAutomatic({ month, rows, tba, disabled = false }: { month: s
         const preview = automaticAssignment(eligible, mode, tba);
         return (
           <div key={mode}>
-            <Button variant="ghost" className="plan-automatic-row" aria-label={`${label} ${eur(preview.deltaCents, { sign: true })}`} disabled={disabled || quick.busy || preview.deltaCents === 0} onClick={() => void quick.apply(mode, eligible.map((row) => row.id))}>
+            <Button variant="ghost" className="plan-automatic-row" aria-label={`${label} ${eur(preview.deltaCents, { sign: true })}`} disabled={disabled || quick.busy || preview.changedCount === 0} onClick={() => void quick.apply(mode, eligible.map((row) => row.id))}>
               <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
               <span>{label}</span>
               <strong className="plan-money">{eur(preview.deltaCents, { sign: true })}</strong>

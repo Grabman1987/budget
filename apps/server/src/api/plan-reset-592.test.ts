@@ -24,8 +24,9 @@ async function send(method: string, path: string, body?: unknown): Promise<Answe
   return response.json() as Promise<Answer>;
 }
 it.each([
-  { opening: 700, assignments: [1200, -500], selected: [0, 1], beforeTba: 0, after: [0, 0], missing: 0, delta: -700 },
-  { opening: 0, assignments: [300, -500], selected: [1], beforeTba: 200, after: [300, -300], missing: 300, delta: 200 },
+  { opening: 700, assignments: [1200, -500], selected: [0, 1], beforeTba: 0, after: [0, 0], missing: 0, delta: -700, changed: 2 },
+  { opening: 0, assignments: [300, -500], selected: [1], beforeTba: 200, after: [300, -300], missing: 300, delta: 200, changed: 1 },
+  { opening: 0, assignments: [500, -500], selected: [0, 1], beforeTba: 0, after: [0, 0], missing: 0, delta: 0, changed: 2 },
 ])('reset uses the same guarded assignment/one Undo transaction: $delta cents', async (fixture) => {
   await send('POST', '/accounts', { name: 'Synthetic cash', type: 'checking', openingDate: '2026-10-01', openingBalanceCents: fixture.opening });
   const { group } = await send('POST', '/categories/groups', { name: 'Synthetic reset' });
@@ -39,6 +40,7 @@ it.each([
   expect((await read()).toBeAssignedCents).toBe(fixture.beforeTba);
   const result = await send('POST', '/budget/2026-10/quick-assign', { mode: 'reset', categoryIds: fixture.selected.map((i) => ids[i]) });
   expect(result.missingCents).toBe(fixture.missing);
+  expect(result.changedCount).toBe(fixture.changed);
   const changed = await read();
   const values = ids.map((id) => changed.envelopes.find((r) => r.categoryId === id)!.assignedCents);
   expect(values).toEqual(fixture.after);
