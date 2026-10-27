@@ -78,6 +78,12 @@ export function PwaShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     const expired = () => {
       queryClient.clear();
+      // A confirmed signed-out status is also the ordinary entry to the login page.
+      if (location.pathname === '/login' || location.pathname === '/setup') {
+        setHasConnected(true);
+        setSessionEnded(false);
+        return;
+      }
       setHasConnected(false);
       setMounted(false);
       setSessionEnded(true);

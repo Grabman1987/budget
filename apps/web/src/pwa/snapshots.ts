@@ -116,12 +116,17 @@ export function revokeSnapshots(): void {
 }
 
 export function subscribeSnapshotEpoch(changed: () => void): () => void {
+  let deliveredGeneration = generation;
   const receive = () => {
-    if (revoked) return;
-    revoked = true;
-    generation += 1;
-    try { localStorage.removeItem(READ_PERMISSION); } catch { /* Clear still runs in sender. */ }
-    changed();
+    if (!revoked) {
+      revoked = true;
+      generation += 1;
+      try { localStorage.removeItem(READ_PERMISSION); } catch { /* Clear still runs in sender. */ }
+    }
+    if (deliveredGeneration !== generation) {
+      deliveredGeneration = generation;
+      changed();
+    }
   };
   const storage = (event: StorageEvent) => {
     if (event.key === READ_PERMISSION && event.newValue === null) receive();

@@ -53,6 +53,15 @@ const PRE_AUTH_PATHS = new Set([
   '/api/auth/login/verify',
   '/api/auth/recovery/login',
 ]);
+function endKnownSession(): void {
+  if (!expiryCleanupStarted) {
+    expiryCleanupStarted = true;
+    // Revocation runs synchronously before this promise reaches IndexedDB.
+    void clearDeviceFinancialData().catch(() => undefined);
+  }
+  if (typeof window !== 'undefined')
+    window.dispatchEvent(new Event('budget-session-expired'));
+}
 export function onApiWrite(listener: () => void): () => void {
   writeListeners.add(listener);
   return () => writeListeners.delete(listener);
@@ -79,7 +88,8 @@ export async function request<T>(
   )
     throw new ApiError(0, 'offline_read_only');
   const snapshot = method === 'GET' ? snapshotRequest(path) : null;
-  const authGeneration = path === '/api/auth/status' ? snapshotGeneration() : null;
+  const requestGeneration = snapshotGeneration();
+  const authGeneration = path === '/api/auth/status' ? requestGeneration : null;
   // A blocked device store must not hold up the online API read.
   let epochTimer: ReturnType<typeof setTimeout> | undefined;
   const epoch = snapshot
@@ -117,14 +127,10 @@ export async function request<T>(
   if (!response.ok) {
     if (
       response.status === 401 &&
-      !PRE_AUTH_PATHS.has(path)
+      !PRE_AUTH_PATHS.has(path) &&
+      snapshotGeneration() === requestGeneration
     ) {
-      if (typeof window !== 'undefined')
-        window.dispatchEvent(new Event('budget-session-expired'));
-      if (!expiryCleanupStarted) {
-        expiryCleanupStarted = true;
-        void clearDeviceFinancialData().catch(() => undefined);
-      }
+      endKnownSession();
     }
     const fields =
       typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {};
@@ -139,6 +145,10 @@ export async function request<T>(
     );
   }
   if (method !== 'GET') notifyApiWrite();
+  if (authGeneration !== null &&
+    snapshotGeneration() === authGeneration &&
+    (payload as { authenticated?: boolean }).authenticated === false)
+    endKnownSession();
   if (
     method === 'POST' &&
     (path === '/api/auth/login/verify' || path === '/api/auth/recovery/login')

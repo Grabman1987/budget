@@ -300,3 +300,50 @@ test('401 on a mounted financial view revokes snapshots before offline reload', 
   await page.reload();
   await expect(page.getByText('Kein gespeicherter Abruf vorhanden.')).toBeVisible();
 });
+
+test('known signed-out status on the login page clears the prior offline view', async ({ page, context }) => {
+  await page.goto('/');
+  await expect.poll(() => viewCount(page)).toBeGreaterThan(0);
+  await page.route('**/api/auth/status', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ setupRequired: false, authenticated: false, stepUpValidUntil: null, viaRecovery: false }),
+  }));
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { name: 'Anmelden' })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeNull();
+  await expect.poll(() => viewCount(page)).toBe(0);
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+  await context.setOffline(true);
+  await page.goto('/');
+  await expect(page.getByText('Kein gespeicherter Abruf vorhanden.')).toBeVisible();
+});
+
+test('another tab signing out removes an already visible offline view immediately', async ({ page, context }) => {
+  await page.goto('/');
+  await expect.poll(() => viewCount(page)).toBeGreaterThan(0);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });
+    window.dispatchEvent(new Event('offline'));
+  });
+  const view = page.getByRole('region', { name: 'Heute' });
+  await expect(view.getByText(/Stand vom/)).toBeVisible();
+  const other = await context.newPage();
+  await other.addInitScript(() => {
+    const original = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+      return url.pathname === '/api/auth/logout'
+        ? Promise.resolve(new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } }))
+        : original(input, init);
+    };
+  });
+  await other.goto('/einstellungen/sicherheit');
+  await other.getByRole('button', { name: 'Abmelden' }).click();
+  await expect(view.getByText('Kein gespeicherter Abruf vorhanden.')).toBeVisible();
+  await expect(view.getByText(/Stand vom/)).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeNull();
+  await expect.poll(() => viewCount(page)).toBe(0);
+  await other.close();
+});
