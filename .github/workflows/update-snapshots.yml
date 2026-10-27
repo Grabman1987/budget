@@ -1,75 +1,108 @@
-name: Update e2e snapshots
-
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+name: Report answer helper focused proof
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch whose baselines to update (never main)
+        description: Disposable exact-source branch
         required: true
-      specs:
-        description: Space-separated spec paths (e.g. e2e/shell.spec.ts); empty = every spec that compares screenshots
-        required: false
-        default: ''
-
 permissions:
-  contents: write
-
+  contents: read
 concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
-
+  group: report-answer-${{ inputs.branch }}
+  cancel-in-progress: false
 jobs:
-  update:
-    if: inputs.branch != 'main'
+  focused:
+    if: inputs.branch == 'codex/report-answer-proof-478896f8'
     runs-on: ubuntu-24.04
-    # Match the CI browser image instead of reinstalling its OS/browser dependencies.
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     defaults:
       run:
         shell: bash
-    # A type-scale change regenerates nearly every baseline; give it room.
-    timeout-minutes: 75
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.branch }}
-      - name: Allow Git reads and baseline commits in the container workspace
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+          fetch-depth: 0
+          persist-credentials: false
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        env:
-          SPECS: ${{ inputs.specs }}
+      - name: Exact helper checks, production exclusion and three-profile example
         run: |
-          npm run build:e2e
-          read -r -a specs <<< "$SPECS"
-          if [ "${#specs[@]}" -eq 0 ]; then
-            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
+          set +e
+          set -o pipefail
+          mkdir -p proof-output
+          source_sha=478896f8eafe86a9348dd0863e7e212979fa5894
+          test "$(git rev-parse HEAD^)" = "$source_sha" || exit 70
+          git diff --exit-code "$source_sha" HEAD -- apps packages e2e docs || exit 71
+          printf 'SOURCE=%s PROOF=%s\n' "$source_sha" "$(git rev-parse HEAD)" | tee proof-output/source.txt
+          mapfile -t targets < <(git diff --name-only 531e4b1b9cb642a4f44776beb5af705af8c4813a "$source_sha" -- apps e2e docs)
+          printf '%s\n' "${targets[@]}" > proof-output/allowlist.txt
+          npx prettier --check "${targets[@]}" 2>&1 | tee proof-output/format.log
+          format_code=${PIPESTATUS[0]}
+          if [ "$format_code" -ne 0 ]; then
+            npx prettier --write "${targets[@]}" 2>&1 | tee proof-output/format-write.log
+            git diff --binary -- "${targets[@]}" > proof-output/format.patch
+            git diff --numstat -- "${targets[@]}" > proof-output/format-numstat.txt
+            sha256sum proof-output/format.patch | tee proof-output/format.sha256
+            git restore -- "${targets[@]}"
           fi
-          npx playwright test --update-snapshots=changed "${specs[@]}" || true
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+          mapfile -t ts < <(printf '%s\n' "${targets[@]}" | grep -E '\.(ts|tsx)$')
+          npx eslint "${ts[@]}" 2>&1 | tee proof-output/eslint.log
+          lint_code=${PIPESTATUS[0]}
+          npm run typecheck 2>&1 | tee proof-output/typecheck.log
+          type_code=${PIPESTATUS[0]}
+          npx vitest run apps/web/src/reports/report-answer-553.test.tsx 2>&1 | tee proof-output/unit.log
+          unit_code=${PIPESTATUS[0]}
+          npm run build -w @budget/web -- --mode production 2>&1 | tee proof-output/production-build.log
+          prod_build=${PIPESTATUS[0]}
+          find apps/web/dist -type f | sort > proof-output/production-files.txt
+          exclusion=1
+          if [ "$prod_build" -eq 0 ]; then
+            if grep -rlE '/dev/report-answer|Report-Antwortvorlage|report-answer-example' apps/web/dist --include='*.js' > proof-output/production-dev-matches.txt; then
+              echo 'Unexpected DEV report answer code in production assets' | tee proof-output/production-exclusion.txt
+            else
+              exclusion=0
+              echo 'Production JS contains neither route, example title nor example chunk reference' | tee proof-output/production-exclusion.txt
+            fi
+          fi
+          npm run build:e2e 2>&1 | tee proof-output/build.log
+          build_code=${PIPESTATUS[0]}
+          browser=1
+          if [ "$build_code" -eq 0 ]; then
+            cat > e2e/proof-553-screenshots.spec.ts <<'OBSERVER'
+          import { expect, test } from '@playwright/test';
+          test('553 visible answer viewport observations only', async ({ page }, info) => {
+            await page.goto('/dev/report-answer');
+            for (const theme of ['light', 'dark']) {
+              await page.evaluate((value) => { document.documentElement.dataset['theme'] = value; }, theme);
+              await expect(page.getByTestId('report-answer')).toContainText('2.130,00 € netto ausgegeben');
+              await page.screenshot({ path: info.outputPath(`answer-public-${theme}.png`), fullPage: false });
+              await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
+              await expect(page.getByTestId('report-answer-lead')).toHaveText('••• €');
+              await page.screenshot({ path: info.outputPath(`answer-private-${theme}.png`), fullPage: false });
+              await page.getByRole('button', { name: 'Beträge zeigen', exact: true }).click();
+            }
+          });
+          OBSERVER
+            cp e2e/proof-553-screenshots.spec.ts proof-output/screenshot-observer.ts
+            npx playwright test e2e/issue-553-report-answer.spec.ts e2e/proof-553-screenshots.spec.ts --project=desktop --project=mobile --project=webkit-iphone --workers=1 --retries=0 --trace=on --update-snapshots=none 2>&1 | tee proof-output/browser.log
+            browser=${PIPESTATUS[0]}
+            cp -a test-results proof-output/browser-results
+            rm e2e/proof-553-screenshots.spec.ts
+          fi
+          git diff --stat | tee proof-output/final-diff.txt
+          printf 'RESULT format=%s lint=%s type=%s unit=%s prod_build=%s exclusion=%s build=%s browser=%s\n' "$format_code" "$lint_code" "$type_code" "$unit_code" "$prod_build" "$exclusion" "$build_code" "$browser" | tee proof-output/result.txt
+          [ "$format_code" -eq 0 ] && [ "$lint_code" -eq 0 ] && [ "$type_code" -eq 0 ] && [ "$unit_code" -eq 0 ] && [ "$prod_build" -eq 0 ] && [ "$exclusion" -eq 0 ] && [ "$build_code" -eq 0 ] && [ "$browser" -eq 0 ]
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
-          name: scoped-browser-screenshots
-          path: test-results/**/*.png
-          if-no-files-found: ignore
+          name: report-answer-478896f8
+          path: proof-output/
+          if-no-files-found: warn
           retention-days: 7
-      - name: Commit the new baselines
-        env:
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
