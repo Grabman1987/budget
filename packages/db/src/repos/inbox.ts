@@ -1,4 +1,4 @@
-import { and, asc, count, countDistinct, desc, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, count, countDistinct, desc, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { cents, formatEuro, monthOf, overspentEnvelopes, summarizeMonth } from '@budget/domain';
 import { categoryTree } from './categories';
 import { budget } from './queries';
@@ -18,6 +18,10 @@ import { readSourceDisplayDetail, readSourceMappings } from './read-source';
 import { listReceipts } from './receipts';
 import { accountReminders } from './account-reminders';
 import { savingsExecutionProposals, type SavingsExecutionProposal } from './savings-plans';
+import { candidateMatches } from './bank-followups';
+import { readAssignmentCandidate } from './assignment-rules';
+
+export type BankSuggestion = { label: string; needsReview: boolean };
 
 export interface InboxBooking {
   type: 'booking';
@@ -53,6 +57,7 @@ export interface InboxStored {
         memo: string;
         payeeName: string | null;
         accountName: string;
+        suggestion?: BankSuggestion;
       }
     | undefined;
 }
@@ -71,6 +76,60 @@ export interface InboxEnvelope {
 export type InboxEntry = InboxBooking | InboxStored | InboxEnvelope | SavingsExecutionProposal;
 export interface InboxOptions {
   excludeOverspent?: boolean;
+}
+
+/** Enrich only the response page. The booking dialog recomputes guarded choices before writing. */
+export function prepareInboxBankSuggestions(db: Executor, entries: InboxEntry[]): InboxEntry[] {
+  return runInTransaction(db, (tx) =>
+    entries.map((entry) => {
+      if (entry.type !== 'stored' || !entry.bankCandidate || !entry.refId) return entry;
+      let suggestion: BankSuggestion = {
+        label: 'Kategorie prüfen · Zu verteilen',
+        needsReview: true,
+      };
+      try {
+        const matches = candidateMatches(tx, entry.refId);
+        const targets = [...matches.merge, ...matches.link];
+        if (
+          targets.length > 1 ||
+          matches.transfers.length > 1 ||
+          (targets.length && matches.transfers.length)
+        )
+          suggestion = {
+            label: 'Vorschlag prüfen · mehrere mögliche Buchungen',
+            needsReview: true,
+          };
+        else if (matches.transfers.length === 1)
+          suggestion = {
+            label: `Gegenbuchung ${matches.transfers[0]!.date} · Umbuchung prüfen`,
+            needsReview: true,
+          };
+        else if (targets.length === 1)
+          suggestion = {
+            label: `Mit Buchung ${targets[0]!.date} zusammenführen`,
+            needsReview: false,
+          };
+        else {
+          const rules = readAssignmentCandidate(tx, entry.refId).suggestions;
+          const available = rules.filter((rule) => !rule.unavailable);
+          if (available.length > 1)
+            suggestion = { label: 'Vorschlag prüfen · mehrere Regeln', needsReview: true };
+          else if (available.length === 1)
+            suggestion = {
+              label: `${available[0]!.automatic || available[0]!.id.startsWith('inbox-learn:') ? 'Regel' : 'Regelvorschlag prüfen'}: ${available[0]!.name}`,
+              needsReview: !(
+                available[0]!.automatic || available[0]!.id.startsWith('inbox-learn:')
+              ),
+            };
+          else if (rules.length)
+            suggestion = { label: 'Vorschlag prüfen · Regel nicht verfügbar', needsReview: true };
+        }
+      } catch {
+        suggestion = { label: 'Vorschlag prüfen', needsReview: true };
+      }
+      return { ...entry, bankCandidate: { ...entry.bankCandidate, suggestion } };
+    }),
+  );
 }
 
 /** Shared predicates keep task list and lightweight badge count in agreement. */
@@ -164,7 +223,7 @@ export function readInbox(
   return runInTransaction(db, (tx) => {
     const bookings = options.bankAccountId ? [] : uncategorizedBookings(tx, today);
     const mappings = readSourceMappings(tx);
-    // One read for compact bank rows. Matching and assignment checks stay on demand.
+    // Keep full-queue counts cheap; suggestions are prepared only after API pagination.
     const candidates = new Map(
       tx
         .select({
@@ -190,6 +249,101 @@ export function readInbox(
         .all()
         .map(({ id, ...row }) => [id, row]),
     );
+    const progressCandidates = options.bankAccountId ? [] : tx
+      .select({
+        id: bankSyncCandidate.id,
+        accountId: bankSyncCandidate.accountId,
+        dedupeKey: bankSyncCandidate.dedupeKey,
+        resolvedAt: inboxItem.resolvedAt,
+        resolution: inboxItem.resolution,
+        refType: inboxItem.refType,
+      })
+      .from(bankSyncCandidate)
+      .innerJoin(inboxItem, eq(inboxItem.id, bankSyncCandidate.id))
+      .where(
+        and(
+          bankSource ? eq(bankSyncCandidate.sourceId, bankSource) : undefined,
+          options.bankAccountId
+            ? eq(bankSyncCandidate.accountId, options.bankAccountId)
+            : undefined,
+        ),
+      )
+      .all();
+    const candidateKeys = new Set(
+      progressCandidates.map((row) => `${row.accountId}:bank-sync:${row.dedupeKey}`),
+    );
+    const linkedBookingId = (resolution: string | null) =>
+      /^(?:Bestätigt: |Zusammengeführt: |Umbuchung: |Mit vorhandener Buchung verknüpft: |Kontowirksam übernommen: |Als ungeprüfte Buchung angelegt, bitte prüfen: )(.+)$/.exec(
+        resolution ?? '',
+      )?.[1];
+    const linkedIds = new Set(
+      progressCandidates
+        .map((row) => linkedBookingId(row.resolution))
+        .filter((id): id is string => typeof id === 'string'),
+    );
+    const openBookingIds = new Set(
+      options.bankAccountId ? [] : tx
+        .select({ id: booking.id })
+        .from(booking)
+        .innerJoin(account, eq(account.id, booking.accountId))
+        .innerJoin(bookingSplit, eq(bookingSplit.bookingId, booking.id))
+        .where(unclassifiedWhere(today))
+        .groupBy(booking.id)
+        .all()
+        .map((row) => row.id),
+    );
+    const progressBookings = options.bankAccountId ? [] : tx
+      .select({
+        id: booking.id,
+        accountId: booking.accountId,
+        importKey: booking.importKey,
+        bankSourceId: booking.bankSourceId,
+        source: booking.source,
+      })
+      .from(booking)
+      .where(
+        and(
+          isNull(booking.deletedAt),
+          or(
+            eq(booking.source, 'bank'),
+            linkedIds.size ? inArray(booking.id, [...linkedIds]) : undefined,
+          ),
+          options.bankAccountId ? eq(booking.accountId, options.bankAccountId) : undefined,
+        ),
+      )
+      .all()
+      .filter(
+        (row) =>
+          !bankSource ||
+          row.bankSourceId === bankSource ||
+          candidateKeys.has(`${row.accountId}:${row.importKey}`) ||
+          linkedIds.has(row.id),
+      );
+    const bookingsById = new Map(progressBookings.map((row) => [row.id, row]));
+    let reviewed = 0;
+    let open = 0;
+    for (const row of progressCandidates) {
+      if (row.refType !== 'bank-sync-candidate') continue;
+      if (!row.resolvedAt) {
+        open++;
+      } else if (row.resolution?.startsWith('Vom Nutzer')) {
+        reviewed++;
+      } else {
+        const bookingId = linkedBookingId(row.resolution);
+        if (bookingId && bookingsById.has(bookingId)) {
+          if (openBookingIds.has(bookingId)) open++;
+          else reviewed++;
+        }
+      }
+    }
+    // Legacy bank booking tasks without a retained candidate remain in the same review count.
+    open += progressBookings.filter(
+      (row) =>
+        row.source === 'bank' &&
+        openBookingIds.has(row.id) &&
+        !linkedIds.has(row.id) &&
+        !candidateKeys.has(`${row.accountId}:${row.importKey}`),
+    ).length;
     const stored: InboxStored[] = tx
       .select()
       .from(inboxItem)
@@ -245,6 +399,7 @@ export function readInbox(
       bankSource || readSource || options.bankAccountId ? [] : accountReminders(tx, today);
     return {
       asOf: today,
+      ...(options.bankAccountId ? {} : { bankProgress: { reviewed, total: reviewed + open } }),
       accountReminders: reminders,
       unlinkedReceiptCount:
         bankSource || readSource || options.bankAccountId ? 0 : unlinkedReceipts.length,

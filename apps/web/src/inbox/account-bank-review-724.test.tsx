@@ -68,6 +68,7 @@ function candidate(id: string, memo: string): InboxStored {
       memo,
       payeeName: null,
       accountName: 'Gleiches Konto',
+      suggestion: { label: 'Kategorie prüfen · Zu verteilen', needsReview: true },
     },
   };
 }
