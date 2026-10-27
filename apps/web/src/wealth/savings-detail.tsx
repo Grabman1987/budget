@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { useAmountPrivacy } from '@budget/ui';
+import { privateAmount, useAmountPrivacy } from '@budget/ui';
 import type { SavingsPlanRecord } from './savings-api';
-import { nextPlanExecution, planPurchases } from './savings-model';
+import { nextPlanExecution, planPurchases, savingsMonthStrip } from './savings-model';
 import { tradesQuery } from './trade-api';
+import { unitsText } from './portfolio-format';
 import { TradeHistory } from './trade-history';
 import { longDay, nativeCurrency } from '../ledger/format';
 import { LoadingNote, ErrorNote } from '../ledger/states';
@@ -20,6 +21,14 @@ export function SavingsDetail({
   const query = useQuery(tradesQuery(rows[0]!.securityId));
   const next = nextPlanExecution(rows, today);
   const purchases = planPurchases(rows, query.data?.trades ?? [], today);
+  const months = savingsMonthStrip(rows, query.data?.trades ?? [], today);
+  const status = {
+    not_planned: 'Nicht geplant',
+    open: 'Offen',
+    missing_link: 'Zuordnung fehlt',
+    executed: 'Ausgeführt · zugeordnet',
+    ambiguous: 'Zuordnung prüfen',
+  };
   const money = (value: number | null) =>
     value !== null && currency ? nativeCurrency(value, currency) : 'Nicht verfügbar';
   return (
@@ -50,7 +59,47 @@ export function SavingsDetail({
         <ErrorNote what="Käufe" error={query.error} onRetry={() => void query.refetch()} />
       )}
       {query.isSuccess && (
-        <TradeHistory securityId={rows[0]!.securityId} trades={purchases.buys} disabled purchases />
+        <>
+          <section className="savings-months" aria-labelledby="savings-months-title">
+            <h3 id="savings-months-title">Letzte zwölf Monate</h3>
+            <p className="vnote">
+              Stand {longDay(today)}. „Ausgeführt“ bedeutet ausdrücklich zugeordneter Kauf, keine
+              Bestätigung der Bank. Manuelle oder nur ähnlich erkannte Käufe bleiben in der
+              Kaufhistorie; bei fehlender Zuordnung bitte den Posteingang prüfen.
+            </p>
+            <ol>
+              {months.map((slot) => (
+                <li key={slot.month}>
+                  <strong>{slot.month}</strong>
+                  <span>{status[slot.status]}</span>
+                  <span>
+                    {slot.amountCents !== null
+                      ? money(slot.amountCents)
+                      : slot.plannedCents !== null
+                        ? `Geplant: ${money(slot.plannedCents)}`
+                        : 'Kein geplanter Betrag'}
+                  </span>
+                  <span>
+                    Stück:{' '}
+                    {slot.unitsE8 === null
+                      ? 'nicht zugeordnet'
+                      : privateAmount(unitsText(slot.unitsE8))}
+                  </span>
+                  {slot.tradeDate && <small>Kauf am {longDay(slot.tradeDate)}</small>}
+                </li>
+              ))}
+            </ol>
+          </section>
+          <details className="savings-purchases">
+            <summary>Käufe anzeigen</summary>
+            <TradeHistory
+              securityId={rows[0]!.securityId}
+              trades={purchases.buys}
+              disabled
+              purchases
+            />
+          </details>
+        </>
       )}
     </>
   );

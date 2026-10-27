@@ -19,21 +19,25 @@ import { instrumentQuery, type PortfolioPosition } from './portfolio-api';
 import { basisReason, moneyText, quoteStand, quoteText, unitsText } from './portfolio-format';
 import { InstrumentForm, INSTRUMENT_KIND } from './instrument-form';
 import { TradeHistory } from './trade-history';
-import { PriceHistory } from './price-history';
+import { PriceHistory, useInstrumentHistory } from './price-history';
+import type { Period } from '@budget/domain';
+import { longDay } from '../ledger/format';
 
 export function InstrumentPanel({
   id,
-  position,
+  position: currentPosition,
   asOf,
+  historyPeriod = 'YTD',
   onClose,
   onSelect,
-  positionState,
+  positionState: initialPositionState,
   onRetryPositions,
   onTrade,
 }: {
   id: string;
   position?: PortfolioPosition | undefined;
   asOf?: string | undefined;
+  historyPeriod?: Period | undefined;
   onClose: () => void;
   onSelect: (id?: string, replace?: boolean) => void;
   positionState: 'loading' | 'unavailable' | 'ready';
@@ -42,6 +46,16 @@ export function InstrumentPanel({
 }) {
   useAmountPrivacy();
   const creating = id === 'neu';
+  const history = useInstrumentHistory(creating ? '' : id, asOf, historyPeriod);
+  const historyView = history.query.isError ? undefined : history.query.data?.history;
+  const position = historyView?.position ?? undefined;
+  const positionState = !asOf
+    ? initialPositionState
+    : history.query.isError || historyView?.unavailable === 'calculation_limit'
+      ? 'unavailable'
+      : history.query.isPending
+        ? 'loading'
+        : 'ready';
   const instrument = useQuery(instrumentQuery(creating ? '' : id));
   const [editing, setEditing] = useState(false);
   const [quoting, setQuoting] = useState(false);
@@ -147,88 +161,112 @@ export function InstrumentPanel({
               <dd>{instrument.data.security.symbol ?? '—'}</dd>
             </div>
           </dl>
-          <Button
-            variant="ghost"
-            disabled={saving}
-            onClick={() => {
-              if (dirty) {
-                setDiscardTarget('edit');
-                setAsking(true);
-              } else setEditing(true);
-            }}
-          >
-            Stammdaten bearbeiten
-          </Button>
-          <Button disabled={saving} onClick={() => openTrade('neu')}>
-            Handel erfassen
-          </Button>
-          {!position && positionState === 'loading' && <LoadingNote what="Bestände" />}
-          {!position && positionState === 'unavailable' && (
-            <ErrorNote what="Bestände" error={undefined} onRetry={onRetryPositions} />
-          )}
-          {!position && positionState === 'ready' && (
-            <p className="vnote">Dieses Instrument hat keinen aktuellen Bestand.</p>
-          )}
-          {position && (
-            <>
-              <h3>Kurs</h3>
-              <p className="instrument-quote">
-                {quoteText(position?.quote ?? null)}
-                <small>{quoteStand(position?.quote ?? null)}</small>
-              </p>
-            </>
-          )}
-          <PriceHistory key={id} securityId={id} asOf={asOf} />
-          {position && (
-            <>
-              <h3>Bestand je Konto</h3>
-              <table className="instrument-accounts">
-                <caption className="sr-only">
-                  Bestand des Instruments je Konto und Plattform
-                </caption>
-                <thead>
-                  <tr>
-                    <th>Konto / Plattform</th>
-                    <th className="num">Stück / Wert</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {position.accounts.map((a) => (
-                    <tr key={a.accountId}>
-                      <th scope="row">
-                        <AppLink to={`/konten/${encodeURIComponent(a.accountId)}`}>
-                          {a.name}
-                        </AppLink>
-                        <small>{a.institution ?? 'Kein Institut zugeordnet'}</small>
-                      </th>
-                      <td className="num">
-                        {unitsText(a.unitsE8)}
-                        <small>
-                          {a.valueCents === null
-                            ? a.valueStatus === 'missing_price'
-                              ? 'Kurs fehlt'
-                              : 'Wechselkurs fehlt'
-                            : `${moneyText(a.valueCents)}${a.valueStatus === 'estimated' ? ' · geschätzt' : ''}`}
-                        </small>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p className="vnote">
-                {position.costCents === null
-                  ? basisReason(position.accounts)
-                  : `Einstand ${moneyText(position.costCents)}`}{' '}
-                · Wertzuwachs {moneyText(position.gainCents)}
-              </p>
-            </>
-          )}
-          <TradeHistory securityId={id} onEdit={openTrade} disabled={saving} />
-          {asOf && position && (
-            <Button variant="ghost" disabled={saving} onClick={() => setQuoting(true)}>
-              Kurs eintragen
+          <div className="instrument-detail-actions">
+            <Button
+              variant="ghost"
+              disabled={saving}
+              onClick={() => {
+                if (dirty) {
+                  setDiscardTarget('edit');
+                  setAsking(true);
+                } else setEditing(true);
+              }}
+            >
+              Stammdaten bearbeiten
             </Button>
-          )}
+            <Button disabled={saving} onClick={() => openTrade('neu')}>
+              Handel erfassen
+            </Button>
+          </div>
+          <div className="instrument-layout">
+            <div className="instrument-valuation">
+              {!position && positionState === 'loading' && <LoadingNote what="Bestände" />}
+              {!position && positionState === 'unavailable' && (
+                <ErrorNote
+                  what="Bestände"
+                  error={history.query.error}
+                  onRetry={() => {
+                    if (!asOf) onRetryPositions();
+                    else void history.query.refetch();
+                  }}
+                />
+              )}
+              {!position && positionState === 'ready' && (
+                <p className="vnote">
+                  {historyView?.to && historyView.to !== asOf
+                    ? 'Dieses Instrument hat am gewählten Stichtag keinen Bestand.'
+                    : 'Dieses Instrument hat keinen aktuellen Bestand.'}
+                </p>
+              )}
+              {position && (
+                <>
+                  <h3>Kurs</h3>
+                  <p className="instrument-quote">
+                    {quoteText(position?.quote ?? null)}
+                    <small>{quoteStand(position?.quote ?? null)}</small>
+                  </p>
+                </>
+              )}
+              <PriceHistory key={id} securityId={id} controller={history} />
+              {position && (
+                <>
+                  <h3>Bestand je Konto</h3>
+                  {historyView && (
+                    <p className="vnote">
+                      Stichtag {longDay(historyView.to)} · dieselbe Bewertung wie im Wertverlauf.
+                    </p>
+                  )}
+                  <table className="instrument-accounts">
+                    <caption className="sr-only">
+                      Bestand des Instruments je Konto und Plattform
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th>Konto / Plattform</th>
+                        <th className="num">Stück / Wert</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {position.accounts.map((a) => (
+                        <tr key={a.accountId}>
+                          <th scope="row">
+                            <AppLink to={`/konten/${encodeURIComponent(a.accountId)}`}>
+                              {a.name}
+                            </AppLink>
+                            <small>{a.institution ?? 'Kein Institut zugeordnet'}</small>
+                          </th>
+                          <td className="num">
+                            {unitsText(a.unitsE8)}
+                            <small>
+                              {a.valueCents === null
+                                ? a.valueStatus === 'missing_price'
+                                  ? 'Kurs fehlt'
+                                  : 'Wechselkurs fehlt'
+                                : `${moneyText(a.valueCents)}${a.valueStatus === 'estimated' ? ' · geschätzt' : ''}`}
+                            </small>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="vnote">
+                    {position.costCents === null
+                      ? basisReason(position.accounts)
+                      : `Einstand ${moneyText(position.costCents)}`}{' '}
+                    · Wertzuwachs {moneyText(position.gainCents)}
+                  </p>
+                </>
+              )}
+            </div>
+            <div className="instrument-transactions">
+              <TradeHistory securityId={id} onEdit={openTrade} disabled={saving} />
+              {asOf && currentPosition && (
+                <Button variant="ghost" disabled={saving} onClick={() => setQuoting(true)}>
+                  Kurs eintragen
+                </Button>
+              )}
+            </div>
+          </div>
         </section>
       )}
       <FormDialog

@@ -107,3 +107,4 @@ export * from './month-close-reminders';
 export * from './month-close-reconciliation';
 
 export * from './booking-bulk-eligibility';
+export * from './instrument-history';
