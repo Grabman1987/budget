@@ -132,6 +132,16 @@ export function EnvelopeBody({
     if (await write(fn, () => message)) onDone();
   };
   const coverFrom = useCover(month, name);
+  const suggestedCoverCents = Math.min(r.overspentCents, sourceFree);
+  const [coverBusy, setCoverBusy] = useState(false);
+  const acceptSuggestion = async () => {
+    setCoverBusy(true);
+    try {
+      await coverFrom(r, other === '' ? null : other);
+    } finally {
+      setCoverBusy(false);
+    }
+  };
   /** Confirm only the capped amount when Zu verteilen is short. */
   const cover = async (confirmedCap = false) => {
     const short = other === '' && coverFromToBeAssigned(r.overspentCents, tba).short;
@@ -260,6 +270,25 @@ export function EnvelopeBody({
 
   return (
     <div className="kform">
+      {compact && r.overspentCents > 0 && (
+        <div className="inspector-cover-suggestion">
+          <p className="panel-sub">
+            Aus {other === 'none' ? 'keiner verfügbaren Quelle' : name(other)}
+          </p>
+          <Button
+            disabled={coverBusy || other === 'none' || suggestedCoverCents <= 0}
+            onClick={() => void acceptSuggestion()}
+          >
+            Mit <span className="plan-money">{eur(suggestedCoverCents)}</span> decken
+          </Button>
+          {cappedRest > 0 && (
+            <p className="panel-sub">
+              <span className="plan-money">{eur(cappedRest)}</span> bleiben offen · auf freies Geld
+              begrenzt
+            </p>
+          )}
+        </div>
+      )}
       <h3 className="panel-h">Zuweisen</h3>
       <AmountInput
         label="Zugewiesen"

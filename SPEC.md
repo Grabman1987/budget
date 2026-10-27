@@ -1,5 +1,15 @@
 # Budget — Specification
 
+Plan sidebar continuation (#592/#593, owner reset clarification 2026-10-27):
+automatic assignment rows display the exact signed change from `quickAssignPlan`,
+using the selection or the currently filtered row order. Reset means absolute
+assigned cents of zero in the displayed month, including negative assignments;
+it reuses the existing reduction-first funding pool and cap. A capped reset of
+−500 cents with 200 cents free books +200, leaves −300 assigned and reports 300
+missing. No change to the four previous modes, assignment/cover guards or grouped
+Undo. A selected-category cover shortcut reuses the existing chosen eligible
+source and cover writer; it does not introduce an automatic source policy.
+
 Owner savings-goal decision (2026-10-21, #604): category-goal funding uses the
 existing Plan target including the current month. “Rate zuweisen” adds only the
 remaining current-month need through the existing guarded, audited assignment

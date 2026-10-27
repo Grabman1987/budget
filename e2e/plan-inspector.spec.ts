@@ -83,7 +83,11 @@ test('inspector discloses month figures and reuses category writes, quick values
   });
   await page.goto(`/plan/monat?monat=${month}`);
   const inspector = page.getByRole('complementary', { name: 'Plan-Inspektor' });
-  await expect(inspector.locator('.inspector-section')).toHaveCount(5);
+  await expect(inspector.locator('.inspector-section')).toHaveCount(6);
+  await expect(inspector.locator('[data-overview-section="automatic"]')).not.toHaveAttribute(
+    'open',
+    '',
+  );
   await expect(inspector.locator('.inspector-section[open]')).toHaveCount(2);
   await expect(inspector.locator('.inspector-section[open] > summary')).toHaveText([
     'Monatsaufstellung',
@@ -127,7 +131,7 @@ test('inspector discloses month figures and reuses category writes, quick values
   });
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(assigned).toHaveText(phone ? 'Zugewiesen ≈ 100,01 €' : '≈ 100,01 €');
-  await inspector.getByRole('button', { name: 'Ziel', exact: true }).click();
+  await inspector.getByRole('button', { name: /^Ziele / }).click();
   await expect(assigned).toHaveText(phone ? 'Zugewiesen 100,01 €' : '100,01 €');
   expect(writes[1]).toEqual({
     path: `/api/budget/${month}/quick-assign`,
@@ -207,7 +211,7 @@ test('inspector discloses month figures and reuses category writes, quick values
     await page.getByRole('checkbox', { name: 'Musterreserve auswählen' }).check();
   }
   await expect(inspector.getByRole('heading', { name: '2 Kategorien ausgewählt' })).toBeVisible();
-  await inspector.getByRole('button', { name: 'Ziel', exact: true }).click();
+  await inspector.getByRole('button', { name: /^Ziele / }).click();
   await expect(toast).toContainText('1 Kategorie zugewiesen');
   expect(writes[3]).toEqual({
     path: `/api/budget/${month}/quick-assign`,

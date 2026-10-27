@@ -2113,6 +2113,46 @@
   margin-top: 12px;
 }
 
+.plan .plan-automatic {
+  padding: var(--space-sm) var(--space-lg);
+}
+.plan .inspector-selection .plan-automatic {
+  padding-inline: 0;
+}
+.plan .plan-automatic-row.btn {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: var(--touch);
+  height: auto;
+  padding: var(--space-sm) 0;
+  text-align: left;
+  white-space: normal;
+  border-bottom: var(--stroke-hairline) solid var(--rule);
+}
+.plan .plan-automatic-row strong {
+  font-weight: inherit;
+}
+.plan .plan-money,
+.plan .inspector-activity a,
+.plan
+  .inspector-selection
+  :is(.insp-list dd, .panel-actions .btn, .inspector-cover-suggestion .btn) {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.plan .inspector-activity .activity-link {
+  min-height: 44px;
+}
+.plan .inspector-head h2 {
+  scroll-margin-top: var(--space-section);
+}
+.plan .inspector-head h2:focus-visible {
+  outline: var(--stroke-measure) solid var(--line);
+  outline-offset: var(--space-xs);
+}
+
 /* Z1: grouped spending worksheet. Multi-month columns retain their existing layout. */
 .plan .ptable-zero {
   border-collapse: separate;
