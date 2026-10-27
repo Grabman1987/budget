@@ -4,7 +4,7 @@ import { createBooking, openDatabase, schema } from '@budget/db';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
 
-test.use({ ledgerToday: '2026-10-20' });
+test.use({ ledgerToday: '2026-10-20', bankingConfigured: true });
 
 test('three prepared bank rows are explicitly reviewed with progress and individual Undo', async ({
   page,
