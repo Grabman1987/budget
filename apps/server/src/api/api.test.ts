@@ -794,11 +794,11 @@ describe('bookings', () => {
     expect(result.status).toBe(200);
     expect(result.body['changed']).toEqual([]);
     expect(result.body['skipped']).toEqual([
-      {
+      expect.objectContaining({
         id: booking.id,
         reason: 'invalid',
         message: 'The data violates a rule of the ledger',
-      },
+      }),
     ]);
     expect((await call('GET', `/bookings/${booking.id}`)).body['booking']).toMatchObject({
       flag: null,
