@@ -80,7 +80,12 @@ export function PwaShell({ children }: { children: ReactNode }) {
     const expired = (event: Event) => {
       const fromStatus = event instanceof CustomEvent && event.detail?.fromStatus === true;
       if (fromStatus)
-        queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== AUTH_STATUS_KEY[0] });
+        queryClient.removeQueries({
+          predicate: ({ queryKey }) =>
+            queryKey.length !== AUTH_STATUS_KEY.length ||
+            queryKey[0] !== AUTH_STATUS_KEY[0] ||
+            queryKey[1] !== AUTH_STATUS_KEY[1],
+        });
       else queryClient.clear();
       // A confirmed signed-out status is also the ordinary entry to the login page.
       if (location.pathname === '/login' || location.pathname === '/setup') {

@@ -1,5 +1,6 @@
 import { FormDialog } from '@budget/ui';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { CaptureForm } from './capture-form';
 import type { ListedBooking } from './types';
 import { AssignmentLearnOffer } from '../assignment/review';
@@ -25,6 +26,12 @@ export function BookingPanel({
   onClose: () => void;
 }) {
   const dirty = useRef(false);
+  const [sessionEnded, setSessionEnded] = useState(false);
+  useEffect(() => {
+    const ended = () => setSessionEnded(true);
+    window.addEventListener('budget-session-expired', ended);
+    return () => window.removeEventListener('budget-session-expired', ended);
+  }, []);
   const [learnBookingId, setLearnBookingId] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   const focusScope = useRef<HTMLDivElement>(null);
@@ -118,7 +125,7 @@ export function BookingPanel({
     setAsking(true);
     return false;
   };
-  return (
+  const dialog = (
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Delegates Tab wrapping for the native dialog and its discard question.
     <div ref={focusScope} className="bk-focus-scope" onKeyDown={wrapFocus}>
       {!state && learnBookingId && (
@@ -141,4 +148,8 @@ export function BookingPanel({
       </FormDialog>
     </div>
   );
+  // A prepared capture remains the same form after a disconnect. Only this booking dialog
+  // escapes the hidden live pages; editing and every other financial control stay inert.
+  if (sessionEnded) return null;
+  return current?.mode === 'create' ? createPortal(dialog, document.body) : dialog;
 }
