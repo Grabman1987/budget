@@ -113,6 +113,8 @@ export function BookingPanel({
   }, [state]);
 
   const current = state ?? shown?.state ?? null;
+  const [lastMode, setLastMode] = useState<'create' | 'edit' | null>(state?.mode ?? null);
+  if (state !== null && lastMode !== state.mode) setLastMode(state.mode);
   const title = current?.mode === 'edit' ? 'Buchung bearbeiten' : 'Buchung erfassen';
   const close = () => {
     setAsking(false);
@@ -148,8 +150,8 @@ export function BookingPanel({
       </FormDialog>
     </div>
   );
-  // A prepared capture remains the same form after a disconnect. Only this booking dialog
-  // escapes the hidden live pages; editing and every other financial control stay inert.
+  // Keep a closed capture's portal and toast host in place after the form's fade. A toast raised
+  // there can return to that same host when capture reopens; edits remain inside live pages.
   if (sessionEnded) return null;
-  return current?.mode === 'create' ? createPortal(dialog, document.body) : dialog;
+  return (current?.mode ?? lastMode) === 'create' ? createPortal(dialog, document.body) : dialog;
 }
