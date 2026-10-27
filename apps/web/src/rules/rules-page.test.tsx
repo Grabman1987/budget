@@ -76,9 +76,9 @@ const book: RuleBook = {
   ],
 };
 
-function show() {
+function show(data = book) {
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
-  client.setQueryData(['rules'], book);
+  client.setQueryData(['rules'], data);
   client.setQueryData(['rules-check'], { stage: { stage: 2 } });
   return render(
     <QueryClientProvider client={client}>
@@ -88,6 +88,33 @@ function show() {
     </QueryClientProvider>,
   );
 }
+
+it('sends portfolio corrections directly to the register containing their work', () => {
+  show({
+    ...book,
+    rules: book.rules.map((rule) => ({
+      ...rule,
+      enabled: true,
+      latest: rule.latest ? { ...rule.latest, status: 'bad' as const, actionNeeded: true } : null,
+    })),
+  });
+  for (const [code, label, destination] of [
+    ['R13', 'Aufteilung prüfen', '/vermoegen/portfolio/allokation'],
+    ['R14', 'Große Positionen prüfen', '/vermoegen/portfolio/positionen'],
+    ['R15', 'Riskante Anlagen prüfen', '/vermoegen/portfolio/allokation'],
+    ['R17', 'Sparpläne prüfen', '/vermoegen/portfolio/sparplaene'],
+    ['R20', 'Sparpläne prüfen', '/vermoegen/portfolio/sparplaene'],
+    ['R21', 'Hebel und Konten prüfen', '/vermoegen/portfolio/allokation'],
+    ['R22', 'Fondskosten prüfen', '/vermoegen/portfolio/positionen'],
+  ] as const) {
+    const finding = document.querySelector(`[data-rule-code="${code}"]`)!;
+    expect(
+      within(finding as HTMLElement)
+        .getByRole('link', { name: label })
+        .getAttribute('href'),
+    ).toBe(destination);
+  }
+});
 
 it('puts violations before stages, showing the current value, threshold and correction link', () => {
   show();

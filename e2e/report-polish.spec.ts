@@ -140,6 +140,6 @@ isolatedTest(
     await expect(page.locator('.chart-tooltip')).toContainText('02.10.2025');
     await inspectReport(page, info, 'price-history');
     await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
-    await expect(page).toHaveURL(/\/vermoegen\/portfolio$/);
+    await expect(page).toHaveURL(/\/vermoegen\/portfolio\/positionen$/);
   },
 );

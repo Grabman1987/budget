@@ -24,7 +24,7 @@ for (const theme of ['light', 'dark'] as const) {
       currency: 'EUR',
     });
     {
-      await page.goto('/vermoegen/portfolio');
+      await page.goto('/vermoegen/portfolio/sparplaene');
       await page
         .getByText('Anlageplan: Vermögen, Sparrate und nächste Käufe', { exact: true })
         .click();
@@ -124,7 +124,7 @@ test('funding snapshot recovers from a real concurrent write and protects unknow
   const saved = await put(initial.revision, plan);
   expect(saved.ok()).toBe(true);
   const state = await saved.json();
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/sparplaene');
   await page.getByText('Anlageplan: Vermögen, Sparrate und nächste Käufe', { exact: true }).click();
   const scope = page.locator('.funding-content');
   await scope.getByRole('button', { name: 'Zugeordnete Depotwerte übernehmen' }).click();

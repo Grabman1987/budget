@@ -77,7 +77,7 @@ test('native savings CRUD, future/current history, end, reload and audited undo'
 }, info) => {
   test.setTimeout(60000);
   const data = await fixture(request, info);
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/sparplaene');
   const panel = await draft(page, data);
   await panel.getByLabel('Monatliche Rate (CHF)', { exact: true }).fill('0');
   await panel.getByRole('button', { name: 'Sparplan anlegen', exact: true }).click();
@@ -163,7 +163,7 @@ test('dirty close and actual Back while write is held preserve draft after failu
   request,
 }, info) => {
   const data = await fixture(request, info);
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/sparplaene');
   const panel = await draft(page, data);
   await page.keyboard.press('Escape');
   await expect(panel).toContainText('Ungespeicherte Angaben verwerfen?');
@@ -227,7 +227,7 @@ test('successful held write discards pending Back and creates exactly one schedu
   request,
 }, info) => {
   const data = await fixture(request, info);
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/sparplaene');
   const panel = await draft(page, data);
   let release!: () => void;
   let sent = 0;
@@ -253,7 +253,7 @@ test('successful held write discards pending Back and creates exactly one schedu
   await expect(panel).toBeVisible();
   release();
   await expect(panel).toHaveCount(0);
-  await expect(page).toHaveURL(/\/vermoegen\/portfolio$/);
+  await expect(page).toHaveURL(/\/vermoegen\/portfolio\/sparplaene$/);
   expect(sent).toBe(1);
   const plans = (await (await request.get(`${MAIN_URL}/api/savings-plans?ended=1`)).json()).plans;
   expect(
@@ -286,7 +286,7 @@ test('overlapping schedules preserve both rates and missing account makes totals
     to: `${Number(data.today.slice(0, 4)) + 1}-12-31`,
   });
   await post('/savings-plans', { ...input, amountCents: 20000 });
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/sparplaene');
   const section = page.getByRole('region', { name: 'Sparpläne', exact: true });
   const row = section
     .getByRole('row')
@@ -302,7 +302,7 @@ test('overlapping schedules preserve both rates and missing account makes totals
   await expect(panel.getByRole('region', { name: 'Versionsverlauf' })).toContainText('100,00');
   await expect(panel.getByRole('region', { name: 'Versionsverlauf' })).toContainText('200,00');
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
-  await expect(page).toHaveURL(/\/vermoegen\/portfolio$/);
+  await expect(page).toHaveURL(/\/vermoegen\/portfolio\/sparplaene$/);
   // A deliberately incomplete lookup response verifies honest projection without deleting data.
   await page.route('**/api/accounts', async (route) => {
     const response = await route.fetch();
@@ -335,7 +335,7 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
   });
   expect(response.ok()).toBe(true);
   const plan = (await response.json()).plan;
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/allokation');
   await page.getByRole('button', { name: 'Sollquoten bearbeiten', exact: true }).click();
   await expect(
     page.getByRole('dialog', { name: 'Sollquoten bearbeiten', exact: true }),
@@ -343,6 +343,10 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
   await expect(page.locator('dialog[open]')).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await page
+    .getByRole('navigation', { name: 'Portfolio-Register', exact: true })
+    .getByRole('link', { name: 'Positionen', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Handel erfassen', exact: true })).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(1);
@@ -365,6 +369,10 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await page
+    .getByRole('navigation', { name: 'Portfolio-Register', exact: true })
+    .getByRole('link', { name: 'Sparpläne', exact: true })
+    .click();
   const opener = page
     .getByRole('region', { name: 'Sparpläne', exact: true })
     .getByRole('button', { name: data.security.name, exact: true });
@@ -400,7 +408,7 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
   await expect(page.getByRole('region', { name: 'Versionsverlauf' })).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
-  await expect(page).toHaveURL(/\/vermoegen\/portfolio$/);
+  await expect(page).toHaveURL(/\/vermoegen\/portfolio\/sparplaene$/);
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await expect(opener).toBeVisible();
 });
@@ -421,7 +429,7 @@ test('schedule details have a URL, version history and separate guarded input di
   });
   expect(response.ok()).toBe(true);
   const plan = (await response.json()).plan;
-  await page.goto('/vermoegen/portfolio?zeitraum=3J');
+  await page.goto('/vermoegen/portfolio/sparplaene?zeitraum=3J');
   await page.locator(`[data-savings-plan="${plan.id}"]`).click();
   await expect(page).toHaveURL(new RegExp(`/sparplan/${plan.id}\\?zeitraum=3J$`));
   const url = page.url();
@@ -445,7 +453,7 @@ test('schedule details have a URL, version history and separate guarded input di
     page.getByRole('button', { name: 'Sparplan bearbeiten', exact: true }),
   ).toBeFocused();
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
-  await expect(page).toHaveURL(/\/vermoegen\/portfolio\?zeitraum=3J$/);
+  await expect(page).toHaveURL(/\/vermoegen\/portfolio\/sparplaene\?zeitraum=3J$/);
   await page.goto(url);
   await page.getByRole('button', { name: 'Sparplan beenden', exact: true }).click();
   await expect(form.getByLabel('Ende einschließlich')).toHaveValue(
@@ -454,5 +462,5 @@ test('schedule details have a URL, version history and separate guarded input di
   await page.keyboard.press('Escape');
   await form.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
-  await expect(page).toHaveURL(/\/vermoegen\/portfolio\?zeitraum=3J$/);
+  await expect(page).toHaveURL(/\/vermoegen\/portfolio\/sparplaene\?zeitraum=3J$/);
 });

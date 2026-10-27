@@ -19,7 +19,8 @@ import { SavingsDetail } from './savings-detail';
 import './portfolio.css';
 import './savings.css';
 
-function PortfolioDetailBack({ title }: { title: string }) {
+function PortfolioDetailBack({ title, savings = false }: { title: string; savings?: boolean }) {
+  const fallback = savings ? '/vermoegen/portfolio/sparplaene' : '/vermoegen/portfolio/positionen';
   const router = useRouter();
   const openedInApp = useLocation({ select: (location) => location.state.wealthDetailOpenedInApp });
   const { zeitraum } = useSearch({ strict: false }) as { zeitraum?: Period };
@@ -30,14 +31,14 @@ function PortfolioDetailBack({ title }: { title: string }) {
           Vermögen
         </AppLink>
         {' › '}
-        <AppLink to="/vermoegen/portfolio" search={{ zeitraum }}>
+        <AppLink to={fallback} search={{ zeitraum }}>
           Portfolio
         </AppLink>
         {' › '}
         <span aria-current="page">{title}</span>
       </nav>
       <AppLink
-        to="/vermoegen/portfolio"
+        to={fallback}
         search={{ zeitraum }}
         onClick={(event) => {
           if (openedInApp && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
@@ -78,7 +79,7 @@ export function InstrumentPage() {
             state: { wealthDetailOpenedInApp: state.wealthDetailOpenedInApp === true },
             replace: !!handel,
           }
-        : { to: '/vermoegen/portfolio', search: { zeitraum } },
+        : { to: '/vermoegen/portfolio/positionen', search: { zeitraum } },
     );
   };
   const trade = (target?: string) => {
@@ -144,7 +145,7 @@ export function SavingsPlanPage() {
   return (
     <PageFrame meta={VERMOEGEN_PORTFOLIO_META} title={`Sparplan · ${name}`}>
       <div className="portfolio-detail">
-        <PortfolioDetailBack title={`Sparplan · ${name}`} />
+        <PortfolioDetailBack title={`Sparplan · ${name}`} savings />
         {[
           { query: plans, what: 'Sparpläne' },
           { query: accounts, what: 'Konten' },

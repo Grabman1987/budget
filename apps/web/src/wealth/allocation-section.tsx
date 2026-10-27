@@ -1,5 +1,5 @@
 import { ChartValue } from '@budget/ui';
-import type { RebalanceProposal } from '@budget/domain';
+import type { Period, RebalanceProposal } from '@budget/domain';
 import { Button } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
@@ -75,6 +75,11 @@ export function PortfolioAllocation() {
               <p className="vnote" role="status">
                 Aufteilung vorläufig: Klassifikation und Bewertung prüfen. Sparplanoptimierung wird
                 zurückgehalten.
+              </p>
+            )}
+            {view.quality.valuationQuality === 'estimated' && (
+              <p className="vnote" role="status">
+                Bewertung teilweise geschätzt / veraltet. Einzelheiten unter „Wie wird gerechnet?“.
               </p>
             )}
             <details className="wealth-details">
@@ -314,9 +319,13 @@ export function PortfolioAllocation() {
                           variant="ghost"
                           size="sm"
                           onClick={() =>
-                            document
-                              .getElementById('positions-title')
-                              ?.scrollIntoView({ behavior: 'instant', block: 'start' })
+                            void navigate({
+                              to: '/vermoegen/portfolio/positionen',
+                              search: (previous: { zeitraum?: Period | undefined }) => ({
+                                zeitraum: previous.zeitraum,
+                              }),
+                              hash: 'positions-title',
+                            })
                           }
                         >
                           Positionen ansehen

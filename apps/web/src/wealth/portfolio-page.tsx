@@ -1,6 +1,6 @@
 import { useAmountPrivacy, Button, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { ratioBp, type Period } from '@budget/domain';
+import { periodWindow, ratioBp, type Period } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { VERMOEGEN_PORTFOLIO_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
@@ -9,6 +9,7 @@ import { ValuationHint } from '../ledger/valuation-hint';
 import { eurParts, eurWhole, longDay } from '../ledger/format';
 import {
   portfolioPositionsQuery,
+  portfolioPerformanceQuery,
   instrumentsQuery,
   type PortfolioPosition,
   type PortfolioPositionsView,
@@ -28,17 +29,54 @@ import { TradePanel } from './trade-panel';
 import './portfolio.css';
 import { PortfolioAllocation } from './allocation-section';
 import { PortfolioOverview } from './portfolio-overview';
+import { AppLink } from '../shell/app-link';
+import {
+  PortfolioRegisters,
+  portfolioRegisterPath,
+  type PortfolioRegister,
+} from './portfolio-registers';
+import { useZeitraum } from './zeitraum';
+import { ZeitraumSwitch } from './frame';
 
-export function PortfolioPage() {
+export function PortfolioPositionsPage() {
+  return <PortfolioPage register="positions" />;
+}
+export function PortfolioAllocationPage() {
+  return <PortfolioPage register="allocation" />;
+}
+export function PortfolioSavingsPage() {
+  return <PortfolioPage register="savings" />;
+}
+export function PortfolioMetricsPage() {
+  return <PortfolioPage register="metrics" />;
+}
+
+export function PortfolioPage({ register = 'overview' }: { register?: PortfolioRegister }) {
   useAmountPrivacy();
-  const query = useQuery(portfolioPositionsQuery());
-  const instruments = useQuery(instrumentsQuery());
+  const [period] = useZeitraum();
   const search = useSearch({ strict: false }) as {
     produkt?: string;
     handel?: string;
     sparplan?: string;
     zeitraum?: Period;
   };
+  const datedPositions = register === 'overview' || register === 'positions';
+  const performance = useQuery({ ...portfolioPerformanceQuery(period), enabled: datedPositions });
+  // Keep the existing current-position read usable if only historical performance is unavailable.
+  // A successful period read selects the identical historical endpoint for the lead and table.
+  const selectedEnd = performance.data
+    ? (performance.data.portfolio.performance?.to ??
+      periodWindow(period, performance.data.portfolio.asOf).to)
+    : undefined;
+  const query = useQuery({
+    ...portfolioPositionsQuery(selectedEnd),
+    enabled: datedPositions || search.produkt === 'neu' || !!search.handel,
+  });
+  const path = portfolioRegisterPath(register);
+  const instruments = useQuery({
+    ...instrumentsQuery(),
+    enabled: register === 'positions' || search.produkt === 'neu' || !!search.handel,
+  });
   const navigate = useNavigate();
   const select = (produkt?: string, replace = false) =>
     void navigate(
@@ -51,13 +89,13 @@ export function PortfolioPage() {
             replace,
           }
         : {
-            to: '/vermoegen/portfolio',
+            to: path,
             search: { zeitraum: search.zeitraum, produkt },
           },
     );
   const trade = (handel?: string, produkt = search.produkt) =>
     void navigate({
-      to: '/vermoegen/portfolio',
+      to: path,
       search: ((prev: Record<string, unknown>) => ({
         ...prev,
         produkt,
@@ -66,139 +104,196 @@ export function PortfolioPage() {
         sparplan: undefined,
       })) as never,
     });
-  const view = query.data;
+  const view = datedPositions && performance.isPending ? undefined : query.data;
   const held = new Set(view?.classes.flatMap((group) => group.positions.map((p) => p.securityId)));
   const unheld = instruments.data?.securities.filter((security) => !held.has(security.id));
   return (
     <PageFrame meta={VERMOEGEN_PORTFOLIO_META}>
+      <PortfolioRegisters current={register} period={period} />
       <div className="kview vview portfolio-view">
-        {query.isPending && <LoadingNote what="Positionen" />}
-        {query.isError && (
-          <ErrorNote what="Positionen" error={query.error} onRetry={() => void query.refetch()} />
+        {datedPositions && performance.isError && (
+          <ErrorNote
+            what="Portfoliozeitraum"
+            error={performance.error}
+            onRetry={() => void performance.refetch()}
+          />
         )}
-        <ValuationHint incomplete={query.data?.incomplete} />
-        {view && <PortfolioLead view={view} />}
-        <PortfolioOverview />
-        <div className="instrument-actions">
-          <Button variant="ghost" onClick={() => select('neu')}>
-            Instrument anlegen
-          </Button>
-          <Button onClick={() => trade('neu', undefined)}>Handel erfassen</Button>
-        </div>
-        <PortfolioAllocation />
-        {view && (
+        {datedPositions && performance.isPending && <LoadingNote what="Portfoliozeitraum" />}
+        {datedPositions && (
           <>
-            {view.classes.length === 0 ? (
-              <EmptyNote>Keine Positionen zum {longDay(view.asOf)} vorhanden.</EmptyNote>
-            ) : (
-              <section className="portfolio-positions" aria-labelledby="positions-title">
-                <div className="head">
-                  <h2 id="positions-title">Positionen</h2>
-                  <span className="aside">
-                    {view.costCents === null
-                      ? basisReason(
-                          view.classes.flatMap((g) => g.positions.flatMap((p) => p.accounts)),
-                        )
-                      : `Einstand ${eurWhole(view.costCents)}`}
-                  </span>
-                </div>
-                <table className="ktable vtable portfolio-table">
-                  <caption className="sr-only">Positionen nach Anlageklasse</caption>
+            {query.isPending && !performance.isPending && <LoadingNote what="Positionen" />}
+            {query.isError && (
+              <ErrorNote
+                what="Positionen"
+                error={query.error}
+                onRetry={() => void query.refetch()}
+              />
+            )}
+            <ValuationHint incomplete={query.data?.incomplete} />
+            {view && <PortfolioLead view={view} />}
+            {view && performance.isError && (
+              <p className="vnote">
+                Die Zeitraum-Auswertung ist nicht verfügbar. Der separat bewertete Bestand oben gilt
+                für {longDay(view.asOf)}; ein Vergleich mit einem fehlenden Kurvenendpunkt ist nicht
+                möglich.
+              </p>
+            )}
+            {register === 'positions' && <ZeitraumSwitch />}
+          </>
+        )}
+        {register === 'overview' && (
+          <>
+            <PortfolioOverview />
+            <div className="instrument-actions">
+              <Button variant="ghost" onClick={() => select('neu')}>
+                Instrument anlegen
+              </Button>
+              <Button onClick={() => trade('neu', undefined)}>Handel erfassen</Button>
+            </div>
+          </>
+        )}
+        {register === 'positions' && (
+          <>
+            <div className="instrument-actions">
+              <Button variant="ghost" onClick={() => select('neu')}>
+                Instrument anlegen
+              </Button>
+              <Button onClick={() => trade('neu', undefined)}>Handel erfassen</Button>
+            </div>
+
+            {view && (
+              <>
+                {view.classes.length === 0 ? (
+                  <EmptyNote>Keine Positionen zum {longDay(view.asOf)} vorhanden.</EmptyNote>
+                ) : (
+                  <section className="portfolio-positions" aria-labelledby="positions-title">
+                    <div className="head">
+                      <h2 id="positions-title">Positionen</h2>
+                      <span className="aside">
+                        {view.costCents === null
+                          ? basisReason(
+                              view.classes.flatMap((g) => g.positions.flatMap((p) => p.accounts)),
+                            )
+                          : `Einstand ${eurWhole(view.costCents)}`}
+                      </span>
+                    </div>
+                    <table className="ktable vtable portfolio-table">
+                      <caption className="sr-only">Positionen nach Anlageklasse</caption>
+                      <thead>
+                        <tr>
+                          <th scope="col" className="tech">
+                            Pos.
+                          </th>
+                          <th scope="col" className="tech">
+                            Position
+                          </th>
+                          <th scope="col" className="tech">
+                            Plattform
+                          </th>
+                          <th scope="col" className="num tech">
+                            Stück
+                          </th>
+                          <th scope="col" className="num tech">
+                            Kurs
+                          </th>
+                          <th scope="col" className="num tech">
+                            Wert
+                          </th>
+                          <th scope="col" className="num tech">
+                            Anteil · Marktwert
+                          </th>
+                          <th scope="col" className="num tech">
+                            seit Kauf
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {view.classes.map((group, gi) => (
+                          <GroupRows
+                            key={group.id ?? 'none'}
+                            group={group}
+                            gi={gi}
+                            onSelect={select}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="vnote">
+                      Anteil = Klassen- oder Positionswert / Marktwert aller gehaltenen Wertpapiere
+                      ({moneyText(view.valueCents)}), ohne Kassa. Die Aufteilung Soll/Ist verwendet
+                      dagegen das ausgewählte Netto-Allokationsuniversum einschließlich
+                      Anlage-Kassa.
+                    </p>
+                    <p className="vnote">
+                      Werte in EUR, Kurse in der gespeicherten Kurswährung. „seit Kauf“ zeigt den
+                      Wertzuwachs auf den dokumentierten Einstand (
+                      {view.costMethod === 'fifo' ? 'FIFO' : 'gleitender Durchschnitt'}).
+                    </p>
+                  </section>
+                )}
+              </>
+            )}
+
+            {instruments.isPending && <LoadingNote what="Instrumente" />}
+            {instruments.isError && (
+              <ErrorNote
+                what="Instrumente"
+                error={instruments.error}
+                onRetry={() => void instruments.refetch()}
+              />
+            )}
+            {view && unheld && unheld.length > 0 && (
+              <details className="instrument-catalog">
+                <summary>Instrumente ohne Bestand ({unheld.length})</summary>
+                <table className="ktable">
+                  <caption className="sr-only">Instrumente ohne aktuellen Bestand</caption>
                   <thead>
                     <tr>
                       <th scope="col" className="tech">
-                        Pos.
+                        Instrument
                       </th>
                       <th scope="col" className="tech">
-                        Position
+                        Art
                       </th>
                       <th scope="col" className="tech">
-                        Plattform
-                      </th>
-                      <th scope="col" className="num tech">
-                        Stück
-                      </th>
-                      <th scope="col" className="num tech">
-                        Kurs
-                      </th>
-                      <th scope="col" className="num tech">
-                        Wert
-                      </th>
-                      <th scope="col" className="num tech">
-                        Anteil · Marktwert
-                      </th>
-                      <th scope="col" className="num tech">
-                        seit Kauf
+                        Währung
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {view.classes.map((group, gi) => (
-                      <GroupRows key={group.id ?? 'none'} group={group} gi={gi} onSelect={select} />
+                    {unheld.map((security) => (
+                      <tr key={security.id}>
+                        <td>
+                          <button
+                            type="button"
+                            className="portfolio-product"
+                            data-portfolio-security={security.id}
+                            onClick={() => select(security.id)}
+                          >
+                            {security.name}
+                          </button>
+                        </td>
+                        <td>{INSTRUMENT_KIND[security.kind]}</td>
+                        <td>{security.currency}</td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
-                <p className="vnote">
-                  Anteil = Klassen- oder Positionswert / Marktwert aller gehaltenen Wertpapiere (
-                  {moneyText(view.valueCents)}), ohne Kassa. Die Aufteilung Soll/Ist verwendet
-                  dagegen das ausgewählte Netto-Allokationsuniversum einschließlich Anlage-Kassa.
-                </p>
-                <p className="vnote">
-                  Werte in EUR, Kurse in der gespeicherten Kurswährung. „seit Kauf“ zeigt den
-                  Wertzuwachs auf den dokumentierten Einstand (
-                  {view.costMethod === 'fifo' ? 'FIFO' : 'gleitender Durchschnitt'}).
-                </p>
-              </section>
+              </details>
             )}
           </>
         )}
-        <SavingsSection />
-        {instruments.isPending && <LoadingNote what="Instrumente" />}
-        {instruments.isError && (
-          <ErrorNote
-            what="Instrumente"
-            error={instruments.error}
-            onRetry={() => void instruments.refetch()}
-          />
+        {register === 'allocation' && <PortfolioAllocation />}
+        {register === 'savings' && (
+          <SavingsSection navigationPath="/vermoegen/portfolio/sparplaene" />
         )}
-        {view && unheld && unheld.length > 0 && (
-          <details className="instrument-catalog">
-            <summary>Instrumente ohne Bestand ({unheld.length})</summary>
-            <table className="ktable">
-              <caption className="sr-only">Instrumente ohne aktuellen Bestand</caption>
-              <thead>
-                <tr>
-                  <th scope="col" className="tech">
-                    Instrument
-                  </th>
-                  <th scope="col" className="tech">
-                    Art
-                  </th>
-                  <th scope="col" className="tech">
-                    Währung
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {unheld.map((security) => (
-                  <tr key={security.id}>
-                    <td>
-                      <button
-                        type="button"
-                        className="portfolio-product"
-                        data-portfolio-security={security.id}
-                        onClick={() => select(security.id)}
-                      >
-                        {security.name}
-                      </button>
-                    </td>
-                    <td>{INSTRUMENT_KIND[security.kind]}</td>
-                    <td>{security.currency}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </details>
+        {register === 'metrics' && (
+          <section aria-labelledby="portfolio-metrics-title">
+            <h2 id="portfolio-metrics-title">Kennzahlen</h2>
+            <AppLink className="vlook" to="/reports/prendite" search={{ zeitraum: period }}>
+              Portfolio-Auswertung öffnen
+            </AppLink>
+          </section>
         )}
       </div>
       {search.sparplan ? null : search.handel ? (
@@ -230,7 +325,7 @@ function PortfolioLead({ view }: { view: PortfolioPositionsView }) {
   useAmountPrivacy();
   const parts = view.valueCents === null ? null : eurParts(view.valueCents);
   return (
-    <section className="vnw" aria-labelledby="portfolio-title">
+    <section className="vnw portfolio-lead" aria-labelledby="portfolio-title">
       <div className="tbd-head">
         <h2 id="portfolio-title">Portfolio</h2>
         <span className="tbd-state">{longDay(view.asOf)}</span>
@@ -245,6 +340,7 @@ function PortfolioLead({ view }: { view: PortfolioPositionsView }) {
           <span className="portfolio-unavailable">Bewertung unvollständig</span>
         )}
       </div>
+      <p className="vnote portfolio-scope">Wertpapiere ohne Depot-Bargeld</p>
       <p className="portfolio-lead-gain" data-testid="portfolio-gain">
         Gewinn seit Kauf {moneyText(view.gainCents)} ·{' '}
         {percentText(
@@ -257,7 +353,7 @@ function PortfolioLead({ view }: { view: PortfolioPositionsView }) {
       {view.chain ? (
         <DimensionChain terms={view.chain} label="Maßkette Portfoliowert" />
       ) : (
-        <p className="vnote">
+        <p className="vnote portfolio-basis">
           {view.valueCents === null
             ? 'Mindestens ein Kurs oder Wechselkurs fehlt. Der Gesamtwert und die Anteile sind nicht berechenbar.'
             : `${basisReason(view.classes.flatMap((g) => g.positions.flatMap((p) => p.accounts)))}. Der gesamte Wertzuwachs ist nicht berechenbar.`}

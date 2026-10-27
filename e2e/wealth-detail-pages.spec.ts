@@ -1,8 +1,9 @@
-﻿import AxeBuilder from '@axe-core/playwright';
+import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
 
 test('instrument pages restore portfolio scroll and use modal forms', async ({ page }, info) => {
-  await page.goto('/vermoegen/portfolio?zeitraum=1J');
+  await page.setViewportSize({ ...page.viewportSize()!, height: 500 });
+  await page.goto('/vermoegen/portfolio/positionen?zeitraum=1J');
   const trigger = page.locator('[data-portfolio-security]').last();
   await trigger.scrollIntoViewIfNeeded();
   const id = await trigger.getAttribute('data-portfolio-security');
@@ -31,20 +32,21 @@ test('instrument pages restore portfolio scroll and use modal forms', async ({ p
     await page.screenshot({ path: info.outputPath(`instrument-${theme}.png`), fullPage: true });
   }
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
-  await expect(page).toHaveURL(/\/vermoegen\/portfolio\?zeitraum=1J$/);
+  await expect(page).toHaveURL(/\/vermoegen\/portfolio\/positionen\?zeitraum=1J$/);
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeCloseTo(scroll, 0);
   await page.goto(url);
   await expect(
     page.getByRole('button', { name: 'Stammdaten bearbeiten', exact: true }),
   ).toBeVisible();
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
-  await expect(page).toHaveURL(/\/vermoegen\/portfolio\?zeitraum=1J$/);
+  await expect(page).toHaveURL(/\/vermoegen\/portfolio\/positionen\?zeitraum=1J$/);
   await page.goto('/vermoegen/portfolio/instrument/unknown-synthetic-instrument');
   await expect(page.getByText(/Instrumentdaten konnten nicht geladen/)).toBeVisible();
 });
 
 test('savings-plan history restores browser navigation and portfolio scroll', async ({ page }) => {
-  await page.goto('/vermoegen/portfolio?zeitraum=3J');
+  await page.setViewportSize({ ...page.viewportSize()!, height: 500 });
+  await page.goto('/vermoegen/portfolio/sparplaene?zeitraum=3J');
   const trigger = page.locator('[data-savings-plan]:not([data-savings-plan="neu"])').last();
   await trigger.scrollIntoViewIfNeeded();
   const id = await trigger.getAttribute('data-savings-plan');
@@ -59,7 +61,7 @@ test('savings-plan history restores browser navigation and portfolio scroll', as
   ).toHaveCount(2);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.goBack();
-  await expect(page).toHaveURL(/\/vermoegen\/portfolio\?zeitraum=3J$/);
+  await expect(page).toHaveURL(/\/vermoegen\/portfolio\/sparplaene\?zeitraum=3J$/);
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeCloseTo(scroll, 0);
   await page.goForward();
   await expect(page).toHaveURL(new RegExp(`/vermoegen/portfolio/sparplan/${id}\\?zeitraum=3J$`));
@@ -69,7 +71,7 @@ test('savings-plan history restores browser navigation and portfolio scroll', as
   ).toHaveCount(2);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
-  await expect(page).toHaveURL(/\/vermoegen\/portfolio\?zeitraum=3J$/);
+  await expect(page).toHaveURL(/\/vermoegen\/portfolio\/sparplaene\?zeitraum=3J$/);
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeCloseTo(scroll, 0);
 });
 

@@ -290,7 +290,7 @@ test('manual buy, partial sell, source edit and group undo refresh holdings and 
   request,
 }, info) => {
   const { name, account, security } = await fixture(request, info, 'A');
-  await page.goto('/vermoegen/portfolio?zeitraum=3J');
+  await page.goto('/vermoegen/portfolio/positionen?zeitraum=3J');
   await page
     .locator('.instrument-actions')
     .getByRole('button', { name: 'Handel erfassen', exact: true })

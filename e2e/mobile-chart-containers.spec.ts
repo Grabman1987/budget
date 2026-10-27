@@ -9,7 +9,7 @@ test.describe('UX-3c phone chart and table containers', () => {
     ['/reports/liquiditaet', '[data-testid="liq-outlook"]'],
     ['/reports/geldfluss', '[data-testid="flow-list"]'],
     ['/plan/jahr?monat=2026-09', '.year-phone-row'],
-    ['/vermoegen/portfolio', '.vallo .va-track'],
+    ['/vermoegen/portfolio/allokation', '.vallo .va-track'],
   ]) {
     test(`${path} stays inside the phone in both themes`, async ({ page }, info) => {
       await page.goto(path!);
@@ -94,7 +94,7 @@ test.describe('UX-3c phone chart and table containers', () => {
   });
 
   test('portfolio tracks fill the whole row below name and values', async ({ page }) => {
-    await page.goto('/vermoegen/portfolio');
+    await page.goto('/vermoegen/portfolio/allokation');
     const track = page.locator('.vallo .va-track').first();
     await expect(track).toBeVisible({ timeout: 30_000 });
     const row = (await page.locator('.vallo li').first().boundingBox())!;

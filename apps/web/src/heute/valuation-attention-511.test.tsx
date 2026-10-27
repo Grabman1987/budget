@@ -55,7 +55,7 @@ it('shows exactly one current source row for distinct securities and preserves a
   expect(container.querySelectorAll('.attention-row')).toHaveLength(1);
   expect(screen.getAllByRole('link', { name: 'Kurse prüfen' })).toHaveLength(1);
   expect(screen.getByRole('link', { name: 'Kurse prüfen' }).getAttribute('href')).toBe(
-    '/vermoegen/portfolio',
+    '/vermoegen/portfolio/positionen',
   );
   expect(screen.getByText('Stand heute · 20.09.2026')).toBeTruthy();
 });
@@ -333,7 +333,7 @@ it('keeps all four populated Q3 sources within four rows while preserving every 
   expect(rows[3]?.textContent).toContain('Kreditkonditionen fehlen');
   for (const [label, href] of [
     ['Prüfen', '/konten/pruefen'],
-    ['Kurse prüfen', '/vermoegen/portfolio'],
+    ['Kurse prüfen', '/vermoegen/portfolio/positionen'],
     ['Konditionen ergänzen', '/einstellungen/konten'],
   ] as const) {
     const link = screen.getByRole('link', { name: label });
