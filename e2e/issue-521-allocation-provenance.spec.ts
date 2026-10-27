@@ -110,6 +110,12 @@ sampleTest(
     await allocation.getByText('Wie wird gerechnet?', { exact: true }).click();
     await expect(allocation).toContainText('Quelldetails nicht verfügbar.');
     await expect(allocation).toContainText('Datengrundlage am 17.09.2026');
+    if (sourceValueCents !== null)
+      await expect(allocation).toContainText('Netto-Allokationsuniversum: ••• €.');
+    if (mobile) await profile.click();
+    await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
+    await expect(privacy).toHaveAttribute('aria-pressed', 'false');
+    if (mobile) await profile.press('Escape');
     await expect(allocation).toContainText(expectedValueText);
     await expect(allocation).toContainText(expectedQualityText);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
