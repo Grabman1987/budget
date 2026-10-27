@@ -211,19 +211,44 @@ test('three prepared bank rows are explicitly reviewed with progress and individ
   const ambiguous = openDatabase(databasePath);
   try {
     for (const memo of ['Possible A 562', 'Possible B 562'])
-      createBooking(ambiguous.db, {
-        accountId: account.id, date: '2026-10-20', amountCents: -5505,
-        memo, status: 'confirmed', splits: [{ amountCents: -5505, categoryId: category.id }],
-      }, { actor: 'synthetic-562' });
-    ambiguous.db.insert(schema.bankSyncCandidate).values({
-      id: ambiguousId, sourceId, accountId: account.id, dedupeKey: ambiguousId,
-      date: '2026-10-20', amountCents: -5505, currency: 'EUR', memo: 'Ambiguous 562',
-    }).run();
-    ambiguous.db.insert(schema.inboxItem).values({
-      id: ambiguousId, kind: 'import', title: 'Bankumsatz prüfen',
-      refType: 'bank-sync-candidate', refId: ambiguousId,
-    }).run();
-  } finally { ambiguous.close(); }
+      createBooking(
+        ambiguous.db,
+        {
+          accountId: account.id,
+          date: '2026-10-20',
+          amountCents: -5505,
+          memo,
+          status: 'confirmed',
+          splits: [{ amountCents: -5505, categoryId: category.id }],
+        },
+        { actor: 'synthetic-562' },
+      );
+    ambiguous.db
+      .insert(schema.bankSyncCandidate)
+      .values({
+        id: ambiguousId,
+        sourceId,
+        accountId: account.id,
+        dedupeKey: ambiguousId,
+        date: '2026-10-20',
+        amountCents: -5505,
+        currency: 'EUR',
+        memo: 'Ambiguous 562',
+      })
+      .run();
+    ambiguous.db
+      .insert(schema.inboxItem)
+      .values({
+        id: ambiguousId,
+        kind: 'import',
+        title: 'Bankumsatz prüfen',
+        refType: 'bank-sync-candidate',
+        refId: ambiguousId,
+      })
+      .run();
+  } finally {
+    ambiguous.close();
+  }
   await page.reload();
   const ambiguousRow = page.getByTestId('inbox-row').filter({ hasText: 'Ambiguous 562' });
   await expect(ambiguousRow).toContainText('Vorschlag prüfen · mehrere mögliche Buchungen');
@@ -231,6 +256,9 @@ test('three prepared bank rows are explicitly reviewed with progress and individ
   await ambiguousRow.getByRole('button', { name: 'Übernehmen' }).click();
   await expect(page.getByRole('dialog', { name: 'Buchung übernehmen' })).toBeVisible();
   expect(writes).toHaveLength(writesBeforeAmbiguous);
-  await page.getByRole('dialog', { name: 'Buchung übernehmen' }).getByRole('button', { name: 'Abbrechen' }).click();
+  await page
+    .getByRole('dialog', { name: 'Buchung übernehmen' })
+    .getByRole('button', { name: 'Abbrechen' })
+    .click();
   expect(writes).toHaveLength(writesBeforeAmbiguous);
 });
