@@ -89,9 +89,40 @@ test('Jahresreport prints as exactly two A4 pages without clipping', async ({
     .locator('.ov-sheet-body')
     .evaluateAll((els) => els.map((el) => ({ scroll: el.scrollHeight, client: el.clientHeight })));
   expect(sheets).toHaveLength(2);
+  const overflowDetails =
+    sheets[1]!.scroll > sheets[1]!.client + 1
+      ? await page.locator('.ov-sheet-body').nth(1).evaluate((body) => {
+          const top = body.getBoundingClientRect().top;
+          const bounds = (el: Element) => {
+            const box = el.getBoundingClientRect();
+            return {
+              top: Math.round(box.top - top),
+              bottom: Math.round(box.bottom - top),
+              height: Math.round(box.height),
+            };
+          };
+          return {
+            children: Array.from(body.children, (el) => ({
+              name: `${el.tagName.toLowerCase()}.${el.className}`,
+              ...bounds(el),
+            })),
+            rows: ['yr-categories', 'yr-heat', 'yr-findings'].map((id) => {
+              const table = body.querySelector(`[data-testid="${id}"]`);
+              return {
+                id,
+                table: table && bounds(table),
+                heights: table &&
+                  Array.from(table.querySelectorAll('tbody tr'), (row) =>
+                    Math.round(row.getBoundingClientRect().height),
+                  ),
+              };
+            }),
+          };
+        })
+      : null;
   expect(
     sheets.map((sheet) => sheet.scroll <= sheet.client + 1),
-    `content height against page height: ${JSON.stringify(sheets)}`,
+    `content height against page height: ${JSON.stringify({ sheets, overflowDetails })}`,
   ).toEqual([true, true]);
   // Chromium refuses a page range beyond the page count: page 2 exists, page 3 does not.
   const options = { preferCSSPageSize: true, printBackground: true };

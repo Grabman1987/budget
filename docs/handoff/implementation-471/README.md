@@ -21,8 +21,13 @@ These are technical presentation updates. They retain their original financial a
 | `apps/web/src/month-close/month-close-page.test.tsx` | Locate the unchanged empty-state text without its decorative glyph; retain close behavior. |
 | `e2e/capture.spec.ts` | Expect the visible confirmation label; retain pending/confirmed writes and edit assertions. |
 | `e2e/issue-471-icons.spec.ts` | Cover rendered icon scale, class labels, disclosure states, capture-label containment and the custom mobile avatar while retaining existing interaction and accessibility checks. |
+| `e2e/report-tables.spec.ts` | Locate the year row by its accessible header name and the category label by its own span because decorative B/W/Z spans alter DOM text. Keep every financial total, average, share, and comparison oracle. CI run `40422683801` failed these selectors on desktop and mobile. |
+| `e2e/issue-583-capture-two-column.spec.ts` | Expect the now markerless `Mehr` summary text. Keep its accessible name, open/closed state, and field behavior checks. CI run `40422683801` failed the old glyph expectation on mobile. |
+| `e2e/year-report.spec.ts` | Preserve the exact two-page/no-clipping assertion and append bounded sheet-two child and table-row heights to its failure message. The same CI run measured 1104 px scroll height against 1068 px available, twice. This records where the print content grows; it does not claim the print layout is fixed. |
 
 No financial oracle, write semantics, timeout or tolerance was changed.
+
+The sheet-two print overflow remains unresolved pending the new DOM measurements. The icon branch changed `.sw` from 10 px inline-block to 12 px inline-flex and added a 12 px B/W/Z sibling. Both printed category and heat tables use this shared component; the heat table has ten rows. That makes extra row height plausible, but the prior CI log contains only the full-sheet height. A print CSS correction needs the row and section bounds before selection. No local browser run was started on the memory-constrained host.
 
 ## Verification
 

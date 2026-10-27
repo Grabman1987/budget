@@ -3,7 +3,7 @@ import { expect, test, type Locator, type Page, type TestInfo } from '@playwrigh
 
 /**
  * Issue #583: the capture dialog is a wide two-column card on desktop (head left, booking lines
- * right), the note is always visible, "Mehr ▾" holds Projekt and Markierung and is open exactly
+ * right), the note is always visible, "Mehr" holds Projekt and Markierung and is open exactly
  * when one of them is filled, and at most three category suggestions sit in one line.
  */
 
@@ -169,7 +169,7 @@ test('at most three suggestions in one line without overflow; Mehr and Notiz', a
   await expect(note).toBeVisible();
   const more = dialog.locator('details.kmore');
   await expect(more).not.toHaveAttribute('open', /.*/);
-  await expect(more.locator('summary')).toHaveText('Mehr ▾');
+  await expect(more.locator('summary')).toHaveText('Mehr');
   await expect(more.locator('summary')).toHaveAccessibleName('Mehr');
   await more.locator('summary').click();
   await expect(more).toHaveAttribute('open', '');
