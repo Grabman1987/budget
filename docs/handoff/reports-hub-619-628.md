@@ -94,3 +94,13 @@ canonical configuration, retries0, snapshotsnone or failure outcomes.
 No protected money/body/URL/Undo/privacy/timeout/skip assertion or baseline was
 weakened. These source/fixture/static changes require independent HIGH full-delta
 review, then one coordinator-scheduled necessary focused proof before publication.
+
+## PR801 first full CI: isolated router mock compatibility repair
+
+Immutable ee6b full CI40582154381 unit(1) job122464232339 failed importing two existing AreaHead suites before their assertions ran: Vitest mock had useParams only, while AreaHead now imports ReportNavigation, which imports AppLink and its module-level useLinkProps reference. Raw stack is app-link.tsx5 then report-navigation.tsx4. Static and unit(2) passed; other full shards were still running when this narrow repair was prepared. No complete-run success or final failure inventory is claimed yet.
+
+Per-file technical test reasons:
+- `apps/web/src/pages/area-head-566.test.tsx`: extend only the router mock with the existing href/onClick adapter already used by area-head-report.test.tsx. All Stand/bank-status/source-boundary/supplied-field assertions remain exact.
+- `apps/web/src/pages/area-head.test.tsx`: same missing import adapter, preserving all recovery-session, account-source-date and sync-label assertions. No test removal, timeout/skip/baseline or production change. Non-report cases do not render ReportNavigation, so no new navigation behavior is mocked or asserted here.
+
+The repair needs independent HIGH delta review and one bounded affected-suite proof before the same PR update. All remaining immutable full CI shards must be collected first; no new push/full CI/publication is authorized by this source-only repair. No local Node/npm/test/build/browser/lint/formatter ran because of the host RAM rule.
