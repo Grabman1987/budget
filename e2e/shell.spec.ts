@@ -114,24 +114,29 @@ test.describe('routes', () => {
     await expect(page).toHaveTitle('Geldfluss · Budget');
   });
 
-  test('the report catalog lists 33 reports in five assemblies with positions', async ({
+  test('the report hub lists sixteen reports in four groups with continuous positions', async ({
     page,
   }, info) => {
     await page.goto('/reports');
-    await expect(page.locator('.rcat-row')).toHaveCount(33);
-    await expect(page.locator('.rcat-grp')).toHaveCount(5);
-    await expect(page.locator('.rcat-row .col-pos').first()).toHaveText('1.1');
-    await expect(page.locator('.rcat-row .col-pos').last()).toHaveText('5.5');
+    await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
+    await expect(page.getByRole('group', { name: 'Berichtsgruppen' }).getByRole('button')).toHaveText([
+      'Alle', 'Einnahmen/Ausgaben', 'Vermögen', 'Portfolio', 'Berichte',
+    ]);
+    await expect(page.locator('.report-hub-number')).toHaveText([
+      '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16',
+    ]);
     // The catalog keeps the question; chart implementation and period controls belong to reports.
-    const first = page.locator('.rcat-row').first();
-    await expect(first.locator('.rcat-q')).toHaveText('Wie lief der Monat, auf einem Blatt?');
+    const first = page.locator('.report-hub-list > li > a').first();
+    await expect(first.locator('.report-hub-question')).toHaveText('Woher kommt das Geld, und was bleibt nach den Ausgaben?');
     await expect(page.locator('.rcat-form, .rcat-ctl')).toHaveCount(0);
+    await expect(page.locator('.report-hub-list form, .report-hub-list input, .report-hub-list select')).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Kontoprognose in Plan öffnen' })).toHaveCount(0);
     if ((page.viewportSize()?.width ?? 0) >= 1440) {
-      const headings = page.locator('.rcat-grp');
-      const left = await headings.nth(0).boundingBox();
-      const right = await headings.nth(1).boundingBox();
-      expect(left?.y).toBe(right?.y);
+      const rows = page.locator('.report-hub-list > li');
+      const top = await rows.nth(0).boundingBox();
+      const below = await rows.nth(1).boundingBox();
+      expect(top!.x).toBe(below!.x);
+      expect(below!.y).toBeGreaterThanOrEqual(top!.y + top!.height);
     }
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
@@ -147,7 +152,7 @@ test.describe('routes', () => {
       );
       await page.screenshot({ path: info.outputPath(`catalog-${theme}.png`), fullPage: true });
     }
-    await page.locator('.rcat-row').nth(3).locator('.rcat-q').click();
+    await page.locator('.report-hub-list > li').nth(3).locator('.report-hub-question').click();
     await expect(page).toHaveURL(/\/reports\/geldfluss$/);
   });
 });

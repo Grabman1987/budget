@@ -137,6 +137,8 @@ test('628 saved-view chips reload across contexts and resolve only the current s
     await other.reload();
     await expect(other.getByLabel('Kennzahl', { exact: true })).toHaveValue('anzahl');
     await page.getByRole('button', { name: 'Ansicht Synthetic 123,45 € löschen', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Synthetic 123,45 €', exact: true })).toHaveCount(0);
+    await expect.poll(async () => ((await (await page.request.get('/api/reports/saved-queries')).json()) as ExplorerViewsState).views).toEqual([]);
     await other.reload();
     await expect(other.getByText('Diese gespeicherte Auswertung ist nicht mehr verfügbar. Es wird keine andere Auswahl geladen.', { exact: true })).toBeVisible();
     await expect(other.getByTestId('ex-table')).toHaveCount(0);

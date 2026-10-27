@@ -28,6 +28,21 @@ New archived icons explicitly retain 16px/1.75 stroke conventions.
 - `reports-search-package.spec.ts`: adapt only the two initial old hub labels to the new combined Budgettreue row and search input; retain every original global-search destination, booking/action and financial assertion.
 - `issue-619-628-reports-hub.spec.ts`: complete canonical desktop/Chromium390/WebKit cases in both themes. Literal16/8-1-3-4 groups, continuous numbers, whole-row link geometry, three actual report visits retained in session, search by name/question, removed named register navigation, desktop <=900px, phone44px, Axe/no-overflow and keyboard switcher. Real independent contexts save then reload chips, assert ID-only URL and exact stored/result query, edit/reload current server configuration, preserve privacy, delete without default results/save, explicitly recover and retain exact-window/template clearing.
 
+## Reviewed old-consumer adapters
+
+Independent HIGH source sweep at ce22 identified three deterministic old catalog
+consumers and one new asynchronous test setup gap. The production source remains
+unchanged by this delta.
+
+- `e2e/shell.spec.ts`: replace the removed33-row/five-assembly DOM with the exact16 continuous numbers and four named group chips. Retain literal question text, no catalog control/forecast CTA, both-theme whole-row hover background and transparent children, no overflow, screenshots and the actual fourth-row question click to Geldfluss. Replace old assembly side-by-side geometry with the new owner single-column no-overlap geometry.
+- `e2e/nav-registers.spec.ts`: preserve the entire Vermögen register overflow/fade assertion. Reports now explicitly has no register, lists16 entries and opens the real Ausgaben entry with the visible switcher; settings retains its original no-register assertion.
+- `e2e/assets-debts-report.spec.ts`: the retained wealth-group URL now exposes the unique canonical hub label Vermögen und Schulden and exact original report destination. All existing financial/history/period/body checks in the file remain unchanged.
+- `e2e/issue-619-628-reports-hub.spec.ts`: after clicking delete, require both editor disappearance and literal server views=[] before reloading the independent context. This removes a POST/reload race while retaining the unavailable-ID/no-result/save-disabled assertions.
+
+No timeout, retry, skip, money/privacy/Undo/keyboard oracle or baseline is changed.
+These technical adapters require independent exact-delta re-review and remain
+source-only until the coordinator schedules focused proof after H priority.
+
 ## Source compatibility audit
 
 The entire `ReportPage` financial dispatch/fallback block through `ReportGroupRoute` is byte-identical after newline normalization to base c31afb1af3c2a01c0c45ca084722cbfd84c76e02 (SHA256 fd47e1e27f28aee49aa9dfefd557d531e1634d4eae5a6bf09f49cf6b03116d4e). Router, financial producers, saved-view writes/CAS/migration/Undo and all report bodies are untouched. The current exact-window heatmap condition, memo dependency and explicit-template clearing remain in place. Only entry reads and unresolved-entry presentation are additive.
