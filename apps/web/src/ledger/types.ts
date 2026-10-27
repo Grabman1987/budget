@@ -178,6 +178,7 @@ export interface BookingFilter {
   from?: string | undefined;
   to?: string | undefined;
   categoryId?: string | undefined;
+  categoryGroupId?: string | undefined;
   payeeId?: string | undefined;
   status?: BookingStatus | undefined;
   flag?: BookingFlag | 'none' | undefined;

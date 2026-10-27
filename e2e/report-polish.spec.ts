@@ -6,13 +6,22 @@ sampleTest('report heatmap cells keep readable text in both themes', async ({ pa
   sampleTest.setTimeout(180_000);
   for (const [path, selector] of [
     ['/reports/jahresansicht', '.hc2.hc-red, .hc2.hc-green'],
-    ['/reports/ausgaben', '.sr-heat td.is-red, .sr-heat td.is-green'],
+    [
+      '/reports/ausgaben',
+      '[data-testid="template-heatmap"] td[data-heat="bad"], [data-testid="template-heatmap"] td[data-heat="good"]',
+    ],
     [
       '/reports/prendite',
       '.performance-heatmap .return-positive, .performance-heatmap .return-negative',
     ],
   ]) {
     await page.goto(path!);
+    if (path === '/reports/ausgaben') {
+      const toggle = page.locator('section[aria-labelledby="sa-explorer"] .section-toggle');
+      if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
+      await page.getByRole('link', { name: 'In Auswertung öffnen', exact: true }).click();
+      await expect(page.getByTestId('template-heatmap')).toBeVisible();
+    }
     await expect(page.locator(selector!).first()).toBeVisible({ timeout: 30_000 });
     for (const theme of ['light', 'dark']) {
       await page.evaluate((t) => {

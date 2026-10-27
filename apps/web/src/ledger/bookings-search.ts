@@ -7,6 +7,7 @@ export interface BookingsSearch {
   buchung?: string | undefined;
   konto?: string | undefined;
   kategorie?: string | undefined;
+  kategoriegruppe?: string | undefined;
   empfaenger?: string | undefined;
   status?: string | undefined;
   markierung?: string | undefined;
@@ -21,6 +22,7 @@ const FILTER_KEYS = [
   'buchung',
   'konto',
   'kategorie',
+  'kategoriegruppe',
   'empfaenger',
   'status',
   'markierung',
@@ -75,6 +77,7 @@ export function validateBookingsSearch(search: Record<string, unknown>): Booking
     buchung: id(search['buchung']),
     konto: id(search['konto']),
     kategorie: id(search['kategorie']),
+    kategoriegruppe: id(search['kategoriegruppe']),
     empfaenger: id(search['empfaenger']),
     status: oneOf(search['status'], BOOKING_STATUSES),
     markierung: oneOf(search['markierung'], [...BOOKING_FLAGS, 'none'] as const),
@@ -89,10 +92,15 @@ export function validateBookingsSearch(search: Record<string, unknown>): Booking
 /** The API filter belonging to the URL parameters. */
 export function filterFromSearch(search: BookingsSearch): BookingFilter {
   return {
-    basis: search.kategorie ? search.basis : undefined,
+    basis: search.kategoriegruppe
+      ? 'category-spending'
+      : search.kategorie
+        ? search.basis
+        : undefined,
     id: search.buchung,
     accountId: search.konto,
     categoryId: search.kategorie,
+    categoryGroupId: search.kategoriegruppe,
     payeeId: search.empfaenger,
     status: oneOf(search.status, BOOKING_STATUSES),
     flag: oneOf(search.markierung, [...BOOKING_FLAGS, 'none'] as const),
@@ -110,6 +118,7 @@ export const hasFilter = (search: BookingsSearch): boolean =>
     search.buchung ||
     search.konto ||
     search.kategorie ||
+    search.kategoriegruppe ||
     search.empfaenger ||
     search.status ||
     search.markierung ||

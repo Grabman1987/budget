@@ -59,8 +59,15 @@ isolatedTest(
     expect(hidden.ok(), await hidden.text()).toBe(true);
 
     await page.goto(`/plan/monat?monat=${month}`);
-    await page.locator('#inspector-income > summary').click();
     const card = page.getByTestId('income-targets');
+    const openIncome = async () => {
+      const disclosure = page.locator('#inspector-income');
+      if (!(await disclosure.evaluate((element) => element.hasAttribute('open'))))
+        await disclosure.locator(':scope > summary').click();
+      await expect(disclosure).toHaveAttribute('open', '');
+      await expect(card).toBeVisible();
+    };
+    await openIncome();
     await expect(card).toContainText('Noch nicht eingerichtet.');
     const checkCardPresentation = async (state: 'empty' | 'zero') => {
       const viewport = page.viewportSize();
@@ -108,7 +115,7 @@ isolatedTest(
     });
     expect(zeroTarget.ok(), await zeroTarget.text()).toBe(true);
     await page.reload();
-    await page.locator('#inspector-income > summary').click();
+    await openIncome();
     await expect(card).toContainText('Alle Monatsziele sind finanziert.');
     await checkCardPresentation('zero');
     budget = await readBudget();
@@ -140,7 +147,7 @@ isolatedTest(
     });
     expect(assigned.ok(), await assigned.text()).toBe(true);
     await page.reload();
-    await page.locator('#inspector-income > summary').click();
+    await openIncome();
     await expect(card).toContainText('Alle Monatsziele sind finanziert.');
     budget = await readBudget();
     expect(budget.summary.envelopes.find((row) => row.categoryId === reached.id)).toMatchObject({
@@ -478,7 +485,10 @@ test('plan: the guard refuses assigning more than Zu verteilen holds, in the fie
   // The month status never says "Nichts ist überzogen." while the hero says too much assigned.
   const hero = page.getByTestId('to-be-assigned');
   const negative = (await hero.innerText()).trim().startsWith('−');
-  await page.locator('.inspector-section > summary').filter({ hasText: '50/30/20' }).click();
+  const splitDisclosure = page.locator('[data-overview-section="split"]');
+  if (!(await splitDisclosure.evaluate((element) => element.hasAttribute('open'))))
+    await splitDisclosure.locator(':scope > summary').click();
+  await expect(splitDisclosure).toHaveAttribute('open', '');
   const status = page.getByRole('list', { name: 'Zustand des Monats' });
   if (negative) await expect(status).not.toContainText('Nichts ist überzogen');
   await expect(status).toBeVisible();

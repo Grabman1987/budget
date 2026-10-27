@@ -1,9 +1,18 @@
-import { cents, formatEuro } from '@budget/domain';
+import { cents, formatEuro, lastDayOfMonth } from '@budget/domain';
+import type { Page } from '@playwright/test';
 import type { ReportTables } from '../apps/web/src/reports/table-reports-api';
 import { sampleTest as test, expect } from './sample';
 import { inspectReport } from './spending-helpers';
 
 test.describe.configure({ timeout: 120_000 });
+
+async function openExpenseHeatmap(page: Page) {
+  const toggle = page.locator('section[aria-labelledby="sa-explorer"] .section-toggle');
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
+  await page.getByRole('link', { name: 'In Auswertung öffnen', exact: true }).click();
+  await expect(page.getByTestId('template-heatmap')).toBeVisible();
+  expect(new URL(page.url()).searchParams.get('exakt')).toBe('true');
+}
 
 test('category choice, period and previous-year month survive reload; month links reconcile with bookings', async ({
   page,
@@ -59,30 +68,63 @@ test('missing previous-year data stays blank and masking covers trend values and
   await privacy.click();
   await expect(values.locator('a').first()).toHaveText('••• €');
   await page.goto('/reports/ausgaben?zeitraum=1M');
-  await expect(page.locator('.sr-heat a').first()).toBeVisible();
-  await expect(page.locator('.sr-heat a').first()).toHaveAttribute('aria-label', /••• €/);
-  await expect(page.locator('.sr-heat a').filter({ hasText: '•••' }).first()).toBeVisible();
+  await openExpenseHeatmap(page);
+  const cell = page
+    .getByTestId('template-heatmap')
+    .locator('[data-template-row^="cat:"] .table-cell-open[data-template-column^="20"]')
+    .first();
+  await expect(cell).toBeVisible();
+  await expect(cell).toHaveAttribute('aria-label', /••• €/);
+  expect((await cell.innerText()).replace(/\s*[↑↓]$/, '').trim()).toBe('••• €');
 });
 
 test('heatmap month cell opens the exact classified category sum and has usable touch targets', async ({
   page,
 }, info) => {
   await page.goto('/reports/ausgaben?zeitraum=1M');
-  const link = page.locator('.sr-heat tbody tr').first().locator('td a').last();
-  await expect(link).toBeVisible();
-  const href = await link.getAttribute('href');
-  const params = new URL(href!, page.url()).searchParams;
+  const reportUrl = page.url();
+  const categoryId = await page.locator('[data-category]').first().getAttribute('data-category');
+  expect(categoryId).toBeTruthy();
+  await openExpenseHeatmap(page);
+  const cell = page
+    .locator(`[data-template-row="cat:${categoryId}"]`)
+    .locator('.table-cell-open[data-template-column^="20"]')
+    .last();
+  await expect(cell).toBeVisible();
+  const month = (await cell.getAttribute('data-template-column'))!;
+  expect(month).toMatch(/^\d{4}-\d{2}$/);
+  const from = `${month}-01`;
+  const to = lastDayOfMonth(month);
   const response = await page.request.get(
-    `/api/bookings?basis=category-spending&categoryId=${params.get('kategorie')}&from=${params.get('von')}&to=${params.get('bis')}`,
+    `/api/bookings?basis=category-spending&categoryId=${categoryId}&from=${from}&to=${to}`,
   );
   expect(response.ok()).toBe(true);
   const data = (await response.json()) as { categorySpendingCents: number };
-  await expect(link).toHaveText(formatEuro(cents(data.categorySpendingCents)));
-  const box = await link.boundingBox();
+  const expected = formatEuro(cents(data.categorySpendingCents));
+  expect((await cell.innerText()).replace(/\s*[↑↓]$/, '').trim()).toBe(expected);
+  const box = await cell.boundingBox();
   expect(box!.width).toBeGreaterThanOrEqual(44);
   expect(box!.height).toBeGreaterThanOrEqual(44);
   await inspectReport(page, info, 'category-heatmap');
+  await cell.click();
+  const sources = page.getByTestId('template-sources');
+  await expect(sources.locator(':scope > p').first().locator('strong')).toHaveText([
+    expected,
+    expected,
+  ]);
+  await expect(sources.getByRole('alert')).toHaveCount(0);
+  await page.goto(reportUrl);
+  const category = page.locator(`[data-category="${categoryId}"]`);
+  const group = page.locator('.sa-groups > li').filter({ has: category });
+  await group.locator('.sa-group-name').click();
+  const link = category.getByRole('link');
+  await expect(link).toHaveText(expected);
+  const params = new URL((await link.getAttribute('href'))!, page.url()).searchParams;
+  expect(params.get('kategorie')).toBe(categoryId);
+  expect(params.get('von')).toBe(from);
+  expect(params.get('bis')).toBe(to);
   await link.click();
+  await expect(page).toHaveURL(/\/konten\/buchungen\?/);
   await expect(page.locator('.ksum')).toContainText(
     `Kategorie netto ${formatEuro(cents(data.categorySpendingCents))}`,
   );

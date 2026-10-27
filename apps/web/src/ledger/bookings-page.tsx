@@ -257,7 +257,7 @@ export function BookingsPage() {
               {first.nativeTotalsPending
                 ? 'Summe wird aktualisiert …'
                 : first.categorySpendingCents !== undefined
-                  ? `Kategorie netto ${eur(first.categorySpendingCents)} (Ausgaben − Erstattungen)`
+                  ? `${search.kategoriegruppe ? 'Gruppe' : 'Kategorie'} netto ${eur(first.categorySpendingCents)} (Ausgaben − Erstattungen)`
                   : first.nativeTotals
                     ? `Summe ${first.nativeTotals.length ? first.nativeTotals.map((total) => (total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents, total.currency, true))).join(' · ') : eur(0)}`
                     : 'Summe nicht verfügbar'}
@@ -295,6 +295,7 @@ export function BookingsPage() {
                       konto: undefined,
                       buchung: undefined,
                       kategorie: undefined,
+                      kategoriegruppe: undefined,
                       empfaenger: undefined,
                       status: undefined,
                       markierung: undefined,
@@ -540,6 +541,8 @@ function filterChipLabel(
       return `Konto: ${accounts.find((a) => a.id === value)?.name ?? 'ausgewählt'}`;
     case 'kategorie':
       return `Kategorie: ${value === 'none' ? 'ohne Kategorie' : (lookups?.categories.find((c) => c.id === value)?.name ?? 'ausgewählt')}`;
+    case 'kategoriegruppe':
+      return `Gruppe: ${lookups?.groups.find((g) => g.id === value)?.name ?? 'ausgewählt'} · Bedarf und Wunsch`;
     case 'empfaenger':
       return 'Ausgewählter Empfänger';
     case 'status':

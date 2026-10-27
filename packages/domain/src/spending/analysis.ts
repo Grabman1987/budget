@@ -5,6 +5,7 @@ import { wholePercents } from './period';
 export interface SpendCategory {
   id: string;
   name: string;
+  groupId?: string;
   groupName: string;
   class: SpendClass;
   /** Category kind (`periodic`, `fixed`, `variable` …) where the source knows it. */
@@ -17,6 +18,7 @@ export type SpendByMonth = Readonly<Record<string, Readonly<Record<string, numbe
 export interface SpendRow {
   id: string;
   name: string;
+  groupId?: string;
   groupName: string;
   class: SpendClass;
   cents: number;
@@ -54,6 +56,8 @@ export interface SpendingAnalysis {
   /** Whole percentages of Bedarf, Wunsch, Zukunft: add up to 100 (or all 0 without spending). */
   classShares: { need: number; want: number; future: number };
   rows: SpendRow[];
+  /** Complete signed consumption breakdown, including refunds and zero-current categories. */
+  breakdown: SpendRow[];
   moves: SpendMove[];
   heatMonths: string[];
   heatRows: SpendHeatRow[];
@@ -97,6 +101,7 @@ export function analyseSpending(input: {
   const rowOf = (c: SpendCategory): SpendRow => ({
     id: c.id,
     name: c.name,
+    ...(c.groupId === undefined ? {} : { groupId: c.groupId }),
     groupName: c.groupName,
     class: c.class,
     cents: sum(spend, months, [c.id]),
@@ -151,6 +156,7 @@ export function analyseSpending(input: {
         : null,
     classShares: { need, want, future },
     rows,
+    breakdown: all,
     moves,
     heatMonths,
     heatRows,

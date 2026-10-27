@@ -1,4 +1,5 @@
 import { AllocationBar } from '../reports/allocation-bar';
+import './plan-allocation-labels.css';
 import { IncomeTargetsCard } from './income-targets-card';
 import {
   useAmountPrivacy,
@@ -58,10 +59,10 @@ import {
 import { CategoryIcon } from './category-icon';
 import { IncomeButton } from '../expected/income-panel';
 import { PlanInspector } from './plan-inspector';
+import { MonthStatement, NextMonthCoverage } from './plan-overview';
 import { QuickAssignActions } from './quick-assign-actions';
 import { patchCategory } from './api';
 import {
-  availableInEnvelopes,
   barFor,
   spendingBar,
   CLASS_TEXT,
@@ -1123,7 +1124,27 @@ function PlanBody({
           )
         }
         overview={
-          <MonthOverview data={data} rows={rows} month={months.length > 1 ? month : undefined} />
+          <>
+            <ul className="insp-status" aria-label="Zustand des Monats">
+              {monthStatus(data.summary, rows).map((l) => (
+                <li key={l.text} className={`is-${l.tone}`}>
+                  {l.tone === 'good' ? (
+                    <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
+                  ) : (
+                    <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
+                  )}
+                  {l.text}
+                </li>
+              ))}
+            </ul>
+            <MonthStatement data={data} />
+          </>
+        }
+        next={
+          <NextMonthCoverage
+            month={shiftMonth(month, 1)}
+            view={views?.find((view) => view.summary.month === shiftMonth(month, 1))}
+          />
         }
         split={<SplitBand data={data} rows={rows} />}
         income={
@@ -1310,8 +1331,11 @@ function PlanTopBar({
                 .querySelector<HTMLDetailsElement>('.inspector-fold')
                 ?.setAttribute('open', '');
               const section = document.querySelector<HTMLDetailsElement>('#inspector-income');
+              document
+                .querySelector<HTMLButtonElement>('.month-overview-head [aria-expanded="false"]')
+                ?.click();
               section?.setAttribute('open', '');
-              section?.querySelector('summary')?.focus();
+              window.requestAnimationFrame(() => section?.querySelector('summary')?.focus());
             });
           }}
         >
@@ -1380,70 +1404,6 @@ function PlanTopBar({
           Unbestätigte öffnen
         </AppLink>
       </div>
-    </section>
-  );
-}
-
-/** Inspector: the month in figures, the overspending state and what is left in the envelopes. */
-function MonthOverview({
-  data,
-  rows,
-  month,
-}: {
-  data: BudgetMonthView;
-  rows: PlanRow[];
-  /** Several months are shown: the overview names the leftmost one. */
-  month: string | undefined;
-}) {
-  useAmountPrivacy();
-  const s = data.summary;
-  const activity = rows.reduce((a, r) => a + r.activityCents, 0);
-  const available = availableInEnvelopes(rows);
-  const status = monthStatus(s, rows);
-  return (
-    <section className="insp-card card" aria-labelledby="overview-title">
-      <h2 className="insp-title" id="overview-title">
-        Monatsüberblick
-        {month && <span className="insp-month"> · {monthLabel(month)}</span>}
-      </h2>
-      <ul className="insp-status" aria-label="Zustand des Monats">
-        {status.map((l) => (
-          <li key={l.text} className={`is-${l.tone}`}>
-            {l.tone === 'good' ? (
-              <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
-            ) : (
-              <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
-            )}
-            {l.text}
-          </li>
-        ))}
-      </ul>
-      <dl className="insp-list">
-        <div>
-          <dt>Übertrag</dt>
-          <dd>{eur(s.carryInCents)}</dd>
-        </div>
-        <div>
-          <dt>Einnahmen</dt>
-          <dd>{eur(s.incomeCents)}</dd>
-        </div>
-        <div>
-          <dt>Zugewiesen</dt>
-          <dd>{eur(s.assignedCents)}</dd>
-        </div>
-        <div>
-          <dt>Aktivität</dt>
-          <dd>{eur(activity)}</dd>
-        </div>
-        <div className="insp-total">
-          <dt>Verfügbar in Envelopes</dt>
-          <dd>
-            <span className={cx('pill', available > 0 ? 'is-good' : available < 0 && 'is-bad')}>
-              {eur(available)}
-            </span>
-          </dd>
-        </div>
-      </dl>
     </section>
   );
 }

@@ -3,6 +3,8 @@ import type { Locator, Page } from '@playwright/test';
 import { expect, sampleTest as test } from './sample';
 
 async function expectVisibleIconScale(page: Page) {
+  if (new URL(page.url()).pathname === '/plan/monat')
+    await expect(page.locator('.month-overview-head')).toBeVisible();
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -77,7 +79,10 @@ test('icon sizes, swatches and disclosure carets use their rendered styles', asy
   expect(['16px', '20px', '24px']).toContain(navStyle.width);
   expect(navStyle.stroke).toBe(navStyle.width === '16px' ? '1.75px' : '1.5px');
 
-  await page.locator('.inspector-section > summary').filter({ hasText: '50/30/20' }).click();
+  const splitDisclosure = page.locator('[data-overview-section="split"]');
+  if (!(await splitDisclosure.evaluate((element) => element.hasAttribute('open'))))
+    await splitDisclosure.locator(':scope > summary').click();
+  await expect(splitDisclosure).toHaveAttribute('open', '');
   const classMarks = page.locator('.sb-legend');
   await expect(classMarks).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
