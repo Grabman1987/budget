@@ -90,7 +90,10 @@ test.describe('routes', () => {
     const reports = page.getByRole('navigation', { name: 'Weitere Berichte' });
     await reports.locator('summary').click();
     await expect(reports.locator('[aria-current="page"]')).toHaveText('4. Geldfluss');
-    await expect(reports.locator('[aria-current="page"]')).toHaveAttribute('href', '/reports/geldfluss');
+    await expect(reports.locator('[aria-current="page"]')).toHaveAttribute(
+      'href',
+      '/reports/geldfluss',
+    );
     // Einstellungen have a grouped navigation instead of register tabs (rail on desktop).
     await page.goto('/einstellungen/sicherheit');
     if (!isPhone(testInfo))
