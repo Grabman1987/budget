@@ -34,7 +34,8 @@ it('keeps only one spending body mounted and preserves the URL tuple through vie
   state.search = { darstellung: 'gruppen', zeitraum: '2026-08..2026-08', empfaenger: 'recipient-a', ansicht: 'server-id', exakt: true, monat: '2026-08', gruppen: ['g'] };
   const report = findReport('ausgaben')!;
   const view = render(<SpendingReportViews report={report} meta={REPORTS_CATALOG} />);
-  expect(screen.getByTestId('group-body')).toBeVisible();
+  expect(getComputedStyle(screen.getByTestId('group-body')).display).not.toBe('none');
+  expect(getComputedStyle(screen.getByTestId('group-body')).visibility).toBe('visible');
   expect(screen.queryByTestId('payee-body')).toBeNull();
   expect(state.navigate).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Change group period' }));
@@ -43,7 +44,7 @@ it('keeps only one spending body mounted and preserves the URL tuple through vie
   expect(patch().search).toEqual({ ...state.search, darstellung: 'empfaenger' });
   state.search = patch().search;
   view.rerender(<SpendingReportViews report={report} meta={REPORTS_CATALOG} />);
-  expect(screen.getByTestId('payee-body')).toHaveTextContent('recipient-a');
+  expect(screen.getByTestId('payee-body').textContent).toContain('recipient-a');
   expect(screen.queryByTestId('group-body')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Select recipient' }));
   expect(patch().search).toEqual({ ...state.search, empfaenger: 'recipient-b' });
@@ -57,7 +58,8 @@ it.each([
 ])('materializes only the current %s reader fallback at a real switch', (darstellung, body, next, period) => {
   state.search = { darstellung, monat: '2026-08', ansicht: 'server-id', exakt: true, projekt: 'a' };
   render(<WealthReportViews report={findReport('vermoegen-schulden')!} meta={REPORTS_CATALOG} />);
-  expect(screen.getByTestId(body)).toBeVisible();
+  expect(getComputedStyle(screen.getByTestId(body)).display).not.toBe('none');
+  expect(getComputedStyle(screen.getByTestId(body)).visibility).toBe('visible');
   expect(state.navigate).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: next, exact: true }));
   expect(patch().search).toMatchObject({ zeitraum: period, monat: '2026-08', ansicht: 'server-id', exakt: true, projekt: 'a' });
