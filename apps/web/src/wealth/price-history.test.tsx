@@ -1,13 +1,16 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { setAmountsHidden } from '@budget/ui';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
-import { PriceHistory } from './price-history';
+import { PriceHistory, useInstrumentHistory } from './price-history';
 
 afterEach(() => {
+  act(() => setAmountsHidden(false));
   cleanup();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 const prices = [
   { date: '2024-09-17', priceMicro: 500000 },
@@ -18,17 +21,50 @@ const prices = [
 ].map((p) => ({ ...p, securityId: 'synthetic', currency: 'USD', source: 'manual' }));
 
 function page(status = 200, series = prices) {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    width: 760,
+    height: 280,
+    top: 0,
+    bottom: 280,
+    left: 0,
+    right: 760,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   vi.stubGlobal(
     'fetch',
     vi.fn(
-      async () =>
+      async (input: RequestInfo | URL) =>
         new Response(
           JSON.stringify(
-            status === 200
-              ? { securityId: 'synthetic', currency: 'USD', prices: series }
-              : { error: 'unavailable' },
+            String(input).includes('/history?')
+              ? {
+                  history: {
+                    from: '2024-09-17',
+                    to: '2026-09-17',
+                    points: [],
+                    events: [],
+                    position: null,
+                    unavailable: null,
+                    costMethod: 'average',
+                    unit: 'EUR',
+                    securityId: 'synthetic',
+                  },
+                }
+              : status === 200
+                ? { securityId: 'synthetic', currency: 'USD', prices: series }
+                : { error: 'unavailable' },
           ),
-          { status },
+          { status: String(input).includes('/history?') ? 200 : status },
         ),
     ),
   );
@@ -36,13 +72,48 @@ function page(status = 200, series = prices) {
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <PriceHistory securityId="synthetic" asOf="2026-09-17" />
+      <History />
     </QueryClientProvider>,
   );
 }
+function History() {
+  const controller = useInstrumentHistory('synthetic', '2026-09-17', 'Alles');
+  return <PriceHistory securityId="synthetic" controller={controller} />;
+}
+
+it('mounts every exact instrument table row only while its native disclosure is open', async () => {
+  page();
+  await userEvent.click(screen.getByRole('button', { name: /^Kurs$/ }));
+  await screen.findByTestId('price-history-chart');
+  const summary = screen.getByText('Tabelle anzeigen');
+  const disclosure = summary.closest('details')!;
+  expect(disclosure.querySelectorAll('tbody tr')).toHaveLength(0);
+  await userEvent.click(summary);
+  const table = await screen.findByRole('table');
+  await waitFor(() => expect(table.querySelectorAll('tbody tr')).toHaveLength(5));
+  expect(
+    Array.from(table.querySelectorAll('tbody tr'), (row) =>
+      Array.from(row.children, (cell) => cell.textContent),
+    ),
+  ).toEqual([
+    ['17.09.2024', 'Kurs je Stück', '0,50 USD'],
+    ['17.09.2025', 'Kurs je Stück', '1,00 USD'],
+    ['17.03.2026', 'Kurs je Stück', '2,00 USD'],
+    ['17.08.2026', 'Kurs je Stück', '3,00 USD'],
+    ['17.09.2026', 'Kurs je Stück', '4,123456 USD'],
+  ]);
+  act(() => setAmountsHidden(true));
+  expect(within(table).getAllByText('•••')).toHaveLength(5);
+  expect(table.textContent).not.toContain('4,123456');
+  expect(table.textContent).toContain('17.09.2026');
+  await userEvent.click(summary);
+  expect(disclosure.open).toBe(false);
+  await waitFor(() => expect(disclosure.querySelectorAll('tbody tr')).toHaveLength(0));
+});
 
 it('filters stored quotes inclusively for 1M, 6M, 1J and Max and inspects exact native prices', async () => {
   page();
+  await userEvent.click(screen.getByRole('button', { name: /^Kurs$/ }));
   const chart = await screen.findByTestId('price-history-chart');
   expect(chart.querySelectorAll('[data-chart-point]')).toHaveLength(5);
   for (const [range, count] of [
@@ -64,12 +135,14 @@ it('filters stored quotes inclusively for 1M, 6M, 1J and Max and inspects exact 
 
 it('shows an empty state for no stored quotes', async () => {
   page(200, []);
+  await userEvent.click(screen.getByRole('button', { name: /^Kurs$/ }));
   expect(await screen.findByText('Keine gespeicherten Kurse im Zeitraum.')).toBeTruthy();
   expect(screen.queryByTestId('price-history-chart')).toBeNull();
 });
 
 it('shows a retry action when price history is unavailable', async () => {
   page(503);
+  await userEvent.click(screen.getByRole('button', { name: /^Kurs$/ }));
   expect(await screen.findByRole('button', { name: 'Erneut versuchen' })).toBeTruthy();
   expect(screen.queryByTestId('price-history-chart')).toBeNull();
 });
