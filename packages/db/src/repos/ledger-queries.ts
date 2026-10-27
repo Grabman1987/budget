@@ -190,6 +190,8 @@ export const BOOKING_SORTS = ['date', 'amount', 'payee', 'account'] as const;
 export type BookingSort = (typeof BOOKING_SORTS)[number];
 
 export interface BookingQuery {
+  /** Internal export pagination may omit the repeated complete-filter native read. */
+  nativeSummary?: boolean;
   /** Exactly these bookings (after a write, to read them back). */
   ids?: string[];
   accountId?: string;
@@ -256,6 +258,7 @@ export interface ListedBooking {
 }
 
 export interface BookingPage {
+  nativeTotals?: { currency: string; count: number; cents: number | null }[];
   categorySpendingCents?: number;
   items: ListedBooking[];
   nextCursor: string | null;
@@ -399,6 +402,24 @@ export function queryBookings(
         .all()
         .reduce((sum, b) => sum + (contributions.get(b.id) ?? 0), 0)
     : undefined;
+
+  const nativeGroups = new Map<string, { count: number; cents: bigint; unsafe: boolean }>();
+  if (query.nativeSummary !== false) {
+    for (const row of db.select({ currency: booking.currency, amount: booking.amountCents })
+      .from(booking).innerJoin(account, eq(account.id, booking.accountId))
+      .leftJoin(payee, eq(payee.id, booking.payeeId)).where(base).all()) {
+      const group = nativeGroups.get(row.currency) ?? { count: 0, cents: 0n, unsafe: false };
+      group.count += 1;
+      if (Number.isSafeInteger(row.amount)) group.cents += BigInt(row.amount);
+      else group.unsafe = true;
+      nativeGroups.set(row.currency, group);
+    }
+  }
+  const bound = BigInt(Number.MAX_SAFE_INTEGER);
+  const nativeTotals = [...nativeGroups].sort(([a], [b]) => a.localeCompare(b))
+    .map(([currency, value]) => ({ currency, count: value.count,
+      cents: value.unsafe || value.cents > bound || value.cents < -bound ? null : Number(value.cents),
+    }));
 
   const after: SQL | undefined = (() => {
     if (!query.cursor) return undefined;
@@ -575,6 +596,7 @@ export function queryBookings(
   });
   const last = page.at(-1);
   return {
+    ...(query.nativeSummary !== false ? { nativeTotals } : {}),
     ...(categorySpendingCents !== undefined ? { categorySpendingCents } : {}),
     items,
     nextCursor: rows.length > limit && last ? encodeCursor(last.sortValue, last.booking.id) : null,

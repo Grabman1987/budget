@@ -1,0 +1,56 @@
+# Current-filter booking register (#594)
+
+This read-only package follows the owner's 16 October register decision. Search
+and a Filter button share one compact row on desktop and phone. The existing
+filter fields now update the URL immediately in both layouts. Closing the dialog
+retains changes; removable named chips and Reset change the live filter. No Apply
+step remains. Existing route validation also rejects malformed date strings
+without throwing.
+
+Count and signed integer-cent totals cover the entire current history filter,
+independently of loaded cursor pages. Totals remain separate by native currency;
+unsafe totals are unavailable, never rounded into a displayable result. Existing
+classified category-spending drilldowns retain their distinct net-spending value.
+Saldo columns and the existing today-balance line are shown only for an explicit
+single account. The existing Kommend disclosure remains collapsed by default.
+
+The additional actions menu exports the same filtered history and sort through
+the shown Vienna day; unbooked future projections are excluded. The CSV uses the
+existing booking-export column convention: one row per split, explicit integer
+cents and rate units, UTF-8 BOM, quoted semicolon fields, CRLF and spreadsheet
+formula protection. A private SQLite backup fixes the data snapshot while cursor
+pages are read. Existing export admission is reused. Preparation is bounded to
+100,000 bookings, 64 MiB and 30 seconds; abort or limit failure sends no partial
+download, and temporary files/admission are released on completion or cancellation.
+The separate full ZIP export and its step-up flow are unchanged.
+
+Source ownership is confined to the A checkout, based on live main
+`45b2762521c66fb8d0be6fb346bcb688836f63dc`. The old mixed ledger checkpoint was read
+only. Its dedicated filtered-CSV source was adopted selectively; none of its
+delete previews, date/note/payee batches or report-group expansion were adopted.
+#597 remains a separate delete/Undo package; #515 is outside this scope. No
+canonical booking writer, lock, audit or Undo path changes.
+
+Test rationale:
+
+- `booking-filter-594.test.ts`: new literal EUR -1557 and USD -4321 complete-filter
+  totals, pagination, unavailable unsafe totals, exact 205-booking CSV membership,
+  integer units, quoting, UTF-8, formula text and future exclusion. Written before
+  the source additions; runtime evidence is pending remote review/checks.
+- `bookings-search.test.ts`: adds malformed-date rejection to the existing URL
+  validation assertions; existing valid/invalid expectations stay intact.
+- `issue-594-ledger-filters.spec.ts`: isolated mixed-sign/currency fixture, literal
+  display values and exact IDs after reload/second browser context, keyboard
+  filter entry/chip removal, actual CSV, single-account Saldo, both themes, Axe,
+  phone targets and horizontal overflow on the three configured profiles.
+- `ledger-filters.spec.ts`: technical adaptation to the explicitly approved live
+  filter contract; verifies immediate URL updates and retention on Escape in place
+  of the superseded draft/Apply flow. Geometry, focus, chips, reset and Axe stay.
+- `ledger-helpers.ts`: the existing helper closes the now-live filter dialog using
+  Fertig; it does not initiate a write or alter any financial expectations.
+- `accounts-sidebar-profile.spec.ts`: closes the dialog after inspecting identical
+  account option groups so the existing sidebar assertions remain accessible.
+
+No timeout, retry, skip, baseline or protected money/security/Undo expectation was
+relaxed. Independent HIGH source/test review and all runtime/publication evidence
+remain pending; this document does not claim live acceptance.

@@ -12,7 +12,7 @@ export async function openLedgerFilters(page: Page) {
 export async function applyLedgerFilters(page: Page) {
   const sheet = page.getByRole('dialog', { name: 'Buchungen filtern', exact: true });
   if (await sheet.isVisible())
-    await sheet.getByRole('button', { name: 'Anwenden', exact: true }).click();
+      await sheet.getByRole('button', { name: 'Fertig', exact: true }).click();
 }
 
 /** The open toast (the dialog hosts its own region, the page has another one). */

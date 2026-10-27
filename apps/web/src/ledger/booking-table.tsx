@@ -37,6 +37,8 @@ export interface BookingTableProps {
   /** The "Kommend" section: future captures and next occurrences above the history, same columns. */
   upcoming?: UpcomingModel | null;
   showTodayBalance?: boolean;
+  /** Alle Buchungen may show a Saldo column only for an explicit single account. */
+  showRunningBalance?: boolean;
 }
 
 const canEditCategory = (b: ListedBooking) =>
@@ -56,6 +58,7 @@ export function BookingTable({
   sort,
   upcoming,
   showTodayBalance = true,
+  showRunningBalance = false,
 }: BookingTableProps) {
   useAmountPrivacy();
   const classes = useCategoryClasses();
@@ -77,9 +80,8 @@ export function BookingTable({
   };
   const all = variant === 'all';
   const sectionId = useId();
-  const showUpcoming = upcoming?.open === true && upcoming.count > 0;
   // Einzelkonto always carries the running balance; Alle Buchungen only for the projected rows.
-  const runColumn = !all || showUpcoming;
+  const runColumn = !all || showRunningBalance;
   const columns = (selection ? 1 : 0) + 7 + (runColumn ? 1 : 0);
   const head = (label: string, key?: BookingSort, numeric = false): ReactNode => (
     <th
@@ -190,7 +192,7 @@ export function BookingTable({
           </label>
         )}
       </div>
-      <table className={cx('ktable ktx', all ? 'ktx-all' : 'ktx-account')}>
+      <table className={cx('ktable ktx', all ? 'ktx-all' : 'ktx-account', runColumn && 'has-running-balance')}>
         <caption className="sr-only">{caption}</caption>
         {!all && (
           <colgroup>
@@ -264,6 +266,7 @@ export function BookingTable({
                       all={all}
                       blankCheck={!!selection}
                       balance={upcoming.balances.get(entry.id) ?? null}
+                      showBalance={runColumn}
                     />
                   ) : (
                     <Row
@@ -527,10 +530,7 @@ function Row({
           <small className="kmeta">Kategorie netto {eur(b.categorySpendingCents)}</small>
         )}
       </td>
-      {runColumn && !(variant === 'account' || upcomingToday) && (
-        <td className="kc-num kc-run kx-run" />
-      )}
-      {runColumn && (variant === 'account' || upcomingToday) && (
+      {runColumn && (
         <td className="kc-num kc-run kx-run">
           <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
             {upcomingToday

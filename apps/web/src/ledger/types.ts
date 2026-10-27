@@ -156,6 +156,8 @@ export interface ListedBooking {
 }
 
 export interface BookingPage {
+  /** Complete-filter native totals; optional for previously saved offline DTOs. */
+  nativeTotals?: { currency: string; count: number; cents: number | null }[];
   categorySpendingCents?: number;
   items: ListedBooking[];
   nextCursor: string | null;
