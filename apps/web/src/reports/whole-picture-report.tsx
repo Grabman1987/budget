@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
   addMonths,
   cents,
@@ -77,7 +77,11 @@ export function WholePictureVerdict({ row, estimated = false }: { row: Row; esti
   return <VerdictLine facts={facts} testId="whole-verdict" />;
 }
 
-export function WholePictureReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function WholePictureReport({ report, meta, viewControl }: {
+  report: ReportEntry;
+  meta: PageMeta;
+  viewControl?: ReactNode;
+}) {
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum('1J');
   const query = useQuery(
@@ -141,6 +145,7 @@ export function WholePictureReport({ report, meta }: { report: ReportEntry; meta
           : 'Keine Monatsdaten'
       }
       extraFields={[
+        ...(viewControl ? [{ label: 'Ansicht', value: viewControl }] : []),
         {
           label: 'Zeitraum',
           value: (

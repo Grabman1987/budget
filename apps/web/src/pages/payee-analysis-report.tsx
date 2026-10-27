@@ -103,11 +103,22 @@ const statusName: Record<string, string> = {
 };
 const bookingDetailId = 'payee-booking-detail';
 
-export function PayeeAnalysisReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function PayeeAnalysisReport({ report, meta, viewControl, selection }: {
+  report: ReportEntry;
+  meta: PageMeta;
+  viewControl?: React.ReactNode;
+  selection?: {
+    id: string | null;
+    onChange: (id: string | null) => void;
+    onPeriodChange: (period: ReportPeriod) => void;
+  };
+}) {
   useAmountPrivacy();
   const [period, setPeriod] = useReportPeriod();
   const query = useQuery(reportQuery(period));
-  const [selected, setSelected] = React.useState<string | null>(null);
+  const [localSelected, setLocalSelected] = React.useState<string | null>(null);
+  const selected = selection ? selection.id : localSelected;
+  const setSelected = selection ? selection.onChange : setLocalSelected;
   const data = !query.isFetching && query.isSuccess ? query.data : undefined;
   const range =
     data?.from && data.to
@@ -144,6 +155,7 @@ export function PayeeAnalysisReport({ report, meta }: { report: ReportEntry; met
             : 'wird geladen',
       }}
       extraFields={[
+        ...(viewControl ? [{ label: 'Ansicht', value: viewControl }] : []),
         {
           label: 'Zeitraum',
           value: (
@@ -153,8 +165,11 @@ export function PayeeAnalysisReport({ report, meta }: { report: ReportEntry; met
               options={PERIODS.map((value) => ({ value, label: value }))}
               value={period}
               onChange={(value) => {
-                setSelected(null);
-                setPeriod(value as ReportPeriod);
+                if (selection) selection.onPeriodChange(value as ReportPeriod);
+                else {
+                  setLocalSelected(null);
+                  setPeriod(value as ReportPeriod);
+                }
               }}
               className="seg-period"
             />
