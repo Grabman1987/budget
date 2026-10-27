@@ -1,0 +1,15 @@
+diff --git a/apps/web/src/heute/attention-bar.test.tsx b/apps/web/src/heute/attention-bar.test.tsx
+index c73d294..0183ef0 100644
+--- a/apps/web/src/heute/attention-bar.test.tsx
++++ b/apps/web/src/heute/attention-bar.test.tsx
+@@ -76,7 +76,9 @@ it('links each overdue contact to its existing statement and keeps unavailable c
+       inboxCount: 0,
+       pendingCount: 0,
+       contactReminders: {
+-        items: [{ contactId: 'k1', contactName: 'Freund', oldestDate: '2026-09-01', overdueCents: 3000 }],
++        items: [
++          { contactId: 'k1', contactName: 'Freund', oldestDate: '2026-09-01', overdueCents: 3000 },
++        ],
+         unavailableCount: 1,
+       },
+     },
