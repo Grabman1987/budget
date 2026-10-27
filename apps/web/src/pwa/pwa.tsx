@@ -103,12 +103,16 @@ export function PwaShell({ children }: { children: ReactNode }) {
     window.addEventListener('budget-session-expired', expired);
     return () => window.removeEventListener('budget-session-expired', expired);
   }, []);
-  useEffect(() => router.subscribe('onResolved', ({ toLocation }) => {
-    if (toLocation.pathname !== '/login' && toLocation.pathname !== '/setup') return;
-    setHasConnected(true);
-    setMounted(true);
-    setSessionEnded(false);
-  }), []);
+  useEffect(
+    () =>
+      router.subscribe('onResolved', ({ toLocation }) => {
+        if (toLocation.pathname !== '/login' && toLocation.pathname !== '/setup') return;
+        setHasConnected(true);
+        setMounted(true);
+        setSessionEnded(false);
+      }),
+    [],
+  );
   useEffect(() => {
     if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
     let disposed = false;
