@@ -232,7 +232,8 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
       return value;
     } finally {
       releaseSummary();
-      await page.unroute(summaryRoute);
+      // This isolated page owns only this route; let released callbacks finish before removal.
+      await page.unrouteAll({ behavior: 'wait' });
     }
   })();
   expect(result.changed.sort()).toEqual(
@@ -315,7 +316,26 @@ test('597 cached account month hides retained native and dated EUR movements unt
   else await selected.locator('.kname-btn').click();
   const bar=page.getByRole('group',{name:'Auswahl bearbeiten',exact:true});
   await expect(bar.getByRole('combobox',{name:'Projekt für die Auswahl setzen'})).toBeEnabled();
-  await bar.getByLabel('Weitere Aktionen',{exact:true}).click();
+  const more=bar.getByLabel('Weitere Aktionen',{exact:true});
+  if (info.project.name !== 'desktop') {
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      page.viewportSize()!.width,
+    );
+    await expect(page.locator('.kx-amount .kfx-money').first()).toContainText('USD');
+    const box=await more.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeGreaterThanOrEqual(44);
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.y).toBeGreaterThanOrEqual(0);
+    expect(box!.x+box!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+    expect(box!.y+box!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+    expect(await more.evaluate((element)=>{
+      const r=element.getBoundingClientRect();
+      return element.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));
+    })).toBe(true);
+  }
+  await more.click();
   await bar.getByRole('button',{name:'Löschen',exact:true}).click();
   const preview=page.getByRole('dialog',{name:'Löschen bestätigen',exact:true});
   await expect(preview).toContainText('1 ausgewählt · 2 werden gelöscht · 0 bleiben erhalten.');
@@ -353,6 +373,7 @@ test('597 cached account month hides retained native and dated EUR movements unt
     }
   } finally {
     release.forEach((finish)=>finish());
-    await page.unroute(monthlyRoute);
+    // Wait for every owned monthly callback instead of racing its route.continue().
+    await page.unrouteAll({ behavior: 'wait' });
   }
 });

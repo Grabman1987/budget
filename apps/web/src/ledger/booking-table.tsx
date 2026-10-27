@@ -519,7 +519,9 @@ function Row({
       </td>
       <td className="kc-num kx-amount">
         {selectionMode ? (
-          <span>{valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}</span>
+          <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
+            {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
+          </span>
         ) : (
           <InlineBookingCell
             booking={b}
