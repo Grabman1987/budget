@@ -45,6 +45,8 @@ Test rationale:
   totals, pagination, unavailable unsafe totals, exact 205-booking CSV membership,
   integer units, quoting, UTF-8, formula text and future exclusion. Written before
   the source additions; runtime evidence is pending remote review/checks.
+  Additional unchanged-FX-contract coverage proves native USD190 and dated EUR167
+  over the same four-row filter with limit1/cursor pages, plus explicit missing FX.
 - `bookings-search.test.ts`: adds malformed-date rejection to the existing URL
   validation assertions; existing valid/invalid expectations stay intact.
 - `booking-table-581.test.tsx`: retains every existing unavailable-balance oracle
@@ -54,6 +56,8 @@ Test rationale:
   failed-write rollback and older-page regressions keep EUR -1557/USD -4321 groups
   intact while pending, then use canonical EUR -2323 or -323 results. No paginated
   reconstruction or writer/lock/audit/Undo expectation changes.
+  A foreign-account deferred edit additionally retains both full-filter USD190 and
+  EUR167 facts behind the same pending flag and restores the exact snapshot on422.
 - `issue-594-ledger-filters.spec.ts`: isolated mixed-sign/currency fixture, literal
   display values and exact IDs after reload/second browser context, keyboard
   filter entry/chip removal, actual CSV, single-account Saldo, both themes, Axe,
