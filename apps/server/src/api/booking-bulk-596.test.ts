@@ -172,49 +172,93 @@ it('reports no-op without writing an audit group', async () => {
   expect(getBooking(opened.db, id)).toEqual(before);
 });
 
-it.each([{ flag: 'orange' }, { status: 'pending' }, { categoryId: 'miete' }, { projectId: 'synthetic-project' }])(
-  'retains a bank-linked migrated row and undoes only the eligible row for %j',
-  async (set) => {
-    createEntity(opened.db, schema.project, { id: 'synthetic-project', name: 'Synthetic project' }, testCtx);
-    opened.db.insert(schema.bankSyncConsent).values({
-      id: 'synthetic-consent', initiator: 'synthetic', stateHash: 'synthetic-state',
-      label: 'Synthetic bank', expiresAt: '2026-10-03T00:00:00Z', nextRunAt: '2026-10-03T00:00:00Z',
-    }).run();
-    opened.db.insert(schema.bankSyncAccount).values({
-      id: 'synthetic-bank-source', consentId: 'synthetic-consent', secret: 'synthetic',
-      label: 'Synthetic account', currency: 'EUR', accountId: 'giro',
-    }).run();
-    const linked = importBooking(opened.db, {
-      accountId: 'giro', date: '2026-10-02', amountCents: -1201, source: 'migration', importKey: 'ynab:1',
+it.each([
+  { flag: 'orange' },
+  { status: 'pending' },
+  { categoryId: 'miete' },
+  { projectId: 'synthetic-project' },
+])('retains a bank-linked migrated row and undoes only the eligible row for %j', async (set) => {
+  createEntity(
+    opened.db,
+    schema.project,
+    { id: 'synthetic-project', name: 'Synthetic project' },
+    testCtx,
+  );
+  opened.db
+    .insert(schema.bankSyncConsent)
+    .values({
+      id: 'synthetic-consent',
+      initiator: 'synthetic',
+      stateHash: 'synthetic-state',
+      label: 'Synthetic bank',
+      expiresAt: '2026-10-03T00:00:00Z',
+      nextRunAt: '2026-10-03T00:00:00Z',
+    })
+    .run();
+  opened.db
+    .insert(schema.bankSyncAccount)
+    .values({
+      id: 'synthetic-bank-source',
+      consentId: 'synthetic-consent',
+      secret: 'synthetic',
+      label: 'Synthetic account',
+      currency: 'EUR',
+      accountId: 'giro',
+    })
+    .run();
+  const linked = importBooking(
+    opened.db,
+    {
+      accountId: 'giro',
+      date: '2026-10-02',
+      amountCents: -1201,
+      source: 'migration',
+      importKey: 'ynab:1',
       splits: [{ categoryId: 'essen', amountCents: -1201 }],
-    }, testCtx).id;
-    linkBankReference(opened.db, linked, {
-      memo: 'Synthetic bank memo', rawPayee: 'Synthetic migrated bank link',
-      sourceId: 'synthetic-bank-source', dedupeKey: 'synthetic-bank-row',
-    }, testCtx);
-    const eligible = row(-1234);
-    const before = [getBooking(opened.db, linked), getBooking(opened.db, eligible)];
-    expect(before[0]).toMatchObject({ importKey: 'ynab:1', bankSourceId: 'synthetic-bank-source' });
-    const response = await post('bulk', { action: 'update', ids: [linked, eligible], set });
-    expect(response.status).toBe(200);
-    const result = await bulkResponse(response);
-    expect(result.changed).toEqual([eligible]);
-    expect(result.skipped).toMatchObject([{
-      id: linked, reason: 'linked_bank', booking: { description: 'Synthetic migrated bank link' },
-    }]);
-    expect(getBooking(opened.db, linked)).toEqual(before[0]);
-    const audit = opened.db.select().from(schema.auditLog).where(eq(schema.auditLog.groupId, result.groupId)).all();
-    expect(audit.length).toBeGreaterThan(0);
-    for (const entry of audit) {
-      if (entry.entityType === 'booking') expect(entry.entityId).toBe(eligible);
-      else {
-        expect(entry.entityType).toBe('booking_split');
-        for (const snapshot of [entry.beforeJson, entry.afterJson]) {
-          if (snapshot !== null) expect(JSON.parse(snapshot).booking_id).toBe(eligible);
-        }
+    },
+    testCtx,
+  ).id;
+  linkBankReference(
+    opened.db,
+    linked,
+    {
+      memo: 'Synthetic bank memo',
+      rawPayee: 'Synthetic migrated bank link',
+      sourceId: 'synthetic-bank-source',
+      dedupeKey: 'synthetic-bank-row',
+    },
+    testCtx,
+  );
+  const eligible = row(-1234);
+  const before = [getBooking(opened.db, linked), getBooking(opened.db, eligible)];
+  expect(before[0]).toMatchObject({ importKey: 'ynab:1', bankSourceId: 'synthetic-bank-source' });
+  const response = await post('bulk', { action: 'update', ids: [linked, eligible], set });
+  expect(response.status).toBe(200);
+  const result = await bulkResponse(response);
+  expect(result.changed).toEqual([eligible]);
+  expect(result.skipped).toMatchObject([
+    {
+      id: linked,
+      reason: 'linked_bank',
+      booking: { description: 'Synthetic migrated bank link' },
+    },
+  ]);
+  expect(getBooking(opened.db, linked)).toEqual(before[0]);
+  const audit = opened.db
+    .select()
+    .from(schema.auditLog)
+    .where(eq(schema.auditLog.groupId, result.groupId))
+    .all();
+  expect(audit.length).toBeGreaterThan(0);
+  for (const entry of audit) {
+    if (entry.entityType === 'booking') expect(entry.entityId).toBe(eligible);
+    else {
+      expect(entry.entityType).toBe('booking_split');
+      for (const snapshot of [entry.beforeJson, entry.afterJson]) {
+        if (snapshot !== null) expect(JSON.parse(snapshot).booking_id).toBe(eligible);
       }
     }
-    undo(opened.db, { groupId: result.groupId }, testCtx);
-    expect([getBooking(opened.db, linked), getBooking(opened.db, eligible)]).toEqual(before);
-  },
-);
+  }
+  undo(opened.db, { groupId: result.groupId }, testCtx);
+  expect([getBooking(opened.db, linked), getBooking(opened.db, eligible)]).toEqual(before);
+});
