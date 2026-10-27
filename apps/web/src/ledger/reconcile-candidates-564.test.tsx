@@ -332,3 +332,30 @@ it('565 retains truthful uncategorised tracking/card defaults and canonical cate
     ]),
   );
 });
+
+it('565 preserves an eligible remembered choice while a cold lookup is unresolved', async () => {
+  preview = { ...preview, duplicates: [], pendingMatches: [], pendingBookings: [] };
+  localStorage.setItem('budget-reconcile-category:a', 'c');
+  let releaseLookup!: (response: Response) => void;
+  const heldLookup = new Promise<Response>((resolve) => { releaseLookup = resolve; });
+  const originalFetch = globalThis.fetch;
+  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
+    String(input).includes('/lookups') ? heldLookup : originalFetch(input, init),
+  ));
+  show();
+  const correction = await screen.findByRole('button', { name: /Differenz ausgleichen/ });
+  const select = screen.getByLabelText('Kategorie für den Ausgleich') as HTMLSelectElement;
+  expect(localStorage.getItem('budget-reconcile-category:a')).toBe('c');
+  expect(select.disabled).toBe(true);
+  expect((correction as HTMLButtonElement).disabled).toBe(true);
+  expect(sends).toEqual([]);
+  await act(async () => releaseLookup(new Response(JSON.stringify({
+    categories: [{ id: 'c', name: 'Synthetic remembered choice', groupId: null, class: 'need', kind: 'variable', sortOrder: 0, hiddenAt: null }],
+    groups: [], projects: [],
+  }), { headers: { 'content-type': 'application/json' } })));
+  await waitFor(() => expect(select.value).toBe('c'));
+  expect(select.disabled).toBe(false);
+  expect((correction as HTMLButtonElement).disabled).toBe(false);
+  expect(localStorage.getItem('budget-reconcile-category:a')).toBe('c');
+  expect(sends).toEqual([]);
+});
