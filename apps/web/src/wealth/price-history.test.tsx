@@ -81,7 +81,7 @@ function History() {
 
 it('filters stored quotes inclusively for 1M, 6M, 1J and Max and inspects exact native prices', async () => {
   page();
-  await userEvent.click(screen.getByRole('button', { name: 'Kurs', exact: true }));
+  await userEvent.click(screen.getByRole('button', { name: /^Kurs$/ }));
   const chart = await screen.findByTestId('price-history-chart');
   expect(chart.querySelectorAll('[data-chart-point]')).toHaveLength(5);
   for (const [range, count] of [
@@ -103,14 +103,14 @@ it('filters stored quotes inclusively for 1M, 6M, 1J and Max and inspects exact 
 
 it('shows an empty state for no stored quotes', async () => {
   page(200, []);
-  await userEvent.click(screen.getByRole('button', { name: 'Kurs', exact: true }));
+  await userEvent.click(screen.getByRole('button', { name: /^Kurs$/ }));
   expect(await screen.findByText('Keine gespeicherten Kurse im Zeitraum.')).toBeTruthy();
   expect(screen.queryByTestId('price-history-chart')).toBeNull();
 });
 
 it('shows a retry action when price history is unavailable', async () => {
   page(503);
-  await userEvent.click(screen.getByRole('button', { name: 'Kurs', exact: true }));
+  await userEvent.click(screen.getByRole('button', { name: /^Kurs$/ }));
   expect(await screen.findByRole('button', { name: 'Erneut versuchen' })).toBeTruthy();
   expect(screen.queryByTestId('price-history-chart')).toBeNull();
 });

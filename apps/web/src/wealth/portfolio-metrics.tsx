@@ -46,121 +46,123 @@ export function PortfolioMetrics() {
       {summary && (
         <>
           {performance ? (
-            <>
-              <p className="vnote">
-                {longDay(performance.from)} bis {longDay(performance.to)} · {performance.days} Tage
-              </p>
-              <div className="portfolio-metrics-headline">
-                <div className="portfolio-metrics-lead">
-                  <span>
-                    <Term>TTWROR</Term> im Zeitraum
-                  </span>
-                  <strong
-                    data-testid="metrics-period-ttwror"
-                    aria-describedby={reasons.length ? basisId : undefined}
-                  >
-                    {privateAmount(percentText(performance.ttwror, { sign: true }))}
-                  </strong>
-                  <span>
-                    p. a.{' '}
-                    <span data-testid="metrics-annual-ttwror">
-                      {privateAmount(percentText(performance.ttwrorAnnualised, { sign: true }))}
+            <div className="portfolio-metrics-columns">
+              <div className="portfolio-metrics-values">
+                <p className="vnote">
+                  {longDay(performance.from)} bis {longDay(performance.to)} · {performance.days} Tage
+                </p>
+                <div className="portfolio-metrics-headline">
+                  <div className="portfolio-metrics-lead">
+                    <span>
+                      <Term>TTWROR</Term> im Zeitraum
                     </span>
-                  </span>
+                    <strong
+                      data-testid="metrics-period-ttwror"
+                      aria-describedby={reasons.length ? basisId : undefined}
+                    >
+                      {privateAmount(percentText(performance.ttwror, { sign: true }))}
+                    </strong>
+                    <span>
+                      p. a.{' '}
+                      <span data-testid="metrics-annual-ttwror">
+                        {privateAmount(percentText(performance.ttwrorAnnualised, { sign: true }))}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="portfolio-metrics-lead">
+                    <span>
+                      <Term>XIRR</Term> p. a.
+                    </span>
+                    <strong
+                      data-testid="metrics-xirr"
+                      aria-describedby={reasons.length ? basisId : undefined}
+                    >
+                      {privateAmount(percentText(performance.xirr, { sign: true }))}
+                    </strong>
+                  </div>
                 </div>
-                <div className="portfolio-metrics-lead">
-                  <span>
-                    <Term>XIRR</Term> p. a.
-                  </span>
-                  <strong
-                    data-testid="metrics-xirr"
-                    aria-describedby={reasons.length ? basisId : undefined}
-                  >
-                    {privateAmount(percentText(performance.xirr, { sign: true }))}
-                  </strong>
-                </div>
-              </div>
-              <HistoricalBasisCue reasons={reasons} id={basisId} sourceId={sourceId} />
-              <dl className="portfolio-metrics-grid">
-                <Metric
-                  label={
-                    <>
-                      <Term>Volatilität</Term> p. a.
-                    </>
-                  }
-                  value={privateAmount(percentText(performance.volatility))}
-                />
-                <Metric
-                  label={<Term>Max. Rückgang</Term>}
-                  value={privateAmount(percentText(performance.maxDrawdown, { sign: true }))}
-                />
-                <Metric
-                  label={<Term>Sharpe</Term>}
-                  value={
-                    performance.volatility !== null &&
-                    performance.volatility >= 0.005 &&
-                    performance.sharpe !== null
-                      ? privateAmount(
-                          new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(
-                            performance.sharpe,
-                          ),
-                        )
-                      : '–'
-                  }
-                />
-              </dl>
-              <p className="vnote">
-                TTWROR neutralisiert Ein- und Auszahlungen; XIRR berücksichtigt deren Zeitpunkt
-                (actual/365). Annualisierte Werte können bei kurzen Zeiträumen stark schwanken.
-                Sharpe: sicherer Zins 2,5 %; unter 0,5 % Volatilität nicht verfügbar.
-              </p>
-              <h3>Vergleich</h3>
-              {summary.benchmarks.length === 0 ? (
-                <p className="vnote">
-                  Keine Benchmark gewählt.{' '}
-                  <AppLink to="/einstellungen/depots" hash="benchmark-settings-title">
-                    Benchmarks auswählen
-                  </AppLink>
-                </p>
-              ) : (
-                <table className="portfolio-metrics-table">
-                  <caption>
-                    Kursindex, ohne Ausschüttungen · gleicher Zeitraum und gleiche Startbasis
-                  </caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Benchmark</th>
-                      <th scope="col">Rendite</th>
-                      <th scope="col">Differenz Portfolio</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {summary.benchmarks.map((benchmark) => (
-                      <tr key={benchmark.id}>
-                        <th scope="row">{maskMoneyText(benchmark.name)}</th>
-                        <td>
-                          {privateAmount(percentText(benchmark.benchmarkReturn, { sign: true }))}
-                        </td>
-                        <td>
-                          {privateAmount(
-                            ppText(
-                              performance.ttwror === null || benchmark.benchmarkReturn === null
-                                ? null
-                                : performance.ttwror - benchmark.benchmarkReturn,
+                <HistoricalBasisCue reasons={reasons} id={basisId} sourceId={sourceId} />
+                <dl className="portfolio-metrics-grid">
+                  <Metric
+                    label={
+                      <>
+                        <Term>Volatilität</Term> p. a.
+                      </>
+                    }
+                    value={privateAmount(percentText(performance.volatility))}
+                  />
+                  <Metric
+                    label={<Term>Max. Rückgang</Term>}
+                    value={privateAmount(percentText(performance.maxDrawdown, { sign: true }))}
+                  />
+                  <Metric
+                    label={<Term>Sharpe</Term>}
+                    value={
+                      performance.volatility !== null &&
+                      performance.volatility >= 0.005 &&
+                      performance.sharpe !== null
+                        ? privateAmount(
+                            new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(
+                              performance.sharpe,
                             ),
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-              {summary.benchmarks.some((benchmark) => benchmark.benchmarkReturn === null) && (
+                          )
+                        : '–'
+                    }
+                  />
+                </dl>
                 <p className="vnote">
-                  Kurs- oder Wechselkurslücke: Der betroffene Vergleich ist nicht verfügbar. Lücken
-                  werden nicht interpoliert.
+                  TTWROR neutralisiert Ein- und Auszahlungen; XIRR berücksichtigt deren Zeitpunkt
+                  (actual/365). Annualisierte Werte können bei kurzen Zeiträumen stark schwanken.
+                  Sharpe: sicherer Zins 2,5 %; unter 0,5 % Volatilität nicht verfügbar.
                 </p>
-              )}
+                <h3>Vergleich</h3>
+                {summary.benchmarks.length === 0 ? (
+                  <p className="vnote">
+                    Keine Benchmark gewählt.{' '}
+                    <AppLink to="/einstellungen/depots" hash="benchmark-settings-title">
+                      Benchmarks auswählen
+                    </AppLink>
+                  </p>
+                ) : (
+                  <table className="portfolio-metrics-table">
+                    <caption>
+                      Kursindex, ohne Ausschüttungen · gleicher Zeitraum und gleiche Startbasis
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Benchmark</th>
+                        <th scope="col">Rendite</th>
+                        <th scope="col">Differenz Portfolio</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summary.benchmarks.map((benchmark) => (
+                        <tr key={benchmark.id}>
+                          <th scope="row">{maskMoneyText(benchmark.name)}</th>
+                          <td>
+                            {privateAmount(percentText(benchmark.benchmarkReturn, { sign: true }))}
+                          </td>
+                          <td>
+                            {privateAmount(
+                              ppText(
+                                performance.ttwror === null || benchmark.benchmarkReturn === null
+                                  ? null
+                                  : performance.ttwror - benchmark.benchmarkReturn,
+                              ),
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {summary.benchmarks.some((benchmark) => benchmark.benchmarkReturn === null) && (
+                  <p className="vnote">
+                    Kurs- oder Wechselkurslücke: Der betroffene Vergleich ist nicht verfügbar. Lücken
+                    werden nicht interpoliert.
+                  </p>
+                )}
+              </div>
               <details className="portfolio-flow-table">
                 <summary>Tatsächliche Zahlungsströme nach Steuern anzeigen</summary>
                 <p className="vnote">
@@ -194,7 +196,7 @@ export function PortfolioMetrics() {
                   </table>
                 )}
               </details>
-            </>
+            </div>
           ) : (
             <p className="vnote" role="status">
               Keine vollständige Renditehistorie im gewählten Zeitraum. Nicht verfügbare Renditen

@@ -1,4 +1,10 @@
-import { createTestDatabase, schema, type Db, type InstrumentHistory } from '@budget/db';
+import {
+  createTestDatabase,
+  schema,
+  type Db,
+  type InstrumentHistory,
+  type PortfolioPositionsView,
+} from '@budget/db';
 import { Hono } from 'hono';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -118,7 +124,7 @@ it('shares literal dated cents, units and basis with canonical positions, and re
   expect(dated.position).toMatchObject({ valueCents: 2469, costCents: 2000, unitsE8: 200_000_000 });
   const positionResponse = await app.request('/api/portfolio/positions?asOf=2026-09-11');
   expect(positionResponse.status).toBe(200);
-  const positions = (await positionResponse.json()).positions;
+  const positions = ((await positionResponse.json()) as PortfolioPositionsView).positions;
   expect(dated.position).toEqual(
     positions.find((position: { securityId: string }) => position.securityId === 's'),
   );

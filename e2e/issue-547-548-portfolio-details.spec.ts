@@ -357,13 +357,14 @@ test('547 instrument shares literal value/basis and dates, hover/keyboard and la
   await expect(page.locator('.chart-tooltip')).toContainText('24,69 €');
   await expect(page.locator('.chart-tooltip')).toContainText('Stück');
   await expect(page.locator('.chart-tooltip')).toContainText('10,00 €');
-  const keyboard = await page.locator('.chart-tooltip').innerText();
+  const keyboard = await page.locator('.chart-tooltip').textContent();
+  expect(keyboard).toBeTruthy();
   await inspect.press('Escape');
   const box = (await chart.boundingBox())!;
   const target = { x: box.x + 64 + (box.width - 80) / 7, y: box.y + 80 };
   if (info.project.use.hasTouch) await page.touchscreen.tap(target.x, target.y);
   else await page.mouse.move(target.x, target.y);
-  await expect(page.locator('.chart-tooltip')).toHaveText(keyboard);
+  await expect(page.locator('.chart-tooltip')).toHaveText(keyboard!);
   await inspect.press('Escape');
   const trades = page.locator('.trade-list tbody tr');
   await expect(trades).toHaveCount(12);
@@ -415,9 +416,7 @@ test('548 twelve months keep explicit executions, missing inbox proposals and ex
   await expect(page.getByTestId('savings-next')).toHaveText('15.10.2026 · 200,00 €');
   await expect(page.locator('.savings-purchases')).not.toHaveAttribute('open', '');
   await expect(page.locator('.savings-versions')).not.toHaveAttribute('open', '');
-  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(
-    2 * page.viewportSize()!.height,
-  );
+  await compactDesktop(page, info, 'savings-purchases-and-versions-closed');
   await themes(page, info, 'savings');
   await page.locator('.savings-purchases > summary').click();
   await expect(page.locator('.savings-purchases .trade-list tbody tr')).toHaveCount(3);

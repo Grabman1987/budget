@@ -1,9 +1,11 @@
 # Portfolio follow-on source checkpoint — #546 / #547 / #548
 
-**SOURCE ONLY — NOT VALIDATED / NOT LIVE.** No local Node/npm, tests, build,
-browser, install, lint or formatter was executed. No remote job, source push,
-PR, merge or publication was requested by this checkpoint. All runtime evidence
-below is a plan, not a result. Independent capable full-diff review is next.
+**NOT VALIDATED / NOT LIVE.** No local Node/npm, tests, build, browser, install,
+lint or formatter was executed. The initial source-only checkpoint subsequently
+received independent HIGH review and one disposable focused Cloud proof, which
+was RED. Its actual results and the unvalidated repairs are recorded below.
+The feature branch has not been pushed and no feature PR, merge or publication
+was requested. A successful partial check is not package acceptance.
 
 Isolated checkout: `C:/Users/fabia/wt/portfolio-followon-547-548`, branch
 `codex/portfolio-followon-547-548`, immutable base
@@ -91,7 +93,7 @@ were added during source review. No RED/GREEN runtime outcome is claimed.
   row-edit opening, Kurs toggle; explicit May/August purchases versus missing
   July and additional manual June buy;35000-cent gross total, next version-aware
   rate, closed purchases/versions, preserved inbox proposal read and financial
-  rows. Both themes/Axe/phone44px/nooverflow and savings≤2 viewports, with viewport
+  rows. Both themes/Axe/phone44px/nooverflow and desktop savings≤1800px, with viewport
   PNGs. Default CI issue-spec selection includes all three required profiles.
 
 ## Existing-test adaptations requiring independent review
@@ -102,7 +104,7 @@ were added during source review. No RED/GREEN runtime outcome is claimed.
 | `e2e/report-polish.spec.ts` | Explicit native Kurs selection plus renamed shared range group; original range point counts,44px, exact native price/date/pointer/keyboard and report checks remain. |
 | `e2e/portfolio-positions.spec.ts` | The existing synthetic missing-basis fixture now also supplies the same unknown basis through the dated history response. Original root and instrument missing-FX/basis, value, empty/error/retry and privacy checks remain; no oracle changed. |
 
-## Added #546 proof, not yet executed
+## Added #546 proof cases
 
 - `apps/server/src/api/portfolio-metrics-546.test.ts` exercises the unmodified
   canonical report GET. Independent year-long fixture: opening10000 cents,
@@ -137,7 +139,7 @@ proof; they do not establish a passing runtime result or alter production code.
 | Test file | Addition and retained coverage |
 | --- | --- |
 | `e2e/issue-546-portfolio-metrics.spec.ts` | In each theme, use the existing privacy button (mobile profile menu where applicable), require masked TTWROR period/annual, XIRR, available risk values, benchmark return/difference and opened actual-flow amounts; dates remain visible, flow summary still closes/reopens, then restore original literal10%/10%/20%,5Pp and100EUR assertions. Axe also runs while private. Attach desktop1440×900 geometry and require≤1800px with the original flow table open. A separate representative fixture adds12 monthly100EUR buys, producing13 distinct flow dates; all13 rows must remain present when measuring the open table. The original independent100+100→220 case is unchanged. |
-| `e2e/issue-547-548-portfolio-details.spec.ts` | In both themes and both Wert/Kurs modes, open the actual accessible data table, confirm the independent24.69EUR/12.345EUR public values, then require every table value, monetary axis and inspected tooltip value masked, with dates retained and table controls usable. Restore captured public values/axes and close the table. Savings privacy covers next/paid, assigned and missing-month planned amounts, assigned units, expanded manual-purchase units/amount/fees/tax and both version rates, then restores original literals. Existing finance/proposal/immutable-row and editing, themes/Axe/touch/overflow assertions remain. Desktop geometry is attached and bounded≤1800 for all13 instrument trades (chart table closed after privacy inspection) and savings purchases+versions both expanded. Original collapsed savings≤2-viewport assertion remains on all profiles. |
+| `e2e/issue-547-548-portfolio-details.spec.ts` | In both themes and both Wert/Kurs modes, open the actual accessible data table, confirm the independent24.69EUR/12.345EUR public values, then require every table value, monetary axis and inspected tooltip value masked, with dates retained and table controls usable. Restore captured public values/axes and close the table. Savings privacy covers next/paid, assigned and missing-month planned amounts, assigned units, expanded manual-purchase units/amount/fees/tax and both version rates, then restores original literals. Existing finance/proposal/immutable-row and editing, themes/Axe/touch/overflow assertions remain. Desktop geometry is attached and bounded≤1800 for all13 instrument trades (chart table closed after privacy inspection) and savings purchases+versions both expanded. Collapsed and expanded savings retain the authoritative desktop1440×900≤1800 bound; phone privacy/Axe/touch/overflow coverage remains. |
 
 These issue-spec files remain selected by the configured desktop1440,
 Chromium390 and WebKit iPhone profiles; no timeout/retry/skip/project or original
@@ -145,6 +147,46 @@ oracle changed. New screenshots are viewport-only output artifacts, not committe
 baselines. Actual heights and first-attempt assertions must be inspected in the
 upcoming authorized focused VM before deciding whether a minimal layout change
 is needed. No pre-emptive layout change, hidden rows or financial write was made.
+
+## Exact-d3 focused proof and first-attempt diagnosis
+
+Remote run `40481047615`, job `122111152151`, artifact `12722654267` tested
+immutable feature `d3bde7bcaa3df73d3cd7b99abb63a279ad872fb5` through disposable
+proof commit `5745106b4fea0c7a6791aa2419cb8af5b8a8a149`. The actual feature
+checkout was restored clean immediately after dispatch. Canonical Playwright
+config, one worker, retries0, snapshotsnone were used; no baseline was updated.
+
+Actual results: ESLint and both builds passed;15 Vitest files/85 tests passed;
+formatter and full typecheck failed; final browser84 passed/9 failed. Old history
+route RED genuinely returned404 versus200. Old metrics placeholder/old savings
+detail RED failed for missing new displays. No runtime finance formula failure
+was found. Passing tests do not validate the failing/new-unreached scenarios.
+
+The raw formatter patch was preserved outside Playwright cleanup and verified
+at SHA256 `874e297ca5ee8fa0ec6711bc13f8bcbc4106cb686ec08a98686fcf4409fa1e93`.
+Its exact9-file allowlist contains only intended TS/TSX source/tests, no images
+or evidence. `git apply --check` passed; the pinned patch was applied separately
+as `e9e5cfd8`. No formatter ran on the owner's machine.
+
+| Failure class | Evidence and narrow repair / remaining question |
+| --- | --- |
+| Typecheck | New API test accessed unknown JSON; explicitly type its existing positions DTO. React Testing Library rejects Playwright's `exact` option; anchored `/^Kurs$/` preserves the same exact role/name match. Per-file reason: `instrument-history-547.test.ts` typing only and `price-history.test.tsx` API-compatible exact selector only; all financial, point-count, empty and retry assertions remain. |
+| #547 keyboard/hover | All3 profiles returned the identical24.69EUR,2 units,10EUR basis,source,date and labels. `innerText` inserted layout line breaks, while `toHaveText` reads DOM textContent with adjacent tokens. Capture nonempty textContent consistently for full keyboard/hover equality; retain all independent literals and source/date/cost assertions. No finance expected value changed. |
+| #546 desktop opened flows | Measured2164px>1800 with all13 representative dates. On desktop only, place the existing metric/benchmark facts beside the unchanged open flow table. All rows, disclosures, labels, controls and calculations remain available; no height clipping or row limit. Actual repaired geometry remains unproven. |
+| #548 desktop expanded | Measured1964px>1800 with purchases+versions open. The inspected desktop viewport showed two stacked summary figures with unused width and a4-column/3-row month grid. Desktop-only2-column summary and6-column/2-row strip preserve every month, amount and status while using the available width. Phone layout is unchanged. Actual repaired geometry remains unproven. |
+| #548 phone height | Closed-page2132px at390×844 and2184px at390×664 failed my invented2×phone-viewport assertion. Authoritative parent#525 explicitly specifies≤2 screens at1440×900 and separately iPhone no horizontal scroll. Coordinator confirmed this interpretation. Scope the new height assertion to desktop1440×900≤1800 for both closed and expanded states; retain every phone literal, visibility, privacy, Axe,44px and no-overflow check. This technical test adaptation requires HIGH incremental review. |
+| Old mobile positions | Entire test reached30s after reload/Back; snapshot is the correct positions URL but performance/instrument reads are still loading. No source error or wrong route is shown. This remains unresolved; no test/time-limit change. |
+| Old mobile trades | Entire test reached30s at its final account-link click after the preceding cash/holdings/source/Undo assertions. Snapshot already contains the exact target account link with correct720EUR holding. This differs from the positions loading frame; no unsupported shared cause or flake claim. Test/time-limit remain unchanged. |
+
+The first artifact did not retain trace.zip/network timing. A3-year history may
+render thousands of hidden chart-table cells and adds a read on ledger
+invalidation, but that is only a source candidate for the two old mobile budgets.
+Do not pre-emptively change shared chart rendering, financial queries or timeouts.
+The next single bounded focused proof must retain trace:on (retries0) and timing
+for those exact two unchanged mobile cases, plus static/type, relevant units and
+failed/newly reached3-profile privacy/geometry cases. Reuse the84 prior passing
+cases where their source/assertions are unchanged; full PR CI later covers union.
+No second VM or feature push is authorized by this repair checkpoint.
 
 ## Next proof and risk boundaries
 

@@ -6,6 +6,9 @@
   flex-wrap: wrap;
   gap: var(--space-sm);
 }
+.portfolio-metrics-values {
+  min-width: 0;
+}
 .portfolio-metrics-headline {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -63,5 +66,13 @@
 @media (max-width: 600px) {
   .portfolio-metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 981px) {
+  .portfolio-metrics-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--space-xl);
   }
 }
