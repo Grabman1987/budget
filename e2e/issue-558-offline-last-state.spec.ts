@@ -7,11 +7,14 @@ test.setTimeout(90_000);
 
 const viewCount = (page: Page) =>
   page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const db = await new Promise<IDBDatabase | null>((resolve) => {
       const open = indexedDB.open('budget-offline-views', 1);
+      // Inspection must never create an empty v1 database before the app creates its stores.
+      open.onupgradeneeded = () => open.transaction?.abort();
       open.onsuccess = () => resolve(open.result);
-      open.onerror = () => reject(open.error);
+      open.onerror = () => resolve(null);
     });
+    if (!db || !db.objectStoreNames.contains('views')) return 0;
     try {
       return await new Promise<number>((resolve, reject) => {
         const request = db.transaction('views', 'readonly').objectStore('views').count();
@@ -105,20 +108,15 @@ test('four exact successful reads survive offline reload, stay read-only and wip
       });
     };
   });
-  for (const path of ['/', '/konten', '/plan/monat', '/konten/buchungen']) await page.goto(path);
-  await page.evaluate(async () => {
-    await navigator.serviceWorker.ready;
-  });
-  await expect
-    .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
-    .toBe(true);
   const stored = () =>
     page.evaluate(async () => {
-      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const db = await new Promise<IDBDatabase | null>((resolve) => {
         const open = indexedDB.open('budget-offline-views', 1);
+        open.onupgradeneeded = () => open.transaction?.abort();
         open.onsuccess = () => resolve(open.result);
-        open.onerror = () => reject(open.error);
+        open.onerror = () => resolve(null);
       });
+      if (!db || !db.objectStoreNames.contains('views')) return {};
       try {
         return await new Promise<Record<string, { key: string; data: unknown }>>(
           (resolve, reject) => {
@@ -133,6 +131,19 @@ test('four exact successful reads survive offline reload, stay read-only and wip
         db.close();
       }
     });
+  for (const [path, kind] of [
+    ['/', 'heute'],
+    ['/konten', 'accounts'],
+    ['/plan/monat', 'plan'],
+    ['/konten/buchungen', 'bookings'],
+  ] as const) {
+    await page.goto(path);
+    // A navigation before the primary GET succeeds cancels its snapshot.
+    await expect.poll(async () => Object.keys(await stored())).toContain(kind);
+  }
+  await expect
+    .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
+    .toBe(true);
   await expect
     .poll(async () => Object.keys(await stored()).sort())
     .toEqual(['accounts', 'bookings', 'heute', 'plan']);
@@ -378,7 +389,7 @@ test('a native database open released after logout cannot restore an old read', 
   await other.close();
 });
 
-test('quota failure and delayed clear never reopen signed-out rows after cold reload', async ({
+test('quota failure and failed clear never reopen signed-out rows after cold reload', async ({
   page,
   context,
 }) => {
@@ -404,25 +415,20 @@ test('quota failure and delayed clear never reopen signed-out rows after cold re
     Storage.prototype.setItem = () => {
       throw new DOMException('synthetic quota', 'QuotaExceededError');
     };
-    const nativeOpen = indexedDB.open.bind(indexedDB);
-    let hold = true;
-    indexedDB.open = ((name: string, version?: number) => {
-      const request = nativeOpen(name, version);
-      if (name === 'budget-offline-views' && hold) {
-        hold = false;
-        Object.defineProperty(request, 'onsuccess', {
-          configurable: true,
-          get: () => null,
-          set: () => undefined,
-        });
+    const nativeClear = IDBObjectStore.prototype.clear;
+    IDBObjectStore.prototype.clear = function () {
+      if (this.name === 'views') {
+        (window as Window & { blockedSnapshotClear?: boolean }).blockedSnapshotClear = true;
+        throw new DOMException('synthetic blocked clear', 'UnknownError');
       }
-      return request;
-    }) as typeof indexedDB.open;
+      return nativeClear.call(this);
+    };
   });
   await page.getByRole('button', { name: 'Abmelden' }).click();
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('budget-offline-read-epoch')))
     .toBeNull();
+  await expect.poll(() => page.evaluate(() => (window as Window & { blockedSnapshotClear?: boolean }).blockedSnapshotClear)).toBe(true);
   expect(await viewCount(page)).toBeGreaterThan(0);
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
@@ -448,18 +454,32 @@ test('401 on a mounted financial view revokes snapshots before offline reload', 
     const original = window.fetch.bind(window);
     window.fetch = (input, init) => {
       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
-      return url.pathname === '/api/heute'
-        ? Promise.resolve(
-            new Response('{"error":"unauthorized"}', {
-              status: 401,
-              headers: { 'content-type': 'application/json' },
-            }),
-          )
-        : original(input, init);
+      if (url.pathname === '/api/heute') {
+        (window as Window & { sawMounted401?: boolean }).sawMounted401 = true;
+        return Promise.resolve(new Response('{"error":"unauthorized"}', {
+          status: 401,
+          headers: { 'content-type': 'application/json' },
+        }));
+      }
+      return original(input, init);
     };
-    window.dispatchEvent(new Event('focus'));
   });
-  await expect(page.getByRole('heading', { name: 'Sitzung beendet' })).toBeVisible();
+  const month = page.getByRole('group', { name: 'Zeitraum' }).getByRole('button', { name: 'Monat' });
+  const payday = page.getByRole('group', { name: 'Zeitraum' }).getByRole('button', { name: 'Bis Gehalt' });
+  if ((await month.getAttribute('aria-pressed')) === 'true') await payday.click();
+  else await month.click();
+  await expect.poll(() => page.evaluate(() => (window as Window & { sawMounted401?: boolean }).sawMounted401)).toBe(true);
+  try {
+    await expect(page.getByRole('heading', { name: 'Sitzung beendet' })).toBeVisible();
+  } catch (error) {
+    console.log('Mounted-401 diagnostic', await page.evaluate(() => ({
+      path: location.pathname,
+      headings: [...document.querySelectorAll('h1,h2')].map((node) => node.textContent),
+      permissionPresent: localStorage.getItem('budget-offline-read-epoch') !== null,
+      liveHidden: document.querySelector('.pwa-live')?.hasAttribute('hidden'),
+    })));
+    throw error;
+  }
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('budget-offline-read-epoch')))
     .toBeNull();
@@ -481,20 +501,35 @@ test('known signed-out status on the login page clears the prior offline view', 
 }) => {
   await page.goto('/');
   await expect.poll(() => viewCount(page)).toBeGreaterThan(0);
-  await page.route('**/api/auth/status', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        setupRequired: false,
-        authenticated: false,
-        stepUpValidUntil: null,
-        viaRecovery: false,
-      }),
-    }),
-  );
+  await page.addInitScript(() => {
+    const original = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+      if (url.pathname === '/api/auth/status') {
+        (window as Window & { sawFalseAuthStatus?: boolean }).sawFalseAuthStatus = true;
+        return Promise.resolve(new Response(JSON.stringify({
+          setupRequired: false,
+          authenticated: false,
+          stepUpValidUntil: null,
+          viaRecovery: false,
+        }), { status: 200, headers: { 'content-type': 'application/json' } }));
+      }
+      return original(input, init);
+    };
+  });
   await page.goto('/login');
-  await expect(page.getByRole('heading', { name: 'Anmelden' })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as Window & { sawFalseAuthStatus?: boolean }).sawFalseAuthStatus)).toBe(true);
+  try {
+    await expect(page.getByRole('heading', { name: 'Anmelden' })).toBeVisible();
+  } catch (error) {
+    console.log('Known-false login diagnostic', await page.evaluate(() => ({
+      path: location.pathname,
+      headings: [...document.querySelectorAll('h1,h2')].map((node) => node.textContent),
+      permissionPresent: localStorage.getItem('budget-offline-read-epoch') !== null,
+      liveHidden: document.querySelector('.pwa-live')?.hasAttribute('hidden'),
+    })));
+    throw error;
+  }
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('budget-offline-read-epoch')))
     .toBeNull();
