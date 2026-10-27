@@ -13,6 +13,7 @@ import {
 import { and, eq, isNull } from 'drizzle-orm';
 import { account, booking, bookingSplit, INCOME_TYPES } from '../schema';
 import { reportTables } from './report-tables';
+import { reportProjectScope, type ReportProject } from './report-project-scope';
 import type { Executor } from './types';
 
 /**
@@ -24,6 +25,7 @@ import type { Executor } from './types';
  */
 
 export interface CashflowReport {
+  project?: ReportProject;
   period: Period;
   /** Last day of the data: the running month is not part of it. */
   asOf: string;
@@ -36,7 +38,13 @@ export interface CashflowReport {
   totals: CashflowTotals;
 }
 
-export function cashflowReport(db: Executor, today: string, period: Period): CashflowReport {
+export function cashflowReport(
+  db: Executor,
+  today: string,
+  period: Period,
+  projectId?: string,
+): CashflowReport {
+  const scope = reportProjectScope(db, projectId);
   const starts = db
     .select({ openingDate: account.openingDate })
     .from(account)
@@ -45,6 +53,7 @@ export function cashflowReport(db: Executor, today: string, period: Period): Cas
     .map((a) => monthOf(a.openingDate));
   const firstMonth = starts.length ? starts.reduce((a, m) => (m < a ? m : a)) : null;
   const empty: CashflowReport = {
+    ...(scope ? { project: scope.project } : {}),
     period,
     asOf: today,
     firstMonth,
@@ -63,7 +72,7 @@ export function cashflowReport(db: Executor, today: string, period: Period): Cas
     chartMonths[chartMonths.length - 1] as string,
   );
 
-  const tables = reportTables(db, { today });
+  const tables = reportTables(db, { today, ...(scope ? { projectScope: scope } : {}) });
   const source = new Map(tables.months.map((m) => [m.month, m]));
   const classIds = (cls: 'need' | 'want' | 'future') =>
     tables.categories.filter((c) => c.class === cls).map((c) => c.id);
@@ -98,6 +107,7 @@ export function cashflowReport(db: Executor, today: string, period: Period): Cas
         isNull(account.deletedAt),
         isNull(booking.transferId),
         isNull(bookingSplit.transferId),
+        scope ? eq(booking.projectId, scope.project.id) : undefined,
       ),
     )
     .all();
@@ -130,6 +140,7 @@ export function cashflowReport(db: Executor, today: string, period: Period): Cas
     };
   });
   return {
+    ...(scope ? { project: scope.project } : {}),
     period,
     asOf: today,
     firstMonth,

@@ -11,6 +11,11 @@ import './table-reports.css';
 import './table-print.css';
 import { tableVerdictFacts } from './verdict-facts';
 import { reportPeriodMonths, type Period } from '@budget/domain';
+import type { IncomeExpenseReportData } from '@budget/db';
+
+type FrameFacts = ReportTables | IncomeExpenseReportData;
+const fullTables = (tables: FrameFacts): tables is ReportTables =>
+  'targets' in tables && 'netWorth' in tables;
 
 /** The one read of the monthly facts; reports call it for their title-block controls and pass it on. */
 export const useReportTables = (netWorth = false): UseQueryResult<ReportTables> =>
@@ -21,7 +26,7 @@ export const useReportTables = (netWorth = false): UseQueryResult<ReportTables> 
  * and empty states, and the one read of the monthly facts. `through` says which month the report
  * ends at: the last complete month (all but the Gesamttabelle) or the running one.
  */
-export function TableReportFrame({
+export function TableReportFrame<T extends FrameFacts = ReportTables>({
   report,
   meta,
   through,
@@ -32,17 +37,19 @@ export function TableReportFrame({
   children,
   verdictEnd,
   verdictPeriod,
+  reportControls,
 }: {
   report: ReportEntry;
   verdictEnd?: string | undefined;
   verdictPeriod?: Period | undefined;
   meta: PageMeta;
+  reportControls?: ReactNode;
   through: 'full' | 'current';
   currentAllowed?: boolean;
-  query: UseQueryResult<ReportTables>;
+  query: UseQueryResult<T>;
   extraFields?: Array<{ label: string; value: ReactNode }> | undefined;
   className: string;
-  children: (tables: ReportTables) => ReactNode;
+  children: (tables: T) => ReactNode;
 }) {
   const tables = query.data;
   const end =
@@ -66,7 +73,7 @@ export function TableReportFrame({
   const sectionsRef = useCollapsibleSections(report.id);
   const verdict = useMemo(
     () =>
-      tables && verdictMonth && !query.isFetching && !query.isError
+      tables && fullTables(tables) && verdictMonth && !query.isFetching && !query.isError
         ? tableVerdictFacts(report.id, tables, verdictMonth)
         : undefined,
     [tables, verdictMonth, query.isFetching, query.isError, report.id],
@@ -74,6 +81,7 @@ export function TableReportFrame({
   return (
     <PageFrame
       verdict={verdict}
+      reportControls={reportControls}
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

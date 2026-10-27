@@ -20,6 +20,8 @@ export interface PlaceholderPageProps {
 }
 
 export interface PageFrameProps {
+  /** Optional report controls below the unchanged title block, before the answer/body. */
+  reportControls?: ReactNode;
   /** The detail supplies its own contextual return link. Keep the settings rail. */
   detail?: boolean;
   verdict?: VerdictFacts | undefined;
@@ -93,6 +95,7 @@ export function PageFrame({
   revealCurrentRegister,
   verdict,
   verdictTestId,
+  reportControls,
 }: PageFrameProps) {
   const area = areaById(meta.area);
   const items: RegisterItem[] = area.registers.map((r) => ({
@@ -116,6 +119,7 @@ export function PageFrame({
         {...(reportStand ? { reportStand } : {})}
         {...(accountFields ? { accountFields } : {})}
       />
+      {reportControls}
       {verdict && (
         <VerdictLine facts={verdict} {...(verdictTestId ? { testId: verdictTestId } : {})} />
       )}
