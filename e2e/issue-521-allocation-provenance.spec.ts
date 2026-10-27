@@ -57,7 +57,7 @@ sampleTest(
     await allocation.getByText('Wie wird gerechnet?', { exact: true }).click();
     await expect(allocation).toContainText('Datengrundlage am 17.09.2026');
     await expect(allocation).toContainText(
-      `in ${selectedAccountCount} ausgewählten Konten und Depots`,
+      `Ausgewähltes Allokationsuniversum: ${selectedAccountCount} Konten und Depots.`,
     );
     expect(selectedAccountCount).toBeGreaterThan(0);
     await expect(allocation.locator('.vallo')).toContainText('Aktien Welt');

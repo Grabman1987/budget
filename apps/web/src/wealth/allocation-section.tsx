@@ -67,8 +67,7 @@ export function PortfolioAllocation() {
                 {view.policy.wealthStage.label ? ' · ' + view.policy.wealthStage.label : ''}.
                 {view.policy.wealthStage.inBuffer &&
                   ` Im Puffer: Die Stufe bleibt bis unter ${eurWhole(Math.ceil((view.policy.wealthStage.fromCents * 9) / 10))} aktiv.`}{' '}
-                Basis: {view.valueCents === null ? 'nicht ermittelbar' : eurWhole(view.valueCents)}{' '}
-                in {view.universe.accountIds.length} ausgewählten Konten und Depots.
+                Basis: {view.valueCents === null ? 'nicht ermittelbar' : eurWhole(view.valueCents)}.
               </p>
             )}
             {provisional && (
@@ -369,6 +368,9 @@ function AllocationEvidence({ view }: { view: PortfolioAllocationView }) {
         , Klassifikation{' '}
         {view.quality.classification === 'complete' ? 'vollständig' : 'unvollständig'}. Die
         gespeicherte Vollständigkeit einer Exposure-Angabe ersetzt diese Prüfung nicht.
+      </p>
+      <p className="vnote">
+        Ausgewähltes Allokationsuniversum: {view.universe.accountIds.length} Konten und Depots.
       </p>
       {view.exposureEvidence === undefined ? (
         <p className="vnote">
