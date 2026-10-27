@@ -9,7 +9,11 @@ export * from './operator-payslips';
 export * from './operator-instrument-facts';
 export * from './operator-owner-config';
 export * from './bookings';
-export { assertLedgerInvariants, relatedTransferBookings } from './invariants';
+export {
+  assertLedgerInvariants,
+  relatedTransferBookings,
+  connectedTransferBookings,
+} from './invariants';
 export * from './envelopes';
 export * from './prices';
 export * from './cash-valuation';
