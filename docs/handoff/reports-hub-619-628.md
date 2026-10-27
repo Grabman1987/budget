@@ -1,4 +1,4 @@
-# Reports hub recovery — paused source checkpoint
+# Reports hub and saved-view chips — source review checkpoint
 
 Private isolated source based on checked c31afb1af3c2a01c0c45ca084722cbfd84c76e02.
 Read owned issue/parent decisions and coordinator readiness/consumer preflight.
@@ -20,8 +20,18 @@ their original guards; reports-search hub selectors address the combined row,
 while all original global search routes and financial assertions remain.
 New archived icons explicitly retain 16px/1.75 stroke conventions.
 
-PAUSED for higher-priority H runtime repair. This is not review-ready or tested:
-new canonical three-profile hub/saved-entry browser coverage, full source audit,
-per-test rationale and remaining archive integration validation are unfinished.
-No local Node/npm/test/build/browser/lint/formatter or remote proof was run.
-No public push/PR, redirects/consolidation, financial writer or parent closure.
+## Test-file rationale
+
+- `report-hub-619.test.ts`: independent literal sixteen-ID/order/group mapping, retained 33 report bodies plus existing Plan forecast route, name/question search, bounded session-only three-ID recents and parser preservation for `exakt`.
+- `saved-explorer-628.test.tsx`: stale hub data stays hidden until fresh server response, ID-only destination, no local promotion/write, amount-name privacy, separate uncached entry/generation read and unavailable-ID guard.
+- `report-navigation.test.tsx` and `area-head-report.test.tsx`: add the existing router link hook to their synthetic router mocks because the new switcher uses real AppLink; retain all original keyboard/input/dialog and metadata assertions.
+- `reports-search-package.spec.ts`: adapt only the two initial old hub labels to the new combined Budgettreue row and search input; retain every original global-search destination, booking/action and financial assertion.
+- `issue-619-628-reports-hub.spec.ts`: complete canonical desktop/Chromium390/WebKit cases in both themes. Literal16/8-1-3-4 groups, continuous numbers, whole-row link geometry, three actual report visits retained in session, search by name/question, removed named register navigation, desktop <=900px, phone44px, Axe/no-overflow and keyboard switcher. Real independent contexts save then reload chips, assert ID-only URL and exact stored/result query, edit/reload current server configuration, preserve privacy, delete without default results/save, explicitly recover and retain exact-window/template clearing.
+
+## Source compatibility audit
+
+The entire `ReportPage` financial dispatch/fallback block through `ReportGroupRoute` is byte-identical after newline normalization to base c31afb1af3c2a01c0c45ca084722cbfd84c76e02 (SHA256 fd47e1e27f28aee49aa9dfefd557d531e1634d4eae5a6bf09f49cf6b03116d4e). Router, financial producers, saved-view writes/CAS/migration/Undo and all report bodies are untouched. The current exact-window heatmap condition, memo dependency and explicit-template clearing remain in place. Only entry reads and unresolved-entry presentation are additive.
+
+Bounded consumer review covered area/nav/global-search, report-frame/header, full-width/phone-layout and existing Explorer625/626/627/624. Existing routes remain; old Explorer financial/CSV/Undo/browser oracles remain unchanged. No compared screenshot baseline was regenerated or added. Old full-width captures are evidence only. Independent review and a coordinator-scheduled focused proof must validate actual layout and unchanged consumers before publication.
+
+No local Node/npm/test/build/browser/lint/formatter or remote reports proof was run. New browser coverage is source-only and unverified; no passing runtime/visual/one-screen claim is made. Formatting is intentionally left to the approved remote proof/patch workflow. No public push/PR, redirects/consolidation, financial writer or parent closure. Parents487/488/517 stay open; this package does not adopt a report template across all sixteen reports.
