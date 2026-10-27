@@ -314,6 +314,46 @@ Independent HIGH review of this exact CSS/handoff delta precedes another focused
 VM; no feature push/PR/rebase or full84-case repetition. A full CI matrix may run
 concurrently under the coordinator's one-focused-job limit.
 
+## Exact-325 desktop acceptance and one-title / one-return correction
+
+Run `40489906885`, artifact `12727676210`, proved the complete desktop
+Instrument case at exact `32519bc39160e5539aa31a6f925956458559978b`:
+format/build passed,4/4 first attempt (3 setups plus1 full Instrument case),
+workers1/retries0/snapshotsnone. Retained geometry JSON is exactly
+`{"height":1661,"width":1440}` for **both light and dark** default12 states.
+Both viewport images were inspected: one-line account names, readable
+metadata/controls, aligned columns, existing internal table scroller. The case
+continued through all13 trade rows, editor/keyboard, both modes, privacy/data
+table/Axe assertions. Together with unchanged mobile/WebKit from exact-adb,
+the desktop-only row fix has three-profile coverage. This is targeted evidence,
+not final full-CI or live acceptance.
+
+The actual images also made the pre-existing entity-title repetition explicit:
+the PageFrame h1 and focusable content h2 both said “Synthetic instrument”. The
+owner's “ein Titel, ein Rückweg” requirement applies. On phones the TitleBlock
+h1 is hidden, so the body h2 and its focus restoration must remain intact.
+
+The smallest consistent source fix changes only the two `PageFrame` title props
+in `portfolio-detail-page.tsx` to the existing generic area context “Portfolio”,
+for both Instrument and Savings details. Keep the entity-name h2, tabindex/ref,
+heading hierarchy, named region, breadcrumb text, existing contextual Back CTA,
+route/period and every financial/form handler unchanged. No CSS, height, data or
+financial calculation is changed.
+
+Per-file test reason: `e2e/issue-547-548-portfolio-details.spec.ts` adds literal
+assertions in both fixtures' existing light/dark loops, on every configured
+profile. Exactly1 entity heading must exist with `includeHidden:true` (matching
+the old Savings prefix too), and that unique heading must be visible. Thus a
+CSS-hidden duplicate cannot silently pass on phones. The generic Portfolio h1
+must exist once; exactly1 contextual “Zurück zum Portfolio” CTA must exist and
+be visible, with literal correct positions+Alles or savings destination. All
+original financial, state, height, privacy, Axe, touch, keyboard and row-count
+oracles remain. Test-first checkpoint `5cd1ceef` precedes the two title-prop edits.
+
+Independent HIGH exact-delta review and one narrow changed-case Cloud proof
+remain before publication; no local Node tool, feature push/PR/rebase or VM was
+started for this source checkpoint.
+
 ## Next proof and risk boundaries
 
 1. Independent capable whole-diff review of repository/API/date/FX/account

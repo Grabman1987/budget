@@ -101,7 +101,7 @@ export function InstrumentPage() {
   };
   const title = instrument.data?.security.name ?? 'Instrument';
   return (
-    <PageFrame meta={VERMOEGEN_PORTFOLIO_META} title={title}>
+    <PageFrame meta={VERMOEGEN_PORTFOLIO_META} title="Portfolio">
       <div className="portfolio-detail">
         <PortfolioDetailBack title={title} />
         <InstrumentPanel
@@ -144,7 +144,7 @@ export function SavingsPlanPage() {
   const name =
     instruments.data?.securities.find((s) => s.id === plan?.securityId)?.name ?? 'Sparplan';
   return (
-    <PageFrame meta={VERMOEGEN_PORTFOLIO_META} title={`Sparplan · ${name}`}>
+    <PageFrame meta={VERMOEGEN_PORTFOLIO_META} title="Portfolio">
       <div className="portfolio-detail">
         <PortfolioDetailBack title={`Sparplan · ${name}`} savings />
         {[
