@@ -169,10 +169,16 @@ test('619 supported maximum saved views remain keyboard reachable beside three r
   const links = strip.getByRole('link');
   await expect(links).toHaveCount(20);
   await expect(links).toHaveText(imported.views.map((view) => view.name));
-  await expect(page.getByRole('navigation', { name: 'Zuletzt geöffnete Berichte', exact: true }).getByRole('link')).toHaveCount(3);
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Zuletzt geöffnete Berichte', exact: true })
+      .getByRole('link'),
+  ).toHaveCount(3);
   await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
   for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => { document.documentElement.dataset['theme'] = value; }, theme);
+    await page.evaluate((value) => {
+      document.documentElement.dataset['theme'] = value;
+    }, theme);
     const hub = (await page.locator('.report-hub').boundingBox())!;
     if (info.project.name === 'desktop') expect(hub.y + hub.height).toBeLessThanOrEqual(900);
     await links.first().focus();
@@ -180,16 +186,27 @@ test('619 supported maximum saved views remain keyboard reachable beside three r
       const link = links.nth(index);
       await expect(link).toBeFocused();
       const destination = new URL((await link.getAttribute('href'))!, origin);
-      expect([...destination.searchParams.entries()]).toEqual([['ansicht', imported.views[index]!.id]]);
+      expect([...destination.searchParams.entries()]).toEqual([
+        ['ansicht', imported.views[index]!.id],
+      ]);
       const bounds = await link.evaluate((element) => {
         const container = element.closest('nav')!;
         const outer = container.getBoundingClientRect();
         const inner = element.getBoundingClientRect();
-        return { left: inner.left, right: inner.right, top: inner.top, bottom: inner.bottom,
-          scrollLeft: outer.left + container.clientLeft, scrollRight: outer.left + container.clientLeft + container.clientWidth,
-          scrollTop: outer.top + container.clientTop, scrollBottom: outer.top + container.clientTop + container.clientHeight,
-          viewportWidth: innerWidth, viewportHeight: innerHeight,
-          centerHit: element.contains(document.elementFromPoint(inner.x + inner.width / 2, inner.y + inner.height / 2)),
+        return {
+          left: inner.left,
+          right: inner.right,
+          top: inner.top,
+          bottom: inner.bottom,
+          scrollLeft: outer.left + container.clientLeft,
+          scrollRight: outer.left + container.clientLeft + container.clientWidth,
+          scrollTop: outer.top + container.clientTop,
+          scrollBottom: outer.top + container.clientTop + container.clientHeight,
+          viewportWidth: innerWidth,
+          viewportHeight: innerHeight,
+          centerHit: element.contains(
+            document.elementFromPoint(inner.x + inner.width / 2, inner.y + inner.height / 2),
+          ),
         };
       });
       expect(bounds.left).toBeGreaterThanOrEqual(bounds.scrollLeft);
@@ -203,9 +220,15 @@ test('619 supported maximum saved views remain keyboard reachable beside three r
       expect(bounds.centerHit).toBe(true);
       if (index < imported.views.length - 1) await page.keyboard.press('Tab');
     }
-    expect(await strip.evaluate((element) => element.scrollTop > 0 || element.scrollLeft > 0)).toBe(true);
+    expect(await strip.evaluate((element) => element.scrollTop > 0 || element.scrollLeft > 0)).toBe(
+      true,
+    );
     await inspect(page, info.project.name !== 'desktop');
-    await page.screenshot({ path: info.outputPath(`maximum-saved-hub-${theme}.png`), fullPage: false, animations: 'disabled' });
+    await page.screenshot({
+      path: info.outputPath(`maximum-saved-hub-${theme}.png`),
+      fullPage: false,
+      animations: 'disabled',
+    });
   }
 });
 
