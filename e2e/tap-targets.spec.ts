@@ -48,14 +48,23 @@ test.describe('UX-3b touch controls', () => {
     }
     await expectTouchTargets(page.locator('button.kstatus-btn').first());
     await expectTouchTargets(page.locator('.kflagpick.in-list .kflagbtn').first());
-    const selectableId = await page.locator('tr[data-booking]:has(button.kflagbtn)').first().getAttribute('data-booking');
+    const selectableId = await page
+      .locator('tr[data-booking]:has(button.kflagbtn)')
+      .first()
+      .getAttribute('data-booking');
     await page.getByRole('button', { name: 'Auswählen', exact: true }).click();
     await expectTouchTargets(
       page.locator('.ktable input[type="checkbox"]').filter({ visible: true }).first(),
     );
     const selectable = page.locator(`tr[data-booking="${selectableId}"]`);
     const checkbox = selectable.getByRole('checkbox');
-    await checkbox.scrollIntoViewIfNeeded();
+    // The fixed tab bar can cover a target aligned to the viewport's bottom by WebKit.
+    await checkbox.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await expect.poll(async () => {
+      const box = (await checkbox.boundingBox())!;
+      const tabbar = (await page.locator('.tabbar').boundingBox())!;
+      return box.y >= 0 && box.y + box.height <= tabbar.y;
+    }).toBe(true);
     const covered = await checkbox.evaluate((el) => {
       const box = el.getBoundingClientRect();
       return [box.left + 1, box.right - 1].some((x) => {
@@ -63,7 +72,7 @@ test.describe('UX-3b touch controls', () => {
         return target !== el && !el.contains(target);
       });
     });
-    expect(covered, 'row selection must not overlap the flag target').toBe(false);
+    expect(covered, 'row selection edges must stay clear of navigation and adjacent controls').toBe(false);
     await checkbox.tap();
     await expect(checkbox).toBeChecked();
     await checkbox.tap();

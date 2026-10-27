@@ -20,14 +20,17 @@ import {
 /** Select-all lives in the table head on desktop and above the list on the phone. */
 const selectAll = async (page: Page) => {
   const select = page.getByRole('button', { name: 'Auswählen', exact: true });
-  if ((page.viewportSize()?.width ?? 1440) < 768 && (await select.isVisible())) await select.click();
+  if ((page.viewportSize()?.width ?? 1440) < 768 && (await select.isVisible()))
+    await select.click();
   const head = page.getByLabel('Alle sichtbaren Buchungen auswählen');
   if (await head.isVisible()) await head.check();
   else await page.getByLabel('Alle sichtbaren auswählen').check();
 };
 
 const openBulkMore = async (page: Page) => {
-  const more = page.getByRole('group', { name: 'Auswahl bearbeiten', exact: true }).locator('details');
+  const more = page
+    .getByRole('group', { name: 'Auswahl bearbeiten', exact: true })
+    .locator('details');
   if ((await more.getAttribute('open')) === null) await more.locator('summary').click();
 };
 

@@ -43,6 +43,8 @@ Existing browser-flow adaptations preserve their original assertions:
 - `tap-targets.spec.ts` measures editable status/flag controls before phone
   selection, retains the row ID across its read-only transition, then measures
   and toggles its checkbox before leaving selection for the capture dialog.
+  WebKit centers the checkbox clear of the fixed tab bar before both edge hit
+  tests; a geometry check confirms the user can scroll the full target into view.
 - `ledger.spec.ts` enters phone selection and opens the additional actions menu
   before both delete attempts; category, Undo, cancellation and restore checks stay.
 - `bank-followups.spec.ts` enters phone selection and opens additional actions for

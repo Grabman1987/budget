@@ -127,7 +127,10 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
   if ((page.viewportSize()?.width ?? 1440) < 768) await select.click();
   for (const id of [manual, b])
     await page.locator(`[data-booking="${id}"] input[type=checkbox]`).check();
-  await page.getByRole('group', { name: 'Auswahl bearbeiten', exact: true }).locator('summary').click();
+  await page
+    .getByRole('group', { name: 'Auswahl bearbeiten', exact: true })
+    .locator('summary')
+    .click();
   await page.getByRole('button', { name: 'Als Umbuchung verbinden', exact: true }).click();
   await expect(
     page.getByText('Als Umbuchung verbunden; Kategorien entfernt.', { exact: true }),
