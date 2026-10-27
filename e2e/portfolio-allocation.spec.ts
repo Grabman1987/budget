@@ -63,7 +63,7 @@ sampleTest(
       },
     ];
     await page.route('**/api/portfolio/allocation', (route) => route.fulfill({ json: base }));
-    await page.goto('/vermoegen/portfolio');
+    await page.goto('/vermoegen/portfolio/allokation');
     await expect(page.locator('.valloc')).toContainText('Produkt Reserve');
     await expect(page.locator('.valloc')).toContainText('AT0000000011 · noch nicht gekauft');
     await expect(page.locator('.valloc')).toContainText('Typ „Sonstiges“ prüfen');
@@ -82,7 +82,7 @@ sampleTest(
 sampleTest(
   'prototype allocation bands and existing rebalancing figures remain authoritative',
   async ({ page }, info) => {
-    await page.goto('/vermoegen/portfolio');
+    await page.goto('/vermoegen/portfolio/allokation');
     const allocation = page.locator('.valloc');
     await expect(allocation).toContainText('Schwellenländer');
     await expect(page.locator('.vrebal')).toContainText('Umschichtungsabstand 3.560 €');
@@ -113,7 +113,7 @@ test('Portfolio links to the shared settings editor: sums, dirty/template guards
     });
     expect(response.ok()).toBe(true);
   }
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/allokation');
   await page.getByRole('button', { name: 'Sollquoten bearbeiten', exact: true }).click();
   await expect(page).toHaveURL(/einstellungen\/anlageklassen.*panel=sollquoten/);
   const panel = page.getByRole('dialog', { name: 'Sollquoten bearbeiten' });
@@ -152,7 +152,7 @@ test('Portfolio links to the shared settings editor: sums, dirty/template guards
   await expect(page).toHaveURL(/panel=sollquoten/);
   release();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
-  await expect(page).toHaveURL(/vermoegen\/portfolio$/);
+  await expect(page).toHaveURL(/vermoegen\/portfolio\/allokation$/);
   await page.unroute('**/api/asset-classes/targets');
   const versions = async () =>
     (await (await page.request.get('/api/asset-classes/targets')).json()).versions as {
@@ -220,7 +220,7 @@ test('unknown current quote is estimated at cost with a hint, and API failures o
     unitsE8: 2e8,
     amountCents: 0,
   });
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/allokation');
   // Without any quote or usable execution price the position is valued at its cost basis and flagged, never dropped.
   await expect(page.getByText(/teilweise geschätzt/).first()).toBeVisible();
   await page.route('**/api/portfolio/allocation', (route) =>
@@ -282,7 +282,7 @@ sampleTest(
         },
       }),
     );
-    await page.goto('/vermoegen/portfolio');
+    await page.goto('/vermoegen/portfolio/allokation');
     await expect(page.locator('.valloc')).toContainText('Unklassifiziert: 100 €');
     await expect(page.locator('.valloc')).toContainText('teilweise geschätzt');
     await expect(page.locator('.vrebal')).toContainText('Vorläufig:');

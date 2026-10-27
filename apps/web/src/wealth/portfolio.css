@@ -1,4 +1,62 @@
 /* Original Vermögen prototype: lead/chain, report link and class-grouped positions. */
+.sheet > .portfolio-registers {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-xs);
+  /* The area's 44px row gap already separates the two navigation levels. */
+  margin-block: calc(-1 * var(--space-section)) 0;
+}
+.portfolio-registers a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: var(--touch);
+  padding: var(--space-sm) var(--space-xs);
+  text-align: center;
+  white-space: normal;
+  color: var(--ink-2);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule);
+}
+.portfolio-registers a[aria-current='page'] {
+  color: var(--line);
+}
+@media (max-width: 600px) {
+  .sheet > .portfolio-registers {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .sheet > .portfolio-registers {
+    margin-block-start: calc(-1 * var(--space-xl));
+  }
+}
+@media (min-width: 981px) {
+  .portfolio-lead {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: var(--space-xl);
+    align-items: start;
+  }
+  .portfolio-lead > :is(.tbd-head, .chain-inline, .portfolio-basis) {
+    grid-column: 1 / -1;
+  }
+  .portfolio-lead > .tbd-fig {
+    grid-column: 1;
+    grid-row: 2 / 4;
+  }
+  .portfolio-lead > .portfolio-scope {
+    grid-column: 2;
+    grid-row: 2;
+    margin-block: var(--space-sm) 0;
+  }
+  .portfolio-lead > .portfolio-lead-gain {
+    grid-column: 2;
+    grid-row: 3;
+    margin-block: var(--space-sm);
+  }
+}
 .portfolio-positions {
   grid-column: 1 / -1;
 }

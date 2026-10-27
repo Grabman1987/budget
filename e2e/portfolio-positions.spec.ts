@@ -92,7 +92,7 @@ async function browserBack(page: Page) {
 sampleTest(
   'portfolio positions follow the original prototype in both themes',
   async ({ page, request }, info) => {
-    await page.goto('/vermoegen/portfolio?zeitraum=3J');
+    await page.goto('/vermoegen/portfolio/positionen?zeitraum=3J');
     await expect(page.getByTestId('portfolio-value')).toHaveText('88.000,00 €');
     const view = (await (
       await request.get('/api/portfolio/positions')
@@ -154,7 +154,7 @@ sampleTest(
   'portfolio instrument details support keyboard editing and survive reload',
   async ({ page }, info) => {
     const small = info.project.name === 'mobile';
-    await page.goto('/vermoegen/portfolio?zeitraum=3J');
+    await page.goto('/vermoegen/portfolio/positionen?zeitraum=3J');
     await expect(page.getByTestId('portfolio-value')).toHaveText('88.000,00 €');
     const trigger = page
       .getByRole('region', { name: 'Positionen', exact: true })
@@ -206,14 +206,14 @@ sampleTest(
 sampleTest(
   'explicit empty, unavailable and request failure states preserve unknowns',
   async ({ page }) => {
-    await page.route('**/api/portfolio/positions', async (route) => {
+    await page.route('**/api/portfolio/positions{,?*}', async (route) => {
       const retryClicked = await page.evaluate(
         () => document.documentElement.dataset['portfolioRetryClicked'] === 'true',
       );
       if (retryClicked) await route.continue();
       else await route.fulfill({ status: 503, json: { error: 'unavailable' } });
     });
-    await page.goto('/vermoegen/portfolio');
+    await page.goto('/vermoegen/portfolio/positionen');
     // Let the accounts render and their shared sidebar observer settle before releasing the
     // synthetic failure; a late observer can otherwise remove the retry button by refetching.
     await expect(page.locator('.acct-tree').getByText('Depot', { exact: true })).toBeAttached();
@@ -239,7 +239,7 @@ sampleTest(
     await expect(page.getByTestId('portfolio-value')).toHaveText('88.000,00 €');
     await page.unrouteAll({ behavior: 'wait' });
     await page.evaluate(() => delete document.documentElement.dataset['portfolioRetryClicked']);
-    await page.route('**/api/portfolio/positions', async (route) => {
+    await page.route('**/api/portfolio/positions{,?*}', async (route) => {
       const original = (await (await route.fetch()).json()) as PortfolioPositionsView;
       const p = original.classes[0]!.positions[0]!;
       p.quote = null;
@@ -257,7 +257,7 @@ sampleTest(
     await expect(page.getByTestId('portfolio-value')).toHaveText('Bewertung unvollständig');
     await expect(page.locator('.portfolio-table')).toContainText('Kurs fehlt');
     // Keep interception active across history refetches; newer mocks take priority.
-    await page.route('**/api/portfolio/positions', async (route) => {
+    await page.route('**/api/portfolio/positions{,?*}', async (route) => {
       const original = (await (await route.fetch()).json()) as PortfolioPositionsView;
       // The class row and the whole-instrument row (used by the product panel) both lose the basis.
       const id = original.classes[0]!.positions[0]!.securityId;
@@ -287,8 +287,8 @@ sampleTest(
       'Wechselkurs für Einstand fehlt',
     );
     await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
-    await expect(page).toHaveURL(/\/vermoegen\/portfolio$/);
-    await page.route('**/api/portfolio/positions', (route) =>
+    await expect(page).toHaveURL(/\/vermoegen\/portfolio\/positionen$/);
+    await page.route('**/api/portfolio/positions{,?*}', (route) =>
       route.fulfill({
         json: {
           asOf: '2026-09-17',
@@ -345,7 +345,7 @@ test('manual quote validation, save, dirty close and undo update the position an
     data: { price: '50' },
   });
   expect(first.ok()).toBe(true);
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/positionen');
   await page.getByRole('button', { name, exact: true }).click();
   const panel = page.getByRole('region', { name, exact: true });
   await panel.getByRole('button', { name: 'Kurs eintragen', exact: true }).click();
@@ -390,7 +390,7 @@ test('instrument Back navigation asks once and honors keep or discard for quote 
 }, info) => {
   const name = `Navigationsschutz ${info.project.name}`;
   const security = await createPositionInstrument(request, name);
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/positionen');
   const row = page.getByRole('button', { name, exact: true });
   await row.click();
   const panel = page.getByRole('region', { name, exact: true });
@@ -442,7 +442,7 @@ test('pending create and quote requests reject Back until the save finishes', as
     await createGate.promise;
     await route.continue();
   });
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/positionen');
   await page.getByRole('button', { name: 'Instrument anlegen', exact: true }).click();
   const createPanel = page.getByRole('dialog', { name: 'Instrument anlegen', exact: true });
   await createPanel.getByLabel('Name', { exact: true }).fill(name);
@@ -473,7 +473,7 @@ test('pending create and quote requests reject Back until the save finishes', as
     await quoteGate.promise;
     await route.continue();
   });
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/positionen');
   await page.getByRole('button', { name: `${name} Kurs`, exact: true }).click();
   const quoteDetail = page.getByRole('region', { name: `${name} Kurs`, exact: true });
   await quoteDetail.getByRole('button', { name: 'Kurs eintragen', exact: true }).click();

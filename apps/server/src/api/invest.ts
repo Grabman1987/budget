@@ -660,7 +660,12 @@ const depotsQuery = z.object({
 
 export function portfolioRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
-  app.get('/positions', (c) => c.json(portfolioPositions(db, today())));
+  app.get('/positions', (c) => {
+    const { asOf } = readQuery(c, z.object({ asOf: exposureDay.optional() }));
+    if (asOf !== undefined && asOf > today())
+      throw new ApiError(400, 'invalid', 'Der Stichtag darf nicht in der Zukunft liegen.');
+    return c.json(portfolioPositions(db, asOf ?? today()));
+  });
   app.get('/benchmarks', (c) => c.json(benchmarkSelection(db)));
   app.patch('/benchmarks', async (c) => {
     const { ids } = await readBody(

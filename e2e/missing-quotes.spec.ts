@@ -130,7 +130,7 @@ test('a position without market quote is valued at cost and flagged; the first q
   await expect(page.getByTestId('valuation-hint')).toHaveCount(0);
   await expect(page.getByText(/Bewertung teilweise geschätzt:/)).toHaveCount(0);
 
-  await page.goto('/vermoegen/portfolio');
+  await page.goto('/vermoegen/portfolio/positionen');
   await expect(page.getByTestId('portfolio-value')).toContainText('100,00');
   await expect(page.getByTestId('valuation-hint')).toContainText(hint);
   await page.getByRole('button', { name, exact: true }).click();

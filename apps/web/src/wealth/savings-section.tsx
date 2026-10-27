@@ -13,7 +13,11 @@ import { SavingsPanel } from './savings-panel';
 import './savings.css';
 import { FundingPlanner } from './funding-plan';
 
-export function SavingsSection() {
+export function SavingsSection({
+  navigationPath = '/vermoegen/portfolio',
+}: {
+  navigationPath?: '/vermoegen/portfolio' | '/vermoegen/portfolio/sparplaene';
+}) {
   useAmountPrivacy();
   const plans = useQuery(savingsPlansQuery());
   const accounts = useQuery(accountsQuery());
@@ -26,10 +30,7 @@ export function SavingsSection() {
   const [includeEnded, setIncludeEnded] = useState(false);
   const select = (sparplan?: string) =>
     void navigate({
-      to:
-        sparplan && sparplan !== 'neu'
-          ? '/vermoegen/portfolio/sparplan/$id'
-          : '/vermoegen/portfolio',
+      to: sparplan && sparplan !== 'neu' ? '/vermoegen/portfolio/sparplan/$id' : navigationPath,
       params: { id: sparplan ?? '' },
       state: { wealthDetailOpenedInApp: true },
       search: ((prev: Record<string, unknown>) => ({
