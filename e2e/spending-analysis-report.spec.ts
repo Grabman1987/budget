@@ -20,11 +20,15 @@ test('shows the prototype consumption with grouped bars, retained class facts an
     Math.abs(Number.parseInt((await lead.textContent())!.replace(/\D/g, ''), 10) - august),
   ).toBeLessThanOrEqual(2);
   await expect(page.locator('#sa-main')).toHaveText('01 · Konsum nach Gruppe');
-  await expect(page.locator('section[aria-labelledby="sa-main"] .sr-state')).toHaveText('August 2026');
+  await expect(page.locator('section[aria-labelledby="sa-main"] .sr-state')).toHaveText(
+    'August 2026',
+  );
 
   await page.getByRole('button', { name: '1J', exact: true }).click();
   await expect(page).toHaveURL(/zeitraum=1J/);
-  await expect(page.locator('section[aria-labelledby="sa-main"] .sr-state')).toHaveText('letzte 12 Monate');
+  await expect(page.locator('section[aria-labelledby="sa-main"] .sr-state')).toHaveText(
+    'letzte 12 Monate',
+  );
   const year = Array.from({ length: 12 }, (_, i) => ref.consumptionOf(23 + i)).reduce(
     (a, b) => a + b,
     0,
@@ -74,7 +78,11 @@ test('shows the prototype consumption with grouped bars, retained class facts an
 test('says honestly that "Alles" has no comparison window', async ({ page }) => {
   await page.goto('/reports/ausgaben?zeitraum=Alles');
   await expect(
-    page.getByText('Für diesen Zeitraum ist kein vollständig abgedeckter, gleich langer Vorzeitraum verfügbar.'),
+    page.getByText(
+      'Für diesen Zeitraum ist kein vollständig abgedeckter, gleich langer Vorzeitraum verfügbar.',
+    ),
   ).toBeVisible();
-  await expect(page.locator('section[aria-labelledby="sa-main"] .sr-state')).toHaveText('seit Okt 23');
+  await expect(page.locator('section[aria-labelledby="sa-main"] .sr-state')).toHaveText(
+    'seit Okt 23',
+  );
 });

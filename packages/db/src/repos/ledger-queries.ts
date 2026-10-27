@@ -320,15 +320,24 @@ export function queryBookings(
   const conditions: (SQL | undefined)[] = [isNull(booking.deletedAt), isNull(account.deletedAt)];
   const contributions =
     (query.basis === 'category-spending' && query.categoryId) || query.categoryGroupId
-      ? new Map<string, number>() : null;
+      ? new Map<string, number>()
+      : null;
   if (contributions) {
     const facts = reportTables(db, { today, withSources: true });
-    const groupCategories = query.categoryGroupId ? new Set(facts.categories
-      .filter(c => c.groupId === query.categoryGroupId && c.class !== 'future').map(c => c.id)) : null;
+    const groupCategories = query.categoryGroupId
+      ? new Set(
+          facts.categories
+            .filter((c) => c.groupId === query.categoryGroupId && c.class !== 'future')
+            .map((c) => c.id),
+        )
+      : null;
     for (const s of facts.splits ?? []) {
-      if (s.kind === 'spend' && s.categoryId !== null &&
-          (!query.categoryId || s.categoryId === query.categoryId) &&
-          (!groupCategories || groupCategories.has(s.categoryId)))
+      if (
+        s.kind === 'spend' &&
+        s.categoryId !== null &&
+        (!query.categoryId || s.categoryId === query.categoryId) &&
+        (!groupCategories || groupCategories.has(s.categoryId))
+      )
         contributions.set(s.bookingId, (contributions.get(s.bookingId) ?? 0) + s.amountCents);
     }
     conditions.push(inArray(booking.id, [...contributions.keys()]));

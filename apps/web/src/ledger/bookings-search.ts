@@ -92,7 +92,11 @@ export function validateBookingsSearch(search: Record<string, unknown>): Booking
 /** The API filter belonging to the URL parameters. */
 export function filterFromSearch(search: BookingsSearch): BookingFilter {
   return {
-    basis: search.kategoriegruppe ? 'category-spending' : search.kategorie ? search.basis : undefined,
+    basis: search.kategoriegruppe
+      ? 'category-spending'
+      : search.kategorie
+        ? search.basis
+        : undefined,
     id: search.buchung,
     accountId: search.konto,
     categoryId: search.kategorie,

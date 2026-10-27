@@ -32,13 +32,7 @@ const analysisQuery = (period: SpendingPeriod) =>
 const DEFAULT_COLLAPSED = ['sa-moves', 'sa-classes', 'sa-explorer'] as const;
 
 /** The pilot report reuses the shared report controls and authoritative spending figures. */
-export function SpendingAnalysisReport({
-  report,
-  meta,
-}: {
-  report: ReportEntry;
-  meta: PageMeta;
-}) {
+export function SpendingAnalysisReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   useAmountPrivacy();
   const [period, setPeriod] = useReportPeriod();
   const query = useQuery(analysisQuery(period));
@@ -97,7 +91,9 @@ const checkedSum = (values: number[]) => {
 };
 
 /** Group only the supplied signed rows; previous figures belong to the exact-day comparison. */
-export function spendingGroups(data: Pick<SpendingReport, 'breakdown' | 'answerComparison' | 'consumptionCents'>): SpendingGroup[] {
+export function spendingGroups(
+  data: Pick<SpendingReport, 'breakdown' | 'answerComparison' | 'consumptionCents'>,
+): SpendingGroup[] {
   const previous = new Map(data.answerComparison.rows.map((row) => [row.id, row.previousCents]));
   const groups = new Map<string, SpendingGroup>();
   for (const row of data.breakdown) {
@@ -258,7 +254,10 @@ function Body({ data }: { data: SpendingReport }) {
             verfügbar.
           </p>
         )}
-        <div role="img" aria-label={`Konsum nach Kategoriegruppe: ${eur(data.consumptionCents)}; ${groups.length} Gruppen, einschließlich Erstattungen. Vorzeitraum als Strich.`} />
+        <div
+          role="img"
+          aria-label={`Konsum nach Kategoriegruppe: ${eur(data.consumptionCents)}; ${groups.length} Gruppen, einschließlich Erstattungen. Vorzeitraum als Strich.`}
+        />
         <ul className="sa-groups" aria-label="Konsum nach Kategoriegruppe">
           {groups.map((group, index) => {
             const open = expanded.has(group.id);
@@ -340,17 +339,48 @@ function Body({ data }: { data: SpendingReport }) {
             );
           })}
         </ul>
-        <button type="button" className="btn sa-explorer-link" aria-expanded={tableOpen} aria-controls="sa-data-table" onClick={() => setTableOpen(!tableOpen)}>
+        <button
+          type="button"
+          className="btn sa-explorer-link"
+          aria-expanded={tableOpen}
+          aria-controls="sa-data-table"
+          onClick={() => setTableOpen(!tableOpen)}
+        >
           {tableOpen ? 'Tabelle ausblenden' : 'Tabelle anzeigen'}
         </button>
         <div id="sa-data-table" hidden={!tableOpen}>
           <table className="sr-table">
             <caption>Konsum nach Gruppe und Kategorie, netto in Euro</caption>
-            <thead><tr><th scope="col">Position</th><th scope="col">Aktuell</th><th scope="col">Vorzeitraum</th><th scope="col">Differenz</th></tr></thead>
-            <tbody>{groups.flatMap(group => [
-              <tr key={`group:${group.id}`}><th scope="row">{maskMoneyText(group.name)}</th><td>{eur(group.cents)}</td><td>{group.previous === null ? '–' : eur(group.previous)}</td><td>{group.previous === null ? '–' : eur(checkedSum([group.cents,-group.previous]),{sign:true})}</td></tr>,
-              ...group.rows.map(row => <tr key={row.id}><th scope="row">{maskMoneyText(row.name)}</th><td>{eur(row.cents)}</td><td>{row.previous === null ? '–' : eur(row.previous)}</td><td>{row.change === null ? '–' : eur(row.change,{sign:true})}</td></tr>),
-            ])}</tbody>
+            <thead>
+              <tr>
+                <th scope="col">Position</th>
+                <th scope="col">Aktuell</th>
+                <th scope="col">Vorzeitraum</th>
+                <th scope="col">Differenz</th>
+              </tr>
+            </thead>
+            <tbody>
+              {groups.flatMap((group) => [
+                <tr key={`group:${group.id}`}>
+                  <th scope="row">{maskMoneyText(group.name)}</th>
+                  <td>{eur(group.cents)}</td>
+                  <td>{group.previous === null ? '–' : eur(group.previous)}</td>
+                  <td>
+                    {group.previous === null
+                      ? '–'
+                      : eur(checkedSum([group.cents, -group.previous]), { sign: true })}
+                  </td>
+                </tr>,
+                ...group.rows.map((row) => (
+                  <tr key={row.id}>
+                    <th scope="row">{maskMoneyText(row.name)}</th>
+                    <td>{eur(row.cents)}</td>
+                    <td>{row.previous === null ? '–' : eur(row.previous)}</td>
+                    <td>{row.change === null ? '–' : eur(row.change, { sign: true })}</td>
+                  </tr>
+                )),
+              ])}
+            </tbody>
           </table>
         </div>
         <p className="sr-note">
@@ -361,7 +391,11 @@ function Body({ data }: { data: SpendingReport }) {
       <section className="sr-card sr-wide" aria-labelledby="sa-moves">
         <div className="sr-head">
           <h2 id="sa-moves">02 · Größte Veränderungen</h2>
-          <span className="sr-state">{comparison.previousCents === null ? 'Kein Vorzeitraum' : eur(checkedSum([data.consumptionCents,-comparison.previousCents]),{sign:true})}</span>
+          <span className="sr-state">
+            {comparison.previousCents === null
+              ? 'Kein Vorzeitraum'
+              : eur(checkedSum([data.consumptionCents, -comparison.previousCents]), { sign: true })}
+          </span>
         </div>
         {comparison.previousCents === null ? (
           <p>Kein gleich langer Vorzeitraum verfügbar.</p>
@@ -389,8 +423,18 @@ function Body({ data }: { data: SpendingReport }) {
           <span className="sr-state">Zukunft {eur(data.futureCents)}</span>
         </div>
         {data.consumptionCents + data.futureCents > 0 && (
-          <div className="sr-seg" role="img" aria-label={`Bedarf ${data.classShares.need} %, Wunsch ${data.classShares.want} %, Zukunft ${data.classShares.future} %`}>
-            {(['need','want','future'] as const).map(kind => <span key={kind} className={`sw-${kind}`} style={{width:`${data.classShares[kind]}%`}} />)}
+          <div
+            className="sr-seg"
+            role="img"
+            aria-label={`Bedarf ${data.classShares.need} %, Wunsch ${data.classShares.want} %, Zukunft ${data.classShares.future} %`}
+          >
+            {(['need', 'want', 'future'] as const).map((kind) => (
+              <span
+                key={kind}
+                className={`sw-${kind}`}
+                style={{ width: `${data.classShares[kind]}%` }}
+              />
+            ))}
           </div>
         )}
         <DimensionChain
@@ -407,7 +451,9 @@ function Body({ data }: { data: SpendingReport }) {
       <section className="sr-card sr-wide" aria-labelledby="sa-explorer">
         <div className="sr-head">
           <h2 id="sa-explorer">04 · Auswertung</h2>
-          <span className="sr-state">{data.months.length} Monate · {eur(data.consumptionCents)}</span>
+          <span className="sr-state">
+            {data.months.length} Monate · {eur(data.consumptionCents)}
+          </span>
         </div>
         <p>
           Die Kategorie×Monat-Tabelle zeigt denselben Zeitraum und dieselben Netto-Ausgaben

@@ -33,7 +33,10 @@ function collapsedSections(initial: readonly string[] = NO_COLLAPSED_SECTIONS): 
  * Collapsing hides everything but the marked head by stylesheet.
  * A section is keyed by its heading id, else by its position (ponytail: shifts if sections come and go).
  */
-export function useCollapsibleSections(slug: string, initial: readonly string[] = NO_COLLAPSED_SECTIONS) {
+export function useCollapsibleSections(
+  slug: string,
+  initial: readonly string[] = NO_COLLAPSED_SECTIONS,
+) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const root = ref.current;
