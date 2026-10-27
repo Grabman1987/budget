@@ -89,3 +89,20 @@ change a financial/read/write formula. No financial/aria/privacy/contrast oracle
 timeout/retry/skip/baseline is weakened. Runtime remains unproven until exact-HIGH
 review and bounded first-attempt proof after old CI failure collection completes.
 No local heavy commands, public push, remote VM or full retry were performed.
+
+
+## Full-CI mounted Plan icon regression (private)
+
+PR795 exact2a0 full CI's Plan-month icon scan exposed LIVE1ad header chevrons
+using Lucide's default stroke2 at size16. Restore the existing protected icon
+scale by explicitly setting strokeWidth1.75 on BOTH ChevronRight/ChevronLeft;
+no report/cent calculation or rendering change beyond these two icon strokes.
+
+Per-file reason: issue-471-icons.spec.ts's shared scan now waits for the ACTUAL
+visible month-overview-head ONLY on pathname /plan/monat, before its unchanged
+all-visible-SVG width/height/stroke assertion. This prevents the old generic-main
+race from passing before the affected header mounts. Every other icon, privacy,
+Axe/theme/overflow/screenshot assertion, timeout/retry/skip remains unchanged.
+Independent HIGH exact delta and a bounded canonical three-profile issue471
+proof precede any public push; all original full-CI classes must be collected.
+No local heavy command, Cloud/VM, public push or full retry for this correction.

@@ -214,9 +214,9 @@ export function MonthOverviewInspector({
           }
         >
           {preferences.collapsed ? (
-            <ChevronRight size={16} aria-hidden="true" />
+            <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
           ) : (
-            <ChevronLeft size={16} aria-hidden="true" />
+            <ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" />
           )}
         </Button>
       </div>

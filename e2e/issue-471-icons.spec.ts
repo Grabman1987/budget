@@ -3,6 +3,8 @@ import type { Locator, Page } from '@playwright/test';
 import { expect, sampleTest as test } from './sample';
 
 async function expectVisibleIconScale(page: Page) {
+  if (new URL(page.url()).pathname === '/plan/monat')
+    await expect(page.locator('.month-overview-head')).toBeVisible();
   await expect
     .poll(() =>
       page.evaluate(() =>
