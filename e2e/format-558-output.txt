@@ -1,0 +1,138 @@
+diff --git a/e2e/issue-558-offline-last-state.spec.ts b/e2e/issue-558-offline-last-state.spec.ts
+index 37e9950..39d8599 100644
+--- a/e2e/issue-558-offline-last-state.spec.ts
++++ b/e2e/issue-558-offline-last-state.spec.ts
+@@ -425,7 +425,13 @@ test('failed clear leaves old raw rows unreadable after sign-out and cold reload
+   await expect
+     .poll(() => page.evaluate(() => localStorage.getItem('budget-offline-read-epoch')))
+     .toBeNull();
+-  await expect.poll(() => page.evaluate(() => (window as Window & { blockedSnapshotClear?: boolean }).blockedSnapshotClear)).toBe(true);
++  await expect
++    .poll(() =>
++      page.evaluate(
++        () => (window as Window & { blockedSnapshotClear?: boolean }).blockedSnapshotClear,
++      ),
++    )
++    .toBe(true);
+   expect(await viewCount(page)).toBeGreaterThan(0);
+   await page.evaluate(async () => {
+     await navigator.serviceWorker.ready;
+@@ -456,7 +462,11 @@ test('quota failure during authenticated grant leaves no offline read permission
+     };
+   });
+   await page.goto('/');
+-  await expect.poll(() => page.evaluate(() => (window as Window & { failedReadGrant?: boolean }).failedReadGrant)).toBe(true);
++  await expect
++    .poll(() =>
++      page.evaluate(() => (window as Window & { failedReadGrant?: boolean }).failedReadGrant),
++    )
++    .toBe(true);
+   expect(await page.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeNull();
+   expect(await viewCount(page)).toBe(0);
+   await expect
+@@ -481,28 +491,39 @@ test('401 on a mounted financial view revokes snapshots before offline reload',
+       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+       if (url.pathname === '/api/heute') {
+         (window as Window & { sawMounted401?: boolean }).sawMounted401 = true;
+-        return Promise.resolve(new Response('{"error":"unauthorized"}', {
+-          status: 401,
+-          headers: { 'content-type': 'application/json' },
+-        }));
++        return Promise.resolve(
++          new Response('{"error":"unauthorized"}', {
++            status: 401,
++            headers: { 'content-type': 'application/json' },
++          }),
++        );
+       }
+       return original(input, init);
+     };
+   });
+-  const month = page.getByRole('group', { name: 'Zeitraum' }).getByRole('button', { name: 'Monat' });
+-  const payday = page.getByRole('group', { name: 'Zeitraum' }).getByRole('button', { name: 'Bis Gehalt' });
++  const month = page
++    .getByRole('group', { name: 'Zeitraum' })
++    .getByRole('button', { name: 'Monat' });
++  const payday = page
++    .getByRole('group', { name: 'Zeitraum' })
++    .getByRole('button', { name: 'Bis Gehalt' });
+   if ((await month.getAttribute('aria-pressed')) === 'true') await payday.click();
+   else await month.click();
+-  await expect.poll(() => page.evaluate(() => (window as Window & { sawMounted401?: boolean }).sawMounted401)).toBe(true);
++  await expect
++    .poll(() => page.evaluate(() => (window as Window & { sawMounted401?: boolean }).sawMounted401))
++    .toBe(true);
+   try {
+     await expect(page.getByRole('heading', { name: 'Sitzung beendet' })).toBeVisible();
+   } catch (error) {
+-    console.log('Mounted-401 diagnostic', await page.evaluate(() => ({
+-      path: location.pathname,
+-      headings: [...document.querySelectorAll('h1,h2')].map((node) => node.textContent),
+-      permissionPresent: localStorage.getItem('budget-offline-read-epoch') !== null,
+-      liveHidden: document.querySelector('.pwa-live')?.hasAttribute('hidden'),
+-    })));
++    console.log(
++      'Mounted-401 diagnostic',
++      await page.evaluate(() => ({
++        path: location.pathname,
++        headings: [...document.querySelectorAll('h1,h2')].map((node) => node.textContent),
++        permissionPresent: localStorage.getItem('budget-offline-read-epoch') !== null,
++        liveHidden: document.querySelector('.pwa-live')?.hasAttribute('hidden'),
++      })),
++    );
+     throw error;
+   }
+   await expect
+@@ -532,27 +553,39 @@ test('known signed-out status on the login page clears the prior offline view',
+       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+       if (url.pathname === '/api/auth/status') {
+         (window as Window & { sawFalseAuthStatus?: boolean }).sawFalseAuthStatus = true;
+-        return Promise.resolve(new Response(JSON.stringify({
+-          setupRequired: false,
+-          authenticated: false,
+-          stepUpValidUntil: null,
+-          viaRecovery: false,
+-        }), { status: 200, headers: { 'content-type': 'application/json' } }));
++        return Promise.resolve(
++          new Response(
++            JSON.stringify({
++              setupRequired: false,
++              authenticated: false,
++              stepUpValidUntil: null,
++              viaRecovery: false,
++            }),
++            { status: 200, headers: { 'content-type': 'application/json' } },
++          ),
++        );
+       }
+       return original(input, init);
+     };
+   });
+   await page.goto('/login');
+-  await expect.poll(() => page.evaluate(() => (window as Window & { sawFalseAuthStatus?: boolean }).sawFalseAuthStatus)).toBe(true);
++  await expect
++    .poll(() =>
++      page.evaluate(() => (window as Window & { sawFalseAuthStatus?: boolean }).sawFalseAuthStatus),
++    )
++    .toBe(true);
+   try {
+     await expect(page.getByRole('heading', { name: 'Anmelden' })).toBeVisible();
+   } catch (error) {
+-    console.log('Known-false login diagnostic', await page.evaluate(() => ({
+-      path: location.pathname,
+-      headings: [...document.querySelectorAll('h1,h2')].map((node) => node.textContent),
+-      permissionPresent: localStorage.getItem('budget-offline-read-epoch') !== null,
+-      liveHidden: document.querySelector('.pwa-live')?.hasAttribute('hidden'),
+-    })));
++    console.log(
++      'Known-false login diagnostic',
++      await page.evaluate(() => ({
++        path: location.pathname,
++        headings: [...document.querySelectorAll('h1,h2')].map((node) => node.textContent),
++        permissionPresent: localStorage.getItem('budget-offline-read-epoch') !== null,
++        liveHidden: document.querySelector('.pwa-live')?.hasAttribute('hidden'),
++      })),
++    );
+     throw error;
+   }
+   await expect
