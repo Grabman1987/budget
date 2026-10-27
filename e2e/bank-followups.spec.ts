@@ -124,7 +124,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
   ).id;
   await page.goto('/konten/buchungen');
   const select = page.getByRole('button', { name: 'Auswählen', exact: true });
-  if (await select.isVisible()) await select.click();
+  if ((page.viewportSize()?.width ?? 1440) < 768) await select.click();
   for (const id of [manual, b])
     await page.locator(`[data-booking="${id}"] input[type=checkbox]`).check();
   await page.getByRole('group', { name: 'Auswahl bearbeiten', exact: true }).locator('summary').click();
