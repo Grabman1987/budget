@@ -77,7 +77,11 @@ export function WholePictureVerdict({ row, estimated = false }: { row: Row; esti
   return <VerdictLine facts={facts} testId="whole-verdict" />;
 }
 
-export function WholePictureReport({ report, meta, viewControl }: {
+export function WholePictureReport({
+  report,
+  meta,
+  viewControl,
+}: {
   report: ReportEntry;
   meta: PageMeta;
   viewControl?: ReactNode;
@@ -383,7 +387,10 @@ export function WholeChart({ data }: { data: Data }) {
             x2={right}
             lines={upper
               .ticks(3)
-              .map((value) => ({ y: upper(value), label: eur(Math.round(value), { cents: false }) }))}
+              .map((value) => ({
+                y: upper(value),
+                label: eur(Math.round(value), { cents: false }),
+              }))}
           />
           <text x={left} y={140} className="svg-label">
             Nettovermögen Ende · €

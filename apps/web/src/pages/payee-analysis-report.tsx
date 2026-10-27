@@ -103,7 +103,12 @@ const statusName: Record<string, string> = {
 };
 const bookingDetailId = 'payee-booking-detail';
 
-export function PayeeAnalysisReport({ report, meta, viewControl, selection }: {
+export function PayeeAnalysisReport({
+  report,
+  meta,
+  viewControl,
+  selection,
+}: {
   report: ReportEntry;
   meta: PageMeta;
   viewControl?: React.ReactNode;

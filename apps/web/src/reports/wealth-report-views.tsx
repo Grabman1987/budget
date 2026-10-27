@@ -20,23 +20,41 @@ type WealthView = (typeof WEALTH_VIEWS)[number]['value'];
 export function WealthReportViews({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   const search = useSearch({ strict: false }) as { darstellung?: unknown; zeitraum?: unknown };
   const navigate = useNavigate();
-  const view: WealthView = search.darstellung === 'verlauf' || search.darstellung === 'gesamt'
-    ? search.darstellung : 'bilanz';
+  const view: WealthView =
+    search.darstellung === 'verlauf' || search.darstellung === 'gesamt'
+      ? search.darstellung
+      : 'bilanz';
   const changeView = (next: WealthView) => {
     if (next === view) return;
     // Materialize the active reader's existing fallback only at a real switch, never on mount.
-    const period = isReportPeriod(search.zeitraum) ? search.zeitraum
-      : view === 'verlauf' ? DEFAULT_ZEITRAUM : view === 'gesamt' ? '1J' : 'Alles';
+    const period = isReportPeriod(search.zeitraum)
+      ? search.zeitraum
+      : view === 'verlauf'
+        ? DEFAULT_ZEITRAUM
+        : view === 'gesamt'
+          ? '1J'
+          : 'Alles';
     void navigate({
       to: '.',
       search: ((previous: Record<string, unknown>) => ({
-        ...previous, darstellung: next, zeitraum: period,
+        ...previous,
+        darstellung: next,
+        zeitraum: period,
       })) as never,
     });
   };
-  const control = <Segmented className="report-view-switch" label="Ansicht von Vermögen und Schulden"
-    options={WEALTH_VIEWS} value={view} onChange={changeView} />;
-  if (view === 'verlauf') return <WealthHistoryReport report={report} meta={meta} viewControl={control} />;
-  if (view === 'gesamt') return <WholePictureReport report={report} meta={meta} viewControl={control} />;
+  const control = (
+    <Segmented
+      className="report-view-switch"
+      label="Ansicht von Vermögen und Schulden"
+      options={WEALTH_VIEWS}
+      value={view}
+      onChange={changeView}
+    />
+  );
+  if (view === 'verlauf')
+    return <WealthHistoryReport report={report} meta={meta} viewControl={control} />;
+  if (view === 'gesamt')
+    return <WholePictureReport report={report} meta={meta} viewControl={control} />;
   return <AssetsDebtsReport report={report} meta={meta} viewControl={control} />;
 }

@@ -42,38 +42,45 @@ it('shows a positive and neutral market without colour as the only signal', () =
 it.each([
   { ends: [99000], expected: '≈990,00 €' },
   { ends: [99000, 99001], expected: '≈990,01 €' },
-])('renders flat/narrow integer-cent chart data $ends without passing fractional ticks to the money guard', ({ ends, expected }) => {
-  const rows = ends.map((endCents, index) => ({
-    ...row,
-    month: index === 0 ? '2026-08' : '2026-09',
-    endCents,
-    savedCents: 0,
-    marketCents: 0,
-  }));
-  const data: WholePicture & WithValuationNotes = {
-    period: '2026-08..2026-09',
-    asOf: '2026-09-30',
-    today: '2026-10-01',
-    from: '2026-07-31',
-    to: '2026-09-30',
-    rows,
-    totals: rows.at(-1)!,
-    latestFullMonth: rows.at(-1)!,
-    incomplete: [{ securityId: 'synthetic', quality: 'estimated', from: '2026-08-01', to: '2026-09-30' }],
-  };
-  const { container } = render(<WholeChart data={data} />);
-  const drawing = screen.getByTestId('whole-chart');
-  expect(drawing.getAttribute('width')).toBe('800');
-  const line = drawing.querySelector('path.l-actual')!;
-  expect(line.getAttribute('d')).not.toMatch(/NaN|Infinity/);
-  if (ends.length === 1) expect(line.getAttribute('d')).toBe('M422,115Z');
-  const chart = screen.getByRole('group', { name: 'Monatlicher Sparbetrag und Markteffekt mit Nettovermögen' });
-  fireEvent.focus(chart);
-  if (ends.length === 2) fireEvent.keyDown(chart, { key: 'ArrowRight' });
-  const value = Array.from(document.querySelectorAll('.chart-tooltip-row')).find((element) =>
-    element.querySelector('span')?.textContent === 'Nettovermögen Ende',
-  )?.querySelector('strong');
-  expect(value?.textContent).toBe(expected);
-  expect(data.rows.map((point) => point.endCents)).toEqual(ends);
-  expect(container.querySelectorAll('svg[data-testid="whole-chart"]')).toHaveLength(1);
-});
+])(
+  'renders flat/narrow integer-cent chart data $ends without passing fractional ticks to the money guard',
+  ({ ends, expected }) => {
+    const rows = ends.map((endCents, index) => ({
+      ...row,
+      month: index === 0 ? '2026-08' : '2026-09',
+      endCents,
+      savedCents: 0,
+      marketCents: 0,
+    }));
+    const data: WholePicture & WithValuationNotes = {
+      period: '2026-08..2026-09',
+      asOf: '2026-09-30',
+      today: '2026-10-01',
+      from: '2026-07-31',
+      to: '2026-09-30',
+      rows,
+      totals: rows.at(-1)!,
+      latestFullMonth: rows.at(-1)!,
+      incomplete: [
+        { securityId: 'synthetic', quality: 'estimated', from: '2026-08-01', to: '2026-09-30' },
+      ],
+    };
+    const { container } = render(<WholeChart data={data} />);
+    const drawing = screen.getByTestId('whole-chart');
+    expect(drawing.getAttribute('width')).toBe('800');
+    const line = drawing.querySelector('path.l-actual')!;
+    expect(line.getAttribute('d')).not.toMatch(/NaN|Infinity/);
+    if (ends.length === 1) expect(line.getAttribute('d')).toBe('M422,115Z');
+    const chart = screen.getByRole('group', {
+      name: 'Monatlicher Sparbetrag und Markteffekt mit Nettovermögen',
+    });
+    fireEvent.focus(chart);
+    if (ends.length === 2) fireEvent.keyDown(chart, { key: 'ArrowRight' });
+    const value = Array.from(document.querySelectorAll('.chart-tooltip-row'))
+      .find((element) => element.querySelector('span')?.textContent === 'Nettovermögen Ende')
+      ?.querySelector('strong');
+    expect(value?.textContent).toBe(expected);
+    expect(data.rows.map((point) => point.endCents)).toEqual(ends);
+    expect(container.querySelectorAll('svg[data-testid="whole-chart"]')).toHaveLength(1);
+  },
+);

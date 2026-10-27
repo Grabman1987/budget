@@ -32,7 +32,12 @@ const analysisQuery = (period: SpendingPeriod) =>
 const DEFAULT_COLLAPSED = ['sa-moves', 'sa-classes', 'sa-explorer'] as const;
 
 /** The pilot report reuses the shared report controls and authoritative spending figures. */
-export function SpendingAnalysisReport({ report, meta, viewControl, onPeriodChange }: {
+export function SpendingAnalysisReport({
+  report,
+  meta,
+  viewControl,
+  onPeriodChange,
+}: {
   report: ReportEntry;
   meta: PageMeta;
   viewControl?: ReactNode;

@@ -28,7 +28,11 @@ const percent = new Intl.NumberFormat('de-AT', {
  * Report 3.3 Vermögensverläufe: the net worth of the chosen Zeitraum with its Maßkette (the same
  * series and chain as Vermögen › Nettovermögen) and how it is made up by account type over time.
  */
-export function WealthHistoryReport({ report, meta, viewControl }: {
+export function WealthHistoryReport({
+  report,
+  meta,
+  viewControl,
+}: {
   report: ReportEntry;
   meta: PageMeta;
   viewControl?: ReactNode;

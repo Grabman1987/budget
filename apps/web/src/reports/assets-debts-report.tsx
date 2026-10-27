@@ -56,7 +56,11 @@ function useSelectedMonth(
  * months that rest on an estimated price carry the usual valuation hint. A selected month shows
  * the accounts behind it.
  */
-export function AssetsDebtsReport({ report, meta, viewControl }: {
+export function AssetsDebtsReport({
+  report,
+  meta,
+  viewControl,
+}: {
   report: ReportEntry;
   meta: PageMeta;
   viewControl?: ReactNode;

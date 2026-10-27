@@ -28,20 +28,32 @@ export function SpendingReportViews({ report, meta }: { report: ReportEntry; met
     });
   const changePeriod = (period: SpendingPeriod) =>
     update({ zeitraum: period, empfaenger: undefined }, true);
-  const control = <Segmented
-    className="report-view-switch"
-    label="Ansicht der Ausgabenanalyse"
-    options={SPENDING_VIEWS}
-    value={view}
-    onChange={(value) => update({ darstellung: value })}
-  />;
+  const control = (
+    <Segmented
+      className="report-view-switch"
+      label="Ansicht der Ausgabenanalyse"
+      options={SPENDING_VIEWS}
+      value={view}
+      onChange={(value) => update({ darstellung: value })}
+    />
+  );
   return view === 'empfaenger' ? (
-    <PayeeAnalysisReport report={report} meta={meta} viewControl={control}
+    <PayeeAnalysisReport
+      report={report}
+      meta={meta}
+      viewControl={control}
       selection={{
         id: search.empfaenger ?? null,
         onChange: (id) => update({ empfaenger: id ?? undefined }),
         onPeriodChange: changePeriod,
       }}
     />
-  ) : <SpendingAnalysisReport report={report} meta={meta} viewControl={control} onPeriodChange={changePeriod} />;
+  ) : (
+    <SpendingAnalysisReport
+      report={report}
+      meta={meta}
+      viewControl={control}
+      onPeriodChange={changePeriod}
+    />
+  );
 }
