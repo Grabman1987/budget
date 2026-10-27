@@ -111,10 +111,14 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
       const input = (await chooser.boundingBox())!;
       expect(input.width).toBeGreaterThanOrEqual(44);
       expect(input.height).toBeGreaterThanOrEqual(44);
-      expect(await chooser.evaluate((element) => {
-        const box = element.getBoundingClientRect();
-        return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
-      })).toBe(true);
+      expect(
+        await chooser.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          return element.contains(
+            document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2),
+          );
+        }),
+      ).toBe(true);
     }
     await chooser.fill('Brutto');
     await expect(page.locator('.report-switcher a')).toHaveCount(1);
