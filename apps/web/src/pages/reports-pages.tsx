@@ -18,7 +18,7 @@ import { GoalsProgressReport } from './goals-progress-report';
 import { PaymentsPreviewReport } from './payments-preview-report';
 import { ContactReportPage } from '../reports/contact-report';
 import { CashflowReportPage } from '../reports/cashflow-report';
-import { AssetsDebtsReport } from '../reports/assets-debts-report';
+import { WealthReportViews } from '../reports/wealth-report-views';
 import { WealthHistoryReport } from '../reports/wealth-history-report';
 import { PayeeAnalysisReport } from './payee-analysis-report';
 import { PortfolioPerformanceReport } from './portfolio-performance-report';
@@ -32,7 +32,7 @@ import { JahresreportPage } from '../reports/jahresreport-page';
 import { ExplorerReportPage } from '../reports/explorer-report';
 import { ReportHub } from '../reports/report-hub';
 import { rememberReport, type HubGroup } from '../reports/report-hub-model';
-import { SpendingAnalysisReport } from '../reports/spending-analysis-report';
+import { SpendingReportViews } from '../reports/spending-report-views';
 import { BudgetAdherenceReportPage } from '../reports/budget-adherence-report';
 import { PlanningAccuracyReportPage } from '../reports/planning-accuracy-report';
 import { ContractsReportPage } from '../reports/contracts-report';
@@ -108,8 +108,8 @@ export function ReportPage({ reportId, detail = false }: { reportId: string; det
   };
   if (report.id === 'cashflow') return <CashflowReportPage report={report} meta={meta} />;
   if (report.id === 'vermoegen') return <WealthHistoryReport report={report} meta={meta} />;
-  if (report.id === 'vermoegen-schulden') return <AssetsDebtsReport report={report} meta={meta} />;
-  if (report.id === 'ausgaben') return <SpendingAnalysisReport report={report} meta={meta} />;
+  if (report.id === 'vermoegen-schulden') return <WealthReportViews report={report} meta={meta} />;
+  if (report.id === 'ausgaben') return <SpendingReportViews report={report} meta={meta} />;
   if (report.id === 'budgettreue') return <BudgetAdherenceReportPage report={report} meta={meta} />;
   if (report.id === 'planungstreue')
     return <PlanningAccuracyReportPage report={report} meta={meta} />;

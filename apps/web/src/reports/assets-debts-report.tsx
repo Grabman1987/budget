@@ -2,7 +2,7 @@ import { ReportPeriodControl } from './period-quick-select';
 import { useAmountPrivacy } from '@budget/ui';
 import { MINUS } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { userText } from '../api/error-text';
@@ -56,7 +56,15 @@ function useSelectedMonth(
  * months that rest on an estimated price carry the usual valuation hint. A selected month shows
  * the accounts behind it.
  */
-export function AssetsDebtsReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function AssetsDebtsReport({
+  report,
+  meta,
+  viewControl,
+}: {
+  report: ReportEntry;
+  meta: PageMeta;
+  viewControl?: ReactNode;
+}) {
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum('Alles');
   const query = useQuery(assetsDebtsHistoryQuery(period));
@@ -85,6 +93,7 @@ export function AssetsDebtsReport({ report, meta }: { report: ReportEntry; meta:
             : 'wird geladen'
       }
       extraFields={[
+        ...(viewControl ? [{ label: 'Ansicht', value: viewControl }] : []),
         {
           label: 'Zeitraum',
           value: (
