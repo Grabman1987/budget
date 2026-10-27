@@ -3,6 +3,7 @@ import {
   allocationInputsAsOf,
   allocationSecuritiesAsOf,
   type AllocationSecurity,
+  type AllocationExposureEvidence,
 } from './allocation-inputs';
 import type { AllocationQuality } from '@budget/domain';
 import { resolvedBandBp } from '@budget/domain';
@@ -18,6 +19,7 @@ export interface PortfolioAllocationView {
   valuationQuality: AllocationQuality['valuationQuality'];
   quality: AllocationQuality;
   universe: { accountIds: string[]; securityIds: string[] };
+  exposureEvidence?: AllocationExposureEvidence[];
   valueCents: number | null;
   status: 'known' | 'empty' | 'unavailable' | 'nonpositive';
   missing: ('missing_price' | 'missing_fx')[];
@@ -68,6 +70,7 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
     valuationQuality: current.quality.valuationQuality,
     quality: current.quality,
     universe: current.universe,
+    exposureEvidence: current.exposureEvidence,
     valueCents: current.valueCents,
     status,
     missing,

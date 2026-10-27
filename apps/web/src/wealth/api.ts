@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query';
-import type { NetWorthBucket, NetWorthWindow, Period } from '@budget/domain';
+import type { AssetCompositionPoint, NetWorthBucket, NetWorthWindow, Period } from '@budget/domain';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { WithValuationNotes } from '../ledger/valuation-hint';
@@ -29,6 +29,9 @@ export interface NetWorthView extends WithValuationNotes {
   chain: NetWorthWindow;
   daily: { date: string; netWorthCents: number }[];
   bars: { unit: 'week' | 'month'; buckets: NetWorthBucket[] };
+  /** Additive fields; older cached views keep the existing account composition. */
+  assetComposition?: AssetCompositionPoint;
+  assetCompositionHistory?: AssetCompositionPoint[];
   composition: { assets: CompositionRow[]; debts: CompositionRow[] };
 }
 
