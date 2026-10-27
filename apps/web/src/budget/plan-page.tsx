@@ -72,6 +72,7 @@ import {
   groupStatus,
   isCard,
   isCashOver,
+  monthStatus,
   planGroups,
   planMulti,
   planRows,
@@ -1122,7 +1123,23 @@ function PlanBody({
             () => `„${category.name}“ ${category.hiddenAt ? 'eingeblendet' : 'ausgeblendet'}.`,
           )
         }
-        overview={<MonthStatement data={data} />}
+        overview={
+          <>
+            <ul className="insp-status" aria-label="Zustand des Monats">
+              {monthStatus(data.summary, rows).map((l) => (
+                <li key={l.text} className={`is-${l.tone}`}>
+                  {l.tone === 'good' ? (
+                    <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
+                  ) : (
+                    <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
+                  )}
+                  {l.text}
+                </li>
+              ))}
+            </ul>
+            <MonthStatement data={data} />
+          </>
+        }
         next={
           <NextMonthCoverage
             month={shiftMonth(month, 1)}

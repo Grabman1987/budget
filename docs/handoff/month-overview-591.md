@@ -222,3 +222,48 @@ assertion remain unchanged. No production source, timeout, retry or skip change.
 This private correction is source-grounded but not yet runtime-proven; independent
 HIGH exact-delta review and focused old481 proof precede any public update. Wait
 for all original full-CI shards and collect every failure class before pushing.
+
+## Old browser defaults/persistence and restored status
+
+Tiny exact4d57 proof40522552815 is actual first-attempt6/6 for the complete old481
+file; format/lint/fulltype all0, formatter/source patches empty. No public push.
+
+Immutable original PR794 full40521019392 browser shards4/6/2/7/9 exposed these
+additional classes. Source inspection corrected the initial hypothesis: the old
+`Zustand des Monats` list was removed, NOT merely hidden in a closed section.
+Restore the exact old MonthOverview status list from live-base a820 plan-page:
+`monthStatus(data.summary, rows)` with the SAME rows expression passed by the
+old call, same aria-label, tone class, CircleCheck/TriangleAlert, text and keys.
+It now precedes the exact MonthStatement in default-open Monatsaufstellung.
+This preserves an existing read-only warning contract without a new calculation,
+financial writer, extra section/default or alternative money chain. All old
+status text/guard oracles remain unchanged.
+
+Per-file browser adaptation reasons:
+- plan-inspector.spec.ts: exactly2 AND named Monatsaufstellung/50/30/20 defaults
+  at entry and after selection clears. Since split starts open, test visible,
+  native Enter close/hidden and Enter reopen/visible instead of the reverse;
+  retain both keyboard directions. Replace removed inspector-fold-title selector
+  with the actual whole-frame collapse/expand named buttons, retaining hidden/
+  visible list, responsive geometry, financial writes, targets, API payloads,
+  category actions, Undo/Redo, selection, Escape/focus, Axe/touch and screenshots.
+- plan-views.spec.ts: conditionally open the named split disclosure and assert
+  open instead of blindly closing the owner-required open default. Original
+  lost-status text and overflow/share/triage/time assertions are unchanged.
+- plan.spec.ts: same split-state adaptation in the guarded-assignment case,
+  preserving negative-state warning/limit/API and percentage assertions. For
+  empty/zero/reached targets, the captured shard4 trace proves income DETAILS
+  persisted open after reload, then the old unconditional click removed open;
+  hidden card screenshot waited until the30s budget and teardown detached it.
+  Ensure the existing disclosure is open and card visible at all3 checkpoints;
+  all original empty/zero/reached cents, API, Axe and screenshots remain intact.
+- heute-hints-1009.spec.ts: conditionally ensure split is open and assert its state;
+  the complete10EUR actual-income denominator, restricted basis, expected-income
+  exclusion, comparison URL, chart,44px and no-overflow checks remain unchanged.
+- issue-471-icons.spec.ts: same state-aware open step, retaining every rendered
+  icon size/stroke, visible literal B/W/Z swatch, legend and no-overflow oracle.
+
+No timeout/retry/skip, fixture money, protected assertion, screenshot comparison
+baseline or scope expansion. Exact private production/test delta requires HIGH
+review and scoped first-attempt proof before publication; original immutable full
+CI failure collection is still in progress. No local heavy tools were run.

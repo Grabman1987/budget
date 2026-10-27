@@ -84,14 +84,19 @@ test('inspector discloses month figures and reuses category writes, quick values
   await page.goto(`/plan/monat?monat=${month}`);
   const inspector = page.getByRole('complementary', { name: 'Plan-Inspektor' });
   await expect(inspector.locator('.inspector-section')).toHaveCount(5);
-  await expect(inspector.locator('.inspector-section[open]')).toHaveCount(1);
+  await expect(inspector.locator('.inspector-section[open]')).toHaveCount(2);
+  await expect(inspector.locator('.inspector-section[open] > summary')).toHaveText([
+    'Monatsaufstellung',
+    '50/30/20',
+  ]);
   await expect(page.getByText('Monatsdetails', { exact: true })).toHaveCount(0);
   const split = inspector.locator('summary').filter({ hasText: '50/30/20' });
+  await expect(inspector.locator('.sb-note').first()).toBeVisible();
   await split.focus();
   await page.keyboard.press('Enter');
-  await expect(inspector.locator('.sb-note').first()).toBeVisible();
-  await page.keyboard.press('Enter');
   await expect(inspector.locator('.sb-note').first()).not.toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(inspector.locator('.sb-note').first()).toBeVisible();
   const category = page.getByRole('button', { name: 'Musterziel', exact: true });
   await category.click();
   await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-10$/);
@@ -214,7 +219,11 @@ test('inspector discloses month figures and reuses category writes, quick values
   const optionen = page.locator('.plan-menu summary', { hasText: 'Optionen' });
   await optionen.click();
   await optionen.click();
-  await expect(inspector.locator('.inspector-section[open]')).toHaveCount(1);
+  await expect(inspector.locator('.inspector-section[open]')).toHaveCount(2);
+  await expect(inspector.locator('.inspector-section[open] > summary')).toHaveText([
+    'Monatsaufstellung',
+    '50/30/20',
+  ]);
   if (info.project.name === 'desktop') {
     const main = await page.locator('.plan-main').boundingBox();
     const side = await inspector.boundingBox();
@@ -225,11 +234,13 @@ test('inspector discloses month figures and reuses category writes, quick values
   const main = await page.locator('.plan-main').boundingBox();
   const side = await inspector.boundingBox();
   expect(side!.y).toBeGreaterThanOrEqual(main!.y + main!.height);
-  await inspector.locator('.inspector-fold-title').click();
+  await inspector.getByRole('button', { name: 'Monatsüberblick einklappen', exact: true }).click();
   await expect(inspector.locator('.insp-list').first()).not.toBeVisible();
   if (info.project.name === 'desktop') await page.setViewportSize({ width: 1440, height: 900 });
-  await expect(inspector.locator('.inspector-fold-title')).toBeVisible();
-  await inspector.locator('.inspector-fold-title').click();
+  await expect(
+    inspector.getByRole('button', { name: 'Monatsüberblick ausklappen', exact: true }),
+  ).toBeVisible();
+  await inspector.getByRole('button', { name: 'Monatsüberblick ausklappen', exact: true }).click();
   await expect(inspector.locator('.insp-list').first()).toBeVisible();
   await inspector.screenshot({ path: info.outputPath('inspector-month.png') });
 });
