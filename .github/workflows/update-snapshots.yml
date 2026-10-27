@@ -1,75 +1,83 @@
-name: Update e2e snapshots
-
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+name: Instrument desktop compact proof
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch whose baselines to update (never main)
+        description: Disposable exact-325 desktop proof
         required: true
       specs:
-        description: Space-separated spec paths (e.g. e2e/shell.spec.ts); empty = every spec that compares screenshots
+        description: Reserved; unchanged single case pinned below
         required: false
         default: ''
-
 permissions:
-  contents: write
-
+  contents: read
 concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
-
+  group: instrument-desktop-${{ inputs.branch }}
+  cancel-in-progress: false
 jobs:
-  update:
-    if: inputs.branch != 'main'
+  focused:
+    if: inputs.branch == 'codex/instrument-desktop-proof-32519bc3'
     runs-on: ubuntu-24.04
-    # Match the CI browser image instead of reinstalling its OS/browser dependencies.
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     defaults:
       run:
         shell: bash
-    # A type-scale change regenerates nearly every baseline; give it room.
-    timeout-minutes: 75
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.branch }}
-      - name: Allow Git reads and baseline commits in the container workspace
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+          fetch-depth: 0
+          persist-credentials: false
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        env:
-          SPECS: ${{ inputs.specs }}
+      - name: Exact desktop-only delta and complete Instrument case
         run: |
-          npm run build:e2e
-          read -r -a specs <<< "$SPECS"
-          if [ "${#specs[@]}" -eq 0 ]; then
-            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
+          set +e
+          set -o pipefail
+          mkdir -p proof-output
+          source_sha=32519bc39160e5539aa31a6f925956458559978b
+          test "$(git rev-parse HEAD^)" = "$source_sha" || exit 70
+          git diff --exit-code "$source_sha" HEAD -- apps packages e2e docs/handoff || exit 71
+          git diff --exit-code adb53958c22da91c8f2f2e4e2a91e3b6de0ed0e6 "$source_sha" -- '*.ts' '*.tsx' || exit 72
+          printf 'SOURCE=%s PROOF=%s\nREUSED_LINT_TYPE=exact-adb40488458206, byte-identical TS/TSX\n' "$source_sha" "$(git rev-parse HEAD)" | tee proof-output/source.txt
+          mapfile -t targets < <(git diff --name-only adb53958c22da91c8f2f2e4e2a91e3b6de0ed0e6 "$source_sha" -- apps docs/handoff)
+          printf '%s\n' "${targets[@]}" > proof-output/allowlist.txt
+          npx prettier --check "${targets[@]}" 2>&1 | tee proof-output/format.log
+          format_code=${PIPESTATUS[0]}
+          if [ "$format_code" -ne 0 ]; then
+            npx prettier --write "${targets[@]}" 2>&1 | tee proof-output/format-write.log
+            git diff --binary -- "${targets[@]}" > proof-output/format.patch
+            git diff --numstat -- "${targets[@]}" > proof-output/format-numstat.txt
+            sha256sum proof-output/format.patch | tee proof-output/format.sha256
+            git restore -- "${targets[@]}"
           fi
-          npx playwright test --update-snapshots=changed "${specs[@]}" || true
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+          npm run build:e2e 2>&1 | tee proof-output/build.log
+          build_code=${PIPESTATUS[0]}
+          browser_code=1
+          if [ "$build_code" -eq 0 ]; then
+            date -u '+desktop-instrument-start %FT%TZ' | tee proof-output/timing.log
+            npx playwright test e2e/issue-547-548-portfolio-details.spec.ts --grep '547 instrument shares literal value/basis' --project=desktop --workers=1 --retries=0 --trace=on --update-snapshots=none 2>&1 | tee proof-output/instrument.log
+            browser_code=${PIPESTATUS[0]}
+            date -u '+desktop-instrument-end %FT%TZ' | tee -a proof-output/timing.log
+          fi
+          git diff --stat | tee proof-output/final-diff.txt
+          printf 'RESULT format=%s build=%s desktop-instrument=%s\n' "$format_code" "$build_code" "$browser_code" | tee proof-output/result.txt
+          [ "$format_code" -eq 0 ] && [ "$build_code" -eq 0 ] && [ "$browser_code" -eq 0 ]
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
-          name: scoped-browser-screenshots
-          path: test-results/**/*.png
-          if-no-files-found: ignore
+          name: instrument-desktop-32519bc3
+          path: |
+            proof-output/
+            test-results/**/*.png
+            test-results/**/trace.zip
+            test-results/**/error-context.md
+            test-results/**/attachments/**
+          if-no-files-found: warn
           retention-days: 7
-      - name: Commit the new baselines
-        env:
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
