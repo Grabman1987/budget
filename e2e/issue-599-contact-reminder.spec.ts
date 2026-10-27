@@ -100,6 +100,7 @@ test('599 Heute shows one overdue contact row and follows settlement and Undo', 
   ).toEqual([0, 7000]);
   expect((await read('/heute')).attention.contactReminders.items).toEqual([]);
   await page.goto('/');
+  await expect(page.getByTestId('heute-lead-value')).toBeVisible();
   await expect(
     page.getByText('Synthetischer Kontakt: 30,00 € seit 01.09.2026 offen'),
   ).toHaveCount(0);
