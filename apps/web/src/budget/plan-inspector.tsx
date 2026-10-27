@@ -110,7 +110,17 @@ export function PlanInspector({
         </FoldTitle>
         <div className="inspector-selection">
           <div className="inspector-head">
-            <h2 ref={heading} tabIndex={-1} title={row ? [row.cls && CLASS_TEXT[row.cls], pace?.meta && `Tempo: ${pace.meta}`].filter(Boolean).join(' · ') || undefined : undefined}>
+            <h2
+              ref={heading}
+              tabIndex={-1}
+              title={
+                row
+                  ? [row.cls && CLASS_TEXT[row.cls], pace?.meta && `Tempo: ${pace.meta}`]
+                      .filter(Boolean)
+                      .join(' · ') || undefined
+                  : undefined
+              }
+            >
               {row?.name ?? `${selected.length} Kategorien ausgewählt`}
             </h2>
             <Button

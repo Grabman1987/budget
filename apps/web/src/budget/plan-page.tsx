@@ -578,13 +578,15 @@ function PlanBody({
     targetPreviewBusy.current = true;
     setApplyingTargets(true);
     setTargetPreviewError(false);
-    void take(Object.keys(sug)).then((done) => {
-      if (done) closeTargetPreview();
-      else setTargetPreviewError(true);
-    }).finally(() => {
-      targetPreviewBusy.current = false;
-      setApplyingTargets(false);
-    });
+    void take(Object.keys(sug))
+      .then((done) => {
+        if (done) closeTargetPreview();
+        else setTargetPreviewError(true);
+      })
+      .finally(() => {
+        targetPreviewBusy.current = false;
+        setApplyingTargets(false);
+      });
   };
   const coverPool = rows
     .filter((r) => !isCard(r) && freeCoverCents(r) > 0)
@@ -851,7 +853,9 @@ function PlanBody({
               distributeBlock={distributeBlock}
               onDistribute={startDistribute}
               onFillTargets={() => {
-                targetPreviewReturn.current = document.querySelector<HTMLElement>('.plan-menu-verteilen > summary');
+                targetPreviewReturn.current = document.querySelector<HTMLElement>(
+                  '.plan-menu-verteilen > summary',
+                );
                 setTargetPreviewError(false);
                 setTargetPreview(true);
               }}
@@ -1244,19 +1248,47 @@ function PlanBody({
           />
         }
       />
-      <SettingsFormDialog open={targetPreview} onClose={closeTargetPreview} beforeClose={() => !targetPreviewBusy.current} title="Alle Ziele füllen">
-        {targetPreview && <div className="kform">
-          <p>{monthLabel(month)} · Vorschau für alle offenen Ziele, unabhängig von Auswahl und Filter. Die aktuelle Ansicht bleibt erhalten.</p>
-          <dl className="kv-list">
-            {rows.filter((row) => (sug[row.id] ?? 0) > 0).map((row) => <div key={row.id}><dt>{row.name}</dt><dd>{eur(sug[row.id]!)}</dd></div>)}
-          </dl>
-          {targetPreviewTotal === 0 && <p>Keine offenen Ziele mit verfügbarem Geld.</p>}
-          {targetPreviewError && <p role="alert">Verteilung nicht übernommen. Bitte den aktuellen Stand prüfen und erneut versuchen.</p>}
-          <div className="panel-actions">
-            <Button disabled={applyingTargets || targetPreviewTotal <= 0} onClick={applyTargetPreview}>{eur(targetPreviewTotal)} zuweisen</Button>
-            <Button variant="ghost" disabled={applyingTargets} onClick={closeTargetPreview}>Abbrechen</Button>
+      <SettingsFormDialog
+        open={targetPreview}
+        onClose={closeTargetPreview}
+        beforeClose={() => !targetPreviewBusy.current}
+        title="Alle Ziele füllen"
+      >
+        {targetPreview && (
+          <div className="kform">
+            <p>
+              {monthLabel(month)} · Vorschau für alle offenen Ziele, unabhängig von Auswahl und
+              Filter. Die aktuelle Ansicht bleibt erhalten.
+            </p>
+            <dl className="kv-list">
+              {rows
+                .filter((row) => (sug[row.id] ?? 0) > 0)
+                .map((row) => (
+                  <div key={row.id}>
+                    <dt>{row.name}</dt>
+                    <dd>{eur(sug[row.id]!)}</dd>
+                  </div>
+                ))}
+            </dl>
+            {targetPreviewTotal === 0 && <p>Keine offenen Ziele mit verfügbarem Geld.</p>}
+            {targetPreviewError && (
+              <p role="alert">
+                Verteilung nicht übernommen. Bitte den aktuellen Stand prüfen und erneut versuchen.
+              </p>
+            )}
+            <div className="panel-actions">
+              <Button
+                disabled={applyingTargets || targetPreviewTotal <= 0}
+                onClick={applyTargetPreview}
+              >
+                {eur(targetPreviewTotal)} zuweisen
+              </Button>
+              <Button variant="ghost" disabled={applyingTargets} onClick={closeTargetPreview}>
+                Abbrechen
+              </Button>
+            </div>
           </div>
-        </div>}
+        )}
       </SettingsFormDialog>
       {categoryForm && categoryTree.isPending && <LoadingNote what="Kategorien" />}
       {categoryForm && categoryTree.isError && (
