@@ -377,6 +377,10 @@
     font-size: var(--fs-label);
     line-height: 1.15;
   }
+  /* Keep the 12 px class symbol inside the compact print row's line box. */
+  .ov-table.ov-sheet-table tbody th .sw {
+    vertical-align: middle;
+  }
   .ov-sheet-note,
   .ov-sheet-kpi span {
     font-size: var(--fs-label);
