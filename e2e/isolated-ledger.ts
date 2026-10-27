@@ -33,7 +33,7 @@ export const test = base.extend<{ isolatedLedger: IsolatedLedger; ledgerToday: s
     const storageState = join(directory, 'session.json');
     const server = spawn(process.execPath, ['apps/server/dist/index.js'], {
       cwd: process.cwd(),
-      stdio: 'ignore',
+      stdio: 'inherit',
       env: {
         PATH: process.env['PATH'],
         NODE_ENV: 'test',

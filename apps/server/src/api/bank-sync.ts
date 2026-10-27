@@ -299,7 +299,13 @@ export function bankSyncRoutes(
   });
   app.post('/candidates/:id/confirm', async (c) => {
     const { categoryId, ...options } = await readBody(c, bankConfirmSchema);
-    return c.json(service!.confirm(id.parse(c.req.param('id')), categoryId, options));
+    try {
+      return c.json(service!.confirm(id.parse(c.req.param('id')), categoryId, options));
+    } catch (error) {
+      if (process.env['NODE_ENV'] === 'test')
+        console.error('SYNTHETIC_562_CONFIRM_ERROR', error);
+      throw error;
+    }
   });
   app.onError((error, c) => {
     if (error instanceof BankError)
