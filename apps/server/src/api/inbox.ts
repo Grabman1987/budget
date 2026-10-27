@@ -49,10 +49,11 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
       segment,
       taskSource,
     } = readQuery(c, page);
-    const inbox = readInbox(db, today(), bankSource, readSource, {
+    const { bankProgress, ...inbox } = readInbox(db, today(), bankSource, readSource, {
       excludeOverspent: segment !== undefined,
       ...(bankAccountId ? { bankAccountId } : {}),
     });
+    const progressFields = segment !== undefined || bankSource ? { bankProgress } : {};
     // Unlinked receipts count as tasks but are not entries; the header pill is the sum of both parts.
     const segments = { umsaetze: 0, aufgaben: inbox.count - inbox.entries.length };
     for (const entry of inbox.entries) segments[inboxSegment(entry)] += 1;
@@ -117,6 +118,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
     if (limit === undefined)
       return c.json({
         ...inbox,
+        ...progressFields,
         entries: prepareInboxBankSuggestions(db, filtered),
         overspentSummary,
         ...segmentFields,
@@ -133,6 +135,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
     }
     return c.json({
       ...inbox,
+      ...progressFields,
       entries,
       overspentSummary,
       ...segmentFields,

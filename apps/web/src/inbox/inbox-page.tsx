@@ -1219,6 +1219,7 @@ function BankInboxRow({
   }, [item.type, item.id, onPrepared, prepared]);
   const data =
     item.type === 'booking' ? item : item.type === 'stored' ? item.bankCandidate : undefined;
+  const suggestion = item.type === 'stored' ? item.bankCandidate?.suggestion : undefined;
   return (
     <tr className="rev-row bank-inbox-row" data-testid="inbox-row">
       <td className="rev-mark">
@@ -1252,7 +1253,7 @@ function BankInboxRow({
               ? maskMoneyText(item.detail ?? '')
               : ''}
         </span>
-        {item.type === 'stored' && data?.suggestion && <span>{data.suggestion.label}</span>}
+        {suggestion && <span>{suggestion.label}</span>}
       </td>
       <td className="rev-act kact">
         <div className="inbox-row-actions">

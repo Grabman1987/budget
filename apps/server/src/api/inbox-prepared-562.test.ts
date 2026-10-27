@@ -85,11 +85,17 @@ it('prepares only the source-filtered, dated response page while retaining full 
   const statementCount = statements.mock.calls.length;
   statements.mockRestore();
   expect(response.status).toBe(200);
-  const body = await response.json();
+  const body = (await response.json()) as {
+    bankProgress: { reviewed: number; total: number };
+    totalEntries: number;
+    entries: Array<{
+      bankCandidate: { suggestion: { label: string; needsReview: boolean } };
+    }>;
+  };
   expect(body.bankProgress).toEqual({ reviewed: 0, total: 80 });
   expect(body.totalEntries).toBe(1);
   expect(body.entries).toHaveLength(1);
-  expect(body.entries[0].bankCandidate.suggestion).toEqual({
+  expect(body.entries[0]!.bankCandidate.suggestion).toEqual({
     label: 'Kategorie prüfen · Zu verteilen',
     needsReview: true,
   });

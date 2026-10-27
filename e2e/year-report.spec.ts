@@ -111,7 +111,8 @@ test('Jahresreport prints as exactly two A4 pages without clipping', async ({
               return {
                 id,
                 table: table && bounds(table),
-                heights: table &&
+                heights:
+                  table &&
                   Array.from(table.querySelectorAll('tbody tr'), (row) =>
                     Math.round(row.getBoundingClientRect().height),
                   ),
