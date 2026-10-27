@@ -40,6 +40,15 @@ export function SpendingAnalysisReport({ report, meta }: { report: ReportEntry; 
   const sections = useCollapsibleSections(report.id, DEFAULT_COLLAPSED);
   return (
     <PageFrame
+      verdict={
+        data && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${data.from}..${data.to}`,
+              metric: { label: 'Konsum', value: data.consumptionCents, unit: 'money' },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

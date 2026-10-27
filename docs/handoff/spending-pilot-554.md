@@ -33,3 +33,22 @@ Desktop error DOM shows the actual shared button still named “Beträge verberg
 Only new `issue-554-spending-pilot.spec.ts` adapts this flow: on phones open/close the actual profile summary, use the existing constant accessible button name, and assert aria-pressed before/after each real unforced toggle. The exact hidden-money assertions remain, and exact22.45/28.00 figures are explicitly rechecked after unmasking before the existing drill/Explorer sequence. No catch, forced action, timeout/retry/skip or softened financial oracle is introduced. This technical delta requires independent HIGH review and a narrow three-profile proof reaching the full remaining sequence; the unchanged106 unit passes and old compatibility cases need not be repeated.
 
 The entire retained formatter artifact `12741687002` patch (40920 bytes,10 paths within the reviewed20-path package) was hash/allowlist/apply-check verified on clean a944 and applied mechanically as `2c389d27`. SHA256 `7573E140F0FBFE667760690F71F1CBA25ADC23E22AD01DAA14DE47F0805295B6`. Every token diff was inspected: layout/spacing, trailing commas, equivalent parentheses and SQL-string quote escaping only, preserving all literals/actions/oracles. No local formatter was run. Independent mechanical-delta review remains required; the workflow's initial Prettier check was red, so it is not a complete static-green claim.
+
+
+## PR795 first full-CI verdict regression repair (private)
+
+Exact58d PR795 full CI40532138750 exposed the unchanged verdicts.spec.ts
+Fazit: Ausgaben/Plan regression: #554's PageFrame rewrite dropped its prior
+verdict prop. Restore the EXACT canonical prop from checked-main1ad's
+spending-analysis-report.tsx: data && !query.isError, reportId=report.id,
+period=`${data.from}..${data.to}`, metric label Konsum/value
+ data.consumptionCents/unit money, else undefined. Current data gating and
+canonical report-period source are unchanged. No new formula, inferred metric,
+verdict text, writer or financial semantics. All old verdict assertions remain
+untouched and serve as the existing regression check; runtime is not yet proven.
+
+The observed old category-trend/report-polish heatmap failures are a separate
+capability review. No heatmap/source/test/baseline/timeouts are changed in this
+repair, pending coordinator/HIGH recommendation and complete old CI failure
+collection. No local Node/build/test/browser/lint/formatter, remote VM, public
+push or full retry. Independent HIGH exact-delta review precedes focused proof.
