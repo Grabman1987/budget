@@ -246,9 +246,11 @@ function AccountBody({ account, bankReview }: { account: AccountRow; bankReview?
         <div className="fig kacct-month">
           <small>{monthName(today)}</small>
           <strong className="muted">
-            {movement.data
-              ? valuedMovement(movement.data.sumCents, account.currency, movement.data.sumEurCents)
-              : '–'}
+            {movement.data?.nativeTotalsPending
+              ? 'Bewegung wird aktualisiert …'
+              : movement.data
+                ? valuedMovement(movement.data.sumCents, account.currency, movement.data.sumEurCents)
+                : '–'}
           </strong>
           {account.currency !== 'EUR' && (
             <p className="kmeta">Bewegung · EUR je Buchungstag, Kurse in der Tabelle</p>

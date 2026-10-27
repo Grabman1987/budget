@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { useLedgerWrites } from './mutations';
+import { bookingsQuery } from './queries';
 import type { BookingPage, ListedBooking } from './types';
 
 vi.mock('@budget/ui', async (original) => ({
@@ -74,4 +75,52 @@ it.each([false,true])('keeps complete-filter count/native/EUR facts pending for 
     unsubscribe.forEach((off)=>off());
     unmount();client.clear();
   }
+});
+
+it.each([false,true])('retains actual plain limit1 monthly query facts pending and failed-write snapshots exactly (fail=%s)', async (fail) => {
+  const client = new QueryClient({defaultOptions:{queries:{retry:false}}});
+  const keys = ['partner-account','foreign-account'].map((accountId) => bookingsQuery({accountId,from:'2026-10-01',to:'2026-10-31'},undefined,1).queryKey);
+  const before: BookingPage[] = [
+    {items:[listed('unrelated-visible',444)],total:4,sumCents:1678,sumEurCents:1678,nextCursor:'partner-off-page',nativeTotals:[{currency:'EUR',count:4,cents:1678}]},
+    {items:[listed('foreign-visible',-101,'USD')],total:4,sumCents:190,sumEurCents:167,nextCursor:'foreign-off-page',nativeTotals:[{currency:'USD',count:4,cents:190}]},
+  ];
+  const canonical: BookingPage[] = fail ? before : [
+    {...before[0]!,total:3,sumCents:444,sumEurCents:444,nativeTotals:[{currency:'EUR',count:3,cents:444}]},before[1]!,
+  ];
+  let releaseRead!: () => void;
+  const blocked = new Promise<void>((resolve)=>{releaseRead=resolve;});
+  let reads=0;
+  const unsubscribe=keys.map((key,index)=>{
+    client.setQueryData(key,before[index]);
+    return new QueryObserver(client,{queryKey:key,staleTime:Infinity,queryFn:async()=>{reads+=1;await blocked;return canonical[index]!;}}).subscribe(()=>undefined);
+  });
+  let finishWrite!: (response:Response)=>void;
+  const fetch=vi.fn(()=>new Promise<Response>((resolve)=>{finishWrite=resolve;}));
+  vi.stubGlobal('fetch',fetch);
+  const {result,unmount}=renderHook(useLedgerWrites,{wrapper:({children})=><QueryClientProvider client={client}>{children}</QueryClientProvider>});
+  let writing!:Promise<unknown>;
+  try {
+    act(()=>{writing=result.current.bulk.mutateAsync({ids:['selected'],remove:true,previewRevision:'a'.repeat(64)}).catch((error:unknown)=>error);});
+    await waitFor(()=>expect(fetch).toHaveBeenCalledOnce());
+    expect(keys.map((key)=>client.getQueryData(key))).toEqual(before);
+    await act(async()=>{
+      finishWrite(new Response(JSON.stringify(fail?{error:'invalid',message:'Synthetic rejection'}:{changed:['selected','unselected-partner'],skipped:[],transferPairs:1,groupId:'synthetic-month-delete'}),{status:fail?422:200}));
+      await writing;
+    });
+    await waitFor(()=>expect(reads).toBe(2));
+    if (fail) expect(keys.map((key)=>client.getQueryData(key))).toEqual(before);
+    else {
+      const pending=keys.map((key)=>client.getQueryData<BookingPage>(key)!);
+      expect(pending.map((page)=>page.nativeTotalsPending)).toEqual([true,true]);
+      expect(pending.map((page)=>page.total)).toEqual([4,4]);
+      expect(pending.map((page)=>page.sumCents)).toEqual([1678,190]);
+      expect(pending.map((page)=>page.sumEurCents)).toEqual([1678,167]);
+      expect(pending.map((page)=>page.nativeTotals)).toEqual(before.map((page)=>page.nativeTotals));
+      expect(pending.map((page)=>page.items)).toEqual(before.map((page)=>page.items));
+    }
+    await act(async()=>{releaseRead();});
+    await waitFor(()=>expect(keys.map((key)=>client.getQueryState(key)?.fetchStatus)).toEqual(['idle','idle']));
+    expect(keys.map((key)=>client.getQueryData(key))).toEqual(canonical);
+    expect(keys.map((key)=>client.getQueryData<BookingPage>(key)?.nativeTotalsPending)).toEqual([undefined,undefined]);
+  } finally {releaseRead();unsubscribe.forEach((off)=>off());unmount();client.clear();}
 });

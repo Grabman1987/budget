@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
+import { openDatabase, schema } from '@budget/db';
 import { test } from './isolated-ledger';
 
 test('597 immediate delete, protected explanation, paired bulk preview and exact grouped Undo', async ({
@@ -270,4 +271,88 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
     .toEqual([a.id, b.id, locked.id, linked.id].sort());
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect.poll(readRows).toEqual(before);
+});
+
+test('597 cached account month hides retained native and dated EUR movements until canonical refetch', async ({page,isolatedLedger},info) => {
+  const origin=isolatedLedger.origin;
+  const post=async(path:string,data:unknown)=>{
+    const response=await page.request.post(`${origin}/api${path}`,{headers:{origin},data});
+    expect(response.ok(),await response.text()).toBe(true);
+    return response.json();
+  };
+  const source=(await post('/accounts',{name:'Synthetic month source',type:'checking',openingDate:'2026-09-01'})).account;
+  const partner=(await post('/accounts',{name:'Synthetic month partner',type:'savings',openingDate:'2026-09-01'})).account;
+  const foreign=(await post('/accounts',{name:'Synthetic month USD',type:'savings',currency:'USD',onBudget:false,openingDate:'2026-09-30'})).account;
+  const opened=openDatabase(isolatedLedger.databasePath);
+  try {
+    opened.db.insert(schema.fxRate).values([{currency:'USD',date:'2026-09-25',rateMicro:500000,source:'ecb'},{currency:'USD',date:'2026-10-02',rateMicro:750000,source:'ecb'}]).run();
+  } finally {opened.close();}
+  const pair=await post('/bookings',{type:'transfer',fromAccountId:source.id,toAccountId:partner.id,date:'2026-10-01',amountCents:1234});
+  const unrelated=await post('/bookings',{type:'booking',accountId:partner.id,date:'2026-10-02',amountCents:444,memo:'Synthetic visible month row'});
+  for (const [date,amountCents] of [['2026-10-01',-101],['2026-10-02',201],['2026-10-02',-10],['2026-10-02',100]] as const)
+    await post('/bookings',{type:'booking',accountId:foreign.id,date,amountCents,memo:'Synthetic dated month movement'});
+  const partnerFacts=await page.request.get(`${origin}/api/bookings?accountId=${partner.id}&from=2026-10-01&to=2026-10-31&limit=1`);
+  expect(partnerFacts.ok()).toBe(true);
+  const partnerPage=await partnerFacts.json();
+  expect(partnerPage.items.map((row:{id:string})=>row.id)).toEqual([unrelated.id]);
+  expect(partnerPage.total).toBe(2);
+  expect(partnerPage.sumCents).toBe(1678);
+  expect(partnerPage.sumEurCents).toBe(1678);
+  const openAccount=async(id:string)=>{
+    await page.getByRole('navigation',{name:'Register von Konten'}).getByRole('link',{name:'Übersicht',exact:true}).click();
+    await page.locator(`main a[href="/konten/${id}"]`).first().click();
+  };
+  const month=page.locator('.kacct-month strong');
+  await page.goto(`/konten/${partner.id}`);
+  await expect(month).toContainText('+16,78 €');
+  await openAccount(foreign.id);
+  await expect(month).toContainText('USD 1,90');
+  await expect(month).toContainText('+1,67 €');
+  await page.getByRole('navigation',{name:'Register von Konten'}).getByRole('link',{name:'Buchungen',exact:true}).click();
+  if (info.project.name !== 'desktop') await page.getByRole('button',{name:'Auswählen',exact:true}).click();
+  const selected=page.locator(`tr[data-booking="${pair.fromBookingId}"]`);
+  if (info.project.name === 'desktop') await selected.getByRole('checkbox').check();
+  else await selected.locator('.kname-btn').click();
+  const bar=page.getByRole('group',{name:'Auswahl bearbeiten',exact:true});
+  await expect(bar.getByRole('combobox',{name:'Projekt für die Auswahl setzen'})).toBeEnabled();
+  await bar.getByLabel('Weitere Aktionen',{exact:true}).click();
+  await bar.getByRole('button',{name:'Löschen',exact:true}).click();
+  const preview=page.getByRole('dialog',{name:'Löschen bestätigen',exact:true});
+  await expect(preview).toContainText('1 ausgewählt · 2 werden gelöscht · 0 bleiben erhalten.');
+  const blocked=new Map<string,Promise<void>>(), release=new Map<string,()=>void>(), seen=new Set<string>();
+  for (const id of [partner.id,foreign.id]) blocked.set(id,new Promise<void>((resolve)=>{release.set(id,resolve);}));
+  const monthlyRoute='**/api/bookings**';
+  await page.route(monthlyRoute,async(route)=>{
+    const url=new URL(route.request().url());
+    const id=url.searchParams.get('accountId');
+    if (route.request().method()==='GET' && url.pathname==='/api/bookings' && url.searchParams.get('limit')==='1' && id && blocked.has(id)) {
+      seen.add(id);
+      await blocked.get(id);
+    }
+    await route.continue();
+  });
+  try {
+    const response=page.waitForResponse((row)=>row.url().endsWith('/api/bookings/bulk') && row.request().method()==='POST');
+    await preview.getByRole('button',{name:'Ja, löschen',exact:true}).click();
+    const result=await (await response).json();
+    expect(result.changed.sort()).toEqual([pair.fromBookingId,pair.toBookingId].sort());
+    for (const [id,currency] of [[partner.id,'EUR'],[foreign.id,'USD']] as const) {
+      await openAccount(id);
+      await expect.poll(()=>seen.has(id)).toBe(true);
+      await expect(month).toHaveText('Bewegung wird aktualisiert …');
+      await expect(month).not.toContainText('+16,78 €');
+      await expect(month).not.toContainText('USD 1,90');
+      await expect(month).not.toContainText('+1,67 €');
+      await page.screenshot({path:info.outputPath(`account-month-pending-${currency}-${info.project.name}.png`),fullPage:false,animations:'disabled'});
+      release.get(id)!();
+      if (currency==='EUR') await expect(month).toHaveText('+4,44 €');
+      else {
+        await expect(month).toContainText('USD 1,90');
+        await expect(month).toContainText('+1,67 €');
+      }
+    }
+  } finally {
+    release.forEach((finish)=>finish());
+    await page.unroute(monthlyRoute);
+  }
 });

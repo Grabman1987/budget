@@ -54,3 +54,12 @@ Integration inspection exposed an inherited cache limit relevant to expanded del
 - `issue-597-ledger-delete.spec.ts`: retains the full original financial/Undo/geometry/Axe case and delays only the post-delete canonical browser read to verify real count-and-sum pending presentation before releasing it. No cents/skip/Undo expectation, timeout, retry or snapshot was weakened.
 
 The prior reviewed source's narrow accessibility proof `40501430468` passed 6/6 first attempt with scoped formatter/ESLint/full typecheck/build green and an empty retained formatter patch. The integrated pending-state delta still requires independent HIGH review and one targeted #594/#597/cache/rollback proof before publication.
+
+## Account-month pending consumer correction
+
+The integrated monthly account KPI uses a plain `bookingsQuery` with limit1 under the same cache family. Its preserved full-filter native/dated-EUR sums must not be rendered as current when the pending flag is set. `account-page.tsx` now shows “Bewegung wird aktualisiert …” under that existing flag, while its ordinary `valuedMovement`, missing-FX behavior, balances, account history and future projected Saldo remain unchanged. No calculation or writer is added.
+
+- `bulk-delete-summary-597.test.tsx` additionally covers REAL plain `bookingsQuery` keys (account/from/to/null/limit1), with the changed partner outside the only loaded row. Canonical EUR1678 and foreign USD190/datedEUR167 facts/counts are retained and flagged while reads are held, then authoritative EUR444 replaces the partner movement. The 422 branch preserves exact old plain-query snapshots and no pending flag.
+- A second isolated `issue-597-ledger-delete.spec.ts` case caches actual partner/foreign account-month pages through SPA navigation, then bulk-deletes one selected transfer side. The EUR+1234 partner is demonstrably off the limit1 page (the loaded row is +444). Returning to the cached account under a held canonical GET shows pending text instead of old EUR16.78; releasing it yields EUR4.44. An independently seeded four-row USD190/datedEUR167 month proves both native and dated-EUR values are hidden while its held cache is pending, then reappear exactly after release. Pending account viewport PNGs are retained. The original complete #597 financial/Undo/Axe/keyboard case and every existing test oracle remain untouched.
+
+Independent HIGH review of this account consumer and its new plain-cache/held-GET coverage is required before the next scoped proof. No new runtime or publication pass is claimed for this delta.
