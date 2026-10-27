@@ -189,7 +189,7 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
     await page.screenshot({ path: info.outputPath(`dialog-${theme}.png`) });
   }
   const categoryBox = (await category.boundingBox())!;
-  const shareBox = (await dialog.getByRole('button', { name: 'Teilen ▾' }).boundingBox())!;
+  const shareBox = (await dialog.getByRole('button', { name: 'Teilen' }).boundingBox())!;
   expect(shareBox.x).toBeGreaterThan(categoryBox.x);
   expect(Math.abs(shareBox.y - categoryBox.y)).toBeLessThan(2);
   await dialog.getByRole('button', { name: '+ Weitere Kategorie' }).click();
@@ -303,7 +303,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
 
     const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
     if (scenario === 'percent' || scenario === 'amount' || scenario === 'several') {
-      await dialog.getByRole('button', { name: 'Teilen ▾' }).click();
+      await dialog.getByRole('button', { name: 'Teilen' }).click();
       await expect(save).toBeDisabled();
       await dialog.getByLabel('Kontakt 1.1', { exact: true }).selectOption(contact.id);
       await expect(dialog.getByLabel('Anteil 1.1 (%)')).toHaveValue('50');
@@ -477,7 +477,7 @@ test('cash capture confirms immediately while bank capture stays pending', async
 test('sharing before entering an amount keeps the discard guard', async ({ page }) => {
   await page.goto('/?panel=buchung');
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
-  await dialog.getByRole('button', { name: 'Teilen ▾' }).click();
+  await dialog.getByRole('button', { name: 'Teilen' }).click();
   await dialog.getByLabel('Notiz').press('Escape');
   await expect(dialog.getByRole('alertdialog')).toBeVisible();
   await dialog.getByRole('button', { name: 'Verwerfen', exact: true }).click();

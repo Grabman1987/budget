@@ -58,7 +58,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
     if (scenario === 'outlay') await choose(dialog, 'Kategorie', contact.name, /^Für Kontakt/);
     else await choose(dialog, 'Kategorie', 'Essen', /^Essen/);
     if (scenario === 'percent' || scenario === 'amount') {
-      await dialog.getByRole('button', { name: 'Teilen ▾' }).click();
+      await dialog.getByRole('button', { name: 'Teilen' }).click();
       await dialog.getByLabel('Kontakt 1.1', { exact: true }).selectOption(contact.id);
       if (scenario !== 'percent')
         await dialog

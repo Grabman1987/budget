@@ -476,7 +476,7 @@ for (const profile of ['configured', 'desktop1440'] as const) {
           await field.press('Enter');
           await expect(field).toHaveValue('Muster für Wege');
           await dialog.getByLabel('Betrag', { exact: true }).fill('10,00');
-          await dialog.getByRole('button', { name: 'Teilen ▾', exact: true }).click();
+          await dialog.getByRole('button', { name: 'Teilen', exact: true }).click();
           await dialog.getByLabel('Kontakt 1.1', { exact: true }).selectOption(contact.id);
           await expect(dialog.getByLabel('Anteil 1.1 (%)')).toHaveValue('50');
           const saved = page.waitForResponse(

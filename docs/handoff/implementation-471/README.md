@@ -24,8 +24,13 @@ These are technical presentation updates. They retain their original financial a
 | `e2e/report-tables.spec.ts` | Locate the year row by its accessible header name and the category label by its own span because decorative B/W/Z spans alter DOM text. Keep every financial total, average, share, and comparison oracle. CI run `40422683801` failed these selectors on desktop and mobile. |
 | `e2e/issue-583-capture-two-column.spec.ts` | Expect the now markerless `Mehr` summary text. Keep its accessible name, open/closed state, and field behavior checks. CI run `40422683801` failed the old glyph expectation on mobile. |
 | `e2e/year-report.spec.ts` | Preserve the exact two-page/no-clipping assertion and append bounded sheet-two child and table-row heights to its failure message. The same CI run measured 1104 px scroll height against 1068 px available, twice. This records where the print content grows; it does not claim the print layout is fixed. |
+| `e2e/booking-acceptance.spec.ts` | Match the `Teilen` button's accessible name after its chevron became decorative; retain the focus and booking assertions. |
+| `e2e/capture-dialog-layout.spec.ts` | Match that same button name in its bounds and click checks; retain layout, split, and action assertions. |
+| `e2e/issue-734-category-picker.spec.ts` | Match that same button name before opening split categories; retain the picker and booking assertions. |
 
 No financial oracle, write semantics, timeout or tolerance was changed.
+
+CI shards 3, 6, and 8 of run `40422683801` also reached old `Teilen ▾` browser selectors after the shared split button replaced its text chevron with an aria-hidden SVG. The affected selectors above and in `e2e/issue-583-capture-two-column.spec.ts` now use the actual accessible name. No booking or split expectation changed.
 
 The sheet-two print overflow remains unresolved pending the new DOM measurements. The icon branch changed `.sw` from 10 px inline-block to 12 px inline-flex and added a 12 px B/W/Z sibling. Both printed category and heat tables use this shared component; the heat table has ten rows. That makes extra row height plausible, but the prior CI log contains only the full-sheet height. A print CSS correction needs the row and section bounds before selection. No local browser run was started on the memory-constrained host.
 
