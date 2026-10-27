@@ -76,7 +76,9 @@ it('links each overdue contact to its existing statement and keeps unavailable c
       inboxCount: 0,
       pendingCount: 0,
       contactReminders: {
-        items: [{ contactId: 'k1', contactName: 'Freund', oldestDate: '2026-09-01', overdueCents: 3000 }],
+        items: [
+          { contactId: 'k1', contactName: 'Freund', oldestDate: '2026-09-01', overdueCents: 3000 },
+        ],
         unavailableCount: 1,
       },
     },
