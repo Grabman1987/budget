@@ -133,7 +133,7 @@ export function IncomeExpenseReport({
         reportControls={viewControl}
         className="income-expense-report"
         extraFields={[
-            {
+          {
             label: 'Zeitraum',
             value: (
               <ReportPeriodControl

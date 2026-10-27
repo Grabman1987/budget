@@ -63,11 +63,18 @@ async function inspect(page: Page, info: TestInfo, label: string) {
   const layout = await controls.evaluate((element) => {
     const rect = (node: Element) => {
       const box = node.getBoundingClientRect();
-      return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, height: box.height };
+      return {
+        left: box.left,
+        right: box.right,
+        top: box.top,
+        bottom: box.bottom,
+        height: box.height,
+      };
     };
     const header = document.querySelector('.titleblock-report')!;
     return {
-      header: rect(header), controls: rect(element),
+      header: rect(header),
+      controls: rect(element),
       views: rect(element.querySelector('.report-view-switch')!),
       project: rect(element.querySelector('.report-project-select')!),
       labels: Array.from(element.querySelectorAll('button')).map((button) => {
@@ -75,15 +82,32 @@ async function inspect(page: Page, info: TestInfo, label: string) {
         range.selectNodeContents(button);
         const text = range.getBoundingClientRect();
         return {
-          label: button.textContent, button: rect(button),
-          text: { left: text.left, right: text.right, top: text.top, bottom: text.bottom, width: text.width, height: text.height },
+          label: button.textContent,
+          button: rect(button),
+          text: {
+            left: text.left,
+            right: text.right,
+            top: text.top,
+            bottom: text.bottom,
+            width: text.width,
+            height: text.height,
+          },
         };
       }),
     };
   });
   expect(layout.controls.top).toBeGreaterThanOrEqual(layout.header.bottom);
-  expect(layout.views.right <= layout.project.left || layout.project.right <= layout.views.left || layout.views.bottom <= layout.project.top || layout.project.bottom <= layout.views.top).toBe(true);
-  expect(layout.labels.slice(0, 3).map((entry) => entry.label)).toEqual(['Einnahmen', 'Einnahmen und Ausgaben', 'Cashflow']);
+  expect(
+    layout.views.right <= layout.project.left ||
+      layout.project.right <= layout.views.left ||
+      layout.views.bottom <= layout.project.top ||
+      layout.project.bottom <= layout.views.top,
+  ).toBe(true);
+  expect(layout.labels.slice(0, 3).map((entry) => entry.label)).toEqual([
+    'Einnahmen',
+    'Einnahmen und Ausgaben',
+    'Cashflow',
+  ]);
   for (const entry of layout.labels) {
     expect(entry.text.width).toBeGreaterThan(0);
     expect(entry.text.height).toBeGreaterThan(0);
@@ -96,7 +120,9 @@ async function inspect(page: Page, info: TestInfo, label: string) {
     for (let second = first + 1; second < layout.labels.length; second++) {
       const a = layout.labels[first]!.text;
       const b = layout.labels[second]!.text;
-      expect(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top).toBe(true);
+      expect(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top).toBe(
+        true,
+      );
     }
   }
   if (info.project.name === 'desktop') expect(layout.header.height).toBe(64);
