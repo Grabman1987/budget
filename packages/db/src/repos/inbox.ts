@@ -1,4 +1,4 @@
-import { and, asc, count, countDistinct, desc, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, count, countDistinct, desc, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { cents, formatEuro, monthOf, overspentEnvelopes, summarizeMonth } from '@budget/domain';
 import { categoryTree } from './categories';
 import { budget } from './queries';
@@ -272,19 +272,42 @@ export function readInbox(
     const candidateKeys = new Set(
       progressCandidates.map((row) => `${row.accountId}:bank-sync:${row.dedupeKey}`),
     );
+    const linkedBookingId = (resolution: string | null) =>
+      /^(?:Bestätigt: |Zusammengeführt: |Umbuchung: |Mit vorhandener Buchung verknüpft: |Kontowirksam übernommen: |Als ungeprüfte Buchung angelegt, bitte prüfen: )(.+)$/.exec(
+        resolution ?? '',
+      )?.[1];
+    const linkedIds = new Set(
+      progressCandidates
+        .map((row) => linkedBookingId(row.resolution))
+        .filter((id): id is string => typeof id === 'string'),
+    );
+    const openBookingIds = new Set(
+      tx
+        .select({ id: booking.id })
+        .from(booking)
+        .innerJoin(account, eq(account.id, booking.accountId))
+        .innerJoin(bookingSplit, eq(bookingSplit.bookingId, booking.id))
+        .where(unclassifiedWhere(today))
+        .groupBy(booking.id)
+        .all()
+        .map((row) => row.id),
+    );
     const progressBookings = tx
       .select({
         id: booking.id,
         accountId: booking.accountId,
         importKey: booking.importKey,
         bankSourceId: booking.bankSourceId,
-        status: booking.status,
+        source: booking.source,
       })
       .from(booking)
       .where(
         and(
           isNull(booking.deletedAt),
-          eq(booking.source, 'bank'),
+          or(
+            eq(booking.source, 'bank'),
+            linkedIds.size ? inArray(booking.id, [...linkedIds]) : undefined,
+          ),
           options.bankAccountId ? eq(booking.accountId, options.bankAccountId) : undefined,
         ),
       )
@@ -293,7 +316,8 @@ export function readInbox(
         (row) =>
           !bankSource ||
           row.bankSourceId === bankSource ||
-          candidateKeys.has(`${row.accountId}:${row.importKey}`),
+          candidateKeys.has(`${row.accountId}:${row.importKey}`) ||
+          linkedIds.has(row.id),
       );
     const bookingsById = new Map(progressBookings.map((row) => [row.id, row]));
     let reviewed = 0;
@@ -302,22 +326,23 @@ export function readInbox(
       if (row.refType !== 'bank-sync-candidate') continue;
       if (!row.resolvedAt) {
         open++;
-      } else if (
-        /^(Bestätigt:|Zusammengeführt:|Umbuchung:|Vom Nutzer)/.test(row.resolution ?? '')
-      ) {
+      } else if (row.resolution?.startsWith('Vom Nutzer')) {
         reviewed++;
-      } else if (row.resolution?.startsWith('Als ungeprüfte Buchung angelegt, bitte prüfen: ')) {
-        const bookingId = row.resolution.slice(
-          'Als ungeprüfte Buchung angelegt, bitte prüfen: '.length,
-        );
-        const posted = bookingsById.get(bookingId);
-        if (posted?.status === 'pending') open++;
-        else if (posted?.status === 'confirmed' || posted?.status === 'reconciled') reviewed++;
+      } else {
+        const bookingId = linkedBookingId(row.resolution);
+        if (bookingId && bookingsById.has(bookingId)) {
+          if (openBookingIds.has(bookingId)) open++;
+          else reviewed++;
+        }
       }
     }
-    // Legacy bank bookings without a retained candidate also need explicit review.
+    // Legacy bank booking tasks without a retained candidate remain in the same review count.
     open += progressBookings.filter(
-      (row) => row.status === 'pending' && !candidateKeys.has(`${row.accountId}:${row.importKey}`),
+      (row) =>
+        row.source === 'bank' &&
+        openBookingIds.has(row.id) &&
+        !linkedIds.has(row.id) &&
+        !candidateKeys.has(`${row.accountId}:${row.importKey}`),
     ).length;
     const stored: InboxStored[] = tx
       .select()

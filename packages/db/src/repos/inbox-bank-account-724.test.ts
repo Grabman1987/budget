@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import {
   accountReconciliation,
@@ -7,12 +8,15 @@ import {
   bankSyncCandidate,
   booking,
   bookingSplit,
+  category,
+  categoryGroup,
   inboxItem,
 } from '../schema';
 import { prepareInboxBankSuggestions, resolveInboxItem, readInbox } from './inbox';
 import { undo } from './audit';
 import { createBooking } from './bookings';
 import { saveAssignmentRule } from './assignment-rules';
+import { mergeBankCandidate } from './bank-followups';
 
 const A = '72400000-0000-4000-8000-000000000001';
 const B = '72400000-0000-4000-8000-000000000002';
@@ -237,7 +241,9 @@ it('returns a prepared merge in the list and marks competing matches for review 
   expect(state()).toEqual(withCompetingMatch);
 });
 
-it('does not call an automatically posted pending bank booking or a foreign-currency task reviewed', () => {
+it('counts the canonical booking task regardless of status and excludes foreign-currency tasks', () => {
+  opened.db.insert(categoryGroup).values({ id: 'group-562', name: 'Synthetic group' }).run();
+  opened.db.insert(category).values({ id: 'category-562', name: 'Synthetic category', groupId: 'group-562', class: 'need' }).run();
   const posted = createBooking(
     opened.db,
     {
@@ -251,12 +257,30 @@ it('does not call an automatically posted pending bank booking or a foreign-curr
     },
     { actor: 'synthetic-562' },
   );
+  const confirmedUnclassified = createBooking(opened.db, {
+    accountId: A, date: DAY, amountCents: -5505, source: 'bank',
+    importKey: 'bank-sync:confirmed-unclassified', status: 'confirmed',
+    splits: [{ amountCents: -5505 }],
+  }, { actor: 'synthetic-562' });
+  const pendingCategorized = createBooking(opened.db, {
+    accountId: A, date: DAY, amountCents: -6606, source: 'bank',
+    importKey: 'bank-sync:pending-categorized', status: 'pending',
+    splits: [{ amountCents: -6606, categoryId: 'category-562' }],
+  }, { actor: 'synthetic-562' });
   for (const [id, currency, refType, resolution] of [
     [
       'auto-posted',
       'EUR',
       'bank-sync-candidate',
       `Als ungeprüfte Buchung angelegt, bitte prüfen: ${posted}`,
+    ],
+    [
+      'confirmed-unclassified', 'EUR', 'bank-sync-candidate',
+      `Als ungeprüfte Buchung angelegt, bitte prüfen: ${confirmedUnclassified}`,
+    ],
+    [
+      'pending-categorized', 'EUR', 'bank-sync-candidate',
+      `Als ungeprüfte Buchung angelegt, bitte prüfen: ${pendingCategorized}`,
     ],
     ['foreign', 'USD', 'bank-sync', null],
   ] as const) {
@@ -286,8 +310,23 @@ it('does not call an automatically posted pending bank booking or a foreign-curr
       .run();
   }
   const before = state();
-  expect(scoped(A).bankProgress).toEqual({ reviewed: 1, total: 4 });
+  expect(scoped(A).bankProgress).toEqual({ reviewed: 2, total: 6 });
   expect(state()).toEqual(before);
+});
+
+it('counts a direct link to a classified existing booking, then restores progress on Undo', () => {
+  opened.db.insert(categoryGroup).values({ id: 'group-562', name: 'Synthetic group' }).run();
+  opened.db.insert(category).values({ id: 'category-562', name: 'Synthetic category', groupId: 'group-562', class: 'need' }).run();
+  const target = createBooking(opened.db, {
+    accountId: A, date: DAY, amountCents: -1201, status: 'confirmed',
+    splits: [{ amountCents: -1201, categoryId: 'category-562' }],
+  }, { actor: 'synthetic-562' });
+  opened.db.update(booking).set({ source: 'migration', importKey: 'ynab:synthetic-562' }).where(eq(booking.id, target)).run();
+  expect(scoped(A).bankProgress).toEqual({ reviewed: 1, total: 3 });
+  const linked = mergeBankCandidate(opened.db, 'a-one', target, { actor: 'synthetic-562' }, DAY + 'T10:00:00Z');
+  expect(scoped(A).bankProgress).toEqual({ reviewed: 2, total: 3 });
+  undo(opened.db, { groupId: linked.groupId }, { actor: 'synthetic-562' });
+  expect(scoped(A).bankProgress).toEqual({ reviewed: 1, total: 3 });
 });
 
 it('labels one transfer distinctly and a manual rule as requiring selection in the dialog', () => {
