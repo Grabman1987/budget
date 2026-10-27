@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { sampleTest as test, expect } from './sample';
 
 // Checkboxes and radios are one drawn control app-wide: a transparent hit area (20 px with a
@@ -9,6 +9,35 @@ import { sampleTest as test, expect } from './sample';
 
 const BOX = 20;
 const SELECTOR = '.ktable tbody tr[data-booking] input[type="checkbox"]';
+
+async function expectSelectedPhoneControl(control: Locator) {
+  await control.evaluate((el) => {
+    const bounds = el.getBoundingClientRect();
+    const selection = document.querySelector('.kselection-bar')!.getBoundingClientRect();
+    scrollBy({ top: bounds.top + bounds.height / 2 - selection.top / 2, behavior: 'instant' });
+  });
+  await expect
+    .poll(() =>
+      control.evaluate((el) => {
+        const bounds = el.getBoundingClientRect();
+        const selection = document.querySelector('.kselection-bar')!.getBoundingClientRect();
+        const target = document.elementFromPoint(
+          bounds.left + bounds.width / 2,
+          bounds.top + bounds.height / 2,
+        );
+        return (
+          bounds.left >= 0 &&
+          bounds.right <= innerWidth &&
+          bounds.top >= 0 &&
+          bounds.bottom <= Math.min(innerHeight, selection.top) &&
+          bounds.width >= 44 &&
+          bounds.height >= 44 &&
+          (target === el || (target !== null && el.contains(target)))
+        );
+      }),
+    )
+    .toBe(true);
+}
 
 async function openBookings(page: Page) {
   await page.goto('/konten/buchungen');
@@ -79,6 +108,58 @@ test.describe('checkbox appearance', () => {
     });
     expect(checked.background).not.toBe(unchecked);
     expect(checked.tick).not.toBe('none');
+    if (hasTouch) {
+      const bar = page.getByRole('group', { name: 'Auswahl bearbeiten', exact: true });
+      await expect(bar).toHaveAttribute('aria-busy', 'false');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      for (const theme of ['light', 'dark'] as const) {
+        await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+        await expectSelectedPhoneControl(
+          page.getByRole('button', { name: 'Auswahl beenden', exact: true }),
+        );
+        const csv = page.locator('.kregister-actions > summary');
+        await expectSelectedPhoneControl(csv);
+        await csv.tap();
+        const download = page.getByRole('link', {
+          name: 'Aktuellen Filter als CSV exportieren',
+          exact: true,
+        });
+        await expect(download).toBeVisible();
+        await expectSelectedPhoneControl(download);
+        await expectSelectedPhoneControl(csv);
+        await csv.tap();
+      }
+      // The first tap introduces a fixed selection bar. Scroll the same control into the
+      // free area above it before the real second tap; native automatic scrolling ignores it.
+      await checkbox.evaluate((el) => {
+        const bounds = el.getBoundingClientRect();
+        const selection = document.querySelector('.kselection-bar')!.getBoundingClientRect();
+        const tabs = document.querySelector('.tabbar')?.getBoundingClientRect();
+        const bottom = Math.min(selection.top, tabs?.top ?? innerHeight);
+        scrollBy({ top: bounds.top + bounds.height / 2 - bottom / 2, behavior: 'instant' });
+      });
+      await expect
+        .poll(() =>
+          checkbox.evaluate((el) => {
+            const bounds = el.getBoundingClientRect();
+            const selection = document.querySelector('.kselection-bar')!.getBoundingClientRect();
+            const tabs = document.querySelector('.tabbar')?.getBoundingClientRect();
+            return (
+              bounds.top >= 0 &&
+              bounds.bottom <= Math.min(selection.top, tabs?.top ?? innerHeight) &&
+              bounds.left >= 0 &&
+              bounds.right <= innerWidth &&
+              document.elementFromPoint(
+                bounds.left + bounds.width / 2,
+                bounds.top + bounds.height / 2,
+              ) === el
+            );
+          }),
+        )
+        .toBe(true);
+    }
     if (hasTouch) await checkbox.tap();
     else await checkbox.click();
     await expect(checkbox).not.toBeChecked();

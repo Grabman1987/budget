@@ -17,3 +17,18 @@
   background: var(--primary);
   color: var(--on-primary);
 }
+.instrument-history-frame {
+  width: 100%;
+  min-width: 0;
+  min-height: 280px;
+}
+.instrument-cost-line {
+  stroke: var(--ink-2);
+  stroke-width: var(--stroke-measure);
+  stroke-dasharray: var(--dash-plan);
+}
+.instrument-trade-marker {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: var(--stroke-measure);
+}

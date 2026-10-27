@@ -990,6 +990,32 @@
 .kfilter-actions .btn {
   min-height: 44px;
 }
+.kbookings-bar {
+  flex-wrap: wrap;
+}
+.kregister-actions {
+  position: relative;
+  margin-inline-start: auto;
+}
+.kregister-actions > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch);
+  min-height: var(--touch);
+  cursor: pointer;
+}
+.kregister-actions[open] > a {
+  position: absolute;
+  z-index: 25;
+  inset-inline-end: 0;
+  width: max-content;
+  max-width: calc(100vw - 2 * var(--space-lg));
+  white-space: normal;
+  background: var(--raised);
+  border: var(--stroke-hairline) solid var(--rule);
+  min-height: var(--touch);
+}
 .kbulk {
   display: flex;
   flex-wrap: wrap;
@@ -1677,6 +1703,10 @@
   .ktx-all tr {
     grid-template-columns: 28px auto minmax(0, 1fr) auto;
     grid-template-areas: 'check flag payee amount' '. . cat acct' '. . date status';
+  }
+  .ktx-all.has-running-balance tr[data-booking],
+  .ktx-all.has-running-balance tr[data-occurrence] {
+    grid-template-areas: 'check flag payee amount' '. . cat acct' '. . date status' '. . . run';
   }
   .kx-flag {
     grid-area: flag;

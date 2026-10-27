@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
 import { join } from 'node:path';
 import { sampleTest } from './sample';
-import type { PortfolioPositionsView } from '@budget/db';
+import type { InstrumentHistory, PortfolioPositionsView } from '@budget/db';
 import { MAIN_URL } from '../playwright.config';
 
 async function accessibility(page: Page, scope: string) {
@@ -257,10 +257,12 @@ sampleTest(
     await expect(page.getByTestId('portfolio-value')).toHaveText('Bewertung unvollständig');
     await expect(page.locator('.portfolio-table')).toContainText('Kurs fehlt');
     // Keep interception active across history refetches; newer mocks take priority.
+    let missingBasisId: string | undefined;
     await page.route('**/api/portfolio/positions{,?*}', async (route) => {
       const original = (await (await route.fetch()).json()) as PortfolioPositionsView;
-      // The class row and the whole-instrument row (used by the product panel) both lose the basis.
+      // Keep class and whole-instrument rows consistent with the dated history fixture below.
       const id = original.classes[0]!.positions[0]!.securityId;
+      missingBasisId = id;
       for (const p of [
         original.classes[0]!.positions[0]!,
         ...(original.positions ?? []).filter((x) => x.securityId === id),
@@ -274,6 +276,18 @@ sampleTest(
       original.costCents = null;
       original.chain = null;
       await route.fulfill({ json: original });
+    });
+    await page.route('**/api/securities/*/history?*', async (route) => {
+      const body = (await (await route.fetch()).json()) as { history: InstrumentHistory };
+      const position = body.history.position;
+      if (position && position.securityId === missingBasisId) {
+        position.costCents = null;
+        position.gainCents = null;
+        position.gainBp = null;
+        position.accounts[0]!.costCents = null;
+        position.accounts[0]!.basisStatus = 'missing_fx';
+      }
+      await route.fulfill({ json: body });
     });
     await page.reload();
     await expect(page.locator('.portfolio-view .vnw')).toContainText(
