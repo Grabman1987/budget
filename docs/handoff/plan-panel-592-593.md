@@ -75,6 +75,21 @@ source is retained; no mixed historical checkpoint or other checkout is edited.
 
 ## Bounded old-consumer inventory and next gates
 
+First focused proof 40562333412 found three new test-harness blockers before
+acceptance execution: Testing Library's role lookup does not support `exact`,
+the API fixture's public web root must not contain the default receipts path,
+and isolated-ledger exports only its test fixture, not Playwright expect.
+The corrections retain the literal heading name/focus assertion, adopt existing
+`test-results/no-web` isolation (no security guard bypass), and import expect
+directly from Playwright. No financial expectation or timeout is changed.
+
+The complete 12-path, 58,307-byte remote formatter patch was inspected, SHA256
+`8f02cb01d2af7acd2309b4e93ee2a05c6aaec64a17e5fca46544975d38d19d9f`
+verified, and applied unchanged after a clean apply-check on c1892aef. Its only
+effect is source/test wrapping; reverse applicability was checked before the
+three harness edits. Scoped ESLint/CSS/build and the other 62 unit cases passed
+in that earlier proof; API/browser acceptance and final checks remain pending.
+
 `rg` found the three direct sidebar quick-action consumers above. Direct legacy
 QuickAssignActions unit tests and toolbar/menu/phone selection tests retain their
 interfaces and labels. Default section/state and #591 layout/phone focus need

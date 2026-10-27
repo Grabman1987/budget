@@ -272,11 +272,21 @@ export function EnvelopeBody({
     <div className="kform">
       {compact && r.overspentCents > 0 && (
         <div className="inspector-cover-suggestion">
-          <p className="panel-sub">Aus {other === 'none' ? 'keiner verfügbaren Quelle' : name(other)}</p>
-          <Button disabled={coverBusy || other === 'none' || suggestedCoverCents <= 0} onClick={() => void acceptSuggestion()}>
+          <p className="panel-sub">
+            Aus {other === 'none' ? 'keiner verfügbaren Quelle' : name(other)}
+          </p>
+          <Button
+            disabled={coverBusy || other === 'none' || suggestedCoverCents <= 0}
+            onClick={() => void acceptSuggestion()}
+          >
             Mit <span className="plan-money">{eur(suggestedCoverCents)}</span> decken
           </Button>
-          {cappedRest > 0 && <p className="panel-sub"><span className="plan-money">{eur(cappedRest)}</span> bleiben offen · auf freies Geld begrenzt</p>}
+          {cappedRest > 0 && (
+            <p className="panel-sub">
+              <span className="plan-money">{eur(cappedRest)}</span> bleiben offen · auf freies Geld
+              begrenzt
+            </p>
+          )}
         </div>
       )}
       <h3 className="panel-h">Zuweisen</h3>

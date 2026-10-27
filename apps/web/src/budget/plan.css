@@ -2136,7 +2136,9 @@
 }
 .plan .plan-money,
 .plan .inspector-activity a,
-.plan .inspector-selection :is(.insp-list dd, .panel-actions .btn, .inspector-cover-suggestion .btn) {
+.plan
+  .inspector-selection
+  :is(.insp-list dd, .panel-actions .btn, .inspector-cover-suggestion .btn) {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }

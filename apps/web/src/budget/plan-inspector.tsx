@@ -71,12 +71,20 @@ export function PlanInspector({
   const heading = useRef<HTMLHeadingElement>(null);
   const selectionKey = selected.map((r) => r.id).join(':');
   useEffect(() => {
-    if (!focusSelection || !selectionKey || !window.matchMedia('(max-width: 1179px)').matches) return;
+    if (!focusSelection || !selectionKey || !window.matchMedia('(max-width: 1179px)').matches)
+      return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     heading.current?.focus({ preventScroll: true });
     heading.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
   }, [selectionKey, focusSelection]);
-  const automatic = <PlanAutomatic month={month} rows={selected.length ? selected : visibleRows} tba={tba} disabled={multi} />;
+  const automatic = (
+    <PlanAutomatic
+      month={month}
+      rows={selected.length ? selected : visibleRows}
+      tba={tba}
+      disabled={multi}
+    />
+  );
   if (selected.length === 0)
     return (
       <MonthOverviewInspector
@@ -91,7 +99,9 @@ export function PlanInspector({
       />
     );
   const row = selected.length === 1 ? selected[0] : undefined;
-  const pace = row ? barFor(row, { month, today: todayInVienna(), cardName: () => 'Kreditkarte' }) : undefined;
+  const pace = row
+    ? barFor(row, { month, today: todayInVienna(), cardName: () => 'Kreditkarte' })
+    : undefined;
   return (
     <aside className="plan-inspector card" aria-label="Plan-Inspektor">
       <details className="inspector-fold" open key={selected.map((r) => r.id).join(':')}>
@@ -100,7 +110,9 @@ export function PlanInspector({
         </FoldTitle>
         <div className="inspector-selection">
           <div className="inspector-head">
-            <h2 ref={heading} tabIndex={-1}>{row?.name ?? `${selected.length} Kategorien ausgewählt`}</h2>
+            <h2 ref={heading} tabIndex={-1}>
+              {row?.name ?? `${selected.length} Kategorien ausgewählt`}
+            </h2>
             <Button
               variant="ghost"
               className="inspector-close"
@@ -129,7 +141,13 @@ export function PlanInspector({
                       value={Math.max(0, row.goalCents - row.needCents)}
                     />
                     <p className="panel-sub">
-                      {row.needCents > 0 ? <>fehlt <span className="plan-money">{eur(row.needCents)}</span></> : 'Ziel finanziert.'}
+                      {row.needCents > 0 ? (
+                        <>
+                          fehlt <span className="plan-money">{eur(row.needCents)}</span>
+                        </>
+                      ) : (
+                        'Ziel finanziert.'
+                      )}
                     </p>
                   </>
                 )}
@@ -148,7 +166,12 @@ export function PlanInspector({
               {row.due?.source === 'expected' && (
                 <p className="panel-sub">
                   erwartet {longDay(row.due.date)} · {row.due.name}
-                  {row.due.amountCents != null && <> · <span className="plan-money">{eur(row.due.amountCents)}</span></>}
+                  {row.due.amountCents != null && (
+                    <>
+                      {' '}
+                      · <span className="plan-money">{eur(row.due.amountCents)}</span>
+                    </>
+                  )}
                 </p>
               )}
               <p className="panel-sub inspector-pace">

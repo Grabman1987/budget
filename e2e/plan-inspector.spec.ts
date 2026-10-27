@@ -84,7 +84,10 @@ test('inspector discloses month figures and reuses category writes, quick values
   await page.goto(`/plan/monat?monat=${month}`);
   const inspector = page.getByRole('complementary', { name: 'Plan-Inspektor' });
   await expect(inspector.locator('.inspector-section')).toHaveCount(6);
-  await expect(inspector.locator('[data-overview-section="automatic"]')).not.toHaveAttribute('open', '');
+  await expect(inspector.locator('[data-overview-section="automatic"]')).not.toHaveAttribute(
+    'open',
+    '',
+  );
   await expect(inspector.locator('.inspector-section[open]')).toHaveCount(2);
   await expect(inspector.locator('.inspector-section[open] > summary')).toHaveText([
     'Monatsaufstellung',
