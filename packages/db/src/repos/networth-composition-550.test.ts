@@ -7,18 +7,57 @@ import { createTransfer } from './bookings';
 import { undo } from './audit';
 
 let opened: OpenedDatabase;
-beforeEach(() => { opened = createTestDatabase(); });
+beforeEach(() => {
+  opened = createTestDatabase();
+});
 afterEach(() => opened.close());
-const add = (id: string, type: 'checking' | 'brokerage' | 'p2p', amount: number, currency = 'EUR') =>
-  opened.db.insert(account).values({ id, name: id, type, role: 'investment', onBudget: false,
-    currency, openingDate: '2026-01-01', openingBalanceCents: amount }).run();
+const add = (
+  id: string,
+  type: 'checking' | 'brokerage' | 'p2p',
+  amount: number,
+  currency = 'EUR',
+) =>
+  opened.db
+    .insert(account)
+    .values({
+      id,
+      name: id,
+      type,
+      role: 'investment',
+      onBudget: false,
+      currency,
+      openingDate: '2026-01-01',
+      openingBalanceCents: amount,
+    })
+    .run();
 
 it('partitions separately rounded cash and holding FX, not a re-rounded native subtotal', () => {
   add('usd', 'brokerage', 1, 'USD');
   opened.db.insert(security).values({ id: 's', name: 's', kind: 'stock', currency: 'USD' }).run();
-  opened.db.insert(holding).values({ id: 'h', accountId: 'usd', securityId: 's', asOf: '2026-01-01', unitsE8: 100_000_000 }).run();
-  opened.db.insert(price).values({ securityId: 's', date: '2026-01-01', priceMicro: 10_000, currency: 'USD', source: 'manual' }).run();
-  opened.db.insert(fxRate).values({ date: '2026-01-01', currency: 'USD', rateMicro: 500_000 }).run();
+  opened.db
+    .insert(holding)
+    .values({
+      id: 'h',
+      accountId: 'usd',
+      securityId: 's',
+      asOf: '2026-01-01',
+      unitsE8: 100_000_000,
+    })
+    .run();
+  opened.db
+    .insert(price)
+    .values({
+      securityId: 's',
+      date: '2026-01-01',
+      priceMicro: 10_000,
+      currency: 'USD',
+      source: 'manual',
+    })
+    .run();
+  opened.db
+    .insert(fxRate)
+    .values({ date: '2026-01-01', currency: 'USD', rateMicro: 500_000 })
+    .run();
   const result = netWorthAssetComposition(opened.db, '2026-01-01', '2026-01-01');
   // Each independent USD cent rounds to one EUR cent:1+1=2, not round(2*0.5)=1.
   expect(result.current.totalCents).toBe(2);
@@ -30,7 +69,10 @@ it('retains manual fallback and true month-end/start/as-of anchors including one
   add('manual', 'p2p', 7_000);
   const result = netWorthAssetComposition(opened.db, '2026-01-15', '2026-03-01');
   expect(result.history.map((p) => [p.asOf, p.pointKind])).toEqual([
-    ['2026-01-15', 'period_start'], ['2026-01-31', 'month_end'], ['2026-02-28', 'month_end'], ['2026-03-01', 'as_of'],
+    ['2026-01-15', 'period_start'],
+    ['2026-01-31', 'month_end'],
+    ['2026-02-28', 'month_end'],
+    ['2026-03-01', 'as_of'],
   ]);
   for (const p of result.history) {
     expect(p.groups.find((g) => g.key === 'other')?.valueCents).toBe(7_000);
@@ -41,10 +83,15 @@ it('retains manual fallback and true month-end/start/as-of anchors including one
   expect(netWorthAssetComposition(opened.db, '2026-03-01', '2026-03-01').history).toHaveLength(1);
 });
 it('an existing transfer changes groups only; one canonical Undo restores both and Gespart', () => {
-  add('cash', 'checking', 10_000); add('depot', 'brokerage', 0);
+  add('cash', 'checking', 10_000);
+  add('depot', 'brokerage', 0);
   const before = netWorthAssetComposition(opened.db, '2026-01-01', '2026-01-03');
   const savedBefore = netWorthDaily(opened.db, '2026-01-02', '2026-01-03');
-  createTransfer(opened.db, { fromAccountId: 'cash', toAccountId: 'depot', date: '2026-01-02', amountCents: 2_500 }, { actor: '550-test', groupId: '550-transfer' });
+  createTransfer(
+    opened.db,
+    { fromAccountId: 'cash', toAccountId: 'depot', date: '2026-01-02', amountCents: 2_500 },
+    { actor: '550-test', groupId: '550-transfer' },
+  );
   const after = netWorthAssetComposition(opened.db, '2026-01-01', '2026-01-03');
   expect(after.current.groups.find((g) => g.key === 'cash')?.valueCents).toBe(7_500);
   expect(after.current.groups.find((g) => g.key === 'depot_cash')?.valueCents).toBe(2_500);

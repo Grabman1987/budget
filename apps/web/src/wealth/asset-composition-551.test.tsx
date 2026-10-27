@@ -5,14 +5,43 @@ import { setAmountsHidden } from '@budget/ui';
 import { projectAssetComposition } from '@budget/domain';
 import { AssetCompositionChart } from './asset-composition-chart';
 vi.mock('../charts/use-element-width', () => ({ useElementWidth: () => [vi.fn(), 640] }));
-afterEach(() => { cleanup(); setAmountsHidden(false); });
+afterEach(() => {
+  cleanup();
+  setAmountsHidden(false);
+});
 it('does not bridge an unknown month, and keyboard/tooltip/table mask the same literal EUR values', () => {
-  const point = (asOf: string, value: number | null) => projectAssetComposition({
-    asOf, pointKind: 'month_end', totalCents: value, byAccount: { a: value },
-    accounts: [{ accountId: 'a', name: 'Synthetic account', type: 'checking', role: 'budget', referenceAccountId: null }],
-    components: [{ accountId: 'a', securityId: null, kind: 'cash', valueCents: value, quality: value === null ? 'missing' : 'exact', missing: value === null ? 'fx' : null }], securityKinds: new Map(),
-  });
-  const { container } = render(<AssetCompositionChart points={[point('2026-01-31', 10_000), point('2026-02-28', null), point('2026-03-31', 12_345)]} />);
+  const point = (asOf: string, value: number | null) =>
+    projectAssetComposition({
+      asOf,
+      pointKind: 'month_end',
+      totalCents: value,
+      byAccount: { a: value },
+      accounts: [
+        {
+          accountId: 'a',
+          name: 'Synthetic account',
+          type: 'checking',
+          role: 'budget',
+          referenceAccountId: null,
+        },
+      ],
+      components: [
+        {
+          accountId: 'a',
+          securityId: null,
+          kind: 'cash',
+          valueCents: value,
+          quality: value === null ? 'missing' : 'exact',
+          missing: value === null ? 'fx' : null,
+        },
+      ],
+      securityKinds: new Map(),
+    });
+  const { container } = render(
+    <AssetCompositionChart
+      points={[point('2026-01-31', 10_000), point('2026-02-28', null), point('2026-03-31', 12_345)]}
+    />,
+  );
   expect(container.querySelectorAll('[data-composition-key] path')).toHaveLength(0);
   expect(container.querySelectorAll('.l-actual')).toHaveLength(0);
   expect(container.querySelectorAll('.dot-actual')).toHaveLength(2);

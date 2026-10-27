@@ -29,8 +29,11 @@ export function NetWorthPage() {
   const view = query.data;
   const empty =
     view &&
-    (view.assetComposition ? view.assetComposition.accounts.length === 0 :
-      view.composition.assets.length === 0 && view.composition.debts.length === 0 && view.chain.nowCents === 0);
+    (view.assetComposition
+      ? view.assetComposition.accounts.length === 0
+      : view.composition.assets.length === 0 &&
+        view.composition.debts.length === 0 &&
+        view.chain.nowCents === 0);
 
   return (
     <PageFrame meta={VERMOEGEN_NETTO_META}>
@@ -48,7 +51,11 @@ export function NetWorthPage() {
           <>
             <ValuationHint incomplete={view.incomplete} />
             <Course view={view} />
-            {view.assetComposition ? <AssetComposition point={view.assetComposition} /> : <Composition view={view} />}
+            {view.assetComposition ? (
+              <AssetComposition point={view.assetComposition} />
+            ) : (
+              <Composition view={view} />
+            )}
           </>
         )}
       </div>
@@ -81,30 +88,53 @@ function Course({ view }: { view: NetWorthView }) {
         <span className="cents">,{fraction} €</span>
       </div>
       <ZeitraumSwitch />
-      {view.assetCompositionHistory && <div className="composition-switch" role="group" aria-label="Verlauf anzeigen">
-        <button type="button" aria-pressed={historyMode === 'total'} onClick={() => setHistoryMode('total')}>Gesamt</button>
-        <button type="button" aria-pressed={historyMode === 'composition'} onClick={() => setHistoryMode('composition')}>Zusammensetzung</button>
-      </div>}
-      {historyMode === 'composition' && view.assetCompositionHistory
-        ? <AssetCompositionChart points={view.assetCompositionHistory} />
-        : <NetWorthChart view={view} periodLabel={text} />}
-      {historyMode === 'total' && <div className="legend" aria-hidden="true">
-        <span>
-          <svg viewBox="0 0 26 8">
-            <path className="l-actual" d="M0 4h26" />
-          </svg>
-          Nettovermögen, täglich
-        </span>
-        <span>
-          <i className="lg-sq lg-own" />
-          Gespart
-        </span>
-        <span>
-          <i className="lg-sq lg-mkt" />
-          Markt
-        </span>
-      </div>}
-      {view.assetComposition && !view.assetComposition.complete && <p className="vnote">Die Gesamtzahl verwendet die bestehende Bewertungsbasis. Fehlende, geschätzte oder nicht aktuelle Einzelwerte sind in der Zusammensetzung gekennzeichnet.</p>}
+      {view.assetCompositionHistory && (
+        <div className="composition-switch" role="group" aria-label="Verlauf anzeigen">
+          <button
+            type="button"
+            aria-pressed={historyMode === 'total'}
+            onClick={() => setHistoryMode('total')}
+          >
+            Gesamt
+          </button>
+          <button
+            type="button"
+            aria-pressed={historyMode === 'composition'}
+            onClick={() => setHistoryMode('composition')}
+          >
+            Zusammensetzung
+          </button>
+        </div>
+      )}
+      {historyMode === 'composition' && view.assetCompositionHistory ? (
+        <AssetCompositionChart points={view.assetCompositionHistory} />
+      ) : (
+        <NetWorthChart view={view} periodLabel={text} />
+      )}
+      {historyMode === 'total' && (
+        <div className="legend" aria-hidden="true">
+          <span>
+            <svg viewBox="0 0 26 8">
+              <path className="l-actual" d="M0 4h26" />
+            </svg>
+            Nettovermögen, täglich
+          </span>
+          <span>
+            <i className="lg-sq lg-own" />
+            Gespart
+          </span>
+          <span>
+            <i className="lg-sq lg-mkt" />
+            Markt
+          </span>
+        </div>
+      )}
+      {view.assetComposition && !view.assetComposition.complete && (
+        <p className="vnote">
+          Die Gesamtzahl verwendet die bestehende Bewertungsbasis. Fehlende, geschätzte oder nicht
+          aktuelle Einzelwerte sind in der Zusammensetzung gekennzeichnet.
+        </p>
+      )}
       <DimensionChain
         terms={chainTerms(chain, view.from)}
         label="Maßkette Nettovermögen im Zeitraum"

@@ -96,6 +96,29 @@ intended new default groups and chart toggle. They are NOT regenerated or edited
 future bounded canonical screenshot proof requires actual visual review before
 any allowlisted baseline update. Old reference masks/tolerances remain intact.
 
+## First focused proof and bounded corrections
+
+Exact source 3c282e86 proof 40540638427 passed 55/55 unit cases, ESLint,
+workspace types and build. Browser evidence was red: three new privacy checks
+expected a euro suffix that shared ChartDataTable intentionally masks as `•••`;
+the new test now follows that existing contract while retaining clear-money
+exclusion checks. The old networth composition case now waits for the real SVG
+to mount after its ResizeObserver width gate before unchanged signed geometry
+and exact-cent assertions. No timeout, retry, skip or financial oracle changed.
+
+Actual desktop/phone light/dark baseline images remain retained, not updated.
+They expose a native summary chevron occupying the archived two-column grid,
+wrapping label/value content and duplicating the custom plus. The corrected
+three-column grid retains the native chevron, all values and 44px targets;
+only the duplicate custom marker is removed. The desktop actual was 1808px,
+so a fresh bounded visual/height proof is required before baseline approval.
+The legend border now uses the existing `--stroke-measure` token.
+
+The complete 12-path formatter patch from that run was inspected and its SHA256
+verified as `579f51a73b869d0bc37675f1cd85098dcc18cd3583d8dc4213617049ac8c0f10`.
+It applied unchanged after the bounded fixes with `git apply --check`; it only
+wraps existing source/test expressions. No baseline or proof helper is included.
+
 ## Limits and next gate
 
 Source only: no local Node/npm/test/build/browser/install/lint/formatter, no

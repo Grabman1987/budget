@@ -644,7 +644,8 @@ function computeNetWorthValuation(
       }
     }
     components.push({
-      accountId: balance.accountId, securityId: null,
+      accountId: balance.accountId,
+      securityId: null,
       kind: manualAccounts.has(balance.accountId) ? 'manual' : 'cash',
       valueCents: byAccount[balance.accountId] ?? null,
       quality: byAccount[balance.accountId] === null ? 'missing' : 'exact',
@@ -655,18 +656,36 @@ function computeNetWorthValuation(
   const holdingsByAccount: Record<string, number | null> = {};
   const holdingTerms = new Map<string, number[]>();
   for (const holding of holdings.values) {
-    components.push({ accountId: holding.accountId, securityId: holding.securityId,
-      kind: 'holding', valueCents: holding.valueCents, quality: holding.quality, missing: null });
+    components.push({
+      accountId: holding.accountId,
+      securityId: holding.securityId,
+      kind: 'holding',
+      valueCents: holding.valueCents,
+      quality: holding.quality,
+      missing: null,
+    });
     const terms = holdingTerms.get(holding.accountId) ?? [];
     terms.push(holding.valueCents);
     holdingTerms.set(holding.accountId, terms);
   }
   for (const position of holdings.missingFxPositions)
-    components.push({ accountId: position.accountId, securityId: position.securityId,
-      kind: 'holding', valueCents: null, quality: 'missing', missing: 'fx' });
+    components.push({
+      accountId: position.accountId,
+      securityId: position.securityId,
+      kind: 'holding',
+      valueCents: null,
+      quality: 'missing',
+      missing: 'fx',
+    });
   for (const position of holdings.missingPricePositions)
-    components.push({ accountId: position.accountId, securityId: position.securityId,
-      kind: 'holding', valueCents: null, quality: 'missing', missing: 'price' });
+    components.push({
+      accountId: position.accountId,
+      securityId: position.securityId,
+      kind: 'holding',
+      valueCents: null,
+      quality: 'missing',
+      missing: 'price',
+    });
   for (const [accountId, currencies] of holdings.missingFxByAccount) {
     holdingsByAccount[accountId] = null;
     for (const currency of currencies) addMissing(accountId, currency);

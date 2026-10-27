@@ -82,7 +82,18 @@ function groupOf(
     return 'depot_cash';
   if (component.kind === 'manual' || account.type === 'receivable' || account.role === 'receivable')
     return 'other';
-  if (['checking', 'cash', 'savings', 'credit_card', 'loan', 'other_liability', 'p2p', 'other_asset'].includes(account.type))
+  if (
+    [
+      'checking',
+      'cash',
+      'savings',
+      'credit_card',
+      'loan',
+      'other_liability',
+      'p2p',
+      'other_asset',
+    ].includes(account.type)
+  )
     return 'cash';
   return 'unclassified';
 }
@@ -98,17 +109,22 @@ export function projectAssetComposition(input: {
   byAccount: Readonly<Record<string, number | null>>;
 }): AssetCompositionPoint {
   const metadata = new Map(input.accounts.map((a) => [a.accountId, a]));
-  const referenceCash = new Set(input.accounts
-    .filter((a) => ['brokerage', 'crypto'].includes(a.type))
-    .flatMap((a) => a.referenceAccountId ? [a.referenceAccountId] : []));
-  const complete = input.totalCents !== null && input.components.every((c) =>
-    c.valueCents !== null && c.quality === 'exact');
+  const referenceCash = new Set(
+    input.accounts
+      .filter((a) => ['brokerage', 'crypto'].includes(a.type))
+      .flatMap((a) => (a.referenceAccountId ? [a.referenceAccountId] : [])),
+  );
+  const complete =
+    input.totalCents !== null &&
+    input.components.every((c) => c.valueCents !== null && c.quality === 'exact');
   const shares = complete && input.totalCents !== null && input.totalCents >= 10_000;
   let displayLimited = false;
   const amount = (components: readonly NetWorthComponent[]): CompositionAmount => {
     let knownCents: number;
     try {
-      knownCents = sumValuationCents(components.flatMap((c) => c.valueCents === null ? [] : [c.valueCents]));
+      knownCents = sumValuationCents(
+        components.flatMap((c) => (c.valueCents === null ? [] : [c.valueCents])),
+      );
     } catch (error) {
       if (!(error instanceof ValuationLimitError) || error.boundary !== 'result') throw error;
       // A new display group may overflow even though cancelling legacy account/net totals are safe.
@@ -117,15 +133,23 @@ export function projectAssetComposition(input: {
     }
     const valueCents = components.some((c) => c.valueCents === null) ? null : knownCents;
     return {
-      valueCents, knownCents, unavailable: valueCents === null ? 'missing_value' : null,
-      shareBp: shares && valueCents !== null && input.totalCents !== null
-        ? mulDivRound(valueCents, 10_000, input.totalCents) : null,
+      valueCents,
+      knownCents,
+      unavailable: valueCents === null ? 'missing_value' : null,
+      shareBp:
+        shares && valueCents !== null && input.totalCents !== null
+          ? mulDivRound(valueCents, 10_000, input.totalCents)
+          : null,
     };
   };
   const grouped = new Map<AssetCompositionKey, NetWorthComponent[]>();
   for (const component of input.components) {
-    const key = groupOf(component, metadata.get(component.accountId),
-      component.securityId === null ? undefined : input.securityKinds.get(component.securityId), referenceCash);
+    const key = groupOf(
+      component,
+      metadata.get(component.accountId),
+      component.securityId === null ? undefined : input.securityKinds.get(component.securityId),
+      referenceCash,
+    );
     const terms = grouped.get(key) ?? [];
     terms.push(component);
     grouped.set(key, terms);
@@ -134,22 +158,37 @@ export function projectAssetComposition(input: {
     const terms = grouped.get(group.key) ?? [];
     if (group.key === 'unclassified' && terms.length === 0) return [];
     const ids = [...new Set(terms.map((c) => c.accountId))];
-    return [{ ...group, ...amount(terms), accounts: ids.map((accountId) => ({
-      accountId, name: metadata.get(accountId)?.name ?? 'Unbekanntes Konto',
-      ...amount(terms.filter((c) => c.accountId === accountId)),
-    })) }];
+    return [
+      {
+        ...group,
+        ...amount(terms),
+        accounts: ids.map((accountId) => ({
+          accountId,
+          name: metadata.get(accountId)?.name ?? 'Unbekanntes Konto',
+          ...amount(terms.filter((c) => c.accountId === accountId)),
+        })),
+      },
+    ];
   });
-  const accounts = Object.entries(input.byAccount).map(([accountId, whole]): AssetCompositionPoint['accounts'][number] => {
-    const terms = input.components.filter((c) => c.accountId === accountId);
-    const projected = amount(terms);
-    // Preserve the authoritative account value, but never relabel an unpriced position as zero.
-    const valueCents = projected.valueCents === null ? null : whole;
-    return { accountId, name: metadata.get(accountId)?.name ?? 'Unbekanntes Konto',
-      valueCents, knownCents: projected.knownCents,
-      unavailable: valueCents === null ? projected.unavailable ?? 'missing_value' : null,
-      shareBp: shares && valueCents !== null && input.totalCents !== null
-        ? mulDivRound(valueCents, 10_000, input.totalCents) : null };
-  });
+  const accounts = Object.entries(input.byAccount).map(
+    ([accountId, whole]): AssetCompositionPoint['accounts'][number] => {
+      const terms = input.components.filter((c) => c.accountId === accountId);
+      const projected = amount(terms);
+      // Preserve the authoritative account value, but never relabel an unpriced position as zero.
+      const valueCents = projected.valueCents === null ? null : whole;
+      return {
+        accountId,
+        name: metadata.get(accountId)?.name ?? 'Unbekanntes Konto',
+        valueCents,
+        knownCents: projected.knownCents,
+        unavailable: valueCents === null ? (projected.unavailable ?? 'missing_value') : null,
+        shareBp:
+          shares && valueCents !== null && input.totalCents !== null
+            ? mulDivRound(valueCents, 10_000, input.totalCents)
+            : null,
+      };
+    },
+  );
   const knownCents = amount(input.components).knownCents;
   const totalCents = input.components.some((c) => c.valueCents === null) ? null : input.totalCents;
   if (displayLimited) {
@@ -159,9 +198,22 @@ export function projectAssetComposition(input: {
     }
     for (const account of accounts) account.shareBp = null;
   }
-  return { asOf: input.asOf, pointKind: input.pointKind, totalCents, knownCents,
+  return {
+    asOf: input.asOf,
+    pointKind: input.pointKind,
+    totalCents,
+    knownCents,
     complete: complete && !displayLimited,
-    unavailable: displayLimited ? 'calculation_limit' : null, groups, accounts, gaps: input.components
+    unavailable: displayLimited ? 'calculation_limit' : null,
+    groups,
+    accounts,
+    gaps: input.components
       .filter((c) => c.valueCents === null || c.quality !== 'exact')
-      .map(({ accountId, securityId, quality, missing }) => ({ accountId, securityId, quality, missing })) };
+      .map(({ accountId, securityId, quality, missing }) => ({
+        accountId,
+        securityId,
+        quality,
+        missing,
+      })),
+  };
 }

@@ -64,10 +64,14 @@ test('Stand shows the day of the newest prices', async ({ page }) => {
   await expect(page.locator('.titleblock')).toContainText(/17\.09\.(2026)? · Kurse/);
 });
 
-test('"Woraus es besteht": grouped cents and sorted accounts reconcile; composition debt lies below zero', async ({ page }) => {
+test('"Woraus es besteht": grouped cents and sorted accounts reconcile; composition debt lies below zero', async ({
+  page,
+}) => {
   await ready(page);
   const composition = page.locator('.asset-composition');
-  const groupValues = await composition.locator('.asset-composition-group > summary .asset-composition-value').allTextContents();
+  const groupValues = await composition
+    .locator('.asset-composition-group > summary .asset-composition-value')
+    .allTextContents();
   const asCents = (text: string) => Number(text.replace(/[^\d−-]/g, '').replace('−', '-'));
   expect(groupValues.reduce((sum, text) => sum + asCents(text), 0)).toBe(8_473_000);
   const debt = composition.locator('[data-asset-group="debt"]');
@@ -77,18 +81,25 @@ test('"Woraus es besteht": grouped cents and sorted accounts reconcile; composit
   expect(debtAccounts.length).toBeGreaterThanOrEqual(2);
   expect(debtAccounts.every((value) => value.startsWith('−'))).toBe(true);
   await composition.getByRole('button', { name: 'Nach Konto', exact: true }).click();
-  const values = (await composition.locator('.asset-composition-accounts .asset-composition-value').allTextContents()).map(asCents);
+  const values = (
+    await composition
+      .locator('.asset-composition-accounts .asset-composition-value')
+      .allTextContents()
+  ).map(asCents);
   const assets = values.filter((value) => value > 0);
   expect(assets).toEqual([...assets].sort((a, b) => b - a));
   expect(values.filter((value) => value < 0).length).toBeGreaterThanOrEqual(2);
   expect(values.reduce((sum, value) => sum + value, 0)).toBe(8_473_000);
   await page.getByRole('button', { name: 'Zusammensetzung', exact: true }).click();
+  await expect(page.getByTestId('asset-composition-chart')).toBeVisible();
   const allGeometry = await page.locator('[data-composition-key]').evaluateAll((groups) =>
     groups.map((group) => ({
       key: group.getAttribute('data-composition-key'),
       zero: Number(group.getAttribute('data-zero-y')),
       ys: [...group.querySelectorAll('path')].flatMap((path) =>
-        (path.getAttribute('d')!.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number).filter((_value, index) => index % 2 === 1),
+        (path.getAttribute('d')!.match(/-?\d+(?:\.\d+)?/g) ?? [])
+          .map(Number)
+          .filter((_value, index) => index % 2 === 1),
       ),
     })),
   );
@@ -98,7 +109,9 @@ test('"Woraus es besteht": grouped cents and sorted accounts reconcile; composit
   const geometry = await page.locator('[data-composition-key="debt"]').evaluate((group) => {
     const zero = Number(group.getAttribute('data-zero-y'));
     const ys = [...group.querySelectorAll('path')].flatMap((path) =>
-      (path.getAttribute('d')!.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number).filter((_value, index) => index % 2 === 1),
+      (path.getAttribute('d')!.match(/-?\d+(?:\.\d+)?/g) ?? [])
+        .map(Number)
+        .filter((_value, index) => index % 2 === 1),
     );
     return { zero, ys };
   });

@@ -192,19 +192,12 @@
 }
 .asset-composition-group summary {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   min-height: 44px;
   padding-block: 8px;
   cursor: pointer;
-}
-.asset-composition-group summary > span:first-child::before {
-  content: '+ ';
-  color: var(--ink-2);
-}
-.asset-composition-group[open] summary > span:first-child::before {
-  content: '− ';
 }
 .asset-composition-amount {
   display: grid;
@@ -262,5 +255,5 @@
 .asset-history-legend .asset-net-line {
   height: 0;
   width: 16px;
-  border-top: 2px solid var(--line);
+  border-top: var(--stroke-measure) solid var(--line);
 }
