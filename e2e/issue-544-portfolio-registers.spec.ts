@@ -10,6 +10,26 @@ const registers = [
   ['Kennzahlen', '/vermoegen/portfolio/kennzahlen'],
 ] as const;
 
+test('portfolio navigation rows do not overlap at the 640px shell breakpoint', async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 640, height: 900 });
+  await page.goto('/vermoegen/portfolio');
+  await expect(page.getByTestId('portfolio-overview-chart')).toBeVisible();
+  const area = page.getByRole('navigation', { name: 'Register von Vermögen', exact: true });
+  const portfolio = page.getByRole('navigation', { name: 'Portfolio-Register', exact: true });
+  const areaBox = (await area.boundingBox())!;
+  const portfolioBox = (await portfolio.boundingBox())!;
+  expect(portfolioBox.y).toBeGreaterThanOrEqual(areaBox.y + areaBox.height);
+  for (const link of await portfolio.getByRole('link').all()) {
+    const box = (await link.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(640);
+  }
+  await page.screenshot({ path: info.outputPath('640-registers.png'), fullPage: false });
+});
+
 // Catches missing/dead register destinations, clipped labels and hidden oversized pages.
 test('five portfolio registers preserve period and fit accessible desktop and phone pages', async ({
   page,
@@ -37,8 +57,9 @@ test('five portfolio registers preserve period and fit accessible desktop and ph
     if (label === 'Positionen') await expect(page.locator('.portfolio-table')).toBeVisible();
     if (label === 'Allokation') await expect(page.locator('.vallo')).toBeVisible();
     if (label === 'Sparpläne')
-      await expect(page.getByRole('region', { name: 'Sparpläne', exact: true })
-        .getByRole('table')).toBeVisible();
+      await expect(
+        page.getByRole('region', { name: 'Sparpläne', exact: true }).getByRole('table'),
+      ).toBeVisible();
     if (label === 'Kennzahlen')
       await expect(page.getByRole('link', { name: 'Portfolio-Auswertung öffnen' })).toBeVisible();
     for (const theme of ['light', 'dark']) {
@@ -75,7 +96,9 @@ test('portfolio endpoint, lead and independently summed positions share exact da
   page,
   request,
 }) => {
-  const response = await request.get('/api/portfolio?period=3J&view=securities&history=performance');
+  const response = await request.get(
+    '/api/portfolio?period=3J&view=securities&history=performance',
+  );
   expect(response.ok()).toBe(true);
   const history = (await response.json()).portfolio.performanceHistory.dailyValues;
   expect(history.at(-1)).toMatchObject({ date: '2026-09-17', valueCents: 8_800_000 });
@@ -93,8 +116,10 @@ test('portfolio endpoint, lead and independently summed positions share exact da
     await expect(page.locator('.vnw')).toContainText('17.09.2026');
     await expect(page.locator('.vnw')).toContainText('Wertpapiere ohne Depot-Bargeld');
   }
-  await page.getByRole('region', { name: 'Positionen', exact: true })
-    .getByRole('button', { name: 'ETF Welt', exact: true }).click();
+  await page
+    .getByRole('region', { name: 'Positionen', exact: true })
+    .getByRole('button', { name: 'ETF Welt', exact: true })
+    .click();
   await expect(page).toHaveURL(/\/instrument\/[^?]+\?zeitraum=3J$/);
 });
 
@@ -114,8 +139,11 @@ test('a closed calendar month uses the chart endpoint date for lead and position
   const positions = (await positionsResponse.json()) as PortfolioPositionsView;
   expect(positions.asOf).toBe('2026-08-31');
   expect(positions.valueCents).toBe(endpoint.valueCents);
-  expect(positions.classes.flatMap((group) => group.positions)
-    .reduce((sum, position) => sum + position.valueCents!, 0)).toBe(endpoint.valueCents);
+  expect(
+    positions.classes
+      .flatMap((group) => group.positions)
+      .reduce((sum, position) => sum + position.valueCents!, 0),
+  ).toBe(endpoint.valueCents);
   for (const path of ['/vermoegen/portfolio', '/vermoegen/portfolio/positionen']) {
     await page.goto(`${path}?zeitraum=2026-08..2026-08`);
     await expect(page.locator('.vnw')).toContainText('31.08.2026');

@@ -97,3 +97,33 @@ JPEGs from wealth-ux-v1), not snapshot oracles. Such VM-only outputs must not be
 carried into the feature diff. The first VM's formatter patch/logs were inside
 Playwright's cleaned output directory and were lost before artifact upload; no
 patch was applied. The next proof preserves them outside that directory.
+
+## Second focused proof and final narrow correction
+
+Disposable `b1e5fed3`, exact source parent `9b28fcdb`, ran `40465507619`:
+46/46 browser tests passed on their first attempt, covering the selected desktop,
+390 Chromium and WebKit flows, both themes, original compact chart/quality-cue
+checks, task dialog/focus and unchanged Heute/report/rules screenshot comparisons.
+Scoped ESLint/build passed and eight unit files / 63 tests passed after restoring
+the source callers. Two deliberate old-caller RED tests failed for the old hrefs,
+then passed with the exact source. Full typecheck failed only because the new
+literal route matrix lacked tuple typing (`label` inferred possibly undefined).
+Adding `as const` retains every literal href and assertion.
+
+The durable raw formatting patch has SHA256
+`9c515065055beb51e1b7163bfbe74fabdb1845977d8c1d755f52a3fc9a0f3c0c`.
+Its seven allowlisted TS/TSX files contain only formatting; `git apply --check`
+passed and the complete exact patch was applied. No VM-produced JPEG, baseline,
+workflow or helper was carried into source. Author inspected original desktop
+overview/light, mobile positions/light and WebKit allocation/dark viewport PNGs:
+labels are legible, the desktop chart fits, and phone register labels fit without
+swiping. Fixed phone FAB/navigation crossing the scrolled capture is not evidence
+that underlying amounts are always unobstructed; existing scroll/touch checks remain.
+
+Independent review found a separate 601–767px overlap: the shell changes its gap
+at767, while the new negative-margin override previously changed only at600.
+The correction aligns the margin rule with767 and keeps the three-column layout
+switch at600. A new 640px browser case checks actual nonintersecting area/portfolio
+nav boxes, 44px link height, horizontal containment and a viewport image. It must
+fail with the former stylesheet and pass after restoring the corrected source.
+The existing required desktop/390 cases and all financial oracles remain unchanged.

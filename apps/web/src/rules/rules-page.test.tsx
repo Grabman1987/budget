@@ -106,10 +106,13 @@ it('sends portfolio corrections directly to the register containing their work',
     ['R20', 'Sparpläne prüfen', '/vermoegen/portfolio/sparplaene'],
     ['R21', 'Hebel und Konten prüfen', '/vermoegen/portfolio/allokation'],
     ['R22', 'Fondskosten prüfen', '/vermoegen/portfolio/positionen'],
-  ]) {
+  ] as const) {
     const finding = document.querySelector(`[data-rule-code="${code}"]`)!;
-    expect(within(finding as HTMLElement).getByRole('link', { name: label }).getAttribute('href'))
-      .toBe(destination);
+    expect(
+      within(finding as HTMLElement)
+        .getByRole('link', { name: label })
+        .getAttribute('href'),
+    ).toBe(destination);
   }
 });
 

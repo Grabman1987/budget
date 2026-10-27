@@ -30,10 +30,7 @@ export function SavingsSection({
   const [includeEnded, setIncludeEnded] = useState(false);
   const select = (sparplan?: string) =>
     void navigate({
-      to:
-        sparplan && sparplan !== 'neu'
-          ? '/vermoegen/portfolio/sparplan/$id'
-          : navigationPath,
+      to: sparplan && sparplan !== 'neu' ? '/vermoegen/portfolio/sparplan/$id' : navigationPath,
       params: { id: sparplan ?? '' },
       state: { wealthDetailOpenedInApp: true },
       search: ((prev: Record<string, unknown>) => ({

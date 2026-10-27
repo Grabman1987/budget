@@ -89,8 +89,10 @@ sampleTest(
     });
     await page.goto('/vermoegen/portfolio/positionen');
     await expect(page.locator('.portfolio-positions')).toContainText('ohne Kassa');
-    await page.getByRole('navigation', { name: 'Portfolio-Register', exact: true })
-      .getByRole('link', { name: 'Allokation', exact: true }).click();
+    await page
+      .getByRole('navigation', { name: 'Portfolio-Register', exact: true })
+      .getByRole('link', { name: 'Allokation', exact: true })
+      .click();
     const allocation = page.getByRole('region', { name: 'Aufteilung Soll/Ist', exact: true });
     await allocation.getByText('Wie wird gerechnet?', { exact: true }).click();
     await expect(allocation).toContainText('Netto-Allokationsuniversum');

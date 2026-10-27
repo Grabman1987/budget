@@ -343,8 +343,10 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
   await expect(page.locator('dialog[open]')).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(page.locator('dialog[open]')).toHaveCount(0);
-  await page.getByRole('navigation', { name: 'Portfolio-Register', exact: true })
-    .getByRole('link', { name: 'Positionen', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Portfolio-Register', exact: true })
+    .getByRole('link', { name: 'Positionen', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Handel erfassen', exact: true })).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(1);
@@ -367,8 +369,10 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
-  await page.getByRole('navigation', { name: 'Portfolio-Register', exact: true })
-    .getByRole('link', { name: 'Sparpläne', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Portfolio-Register', exact: true })
+    .getByRole('link', { name: 'Sparpläne', exact: true })
+    .click();
   const opener = page
     .getByRole('region', { name: 'Sparpläne', exact: true })
     .getByRole('button', { name: data.security.name, exact: true });
