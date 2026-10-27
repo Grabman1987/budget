@@ -2,6 +2,7 @@ import {
   currentValuationSources,
   heute,
   planningAccuracyReport,
+  readOverdueContactReminders,
   readMonthCloseReminders,
   type Db,
 } from '@budget/db';
@@ -33,6 +34,7 @@ export function heuteRoutes(db: Db, today: () => string): Hono {
         ...data.attention,
         quoteReview: provenance.quoteReview,
         monthCloseTasks: readMonthCloseReminders(db, day),
+        contactReminders: readOverdueContactReminders(db, day),
       },
       planningAccuracy: planningAccuracyReport(db, data.pace.month, day).summary,
     });

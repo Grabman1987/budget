@@ -8,6 +8,11 @@ export type AttentionTask =
   | { id: string; kind: 'plan' | 'rules' | 'review' | 'accounts' }
   | {
       id: string;
+      kind: 'contact';
+      contact: NonNullable<Heute['attention']['contactReminders']>['items'][number];
+    }
+  | {
+      id: string;
       kind: 'month-close';
       task: NonNullable<Heute['attention']['monthCloseTasks']>['tasks'][number];
     };
@@ -41,6 +46,8 @@ export function attentionModel(
     data.attention.loanTermsMissing
   )
     tasks.push({ id: 'accounts:review', kind: 'accounts' });
+  for (const contact of data.attention.contactReminders?.items ?? [])
+    tasks.push({ id: `contact:${contact.contactId}`, kind: 'contact', contact });
   for (const task of closeTasks.filter((item) => item.kind === 'close'))
     tasks.push({ id: task.id, kind: 'month-close', task });
   const seen = new Set<string>();

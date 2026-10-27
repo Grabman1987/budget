@@ -30,6 +30,7 @@ export function AttentionBar({
   if (
     !model.tasks.length &&
     !data.attention.monthCloseTasks?.unavailable.length &&
+    !data.attention.contactReminders?.unavailableCount &&
     !financeUnavailable &&
     !missingInputs
   )
@@ -72,6 +73,13 @@ export function AttentionBar({
           Ein gespeicherter Monatsabschluss kann nicht verglichen werden.
         </p>
       )}
+      {!!data.attention.contactReminders?.unavailableCount && (
+        <p className="heute-note">
+          Kontakt-Erinnerungen für {data.attention.contactReminders.unavailableCount}{' '}
+          {data.attention.contactReminders.unavailableCount === 1 ? 'Kontakt' : 'Kontakte'} ohne
+          EUR-Kontoblatt nicht verfügbar.
+        </p>
+      )}
     </section>
   );
 }
@@ -97,6 +105,18 @@ function AttentionRow({
   const reminders = data.accountReminders?.length ?? 0;
   const quoteReview = data.attention.quoteReview?.count ?? 0;
   switch (task.kind) {
+    case 'contact':
+      return (
+        <div className="attention-row">
+          <span>
+            {task.contact.contactName}: {eur(task.contact.overdueCents)} seit{' '}
+            {longDay(task.contact.oldestDate)} offen
+          </span>
+          <AppLink to={`/konten/kontakte/${encodeURIComponent(task.contact.contactId)}`}>
+            Kontoblatt öffnen
+          </AppLink>
+        </div>
+      );
     case 'plan':
       return (
         <div className="attention-row">
