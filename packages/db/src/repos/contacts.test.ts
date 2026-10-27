@@ -80,6 +80,43 @@ describe('overdue contact reminders', () => {
     receipt(6000);
     expect(readOverdueContactReminders(opened.db, '2026-10-03').items).toEqual([]);
   });
+
+  it('excludes movements after the requested day', () => {
+    outlay(3000, '2026-09-01');
+    createBooking(
+      opened.db,
+      {
+        accountId: 'usd',
+        date: '2026-10-03',
+        amountCents: -5000,
+        splits: [{ categoryId: 'auslagen', contactId: 'k1', amountCents: -5000 }],
+      },
+      testCtx,
+    );
+    expect(readOverdueContactReminders(opened.db, '2026-10-02')).toEqual({
+      items: [
+        { contactId: 'k1', contactName: 'Freund', oldestDate: '2026-09-01', overdueCents: 3000 },
+      ],
+      unavailableCount: 0,
+    });
+  });
+
+  it('marks a non-EUR contact unavailable without inventing an EUR reminder', () => {
+    createBooking(
+      opened.db,
+      {
+        accountId: 'usd',
+        date: '2026-09-01',
+        amountCents: -5000,
+        splits: [{ categoryId: 'auslagen', contactId: 'k1', amountCents: -5000 }],
+      },
+      testCtx,
+    );
+    expect(readOverdueContactReminders(opened.db, '2026-10-02')).toEqual({
+      items: [],
+      unavailableCount: 1,
+    });
+  });
 });
 describe('atomic contact settlement', () => {
   it('persists oldest-first 30 + 10, retaining 60 open', () => {
