@@ -1,0 +1,69 @@
+name: Temporary #599 focused proof
+
+on:
+  push:
+    branches: [proof/599-focused-9260]
+
+permissions:
+  contents: read
+
+jobs:
+  focused:
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify frozen source and temporary workflow-only delta
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          test "$(git rev-parse HEAD^)" = '92601fe4c565b45c0d274a553e56e406168169cd'
+          test "$(git diff --name-only HEAD^ HEAD)" = '.github/workflows/proof-599-focused.yml'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Scope checks
+        run: |
+          files=(
+            apps/server/src/api/heute.ts
+            apps/web/src/heute/api.ts
+            apps/web/src/heute/attention-bar.tsx
+            apps/web/src/heute/attention-model.ts
+            apps/web/src/heute/attention-bar.test.tsx
+            apps/web/src/pwa/offline-state.tsx
+            apps/web/src/pwa/offline-contact-reminders.test.tsx
+            packages/db/src/repos/contacts.ts
+            packages/db/src/repos/contacts.test.ts
+            e2e/issue-599-contact-reminder.spec.ts
+          )
+          if ! npx prettier --check "${files[@]}"; then
+            npx prettier --write "${files[@]}"
+            git diff --binary > formatting.patch
+            exit 1
+          fi
+          npx eslint "${files[@]}"
+          npm run typecheck
+          npx vitest run packages/db/src/repos/contacts.test.ts apps/web/src/heute/attention-bar.test.tsx apps/web/src/pwa/offline-contact-reminders.test.tsx
+      - name: Build for browser proof
+        run: npm run build:e2e
+      - name: Desktop, Chromium phone and WebKit iPhone; light and dark
+        run: npx playwright test e2e/issue-599-contact-reminder.spec.ts --project=desktop --project=mobile --project=webkit-iphone --workers=1 --retries=0 --update-snapshots=none
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: proof-599-focused
+          path: |
+            formatting.patch
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 3
