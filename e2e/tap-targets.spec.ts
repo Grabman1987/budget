@@ -60,11 +60,13 @@ test.describe('UX-3b touch controls', () => {
     const checkbox = selectable.getByRole('checkbox');
     // The fixed tab bar can cover a target aligned to the viewport's bottom by WebKit.
     await checkbox.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
-    await expect.poll(async () => {
-      const box = (await checkbox.boundingBox())!;
-      const tabbar = (await page.locator('.tabbar').boundingBox())!;
-      return box.y >= 0 && box.y + box.height <= tabbar.y;
-    }).toBe(true);
+    await expect
+      .poll(async () => {
+        const box = (await checkbox.boundingBox())!;
+        const tabbar = (await page.locator('.tabbar').boundingBox())!;
+        return box.y >= 0 && box.y + box.height <= tabbar.y;
+      })
+      .toBe(true);
     const covered = await checkbox.evaluate((el) => {
       const box = el.getBoundingClientRect();
       return [box.left + 1, box.right - 1].some((x) => {
@@ -72,7 +74,9 @@ test.describe('UX-3b touch controls', () => {
         return target !== el && !el.contains(target);
       });
     });
-    expect(covered, 'row selection edges must stay clear of navigation and adjacent controls').toBe(false);
+    expect(covered, 'row selection edges must stay clear of navigation and adjacent controls').toBe(
+      false,
+    );
     await checkbox.tap();
     await expect(checkbox).toBeChecked();
     await checkbox.tap();
