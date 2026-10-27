@@ -129,6 +129,82 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
   }
 });
 
+test('619 supported maximum saved views remain keyboard reachable beside three recents and the complete catalog', async ({
+  page,
+  isolatedLedger,
+}, info) => {
+  const origin = isolatedLedger.origin;
+  const initialResponse = await page.request.get(`${origin}/api/reports/saved-queries`);
+  expect(initialResponse.ok()).toBe(true);
+  const initial = (await initialResponse.json()) as ExplorerViewsState;
+  const names = Array.from({ length: 20 }, (_, index) =>
+    `Synthetic view ${String(index + 1).padStart(2, '0')} ${'x'.repeat(40)}`.slice(0, 40),
+  );
+  expect(names.map((name) => name.length)).toEqual(Array(20).fill(40));
+  const importedResponse = await page.request.post(`${origin}/api/reports/saved-queries`, {
+    headers: { origin },
+    data: {
+      kind: 'import',
+      revision: initial.revision,
+      views: names.map((name) => ({
+        name,
+        query: { dim: 'kategorie', cls: 'want', cols: 'quartal', period: '3J', meas: 'summe' },
+      })),
+    },
+  });
+  expect(importedResponse.ok(), await importedResponse.text()).toBe(true);
+  const imported = (await importedResponse.json()) as ExplorerViewsState;
+  expect(imported.views.map((view) => view.name)).toEqual(names);
+  expect(new Set(imported.views.map((view) => view.id)).size).toBe(20);
+  for (const id of ['ausgaben', 'budgettreue', 'explorer']) {
+    await page.goto(`/reports/${id}`);
+    await expect(page.locator('.report-switcher')).toBeVisible();
+  }
+  await page.goto('/reports');
+  const strip = page.getByRole('navigation', { name: 'Meine Auswertungen', exact: true });
+  const links = strip.getByRole('link');
+  await expect(links).toHaveCount(20);
+  await expect(links).toHaveText(imported.views.map((view) => view.name));
+  await expect(page.getByRole('navigation', { name: 'Zuletzt geöffnete Berichte', exact: true }).getByRole('link')).toHaveCount(3);
+  await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => { document.documentElement.dataset['theme'] = value; }, theme);
+    const hub = (await page.locator('.report-hub').boundingBox())!;
+    if (info.project.name === 'desktop') expect(hub.y + hub.height).toBeLessThanOrEqual(900);
+    await links.first().focus();
+    for (let index = 0; index < imported.views.length; index++) {
+      const link = links.nth(index);
+      await expect(link).toBeFocused();
+      const destination = new URL((await link.getAttribute('href'))!, origin);
+      expect([...destination.searchParams.entries()]).toEqual([['ansicht', imported.views[index]!.id]]);
+      const bounds = await link.evaluate((element) => {
+        const container = element.closest('nav')!;
+        const outer = container.getBoundingClientRect();
+        const inner = element.getBoundingClientRect();
+        return { left: inner.left, right: inner.right, top: inner.top, bottom: inner.bottom,
+          scrollLeft: outer.left + container.clientLeft, scrollRight: outer.left + container.clientLeft + container.clientWidth,
+          scrollTop: outer.top + container.clientTop, scrollBottom: outer.top + container.clientTop + container.clientHeight,
+          viewportWidth: innerWidth, viewportHeight: innerHeight,
+          centerHit: element.contains(document.elementFromPoint(inner.x + inner.width / 2, inner.y + inner.height / 2)),
+        };
+      });
+      expect(bounds.left).toBeGreaterThanOrEqual(bounds.scrollLeft);
+      expect(bounds.right).toBeLessThanOrEqual(bounds.scrollRight);
+      expect(bounds.top).toBeGreaterThanOrEqual(bounds.scrollTop);
+      expect(bounds.bottom).toBeLessThanOrEqual(bounds.scrollBottom);
+      expect(bounds.left).toBeGreaterThanOrEqual(0);
+      expect(bounds.right).toBeLessThanOrEqual(bounds.viewportWidth);
+      expect(bounds.top).toBeGreaterThanOrEqual(0);
+      expect(bounds.bottom).toBeLessThanOrEqual(bounds.viewportHeight);
+      expect(bounds.centerHit).toBe(true);
+      if (index < imported.views.length - 1) await page.keyboard.press('Tab');
+    }
+    expect(await strip.evaluate((element) => element.scrollTop > 0 || element.scrollLeft > 0)).toBe(true);
+    await inspect(page, info.project.name !== 'desktop');
+    await page.screenshot({ path: info.outputPath(`maximum-saved-hub-${theme}.png`), fullPage: false, animations: 'disabled' });
+  }
+});
+
 test('628 saved-view chips reload across contexts and resolve only the current server view by ID', async ({
   page,
   browser,
