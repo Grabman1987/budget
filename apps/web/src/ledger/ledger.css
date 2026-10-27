@@ -990,6 +990,9 @@
 .kfilter-actions .btn {
   min-height: 44px;
 }
+.kbookings-bar {
+  flex-wrap: wrap;
+}
 .kregister-actions {
   position: relative;
   margin-inline-start: auto;

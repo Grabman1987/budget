@@ -79,6 +79,28 @@ test.describe('checkbox appearance', () => {
     });
     expect(checked.background).not.toBe(unchecked);
     expect(checked.tick).not.toBe('none');
+    if (hasTouch) {
+      const bar = page.getByRole('group', { name: 'Auswahl bearbeiten', exact: true });
+      await expect(bar).toHaveAttribute('aria-busy', 'false');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      // The first tap introduces a fixed selection bar. Scroll the same control into the
+      // free area above it before the real second tap; native automatic scrolling ignores it.
+      await checkbox.evaluate((el) => {
+        const bounds = el.getBoundingClientRect();
+        const selection = document.querySelector('.kselection-bar')!.getBoundingClientRect();
+        const tabs = document.querySelector('.tabbar')?.getBoundingClientRect();
+        const bottom = Math.min(selection.top, tabs?.top ?? innerHeight);
+        scrollBy({ top: bounds.top + bounds.height / 2 - bottom / 2, behavior: 'instant' });
+      });
+      await expect.poll(() => checkbox.evaluate((el) => {
+        const bounds = el.getBoundingClientRect();
+        const selection = document.querySelector('.kselection-bar')!.getBoundingClientRect();
+        const tabs = document.querySelector('.tabbar')?.getBoundingClientRect();
+        return bounds.top >= 0 && bounds.bottom <= Math.min(selection.top, tabs?.top ?? innerHeight)
+          && bounds.left >= 0 && bounds.right <= innerWidth
+          && document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2) === el;
+      })).toBe(true);
+    }
     if (hasTouch) await checkbox.tap();
     else await checkbox.click();
     await expect(checkbox).not.toBeChecked();

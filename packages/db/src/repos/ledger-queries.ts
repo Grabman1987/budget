@@ -405,9 +405,13 @@ export function queryBookings(
 
   const nativeGroups = new Map<string, { count: number; cents: bigint; unsafe: boolean }>();
   if (query.nativeSummary !== false) {
-    for (const row of db.select({ currency: booking.currency, amount: booking.amountCents })
-      .from(booking).innerJoin(account, eq(account.id, booking.accountId))
-      .leftJoin(payee, eq(payee.id, booking.payeeId)).where(base).all()) {
+    for (const row of db
+      .select({ currency: booking.currency, amount: booking.amountCents })
+      .from(booking)
+      .innerJoin(account, eq(account.id, booking.accountId))
+      .leftJoin(payee, eq(payee.id, booking.payeeId))
+      .where(base)
+      .all()) {
       const group = nativeGroups.get(row.currency) ?? { count: 0, cents: 0n, unsafe: false };
       group.count += 1;
       if (Number.isSafeInteger(row.amount)) group.cents += BigInt(row.amount);
@@ -416,9 +420,13 @@ export function queryBookings(
     }
   }
   const bound = BigInt(Number.MAX_SAFE_INTEGER);
-  const nativeTotals = [...nativeGroups].sort(([a], [b]) => a.localeCompare(b))
-    .map(([currency, value]) => ({ currency, count: value.count,
-      cents: value.unsafe || value.cents > bound || value.cents < -bound ? null : Number(value.cents),
+  const nativeTotals = [...nativeGroups]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([currency, value]) => ({
+      currency,
+      count: value.count,
+      cents:
+        value.unsafe || value.cents > bound || value.cents < -bound ? null : Number(value.cents),
     }));
 
   const after: SQL | undefined = (() => {

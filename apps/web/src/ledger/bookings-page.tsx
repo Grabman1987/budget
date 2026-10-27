@@ -183,7 +183,7 @@ export function BookingsPage() {
             Zurück zur Report-Zelle
           </AppLink>
         )}
-        <div className="kbar">
+        <div className="kbar kbookings-bar">
           {isPhone && (
             <Button
               variant="ghost"
@@ -206,8 +206,19 @@ export function BookingsPage() {
             Buchung erfassen
           </Button>
           <details className="kregister-actions">
-            <summary aria-label="Weitere Buchungsaktionen"><MoreHorizontal size={20} strokeWidth={1.5} aria-hidden="true" /></summary>
-            <a className="btn btn-ghost" href={filteredBookingsCsvUrl({ ...filter, to: filter.to && filter.to < today ? filter.to : today })} download>Aktuellen Filter als CSV exportieren</a>
+            <summary aria-label="Weitere Buchungsaktionen">
+              <MoreHorizontal size={20} strokeWidth={1.5} aria-hidden="true" />
+            </summary>
+            <a
+              className="btn btn-ghost"
+              href={filteredBookingsCsvUrl({
+                ...filter,
+                to: filter.to && filter.to < today ? filter.to : today,
+              })}
+              download
+            >
+              Aktuellen Filter als CSV exportieren
+            </a>
           </details>
         </div>
         <section aria-labelledby="filter-title">
@@ -239,10 +250,10 @@ export function BookingsPage() {
               {first.nativeTotalsPending
                 ? 'Summe wird aktualisiert …'
                 : first.categorySpendingCents !== undefined
-                ? `Kategorie netto ${eur(first.categorySpendingCents)} (Ausgaben − Erstattungen)`
-                : first.nativeTotals
-                  ? `Summe ${first.nativeTotals.length ? first.nativeTotals.map((total) => total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents, total.currency, true)).join(' · ') : eur(0)}`
-                  : 'Summe nicht verfügbar'}
+                  ? `Kategorie netto ${eur(first.categorySpendingCents)} (Ausgaben − Erstattungen)`
+                  : first.nativeTotals
+                    ? `Summe ${first.nativeTotals.length ? first.nativeTotals.map((total) => (total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents, total.currency, true))).join(' · ') : eur(0)}`
+                    : 'Summe nicht verfügbar'}
             </p>
           )}
         </section>
@@ -292,8 +303,8 @@ export function BookingsPage() {
                 items={items}
                 caption="Alle Buchungen nach Tag"
                 variant="all"
-              showRunningBalance={!!filteredAccount}
-              showTodayBalance={!!filteredAccount}
+                showRunningBalance={!!filteredAccount}
+                showTodayBalance={!!filteredAccount}
                 upcoming={upcoming.model}
                 {...(!isPhone || selecting ? { selection } : {})}
                 sort={{ key: sortKey, direction, onSort }}
@@ -394,7 +405,14 @@ export function BookingsPage() {
   );
 }
 
-function FilterRow({ search, setSearch, accounts, lookups, sortValue, onSortValue }: {
+function FilterRow({
+  search,
+  setSearch,
+  accounts,
+  lookups,
+  sortValue,
+  onSortValue,
+}: {
   sortValue: string;
   onSortValue: (value: string) => void;
   search: BookingsSearch;
@@ -419,40 +437,78 @@ function FilterRow({ search, setSearch, accounts, lookups, sortValue, onSortValu
   }, [q]);
   const chips = keys.map((key) => {
     const label = filterChipLabel(key, search[key]!, accounts, lookups);
-    return <Button key={key} variant="ghost" className="kfilter-chip"
-      aria-label={`${label} entfernen`} onClick={() => setSearch({ [key]: undefined })}>
-      {label}<X size={16} strokeWidth={1.75} aria-hidden="true" />
-    </Button>;
+    return (
+      <Button
+        key={key}
+        variant="ghost"
+        className="kfilter-chip"
+        aria-label={`${label} entfernen`}
+        onClick={() => setSearch({ [key]: undefined })}
+      >
+        {label}
+        <X size={16} strokeWidth={1.75} aria-hidden="true" />
+      </Button>
+    );
   });
-  return <>
-    <div className="kfilter-phone">
-      <div className="kfilter-search-row">
-        <div className="kf kf-search">
-          <Field label="In Buchungen suchen">{({ id }) => <TextInput id={id} type="search"
-            value={q} placeholder="Empfänger, Notiz, Kategorie" autoComplete="off"
-            onChange={(event) => setQ(event.target.value)} />}</Field>
+  return (
+    <>
+      <div className="kfilter-phone">
+        <div className="kfilter-search-row">
+          <div className="kf kf-search">
+            <Field label="In Buchungen suchen">
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  type="search"
+                  value={q}
+                  placeholder="Empfänger, Notiz, Kategorie"
+                  autoComplete="off"
+                  onChange={(event) => setQ(event.target.value)}
+                />
+              )}
+            </Field>
+          </div>
+          <Button
+            variant="ghost"
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            onClick={() => setOpen(true)}
+          >
+            Filter ({keys.length}) <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+          </Button>
         </div>
-        <Button variant="ghost" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
-          Filter ({keys.length}) <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
-        </Button>
+        {chips.length > 0 && (
+          <div className="kfilter-chips" role="group" aria-label="Aktive Filter">
+            {chips}
+          </div>
+        )}
       </div>
-      {chips.length > 0 && <div className="kfilter-chips" role="group" aria-label="Aktive Filter">{chips}</div>}
-    </div>
-    <BottomSheet open={open} onClose={() => setOpen(false)} title="Buchungen filtern">
-      <div className="kfilter-sheet">
-        <p>Änderungen wirken sofort. Der aktuelle Filter steht in der URL.</p>
-        <div className="kfilter"><FilterControls phone {...{ search, setSearch, accounts, lookups, sortValue, onSortValue }} /></div>
-        <div className="kfilter-actions">
-          <Button variant="ghost" onClick={() => {
-            const patch: Partial<BookingsSearch> = {};
-            for (const key of keys) patch[key] = undefined;
-            setSearch(patch);
-          }}>Zurücksetzen</Button>
-          <Button onClick={() => setOpen(false)}>Fertig</Button>
+      <BottomSheet open={open} onClose={() => setOpen(false)} title="Buchungen filtern">
+        <div className="kfilter-sheet">
+          <p>Änderungen wirken sofort. Der aktuelle Filter steht in der URL.</p>
+          <div className="kfilter">
+            <FilterControls
+              phone
+              {...{ search, setSearch, accounts, lookups, sortValue, onSortValue }}
+            />
+          </div>
+          <div className="kfilter-actions">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const patch: Partial<BookingsSearch> = {};
+                for (const key of keys) patch[key] = undefined;
+                setSearch(patch);
+              }}
+            >
+              Zurücksetzen
+            </Button>
+            <Button onClick={() => setOpen(false)}>Fertig</Button>
+          </div>
         </div>
-      </div>
-    </BottomSheet>
-  </>;
+      </BottomSheet>
+    </>
+  );
 }
 function filterChipLabel(
   key: ReturnType<typeof activeFilterKeys>[number],

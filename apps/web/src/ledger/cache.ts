@@ -101,10 +101,14 @@ export function mapCachedBookings<T extends PageLike | undefined>(
     }
     return { ...page, items, total: page.total - removed, sumCents };
   };
-  const mapped = isInfinite(data) ? { ...data, pages: data.pages.map(mapPage) } : mapPage(data as BookingPage);
+  const mapped = isInfinite(data)
+    ? { ...data, pages: data.pages.map(mapPage) }
+    : mapPage(data as BookingPage);
   if (!transformed) return mapped as T;
   // Each cursor page carries complete-filter totals. A changed off-page row invalidates
   // every copy; only the canonical refetch can prove current filter/currency membership.
   const pending = (page: BookingPage): BookingPage => ({ ...page, nativeTotalsPending: true });
-  return (isInfinite(mapped) ? { ...mapped, pages: mapped.pages.map(pending) } : pending(mapped)) as T;
+  return (
+    isInfinite(mapped) ? { ...mapped, pages: mapped.pages.map(pending) } : pending(mapped)
+  ) as T;
 }

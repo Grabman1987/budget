@@ -59,6 +59,12 @@ Test rationale:
   Fertig; it does not initiate a write or alter any financial expectations.
 - `accounts-sidebar-profile.spec.ts`: closes the dialog after inspecting identical
   account option groups so the existing sidebar assertions remain accessible.
+- `checkbox-appearance.spec.ts`: after the first real tap introduces the fixed
+  selection bar, scrolls the same checkbox into the free region above the bar,
+  verifies its entire bounds and actual center hit, then retains the real second
+  tap and unchecked oracle. Also asserts no selected-mode horizontal overflow.
+  The bookings toolbar wraps so the longer selection label and CSV menu remain
+  inside the phone viewport; it introduces no new color or size value.
 
 No timeout, retry, skip, baseline or protected money/security/Undo expectation was
 relaxed. Independent HIGH source/test review and all runtime/publication evidence

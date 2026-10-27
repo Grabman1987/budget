@@ -91,7 +91,9 @@ describe('mapCachedBookings', () => {
     };
     const unchanged = mapCachedBookings(data, (row) => row);
     expect(unchanged.pages[0]?.nativeTotalsPending).toBeUndefined();
-    const changed = mapCachedBookings(data, (row) => row.id === 'a' ? { ...row, amountCents: -2000 } : row);
+    const changed = mapCachedBookings(data, (row) =>
+      row.id === 'a' ? { ...row, amountCents: -2000 } : row,
+    );
     expect(changed.pages.map((page) => page.nativeTotalsPending)).toEqual([true, true]);
     expect(changed.pages.map((page) => page.nativeTotals)).toEqual([nativeTotals, nativeTotals]);
     expect(data.pages[0]?.nativeTotals).toEqual(nativeTotals);

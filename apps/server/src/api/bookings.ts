@@ -137,11 +137,18 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
   app.get('/csv', async (c) => {
     const { q, ids, ...rest } = readQuery(c, bookingQuery);
     const day = today();
-    return filteredBookingCsv(db, defined({
-      ...rest, text: q, cursor: undefined,
-      ids: ids ? ids.split(',').filter(Boolean).slice(0, 200) : undefined,
-      to: rest.to && rest.to < day ? rest.to : day,
-    }), day, c.req.raw.signal);
+    return filteredBookingCsv(
+      db,
+      defined({
+        ...rest,
+        text: q,
+        cursor: undefined,
+        ids: ids ? ids.split(',').filter(Boolean).slice(0, 200) : undefined,
+        to: rest.to && rest.to < day ? rest.to : day,
+      }),
+      day,
+      c.req.raw.signal,
+    );
   });
 
   app.get('/:id', (c) => {

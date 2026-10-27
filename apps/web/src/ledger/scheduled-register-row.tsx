@@ -89,9 +89,11 @@ export function ScheduledRegisterRow({
           {nativeCurrency(s.amountCents, s.currency, true)}
         </span>
       </td>
-      {showBalance && <td className="kc-num kc-run kx-run">
-        {balance === null ? (all ? 'Saldo offen' : '–') : nativeCurrency(balance, s.currency)}
-      </td>}
+      {showBalance && (
+        <td className="kc-num kc-run kx-run">
+          {balance === null ? (all ? 'Saldo offen' : '–') : nativeCurrency(balance, s.currency)}
+        </td>
+      )}
       <td className="kc-status kx-status">
         <span
           className="kstatus-btn"

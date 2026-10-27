@@ -192,7 +192,13 @@ export function BookingTable({
           </label>
         )}
       </div>
-      <table className={cx('ktable ktx', all ? 'ktx-all' : 'ktx-account', runColumn && 'has-running-balance')}>
+      <table
+        className={cx(
+          'ktable ktx',
+          all ? 'ktx-all' : 'ktx-account',
+          runColumn && 'has-running-balance',
+        )}
+      >
         <caption className="sr-only">{caption}</caption>
         {!all && (
           <colgroup>
