@@ -178,9 +178,16 @@ export function securityRoutes(db: Db, today: () => string): Hono {
   });
   app.get('/:id/history', (c) => {
     const securityId = c.req.param('id');
-    const { from, to } = readQuery(c, z.strictObject({ from: exposureDay.optional(), to: exposureDay }));
+    const { from, to } = readQuery(
+      c,
+      z.strictObject({ from: exposureDay.optional(), to: exposureDay }),
+    );
     if (to > today() || (from !== undefined && from > to))
-      throw new ApiError(400, 'invalid_history_window', 'Bitte einen vergangenen Zeitraum in aufsteigender Reihenfolge wählen.');
+      throw new ApiError(
+        400,
+        'invalid_history_window',
+        'Bitte einen vergangenen Zeitraum in aufsteigender Reihenfolge wählen.',
+      );
     try {
       return c.json({
         history: db.transaction((tx) => instrumentHistory(tx, securityId, defined({ from, to }))),

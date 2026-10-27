@@ -83,7 +83,10 @@ export function PriceHistory({
   });
   const history = controller.query.isError ? undefined : controller.query.data?.history;
   const from = mode === 'price' ? controller.from : (history?.from ?? controller.from);
-  const to = history?.to ?? controller.to ?? (mode === 'price' ? query.data?.prices.at(-1)?.date : undefined);
+  const to =
+    history?.to ??
+    controller.to ??
+    (mode === 'price' ? query.data?.prices.at(-1)?.date : undefined);
   const prices =
     query.data?.prices.filter((p) => (!from || p.date >= from) && (!to || p.date <= to)) ?? [];
   return (
@@ -349,16 +352,17 @@ function Drawing({
           className="instrument-cost-line"
         />
       )}
-      {mode === 'price' && prices.map((quote) => (
-        <circle
-          key={quote.date}
-          data-chart-point={dates.indexOf(quote.date)}
-          cx={x(quote.date)}
-          cy={y(quote.priceMicro)}
-          r={prices.length === 1 ? 3 : 1.5}
-          fill="var(--line)"
-        />
-      ))}
+      {mode === 'price' &&
+        prices.map((quote) => (
+          <circle
+            key={quote.date}
+            data-chart-point={dates.indexOf(quote.date)}
+            cx={x(quote.date)}
+            cy={y(quote.priceMicro)}
+            r={prices.length === 1 ? 3 : 1.5}
+            fill="var(--line)"
+          />
+        ))}
       {[...new Set(events.map((e) => e.date))].map((date) => (
         <g key={date} data-trade-date={date}>
           <circle

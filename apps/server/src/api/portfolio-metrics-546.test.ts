@@ -39,7 +39,9 @@ beforeEach(() => {
 });
 afterEach(() => opened.close());
 const read = async () => {
-  const response = await app.request('/api/portfolio?period=YTD&view=securities&history=performance&provenance=valuation-v1');
+  const response = await app.request(
+    '/api/portfolio?period=YTD&view=securities&history=performance&provenance=valuation-v1',
+  );
   expect(response.status).toBe(200);
   return ((await response.json()) as { portfolio: PortfolioSummary }).portfolio;
 };
@@ -49,15 +51,23 @@ it('keeps the independent 100 + 100 → 220 example at 10% TTWROR, not 120% valu
   const audit = opened.sqlite.prepare('SELECT COUNT(*) AS n FROM audit_log').get();
   const portfolio = await read();
   expect(portfolio.performance).toMatchObject({
-    from: '2025-12-31', to: '2026-12-31', days: 365,
-    startValueCents: 10000, contributionsCents: 10000, endValueCents: 22000, gainCents: 2000,
+    from: '2025-12-31',
+    to: '2026-12-31',
+    days: 365,
+    startValueCents: 10000,
+    contributionsCents: 10000,
+    endValueCents: 22000,
+    gainCents: 2000,
   });
   expect(portfolio.performance!.ttwror).toBeCloseTo(0.1, 12);
   expect(portfolio.performance!.ttwrorAnnualised).toBeCloseTo(0.1, 12);
   // The second 100 arrives at the end: (220 - 100) / 100 - 1 = 20% actual/365 XIRR.
   expect(portfolio.performance!.xirr).toBeCloseTo(0.2, 6);
   expect(portfolio.performanceHistory!.dailyValues.at(-1)).toMatchObject({
-    date: '2026-12-31', valueCents: 22000, depositsCents: 10000, withdrawalsCents: 0,
+    date: '2026-12-31',
+    valueCents: 22000,
+    depositsCents: 10000,
+    withdrawalsCents: 0,
   });
   const benchmark = portfolio.benchmarks[0]!;
   expect(benchmark.from).toBe('2025-12-31');
@@ -73,7 +83,10 @@ it('leaves a missing weekday benchmark boundary unavailable without interpolatio
   opened.sqlite.exec("DELETE FROM price WHERE security_id='benchmark-ftse' AND date='2026-12-31'");
   const portfolio = await read();
   expect(portfolio.benchmarks[0]!.benchmarkReturn).toBeNull();
-  expect(portfolio.benchmarks[0]!.dailyBenchmark.at(-1)).toMatchObject({ date: '2026-12-31', benchmark: null });
+  expect(portfolio.benchmarks[0]!.dailyBenchmark.at(-1)).toMatchObject({
+    date: '2026-12-31',
+    benchmark: null,
+  });
   expect(portfolio.performance!.ttwror).toBeCloseTo(0.1, 12);
   opened.sqlite.exec("DELETE FROM app_setting WHERE id='portfolio.benchmark_ids'");
   expect((await read()).benchmarks).toEqual([]);

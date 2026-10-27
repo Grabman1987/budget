@@ -52,17 +52,30 @@ export function PortfolioMetrics() {
               </p>
               <div className="portfolio-metrics-headline">
                 <div className="portfolio-metrics-lead">
-                  <span><Term>TTWROR</Term> im Zeitraum</span>
-                  <strong data-testid="metrics-period-ttwror" aria-describedby={reasons.length ? basisId : undefined}>
+                  <span>
+                    <Term>TTWROR</Term> im Zeitraum
+                  </span>
+                  <strong
+                    data-testid="metrics-period-ttwror"
+                    aria-describedby={reasons.length ? basisId : undefined}
+                  >
                     {privateAmount(percentText(performance.ttwror, { sign: true }))}
                   </strong>
                   <span>
-                    p. a. <span data-testid="metrics-annual-ttwror">{privateAmount(percentText(performance.ttwrorAnnualised, { sign: true }))}</span>
+                    p. a.{' '}
+                    <span data-testid="metrics-annual-ttwror">
+                      {privateAmount(percentText(performance.ttwrorAnnualised, { sign: true }))}
+                    </span>
                   </span>
                 </div>
                 <div className="portfolio-metrics-lead">
-                  <span><Term>XIRR</Term> p. a.</span>
-                  <strong data-testid="metrics-xirr" aria-describedby={reasons.length ? basisId : undefined}>
+                  <span>
+                    <Term>XIRR</Term> p. a.
+                  </span>
+                  <strong
+                    data-testid="metrics-xirr"
+                    aria-describedby={reasons.length ? basisId : undefined}
+                  >
                     {privateAmount(percentText(performance.xirr, { sign: true }))}
                   </strong>
                 </div>

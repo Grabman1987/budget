@@ -8,33 +8,145 @@ test.use({ ledgerToday: '2026-09-17' });
 function seed(path: string, savings = false) {
   const opened = openDatabase(path);
   try {
-    opened.db.insert(schema.account).values({
-      id: 'depot', name: 'Synthetic depot', type: 'brokerage', role: 'investment',
-      onBudget: false, openingDate: '2026-01-01',
-    }).run();
-    opened.db.insert(schema.security).values({ id: 's', name: 'Synthetic instrument', kind: 'fund' }).run();
+    opened.db
+      .insert(schema.account)
+      .values({
+        id: 'depot',
+        name: 'Synthetic depot',
+        type: 'brokerage',
+        role: 'investment',
+        onBudget: false,
+        openingDate: '2026-01-01',
+      })
+      .run();
+    opened.db
+      .insert(schema.security)
+      .values({ id: 's', name: 'Synthetic instrument', kind: 'fund' })
+      .run();
     if (savings) {
-      opened.db.insert(schema.savingsPlan).values([
-        { id: 'old', securityId: 's', accountId: 'depot', amountCents: 10000, dayOfMonth: 15, validFrom: '2026-01-01', validTo: '2026-06-30' },
-        { id: 'new', securityId: 's', accountId: 'depot', amountCents: 20000, dayOfMonth: 15, validFrom: '2026-07-01' },
-      ]).run();
-      opened.db.insert(schema.trade).values([
-        { id: 'may', accountId: 'depot', securityId: 's', date: '2026-05-16', kind: 'buy', unitsE8: 1_000_000_000, amountCents: 10000, savingsPlanId: 'old', savingsMonth: '2026-05' },
-        { id: 'extra-manual', accountId: 'depot', securityId: 's', date: '2026-06-20', kind: 'buy', unitsE8: 500_000_000, amountCents: 5000 },
-        { id: 'august', accountId: 'depot', securityId: 's', date: '2026-08-16', kind: 'buy', unitsE8: 2_000_000_000, amountCents: 20000, savingsPlanId: 'new', savingsMonth: '2026-08' },
-      ]).run();
+      opened.db
+        .insert(schema.savingsPlan)
+        .values([
+          {
+            id: 'old',
+            securityId: 's',
+            accountId: 'depot',
+            amountCents: 10000,
+            dayOfMonth: 15,
+            validFrom: '2026-01-01',
+            validTo: '2026-06-30',
+          },
+          {
+            id: 'new',
+            securityId: 's',
+            accountId: 'depot',
+            amountCents: 20000,
+            dayOfMonth: 15,
+            validFrom: '2026-07-01',
+          },
+        ])
+        .run();
+      opened.db
+        .insert(schema.trade)
+        .values([
+          {
+            id: 'may',
+            accountId: 'depot',
+            securityId: 's',
+            date: '2026-05-16',
+            kind: 'buy',
+            unitsE8: 1_000_000_000,
+            amountCents: 10000,
+            savingsPlanId: 'old',
+            savingsMonth: '2026-05',
+          },
+          {
+            id: 'extra-manual',
+            accountId: 'depot',
+            securityId: 's',
+            date: '2026-06-20',
+            kind: 'buy',
+            unitsE8: 500_000_000,
+            amountCents: 5000,
+          },
+          {
+            id: 'august',
+            accountId: 'depot',
+            securityId: 's',
+            date: '2026-08-16',
+            kind: 'buy',
+            unitsE8: 2_000_000_000,
+            amountCents: 20000,
+            savingsPlanId: 'new',
+            savingsMonth: '2026-08',
+          },
+        ])
+        .run();
     } else {
-      opened.db.insert(schema.trade).values([
-        { id: 'buy', accountId: 'depot', securityId: 's', date: '2026-09-10', kind: 'buy', unitsE8: 200_000_000, amountCents: 2000 },
-        { id: 'sell', accountId: 'depot', securityId: 's', date: '2026-09-12', kind: 'sell', unitsE8: -100_000_000, amountCents: 1500 },
-        ...Array.from({ length: 11 }, (_, index) => ({ id: `fee-${index}`, accountId: 'depot', securityId: 's', date: '2026-09-13', kind: 'fee' as const, amountCents: 0 })),
-      ]).run();
-      opened.db.insert(schema.price).values([
-        { securityId: 's', date: '2026-09-10', priceMicro: 10_000_000, currency: 'EUR', source: 'manual' },
-        { securityId: 's', date: '2026-09-11', priceMicro: 12_345_000, currency: 'EUR', source: 'manual' },
-        { securityId: 's', date: '2026-09-12', priceMicro: 15_000_000, currency: 'EUR', source: 'manual' },
-        { securityId: 's', date: '2026-09-17', priceMicro: 17_500_000, currency: 'EUR', source: 'manual' },
-      ]).run();
+      opened.db
+        .insert(schema.trade)
+        .values([
+          {
+            id: 'buy',
+            accountId: 'depot',
+            securityId: 's',
+            date: '2026-09-10',
+            kind: 'buy',
+            unitsE8: 200_000_000,
+            amountCents: 2000,
+          },
+          {
+            id: 'sell',
+            accountId: 'depot',
+            securityId: 's',
+            date: '2026-09-12',
+            kind: 'sell',
+            unitsE8: -100_000_000,
+            amountCents: 1500,
+          },
+          ...Array.from({ length: 11 }, (_, index) => ({
+            id: `fee-${index}`,
+            accountId: 'depot',
+            securityId: 's',
+            date: '2026-09-13',
+            kind: 'fee' as const,
+            amountCents: 0,
+          })),
+        ])
+        .run();
+      opened.db
+        .insert(schema.price)
+        .values([
+          {
+            securityId: 's',
+            date: '2026-09-10',
+            priceMicro: 10_000_000,
+            currency: 'EUR',
+            source: 'manual',
+          },
+          {
+            securityId: 's',
+            date: '2026-09-11',
+            priceMicro: 12_345_000,
+            currency: 'EUR',
+            source: 'manual',
+          },
+          {
+            securityId: 's',
+            date: '2026-09-12',
+            priceMicro: 15_000_000,
+            currency: 'EUR',
+            source: 'manual',
+          },
+          {
+            securityId: 's',
+            date: '2026-09-17',
+            priceMicro: 17_500_000,
+            currency: 'EUR',
+            source: 'manual',
+          },
+        ])
+        .run();
     }
   } finally {
     opened.close();
@@ -63,7 +175,10 @@ async function privacy(page: Page, hidden: boolean) {
 async function compactDesktop(page: Page, info: TestInfo, state: string) {
   if (info.project.name !== 'desktop') return;
   expect(page.viewportSize()).toEqual({ width: 1440, height: 900 });
-  const geometry = await page.evaluate(() => ({ height: document.documentElement.scrollHeight, width: document.documentElement.scrollWidth }));
+  const geometry = await page.evaluate(() => ({
+    height: document.documentElement.scrollHeight,
+    width: document.documentElement.scrollWidth,
+  }));
   await info.attach(state, { body: JSON.stringify(geometry), contentType: 'application/json' });
   expect(geometry.height).toBeLessThanOrEqual(1800);
 }
@@ -71,7 +186,9 @@ async function instrumentPrivacy(page: Page, info: TestInfo, theme: string) {
   const history = page.getByRole('region', { name: 'Wert und Kurs', exact: true });
   for (const mode of ['Wert €', 'Kurs']) {
     await history.getByRole('button', { name: mode, exact: true }).click();
-    const chart = history.getByTestId(mode === 'Wert €' ? 'instrument-value-chart' : 'price-history-chart');
+    const chart = history.getByTestId(
+      mode === 'Wert €' ? 'instrument-value-chart' : 'price-history-chart',
+    );
     const table = history.locator('.chart-data-table');
     await table.locator('summary').click();
     const cells = table.locator('.chart-data-value');
@@ -101,7 +218,12 @@ async function instrumentPrivacy(page: Page, info: TestInfo, theme: string) {
     await table.locator('summary').click();
     await expect(cells).toHaveText(publicValues.map(() => '•••'));
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-    await page.screenshot({ path: info.outputPath(`instrument-${mode === 'Kurs' ? 'price' : 'value'}-private-${theme}.png`), fullPage: false });
+    await page.screenshot({
+      path: info.outputPath(
+        `instrument-${mode === 'Kurs' ? 'price' : 'value'}-private-${theme}.png`,
+      ),
+      fullPage: false,
+    });
     await privacy(page, false);
     await expect(cells).toHaveText(publicValues);
     await expect(axes).toHaveText(publicAxes);
@@ -118,9 +240,15 @@ async function savingsPrivacy(page: Page, info: TestInfo, theme: string) {
   await expect(purchases.locator('tbody tr')).toHaveCount(3);
   await compactDesktop(page, info, `savings-purchases-and-versions-expanded-${theme}`);
   const months = page.getByRole('region', { name: 'Letzte zwölf Monate', exact: true });
-  const may = months.getByRole('listitem').filter({ has: page.getByText('2026-05', { exact: true }) });
-  const july = months.getByRole('listitem').filter({ has: page.getByText('2026-07', { exact: true }) });
-  const august = months.getByRole('listitem').filter({ has: page.getByText('2026-08', { exact: true }) });
+  const may = months
+    .getByRole('listitem')
+    .filter({ has: page.getByText('2026-05', { exact: true }) });
+  const july = months
+    .getByRole('listitem')
+    .filter({ has: page.getByText('2026-07', { exact: true }) });
+  const august = months
+    .getByRole('listitem')
+    .filter({ has: page.getByText('2026-08', { exact: true }) });
   const extra = purchases.locator('[data-trade-id="extra-manual"]');
   const publicPurchase = await extra.locator('.num').allTextContents();
   expect(publicPurchase.length).toBe(4);
@@ -141,7 +269,10 @@ async function savingsPrivacy(page: Page, info: TestInfo, theme: string) {
   await purchases.locator(':scope > summary').click();
   await expect(extra.locator('.num')).toHaveText(['•••', '••• €', '••• €', '••• €']);
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-  await page.screenshot({ path: info.outputPath(`savings-expanded-private-${theme}.png`), fullPage: false });
+  await page.screenshot({
+    path: info.outputPath(`savings-expanded-private-${theme}.png`),
+    fullPage: false,
+  });
   await privacy(page, false);
   await expect(page.getByTestId('savings-next')).toHaveText('15.10.2026 · 200,00 €');
   await expect(page.getByTestId('savings-paid')).toHaveText('350,00 €');
@@ -149,17 +280,28 @@ async function savingsPrivacy(page: Page, info: TestInfo, theme: string) {
   await expect(may).toContainText('Stück: 10');
   await expect(august).toContainText('Stück: 20');
   await expect(extra.locator('.num')).toHaveText(publicPurchase);
-  await expect(versions.locator('li strong')).toHaveText(['200,00 € · am 15.', '100,00 € · am 15.']);
+  await expect(versions.locator('li strong')).toHaveText([
+    '200,00 € · am 15.',
+    '100,00 € · am 15.',
+  ]);
   await purchases.locator(':scope > summary').click();
   await versions.locator(':scope > summary').click();
 }
 async function themes(page: Page, info: TestInfo, name: string) {
-  if (name === 'instrument') await page.getByTestId('instrument-value-chart').scrollIntoViewIfNeeded();
-  else await page.getByRole('region', { name: 'Letzte zwölf Monate', exact: true }).scrollIntoViewIfNeeded();
+  if (name === 'instrument')
+    await page.getByTestId('instrument-value-chart').scrollIntoViewIfNeeded();
+  else
+    await page
+      .getByRole('region', { name: 'Letzte zwölf Monate', exact: true })
+      .scrollIntoViewIfNeeded();
   for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => { document.documentElement.dataset['theme'] = value; }, theme);
+    await page.evaluate((value) => {
+      document.documentElement.dataset['theme'] = value;
+    }, theme);
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
     if (info.project.name !== 'desktop') {
       for (const control of await page.locator('main button, main a, main summary').all()) {
         if (!(await control.isVisible())) continue;
@@ -174,20 +316,40 @@ async function themes(page: Page, info: TestInfo, name: string) {
   }
 }
 
-test('547 instrument shares literal value/basis and dates, hover/keyboard and last-twelve row editing', async ({ page, isolatedLedger }, info) => {
+test('547 instrument shares literal value/basis and dates, hover/keyboard and last-twelve row editing', async ({
+  page,
+  isolatedLedger,
+}, info) => {
   seed(isolatedLedger.databasePath);
   const before = snapshot(isolatedLedger.databasePath);
-  const response = await page.request.get('/api/securities/s/history?from=2026-09-10&to=2026-09-17');
+  const response = await page.request.get(
+    '/api/securities/s/history?from=2026-09-10&to=2026-09-17',
+  );
   expect(response.ok()).toBe(true);
   const history = (await response.json()).history;
-  expect(history.points.at(-1)).toMatchObject({ date: '2026-09-17', unitsE8: 100_000_000, valueCents: 1750 });
+  expect(history.points.at(-1)).toMatchObject({
+    date: '2026-09-17',
+    unitsE8: 100_000_000,
+    valueCents: 1750,
+  });
   expect(history.position).toMatchObject({ valueCents: 1750, costCents: 1000 });
   await page.goto('/vermoegen/portfolio/instrument/s?zeitraum=Alles');
-  await expect(page.getByRole('button', { name: 'Wert €', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Wert €', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   const chart = page.getByTestId('instrument-value-chart');
   await expect(chart).toBeVisible();
-  expect(await chart.locator('[data-trade-date]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-trade-date')))).toEqual(['2026-09-10', '2026-09-12']);
-  expect(await chart.locator('.instrument-cost-line').evaluate((line) => getComputedStyle(line).strokeDasharray)).not.toBe('none');
+  expect(
+    await chart
+      .locator('[data-trade-date]')
+      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-trade-date'))),
+  ).toEqual(['2026-09-10', '2026-09-12']);
+  expect(
+    await chart
+      .locator('.instrument-cost-line')
+      .evaluate((line) => getComputedStyle(line).strokeDasharray),
+  ).not.toBe('none');
   const inspect = chart.locator('..');
   await inspect.focus();
   await inspect.press('ArrowRight');
@@ -219,20 +381,29 @@ test('547 instrument shares literal value/basis and dates, hover/keyboard and la
   await themes(page, info, 'instrument');
   await page.getByRole('button', { name: 'Kurs', exact: true }).click();
   await expect(page.getByTestId('price-history-chart')).toBeVisible();
-  await expect(page.getByTestId('price-history-chart').locator('[data-chart-point]')).toHaveCount(4);
+  await expect(page.getByTestId('price-history-chart').locator('[data-chart-point]')).toHaveCount(
+    4,
+  );
   expect(snapshot(isolatedLedger.databasePath)).toBe(before);
 });
 
-test('548 twelve months keep explicit executions, missing inbox proposals and extra manual buys', async ({ page, isolatedLedger }, info) => {
+test('548 twelve months keep explicit executions, missing inbox proposals and extra manual buys', async ({
+  page,
+  isolatedLedger,
+}, info) => {
   seed(isolatedLedger.databasePath, true);
   const before = snapshot(isolatedLedger.databasePath);
-  const proposals = async () => (await (await page.request.get('/api/savings-plans/execution-proposals')).json()).proposals;
+  const proposals = async () =>
+    (await (await page.request.get('/api/savings-plans/execution-proposals')).json()).proposals;
   const pending = await proposals();
-  expect(pending.find((proposal: { month: string }) => proposal.month === '2026-07')).toMatchObject({ planId: 'new', amountCents: 20000 });
+  expect(pending.find((proposal: { month: string }) => proposal.month === '2026-07')).toMatchObject(
+    { planId: 'new', amountCents: 20000 },
+  );
   await page.goto('/vermoegen/portfolio/sparplan/new');
   const months = page.getByRole('region', { name: 'Letzte zwölf Monate', exact: true });
   await expect(months.getByRole('listitem')).toHaveCount(12);
-  const slot = (month: string) => months.getByRole('listitem').filter({ has: page.getByText(month, { exact: true }) });
+  const slot = (month: string) =>
+    months.getByRole('listitem').filter({ has: page.getByText(month, { exact: true }) });
   await expect(slot('2026-05')).toContainText('Ausgeführt · zugeordnet');
   await expect(slot('2026-05')).toContainText('100,00 €');
   await expect(slot('2026-05')).toContainText('Stück: 10');
@@ -244,7 +415,9 @@ test('548 twelve months keep explicit executions, missing inbox proposals and ex
   await expect(page.getByTestId('savings-next')).toHaveText('15.10.2026 · 200,00 €');
   await expect(page.locator('.savings-purchases')).not.toHaveAttribute('open', '');
   await expect(page.locator('.savings-versions')).not.toHaveAttribute('open', '');
-  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(2 * page.viewportSize()!.height);
+  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(
+    2 * page.viewportSize()!.height,
+  );
   await themes(page, info, 'savings');
   await page.locator('.savings-purchases > summary').click();
   await expect(page.locator('.savings-purchases .trade-list tbody tr')).toHaveCount(3);

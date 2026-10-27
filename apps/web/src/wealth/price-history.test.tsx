@@ -20,14 +20,24 @@ const prices = [
 
 function page(status = 200, series = prices) {
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
-    width: 760, height: 280, top: 0, bottom: 280, left: 0, right: 760, x: 0, y: 0,
+    width: 760,
+    height: 280,
+    top: 0,
+    bottom: 280,
+    left: 0,
+    right: 760,
+    x: 0,
+    y: 0,
     toJSON: () => ({}),
   });
-  vi.stubGlobal('ResizeObserver', class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   vi.stubGlobal(
     'fetch',
     vi.fn(
@@ -35,10 +45,22 @@ function page(status = 200, series = prices) {
         new Response(
           JSON.stringify(
             String(input).includes('/history?')
-              ? { history: { from: '2024-09-17', to: '2026-09-17', points: [], events: [], position: null, unavailable: null, costMethod: 'average', unit: 'EUR', securityId: 'synthetic' } }
+              ? {
+                  history: {
+                    from: '2024-09-17',
+                    to: '2026-09-17',
+                    points: [],
+                    events: [],
+                    position: null,
+                    unavailable: null,
+                    costMethod: 'average',
+                    unit: 'EUR',
+                    securityId: 'synthetic',
+                  },
+                }
               : status === 200
-              ? { securityId: 'synthetic', currency: 'USD', prices: series }
-              : { error: 'unavailable' },
+                ? { securityId: 'synthetic', currency: 'USD', prices: series }
+                : { error: 'unavailable' },
           ),
           { status: String(input).includes('/history?') ? 200 : status },
         ),
