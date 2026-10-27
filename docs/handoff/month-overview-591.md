@@ -267,3 +267,38 @@ No timeout/retry/skip, fixture money, protected assertion, screenshot comparison
 baseline or scope expansion. Exact private production/test delta requires HIGH
 review and scoped first-attempt proof before publication; original immutable full
 CI failure collection is still in progress. No local heavy tools were run.
+
+## Bounded old/new inspector capability inventory
+
+Read-only comparison against a820's PlanInspector and PlanBody call sites:
+- RESTORED: old monthStatus(summary, rows) list. Exact old MonthOverview used
+  `rows` (not panelRows/allRows) at its overview prop; restoration uses that same
+  in-scope value and old markup/text/icons, preceding the new exact chain.
+- KEPT: old no-selection inspector had five contents: overview, split, income,
+  budget-account money and waterfall. All five remain. Only owner-required
+  names/defaults/persistence and the exact envelope chain/next-month read changed.
+- KEPT: the old no-selection branch did NOT contain QuickAssignActions. Those
+  existed in the multiselection inspector and the table selection section; both
+  original call sites/handlers remain. Selected single-category EnvelopeBody
+  quickValues, assignment/move/cover, category actions and audited Undo remain.
+  No #592 rows/reset mode or #593 redesign was introduced.
+- KEPT: scheme/50/30/20 shares, legend, income denominator, overflow explanation
+  and completed-month comparison. Only Plan label rows/cascade were corrected.
+- KEPT: unchanged IncomeTargetsCard(data.incomeTargets, allRows, inspect) including
+  expected-income/target explanations; default closed with per-device persistence.
+- KEPT: the original budgetMoney summary title, all accounts/balance/credit-line
+  values and explanations. The same element is passed through with only native
+  disclosure open/onToggle preferences added.
+- KEPT: unchanged Rail(view=stage, planGroups(stage,rows,data,ctx),data,onJump),
+  waterfall stage/next/water-level labels and callback uncollapse/month-span/jump.
+- KEPT: income header action and jump to its disclosure; it additionally expands
+  the new whole frame and focuses after that visibility commit.
+
+Git blob comparison proves quick-assign-actions.tsx, income-targets-card.tsx,
+envelope-panel.tsx, plan-model.ts, plan-menus.tsx and budget-api.ts byte-identical
+to a820. No further old action/capability loss was found in this bounded inventory.
+The old prior-unassigned-carry/income five-field figures were deliberately replaced
+by #591's independently tested FOUR-field envelope identity, with income still
+available in its original card/topbar; this is the explicit own-AC change, not a
+new financial writer/policy. Original parent450 remains open. Full CI collection
+and independent HIGH/focused verification are still required before public push.
