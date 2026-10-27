@@ -236,7 +236,9 @@ export function BookingsPage() {
           {first && (
             <p className="ksum" aria-live="polite">
               {pluralBookings(first.total)} ·{' '}
-              {first.categorySpendingCents !== undefined
+              {first.nativeTotalsPending
+                ? 'Summe wird aktualisiert …'
+                : first.categorySpendingCents !== undefined
                 ? `Kategorie netto ${eur(first.categorySpendingCents)} (Ausgaben − Erstattungen)`
                 : first.nativeTotals
                   ? `Summe ${first.nativeTotals.length ? first.nativeTotals.map((total) => total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents, total.currency, true)).join(' · ') : eur(0)}`

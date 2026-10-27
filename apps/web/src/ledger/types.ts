@@ -156,6 +156,8 @@ export interface ListedBooking {
 }
 
 export interface BookingPage {
+  /** Local row transforms cannot re-evaluate the complete server filter. */
+  nativeTotalsPending?: boolean;
   /** Complete-filter native totals; optional for previously saved offline DTOs. */
   nativeTotals?: { currency: string; count: number; cents: number | null }[];
   categorySpendingCents?: number;

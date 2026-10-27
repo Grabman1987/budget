@@ -7,7 +7,8 @@ test('phone search and filter sheet immediately update, retain, remove and reset
   test.setTimeout(90_000);
   test.skip(info.project.name !== 'mobile', 'Phone filter sheet at 390 px');
   await page.goto('/konten/buchungen');
-  const trigger = page.getByRole('button', { name: 'Filter (0)', exact: true });
+  const trigger = page.getByRole('button', { name: /^Filter \(/ });
+  await expect(page.getByRole('button', { name: 'Filter (0)', exact: true })).toBeVisible();
   const search = page.getByLabel('In Buchungen suchen');
   await expect(search).toBeVisible();
   await expect(page.getByLabel('Status', { exact: true })).toBeHidden();

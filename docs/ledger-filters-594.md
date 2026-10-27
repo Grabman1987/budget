@@ -11,6 +11,9 @@ Count and signed integer-cent totals cover the entire current history filter,
 independently of loaded cursor pages. Totals remain separate by native currency;
 unsafe totals are unavailable, never rounded into a displayable result. Existing
 classified category-spending drilldowns retain their distinct net-spending value.
+Existing optimistic row transforms mark every cached copy of the complete-filter
+sum pending until the canonical refetch. They retain the original native groups
+for rollback and never reconstruct full-filter totals from loaded cursor rows.
 Saldo columns and the existing today-balance line are shown only for an explicit
 single account. The existing Kommend disclosure remains collapsed by default.
 
@@ -39,6 +42,10 @@ Test rationale:
   the source additions; runtime evidence is pending remote review/checks.
 - `bookings-search.test.ts`: adds malformed-date rejection to the existing URL
   validation assertions; existing valid/invalid expectations stay intact.
+- `cache.test.ts` and `mutations.test.tsx`: literal deferred edit/delete, success,
+  failed-write rollback and older-page regressions keep EUR -1557/USD -4321 groups
+  intact while pending, then use canonical EUR -2323 or -323 results. No paginated
+  reconstruction or writer/lock/audit/Undo expectation changes.
 - `issue-594-ledger-filters.spec.ts`: isolated mixed-sign/currency fixture, literal
   display values and exact IDs after reload/second browser context, keyboard
   filter entry/chip removal, actual CSV, single-account Saldo, both themes, Axe,
@@ -46,6 +53,8 @@ Test rationale:
 - `ledger-filters.spec.ts`: technical adaptation to the explicitly approved live
   filter contract; verifies immediate URL updates and retention on Escape in place
   of the superseded draft/Apply flow. Geometry, focus, chips, reset and Axe stay.
+  Focus/repeated clicks use the stable Filter prefix while exact 0/3/2 count
+  assertions remain separate from the button's changing accessible name.
 - `ledger-helpers.ts`: the existing helper closes the now-live filter dialog using
   Fertig; it does not initiate a write or alter any financial expectations.
 - `accounts-sidebar-profile.spec.ts`: closes the dialog after inspecting identical
