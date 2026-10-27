@@ -73,3 +73,31 @@ it('deletes a shown equal duplicate to literal zero, then explicitly locks witho
   expect((await send(api,'POST','/undo',{groupId:removed.groupId})).status).toBe(200);
   expect(state()).toEqual(before);
 });
+
+it('565 canonical category/null corrections keep literal minus1234 and exact grouped Undo',async()=>{
+  const api=app();
+  const before=state();
+  for(const categoryId of [undefined,'essen']){
+    const response=await send(api,'POST','/accounts/giro/reconciliation',{date:'2026-09-30',statementBalanceCents:98766,adjust:true,...(categoryId?{categoryId}:{})});
+    expect(response.status).toBe(201);
+    const {result}=await response.json() as {result:ReconcileResult};
+    expect(result.differenceCents).toBe(-1234);
+    expect(result.adjustmentBookingId).toBeTruthy();
+    const adjustment=state().bookings.find(row=>row.id===result.adjustmentBookingId)!;
+    expect([adjustment.amountCents,adjustment.status]).toEqual([-1234,'reconciled']);
+    expect(state().splits.filter(row=>row.bookingId===adjustment.id).map(row=>[row.amountCents,row.categoryId])).toEqual([[-1234,categoryId??null]]);
+    expect((await send(api,'POST','/undo',{groupId:result.groupId})).status).toBe(200);
+    expect(state()).toEqual(before);
+  }
+});
+
+it('565 lookup metadata distinguishes archived choices without offering deleted categories',async()=>{
+  const api=app();
+  const hidden=await send(api,'PATCH','/categories/essen',{hidden:true});
+  expect(hidden.status).toBe(200);
+  const response=await send(api,'GET','/lookups');
+  expect(response.status).toBe(200);
+  const body=await response.json() as {categories:{id:string;hiddenAt:string|null}[]};
+  expect(body.categories.find(row=>row.id==='essen')?.hiddenAt).toBeTruthy();
+  expect(body.categories.find(row=>row.id==='miete')?.hiddenAt).toBeNull();
+});

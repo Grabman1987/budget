@@ -1,6 +1,6 @@
-# Reconciliation candidates (#564)
+# Reconciliation candidates and contextual correction category (#564, #565)
 
-Isolated source package on checked live main `31f919d62383a28becabe75e8397f6e1b64860c0`. Issue564 and parent477 owner comment6211401900 govern: candidates precede correction; no automatic posting, existing locks and exact Undo. #565 category defaults/preferences are separate. No old mixed worktree was changed or transplanted.
+Isolated source package on checked live main `31f919d62383a28becabe75e8397f6e1b64860c0`. Issue564 and parent477 owner comment6211401900 govern: candidates precede correction; no automatic posting, existing locks and exact Undo. Root subsequently authorized the small #565 contextual default/preference addition in this same dialog. No old mixed worktree was changed or transplanted.
 
 Root clarified the required partial case: a bank difference−4000 with an existing pending−3000 must expose that row even though it does not exactly explain the difference. Confirming it leaves only−1000. Existing pendingMatches alone is insufficient. The small additive pendingBookings DTO exposes the pending rows that previewReconciliation already loads (ID/date/payee/native integer amount); accounts.ts attaches the same canonical cash valuation at each booking date. Duplicate matcher, pending subset matcher, booked/pending/difference sums, limits and canonical writers remain unchanged.
 
@@ -12,7 +12,7 @@ Pending confirmation uses the existing canonical bulk status update, then refres
 
 For the shared month-close flow, a separate successful pending status write deliberately makes the captured close token stale, keeps it immutable and requires the existing close/reload path before completion. Parent busy state is set/cleared around that write; zero locking is disabled while stale. No month-close financial guard or revision is silently advanced. This compatibility detail needs full independent financial review.
 
-Correction remains available only when all current candidates are explicitly considered/ignored or resolved and the fresh difference remains nonzero. Its existing date/category/locked-period validation, reason requirement and canonical adjustment writer/Undo remain unchanged. No #565 category label/default/preference is modified. No CSS/color/font literal is added; existing44px reconciliation controls and bounded dialog scroller apply.
+Correction remains available only when all current candidates are explicitly considered/ignored or resolved and the fresh difference remains nonzero. Its existing date/category/locked-period validation, reason requirement and canonical adjustment writer/Undo remain unchanged. The contextual #565 selector addition below does not change null/category accounting semantics. No CSS/color/font literal is added; existing44px reconciliation controls and bounded dialog scroller apply.
 
 ## Per-file test reasons
 
@@ -23,3 +23,18 @@ Correction remains available only when all current candidates are explicitly con
 ## Source freeze and proof limits
 
 Literal tests were authored before dependent implementation. Host RAM rule forbids local Node/npm/build/tests/browser/lint/formatter. Only git diff checks have run; no runtime RED/GREEN/static/browser/visual pass is claimed. No Cloud job, feature push, PR or publication. Source freezes for capable independent HIGH full financial/security/source and per-file test review before scoped proof at the proper publication/scheduler turn. Existing writers, cent guards, reconciled/linked protections, bulk eligibility and audit/Undo engine remain byte-exact against the checked base.
+
+## Contextual correction category (#565)
+
+Root explicitly authorized the contextual interpretation: canonical null means Zu verteilen for on-budget cash accounts; tracking and card corrections retain their existing uncategorised policy. The first checking/cash/savings correction on an on-budget account therefore labels the null option Zu verteilen. Other contexts say Ohne Kategorie; positive YNAB card corrections are never represented as moving TBA. No money/FX/category-write/adjustment engine is changed.
+
+The existing selector now keeps a separate per-account browser preference, independent of ordinary capture memory. Explicit selection is remembered immediately, including the null choice; cancelling a dialog does not post any booking. Browser storage failure only forgets the preference. The choice is validated against current reconciliation-eligible categories; deleted, archived or incompatible choices reset to contextual null. The existing lookup DTO needed additive hiddenAt metadata because it previously included archived categories without that flag; filtering is local to this correction selector, not a global capture-policy change. Correction waits for category lookup validation before a canonical write. No DB migration, new endpoint or preference writer is required.
+
+Additional per-file test reasons:
+
+- `apps/web/src/ledger/reconcile-category-565.test.ts`: literal contextual-label and separate per-account/null preference regression, authored before its helper implementation.
+- `apps/web/src/ledger/reconcile-candidates-564.test.tsx`: additive real selector first default, remembered reopen, other-account isolation, archived/deleted invalidation, tracking/card labels and exact existing canonical adjust request. Existing #564 cents/candidate/lock expectations are preserved.
+- `apps/server/src/api/reconcile-candidates-564.test.ts`: additive real null/category adjustments each exactly -1234 reconciled, exact split category and grouped Undo restores prior snapshots; canonical lookup archive metadata checks. Existing #564 API assertions unchanged.
+- `e2e/issue-564-reconcile-candidates.spec.ts`: separate complete #565 case using real accounts/category/selector, reopen/isolation/tracking, both themes/Axe/phone44/hit/nooverflow, real canonical -1234 category adjustment plus Undo and real archive fallback. The original complete #564 case is unchanged. No forced actions, timeout/retry changes or skipped oracles.
+
+This addition remains source-only and needs combined capable HIGH review before its one scoped remote proof. No runtime/static/browser result is claimed for #564 or #565.

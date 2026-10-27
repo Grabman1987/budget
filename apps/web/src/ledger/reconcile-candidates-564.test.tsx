@@ -3,14 +3,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ReconcileFlow } from './reconcile-panel';
-import type { AccountRow, ReconciliationPreview } from './types';
+import type { AccountRow, Category, ReconciliationPreview } from './types';
 
 const writes=vi.hoisted(()=>({remove:{isPending:false,mutate:vi.fn()},bulk:{isPending:false,mutate:vi.fn()},offerUndo:vi.fn()}));
 vi.mock('./mutations',()=>({useLedgerWrites:()=>writes}));
 vi.mock('../shell/app-link',()=>({AppLink:({children}:{children:React.ReactNode})=><a href="/konten/buchungen">{children}</a>}));
 let preview:ReconciliationPreview;
 const sends:unknown[]=[];
+let categories:Category[]=[];
 beforeEach(()=>{
+  localStorage.clear();
+  categories=[];
   writes.remove.mutate.mockReset();
   writes.bulk.mutate.mockReset();
   sends.length=0;
@@ -20,7 +23,7 @@ beforeEach(()=>{
     pendingMatches:[{bookingIds:['pending'],sumCents:1234}],missing:null};
   vi.stubGlobal('fetch',vi.fn(async(url:string,options?:RequestInit)=>{
     let body:unknown={};
-    if(url.includes('/lookups'))body={categories:[],groups:[],projects:[]};
+    if(url.includes('/lookups'))body={categories,groups:[],projects:[]};
     else if(url.endsWith('/reconciliation/preview'))body={preview};
     else if(url.endsWith('/reconciliation')){
       sends.push(JSON.parse(options!.body as string));
@@ -30,9 +33,9 @@ beforeEach(()=>{
   }));
 });
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
-const show=(bankCents=-1234,monthClose?:Parameters<typeof ReconcileFlow>[0]['monthClose'])=>{
+const show=(bankCents=-1234,monthClose?:Parameters<typeof ReconcileFlow>[0]['monthClose'],overrides:Partial<AccountRow>={})=>{
   const client=new QueryClient({defaultOptions:{queries:{retry:false},mutations:{retry:false}}});
-  const account={id:'a',name:'Synthetic account',currency:'EUR',type:'checking',openingDate:'2026-01-01',bankBalance:{amountCents:bankCents,effectiveDate:'2026-09-30'}} as AccountRow;
+  const account={id:'a',name:'Synthetic account',currency:'EUR',type:'checking',onBudget:true,openingDate:'2026-01-01',bankBalance:{amountCents:bankCents,effectiveDate:'2026-09-30'},...overrides} as AccountRow;
   render(<QueryClientProvider client={client}><ReconcileFlow account={account} monthClose={monthClose} onDone={()=>undefined}/></QueryClientProvider>);
   fireEvent.click(screen.getByRole('button',{name:/Bankstand übernehmen/}));
   return client;
@@ -77,7 +80,7 @@ it('uses the existing duplicate action, refreshes to literal zero, and reconcile
 });
 it('shows a partial pending minus3000 against minus4000 and uses canonical status confirmation before offering only the remaining minus1000',async()=>{
   preview={...preview,statementBalanceCents:-4000,bookedBalanceCents:0,pendingCents:-3000,differenceCents:-4000,toReconcileCount:0,
-    duplicates:[],pendingMatches:[],pendingBookings:[{id:'partial',date:'2026-09-10',payeeName:'Synthetic partial',amountCents:-3000}],missing:{kind:'expense',amountCents:4000}};
+    duplicates:[],pendingMatches:[],pendingBookings:[{id:'partial',date:'2026-09-10',payeeName:'Synthetic partial',amountCents:-3000}],missing:{kind:'variable',amountCents:4000}};
   const client=show(-4000);
   const row=await screen.findByTestId('candidate-pending-partial');
   expect(row.textContent).toContain('−30,00 €');
@@ -86,7 +89,7 @@ it('shows a partial pending minus3000 against minus4000 and uses canonical statu
   fireEvent.click(within(row).getByRole('button',{name:'Bestätigen',exact:true}));
   expect(writes.bulk.mutate.mock.calls[0]?.[0]).toEqual({ids:['partial'],set:{status:'confirmed'}});
   expect(sends).toEqual([]);
-  preview={...preview,bookedBalanceCents:-3000,pendingCents:0,differenceCents:-1000,toReconcileCount:1,pendingBookings:[],missing:{kind:'expense',amountCents:1000}};
+  preview={...preview,bookedBalanceCents:-3000,pendingCents:0,differenceCents:-1000,toReconcileCount:1,pendingBookings:[],missing:{kind:'variable',amountCents:1000}};
   await client.invalidateQueries({queryKey:['ledger']});
   const correction=await screen.findByRole('button',{name:/Differenz ausgleichen/});
   expect(correction.textContent).toContain('−10,00 €');
@@ -95,12 +98,12 @@ it('shows a partial pending minus3000 against minus4000 and uses canonical statu
 });
 it('keeps an existing month-close token stale after a separate candidate confirmation and requires reload instead of silently advancing it',async()=>{
   preview={...preview,statementBalanceCents:-4000,bookedBalanceCents:0,pendingCents:-3000,differenceCents:-4000,toReconcileCount:0,
-    duplicates:[],pendingMatches:[],pendingBookings:[{id:'partial',date:'2026-09-10',payeeName:null,amountCents:-3000}],missing:{kind:'expense',amountCents:4000}};
+    duplicates:[],pendingMatches:[],pendingBookings:[{id:'partial',date:'2026-09-10',payeeName:null,amountCents:-3000}],missing:{kind:'variable',amountCents:4000}};
   const close={asOf:'2026-09-30',confirm:vi.fn(),onReload:vi.fn(),onBusy:vi.fn()};
   const client=show(-4000,close);
   fireEvent.click(within(await screen.findByTestId('candidate-pending-partial')).getByRole('button',{name:'Bestätigen',exact:true}));
   expect(close.onBusy).toHaveBeenCalledWith(true);
-  preview={...preview,bookedBalanceCents:-3000,pendingCents:0,differenceCents:-1000,pendingBookings:[],missing:{kind:'expense',amountCents:1000}};
+  preview={...preview,bookedBalanceCents:-3000,pendingCents:0,differenceCents:-1000,pendingBookings:[],missing:{kind:'variable',amountCents:1000}};
   await act(async()=>{
     const options=writes.bulk.mutate.mock.calls[0]![1];
     options.onSuccess({changed:['partial'],skipped:[],groupId:'synthetic-status'});
@@ -112,4 +115,47 @@ it('keeps an existing month-close token stale after a separate candidate confirm
   expect(close.onBusy).toHaveBeenLastCalledWith(false);
   fireEvent.click(screen.getByRole('button',{name:'Prüfung schließen und Abschluss neu laden',exact:true}));
   expect(close.onReload).toHaveBeenCalledTimes(1);
+});
+
+it('565 remembers an eligible category per account and falls back for archived or deleted choices',async()=>{
+  preview={...preview,duplicates:[],pendingMatches:[],pendingBookings:[]};
+  categories=[{id:'food',name:'Synthetic food',groupId:null,class:'need',kind:'variable',sortOrder:0}];
+  show();
+  const select=await screen.findByLabelText('Kategorie für den Ausgleich');
+  expect((select as HTMLSelectElement).value).toBe('');
+  expect(within(select).getByRole('option',{name:'Zu verteilen',exact:true})).toBeTruthy();
+  fireEvent.change(select,{target:{value:'food'}});
+  cleanup();
+  show();
+  await waitFor(()=>expect((screen.getByLabelText('Kategorie für den Ausgleich') as HTMLSelectElement).value).toBe('food'));
+  cleanup();
+  show(-1234,undefined,{id:'b'});
+  expect((await screen.findByLabelText('Kategorie für den Ausgleich') as HTMLSelectElement).value).toBe('');
+  cleanup();
+  categories=[{...categories[0]!,hiddenAt:'2026-09-30T00:00:00Z'}];
+  show();
+  expect((await screen.findByLabelText('Kategorie für den Ausgleich') as HTMLSelectElement).value).toBe('');
+  expect(screen.queryByRole('option',{name:'Synthetic food',exact:true})).toBeNull();
+  await waitFor(()=>expect(localStorage.getItem('budget-reconcile-category:a')).toBe(''));
+  cleanup();
+  localStorage.setItem('budget-reconcile-category:a','deleted');
+  categories=[];
+  show();
+  expect((await screen.findByLabelText('Kategorie für den Ausgleich') as HTMLSelectElement).value).toBe('');
+  await waitFor(()=>expect(localStorage.getItem('budget-reconcile-category:a')).toBe(''));
+});
+
+it('565 retains truthful uncategorised tracking/card defaults and canonical category request cents',async()=>{
+  preview={...preview,duplicates:[],pendingMatches:[],pendingBookings:[]};
+  show(-1234,undefined,{onBudget:false});
+  expect(within(await screen.findByLabelText('Kategorie für den Ausgleich')).getByRole('option',{name:'Ohne Kategorie',exact:true})).toBeTruthy();
+  cleanup();
+  show(-1234,undefined,{type:'credit_card'});
+  expect(within(await screen.findByLabelText('Kategorie für den Ausgleich')).getByRole('option',{name:'Ohne Kategorie',exact:true})).toBeTruthy();
+  cleanup();
+  categories=[{id:'food',name:'Synthetic food',groupId:null,class:'need',kind:'variable',sortOrder:0}];
+  show();
+  fireEvent.change(await screen.findByLabelText('Kategorie für den Ausgleich'),{target:{value:'food'}});
+  fireEvent.click(screen.getByRole('button',{name:/Differenz ausgleichen/}));
+  await waitFor(()=>expect(sends).toEqual([{date:'2026-09-30',statementBalanceCents:-1234,adjust:true,categoryId:'food'}]));
 });

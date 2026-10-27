@@ -187,6 +187,7 @@ export interface BookingFilter {
 }
 
 export interface Category {
+  hiddenAt?: string | null;
   id: string;
   name: string;
   groupId: string | null;

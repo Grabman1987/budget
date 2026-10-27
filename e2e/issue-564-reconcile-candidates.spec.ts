@@ -86,3 +86,62 @@ test('564 partial pending and duplicate candidates precede corrections, retain e
   await page.getByRole('button',{name:'Rückgängig',exact:true}).click();
   expect((await read(duplicates.id)).map((row:{status:string;amountCents:number})=>[row.amountCents,row.status])).toEqual([[-1234,'confirmed']]);
 });
+
+test('565 contextual correction default, account memory, archived fallback and exact adjustment Undo',async({page,isolatedLedger},info)=>{
+  const origin=isolatedLedger.origin;
+  const request=async(method:'POST'|'PATCH',path:string,data:unknown)=>{
+    const response=await page.request.fetch(`${origin}/api${path}`,{method,headers:{origin},data});
+    expect(response.ok(),await response.text()).toBe(true);
+    return response.json();
+  };
+  const group=(await request('POST','/categories/groups',{name:'Synthetic correction group'})).group;
+  const category=(await request('POST','/categories',{name:'Synthetic correction choice',class:'need',groupId:group.id})).category;
+  const create=async(name:string,onBudget=true,type='checking')=>(await request('POST','/accounts',{name,type,role:onBudget?'budget':'reserve',onBudget,openingDate:'2026-09-01',openingBalanceCents:100000})).account;
+  const first=await create('Synthetic correction A'),second=await create('Synthetic correction B'),tracking=await create('Synthetic tracking',false);
+  const check=page.getByRole('dialog',{name:/Kontostand prüfen/});
+  const select=check.getByLabel('Kategorie für den Ausgleich');
+  const open=async(id:string)=>{
+    await page.goto(`/konten/${id}?pruefen=reconcile`);
+    await check.getByLabel('Stichtag',{exact:true}).fill('2026-09-30');
+    await check.getByLabel('Saldo laut Bank',{exact:true}).fill('987,66');
+    await expect(select).toBeVisible();
+    await expect(check.getByRole('button',{name:/Differenz ausgleichen/})).toContainText('−12,34 €');
+  };
+  await open(first.id);
+  await expect(select).toHaveValue('');
+  await expect(select.locator('option:checked')).toHaveText('Zu verteilen');
+  await select.selectOption(category.id);
+  await check.getByRole('button',{name:'Schließen',exact:true}).click();
+  await open(second.id);
+  await expect(select).toHaveValue('');
+  await open(tracking.id);
+  await expect(select.locator('option:checked')).toHaveText('Ohne Kategorie');
+  await open(first.id);
+  await expect(select).toHaveValue(category.id);
+  for(const theme of ['light','dark']){
+    await page.evaluate(value=>{document.documentElement.dataset['theme']=value;},theme);
+    expect((await new AxeBuilder({page}).include('dialog[open]').analyze()).violations).toEqual([]);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
+    if(info.project.name!=='desktop'){
+      await select.evaluate(element=>element.scrollIntoView({block:'center'}));
+      const r=await select.boundingBox();
+      expect(r!.height).toBeGreaterThanOrEqual(44);
+      expect(r!.width).toBeGreaterThanOrEqual(44);
+      expect(r!.x).toBeGreaterThanOrEqual(0);
+      expect(r!.x+r!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+      expect(await select.evaluate(element=>{const r=element.getBoundingClientRect();return element.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})).toBe(true);
+    }
+  }
+  await check.getByRole('button',{name:/Differenz ausgleichen/}).click();
+  await expect(check).not.toBeVisible();
+  const read=async()=>(await (await page.request.get(`${origin}/api/bookings?accountId=${first.id}&limit=200`)).json()).items;
+  const rows=await read();
+  expect(rows.map((row:{amountCents:number;status:string;splits:{categoryId:string|null;amountCents:number}[]})=>[row.amountCents,row.status,row.splits.map(split=>[split.categoryId,split.amountCents])])).toEqual([[-1234,'reconciled',[[category.id,-1234]]]]);
+  await page.getByRole('button',{name:'Rückgängig',exact:true}).click();
+  await expect.poll(read).toEqual([]);
+  await request('PATCH',`/categories/${category.id}`,{hidden:true});
+  await open(first.id);
+  await expect(select).toHaveValue('');
+  await expect(select.locator('option:checked')).toHaveText('Zu verteilen');
+  await expect(select.locator(`option[value="${category.id}"]`)).toHaveCount(0);
+});

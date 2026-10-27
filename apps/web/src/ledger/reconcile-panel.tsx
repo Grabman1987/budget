@@ -30,6 +30,7 @@ import type { AccountRow, ReconcileResult } from './types';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { categoriesFor, pickableCategories } from './capture-model';
+import { defaultCorrectionCategoryLabel, readCorrectionCategory, rememberCorrectionCategory } from './reconcile-category';
 
 /** Value that follows `value` after a pause (the preview is asked for when typing stops). */
 function useDebounced<T>(value: T, ms: number): T {
@@ -92,7 +93,8 @@ export function ReconcileFlow({
   const [date, setDate] = useState(initialDate ?? today);
   const [text, setText] = useState('');
   const [adjustDate, setAdjustDate] = useState<string | null>(null);
-  const [categoryId, setCategoryId] = useState('');
+  const [categoryChoice, setCategoryChoice] = useState(() => ({accountId: account.id, id: readCorrectionCategory(account.id)}));
+  if (categoryChoice.accountId !== account.id) setCategoryChoice({accountId: account.id, id: readCorrectionCategory(account.id)});
   const [unlock, setUnlock] = useState(false);
   const [bookingState, setBookingState] = useState<BookingPanelState>(null);
   const [error, setError] = useState<string | null>(null);
@@ -145,9 +147,18 @@ export function ReconcileFlow({
   const finding = data ? findingOf(data) : null;
   // The same plain spending categories for a surplus and a shortfall; the server enforces it too.
   const categories = categoriesFor(pickableCategories(undefined, lookups.data), 'expense').filter(
-    (c) => isReconcileAdjustCategoryKind(c.kind),
+    (c) => isReconcileAdjustCategoryKind(c.kind) && !lookups.data?.categories.find(row => row.id === c.id)?.hiddenAt,
   );
-  const categoryName = categories.find((c) => c.id === categoryId)?.name ?? 'ohne Kategorie';
+  const selectedCategory = categoryChoice.accountId === account.id ? categoryChoice.id : readCorrectionCategory(account.id);
+  const categoryId = categories.some(c => c.id === selectedCategory) ? selectedCategory : '';
+  const defaultCategoryLabel = defaultCorrectionCategoryLabel(account);
+  const categoryName = categories.find((c) => c.id === categoryId)?.name ?? defaultCategoryLabel;
+  useEffect(() => {
+    if (lookups.isSuccess && selectedCategory && !categoryId) {
+      rememberCorrectionCategory(account.id, '');
+      setCategoryChoice({accountId: account.id, id: ''});
+    }
+  }, [account.id, lookups.isSuccess, selectedCategory, categoryId]);
   // The panel shows the answer for what is typed now, not for the previous input.
   const current =
     ready &&
@@ -447,9 +458,13 @@ export function ReconcileFlow({
                   <Select
                     id={id}
                     value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
+                    disabled={!lookups.isSuccess || confirm.isPending}
+                    onChange={(e) => {
+                      setCategoryChoice({accountId: account.id, id: e.target.value});
+                      rememberCorrectionCategory(account.id, e.target.value);
+                    }}
                   >
-                    <option value="">Ohne Kategorie (bisheriger Standard)</option>
+                    <option value="">{defaultCategoryLabel}</option>
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
@@ -482,7 +497,7 @@ export function ReconcileFlow({
               <p className="text-muted">
                 Eine echte Buchung über {money(data.differenceCents, true)} wird am{' '}
                 {longDay(adjustmentDay)} mit{' '}
-                {categoryId ? `Kategorie „${categoryName}“` : 'keiner Kategorie'} erstellt und
+                {categoryId ? `Kategorie „${categoryName}“` : defaultCategoryLabel === 'Zu verteilen' ? 'Zu verteilen (ohne Kategorie)' : 'keiner Kategorie'} erstellt und
                 festgeschrieben.
               </p>
             </div>
@@ -512,6 +527,7 @@ export function ReconcileFlow({
                 }
                 disabled={
                   confirm.isPending ||
+                  !lookups.isSuccess ||
                   staleClose ||
                   Boolean(closeContext && !reason.trim()) ||
                   !adjustmentValid ||
