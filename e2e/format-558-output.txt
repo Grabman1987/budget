@@ -1,0 +1,1874 @@
+diff --git a/apps/web/src/api/http.ts b/apps/web/src/api/http.ts
+index 6950cb6..4812037 100644
+--- a/apps/web/src/api/http.ts
++++ b/apps/web/src/api/http.ts
+@@ -59,8 +59,7 @@ function endKnownSession(): void {
+     // Revocation runs synchronously before this promise reaches IndexedDB.
+     void clearDeviceFinancialData().catch(() => undefined);
+   }
+-  if (typeof window !== 'undefined')
+-    window.dispatchEvent(new Event('budget-session-expired'));
++  if (typeof window !== 'undefined') window.dispatchEvent(new Event('budget-session-expired'));
+ }
+ export function onApiWrite(listener: () => void): () => void {
+   writeListeners.add(listener);
+@@ -145,9 +144,11 @@ export async function request<T>(
+     );
+   }
+   if (method !== 'GET') notifyApiWrite();
+-  if (authGeneration !== null &&
++  if (
++    authGeneration !== null &&
+     snapshotGeneration() === authGeneration &&
+-    (payload as { authenticated?: boolean }).authenticated === false)
++    (payload as { authenticated?: boolean }).authenticated === false
++  )
+     endKnownSession();
+   if (
+     method === 'POST' &&
+diff --git a/apps/web/src/api/offline-write-558.test.ts b/apps/web/src/api/offline-write-558.test.ts
+index f6fddb3..27cabf7 100644
+--- a/apps/web/src/api/offline-write-558.test.ts
++++ b/apps/web/src/api/offline-write-558.test.ts
+@@ -7,10 +7,17 @@ it('does not send an offline financial write outside the existing idempotent cap
+   const fetch = vi.fn().mockResolvedValue(new Response('{"ok":true}', { status: 200 }));
+   vi.stubGlobal('navigator', { onLine: false });
+   vi.stubGlobal('fetch', fetch);
+-  await expect(request('PUT', '/api/budget/2026-09/assigned', { items: [] }))
+-    .rejects.toMatchObject({ status: 0, code: 'offline_read_only' });
++  await expect(request('PUT', '/api/budget/2026-09/assigned', { items: [] })).rejects.toMatchObject(
++    { status: 0, code: 'offline_read_only' },
++  );
+   expect(fetch).not.toHaveBeenCalled();
+-  await expect(request('POST', '/api/bookings', { amountCents: -1250 }, { 'Idempotency-Key': 'synthetic-key' }))
+-    .resolves.toEqual({ ok: true });
++  await expect(
++    request(
++      'POST',
++      '/api/bookings',
++      { amountCents: -1250 },
++      { 'Idempotency-Key': 'synthetic-key' },
++    ),
++  ).resolves.toEqual({ ok: true });
+   expect(fetch).toHaveBeenCalledTimes(1);
+ });
+diff --git a/apps/web/src/pwa/local-data.test.ts b/apps/web/src/pwa/local-data.test.ts
+index 97d5edc..3b49e35 100644
+--- a/apps/web/src/pwa/local-data.test.ts
++++ b/apps/web/src/pwa/local-data.test.ts
+@@ -10,7 +10,10 @@ import {
+ const clearChoices = vi.hoisted(() => vi.fn());
+ vi.mock('./queue-store', () => ({ clearChoices }));
+ const snapshots = vi.hoisted(() => ({ clear: vi.fn(), revoke: vi.fn() }));
+-vi.mock('./snapshots', () => ({ clearSnapshots: snapshots.clear, revokeSnapshots: snapshots.revoke }));
++vi.mock('./snapshots', () => ({
++  clearSnapshots: snapshots.clear,
++  revokeSnapshots: snapshots.revoke,
++}));
+ 
+ const cacheNames = vi.hoisted(() => ({ list: [] as string[] }));
+ const deleted: string[] = [];
+diff --git a/apps/web/src/pwa/offline-state.tsx b/apps/web/src/pwa/offline-state.tsx
+index 8b38919..2acb967 100644
+--- a/apps/web/src/pwa/offline-state.tsx
++++ b/apps/web/src/pwa/offline-state.tsx
+@@ -5,18 +5,40 @@ import type { AccountList, BookingPage, ListedBooking } from '../ledger/types';
+ import type { BudgetMonthView } from '../budget/budget-api';
+ import { eur, nativeCurrency } from '../ledger/format';
+ import { currentMonth } from '../shell/use-month';
+-import { readSnapshots, subscribeSnapshotEpoch, type SnapshotKind, type Snapshot } from './snapshots';
++import {
++  readSnapshots,
++  subscribeSnapshotEpoch,
++  type SnapshotKind,
++  type Snapshot,
++} from './snapshots';
+ import { QueueList } from './queue-ui';
+ 
+ type Saved = Partial<Record<SnapshotKind, Snapshot>>;
+ const stamp = new Intl.DateTimeFormat('de-AT', { dateStyle: 'medium', timeStyle: 'short' });
+ const status = { pending: 'vorgemerkt', confirmed: 'bestätigt', reconciled: 'abgeglichen' };
+-const reviewStatus = { inactive: 'inaktiv', unreviewed: 'offen', checked: 'geprüft', due: 'fällig', unsupported: 'nicht unterstützt' };
+-const occurrenceStatus = { expected: 'erwartet', received: 'erhalten', deviating: 'abweichend', missed: 'ausgeblieben', skipped: 'übersprungen' };
++const reviewStatus = {
++  inactive: 'inaktiv',
++  unreviewed: 'offen',
++  checked: 'geprüft',
++  due: 'fällig',
++  unsupported: 'nicht unterstützt',
++};
++const occurrenceStatus = {
++  expected: 'erwartet',
++  received: 'erhalten',
++  deviating: 'abweichend',
++  missed: 'ausgeblieben',
++  skipped: 'übersprungen',
++};
+ const checkStatus = { ok: 'in Ordnung', warn: 'Hinweis', bad: 'kritisch' };
+ const targetKind = { monthly: 'monatlich', by_date: 'bis Datum', keep_balance: 'Bestand halten' };
+-const bookingCategories = (row: ListedBooking) => row.splits.map((split) => split.categoryName).filter(Boolean).join(', ');
+-const savedMoney = (value: number | undefined | null) => value == null ? 'Nicht verfügbar' : eur(value);
++const bookingCategories = (row: ListedBooking) =>
++  row.splits
++    .map((split) => split.categoryName)
++    .filter(Boolean)
++    .join(', ');
++const savedMoney = (value: number | undefined | null) =>
++  value == null ? 'Nicht verfügbar' : eur(value);
+ 
+ /** A separate surface keeps every live page's controls and mutation hooks unmounted offline. */
+ export function OfflineState({ onCapture }: { onCapture: () => void }) {
+@@ -26,31 +48,47 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
+     const path = window.location.pathname;
+     if (path === '/') return 'heute';
+     if (path === '/konten') return 'accounts';
+-    if (path === '/plan/monat' && (!new URLSearchParams(location.search).has('monat') || new URLSearchParams(location.search).get('monat') === currentMonth())) return 'plan';
++    if (
++      path === '/plan/monat' &&
++      (!new URLSearchParams(location.search).has('monat') ||
++        new URLSearchParams(location.search).get('monat') === currentMonth())
++    )
++      return 'plan';
+     if (path === '/konten/buchungen' && !location.search) return 'bookings';
+     return null;
+   });
+   useEffect(() => {
+     let active = true;
+-    const refresh = () => void readSnapshots().then((next) => {
+-      if (active) setSaved(next);
+-    }).catch(() => {
+-      if (active) setSaved({});
+-    });
++    const refresh = () =>
++      void readSnapshots()
++        .then((next) => {
++          if (active) setSaved(next);
++        })
++        .catch(() => {
++          if (active) setSaved({});
++        });
+     refresh();
+     const unsubscribe = subscribeSnapshotEpoch(() => setSaved({}));
+-    return () => { active = false; unsubscribe(); };
++    return () => {
++      active = false;
++      unsubscribe();
++    };
+   }, []);
+   const selectedMonth = new URLSearchParams(location.search).get('monat') ?? currentMonth();
+   const selectedPeriod = new URLSearchParams(location.search).get('period');
+   const heuteKey = saved.heute ? new URL(saved.heute.key, location.origin).searchParams : null;
+-  const heute = saved.heute && (location.pathname !== '/' ||
+-    (heuteKey?.get('month') === selectedMonth &&
+-      (!selectedPeriod || heuteKey.get('period') === selectedPeriod)))
+-    ? saved.heute.data as Heute : undefined;
++  const heute =
++    saved.heute &&
++    (location.pathname !== '/' ||
++      (heuteKey?.get('month') === selectedMonth &&
++        (!selectedPeriod || heuteKey.get('period') === selectedPeriod)))
++      ? (saved.heute.data as Heute)
++      : undefined;
+   const accounts = saved.accounts?.data as AccountList | undefined;
+-  const plan = saved.plan?.key === `/api/budget/${currentMonth()}`
+-    ? saved.plan?.data as BudgetMonthView | undefined : undefined;
++  const plan =
++    saved.plan?.key === `/api/budget/${currentMonth()}`
++      ? (saved.plan?.data as BudgetMonthView | undefined)
++      : undefined;
+   const bookings = saved.bookings?.data as BookingPage | undefined;
+   const categories = new Map(plan?.categories.map((row) => [row.id, row]) ?? []);
+   const groups = new Map(plan?.groups.map((row) => [row.id, row.name]) ?? []);
+@@ -58,200 +96,696 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
+     <main className="pwa-offline" id="main">
+       <img src="/icons/budget.svg" width="48" height="48" alt="" />
+       <h1>Budget ist offline</h1>
+-      <p>{view === null ? 'Für diese Seite brauchst du eine Verbindung.' : 'Gespeicherter letzter Abruf · nur lesend. Für aktuelle Daten brauchst du eine Verbindung.'}</p>
++      <p>
++        {view === null
++          ? 'Für diese Seite brauchst du eine Verbindung.'
++          : 'Gespeicherter letzter Abruf · nur lesend. Für aktuelle Daten brauchst du eine Verbindung.'}
++      </p>
+       <Button onClick={() => window.location.reload()}>Erneut verbinden</Button>
+       <Button onClick={onCapture}>Buchung erfassen</Button>
+       <QueueList />
+-      {view !== null && <nav aria-label="Gespeicherte Ansichten" className="offline-nav">
+-        {([['heute', 'Heute'], ['accounts', 'Kontensalden'], ['plan', 'Plan'], ['bookings', 'Letzte Buchungen']] as const).map(([key, label]) =>
+-          <Button key={key} variant={view === key ? 'primary' : 'ghost'} onClick={() => setView(key)}>{label}</Button>)}
+-      </nav>}
++      {view !== null && (
++        <nav aria-label="Gespeicherte Ansichten" className="offline-nav">
++          {(
++            [
++              ['heute', 'Heute'],
++              ['accounts', 'Kontensalden'],
++              ['plan', 'Plan'],
++              ['bookings', 'Letzte Buchungen'],
++            ] as const
++          ).map(([key, label]) => (
++            <Button
++              key={key}
++              variant={view === key ? 'primary' : 'ghost'}
++              onClick={() => setView(key)}
++            >
++              {label}
++            </Button>
++          ))}
++        </nav>
++      )}
+       {view === null && <p>Für diese Seite ist offline kein letzter Stand gespeichert.</p>}
+-      {view === 'heute' &&
+-      <section aria-label="Heute" className="offline-view">
+-        <h2>Heute</h2>
+-        {heute && saved.heute ? <>
+-          <Stamp snapshot={saved.heute} />
+-          <p>Ansicht: {heute.stand.month} · {heute.stand.period === 'payday' ? 'Bis Gehalt' : 'Monat'}</p>
+-          <dl>
+-            <div><dt>Frei bis Gehalt</dt><dd>{eur(heute.lead.freeCents)}</dd></div>
+-            <div><dt>Bedarf</dt><dd>{eur(heute.lead.needCents)}</dd></div>
+-            <div><dt>Wunsch</dt><dd>{eur(heute.lead.wantCents)}</dd></div>
+-            <div><dt>Offene Zahlungen</dt><dd>{eur(heute.lead.openCents)}</dd></div>
+-            <div><dt>Budgetkonten</dt><dd>{eur(heute.stand.budgetBalanceCents)}</dd></div>
+-            <div><dt>Heute ausgebbar</dt><dd>{heute.dailyBudget.perDayCents === null ? '–' : eur(heute.dailyBudget.perDayCents)}</dd></div>
+-            <div><dt>Im Monat ausgegeben</dt><dd>{eur(heute.budgetAnswer.spentCents)}</dd></div>
+-            <div><dt>Im Monat geplant</dt><dd>{eur(heute.budgetAnswer.plannedCents)}</dd></div>
+-            <div><dt>Im Monat übrig</dt><dd>{eur(heute.budgetAnswer.remainingCents)}</dd></div>
+-            <div><dt>Einnahmen im Monat</dt><dd>{eur(heute.monthResult.earnedCents)}</dd></div>
+-            <div><dt>Konsum im Monat</dt><dd>{eur(heute.monthResult.consumptionCents)}</dd></div>
+-            <div><dt>Gespart im Monat</dt><dd>{eur(heute.monthResult.savedCents)}</dd></div>
+-            {'unavailable' in heute.netWorth
+-              ? <div><dt>Nettovermögen</dt><dd>{maskMoneyText(heute.netWorth.unavailable.message)}</dd></div>
+-              : <div><dt>Nettovermögen</dt><dd>{eur(heute.netWorth.totalCents)}</dd></div>}
+-            {heute.nearestGoal && <div><dt>Nächstes Sparziel · {heute.nearestGoal.name}</dt><dd>{eur(heute.nearestGoal.savedCents)} gespart · {eur(heute.nearestGoal.remainingCents)} offen</dd></div>}
+-          </dl>
+-          <h3>Pace · {heute.pace.month}</h3>
+-          <dl>
+-            <div><dt>Ausgegeben</dt><dd>{eur(heute.pace.figures.spentCents)}</dd></div>
+-            <div><dt>Plan bis heute</dt><dd>{eur(heute.pace.figures.planToDateCents)}</dd></div>
+-            <div><dt>Erwartet bis heute</dt><dd>{eur(heute.pace.figures.expectedToDateCents)}</dd></div>
+-            <div><dt>Abweichung</dt><dd>{eur(heute.pace.figures.deltaCents)}</dd></div>
+-            <div><dt>Prognose Monatsende</dt><dd>{heute.pace.figures.forecastAvailable ? eur(heute.pace.figures.forecastEndCents) : 'Nicht verfügbar'}</dd></div>
+-            <div><dt>Limit</dt><dd>{eur(heute.pace.figures.limitCents)}</dd></div>
+-            <div><dt>Variable Ausgaben bisher</dt><dd>{eur(heute.pace.figures.variableSoFarCents)}</dd></div>
+-            <div><dt>Offene feste Zahlungen</dt><dd>{eur(heute.pace.figures.openFixedCents)}</dd></div>
+-          </dl>
+-          <details><summary>Pace-Tageswerte</summary>
+-            <ul>{heute.pace.plan.map((value, index) => <li key={index}>
+-              <span>Tag {index + 1} · Ist {savedMoney(heute.pace.actual[index])} · Plan {eur(value)} · Erwartet {savedMoney(heute.pace.expected[index])} · Hochrechnung {savedMoney(heute.pace.forecast[index])} · Einnahmen {savedMoney(heute.pace.income[index])} · Vormonat {savedMoney(heute.pace.previous[index])}</span>
+-            </li>)}</ul>
+-          </details>
+-          {heute.planningAccuracy && <p>Planungstreffer {heute.planningAccuracy.hits} von {heute.planningAccuracy.count} · Mittlere Abweichung {heute.planningAccuracy.meanAbsoluteBp === null ? 'nicht verfügbar' : `${heute.planningAccuracy.meanAbsoluteBp} Basispunkte`}</p>}
+-          <h3>Kontoverlauf und Prognose</h3>
+-          <ul>{heute.balance.actual.map((point) => <li key={`actual-${point.day}`}>
+-            <span>{point.day} · Ist</span><strong>{eur(point.balanceCents)}</strong>
+-          </li>)}{heute.balance.forecast.map((point) => <li key={`forecast-${point.day}`}>
+-            <span>{point.day} · Prognose · variabel {eur(point.variableCents)}{point.items.map((item) => item.label).filter(Boolean).join(', ') && ` · ${point.items.map((item) => item.label).filter(Boolean).join(', ')}`}</span><strong>{eur(point.balanceCents)}</strong>
+-          </li>)}</ul>
+-          {heute.balance.salary && <p>Gehalt {heute.balance.salary.day} · {eur(heute.balance.salary.cents)}</p>}
+-          {heute.balance.low && <p>Tiefpunkt {heute.balance.low.day} · {eur(heute.balance.low.cents)}</p>}
+-          {'unavailable' in heute.netWorth ? null : <dl>
+-            <div><dt>Liquide Mittel</dt><dd>{eur(heute.netWorth.liquidCents)}</dd></div>
+-            <div><dt>Anlagen</dt><dd>{eur(heute.netWorth.investedCents)}</dd></div>
+-            <div><dt>Forderungen</dt><dd>{eur(heute.netWorth.receivableCents)}</dd></div>
+-            <div><dt>Schulden</dt><dd>{eur(heute.netWorth.debtCents)}</dd></div>
+-            <div><dt>Vermögenswerte</dt><dd>{eur(heute.netWorth.assetsCents)}</dd></div>
+-            <div><dt>Verbindlichkeiten</dt><dd>{eur(heute.netWorth.liabilitiesCents)}</dd></div>
+-            <div><dt>Veränderung im Monat</dt><dd>{'unavailable' in heute.netWorth.monthChange ? maskMoneyText(heute.netWorth.monthChange.unavailable.message) : eur(heute.netWorth.monthChange.deltaCents)}</dd></div>
+-            <div><dt>Veränderung zum Vorjahr</dt><dd>{eur(heute.netWorth.yearDeltaCents)}</dd></div>
+-          </dl>}
+-          <h3>Verfügbarer Bedarf und Wunsch</h3>
+-          <ul>{[...heute.lead.items.need, ...heute.lead.items.want].map((row) => <li key={row.id}>
+-            <span>{row.name}</span><strong>{eur(row.availableCents)}</strong>
+-          </li>)}</ul>
+-          <h3>Offen bis Gehalt</h3>
+-          <ul>{heute.lead.items.open.map((row) => <li key={row.id}>
+-            <span>{row.day} · {row.label}</span><strong>{eur(row.cents)}</strong>
+-          </li>)}</ul>
+-          <h3>Angepinnte Kategorien</h3>
+-          <ul>{heute.pinned.map((row) => <li key={row.id}>
+-            <span>{row.name} · Zugewiesen {eur(row.assignedCents)} · Ausgegeben {eur(row.spentCents)} · Budgetiert {eur(row.budgetedCents)} · Pace {eur(row.paceMarkCents)}</span>
+-            <strong>Verfügbar {eur(row.availableCents)}</strong>
+-          </li>)}</ul>
+-          <h3>Finanz-Check</h3>
+-          {'unavailable' in heute.financeCheck
+-            ? <p>{maskMoneyText(heute.financeCheck.unavailable.message)}</p>
+-            : <><p>{heute.financeCheck.counts.total} Regeln · {heute.financeCheck.counts.ok} in Ordnung · {heute.financeCheck.counts.warn} Hinweise · {heute.financeCheck.counts.bad} kritisch · {heute.financeCheck.counts.notEvaluated} nicht ausgewertet</p>
+-                <ul>{heute.financeCheck.keyRules.map((rule) => <li key={rule.code}><span>{rule.name} · {maskMoneyText(rule.valueText)} · {checkStatus[rule.status]}</span><strong>{rule.actionText ? maskMoneyText(rule.actionText) : ''}</strong></li>)}</ul>
+-                <ul>{heute.financeCheck.actionRules.map((rule) => <li key={rule.code}><span>{rule.name} · {maskMoneyText(rule.valueText)} · {checkStatus[rule.status]}</span><strong>{rule.actionText ? maskMoneyText(rule.actionText) : ''}</strong></li>)}</ul>
+-              </>}
+-          <h3>Zu tun</h3>
+-          <dl>
+-            <div><dt>Posteingang</dt><dd>{heute.attention.inboxCount}</dd></div>
+-            <div><dt>Vorgemerkte Buchungen</dt><dd>{heute.attention.pendingCount}</dd></div>
+-            <div><dt>Vorgemerkt vor</dt><dd>{heute.attention.pendingBefore}</dd></div>
+-            <div><dt>Fehlende Kreditbedingungen</dt><dd>{heute.attention.loanTermsMissing ? 'Ja' : 'Nein'}</dd></div>
+-            {heute.attention.quoteReview && <div><dt>Kurse prüfen</dt><dd>{heute.attention.quoteReview.count}</dd></div>}
+-          </dl>
+-          <ul>{heute.nextSteps.items.map((item, index) => <li key={`${item.kind}-${item.categoryId ?? index}`}>
+-            <span>{item.kind === 'overspent' ? 'Überzogen' : 'Ohne Kategorie'} · {item.categoryName ?? `${item.count} Buchungen`}</span><strong>{eur(item.cents)}</strong>
+-          </li>)}</ul>
+-          {!!heute.attention.monthCloseTasks?.unavailable.length && <p>Abschlussvergleich für {heute.attention.monthCloseTasks.unavailable.length} Monate nicht verfügbar.</p>}
+-          <ul>{heute.accountReminders.map((item) => <li key={item.accountId}>
+-            <span>{item.accountName} · {item.action === 'reconcile' ? 'Kontostand prüfen' : 'Bewertung prüfen'}</span><strong>{item.days} Tage</strong>
+-          </li>)}</ul>
+-          <ul>{heute.attention.monthCloseTasks?.tasks.map((task) => <li key={task.id}>
+-            <span>{task.month} · {task.kind === 'close' ? 'Monat abschließen' : 'Nach Abschluss geändert'}</span>
+-          </li>)}</ul>
+-          <h3>Fällig 14 Tage</h3>
+-          <ul>{heute.upcoming14.map((row) => <li key={row.occurrenceId ?? row.paymentId}>
+-            <span>{row.dueDate} · {row.name} · {occurrenceStatus[row.status]}</span>
+-            <strong>{eur(row.amountCents)}</strong>
+-          </li>)}</ul>
+-          <h3>Geplante Ereignisse</h3>
+-          <ul>{heute.upcomingEvents.map((row) => <li key={`${row.eventId}-${row.date}`}>
+-            <span>{row.date} · {row.name} · geplant</span><strong>{eur(row.amountCents)}</strong>
+-          </li>)}</ul>
+-          <h3>Letzte Buchungen</h3>
+-          <ul>{heute.lastBookings.map((row) => <li key={row.id}>
+-            <span>{row.date} · {row.payeeName ?? 'Ohne Empfänger'} · {row.accountName} · {row.categoryName ?? 'Ohne Kategorie'}{row.memo && ` · ${row.memo}`} · {status[row.status as keyof typeof status] ?? row.status}</span>
+-            <strong>{eur(row.amountCents)}</strong>
+-          </li>)}</ul>
+-        </> : <Missing />}
+-      </section>}
+-      {view === 'accounts' &&
+-      <section aria-label="Kontensalden" className="offline-view">
+-        <h2>Kontensalden</h2>
+-        {accounts && saved.accounts ? <>
+-          <Stamp snapshot={saved.accounts} />
+-          <p>Prüfstand {accounts.asOf} · Nettovermögen {accounts.netWorthEurCents === null ? 'EUR-Wert unbekannt' : eur(accounts.netWorthEurCents)}</p>
+-          <ul>{accounts.accounts.map((account) => <li key={account.id}>
+-            <span>{account.name}{account.closedAt && ' · geschlossen'} · Gebucht {nativeCurrency(account.clearedCents, account.currency)} · Vorgemerkt {nativeCurrency(account.unclearedCents, account.currency)} · Prüfstatus {account.reviewStatus ? reviewStatus[account.reviewStatus.state] : 'unbekannt'} · Zuletzt geprüft {account.lastReconciledOn ?? 'unbekannt'}{account.valueEurCents === null && ' · EUR-Wert unbekannt'}{account.missingFxCurrencies.length > 0 && ` · Fehlender Kurs ${account.missingFxCurrencies.join(', ')}`}{account.missingPriceSecurityIds.length > 0 && ` · ${account.missingPriceSecurityIds.length} fehlende Wertpapierkurse`}</span><strong>{nativeCurrency(account.balanceCents, account.currency)}{account.valueEurCents !== null && account.currency !== 'EUR' && ` · ${eur(account.valueEurCents)}`}</strong>
+-          </li>)}</ul>
+-        </> : <Missing />}
+-      </section>}
+-      {view === 'plan' &&
+-      <section aria-label="Plan des laufenden Monats" className="offline-view">
+-        <h2>Plan · {currentMonth()}</h2>
+-        {plan && saved.plan ? <>
+-          <Stamp snapshot={saved.plan} />
+-          <dl>
+-            <div><dt>Zu verteilen</dt><dd>{eur(plan.summary.toBeAssignedCents)}</dd></div>
+-            <div><dt>Übertrag</dt><dd>{eur(plan.summary.carryInCents)}</dd></div>
+-            <div><dt>Einnahmen</dt><dd>{eur(plan.summary.incomeCents)}</dd></div>
+-            <div><dt>Ungedeckt</dt><dd>{eur(plan.summary.uncoveredCents)}</dd></div>
+-            <div><dt>Gehalten</dt><dd>{eur(plan.summary.heldCents)}</dd></div>
+-            <div><dt>Zugewiesen</dt><dd>{eur(plan.summary.assignedCents)}</dd></div>
+-            <div><dt>Aktivität</dt><dd>{eur(plan.summary.activityCents)}</dd></div>
+-            <div><dt>Verfügbar</dt><dd>{eur(plan.summary.availableCents)}</dd></div>
+-            <div><dt>Bar überzogen</dt><dd>{eur(plan.summary.cashOverspentCents)}</dd></div>
+-            <div><dt>Kredit überzogen</dt><dd>{eur(plan.summary.creditOverspentCents)}</dd></div>
+-            <div><dt>Buchungen ohne Kategorie</dt><dd>{plan.summary.uncategorizedCount === undefined ? 'Unbekannt' : plan.summary.uncategorizedCount}</dd></div>
+-            {plan.summary.unclassified && <div><dt>Nicht klassifiziert</dt><dd>{plan.summary.unclassified.count} · Zufluss {eur(plan.summary.unclassified.inflowCents)} · Abfluss {eur(plan.summary.unclassified.outflowCents)} · Netto {eur(plan.summary.unclassified.netCents)}</dd></div>}
+-          </dl>
+-          <ul>{plan.summary.envelopes.map((row) => <li key={row.categoryId}>
+-            <span>{groups.get(categories.get(row.categoryId)?.groupId ?? '') ?? 'Ohne Gruppe'} · {categories.get(row.categoryId)?.name ?? row.categoryId} · Übertrag {eur(row.carryCents)} · Zugewiesen {eur(row.assignedCents)} · Aktivität {eur(row.activityCents)} · Überzogen {eur(row.overspentCents)} · Bar überzogen {eur(row.cashOverspentCents)} · Kredit überzogen {eur(row.creditOverspentCents)} · Kartenzahlung finanziert {eur(row.fundedCardCents)} · Zielbetrag {eur(row.goalCents)} · Noch nötig {eur(row.needCents)}{row.dueMonth && ` · Fällig ${row.dueMonth}`}{row.target && ` · Ziel ${targetKind[row.target.kind]} ${eur(row.target.amountCents)} ab ${row.target.validFrom}`}</span>
+-            <strong>Verfügbar {eur(row.availableCents)}</strong>
+-          </li>)}</ul>
+-          {plan.incomeTargets && <><h3>Erwartetes Einkommen und Monatsziele</h3>
+-            <p>Quelle: {plan.incomeTargets.source === 'expected' ? 'Wiederkehrende Zahlungen' : plan.incomeTargets.source === 'salary_rule' ? 'Gehaltsregel' : plan.incomeTargets.source === 'median' ? 'Median der letzten drei Monate' : 'nicht verfügbar'}. Planungswert; erst eingegangenes Einkommen steht zum Verteilen bereit.</p>
+-            <dl>
+-              <div><dt>Erwartetes Einkommen</dt><dd>{savedMoney(plan.incomeTargets.expectedCents)}</dd></div>
+-              <div><dt>Diesem Monat zugerechnet</dt><dd>{savedMoney(plan.incomeTargets.assignedIncomeCents)}</dd></div>
+-              <div><dt>Monatsziele</dt><dd>{eur(plan.incomeTargets.targetsCents)}</dd></div>
+-              <div><dt>Vergleich</dt><dd>{savedMoney(plan.incomeTargets.differenceCents)}</dd></div>
+-              <div><dt>Vom Vormonat zurückgehalten</dt><dd>{eur(plan.incomeTargets.previousHeldCents)}</dd></div>
+-              <div><dt>Für Folgemonat zurückgehalten</dt><dd>{eur(plan.incomeTargets.heldCents)}</dd></div>
+-              <div><dt>Noch zu finanzieren</dt><dd>{eur(plan.incomeTargets.unfundedCents)}</dd></div>
+-            </dl>
+-            <ul>{plan.incomeTargets.unfundedCategoryIds.map((id) => <li key={id}>{categories.get(id)?.name ?? id}</li>)}</ul>
+-          </>}
+-          {plan.budgetMoney && <><h3>Geld auf Budgetkonten</h3>
+-            <p>{eur(plan.budgetMoney.totalCents)} · Kredit genutzt {eur(plan.budgetMoney.usedCreditCents)}</p>
+-            <ul>{plan.budgetMoney.accounts.map((account) => <li key={account.id}>
+-              <span>{account.name} · Kredit genutzt {eur(account.usedCreditCents)} · Rahmen {account.creditLineCents === null ? 'nicht hinterlegt' : eur(account.creditLineCents)}</span>
+-              <strong>{eur(account.balanceCents)}</strong>
+-            </li>)}</ul>
+-          </>}
+-          {plan.summary.cards.length > 0 && <><h3>Karten</h3><ul>{plan.summary.cards.map((card, index) => <li key={card.accountId}>
+-            <span>Karte {index + 1}</span><strong>Schuldenzuwachs {eur(card.cardDebtGrowthCents)}</strong>
+-          </li>)}</ul></>}
+-        </> : <Missing />}
+-      </section>}
+-      {view === 'bookings' &&
+-      <section aria-label="Letzte Buchungen" className="offline-view">
+-        <h2>Letzte Buchungen</h2>
+-        {bookings && saved.bookings ? <>
+-          <Stamp snapshot={saved.bookings} />
+-          <p>{bookings.total} Buchungen · EUR-Summe {bookings.sumEurCents == null ? 'unbekannt' : eur(bookings.sumEurCents)}</p>
+-          <ul>{bookings.items.map((row) => <li key={row.id}>
+-            <span>{row.date} · {row.payeeName ?? 'Ohne Empfänger'} · {row.accountName} · {status[row.status]}{bookingCategories(row) && ` · ${bookingCategories(row)}`}{row.memo && ` · ${row.memo}`}{row.flag && ` · Markierung ${row.flag}`}{row.transferAccountName && ` · Umbuchung ${row.transferAccountName}`}{row.splits.map((split) => ` · ${split.categoryName ?? 'Ohne Kategorie'} ${nativeCurrency(split.amountCents, row.currency)}${split.memo ? ` (${split.memo})` : ''}`)}</span>
+-            <strong>{nativeCurrency(row.amountCents, row.currency)}{row.originalAmountCents !== null && row.originalCurrency && ` · Original ${nativeCurrency(row.originalAmountCents, row.originalCurrency)}`}{row.balanceAfterCents !== null && ` · Saldo ${nativeCurrency(row.balanceAfterCents, row.currency)}`}</strong>
+-          </li>)}</ul>
+-          {bookings.nextCursor && <p>Weitere ältere Buchungen nur mit Verbindung verfügbar.</p>}
+-        </> : <Missing />}
+-      </section>}
++      {view === 'heute' && (
++        <section aria-label="Heute" className="offline-view">
++          <h2>Heute</h2>
++          {heute && saved.heute ? (
++            <>
++              <Stamp snapshot={saved.heute} />
++              <p>
++                Ansicht: {heute.stand.month} ·{' '}
++                {heute.stand.period === 'payday' ? 'Bis Gehalt' : 'Monat'}
++              </p>
++              <dl>
++                <div>
++                  <dt>Frei bis Gehalt</dt>
++                  <dd>{eur(heute.lead.freeCents)}</dd>
++                </div>
++                <div>
++                  <dt>Bedarf</dt>
++                  <dd>{eur(heute.lead.needCents)}</dd>
++                </div>
++                <div>
++                  <dt>Wunsch</dt>
++                  <dd>{eur(heute.lead.wantCents)}</dd>
++                </div>
++                <div>
++                  <dt>Offene Zahlungen</dt>
++                  <dd>{eur(heute.lead.openCents)}</dd>
++                </div>
++                <div>
++                  <dt>Budgetkonten</dt>
++                  <dd>{eur(heute.stand.budgetBalanceCents)}</dd>
++                </div>
++                <div>
++                  <dt>Heute ausgebbar</dt>
++                  <dd>
++                    {heute.dailyBudget.perDayCents === null
++                      ? '–'
++                      : eur(heute.dailyBudget.perDayCents)}
++                  </dd>
++                </div>
++                <div>
++                  <dt>Im Monat ausgegeben</dt>
++                  <dd>{eur(heute.budgetAnswer.spentCents)}</dd>
++                </div>
++                <div>
++                  <dt>Im Monat geplant</dt>
++                  <dd>{eur(heute.budgetAnswer.plannedCents)}</dd>
++                </div>
++                <div>
++                  <dt>Im Monat übrig</dt>
++                  <dd>{eur(heute.budgetAnswer.remainingCents)}</dd>
++                </div>
++                <div>
++                  <dt>Einnahmen im Monat</dt>
++                  <dd>{eur(heute.monthResult.earnedCents)}</dd>
++                </div>
++                <div>
++                  <dt>Konsum im Monat</dt>
++                  <dd>{eur(heute.monthResult.consumptionCents)}</dd>
++                </div>
++                <div>
++                  <dt>Gespart im Monat</dt>
++                  <dd>{eur(heute.monthResult.savedCents)}</dd>
++                </div>
++                {'unavailable' in heute.netWorth ? (
++                  <div>
++                    <dt>Nettovermögen</dt>
++                    <dd>{maskMoneyText(heute.netWorth.unavailable.message)}</dd>
++                  </div>
++                ) : (
++                  <div>
++                    <dt>Nettovermögen</dt>
++                    <dd>{eur(heute.netWorth.totalCents)}</dd>
++                  </div>
++                )}
++                {heute.nearestGoal && (
++                  <div>
++                    <dt>Nächstes Sparziel · {heute.nearestGoal.name}</dt>
++                    <dd>
++                      {eur(heute.nearestGoal.savedCents)} gespart ·{' '}
++                      {eur(heute.nearestGoal.remainingCents)} offen
++                    </dd>
++                  </div>
++                )}
++              </dl>
++              <h3>Pace · {heute.pace.month}</h3>
++              <dl>
++                <div>
++                  <dt>Ausgegeben</dt>
++                  <dd>{eur(heute.pace.figures.spentCents)}</dd>
++                </div>
++                <div>
++                  <dt>Plan bis heute</dt>
++                  <dd>{eur(heute.pace.figures.planToDateCents)}</dd>
++                </div>
++                <div>
++                  <dt>Erwartet bis heute</dt>
++                  <dd>{eur(heute.pace.figures.expectedToDateCents)}</dd>
++                </div>
++                <div>
++                  <dt>Abweichung</dt>
++                  <dd>{eur(heute.pace.figures.deltaCents)}</dd>
++                </div>
++                <div>
++                  <dt>Prognose Monatsende</dt>
++                  <dd>
++                    {heute.pace.figures.forecastAvailable
++                      ? eur(heute.pace.figures.forecastEndCents)
++                      : 'Nicht verfügbar'}
++                  </dd>
++                </div>
++                <div>
++                  <dt>Limit</dt>
++                  <dd>{eur(heute.pace.figures.limitCents)}</dd>
++                </div>
++                <div>
++                  <dt>Variable Ausgaben bisher</dt>
++                  <dd>{eur(heute.pace.figures.variableSoFarCents)}</dd>
++                </div>
++                <div>
++                  <dt>Offene feste Zahlungen</dt>
++                  <dd>{eur(heute.pace.figures.openFixedCents)}</dd>
++                </div>
++              </dl>
++              <details>
++                <summary>Pace-Tageswerte</summary>
++                <ul>
++                  {heute.pace.plan.map((value, index) => (
++                    <li key={index}>
++                      <span>
++                        Tag {index + 1} · Ist {savedMoney(heute.pace.actual[index])} · Plan{' '}
++                        {eur(value)} · Erwartet {savedMoney(heute.pace.expected[index])} ·
++                        Hochrechnung {savedMoney(heute.pace.forecast[index])} · Einnahmen{' '}
++                        {savedMoney(heute.pace.income[index])} · Vormonat{' '}
++                        {savedMoney(heute.pace.previous[index])}
++                      </span>
++                    </li>
++                  ))}
++                </ul>
++              </details>
++              {heute.planningAccuracy && (
++                <p>
++                  Planungstreffer {heute.planningAccuracy.hits} von {heute.planningAccuracy.count} ·
++                  Mittlere Abweichung{' '}
++                  {heute.planningAccuracy.meanAbsoluteBp === null
++                    ? 'nicht verfügbar'
++                    : `${heute.planningAccuracy.meanAbsoluteBp} Basispunkte`}
++                </p>
++              )}
++              <h3>Kontoverlauf und Prognose</h3>
++              <ul>
++                {heute.balance.actual.map((point) => (
++                  <li key={`actual-${point.day}`}>
++                    <span>{point.day} · Ist</span>
++                    <strong>{eur(point.balanceCents)}</strong>
++                  </li>
++                ))}
++                {heute.balance.forecast.map((point) => (
++                  <li key={`forecast-${point.day}`}>
++                    <span>
++                      {point.day} · Prognose · variabel {eur(point.variableCents)}
++                      {point.items
++                        .map((item) => item.label)
++                        .filter(Boolean)
++                        .join(', ') &&
++                        ` · ${point.items
++                          .map((item) => item.label)
++                          .filter(Boolean)
++                          .join(', ')}`}
++                    </span>
++                    <strong>{eur(point.balanceCents)}</strong>
++                  </li>
++                ))}
++              </ul>
++              {heute.balance.salary && (
++                <p>
++                  Gehalt {heute.balance.salary.day} · {eur(heute.balance.salary.cents)}
++                </p>
++              )}
++              {heute.balance.low && (
++                <p>
++                  Tiefpunkt {heute.balance.low.day} · {eur(heute.balance.low.cents)}
++                </p>
++              )}
++              {'unavailable' in heute.netWorth ? null : (
++                <dl>
++                  <div>
++                    <dt>Liquide Mittel</dt>
++                    <dd>{eur(heute.netWorth.liquidCents)}</dd>
++                  </div>
++                  <div>
++                    <dt>Anlagen</dt>
++                    <dd>{eur(heute.netWorth.investedCents)}</dd>
++                  </div>
++                  <div>
++                    <dt>Forderungen</dt>
++                    <dd>{eur(heute.netWorth.receivableCents)}</dd>
++                  </div>
++                  <div>
++                    <dt>Schulden</dt>
++                    <dd>{eur(heute.netWorth.debtCents)}</dd>
++                  </div>
++                  <div>
++                    <dt>Vermögenswerte</dt>
++                    <dd>{eur(heute.netWorth.assetsCents)}</dd>
++                  </div>
++                  <div>
++                    <dt>Verbindlichkeiten</dt>
++                    <dd>{eur(heute.netWorth.liabilitiesCents)}</dd>
++                  </div>
++                  <div>
++                    <dt>Veränderung im Monat</dt>
++                    <dd>
++                      {'unavailable' in heute.netWorth.monthChange
++                        ? maskMoneyText(heute.netWorth.monthChange.unavailable.message)
++                        : eur(heute.netWorth.monthChange.deltaCents)}
++                    </dd>
++                  </div>
++                  <div>
++                    <dt>Veränderung zum Vorjahr</dt>
++                    <dd>{eur(heute.netWorth.yearDeltaCents)}</dd>
++                  </div>
++                </dl>
++              )}
++              <h3>Verfügbarer Bedarf und Wunsch</h3>
++              <ul>
++                {[...heute.lead.items.need, ...heute.lead.items.want].map((row) => (
++                  <li key={row.id}>
++                    <span>{row.name}</span>
++                    <strong>{eur(row.availableCents)}</strong>
++                  </li>
++                ))}
++              </ul>
++              <h3>Offen bis Gehalt</h3>
++              <ul>
++                {heute.lead.items.open.map((row) => (
++                  <li key={row.id}>
++                    <span>
++                      {row.day} · {row.label}
++                    </span>
++                    <strong>{eur(row.cents)}</strong>
++                  </li>
++                ))}
++              </ul>
++              <h3>Angepinnte Kategorien</h3>
++              <ul>
++                {heute.pinned.map((row) => (
++                  <li key={row.id}>
++                    <span>
++                      {row.name} · Zugewiesen {eur(row.assignedCents)} · Ausgegeben{' '}
++                      {eur(row.spentCents)} · Budgetiert {eur(row.budgetedCents)} · Pace{' '}
++                      {eur(row.paceMarkCents)}
++                    </span>
++                    <strong>Verfügbar {eur(row.availableCents)}</strong>
++                  </li>
++                ))}
++              </ul>
++              <h3>Finanz-Check</h3>
++              {'unavailable' in heute.financeCheck ? (
++                <p>{maskMoneyText(heute.financeCheck.unavailable.message)}</p>
++              ) : (
++                <>
++                  <p>
++                    {heute.financeCheck.counts.total} Regeln · {heute.financeCheck.counts.ok} in
++                    Ordnung · {heute.financeCheck.counts.warn} Hinweise ·{' '}
++                    {heute.financeCheck.counts.bad} kritisch ·{' '}
++                    {heute.financeCheck.counts.notEvaluated} nicht ausgewertet
++                  </p>
++                  <ul>
++                    {heute.financeCheck.keyRules.map((rule) => (
++                      <li key={rule.code}>
++                        <span>
++                          {rule.name} · {maskMoneyText(rule.valueText)} · {checkStatus[rule.status]}
++                        </span>
++                        <strong>{rule.actionText ? maskMoneyText(rule.actionText) : ''}</strong>
++                      </li>
++                    ))}
++                  </ul>
++                  <ul>
++                    {heute.financeCheck.actionRules.map((rule) => (
++                      <li key={rule.code}>
++                        <span>
++                          {rule.name} · {maskMoneyText(rule.valueText)} · {checkStatus[rule.status]}
++                        </span>
++                        <strong>{rule.actionText ? maskMoneyText(rule.actionText) : ''}</strong>
++                      </li>
++                    ))}
++                  </ul>
++                </>
++              )}
++              <h3>Zu tun</h3>
++              <dl>
++                <div>
++                  <dt>Posteingang</dt>
++                  <dd>{heute.attention.inboxCount}</dd>
++                </div>
++                <div>
++                  <dt>Vorgemerkte Buchungen</dt>
++                  <dd>{heute.attention.pendingCount}</dd>
++                </div>
++                <div>
++                  <dt>Vorgemerkt vor</dt>
++                  <dd>{heute.attention.pendingBefore}</dd>
++                </div>
++                <div>
++                  <dt>Fehlende Kreditbedingungen</dt>
++                  <dd>{heute.attention.loanTermsMissing ? 'Ja' : 'Nein'}</dd>
++                </div>
++                {heute.attention.quoteReview && (
++                  <div>
++                    <dt>Kurse prüfen</dt>
++                    <dd>{heute.attention.quoteReview.count}</dd>
++                  </div>
++                )}
++              </dl>
++              <ul>
++                {heute.nextSteps.items.map((item, index) => (
++                  <li key={`${item.kind}-${item.categoryId ?? index}`}>
++                    <span>
++                      {item.kind === 'overspent' ? 'Überzogen' : 'Ohne Kategorie'} ·{' '}
++                      {item.categoryName ?? `${item.count} Buchungen`}
++                    </span>
++                    <strong>{eur(item.cents)}</strong>
++                  </li>
++                ))}
++              </ul>
++              {!!heute.attention.monthCloseTasks?.unavailable.length && (
++                <p>
++                  Abschlussvergleich für {heute.attention.monthCloseTasks.unavailable.length} Monate
++                  nicht verfügbar.
++                </p>
++              )}
++              <ul>
++                {heute.accountReminders.map((item) => (
++                  <li key={item.accountId}>
++                    <span>
++                      {item.accountName} ·{' '}
++                      {item.action === 'reconcile' ? 'Kontostand prüfen' : 'Bewertung prüfen'}
++                    </span>
++                    <strong>{item.days} Tage</strong>
++                  </li>
++                ))}
++              </ul>
++              <ul>
++                {heute.attention.monthCloseTasks?.tasks.map((task) => (
++                  <li key={task.id}>
++                    <span>
++                      {task.month} ·{' '}
++                      {task.kind === 'close' ? 'Monat abschließen' : 'Nach Abschluss geändert'}
++                    </span>
++                  </li>
++                ))}
++              </ul>
++              <h3>Fällig 14 Tage</h3>
++              <ul>
++                {heute.upcoming14.map((row) => (
++                  <li key={row.occurrenceId ?? row.paymentId}>
++                    <span>
++                      {row.dueDate} · {row.name} · {occurrenceStatus[row.status]}
++                    </span>
++                    <strong>{eur(row.amountCents)}</strong>
++                  </li>
++                ))}
++              </ul>
++              <h3>Geplante Ereignisse</h3>
++              <ul>
++                {heute.upcomingEvents.map((row) => (
++                  <li key={`${row.eventId}-${row.date}`}>
++                    <span>
++                      {row.date} · {row.name} · geplant
++                    </span>
++                    <strong>{eur(row.amountCents)}</strong>
++                  </li>
++                ))}
++              </ul>
++              <h3>Letzte Buchungen</h3>
++              <ul>
++                {heute.lastBookings.map((row) => (
++                  <li key={row.id}>
++                    <span>
++                      {row.date} · {row.payeeName ?? 'Ohne Empfänger'} · {row.accountName} ·{' '}
++                      {row.categoryName ?? 'Ohne Kategorie'}
++                      {row.memo && ` · ${row.memo}`} ·{' '}
++                      {status[row.status as keyof typeof status] ?? row.status}
++                    </span>
++                    <strong>{eur(row.amountCents)}</strong>
++                  </li>
++                ))}
++              </ul>
++            </>
++          ) : (
++            <Missing />
++          )}
++        </section>
++      )}
++      {view === 'accounts' && (
++        <section aria-label="Kontensalden" className="offline-view">
++          <h2>Kontensalden</h2>
++          {accounts && saved.accounts ? (
++            <>
++              <Stamp snapshot={saved.accounts} />
++              <p>
++                Prüfstand {accounts.asOf} · Nettovermögen{' '}
++                {accounts.netWorthEurCents === null
++                  ? 'EUR-Wert unbekannt'
++                  : eur(accounts.netWorthEurCents)}
++              </p>
++              <ul>
++                {accounts.accounts.map((account) => (
++                  <li key={account.id}>
++                    <span>
++                      {account.name}
++                      {account.closedAt && ' · geschlossen'} · Gebucht{' '}
++                      {nativeCurrency(account.clearedCents, account.currency)} · Vorgemerkt{' '}
++                      {nativeCurrency(account.unclearedCents, account.currency)} · Prüfstatus{' '}
++                      {account.reviewStatus
++                        ? reviewStatus[account.reviewStatus.state]
++                        : 'unbekannt'}{' '}
++                      · Zuletzt geprüft {account.lastReconciledOn ?? 'unbekannt'}
++                      {account.valueEurCents === null && ' · EUR-Wert unbekannt'}
++                      {account.missingFxCurrencies.length > 0 &&
++                        ` · Fehlender Kurs ${account.missingFxCurrencies.join(', ')}`}
++                      {account.missingPriceSecurityIds.length > 0 &&
++                        ` · ${account.missingPriceSecurityIds.length} fehlende Wertpapierkurse`}
++                    </span>
++                    <strong>
++                      {nativeCurrency(account.balanceCents, account.currency)}
++                      {account.valueEurCents !== null &&
++                        account.currency !== 'EUR' &&
++                        ` · ${eur(account.valueEurCents)}`}
++                    </strong>
++                  </li>
++                ))}
++              </ul>
++            </>
++          ) : (
++            <Missing />
++          )}
++        </section>
++      )}
++      {view === 'plan' && (
++        <section aria-label="Plan des laufenden Monats" className="offline-view">
++          <h2>Plan · {currentMonth()}</h2>
++          {plan && saved.plan ? (
++            <>
++              <Stamp snapshot={saved.plan} />
++              <dl>
++                <div>
++                  <dt>Zu verteilen</dt>
++                  <dd>{eur(plan.summary.toBeAssignedCents)}</dd>
++                </div>
++                <div>
++                  <dt>Übertrag</dt>
++                  <dd>{eur(plan.summary.carryInCents)}</dd>
++                </div>
++                <div>
++                  <dt>Einnahmen</dt>
++                  <dd>{eur(plan.summary.incomeCents)}</dd>
++                </div>
++                <div>
++                  <dt>Ungedeckt</dt>
++                  <dd>{eur(plan.summary.uncoveredCents)}</dd>
++                </div>
++                <div>
++                  <dt>Gehalten</dt>
++                  <dd>{eur(plan.summary.heldCents)}</dd>
++                </div>
++                <div>
++                  <dt>Zugewiesen</dt>
++                  <dd>{eur(plan.summary.assignedCents)}</dd>
++                </div>
++                <div>
++                  <dt>Aktivität</dt>
++                  <dd>{eur(plan.summary.activityCents)}</dd>
++                </div>
++                <div>
++                  <dt>Verfügbar</dt>
++                  <dd>{eur(plan.summary.availableCents)}</dd>
++                </div>
++                <div>
++                  <dt>Bar überzogen</dt>
++                  <dd>{eur(plan.summary.cashOverspentCents)}</dd>
++                </div>
++                <div>
++                  <dt>Kredit überzogen</dt>
++                  <dd>{eur(plan.summary.creditOverspentCents)}</dd>
++                </div>
++                <div>
++                  <dt>Buchungen ohne Kategorie</dt>
++                  <dd>
++                    {plan.summary.uncategorizedCount === undefined
++                      ? 'Unbekannt'
++                      : plan.summary.uncategorizedCount}
++                  </dd>
++                </div>
++                {plan.summary.unclassified && (
++                  <div>
++                    <dt>Nicht klassifiziert</dt>
++                    <dd>
++                      {plan.summary.unclassified.count} · Zufluss{' '}
++                      {eur(plan.summary.unclassified.inflowCents)} · Abfluss{' '}
++                      {eur(plan.summary.unclassified.outflowCents)} · Netto{' '}
++                      {eur(plan.summary.unclassified.netCents)}
++                    </dd>
++                  </div>
++                )}
++              </dl>
++              <ul>
++                {plan.summary.envelopes.map((row) => (
++                  <li key={row.categoryId}>
++                    <span>
++                      {groups.get(categories.get(row.categoryId)?.groupId ?? '') ?? 'Ohne Gruppe'} ·{' '}
++                      {categories.get(row.categoryId)?.name ?? row.categoryId} · Übertrag{' '}
++                      {eur(row.carryCents)} · Zugewiesen {eur(row.assignedCents)} · Aktivität{' '}
++                      {eur(row.activityCents)} · Überzogen {eur(row.overspentCents)} · Bar überzogen{' '}
++                      {eur(row.cashOverspentCents)} · Kredit überzogen{' '}
++                      {eur(row.creditOverspentCents)} · Kartenzahlung finanziert{' '}
++                      {eur(row.fundedCardCents)} · Zielbetrag {eur(row.goalCents)} · Noch nötig{' '}
++                      {eur(row.needCents)}
++                      {row.dueMonth && ` · Fällig ${row.dueMonth}`}
++                      {row.target &&
++                        ` · Ziel ${targetKind[row.target.kind]} ${eur(row.target.amountCents)} ab ${row.target.validFrom}`}
++                    </span>
++                    <strong>Verfügbar {eur(row.availableCents)}</strong>
++                  </li>
++                ))}
++              </ul>
++              {plan.incomeTargets && (
++                <>
++                  <h3>Erwartetes Einkommen und Monatsziele</h3>
++                  <p>
++                    Quelle:{' '}
++                    {plan.incomeTargets.source === 'expected'
++                      ? 'Wiederkehrende Zahlungen'
++                      : plan.incomeTargets.source === 'salary_rule'
++                        ? 'Gehaltsregel'
++                        : plan.incomeTargets.source === 'median'
++                          ? 'Median der letzten drei Monate'
++                          : 'nicht verfügbar'}
++                    . Planungswert; erst eingegangenes Einkommen steht zum Verteilen bereit.
++                  </p>
++                  <dl>
++                    <div>
++                      <dt>Erwartetes Einkommen</dt>
++                      <dd>{savedMoney(plan.incomeTargets.expectedCents)}</dd>
++                    </div>
++                    <div>
++                      <dt>Diesem Monat zugerechnet</dt>
++                      <dd>{savedMoney(plan.incomeTargets.assignedIncomeCents)}</dd>
++                    </div>
++                    <div>
++                      <dt>Monatsziele</dt>
++                      <dd>{eur(plan.incomeTargets.targetsCents)}</dd>
++                    </div>
++                    <div>
++                      <dt>Vergleich</dt>
++                      <dd>{savedMoney(plan.incomeTargets.differenceCents)}</dd>
++                    </div>
++                    <div>
++                      <dt>Vom Vormonat zurückgehalten</dt>
++                      <dd>{eur(plan.incomeTargets.previousHeldCents)}</dd>
++                    </div>
++                    <div>
++                      <dt>Für Folgemonat zurückgehalten</dt>
++                      <dd>{eur(plan.incomeTargets.heldCents)}</dd>
++                    </div>
++                    <div>
++                      <dt>Noch zu finanzieren</dt>
++                      <dd>{eur(plan.incomeTargets.unfundedCents)}</dd>
++                    </div>
++                  </dl>
++                  <ul>
++                    {plan.incomeTargets.unfundedCategoryIds.map((id) => (
++                      <li key={id}>{categories.get(id)?.name ?? id}</li>
++                    ))}
++                  </ul>
++                </>
++              )}
++              {plan.budgetMoney && (
++                <>
++                  <h3>Geld auf Budgetkonten</h3>
++                  <p>
++                    {eur(plan.budgetMoney.totalCents)} · Kredit genutzt{' '}
++                    {eur(plan.budgetMoney.usedCreditCents)}
++                  </p>
++                  <ul>
++                    {plan.budgetMoney.accounts.map((account) => (
++                      <li key={account.id}>
++                        <span>
++                          {account.name} · Kredit genutzt {eur(account.usedCreditCents)} · Rahmen{' '}
++                          {account.creditLineCents === null
++                            ? 'nicht hinterlegt'
++                            : eur(account.creditLineCents)}
++                        </span>
++                        <strong>{eur(account.balanceCents)}</strong>
++                      </li>
++                    ))}
++                  </ul>
++                </>
++              )}
++              {plan.summary.cards.length > 0 && (
++                <>
++                  <h3>Karten</h3>
++                  <ul>
++                    {plan.summary.cards.map((card, index) => (
++                      <li key={card.accountId}>
++                        <span>Karte {index + 1}</span>
++                        <strong>Schuldenzuwachs {eur(card.cardDebtGrowthCents)}</strong>
++                      </li>
++                    ))}
++                  </ul>
++                </>
++              )}
++            </>
++          ) : (
++            <Missing />
++          )}
++        </section>
++      )}
++      {view === 'bookings' && (
++        <section aria-label="Letzte Buchungen" className="offline-view">
++          <h2>Letzte Buchungen</h2>
++          {bookings && saved.bookings ? (
++            <>
++              <Stamp snapshot={saved.bookings} />
++              <p>
++                {bookings.total} Buchungen · EUR-Summe{' '}
++                {bookings.sumEurCents == null ? 'unbekannt' : eur(bookings.sumEurCents)}
++              </p>
++              <ul>
++                {bookings.items.map((row) => (
++                  <li key={row.id}>
++                    <span>
++                      {row.date} · {row.payeeName ?? 'Ohne Empfänger'} · {row.accountName} ·{' '}
++                      {status[row.status]}
++                      {bookingCategories(row) && ` · ${bookingCategories(row)}`}
++                      {row.memo && ` · ${row.memo}`}
++                      {row.flag && ` · Markierung ${row.flag}`}
++                      {row.transferAccountName && ` · Umbuchung ${row.transferAccountName}`}
++                      {row.splits.map(
++                        (split) =>
++                          ` · ${split.categoryName ?? 'Ohne Kategorie'} ${nativeCurrency(split.amountCents, row.currency)}${split.memo ? ` (${split.memo})` : ''}`,
++                      )}
++                    </span>
++                    <strong>
++                      {nativeCurrency(row.amountCents, row.currency)}
++                      {row.originalAmountCents !== null &&
++                        row.originalCurrency &&
++                        ` · Original ${nativeCurrency(row.originalAmountCents, row.originalCurrency)}`}
++                      {row.balanceAfterCents !== null &&
++                        ` · Saldo ${nativeCurrency(row.balanceAfterCents, row.currency)}`}
++                    </strong>
++                  </li>
++                ))}
++              </ul>
++              {bookings.nextCursor && <p>Weitere ältere Buchungen nur mit Verbindung verfügbar.</p>}
++            </>
++          ) : (
++            <Missing />
++          )}
++        </section>
++      )}
+     </main>
+   );
+ }
+diff --git a/apps/web/src/pwa/pwa.css b/apps/web/src/pwa/pwa.css
+index f5ae0e8..c2118d4 100644
+--- a/apps/web/src/pwa/pwa.css
++++ b/apps/web/src/pwa/pwa.css
+@@ -1,4 +1,6 @@
+-.pwa-live:not([hidden]) { display: contents; }
++.pwa-live:not([hidden]) {
++  display: contents;
++}
+ .pwa-update {
+   position: fixed;
+   z-index: 1000;
+@@ -42,13 +44,20 @@
+   border-top: 1px solid var(--rule-strong);
+   padding-block: 16px;
+ }
+-.offline-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+-.offline-nav .btn { min-height: 44px; }
++.offline-nav {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 8px;
++}
++.offline-nav .btn {
++  min-height: 44px;
++}
+ .offline-view ul {
+   list-style: none;
+   padding: 0;
+ }
+-.offline-view li, .offline-view dl > div {
++.offline-view li,
++.offline-view dl > div {
+   display: flex;
+   justify-content: space-between;
+   flex-wrap: wrap;
+@@ -57,10 +66,21 @@
+   border-bottom: 1px solid var(--rule);
+   overflow-wrap: anywhere;
+ }
+-.offline-view li > *, .offline-view dl > div > * { min-width: 0; }
+-.offline-view strong { font-variant-numeric: tabular-nums; }
+-.offline-view summary { display: flex; align-items: center; min-height: 44px; }
+-.offline-stamp { color: var(--ink-2); }
++.offline-view li > *,
++.offline-view dl > div > * {
++  min-width: 0;
++}
++.offline-view strong {
++  font-variant-numeric: tabular-nums;
++}
++.offline-view summary {
++  display: flex;
++  align-items: center;
++  min-height: 44px;
++}
++.offline-stamp {
++  color: var(--ink-2);
++}
+ .queue-detail a {
+   display: inline-flex;
+   align-items: center;
+diff --git a/apps/web/src/pwa/pwa.test.tsx b/apps/web/src/pwa/pwa.test.tsx
+index c1e5320..fc51ea6 100644
+--- a/apps/web/src/pwa/pwa.test.tsx
++++ b/apps/web/src/pwa/pwa.test.tsx
+@@ -92,9 +92,9 @@ describe('static offline shell', () => {
+     expect(screen.getByRole('status').textContent).toContain(
+       'Neue Buchungen warten auf diesem Gerät.',
+     );
+-    expect((screen.getByRole('textbox', { name: 'Notiz', hidden: true }) as HTMLInputElement).value).toBe(
+-      'Noch offen',
+-    );
++    expect(
++      (screen.getByRole('textbox', { name: 'Notiz', hidden: true }) as HTMLInputElement).value,
++    ).toBe('Noch offen');
+     connection(true);
+     expect(screen.queryByRole('status')).toBeNull();
+   });
+diff --git a/apps/web/src/pwa/snapshots-558.test.ts b/apps/web/src/pwa/snapshots-558.test.ts
+index 6194697..22b757a 100644
+--- a/apps/web/src/pwa/snapshots-558.test.ts
++++ b/apps/web/src/pwa/snapshots-558.test.ts
+@@ -11,9 +11,12 @@ it('persists only the four approved primary response keys', () => {
+   expect(snapshotRequest('/api/budget/2026-09')?.kind).toBe('plan');
+   expect(snapshotRequest('/api/bookings?to=2026-09-17&limit=50')?.kind).toBe('bookings');
+   for (const path of [
+-    '/api/auth/status', '/api/lookups', '/api/budget/2026-08',
++    '/api/auth/status',
++    '/api/lookups',
++    '/api/budget/2026-08',
+     '/api/bookings?to=2026-09-16&limit=50',
+     '/api/bookings?accountId=a&to=2026-09-17&limit=50',
+     '/api/bookings?to=2026-09-17&cursor=older&limit=50',
+-  ]) expect(snapshotRequest(path)).toBeNull();
++  ])
++    expect(snapshotRequest(path)).toBeNull();
+ });
+diff --git a/apps/web/src/pwa/snapshots.ts b/apps/web/src/pwa/snapshots.ts
+index 53a390b..dd706e8 100644
+--- a/apps/web/src/pwa/snapshots.ts
++++ b/apps/web/src/pwa/snapshots.ts
+@@ -61,11 +61,12 @@ export async function snapshotEpoch(): Promise<string | null> {
+       return await new Promise<string | null>((resolve) => {
+         const tx = db.transaction('meta', 'readonly');
+         const get = tx.objectStore('meta').get('epoch');
+-        get.onsuccess = () => resolve(
+-          !revoked && readPermission() === permission && get.result === permission
+-            ? permission
+-            : null,
+-        );
++        get.onsuccess = () =>
++          resolve(
++            !revoked && readPermission() === permission && get.result === permission
++              ? permission
++              : null,
++          );
+         get.onerror = () => resolve(null);
+       });
+     } finally {
+@@ -121,7 +122,11 @@ export function subscribeSnapshotEpoch(changed: () => void): () => void {
+     if (!revoked) {
+       revoked = true;
+       generation += 1;
+-      try { localStorage.removeItem(READ_PERMISSION); } catch { /* Clear still runs in sender. */ }
++      try {
++        localStorage.removeItem(READ_PERMISSION);
++      } catch {
++        /* Clear still runs in sender. */
++      }
+     }
+     if (deliveredGeneration !== generation) {
+       deliveredGeneration = generation;
+@@ -133,9 +138,10 @@ export function subscribeSnapshotEpoch(changed: () => void): () => void {
+   };
+   window.addEventListener('storage', storage);
+   const channel = 'BroadcastChannel' in globalThis ? new BroadcastChannel(CHANNEL) : null;
+-  if (channel) channel.onmessage = (event: MessageEvent<{ source: string }>) => {
+-    if (event.data?.source !== TAB_ID) receive();
+-  };
++  if (channel)
++    channel.onmessage = (event: MessageEvent<{ source: string }>) => {
++      if (event.data?.source !== TAB_ID) receive();
++    };
+   return () => {
+     window.removeEventListener('storage', storage);
+     channel?.close();
+@@ -173,11 +179,15 @@ export async function readSnapshots(): Promise<Partial<Record<SnapshotKind, Snap
+       const current = tx.objectStore('meta').get('epoch');
+       const rows = tx.objectStore('views').getAll();
+       tx.oncomplete = () => {
+-        resolve(revoked || readPermission() !== permission || current.result !== permission ? {} : Object.fromEntries(
+-          (rows.result as Snapshot[])
+-            .filter((row) => row.epoch === permission)
+-            .map((row) => [row.kind, row]),
+-        ));
++        resolve(
++          revoked || readPermission() !== permission || current.result !== permission
++            ? {}
++            : Object.fromEntries(
++                (rows.result as Snapshot[])
++                  .filter((row) => row.epoch === permission)
++                  .map((row) => [row.kind, row]),
++              ),
++        );
+       };
+       tx.onerror = tx.onabort = () => reject(tx.error);
+     });
+@@ -225,9 +235,13 @@ export function snapshotRequest(path: string): { kind: SnapshotKind; key: string
+   }
+   if (url.pathname === '/api/bookings') {
+     const keys = [...url.searchParams.keys()];
+-    if (keys.length === 2 && keys.includes('to') && keys.includes('limit') &&
++    if (
++      keys.length === 2 &&
++      keys.includes('to') &&
++      keys.includes('limit') &&
+       url.searchParams.get('limit') === '50' &&
+-      url.searchParams.get('to') === todayInVienna())
++      url.searchParams.get('to') === todayInVienna()
++    )
+       return { kind: 'bookings', key: path };
+   }
+   return null;
+diff --git a/e2e/issue-558-offline-last-state.spec.ts b/e2e/issue-558-offline-last-state.spec.ts
+index de4b2f1..4a124cb 100644
+--- a/e2e/issue-558-offline-last-state.spec.ts
++++ b/e2e/issue-558-offline-last-state.spec.ts
+@@ -5,83 +5,148 @@ import { sampleTest as test, expect } from './sample';
+ test.use({ serviceWorkers: 'allow' });
+ test.setTimeout(90_000);
+ 
+-const viewCount = (page: Page) => page.evaluate(async () => {
+-  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+-    const open = indexedDB.open('budget-offline-views', 1);
+-    open.onsuccess = () => resolve(open.result);
+-    open.onerror = () => reject(open.error);
+-  });
+-  try {
+-    return await new Promise<number>((resolve, reject) => {
+-      const request = db.transaction('views', 'readonly').objectStore('views').count();
+-      request.onsuccess = () => resolve(request.result);
+-      request.onerror = () => reject(request.error);
++const viewCount = (page: Page) =>
++  page.evaluate(async () => {
++    const db = await new Promise<IDBDatabase>((resolve, reject) => {
++      const open = indexedDB.open('budget-offline-views', 1);
++      open.onsuccess = () => resolve(open.result);
++      open.onerror = () => reject(open.error);
+     });
+-  } finally { db.close(); }
+-});
++    try {
++      return await new Promise<number>((resolve, reject) => {
++        const request = db.transaction('views', 'readonly').objectStore('views').count();
++        request.onsuccess = () => resolve(request.result);
++        request.onerror = () => reject(request.error);
++      });
++    } finally {
++      db.close();
++    }
++  });
+ 
+-test('four exact successful reads survive offline reload, stay read-only and wipe on sign-out', async ({ page, context }, info) => {
++test('four exact successful reads survive offline reload, stay read-only and wipe on sign-out', async ({
++  page,
++  context,
++}, info) => {
+   await page.addInitScript(() => {
+     const original = window.fetch.bind(window);
+     window.fetch = async (input, init) => {
+       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+       if (url.pathname === '/api/auth/logout')
+-        return new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } });
++        return new Response('{"ok":true}', {
++          status: 200,
++          headers: { 'content-type': 'application/json' },
++        });
+       const response = await original(input, init);
+       if (!response.ok || (init?.method && init.method !== 'GET')) return response;
+       const body = await response.clone().json();
+       if (url.pathname === '/api/heute') {
+         body.lead.freeCents = 12345;
+         body.pace.figures.spentCents = 2468;
+-        body.balance.actual = [{ ...(body.balance.actual[0] ?? { day: '2026-09-17' }), balanceCents: 23456 }, ...body.balance.actual.slice(1)];
+-        body.pinned = [{ id: 'synthetic-pin', name: 'Offline Kategorie', icon: null, class: 'need', availableCents: 1357, assignedCents: 2000, budgetedCents: 2000, spentCents: 643, paceMarkCents: 600, overspentCents: 0 }];
+-        body.financeCheck = { counts: { ok: 1, warn: 7, bad: 0, total: 8, notEvaluated: 0 }, keyRules: [], actionRules: [] };
++        body.balance.actual = [
++          { ...(body.balance.actual[0] ?? { day: '2026-09-17' }), balanceCents: 23456 },
++          ...body.balance.actual.slice(1),
++        ];
++        body.pinned = [
++          {
++            id: 'synthetic-pin',
++            name: 'Offline Kategorie',
++            icon: null,
++            class: 'need',
++            availableCents: 1357,
++            assignedCents: 2000,
++            budgetedCents: 2000,
++            spentCents: 643,
++            paceMarkCents: 600,
++            overspentCents: 0,
++          },
++        ];
++        body.financeCheck = {
++          counts: { ok: 1, warn: 7, bad: 0, total: 8, notEvaluated: 0 },
++          keyRules: [],
++          actionRules: [],
++        };
+         body.attention.inboxCount = 4;
+-        body.nextSteps.items = [{ kind: 'overspent', urgent: true, categoryId: 'synthetic-pin', categoryName: 'Offline Kategorie', cents: 321, count: 1 }];
+-      }
+-      else if (url.pathname === '/api/accounts' && !url.search) {
++        body.nextSteps.items = [
++          {
++            kind: 'overspent',
++            urgent: true,
++            categoryId: 'synthetic-pin',
++            categoryName: 'Offline Kategorie',
++            cents: 321,
++            count: 1,
++          },
++        ];
++      } else if (url.pathname === '/api/accounts' && !url.search) {
+         body.accounts[0].balanceCents = 98765;
+         body.accounts[0].valueEurCents = null;
+         body.accounts[0].missingFxCurrencies = ['USD'];
+-      }
+-      else if (url.pathname === '/api/budget/2026-09') {
++      } else if (url.pathname === '/api/budget/2026-09') {
+         body.summary.toBeAssignedCents = 4321;
+         body.summary.carryInCents = 555;
+         body.summary.heldCents = 777;
+         body.summary.uncoveredCents = 888;
+         body.summary.cashOverspentCents = 999;
+-        body.summary.unclassified = { count: 2, inflowCents: 123, outflowCents: -456, netCents: -333 };
+-      }
+-      else if (url.pathname === '/api/bookings' && !url.searchParams.has('accountId') && body.items.length)
++        body.summary.unclassified = {
++          count: 2,
++          inflowCents: 123,
++          outflowCents: -456,
++          netCents: -333,
++        };
++      } else if (
++        url.pathname === '/api/bookings' &&
++        !url.searchParams.has('accountId') &&
++        body.items.length
++      )
+         body.items[0] = { ...body.items[0], amountCents: -6789, payeeName: 'Offline Stub' };
+       else return response;
+-      return new Response(JSON.stringify(body), { status: response.status, headers: { 'content-type': 'application/json' } });
++      return new Response(JSON.stringify(body), {
++        status: response.status,
++        headers: { 'content-type': 'application/json' },
++      });
+     };
+   });
+   for (const path of ['/', '/konten', '/plan/monat', '/konten/buchungen']) await page.goto(path);
+-  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+-  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+-  const stored = () => page.evaluate(async () => {
+-    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+-      const open = indexedDB.open('budget-offline-views', 1);
+-      open.onsuccess = () => resolve(open.result);
+-      open.onerror = () => reject(open.error);
+-    });
+-    try {
+-      return await new Promise<Record<string, { key: string; data: unknown }>>((resolve, reject) => {
+-        const tx = db.transaction('views', 'readonly');
+-        const get = tx.objectStore('views').getAll();
+-        get.onsuccess = () => resolve(Object.fromEntries(get.result.map((row) => [row.kind, row])));
+-        get.onerror = () => reject(get.error);
+-      });
+-    } finally { db.close(); }
++  await page.evaluate(async () => {
++    await navigator.serviceWorker.ready;
+   });
+-  await expect.poll(async () => Object.keys(await stored()).sort()).toEqual(['accounts', 'bookings', 'heute', 'plan']);
++  await expect
++    .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
++    .toBe(true);
++  const stored = () =>
++    page.evaluate(async () => {
++      const db = await new Promise<IDBDatabase>((resolve, reject) => {
++        const open = indexedDB.open('budget-offline-views', 1);
++        open.onsuccess = () => resolve(open.result);
++        open.onerror = () => reject(open.error);
++      });
++      try {
++        return await new Promise<Record<string, { key: string; data: unknown }>>(
++          (resolve, reject) => {
++            const tx = db.transaction('views', 'readonly');
++            const get = tx.objectStore('views').getAll();
++            get.onsuccess = () =>
++              resolve(Object.fromEntries(get.result.map((row) => [row.kind, row])));
++            get.onerror = () => reject(get.error);
++          },
++        );
++      } finally {
++        db.close();
++      }
++    });
++  await expect
++    .poll(async () => Object.keys(await stored()).sort())
++    .toEqual(['accounts', 'bookings', 'heute', 'plan']);
+   const before = await stored();
+   expect((before.heute!.data as { lead: { freeCents: number } }).lead.freeCents).toBe(12345);
+-  expect((before.accounts!.data as { accounts: { balanceCents: number }[] }).accounts[0]!.balanceCents).toBe(98765);
+-  expect((before.plan!.data as { summary: { toBeAssignedCents: number } }).summary.toBeAssignedCents).toBe(4321);
+-  expect((before.bookings!.data as { items: { amountCents: number }[] }).items[0]!.amountCents).toBe(-6789);
++  expect(
++    (before.accounts!.data as { accounts: { balanceCents: number }[] }).accounts[0]!.balanceCents,
++  ).toBe(98765);
++  expect(
++    (before.plan!.data as { summary: { toBeAssignedCents: number } }).summary.toBeAssignedCents,
++  ).toBe(4321);
++  expect(
++    (before.bookings!.data as { items: { amountCents: number }[] }).items[0]!.amountCents,
++  ).toBe(-6789);
+ 
+   await context.setOffline(true);
+   await page.reload();
+@@ -96,28 +161,51 @@ test('four exact successful reads survive offline reload, stay read-only and wip
+   await expect(page.getByRole('region', { name: 'Heute' })).toContainText('Posteingang');
+   await page.getByRole('button', { name: 'Kontensalden' }).click();
+   await expect(page.getByText('987,65 €')).toBeVisible();
+-  await expect(page.getByRole('region', { name: 'Kontensalden' })).toContainText('EUR-Wert unbekannt');
++  await expect(page.getByRole('region', { name: 'Kontensalden' })).toContainText(
++    'EUR-Wert unbekannt',
++  );
+   await page.getByRole('button', { name: 'Plan', exact: true }).click();
+   await expect(page.getByText('43,21 €')).toBeVisible();
+-  await expect(page.getByRole('region', { name: 'Plan des laufenden Monats' })).toContainText('5,55 €');
+-  await expect(page.getByRole('region', { name: 'Plan des laufenden Monats' })).toContainText('7,77 €');
+-  await expect(page.getByRole('region', { name: 'Plan des laufenden Monats' })).toContainText('8,88 €');
+-  await expect(page.getByRole('region', { name: 'Plan des laufenden Monats' })).toContainText('9,99 €');
+-  await expect(page.getByRole('region', { name: 'Plan des laufenden Monats' })).toContainText('Nicht klassifiziert');
++  await expect(page.getByRole('region', { name: 'Plan des laufenden Monats' })).toContainText(
++    '5,55 €',
++  );
++  await expect(page.getByRole('region', { name: 'Plan des laufenden Monats' })).toContainText(
++    '7,77 €',
++  );
++  await expect(page.getByRole('region', { name: 'Plan des laufenden Monats' })).toContainText(
++    '8,88 €',
++  );
++  await expect(page.getByRole('region', { name: 'Plan des laufenden Monats' })).toContainText(
++    '9,99 €',
++  );
++  await expect(page.getByRole('region', { name: 'Plan des laufenden Monats' })).toContainText(
++    'Nicht klassifiziert',
++  );
+   await expect(page.getByText(/Stand vom .+/)).toBeVisible();
+   await expect(page.getByRole('button', { name: 'Konto anlegen' })).toHaveCount(0);
+   await expect(page.getByRole('button', { name: 'Buchung erfassen' })).toBeVisible();
+   for (const scheme of ['light', 'dark']) {
+-    await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), scheme);
++    await page.evaluate(
++      (value) => document.documentElement.setAttribute('data-theme', value),
++      scheme,
++    );
+     for (const [name, label] of [
+-      ['heute', 'Heute'], ['accounts', 'Kontensalden'], ['plan', 'Plan'], ['bookings', 'Letzte Buchungen'],
++      ['heute', 'Heute'],
++      ['accounts', 'Kontensalden'],
++      ['plan', 'Plan'],
++      ['bookings', 'Letzte Buchungen'],
+     ] as const) {
+       await page.getByRole('button', { name: label, exact: true }).click();
+       expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
++      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
++        true,
++      );
+       for (const button of await page.locator('.offline-nav button').all())
+         expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+-      await page.screenshot({ path: `test-results/offline-558-${info.project.name}-${name}-${scheme}.png`, fullPage: true });
++      await page.screenshot({
++        path: `test-results/offline-558-${info.project.name}-${name}-${scheme}.png`,
++        fullPage: true,
++      });
+     }
+   }
+ 
+@@ -128,7 +216,10 @@ test('four exact successful reads survive offline reload, stay read-only and wip
+   expect(await page.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeNull();
+ });
+ 
+-test('a successful read held across another tab’s sign-out cannot repopulate the cleared store', async ({ page, context }) => {
++test('a successful read held across another tab’s sign-out cannot repopulate the cleared store', async ({
++  page,
++  context,
++}) => {
+   await page.addInitScript(() => {
+     const original = window.fetch.bind(window);
+     window.fetch = async (input, init) => {
+@@ -136,7 +227,9 @@ test('a successful read held across another tab’s sign-out cannot repopulate t
+       const response = await original(input, init);
+       if (url.pathname === '/api/heute' && response.ok) {
+         await new Promise<void>((resolve) => {
+-          (window as Window & { releaseHeldRead?: () => void; heldRead?: boolean }).releaseHeldRead = resolve;
++          (
++            window as Window & { releaseHeldRead?: () => void; heldRead?: boolean }
++          ).releaseHeldRead = resolve;
+           (window as Window & { heldRead?: boolean }).heldRead = true;
+         });
+       }
+@@ -144,32 +237,51 @@ test('a successful read held across another tab’s sign-out cannot repopulate t
+     };
+   });
+   await page.goto('/');
+-  await expect.poll(() => page.evaluate(() => (window as Window & { heldRead?: boolean }).heldRead)).toBe(true);
++  await expect
++    .poll(() => page.evaluate(() => (window as Window & { heldRead?: boolean }).heldRead))
++    .toBe(true);
+   const other = await context.newPage();
+   await other.addInitScript(() => {
+     const original = window.fetch.bind(window);
+     window.fetch = (input, init) => {
+       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+       return url.pathname === '/api/auth/logout'
+-        ? Promise.resolve(new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } }))
++        ? Promise.resolve(
++            new Response('{"ok":true}', {
++              status: 200,
++              headers: { 'content-type': 'application/json' },
++            }),
++          )
+         : original(input, init);
+     };
+   });
+   await other.goto('/einstellungen/sicherheit');
+   await other.getByRole('button', { name: 'Abmelden' }).click();
+-  await expect.poll(() => other.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeNull();
+-  await page.evaluate(() => (window as Window & { releaseHeldRead?: () => void }).releaseHeldRead?.());
++  await expect
++    .poll(() => other.evaluate(() => localStorage.getItem('budget-offline-read-epoch')))
++    .toBeNull();
++  await page.evaluate(() =>
++    (window as Window & { releaseHeldRead?: () => void }).releaseHeldRead?.(),
++  );
+   await expect.poll(() => viewCount(other)).toBe(0);
+   await other.close();
+ });
+ 
+-test('failed server logout still physically wipes snapshots and keeps its error visible', async ({ page, context }) => {
++test('failed server logout still physically wipes snapshots and keeps its error visible', async ({
++  page,
++  context,
++}) => {
+   await page.addInitScript(() => {
+     const original = window.fetch.bind(window);
+     window.fetch = (input, init) => {
+       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+       return url.pathname === '/api/auth/logout'
+-        ? Promise.resolve(new Response('{"error":"synthetic_failure"}', { status: 500, headers: { 'content-type': 'application/json' } }))
++        ? Promise.resolve(
++            new Response('{"error":"synthetic_failure"}', {
++              status: 500,
++              headers: { 'content-type': 'application/json' },
++            }),
++          )
+         : original(input, init);
+     };
+   });
+@@ -180,17 +292,28 @@ test('failed server logout still physically wipes snapshots and keeps its error
+   await expect(page.getByRole('alert')).toBeVisible();
+   await expect.poll(() => viewCount(page)).toBe(0);
+   expect(await page.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeNull();
+-  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+-  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
++  await page.evaluate(async () => {
++    await navigator.serviceWorker.ready;
++  });
++  await expect
++    .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
++    .toBe(true);
+   await context.setOffline(true);
+   await page.reload();
+   await expect(page.getByText('Für diese Seite brauchst du eine Verbindung.')).toBeVisible();
+   expect(await viewCount(page)).toBe(0);
+ });
+ 
+-test('a native database open released after logout cannot restore an old read', async ({ page, context }) => {
++test('a native database open released after logout cannot restore an old read', async ({
++  page,
++  context,
++}) => {
+   await page.addInitScript(() => {
+-    type RaceWindow = Window & { holdNextOpen?: boolean; heldOpen?: boolean; releaseHeldOpen?: () => void };
++    type RaceWindow = Window & {
++      holdNextOpen?: boolean;
++      heldOpen?: boolean;
++      releaseHeldOpen?: () => void;
++    };
+     const state = window as RaceWindow;
+     const nativeOpen = indexedDB.open.bind(indexedDB);
+     indexedDB.open = ((name: string, version?: number) => {
+@@ -201,12 +324,18 @@ test('a native database open released after logout cannot restore an old read',
+         Object.defineProperty(request, 'onsuccess', {
+           configurable: true,
+           get: () => handler,
+-          set: (next: (event: Event) => void) => { handler = next; },
++          set: (next: (event: Event) => void) => {
++            handler = next;
++          },
+         });
+-        request.addEventListener('success', (event) => {
+-          state.heldOpen = true;
+-          state.releaseHeldOpen = () => handler?.(event);
+-        }, { once: true });
++        request.addEventListener(
++          'success',
++          (event) => {
++            state.heldOpen = true;
++            state.releaseHeldOpen = () => handler?.(event);
++          },
++          { once: true },
++        );
+       }
+       return request;
+     }) as typeof indexedDB.open;
+@@ -219,32 +348,51 @@ test('a native database open released after logout cannot restore an old read',
+     };
+   });
+   await page.goto('/');
+-  await expect.poll(() => page.evaluate(() => (window as Window & { heldOpen?: boolean }).heldOpen)).toBe(true);
++  await expect
++    .poll(() => page.evaluate(() => (window as Window & { heldOpen?: boolean }).heldOpen))
++    .toBe(true);
+   const other = await context.newPage();
+   await other.addInitScript(() => {
+     const original = window.fetch.bind(window);
+     window.fetch = (input, init) => {
+       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+       return url.pathname === '/api/auth/logout'
+-        ? Promise.resolve(new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } }))
++        ? Promise.resolve(
++            new Response('{"ok":true}', {
++              status: 200,
++              headers: { 'content-type': 'application/json' },
++            }),
++          )
+         : original(input, init);
+     };
+   });
+   await other.goto('/einstellungen/sicherheit');
+   await other.getByRole('button', { name: 'Abmelden' }).click();
+-  await expect.poll(() => other.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeNull();
+-  await page.evaluate(() => (window as Window & { releaseHeldOpen?: () => void }).releaseHeldOpen?.());
++  await expect
++    .poll(() => other.evaluate(() => localStorage.getItem('budget-offline-read-epoch')))
++    .toBeNull();
++  await page.evaluate(() =>
++    (window as Window & { releaseHeldOpen?: () => void }).releaseHeldOpen?.(),
++  );
+   await expect.poll(() => viewCount(other)).toBe(0);
+   await other.close();
+ });
+ 
+-test('quota failure and delayed clear never reopen signed-out rows after cold reload', async ({ page, context }) => {
++test('quota failure and delayed clear never reopen signed-out rows after cold reload', async ({
++  page,
++  context,
++}) => {
+   await page.addInitScript(() => {
+     const original = window.fetch.bind(window);
+     window.fetch = (input, init) => {
+       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+       return url.pathname === '/api/auth/logout'
+-        ? Promise.resolve(new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } }))
++        ? Promise.resolve(
++            new Response('{"ok":true}', {
++              status: 200,
++              headers: { 'content-type': 'application/json' },
++            }),
++          )
+         : original(input, init);
+     };
+   });
+@@ -253,23 +401,35 @@ test('quota failure and delayed clear never reopen signed-out rows after cold re
+   expect(await page.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeTruthy();
+   await page.goto('/einstellungen/sicherheit');
+   await page.evaluate(() => {
+-    Storage.prototype.setItem = () => { throw new DOMException('synthetic quota', 'QuotaExceededError'); };
++    Storage.prototype.setItem = () => {
++      throw new DOMException('synthetic quota', 'QuotaExceededError');
++    };
+     const nativeOpen = indexedDB.open.bind(indexedDB);
+     let hold = true;
+     indexedDB.open = ((name: string, version?: number) => {
+       const request = nativeOpen(name, version);
+       if (name === 'budget-offline-views' && hold) {
+         hold = false;
+-        Object.defineProperty(request, 'onsuccess', { configurable: true, get: () => null, set: () => undefined });
++        Object.defineProperty(request, 'onsuccess', {
++          configurable: true,
++          get: () => null,
++          set: () => undefined,
++        });
+       }
+       return request;
+     }) as typeof indexedDB.open;
+   });
+   await page.getByRole('button', { name: 'Abmelden' }).click();
+-  await expect.poll(() => page.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeNull();
++  await expect
++    .poll(() => page.evaluate(() => localStorage.getItem('budget-offline-read-epoch')))
++    .toBeNull();
+   expect(await viewCount(page)).toBeGreaterThan(0);
+-  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+-  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
++  await page.evaluate(async () => {
++    await navigator.serviceWorker.ready;
++  });
++  await expect
++    .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
++    .toBe(true);
+   await context.setOffline(true);
+   await page.goto('/');
+   await expect(page.getByRole('heading', { name: 'Budget ist offline' })).toBeVisible();
+@@ -278,7 +438,10 @@ test('quota failure and delayed clear never reopen signed-out rows after cold re
+   expect(await page.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeNull();
+ });
+ 
+-test('401 on a mounted financial view revokes snapshots before offline reload', async ({ page, context }) => {
++test('401 on a mounted financial view revokes snapshots before offline reload', async ({
++  page,
++  context,
++}) => {
+   await page.goto('/');
+   await expect.poll(() => viewCount(page)).toBeGreaterThan(0);
+   await page.evaluate(() => {
+@@ -286,41 +449,71 @@ test('401 on a mounted financial view revokes snapshots before offline reload',
+     window.fetch = (input, init) => {
+       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+       return url.pathname === '/api/heute'
+-        ? Promise.resolve(new Response('{"error":"unauthorized"}', { status: 401, headers: { 'content-type': 'application/json' } }))
++        ? Promise.resolve(
++            new Response('{"error":"unauthorized"}', {
++              status: 401,
++              headers: { 'content-type': 'application/json' },
++            }),
++          )
+         : original(input, init);
+     };
+     window.dispatchEvent(new Event('focus'));
+   });
+   await expect(page.getByRole('heading', { name: 'Sitzung beendet' })).toBeVisible();
+-  await expect.poll(() => page.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeNull();
++  await expect
++    .poll(() => page.evaluate(() => localStorage.getItem('budget-offline-read-epoch')))
++    .toBeNull();
+   await expect.poll(() => viewCount(page)).toBe(0);
+-  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+-  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
++  await page.evaluate(async () => {
++    await navigator.serviceWorker.ready;
++  });
++  await expect
++    .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
++    .toBe(true);
+   await context.setOffline(true);
+   await page.reload();
+   await expect(page.getByText('Kein gespeicherter Abruf vorhanden.')).toBeVisible();
+ });
+ 
+-test('known signed-out status on the login page clears the prior offline view', async ({ page, context }) => {
++test('known signed-out status on the login page clears the prior offline view', async ({
++  page,
++  context,
++}) => {
+   await page.goto('/');
+   await expect.poll(() => viewCount(page)).toBeGreaterThan(0);
+-  await page.route('**/api/auth/status', (route) => route.fulfill({
+-    status: 200,
+-    contentType: 'application/json',
+-    body: JSON.stringify({ setupRequired: false, authenticated: false, stepUpValidUntil: null, viaRecovery: false }),
+-  }));
++  await page.route('**/api/auth/status', (route) =>
++    route.fulfill({
++      status: 200,
++      contentType: 'application/json',
++      body: JSON.stringify({
++        setupRequired: false,
++        authenticated: false,
++        stepUpValidUntil: null,
++        viaRecovery: false,
++      }),
++    }),
++  );
+   await page.goto('/login');
+   await expect(page.getByRole('heading', { name: 'Anmelden' })).toBeVisible();
+-  await expect.poll(() => page.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeNull();
++  await expect
++    .poll(() => page.evaluate(() => localStorage.getItem('budget-offline-read-epoch')))
++    .toBeNull();
+   await expect.poll(() => viewCount(page)).toBe(0);
+-  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+-  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
++  await page.evaluate(async () => {
++    await navigator.serviceWorker.ready;
++  });
++  await expect
++    .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
++    .toBe(true);
+   await context.setOffline(true);
+   await page.goto('/');
+   await expect(page.getByText('Kein gespeicherter Abruf vorhanden.')).toBeVisible();
+ });
+ 
+-test('another tab signing out removes an already visible offline view immediately', async ({ page, context }) => {
++test('another tab signing out removes an already visible offline view immediately', async ({
++  page,
++  context,
++}) => {
+   await page.goto('/');
+   await expect.poll(() => viewCount(page)).toBeGreaterThan(0);
+   await page.evaluate(() => {
+@@ -335,7 +528,12 @@ test('another tab signing out removes an already visible offline view immediatel
+     window.fetch = (input, init) => {
+       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+       return url.pathname === '/api/auth/logout'
+-        ? Promise.resolve(new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } }))
++        ? Promise.resolve(
++            new Response('{"ok":true}', {
++              status: 200,
++              headers: { 'content-type': 'application/json' },
++            }),
++          )
+         : original(input, init);
+     };
+   });
+@@ -343,7 +541,9 @@ test('another tab signing out removes an already visible offline view immediatel
+   await other.getByRole('button', { name: 'Abmelden' }).click();
+   await expect(view.getByText('Kein gespeicherter Abruf vorhanden.')).toBeVisible();
+   await expect(view.getByText(/Stand vom/)).toHaveCount(0);
+-  await expect.poll(() => page.evaluate(() => localStorage.getItem('budget-offline-read-epoch'))).toBeNull();
++  await expect
++    .poll(() => page.evaluate(() => localStorage.getItem('budget-offline-read-epoch')))
++    .toBeNull();
+   await expect.poll(() => viewCount(page)).toBe(0);
+   await other.close();
+ });
