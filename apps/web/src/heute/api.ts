@@ -177,6 +177,15 @@ export interface Heute extends WithValuationNotes {
       tasks: Array<{ id: string; kind: 'close' | 'close-changed'; month: string; target: string }>;
       unavailable: Array<{ month: string | null; reason: 'legacy' | 'invalid_state' }>;
     };
+    contactReminders?: {
+      items: Array<{
+        contactId: string;
+        contactName: string;
+        oldestDate: string;
+        overdueCents: number;
+      }>;
+      unavailableCount: number;
+    };
   };
   lastBookings: Array<{
     id: string;

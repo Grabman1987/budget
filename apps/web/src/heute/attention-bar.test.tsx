@@ -68,6 +68,29 @@ it('does not give an all-clear when rules lack inputs', () => {
   render(<AttentionBar data={data} />);
   expect(screen.queryByText('Keine offenen Aufgaben aus den Heute-Prüfungen.')).toBeNull();
 });
+it('links each overdue contact to its existing statement and keeps unavailable cases explicit', () => {
+  const data = {
+    stand: { today: '2026-10-02', month: '2026-10' },
+    nextSteps: { items: [] },
+    attention: {
+      inboxCount: 0,
+      pendingCount: 0,
+      contactReminders: {
+        items: [
+          { contactId: 'k1', contactName: 'Freund', oldestDate: '2026-09-01', overdueCents: 3000 },
+        ],
+        unavailableCount: 1,
+      },
+    },
+    financeCheck: { actionRules: [] },
+  } as unknown as Heute;
+  render(<AttentionBar data={data} />);
+  expect(screen.getByText(/Freund: 30,00.*€ seit 01.09.2026 offen/)).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'Kontoblatt öffnen' }).getAttribute('href')).toBe(
+    '/konten/kontakte/k1',
+  );
+  expect(screen.getByText(/Kontakt-Erinnerungen für 1 Kontakt/)).toBeTruthy();
+});
 it('summarizes overspending without duplicating cover actions, with neutral inbox and one rule action', async () => {
   const items = Array.from({ length: 8 }, (_, i) => ({
     kind: 'overspent' as const,

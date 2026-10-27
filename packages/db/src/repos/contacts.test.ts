@@ -4,7 +4,12 @@ import { bookingSplit, contactSettlement, expectedOccurrence, expectedPayment } 
 import { eq } from 'drizzle-orm';
 import { history, insertTracked, undo } from './audit';
 import { createBooking, deleteBooking, updateBooking } from './bookings';
-import { getContactStatement, listContactStatements, settleContact } from './contacts';
+import {
+  getContactStatement,
+  listContactStatements,
+  readOverdueContactReminders,
+  settleContact,
+} from './contacts';
 import { bookedBalance as accountBalanceAsOf } from './reconciliation';
 import { netWorthAsOf } from './portfolio';
 import { updateCategory, mergeCategories, splitOffCategory } from './categories';
@@ -39,6 +44,80 @@ const receipt = (
     testCtx,
   );
 const statement = () => getContactStatement(opened.db, 'k1', '2026-09-17');
+describe('overdue contact reminders', () => {
+  it('starts on day 31 and shows one row per contact with the actual open amount', () => {
+    outlay(3000);
+    outlay(7000, '2026-09-02');
+    expect(readOverdueContactReminders(opened.db, '2026-10-01').items).toEqual([]);
+    expect(readOverdueContactReminders(opened.db, '2026-10-02').items).toEqual([
+      { contactId: 'k1', contactName: 'Freund', oldestDate: '2026-09-01', overdueCents: 3000 },
+    ]);
+    expect(readOverdueContactReminders(opened.db, '2026-10-03').items).toEqual([
+      { contactId: 'k1', contactName: 'Freund', oldestDate: '2026-09-01', overdueCents: 10000 },
+    ]);
+  });
+
+  it('follows the selected allocation and restores the old reminder after undo', () => {
+    outlay(3000);
+    outlay(7000, '2026-09-02');
+    const [old] = statement().outlays;
+    const payment = receipt(3000, [{ outlaySplitId: old!.splitId, amountCents: 3000 }]);
+    expect(statement().outlays.map((item) => item.remainingCents)).toEqual([0, 7000]);
+    expect(readOverdueContactReminders(opened.db, '2026-10-02').items).toEqual([]);
+    undo(opened.db, { groupId: payment.groupId }, testCtx);
+    expect(readOverdueContactReminders(opened.db, '2026-10-02').items).toEqual([
+      { contactId: 'k1', contactName: 'Freund', oldestDate: '2026-09-01', overdueCents: 3000 },
+    ]);
+  });
+
+  it('removes the reminder after the actual remaining outlays are settled', () => {
+    outlay(3000);
+    outlay(7000, '2026-09-02');
+    receipt(4000);
+    expect(readOverdueContactReminders(opened.db, '2026-10-03').items).toEqual([
+      { contactId: 'k1', contactName: 'Freund', oldestDate: '2026-09-02', overdueCents: 6000 },
+    ]);
+    receipt(6000);
+    expect(readOverdueContactReminders(opened.db, '2026-10-03').items).toEqual([]);
+  });
+
+  it('excludes movements after the requested day', () => {
+    outlay(3000, '2026-09-01');
+    createBooking(
+      opened.db,
+      {
+        accountId: 'usd',
+        date: '2026-10-03',
+        amountCents: -5000,
+        splits: [{ categoryId: 'auslagen', contactId: 'k1', amountCents: -5000 }],
+      },
+      testCtx,
+    );
+    expect(readOverdueContactReminders(opened.db, '2026-10-02')).toEqual({
+      items: [
+        { contactId: 'k1', contactName: 'Freund', oldestDate: '2026-09-01', overdueCents: 3000 },
+      ],
+      unavailableCount: 0,
+    });
+  });
+
+  it('marks a non-EUR contact unavailable without inventing an EUR reminder', () => {
+    createBooking(
+      opened.db,
+      {
+        accountId: 'usd',
+        date: '2026-09-01',
+        amountCents: -5000,
+        splits: [{ categoryId: 'auslagen', contactId: 'k1', amountCents: -5000 }],
+      },
+      testCtx,
+    );
+    expect(readOverdueContactReminders(opened.db, '2026-10-02')).toEqual({
+      items: [],
+      unavailableCount: 1,
+    });
+  });
+});
 describe('atomic contact settlement', () => {
   it('persists oldest-first 30 + 10, retaining 60 open', () => {
     outlay(3000);

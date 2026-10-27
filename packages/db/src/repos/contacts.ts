@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { allocateContactReceipt, contactStatement, type ContactAllocation } from '@budget/domain';
+import {
+  addDays,
+  allocateContactReceipt,
+  contactStatement,
+  type ContactAllocation,
+} from '@budget/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import {
   account,
@@ -51,6 +56,48 @@ export function listContactStatements(db: Executor, asOf: string, history = fals
       return { ...s.contact, balanceCents: s.balanceCents, creditCents: s.creditCents };
     })
     .filter((c) => history || c.balanceCents !== 0);
+}
+
+/** One reminder per contact with a still-open actual outlay older than 30 calendar days. */
+export function readOverdueContactReminders(db: Executor, today: string) {
+  const cutoff = addDays(today, -30);
+  const items: {
+    contactId: string;
+    contactName: string;
+    oldestDate: string;
+    overdueCents: number;
+  }[] = [];
+  let unavailableCount = 0;
+  for (const row of db
+    .select({ id: contact.id })
+    .from(contact)
+    .where(isNull(contact.deletedAt))
+    .all()) {
+    let statement: ReturnType<typeof getContactStatement>;
+    try {
+      statement = getContactStatement(db, row.id, today);
+    } catch (error) {
+      if (
+        error instanceof BookingInvariantError &&
+        error.message === 'Contact statements require EUR movements'
+      ) {
+        unavailableCount++;
+        continue;
+      }
+      throw error;
+    }
+    const overdue = statement.outlays.filter(
+      (outlay) => outlay.remainingCents > 0 && outlay.date < cutoff,
+    );
+    if (!overdue.length) continue;
+    items.push({
+      contactId: row.id,
+      contactName: statement.contact.name,
+      oldestDate: overdue[0]!.date,
+      overdueCents: overdue.reduce((sum, outlay) => sum + outlay.remainingCents, 0),
+    });
+  }
+  return { items, unavailableCount };
 }
 
 export interface ContactReceiptInput {
