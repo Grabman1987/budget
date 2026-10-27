@@ -173,6 +173,7 @@ export function VerteilenMenu({
   selectedIds,
   distributeBlock,
   onDistribute,
+  onFillTargets,
   cover,
 }: {
   month: string;
@@ -183,6 +184,7 @@ export function VerteilenMenu({
   /** Why the waterfall assistant cannot start, if so ("Nichts zu verteilen" …). */
   distributeBlock: string | null;
   onDistribute: () => void;
+  onFillTargets: () => void;
   cover: CoverAction | null;
 }) {
   const quick = useQuickAssign(month);
@@ -212,6 +214,13 @@ export function VerteilenMenu({
           {text}
         </MenuAction>
       ))}
+      <MenuAction
+        disabled={multi || Boolean(distributeBlock)}
+        reason={multi ? single : distributeBlock ?? undefined}
+        onSelect={onFillTargets}
+      >
+        Alle Ziele füllen
+      </MenuAction>
       <MenuAction
         disabled={Boolean(distributeBlock)}
         reason={distributeBlock ?? undefined}
