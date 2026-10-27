@@ -1,4 +1,16 @@
-import { and, asc, count, countDistinct, desc, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count,
+  countDistinct,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  lte,
+  or,
+  sql,
+} from 'drizzle-orm';
 import { cents, formatEuro, monthOf, overspentEnvelopes, summarizeMonth } from '@budget/domain';
 import { categoryTree } from './categories';
 import { budget } from './queries';
@@ -249,26 +261,28 @@ export function readInbox(
         .all()
         .map(({ id, ...row }) => [id, row]),
     );
-    const progressCandidates = options.bankAccountId ? [] : tx
-      .select({
-        id: bankSyncCandidate.id,
-        accountId: bankSyncCandidate.accountId,
-        dedupeKey: bankSyncCandidate.dedupeKey,
-        resolvedAt: inboxItem.resolvedAt,
-        resolution: inboxItem.resolution,
-        refType: inboxItem.refType,
-      })
-      .from(bankSyncCandidate)
-      .innerJoin(inboxItem, eq(inboxItem.id, bankSyncCandidate.id))
-      .where(
-        and(
-          bankSource ? eq(bankSyncCandidate.sourceId, bankSource) : undefined,
-          options.bankAccountId
-            ? eq(bankSyncCandidate.accountId, options.bankAccountId)
-            : undefined,
-        ),
-      )
-      .all();
+    const progressCandidates = options.bankAccountId
+      ? []
+      : tx
+          .select({
+            id: bankSyncCandidate.id,
+            accountId: bankSyncCandidate.accountId,
+            dedupeKey: bankSyncCandidate.dedupeKey,
+            resolvedAt: inboxItem.resolvedAt,
+            resolution: inboxItem.resolution,
+            refType: inboxItem.refType,
+          })
+          .from(bankSyncCandidate)
+          .innerJoin(inboxItem, eq(inboxItem.id, bankSyncCandidate.id))
+          .where(
+            and(
+              bankSource ? eq(bankSyncCandidate.sourceId, bankSource) : undefined,
+              options.bankAccountId
+                ? eq(bankSyncCandidate.accountId, options.bankAccountId)
+                : undefined,
+            ),
+          )
+          .all();
     const candidateKeys = new Set(
       progressCandidates.map((row) => `${row.accountId}:bank-sync:${row.dedupeKey}`),
     );
@@ -282,43 +296,47 @@ export function readInbox(
         .filter((id): id is string => typeof id === 'string'),
     );
     const openBookingIds = new Set(
-      options.bankAccountId ? [] : tx
-        .select({ id: booking.id })
-        .from(booking)
-        .innerJoin(account, eq(account.id, booking.accountId))
-        .innerJoin(bookingSplit, eq(bookingSplit.bookingId, booking.id))
-        .where(unclassifiedWhere(today))
-        .groupBy(booking.id)
-        .all()
-        .map((row) => row.id),
+      options.bankAccountId
+        ? []
+        : tx
+            .select({ id: booking.id })
+            .from(booking)
+            .innerJoin(account, eq(account.id, booking.accountId))
+            .innerJoin(bookingSplit, eq(bookingSplit.bookingId, booking.id))
+            .where(unclassifiedWhere(today))
+            .groupBy(booking.id)
+            .all()
+            .map((row) => row.id),
     );
-    const progressBookings = options.bankAccountId ? [] : tx
-      .select({
-        id: booking.id,
-        accountId: booking.accountId,
-        importKey: booking.importKey,
-        bankSourceId: booking.bankSourceId,
-        source: booking.source,
-      })
-      .from(booking)
-      .where(
-        and(
-          isNull(booking.deletedAt),
-          or(
-            eq(booking.source, 'bank'),
-            linkedIds.size ? inArray(booking.id, [...linkedIds]) : undefined,
-          ),
-          options.bankAccountId ? eq(booking.accountId, options.bankAccountId) : undefined,
-        ),
-      )
-      .all()
-      .filter(
-        (row) =>
-          !bankSource ||
-          row.bankSourceId === bankSource ||
-          candidateKeys.has(`${row.accountId}:${row.importKey}`) ||
-          linkedIds.has(row.id),
-      );
+    const progressBookings = options.bankAccountId
+      ? []
+      : tx
+          .select({
+            id: booking.id,
+            accountId: booking.accountId,
+            importKey: booking.importKey,
+            bankSourceId: booking.bankSourceId,
+            source: booking.source,
+          })
+          .from(booking)
+          .where(
+            and(
+              isNull(booking.deletedAt),
+              or(
+                eq(booking.source, 'bank'),
+                linkedIds.size ? inArray(booking.id, [...linkedIds]) : undefined,
+              ),
+              options.bankAccountId ? eq(booking.accountId, options.bankAccountId) : undefined,
+            ),
+          )
+          .all()
+          .filter(
+            (row) =>
+              !bankSource ||
+              row.bankSourceId === bankSource ||
+              candidateKeys.has(`${row.accountId}:${row.importKey}`) ||
+              linkedIds.has(row.id),
+          );
     const bookingsById = new Map(progressBookings.map((row) => [row.id, row]));
     let reviewed = 0;
     let open = 0;
