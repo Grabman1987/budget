@@ -81,6 +81,7 @@ const isInfinite = (data: PageLike): data is { pages: BookingPage[]; pageParams:
 export function mapCachedBookings<T extends PageLike | undefined>(
   data: T,
   fn: (b: ListedBooking) => ListedBooking | null,
+  fullFilterPending = false,
 ): T {
   if (!data) return data;
   let transformed = false;
@@ -99,12 +100,14 @@ export function mapCachedBookings<T extends PageLike | undefined>(
         items.push(next);
       }
     }
-    return { ...page, items, total: page.total - removed, sumCents };
+    // A confirmed bulk delete can include unseen partners. Retain canonical facts rather
+    // than inferring full-filter membership from this page's visible rows.
+    return { ...page, items, total: fullFilterPending ? page.total : page.total - removed, sumCents: fullFilterPending ? page.sumCents : sumCents };
   };
   const mapped = isInfinite(data)
     ? { ...data, pages: data.pages.map(mapPage) }
     : mapPage(data as BookingPage);
-  if (!transformed) return mapped as T;
+  if (!transformed && !fullFilterPending) return mapped as T;
   // Each cursor page carries complete-filter totals. A changed off-page row invalidates
   // every copy; only the canonical refetch can prove current filter/currency membership.
   const pending = (page: BookingPage): BookingPage => ({ ...page, nativeTotalsPending: true });

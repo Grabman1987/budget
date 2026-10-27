@@ -215,8 +215,25 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
   const response = page.waitForResponse(
     (r) => r.url().endsWith('/api/bookings/bulk') && r.request().method() === 'POST',
   );
-  await preview.getByRole('button', { name: 'Ja, löschen', exact: true }).click();
-  const result = await (await response).json();
+  let releaseSummary!: () => void;
+  const summaryBlocked = new Promise<void>((resolve) => { releaseSummary = resolve; });
+  const summaryRoute = /\/api\/bookings\?/;
+  await page.route(summaryRoute, async (route) => {
+    await summaryBlocked;
+    await route.continue();
+  });
+  const result = await (async () => {
+    try {
+      await preview.getByRole('button', { name: 'Ja, löschen', exact: true }).click();
+      const value = await (await response).json();
+      await expect(page.locator('p.ksum')).toContainText('Anzahl wird aktualisiert …');
+      await expect(page.locator('p.ksum')).toContainText('Summe wird aktualisiert …');
+      return value;
+    } finally {
+      releaseSummary();
+      await page.unroute(summaryRoute);
+    }
+  })();
   expect(result.changed.sort()).toEqual(
     [a.id, b.id, transfer.fromBookingId, transfer.toBookingId].sort(),
   );

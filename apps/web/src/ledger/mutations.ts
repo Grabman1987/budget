@@ -175,6 +175,7 @@ export function useLedgerWrites() {
       qc.setQueriesData({ queryKey: BOOKINGS_KEY }, (data) =>
         mapCachedBookings(data as Parameters<typeof mapCachedBookings>[0], (b) =>
           changed.has(b.id) ? ('remove' in vars ? null : applyBulk(b, vars.set, names)) : b,
+          'remove' in vars && result.changed.length > 0,
         ),
       );
       if (result.changed.length) {
