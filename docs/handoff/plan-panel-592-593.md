@@ -171,3 +171,20 @@ cleanup so a failed privacy assertion cannot leak hidden state to another test.
 This bounded source/test delta needs independent HIGH review then the full
 unchanged593 case on all3 profiles and this affected unit file. No local heavy
 commands or public feature push were run.
+
+## Exact5f0 narrow proof and type-only correction
+
+Proof40570808444 actually passed all3 complete593 profile cases in both themes
+plus3 setups (6/6 first attempt), including the final privacy/selection/focus
+assertions. The changed selected-profile unit passed1/1;17 other file cases
+were excluded by the explicit test-title filter, not changed/skipped in source.
+Format/ESLint/CSS/build and the tracked-source/baseline guard passed; formatter
+patch is empty (SHA256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855).
+
+Full typecheck alone failed because the newly added Testing Library role lookup
+used unsupported `exact:true`. Remove only that option: the literal string
+name remains Beträge verbergen, with Testing Library's default exact name match.
+The production fix and every browser assertion remain byte-identical to the
+passing exact5f0 proof. This correction requires independent review and tiny
+remote formatting/type/selected-unit verification; no repeated browser suite is
+needed for the test-type-only change. No local heavy command or public push.

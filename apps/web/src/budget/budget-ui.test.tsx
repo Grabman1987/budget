@@ -359,7 +359,7 @@ it('selects a category into the inspector, keeps amount editing separate and cle
   const profile = screen.getByText('Profil', { selector: 'summary' });
   await userEvent.click(profile);
   expect(within(inspector()).getByRole('heading', { name: row.name })).toBeTruthy();
-  const privacy = screen.getByRole('button', { name: 'Beträge verbergen', exact: true });
+  const privacy = screen.getByRole('button', { name: 'Beträge verbergen' });
   await userEvent.click(privacy);
   expect(within(inspector()).getByRole('heading', { name: row.name })).toBeTruthy();
   expect(inspector().querySelector('.inspector-activity a')?.textContent).toBe('••• €');
