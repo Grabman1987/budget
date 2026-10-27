@@ -85,6 +85,11 @@ The selected-category envelope, quick assignment, cover and Undo remain intact.
 - budget-ui.test.tsx: ONLY two old no-selection summary selectors change from
   Monatsüberblick to Monatsaufstellung. All selection, category editing, Escape,
   focus return, quick assignment, money and income-jump assertions remain.
+  Independent HIGH review additionally identified the old captured inspector
+  HTMLElement becoming detached when selection changes the inspector root. A
+  getter now reacquires the LIVE complementary region for every original within
+  assertion/action in that one test, including the unchanged absence-of-assignment
+  assertion after amount editing. No expectation, timing or coverage is relaxed.
 - issue-571-heute-kennzahlen.spec.ts: ONLY the old overview available-row locator
   changes to the new Monatsaufstellung container/Verfügbar label. The exact
   cross-page Heute/Plan available amount and all TBA/net-worth oracles remain.

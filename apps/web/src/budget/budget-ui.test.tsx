@@ -339,32 +339,33 @@ it('selects a category into the inspector, keeps amount editing separate and cle
   renderPage(<PlanMonthPage />, '/plan/monat?monat=2026-09');
   const category = await screen.findByRole('button', { name: 'Alltag· Lebensmittel' });
   await userEvent.click(category);
-  const inspector = screen.getByRole('complementary', { name: 'Plan-Inspektor' });
-  expect(within(inspector).getByRole('heading', { name: row.name })).toBeTruthy();
-  expect(within(inspector).getByLabelText('Zugewiesen')).toBeTruthy();
-  expect(within(inspector).getByRole('link', { name: 'Verlauf und Buchungen' })).toBeTruthy();
+  // Selection and the month overview have separate roots; always inspect the live region.
+  const inspector = () => screen.getByRole('complementary', { name: 'Plan-Inspektor' });
+  expect(within(inspector()).getByRole('heading', { name: row.name })).toBeTruthy();
+  expect(within(inspector()).getByLabelText('Zugewiesen')).toBeTruthy();
+  expect(within(inspector()).getByRole('link', { name: 'Verlauf und Buchungen' })).toBeTruthy();
   expect(screen.queryByRole('dialog')).toBeNull();
-  await userEvent.click(within(inspector).getByText('Kategorie-Aktionen', { selector: 'summary' }));
+  await userEvent.click(within(inspector()).getByText('Kategorie-Aktionen', { selector: 'summary' }));
   await userEvent.click(
-    within(inspector).getByRole('button', { name: 'Umbenennen / Ziel ändern' }),
+    within(inspector()).getByRole('button', { name: 'Umbenennen / Ziel ändern' }),
   );
   await userEvent.click(
     within(screen.getByRole('dialog', { name: 'Kategorie' })).getByLabelText('Name'),
   );
   await userEvent.keyboard('{Escape}');
-  expect(within(inspector).getByRole('heading', { name: row.name })).toBeTruthy();
+  expect(within(inspector()).getByRole('heading', { name: row.name })).toBeTruthy();
   await userEvent.keyboard('{Escape}');
-  expect(within(inspector).getByText('Monatsaufstellung', { selector: 'summary' })).toBeTruthy();
+  expect(within(inspector()).getByText('Monatsaufstellung', { selector: 'summary' })).toBeTruthy();
   expect(document.activeElement).toBe(category);
   await userEvent.click(
     screen.getByRole('button', { name: 'Zugewiesen 0,00 € für Lebensmittel ändern' }),
   );
-  expect(within(inspector).queryByLabelText('Zugewiesen')).toBeNull();
+  expect(within(inspector()).queryByLabelText('Zugewiesen')).toBeNull();
   await userEvent.keyboard('{Escape}');
   await userEvent.click(category);
   // #588: Optionen ▾ replaces the Ansicht select; any toolbar control outside the selection is an outside click.
   await userEvent.click(screen.getByText(/^Optionen/, { selector: 'summary' }));
-  expect(within(inspector).getByText('Monatsaufstellung', { selector: 'summary' })).toBeTruthy();
+  expect(within(inspector()).getByText('Monatsaufstellung', { selector: 'summary' })).toBeTruthy();
   await userEvent.click(category);
   await userEvent.click(screen.getByRole('button', { name: 'Unterfinanziert 0,00 €' }));
   await waitFor(() =>
