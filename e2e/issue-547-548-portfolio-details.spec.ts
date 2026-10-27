@@ -297,6 +297,28 @@ async function themes(page: Page, info: TestInfo, name: string) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
+    const entityHeading = page.getByRole('heading', {
+      name: /^(?:Sparplan · )?Synthetic instrument$/,
+      includeHidden: true,
+    });
+    await expect(entityHeading).toHaveCount(1);
+    await expect(entityHeading).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Portfolio', level: 1, exact: true, includeHidden: true }),
+    ).toHaveCount(1);
+    const back = page.getByRole('link', {
+      name: 'Zurück zum Portfolio',
+      exact: true,
+      includeHidden: true,
+    });
+    await expect(back).toHaveCount(1);
+    await expect(back).toBeVisible();
+    await expect(back).toHaveAttribute(
+      'href',
+      name === 'instrument'
+        ? '/vermoegen/portfolio/positionen?zeitraum=Alles'
+        : '/vermoegen/portfolio/sparplaene',
+    );
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
