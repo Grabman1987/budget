@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react
 import { Button } from '@budget/ui';
 import { ApiError } from '../api/http';
 import { AUTH_STATUS_KEY, queryClient } from '../auth/status-query';
+import { router } from '../router';
 import './pwa.css';
 import { QueueCapture } from './queue-ui';
 import { OfflineState } from './offline-state';
@@ -76,8 +77,11 @@ export function PwaShell({ children }: { children: ReactNode }) {
     [],
   );
   useEffect(() => {
-    const expired = () => {
-      queryClient.clear();
+    const expired = (event: Event) => {
+      const fromStatus = event instanceof CustomEvent && event.detail?.fromStatus === true;
+      if (fromStatus)
+        queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== AUTH_STATUS_KEY[0] });
+      else queryClient.clear();
       // A confirmed signed-out status is also the ordinary entry to the login page.
       if (location.pathname === '/login' || location.pathname === '/setup') {
         setHasConnected(true);
@@ -86,12 +90,20 @@ export function PwaShell({ children }: { children: ReactNode }) {
         return;
       }
       setHasConnected(false);
-      setMounted(false);
+      // A status response may still be resolving the router's public redirect.
+      // Keep its provider mounted inside the hidden, inert wrapper until that resolves.
+      setMounted(fromStatus);
       setSessionEnded(true);
     };
     window.addEventListener('budget-session-expired', expired);
     return () => window.removeEventListener('budget-session-expired', expired);
   }, []);
+  useEffect(() => router.subscribe('onResolved', ({ toLocation }) => {
+    if (toLocation.pathname !== '/login' && toLocation.pathname !== '/setup') return;
+    setHasConnected(true);
+    setMounted(true);
+    setSessionEnded(false);
+  }), []);
   useEffect(() => {
     if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
     let disposed = false;

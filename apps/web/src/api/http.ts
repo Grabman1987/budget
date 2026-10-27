@@ -53,13 +53,14 @@ const PRE_AUTH_PATHS = new Set([
   '/api/auth/login/verify',
   '/api/auth/recovery/login',
 ]);
-function endKnownSession(): void {
+function endKnownSession(fromStatus = false): void {
   if (!expiryCleanupStarted) {
     expiryCleanupStarted = true;
     // Revocation runs synchronously before this promise reaches IndexedDB.
     void clearDeviceFinancialData().catch(() => undefined);
   }
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event('budget-session-expired'));
+  if (typeof window !== 'undefined')
+    window.dispatchEvent(new CustomEvent('budget-session-expired', { detail: { fromStatus } }));
 }
 export function onApiWrite(listener: () => void): () => void {
   writeListeners.add(listener);
@@ -149,10 +150,17 @@ export async function request<T>(
     snapshotGeneration() === authGeneration &&
     (payload as { authenticated?: boolean }).authenticated === false
   )
-    endKnownSession();
-  if (
+    endKnownSession(true);
+  const bootstrapRegistration =
     method === 'POST' &&
-    (path === '/api/auth/login/verify' || path === '/api/auth/recovery/login')
+    path === '/api/auth/register/verify' &&
+    typeof payload === 'object' &&
+    payload !== null &&
+    Array.isArray((payload as { recoveryCodes?: unknown }).recoveryCodes);
+  if (
+    bootstrapRegistration ||
+    (method === 'POST' &&
+      (path === '/api/auth/login/verify' || path === '/api/auth/recovery/login'))
   ) {
     expiryCleanupStarted = false;
     // A new login must never inherit another session's read permission.
