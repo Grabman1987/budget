@@ -85,7 +85,12 @@ test.describe('routes', () => {
     await page.goto('/konten/buchungen');
     await expect(page.locator('.registers [aria-current="page"]')).toHaveText('Buchungen');
     await page.goto('/reports/geldfluss');
-    await expect(page.locator('.registers [aria-current="page"]')).toHaveText('Monat');
+    await expect(page.locator('.registers')).toHaveCount(0);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Geldfluss');
+    const reports = page.getByRole('navigation', { name: 'Weitere Berichte' });
+    await reports.locator('summary').click();
+    await expect(reports.locator('[aria-current="page"]')).toHaveText('4. Geldfluss');
+    await expect(reports.locator('[aria-current="page"]')).toHaveAttribute('href', '/reports/geldfluss');
     // Einstellungen have a grouped navigation instead of register tabs (rail on desktop).
     await page.goto('/einstellungen/sicherheit');
     if (!isPhone(testInfo))
