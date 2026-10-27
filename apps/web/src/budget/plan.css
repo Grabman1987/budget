@@ -2142,6 +2142,9 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+.plan .inspector-activity .activity-link {
+  min-height: 44px;
+}
 .plan .inspector-head h2 {
   scroll-margin-top: var(--space-section);
 }

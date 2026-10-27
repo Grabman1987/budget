@@ -123,3 +123,30 @@ approved bounded proof, including original legacy domain/API/UI/Plan cases and
 the new full three-profile scenarios. No migration, route, query, financial
 engine, source-selection policy, lock/guard/Undo implementation or production
 data change. Protected owner reset interpretation is explicit above.
+
+## Second focused proof and bounded late-stage correction
+
+Exact-source34ea proof40566445894 passed formatting, ESLint, full typecheck,
+CSS tokens, all72 units and build; browser43 passed/3 failed first attempt,
+retries0/snapshotsnone. The baseline/source mutation guard passed and its
+formatter patch is empty (SHA256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855).
+All previous13 failure cases passed. Only the new selected593 case remains red.
+
+The desktop trace's second visible inspector control is the actual ActivityLink
+anchor,24px from the existing dense activity-link rule. A scoped inspector-only
+44px minimum improves that action without changing compact worksheet links.
+The new browser helper now applies its complete44px width/height loop on phone
+profiles only, matching the literal own592/593 AC. Unchanged legacy desktop
+AmountInput operator buttons are intentionally22px and hidden on phone; making
+this new assertion desktop-wide invented a requirement. Axe, page overflow,
+nowrap, all literal cents, cover/Undo and focus remain asserted on every profile.
+
+The phone trace showed profile-summary Escape bubbling into the existing Plan
+Escape handler and clearing selection; the DOM correctly became Monatsüberblick,
+so the cover amount no longer existed. The new privacy test helper now closes
+that native summary by clicking it, matching existing privacy-test convention.
+The actual privacy button and exact visible masked amount remain asserted; the
+existing Plan Escape/deselect behavior and shared mobile header are unchanged.
+No old test, money/write/Undo guard, timeout, retry or skip was changed. These
+late-stage corrections require independent delta review and a narrow full593
+three-profile runtime proof before any publication.

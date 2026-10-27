@@ -8,18 +8,20 @@ async function togglePrivacy(page: Page) {
   const profile = page.locator('.m-profile summary');
   if (await profile.isVisible()) await profile.click();
   await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
-  if (await profile.isVisible()) await profile.press('Escape');
+  if (await profile.isVisible()) await profile.click();
 }
-async function checkPanel(page: Page) {
+async function checkPanel(page: Page, phone: boolean) {
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const side = page.getByRole('complementary', { name: 'Plan-Inspektor' });
-  for (const control of await side
-    .locator('button:visible, summary:visible, input:visible, select:visible, a:visible')
-    .all()) {
-    const box = (await control.boundingBox())!;
-    expect(box.height).toBeGreaterThanOrEqual(44);
-    expect(box.width).toBeGreaterThanOrEqual(44);
+  if (phone) {
+    for (const control of await side
+      .locator('button:visible, summary:visible, input:visible, select:visible, a:visible')
+      .all()) {
+      const box = (await control.boundingBox())!;
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.width).toBeGreaterThanOrEqual(44);
+    }
   }
   for (const amount of await side.locator('.plan-money:visible').all()) {
     expect(await amount.evaluate((node) => getComputedStyle(node).whiteSpace)).toBe('nowrap');
@@ -121,7 +123,7 @@ test('592 all five displayed deltas equal actual selected/visible assignments an
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
-    await checkPanel(page);
+    await checkPanel(page, info.project.name !== 'desktop');
     await automatic.scrollIntoViewIfNeeded();
     await page.screenshot({ path: info.outputPath(`automatic-${theme}.png`), fullPage: false });
     await togglePrivacy(page);
@@ -245,7 +247,7 @@ test('593 preselected cover is capped, one click/Undo restores both categories, 
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
-    await checkPanel(page);
+    await checkPanel(page, info.project.name !== 'desktop');
     await heading.scrollIntoViewIfNeeded();
     await page.screenshot({ path: info.outputPath(`selected-${theme}.png`), fullPage: false });
     await togglePrivacy(page);
