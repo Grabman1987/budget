@@ -102,7 +102,12 @@ export function mapCachedBookings<T extends PageLike | undefined>(
     }
     // A confirmed bulk delete can include unseen partners. Retain canonical facts rather
     // than inferring full-filter membership from this page's visible rows.
-    return { ...page, items, total: fullFilterPending ? page.total : page.total - removed, sumCents: fullFilterPending ? page.sumCents : sumCents };
+    return {
+      ...page,
+      items,
+      total: fullFilterPending ? page.total : page.total - removed,
+      sumCents: fullFilterPending ? page.sumCents : sumCents,
+    };
   };
   const mapped = isInfinite(data)
     ? { ...data, pages: data.pages.map(mapPage) }

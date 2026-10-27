@@ -249,7 +249,11 @@ function AccountBody({ account, bankReview }: { account: AccountRow; bankReview?
             {movement.data?.nativeTotalsPending
               ? 'Bewegung wird aktualisiert …'
               : movement.data
-                ? valuedMovement(movement.data.sumCents, account.currency, movement.data.sumEurCents)
+                ? valuedMovement(
+                    movement.data.sumCents,
+                    account.currency,
+                    movement.data.sumEurCents,
+                  )
                 : '–'}
           </strong>
           {account.currency !== 'EUR' && (

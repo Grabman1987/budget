@@ -250,7 +250,10 @@ export function BookingsPage() {
 
           {first && (
             <p className="ksum" aria-live="polite">
-              {first.nativeTotalsPending ? 'Anzahl wird aktualisiert …' : pluralBookings(first.total)} ·{' '}
+              {first.nativeTotalsPending
+                ? 'Anzahl wird aktualisiert …'
+                : pluralBookings(first.total)}{' '}
+              ·{' '}
               {first.nativeTotalsPending
                 ? 'Summe wird aktualisiert …'
                 : first.categorySpendingCents !== undefined

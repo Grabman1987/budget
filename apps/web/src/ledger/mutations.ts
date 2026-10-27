@@ -173,8 +173,10 @@ export function useLedgerWrites() {
       const changed = new Set(result.changed),
         names = namesFrom(qc);
       qc.setQueriesData({ queryKey: BOOKINGS_KEY }, (data) =>
-        mapCachedBookings(data as Parameters<typeof mapCachedBookings>[0], (b) =>
-          changed.has(b.id) ? ('remove' in vars ? null : applyBulk(b, vars.set, names)) : b,
+        mapCachedBookings(
+          data as Parameters<typeof mapCachedBookings>[0],
+          (b) =>
+            changed.has(b.id) ? ('remove' in vars ? null : applyBulk(b, vars.set, names)) : b,
           'remove' in vars && result.changed.length > 0,
         ),
       );
