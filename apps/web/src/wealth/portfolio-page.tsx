@@ -29,7 +29,7 @@ import { TradePanel } from './trade-panel';
 import './portfolio.css';
 import { PortfolioAllocation } from './allocation-section';
 import { PortfolioOverview } from './portfolio-overview';
-import { AppLink } from '../shell/app-link';
+import { PortfolioMetrics } from './portfolio-metrics';
 import {
   PortfolioRegisters,
   portfolioRegisterPath,
@@ -287,14 +287,7 @@ export function PortfolioPage({ register = 'overview' }: { register?: PortfolioR
         {register === 'savings' && (
           <SavingsSection navigationPath="/vermoegen/portfolio/sparplaene" />
         )}
-        {register === 'metrics' && (
-          <section aria-labelledby="portfolio-metrics-title">
-            <h2 id="portfolio-metrics-title">Kennzahlen</h2>
-            <AppLink className="vlook" to="/reports/prendite" search={{ zeitraum: period }}>
-              Portfolio-Auswertung öffnen
-            </AppLink>
-          </section>
-        )}
+        {register === 'metrics' && <PortfolioMetrics />}
       </div>
       {search.sparplan ? null : search.handel ? (
         <TradePanel

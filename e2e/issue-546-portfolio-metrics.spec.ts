@@ -73,7 +73,7 @@ test('546 metrics share the report period and literal deposit-neutral return, fl
     const trigger = metrics.getByRole('button', { name: term, exact: true });
     await trigger.focus();
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('tooltip').filter({ visible: true })).toBeVisible();
+    await expect(page.locator('[role="tooltip"]:popover-open')).toBeVisible();
     await page.keyboard.press('Escape');
   }
   for (const theme of ['light', 'dark']) {
@@ -95,7 +95,7 @@ test('546 metrics share the report period and literal deposit-neutral return, fl
   await expect(page).toHaveURL(/\/reports\/prendite\?zeitraum=YTD$/);
   await expect(page.getByTestId('period-ttwror')).toHaveText('+10 %');
   await expect(page.locator('.performance-metrics dd').nth(0)).toHaveText('+10 %');
-  await expect(page.locator('.performance-metrics dd').nth(1)).toHaveText('+20 %');
+  await expect(page.locator('.performance-metrics dd').nth(1)).toHaveText(/^\+20 %\s*actual\/365$/);
   expect(snapshot(isolatedLedger.databasePath)).toBe(before);
 });
 
