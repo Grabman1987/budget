@@ -175,7 +175,8 @@ export function bulkSummary(result: BulkResult, verb: 'gelöscht' | 'geändert')
   );
   // Partial legacy results do not identify which attempted pair actually changed.
   // Keep the actual changed-row count; only claim a paired effect when every item succeeded.
-  const changedPairs = result.skipped.length === 0 ? Math.max(0, result.transferPairs - skippedPairs) : 0;
+  const changedPairs =
+    result.skipped.length === 0 ? Math.max(0, result.transferPairs - skippedPairs) : 0;
   let text = `${pluralBookings(result.changed.length)} ${verb}`;
   text += changedPairs > 0 ? `, davon ${transfers(changedPairs)} (beide Seiten).` : '.';
   if (result.skipped.length > 0) {

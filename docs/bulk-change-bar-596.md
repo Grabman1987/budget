@@ -24,7 +24,10 @@ Test changes:
   deduplication/missing IDs, mixed protected-row skip/audit/exact Undo and all four
   supported fields. The first two tests failed on the unchanged source in remote
   run `40462622095`: missing selected-read endpoint and six changed instead of two.
-- `apps/server/src/api/api.test.ts`: the existing split-skip expectation accepts
+  Response DTO annotations fix the server's strict JSON typing without changing
+  expectations. Forward field assertions and four real bank-source/migrated-key
+  cases cover named skips, unchanged protected rows and exact eligible-row Undo.
+- `apps/server/src/api/api.test.ts`: existing split-skip and database-rejection expectations accept
   the additional named booking DTO. Its reason, message, changed IDs, money,
   transfer-pair and Undo expectations remain unchanged.
 - `e2e/issue-596-bulk-change-bar.spec.ts`: isolated synthetic mixed fixture,

@@ -163,9 +163,11 @@ export function BookingTable({
           groups={lookups.data?.groups ?? []}
           onCategory={setCategory}
           onFlag={setFlag}
-          onPatch={(patch) => selection?.disabled || selection?.mode
-            ? Promise.reject(new Error('Bitte die laufende Auswahl zuerst beenden.'))
-            : writes.patch.mutateAsync({ id: b.id, patch })}
+          onPatch={(patch) =>
+            selection?.disabled || selection?.mode
+              ? Promise.reject(new Error('Bitte die laufende Auswahl zuerst beenden.'))
+              : writes.patch.mutateAsync({ id: b.id, patch })
+          }
           busy={writes.patch.isPending}
         />
       ))}
@@ -212,7 +214,7 @@ export function BookingTable({
                   aria-label="Alle sichtbaren Buchungen auswählen"
                   checked={items.length > 0 && items.every((b) => selection.selected.has(b.id))}
                   disabled={selection.disabled}
-              onChange={() => selection.toggleAll(items.map((b) => b.id))}
+                  onChange={() => selection.toggleAll(items.map((b) => b.id))}
                 />
               </th>
             )}
@@ -389,22 +391,41 @@ function Row({
         </td>
       )}
       <td className="kc-flag kx-flag">
-        {selectionMode ? <span className="kflag" role="img" aria-label={b.flag ? `Markierung ${FLAG_LABEL[b.flag]}` : 'Keine Markierung'}>
-          <FlagGlyph flag={b.flag} size={16} />
-        </span> : <FlagCell
-          booking={b}
-          label={label}
-          onChange={(flag) => onFlag(b, flag === '' ? null : flag)}
-        />}
+        {selectionMode ? (
+          <span
+            className="kflag"
+            role="img"
+            aria-label={b.flag ? `Markierung ${FLAG_LABEL[b.flag]}` : 'Keine Markierung'}
+          >
+            <FlagGlyph flag={b.flag} size={16} />
+          </span>
+        ) : (
+          <FlagCell
+            booking={b}
+            label={label}
+            onChange={(flag) => onFlag(b, flag === '' ? null : flag)}
+          />
+        )}
       </td>
       <td className="kc-date kx-date">
-        {selectionMode ? <span>{upcomingToday ? upcomingDate(b.date, upcomingToday) : shortDay(b.date)}</span> : <InlineBookingCell booking={b} field="date" onSave={onPatch} onOpen={() => onOpen(b)}>
-          {upcomingToday ? upcomingDate(b.date, upcomingToday) : shortDay(b.date)}
-        </InlineBookingCell>}
+        {selectionMode ? (
+          <span>{upcomingToday ? upcomingDate(b.date, upcomingToday) : shortDay(b.date)}</span>
+        ) : (
+          <InlineBookingCell booking={b} field="date" onSave={onPatch} onOpen={() => onOpen(b)}>
+            {upcomingToday ? upcomingDate(b.date, upcomingToday) : shortDay(b.date)}
+          </InlineBookingCell>
+        )}
       </td>
       <td className="kx-payee">
-        <button type="button" className="kname-btn" disabled={selection?.disabled} onClick={() => onOpen(b)}>
-          <span className="sr-only">{label} {selectionMode ? (checked ? 'abwählen' : 'auswählen') : 'bearbeiten'} ·</span>{' '}
+        <button
+          type="button"
+          className="kname-btn"
+          disabled={selection?.disabled}
+          onClick={() => onOpen(b)}
+        >
+          <span className="sr-only">
+            {label} {selectionMode ? (checked ? 'abwählen' : 'auswählen') : 'bearbeiten'} ·
+          </span>{' '}
           <PayeeCell
             booking={b}
             {...(variant === 'account'
@@ -483,22 +504,24 @@ function Row({
         )}
       </td>
       <td className="kc-num kx-amount">
-        {selectionMode ? <span>{valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}</span> : (
-        <InlineBookingCell
-          booking={b}
-          field="amountCents"
-          onSave={onPatch}
-          onOpen={() => onOpen(b)}
-        >
-          <span
-            className={cx(
-              b.currency !== 'EUR' && 'kfx-money',
-              upcomingToday && (b.amountCents < 0 ? 'kupcoming-negative' : 'kupcoming-positive'),
-            )}
+        {selectionMode ? (
+          <span>{valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}</span>
+        ) : (
+          <InlineBookingCell
+            booking={b}
+            field="amountCents"
+            onSave={onPatch}
+            onOpen={() => onOpen(b)}
           >
-            {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
-          </span>
-        </InlineBookingCell>
+            <span
+              className={cx(
+                b.currency !== 'EUR' && 'kfx-money',
+                upcomingToday && (b.amountCents < 0 ? 'kupcoming-negative' : 'kupcoming-positive'),
+              )}
+            >
+              {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
+            </span>
+          </InlineBookingCell>
         )}
         {b.categorySpendingCents !== undefined && (
           <small className="kmeta">Kategorie netto {eur(b.categorySpendingCents)}</small>

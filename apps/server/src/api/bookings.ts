@@ -325,7 +325,10 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
 
   // Complete native selected-row facts; this does not authorize a later write or preview deletion.
   app.post('/selection', async (c) => {
-    const body = await readBody(c, z.object({ ids: z.array(z.string().min(1).max(200)).min(1).max(500) }).strict());
+    const body = await readBody(
+      c,
+      z.object({ ids: z.array(z.string().min(1).max(200)).min(1).max(500) }).strict(),
+    );
     return c.json(readBookingBulkSelection(db, body.ids));
   });
 
@@ -335,7 +338,12 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
     const ids = [...new Set(body.ids)];
     const selected = new Set(ids);
     const changed: string[] = [];
-    const skipped: { id: string; reason: BulkSkipReason; message: string; booking?: BookingBulkItem }[] = [];
+    const skipped: {
+      id: string;
+      reason: BulkSkipReason;
+      message: string;
+      booking?: BookingBulkItem;
+    }[] = [];
     /** Legs deleted together with an earlier id of this request. */
     const goneWith = new Set<string>();
     const pairedLegs = new Set<string>();
@@ -380,20 +388,23 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
               }
               if (!only || current.splits.length !== 1)
                 throw new Skip('split', 'Only single-split bookings take a category');
-              if (only.categoryId !== categoryId) patch.splits = [
-                {
-                  categoryId,
-                  amountCents: only.amountCents,
-                  memo: only.memo,
-                  contactId: only.contactId,
-                  incomeTypeId: only.incomeTypeId,
-                },
-              ];
+              if (only.categoryId !== categoryId)
+                patch.splits = [
+                  {
+                    categoryId,
+                    amountCents: only.amountCents,
+                    memo: only.memo,
+                    contactId: only.contactId,
+                    incomeTypeId: only.incomeTypeId,
+                  },
+                ];
             }
             const item = eligibility.get(id);
             if (!item) throw new Skip('not_found', 'Booking not found');
-            if (item.reason) throw new Skip(item.reason, 'Protected or linked booking left unchanged');
-            if (Object.keys(patch).length === 0) throw new Skip('unchanged', 'Already in the requested state');
+            if (item.reason)
+              throw new Skip(item.reason, 'Protected or linked booking left unchanged');
+            if (Object.keys(patch).length === 0)
+              throw new Skip('unchanged', 'Already in the requested state');
             // Bulk has no unlock path, even for otherwise free metadata such as flags.
             updateBooking(inner, id, patch, ctx, { unlockReconciled: false });
           });

@@ -83,8 +83,10 @@ export function BookingsPage() {
   const [linking, setLinking] = useState(false);
   const [panel, setPanel] = useState<BookingPanelState>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [selecting, setSelecting] = useState(false), [outcome, setOutcome] = useState<BulkOutcome | null>(null);
-  const isPhone = useIsPhone(), pending = writes.bulk.isPending || linking;
+  const [selecting, setSelecting] = useState(false),
+    [outcome, setOutcome] = useState<BulkOutcome | null>(null);
+  const isPhone = useIsPhone(),
+    pending = writes.bulk.isPending || linking;
   /** Bulk delete asks once more; any change of the selection withdraws the question. */
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [seenSelected, setSeenSelected] = useState(selected);
@@ -121,8 +123,12 @@ export function BookingsPage() {
     toggleAll: (ids) => {
       if (pending || !ids.length) return;
       setSelected((prev) => {
-        const next = new Set(prev), all = ids.every((id) => prev.has(id));
-        for (const id of ids) { if (all) next.delete(id); else next.add(id); }
+        const next = new Set(prev),
+          all = ids.every((id) => prev.has(id));
+        for (const id of ids) {
+          if (all) next.delete(id);
+          else next.add(id);
+        }
         return next;
       });
     },
@@ -140,15 +146,25 @@ export function BookingsPage() {
         !b.originalCurrency &&
         b.splits.every((s) => !s.transferId && !s.contactId),
     );
-  const bulkDone = (completed = ids) => setSelected((prev) => new Set([...prev].filter((id) => !completed.includes(id))));
-  const runBulk = async (vars: { ids: string[]; set: BulkSet } | { ids: string[]; remove: true }, submitted?: BulkSelection) => {
+  const bulkDone = (completed = ids) =>
+    setSelected((prev) => new Set([...prev].filter((id) => !completed.includes(id))));
+  const runBulk = async (
+    vars: { ids: string[]; set: BulkSet } | { ids: string[]; remove: true },
+    submitted?: BulkSelection,
+  ) => {
     if (pending) return;
     setOutcome(null);
     try {
       const result = await writes.bulk.mutateAsync(vars);
-      setOutcome({ action: 'remove' in vars ? 'delete' : 'update', result, ...(submitted ? { submitted } : {}) });
+      setOutcome({
+        action: 'remove' in vars ? 'delete' : 'update',
+        result,
+        ...(submitted ? { submitted } : {}),
+      });
       bulkDone(result.changed);
-    } catch { /* The mutation reports failure; the selection and its context stay intact. */ }
+    } catch {
+      /* The mutation reports failure; the selection and its context stay intact. */
+    }
   };
 
   const sortKey: BookingSort = filter.sort ?? 'date';
@@ -169,10 +185,24 @@ export function BookingsPage() {
           </AppLink>
         )}
         <div className="kbar">
-          {isPhone && <Button variant="ghost" disabled={pending} aria-pressed={selecting} onClick={() => {
-            setSelecting((value) => !value); setSelected(new Set());
-          }}>{selecting ? 'Auswahl beenden' : 'Auswählen'}</Button>}
-          <Button size="sm" disabled={pending} onClick={() => setPanel({ mode: 'create', accountId: search.konto })}>
+          {isPhone && (
+            <Button
+              variant="ghost"
+              disabled={pending}
+              aria-pressed={selecting}
+              onClick={() => {
+                setSelecting((value) => !value);
+                setSelected(new Set());
+              }}
+            >
+              {selecting ? 'Auswahl beenden' : 'Auswählen'}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            disabled={pending}
+            onClick={() => setPanel({ mode: 'create', accountId: search.konto })}
+          >
             <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
             Buchung erfassen
           </Button>
@@ -182,19 +212,22 @@ export function BookingsPage() {
             Filter
           </h2>
           <fieldset className="kbulk-readonly-surface" disabled={pending}>
-          <legend className="sr-only">Buchungsfilter</legend>
-          <FilterRow
-            sortValue={`${sortKey}-${direction}`}
-            onSortValue={(value) => {
-              const [key, dir] = value.split('-');
-              setSearch({ sortierung: key, richtung: dir });
-            }}
-            search={search}
-            setSearch={setSearch}
-            accounts={accounts.data?.accounts ?? []}
-            lookups={lookups.data}
-          />
-          <BookingStatusChips value={filter.status} onChange={(status) => setSearch({ status })} />
+            <legend className="sr-only">Buchungsfilter</legend>
+            <FilterRow
+              sortValue={`${sortKey}-${direction}`}
+              onSortValue={(value) => {
+                const [key, dir] = value.split('-');
+                setSearch({ sortierung: key, richtung: dir });
+              }}
+              search={search}
+              setSearch={setSearch}
+              accounts={accounts.data?.accounts ?? []}
+              lookups={lookups.data}
+            />
+            <BookingStatusChips
+              value={filter.status}
+              onChange={(status) => setSearch({ status })}
+            />
           </fieldset>
 
           {first && (
@@ -254,16 +287,20 @@ export function BookingsPage() {
         {(items.length > 0 || hasUpcoming) && (
           <>
             <fieldset className="kbulk-readonly-surface" disabled={pending}>
-            <legend className="sr-only">Buchungen</legend>
-            <BookingTable
-              items={items}
-              caption="Alle Buchungen nach Tag"
-              variant="all"
-              upcoming={upcoming.model}
-              {...(!isPhone || selecting ? { selection } : {})}
-              sort={{ key: sortKey, direction, onSort }}
-              onOpen={(booking) => { if (pending) return; if (isPhone && selecting) selection.toggle(booking.id); else setPanel({ mode: 'edit', booking }); }}
-            />
+              <legend className="sr-only">Buchungen</legend>
+              <BookingTable
+                items={items}
+                caption="Alle Buchungen nach Tag"
+                variant="all"
+                upcoming={upcoming.model}
+                {...(!isPhone || selecting ? { selection } : {})}
+                sort={{ key: sortKey, direction, onSort }}
+                onOpen={(booking) => {
+                  if (pending) return;
+                  if (isPhone && selecting) selection.toggle(booking.id);
+                  else setPanel({ mode: 'edit', booking });
+                }}
+              />
             </fieldset>
             {list.hasNextPage && (
               <LoadOlder
@@ -274,11 +311,18 @@ export function BookingsPage() {
             )}
           </>
         )}
-        <BookingSelectionBar ids={ids} pending={pending}
-          categories={lookups.data?.categories ?? []} projects={lookups.data?.projects ?? []}
+        <BookingSelectionBar
+          ids={ids}
+          pending={pending}
+          categories={lookups.data?.categories ?? []}
+          projects={lookups.data?.projects ?? []}
           onApply={(set, facts) => void runBulk({ ids: [...ids], set }, facts)}
-          onClear={() => { if (!pending) setSelected(new Set()); }} outcome={outcome}
-          extra={(facts) => <>
+          onClear={() => {
+            if (!pending) setSelected(new Set());
+          }}
+          outcome={outcome}
+          extra={(facts) => (
+            <>
               {canLink && (
                 <Button
                   className="bank-link-action"
@@ -320,16 +364,28 @@ export function BookingsPage() {
                   >
                     Ja, löschen
                   </Button>
-                  <Button variant="ghost" size="sm" disabled={pending} onClick={() => setConfirmDelete(false)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => setConfirmDelete(false)}
+                  >
                     Abbrechen
                   </Button>
                 </span>
               ) : (
-                <Button variant="ghost" size="sm" disabled={pending} onClick={() => setConfirmDelete(true)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => setConfirmDelete(true)}
+                >
                   Löschen
                 </Button>
               )}
-          </>} />
+            </>
+          )}
+        />
       </div>
       <BookingPanel state={panel} onClose={() => setPanel(null)} />
     </PageFrame>

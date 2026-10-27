@@ -828,7 +828,11 @@ describe('bookings', () => {
     });
     expect(result.body['changed']).toEqual([single.id, done.id]);
     expect(result.body['skipped']).toEqual([
-      expect.objectContaining({ id: split.id, reason: 'split', message: expect.stringContaining('single-split') }),
+      expect.objectContaining({
+        id: split.id,
+        reason: 'split',
+        message: expect.stringContaining('single-split'),
+      }),
       { id: 'ghost', reason: 'not_found', message: expect.any(String) },
     ]);
     const state = async () => {

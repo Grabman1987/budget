@@ -157,15 +157,18 @@ export function useLedgerWrites() {
     onMutate: () => qc.cancelQueries({ queryKey: BOOKINGS_KEY }),
     onError: (error) => failed('Änderung')(error),
     onSuccess: (result: BulkResult, vars) => {
-      const changed = new Set(result.changed), names = namesFrom(qc);
-      qc.setQueriesData({ queryKey: BOOKINGS_KEY }, (data) => mapCachedBookings(
-        data as Parameters<typeof mapCachedBookings>[0], (b) => changed.has(b.id)
-          ? ('remove' in vars ? null : applyBulk(b, vars.set, names)) : b,
-      ));
+      const changed = new Set(result.changed),
+        names = namesFrom(qc);
+      qc.setQueriesData({ queryKey: BOOKINGS_KEY }, (data) =>
+        mapCachedBookings(data as Parameters<typeof mapCachedBookings>[0], (b) =>
+          changed.has(b.id) ? ('remove' in vars ? null : applyBulk(b, vars.set, names)) : b,
+        ),
+      );
       if (result.changed.length) {
         flashRows(result.changed);
         offerUndo(bulkSummary(result, 'remove' in vars ? 'gelöscht' : 'geändert'), result.groupId);
-      } else toast.show({ message: bulkSummary(result, 'remove' in vars ? 'gelöscht' : 'geändert') });
+      } else
+        toast.show({ message: bulkSummary(result, 'remove' in vars ? 'gelöscht' : 'geändert') });
     },
     onSettled: settled,
   });
