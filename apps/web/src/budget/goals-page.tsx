@@ -1,6 +1,6 @@
 import { useAmountPrivacy, ClassSwatch, Button, cx } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Check, CheckCircle2, ChevronDown, Plus } from 'lucide-react';
+import { TriangleAlert, Check, CircleCheck, ChevronDown, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { eur, longDay } from '../ledger/format';
 import { accountsQuery } from '../ledger/queries';
@@ -275,10 +275,10 @@ function GoalRow({
           <i className="pbar-tick" style={{ left: `${bar.tick * 100}%` }} />
         </span>
         <span className="pmeta" data-testid="goal-line">
-          {line.tone === 'done' && <Check size={13} strokeWidth={2} aria-hidden="true" />}
-          {line.tone === 'ok' && <CheckCircle2 size={13} strokeWidth={1.75} aria-hidden="true" />}
+          {line.tone === 'done' && <Check size={16} strokeWidth={1.75} aria-hidden="true" />}
+          {line.tone === 'ok' && <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />}
           {line.tone === 'warn' && (
-            <AlertTriangle size={13} strokeWidth={1.75} aria-hidden="true" />
+            <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
           )}
           {line.text}
         </span>

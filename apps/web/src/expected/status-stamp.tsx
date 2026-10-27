@@ -19,7 +19,7 @@ export function StatusStamp({ status, alert }: { status: OccurrenceStatus; alert
             : TriangleAlert;
   return (
     <span className={alert ? 'xp-status is-alert' : 'xp-status'}>
-      <Icon size={14} strokeWidth={1.75} aria-hidden="true" />
+      <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
       {STATUS_LABEL[status]}
     </span>
   );

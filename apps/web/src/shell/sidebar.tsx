@@ -82,9 +82,7 @@ export function Sidebar({
                   aria-label={a.label}
                   aria-current={area === a.id ? 'page' : undefined}
                 >
-                  {Icon && (
-                    <Icon className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
-                  )}
+                  {Icon && <Icon className="icon" size={20} strokeWidth={1.5} aria-hidden="true" />}
                   <span className="label">{a.label}</span>
                 </AppLink>
               </li>
@@ -187,7 +185,7 @@ function SidebarResizeHandle({
       onPointerCancel={onPointerEnd}
       onKeyDown={onKeyDown}
     >
-      <GripVertical size={14} strokeWidth={1.75} aria-hidden="true" />
+      <GripVertical size={16} strokeWidth={1.75} aria-hidden="true" />
     </button>
   );
 }

@@ -275,6 +275,17 @@
 .inbox-segments button {
   min-height: 44px;
 }
+.bank-review-progress {
+  margin-block: var(--space-sm);
+}
+.bank-review-progress p {
+  margin: 0 0 var(--space-xs);
+}
+.bank-review-progress progress {
+  display: block;
+  width: 100%;
+  accent-color: var(--primary);
+}
 
 /* Source names may wrap; fixed action/count columns keep the phone table inside its page. */
 .inbox-task-sources {

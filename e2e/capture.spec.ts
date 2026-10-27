@@ -516,10 +516,10 @@ test('the checkmark: a new booking starts pending and can be confirmed', async (
 
   const panel = await openCapture(page, testInfo);
   const toggle = panel.getByRole('button', { name: 'Vorgemerkt', exact: true });
-  // Status is an icon beside the account, with a state-specific accessible name.
+  // Status is labelled beside the account, with the same state-specific accessible name.
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await expect(toggle).toHaveAttribute('title', 'Vorgemerkt');
-  await expect(toggle).toHaveText('');
+  await expect(toggle).toHaveText('Vorgemerkt');
   await expect(panel.getByLabel('Budgetmonat')).toHaveCount(0);
   await panel.getByLabel('Betrag', { exact: true }).fill('4');
   await panel.getByLabel('Empfänger').fill(`Vormerk ${tag}`);

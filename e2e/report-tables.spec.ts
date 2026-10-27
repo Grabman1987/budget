@@ -94,7 +94,7 @@ test.describe('1.5 Jahresansicht', () => {
   const row = (page: Page, label: string) =>
     page
       .locator('table.rg-year tbody tr')
-      .filter({ has: page.locator('th', { hasText: new RegExp(`^${label}$`) }) });
+      .filter({ has: page.getByRole('rowheader', { name: label, exact: true }) });
 
   test('shows the year with the chain, the grid and the comparison with the previous year', async ({
     page,
@@ -230,7 +230,7 @@ test.describe('1.6 Kategorieübersicht', () => {
     await expect(rows).toHaveCount(overview.rows.length);
     for (const [i, expected] of overview.rows.slice(0, 6).entries()) {
       const r = rows.nth(i);
-      await expect(r.locator('.rc-btn span')).toHaveText(expected.category.name);
+      await expect(r.locator('.rc-btn > span:not(.sw-abbr)')).toHaveText(expected.category.name);
       const cells = await r.locator('td').allTextContents();
       expect(cells[1]?.trim()).toBe(whole(expected.sumCents));
       expect(cells[2]?.trim()).toBe(whole(expected.avgCents));

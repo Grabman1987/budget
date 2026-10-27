@@ -1932,8 +1932,15 @@ button.kstatus-btn:focus-visible {
 }
 .bk-status {
   flex: none;
-  width: 44px;
-  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  gap: 6px;
+  padding-inline: 10px;
 }
 .bk-status[aria-pressed='true'] {
   background: var(--good);
@@ -1955,7 +1962,7 @@ button.kstatus-btn:focus-visible {
   min-width: 0;
 }
 .bk-account-row {
-  grid-template-columns: minmax(0, 1fr) 44px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
 }
 .bk-date-row {
@@ -2214,10 +2221,6 @@ button.kstatus-btn:focus-visible {
 }
 .bkform .kmore > summary::-webkit-details-marker {
   display: none;
-}
-.kmore[open] > summary .kmore-caret {
-  display: inline-block;
-  transform: rotate(180deg);
 }
 @media (min-width: 768px) {
   dialog.overlay.modal:has(.bk-split-cols) {

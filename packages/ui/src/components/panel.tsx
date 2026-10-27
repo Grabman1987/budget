@@ -195,7 +195,7 @@ function Overlay({
               aria-label="Schließen"
               onClick={requestClose}
             >
-              <X size={18} strokeWidth={1.75} aria-hidden="true" />
+              <X size={16} strokeWidth={1.75} aria-hidden="true" />
               <span className="control-label" aria-hidden="true">
                 Schließen
               </span>

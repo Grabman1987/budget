@@ -7,6 +7,7 @@
   maskMoneyText,
 } from '@budget/ui';
 import { parseAmount } from '@budget/domain';
+import { ChevronDown } from 'lucide-react';
 import { useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   newSplit,
@@ -231,7 +232,13 @@ export function SplitEditor({
                     })
                   }
                 >
-                  Teilen ▾
+                  Teilen{' '}
+                  <ChevronDown
+                    className="disclosure-chevron"
+                    size={16}
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                  />
                 </Button>
               )}
             </div>

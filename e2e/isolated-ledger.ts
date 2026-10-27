@@ -1,5 +1,6 @@
 import { test as base, type APIRequestContext } from '@playwright/test';
 import { spawn } from 'node:child_process';
+import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -15,9 +16,14 @@ type IsolatedLedger = {
 const pause = (milliseconds: number) => new Promise((done) => setTimeout(done, milliseconds));
 
 /** A real, empty ledger per attempt: global valuation must not see another test's holdings. */
-export const test = base.extend<{ isolatedLedger: IsolatedLedger; ledgerToday: string }>({
+export const test = base.extend<{
+  isolatedLedger: IsolatedLedger;
+  ledgerToday: string;
+  bankingConfigured: boolean;
+}>({
   ledgerToday: ['2026-10-02', { option: true }],
-  isolatedLedger: async ({ playwright, ledgerToday }, use, info) => {
+  bankingConfigured: [false, { option: true }],
+  isolatedLedger: async ({ playwright, ledgerToday, bankingConfigured }, use, info) => {
     const port =
       Number(process.env['E2E_PORT'] ?? 4310) +
       Number(process.env['E2E_LEDGER_PORT_OFFSET'] ?? 20) +
@@ -31,6 +37,16 @@ export const test = base.extend<{ isolatedLedger: IsolatedLedger; ledgerToday: s
     const directory = mkdtempSync(join(tmpdir(), 'budget-e2e-ledger-'));
     const origin = `http://localhost:${port}`;
     const storageState = join(directory, 'session.json');
+    const bankEnv = bankingConfigured
+      ? {
+          ENABLE_BANKING_APP_ID: 'synthetic-e2e',
+          ENABLE_BANKING_PRIVATE_KEY: generateKeyPairSync('rsa', { modulusLength: 2048 })
+            .privateKey.export({ type: 'pkcs8', format: 'pem' })
+            .toString(),
+          BANK_SYNC_ENCRYPTION_KEY: randomBytes(32).toString('hex'),
+          BUDGET_BANK_SYNC_DAILY: '0',
+        }
+      : {};
     const server = spawn(process.execPath, ['apps/server/dist/index.js'], {
       cwd: process.cwd(),
       stdio: 'ignore',
@@ -44,6 +60,7 @@ export const test = base.extend<{ isolatedLedger: IsolatedLedger; ledgerToday: s
         BUDGET_ORIGIN: origin,
         BUDGET_SETUP_TOKEN: E2E_SETUP_TOKEN,
         BUDGET_TODAY: ledgerToday,
+        ...bankEnv,
       },
     });
     let stopped = false;
