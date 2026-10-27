@@ -89,3 +89,43 @@ source/tests await formatter/type/lint/units and candidate browser proof.
 Independent HIGH review, predecessor LIVE gates, safe final integration and
 required exact-head full CI/production verification remain. Keep 620 redirects,
 all-16-report completion and parent-epic closure outside this packet.
+
+
+## First candidate proof and measured chart repair
+
+Exact 6f82288f proof 40588470272 was honestly RED: ESLint/CSS/build passed;
+10 unit files passed all 47 cases; old compatibility passed 28 including three
+setups, and the preserved spending verdict phase passed five including three
+setups. New 622 passed all three canonical profiles; new 623 failed in all three
+before reaching its view/theme loop. Baseline/tracked mutation guard passed.
+Types failed only on three unsupported Testing Library exact options in the new
+unit. Remove those options only; literal string names remain exact by default,
+and every original URL/body/assertion remains.
+
+The missing WholePicture cell was a REAL inherited render error, not a selector
+problem. Retained error-context DOM showed the router error boundary. Its trace
+console records RangeError: Cents must be a safe integer, got 99000.5. The single
+99000-cent month yields a one-cent D3 drawing domain with a fractional half-cent
+axis tick. Passing that generated tick into the strict EUR formatter crashes
+the original legacy report as well as the new view. APIs already returned the
+literal 99000/119000/-20000 totals; do not change fixtures or money assertions.
+
+WholeChart now rounds ONLY generated upper-axis label inputs to integer cents
+before the existing whole-EUR renderer. The strict formatter guard, domain,
+line points, tooltip values, source facts, table/CSV, FX and quality remain.
+Exporting the existing presentation component permits the actual drawing to be
+rendered in the existing whole-picture-report.test.tsx. Its two additive literal
+regressions cover a flat single 99000-cent month and a narrow 99000/99001-cent
+series, exact one-point line geometry, unchanged input integers and exact
+estimated 990,00/990,01 EUR keyboard tooltip values. Original verdict tests are
+unchanged; only the measurement hook is mocked to supply a real chart width.
+
+The durable remote format patch is 11 intended source/test/CSS paths, SHA256
+267ef9493c4992bd904d6644c1c2278b277520504e506a72f8f1afeb59a81157.
+It passed apply-check on clean 6f but no longer applies as a whole after the
+functional unit corrections. It has NOT been partially or blindly applied.
+The next necessary reviewed candidate proof must capture a fresh final whole
+format patch if needed. No local formatter, Node, build or test was run.
+This correction awaits capable independent HIGH review and scoped runtime proof;
+no public PR or acceptance is claimed. The above body-identity comparison now
+has this explicitly bounded presentation-only WholeChart exception.

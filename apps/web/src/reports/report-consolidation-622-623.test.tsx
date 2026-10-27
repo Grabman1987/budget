@@ -40,7 +40,7 @@ it('keeps only one spending body mounted and preserves the URL tuple through vie
   expect(state.navigate).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Change group period' }));
   expect(patch()).toEqual({ search: { ...state.search, zeitraum: '3M', empfaenger: undefined }, replace: true });
-  fireEvent.click(screen.getByRole('button', { name: 'Empfänger', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Empfänger' }));
   expect(patch().search).toEqual({ ...state.search, darstellung: 'empfaenger' });
   state.search = patch().search;
   view.rerender(<SpendingReportViews report={report} meta={REPORTS_CATALOG} />);
@@ -61,12 +61,12 @@ it.each([
   expect(getComputedStyle(screen.getByTestId(body)).display).not.toBe('none');
   expect(getComputedStyle(screen.getByTestId(body)).visibility).toBe('visible');
   expect(state.navigate).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: next, exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: next }));
   expect(patch().search).toMatchObject({ zeitraum: period, monat: '2026-08', ansicht: 'server-id', exakt: true, projekt: 'a' });
 });
 it('preserves an explicit calendar period and selected month rather than adopting the destination default', () => {
   state.search = { darstellung: 'bilanz', zeitraum: '2026-08..2026-08', monat: '2026-08' };
   render(<WealthReportViews report={findReport('vermoegen-schulden')!} meta={REPORTS_CATALOG} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Gesamtübersicht', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Gesamtübersicht' }));
   expect(patch().search).toEqual({ ...state.search, darstellung: 'gesamt' });
 });

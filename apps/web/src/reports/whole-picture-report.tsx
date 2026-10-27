@@ -327,7 +327,7 @@ function Body({ data }: { data: Data }) {
   );
 }
 
-function WholeChart({ data }: { data: Data }) {
+export function WholeChart({ data }: { data: Data }) {
   useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const rows = data.rows;
@@ -383,7 +383,7 @@ function WholeChart({ data }: { data: Data }) {
             x2={right}
             lines={upper
               .ticks(3)
-              .map((value) => ({ y: upper(value), label: eur(value, { cents: false }) }))}
+              .map((value) => ({ y: upper(value), label: eur(Math.round(value), { cents: false }) }))}
           />
           <text x={left} y={140} className="svg-label">
             Nettovermögen Ende · €
