@@ -21,6 +21,9 @@ import { KONTEN_BUCHUNGEN_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { BookingTable, type Selection } from './booking-table';
+import { BookingSelectionBar, type BulkOutcome } from './booking-selection-bar';
+import type { BulkSelection } from './api';
+import type { BulkSet } from './cache';
 import { BookingStatusChips } from './booking-status-chips';
 import { useRegisterToday, useUpcomingRegister } from './upcoming-register';
 import { CategoryCombobox } from './category-picker';
@@ -52,7 +55,8 @@ export function BookingsPage() {
   useAmountPrivacy();
   const search = useSearch({ strict: false }) as BookingsSearch;
   const navigate = useNavigate();
-  const setSearch = (patch: Partial<BookingsSearch>) =>
+  const setSearch = (patch: Partial<BookingsSearch>) => {
+    if (writes.bulk.isPending || linking) return;
     void navigate({
       to: '.',
       search: ((prev: Record<string, unknown>) => {
@@ -63,6 +67,7 @@ export function BookingsPage() {
       }) as never,
       replace: true,
     });
+  };
 
   const filter = useMemo(() => filterFromSearch(search), [search]);
   const today = useRegisterToday();
@@ -78,6 +83,8 @@ export function BookingsPage() {
   const [linking, setLinking] = useState(false);
   const [panel, setPanel] = useState<BookingPanelState>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [selecting, setSelecting] = useState(false), [outcome, setOutcome] = useState<BulkOutcome | null>(null);
+  const isPhone = useIsPhone(), pending = writes.bulk.isPending || linking;
   /** Bulk delete asks once more; any change of the selection withdraws the question. */
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [seenSelected, setSeenSelected] = useState(selected);
@@ -100,15 +107,25 @@ export function BookingsPage() {
   const onlyEurAccounts = accounts.data?.accounts.every((a) => a.currency === 'EUR');
   const selection: Selection = {
     selected,
-    toggle: (id) =>
+    disabled: pending,
+    mode: isPhone && selecting,
+    toggle: (id) => {
+      if (pending) return;
       setSelected((prev) => {
         const next = new Set(prev);
         if (next.has(id)) next.delete(id);
         else next.add(id);
         return next;
-      }),
-    toggleAll: (ids) =>
-      setSelected((prev) => (ids.every((id) => prev.has(id)) ? new Set() : new Set(ids))),
+      });
+    },
+    toggleAll: (ids) => {
+      if (pending || !ids.length) return;
+      setSelected((prev) => {
+        const next = new Set(prev), all = ids.every((id) => prev.has(id));
+        for (const id of ids) { if (all) next.delete(id); else next.add(id); }
+        return next;
+      });
+    },
   };
   const ids = [...selected];
   const pair = items.filter((b) => selected.has(b.id));
@@ -123,7 +140,16 @@ export function BookingsPage() {
         !b.originalCurrency &&
         b.splits.every((s) => !s.transferId && !s.contactId),
     );
-  const bulkDone = () => setSelected(new Set());
+  const bulkDone = (completed = ids) => setSelected((prev) => new Set([...prev].filter((id) => !completed.includes(id))));
+  const runBulk = async (vars: { ids: string[]; set: BulkSet } | { ids: string[]; remove: true }, submitted?: BulkSelection) => {
+    if (pending) return;
+    setOutcome(null);
+    try {
+      const result = await writes.bulk.mutateAsync(vars);
+      setOutcome({ action: 'remove' in vars ? 'delete' : 'update', result, ...(submitted ? { submitted } : {}) });
+      bulkDone(result.changed);
+    } catch { /* The mutation reports failure; the selection and its context stay intact. */ }
+  };
 
   const sortKey: BookingSort = filter.sort ?? 'date';
   const direction = filter.direction ?? (sortKey === 'date' ? 'desc' : 'asc');
@@ -143,7 +169,10 @@ export function BookingsPage() {
           </AppLink>
         )}
         <div className="kbar">
-          <Button size="sm" onClick={() => setPanel({ mode: 'create', accountId: search.konto })}>
+          {isPhone && <Button variant="ghost" disabled={pending} aria-pressed={selecting} onClick={() => {
+            setSelecting((value) => !value); setSelected(new Set());
+          }}>{selecting ? 'Auswahl beenden' : 'Auswählen'}</Button>}
+          <Button size="sm" disabled={pending} onClick={() => setPanel({ mode: 'create', accountId: search.konto })}>
             <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
             Buchung erfassen
           </Button>
@@ -152,6 +181,8 @@ export function BookingsPage() {
           <h2 className="sr-only" id="filter-title">
             Filter
           </h2>
+          <fieldset className="kbulk-readonly-surface" disabled={pending}>
+          <legend className="sr-only">Buchungsfilter</legend>
           <FilterRow
             sortValue={`${sortKey}-${direction}`}
             onSortValue={(value) => {
@@ -164,112 +195,8 @@ export function BookingsPage() {
             lookups={lookups.data}
           />
           <BookingStatusChips value={filter.status} onChange={(status) => setSearch({ status })} />
-          {selected.size > 0 && (
-            <div className="kbulk" role="group" aria-label="Auswahl bearbeiten">
-              <strong>{selected.size} ausgewählt</strong>
-              <Select
-                className="select-sm"
-                aria-label="Kategorie für die Auswahl setzen"
-                value=""
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (!value) return;
-                  writes.bulk.mutate({ ids, set: { categoryId: value === 'none' ? null : value } });
-                  bulkDone();
-                }}
-              >
-                <option value="">Kategorie setzen …</option>
-                <option value="none">ohne Kategorie</option>
-                {(lookups.data?.categories ?? []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-              <Select
-                className="select-sm"
-                aria-label="Markierung für die Auswahl setzen"
-                value=""
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (!value) return;
-                  writes.bulk.mutate({
-                    ids,
-                    set: { flag: value === 'none' ? null : (value as BookingFlag) },
-                  });
-                  bulkDone();
-                }}
-              >
-                <option value="">Markierung setzen …</option>
-                <option value="none">Markierung entfernen</option>
-                {BOOKING_FLAGS.map((f) => (
-                  <option key={f} value={f}>
-                    {FLAG_LABEL[f]}
-                  </option>
-                ))}
-              </Select>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  writes.bulk.mutate({ ids, set: { status: 'confirmed' } });
-                  bulkDone();
-                }}
-              >
-                Als bestätigt markieren
-              </Button>
-              {canLink && (
-                <Button
-                  className="bank-link-action"
-                  size="sm"
-                  variant="ghost"
-                  disabled={linking}
-                  onClick={() => {
-                    setLinking(true);
-                    void write(
-                      () =>
-                        request<{ groupId: string }>('POST', '/api/bookings/link-transfer', {
-                          ids,
-                        }),
-                      () => 'Als Umbuchung verbunden; Kategorien entfernt.',
-                    )
-                      .then((result) => {
-                        if (result) bulkDone();
-                      })
-                      .finally(() => setLinking(false));
-                  }}
-                >
-                  Als Umbuchung verbinden
-                </Button>
-              )}
-              {canLink && (
-                <span className="kmeta">
-                  Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.
-                </span>
-              )}
-              {confirmDelete ? (
-                <span className="kbulk-confirm" role="group" aria-label="Löschen bestätigen">
-                  <span>{pluralBookings(ids.length)} löschen?</span>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      writes.bulk.mutate({ ids, remove: true });
-                      bulkDone();
-                    }}
-                  >
-                    Ja, löschen
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
-                    Abbrechen
-                  </Button>
-                </span>
-              ) : (
-                <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(true)}>
-                  Löschen
-                </Button>
-              )}
-            </div>
-          )}
+          </fieldset>
+
           {first && (
             <p className="ksum" aria-live="polite">
               {pluralBookings(first.total)} ·{' '}
@@ -326,15 +253,18 @@ export function BookingsPage() {
         )}
         {(items.length > 0 || hasUpcoming) && (
           <>
+            <fieldset className="kbulk-readonly-surface" disabled={pending}>
+            <legend className="sr-only">Buchungen</legend>
             <BookingTable
               items={items}
               caption="Alle Buchungen nach Tag"
               variant="all"
               upcoming={upcoming.model}
-              selection={selection}
+              {...(!isPhone || selecting ? { selection } : {})}
               sort={{ key: sortKey, direction, onSort }}
-              onOpen={(booking) => setPanel({ mode: 'edit', booking })}
+              onOpen={(booking) => { if (pending) return; if (isPhone && selecting) selection.toggle(booking.id); else setPanel({ mode: 'edit', booking }); }}
             />
+            </fieldset>
             {list.hasNextPage && (
               <LoadOlder
                 fetching={list.isFetching}
@@ -344,6 +274,62 @@ export function BookingsPage() {
             )}
           </>
         )}
+        <BookingSelectionBar ids={ids} pending={pending}
+          categories={lookups.data?.categories ?? []} projects={lookups.data?.projects ?? []}
+          onApply={(set, facts) => void runBulk({ ids: [...ids], set }, facts)}
+          onClear={() => { if (!pending) setSelected(new Set()); }} outcome={outcome}
+          extra={(facts) => <>
+              {canLink && (
+                <Button
+                  className="bank-link-action"
+                  size="sm"
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() => {
+                    setLinking(true);
+                    void write(
+                      () =>
+                        request<{ groupId: string }>('POST', '/api/bookings/link-transfer', {
+                          ids,
+                        }),
+                      () => 'Als Umbuchung verbunden; Kategorien entfernt.',
+                    )
+                      .then((result) => {
+                        if (result) bulkDone();
+                      })
+                      .finally(() => setLinking(false));
+                  }}
+                >
+                  Als Umbuchung verbinden
+                </Button>
+              )}
+              {canLink && (
+                <span className="kmeta">
+                  Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.
+                </span>
+              )}
+              {confirmDelete ? (
+                <span className="kbulk-confirm" role="group" aria-label="Löschen bestätigen">
+                  <span>{pluralBookings(ids.length)} löschen?</span>
+                  <Button
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => {
+                      void runBulk({ ids, remove: true }, facts);
+                    }}
+                  >
+                    Ja, löschen
+                  </Button>
+                  <Button variant="ghost" size="sm" disabled={pending} onClick={() => setConfirmDelete(false)}>
+                    Abbrechen
+                  </Button>
+                </span>
+              ) : (
+                <Button variant="ghost" size="sm" disabled={pending} onClick={() => setConfirmDelete(true)}>
+                  Löschen
+                </Button>
+              )}
+          </>} />
       </div>
       <BookingPanel state={panel} onClose={() => setPanel(null)} />
     </PageFrame>

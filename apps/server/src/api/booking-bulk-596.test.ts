@@ -1,4 +1,4 @@
-import { createBooking, createTestDatabase, createTransfer, getBooking, undo, schema, type OpenedDatabase } from '@budget/db';
+import { createBooking, createEntity, createTestDatabase, createTransfer, getBooking, undo, schema, type OpenedDatabase } from '@budget/db';
 import { seedBasics, testCtx } from '../../../../packages/db/src/repos/test-helpers';
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
@@ -63,4 +63,32 @@ it('skips reconciled and financially linked rows even for flags; one audit group
   expect(getBooking(opened.db, b)?.flag).toBe('orange');
   undo(opened.db, { groupId: result.groupId }, testCtx);
   expect(ids.map((id) => getBooking(opened.db, id))).toEqual(before);
+});
+
+it.each([
+  { categoryId: 'miete' }, { status: 'pending' }, { projectId: 'synthetic-project' },
+])('uses the existing grouped writer and exact Undo for $categoryId$status$projectId', async (set) => {
+  createEntity(opened.db, schema.project, { id: 'synthetic-project', name: 'Synthetic project' }, testCtx);
+  const a = row(-1234), b = row(567, { memo: 'Retained memo', flag: 'blue' });
+  const ids = [a, b], before = ids.map((id) => getBooking(opened.db, id));
+  const response = await post('bulk', { action: 'update', ids, set });
+  expect(response.status).toBe(200);
+  const result = await response.json();
+  expect(result.changed).toEqual(ids);
+  expect(result.skipped).toEqual([]);
+  expect(ids.map((id) => getBooking(opened.db, id)?.amountCents)).toEqual([-1234, 567]);
+  undo(opened.db, { groupId: result.groupId }, testCtx);
+  expect(ids.map((id) => getBooking(opened.db, id))).toEqual(before);
+});
+
+it('reports no-op without writing an audit group', async () => {
+  const id = row(-101, { flag: 'blue' });
+  const before = getBooking(opened.db, id);
+  const response = await post('bulk', { action: 'update', ids: [id], set: { flag: 'blue' } });
+  expect(response.status).toBe(200);
+  const result = await response.json();
+  expect(result.changed).toEqual([]);
+  expect(result.skipped).toMatchObject([{ id, reason: 'unchanged' }]);
+  expect(opened.db.select().from(schema.auditLog).where(eq(schema.auditLog.groupId, result.groupId)).all()).toEqual([]);
+  expect(getBooking(opened.db, id)).toEqual(before);
 });

@@ -13,6 +13,9 @@ import {
   ensureAdvanceCategory,
   getBooking,
   queryBookings,
+  readBookingBulkSelection,
+  type BookingBulkItem,
+  type BookingBulkReason,
   ReconciledLockedError,
   relatedTransferBookings,
   runInTransaction,
@@ -32,8 +35,7 @@ import { ACTOR, ApiError, defined, errorAnswer, readBody, readQuery } from './ht
 import { bookingDeleteQuery, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
 
 /** Why a bulk action left a booking out. */
-type BulkSkipReason =
-  'not_found' | 'reconciled_locked' | 'split' | 'transfer' | 'transfer_pair' | 'invalid';
+type BulkSkipReason = BookingBulkReason | 'split' | 'transfer' | 'transfer_pair' | 'unchanged';
 
 class Skip extends Error {
   constructor(
@@ -321,18 +323,28 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
     return c.json(linkBookings(db, body.ids, audit()));
   });
 
+  // Complete native selected-row facts; this does not authorize a later write or preview deletion.
+  app.post('/selection', async (c) => {
+    const body = await readBody(c, z.object({ ids: z.array(z.string().min(1).max(200)).min(1).max(500) }).strict());
+    return c.json(readBookingBulkSelection(db, body.ids));
+  });
+
   app.post('/bulk', async (c) => {
     const body = await readBody(c, bulkBody);
     const ctx = audit();
     const ids = [...new Set(body.ids)];
     const selected = new Set(ids);
     const changed: string[] = [];
-    const skipped: { id: string; reason: BulkSkipReason; message: string }[] = [];
+    const skipped: { id: string; reason: BulkSkipReason; message: string; booking?: BookingBulkItem }[] = [];
     /** Legs deleted together with an earlier id of this request. */
     const goneWith = new Set<string>();
     const pairedLegs = new Set<string>();
     let transferPairs = 0;
     runInTransaction(db, (tx) => {
+      // One locked transaction snapshot for the batch; metadata updates below cannot create
+      // cross-row financial owners. Ordinary writers still check current invariants per item.
+      const selection = body.action === 'update' ? readBookingBulkSelection(tx, ids) : null;
+      const eligibility = new Map(selection?.items.map((item) => [item.id, item]) ?? []);
       for (const id of ids) {
         if (goneWith.has(id)) {
           changed.push(id);
@@ -352,8 +364,12 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
               for (const leg of partners) goneWith.add(leg);
               return;
             }
-            const { categoryId, flag, status } = body.set;
-            const patch: BookingPatch = defined({ flag, status });
+            const { categoryId, flag, status, projectId } = body.set;
+            const patch: BookingPatch = defined({
+              flag: flag !== current.flag ? flag : undefined,
+              status: status !== current.status ? status : undefined,
+              projectId: projectId !== current.projectId ? projectId : undefined,
+            });
             if (categoryId !== undefined) {
               const [only] = current.splits;
               if (current.transferId || current.splits.some((s) => s.transferId)) {
@@ -364,7 +380,7 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
               }
               if (!only || current.splits.length !== 1)
                 throw new Skip('split', 'Only single-split bookings take a category');
-              patch.splits = [
+              if (only.categoryId !== categoryId) patch.splits = [
                 {
                   categoryId,
                   amountCents: only.amountCents,
@@ -374,7 +390,12 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
                 },
               ];
             }
-            updateBooking(inner, id, patch, ctx, options);
+            const item = eligibility.get(id);
+            if (!item) throw new Skip('not_found', 'Booking not found');
+            if (item.reason) throw new Skip(item.reason, 'Protected or linked booking left unchanged');
+            if (Object.keys(patch).length === 0) throw new Skip('unchanged', 'Already in the requested state');
+            // Bulk has no unlock path, even for otherwise free metadata such as flags.
+            updateBooking(inner, id, patch, ctx, { unlockReconciled: false });
           });
           changed.push(id);
         } catch (error) {
@@ -388,6 +409,7 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
             id,
             reason,
             message: error instanceof Skip ? error.message : errorAnswer(error).body.message,
+            ...(eligibility.get(id) ? { booking: eligibility.get(id)! } : {}),
           });
         }
       }
