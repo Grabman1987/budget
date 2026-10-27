@@ -64,40 +64,49 @@ test('Stand shows the day of the newest prices', async ({ page }) => {
   await expect(page.locator('.titleblock')).toContainText(/17\.09\.(2026)? · Kurse/);
 });
 
-test('"Woraus es besteht": assets by size, debts dashed and subtracted', async ({ page }) => {
+test('"Woraus es besteht": grouped cents and sorted accounts reconcile; composition debt lies below zero', async ({ page }) => {
   await ready(page);
-  const values = await page.locator('.vbars li .vb-val').allTextContents();
-  const debts = await page.locator('.vbars li.is-debt .vb-val').allTextContents();
-  expect(debts.length).toBeGreaterThanOrEqual(2);
-  expect(debts.every((d) => d.startsWith('−'))).toBe(true);
-  const tracks = page.locator('.vbars .vb-bar');
-  const zeroPositions = await tracks.evaluateAll((nodes) =>
-    nodes.map((node) => Number(node.getAttribute('data-zero-percent'))),
-  );
-  expect(new Set(zeroPositions).size).toBe(1);
-  const barGeometry = await page.locator('.vbars li').evaluateAll((rows) =>
-    rows.map((row) => {
-      const track = row.querySelector<HTMLElement>('.vb-bar')!;
-      const bar = track.querySelector<HTMLElement>('i')!;
-      return {
-        debt: row.classList.contains('is-debt'),
-        zero: Number(track.dataset['zeroPercent']),
-        left: Number.parseFloat(bar.style.left),
-        width: Number.parseFloat(bar.style.width),
-      };
-    }),
-  );
-  expect(
-    barGeometry.every(
-      (bar) => Math.abs((bar.debt ? bar.left + bar.width : bar.left) - bar.zero) < 1e-3,
-    ),
-  ).toBe(true);
-  const assets = values.slice(0, values.length - debts.length).map(euros);
+  const composition = page.locator('.asset-composition');
+  const groupValues = await composition.locator('.asset-composition-group > summary .asset-composition-value').allTextContents();
+  const asCents = (text: string) => Number(text.replace(/[^\d−-]/g, '').replace('−', '-'));
+  expect(groupValues.reduce((sum, text) => sum + asCents(text), 0)).toBe(8_473_000);
+  const debt = composition.locator('[data-asset-group="debt"]');
+  await expect(debt.locator('summary .asset-composition-value')).toHaveText(/^[−]/);
+  await debt.locator('summary').click();
+  const debtAccounts = await debt.locator('tbody .asset-composition-value').allTextContents();
+  expect(debtAccounts.length).toBeGreaterThanOrEqual(2);
+  expect(debtAccounts.every((value) => value.startsWith('−'))).toBe(true);
+  await composition.getByRole('button', { name: 'Nach Konto', exact: true }).click();
+  const values = (await composition.locator('.asset-composition-accounts .asset-composition-value').allTextContents()).map(asCents);
+  const assets = values.filter((value) => value > 0);
   expect(assets).toEqual([...assets].sort((a, b) => b - a));
-  await expect(page.getByText('Gestrichelt: Schulden, werden abgezogen.')).toBeVisible();
-  // The parts add up to the net worth (whole euros, so within rounding of the rows).
-  const sum = values.map(euros).reduce((a, b) => a + b, 0);
-  expect(Math.abs(sum - NET_WORTH_EUROS)).toBeLessThanOrEqual(values.length);
+  expect(values.filter((value) => value < 0).length).toBeGreaterThanOrEqual(2);
+  expect(values.reduce((sum, value) => sum + value, 0)).toBe(8_473_000);
+  await page.getByRole('button', { name: 'Zusammensetzung', exact: true }).click();
+  const allGeometry = await page.locator('[data-composition-key]').evaluateAll((groups) =>
+    groups.map((group) => ({
+      key: group.getAttribute('data-composition-key'),
+      zero: Number(group.getAttribute('data-zero-y')),
+      ys: [...group.querySelectorAll('path')].flatMap((path) =>
+        (path.getAttribute('d')!.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number).filter((_value, index) => index % 2 === 1),
+      ),
+    })),
+  );
+  expect(new Set(allGeometry.map((group) => group.zero)).size).toBe(1);
+  for (const group of allGeometry.filter((group) => group.key !== 'debt'))
+    expect(group.ys.every((y) => y <= group.zero)).toBe(true);
+  const geometry = await page.locator('[data-composition-key="debt"]').evaluate((group) => {
+    const zero = Number(group.getAttribute('data-zero-y'));
+    const ys = [...group.querySelectorAll('path')].flatMap((path) =>
+      (path.getAttribute('d')!.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number).filter((_value, index) => index % 2 === 1),
+    );
+    return { zero, ys };
+  });
+  expect(geometry.ys.length).toBeGreaterThan(0);
+  expect(geometry.ys.every((y) => y >= geometry.zero)).toBe(true);
+  expect(geometry.ys.some((y) => y === geometry.zero)).toBe(true);
+  expect(geometry.ys.some((y) => y > geometry.zero)).toBe(true);
+  await expect(page.getByText(/Schulden liegen unter null/)).toBeVisible();
 });
 
 test('the Zeitraum switch updates the URL, the figures and travels to Portfolio', async ({

@@ -1928,3 +1928,10 @@ Physical-device/keyboard/fullscreen acceptance belongs separately to #586.
 - [x] Persist through audited settings with concurrency/undo guards; reuse the savings form for explicit confirmation.
 - [x] Full typecheck/lint, nine domain/API tests, desktop/phone acceptance and independent review; [synthetic evidence](evidence/portfolio-funding-plan/README.md).
 - [ ] Exact-head required CI, serial integration and verified live revision recorded on the delivery PR.
+
+### #550 / #551 — recovered asset-composition source (2026-10-27)
+
+- Selectively adopted the owned13-path source patch from archive ec159bb9 after exact SHA/ownership/current-producer inspection. Current roadmap prefix and export additions remain; no mixed checkpoint ancestry was transplanted.
+- New composition partitions the existing producer's already-rounded cash/manual/holding EUR terms. Signed net-worth shares require complete values and at least10000 cents; missing values remain gaps, with new group-result limits explicit. Existing whole-account/daily/Gespart paths remain unchanged.
+- Grouped account drill and the separate month-end/start/as-of chart use the same source DTO, with signed debt below zero, shared hover/table values and disclosed current grouping metadata.
+- Current runtime, independent final-diff review, literal/API/browser/visual acceptance, exact-head CI and LIVE verification remain pending. No local test/formatter/build/browser was run and no issue/parent is closed by source adoption.

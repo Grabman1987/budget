@@ -38,6 +38,13 @@ Owner reference-adoption decision (2026-10-15): Portfolio Performance is the def
 
 Owner allocation addition (2026-10-15; delivered in #507): users select the accounts/depots counted for both wealth thresholds and cash share, map existing instruments to asset classes, and enter editable lower-bound stages ("ab Vermögen"). Preserve the existing explicit universe, signed cash, dated target versions and inclusive upper-bound storage: translate each next lower bound to one cent below it without moving legacy boundaries. The requested generic seven-stage example is an explicitly mapped template, never a production seed or trading instruction. Account-scope/cash-class edits and targets must save atomically with conflict detection and grouped undo. Owner decision 2026-10-16: every stage activates by its threshold (conditions are hints) and a reached stage holds until the month-end sum falls below 90 % of its lower bound; see [contract](docs/allocation-wealth-stages.md).
 
+Owner net-worth composition decision (2026-10-21, #550): composition percentages
+use signed net worth as their denominator; debts have negative shares. Show
+percentages only when net worth is at least EUR 100 (10,000 cents) and all values
+are complete. Otherwise show euro amounts without percentages. Thus EUR 10,000
+of assets and EUR 2,000 of debts produce EUR 8,000 net worth, with shares of 125%
+and -25%. This presentation rule does not change stored values or valuation.
+
 Owner wealth completeness/backlog requirement (2026-10-15): Vermögen must expose
 a compact benchmark comparison, actual portfolio value history in EUR, and asset
 composition with time development under explicit scope/unit/date conventions.

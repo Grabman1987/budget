@@ -53,3 +53,14 @@ it('an existing transfer changes groups only; one canonical Undo restores both a
   undo(opened.db, { groupId: '550-transfer' }, { actor: '550-test' });
   expect(netWorthAssetComposition(opened.db, '2026-01-01', '2026-01-03')).toEqual(before);
 });
+
+it('preserves missing FX as a null composition gap and the existing strict read refusal', () => {
+  add('missing-fx', 'brokerage', 1, 'CHF');
+  const point = netWorthAssetComposition(opened.db, '2026-01-01', '2026-01-01').current;
+  expect(point.totalCents).toBeNull();
+  expect(point.complete).toBe(false);
+  expect(point.groups.find((g) => g.key === 'unclassified')?.valueCents).toBeNull();
+  expect(point.gaps).toMatchObject([{ accountId: 'missing-fx', missing: 'fx' }]);
+  expect(point.groups.every((g) => g.shareBp === null)).toBe(true);
+  expect(() => netWorthAsOf(opened.db, '2026-01-01')).toThrow(/CHF/);
+});
