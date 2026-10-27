@@ -2,17 +2,19 @@ import { cents } from '../money';
 import { householdIncomeCents, type OverviewSplit } from '../overview';
 import { monthHouseholdIncome, type TableMeta, type TableMonth, type TableRow } from './tables';
 
-export const monthTotalSpending = (m: TableMonth) =>
+export type IncomeExpenseMonth = Pick<TableMonth, 'month' | 'income' | 'spending'>;
+
+export const monthTotalSpending = (m: IncomeExpenseMonth) =>
   cents(Object.values(m.spending).reduce((a, v) => a + v, 0));
-export const incomeExpenseNet = (m: TableMonth, meta: TableMeta) =>
+export const incomeExpenseNet = (m: IncomeExpenseMonth, meta: TableMeta) =>
   cents(monthHouseholdIncome(m, meta) - monthTotalSpending(m));
 
 export function incomeExpenseRows(
-  months: ReadonlyArray<TableMonth>,
+  months: ReadonlyArray<IncomeExpenseMonth>,
   meta: TableMeta,
   expanded: ReadonlySet<string>,
 ): TableRow[] {
-  const vals = (f: (m: TableMonth) => number) => months.map(f);
+  const vals = (f: (m: IncomeExpenseMonth) => number) => months.map(f);
   const row = (
     key: string,
     label: string,

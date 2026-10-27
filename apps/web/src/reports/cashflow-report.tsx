@@ -1,4 +1,6 @@
 import { ReportPeriodControl } from './period-quick-select';
+import type { ReactNode } from 'react';
+import { ReportProjectScopeNote } from './report-project-scope';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { cents, todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
@@ -23,11 +25,21 @@ const long = (month: string) => `${monthName(`${month}-01`)} ${month.slice(0, 4)
  * month. Kapitalerträge (dividends, interest) stand on their own line: they are not household
  * income and not part of the net cashflow (owner decision 02.10.2026).
  */
-export function CashflowReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function CashflowReportPage({
+  report,
+  meta,
+  projectId,
+  viewControl,
+}: {
+  report: ReportEntry;
+  meta: PageMeta;
+  projectId?: string | undefined;
+  viewControl?: ReactNode;
+}) {
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
-  const query = useQuery(cashflowQuery(period));
-  const data = query.isSuccess ? query.data : undefined;
+  const query = useQuery(cashflowQuery(period, projectId));
+  const data = query.isSuccess && (!projectId || !query.isFetching) ? query.data : undefined;
   const window = data?.windowMonths ?? [];
   return (
     <PageFrame
@@ -58,6 +70,7 @@ export function CashflowReportPage({ report, meta }: { report: ReportEntry; meta
             : 'wird geladen'
       }
       extraFields={[
+        ...(viewControl ? [{ label: 'Ansicht und Projekt', value: viewControl }] : []),
         {
           label: 'Zeitraum',
           value: (
@@ -74,7 +87,10 @@ export function CashflowReportPage({ report, meta }: { report: ReportEntry; meta
       ]}
     >
       <div className="kview rf-report cashflow-report">
-        {query.isPending && <LoadingNote what="Cashflow" />}
+        {data && !query.isFetching && !query.isError && (
+          <ReportProjectScopeNote project={data.project} asOf={data.asOf} view="cashflow" />
+        )}
+        {(query.isPending || (projectId && query.isFetching)) && <LoadingNote what="Cashflow" />}
         {query.isError && (
           <ErrorNote what="Cashflow" error={query.error} onRetry={() => void query.refetch()} />
         )}

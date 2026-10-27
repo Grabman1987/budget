@@ -8,7 +8,6 @@ import {
   tableRowTotal,
   tableRowAverage,
   monthHouseholdIncome,
-  type OverviewSplit,
 } from '@budget/domain';
 import {
   AxisLine,
@@ -35,29 +34,43 @@ import { ReportPeriodControl } from './period-quick-select';
 import { RowsGrid } from './table-grid';
 import { monthShort } from './table-format';
 import { TableReportFrame } from './table-report-frame';
-import type { ReportTables } from './table-reports-api';
+import type { IncomeExpenseReportData } from '@budget/db';
+import type { ReactNode } from 'react';
+import { ReportProjectScopeNote } from './report-project-scope';
 
-const queryOptionsForReport = queryOptions({
-  queryKey: [...LEDGER_KEY, 'income-expense'],
-  retry: false,
-  queryFn: () =>
-    request<ReportTables & { splits: OverviewSplit[] }>('GET', '/api/report-tables/income-expense'),
-});
+const queryOptionsForReport = (projectId?: string) =>
+  queryOptions({
+    queryKey: projectId
+      ? [...LEDGER_KEY, 'income-expense', 'project', projectId]
+      : [...LEDGER_KEY, 'income-expense'],
+    ...(projectId ? { staleTime: 0 } : {}),
+    retry: false,
+    queryFn: () =>
+      request<IncomeExpenseReportData>(
+        'GET',
+        `/api/report-tables/income-expense${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`,
+      ),
+  });
 export function IncomeExpenseReport({
   report,
   meta,
   sources = false,
+  projectId,
+  viewControl,
 }: {
   report: ReportEntry;
   meta: PageMeta;
   sources?: boolean;
+  projectId?: string | undefined;
+  viewControl?: ReactNode;
 }) {
   const [period, setPeriod] = useZeitraum();
-  const query = useQuery(queryOptionsForReport);
-  const { zelle, spalte, gruppen } = useSearch({ strict: false }) as {
+  const query = useQuery(queryOptionsForReport(projectId));
+  const { zelle, spalte, gruppen, monat } = useSearch({ strict: false }) as {
     zelle?: string;
     spalte?: string;
     gruppen?: string[];
+    monat?: string;
   };
   const navigate = useNavigate();
   const expanded = new Set(gruppen ?? []);
@@ -88,7 +101,9 @@ export function IncomeExpenseReport({
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `einnahmen-ausgaben-${window[0]}-${window.at(-1)}.csv`;
+    const projectPart =
+      data && 'project' in data ? `projekt-${encodeURIComponent(data.project.id)}-` : '';
+    a.download = `einnahmen-ausgaben-${projectPart}${window[0]}-${window.at(-1)}.csv`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
@@ -97,7 +112,12 @@ export function IncomeExpenseReport({
       {sources && (
         <ReportDetailNav
           to="/reports/einnahmen-ausgaben"
-          search={{ zeitraum: period, gruppen }}
+          search={{
+            zeitraum: period,
+            gruppen,
+            ...(monat ? { monat } : {}),
+            ...(projectId ? { projekt: projectId, darstellung: 'overview' } : {}),
+          }}
           report="Einnahmen und Ausgaben"
           title="Buchungen"
           backLabel="Zurück zu Einnahmen und Ausgaben"
@@ -112,6 +132,7 @@ export function IncomeExpenseReport({
         query={query}
         className="income-expense-report"
         extraFields={[
+          ...(viewControl ? [{ label: 'Ansicht und Projekt', value: viewControl }] : []),
           {
             label: 'Zeitraum',
             value: (
@@ -129,130 +150,142 @@ export function IncomeExpenseReport({
         ]}
       >
         {() =>
-          data &&
-          (sources ? (
+          data && (
             <>
-              <section
-                className="tr-card"
-                aria-labelledby="ie-sources-title"
-                data-testid="income-expense-sources"
-              >
-                <h2 id="ie-sources-title">{selected?.label ?? 'Buchungen'}</h2>
-                <p>{selectedMonths.map((m) => monthShort(m, true)).join(' · ')}</p>
-                {!selected || selectedMonths.length === 0 ? (
-                  <p>Diese Zelle ist im Reportzeitraum nicht verfügbar.</p>
-                ) : detail.length ? (
-                  <ul>
-                    {detail.map((s, i) => (
-                      <li key={`${s.bookingId}:${i}`}>
-                        <AppLink
-                          className="report-source-link"
-                          to="/konten/buchungen"
-                          search={{
-                            buchung: s.bookingId,
-                            von: selectedMonths[0] + '-01',
-                            bis: new Date(
-                              Date.UTC(
-                                Number(selectedMonths.at(-1)!.slice(0, 4)),
-                                Number(selectedMonths.at(-1)!.slice(5, 7)),
-                                0,
-                              ),
-                            )
-                              .toISOString()
-                              .slice(0, 10),
-                            ruecksprung:
-                              '/reports/einnahmen-ausgaben/buchungen?' +
-                              new URLSearchParams({
-                                zeitraum: period,
-                                zelle: zelle!,
-                                spalte: spalte!,
-                                ...(gruppen ? { gruppen: JSON.stringify(gruppen) } : {}),
-                              }),
-                          }}
+              {'project' in data && (
+                <ReportProjectScopeNote project={data.project} asOf={data.asOf} view="overview" />
+              )}
+              {sources ? (
+                <>
+                  <section
+                    className="tr-card"
+                    aria-labelledby="ie-sources-title"
+                    data-testid="income-expense-sources"
+                  >
+                    <h2 id="ie-sources-title">{selected?.label ?? 'Buchungen'}</h2>
+                    <p>{selectedMonths.map((m) => monthShort(m, true)).join(' · ')}</p>
+                    {!selected || selectedMonths.length === 0 ? (
+                      <p>Diese Zelle ist im Reportzeitraum nicht verfügbar.</p>
+                    ) : detail.length ? (
+                      <ul>
+                        {detail.map((s, i) => (
+                          <li key={`${s.bookingId}:${i}`}>
+                            <AppLink
+                              className="report-source-link"
+                              to="/konten/buchungen"
+                              search={{
+                                buchung: s.bookingId,
+                                von: selectedMonths[0] + '-01',
+                                bis: new Date(
+                                  Date.UTC(
+                                    Number(selectedMonths.at(-1)!.slice(0, 4)),
+                                    Number(selectedMonths.at(-1)!.slice(5, 7)),
+                                    0,
+                                  ),
+                                )
+                                  .toISOString()
+                                  .slice(0, 10),
+                                ruecksprung:
+                                  '/reports/einnahmen-ausgaben/buchungen?' +
+                                  new URLSearchParams({
+                                    zeitraum: period,
+                                    zelle: zelle!,
+                                    spalte: spalte!,
+                                    ...(gruppen ? { gruppen: JSON.stringify(gruppen) } : {}),
+                                    ...(monat ? { monat } : {}),
+                                    ...(projectId
+                                      ? { projekt: projectId, darstellung: 'overview' }
+                                      : {}),
+                                  }),
+                              }}
+                            >
+                              {longDay(s.date)} · {s.payeeName ?? 'Ohne Empfänger'} ·{' '}
+                              {eur(s.amountCents)}
+                            </AppLink>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>Keine Buchungen in dieser Zelle.</p>
+                    )}
+                  </section>
+                </>
+              ) : (
+                <section
+                  className="tr-card"
+                  aria-labelledby="ie-title"
+                  data-testid="income-expense-report"
+                >
+                  <div className="tbd-head">
+                    <h2 id="ie-title">Einnahmen und Ausgaben</h2>
+                    <Button variant="ghost" onClick={download}>
+                      CSV
+                    </Button>
+                  </div>
+                  <IncomeExpenseChart data={data} months={window} />
+                  <LineLegend items={[{ kind: 'actual', label: 'Netto' }]} />
+                  <RowsGrid
+                    rows={rows}
+                    columns={window.map((m) => ({ key: m, label: monthShort(m, true) }))}
+                    caption="Einnahmen und Ausgaben in Euro"
+                    regionLabel="Einnahmen und Ausgaben, seitlich scrollbar"
+                    average
+                    cellLink={(row, column) => ({
+                      to: '/reports/einnahmen-ausgaben/buchungen',
+                      search: {
+                        ...(monat ? { monat } : {}),
+                        ...(projectId ? { projekt: projectId, darstellung: 'overview' } : {}),
+                        zeitraum: period,
+                        gruppen,
+                        zelle: row.key,
+                        spalte: column === null ? 'summe' : window[column],
+                      },
+                    })}
+                    renderLabel={(r) =>
+                      r.key.startsWith('group:') ? (
+                        <button
+                          type="button"
+                          className="table-cell-open"
+                          aria-expanded={expanded.has(r.key.slice(6))}
+                          onClick={() =>
+                            void navigate({
+                              to: '.',
+                              search: ((old: Record<string, unknown>) => ({
+                                ...old,
+                                gruppen: expanded.has(r.key.slice(6))
+                                  ? [...expanded].filter((id) => id !== r.key.slice(6))
+                                  : [...expanded, r.key.slice(6)],
+                              })) as never,
+                              replace: true,
+                            })
+                          }
                         >
-                          {longDay(s.date)} · {s.payeeName ?? 'Ohne Empfänger'} ·{' '}
-                          {eur(s.amountCents)}
-                        </AppLink>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>Keine Buchungen in dieser Zelle.</p>
-                )}
-              </section>
+                          {expanded.has(r.key.slice(6)) ? '−' : '+'} {r.label}
+                        </button>
+                      ) : (
+                        r.label
+                      )
+                    }
+                  />
+                  <p className="vnote">
+                    Haushaltseinnahmen minus Bedarf, Wunsch, Zukunft und Ausgaben ohne Kategorie.
+                    Kapitalerträge und Erstattungen ohne Kategorie stehen außerhalb der
+                    Haushaltseinnahmen; kategorisierte Erstattungen mindern die Ausgaben.
+                    Kategorisierte Zukunft-Umbuchungen zählen wie in der Gesamttabelle. Netto =
+                    Übrig nach Zukunft minus Ohne Kategorie. Zuflüsse ohne Einkommensart werden
+                    nicht gezählt. Eine Zelle öffnet ihre Buchungen; CSV enthält genau die
+                    sichtbaren Zeilen, Monate, Summe und Ø. Der laufende Monat reicht bis heute.
+                  </p>
+                </section>
+              )}
             </>
-          ) : (
-            <section
-              className="tr-card"
-              aria-labelledby="ie-title"
-              data-testid="income-expense-report"
-            >
-              <div className="tbd-head">
-                <h2 id="ie-title">Einnahmen und Ausgaben</h2>
-                <Button variant="ghost" onClick={download}>
-                  CSV
-                </Button>
-              </div>
-              <IncomeExpenseChart data={data} months={window} />
-              <LineLegend items={[{ kind: 'actual', label: 'Netto' }]} />
-              <RowsGrid
-                rows={rows}
-                columns={window.map((m) => ({ key: m, label: monthShort(m, true) }))}
-                caption="Einnahmen und Ausgaben in Euro"
-                regionLabel="Einnahmen und Ausgaben, seitlich scrollbar"
-                average
-                cellLink={(row, column) => ({
-                  to: '/reports/einnahmen-ausgaben/buchungen',
-                  search: {
-                    zeitraum: period,
-                    gruppen,
-                    zelle: row.key,
-                    spalte: column === null ? 'summe' : window[column],
-                  },
-                })}
-                renderLabel={(r) =>
-                  r.key.startsWith('group:') ? (
-                    <button
-                      type="button"
-                      className="table-cell-open"
-                      aria-expanded={expanded.has(r.key.slice(6))}
-                      onClick={() =>
-                        void navigate({
-                          to: '.',
-                          search: ((old: Record<string, unknown>) => ({
-                            ...old,
-                            gruppen: expanded.has(r.key.slice(6))
-                              ? [...expanded].filter((id) => id !== r.key.slice(6))
-                              : [...expanded, r.key.slice(6)],
-                          })) as never,
-                          replace: true,
-                        })
-                      }
-                    >
-                      {expanded.has(r.key.slice(6)) ? '−' : '+'} {r.label}
-                    </button>
-                  ) : (
-                    r.label
-                  )
-                }
-              />
-              <p className="vnote">
-                Haushaltseinnahmen minus Bedarf, Wunsch, Zukunft und Ausgaben ohne Kategorie.
-                Kapitalerträge und Erstattungen ohne Kategorie stehen außerhalb der
-                Haushaltseinnahmen; kategorisierte Erstattungen mindern die Ausgaben. Kategorisierte
-                Zukunft-Umbuchungen zählen wie in der Gesamttabelle. Netto = Übrig nach Zukunft
-                minus Ohne Kategorie. Zuflüsse ohne Einkommensart werden nicht gezählt. Eine Zelle
-                öffnet ihre Buchungen; CSV enthält genau die sichtbaren Zeilen, Monate, Summe und Ø.
-                Der laufende Monat reicht bis heute.
-              </p>
-            </section>
-          ))
+          )
         }
       </TableReportFrame>
     </>
   );
 }
-function IncomeExpenseChart({ data, months }: { data: ReportTables; months: string[] }) {
+function IncomeExpenseChart({ data, months }: { data: IncomeExpenseReportData; months: string[] }) {
   useAmountPrivacy();
   const points = data.months.filter((m) => months.includes(m.month));
   const income = points.map((m) => monthHouseholdIncome(m, data));

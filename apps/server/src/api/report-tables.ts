@@ -19,6 +19,12 @@ export function reportTableRoutes(db: Db, today: () => string): Hono {
     const { netWorth } = readQuery(c, monthsQuery);
     return c.json(reportTables(db, { today: today(), withNetWorth: netWorth === '1' }));
   });
-  app.get('/income-expense', (c) => c.json(incomeExpenseReport(db, today())));
+  app.get('/income-expense', (c) => {
+    const { projectId } = readQuery(
+      c,
+      z.object({ projectId: z.string().min(1).max(64).optional() }),
+    );
+    return c.json(incomeExpenseReport(db, today(), projectId));
+  });
   return app;
 }
