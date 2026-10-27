@@ -359,7 +359,6 @@ function AccountBankInboxBody({ accountId, ...props }: InboxBodyProps & { accoun
       {...props}
       entries={pages.flatMap((page) => page.entries)}
       count={firstPage?.count}
-      bankProgress={firstPage?.bankProgress}
       totalEntries={firstPage?.totalEntries}
       countsByKind={firstPage?.countsByKind}
       countsByCause={firstPage?.countsByCause}
@@ -796,7 +795,7 @@ function InboxBodyContent({
               : undefined
         }
       />
-      {(accountScoped || segmentCounts?.shown === 'umsaetze' || search.bankSource) &&
+      {(segmentCounts?.shown === 'umsaetze' || search.bankSource) &&
         bankProgress &&
         bankProgress.total > 0 && (
           <div className="bank-review-progress">

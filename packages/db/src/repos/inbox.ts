@@ -249,7 +249,7 @@ export function readInbox(
         .all()
         .map(({ id, ...row }) => [id, row]),
     );
-    const progressCandidates = tx
+    const progressCandidates = options.bankAccountId ? [] : tx
       .select({
         id: bankSyncCandidate.id,
         accountId: bankSyncCandidate.accountId,
@@ -282,7 +282,7 @@ export function readInbox(
         .filter((id): id is string => typeof id === 'string'),
     );
     const openBookingIds = new Set(
-      tx
+      options.bankAccountId ? [] : tx
         .select({ id: booking.id })
         .from(booking)
         .innerJoin(account, eq(account.id, booking.accountId))
@@ -292,7 +292,7 @@ export function readInbox(
         .all()
         .map((row) => row.id),
     );
-    const progressBookings = tx
+    const progressBookings = options.bankAccountId ? [] : tx
       .select({
         id: booking.id,
         accountId: booking.accountId,
@@ -399,10 +399,7 @@ export function readInbox(
       bankSource || readSource || options.bankAccountId ? [] : accountReminders(tx, today);
     return {
       asOf: today,
-      bankProgress: {
-        reviewed,
-        total: reviewed + open,
-      },
+      ...(options.bankAccountId ? {} : { bankProgress: { reviewed, total: reviewed + open } }),
       accountReminders: reminders,
       unlinkedReceiptCount:
         bankSource || readSource || options.bankAccountId ? 0 : unlinkedReceipts.length,

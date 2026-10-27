@@ -123,6 +123,7 @@ const state = () => ({
 });
 const scoped = (bankAccountId: string) =>
   readInbox(opened.db, DAY, undefined, undefined, { bankAccountId });
+const globalProgress = () => readInbox(opened.db, DAY).bankProgress;
 
 it('filters unresolved candidates by real account identity, with no balance, booking or audit write', () => {
   const before = state();
@@ -150,12 +151,10 @@ it('filters unresolved candidates by real account identity, with no balance, boo
     },
   ]);
   expect(first.readSourceSummaries).toEqual([]);
-  expect(first.bankProgress).toEqual({ reviewed: 1, total: 3 });
   expect(scoped(B).entries.map((entry) => entry.id)).toEqual(['b-one']);
   expect(scoped(B).count).toBe(1);
   expect(scoped(MISSING)).toEqual({
     asOf: DAY,
-    bankProgress: { reviewed: 0, total: 0 },
     count: 0,
     entries: [],
     readSourceSummaries: [],
@@ -182,12 +181,12 @@ it('filters unresolved candidates by real account identity, with no balance, boo
 it('keeps the existing explicit dismissal and audited Undo path, without booking a candidate', () => {
   const before = state();
   const resolved = resolveInboxItem(opened.db, 'a-one', { actor: 'synthetic-724' });
-  expect(scoped(A).bankProgress).toEqual({ reviewed: 2, total: 3 });
+  expect(globalProgress()).toEqual({ reviewed: 2, total: 4 });
   expect(scoped(A).entries.map((entry) => entry.id)).toEqual(['a-two']);
   expect(scoped(A).count).toBe(1);
   expect(scoped(B).entries.map((entry) => entry.id)).toEqual(['b-one']);
   undo(opened.db, { groupId: resolved.groupId }, { actor: 'synthetic-724' });
-  expect(scoped(A).bankProgress).toEqual({ reviewed: 1, total: 3 });
+  expect(globalProgress()).toEqual({ reviewed: 1, total: 4 });
   expect(scoped(A).entries.map((entry) => entry.id)).toEqual(['a-one', 'a-two']);
   expect(state().bookings).toEqual(before.bookings);
   expect(state().splits).toEqual(before.splits);
@@ -310,7 +309,7 @@ it('counts the canonical booking task regardless of status and excludes foreign-
       .run();
   }
   const before = state();
-  expect(scoped(A).bankProgress).toEqual({ reviewed: 2, total: 6 });
+  expect(globalProgress()).toEqual({ reviewed: 2, total: 7 });
   expect(state()).toEqual(before);
 });
 
@@ -322,11 +321,11 @@ it('counts a direct link to a classified existing booking, then restores progres
     splits: [{ amountCents: -1201, categoryId: 'category-562' }],
   }, { actor: 'synthetic-562' });
   opened.db.update(booking).set({ source: 'migration', importKey: 'ynab:synthetic-562' }).where(eq(booking.id, target)).run();
-  expect(scoped(A).bankProgress).toEqual({ reviewed: 1, total: 3 });
+  expect(globalProgress()).toEqual({ reviewed: 1, total: 4 });
   const linked = mergeBankCandidate(opened.db, 'a-one', target, { actor: 'synthetic-562' }, DAY + 'T10:00:00Z');
-  expect(scoped(A).bankProgress).toEqual({ reviewed: 2, total: 3 });
+  expect(globalProgress()).toEqual({ reviewed: 2, total: 4 });
   undo(opened.db, { groupId: linked.groupId }, { actor: 'synthetic-562' });
-  expect(scoped(A).bankProgress).toEqual({ reviewed: 1, total: 3 });
+  expect(globalProgress()).toEqual({ reviewed: 1, total: 4 });
 });
 
 it('labels one transfer distinctly and a manual rule as requiring selection in the dialog', () => {
