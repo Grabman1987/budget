@@ -16,15 +16,27 @@ async function expectSelectedPhoneControl(control: Locator) {
     const selection = document.querySelector('.kselection-bar')!.getBoundingClientRect();
     scrollBy({ top: bounds.top + bounds.height / 2 - selection.top / 2, behavior: 'instant' });
   });
-  await expect.poll(() => control.evaluate((el) => {
-    const bounds = el.getBoundingClientRect();
-    const selection = document.querySelector('.kselection-bar')!.getBoundingClientRect();
-    const target = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
-    return bounds.left >= 0 && bounds.right <= innerWidth && bounds.top >= 0
-      && bounds.bottom <= Math.min(innerHeight, selection.top)
-      && bounds.width >= 44 && bounds.height >= 44
-      && (target === el || (target !== null && el.contains(target)));
-  })).toBe(true);
+  await expect
+    .poll(() =>
+      control.evaluate((el) => {
+        const bounds = el.getBoundingClientRect();
+        const selection = document.querySelector('.kselection-bar')!.getBoundingClientRect();
+        const target = document.elementFromPoint(
+          bounds.left + bounds.width / 2,
+          bounds.top + bounds.height / 2,
+        );
+        return (
+          bounds.left >= 0 &&
+          bounds.right <= innerWidth &&
+          bounds.top >= 0 &&
+          bounds.bottom <= Math.min(innerHeight, selection.top) &&
+          bounds.width >= 44 &&
+          bounds.height >= 44 &&
+          (target === el || (target !== null && el.contains(target)))
+        );
+      }),
+    )
+    .toBe(true);
 }
 
 async function openBookings(page: Page) {
@@ -99,14 +111,21 @@ test.describe('checkbox appearance', () => {
     if (hasTouch) {
       const bar = page.getByRole('group', { name: 'Auswahl bearbeiten', exact: true });
       await expect(bar).toHaveAttribute('aria-busy', 'false');
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
       for (const theme of ['light', 'dark'] as const) {
         await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
-        await expectSelectedPhoneControl(page.getByRole('button', { name: 'Auswahl beenden', exact: true }));
+        await expectSelectedPhoneControl(
+          page.getByRole('button', { name: 'Auswahl beenden', exact: true }),
+        );
         const csv = page.locator('.kregister-actions > summary');
         await expectSelectedPhoneControl(csv);
         await csv.tap();
-        const download = page.getByRole('link', { name: 'Aktuellen Filter als CSV exportieren', exact: true });
+        const download = page.getByRole('link', {
+          name: 'Aktuellen Filter als CSV exportieren',
+          exact: true,
+        });
         await expect(download).toBeVisible();
         await expectSelectedPhoneControl(download);
         await expectSelectedPhoneControl(csv);
@@ -121,14 +140,25 @@ test.describe('checkbox appearance', () => {
         const bottom = Math.min(selection.top, tabs?.top ?? innerHeight);
         scrollBy({ top: bounds.top + bounds.height / 2 - bottom / 2, behavior: 'instant' });
       });
-      await expect.poll(() => checkbox.evaluate((el) => {
-        const bounds = el.getBoundingClientRect();
-        const selection = document.querySelector('.kselection-bar')!.getBoundingClientRect();
-        const tabs = document.querySelector('.tabbar')?.getBoundingClientRect();
-        return bounds.top >= 0 && bounds.bottom <= Math.min(selection.top, tabs?.top ?? innerHeight)
-          && bounds.left >= 0 && bounds.right <= innerWidth
-          && document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2) === el;
-      })).toBe(true);
+      await expect
+        .poll(() =>
+          checkbox.evaluate((el) => {
+            const bounds = el.getBoundingClientRect();
+            const selection = document.querySelector('.kselection-bar')!.getBoundingClientRect();
+            const tabs = document.querySelector('.tabbar')?.getBoundingClientRect();
+            return (
+              bounds.top >= 0 &&
+              bounds.bottom <= Math.min(selection.top, tabs?.top ?? innerHeight) &&
+              bounds.left >= 0 &&
+              bounds.right <= innerWidth &&
+              document.elementFromPoint(
+                bounds.left + bounds.width / 2,
+                bounds.top + bounds.height / 2,
+              ) === el
+            );
+          }),
+        )
+        .toBe(true);
     }
     if (hasTouch) await checkbox.tap();
     else await checkbox.click();
