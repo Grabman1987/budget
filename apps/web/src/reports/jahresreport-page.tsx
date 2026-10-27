@@ -392,7 +392,9 @@ function SharesBar({ report }: { report: YearReport }) {
       <ul className="ov-shares">
         {parts.map((p) => (
           <li key={p.key}>
-            <ClassSwatch kind={p.key} />
+            <span className="ov-share-mark">
+              <ClassSwatch kind={p.key} />
+            </span>
             <span>
               <Term>{p.label}</Term>
             </span>

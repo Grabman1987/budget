@@ -196,10 +196,14 @@
 }
 .ov-shares li {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   font-size: var(--fs-body);
+}
+.ov-share-mark {
+  display: inline-flex;
+  align-items: center;
 }
 .ov-shares strong {
   font-variant-numeric: tabular-nums;
