@@ -58,6 +58,15 @@ test('554 signed group pilot has exact lead/category/Explorer/drill totals and c
   } finally {
     opened.close();
   }
+  const setPrivacy = async (hidden: boolean) => {
+    const profile = page.locator('.m-profile > summary');
+    if (info.project.name !== 'desktop') await profile.click();
+    const privacy = page.getByRole('button', { name: 'Beträge verbergen', exact: true });
+    await expect(privacy).toHaveAttribute('aria-pressed', String(!hidden));
+    await privacy.click();
+    await expect(privacy).toHaveAttribute('aria-pressed', String(hidden));
+    if (info.project.name !== 'desktop') await profile.click();
+  };
   await page.goto('/reports/ausgaben?zeitraum=1M');
   await expect(page.getByTestId('sa-consumption')).toHaveText('22,45 €');
   await expect(page.getByTestId('report-answer')).toContainText(
@@ -128,11 +137,13 @@ test('554 signed group pilot has exact lead/category/Explorer/drill totals and c
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     page.viewportSize()!.width,
   );
-  await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
+  await setPrivacy(true);
   await expect(page.getByTestId('sa-consumption')).toHaveText('••• €');
   await expect(page.getByTestId('report-answer')).not.toContainText('22,45');
   await expect(page.locator('[data-group="g"] > .sa-row > .sa-amount')).toHaveText('••• €');
-  await page.getByRole('button', { name: 'Beträge zeigen', exact: true }).click();
+  await setPrivacy(false);
+  await expect(page.getByTestId('sa-consumption')).toHaveText('22,45 €');
+  await expect(page.locator('[data-group="g"] > .sa-row > .sa-amount')).toHaveText('28,00 €');
   await page.locator('[data-group="g"] > .sa-row > .sa-amount').click();
   await expect(page).toHaveURL(/kategoriegruppe=g/);
   await expect(page.locator('p.ksum')).toContainText('Gruppe netto 28,00 €');
