@@ -33,21 +33,50 @@ test('Heute keeps its device fold choice and the primary order, net worth matche
   const fold = page.getByRole('button', { name: 'Mehr zum Monat' });
   const initiallyOpen = info.project.name === 'desktop';
   await expect(fold).toHaveAttribute('aria-expanded', String(initiallyOpen));
+  const selectors = [
+    '.heute-answers',
+    '.heute-lead',
+    '.heute-overview-charts',
+    '.heute-pace',
+    '.heute-compact-forecast',
+    '.heute-wealth-line',
+    '.heute-attention',
+    '#heute-upcoming-title',
+    '#heute-bookings-title',
+    '.heute-more',
+  ];
+  expect(
+    await page.locator(selectors.join(',')).evaluateAll(
+      (elements, order) =>
+        elements.map((element) => order.find((selector) => element.matches(selector))),
+      selectors,
+    ),
+  ).toEqual(selectors);
   const boxes = await Promise.all(
-    [
-      '.heute-answers',
-      '.heute-lead',
-      '.heute-pace',
-      '.heute-compact-forecast',
-      '.heute-wealth-line',
-      '.heute-attention',
-      '#heute-upcoming-title',
-      '#heute-bookings-title',
-      '.heute-more',
-    ].map((selector) => page.locator(selector).boundingBox()),
+    selectors.map((selector) => page.locator(selector).boundingBox()),
   );
   expect(boxes.every((box) => box !== null)).toBe(true);
-  for (let i = 1; i < boxes.length; i++) expect(boxes[i]!.y).toBeGreaterThan(boxes[i - 1]!.y);
+  if (info.project.name === 'desktop') {
+    const [answers, lead, overview, pace, forecast, wealth, attention] = boxes.map((box) => box!);
+    expect(lead!.y).toBeGreaterThanOrEqual(answers!.y + answers!.height);
+    expect(overview!.y).toBeGreaterThanOrEqual(lead!.y + lead!.height);
+    expect(pace!.x + pace!.width).toBeLessThanOrEqual(forecast!.x);
+    expect(forecast!.y).toBe(pace!.y);
+    expect(wealth!.x).toBe(forecast!.x);
+    expect(pace!.x + pace!.width).toBeLessThanOrEqual(wealth!.x);
+    expect(wealth!.y).toBeGreaterThanOrEqual(forecast!.y + forecast!.height);
+    for (const chart of [pace!, forecast!, wealth!]) {
+      expect(chart.y).toBeGreaterThanOrEqual(overview!.y);
+      expect(chart.y + chart.height).toBeLessThanOrEqual(overview!.y + overview!.height);
+    }
+    expect(attention!.y).toBeGreaterThanOrEqual(overview!.y + overview!.height);
+    for (let i = 7; i < boxes.length; i++) expect(boxes[i]!.y).toBeGreaterThan(boxes[i - 1]!.y);
+  } else {
+    // The overview wrapper shares the first chart's top; all primary phone sections stay stacked.
+    const stacked = boxes.filter((_, index) => index !== 2);
+    for (let i = 1; i < stacked.length; i++)
+      expect(stacked[i]!.y).toBeGreaterThan(stacked[i - 1]!.y);
+  }
   const today: Heute = await (await page.request.get('/api/heute')).json();
   const wealth = await (await page.request.get('/api/wealth/networth?period=1J')).json();
   if ('unavailable' in today.netWorth) throw new Error('Synthetic net worth unavailable');

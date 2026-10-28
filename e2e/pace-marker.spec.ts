@@ -19,13 +19,15 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
       expect(
         await page
           .locator('.heute-lead')
-          .evaluate(
-            (el) =>
-              el.nextElementSibling?.classList.contains('heute-pace') &&
-              el.nextElementSibling.nextElementSibling?.classList.contains(
-                'heute-compact-forecast',
-              ),
-          ),
+          .evaluate((el) => {
+            const overview = el.nextElementSibling;
+            return (
+              overview?.classList.contains('heute-overview-charts') &&
+              overview.children[0]?.classList.contains('heute-pace') &&
+              overview.children[1]?.classList.contains('heute-compact-forecast') &&
+              overview.children[2]?.classList.contains('heute-wealth-line')
+            );
+          }),
       ).toBe(true);
       await expect(page.getByTestId('liquidity-chart')).toBeVisible();
     }
