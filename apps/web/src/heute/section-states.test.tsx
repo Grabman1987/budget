@@ -8,7 +8,7 @@ import { ToastProvider, setAmountsHidden } from '@budget/ui';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createLedgerApi } from '../../../server/src/api';
 import { HeutePage } from './heute-page';
-import { HEUTE_KEY, type Heute } from './api';
+import { HEUTE_KEY, heuteQuery, type Heute } from './api';
 import { budgetQuery } from '../budget/budget-api';
 import { liquidityQuery } from '../reports/liquidity-api';
 import { savingsProposalsQuery } from '../wealth/savings-api';
@@ -191,8 +191,9 @@ it('keeps a savings disclosure in its existing remaining-task owner when the agg
   mount();
   await screen.findByTestId('heute-wealth-history');
   await ready();
-  const query = client.getQueryCache().find({ queryKey: HEUTE_KEY })!;
-  act(() => client.setQueryData<Heute>(query.queryKey, (data) => ({
+  const query = client.getQueryCache().find({ queryKey: heuteQuery('2026-09', 'month').queryKey });
+  expect(query).toBeDefined();
+  act(() => client.setQueryData<Heute>(query!.queryKey, (data) => ({
     ...data!,
     attention: { ...data!.attention, monthCloseTasks: {
       tasks: ['2026-05', '2026-06', '2026-07', '2026-08'].map((month) => ({

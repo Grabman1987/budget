@@ -229,7 +229,7 @@ function AttentionRow({
 }
 
 /** Ordinary funding work stays available below the fold, in ink. */
-export function FundingNotes({ data, requestMonth }: { data: Heute | undefined; requestMonth?: string }) {
+export function FundingNotes({ data, requestMonth }: { data: Heute | undefined; requestMonth?: string | undefined }) {
   const month = data?.stand.today.slice(0, 7) ?? requestMonth;
   // The empty key is disabled: no server month is guessed before the first verified context.
   const budget = useQuery({ ...budgetQuery(month ?? ''), enabled: !!month });

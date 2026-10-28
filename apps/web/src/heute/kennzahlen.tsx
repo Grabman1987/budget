@@ -248,7 +248,7 @@ function Kennzahl({
   expanded?: boolean;
   controls?: string;
   testId?: string;
-  ariaLabel?: string;
+  ariaLabel?: string | undefined;
   /** The source query of a tile that waits for its own data (errors stay in that tile). */
   state?: UseQueryResult<unknown>;
   bar?: BarSpec | undefined;
