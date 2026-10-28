@@ -71,7 +71,7 @@ function mount(mode: 'valid' | 'duplicate' | 'mixed' | 'missing' | 'foreign' = '
 
 it.each(['duplicate', 'missing', 'foreign'] as const)('withholds unproven %s source money on the actual Plan list', async (mode) => {
   const { container, opened } = mount(mode);
-  await screen.findByRole('link', { name: 'Reiseziel A', exact: true });
+  await screen.findByRole('link', { name: 'Reiseziel A' });
   const rows = container.querySelectorAll('[data-goal-unknown]');
   expect(rows).toHaveLength(mode === 'duplicate' ? 2 : 1);
   expect(container.querySelector('.goals-summary')?.textContent).toContain('Keine eindeutig belegten Zielstände');
@@ -79,15 +79,15 @@ it.each(['duplicate', 'missing', 'foreign'] as const)('withholds unproven %s sou
   expect(container.querySelector('.ptable-wrap')?.textContent).not.toContain('1.700,00');
   expect(container.querySelector('.ptable-wrap')?.textContent).not.toContain('€');
   expect(container.querySelector('.goal-line, .pbar, .goal-future-projection')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Rate zuweisen', exact: true })).toBeNull();
-  expect(screen.getByRole('link', { name: 'Reiseziel A', exact: true }).getAttribute('href')).toMatch(/^\/plan\/sparziele\/.*\?monat=2026-09$/);
+  expect(screen.queryByRole('button', { name: 'Rate zuweisen' })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Reiseziel A' }).getAttribute('href')).toMatch(/^\/plan\/sparziele\/.*\?monat=2026-09$/);
   expect(rows[0]?.textContent).toContain(mode === 'duplicate' ? 'Mehrere Sparziele' : mode === 'missing' ? 'fehlt oder wurde gelöscht' : 'nicht als EUR belegt');
   expect(opened.db.select().from(schema.savingsGoal).all()).toHaveLength(mode === 'duplicate' ? 2 : 1);
 });
 
 it('counts only a proven source in mixed list totals while retaining both uncertain goals', async () => {
   const { container } = mount('mixed');
-  await screen.findByRole('link', { name: 'Belegtes Ziel', exact: true });
+  await screen.findByRole('link', { name: 'Belegtes Ziel' });
   expect(container.querySelectorAll('[data-goal-unknown]')).toHaveLength(2);
   expect(screen.getByTestId('goals-summary').textContent).toBe('1 von 1 im Plan · 2 ungeklärt');
   expect(container.querySelector('.pgroup .col-saved')?.textContent).toBe('100,00 €');
@@ -98,15 +98,15 @@ it('counts only a proven source in mixed list totals while retaining both uncert
 it('retains a real goal editor draft while required metadata refresh, failure and retry hide cached money', async () => {
   const { container, client, block, settle } = mount();
   await waitFor(() => expect(container.querySelector('.col-saved')?.textContent).toContain('850,00'));
-  const create = screen.getByRole('button', { name: 'Neues Sparziel', exact: true });
+  const create = screen.getByRole('button', { name: 'Neues Sparziel' });
   fireEvent.click(create);
-  const input = screen.getByRole('textbox', { name: 'Name', exact: true });
+  const input = screen.getByRole('textbox', { name: 'Name' });
   fireEvent.change(input, { target: { value: 'Entwurf bleibt' } });
   block();
   act(() => { void client.invalidateQueries({ queryKey: goalsProgressReportQuery('2026-09').queryKey }); });
   await waitFor(() => expect(container.querySelector('.ptable-wrap')).toBeNull());
   expect(screen.queryByTestId('goals-summary')).toBeNull();
-  expect(screen.getByRole('textbox', { name: 'Name', exact: true })).toBe(input);
+  expect(screen.getByRole('textbox', { name: 'Name' })).toBe(input);
   expect((input as HTMLInputElement).value).toBe('Entwurf bleibt');
   await act(async () => { settle(new Response(JSON.stringify({ error: 'unavailable' }), { status: 503 })); });
   await screen.findByRole('alert');
@@ -115,6 +115,6 @@ it('retains a real goal editor draft while required metadata refresh, failure an
   // A metadata retry can complete while the real modal stays open; no background click is invented.
   await act(async () => { await client.refetchQueries({ queryKey: goalsProgressReportQuery('2026-09').queryKey }); });
   await waitFor(() => expect(container.querySelector('.col-saved')?.textContent).toContain('850,00'));
-  expect(screen.getByRole('textbox', { name: 'Name', exact: true })).toBe(input);
+  expect(screen.getByRole('textbox', { name: 'Name' })).toBe(input);
   expect((input as HTMLInputElement).value).toBe('Entwurf bleibt');
 });

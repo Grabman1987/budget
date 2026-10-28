@@ -54,7 +54,7 @@ it('retains literal twelve-month renderer amounts independently of the retired r
   expect(totals[2]?.textContent).toBe('120,00');
   expect(totals[4]?.textContent).toBe('420,00');
   expect(totals[totals.length - 1]?.textContent).toBe('1.700,00');
-  const region = screen.getByRole('region', { name: 'Zahlungskalender, seitlich scrollbar', exact: true });
+  const region = screen.getByRole('region', { name: 'Zahlungskalender, seitlich scrollbar' });
   region.focus();
   expect(document.activeElement).toBe(region);
   expect(container.querySelector('.preview-events')?.textContent).toContain('Erwartet · projiziert');
@@ -90,7 +90,7 @@ it('retains native ranges, booked currency uncertainty, exact large cents and er
     expect(init?.method).toBe('GET');
     return new Response(JSON.stringify(paymentsPreview('2026-10-02', [], [])));
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
   await waitFor(() => expect(screen.getByTestId('preview-total').textContent).toBe('0,00 €'));
   expect(screen.getByText('Keine gespeicherten erwarteten Auszahlungen in diesen zwölf Monaten.')).toBeDefined();
 });

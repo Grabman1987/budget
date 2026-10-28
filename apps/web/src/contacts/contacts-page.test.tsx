@@ -178,7 +178,7 @@ it.each(['list', 'statement'])('withholds cached %s money during refresh, failur
     await act(async () => { release(new Response(JSON.stringify({ error: 'booking_invariant', message: 'Contact statements require EUR movements' }), { status: 422 })); });
     await screen.findByRole('alert');
     expect(screen.queryAllByText(/100,01/)).toHaveLength(0);
-    fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
     expect(screen.queryAllByText(/100,01/)).toHaveLength(0);
     await act(async () => { release(new Response(JSON.stringify(data))); });
     await waitFor(() => expect(screen.getAllByText(/100,01/).length).toBeGreaterThan(0));

@@ -114,10 +114,17 @@ it('withholds cached goal/source figures through pending metadata, failure, retr
   expect(screen.queryByTestId('goal-report-summary')).toBeNull();
   expect(container.querySelector('.goal-report-bar')).toBeNull();
   fetcher.mockImplementation(original);
-  fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
   await waitFor(() => expect(screen.getByTestId('goal-report-summary').textContent).toBe('1 von 1 im Plan · geprüfte Ziele'));
-  fetcher.mockImplementation((path, init) => path === '/api/goals' ? Promise.resolve(new Response(JSON.stringify({ month: '2026-09', goals: [] }))) : original(path, init));
+  let emptyReads = 0;
+  fetcher.mockImplementation((path, init) => {
+    if (path !== '/api/goals') return original(path, init);
+    emptyReads++;
+    return Promise.resolve(new Response(JSON.stringify({ month: '2026-09', goals: [] })));
+  });
   await act(async () => { await client.invalidateQueries({ queryKey: goalsProgressReportQuery().queryKey }); });
-  expect(screen.getByText('Noch keine gespeicherten Sparziele.', { exact: false })).toBeDefined();
+  await screen.findByText('Noch keine gespeicherten Sparziele.', { exact: false });
+  expect(emptyReads).toBe(1);
+  expect(client.getQueryData(goalsProgressReportQuery().queryKey)?.goals).toEqual([]);
   expect(container.querySelector('.goals-report-table')).toBeNull();
 });

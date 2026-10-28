@@ -192,7 +192,7 @@ function mount(search = '', templateFacts = facts) {
 
 describe('625 fixed templates beside retained custom views', () => {
   it('remounts the all-history disclosure closed after a template switch or source refresh without a hidden read', async () => {
-    const legacy: ReportTables = { ...facts, payees: {}, targets: { savingsRateBp: 2000, moneyAgeDays: 30 }, netWorth: 'unavailable' };
+    const legacy: ReportTables = { ...facts, categories: [...facts.categories], incomeTypes: [...facts.incomeTypes], payees: {}, targets: { savingsRateBp: 2000, moneyAgeDays: 30 }, netWorth: 'unavailable' };
     const reads: string[] = [];
     let release!: (response: Response) => void;
     vi.stubGlobal('fetch', vi.fn((path: string) => {
@@ -206,9 +206,9 @@ describe('625 fixed templates beside retained custom views', () => {
     await screen.findByTestId('template-total');
     fireEvent.click(summary());
     await screen.findByTestId('csv-download');
-    fireEvent.click(screen.getByRole('button', { name: 'Jahresansicht', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Jahresansicht' }));
     await screen.findByTestId('template-year');
-    fireEvent.click(screen.getByRole('button', { name: 'Gesamttabelle', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gesamttabelle' }));
     await screen.findByTestId('template-total');
     expect(summary().closest('details')!.open).toBe(false);
     expect(screen.queryByTestId('csv-download')).toBeNull();
@@ -226,7 +226,7 @@ describe('625 fixed templates beside retained custom views', () => {
 
   it('retains all-history net worth and its exact CSV only after opening the total disclosure, withholding stale values', async () => {
     const legacy: ReportTables = {
-      ...facts, payees: {}, targets: { savingsRateBp: 2000, moneyAgeDays: 30 }, netWorth: 'ok',
+      ...facts, categories: [...facts.categories], incomeTypes: [...facts.incomeTypes], payees: {}, targets: { savingsRateBp: 2000, moneyAgeDays: 30 }, netWorth: 'ok',
       months: [
         { ...facts.months[0]!, netWorthCents: 123456 },
         { ...facts.months[1]!, netWorthCents: 234567 },
@@ -271,7 +271,7 @@ describe('625 fixed templates beside retained custom views', () => {
     await screen.findByRole('alert');
     expect(document.querySelector('table.rg-all')).toBeNull();
     expect(screen.queryByTestId('csv-download')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
     await act(async () => { resolve(new Response(JSON.stringify({ ...legacy, netWorth: 'unavailable', months: legacy.months.map((month) => ({ ...month, netWorthCents: null })) }))); });
     await screen.findByTestId('csv-download');
     expect(screen.getByText('Das Nettovermögen am Monatsende ist nicht verfügbar:', { exact: false })).toBeDefined();
