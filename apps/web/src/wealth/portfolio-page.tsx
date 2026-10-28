@@ -29,6 +29,7 @@ import { TradePanel } from './trade-panel';
 import './portfolio.css';
 import { PortfolioAllocation } from './allocation-section';
 import { PortfolioOverview } from './portfolio-overview';
+import { PortfolioClassHistories } from './portfolio-class-histories';
 import { PortfolioMetrics } from './portfolio-metrics';
 import {
   PortfolioRegisters,
@@ -144,6 +145,9 @@ export function PortfolioPage({ register = 'overview' }: { register?: PortfolioR
         {register === 'overview' && (
           <>
             <PortfolioOverview />
+            {performance.isSuccess && performance.data.portfolio.performanceHistory && (
+              <PortfolioClassHistories history={performance.data.portfolio.performanceHistory} />
+            )}
             <div className="instrument-actions">
               <Button variant="ghost" onClick={() => select('neu')}>
                 Instrument anlegen
