@@ -200,6 +200,9 @@ test('622 fixed-period payee cents, refund/detail and filters survive canonical 
       .click();
     await expect(page.getByTestId('payee-total')).toHaveText('295,00 €');
     expect(new URL(page.url()).searchParams.get('empfaenger')).toBeNull();
+    if (info.project.name === 'desktop') {
+      expect((await page.locator('.titleblock').first().boundingBox())!.height).toBe(64);
+    }
   }
 });
 
