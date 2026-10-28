@@ -118,6 +118,7 @@ export function ContactsPage() {
       });
   }, [search.kontakt, history, navigate]);
   const [creating, setCreating] = useState(false);
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   const [writeOff, setWriteOff] = useState<ContactRow | null>(null);
   const contacts = useQuery({
     queryKey: [...LEDGER_KEY, 'contacts', history],
@@ -184,7 +185,7 @@ export function ContactsPage() {
                         >
                           {c.name}
                         </AppLink>
-                        <ContactRename contact={c} />
+                        <ContactRename contact={c} onOpen={() => setRenaming(c)} />
                       </td>
                       <td className="num">
                         <AppLink
@@ -221,33 +222,36 @@ export function ContactsPage() {
           )}
         </FormDialog>
         {writeOff && <ContactWriteOffDialog contact={writeOff} onClose={() => setWriteOff(null)} />}
+        <ContactRenameDialog contact={renaming} onClose={() => setRenaming(null)} />
       </div>
     </PageFrame>
   );
 }
 
-function ContactRename({ contact }: { contact: { id: string; name: string } }) {
-  const [open, setOpen] = useState(false);
+function ContactRename({ contact, onOpen }: { contact: { id: string; name: string }; onOpen: () => void }) {
   return (
-    <>
       <button
         type="button"
         className="icon-btn contact-rename"
         aria-label={`${contact.name} umbenennen`}
-        onClick={() => setOpen(true)}
+        onClick={onOpen}
       >
         <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
       </button>
-      <FormDialog open={open} onClose={() => setOpen(false)} title="Kontakt umbenennen">
-        {open && (
+  );
+}
+
+function ContactRenameDialog({ contact, onClose }: { contact: { id: string; name: string } | null; onClose: () => void }) {
+  return (
+      <FormDialog open={contact !== null} onClose={onClose} title="Kontakt umbenennen">
+        {contact && (
           <NewContact
             contact={contact}
-            onClose={() => setOpen(false)}
-            onDone={() => setOpen(false)}
+            onClose={onClose}
+            onDone={onClose}
           />
         )}
       </FormDialog>
-    </>
   );
 }
 
@@ -354,15 +358,16 @@ export function ContactStatementPage() {
             onRetry={() => void statement.refetch()}
           />
         )}
-        {statement.data && !statement.isFetching && !statement.isError && (
-          <ContactBody key={id} statement={statement.data} />
+        {/* A read refresh hides statement figures, but must not discard an open editor/draft. */}
+        {statement.data && (
+          <ContactBody key={id} statement={statement.data} ready={!statement.isFetching && !statement.isError} />
         )}
       </section>
     </PageFrame>
   );
 }
 
-function ContactBody({ statement }: { statement: Statement }) {
+function ContactBody({ statement, ready }: { statement: Statement; ready: boolean }) {
   useAmountPrivacy();
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -371,6 +376,7 @@ function ContactBody({ statement }: { statement: Statement }) {
   const [receipt, setReceipt] = useState(false);
   const [writeOff, setWriteOff] = useState(false);
   const [info, setInfo] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const noteId = useId();
   const [sourceOpening, setSourceOpening] = useState<ContactSourceOpening | null>(null);
   const sourceGeneration = useRef(0);
@@ -407,8 +413,9 @@ function ContactBody({ statement }: { statement: Statement }) {
         <h2 ref={heading} tabIndex={-1}>
           {statement.contact.name}
         </h2>
-        <ContactRename contact={statement.contact} />
+        <ContactRename contact={statement.contact} onOpen={() => setRenaming(true)} />
       </div>
+      {ready && <>
       <p className={`contacts-balance is-${balance.tone}`}>
         <span className="contacts-balance-words">{balance.words}</span>{' '}
         <span className="contacts-balance-amount">{balance.amount}</span>
@@ -437,6 +444,7 @@ function ContactBody({ statement }: { statement: Statement }) {
           erlässt eine Forderung als Ausgabe, ohne Geldbewegung.
         </p>
       )}
+      </>}
       {receipt && <ReceiptForm statement={statement} onDone={() => setReceipt(false)} />}
       {writeOff && (
         <ContactWriteOffDialog
@@ -444,6 +452,7 @@ function ContactBody({ statement }: { statement: Statement }) {
           onClose={() => setWriteOff(false)}
         />
       )}
+      {ready && <>
       {currentMonthMovements.length === 0 ? (
         <>
           <h3>{monthTitle}</h3>
@@ -500,6 +509,8 @@ function ContactBody({ statement }: { statement: Statement }) {
           />
         </details>
       )}
+      </>}
+      <ContactRenameDialog contact={renaming ? statement.contact : null} onClose={() => setRenaming(false)} />
       <ContactBookingSource opening={sourceOpening} onClose={() => setSourceOpening(null)} />
     </div>
   );
