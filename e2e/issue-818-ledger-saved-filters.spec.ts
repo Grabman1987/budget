@@ -163,3 +163,49 @@ test('explicit replace and rename preserve identity, and deleting a view has pre
     await expect(manager).toBeHidden();
   }
 });
+
+test('a real background refresh cannot rebase an open rename draft onto another client revision', async ({ page, browser, isolatedLedger }) => {
+  const origin = isolatedLedger.origin;
+  const state = await page.request.get(`${origin}/api/bookings/saved-views`);
+  expect(state.status()).toBe(200);
+  const originalSearch = { konto: 'original-account', q: 'Original criteria', status: 'pending' };
+  const saved = await page.request.post(`${origin}/api/bookings/saved-views`, { headers: { origin }, data: {
+    kind: 'save', revision: (await state.json()).revision, view: { name: 'Concurrent view', search: originalSearch },
+  } });
+  expect(saved.status()).toBe(200);
+  const initial = await saved.json() as { revision: string; views: Array<{ id: string }> };
+  const id = initial.views[0]!.id;
+  await page.goto('/konten/buchungen?q=Different%20current%20URL');
+  await page.locator('.kregister-actions summary').click();
+  await page.getByRole('button', { name: 'Gespeicherte Ansichten', exact: true }).click();
+  const manager = page.getByRole('dialog', { name: 'Gespeicherte Filteransichten', exact: true });
+  await manager.getByRole('button', { name: 'Ansicht Concurrent view umbenennen', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Filteransicht speichern', exact: true });
+  await editor.getByLabel('Name', { exact: true }).fill('Local rename draft');
+  const other = await browser.newContext({ storageState: isolatedLedger.storageState, serviceWorkers: 'block' });
+  try {
+    const fresh = await other.request.get(`${origin}/api/bookings/saved-views`);
+    expect(fresh.status()).toBe(200);
+    expect((await fresh.json()).revision).toBe(initial.revision);
+    const concurrentSearch = { konto: 'concurrent-account', q: 'Concurrent criteria', markierung: 'blue' };
+    const changed = await other.request.post(`${origin}/api/bookings/saved-views`, { headers: { origin }, data: {
+      kind: 'save', revision: initial.revision, id, view: { name: 'Server rename', search: concurrentSearch },
+    } });
+    expect(changed.status()).toBe(200);
+    const current = await changed.json() as { revision: string };
+    expect(current.revision).not.toBe(initial.revision);
+    const refreshed = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/bookings/saved-views' && response.request().method() === 'GET' && response.status() === 200);
+    // The application subscribes to this real visibility/focus path with refetchOnWindowFocus: always.
+    await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+    expect((await (await refreshed).json()).revision).toBe(current.revision);
+    await expect(editor.getByLabel('Name', { exact: true })).toHaveValue('Local rename draft');
+    await expect(editor.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
+    const submitted = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/bookings/saved-views' && response.request().method() === 'POST');
+    await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
+    expect((await submitted).status()).toBe(409);
+    await expect(editor.getByRole('alert')).toContainText('Entwurf bleibt erhalten');
+    await expect(editor.getByLabel('Name', { exact: true })).toHaveValue('Local rename draft');
+    const preserved = await other.request.get(`${origin}/api/bookings/saved-views`);
+    expect((await preserved.json()).views).toEqual([{ id, name: 'Server rename', search: concurrentSearch }]);
+  } finally { await other.close(); }
+});
