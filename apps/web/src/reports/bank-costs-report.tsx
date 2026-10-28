@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import {
   AxisLine,
   ChartSvg,
@@ -26,15 +27,24 @@ const costsQuery = queryOptions({
   queryFn: () => request<BankCostsReport>('GET', '/api/reports/spending/costs'),
 });
 const COLORS = ['var(--line)', 'var(--want)', 'var(--future)', 'var(--ink-3)', 'var(--line-2)'];
-export function BankCostsReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function BankCostsReportPage({
+  report,
+  meta,
+  viewControl,
+}: {
+  report: ReportEntry;
+  meta: PageMeta;
+  viewControl?: ReactNode;
+}) {
   const query = useQuery(costsQuery);
   const data = !query.isFetching ? query.data : undefined;
   return (
     <PageFrame
+      reportControls={viewControl}
       verdict={
         data && !query.isError
           ? {
-              reportId: report.id,
+              reportId: 'kosten',
               period: `${data.from}..${data.to}`,
               metric: {
                 label: 'Erfasste Kosten',
@@ -55,7 +65,7 @@ export function BankCostsReportPage({ report, meta }: { report: ReportEntry; met
       }
       reportStand={{ label: 'Konditionen am', value: data?.asOf ? longDay(data.asOf) : 'heute' }}
     >
-      <div className="kview sr" data-testid="bank-costs-report">
+      <div className="kview sr bank-costs-report" data-testid="bank-costs-report">
         <ReportQuery query={query} what="Bank- und Zinskosten">
           {(d) => <Body data={d} />}
         </ReportQuery>
@@ -169,7 +179,7 @@ function Body({ data }: { data: BankCostsReport }) {
         <div className="sr-head">
           <h2 id="bc-kinds">Kosten nach Art</h2>
         </div>
-        <ScrollRegion label="Kosten nach Art">
+        <ScrollRegion label="Tabelle der Kostenarten">
           <table className="sr-table" data-testid="cost-kinds">
             <thead>
               <tr>
@@ -297,7 +307,7 @@ export function CreditLinesTable({ lines }: { lines: CreditLineRow[] }) {
         wird nicht zur erfassten Kostensumme addiert.
       </p>
       {lines.length ? (
-        <ScrollRegion label="Kredit- und Dispolinien">
+        <ScrollRegion label="Tabelle der Kredit- und Dispolinien">
           <table className="sr-table" data-testid="credit-lines">
             <thead>
               <tr>

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { AllocationBar } from './allocation-bar';
 import { chartShare } from '../charts/tooltip-data';
 import { ChartValue } from '@budget/ui';
@@ -32,9 +33,11 @@ const CLASS_NAME = { need: 'Bedarf', want: 'Wunsch', future: 'Zukunft' } as cons
 export function BudgetAdherenceReportPage({
   report,
   meta,
+  viewControl,
 }: {
   report: ReportEntry;
   meta: PageMeta;
+  viewControl?: ReactNode;
 }) {
   useAmountPrivacy();
   const [month, shift] = useMonth();
@@ -42,6 +45,7 @@ export function BudgetAdherenceReportPage({
   const data = query.data && !query.isFetching ? query.data : undefined;
   return (
     <PageFrame
+      reportControls={viewControl}
       verdict={
         data && !query.isError
           ? {
