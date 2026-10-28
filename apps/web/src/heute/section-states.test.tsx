@@ -141,6 +141,9 @@ it('keeps successful independent reads on initial aggregate failure without inve
   expect(screen.getByText('1 Sparplanausführung prüfen')).toBeTruthy();
   expect(document.querySelector('[data-kennzahl="nettovermoegen"]')).toBeNull();
   expect(screen.queryByTestId('heute-wealth-history')).toBeNull();
+  const lead = screen.getByRole('region', { name: 'Spielraum bis Gehalt' });
+  expect(lead.textContent).toContain('Tagesbudget: Heute-Abruf nicht verfügbar.');
+  expect(lead.textContent).not.toContain('wird geladen');
   failed = undefined;
   await userEvent.setup().click(screen.getByRole('button', { name: 'Erneut versuchen' }));
   await waitFor(() => expect(document.querySelector('[data-kennzahl="nettovermoegen"]')?.textContent).toBe('1.234,56 €'));

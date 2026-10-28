@@ -184,7 +184,7 @@ function HeuteBody({ data, read, period }: { data: Heute | undefined; read: UseQ
       </> : <section className="heute-lead heute-lead-state" aria-label="Spielraum bis Gehalt" aria-busy={pending || undefined}>
         <div className="heute-lead-head">
           <Button variant="ghost" size="sm" disabled>Herleitung zeigen</Button>
-          <div className="heute-daily-budget"><LoadingNote what="Tagesbudget" /></div>
+          <div className="heute-daily-budget"><SectionReadNote name="Tagesbudget" pending={pending} /></div>
         </div>
       </section>}
 
