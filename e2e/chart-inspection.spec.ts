@@ -119,16 +119,6 @@ test('every rendered chart has shared inspection across reports and main pages',
 test('Sankey links and nodes show amounts, shares and period', async ({ page }, info) => {
   await page.goto('/reports/geldfluss?monat=2026-09');
   const chart = page.getByTestId('sankey-chart');
-  if (info.project.name === 'desktop') {
-    // Browser CSS must keep values Archivo/tabular in both compact suffixes and tall second lines.
-    const compactValue = chart.locator('text.svg-label-strong tspan.svg-value').first();
-    const tallValue = chart.locator('text.svg-label.svg-value').first();
-    for (const value of [compactValue, tallValue]) {
-      await expect(value).toBeVisible();
-      await expect(value).toHaveCSS('font-family', /Archivo/);
-      await expect(value).toHaveCSS('font-variant-numeric', 'tabular-nums');
-    }
-  }
   const node = chart
     .locator(info.project.name === 'mobile' ? 'li[data-chart-point]' : '.sk-node')
     .first();

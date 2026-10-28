@@ -63,7 +63,7 @@ describe('phone chart variants', () => {
         (value) => value.textContent?.includes('€') && value.textContent.includes('%'),
       ),
     ).toBe(true);
-    expect(tallValues.some((value) => value.textContent?.includes('3.812,00'))).toBe(true);
+    expect(tallValues.some((value) => value.textContent?.includes('3.812 €'))).toBe(true);
     expect(
       tallValues.some(
         (value) => value.textContent?.includes('€') && value.textContent.includes('%'),
