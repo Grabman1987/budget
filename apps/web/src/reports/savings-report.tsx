@@ -321,10 +321,10 @@ function SavingsBody({
             nicht. Ohne bewertbare Abflüsse bleibt das Geldalter offen.
           </p>
           <p className="vnote">
-            Vergleichsziel: {days(goal)}. Die Monatsstände gelten zum Monatsende, im laufenden
-            Monat bis heute. Das Geldalter beschreibt vergangene Abflüsse; Plan und Kontoprognose
-            helfen einzuschätzen, ob erfasste kommende Zahlungen gedeckt sind. Verfügbar und Frei
-            bis Gehalt behalten ihre eigene Berechnung.
+            Vergleichsziel: {days(goal)}. Die Monatsstände gelten zum Monatsende, im laufenden Monat
+            bis heute. Das Geldalter beschreibt vergangene Abflüsse; Plan und Kontoprognose helfen
+            einzuschätzen, ob erfasste kommende Zahlungen gedeckt sind. Verfügbar und Frei bis
+            Gehalt behalten ihre eigene Berechnung.
           </p>
         </section>
       </div>
