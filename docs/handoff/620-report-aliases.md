@@ -275,3 +275,31 @@ existing scroll-region accessible name; all36 dated values,84,730, current-month
 note, right-edge scroll and CSV assertions are unchanged. The stale134828-byte
 format patch remains unapplied. These two test corrections await independent
 review and the next small exact-head cloud proof; no local runtime was run.
+
+## Small proof 40681267719 and reviewed formatting application
+
+Root's workflow child9668 of exact sourcec054d6c6 completed with formatting as
+its only failing gate. Scope, CSS, lint, TypeScript, units, build, test listing and
+browser checks passed. All137 units across12 files passed. The five selected
+browser cases (Contact desktop/mobile and Total's36-month case on desktop/mobile/
+WebKit) plus3 setup cases passed, without retries, in about1.8 minutes. Root reuses
+the prior40678643271 evidence for302 actual passing browser cases whose semantic
+source was unchanged; this is combined focused evidence, not a new complete-suite
+run or a public full-CI result.
+
+Before application, the independent capable reviewer read the complete fresh
+135248-byte format patch:2688 lines,62 hunks,21 paths, SHA256
+`15EEF9A31D7E1BFF6C68F4853D6A4A901FAFECC93B82AF789158A3D155CBC5BA`.
+The reviewer confirmed mechanical-only changes, matching original blobs and a
+successful apply preflight. The author then independently rechecked the exact
+hash, cleanc054d6c6 HEAD and apply preflight; applied that whole patch; verified
+all21 formatted blob identities against the review manifest and the exact changed
+path set; and passed `git diff --check`. Mechanical-only commit:
+`8c992a24b89cecdbd306d85bb47b857cf9a4c556`. Older format artifacts were not
+applied. No local runtime or formatter command was run.
+
+The format-only red workflow remains recorded as red; the applied correction
+still needs the exact-head format gate. Public full CI, integration onto current
+main, main CI, preview, release, root health and one-machine delivery verification
+for620 all remain pending under root's coordination. This documentation-only
+update adds no product or test changes after the reviewed formatting commit.
