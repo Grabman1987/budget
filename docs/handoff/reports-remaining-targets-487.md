@@ -89,13 +89,17 @@ truncated desktop canonical Portfolio title and wrapped phone monthly cells;
 the bounded CSS and geometry/keyboard corrections were then reviewed.
 
 Combined affected [40634964847](https://github.com/Grabman1987/budget/actions/runs/40634964847)
-passed all 15 new browser cases and three setup cases, plus seven old
-contribution reader cases, first attempt. Restored-source, lint, typecheck,
+passed all 15 new browser cases and three setup cases, plus seven passed tests
+in the old contribution invocation, first attempt. Restored-source, lint, typecheck,
 build and discovery flags were green; the workflow was red only for formatting
-of the new E2E file. Root independently reviewed and applied that exact
-mechanical patch. The corrected image packet
+of the new E2E file. An independently reviewed exact mechanical patch was
+applied. The corrected image packet
 [40635676194](https://github.com/Grabman1987/budget/actions/runs/40635676194)
 passed four affected cases in desktop and WebKit, both themes, and retained
-16 actual PNGs in `private/487-visual-40635676194/`. Independent visual review
-and checked-main integration remain before a public PR and its required exact
-CI. No local Node/npm/tests/build/browser/formatter ran because of host RAM.
+16 actual PNGs in `private/487-visual-40635676194/`. Root and a separate
+read-only reviewer visually cleared the eight selected desktop-light and
+WebKit-dark view images in `docs/evidence/reports-remaining-targets-487/`.
+The keyboard-focused phone capture includes a visible skip link, so no claim
+of an unobstructed full-page viewport or physical-device acceptance follows.
+Checked-main integration remains before a public PR and its required exact CI.
+No local Node/npm/tests/build/browser/formatter ran because of host RAM.
