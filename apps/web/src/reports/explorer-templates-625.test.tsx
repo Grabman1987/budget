@@ -192,7 +192,7 @@ describe('625 fixed templates beside retained custom views', () => {
   it('defaults a year bookmark to the latest year with full source data, including gaps after it', async () => {
     mount('?vorlage=year', { ...facts, currentMonth: '2025-03', lastFullMonth: '2025-02' });
     const table = await screen.findByTestId('template-year');
-    expect(table.querySelector('[data-template-column="2024-02"]')?.textContent).toContain('20,01');
+    expect(table.querySelector('[data-template-row="cat:food"] [data-template-column="2024-02"]')?.textContent).toContain('20,01');
     expect(table.querySelector('[data-template-column="2025-02"]')).toBeNull();
     expect((screen.getByRole('combobox', { name: 'Jahr' }) as HTMLSelectElement).value).toBe('2024');
   });

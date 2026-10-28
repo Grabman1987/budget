@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({ reportId: '', search: {} as Record<string, unk
 vi.mock('@tanstack/react-router', () => ({
   useParams: () => ({ reportId: state.reportId }),
   useSearch: () => state.search,
+  useLinkProps: ({ to }: { to: string }) => ({ href: to }),
 }));
 
 // Exercise the route's opt-in with the real chart consumer, without report network reads.

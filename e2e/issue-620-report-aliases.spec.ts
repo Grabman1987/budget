@@ -40,13 +40,15 @@ const landings = [
 
 for (const [slug, target, view] of landings) {
   test(`620 ${slug} opens ${target} with its supported bookmark state`, async ({ page }) => {
-    await page.goto(`/reports/${slug}?monat=2026-08&zeitraum=2026-01..2026-08#details`);
+    // Heute normalizes its balance period and has no report-details fragment.
+    const hash = slug === 'finanzcheck' ? '' : '#details';
+    await page.goto(`/reports/${slug}?monat=2026-08&zeitraum=2026-01..2026-08${hash}`);
     await expect.poll(() => new URL(page.url()).pathname).toBe(target);
     await expect(page.getByRole('main')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Report nicht gefunden', exact: true })).toHaveCount(0);
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('2026-01..2026-08');
-    expect(new URL(page.url()).hash).toBe('#details');
+    expect(new URL(page.url()).hash).toBe(hash);
     if (view) await expect(page.getByRole('button', { name: view, exact: true, pressed: true })).toBeVisible();
     const bookmark = page.url();
     await page.reload();
