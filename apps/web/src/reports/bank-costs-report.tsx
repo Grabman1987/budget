@@ -179,7 +179,7 @@ function Body({ data }: { data: BankCostsReport }) {
         <div className="sr-head">
           <h2 id="bc-kinds">Kosten nach Art</h2>
         </div>
-        <ScrollRegion label="Kosten nach Art">
+        <ScrollRegion label="Tabelle der Kostenarten">
           <table className="sr-table" data-testid="cost-kinds">
             <thead>
               <tr>
@@ -307,7 +307,7 @@ export function CreditLinesTable({ lines }: { lines: CreditLineRow[] }) {
         wird nicht zur erfassten Kostensumme addiert.
       </p>
       {lines.length ? (
-        <ScrollRegion label="Kredit- und Dispolinien">
+        <ScrollRegion label="Tabelle der Kredit- und Dispolinien">
           <table className="sr-table" data-testid="credit-lines">
             <thead>
               <tr>
