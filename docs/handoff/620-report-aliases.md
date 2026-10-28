@@ -522,3 +522,15 @@ update after checking CI capacity and the actual main baseline. Exact new-head
 public full CI, live publication/health and acceptance gates remain pending.
 There is no new deployment, live or acceptance-pass claim from this focused
 proof or mechanical application.
+
+## Checked-main integration
+
+Local merge 78fb17fb integrates checked main
+`656b2bbb3bd7c178857c64f82cebd96e6d87ff16` into reviewed author head 2e7b18c5.
+The 52 owned paths and 12 incoming paths have no overlap; every owned and incoming
+full blob/mode matches its respective parent exactly. Root reported main CI
+40725903237 successful via validated identical-tree reuse after PR 817's
+hold-release merge; preview 40726606130 was still running and production release
+remained pending at integration. Combined-head public full CI and subsequent
+live/acceptance gates remain pending. No local runtime, formatter, push or
+workflow was run for this integration.
