@@ -221,7 +221,12 @@ test('class mini histories retain the shared period, full class universe and mon
     const known = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(
       history.classes[0]!.index.at(-1)!.portfolio!,
     );
-    await expect(page.locator('.chart-tooltip')).toContainText(known);
+    const tooltipId = (await chart.getAttribute('aria-describedby'))
+      ?.split(/\s+/)
+      .find((id) => id.endsWith('-tooltip'));
+    expect(tooltipId).toBeTruthy();
+    const tooltip = page.locator(`[id="${tooltipId}"]`);
+    await expect(tooltip).toContainText(known);
     await chart.press('Escape');
     const profile = page.locator('.m-profile > summary');
     const phone = await profile.isVisible();
@@ -232,8 +237,8 @@ test('class mini histories retain the shared period, full class universe and mon
     await expect(classes.getByTestId('portfolio-class-history-table')).not.toContainText(known);
     await chart.focus();
     for (let i = 1; i < history.index.length; i++) await chart.press('ArrowRight');
-    await expect(page.locator('.chart-tooltip')).toContainText('•••');
-    await expect(page.locator('.chart-tooltip')).not.toContainText(known);
+    await expect(tooltip).toContainText('•••');
+    await expect(tooltip).not.toContainText(known);
     const accessible = await classes.locator('[aria-label], [title], [aria-valuetext]').evaluateAll(
       (elements) => elements.flatMap((element) => [
         element.getAttribute('aria-label'),
