@@ -191,6 +191,39 @@ function mount(search = '', templateFacts = facts) {
 }
 
 describe('625 fixed templates beside retained custom views', () => {
+  it('remounts the all-history disclosure closed after a template switch or source refresh without a hidden read', async () => {
+    const legacy: ReportTables = { ...facts, payees: {}, targets: { savingsRateBp: 2000, moneyAgeDays: 30 }, netWorth: 'unavailable' };
+    const reads: string[] = [];
+    let release!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn((path: string) => {
+      reads.push(path);
+      if (path === '/api/report-tables/months?netWorth=1') return Promise.resolve(new Response(JSON.stringify(legacy)));
+      if (path === '/api/report-tables/income-expense') return new Promise<Response>((done) => { release = done; });
+      throw new Error(`Unexpected read ${path}`);
+    }));
+    const { client } = mount('?vorlage=total');
+    const summary = () => screen.getByText('Alle Monate: Nettovermögen und CSV', { exact: true });
+    await screen.findByTestId('template-total');
+    fireEvent.click(summary());
+    await screen.findByTestId('csv-download');
+    fireEvent.click(screen.getByRole('button', { name: 'Jahresansicht', exact: true }));
+    await screen.findByTestId('template-year');
+    fireEvent.click(screen.getByRole('button', { name: 'Gesamttabelle', exact: true }));
+    await screen.findByTestId('template-total');
+    expect(summary().closest('details')!.open).toBe(false);
+    expect(screen.queryByTestId('csv-download')).toBeNull();
+    expect(reads.filter((path) => path.includes('netWorth'))).toHaveLength(1);
+    fireEvent.click(summary());
+    await screen.findByTestId('csv-download');
+    act(() => { void client.invalidateQueries({ queryKey: explorerTemplateQuery.queryKey }); });
+    await waitFor(() => expect(screen.queryByText('Alle Monate: Nettovermögen und CSV', { exact: true })).toBeNull());
+    await act(async () => { release(new Response(JSON.stringify(facts))); });
+    await screen.findByTestId('template-total');
+    expect(summary().closest('details')!.open).toBe(false);
+    expect(screen.queryByTestId('csv-download')).toBeNull();
+    expect(reads.filter((path) => path.includes('netWorth'))).toHaveLength(1);
+  });
+
   it('retains all-history net worth and its exact CSV only after opening the total disclosure, withholding stale values', async () => {
     const legacy: ReportTables = {
       ...facts, payees: {}, targets: { savingsRateBp: 2000, moneyAgeDays: 30 }, netWorth: 'ok',

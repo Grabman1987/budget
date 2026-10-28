@@ -193,3 +193,41 @@ trend mock setup, the new year test's unscoped cell selector and three Heute has
 cases. Their test setup/selectors and explicit-period/direct-target parity were
 corrected; that old proof does not validate later commits. No current full-green
 or publication claim is made.
+
+## Final target-safety prerequisites (root-authorized, checks pending)
+
+- Total disclosure lifecycle: its native element and open state now live in the
+  small `TotalTableDisclosure` component. Switching templates or withholding the
+  template during a refetch unmounts both together. Additive test-first coverage
+  switches Year/back and gates a canonical refetch, proving each new disclosure
+  is closed with no mounted CSV or hidden all-history read. TotalBody/CSV/source
+  calculations remain unchanged.
+- Actual Plan goals list: `goals-page.tsx` now reuses the existing
+  `goalsProgressReportQuery(month)` snapshot and `row.progress` availability proof
+  already used by goal detail. Only those same proven GoalView objects enter the
+  existing `goalGroups`, `planSummary`, bar/status and funding-action consumers.
+  Duplicate/missing/non-EUR/unsafe source rows retain name, reason and the normal
+  goal detail/edit entry, but supply no euro value, bar, valid status or funding
+  action. Financial summary/groups are hidden during any required snapshot read
+  or failure. Row source labels use the same proven snapshot metadata.
+- Existing raw goal/editor data, current editor option queries, GoalPanel state,
+  writer, month, CAS/review-token and Undo paths remain intact. GoalsBody and its
+  GoalPanel stay mounted with cached data across refetch/error, preserving drafts
+  and DOM/focus targets. Existing LEDGER invalidation already covers the reused
+  query, so no mutation or invalidation framework is added.
+- New `apps/web/src/budget/goals-source-620.test.tsx` renders the real GoalsPage
+  and real GoalPanel against a synthetic SQLite/API fixture. Literal tests cover
+  duplicate850 EUR sources without1700 EUR group claims, missing metadata,
+  non-EUR source withholding, and a mixed list where only the proven100 EUR
+  source contributes while both uncertain goals remain accessible. A real editor
+  draft and its exact input node survive pending metadata,503 and a subsequent
+  source retry while cached financial groups/summary stay hidden. All observed
+  requests are GET; seed writes are confined to the synthetic test database.
+- `e2e/goals-progress-report.spec.ts` additionally asserts the actual duplicate
+  Plan list has two unknown rows, no850/1700 values or progress bars before
+  opening the already guarded detail. Retained-component tests are supplementary
+  coverage, not a substitute for these live target guards.
+
+These are narrow read-only prerequisites to safely activate the routing. There
+is no new financial formula, API, schema, booking/write behavior or metric.
+Capable independent full-diff review and exact-head verification remain pending.

@@ -125,6 +125,11 @@ test('goal bookmark opens Plan and retains literal figures, keyboard detail and 
 test('live goal detail withholds ambiguous source money and metadata while refresh and retry are pending', async ({ page }) => {
   await mock(page, [goal(), goal({ id: 'second', name: 'Zweites Ziel' })]);
   await page.goto('/reports/sparziele?monat=2026-09');
+  await expect(page.locator('[data-goal-unknown]')).toHaveCount(2);
+  await expect(page.getByTestId('goals-summary')).toHaveText('Keine eindeutig belegten Zielstände · 2 ungeklärt');
+  await expect(page.locator('.goals .ptable-wrap')).not.toContainText('850,00');
+  await expect(page.locator('.goals .ptable-wrap')).not.toContainText('1.700,00');
+  await expect(page.locator('.goals .pbar')).toHaveCount(0);
   await page.locator('.goals').getByRole('link', { name: 'Reiseziel', exact: true }).click();
   const detail = page.locator('.goal-report-detail');
   await expect(detail).toContainText('Mehrere Sparziele verwenden dieselbe Quelle');
