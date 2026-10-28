@@ -1,75 +1,90 @@
-name: Update e2e snapshots
-
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+name: Scoped Heute desktop baselines and retained layout checks
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: Branch whose baselines to update (never main)
-        required: true
-      specs:
-        description: Space-separated spec paths (e.g. e2e/shell.spec.ts); empty = every spec that compares screenshots
-        required: false
-        default: ''
-
 permissions:
-  contents: write
-
-concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
-
+  contents: read
 jobs:
-  update:
-    if: inputs.branch != 'main'
+  proof:
     runs-on: ubuntu-24.04
-    # Match the CI browser image instead of reinstalling its OS/browser dependencies.
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     defaults:
       run:
         shell: bash
-    # A type-scale change regenerates nearly every baseline; give it room.
-    timeout-minutes: 75
+    timeout-minutes: 35
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ inputs.branch }}
-      - name: Allow Git reads and baseline commits in the container workspace
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Pin reviewed test adapters and unchanged product
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          test "$(git rev-parse HEAD^)" = "eebe2f4689f0b0a4360b9f3bd053d11e20b17bb3"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/update-snapshots.yml"
+          git diff --exit-code 8dab50f7c84f3afa43be726e6f2e68ffd18d41ca HEAD^ -- apps packages scripts playwright.config.ts
+          git rev-parse HEAD HEAD^ > source-proof.txt
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        env:
-          SPECS: ${{ inputs.specs }}
+      - run: npm ci --no-audit --no-fund
+      - name: Generate only two approved baselines and verify layout adapters
         run: |
-          npm run build:e2e
-          read -r -a specs <<< "$SPECS"
-          if [ "${#specs[@]}" -eq 0 ]; then
-            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
+          set +e
+          targets=(e2e/pace-marker.spec.ts e2e/ux-distill.spec.ts)
+          npx prettier --check "${targets[@]}" > format.log 2>&1
+          format_rc=$?
+          if [ "$format_rc" -ne 0 ]; then
+            npx prettier --write "${targets[@]}" > format-write.log 2>&1
+            git diff --binary -- "${targets[@]}" > format.patch
+            git restore -- "${targets[@]}"
           fi
-          npx playwright test --update-snapshots=changed "${specs[@]}" || true
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+          git diff --quiet -- "${targets[@]}"
+          restored_rc=$?
+          npx eslint "${targets[@]}" > lint.log 2>&1
+          lint_rc=$?
+          npm run typecheck > type.log 2>&1
+          type_rc=$?
+          npm run build:e2e > build.log 2>&1
+          build_rc=$?
+          list_rc=1
+          baseline_rc=1
+          scope_rc=1
+          adapter_rc=1
+          if [ "$build_rc" -eq 0 ]; then
+            npx playwright test e2e/shell.spec.ts --project=desktop --grep 'heute$' --list > discovery.log 2>&1
+            list_rc=$?
+            test "$(grep -c '\[desktop\].*heute$' discovery.log)" -eq 2 || list_rc=1
+            if [ "$list_rc" -eq 0 ]; then
+              npx playwright test e2e/shell.spec.ts --project=desktop --grep 'heute$' --workers=1 --retries=0 --update-snapshots=changed --output=test-results/baseline-updates > baseline.log 2>&1
+              baseline_rc=$?
+              printf '%s\n' e2e/shell.spec.ts-snapshots/shell-heute-dark-desktop-linux.png e2e/shell.spec.ts-snapshots/shell-heute-light-desktop-linux.png > expected-baselines.txt
+              git diff --name-only -- e2e > actual-baselines.txt
+              diff -u expected-baselines.txt actual-baselines.txt > baseline-scope.log 2>&1
+              scope_rc=$?
+              sha256sum e2e/shell.spec.ts-snapshots/shell-heute-{dark,light}-desktop-linux.png > baseline-sha256.txt
+              npx playwright test e2e/pace-marker.spec.ts e2e/ux-distill.spec.ts --project=desktop --project=mobile --grep 'Pace reduces|Heute keeps its device fold choice' --workers=1 --retries=0 --update-snapshots=none --output=test-results/layout-adapters > adapters.log 2>&1
+              adapter_rc=$?
+            fi
+          fi
+          cat format.log lint.log type.log build.log discovery.log baseline.log baseline-scope.log adapters.log 2>/dev/null
+          echo "RESULT format=$format_rc restored=$restored_rc lint=$lint_rc type=$type_rc build=$build_rc list=$list_rc baseline=$baseline_rc scope=$scope_rc adapters=$adapter_rc"
+          test "$format_rc" -eq 0 && test "$restored_rc" -eq 0 && test "$lint_rc" -eq 0 && test "$type_rc" -eq 0 && test "$build_rc" -eq 0 && test "$list_rc" -eq 0 && test "$baseline_rc" -eq 0 && test "$scope_rc" -eq 0 && test "$adapter_rc" -eq 0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
-          name: scoped-browser-screenshots
-          path: test-results/**/*.png
+          name: issue-572-two-baselines-and-layout-evidence
+          path: |
+            source-proof.txt
+            *.log
+            format.patch
+            *baselines.txt
+            baseline-sha256.txt
+            e2e/shell.spec.ts-snapshots/shell-heute-dark-desktop-linux.png
+            e2e/shell.spec.ts-snapshots/shell-heute-light-desktop-linux.png
+            test-results/**/*.png
+            test-results/**/*.zip
+            test-results/**/*.md
           if-no-files-found: ignore
-          retention-days: 7
-      - name: Commit the new baselines
-        env:
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
+          retention-days: 3
