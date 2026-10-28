@@ -73,11 +73,12 @@ const wealthData = {
     ],
   },
 } as unknown as Pick<Heute, 'stand' | 'netWorth' | 'valuationSources'>;
-it('labels actual history before today and separates payment numbers from the low point', () => {
+it.each([false, true])('labels actual history before today and separates payment numbers from the low point (report=%s)', (report) => {
   const { container } = render(
     <BalanceChart
       chainOpen={false}
       onToggleChain={() => {}}
+      report={report}
       data={
         {
           ...dailyData,
@@ -114,6 +115,37 @@ it('labels actual history before today and separates payment numbers from the lo
   expect(
     Math.abs(Number(marker.getAttribute('y')) - Number(low.getAttribute('y'))),
   ).toBeGreaterThanOrEqual(20);
+  const chart = screen.getByTestId(report ? 'r07-balance-chart' : 'heute-balance-chart');
+  expect(low.textContent).toContain('Tiefpunkt 100 €');
+  expect(chart.getAttribute('aria-label')).toContain('Ist bis 2026-10-06 400,00 €');
+  expect(chart.getAttribute('aria-label')).toContain('Prognose bis 2026-10-17 100,00 €');
+  expect(chart.querySelectorAll('path.l-actual')).toHaveLength(1);
+  expect(chart.querySelectorAll('path.l-forecast')).toHaveLength(1);
+  const coordinates = ['l-actual', 'l-forecast'].map((kind) => {
+    const path = chart.querySelector(`path.${kind}`)!.getAttribute('d')!;
+    expect(path).toMatch(/^M/);
+    expect(path).not.toMatch(/NaN|Infinity/);
+    const values = (path.match(/-?\d+(?:\.\d+)?(?:e[-+]?\d+)?/gi) ?? []).map(Number);
+    expect(values.length).toBeGreaterThanOrEqual(4);
+    expect(values.every(Number.isFinite)).toBe(true);
+    return values;
+  });
+  expect(coordinates[0]!.slice(-2)).toEqual(coordinates[1]!.slice(0, 2));
+  const inspection = screen.getByRole('group', { name: /^Kontoprognose: Budget-Konten/ });
+  fireEvent.focus(inspection);
+  expect(screen.getByRole('status').textContent).toContain('22.09.2026');
+  expect(screen.getByRole('status').textContent).toContain('Ist500,00 €');
+  fireEvent.keyDown(inspection, { key: 'ArrowRight' });
+  expect(screen.getByRole('status').textContent).toContain('06.10.2026');
+  expect(screen.getByRole('status').textContent).toContain('Ist400,00 €');
+  expect(screen.getByRole('status').textContent).toContain('Prognose400,00 €');
+  fireEvent.keyDown(inspection, { key: 'ArrowRight' });
+  expect(screen.getByRole('status').textContent).toContain('10.10.2026');
+  expect(screen.getByRole('status').textContent).toContain('Prognose100,00 €');
+  expect(screen.getByRole('status').textContent).toContain('Geplante Ausgabe−300,00 €');
+  fireEvent.keyDown(inspection, { key: 'ArrowRight' });
+  expect(screen.getByRole('status').textContent).toContain('17.10.2026');
+  expect(screen.getByRole('status').textContent).toContain('Prognose100,00 €');
 });
 
 it('explains which account groups the cash forecast includes and excludes', () => {
