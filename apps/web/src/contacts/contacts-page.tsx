@@ -143,7 +143,7 @@ export function ContactsPage() {
             Neuer Kontakt
           </Button>
         </div>
-        {contacts.isPending && <LoadingNote what="Kontakte" />}
+        {(contacts.isPending || contacts.isFetching) && <LoadingNote what="Kontakte" />}
         {contacts.isError && (
           <ErrorNote
             what="Kontakte"
@@ -151,7 +151,7 @@ export function ContactsPage() {
             onRetry={() => void contacts.refetch()}
           />
         )}
-        {contacts.data &&
+        {contacts.data && !contacts.isFetching && !contacts.isError &&
           (contacts.data.contacts.length === 0 ? (
             <EmptyNote>
               Keine offenen Kontaktbeträge. Ausgeglichene Kontakte bleiben mit ihrem Verlauf
@@ -344,7 +344,7 @@ export function ContactStatementPage() {
             Zurück zu Kontakte
           </AppLink>
         </nav>
-        {statement.isPending && <LoadingNote what="Kontoblatt" />}
+        {(statement.isPending || statement.isFetching) && <LoadingNote what="Kontoblatt" />}
         {statement.isError && (
           <ErrorNote
             what="Kontoblatt"
@@ -352,7 +352,9 @@ export function ContactStatementPage() {
             onRetry={() => void statement.refetch()}
           />
         )}
-        {statement.data && <ContactBody key={id} statement={statement.data} />}
+        {statement.data && !statement.isFetching && !statement.isError && (
+          <ContactBody key={id} statement={statement.data} />
+        )}
       </section>
     </PageFrame>
   );

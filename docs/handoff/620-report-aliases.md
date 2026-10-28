@@ -83,3 +83,28 @@ generate a formatting-only patch in its workflow-only proof child; apply only to
 unchanged source blobs. Review actual failures, then stage the coverage adaptation
 commit within the same #620 package. Full required CI remains mandatory before
 integration; router and tests are outside the mapped UI fast lane.
+
+## Coverage phase A (prepared, runtime checks pending)
+
+This phase changes only the following existing checks; no financial oracle,
+tolerance, timeout or skip is changed. The new retained-reader tests substitute
+network transport and PageFrame chrome, render the real production reader and
+assert the original literal output. They do not assert a mocked payload against
+itself and do not introduce a production test route.
+
+| File | Assertion-preserving adaptation |
+| --- | --- |
+| `e2e/payee-analysis-report.spec.ts` | Only main heading `Empfänger-Analyse` → `Ausgabenanalyse`; all numbers/source and action assertions untouched. |
+| `e2e/portfolio-performance-report.spec.ts` | Only main heading `Rendite und Kennzahlen` → `Portfolio-Auswertung`; all financial assertions untouched. |
+| `e2e/reports-search-package.spec.ts` | Search option names remain original. After click assert canonical pathname and alias-specific `darstellung`; main canonical Budgettreue title. Keyboard/search/Axe/44px checks retained. |
+| `e2e/plan-panels.spec.ts` | Legacy goals entry now asserts Plan list, current list link, selected server month, Plan return label/path. Same goal history, month, modal absence, edit/Escape focus, unknown-ID and accessibility assertions retained. |
+| `e2e/finanzcheck-report.spec.ts` | Retired stage/matrix/strip/chart DOM becomes actual authenticated `/api/rules/results` and `/check` assertions: literal 13 dates, all active rules, 13 aligned cells per rule, real last-day counts equal live check and Heute counts. Destination current violation count/action/focus/44px and reload are asserted. Existing 150s/60s/90s limits and both-theme inspection remain. No mock data is used. |
+| `e2e/payments-preview-report.spec.ts` | Calendar monetary rendering is retained below; browser now asserts actual Plan payment dates/3812 EUR/20 USD/1260 EUR, keyboard contracts switch,44px, both-theme Axe/overflow and reload. Real twelve-month preview API still asserts exact window and nonempty facts. Plan's existing idempotent `/api/expected/refresh` is allowed; no booking endpoint may be called by navigation. Original preview no-write guarantee stays covered by unchanged API DB/audit snapshots plus retained-reader GET-only checks. |
+| `apps/web/src/pages/payments-preview-retained-620.test.tsx` (new) | Moves exact original calendar 1700 EUR,141.67 average,100/120/420 month cells,12-month heading,14 columns, keyboard focus and projected status. Retains native100–150 USD range, unavailable EUR total, actual−110 EUR, ambiguous currency and no99999 substitution,9007199254740990 cents formatting, failed read hiding, retry and explicit empty zero. Existing domain/API precision/no-write/auth fixtures remain untouched. |
+| `apps/web/src/pages/goals-progress-retained-620.test.tsx` (new) | Additive coverage before browser adaptation: original target/saved/remaining/rate/forecast literals; shared live GoalDetail category/account source links bounded to month end; duplicate/missing/foreign source withholding, large exact cents, reached/no-date/overdue and negative/zero-rate rendering; stale metadata pending/failure/retry/empty withholding and GET-only requests. Existing query real-API/DB/audit and model tests unchanged. |
+| `apps/web/src/contacts/contacts-page.test.tsx` | Additive test-first real QueryClient list/detail read-state regression: cached10001 cents visible, pending refresh hidden,422 hidden, pending retry hidden, successful same amount restored. |
+| `apps/web/src/contacts/contacts-page.tsx` | Root-authorized small target prerequisite: hide list/detail cached content while fetching or failed; show loading on refetch. No query/API/settlement/Undo changes. This preserves the retired contact report's no stale/partial amount invariant at its actual destination. |
+
+Still pending: goal/contact browser adaptation, accepted Explorer template tests,
+actual focused proof findings and any justified current wrapper selector changes.
+Phase A does not claim those tests pass or that #620 is ready for integration.
