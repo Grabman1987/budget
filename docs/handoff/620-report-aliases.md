@@ -338,3 +338,21 @@ No local formatter/runtime command or push ran. This separate documentation
 commit records the evidence only. A new exact public full CI and all subsequent
 integration/main CI, preview, release and live-delivery gates for620 remain
 pending under root's coordination.
+
+## Additional canonical consumer adaptations (runtime proof pending)
+
+These six existing browser files retain all source/API, money/date, CSV/PDF,
+privacy, keyboard, layout, database snapshot and timing assertions. Their bounded
+technical changes follow the approved merged-reader mapping:
+
+| File | Exact adaptation and reason |
+| --- | --- |
+| `e2e/glossary.spec.ts` | The old return reader now has canonical Portfolio-Auswertung heading; outside-click dismissal uses that heading, with exact rendite/3J intent asserted. TTWROR/XIRR, keyboard/touch44, themes, bounds and print remain. |
+| `e2e/income-targets-report-ranges.spec.ts` | Final contribution header becomes Portfolio-Auswertung with einzahlungen and the unchanged Mar–May2026 custom window. All9 ranges, saved trend/reload, period geometry and Axe remain. |
+| `e2e/whole-picture.spec.ts` | Header becomes Vermögen & Schulden with Gesamtübersicht pressed. Same WholePicture reader, dated rows, exact table/CSV equality, source inspection, empty-window recovery and One-Pager print checks remain. |
+| `e2e/chart-inspection.spec.ts` | Adjacent return/contribution URLs assert canonical pallocation with exact rendite/einzahlungen and YTD; previous allocation shortcut clears forced view and retains YTD. Existing legacy navigation button names still identify their source readers. All daily path/value/date/keyboard/touch checks remain. |
+| `e2e/issue-512-visible-quality.spec.ts` | Browser Back expects canonical pallocation/rendite/1M. Literal100/114 quality withholding, source pointers, privacy attributes, screenshots and unchanged DB/GET-only checks remain. |
+| `e2e/issue-546-portfolio-metrics.spec.ts` | Report link expects canonical pallocation/rendite/YTD with exactly those two query keys. Literal10/20percent,5Pp,100EUR, dated flows, risk, privacy and DB snapshot remain. |
+
+All URL assertions compare parsed path/view/period independently of query order.
+No R07 or dynamic verdict-loop change is included in this technical delta.
