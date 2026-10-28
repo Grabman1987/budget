@@ -1,7 +1,7 @@
 # Heute monthly charts — #572
 
 Implementation handoff, 2026-10-28. Base: verified live
-`ea86c24fe21b524cd90d88c04389f988e7b1bc1d`; source/test freeze:
+`ea86c24fe21b524cd90d88c04389f988e7b1bc1d`; production source freeze:
 `5a927943b8eadd653d408d96d8d4f04e9f1349e4` on
 `codex/heute-wealth-chart-572-20261028`.
 
