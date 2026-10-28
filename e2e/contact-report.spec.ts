@@ -88,7 +88,7 @@ test('fixed EUR report preserves credit, running history, source links and recei
   await expect(sheet.locator('.contacts-balance')).toContainText('Du schuldest 20,00 €');
   const movements = sheet.locator('.contact-movements tbody tr');
   await expect(movements).toHaveCount(2);
-  const outlay = movements.filter({ has: sheet.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ }) });
+  const outlay = movements.filter({ has: page.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ }) });
   const receipt = movements.filter({ hasText: '−120,00 €' });
   await expect(outlay.locator('td').nth(1)).toHaveText('+100,00 €');
   await expect(outlay).toContainText('01.09.2026');

@@ -31,7 +31,10 @@ test('preview bookmark opens Plan payments, while the real twelve-month API stay
   await expect(contracts).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('tr.prow', { hasText: 'KI-Assistent' })).toContainText('20,00 $ je Zahlung');
   await expect(page.locator('tr.prow', { hasText: 'Strom' })).toContainText('−1.260 €');
-  expect((await contracts.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  const touch = await page.evaluate(() => matchMedia('(pointer: coarse), (max-width: 767px)').matches);
+  // DESIGN's compact segmented control is 28px; the shared touch floor is 44px.
+  if (touch) expect((await contracts.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  else expect((await contracts.boundingBox())!.height).toBe(28);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
     const axe = await new AxeBuilder({ page }).analyze();

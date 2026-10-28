@@ -62,8 +62,8 @@ test('Plan and report open one goal history page and retain month and return rou
   await expect(edit).toBeVisible();
   await page.getByRole('link', { name: 'Zurück zu Sparzielen' }).click();
   await expect(page).toHaveURL(/\/plan\/sparziele\?monat=2026-08$/);
-  await page.goto('/reports/sparziele');
-  await expect(page).toHaveURL(/\/plan\/sparziele$/);
+  await page.goto('/reports/sparziele?monat=2026-09');
+  await expect(page).toHaveURL(/\/plan\/sparziele\?monat=2026-09$/);
   await page
     .locator('.goals')
     .getByRole('link', { name: 'Urlaub Sommer 2027', exact: true })

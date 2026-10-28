@@ -1,7 +1,7 @@
 import { DEFAULT_ACTIVE_RULE_COUNT, dayCounts, ruleTimelines, type HistoryMatrix } from '@budget/domain';
 import type { FinanceCheckFull } from '../apps/web/src/reports/finanzcheck-api';
 import type { Heute } from '../apps/web/src/heute/api';
-import { expect as baseExpect, sampleTest as test } from './sample';
+import { expect as baseExpect, sampleTest as test, SAMPLE_URL } from './sample';
 import { inspectReport } from './overview-report';
 
 // The sample server evaluates the rules synchronously (seconds) the first time a report finds the
@@ -14,7 +14,9 @@ test.describe.configure({ timeout: 150_000 });
 test('retired Finanz-Check bookmark opens Heute while real history retains stage, dates and current counts', async ({
   page,
 }, info) => {
-  // The first visit may derive the stored results (seconds on the sample ledger); wait for them.
+  // The retired reader invoked this same idempotent derivation before reading stored history.
+  const derived = await page.request.post('/api/rules/evaluate', { headers: { origin: SAMPLE_URL }, timeout: 90_000 });
+  expect(derived.status()).toBe(200);
   const response = await page.request.get('/api/rules/results', { timeout: 90_000 });
   expect(response.status()).toBe(200);
   const matrix = (await response.json()) as HistoryMatrix;

@@ -159,29 +159,48 @@ test.describe('1.5 Jahresansicht', () => {
 test.describe('1.6 Kategorie im Verlauf', () => {
   test('every selected source category retains its exact months, sum and rounded average', async ({ page }, info) => {
     const data = await facts(page);
-    const window = reportPeriodMonths('YTD', data.lastFullMonth!, data.firstMonth!);
-    const overview = categoryOverview(data.months, data, window, data.lastFullMonth);
-    await open(page, '/reports/kategorien');
-    for (const expected of overview.rows.slice(0, 6)) {
-      await page.getByRole('combobox', { name: 'Kategorie', exact: true }).selectOption(expected.category.id);
-      const row = page.getByTestId('template-category').locator(`[data-template-row="cat:${expected.category.id}"]`);
-      await expect(row.getByRole('rowheader')).toHaveAccessibleName(expected.category.name);
-      const cells = await row.locator('td').allInnerTexts();
-      expected.history.forEach((point, i) => expect(cells[i]?.replace(/\s*[↑↓]$/, '').trim()).toBe(point.spentCents === null ? '–' : formatEuro(cents(point.spentCents))));
-      expect(cells[window.length]?.replace(/\s*[↑↓]$/, '').trim()).toBe(formatEuro(cents(expected.sumCents)));
-      expect(cells[window.length + 1]?.trim()).toBe(formatEuro(cents(expected.avgCents)));
+    for (const period of ['1J', 'YTD'] as const) {
+      const window = reportPeriodMonths(period, data.lastFullMonth!, data.firstMonth!);
+      expect(window).toEqual(period === 'YTD'
+        ? ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08']
+        : ['2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08']);
+      const overview = categoryOverview(data.months, data, window, data.lastFullMonth);
+      await open(page, `/reports/kategorien?zeitraum=${period}`);
+      const selected = overview.rows.slice(0, 6);
+      expect(selected.some((row) => row.category.name === 'Miete')).toBe(true);
+      for (const expected of selected) {
+        await page.getByRole('combobox', { name: 'Kategorie', exact: true }).selectOption(expected.category.id);
+        const row = page.getByTestId('template-category').locator(`[data-template-row="cat:${expected.category.id}"]`);
+        await expect(row.getByRole('rowheader')).toHaveAccessibleName(expected.category.name);
+        const cells = await row.locator('td').evaluateAll((elements) => elements.map((element) => ({
+          column: element.querySelector('[data-template-column]')?.getAttribute('data-template-column'),
+          text: (element as HTMLElement).innerText.replace(/\s*[↑↓]$/, '').trim(),
+        })));
+        const history = expected.history.filter((point) => window.includes(point.month));
+        expect(history.map((point) => point.month)).toEqual(window);
+        history.forEach((point, i) => {
+          if (point.spentCents !== null) expect(cells[i]?.column).toBe(point.month);
+          expect(cells[i]?.text).toBe(point.spentCents === null ? '–' : formatEuro(cents(point.spentCents)));
+        });
+        expect(cells.find((cell) => cell.column === 'summe')?.text).toBe(formatEuro(cents(expected.sumCents)));
+        expect(cells.at(-1)?.text).toBe(formatEuro(cents(expected.avgCents)));
+        if (period === 'YTD' && expected.category.name === 'Miete') {
+          expect(cells.find((cell) => cell.column === '2026-01')?.text).toBe('890,00 €');
+          expect(cells.find((cell) => cell.column === 'summe')?.text).toBe('7.120,00 €');
+        }
+      }
+      const shareSum = overview.rows.reduce((a, r) => a + (r.shareBp ?? 0), 0);
+      expect(Math.abs(shareSum - 10_000)).toBeLessThanOrEqual(overview.rows.length);
     }
-    const shareSum = overview.rows.reduce((a, r) => a + (r.shareBp ?? 0), 0);
-    expect(Math.abs(shareSum - 10_000)).toBeLessThanOrEqual(overview.rows.length);
     await inspect(page, info, 'kategorien');
   });
   test('category identity, monthly peak and source-cell inspection survive keyboard selection and reload', async ({ page }) => {
     const data = await facts(page);
-    const window = reportPeriodMonths('YTD', data.lastFullMonth!, data.firstMonth!);
+    const window = reportPeriodMonths('1J', data.lastFullMonth!, data.firstMonth!);
     const overview = categoryOverview(data.months, data, window, data.lastFullMonth);
     const first = overview.rows[0]!;
     const highest = first.history.reduce((a, h) => (h.spentCents ?? 0) > (a.spentCents ?? 0) ? h : a);
-    await open(page, '/reports/kategorien');
+    await open(page, '/reports/kategorien?zeitraum=1J');
     const picker = page.getByRole('combobox', { name: 'Kategorie', exact: true });
     await picker.selectOption(first.category.id);
     await picker.focus();
@@ -315,7 +334,7 @@ test.describe('1.8 Gesamttabelle', () => {
     await expect(heads).toHaveCount(1 + 36);
     await expect(heads.nth(1)).toHaveText('Okt 23');
     await expect(heads.last()).toHaveText('Sep 26*');
-    await expect(page.getByText('* September 2026 läuft noch')).toBeVisible();
+    await expect(page.locator('.ex-total-history').getByText('* September 2026 läuft noch')).toBeVisible();
 
     const nw = await page.locator('table.rg-all tbody tr').last().locator('td').allTextContents();
     expect(nw).toHaveLength(36);

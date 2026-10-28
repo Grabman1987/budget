@@ -36,8 +36,33 @@ test('category choice and period survive reload; exact month sources and booking
   await page.reload();
   await expect(picker).toHaveValue(ids[0]!);
   await expect(template.locator('tbody tr td')).toHaveCount(5);
-  await expect(template.locator('.ex-template-trend .l-actual')).toBeVisible();
-  await expect(template.locator('.ex-template-trend .l-prev')).toBeVisible();
+  await expect(template.locator('.ex-template-trend svg')).toBeVisible();
+  const paths = template.locator('.ex-template-trend .l-actual, .ex-template-trend .l-prev');
+  await expect(paths).toHaveCount(2);
+  // A painted horizontal stroke has a zero-height bbox; SVG visibility and finite geometry
+  // cover that valid constant series without mistaking the path for a hidden chart.
+  const geometry = await paths.evaluateAll((elements) => elements.map((element) => {
+    if (!(element instanceof SVGPathElement)) throw new Error('Expected a trend path');
+    const box = element.getBBox();
+    return { d: element.getAttribute('d'), length: element.getTotalLength(), width: box.width, height: box.height };
+  }));
+  for (const path of geometry) {
+    expect(path.d).toMatch(/^M/);
+    expect(path.d).not.toMatch(/NaN|Infinity/);
+    expect([path.length, path.width, path.height].every(Number.isFinite)).toBe(true);
+    expect(path.length).toBeGreaterThan(0);
+    expect(path.width).toBeGreaterThan(0);
+  }
+  const recent = data.months.filter((month) => ['2026-06', '2026-07', '2026-08'].includes(month.month));
+  expect(recent.map((month) => month.month)).toEqual(['2026-06', '2026-07', '2026-08']);
+  const varying = data.categories.find((category) => new Set(recent.map((month) => month.spending[category.id] ?? 0)).size > 1);
+  expect(varying).toBeDefined();
+  await picker.selectOption(varying!.id);
+  await expect.poll(() => template.locator('.ex-template-trend .l-actual').evaluate((element) => {
+    if (!(element instanceof SVGPathElement)) throw new Error('Expected a trend path');
+    return element.getBBox().height;
+  })).toBeGreaterThan(0);
+  await picker.selectOption(ids[0]!);
   await inspectReport(page, info, 'category-trend');
   const expected = data.months.find((m) => m.month === '2026-08')!.spending[ids[0]!] ?? 0;
   const cell = template.locator('[data-template-column="2026-08"]');

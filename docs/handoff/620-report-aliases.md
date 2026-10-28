@@ -231,3 +231,27 @@ or publication claim is made.
 These are narrow read-only prerequisites to safely activate the routing. There
 is no new financial formula, API, schema, booking/write behavior or metric.
 Capable independent full-diff review and exact-head verification remain pending.
+
+## Focused proof 40673473171: technical corrections (runtime verification pending)
+
+The root-managed workflow child38cb of source0bd1eec7 completed with136 unit
+passes/one failure and291 browser passes/17 existing skips/18 failures. Lint and
+build passed; test TypeScript and formatting failed. The unreviewed128KB format
+artifact was not applied. The following corrections use the actual logs and DOM
+artifacts; they do not constitute a successful rerun.
+
+| Files | Observed cause and exact correction |
+| --- | --- |
+| `goals-source-620.test.tsx`, `contacts-page.test.tsx`, `goals-progress-retained-620.test.tsx`, `payments-preview-retained-620.test.tsx`, `explorer-templates-625.test.tsx` | TestingLibrary's `ByRoleOptions` does not support Playwright's `exact` option. Remove only that unsupported role option: string accessible names remain exact by default. Copy the readonly category/income-type fixture arrays into the two mutable ReportTables fixtures, without casts or source changes. |
+| `goals-progress-retained-620.test.tsx` | The empty response already correctly matched `/api/goals`; synchronous DOM inspection raced query notification. Await the actual empty message and additionally assert one real mock-transport empty read and cached goals `[]`; retain no-table/no-cached-money checks. |
+| `e2e/category-trend.spec.ts` | A valid constant Miete path is painted but has zero bbox height, so Playwright path visibility reports hidden. Check the visible SVG, both existing paths' nonempty finite positive-length/width geometry, and an independently source-selected varying category's positive path height. Restore the original category before unchanged exact August/source/booking sum checks. |
+| `e2e/contact-report.spec.ts` | A filter's `has` locator is evaluated relative to each movement row. The previous locator incorrectly repeated the ancestor region inside that row. Use the same button name from the page locator; keep original Sep1 outlay, server-today receipt, source IDs, signed100/120 EUR, credit20 EUR, history, focus and both Undo directions. |
+| `e2e/finanzcheck-report.spec.ts` | GET results reads stored rows only; the retired reader first invoked the existing idempotent rule derivation. Explicitly prepare that same `/api/rules/evaluate` operation before the unchanged13 literal dates, every rule strip and latest-day/current-count binding. No shorter history, sleep or financial oracle change. |
+| `e2e/plan-panels.spec.ts` | DetailBack intentionally restores in-app history. A bare alias list correctly returns bare. Supply explicit Sep2026 on the alias entry to exercise the existing explicit-month preservation contract; retain direct Aug fallback, detail chart, editor/focus, accessibility and unknown-goal checks. |
+| `e2e/report-tables.spec.ts` | CategoryOverview history always holds12 full months, whereas YTD has8 visible months; index8 was the7,120 EUR sum, not another890 EUR month. Batch-read actual monthly column IDs/text, cover all12 explicit1J months plus the8 explicit YTD months, preserve source sums/averages/share invariant and independent890/7,120 EUR YTD literals. Request1J for the earliest tied Sep2025 source peak. Scope the duplicated running-month note to the retained Total disclosure; original36 month-end values/84,730/CSV/depth checks remain. |
+| `e2e/payments-preview-report.spec.ts` | The newly added Contracts target assertion wrongly required mobile sizing on fine-pointer desktop. DESIGN defines segmented-active28px and explicitly mobile44px; existing shared base CSS also requires44px for coarse pointers. Check the actual media condition: at least44px on touch/mobile and exactly28px on compact desktop, on the same control. Independent review confirmed this contract. All original keyboard, payment amounts, API, Axe, themes and reload checks remain on every profile. |
+
+No timeout, financial formula, fixture date, API/write implementation, Undo behavior
+or product CSS changed in these corrections. No local runtime or formatting
+command ran; root must arrange a fresh reviewed formatting patch and exact-head
+unit/browser proof after the corrected test commit is frozen.
