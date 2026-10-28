@@ -216,6 +216,10 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
   });
   await page.goto('/reports/abos');
   await expect(page.getByTestId('contracts-report')).toContainText('Noch keine Verträge');
+  await expect(page).toHaveTitle(/^Verträge und Kosten · /);
+  if (info.project.name !== 'desktop') {
+    await expect(page.locator('.m-title-text')).toHaveText('Verträge und Kosten');
+  }
   const contractBody = await page.getByTestId('contracts-report').innerText();
   await inspect(page, info, 'contracts');
   await page.goto('/reports/kosten');
@@ -226,6 +230,10 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
     '/reports/abos?monat=2020-01&zeitraum=1M&darstellung=bankkosten&ansicht=saved-id&exakt=true&projektUngueltig=true',
   );
   await expect(page.getByTestId('bank-costs-report')).toHaveText(bankBody, { useInnerText: true });
+  await expect(page).toHaveTitle(/^Verträge und Kosten · /);
+  if (info.project.name !== 'desktop') {
+    await expect(page.locator('.m-title-text')).toHaveText('Verträge und Kosten');
+  }
   await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
   await expect(page.getByTestId('bc-components')).toContainText(
     'Gebucht: 6,91 € · aus Konditionen geschätzt: 0,00 €',

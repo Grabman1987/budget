@@ -127,7 +127,7 @@ const ORIGINAL_REPORT_GROUPS: ReadonlyArray<ReportGroup> = [
     ],
     [
       'abos',
-      'Verträge und Abos',
+      'Verträge und Kosten',
       'Welche Verträge binden uns, und was lässt sich kündigen?',
       'Stückliste mit Fristen, Fremdwährung',
     ],
