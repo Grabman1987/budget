@@ -31,6 +31,9 @@ it.each([
     });
     render(<OfflineState onCapture={() => {}} />);
     const label = await screen.findByText('Veränderung zum Vorjahr');
+    expect(screen.getByText(/^Stand vom/).textContent).toBe(
+      `Stand vom ${new Intl.DateTimeFormat('de-AT', { dateStyle: 'medium', timeStyle: 'short' }).format(1)}`,
+    );
     expect(label.nextElementSibling?.textContent).toBe(expected);
     expect(screen.getByText('Nettovermögen').nextElementSibling?.textContent).toBe('150,01 €');
   },

@@ -235,7 +235,7 @@
       ) {
       display: none;
     }
-    .heute-kennzahl > a,
+    .heute-answer.heute-kennzahl > a,
     .heute-kennzahl > .heute-kennzahl-figure {
       grid-column: auto;
       min-height: 44px;
@@ -1088,6 +1088,16 @@
 }
 
 @media (max-width: 767px) {
+  /* Keep the actual monthly chart on the first screen without reducing type or controls. */
+  .sheet:has(> .heute) {
+    row-gap: var(--space-sm);
+  }
+  .heute {
+    gap: var(--space-sm);
+  }
+  .heute > .report-verdict {
+    margin: 0;
+  }
   .heute {
     padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
   }
@@ -1156,4 +1166,95 @@
 }
 .heute-forecast-low strong {
   font-variant-numeric: tabular-nums;
+}
+
+/* Read-state surfaces reuse each loaded plot's geometry without plotting placeholder money. */
+.heute-pace-state-plot,
+.heute-forecast-state,
+.heute-wealth-state {
+  background: var(--surface);
+  outline: var(--stroke-hairline) solid var(--rule);
+  outline-offset: calc(-1 * var(--stroke-hairline));
+}
+.heute-pace-state-plot > .rev-empty,
+.heute-forecast-state > .rev-empty,
+.heute-wealth-state > .rev-empty,
+.heute-lead-state .rev-empty {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.heute-lead-state .heute-daily-budget {
+  min-height: var(--touch);
+}
+.heute-pace-state-plot,
+.heute-forecast-state {
+  padding: var(--space-md);
+}
+.heute-pace-state-plot .icon {
+  width: var(--space-lg);
+  height: var(--space-lg);
+  flex: none;
+}
+.heute-pace-state-plot .kstate {
+  min-width: 0;
+}
+.heute-wealth-state {
+  min-height: 72px;
+  padding: var(--space-sm);
+}
+.heute-wealth-comparison-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  color: var(--ink-3);
+}
+.heute-forecast-low-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs);
+  margin: var(--space-sm) 0;
+  font-size: var(--fs-body);
+}
+@media (min-width: 1180px) {
+  .heute-forecast-low-state {
+    margin-block: var(--space-xs);
+  }
+}
+.heute-state-label {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-3);
+}
+/* Arrow and text statuses use the same natural header box in every read state. */
+.heute-pace > .head {
+  align-items: center;
+}
+.heute-pace-state-note {
+  min-block-size: 1lh;
+}
+.heute .heute-answer-value:is(.is-unavailable, [aria-busy='true']) {
+  color: var(--ink-3);
+}
+.heute-nearest-goal {
+  min-block-size: 1lh;
+}
+.heute .rev-empty .btn {
+  min-width: var(--touch);
+  min-height: var(--touch);
+}
+@media (max-width: 767px) {
+  .heute-lead-state .heute-daily-budget {
+    flex-basis: 100%;
+  }
+  .heute-verdict-placeholder {
+    min-block-size: 3lh;
+  }
+  .heute-pace-state-note {
+    min-block-size: 2lh;
+  }
+  .heute-nearest-goal {
+    min-block-size: var(--touch);
+  }
 }
