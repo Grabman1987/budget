@@ -129,10 +129,19 @@ test('Heute payday forecast follows the bracket and last axis label', async ({ p
 });
 
 test('a direct R07 visit falls back to Bis Gehalt without a stored choice', async ({ page }) => {
+  const loaded = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'GET' && url.pathname === '/api/heute' && url.searchParams.get('period') === 'payday' && url.searchParams.get('month') === '2026-09';
+  });
   await page.goto('/reports/finanzcheck?monat=2026-09');
   await expect(page.getByRole('button', { name: 'Bis Gehalt', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await currentForecast(page);
-  const data = (await (await page.request.get('/api/heute')).json()) as Heute;
+  const response = await loaded;
+  expect(response.ok()).toBe(true);
+  const selected = new URL(response.url());
+  expect(selected.searchParams.get('month')).toBe('2026-09');
+  expect(selected.searchParams.get('period')).toBe('payday');
+  const data = (await response.json()) as Heute;
   expect(data.stand.period).toBe('payday');
   expect(data.stand.payday.day).toBe('2026-10-15');
   expect(data.stand.to).toBe('2026-10-17');

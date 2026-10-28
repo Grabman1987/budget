@@ -449,3 +449,17 @@ Each area additionally checks both themes, actual amount privacy hide/restore,
 main-region Axe and no page overflow; no passing-only catalog filter, fake
 summary, new product writer or new route is introduced. These test adaptations
 remain pending exact independent review and focused runtime proof.
+
+## Broad proof40709103733: direct-default response binding correction
+
+Root recorded all178 units passing, types and candidate whole lint passing,
+broad201 Playwright passes/2 existing skips/3 failures (including3 setup passes),
+plus the separate dark-booking run's5 passes including3 setup. Two failures were
+the new direct-R07 test manually reading bare `/api/heute`, whose legitimate API
+default is month, after the actual UI had correctly selected payday. The test now
+registers its response wait before navigation and binds the real UI GET with
+selected monthSeptember2026 and periodpayday. The UI pressed state and original
+15October/17October facts remain unchanged; no API default or product behavior
+changes. The remaining chart-navigation selector failure is a separate confirmed
+canonical-header/catalog issue; no timeout increase or passing self-loop is
+encoded as a fix. Corrected exact-head proof remains pending.
