@@ -61,7 +61,12 @@ test('monthly pace and wealth expose exact dates and amounts with honest gaps in
     await expect(tooltip).toContainText('Bewertung nicht verfügbar');
     await expect(wealth.locator('path.heute-wealth-segment')).toHaveCount(2);
     await page.keyboard.press('Escape');
+    // Keep WebKit's focus scroll from moving the chart under the last hover position.
+    await page.mouse.move(0, 0);
     await pace.locator('..').focus();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('ArrowRight');
+    await expect(tooltip).toContainText(`Beginn ${data.pace.month}`);
     for (let i = 0; i < data.pace.todayDay; i++) await page.keyboard.press('ArrowRight');
     await expect(tooltip).toContainText(eur(data.pace.figures.spentCents));
     await expect(tooltip).toContainText(`${data.pace.month}-${String(data.pace.todayDay).padStart(2, '0')}`.split('-').reverse().join('.'));
@@ -84,4 +89,3 @@ test('monthly pace and wealth expose exact dates and amounts with honest gaps in
   for (let i = 0; i < 11; i++) await page.keyboard.press('ArrowRight');
   await expect(page.locator('.chart-tooltip')).not.toContainText(eur(net.totalCents));
 });
-

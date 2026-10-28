@@ -1018,7 +1018,8 @@
 }
 @media (min-width: 1180px) {
   .sheet:has(> .heute) {
-    row-gap: var(--space-lg);
+    padding-top: var(--space-md);
+    row-gap: var(--space-sm);
   }
   .heute {
     gap: var(--space-sm);
