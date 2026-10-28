@@ -59,9 +59,10 @@ only for formatting before the reviewed mechanical patch was applied.
 
 The 95,129-byte patch SHA-256 is
 `693e01efd8a827e417c8ccd45d5b4c4da49ce0b92fc0449f913bdb5f698c2dd2`.
-Root and independent HIGH review read all 45 hunks before application. All nine
-post-format source/test Git blobs match the independently reconstructed candidate
-manifest. No local runtime or formatter was used by the author.
+Independent HIGH review read all 45 hunks before application. Root verified the
+patch hash, clean-source application check and all nine candidate identities. All
+nine post-format source/test Git blobs match the independently reconstructed
+candidate manifest. No local runtime or formatter was used by the author.
 
 ## Unchanged gates and pending work
 
