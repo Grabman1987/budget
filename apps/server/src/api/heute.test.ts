@@ -680,12 +680,12 @@ it.each(['2025-01-01', '2026-01-01'])(
       role: 'reserve', onBudget: false, currency: 'USD', openingDate,
       openingBalanceCents: 10_000,
     }).run();
-    db.insert(schema.fxRate).values({ currency: 'USD', date: '2026-03-01', rateMicro: 2_000_000 }).run();
+    db.insert(schema.fxRate).values({ currency: 'USD', date: '2026-03-01', rateMicro: 500_000 }).run();
     const before = db.select().from(schema.booking).all();
     const result = await call('GET', '/heute');
     expect(result.status).toBe(200);
     const net = result.body.netWorth;
-    expect(net.totalCents).toBe(193_000); // EUR 1,880 + USD 100 / 2.
+    expect(net.totalCents).toBe(193_000); // EUR 1,880 + USD 100 × EUR 0.50 per USD.
     expect(net.series.map((p: any) => p.day)).toEqual([
       '2025-04-30', '2025-05-31', '2025-06-30', '2025-07-31', '2025-08-31',
       '2025-09-30', '2025-10-31', '2025-11-30', '2025-12-31', '2026-01-31',
