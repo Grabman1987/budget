@@ -65,7 +65,7 @@ export function BankCostsReportPage({
       }
       reportStand={{ label: 'Konditionen am', value: data?.asOf ? longDay(data.asOf) : 'heute' }}
     >
-      <div className="kview sr" data-testid="bank-costs-report">
+      <div className="kview sr bank-costs-report" data-testid="bank-costs-report">
         <ReportQuery query={query} what="Bank- und Zinskosten">
           {(d) => <Body data={d} />}
         </ReportQuery>
