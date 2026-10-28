@@ -39,7 +39,7 @@ order; the permission to scroll to tasks does not waive the separate desktop
 | --- | --- |
 | `apps/server/src/api/heute.test.ts` | A synthetic reserve account with historical missing FX must retain the exact current 193,000 cents, twelve literal dates, real historical zeroes and nullable missing comparisons. A current FX gap must still make current wealth unavailable. The existing price-estimate and wealth parity checks remain unchanged. |
 | `apps/web/src/heute/charts.test.tsx` | Exercise the existing visible wealth section with exact 150.01 EUR endpoint, a real zero and a null between two line segments; pointer/keyboard inspection must agree, annual absence must be explicit, and privacy must hide amounts. |
-| `e2e/heute.spec.ts` | Exercise both chart inspections, API/tile/endpoint parity, a synthetic historical gap, desktop KPI/chart bounds, both themes, Axe, overflow, chart target height and privacy in the configured desktop/390px/WebKit profiles. No existing timeout, financial expectation or assertion is relaxed. |
+| `e2e/issue-572-heute-charts.spec.ts` | Exercise both chart inspections, API/tile/endpoint parity, a synthetic historical gap, desktop KPI/chart bounds, both themes, Axe, overflow, chart target height and privacy in the configured desktop/390px/WebKit profiles. No existing timeout, financial expectation or assertion is relaxed. |
 | `apps/web/src/pwa/offline-wealth-comparison.test.tsx` | Render the real saved Heute view with snapshot I/O supplied by a synthetic fixture: null is unavailable, zero stays zero, positive/negative 123 cents retain their sign, and current wealth remains 15,001 cents. |
 | `packages/fixtures/src/heute.test.ts` | Narrow the now-nullable comparison/history before arithmetic. Fully quoted sample data must still be complete; the existing 85,744 / −1,014 / 63,606 / 71,456 EUR expectations are unchanged. |
 
@@ -63,6 +63,12 @@ consumer. Tests-only `ad1dd743` reproduced it in
 the null case failed with the strict formatter's `RangeError`, while the zero and
 two signed cases passed. `5a927943` changes that call to the existing `savedMoney`
 helper; no separate formatting abstraction is introduced.
+
+The chart acceptance case was moved verbatim from `e2e/heute.spec.ts` to
+`e2e/issue-572-heute-charts.spec.ts` so the existing issue-file WebKit discovery
+pattern includes it. Its original 60-second test setup, 15-second expect timeout
+and saved phone-detail preference are retained. The old Heute spec returns to its
+base content; Playwright configuration and all acceptance assertions are unchanged.
 
 Local work used only native Git/PowerShell/`rg` under the owner's RAM constraint.
 `git diff --check` passed at the source freeze. No local Node install, test, build,
