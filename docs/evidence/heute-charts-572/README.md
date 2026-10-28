@@ -43,6 +43,8 @@ order; the permission to scroll to tasks does not waive the separate desktop
 | `apps/web/src/pwa/offline-wealth-comparison.test.tsx` | Render the real saved Heute view with snapshot I/O supplied by a synthetic fixture: null is unavailable, zero stays zero, positive/negative 123 cents retain their sign, and current wealth remains 15,001 cents. |
 | `packages/fixtures/src/heute.test.ts` | Narrow the now-nullable comparison/history before arithmetic. Fully quoted sample data must still be complete; the existing 85,744 / −1,014 / 63,606 / 71,456 EUR expectations are unchanged. |
 | `apps/web/src/heute/valuation-attention-511.test.tsx` | Supply the existing fixed-width test adapter now that the retained visible wealth section measures its width. All original quote/cost quality, exact-amount, privacy and source-hint assertions remain unchanged. |
+| `e2e/pace-marker.spec.ts` | Retain the lead's immediate-sibling check through the approved overview wrapper, with direct children pace → forecast → wealth. Existing monetary, tooltip/keyboard, 44px, axis, line/color and timeout assertions are unchanged. |
+| `e2e/ux-distill.spec.ts` | Assert primary DOM order including the wrapper, preserve strict phone Y order, and replace obsolete desktop all-sections Y order with left-pace/right-forecast geometry, wealth below forecast, chart containment and attention below the entire group. Later-section order, net-worth parity, fold persistence, viewport changes, overflow and timeouts remain unchanged. |
 
 ## Evidence and open gates
 
@@ -130,6 +132,47 @@ image records keyboard state in a full-page capture: its visible focused skip
 link overlaps Herleitung, and fixed bottom navigation overlaps the forecast
 header. This image does not establish an unobstructed full-page layout or a
 physical-device Safari result.
+
+## Scoped baseline and layout-adapter follow-up
+
+The first public full run,
+[40672366851](https://github.com/Grabman1987/budget/actions/runs/40672366851),
+tested `8dab50f7` and was intentionally **cancelled**, not green. Its diagnosed
+Heute failures were the two obsolete desktop ShellHeute baselines and three
+layout-case failures from the old sibling/strict-desktop-Y assumptions. Pending
+cancelled checks are not passes. An unrelated ledger case exceeded its unchanged
+30-second limit on its first attempt and passed on its existing retry; its code,
+financial assertions and timeout were not changed here.
+
+The technical layout adapters in `eebe2f46` received independent HIGH mini-review
+clearance before the next proof. The focused
+[run 40677486120](https://github.com/Grabman1987/budget/actions/runs/40677486120)
+records original source `eebe2f4689f0b0a4360b9f3bd053d11e20b17bb3`
+and temporary proof revision `f084c2b04d48b878164e9f7a9440b68d368b0a28`.
+Its actual workflow result was **red only for formatting**: formatter status 1;
+restoration, lint, type, normal build, discovery, baseline, baseline-scope and
+layout-adapter statuses 0. The exact two desktop baseline cases plus three setup
+cases passed in 18.9 seconds. The four desktop/mobile layout-adapter cases plus
+three setup cases passed in 32.2 seconds, with zero retries.
+
+Before application, Root and the independent capable reviewer read the entire
+fresh 2,268-byte mechanical patch and actually inspected both generated desktop
+images. They cleared only these exact artifacts. The patch SHA-256 is
+`57505F45E76536FE387BCA4F8C4B714078D0AB053EACE72C4AB366B334E2B7D9`;
+its source/destination hashes were verified and `git apply --check` passed.
+Commit `f37272ed` applies that two-test-file formatting and only these two PNGs:
+
+| Baseline path | SHA-256 |
+| --- | --- |
+| `e2e/shell.spec.ts-snapshots/shell-heute-light-desktop-linux.png` | `16CC84750D70A32EE86E263C90CB5FA3E756A0B8C8D42C01196B4665534E2220` |
+| `e2e/shell.spec.ts-snapshots/shell-heute-dark-desktop-linux.png` | `B0968B1FEAA2A6BC44A9291A81131BA71503A6860413AD34C31AC2DDEB9F11E1` |
+
+The hashes match the earlier independently reviewed actual images; no phone or
+unrelated baseline was changed. The prior review confirmed legible current KPIs
+and chart labels within the desktop viewport, without overlap or clipped labels.
+No application source, configuration, financial oracle, writer, limit, timeout or
+retry changed in this follow-up. A new exact public full CI run on the final
+reviewed head is still required; the scoped proof does not replace that gate.
 
 Local work used only native Git/PowerShell/`rg` under the owner's RAM constraint.
 `git diff --check` passed at the source freeze. No local Node install, test, build,
