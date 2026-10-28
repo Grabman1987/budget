@@ -177,7 +177,8 @@ test('class mini histories retain the shared period, full class universe and mon
       `/api/portfolio?period=${period}&view=securities&history=performance`,
     );
     expect(response.ok()).toBe(true);
-    const history = (await response.json()).portfolio.performanceHistory as PortfolioPerformanceHistory;
+    const history = (await response.json()).portfolio
+      .performanceHistory as PortfolioPerformanceHistory;
     expect(history.index.at(-1)?.date).toBe(end);
     expect(history.classes.map((cls) => cls.name)).toEqual([
       'Aktien Welt',
@@ -239,13 +240,17 @@ test('class mini histories retain the shared period, full class universe and mon
     for (let i = 1; i < history.index.length; i++) await chart.press('ArrowRight');
     await expect(tooltip).toContainText('•••');
     await expect(tooltip).not.toContainText(known);
-    const accessible = await classes.locator('[aria-label], [title], [aria-valuetext]').evaluateAll(
-      (elements) => elements.flatMap((element) => [
-        element.getAttribute('aria-label'),
-        element.getAttribute('title'),
-        element.getAttribute('aria-valuetext'),
-      ]).join('\n'),
-    );
+    const accessible = await classes
+      .locator('[aria-label], [title], [aria-valuetext]')
+      .evaluateAll((elements) =>
+        elements
+          .flatMap((element) => [
+            element.getAttribute('aria-label'),
+            element.getAttribute('title'),
+            element.getAttribute('aria-valuetext'),
+          ])
+          .join('\n'),
+      );
     expect(accessible).not.toContain(known);
     await chart.press('Escape');
     if (phone) await profile.click();
@@ -258,9 +263,12 @@ test('class mini histories retain the shared period, full class universe and mon
     expect((await responseAfter.json()).portfolio.performanceHistory.dailyValues).toEqual(
       history.dailyValues,
     );
-    await page.evaluate((theme) => {
-      document.documentElement.dataset['theme'] = theme;
-    }, period === '2026-01..2026-05' ? 'light' : 'dark');
+    await page.evaluate(
+      (theme) => {
+        document.documentElement.dataset['theme'] = theme;
+      },
+      period === '2026-01..2026-05' ? 'light' : 'dark',
+    );
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     await classes.getByText('Klassenverläufe als Tabelle', { exact: true }).click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(

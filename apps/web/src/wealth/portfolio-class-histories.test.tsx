@@ -74,10 +74,12 @@ it('keeps the canonical class order, shared monthly dates and literal index valu
 it('replaces every mini and table date when the selected period response changes', () => {
   const { rerender, container } = render(<PortfolioClassHistories history={history} />);
   rerender(
-    <PortfolioClassHistories history={{
-      index: history.index.slice(-2),
-      classes: history.classes.map((cls) => ({ ...cls, index: cls.index.slice(-2) })),
-    }} />,
+    <PortfolioClassHistories
+      history={{
+        index: history.index.slice(-2),
+        classes: history.classes.map((cls) => ({ ...cls, index: cls.index.slice(-2) })),
+      }}
+    />,
   );
   expect(container.textContent).not.toContain('31.01.2026');
   expect(container.textContent).toContain('30.04.2026');

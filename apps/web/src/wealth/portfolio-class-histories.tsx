@@ -139,7 +139,13 @@ function ClassHistory({
                   segment.length > 1 ? (
                     <Line key={i} points={segment} kind="actual" draw={false} />
                   ) : (
-                    <circle key={i} cx={segment[0]![0]} cy={segment[0]![1]} r={3} fill="var(--line)" />
+                    <circle
+                      key={i}
+                      cx={segment[0]![0]}
+                      cy={segment[0]![1]}
+                      r={3}
+                      fill="var(--line)"
+                    />
                   ),
                 )}
             </g>
