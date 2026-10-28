@@ -103,9 +103,14 @@ test.describe('UX-3c phone chart and table containers', () => {
     expect(bar.height).toBe(16);
   });
 
-  test('Jahresansicht exposes its final average column without page scrolling', async ({ page }) => {
+  test('Jahresansicht exposes its final average column without page scrolling', async ({
+    page,
+  }) => {
     await page.goto('/reports/jahresansicht?monat=2026-09');
-    const region = page.getByRole('region', { name: 'Jahresansicht, bei Bedarf horizontal verschiebbar', exact: true });
+    const region = page.getByRole('region', {
+      name: 'Jahresansicht, bei Bedarf horizontal verschiebbar',
+      exact: true,
+    });
     await expect(region).toBeVisible({ timeout: 30_000 });
     await region.focus();
     await expect(region).toBeFocused();

@@ -151,7 +151,9 @@ export function ContactsPage() {
             onRetry={() => void contacts.refetch()}
           />
         )}
-        {contacts.data && !contacts.isFetching && !contacts.isError &&
+        {contacts.data &&
+          !contacts.isFetching &&
+          !contacts.isError &&
           (contacts.data.contacts.length === 0 ? (
             <EmptyNote>
               Keine offenen Kontaktbeträge. Ausgeglichene Kontakte bleiben mit ihrem Verlauf

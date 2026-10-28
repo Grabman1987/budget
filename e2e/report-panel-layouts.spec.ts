@@ -62,9 +62,6 @@ test('secondary report sections follow their main content at full width', async 
   const container = (await summary.locator('.ex-template-source-heading').boundingBox())!;
   const facts = (await summary.locator(':scope > p').first().boundingBox())!;
   expect(Math.abs(container.width - facts.width)).toBeLessThan(2);
-  await expect(summary.locator('.report-source-link').first()).toHaveAttribute(
-    'href',
-    /buchung=/,
-  );
+  await expect(summary.locator('.report-source-link').first()).toHaveAttribute('href', /buchung=/);
   await inspectReport(page, info, 'category-inline-summary');
 });

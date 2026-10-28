@@ -100,8 +100,11 @@ async function inspect(page: Page, info: TestInfo, name: string) {
 // 1.5 Jahresansicht
 // ---------------------------------------------------------------------------------------------
 test.describe('1.5 Jahresansicht', () => {
-  const row = (page: Page, key: string) => page.getByTestId('template-year').locator(`[data-template-row="${key}"]`);
-  test('retains every original year cell, household/consumption totals and missing-month distinction', async ({ page }, info) => {
+  const row = (page: Page, key: string) =>
+    page.getByTestId('template-year').locator(`[data-template-row="${key}"]`);
+  test('retains every original year cell, household/consumption totals and missing-month distinction', async ({
+    page,
+  }, info) => {
     const data = await facts(page);
     const view = buildYearView(data.months, 2026, data.lastFullMonth);
     const rows = buildTableRows(view.months, data, true);
@@ -112,29 +115,51 @@ test.describe('1.5 Jahresansicht', () => {
       for (let i = 0; i < 12; i++) {
         const value = expected.vals[i];
         const text = cells[i]?.replace(/\s*[↑↓]$/, '').trim();
-        expect(text, `${expected.key} month ${i}`).toBe(value === null || value === undefined ? '–' : expected.kind === 'pct' ? `${value < 0 ? '−' : ''}${Math.round(Math.abs(value) / 100)} %` : formatEuro(cents(value)));
+        expect(text, `${expected.key} month ${i}`).toBe(
+          value === null || value === undefined
+            ? '–'
+            : expected.kind === 'pct'
+              ? `${value < 0 ? '−' : ''}${Math.round(Math.abs(value) / 100)} %`
+              : formatEuro(cents(value)),
+        );
       }
       const sum = tableRowTotal(expected);
-      expect(cells[12]?.replace(/\s*[↑↓]$/, '').trim(), expected.key).toBe(sum === null ? '–' : formatEuro(cents(sum)));
+      expect(cells[12]?.replace(/\s*[↑↓]$/, '').trim(), expected.key).toBe(
+        sum === null ? '–' : formatEuro(cents(sum)),
+      );
     }
-    const have = view.months.flatMap((m) => m ? [m] : []);
+    const have = view.months.flatMap((m) => (m ? [m] : []));
     const income = have.reduce((a, m) => a + monthHouseholdIncome(m, data), 0);
     const consumption = have.reduce((a, m) => a + monthConsumption(m, data), 0);
     const future = have.reduce((a, m) => a + monthClassSpending(m, data, 'future'), 0);
-    await expect(row(page, 'rest').locator('td').nth(12)).toContainText(formatEuro(cents(income - consumption - future)));
+    await expect(row(page, 'rest').locator('td').nth(12)).toContainText(
+      formatEuro(cents(income - consumption - future)),
+    );
     await expect(row(page, 'sq').locator('td').nth(8)).toHaveText('–');
-    await expect(page.getByRole('rowheader', { name: 'Kapitalerträge (nicht in Einnahmen)' })).toBeVisible();
+    await expect(
+      page.getByRole('rowheader', { name: 'Kapitalerträge (nicht in Einnahmen)' }),
+    ).toBeVisible();
     expect(rows.find((r) => r.key.startsWith('memo:'))).toBeDefined();
     expect(view.pairs).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
     await inspect(page, info, 'jahresansicht');
   });
-  test('year selection keeps whole-year columns and absent source months through reload', async ({ page }) => {
+  test('year selection keeps whole-year columns and absent source months through reload', async ({
+    page,
+  }) => {
     const data = await facts(page);
     await open(page, '/reports/jahresansicht');
-    for (const [year, pairs] of [['2025', 12], ['2024', 3], ['2023', 0]] as const) {
+    for (const [year, pairs] of [
+      ['2025', 12],
+      ['2024', 3],
+      ['2023', 0],
+    ] as const) {
       await page.getByRole('combobox', { name: 'Jahr', exact: true }).selectOption(year);
-      await expect(page.getByTestId('template-year').locator(`th[title="Jänner ${year}"]`)).toBeVisible();
-      expect(buildYearView(data.months, Number(year), data.lastFullMonth).pairs).toHaveLength(pairs);
+      await expect(
+        page.getByTestId('template-year').locator(`th[title="Jänner ${year}"]`),
+      ).toBeVisible();
+      expect(buildYearView(data.months, Number(year), data.lastFullMonth).pairs).toHaveLength(
+        pairs,
+      );
     }
     await page.reload();
     await expect(page.getByRole('combobox', { name: 'Jahr', exact: true })).toHaveValue('2023');
@@ -142,47 +167,86 @@ test.describe('1.5 Jahresansicht', () => {
     expect(cells.slice(0, 9).every((t) => t.trim() === '–')).toBe(true);
     expect(cells[9]?.trim()).not.toBe('–');
   });
-  test('accepted year template includes category rows without changing any group amount', async ({ page }) => {
+  test('accepted year template includes category rows without changing any group amount', async ({
+    page,
+  }) => {
     const data = await facts(page);
-    const rows = buildTableRows(buildYearView(data.months, 2026, data.lastFullMonth).months, data, false);
+    const rows = buildTableRows(
+      buildYearView(data.months, 2026, data.lastFullMonth).months,
+      data,
+      false,
+    );
     await open(page, '/reports/jahresansicht');
     await expect(page.getByRole('rowheader', { name: 'Wohnen', exact: true })).toBeVisible();
     await expect(page.getByRole('rowheader', { name: 'Miete', exact: true })).toBeVisible();
     for (const expected of rows.filter((r) => r.kind === 'group')) {
       const cells = await row(page, expected.key).locator('td').allInnerTexts();
-      expected.vals.forEach((v, i) => expect(cells[i]?.replace(/\s*[↑↓]$/, '').trim()).toBe(v === null ? '–' : formatEuro(cents(v))));
+      expected.vals.forEach((v, i) =>
+        expect(cells[i]?.replace(/\s*[↑↓]$/, '').trim()).toBe(
+          v === null ? '–' : formatEuro(cents(v)),
+        ),
+      );
     }
   });
 });
 
 // The owner517 category template replaces the multicategory overview; same category/month facts.
 test.describe('1.6 Kategorie im Verlauf', () => {
-  test('every selected source category retains its exact months, sum and rounded average', async ({ page }, info) => {
+  test('every selected source category retains its exact months, sum and rounded average', async ({
+    page,
+  }, info) => {
     const data = await facts(page);
     for (const period of ['1J', 'YTD'] as const) {
       const window = reportPeriodMonths(period, data.lastFullMonth!, data.firstMonth!);
-      expect(window).toEqual(period === 'YTD'
-        ? ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08']
-        : ['2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08']);
+      expect(window).toEqual(
+        period === 'YTD'
+          ? ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08']
+          : [
+              '2025-09',
+              '2025-10',
+              '2025-11',
+              '2025-12',
+              '2026-01',
+              '2026-02',
+              '2026-03',
+              '2026-04',
+              '2026-05',
+              '2026-06',
+              '2026-07',
+              '2026-08',
+            ],
+      );
       const overview = categoryOverview(data.months, data, window, data.lastFullMonth);
       await open(page, `/reports/kategorien?zeitraum=${period}`);
       const selected = overview.rows.slice(0, 6);
       expect(selected.some((row) => row.category.name === 'Miete')).toBe(true);
       for (const expected of selected) {
-        await page.getByRole('combobox', { name: 'Kategorie', exact: true }).selectOption(expected.category.id);
-        const row = page.getByTestId('template-category').locator(`[data-template-row="cat:${expected.category.id}"]`);
+        await page
+          .getByRole('combobox', { name: 'Kategorie', exact: true })
+          .selectOption(expected.category.id);
+        const row = page
+          .getByTestId('template-category')
+          .locator(`[data-template-row="cat:${expected.category.id}"]`);
         await expect(row.getByRole('rowheader')).toHaveAccessibleName(expected.category.name);
-        const cells = await row.locator('td').evaluateAll((elements) => elements.map((element) => ({
-          column: element.querySelector('[data-template-column]')?.getAttribute('data-template-column'),
-          text: (element as HTMLElement).innerText.replace(/\s*[↑↓]$/, '').trim(),
-        })));
+        const cells = await row.locator('td').evaluateAll((elements) =>
+          elements.map((element) => ({
+            column: element
+              .querySelector('[data-template-column]')
+              ?.getAttribute('data-template-column'),
+            text: (element as HTMLElement).innerText.replace(/\s*[↑↓]$/, '').trim(),
+          })),
+        );
         const history = expected.history.filter((point) => window.includes(point.month));
         expect(history.map((point) => point.month)).toEqual(window);
         history.forEach((point, i) => {
           if (point.spentCents !== null) expect(cells[i]?.column).toBe(point.month);
-          expect(cells[i]?.text).toBe(point.spentCents === null ? '–' : formatEuro(cents(point.spentCents)));
+          expect(cells[i]?.text).toBe(
+            point.spentCents === null ? '–' : formatEuro(cents(point.spentCents)),
+          );
         });
-        expect(cells.find((cell) => cell.column === 'summe')?.text).toBe(formatEuro(cents(expected.sumCents)));
+        expect(cells.find((cell) => cell.column === 'summe')?.text).toBe(
+          formatEuro(cents(expected.sumCents)),
+        );
         expect(cells.at(-1)?.text).toBe(formatEuro(cents(expected.avgCents)));
         if (period === 'YTD' && expected.category.name === 'Miete') {
           expect(cells.find((cell) => cell.column === '2026-01')?.text).toBe('890,00 €');
@@ -194,40 +258,55 @@ test.describe('1.6 Kategorie im Verlauf', () => {
     }
     await inspect(page, info, 'kategorien');
   });
-  test('category identity, monthly peak and source-cell inspection survive keyboard selection and reload', async ({ page }) => {
+  test('category identity, monthly peak and source-cell inspection survive keyboard selection and reload', async ({
+    page,
+  }) => {
     const data = await facts(page);
     const window = reportPeriodMonths('1J', data.lastFullMonth!, data.firstMonth!);
     const overview = categoryOverview(data.months, data, window, data.lastFullMonth);
     const first = overview.rows[0]!;
-    const highest = first.history.reduce((a, h) => (h.spentCents ?? 0) > (a.spentCents ?? 0) ? h : a);
+    const highest = first.history.reduce((a, h) =>
+      (h.spentCents ?? 0) > (a.spentCents ?? 0) ? h : a,
+    );
     await open(page, '/reports/kategorien?zeitraum=1J');
     const picker = page.getByRole('combobox', { name: 'Kategorie', exact: true });
     await picker.selectOption(first.category.id);
     await picker.focus();
     await expect(picker).toBeFocused();
-    const cell = page.getByTestId('template-category').locator(`[data-template-column="${highest.month}"]`);
+    const cell = page
+      .getByTestId('template-category')
+      .locator(`[data-template-column="${highest.month}"]`);
     await expect(cell).toContainText(formatEuro(cents(highest.spentCents ?? 0)));
     await cell.focus();
     await page.keyboard.press('Enter');
-    await expect(page.getByTestId('template-sources')).toContainText(formatEuro(cents(highest.spentCents ?? 0)));
+    await expect(page.getByTestId('template-sources')).toContainText(
+      formatEuro(cents(highest.spentCents ?? 0)),
+    );
     await page.reload();
     await expect(picker).toHaveValue(first.category.id);
     await expect(page.getByTestId('template-sources')).toBeVisible();
     await page.getByRole('button', { name: 'Buchungen schließen', exact: true }).click();
     await expect(page.getByTestId('template-sources')).toHaveCount(0);
   });
-  test('period changes preserve source category sums, including all available history', async ({ page }) => {
+  test('period changes preserve source category sums, including all available history', async ({
+    page,
+  }) => {
     const data = await facts(page);
     const id = data.categories[0]!.id;
     await open(page, `/reports/kategorien?kategorien=${encodeURIComponent(JSON.stringify([id]))}`);
     for (const period of ['1J', 'Alles'] as const) {
-      await page.getByRole('group', { name: 'Zeitraum', exact: true }).getByRole('button', { name: period, exact: true }).click();
+      await page
+        .getByRole('group', { name: 'Zeitraum', exact: true })
+        .getByRole('button', { name: period, exact: true })
+        .click();
       await expect(page).toHaveURL(new RegExp(`zeitraum=${period}`));
       const window = reportPeriodMonths(period, data.lastFullMonth!, data.firstMonth!);
       const overview = categoryOverview(data.months, data, window, data.lastFullMonth);
       const expected = overview.rows.find((r) => r.category.id === id)!;
       const row = page.getByTestId('template-category').locator(`[data-template-row="cat:${id}"]`);
-      await expect(row.locator('td').nth(window.length)).toContainText(formatEuro(cents(expected.sumCents)));
+      await expect(row.locator('td').nth(window.length)).toContainText(
+        formatEuro(cents(expected.sumCents)),
+      );
       if (period === 'Alles') expect(expected.previousCents).toBeNull();
     }
   });
@@ -334,7 +413,9 @@ test.describe('1.8 Gesamttabelle', () => {
     await expect(heads).toHaveCount(1 + 36);
     await expect(heads.nth(1)).toHaveText('Okt 23');
     await expect(heads.last()).toHaveText('Sep 26*');
-    await expect(page.locator('.ex-total-history').getByText('* September 2026 läuft noch')).toBeVisible();
+    await expect(
+      page.locator('.ex-total-history').getByText('* September 2026 läuft noch'),
+    ).toBeVisible();
 
     const nw = await page.locator('table.rg-all tbody tr').last().locator('td').allTextContents();
     expect(nw).toHaveLength(36);
@@ -342,7 +423,12 @@ test.describe('1.8 Gesamttabelle', () => {
     expect(nw[35]?.trim()).toBe('84.730');
 
     // the table starts scrolled to the running month
-    const scroller = page.locator('.ex-total-history').getByRole('region', { name: 'Gesamttabelle, bei Bedarf horizontal verschiebbar', exact: true });
+    const scroller = page
+      .locator('.ex-total-history')
+      .getByRole('region', {
+        name: 'Gesamttabelle, bei Bedarf horizontal verschiebbar',
+        exact: true,
+      });
     const scrolled = await scroller.evaluate(
       (el) => el.scrollLeft + el.clientWidth >= el.scrollWidth - 2,
     );
@@ -420,22 +506,39 @@ test.describe('states', () => {
   for (const id of ['jahresansicht', 'kategorien', 'sparquote', 'gesamttabelle']) {
     test(`${id}: says honestly that there is no data`, async ({ page }) => {
       await page.route('**/api/report-tables/months*', (route) => route.fulfill({ json: empty }));
-      await page.route('**/api/report-tables/income-expense*', (route) => route.fulfill({ json: empty }));
+      await page.route('**/api/report-tables/income-expense*', (route) =>
+        route.fulfill({ json: empty }),
+      );
       await page.goto(`/reports/${id}`);
-      if (id === 'gesamttabelle') await page.getByText('Alle Monate: Nettovermögen und CSV', { exact: true }).click();
-      await expect(page.getByText(id === 'sparquote' || id === 'gesamttabelle' ? 'Noch keine Monatsdaten' : 'Für diese Auswahl sind keine vollständigen Monatswerte verfügbar.', { exact: false })).toBeVisible({ timeout: 20_000 });
+      if (id === 'gesamttabelle')
+        await page.getByText('Alle Monate: Nettovermögen und CSV', { exact: true }).click();
+      await expect(
+        page.getByText(
+          id === 'sparquote' || id === 'gesamttabelle'
+            ? 'Noch keine Monatsdaten'
+            : 'Für diese Auswahl sind keine vollständigen Monatswerte verfügbar.',
+          { exact: false },
+        ),
+      ).toBeVisible({ timeout: 20_000 });
       await expect(page.locator('table.rtable')).toHaveCount(0);
     });
 
     test(`${id}: shows the failure and retries`, async ({ page }) => {
       let fail = true;
-      await page.route(id === 'sparquote' || id === 'gesamttabelle' ? '**/api/report-tables/months*' : '**/api/report-tables/income-expense*', (route) =>
-        fail ? route.fulfill({ status: 500, json: { error: 'internal' } }) : route.continue(),
+      await page.route(
+        id === 'sparquote' || id === 'gesamttabelle'
+          ? '**/api/report-tables/months*'
+          : '**/api/report-tables/income-expense*',
+        (route) =>
+          fail ? route.fulfill({ status: 500, json: { error: 'internal' } }) : route.continue(),
       );
       await page.goto(`/reports/${id}`);
-      if (id === 'gesamttabelle') await page.getByText('Alle Monate: Nettovermögen und CSV', { exact: true }).click();
+      if (id === 'gesamttabelle')
+        await page.getByText('Alle Monate: Nettovermögen und CSV', { exact: true }).click();
       await expect(page.getByRole('alert')).toContainText(
-        id === 'sparquote' || id === 'gesamttabelle' ? 'Monatsdaten konnten nicht geladen werden' : 'Vorlage konnten nicht geladen werden',
+        id === 'sparquote' || id === 'gesamttabelle'
+          ? 'Monatsdaten konnten nicht geladen werden'
+          : 'Vorlage konnten nicht geladen werden',
         { timeout: 20_000 },
       );
       fail = false;
@@ -492,6 +595,8 @@ test.describe('states', () => {
     await expect(
       page.getByRole('status').filter({ hasText: 'Vorlage werden geladen' }),
     ).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId('template-category').locator('table')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId('template-category').locator('table')).toBeVisible({
+      timeout: 20_000,
+    });
   });
 });

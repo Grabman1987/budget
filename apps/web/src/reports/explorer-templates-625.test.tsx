@@ -192,15 +192,29 @@ function mount(search = '', templateFacts = facts) {
 
 describe('625 fixed templates beside retained custom views', () => {
   it('remounts the all-history disclosure closed after a template switch or source refresh without a hidden read', async () => {
-    const legacy: ReportTables = { ...facts, categories: [...facts.categories], incomeTypes: [...facts.incomeTypes], payees: {}, targets: { savingsRateBp: 2000, moneyAgeDays: 30 }, netWorth: 'unavailable' };
+    const legacy: ReportTables = {
+      ...facts,
+      categories: [...facts.categories],
+      incomeTypes: [...facts.incomeTypes],
+      payees: {},
+      targets: { savingsRateBp: 2000, moneyAgeDays: 30 },
+      netWorth: 'unavailable',
+    };
     const reads: string[] = [];
     let release!: (response: Response) => void;
-    vi.stubGlobal('fetch', vi.fn((path: string) => {
-      reads.push(path);
-      if (path === '/api/report-tables/months?netWorth=1') return Promise.resolve(new Response(JSON.stringify(legacy)));
-      if (path === '/api/report-tables/income-expense') return new Promise<Response>((done) => { release = done; });
-      throw new Error(`Unexpected read ${path}`);
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((path: string) => {
+        reads.push(path);
+        if (path === '/api/report-tables/months?netWorth=1')
+          return Promise.resolve(new Response(JSON.stringify(legacy)));
+        if (path === '/api/report-tables/income-expense')
+          return new Promise<Response>((done) => {
+            release = done;
+          });
+        throw new Error(`Unexpected read ${path}`);
+      }),
+    );
     const { client } = mount('?vorlage=total');
     const summary = () => screen.getByText('Alle Monate: Nettovermögen und CSV', { exact: true });
     await screen.findByTestId('template-total');
@@ -215,9 +229,15 @@ describe('625 fixed templates beside retained custom views', () => {
     expect(reads.filter((path) => path.includes('netWorth'))).toHaveLength(1);
     fireEvent.click(summary());
     await screen.findByTestId('csv-download');
-    act(() => { void client.invalidateQueries({ queryKey: explorerTemplateQuery.queryKey }); });
-    await waitFor(() => expect(screen.queryByText('Alle Monate: Nettovermögen und CSV', { exact: true })).toBeNull());
-    await act(async () => { release(new Response(JSON.stringify(facts))); });
+    act(() => {
+      void client.invalidateQueries({ queryKey: explorerTemplateQuery.queryKey });
+    });
+    await waitFor(() =>
+      expect(screen.queryByText('Alle Monate: Nettovermögen und CSV', { exact: true })).toBeNull(),
+    );
+    await act(async () => {
+      release(new Response(JSON.stringify(facts)));
+    });
     await screen.findByTestId('template-total');
     expect(summary().closest('details')!.open).toBe(false);
     expect(screen.queryByTestId('csv-download')).toBeNull();
@@ -226,7 +246,12 @@ describe('625 fixed templates beside retained custom views', () => {
 
   it('retains all-history net worth and its exact CSV only after opening the total disclosure, withholding stale values', async () => {
     const legacy: ReportTables = {
-      ...facts, categories: [...facts.categories], incomeTypes: [...facts.incomeTypes], payees: {}, targets: { savingsRateBp: 2000, moneyAgeDays: 30 }, netWorth: 'ok',
+      ...facts,
+      categories: [...facts.categories],
+      incomeTypes: [...facts.incomeTypes],
+      payees: {},
+      targets: { savingsRateBp: 2000, moneyAgeDays: 30 },
+      netWorth: 'ok',
       months: [
         { ...facts.months[0]!, netWorthCents: 123456 },
         { ...facts.months[1]!, netWorthCents: 234567 },
@@ -237,7 +262,9 @@ describe('625 fixed templates beside retained custom views', () => {
     const fetcher = vi.fn((path: string, init?: RequestInit) => {
       expect(path).toBe('/api/report-tables/months?netWorth=1');
       expect(init?.method).toBe('GET');
-      return new Promise<Response>((done) => { resolve = done; });
+      return new Promise<Response>((done) => {
+        resolve = done;
+      });
     });
     vi.stubGlobal('fetch', fetcher);
     const { client } = mount('?vorlage=total&zeitraum=1M');
@@ -246,44 +273,85 @@ describe('625 fixed templates beside retained custom views', () => {
     fireEvent.click(screen.getByText('Alle Monate: Nettovermögen und CSV', { exact: true }));
     await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
     expect(screen.queryByTestId('csv-download')).toBeNull();
-    await act(async () => { resolve(new Response(JSON.stringify(legacy))); });
+    await act(async () => {
+      resolve(new Response(JSON.stringify(legacy)));
+    });
     const csv = await screen.findByTestId('csv-download');
     expect(screen.getByText('Datenbasis: Jän 24 bis Mär 24')).toBeDefined();
     expect(screen.getByTestId('total-history-verdict')).toBeDefined();
-    expect(document.querySelector('table.rg-all tbody tr:last-child td:last-child')?.textContent).toBe('84.730');
+    expect(
+      document.querySelector('table.rg-all tbody tr:last-child td:last-child')?.textContent,
+    ).toBe('84.730');
     const NativeURL = URL;
     let blob!: Blob;
-    vi.stubGlobal('URL', class extends NativeURL {
-      static override createObjectURL = vi.fn((value: Blob) => { blob = value; return 'blob:total-620'; });
-      static override revokeObjectURL = vi.fn();
-    });
+    vi.stubGlobal(
+      'URL',
+      class extends NativeURL {
+        static override createObjectURL = vi.fn((value: Blob) => {
+          blob = value;
+          return 'blob:total-620';
+        });
+        static override revokeObjectURL = vi.fn();
+      },
+    );
     let filename = '';
-    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { filename = this.download; });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      filename = this.download;
+    });
     fireEvent.click(csv);
     expect(filename).toBe('gesamttabelle-2024-01-2024-03.csv');
-    const text = await new Promise<string>((done) => { const reader = new FileReader(); reader.onload = () => done(String(reader.result)); reader.readAsText(blob); });
+    const text = await new Promise<string>((done) => {
+      const reader = new FileReader();
+      reader.onload = () => done(String(reader.result));
+      reader.readAsText(blob);
+    });
     expect(text).toContain('"Nettovermögen am Monatsende";1234,56;2345,67;84730,00');
     act(() => setAmountsHidden(true));
     expect(document.querySelector('table.rg-all')?.textContent).not.toContain('84.730');
-    act(() => { void client.invalidateQueries({ queryKey: reportTablesQuery(true).queryKey }); });
+    act(() => {
+      void client.invalidateQueries({ queryKey: reportTablesQuery(true).queryKey });
+    });
     await waitFor(() => expect(screen.queryByTestId('csv-download')).toBeNull());
-    await act(async () => { resolve(new Response(JSON.stringify({ error: 'unavailable' }), { status: 503 })); });
+    await act(async () => {
+      resolve(new Response(JSON.stringify({ error: 'unavailable' }), { status: 503 }));
+    });
     await screen.findByRole('alert');
     expect(document.querySelector('table.rg-all')).toBeNull();
     expect(screen.queryByTestId('csv-download')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
-    await act(async () => { resolve(new Response(JSON.stringify({ ...legacy, netWorth: 'unavailable', months: legacy.months.map((month) => ({ ...month, netWorthCents: null })) }))); });
+    await act(async () => {
+      resolve(
+        new Response(
+          JSON.stringify({
+            ...legacy,
+            netWorth: 'unavailable',
+            months: legacy.months.map((month) => ({ ...month, netWorthCents: null })),
+          }),
+        ),
+      );
+    });
     await screen.findByTestId('csv-download');
-    expect(screen.getByText('Das Nettovermögen am Monatsende ist nicht verfügbar:', { exact: false })).toBeDefined();
-    expect(document.querySelector('table.rg-all tbody tr:last-child td:last-child')?.textContent).toBe('–');
+    expect(
+      screen.getByText('Das Nettovermögen am Monatsende ist nicht verfügbar:', { exact: false }),
+    ).toBeDefined();
+    expect(
+      document.querySelector('table.rg-all tbody tr:last-child td:last-child')?.textContent,
+    ).toBe('–');
   });
 
   it('defaults a year bookmark to the latest year with full source data, including gaps after it', async () => {
     mount('?vorlage=year', { ...facts, currentMonth: '2025-03', lastFullMonth: '2025-02' });
     const table = await screen.findByTestId('template-year');
-    expect(table.querySelector('[data-template-row="cat:food"] [data-template-column="2024-02"]')?.textContent).toContain('20,01');
+    expect(
+      table.querySelector('[data-template-row="cat:food"] [data-template-column="2024-02"]')
+        ?.textContent,
+    ).toContain('20,01');
     expect(table.querySelector('[data-template-column="2025-02"]')).toBeNull();
-    expect((screen.getByRole('combobox', { name: 'Jahr' }) as HTMLSelectElement).value).toBe('2024');
+    expect((screen.getByRole('combobox', { name: 'Jahr' }) as HTMLSelectElement).value).toBe(
+      '2024',
+    );
   });
 
   it('offers all four templates in addition to the unchanged custom presets and validates exact deep-link selectors', async () => {

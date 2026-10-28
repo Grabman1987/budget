@@ -13,7 +13,17 @@ vi.mock('@tanstack/react-router', () => ({
 
 // Exercise the route's opt-in with the real chart consumer, without report network reads.
 function Chart() {
-  return <svg><TrendLine points={[[0, 0], [1, 1], [2, 2]]} /></svg>;
+  return (
+    <svg>
+      <TrendLine
+        points={[
+          [0, 0],
+          [1, 1],
+          [2, 2],
+        ]}
+      />
+    </svg>
+  );
 }
 vi.mock('../reports/income-cashflow-report', () => ({ IncomeCashflowReport: Chart }));
 vi.mock('../reports/wealth-report-views', () => ({ WealthReportViews: Chart }));

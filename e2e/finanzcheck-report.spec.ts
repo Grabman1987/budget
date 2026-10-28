@@ -1,4 +1,9 @@
-import { DEFAULT_ACTIVE_RULE_COUNT, dayCounts, ruleTimelines, type HistoryMatrix } from '@budget/domain';
+import {
+  DEFAULT_ACTIVE_RULE_COUNT,
+  dayCounts,
+  ruleTimelines,
+  type HistoryMatrix,
+} from '@budget/domain';
 import type { FinanceCheckFull } from '../apps/web/src/reports/finanzcheck-api';
 import type { Heute } from '../apps/web/src/heute/api';
 import { expect as baseExpect, sampleTest as test, SAMPLE_URL } from './sample';
@@ -15,16 +20,29 @@ test('retired Finanz-Check bookmark opens Heute while real history retains stage
   page,
 }, info) => {
   // The retired reader invoked this same idempotent derivation before reading stored history.
-  const derived = await page.request.post('/api/rules/evaluate', { headers: { origin: SAMPLE_URL }, timeout: 90_000 });
+  const derived = await page.request.post('/api/rules/evaluate', {
+    headers: { origin: SAMPLE_URL },
+    timeout: 90_000,
+  });
   expect(derived.status()).toBe(200);
   const response = await page.request.get('/api/rules/results', { timeout: 90_000 });
   expect(response.status()).toBe(200);
   const matrix = (await response.json()) as HistoryMatrix;
   const days = matrix.days;
   expect(days).toEqual([
-    '2025-09-30', '2025-10-31', '2025-11-30', '2025-12-31',
-    '2026-01-31', '2026-02-28', '2026-03-31', '2026-04-30',
-    '2026-05-31', '2026-06-30', '2026-07-31', '2026-08-31', '2026-09-17',
+    '2025-09-30',
+    '2025-10-31',
+    '2025-11-30',
+    '2025-12-31',
+    '2026-01-31',
+    '2026-02-28',
+    '2026-03-31',
+    '2026-04-30',
+    '2026-05-31',
+    '2026-06-30',
+    '2026-07-31',
+    '2026-08-31',
+    '2026-09-17',
   ]);
   const checkResponse = await page.request.get('/api/rules/check');
   expect(checkResponse.status()).toBe(200);
@@ -61,10 +79,13 @@ test('retired Finanz-Check bookmark opens Heute while real history retains stage
   if (rules.length) {
     const row = page.locator('.attention-row', { hasText: /Regelbefund/ });
     const remaining = page.locator('.attention-remaining > summary');
-    if (!(await row.isVisible()) && await remaining.isVisible()) await remaining.click();
+    if (!(await row.isVisible()) && (await remaining.isVisible())) await remaining.click();
     await expect(row).toContainText(String(rules.length));
     const action = row.getByRole('link', { name: 'Handeln', exact: true });
-    await expect(action).toHaveAttribute('href', `/einstellungen/regelwerk#rule-result-${rules[0]!.code}`);
+    await expect(action).toHaveAttribute(
+      'href',
+      `/einstellungen/regelwerk#rule-result-${rules[0]!.code}`,
+    );
     expect((await action.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     await action.focus();
     await expect(action).toBeFocused();

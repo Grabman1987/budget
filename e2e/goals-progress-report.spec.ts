@@ -92,41 +92,58 @@ async function inspect(page: Page, info: TestInfo, label: string) {
 }
 // Retired aggregate renderer/source-boundary checks live in goals-progress-retained-620.test.tsx.
 // The live Plan detail still uses GoalDetail and the same guarded source query.
-test('goal bookmark opens Plan and retains literal figures, keyboard detail and source cutoffs', async ({ page }, info) => {
+test('goal bookmark opens Plan and retains literal figures, keyboard detail and source cutoffs', async ({
+  page,
+}, info) => {
   await mock(page, [goal(), account]);
   await page.goto('/reports/sparziele?monat=2026-09');
   await expect(page).toHaveURL(/\/plan\/sparziele\?monat=2026-09$/);
   const rows = page.locator('.goals tr.prow');
   const travel = rows.filter({ hasText: 'Reiseziel' });
-  for (const value of ['3.000,00 €', '850,00 €', '2.150,00 €', '215,00 €']) await expect(travel).toContainText(value);
+  for (const value of ['3.000,00 €', '850,00 €', '2.150,00 €', '215,00 €'])
+    await expect(travel).toContainText(value);
   const trigger = travel.getByRole('link', { name: 'Reiseziel', exact: true });
   await trigger.focus();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/plan\/sparziele\/travel-goal\?monat=2026-09$/);
   const detail = page.locator('.goal-report-detail');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  for (const value of ['3.000,00 €', '850,00 €', '2.150,00 €', '215,00 €', '250,00 €']) await expect(detail).toContainText(value);
+  for (const value of ['3.000,00 €', '850,00 €', '2.150,00 €', '215,00 €', '250,00 €'])
+    await expect(detail).toContainText(value);
   await expect(detail).toContainText('Prognose: Jun 2027');
-  await expect(detail.getByRole('link', { name: 'Buchungen der Quelle öffnen' })).toHaveAttribute('href', /kategorie=travel.*bis=2026-09-30/);
-  await expect(detail.getByRole('link', { name: 'Zuweisungen im Plan öffnen' })).toHaveAttribute('href', /monat=2026-09/);
+  await expect(detail.getByRole('link', { name: 'Buchungen der Quelle öffnen' })).toHaveAttribute(
+    'href',
+    /kategorie=travel.*bis=2026-09-30/,
+  );
+  await expect(detail.getByRole('link', { name: 'Zuweisungen im Plan öffnen' })).toHaveAttribute(
+    'href',
+    /monat=2026-09/,
+  );
   const back = page.getByRole('link', { name: 'Zurück zu Sparzielen', exact: true });
   expect((await back.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await back.click();
   await page.locator('.goals').getByRole('link', { name: 'Reserve', exact: true }).click();
   await expect(detail).toContainText('116,67 €');
   await expect(detail).toContainText('Apr 2027');
-  await expect(detail.getByRole('link', { name: 'Buchungen der Quelle öffnen' })).toHaveAttribute('href', /konto=reserve.*bis=2026-09-30/);
+  await expect(detail.getByRole('link', { name: 'Buchungen der Quelle öffnen' })).toHaveAttribute(
+    'href',
+    /konto=reserve.*bis=2026-09-30/,
+  );
   await expect(detail).toContainText('Wertpapierbestände sind keine Quelle');
   await page.reload();
   await expect(detail).toContainText('116,67 €');
   await inspect(page, info, 'goals-literal');
 });
 
-test('live goal detail withholds ambiguous source money and metadata while refresh and retry are pending', async ({ page }) => {
+test('live goal detail withholds ambiguous source money and metadata while refresh and retry are pending', async ({
+  page,
+}) => {
   await mock(page, [goal(), goal({ id: 'second', name: 'Zweites Ziel' })]);
   await page.goto('/reports/sparziele?monat=2026-09');
   await expect(page.locator('[data-goal-unknown]')).toHaveCount(2);
-  await expect(page.getByTestId('goals-summary')).toHaveText('Keine eindeutig belegten Zielstände · 2 ungeklärt');
+  await expect(page.getByTestId('goals-summary')).toHaveText(
+    'Keine eindeutig belegten Zielstände · 2 ungeklärt',
+  );
   await expect(page.locator('.goals .ptable-wrap')).not.toContainText('850,00');
   await expect(page.locator('.goals .ptable-wrap')).not.toContainText('1.700,00');
   await expect(page.locator('.goals .pbar')).toHaveCount(0);
@@ -135,14 +152,20 @@ test('live goal detail withholds ambiguous source money and metadata while refre
   await expect(detail).toContainText('Mehrere Sparziele verwenden dieselbe Quelle');
   await expect(detail).not.toContainText('€');
   // A valid source is then loaded through the same selected month query.
-  await page.route(/\/api\/goals(?:\?month=.*)?$/, (r) => r.fulfill({ json: { month: '2026-09', goals: [goal()] } }));
+  await page.route(/\/api\/goals(?:\?month=.*)?$/, (r) =>
+    r.fulfill({ json: { month: '2026-09', goals: [goal()] } }),
+  );
   await page.reload();
   await expect(detail).toContainText('850,00 €');
   let mode = 'blocked';
   let release: (() => void) | undefined;
   await page.route('**/api/accounts?asOf=*', async (r) => {
     if (mode === 'blocked') await new Promise<void>((resolve) => (release = resolve));
-    if (mode === 'error') await r.fulfill({ status: 503, json: { error: 'unavailable', message: 'Synthetische Quelle fehlt' } });
+    if (mode === 'error')
+      await r.fulfill({
+        status: 503,
+        json: { error: 'unavailable', message: 'Synthetische Quelle fehlt' },
+      });
     else await r.fulfill({ json: { accounts } });
   });
   await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
@@ -157,35 +180,46 @@ test('live goal detail withholds ambiguous source money and metadata while refre
   await page.getByRole('button', { name: 'Erneut versuchen' }).click();
   await expect(detail).toBeVisible();
   await expect(detail).toContainText('850,00 €');
-  await page.route(/\/api\/goals(?:\?month=.*)?$/, (r) => r.fulfill({ json: { month: '2026-09', goals: [] } }));
+  await page.route(/\/api\/goals(?:\?month=.*)?$/, (r) =>
+    r.fulfill({ json: { month: '2026-09', goals: [] } }),
+  );
   await page.reload();
   await expect(page.getByText('Dieses Sparziel ist nicht vorhanden.')).toBeVisible();
   await expect(detail).toHaveCount(0);
 });
 
-sampleTest('real synthetic API drives the Plan destination with no writes', async ({ page }, info) => {
-  const writes: string[] = [];
-  page.on('request', (r) => {
-    if (new URL(r.url()).pathname.startsWith('/api/') && r.method() !== 'GET') writes.push(r.url());
-  });
-  const response = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/goals');
-  await page.goto('/reports/sparziele?monat=2026-09');
-  const data = (await (await response).json()) as { month: string; goals: GoalView[] };
-  expect(data.month).toBe('2026-09');
-  expect(data.goals).toHaveLength(5);
-  await expect(page.getByTestId('goals-summary')).toHaveText('3 von 5 im Plan');
-  for (const g of data.goals) {
-    for (const toggle of await page.locator('.goals .grp-toggle[aria-expanded="false"]').all()) await toggle.click();
-    const row = page.locator('.goals tr.prow').filter({ has: page.getByRole('link', { name: g.name, exact: true }) });
-    await expect(row.locator('.col-target')).toHaveText(formatEuro(cents(g.targetCents)));
-    await expect(row.locator('.col-saved')).toHaveText(formatEuro(cents(g.savedCents)));
-    await expect(row.locator('.col-missing')).toHaveText(formatEuro(cents(g.remainingCents)));
-    await row.getByRole('link', { name: g.name, exact: true }).click();
-    const detail = page.locator('.goal-report-detail');
-    await expect(detail).toContainText(formatEuro(cents(g.averageRateCents)));
-    await expect(detail).toContainText(g.neededMonthlyCents === null ? 'ohne Zieldatum' : formatEuro(cents(g.neededMonthlyCents)));
-    await page.getByRole('link', { name: 'Zurück zu Sparzielen', exact: true }).click();
-  }
-  expect(writes).toEqual([]);
-  await inspect(page, info, 'goals-real-sample');
-});
+sampleTest(
+  'real synthetic API drives the Plan destination with no writes',
+  async ({ page }, info) => {
+    const writes: string[] = [];
+    page.on('request', (r) => {
+      if (new URL(r.url()).pathname.startsWith('/api/') && r.method() !== 'GET')
+        writes.push(r.url());
+    });
+    const response = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/goals');
+    await page.goto('/reports/sparziele?monat=2026-09');
+    const data = (await (await response).json()) as { month: string; goals: GoalView[] };
+    expect(data.month).toBe('2026-09');
+    expect(data.goals).toHaveLength(5);
+    await expect(page.getByTestId('goals-summary')).toHaveText('3 von 5 im Plan');
+    for (const g of data.goals) {
+      for (const toggle of await page.locator('.goals .grp-toggle[aria-expanded="false"]').all())
+        await toggle.click();
+      const row = page
+        .locator('.goals tr.prow')
+        .filter({ has: page.getByRole('link', { name: g.name, exact: true }) });
+      await expect(row.locator('.col-target')).toHaveText(formatEuro(cents(g.targetCents)));
+      await expect(row.locator('.col-saved')).toHaveText(formatEuro(cents(g.savedCents)));
+      await expect(row.locator('.col-missing')).toHaveText(formatEuro(cents(g.remainingCents)));
+      await row.getByRole('link', { name: g.name, exact: true }).click();
+      const detail = page.locator('.goal-report-detail');
+      await expect(detail).toContainText(formatEuro(cents(g.averageRateCents)));
+      await expect(detail).toContainText(
+        g.neededMonthlyCents === null ? 'ohne Zieldatum' : formatEuro(cents(g.neededMonthlyCents)),
+      );
+      await page.getByRole('link', { name: 'Zurück zu Sparzielen', exact: true }).click();
+    }
+    expect(writes).toEqual([]);
+    await inspect(page, info, 'goals-real-sample');
+  },
+);

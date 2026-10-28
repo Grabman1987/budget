@@ -16,12 +16,16 @@ async function openExpenseHeatmap(page: Page) {
 
 // Owner517 replaces the multicategory/previous-year overlay with one category plus its mean.
 // Null versus zero and previous-year pairing retain their literal domain regression unchanged.
-test('category choice and period survive reload; exact month sources and booking sums still reconcile', async ({ page }, info) => {
+test('category choice and period survive reload; exact month sources and booking sums still reconcile', async ({
+  page,
+}, info) => {
   const response = await page.request.get('/api/report-tables/months');
   expect(response.ok()).toBe(true);
   const data = (await response.json()) as ReportTables;
   const ids = data.categories.slice(0, 2).map((c) => c.id);
-  await page.goto(`/reports/kategorien?zeitraum=3M&kategorien=${encodeURIComponent(JSON.stringify(ids))}&vorjahr=true`);
+  await page.goto(
+    `/reports/kategorien?zeitraum=3M&kategorien=${encodeURIComponent(JSON.stringify(ids))}&vorjahr=true`,
+  );
   const template = page.getByTestId('template-category');
   const picker = page.getByRole('combobox', { name: 'Kategorie', exact: true });
   await expect(picker).toHaveValue(ids[0]!);
@@ -30,9 +34,15 @@ test('category choice and period survive reload; exact month sources and booking
   await picker.selectOption(ids[1]!);
   await expect(picker).toHaveValue(ids[1]!);
   await picker.selectOption(ids[0]!);
-  await page.getByRole('group', { name: 'Zeitraum', exact: true }).getByRole('button', { name: '1M', exact: true }).click();
+  await page
+    .getByRole('group', { name: 'Zeitraum', exact: true })
+    .getByRole('button', { name: '1M', exact: true })
+    .click();
   await expect(template.locator('tbody tr td')).toHaveCount(3);
-  await page.getByRole('group', { name: 'Zeitraum', exact: true }).getByRole('button', { name: '3M', exact: true }).click();
+  await page
+    .getByRole('group', { name: 'Zeitraum', exact: true })
+    .getByRole('button', { name: '3M', exact: true })
+    .click();
   await page.reload();
   await expect(picker).toHaveValue(ids[0]!);
   await expect(template.locator('tbody tr td')).toHaveCount(5);
@@ -41,12 +51,21 @@ test('category choice and period survive reload; exact month sources and booking
   await expect(paths).toHaveCount(2);
   // A painted horizontal stroke has a zero-height bbox; SVG visibility and finite geometry
   // cover that valid constant series without mistaking the path for a hidden chart.
-  const geometry = await paths.evaluateAll((elements) => elements.map((element) => {
-    if (!(element instanceof SVGPathElement)) throw new Error('Expected a trend path');
-    const box = element.getBBox();
-    const style = getComputedStyle(element);
-    return { d: element.getAttribute('d'), length: element.getTotalLength(), width: box.width, height: box.height, display: style.display, visibility: style.visibility };
-  }));
+  const geometry = await paths.evaluateAll((elements) =>
+    elements.map((element) => {
+      if (!(element instanceof SVGPathElement)) throw new Error('Expected a trend path');
+      const box = element.getBBox();
+      const style = getComputedStyle(element);
+      return {
+        d: element.getAttribute('d'),
+        length: element.getTotalLength(),
+        width: box.width,
+        height: box.height,
+        display: style.display,
+        visibility: style.visibility,
+      };
+    }),
+  );
   for (const path of geometry) {
     expect(path.d).toMatch(/^M/);
     expect(path.d).not.toMatch(/NaN|Infinity/);
@@ -56,15 +75,23 @@ test('category choice and period survive reload; exact month sources and booking
     expect(path.length).toBeGreaterThan(0);
     expect(path.width).toBeGreaterThan(0);
   }
-  const recent = data.months.filter((month) => ['2026-06', '2026-07', '2026-08'].includes(month.month));
+  const recent = data.months.filter((month) =>
+    ['2026-06', '2026-07', '2026-08'].includes(month.month),
+  );
   expect(recent.map((month) => month.month)).toEqual(['2026-06', '2026-07', '2026-08']);
-  const varying = data.categories.find((category) => new Set(recent.map((month) => month.spending[category.id] ?? 0)).size > 1);
+  const varying = data.categories.find(
+    (category) => new Set(recent.map((month) => month.spending[category.id] ?? 0)).size > 1,
+  );
   expect(varying).toBeDefined();
   await picker.selectOption(varying!.id);
-  await expect.poll(() => template.locator('.ex-template-trend .l-actual').evaluate((element) => {
-    if (!(element instanceof SVGPathElement)) throw new Error('Expected a trend path');
-    return element.getBBox().height;
-  })).toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      template.locator('.ex-template-trend .l-actual').evaluate((element) => {
+        if (!(element instanceof SVGPathElement)) throw new Error('Expected a trend path');
+        return element.getBBox().height;
+      }),
+    )
+    .toBeGreaterThan(0);
   await picker.selectOption(ids[0]!);
   await inspectReport(page, info, 'category-trend');
   const expected = data.months.find((m) => m.month === '2026-08')!.spending[ids[0]!] ?? 0;
@@ -72,23 +99,34 @@ test('category choice and period survive reload; exact month sources and booking
   expect((await cell.innerText()).replace(/\s*[↑↓]$/, '').trim()).toBe(formatEuro(cents(expected)));
   await cell.click();
   const sources = page.getByTestId('template-sources');
-  await expect(sources.locator(':scope > p').first().locator('strong')).toHaveText([formatEuro(cents(expected)), formatEuro(cents(expected))]);
+  await expect(sources.locator(':scope > p').first().locator('strong')).toHaveText([
+    formatEuro(cents(expected)),
+    formatEuro(cents(expected)),
+  ]);
   await expect(sources.getByRole('alert')).toHaveCount(0);
   const link = sources.locator('.report-source-link').first();
-  const booking = new URL((await link.getAttribute('href'))!, page.url()).searchParams.get('buchung');
+  const booking = new URL((await link.getAttribute('href'))!, page.url()).searchParams.get(
+    'buchung',
+  );
   expect(booking).toBeTruthy();
   await link.click();
   await expect(page).toHaveURL(new RegExp(`buchung=${booking}`));
   // Keep the independent all-bookings category-month reconciliation at its existing consumer.
-  await page.goto(`/konten/buchungen?kategorie=${encodeURIComponent(ids[0]!)}&von=2026-08-01&bis=2026-08-31&basis=category-spending`);
+  await page.goto(
+    `/konten/buchungen?kategorie=${encodeURIComponent(ids[0]!)}&von=2026-08-01&bis=2026-08-31&basis=category-spending`,
+  );
   const params = new URL(page.url()).searchParams;
   expect(params.get('kategorie')).toBe(ids[0]);
   expect(params.get('von')).toBe('2026-08-01');
   expect(params.get('bis')).toBe('2026-08-31');
-  await expect(page.locator('.ksum')).toContainText(`Kategorie netto ${formatEuro(cents(expected))}`);
+  await expect(page.locator('.ksum')).toContainText(
+    `Kategorie netto ${formatEuro(cents(expected))}`,
+  );
 });
 
-test('masking covers the accepted category trend values and exact heatmap source cells', async ({ page }) => {
+test('masking covers the accepted category trend values and exact heatmap source cells', async ({
+  page,
+}) => {
   await page.goto('/reports/kategorien?zeitraum=Alles&vorjahr=true');
   const template = page.getByTestId('template-category');
   await expect(template.locator('.table-cell-open').first()).toBeVisible();
@@ -98,7 +136,10 @@ test('masking covers the accepted category trend values and exact heatmap source
   await expect(template.locator('.table-cell-open').first()).toHaveText(/••• €/);
   await page.goto('/reports/ausgaben?zeitraum=1M');
   await openExpenseHeatmap(page);
-  const cell = page.getByTestId('template-heatmap').locator('[data-template-row^="cat:"] .table-cell-open[data-template-column^="20"]').first();
+  const cell = page
+    .getByTestId('template-heatmap')
+    .locator('[data-template-row^="cat:"] .table-cell-open[data-template-column^="20"]')
+    .first();
   await expect(cell).toBeVisible();
   await expect(cell).toHaveAttribute('aria-label', /••• €/);
   expect((await cell.innerText()).replace(/\s*[↑↓]$/, '').trim()).toBe('••• €');

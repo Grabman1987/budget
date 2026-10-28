@@ -82,27 +82,29 @@ export function TableReportFrame<T extends FrameFacts = ReportTables>({
     [tables, verdictMonth, query.isFetching, query.isError, report.id],
   );
   const body = (
-      <div ref={sectionsRef} className={`kview table-report report-table-print ${className}`}>
-        {(query.isPending || (embedded && query.isFetching)) && <LoadingNote what="Monatsdaten" />}
-        {query.isError && (
-          <ErrorNote what="Monatsdaten" error={query.error} onRetry={() => void query.refetch()} />
-        )}
-        {tables && !usable && (
-          <EmptyNote>
-            {tables.firstMonth === null
-              ? 'Noch keine Monatsdaten: Sobald es ein Budgetkonto mit Buchungen gibt, erscheint dieser Report.'
-              : 'Noch kein vollständiger Monat: Der Report beginnt mit dem ersten abgeschlossenen Monat.'}
-          </EmptyNote>
-        )}
-        {tables && usable && children(tables)}
-      </div>
+    <div ref={sectionsRef} className={`kview table-report report-table-print ${className}`}>
+      {(query.isPending || (embedded && query.isFetching)) && <LoadingNote what="Monatsdaten" />}
+      {query.isError && (
+        <ErrorNote what="Monatsdaten" error={query.error} onRetry={() => void query.refetch()} />
+      )}
+      {tables && !usable && (
+        <EmptyNote>
+          {tables.firstMonth === null
+            ? 'Noch keine Monatsdaten: Sobald es ein Budgetkonto mit Buchungen gibt, erscheint dieser Report.'
+            : 'Noch kein vollständiger Monat: Der Report beginnt mit dem ersten abgeschlossenen Monat.'}
+        </EmptyNote>
+      )}
+      {tables && usable && children(tables)}
+    </div>
   );
   if (embedded)
-    return <section aria-label="Gesamttabelle mit Vermögensständen und CSV">
-      <p>Datenbasis: {basis}</p>
-      {verdict && <VerdictLine facts={verdict} testId="total-history-verdict" />}
-      {body}
-    </section>;
+    return (
+      <section aria-label="Gesamttabelle mit Vermögensständen und CSV">
+        <p>Datenbasis: {basis}</p>
+        {verdict && <VerdictLine facts={verdict} testId="total-history-verdict" />}
+        {body}
+      </section>
+    );
   return (
     <PageFrame
       verdict={verdict}
