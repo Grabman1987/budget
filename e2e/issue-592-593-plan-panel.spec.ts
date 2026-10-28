@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 import { test } from './isolated-ledger';
 
@@ -29,11 +29,11 @@ async function checkPanel(page: Page, phone: boolean) {
   }
 }
 
-test('592 all five displayed deltas equal actual selected/visible assignments and single Undo', async ({
-  page,
-  request,
-  baseURL,
-}, info) => {
+async function seedAutomaticPlan(
+  page: Page,
+  request: APIRequestContext,
+  baseURL: string | undefined,
+) {
   const send = async (method: string, path: string, data: unknown) => {
     const response = await request.fetch(`/api${path}`, {
       method,
@@ -91,6 +91,15 @@ test('592 all five displayed deltas equal actual selected/visible assignments an
     };
   };
   await page.goto('/plan/monat?monat=2026-10&q=Visible');
+  return { ids, state };
+}
+
+test('592 all five displayed deltas equal actual selected/visible assignments and single Undo', async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  const { state } = await seedAutomaticPlan(page, request, baseURL);
   const side = page.getByRole('complementary', { name: 'Plan-Inspektor' });
   await side.getByText('Automatisch zuweisen', { selector: 'summary', exact: true }).click();
   const automatic = side.getByRole('region', { name: 'Automatisch zuweisen', exact: true });
@@ -119,6 +128,20 @@ test('592 all five displayed deltas equal actual selected/visible assignments an
       .locator('..')
       .getByText('3,00 € fehlen für 2 Kategorien · auf Zu verteilen begrenzt'),
   ).toBeVisible();
+  await page.reload();
+  await expect(automatic).toBeVisible();
+  await expect.poll(state).toEqual({ assigned: [400, 0, 250], tba: 500 });
+});
+
+test('592 automatic panel themes, privacy and selected assignment preserve literal state and Undo', async ({
+  page,
+  request,
+  baseURL,
+}, info) => {
+  const { ids, state } = await seedAutomaticPlan(page, request, baseURL);
+  const side = page.getByRole('complementary', { name: 'Plan-Inspektor' });
+  await side.getByText('Automatisch zuweisen', { selector: 'summary', exact: true }).click();
+  const automatic = side.getByRole('region', { name: 'Automatisch zuweisen', exact: true });
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
