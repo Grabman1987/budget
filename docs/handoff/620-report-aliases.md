@@ -255,3 +255,7 @@ No timeout, financial formula, fixture date, API/write implementation, Undo beha
 or product CSS changed in these corrections. No local runtime or formatting
 command ran; root must arrange a fresh reviewed formatting patch and exact-head
 unit/browser proof after the corrected test commit is frozen.
+
+Independent review additionally required both trend paths' computed display and
+visibility to remain rendered, so hidden paths cannot pass via retained geometry;
+zero-height flat strokes and the positive-height varying series remain covered.

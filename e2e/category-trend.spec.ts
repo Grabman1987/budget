@@ -44,11 +44,14 @@ test('category choice and period survive reload; exact month sources and booking
   const geometry = await paths.evaluateAll((elements) => elements.map((element) => {
     if (!(element instanceof SVGPathElement)) throw new Error('Expected a trend path');
     const box = element.getBBox();
-    return { d: element.getAttribute('d'), length: element.getTotalLength(), width: box.width, height: box.height };
+    const style = getComputedStyle(element);
+    return { d: element.getAttribute('d'), length: element.getTotalLength(), width: box.width, height: box.height, display: style.display, visibility: style.visibility };
   }));
   for (const path of geometry) {
     expect(path.d).toMatch(/^M/);
     expect(path.d).not.toMatch(/NaN|Infinity/);
+    expect(path.display).not.toBe('none');
+    expect(path.visibility).toBe('visible');
     expect([path.length, path.width, path.height].every(Number.isFinite)).toBe(true);
     expect(path.length).toBeGreaterThan(0);
     expect(path.width).toBeGreaterThan(0);
