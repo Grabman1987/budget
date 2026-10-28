@@ -496,28 +496,28 @@ no local runtime/formatter, push or workflow dispatch was performed by the autho
 
 ## Navigation GREEN proof and independently reviewed formatting application
 
-Focused run40716010860 checked source6c374aee: all186 units and121 Playwright
-results passed (118 actual browser cases plus3 setup), without retries. Browser
-coverage included all34 legacy landings and four landing-state cases across all
+Focused run 40716010860 checked source 6c374aee: all 186 units and 121 Playwright
+results passed (118 actual browser cases plus 3 setup), without retries. Browser
+coverage included all 34 legacy landings and four landing-state cases across all
 three profiles, canonical chart navigation and the real R07 response contracts
 on desktop/mobile. The workflow remained RED only because the original source
-failed formatting. The formatted candidate's canonical whole-repository lint,
-types, build, cleanup and three-pass byte-idempotence checks passed. Runtime
-checks used the restored semantic source; this is not a post-application public
-full-CI pass. The genuine earlier navigation RED/type qualification above remains
+failed formatting. The formatted candidate passed canonical whole-repository lint
+and three-pass byte-idempotence checks. Typecheck, build, cleanup and runtime
+checks passed on the restored semantic source. This is not a post-application
+public full-CI pass. The genuine earlier navigation RED/type qualification above remains
 part of the evidence.
 
-Before application, the independent reviewer read every one of2767 patch lines,
-53 hunks and21 paths and returned HIGH CLEAR. Root verified the patch hash,
+Before application, the independent reviewer read every one of 2767 patch lines,
+53 hunks and 21 paths and returned HIGH CLEAR. Root verified the patch hash,
 native application check and candidate identities. The author then rechecked
-the exact140444-byte patch SHA256
+the exact 140444-byte patch SHA256
 `EA08A8F1C767698589A48F95D955A3E86E694CD3A96D1FCA94285753FD3DA812`,
-applied only that patch and committed mechanical formatting as97fbef29. All52
+applied only that patch and committed mechanical formatting as 97fbef29. All 52
 candidate full blobs match the reviewed manifest, the changed path set is exactly
-the21 formatter paths, and native diff checking passes. No local formatter or
+the 21 formatter paths, and native diff checking passes. No local formatter or
 runtime was run.
 
-PR816 remains at its previously published7ed head until root authorizes an
+PR 816 remains at its previously published 7ed head until root authorizes an
 update after checking CI capacity and the actual main baseline. Exact new-head
 public full CI, live publication/health and acceptance gates remain pending.
 There is no new deployment, live or acceptance-pass claim from this focused
