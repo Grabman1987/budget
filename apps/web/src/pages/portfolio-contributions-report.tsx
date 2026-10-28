@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ChartSvg } from '@budget/ui';
 import { chartPoints } from '../charts/tooltip-data';
 import { ReportPeriodControl } from '../reports/period-quick-select';
@@ -43,9 +44,11 @@ const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }))
 export function PortfolioContributionsReport({
   report,
   meta,
+  viewControl,
 }: {
   report: ReportEntry;
   meta: PageMeta;
+  viewControl?: ReactNode;
 }) {
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
@@ -71,6 +74,7 @@ export function PortfolioContributionsReport({
           : undefined
       }
       meta={meta}
+      reportControls={viewControl}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
       reportDataBasis={

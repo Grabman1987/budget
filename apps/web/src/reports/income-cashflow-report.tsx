@@ -6,11 +6,12 @@ import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
-import type { ReportEntry } from '../nav/reports-catalog';
+import { findReport, type ReportEntry } from '../nav/reports-catalog';
 import { AppLink } from '../shell/app-link';
 import { PageFrame } from '../pages/placeholder-page';
 import { IncomeReport } from './income-report';
 import { IncomeExpenseReport } from './income-expense-report';
+import { ProjectsReport } from './projects-report';
 import { CashflowReportPage } from './cashflow-report';
 import './report-views.css';
 
@@ -18,6 +19,7 @@ const INCOME_VIEWS = [
   { value: 'income', label: 'Einnahmen' },
   { value: 'overview', label: 'Einnahmen und Ausgaben' },
   { value: 'cashflow', label: 'Cashflow' },
+  { value: 'projekte', label: 'Projekt-Ergebnisse' },
 ] as const;
 const projectsQuery = queryOptions({
   queryKey: [...LEDGER_KEY, 'project-management'],
@@ -25,7 +27,7 @@ const projectsQuery = queryOptions({
   queryFn: () => request<{ projects: (typeof project.$inferSelect)[] }>('GET', '/api/projects'),
 });
 
-/** The filter scopes existing readers; it never substitutes the separate full project results. */
+/** Project results are explicitly global; a selected project is never silently broadened. */
 export function IncomeCashflowReport({
   report,
   meta,
@@ -44,7 +46,9 @@ export function IncomeCashflowReport({
   const navigate = useNavigate();
   const projects = useQuery({ ...projectsQuery, enabled: !sources });
   const view =
-    search.darstellung === 'income' || search.darstellung === 'cashflow'
+    search.darstellung === 'income' ||
+    search.darstellung === 'cashflow' ||
+    search.darstellung === 'projekte'
       ? search.darstellung
       : 'overview';
   const projectId = search.projekt;
@@ -118,6 +122,12 @@ export function IncomeCashflowReport({
           Alle Projekte zeigen
         </button>
       )}
+      {view === 'projekte' && (
+        <p className="report-project-note">
+          Projekt-Ergebnisse und Nebeneinkünfte umfassen alle Projekte mit den Monatsgrenzen des
+          bestehenden Projektberichts. Der Projektfilter gilt für die anderen Ansichten.
+        </p>
+      )}
     </div>
   );
   const status = (
@@ -148,9 +158,31 @@ export function IncomeCashflowReport({
     );
   if (sources)
     return <IncomeExpenseReport report={heading} meta={meta} sources projectId={projectId} />;
+  if (view === 'projekte' && projectId)
+    return (
+      <PageFrame
+        meta={meta}
+        title={heading.name}
+        reportControls={controls}
+        reportDataBasis="Projektfilter bleibt ausgewählt"
+      >
+        <p role="status">
+          Ein Projekt ist ausgewählt. Die vollständigen Projekt-Ergebnisse sind eine globale
+          Ansicht. Wähle ausdrücklich „Alle Projekte zeigen“, um sie zu öffnen, oder wechsle
+          zurück zu einer gefilterten Ansicht.
+        </p>
+        {status}
+      </PageFrame>
+    );
   return (
     <>
-      {view === 'income' ? (
+      {view === 'projekte' ? (
+        <ProjectsReport
+          report={{ ...findReport('projekte')!, name: heading.name }}
+          meta={meta}
+          viewControl={controls}
+        />
+      ) : view === 'income' ? (
         <IncomeReport report={heading} meta={meta} projectId={projectId} viewControl={controls} />
       ) : view === 'cashflow' ? (
         <CashflowReportPage

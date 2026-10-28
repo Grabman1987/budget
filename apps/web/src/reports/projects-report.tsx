@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ChartValues } from '@budget/ui';
 import './month-report.css';
 import { cents } from '@budget/domain';
@@ -14,7 +15,15 @@ import { PayrollProjectChart } from './payroll-project-chart';
 import { projectsReportQuery } from './payroll-projects-api';
 import { PERIOD_OPTIONS, ScrollRegion, useReportPeriod } from './spending-shared';
 import './payroll-projects.css';
-export function ProjectsReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function ProjectsReport({
+  report,
+  meta,
+  viewControl,
+}: {
+  report: ReportEntry;
+  meta: PageMeta;
+  viewControl?: ReactNode;
+}) {
   const [period, setPeriod] = useReportPeriod();
   const query = useQuery(projectsReportQuery(period));
   const data = query.isSuccess && !query.isFetching ? query.data : undefined;
@@ -38,6 +47,7 @@ export function ProjectsReport({ report, meta }: { report: ReportEntry; meta: Pa
           : undefined
       }
       meta={meta}
+      reportControls={viewControl}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
       reportDataBasis={

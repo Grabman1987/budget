@@ -46,9 +46,11 @@ const periodAmount = (label: string, value: number) => ({
 export function PortfolioPerformanceReport({
   report,
   meta,
+  viewControl,
 }: {
   report: ReportEntry;
   meta: PageMeta;
+  viewControl?: ReactNode;
 }) {
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
@@ -73,6 +75,7 @@ export function PortfolioPerformanceReport({
           : undefined
       }
       meta={meta}
+      reportControls={viewControl}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
       reportDataBasis={

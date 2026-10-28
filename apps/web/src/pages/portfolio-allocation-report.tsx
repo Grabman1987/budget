@@ -1,5 +1,5 @@
 import { chartPoints, chartPercent } from '../charts/tooltip-data';
-import { Fragment } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { useAmountPrivacy, ChartSvg, Graticule, LineLegend, type GraticuleLine } from '@budget/ui';
 import type { AllocationGroup, AllocationHistory, AllocationReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
@@ -42,9 +42,11 @@ const inkOf = (index: number) => INKS[index % INKS.length] as (typeof INKS)[numb
 export function PortfolioAllocationReport({
   report,
   meta,
+  viewControl,
 }: {
   report: ReportEntry;
   meta: PageMeta;
+  viewControl?: ReactNode;
 }) {
   useAmountPrivacy();
   const query = useQuery(allocationQuery);
@@ -66,6 +68,7 @@ export function PortfolioAllocationReport({
           : undefined
       }
       meta={meta}
+      reportControls={viewControl}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
       reportDataBasis={
