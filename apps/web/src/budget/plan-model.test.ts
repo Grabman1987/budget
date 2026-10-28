@@ -196,6 +196,18 @@ describe('Plan › Monat view model', () => {
     ).toBe('essen');
   });
 
+  it('449 caps the existing all-target preview to a literal 200-cent pool across 100 and 300-cent needs', () => {
+    expect(
+      suggestions(
+        [
+          { ...rows[0]!, id: 'first', needCents: 100 },
+          { ...rows[1]!, id: 'second', needCents: 300 },
+        ],
+        200,
+      ),
+    ).toEqual({ first: 100, second: 100 });
+  });
+
   it('words the pace bar: spent, over pace, overspent, due, new card debt', () => {
     const by = (id: string) => rows.find((r) => r.id === id)!;
     expect(barFor(by('essen'), ctx)).toMatchObject({

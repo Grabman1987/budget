@@ -110,7 +110,17 @@ export function PlanInspector({
         </FoldTitle>
         <div className="inspector-selection">
           <div className="inspector-head">
-            <h2 ref={heading} tabIndex={-1}>
+            <h2
+              ref={heading}
+              tabIndex={-1}
+              title={
+                row
+                  ? [row.cls && CLASS_TEXT[row.cls], pace?.meta && `Tempo: ${pace.meta}`]
+                      .filter(Boolean)
+                      .join(' · ') || undefined
+                  : undefined
+              }
+            >
               {row?.name ?? `${selected.length} Kategorien ausgewählt`}
             </h2>
             <Button
@@ -174,10 +184,6 @@ export function PlanInspector({
                   )}
                 </p>
               )}
-              <p className="panel-sub inspector-pace">
-                {row.cls && CLASS_TEXT[row.cls]}
-                {pace?.meta && ` · Tempo: ${pace.meta}`}
-              </p>
               <AppLink
                 to={`/plan/monat/envelope/${encodeURIComponent(row.id)}`}
                 search={{ monat: month }}
