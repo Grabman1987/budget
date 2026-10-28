@@ -356,3 +356,41 @@ technical changes follow the approved merged-reader mapping:
 
 All URL assertions compare parsed path/view/period independently of query order.
 No R07 or dynamic verdict-loop change is included in this technical delta.
+
+## R07 consumer relocation (separate reviewed delta, runtime pending)
+
+Owner retirement removes the R07 wrapper; the underlying month/payday API and
+retained BalanceChart report-mode projection keep their independent contracts.
+`e2e/sample.ts` already fixes the browser to17September2026, so September default,
+explicit and stored payday choices remain supported. August must normalize to
+month. No clock, timeout, server writer or product route changes are introduced.
+
+- `e2e/heute.spec.ts` keeps the original real month endpoint2October, payday
+ 15October/17October,15/28-day spans,14-day backlook, named salary/rent/fee/loan
+  membership, source minimum and stored/explicit/toggled period assertions.
+  Exact actual-end/forecast-start cents/day equality and complete before/after
+  source balance equality are explicit. Alias visits inspect the actual35-day
+  card's own authenticated source, dated low and selected month, without claiming
+  it renders the old period history. Keyboard inspection selects the same
+ 30September date in this card's current series and checks its real balance.
+- `apps/web/src/heute/charts.test.tsx` extends the actual retained report renderer
+  with month/payday literal boundaries,15/28-day bracket labels, salary/rent/fee/
+  loan identities and signed tooltip cents, low values and finite path endpoint
+  equality at the original two-decimal precision. Existing normal/report literal
+ 50000/40000/10000/−30000 tests and20px marker separation remain unchanged. Empty
+  and out-of-range history cases render explicitly in both modes without a false
+  today marker.
+- The old R07 list-box geometry has no reachable equivalent after the approved
+  wrapper retirement. Root/reviewer explicitly approved keeping the retained
+  report path/source join separately, while testing settled generic actual-line
+  dashoffset on current wealth and current35-day HEUTE/GEHALT/low/plot text bounds
+  and noncollision. All four original theme/motion iterations, finite-animation
+  waits, following wealth composition/debt checks, overflow and screenshots stay.
+- `e2e/booking-acceptance.spec.ts` retains dark/reduced-motion,40 keyboard steps,
+  generic actual solid/forecast7–5dashes and the original subsequent Axe/overflow/
+  screenshot block. The active35-day tooltip is bound to its actual final source
+  balance under its existing “Mit Ereignissen” series. Historical “Prognose”
+  wording and exact cents remain renderer assertions, not fabricated current UI.
+
+These are test-only adaptations; their exact full diff still needs independent
+review and focused runtime proof. No new legacy reader route or UI backdoor exists.

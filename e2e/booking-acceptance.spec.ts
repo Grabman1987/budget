@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import { eur } from '../apps/web/src/ledger/format';
 import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -307,14 +308,20 @@ sampleTest(
     await page.goto('/');
     await expect(page.getByTestId('liquidity-chart')).toBeVisible();
     await page.goto('/reports/finanzcheck');
-    const chart = page.getByTestId('r07-balance-chart');
+    await expect(page).toHaveURL((url) => url.pathname === '/');
+    const response = await page.request.get('/api/liquidity?horizon=35d');
+    expect(response.ok()).toBe(true);
+    const forecast = (await response.json()) as import('../apps/web/src/reports/liquidity-api').LiquidityReportView;
+    if (!forecast.available || !forecast.report) throw new Error('Synthetic current forecast must be available');
+    const chart = page.getByTestId('liquidity-chart');
     await expect(chart).toBeVisible();
     const inspection = chart.locator('..');
     await inspection.focus();
     for (let i = 0; i < 40; i++) await inspection.press('ArrowRight');
-    await expect(page.locator('.chart-tooltip')).toContainText('Prognose');
-    await expect(page.locator('main .l-actual').first()).toHaveCSS('stroke-dasharray', 'none');
-    await expect(page.locator('main .l-forecast').first()).toHaveCSS(
+    await expect(page.locator('.chart-tooltip')).toContainText('Mit Ereignissen');
+    await expect(page.locator('.chart-tooltip')).toContainText(eur(forecast.report.points.at(-1)!.balanceCents));
+    await expect(page.getByTestId('heute-wealth-history').locator('.l-actual').first()).toHaveCSS('stroke-dasharray', 'none');
+    await expect(chart.locator('.l-forecast')).toHaveCSS(
       'stroke-dasharray',
       '7px, 5px',
     );
