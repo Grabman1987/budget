@@ -555,10 +555,10 @@ function PaceSectionState({ month, pending, failed, error, onRetry }: {
 }) {
   const [ref, width] = useElementWidth<HTMLElement>();
   return <section ref={ref} className="heute-section heute-pace" aria-labelledby="heute-pace-title" aria-busy={pending || undefined}>
-    <SectionHead id="heute-pace-title" title={`${monthLabel(month)} · Pace`} aside={<span className="heute-state-label">Monatsstatus {pending ? 'wird geladen' : 'nicht verfügbar'}</span>} />
+    <SectionHead id="heute-pace-title" title={`${monthLabel(month)} · Pace`} aside={<span className="heute-state-label">{pending ? 'Wird geladen' : 'Nicht verfügbar'}</span>} />
     <div className="heute-figures" aria-hidden="true">
       {['Ausgegeben', 'Plan bis heute', 'Prognose Monatsende'].map((label, index) => <button key={label} type="button" className="heute-figure" disabled>
-        <span>{label}</span><strong>–</strong>{index === 2 && <small>Limit nicht verfügbar</small>}
+        <span>{label}</span><strong>–</strong>{index === 2 && <small>Limit: –</small>}
       </button>)}
     </div>
     <div className="heute-chart heute-pace-chart">
@@ -571,7 +571,7 @@ function PaceSectionState({ month, pending, failed, error, onRetry }: {
       <LineLegend items={[{ kind: 'actual', label: 'Ist' }, { kind: 'forecast', label: 'Hochrechnung' }, { kind: 'plan', label: 'Deckel' }]} />
       <Button variant="ghost" size="sm" className="pace-context-toggle" disabled>Mehr anzeigen</Button>
     </div>
-    <p className="heute-note heute-pace-state-note">Die Darstellung der Monatsausgaben, des Plans und der Hochrechnung {pending ? 'wird geladen' : 'ist nicht verfügbar'}.</p>
+    <p className="heute-note heute-pace-state-note">Monatsausgaben, Plan und Hochrechnung {pending ? 'werden geladen' : 'sind nicht verfügbar'}.</p>
   </section>;
 }
 
