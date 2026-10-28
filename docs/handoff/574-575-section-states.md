@@ -76,3 +76,28 @@ Fresh exact public full CI, live verification and independent issue acceptance
 remain pending. Initial PR automation `40713133462` was intentionally cancelled
 before the final formatted head/risk-label context; it did not pass. Focused proof
 does not establish full CI, deployment, live behavior or completed acceptance.
+
+## Scoped mobile baseline checkpoint
+
+First public full run `40714662933` has a RED visual job: 118 comparisons passed;
+only light/dark mobile Heute comparisons failed. Its other jobs were still running
+at this checkpoint, so the run is not green. Independent review viewed expected,
+actual and diff images before approving these two intended layout updates.
+
+Scoped baseline generation `40717359755` succeeded and produced bot commit
+`cdb45d0ce638e6a1d39883463ac94e306f3a2789`, exact parent
+`03999ee9e235d0079a156f843da4e9fa56ca7631`. Only
+`e2e/shell.spec.ts-snapshots/shell-heute-{light,dark}-mobile-linux.png` changed.
+Root verified their Git blobs and physical hashes against the independently
+approved actual images byte-for-byte; all nine source/test files and this handoff
+were unchanged by that bot commit. SHA-256:
+
+- Light: `5fbef47aaa661d499f730338166b55e22dfeaac95f3399b57fc4822b839f30c8`.
+- Dark: `d29946b2e1931f5332f79bb3678ed9e7ce42ade4f430160c7c55a9486761c74e`.
+
+These are 390×844 browser-emulation images. The FAB overlaps lower Pace figures
+while scrolling and the viewport cuts later chart content; this is not a blanket
+unobstructed-viewport or physical-device claim. End-of-page control clearance has
+separate #575 assertions. Baseline generation is not proof that every test passed.
+Fresh exact full CI, live verification and independent issue acceptance remain
+pending; the 900px, 44px, phone, privacy and financial gates remain unchanged.
