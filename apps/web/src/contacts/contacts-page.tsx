@@ -125,6 +125,7 @@ export function ContactsPage() {
     queryFn: () =>
       request<{ contacts: ContactRow[] }>('GET', `/api/contacts?history=${history ? '1' : '0'}`),
   });
+  const currentWriteOff = contacts.data?.contacts.find((contact) => contact.id === writeOff?.id);
   return (
     <PageFrame meta={META}>
       <div className="contacts-page">
@@ -221,7 +222,7 @@ export function ContactsPage() {
             />
           )}
         </FormDialog>
-        {writeOff && <ContactWriteOffDialog contact={writeOff} onClose={() => setWriteOff(null)} />}
+        {writeOff && <ContactWriteOffDialog contact={currentWriteOff ?? writeOff} ready={!contacts.isFetching && !contacts.isError && !!currentWriteOff} onClose={() => setWriteOff(null)} />}
         <ContactRenameDialog contact={renaming} onClose={() => setRenaming(null)} />
       </div>
     </PageFrame>
@@ -445,10 +446,11 @@ function ContactBody({ statement, ready }: { statement: Statement; ready: boolea
         </p>
       )}
       </>}
-      {receipt && <ReceiptForm statement={statement} onDone={() => setReceipt(false)} />}
+      {receipt && <ReceiptForm statement={statement} ready={ready} onDone={() => setReceipt(false)} />}
       {writeOff && (
         <ContactWriteOffDialog
           contact={{ ...statement.contact, balanceCents: statement.balanceCents }}
+          ready={ready}
           onClose={() => setWriteOff(false)}
         />
       )}
@@ -518,14 +520,17 @@ function ContactBody({ statement, ready }: { statement: Statement; ready: boolea
 
 export function ContactWriteOffDialog({
   contact,
+  ready = true,
   onClose,
 }: {
   contact: { id: string; name: string; balanceCents: number };
+  ready?: boolean;
   onClose: () => void;
 }) {
   useAmountPrivacy();
   const accounts = useQuery(accountsQuery());
   const lookups = useQuery(lookupsQuery());
+  const sourceReady = ready && accounts.isSuccess && !accounts.isFetching && lookups.isSuccess && !lookups.isFetching;
   const budgetAccounts =
     accounts.data?.accounts.filter(
       (a) =>
@@ -560,7 +565,7 @@ export function ContactWriteOffDialog({
     Number.isFinite(Date.parse(date)) &&
     new Date(date).toISOString().slice(0, 10) === date &&
     date <= todayInVienna();
-  const valid = validAmount && chosenAccount && validDate && (credit ? chosenType : categoryId);
+  const valid = sourceReady && validAmount && chosenAccount && validDate && (credit ? chosenType : categoryId);
   return (
     <FormDialog open onClose={onClose} title="Kontakt ausgleichen" beforeClose={() => !busy}>
       <form
@@ -593,10 +598,10 @@ export function ContactWriteOffDialog({
         </div>
         <div className="bk-body contacts-form">
           <p>
-            {contact.name} · {credit ? 'Einnahme ins Budget' : 'Ausgabe'}
+            {contact.name}{sourceReady ? ` · ${credit ? 'Einnahme ins Budget' : 'Ausgabe'}` : ' · Kontostand wird geprüft'}
           </p>
           <AmountInput label="Betrag" value={amount} onChange={setAmount} />
-          {!validAmount && (
+          {sourceReady && !validAmount && (
             <p role="alert" className="field-error">
               Bitte einen Betrag größer als 0 und höchstens {eur(Math.abs(contact.balanceCents))}{' '}
               eintragen.
@@ -678,7 +683,7 @@ export function ContactWriteOffDialog({
               />
             )}
           </Field>
-          {validAmount && (
+          {sourceReady && validAmount && (
             <p aria-live="polite">
               {eur(amountCents)} werden {credit ? 'ins Budget übernommen' : 'als Ausgabe gebucht'};
               der Kontakt steht danach auf {eur(remaining)}. Kein Geld bewegt sich.
@@ -698,7 +703,7 @@ export function ContactWriteOffDialog({
               onRetry={() => void lookups.refetch()}
             />
           )}
-          {accounts.isPending || lookups.isPending ? (
+          {!ready || accounts.isFetching || lookups.isFetching || accounts.isPending || lookups.isPending ? (
             <LoadingNote what="Ausgleich" />
           ) : (
             !budgetAccounts.length && (
@@ -719,7 +724,7 @@ export function ContactWriteOffDialog({
   );
 }
 
-function ReceiptForm({ statement, onDone }: { statement: Statement; onDone: () => void }) {
+function ReceiptForm({ statement, ready, onDone }: { statement: Statement; ready: boolean; onDone: () => void }) {
   useAmountPrivacy();
   const accounts = useQuery(accountsQuery());
   const cash =
@@ -744,6 +749,7 @@ function ReceiptForm({ statement, onDone }: { statement: Statement; onDone: () =
       ),
     enabled: /^\d{4}-\d{2}-\d{2}$/.test(date),
   });
+  const sourceReady = ready && accounts.isSuccess && !accounts.isFetching && target.isSuccess && !target.isFetching;
   const open = target.data?.outlays.filter((o) => o.remainingCents > 0) ?? [];
   const parsed = parseAmount(amount);
   const amountCents = parsed.ok && parsed.cents > 0 ? parsed.cents : 0;
@@ -774,7 +780,7 @@ function ReceiptForm({ statement, onDone }: { statement: Statement; onDone: () =
       className="contacts-form contacts-receipt"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!amountCents || allocationError || !target.data) return;
+        if (!sourceReady || !amountCents || allocationError || !target.data) return;
         setBusy(true);
         void write(
           () =>
@@ -828,7 +834,8 @@ function ReceiptForm({ statement, onDone }: { statement: Statement; onDone: () =
         }}
       />
       <p>Standard: älteste offene Auslage zuerst. Anteile vor dem Speichern ändern.</p>
-      {target.isPending && <LoadingNote what="Offene Auslagen" />}
+      {(!ready || target.isPending || target.isFetching || accounts.isFetching) && <LoadingNote what="Offene Auslagen" />}
+      {accounts.isError && <ErrorNote what="Konten" error={accounts.error} onRetry={() => void accounts.refetch()} />}
       {target.isError && (
         <ErrorNote
           what="Offene Auslagen"
@@ -839,7 +846,7 @@ function ReceiptForm({ statement, onDone }: { statement: Statement; onDone: () =
       {open.map((o, i) => (
         <Field
           key={o.splitId}
-          label={`Auslage ${i + 1} · ${longDay(o.date)} · offen ${eur(o.remainingCents)}`}
+          label={sourceReady ? `Auslage ${i + 1} · ${longDay(o.date)} · offen ${eur(o.remainingCents)}` : `Auslage ${i + 1}`}
         >
           {({ id }) => (
             <TextInput
@@ -852,10 +859,10 @@ function ReceiptForm({ statement, onDone }: { statement: Statement; onDone: () =
           )}
         </Field>
       ))}
-      <p>
+      {sourceReady && <p>
         Guthaben aus dieser Rückzahlung: <strong>{eur(plan.creditCents)}</strong>
-      </p>
-      {amountCents > 0 && allocationError && (
+      </p>}
+      {sourceReady && amountCents > 0 && allocationError && (
         <p className="field-error" role="alert">
           {allocationError}
         </p>
@@ -864,6 +871,7 @@ function ReceiptForm({ statement, onDone }: { statement: Statement; onDone: () =
         type="submit"
         disabled={
           busy ||
+          !sourceReady ||
           !cash.length ||
           !amountCents ||
           !!allocationError ||
