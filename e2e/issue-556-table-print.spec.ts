@@ -226,7 +226,7 @@ for (const report of reports) {
     await page.emulateMedia({ media: 'screen' });
     await expect(content).not.toBeVisible();
     await expect(section).toHaveAttribute('data-collapsed', 'true');
-    if (report === 'jahresansicht') await expect(body.locator('.seg-depth')).toBeVisible();
+    if (report === 'jahresansicht') await expect(body.locator('[data-template-row^="cat:"]').first()).toBeVisible();
   });
 }
 
