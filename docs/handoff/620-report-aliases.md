@@ -303,3 +303,38 @@ still needs the exact-head format gate. Public full CI, integration onto current
 main, main CI, preview, release, root health and one-machine delivery verification
 for620 all remain pending under root's coordination. This documentation-only
 update adds no product or test changes after the reviewed formatting commit.
+
+## PR816 first full CI and measured second-pass correction
+
+After merging exact healthy main dfd441a8 without conflicts, integration source
+was a616dc2a. All32 owned and19 incoming full Git blobs/modes matched their
+respective parents. PR816's first public full CI40683210315 then failed static
+formatting on `e2e/report-tables.spec.ts` only. Types, CSS and both Linux unit
+shards passed; ESLint had zero errors and one unrelated existing warning. Windows
+units, visual checks and E2E were dependency-skipped, and required aggregates
+failed. Those skipped checks are not passing evidence.
+
+Root's diagnostic40685007199 (workflow child b8dc4538 of sourcea616dc2a) measured
+the actual second-pass formatting difference. Its821-byte one-file/one-hunk patch
+only wraps the existing Total scroller selector chain differently. Both
+`format.patch` and the third-pass patch have SHA256
+`3232C85ACCE82AABE34A57A1A2CAF98206AF910EF9D5EC6772F417968C77C974`.
+The candidate passed canonical whole-repository `npm run lint`, including Prettier;
+the next formatter write was byte-idempotent. Inventory, patch scope, restoration
+and cleanup passed. The workflow correctly remained red for the original source's
+format failure. Before type/unit/build/browser checks it restored the original
+source, which passed all137 units across12 files and five actual browser cases
+plus3 setup cases in about1.9 minutes, without retries. These runtime results are
+for restored sourcea616dc2a, not a new exact-head full CI on the candidate.
+
+Root and the independent capable reviewer cleared the entire fresh hunk before
+application. The author verified both hashes, exact clean sourcea616dc2a and an
+apply preflight, applied only that artifact, and verified sole-path scope plus
+the exact resulting full blob
+`7bfae88bb2fd921971edf809da0a6f16c2186e9d`. Mechanical-only commit:
+`46015a199642178f931498c6d50e7d002dc7d091`; no selector, `exact: true`, money,
+36-month value, CSV or scroll assertion changed. `git diff --check` passed.
+No local formatter/runtime command or push ran. This separate documentation
+commit records the evidence only. A new exact public full CI and all subsequent
+integration/main CI, preview, release and live-delivery gates for620 remain
+pending under root's coordination.
