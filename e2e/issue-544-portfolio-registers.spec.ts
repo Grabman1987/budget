@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
-import type { PortfolioPositionsView } from '@budget/db';
+import type { PortfolioPerformanceHistory, PortfolioPositionsView } from '@budget/db';
 import type { Page } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
 import { expect, sampleTest as test } from './sample';
 
 const registers = [
@@ -162,5 +163,228 @@ test('a closed calendar month uses the chart endpoint date for lead and position
     await page.goto(`${path}?zeitraum=2026-08..2026-08`);
     await expect(page.locator('.vnw')).toContainText('31.08.2026');
     await expect(page.getByTestId('portfolio-value')).toHaveText('86.860,69 €');
+  }
+});
+
+test('class mini histories retain the shared period, full class universe and monthly source indexes', async ({
+  page,
+  request,
+}, info) => {
+  for (const [period, end] of [
+    ['2026-01..2026-05', '2026-05-31'],
+    ['2026-08..2026-08', '2026-08-31'],
+  ]) {
+    const response = await request.get(
+      `/api/portfolio?period=${period}&view=securities&history=performance`,
+    );
+    expect(response.ok()).toBe(true);
+    const history = (await response.json()).portfolio
+      .performanceHistory as PortfolioPerformanceHistory;
+    expect(history.index.at(-1)?.date).toBe(end);
+    expect(history.classes.map((cls) => cls.name)).toEqual([
+      'Aktien Welt',
+      'Schwellenländer',
+      'Spekulativ',
+      'Ohne Anlageklasse',
+    ]);
+    await page.goto(`/vermoegen/portfolio?zeitraum=${period}`);
+    const classes = page.getByRole('region', { name: 'Anlageklassen im Verlauf', exact: true });
+    await expect(classes.getByTestId('portfolio-class-history')).toHaveCount(4);
+    await expect(classes.getByRole('heading', { level: 3 })).toHaveText(
+      history.classes.map((cls) => cls.name),
+    );
+    await expect(classes).toContainText('Monatliche TTWROR · Indexbasis 100');
+    await expect(classes.getByTestId('portfolio-flow-marker')).toHaveCount(0);
+    const dailyMarkers = history.dailyValues.filter(
+      (point) => point.depositsCents > 0 || point.withdrawalsCents > 0,
+    );
+    await expect(page.getByTestId('portfolio-flow-marker')).toHaveCount(dailyMarkers.length);
+    await classes.getByText('Klassenverläufe als Tabelle', { exact: true }).click();
+    const rows = classes.getByTestId('portfolio-class-history-table').locator('tbody tr');
+    await expect(rows).toHaveCount(history.index.length);
+    for (const [i, point] of history.index.entries()) {
+      const date = `${point.date.slice(8)}.${point.date.slice(5, 7)}.${point.date.slice(0, 4)}`;
+      await expect(rows.nth(i).getByRole('rowheader')).toHaveText(date);
+      await expect(rows.nth(i).getByRole('cell')).toHaveText(
+        history.classes.map((cls) => {
+          const value = cls.index.find((entry) => entry.date === point.date)?.portfolio;
+          return value == null
+            ? 'Nicht verfügbar'
+            : new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(value);
+        }),
+      );
+    }
+    const first = classes.getByTestId('portfolio-class-history').first();
+    const clear = await first.locator('figcaption').innerText();
+    expect(clear).not.toContain('Nicht verfügbar');
+    const chart = first.locator('.chart-interactive');
+    await chart.focus();
+    for (let i = 1; i < history.index.length; i++) await chart.press('ArrowRight');
+    const known = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(
+      history.classes[0]!.index.at(-1)!.portfolio!,
+    );
+    const tooltipId = (await chart.getAttribute('aria-describedby'))
+      ?.split(/\s+/)
+      .find((id) => id.endsWith('-tooltip'));
+    expect(tooltipId).toBeTruthy();
+    const tooltip = page.locator(`[id="${tooltipId}"]`);
+    await expect(tooltip).toContainText(known);
+    await chart.press('Escape');
+    const profile = page.locator('.m-profile > summary');
+    const phone = await profile.isVisible();
+    if (phone) await profile.click();
+    await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
+    if (phone) await profile.click();
+    await expect(first.locator('figcaption')).toContainText('Letzter Index: •••');
+    await expect(classes.getByTestId('portfolio-class-history-table')).not.toContainText(known);
+    await chart.focus();
+    for (let i = 1; i < history.index.length; i++) await chart.press('ArrowRight');
+    await expect(tooltip).toContainText('•••');
+    await expect(tooltip).not.toContainText(known);
+    const accessible = await classes
+      .locator('[aria-label], [title], [aria-valuetext]')
+      .evaluateAll((elements) =>
+        elements
+          .flatMap((element) => [
+            element.getAttribute('aria-label'),
+            element.getAttribute('title'),
+            element.getAttribute('aria-valuetext'),
+          ])
+          .join('\n'),
+      );
+    expect(accessible).not.toContain(known);
+    await chart.press('Escape');
+    if (phone) await profile.click();
+    await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
+    if (phone) await profile.click();
+    await expect(first.locator('figcaption')).toHaveText(clear, { useInnerText: true });
+    const responseAfter = await request.get(
+      `/api/portfolio?period=${period}&view=securities&history=performance`,
+    );
+    expect((await responseAfter.json()).portfolio.performanceHistory.dailyValues).toEqual(
+      history.dailyValues,
+    );
+    await page.evaluate(
+      (theme) => {
+        document.documentElement.dataset['theme'] = theme;
+      },
+      period === '2026-01..2026-05' ? 'light' : 'dark',
+    );
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+    await classes.getByText('Klassenverläufe als Tabelle', { exact: true }).click();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      page.viewportSize()!.width,
+    );
+    if (info.project.name !== 'desktop') {
+      const summary = (await classes.locator('summary').boundingBox())!;
+      expect(summary.height).toBeGreaterThanOrEqual(44);
+      expect(summary.width).toBeGreaterThanOrEqual(44);
+    }
+    await page.evaluate(() => document.fonts.ready);
+    const measurements = [];
+    for (const figure of await classes.getByTestId('portfolio-class-history').all()) {
+      await figure.scrollIntoViewIfNeeded();
+      for (const child of await figure.locator('figcaption > *').all()) {
+        const measurement = await child.evaluate((element) => {
+          const rect = (bounds: DOMRect) => ({
+            left: bounds.left,
+            right: bounds.right,
+            top: bounds.top,
+            bottom: bounds.bottom,
+            width: bounds.width,
+            height: bounds.height,
+          });
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          const clipping = [];
+          for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+            const style = getComputedStyle(ancestor);
+            const clipX = /^(auto|scroll|hidden|clip)$/.test(style.overflowX);
+            const clipY = /^(auto|scroll|hidden|clip)$/.test(style.overflowY);
+            if (clipX || clipY) {
+              const bounds = ancestor.getBoundingClientRect();
+              clipping.push({
+                tag: ancestor.tagName,
+                className: ancestor.className,
+                overflowX: style.overflowX,
+                overflowY: style.overflowY,
+                clipX,
+                clipY,
+                bounds: {
+                  left: bounds.left + ancestor.clientLeft,
+                  right: bounds.left + ancestor.clientLeft + ancestor.clientWidth,
+                  top: bounds.top + ancestor.clientTop,
+                  bottom: bounds.top + ancestor.clientTop + ancestor.clientHeight,
+                },
+              });
+            }
+          }
+          return {
+            text: element.textContent,
+            textRange: rect(range.getBoundingClientRect()),
+            element: rect(element.getBoundingClientRect()),
+            figure: rect(element.closest('figure')!.getBoundingClientRect()),
+            section: rect(element.closest('section')!.getBoundingClientRect()),
+            viewport: { left: 0, right: innerWidth, top: 0, bottom: innerHeight },
+            clientWidth: element.clientWidth,
+            scrollWidth: element.scrollWidth,
+            clipping,
+          };
+        });
+        measurements.push(measurement);
+      }
+    }
+    await writeFile(
+      info.outputPath(`class-caption-bounds-${period}.json`),
+      JSON.stringify(measurements, null, 2),
+    );
+    for (const measurement of measurements) {
+      // Figure/section bounds are diagnostic; only actual viewport or ancestor clipping fails.
+      expect(
+        measurement.textRange.left,
+        `${measurement.text}: viewport left`,
+      ).toBeGreaterThanOrEqual(measurement.viewport.left);
+      expect(
+        measurement.textRange.right,
+        `${measurement.text}: viewport right`,
+      ).toBeLessThanOrEqual(measurement.viewport.right);
+      expect(measurement.textRange.top, `${measurement.text}: viewport top`).toBeGreaterThanOrEqual(
+        measurement.viewport.top,
+      );
+      expect(
+        measurement.textRange.bottom,
+        `${measurement.text}: viewport bottom`,
+      ).toBeLessThanOrEqual(measurement.viewport.bottom);
+      for (const ancestor of measurement.clipping) {
+        if (ancestor.clipX) {
+          expect(measurement.textRange.left).toBeGreaterThanOrEqual(ancestor.bounds.left);
+          expect(measurement.textRange.right).toBeLessThanOrEqual(ancestor.bounds.right);
+        }
+        if (ancestor.clipY) {
+          expect(measurement.textRange.top).toBeGreaterThanOrEqual(ancestor.bounds.top);
+          expect(measurement.textRange.bottom).toBeLessThanOrEqual(ancestor.bounds.bottom);
+        }
+      }
+    }
+    await classes
+      .getByTestId('portfolio-class-history')
+      .last()
+      .locator('figcaption')
+      .scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    await page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    });
+    await expect(page.locator('.chart-tooltip')).toHaveCount(0);
+    const skip = page.getByRole('link', { name: 'Zum Inhalt springen', exact: true });
+    await expect(skip).not.toBeFocused();
+    expect(
+      await skip.evaluate((element) => element.getBoundingClientRect().bottom),
+    ).toBeLessThanOrEqual(0);
+    await page.screenshot({
+      path: info.outputPath(`class-histories-viewport-${period}.png`),
+      fullPage: false,
+    });
+    await classes.screenshot({ path: info.outputPath(`class-histories-${period}.png`) });
   }
 });
