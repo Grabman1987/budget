@@ -7,7 +7,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import React from 'react';
 import { request } from '../api/http';
 import { ErrorNote, LoadingNote } from '../ledger/states';
-import { eur, longDay } from '../ledger/format';
+import { eur, longDay, shortDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import { AppLink } from '../shell/app-link';
 import type { PageMeta } from '../nav/pages';
@@ -127,7 +127,9 @@ export function PayeeAnalysisReport({
   const data = !query.isFetching && query.isSuccess ? query.data : undefined;
   const range =
     data?.from && data.to
-      ? `${longDay(data.from)} bis ${longDay(data.to)}`
+      ? data.from.slice(0, 7) === data.to.slice(0, 7)
+        ? `${data.from.slice(8)}.–${longDay(data.to)}`
+        : `${shortDay(data.from)}${data.from.slice(2, 4)}–${shortDay(data.to)}${data.to.slice(2, 4)}`
       : 'keine geschlossenen Monate';
 
   return (

@@ -166,6 +166,9 @@ test('622 fixed-period payee cents, refund/detail and filters survive canonical 
     await views.getByRole('button', { name: 'Empfänger', exact: true }).focus();
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('payee-total')).toHaveText('295,00 €');
+    await expect(
+      page.locator('.titleblock .tb-field').filter({ hasText: 'Datenbasis' }).locator('.tb-value'),
+    ).toHaveText('01.–31.08.2026');
     await expect(page.getByTestId('spending-analysis')).toHaveCount(0);
     await expect(
       page.getByRole('heading', { name: 'Buchungen · Synthetic recipient A', exact: true }),

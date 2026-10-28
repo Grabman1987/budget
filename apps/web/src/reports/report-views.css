@@ -66,17 +66,6 @@
   }
 }
 
-.report-view-controls {
-  display: grid;
-  justify-items: start;
-  gap: var(--space-xs);
-  min-width: 0;
-  padding-block: var(--space-sm);
-}
-.report-view-controls-label {
-  color: var(--ink-2);
-  font-size: var(--fs-meta);
-}
 @media (max-width: 767px), (pointer: coarse) {
   .report-view-switch.seg button {
     min-height: var(--touch);

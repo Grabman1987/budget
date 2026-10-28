@@ -44,16 +44,13 @@ export function WealthReportViews({ report, meta }: { report: ReportEntry; meta:
     });
   };
   const control = (
-    <div className="report-view-controls">
-      <span className="report-view-controls-label">Ansicht</span>
-      <Segmented
-        className="report-view-switch report-wealth-switch"
-        label="Ansicht von Vermögen und Schulden"
-        options={WEALTH_VIEWS}
-        value={view}
-        onChange={changeView}
-      />
-    </div>
+    <Segmented
+      className="report-view-switch report-wealth-switch"
+      label="Ansicht von Vermögen und Schulden"
+      options={WEALTH_VIEWS}
+      value={view}
+      onChange={changeView}
+    />
   );
   if (view === 'verlauf')
     return <WealthHistoryReport report={report} meta={meta} viewControl={control} />;
