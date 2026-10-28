@@ -42,7 +42,7 @@ import { CategoryReport } from '../reports/category-report';
 import { SavingsReport } from '../reports/savings-report';
 import { TotalTableReport } from '../reports/total-table-report';
 import { PortfolioDepotsReport } from './portfolio-depots-report';
-import { PortfolioAllocationReport } from './portfolio-allocation-report';
+import { PortfolioReportViews } from '../reports/portfolio-report-views';
 import { PortfolioCostsReport } from './portfolio-costs-report';
 
 const CONTROL_LABEL = { month: 'Monat', year: 'Jahr', period: 'Zeitraum' } as const;
@@ -120,7 +120,7 @@ export function ReportPage({ reportId, detail = false }: { reportId: string; det
   if (report.id === 'empfaenger') return <PayeeAnalysisReport report={report} meta={meta} />;
   if (report.id === 'prendite') return <PortfolioPerformanceReport report={report} meta={meta} />;
   if (report.id === 'pdepots') return <PortfolioDepotsReport report={report} meta={meta} />;
-  if (report.id === 'pallocation') return <PortfolioAllocationReport report={report} meta={meta} />;
+  if (report.id === 'pallocation') return <PortfolioReportViews report={report} meta={meta} />;
   if (report.id === 'psteuern') return <PortfolioCostsReport report={report} meta={meta} />;
   if (report.id === 'peinzahlungen')
     return <PortfolioContributionsReport report={report} meta={meta} />;
@@ -174,7 +174,7 @@ export function ReportGroupRoute() {
 
 export function ReportRoute() {
   const { reportId } = useParams({ strict: false }) as { reportId: string };
-  const search = useSearch({ strict: false }) as { trend?: boolean };
+  const search = useSearch({ strict: false }) as { trend?: boolean; darstellung?: string };
   useEffect(() => {
     rememberReport(reportId);
   }, [reportId]);
@@ -182,9 +182,10 @@ export function ReportRoute() {
     <ReportTrendContext.Provider
       value={
         search.trend === true &&
-        ['kategorien', 'sparquote', 'cashflow', 'vermoegen', 'peinzahlungen', 'pdepots'].includes(
+        (['kategorien', 'sparquote', 'cashflow', 'vermoegen', 'peinzahlungen', 'pdepots'].includes(
           reportId,
-        )
+        ) ||
+          (reportId === 'pallocation' && search.darstellung === 'einzahlungen'))
       }
     >
       <ReportPage reportId={reportId} />

@@ -97,7 +97,7 @@ const ORIGINAL_REPORT_GROUPS: ReadonlyArray<ReportGroup> = [
     ],
     [
       'einnahmen-ausgaben',
-      'Einnahmen und Ausgaben',
+      'Einnahmen und Cashflow',
       'Was bleibt nach den Ausgaben?',
       'Monatstabelle, Säulen und Nettolinie',
       'period',
@@ -202,7 +202,7 @@ const ORIGINAL_REPORT_GROUPS: ReadonlyArray<ReportGroup> = [
     ],
     [
       'pallocation',
-      'Allocation',
+      'Portfolio-Auswertung',
       'Woraus besteht das Portfolio, und wie weit weg vom Soll?',
       'Sonnendiagramm, Soll/Ist über Zeit',
     ],

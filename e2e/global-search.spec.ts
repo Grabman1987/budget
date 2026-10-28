@@ -245,13 +245,13 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
   await page.goto('/plan/monat?monat=2026-08');
   let input = await openSearch(page, mobile);
   await input.fill('1.10 ein');
-  await expect(page.getByRole('option', { name: /1.10 Einnahmen und Ausgaben/ })).toBeVisible();
+  await expect(page.getByRole('option', { name: /1.10 Einnahmen und Cashflow/ })).toBeVisible();
   await input.press('Enter');
   await expect(page).toHaveURL(/\/reports\/einnahmen-ausgaben$/);
   input = await openSearch(page, mobile);
   await expect(
     page.getByRole('group', { name: 'Zuletzt verwendet' }).getByRole('option').first(),
-  ).toContainText('1.10 Einnahmen und Ausgaben');
+  ).toContainText('1.10 Einnahmen und Cashflow');
   await input.fill('vrmgn prtf');
   await input.press('Enter');
   await expect(page).toHaveURL(/\/vermoegen\/portfolio$/);
