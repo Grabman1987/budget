@@ -1,75 +1,72 @@
-name: Update e2e snapshots
-
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+name: Focused report mobile title proof
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: Branch whose baselines to update (never main)
-        required: true
-      specs:
-        description: Space-separated spec paths (e.g. e2e/shell.spec.ts); empty = every spec that compares screenshots
-        required: false
-        default: ''
-
 permissions:
-  contents: write
-
-concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
-
+  contents: read
 jobs:
-  update:
-    if: inputs.branch != 'main'
+  proof:
     runs-on: ubuntu-24.04
-    # Match the CI browser image instead of reinstalling its OS/browser dependencies.
+    timeout-minutes: 30
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     defaults:
       run:
         shell: bash
-    # A type-scale change regenerates nearly every baseline; give it room.
-    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.branch }}
-      - name: Allow Git reads and baseline commits in the container workspace
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          fetch-depth: 2
+      - name: Verify exact source and workflow-only delta
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          test "$(git rev-parse HEAD^)" = '932d0f74ba620b80df88f082c996a9430ed0cd14'
+          test "$(git diff --name-only HEAD^..HEAD)" = '.github/workflows/update-snapshots.yml'
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        env:
-          SPECS: ${{ inputs.specs }}
+      - name: Static and actual report title proof
         run: |
-          npm run build:e2e
-          read -r -a specs <<< "$SPECS"
-          if [ "${#specs[@]}" -eq 0 ]; then
-            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
+          set +e
+          npx prettier --check apps/web/src/nav/reports-catalog.ts e2e/issue-487-budget-contract-views.spec.ts > format.log 2>&1
+          format_rc=$?
+          npx eslint apps/web/src/nav/reports-catalog.ts e2e/issue-487-budget-contract-views.spec.ts > lint.log 2>&1
+          lint_rc=$?
+          npm run typecheck > type.log 2>&1
+          type_rc=$?
+          npx vitest run apps/web/src/shell/global-search.test.tsx > unit.log 2>&1
+          unit_rc=$?
+          npm run build:e2e > build.log 2>&1
+          build_rc=$?
+          browser_rc=1
+          if [ "$build_rc" -eq 0 ]; then
+            npx playwright test e2e/issue-487-budget-contract-views.spec.ts --project=desktop --project=mobile --project=webkit-iphone --grep 'Verträge und Kosten retains separate source periods' --workers=1 --retries=0 --update-snapshots=none --list > discovery.txt 2>&1
+            list_rc=$?
+            if [ "$list_rc" -eq 0 ] && grep -q '\[desktop\].*Verträge und Kosten retains' discovery.txt && grep -q '\[mobile\].*Verträge und Kosten retains' discovery.txt && grep -q '\[webkit-iphone\].*Verträge und Kosten retains' discovery.txt; then
+              npx playwright test e2e/issue-487-budget-contract-views.spec.ts --project=desktop --project=mobile --project=webkit-iphone --grep 'Verträge und Kosten retains separate source periods' --workers=1 --retries=0 --update-snapshots=none > browser.log 2>&1
+              browser_rc=$?
+            else
+              echo 'Required three-profile case missing' >> browser.log
+              cat discovery.txt >> browser.log
+            fi
           fi
-          npx playwright test --update-snapshots=changed "${specs[@]}" || true
+          cat format.log lint.log type.log unit.log build.log discovery.txt browser.log 2>/dev/null
+          echo "RESULT format=$format_rc lint=$lint_rc type=$type_rc unit=$unit_rc build=$build_rc browser=$browser_rc"
+          test "$format_rc" -eq 0 && test "$lint_rc" -eq 0 && test "$type_rc" -eq 0 && test "$unit_rc" -eq 0 && test "$build_rc" -eq 0 && test "$browser_rc" -eq 0
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: scoped-browser-screenshots
-          path: test-results/**/*.png
+          name: report-title-proof
+          path: |
+            format.log
+            lint.log
+            type.log
+            unit.log
+            build.log
+            discovery.txt
+            browser.log
+            test-results/**/*.png
+            test-results/**/trace.zip
           if-no-files-found: ignore
-          retention-days: 7
-      - name: Commit the new baselines
-        env:
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
+          retention-days: 3
