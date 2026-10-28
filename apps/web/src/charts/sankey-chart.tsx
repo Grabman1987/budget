@@ -24,7 +24,7 @@ import './sankey-chart.css';
 const HEIGHT = 340;
 const NODE_WIDTH = 10;
 const eur0 = (v: number) => formatEuro(cents(Math.round(v)), { cents: false });
-/** Rough label width in px for margin sizing (Barlow Semi Condensed, 13 px, semibold). */
+/** Rough label-width estimate in px for the technical labels and their value suffixes. */
 const labelWidth = (names: string[]) => Math.max(...names.map((n) => n.length)) * 6.6 + 18;
 
 /**
@@ -232,11 +232,13 @@ export function SankeyChart({
                 className="svg-label-strong"
               >
                 {n.name}
-                {!tall && n.column >= 2 ? ` · ${eur0(n.value)} · ${share(n.value)}` : ''}
+                {!tall && n.column >= 2 && (
+                  <tspan className="svg-value">{` · ${eur0(n.value)} · ${share(n.value)}`}</tspan>
+                )}
               </text>
             )}
             {showLabel && tall && (
-              <text x={tx} y={ty + 13} textAnchor={anchor} className="svg-label">
+              <text x={tx} y={ty + 13} textAnchor={anchor} className="svg-label svg-value">
                 {eur0(n.value)}
                 {n.column >= 2 ? ` · ${share(n.value)}` : ''}
               </text>
