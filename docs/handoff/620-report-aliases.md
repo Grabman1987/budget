@@ -144,3 +144,29 @@ Phase A does not claim those tests pass or that #620 is ready for integration.
 No balance, goal source, audit/Undo or rate implementation changed. Old screenshot
 filenames and exact retired wrapper/chart geometry are presentation evidence,
 not a reason to recreate those owner-retired pages inside this routing package.
+
+## Canonical Total prerequisite (root-authorized scope amendment)
+
+Owner #517 comment6212723340 specifies new fixed-template layouts, but does not
+retire the old Total export or dated wealth values. Root therefore authorized the
+small target prerequisite before redirecting its bookmark: keep the accepted
+Explorer total template, with a native “Alle Monate: Nettovermögen und CSV”
+disclosure that mounts the existing TotalTableReport only when opened.
+
+- `explorer-report.tsx` adds only the labelled disclosure and its mount state.
+- `total-table-report.tsx` passes an optional embedded presentation flag. Its
+  TotalBody, row construction, month dates, depth controls, source reader,
+  net-worth quality note, scrolling, Blob and CSV implementation are unchanged.
+- `table-report-frame.tsx` can render that existing body within a disclosure,
+  retaining its original source basis and `tableVerdictFacts`/VerdictLine. Only
+  the embedded case withholds cached content/export during refresh and failure;
+  all ordinary frame callers keep their existing behavior. No guessed zero.
+- Additive test-first `explorer-templates-625.test.tsx` proves no all-history read
+  before opening, GET-only existing endpoint, no CSV during loading/stale/error,
+  literal84,730 net-worth display, exact dated net-worth CSV bytes and filename,
+  privacy masking, source basis/verdict and unavailable-value retry. The separate
+  custom Explorer CSV identity/revalidation path is untouched.
+- YearReport and CategoryReport have no CSV/download action to preserve. Their
+  owner-approved replacement shapes remain the year matrix and one-category
+  line/mean. Existing domain previous-year, share, missing-month and CSV oracles
+  remain unchanged, as do all source calculations and table schemas.

@@ -15,7 +15,7 @@ const DEPTH = [
 ] as const;
 
 /** 1.8 Gesamttabelle: every month since the budget start in one table, with a CSV of the same. */
-export function TotalTableReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function TotalTableReport({ report, meta, embedded = false }: { report: ReportEntry; meta: PageMeta; embedded?: boolean }) {
   const query = useReportTables(true);
   return (
     <TableReportFrame
@@ -24,6 +24,7 @@ export function TotalTableReport({ report, meta }: { report: ReportEntry; meta: 
       through="current"
       query={query}
       className="total-report"
+      embedded={embedded}
     >
       {(data) => <TotalBody data={data} />}
     </TableReportFrame>

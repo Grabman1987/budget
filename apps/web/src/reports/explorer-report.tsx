@@ -41,7 +41,7 @@ import {
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
-import type { ReportEntry } from '../nav/reports-catalog';
+import { findReport, type ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
 import { sameQuery } from './explorer-views';
@@ -57,6 +57,7 @@ import './explorer-report.css';
 import { customChartModel } from './explorer-chart-model-626';
 import { ExplorerChart626, ExplorerViewToggle626 } from './explorer-chart-626';
 import { ExplorerTableInspector626 } from './explorer-table-inspector-626';
+import { TotalTableReport } from './total-table-report';
 
 const label = <T extends ReadonlyArray<{ id: string; label: string }>>(list: T, id: string) =>
   list.find((x) => x.id === id)?.label ?? id;
@@ -159,6 +160,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
       ? result.data
       : undefined;
   const [exporting, setExporting] = useState(false);
+  const [totalHistoryOpen, setTotalHistoryOpen] = useState(false);
   const [exportError, setExportError] = useState<string>();
   const exportReady =
     !template &&
@@ -633,6 +635,12 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                 onSelect={(key, column) => changeTemplateSearch({ zelle: key, spalte: column })}
                 onClose={() => changeTemplateSearch({ zelle: undefined, spalte: undefined })}
               />
+              {template === 'total' && (
+                <details className="ex-total-history" onToggle={(event) => setTotalHistoryOpen(event.currentTarget.open)}>
+                  <summary className="btn btn-ghost" style={{ minHeight: 'var(--touch)' }}>Alle Monate: Nettovermögen und CSV</summary>
+                  {totalHistoryOpen && <TotalTableReport report={findReport('gesamttabelle')!} meta={meta} embedded />}
+                </details>
+              )}
             </>
           )}
         {!template &&
