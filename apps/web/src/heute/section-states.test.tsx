@@ -144,6 +144,7 @@ it('withholds cached aggregate money after refetch failure while retaining indep
   const proposalDetails = screen.getByText('1 Sparplanausführung prüfen').closest('details')!;
   await userEvent.setup().click(within(proposalDetails).getByText('1 Sparplanausführung prüfen'));
   expect(proposalDetails.open).toBe(true);
+  expect(proposalDetails.textContent).toContain('123,45');
   failed = 'heute';
   await act(async () => { await refresh('heute'); });
   await ready();
@@ -162,13 +163,21 @@ it.each(['budget', 'liquidity', 'savings'] as const)('withholds %s own cached fi
   await ready();
   const summary = screen.getByText('1 Sparplanausführung prüfen');
   await userEvent.setup().click(summary);
+  expect(summary.closest('details')?.textContent).toContain('123,45');
   const verifyUnavailable = () => {
     expect(document.querySelector('[data-kennzahl="nettovermoegen"]')?.textContent).toBe('1.234,56 €');
     if (read === 'budget') expect(budgetTile().outerHTML).not.toContain('1.234,56');
     else expect(within(budgetTile()).getByTestId('kennzahl-value')).toBeTruthy();
-    if (read === 'liquidity') expect(card().querySelector('.heute-forecast-low')).toBeNull();
+    if (read === 'liquidity') {
+      expect(card().querySelector('.heute-forecast-low')).toBeNull();
+      expect(within(card()).queryByTestId('liquidity-chart')).toBeNull();
+    }
     else expect(card().querySelector('.heute-forecast-low')).toBeTruthy();
-    if (read === 'savings') expect(document.querySelector('.attention-proposals')?.textContent ?? '').not.toContain('Synthetic instrument');
+    if (read === 'savings') {
+      const content = document.querySelector('.attention-proposals')?.textContent ?? '';
+      expect(content).not.toContain('Synthetic instrument');
+      expect(content).not.toContain('123,45');
+    }
     else expect(screen.getByText('1 Sparplanausführung prüfen')).toBeTruthy();
   };
   hold(read);

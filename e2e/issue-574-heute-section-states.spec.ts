@@ -1,0 +1,115 @@
+import AxeBuilder from '@axe-core/playwright';
+import type { Locator, Page } from '@playwright/test';
+import { sampleTest as test, expect as baseExpect } from './sample';
+import type { Heute } from '../apps/web/src/heute/api';
+import type { SavingsExecutionProposal } from '../apps/web/src/wealth/savings-api';
+
+const expect = baseExpect.configure({ timeout: 15_000 });
+const proposal: SavingsExecutionProposal = {
+  type: 'savings', id: 'synthetic-574', kind: 'revision', urgent: false,
+  planId: 'synthetic-574', month: '2026-09', securityId: 'synthetic-574',
+  accountId: 'synthetic-574', securityName: 'Synthetic instrument', accountName: 'Synthetic depot',
+  sourceAccountName: 'Synthetic account', currency: 'EUR', date: '2026-09-17', amountCents: 12_345,
+};
+async function bounds(page: Page) {
+  return Promise.all(['.heute-kennzahlen', '.heute-pace', '.heute-compact-forecast', '.heute-wealth-line']
+    .map((selector) => page.locator(selector).boundingBox()));
+}
+async function accessible(page: Page, retry?: Locator) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+  if (retry && page.viewportSize()!.width === 390) {
+    const box = (await retry.boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+}
+
+test('initial section placeholders keep above-fold geometry while independent reads render', async ({ page }, info) => {
+  test.setTimeout(60_000);
+  const response = await page.request.get('/api/heute?month=2026-09&period=month');
+  const data: Heute = await response.json();
+  let release!: () => void;
+  let held: Promise<void>;
+  await page.route('**/api/heute?*', async (route) => { await held; await route.fulfill({ json: data }); });
+  for (const colorScheme of ['light', 'dark'] as const) {
+    held = new Promise<void>((resolve) => { release = resolve; });
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+    await page.goto('/?monat=2026-09&period=month');
+    await expect(page.locator('[data-kennzahl="zu-verteilen"]')).toBeVisible();
+    await expect(page.getByTestId('liquidity-chart')).toBeVisible();
+    await expect(page.locator('.heute-pace')).toHaveAttribute('aria-busy', 'true');
+    await expect(page.locator('.heute-wealth-line')).toHaveAttribute('aria-busy', 'true');
+    await expect(page.getByRole('region', { name: 'Letzte Buchungen' })).toHaveAttribute('aria-busy', 'true');
+    await page.evaluate(() => document.fonts.ready);
+    const pending = await bounds(page);
+    expect(pending.every(Boolean)).toBe(true);
+    await accessible(page);
+    release();
+    await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
+    await expect(page.getByTestId('heute-pace-chart')).toBeVisible();
+    const settled = await bounds(page);
+    expect(settled).toEqual(pending);
+    if (info.project.name === 'desktop') {
+      for (const box of settled) expect(box!.y + box!.height).toBeLessThanOrEqual(900);
+    }
+    await accessible(page);
+    await page.screenshot({ path: info.outputPath(`574-settled-${colorScheme}.png`) });
+  }
+});
+
+for (const read of ['heute', 'budget', 'liquidity', 'savings'] as const) {
+  test(`${read} failure stays in its read boundary and retries without hiding successful sections`, async ({ page }, info) => {
+    test.setTimeout(60_000);
+    let fail = true;
+    const writes: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/api/') && !['GET', 'HEAD'].includes(request.method())) writes.push(request.method());
+    });
+    const pattern = read === 'heute' ? '**/api/heute?*' : read === 'budget' ? '**/api/budget/2026-09'
+      : read === 'liquidity' ? '**/api/liquidity?*' : '**/api/savings-plans/execution-proposals';
+    await page.route('**/api/savings-plans/execution-proposals', (route) => route.fulfill({ json: { proposals: [proposal] } }));
+    await page.route(pattern, (route) => fail ? route.fulfill({ status: 503, json: { error: 'synthetic_unavailable' } })
+      : read === 'savings' ? route.fulfill({ json: { proposals: [proposal] } }) : route.fallback());
+    for (const colorScheme of ['light', 'dark'] as const) {
+      fail = true;
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await page.goto('/?monat=2026-09&period=month');
+      const budget = page.locator('[aria-labelledby="kennzahl-zu-verteilen-title"]');
+      const forecast = page.getByRole('region', { name: 'Kontoprognose · 35 Tage' });
+      const savings = page.getByRole('region', { name: 'Zu tun' });
+      if (read === 'heute') {
+        await expect(page.locator('[data-kennzahl="nettovermoegen"]')).toHaveCount(0);
+        await expect(page.getByTestId('heute-wealth-history')).toHaveCount(0);
+      } else await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
+      if (read !== 'budget') await expect(budget.getByTestId('kennzahl-value')).toBeVisible();
+      if (read === 'liquidity') {
+        await expect(forecast.getByTestId('liquidity-chart')).toHaveCount(0);
+        await expect(forecast.locator('.heute-forecast-low')).toHaveCount(0);
+      } else await expect(forecast.getByTestId('liquidity-chart')).toBeVisible();
+      if (read === 'savings') {
+        await expect(savings).not.toContainText('Synthetic instrument');
+        await expect(savings).not.toContainText('123,45');
+      } else {
+        const summary = savings.getByText('1 Sparplanausführung prüfen');
+        await expect(summary).toBeVisible();
+        await summary.click();
+        await expect(savings).toContainText('Synthetic instrument');
+        await expect(savings).toContainText('123,45');
+      }
+      const boundary = read === 'budget' ? budget : read === 'liquidity' ? forecast : read === 'savings' ? savings : page.locator('.heute');
+      const retry = boundary.getByRole('button', { name: 'Erneut versuchen' }).first();
+      await expect(retry).toBeVisible();
+      await accessible(page, retry);
+      await page.screenshot({ path: info.outputPath(`574-${read}-${colorScheme}-error.png`) });
+      fail = false;
+      await retry.click();
+      if (read === 'budget') await expect(budget.getByTestId('kennzahl-value')).toBeVisible();
+      else if (read === 'liquidity') await expect(forecast.getByTestId('liquidity-chart')).toBeVisible();
+      else if (read === 'savings') await expect(savings.getByText('1 Sparplanausführung prüfen')).toBeVisible();
+      else await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
+      await accessible(page);
+    }
+    expect(writes).toEqual([]);
+  });
+}
