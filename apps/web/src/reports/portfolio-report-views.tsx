@@ -27,7 +27,7 @@ export function PortfolioReportViews({ report, meta }: { report: ReportEntry; me
   const heading = { ...source, name: report.name };
   const control = (
     <Segmented
-      className="report-view-switch report-wealth-switch"
+      className="report-view-switch report-wealth-switch report-portfolio-switch"
       label="Ansicht der Portfolio-Auswertung"
       options={VIEWS}
       value={view}

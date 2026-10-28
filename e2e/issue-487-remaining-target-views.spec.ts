@@ -4,6 +4,111 @@ import { expect, type Page, type TestInfo } from '@playwright/test';
 import { test } from './isolated-ledger';
 import { sampleTest } from './sample';
 
+async function portfolioTitleVisible(page: Page, info: TestInfo) {
+  const title =
+    info.project.name === 'desktop'
+      ? page.locator('.titleblock-report h1')
+      : page.locator('.m-title-text');
+  await expect(title).toBeVisible();
+  await expect(title).toHaveText('Portfolio-Auswertung');
+  const geometry = await title.evaluate((element) => {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    const clipping = [];
+    for (let parent: Element | null = element; parent; parent = parent.parentElement) {
+      const style = getComputedStyle(parent);
+      const box = parent.getBoundingClientRect();
+      const x = /^(hidden|clip|auto|scroll)$/.test(style.overflowX);
+      const y = /^(hidden|clip|auto|scroll)$/.test(style.overflowY);
+      if (x || y)
+        clipping.push({
+          x,
+          y,
+          left: box.left + parent.clientLeft,
+          right: box.left + parent.clientLeft + parent.clientWidth,
+          top: box.top + parent.clientTop,
+          bottom: box.top + parent.clientTop + parent.clientHeight,
+        });
+    }
+    return {
+      clipping,
+      width: innerWidth,
+      height: innerHeight,
+      text: [...range.getClientRects()]
+        .filter((rect) => rect.width > 0 && rect.height > 0)
+        .map((rect) => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom })),
+    };
+  });
+  expect(geometry.text.length).toBeGreaterThan(0);
+  for (const text of geometry.text) {
+    expect(text.left).toBeGreaterThanOrEqual(0);
+    expect(text.right).toBeLessThanOrEqual(geometry.width);
+    expect(text.top).toBeGreaterThanOrEqual(0);
+    expect(text.bottom).toBeLessThanOrEqual(geometry.height);
+    for (const clip of geometry.clipping) {
+      if (clip.x) {
+        expect(text.left).toBeGreaterThanOrEqual(clip.left);
+        expect(text.right).toBeLessThanOrEqual(clip.right);
+      }
+      if (clip.y) {
+        expect(text.top).toBeGreaterThanOrEqual(clip.top);
+        expect(text.bottom).toBeLessThanOrEqual(clip.bottom);
+      }
+    }
+  }
+}
+
+async function monthlyTableReachable(page: Page, info: TestInfo) {
+  const table = page.getByTestId('contributions-months');
+  const region = page.getByRole('region', { name: 'Monatswerte', exact: true });
+  await expect(table).toBeVisible();
+  await expect(region).toHaveAttribute('tabindex', '0');
+  const cells = await table.locator('tbody th, tbody td').evaluateAll((elements) =>
+    elements.map((element) => {
+      const box = element.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const text = [...range.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0);
+      return {
+        text: element.textContent,
+        left: box.left,
+        right: box.right,
+        lines: text.map((rect) => ({ left: rect.left, right: rect.right })),
+      };
+    }),
+  );
+  expect(cells.length).toBeGreaterThanOrEqual(6);
+  for (const cell of cells) {
+    expect(cell.lines, cell.text ?? '').toHaveLength(1);
+    expect(cell.lines[0]!.left).toBeGreaterThanOrEqual(cell.left);
+    expect(cell.lines[0]!.right).toBeLessThanOrEqual(cell.right);
+  }
+  const overflow = await region.evaluate((element) => element.scrollWidth > element.clientWidth);
+  if (info.project.name !== 'desktop') expect(overflow).toBe(true);
+  if (overflow) {
+    await region.evaluate((element) => { element.scrollLeft = 0; });
+    await region.focus();
+    await page.keyboard.press('ArrowRight');
+    await expect.poll(() => region.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+    await region.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
+    const end = await region.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(element.querySelector('tbody tr:last-child td:last-child')!);
+      const text = range.getBoundingClientRect();
+      return {
+        left: box.left + element.clientLeft,
+        right: box.left + element.clientLeft + element.clientWidth,
+        textLeft: text.left,
+        textRight: text.right,
+      };
+    });
+    expect(end.textLeft).toBeGreaterThanOrEqual(end.left);
+    expect(end.textRight).toBeLessThanOrEqual(end.right);
+    await region.evaluate((element) => { element.scrollLeft = 0; });
+  }
+}
+
 async function inspect(page: Page, info: TestInfo, label: string) {
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
@@ -181,6 +286,7 @@ for (const [view, legacy, bodySelector] of [
         await expect(body.locator('.benchmark-choices')).toBeVisible();
         await expect(body.locator('.benchmark-choices')).not.toContainText('Lädt …');
       }
+      if (view === 'einzahlungen') await monthlyTableReachable(page, info);
       const content = await body.innerText();
       const verdict = await page.getByTestId('report-verdict').innerText();
       await page.goto(
@@ -189,6 +295,8 @@ for (const [view, legacy, bodySelector] of [
       await expect(body).toHaveText(content, { useInnerText: true });
       await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
       await expect(page).toHaveTitle(/Portfolio-Auswertung/);
+      await portfolioTitleVisible(page, info);
+      if (view === 'einzahlungen') await monthlyTableReachable(page, info);
       if (info.project.name !== 'desktop')
         await expect(page.locator('.m-title-text')).toHaveText('Portfolio-Auswertung');
       if (view === 'einzahlungen')

@@ -109,8 +109,12 @@
 .contributions-years .vnote {
   margin: 12px 0 0;
 }
+.contributions-window .rtable,
 .contributions-years .rtable {
   min-width: 680px;
+}
+.contributions-window .rtable :is(th, td) {
+  white-space: nowrap;
 }
 .portfolio-contributions-report .rscroll {
   width: 100%;
@@ -141,6 +145,7 @@
   justify-content: flex-start;
 }
 @media (max-width: 700px) {
+  .contributions-window .rtable,
   .contributions-years .rtable {
     min-width: 610px;
   }
