@@ -1,75 +1,79 @@
-name: Update e2e snapshots
-
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+name: Reproduce missing named booking filters
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: Branch whose baselines to update (never main)
-        required: true
-      specs:
-        description: Space-separated spec paths (e.g. e2e/shell.spec.ts); empty = every spec that compares screenshots
-        required: false
-        default: ''
-
 permissions:
-  contents: write
-
-concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
-
+  contents: read
 jobs:
-  update:
-    if: inputs.branch != 'main'
+  proof:
     runs-on: ubuntu-24.04
-    # Match the CI browser image instead of reinstalling its OS/browser dependencies.
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     defaults:
       run:
         shell: bash
-    # A type-scale change regenerates nearly every baseline; give it room.
-    timeout-minutes: 75
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ inputs.branch }}
-      - name: Allow Git reads and baseline commits in the container workspace
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Pin tests-first source and unchanged production
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          test "$(git rev-parse HEAD^)" = "85f178dfa467b3bc739cb6c8bc6e9e15d156be3e"
+          test "$(git rev-parse HEAD^^)" = "656b2bbb3bd7c178857c64f82cebd96e6d87ff16"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/update-snapshots.yml"
+          printf '%s\n' apps/server/src/api/booking-views-818.test.ts e2e/issue-818-ledger-saved-filters.spec.ts > expected-paths.txt
+          git diff --name-only HEAD^^ HEAD^ > actual-paths.txt
+          diff -u expected-paths.txt actual-paths.txt
+          git restore --source=HEAD^ --worktree -- .github/workflows/update-snapshots.yml
+          git diff --exit-code HEAD^
+          git rev-parse HEAD HEAD^ HEAD^^ > source-proof.txt
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        env:
-          SPECS: ${{ inputs.specs }}
+      - run: npm ci --no-audit --no-fund
+      - name: Reproduce missing API and menu on unchanged production
         run: |
-          npm run build:e2e
-          read -r -a specs <<< "$SPECS"
-          if [ "${#specs[@]}" -eq 0 ]; then
-            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
+          set +e
+          npm run typecheck > type.log 2>&1
+          type_rc=$?
+          npx vitest run apps/server/src/api/booking-views-818.test.ts > unit.log 2>&1
+          unit_rc=$?
+          npm run build:e2e > build.log 2>&1
+          build_rc=$?
+          list_rc=1
+          browser_rc=1
+          if [ "$build_rc" -eq 0 ]; then
+            npx playwright test e2e/issue-818-ledger-saved-filters.spec.ts --project=desktop --project=mobile --project=webkit-iphone --list > discovery.log 2>&1
+            list_rc=$?
+            for profile in desktop mobile webkit-iphone; do
+              grep -F "[$profile]" discovery.log | grep -Fq 'issue-818-ledger-saved-filters.spec.ts' || list_rc=1
+            done
+            if [ "$list_rc" -eq 0 ]; then
+              npx playwright test e2e/issue-818-ledger-saved-filters.spec.ts --project=desktop --project=mobile --project=webkit-iphone --workers=1 --retries=0 --update-snapshots=none > browser.log 2>&1
+              browser_rc=$?
+            fi
           fi
-          npx playwright test --update-snapshots=changed "${specs[@]}" || true
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+          git diff --quiet HEAD^
+          source_rc=$?
+          git restore --worktree -- .github/workflows/update-snapshots.yml
+          git diff --quiet
+          cleanup_rc=$?
+          cat type.log unit.log build.log discovery.log browser.log 2>/dev/null
+          echo "RESULT type=$type_rc unit=$unit_rc build=$build_rc list=$list_rc browser=$browser_rc original=$source_rc cleanup=$cleanup_rc"
+          test "$type_rc" -eq 0 && test "$unit_rc" -eq 0 && test "$build_rc" -eq 0 && test "$list_rc" -eq 0 && test "$browser_rc" -eq 0 && test "$source_rc" -eq 0 && test "$cleanup_rc" -eq 0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
-          name: scoped-browser-screenshots
-          path: test-results/**/*.png
+          name: issue-818-tests-first-missing-feature-red
+          path: |
+            source-proof.txt
+            *paths.txt
+            *.log
+            test-results/**/*.png
+            test-results/**/*.zip
+            test-results/**/*.md
           if-no-files-found: ignore
-          retention-days: 7
-      - name: Commit the new baselines
-        env:
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
+          retention-days: 3
