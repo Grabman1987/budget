@@ -423,3 +423,29 @@ measured Close238–247ms into the260ms phone-sheet transform at
 43.999999861px. No rounding, forced completion, fixed sleep, shared helper,
 product CSS or timing/size threshold changes are made; all remaining note/split/
 save/register/source assertions are unchanged. Exact focused proof remains pending.
+
+## Dynamic verdict sweep: explicit retired-area contract branches
+
+`e2e/verdicts.spec.ts` still visits every legacy catalog entry. Actual report
+entries keep the original Fazit shape,140-character bound, title position and
+group theme/Axe/overflow checks. The explicitly retired Vorschau/Sparziele/
+Kontakte wrappers instead assert their actual canonical area and preserved month:
+
+- Vorschau checks Plan's selected calendar heading and Anstehend view, then real
+  current occurrence membership, dates and native-currency amounts (or genuine
+  source-backed35-day empty state). It does not present this as the old12-month
+  report. The existing idempotent expected refresh is the only allowed write.
+- Sparziele reads the same selected-month goals plus category and month-end EUR
+  account proof. Only composite-proven rows contribute to the real ready summary;
+  each actual target/saved/remaining/rate cell matches its API row. Unknown names
+  and reasons remain accessible with no bar or fabricated numeric cells. No raw
+  goal sums or guessed progress are used.
+- Kontakte checks the actual open/history0 source scope and every named contact
+  balance row, or the genuine empty state. Existing pending/error withholding
+  and source-edit refusal/Save/Undo coverage remains in the independent Contact
+  controller and unchanged738 cases.
+
+Each area additionally checks both themes, actual amount privacy hide/restore,
+main-region Axe and no page overflow; no passing-only catalog filter, fake
+summary, new product writer or new route is introduced. These test adaptations
+remain pending exact independent review and focused runtime proof.
