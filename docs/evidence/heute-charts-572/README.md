@@ -1,8 +1,8 @@
 # Heute monthly charts — #572
 
 Implementation handoff, 2026-10-28. Base: verified live
-`ea86c24fe21b524cd90d88c04389f988e7b1bc1d`; production source freeze:
-`6477836998e0602041c79fd6e78724e425bf5d5b` on
+`ea86c24fe21b524cd90d88c04389f988e7b1bc1d`; formatted source freeze:
+`63e1cfc3f62254c02b9ab9f32cc4cd35e73ab642` on
 `codex/heute-wealth-chart-572-20261028`.
 
 The owner decision in [#475](https://github.com/Grabman1987/budget/issues/475#issuecomment-6209367096)
@@ -85,12 +85,55 @@ existing tokens, and moves the browser pointer outside the chart before explicit
 Escape/ArrowRight selection of its first point. An additional start-date assertion
 precedes the unchanged today date/amount and pointer-parity assertions. No font,
 chart height, value, 900-pixel bound, 44-pixel bound, timeout, retry or profile is
-relaxed. These corrections require fresh proof; the old formatter patch was not
-applied after the semantic edits.
+relaxed. The stale formatter patch was not applied after the semantic edits.
+
+## Fresh focused proof and retained images
+
+[Cloud run 40670044378](https://github.com/Grabman1987/budget/actions/runs/40670044378)
+records original source `ab217cd002c70e4deb194c9bdf78df022b7693b8`
+(temporary proof revision `6db9f9f3bf6d1cc5390c4ae074a87b2499a3ebd9`).
+Its actual final workflow result was **red only for formatting**:
+
+- All 101 unit/API/sample/offline cases passed across 12 files, including the
+  unchanged literal 193,000-cent FX case and complete-sample financial oracles.
+- Browser discovery included the new chart case on desktop, mobile 390px and
+  WebKit iPhone. All three passed on their first attempt, with zero retries and
+  no baseline updates. The browser total was 38 passed: 35 actual browser cases
+  plus three setup cases; two unchanged older skips remained.
+- Both theme passes of the new case reported zero Axe violations. Exact date,
+  amount, keyboard/pointer parity, missing-month gap, privacy, 44px target and
+  desktop three-KPI/chart bounds of at most 900px passed.
+- CSS, lint, type, normal production build, discovery and browser result flags
+  were zero. The formatter reported the nine source/test files that form the
+  retained patch; its temporary write was restored before the proof continued.
+
+Root independently read and cleared the entire fresh formatting-only patch before
+application. SHA-256:
+`5895B88800081FBF13445277BE9AEDC2B07CC08735AEED0E15366E1B844A16CD`.
+After verifying that exact hash and `git apply --check`, `63e1cfc3` applied and
+committed only its nine expected files. No money, dates, null handling, bounds,
+timeout, retry or profile changed. The runtime evidence above belongs to the
+original source revision; its reuse after this reviewed mechanical formatting and
+evidence-only follow-up does not claim a second run on the formatted commit.
+
+The following synthetic original PNGs were copied without editing from the same
+run and source revision. Source and destination SHA-256 values matched:
+
+| Retained file | Original artifact path under `test-results/` | SHA-256 |
+| --- | --- | --- |
+| [Desktop light](desktop-light.png) | `issue-572-heute-charts-mon-03710--honest-gaps-in-both-themes-desktop/heute-charts-light.png` | `B1152B481BDBD534C06EB0421CA0C447CA2D14F7E9B5A5866BF0A92B4E138901` |
+| [WebKit iPhone dark](webkit-iphone-dark.png) | `issue-572-heute-charts-mon-03710--honest-gaps-in-both-themes-webkit-iphone/heute-charts-dark.png` | `1359017D68A4ECF9E1310B413F19417808E55B1CCB1597FBE3FB3CC4F16E288A` |
+
+Root visually inspected both originals: the desktop KPIs and both charts were
+legible and within the 900px viewport, with the missing month explicit. The WebKit
+image records keyboard state in a full-page capture: its visible focused skip
+link overlaps Herleitung, and fixed bottom navigation overlaps the forecast
+header. This image does not establish an unobstructed full-page layout or a
+physical-device Safari result.
 
 Local work used only native Git/PowerShell/`rg` under the owner's RAM constraint.
 `git diff --check` passed at the source freeze. No local Node install, test, build,
-browser, formatter or lint was run. Cloud green checks, formatting, measured
-desktop geometry, desktop/390px/WebKit light/dark screenshots/Axe and capable
-independent full-diff review are still required. Emulation is not physical iPhone
-evidence. Nothing here claims CI, integration, live delivery or issue completion.
+browser, formatter or lint was run. The retained files and evidence-only text add
+no runtime change. Exact public PR-head required CI and the final independent
+review/integration/release gates remain open. Nothing here claims a public CI
+pass, integration, live delivery, physical iPhone acceptance or issue completion.
