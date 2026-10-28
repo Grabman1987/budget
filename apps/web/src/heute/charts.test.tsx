@@ -197,7 +197,7 @@ it.each(['month', 'payday'] as const)('retains the report-mode %s dates, named p
 });
 
 it.each([false, true])('keeps empty and out-of-range historical report=%s honest without a today marker', (report) => {
-  const data = { ...dailyData, lead: { freeCents: 10000 }, stand: { ...dailyData.stand, today: '2026-09-17', period: 'month', to: '2026-09-02' }, balance: { actual: [], forecast: [], low: null, salary: null } } as Heute;
+  const data = { ...dailyData, lead: { needCents: 0, wantCents: 0, openCents: 0, freeCents: 10000, daysToPayday: 0, chain: [], items: { need: [], want: [], open: [] } }, stand: { ...dailyData.stand, today: '2026-09-17', period: 'month', to: '2026-09-02' }, balance: { actual: [], forecast: [], low: null, salary: null } } as Heute;
   const view = render(<BalanceChart report={report} data={data} chainOpen={false} onToggleChain={() => {}} />);
   expect(screen.getByText('Kein Verlauf im gewählten Zeitraum.')).toBeTruthy();
   expect(view.container.querySelector('svg')).toBeNull();

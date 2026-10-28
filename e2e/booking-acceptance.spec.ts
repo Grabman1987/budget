@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { eur } from '../apps/web/src/ledger/format';
+import type { LiquidityReportView } from '../apps/web/src/reports/liquidity-api';
 import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -311,7 +312,7 @@ sampleTest(
     await expect(page).toHaveURL((url) => url.pathname === '/');
     const response = await page.request.get('/api/liquidity?horizon=35d');
     expect(response.ok()).toBe(true);
-    const forecast = (await response.json()) as import('../apps/web/src/reports/liquidity-api').LiquidityReportView;
+    const forecast = (await response.json()) as LiquidityReportView;
     if (!forecast.available || !forecast.report) throw new Error('Synthetic current forecast must be available');
     const chart = page.getByTestId('liquidity-chart');
     await expect(chart).toBeVisible();
