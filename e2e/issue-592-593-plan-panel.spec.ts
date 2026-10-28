@@ -29,7 +29,11 @@ async function checkPanel(page: Page, phone: boolean) {
   }
 }
 
-async function seedAutomaticPlan(page: Page, request: APIRequestContext, baseURL: string | undefined) {
+async function seedAutomaticPlan(
+  page: Page,
+  request: APIRequestContext,
+  baseURL: string | undefined,
+) {
   const send = async (method: string, path: string, data: unknown) => {
     const response = await request.fetch(`/api${path}`, {
       method,
