@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
   addMonths,
   cents,
@@ -77,7 +77,15 @@ export function WholePictureVerdict({ row, estimated = false }: { row: Row; esti
   return <VerdictLine facts={facts} testId="whole-verdict" />;
 }
 
-export function WholePictureReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function WholePictureReport({
+  report,
+  meta,
+  viewControl,
+}: {
+  report: ReportEntry;
+  meta: PageMeta;
+  viewControl?: ReactNode;
+}) {
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum('1J');
   const query = useQuery(
@@ -140,6 +148,7 @@ export function WholePictureReport({ report, meta }: { report: ReportEntry; meta
           ? `${monthLong(data.rows[0]!.month)} bis ${monthLong(data.rows.at(-1)!.month)}`
           : 'Keine Monatsdaten'
       }
+      reportControls={viewControl}
       extraFields={[
         {
           label: 'Zeitraum',
@@ -322,7 +331,7 @@ function Body({ data }: { data: Data }) {
   );
 }
 
-function WholeChart({ data }: { data: Data }) {
+export function WholeChart({ data }: { data: Data }) {
   useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const rows = data.rows;
@@ -376,9 +385,10 @@ function WholeChart({ data }: { data: Data }) {
           <Graticule
             x1={left}
             x2={right}
-            lines={upper
-              .ticks(3)
-              .map((value) => ({ y: upper(value), label: eur(value, { cents: false }) }))}
+            lines={upper.ticks(3).map((value) => ({
+              y: upper(value),
+              label: eur(Math.round(value), { cents: false }),
+            }))}
           />
           <text x={left} y={140} className="svg-label">
             Nettovermögen Ende · €

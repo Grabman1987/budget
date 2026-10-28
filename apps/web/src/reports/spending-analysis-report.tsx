@@ -8,7 +8,7 @@ import {
 import { cents, type SpendRow, type SpendingPeriod } from '@budget/domain';
 import type { SpendingReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import { useState, type CSSProperties } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { request } from '../api/http';
 import { eur, longDay } from '../ledger/format';
@@ -32,7 +32,17 @@ const analysisQuery = (period: SpendingPeriod) =>
 const DEFAULT_COLLAPSED = ['sa-moves', 'sa-classes', 'sa-explorer'] as const;
 
 /** The pilot report reuses the shared report controls and authoritative spending figures. */
-export function SpendingAnalysisReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function SpendingAnalysisReport({
+  report,
+  meta,
+  viewControl,
+  onPeriodChange,
+}: {
+  report: ReportEntry;
+  meta: PageMeta;
+  viewControl?: ReactNode;
+  onPeriodChange?: (period: SpendingPeriod) => void;
+}) {
   useAmountPrivacy();
   const [period, setPeriod] = useReportPeriod();
   const query = useQuery(analysisQuery(period));
@@ -62,10 +72,11 @@ export function SpendingAnalysisReport({ report, meta }: { report: ReportEntry; 
             : 'wird geladen'
       }
       reportStand={{ label: 'Stichtag', value: data?.to ? longDay(data.to) : '–' }}
+      reportControls={viewControl}
       extraFields={[
         {
           label: 'Zeitraum',
-          value: <PeriodSwitch period={period} onChange={setPeriod} />,
+          value: <PeriodSwitch period={period} onChange={onPeriodChange ?? setPeriod} />,
         },
       ]}
     >

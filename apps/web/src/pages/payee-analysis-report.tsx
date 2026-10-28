@@ -7,7 +7,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import React from 'react';
 import { request } from '../api/http';
 import { ErrorNote, LoadingNote } from '../ledger/states';
-import { eur, longDay } from '../ledger/format';
+import { eur, longDay, shortDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import { AppLink } from '../shell/app-link';
 import type { PageMeta } from '../nav/pages';
@@ -61,6 +61,13 @@ interface DetailPage {
 }
 
 const PERIODS: readonly ReportPeriod[] = ['1M', '3M', 'YTD', '1J', '3J', 'Alles'];
+/** Compact the title-row basis; the report body still shows both full calendar dates. */
+export function payeeHeaderRange(from: string | null | undefined, to: string | null | undefined) {
+  if (!from || !to) return 'keine geschlossenen Monate';
+  return from.slice(0, 7) === to.slice(0, 7)
+    ? `${from.slice(8)}.–${longDay(to)}`
+    : `${shortDay(from)}${from.slice(2, 4)}–${shortDay(to)}${to.slice(2, 4)}`;
+}
 const reportQuery = (period: ReportPeriod) =>
   queryOptions({
     queryKey: [...LEDGER_KEY, 'payee-analysis', period],
@@ -103,16 +110,29 @@ const statusName: Record<string, string> = {
 };
 const bookingDetailId = 'payee-booking-detail';
 
-export function PayeeAnalysisReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function PayeeAnalysisReport({
+  report,
+  meta,
+  viewControl,
+  selection,
+}: {
+  report: ReportEntry;
+  meta: PageMeta;
+  viewControl?: React.ReactNode;
+  selection?: {
+    id: string | null;
+    onChange: (id: string | null) => void;
+    onPeriodChange: (period: ReportPeriod) => void;
+  };
+}) {
   useAmountPrivacy();
   const [period, setPeriod] = useReportPeriod();
   const query = useQuery(reportQuery(period));
-  const [selected, setSelected] = React.useState<string | null>(null);
+  const [localSelected, setLocalSelected] = React.useState<string | null>(null);
+  const selected = selection ? selection.id : localSelected;
+  const setSelected = selection ? selection.onChange : setLocalSelected;
   const data = !query.isFetching && query.isSuccess ? query.data : undefined;
-  const range =
-    data?.from && data.to
-      ? `${longDay(data.from)} bis ${longDay(data.to)}`
-      : 'keine geschlossenen Monate';
+  const range = payeeHeaderRange(data?.from, data?.to);
 
   return (
     <PageFrame
@@ -143,6 +163,7 @@ export function PayeeAnalysisReport({ report, meta }: { report: ReportEntry; met
             ? 'nicht verfügbar'
             : 'wird geladen',
       }}
+      reportControls={viewControl}
       extraFields={[
         {
           label: 'Zeitraum',
@@ -153,8 +174,11 @@ export function PayeeAnalysisReport({ report, meta }: { report: ReportEntry; met
               options={PERIODS.map((value) => ({ value, label: value }))}
               value={period}
               onChange={(value) => {
-                setSelected(null);
-                setPeriod(value as ReportPeriod);
+                if (selection) selection.onPeriodChange(value as ReportPeriod);
+                else {
+                  setLocalSelected(null);
+                  setPeriod(value as ReportPeriod);
+                }
               }}
               className="seg-period"
             />

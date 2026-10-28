@@ -10,6 +10,7 @@ const ids = (value: unknown) =>
 
 export const validateReportSearch = (search: Record<string, unknown>) => ({
   ansicht: id(search['ansicht']),
+  empfaenger: id(search['empfaenger']),
   projekt: id(search['projekt']),
   projektUngueltig:
     search['projektUngueltig'] === true ||
@@ -17,8 +18,25 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
     (search['projekt'] !== undefined && id(search['projekt']) === undefined)
       ? true
       : undefined,
-  darstellung: ['income', 'overview', 'cashflow'].includes(search['darstellung'] as string)
-    ? (search['darstellung'] as 'income' | 'overview' | 'cashflow')
+  darstellung: [
+    'income',
+    'overview',
+    'cashflow',
+    'gruppen',
+    'empfaenger',
+    'bilanz',
+    'verlauf',
+    'gesamt',
+  ].includes(search['darstellung'] as string)
+    ? (search['darstellung'] as
+        | 'income'
+        | 'overview'
+        | 'cashflow'
+        | 'gruppen'
+        | 'empfaenger'
+        | 'bilanz'
+        | 'verlauf'
+        | 'gesamt')
     : undefined,
   vorlage: isExplorerTemplate(search['vorlage']) ? search['vorlage'] : undefined,
   exakt: search['exakt'] === true || search['exakt'] === 'true' ? true : undefined,
