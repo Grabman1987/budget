@@ -3,6 +3,7 @@ import {
   DEFAULT_EXPLORER_QUERY,
   type ExplorerTemplateFacts,
   type PersistedExplorerView,
+  type VerdictFacts,
 } from '@budget/domain';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -23,16 +24,20 @@ import { explorerTemplateQuery } from './explorer-template-api';
 import { explorerQuery } from './overview-api';
 import { validateReportSearch } from './report-search';
 import { reportTablesQuery, type ReportTables } from './table-reports-api';
+import { VerdictLine } from './verdict-line';
 
 vi.mock('../pages/placeholder-page', () => ({
   PageFrame: ({
     children,
     extraFields,
+    verdict,
   }: {
     children: ReactNode;
     extraFields?: { label: string; value: ReactNode }[];
+    verdict?: VerdictFacts;
   }) => (
     <main>
+      {verdict && <VerdictLine facts={verdict} />}
       {extraFields?.map((field) => (
         <div key={field.label}>{field.value}</div>
       ))}
@@ -130,6 +135,7 @@ afterEach(() => {
   setAmountsHidden(false);
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  localStorage.removeItem(`budget.report-sections.${location.pathname}`);
 });
 
 function mount(search = '', templateFacts = facts) {
@@ -180,17 +186,55 @@ function mount(search = '', templateFacts = facts) {
     routeTree: root.addChildren([explorer, bookings]),
     history: createMemoryHistory({ initialEntries: [`/reports/explorer${search}`] }),
   });
-  render(
+  const rendered = render(
     <QueryClientProvider client={client}>
       <ToastProvider>
         <RouterProvider router={router} />
       </ToastProvider>
     </QueryClientProvider>,
   );
-  return { router, client };
+  return { router, client, ...rendered };
 }
 
 describe('625 fixed templates beside retained custom views', () => {
+  it('renders the selected category verdict with privacy and withholds stale/error facts', async () => {
+    const { client } = mount('?vorlage=category&zeitraum=1J&kategorien=%5B%22food%22%5D');
+    const verdict = await screen.findByTestId('report-verdict');
+    expect(verdict.textContent).toContain('Lebensmittel');
+    expect(verdict.textContent).toContain('30,02 €');
+    expect(verdict.textContent).not.toContain('300,03');
+    act(() => setAmountsHidden(true));
+    expect(verdict.textContent).toContain('••• €');
+    expect(verdict.textContent).not.toContain('30,02');
+    let release!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((done) => { release = done; })));
+    act(() => { void client.invalidateQueries({ queryKey: explorerTemplateQuery.queryKey }); });
+    await waitFor(() => expect(screen.queryByTestId('report-verdict')).toBeNull());
+    expect(screen.queryByTestId('template-category')).toBeNull();
+    await act(async () => { release(new Response(JSON.stringify({ error: 'unavailable' }), { status: 503 })); });
+    await screen.findByRole('alert');
+    expect(screen.queryByTestId('report-verdict')).toBeNull();
+  });
+
+  it('uses the shared landscape print wrapper and remembers a real supplementary section without losing matrix columns', async () => {
+    const first = mount('?vorlage=year');
+    const table = await screen.findByTestId('template-year');
+    expect(table.classList.contains('report-table-print')).toBe(true);
+    expect(table.classList.contains('table-report')).toBe(true);
+    expect(table.querySelectorAll('table.rtable thead th')).toHaveLength(15);
+    const toggle = await within(table).findByRole('button', { name: /Abschnitt ein- oder ausklappen.*Datenbasis und Darstellung/ });
+    const section = toggle.closest('section')!;
+    fireEvent.click(toggle);
+    expect(section.dataset['collapsed']).toBe('true');
+    expect(localStorage.getItem(`budget.report-sections.${location.pathname}`)).toContain('explorer-template-year-basis');
+    first.unmount();
+    mount('?vorlage=year');
+    const second = await screen.findByTestId('template-year');
+    const restored = await within(second).findByRole('button', { name: /Abschnitt ein- oder ausklappen.*Datenbasis und Darstellung/ });
+    expect(restored.getAttribute('aria-expanded')).toBe('false');
+    expect(second.querySelectorAll('table.rtable thead th')).toHaveLength(15);
+    localStorage.removeItem(`budget.report-sections.${location.pathname}`);
+  });
   it('remounts the all-history disclosure closed after a template switch or source refresh without a hidden read', async () => {
     const legacy: ReportTables = {
       ...facts,

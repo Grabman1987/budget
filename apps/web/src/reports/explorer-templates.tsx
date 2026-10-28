@@ -24,6 +24,8 @@ import './table-reports.css';
 import { templateChartModel } from './explorer-chart-model-626';
 import { ExplorerChart626, ExplorerViewToggle626 } from './explorer-chart-626';
 import { ExplorerTableInspector626 } from './explorer-table-inspector-626';
+import { useCollapsibleSections } from './month-frame';
+import './table-print.css';
 
 export function ExplorerTemplates({
   facts,
@@ -45,7 +47,8 @@ export function ExplorerTemplates({
   const [view, setView] = useState<'table' | 'chart'>('table');
   const chartData = useMemo(() => templateChartModel(model), [model]);
   const cellsPerRow = model.months.length + chartData.summaryColumns.length;
-  const root = useRef<HTMLElement>(null);
+  const root = useRef<HTMLDivElement>(null);
+  const sectionsRef = useCollapsibleSections(`explorer-template-${model.id}`);
   const detailHeading = useRef<HTMLHeadingElement>(null);
   const origin = useRef<HTMLButtonElement | null>(null);
   const selectedIndex = model.rows.findIndex((candidate) => candidate.key === selectedRowKey);
@@ -71,12 +74,12 @@ export function ExplorerTemplates({
   const number = (row: TableRow, amount: number | null) =>
     amount === null ? '–' : row.kind === 'pct' ? percentWhole(amount) : eur(amount);
   return (
-    <section
+    <div
       ref={root}
-      className="table-report ex-template card ov-card"
-      aria-labelledby={`${prefix}-title`}
+      className="table-report report-table-print ex-template"
       data-testid={`template-${model.id}`}
     >
+    <section className="card ov-card tr-card" aria-labelledby={`${prefix}-title`}>
       <div className="tbd-head">
         <h2 id={`${prefix}-title`}>{model.title}</h2>
       </div>
@@ -220,6 +223,10 @@ export function ExplorerTemplates({
           )}
         </ExplorerTableInspector626>
       </div>
+      </section>
+      <div key={model.id} ref={sectionsRef}>
+      <section className="tr-card ex-template-basis" aria-labelledby={`explorer-template-${model.id}-basis`}>
+      <h3 id={`explorer-template-${model.id}-basis`}>Datenbasis und Darstellung</h3>
       <p className="ov-note">
         Beträge bleiben centgenau. Teal bedeutet günstiger, Orange ungünstiger gegenüber dem
         Durchschnitt derselben Zeile; die Zahl bleibt das Signal. Summe und Ø verwenden nur
@@ -227,6 +234,8 @@ export function ExplorerTemplates({
         {model.partialMonth &&
           ` * ${monthLong(model.partialMonth)} läuft noch; Werte bis ${facts.asOf}.`}
       </p>
+      </section>
+      </div>
       {row && value !== null && row.kind !== 'pct' && (
         <section
           className="ex-template-sources"
@@ -293,6 +302,6 @@ export function ExplorerTemplates({
           </p>
         </section>
       )}
-    </section>
+    </div>
   );
 }

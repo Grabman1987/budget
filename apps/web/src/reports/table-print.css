@@ -27,7 +27,9 @@
       .rtools,
       .seg-depth,
       .table-scroll-hint,
-      .chart-tooltip
+      .chart-tooltip,
+      .ex-template-controls,
+      .ex-view-toggle
     ),
   body:has(.report-table-print) .titleblock .tb-field:has(button, select, input) {
     display: none !important;
@@ -51,6 +53,12 @@
   .report-table-print {
     display: block;
     margin: 0;
+  }
+  .report-table-print .ex-native-view[hidden] {
+    display: block;
+  }
+  .report-table-print .ex-chart-626 {
+    display: none;
   }
   /* Reapply the normal surface/ink roles on the actual printed containers so
      dark-screen → print also invalidates their painted and inherited values. */

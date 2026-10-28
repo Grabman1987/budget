@@ -58,6 +58,7 @@ import { customChartModel } from './explorer-chart-model-626';
 import { ExplorerChart626, ExplorerViewToggle626 } from './explorer-chart-626';
 import { ExplorerTableInspector626 } from './explorer-table-inspector-626';
 import { TotalTableDisclosure } from './total-table-report';
+import { explorerTemplateVerdictFacts } from './verdict-facts';
 
 const label = <T extends ReadonlyArray<{ id: string; label: string }>>(list: T, id: string) =>
   list.find((x) => x.id === id)?.label ?? id;
@@ -253,7 +254,11 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
   return (
     <PageFrame
       verdict={
-        !template && data && !result.isFetching && !result.isPlaceholderData && !result.isError
+        template
+          ? templateModel && templateRead.data && !templateRead.isFetching && !templateRead.isError
+            ? explorerTemplateVerdictFacts(templateModel, templateRead.data)
+            : undefined
+          : data && !result.isFetching && !result.isPlaceholderData && !result.isError
           ? { reportId: report.id, period: `${query.period}:${data.ref}` }
           : undefined
       }
@@ -315,7 +320,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
       }
     >
       <div className="kview ov explorer-report">
-        <section className="card ov-card" aria-labelledby="ex-views">
+        <section className={`card ov-card${template ? ' ex-template-controls' : ''}`} aria-labelledby="ex-views">
           <div className="tbd-head">
             <h2 id="ex-views">Gespeicherte Ansichten</h2>
           </div>
@@ -604,6 +609,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
           !templateRead.isError && (
             <>
               {template === 'category' && (
+                <div className="ex-template-controls">
                 <Field label="Kategorie">
                   {({ id }) => (
                     <Select
@@ -625,6 +631,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                     </Select>
                   )}
                 </Field>
+                </div>
               )}
               <ExplorerTemplates
                 facts={templateRead.data}
