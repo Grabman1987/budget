@@ -64,7 +64,8 @@ it('rejects initial-token replay after creation Undo and rolls the whole prefere
   const auditBefore = opened.sqlite.prepare('SELECT * FROM audit_log ORDER BY rowid').all();
   opened.sqlite.exec("CREATE TEMP TRIGGER reject_preference_audit BEFORE INSERT ON audit_log WHEN NEW.entity_id = 'ledger.bookings.views' BEGIN SELECT RAISE(ABORT, 'synthetic rollback'); END");
   const failed = await post({ kind: 'save', revision: current.revision, view: { name: 'Rollback', search: { q: 'Muster' } } });
-  expect(failed.status).toBe(500);
+  expect(failed.status).toBe(422);
+  expect(await failed.json()).toMatchObject({ error: 'constraint' });
   expect(await read()).toEqual(current);
   expect(opened.sqlite.prepare('SELECT * FROM audit_log ORDER BY rowid').all()).toEqual(auditBefore);
   expect(financialRows()).toEqual(before);

@@ -45,6 +45,7 @@ const oneOf = <T extends string>(v: unknown, list: ReadonlyArray<T>): T | undefi
   typeof v === 'string' && (list as ReadonlyArray<string>).includes(v) ? (v as T) : undefined;
 
 const SORTS = ['date', 'amount', 'payee', 'account'] as const;
+export { SORTS as BOOKING_SEARCH_SORTS };
 
 /** Route `validateSearch`: unknown or malformed values are dropped, never thrown. */
 export function validateBookingsSearch(search: Record<string, unknown>): BookingsSearch {

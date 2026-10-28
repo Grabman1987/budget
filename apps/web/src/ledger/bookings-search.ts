@@ -1,6 +1,6 @@
 import { BOOKING_FLAGS, BOOKING_STATUSES, type BookingFilter, type BookingSort } from './types';
 
-import type { BookingsSearch } from '@budget/domain';
+import { BOOKING_SEARCH_SORTS as SORTS, type BookingsSearch } from '@budget/domain';
 export { validateBookingsSearch, type BookingsSearch } from '@budget/domain';
 
 const FILTER_KEYS = [
