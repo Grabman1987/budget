@@ -1,75 +1,78 @@
-name: Update e2e snapshots
-
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+name: Focused queue observer proof
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: Branch whose baselines to update (never main)
-        required: true
-      specs:
-        description: Space-separated spec paths (e.g. e2e/shell.spec.ts); empty = every spec that compares screenshots
-        required: false
-        default: ''
-
 permissions:
-  contents: write
-
-concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
-
+  contents: read
 jobs:
-  update:
-    if: inputs.branch != 'main'
+  proof:
     runs-on: ubuntu-24.04
-    # Match the CI browser image instead of reinstalling its OS/browser dependencies.
-    container:
-      image: mcr.microsoft.com/playwright:v1.64.1-noble
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
-    # A type-scale change regenerates nearly every baseline; give it room.
-    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.branch }}
-      - name: Allow Git reads and baseline commits in the container workspace
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          fetch-depth: 2
+      - name: Verify frozen source and sole workflow delta
+        run: |
+          test "$(git rev-parse HEAD^)" = 'bac43e568c622bdafbcb1d840aa315831edd5591'
+          test "$(git diff --name-only HEAD^..HEAD)" = '.github/workflows/update-snapshots.yml'
+          git rev-parse HEAD HEAD^ > source-proof.txt
+          git diff --name-only HEAD^..HEAD >> source-proof.txt
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        env:
-          SPECS: ${{ inputs.specs }}
+      - name: Install existing locked test tooling
+        run: npm ci > install.log 2>&1
+      - name: Exact-source queue discovery, stubs and script checks
         run: |
-          npm run build:e2e
-          read -r -a specs <<< "$SPECS"
-          if [ "${#specs[@]}" -eq 0 ]; then
-            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
-          fi
-          npx playwright test --update-snapshots=changed "${specs[@]}" || true
+          set +e
+          bash -n scripts/queue/merge-pr.sh > shell.log 2>&1
+          shell_rc=$?
+          git diff --check > diffcheck.log 2>&1
+          diff_rc=$?
+          npx prettier --check scripts/queue/queue-glue.test.mjs > format.log 2>&1
+          format_rc=$?
+          npx eslint scripts/queue/queue-glue.test.mjs > lint.log 2>&1
+          lint_rc=$?
+          npx prettier --write scripts/queue/queue-glue.test.mjs > formatting-patch.log 2>&1
+          git diff -- scripts/queue/queue-glue.test.mjs > format.patch
+          sha256sum format.patch > format.patch.sha256
+          git restore -- scripts/queue/queue-glue.test.mjs
+          git diff --exit-code >> source-proof.txt
+          restored_rc=$?
+          npx vitest list scripts/queue --no-static-parse --json=discovery.json > discovery.log 2>&1
+          list_rc=$?
+          node -e 'const fs=require("fs");const rows=JSON.parse(fs.readFileSync("discovery.json","utf8"));const own=rows.filter(r=>JSON.stringify(r).includes("merge-pr CI observation and closing-reference guard"));console.log(JSON.stringify({discovered:rows.length,newCases:own.length}));if(rows.length<=34||own.length!==34)process.exit(1)' > discovery-counts.log 2>&1
+          discovery_rc=$?
+          npx vitest run scripts/queue --retry=0 --passWithNoTests=false --update=none --maxWorkers=1 --reporter=verbose --reporter=json --outputFile.json=unit-results.json > unit.log 2>&1
+          unit_rc=$?
+          node -e 'const fs=require("fs");const r=JSON.parse(fs.readFileSync("unit-results.json","utf8"));const rows=r.testResults.flatMap(f=>f.assertionResults);const own=rows.filter(t=>t.fullName.includes("merge-pr CI observation and closing-reference guard"));console.log(JSON.stringify({total:r.numTotalTests,passed:r.numPassedTests,failed:r.numFailedTests,pending:r.numPendingTests,newCases:own.length,newPassed:own.filter(t=>t.status==="passed").length}));if(r.numTotalTests<=34||own.length!==34||own.some(t=>t.status!=="passed"))process.exit(1)' > actual-counts.log 2>&1
+          counts_rc=$?
+          cat source-proof.txt shell.log diffcheck.log format.log lint.log discovery.log discovery-counts.log unit.log actual-counts.log 2>/dev/null
+          echo "RESULT shell=$shell_rc diff=$diff_rc format=$format_rc lint=$lint_rc restored=$restored_rc list=$list_rc discovery=$discovery_rc unit=$unit_rc counts=$counts_rc"
+          test "$shell_rc" -eq 0 && test "$diff_rc" -eq 0 && test "$format_rc" -eq 0 && test "$lint_rc" -eq 0 && test "$restored_rc" -eq 0 && test "$list_rc" -eq 0 && test "$discovery_rc" -eq 0 && test "$unit_rc" -eq 0 && test "$counts_rc" -eq 0
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: scoped-browser-screenshots
-          path: test-results/**/*.png
+          name: queue-observer-proof
+          path: |
+            install.log
+            source-proof.txt
+            shell.log
+            diffcheck.log
+            format.log
+            lint.log
+            formatting-patch.log
+            format.patch
+            format.patch.sha256
+            discovery.json
+            discovery.log
+            discovery-counts.log
+            unit.log
+            unit-results.json
+            actual-counts.log
           if-no-files-found: ignore
-          retention-days: 7
-      - name: Commit the new baselines
-        env:
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
+          retention-days: 3
