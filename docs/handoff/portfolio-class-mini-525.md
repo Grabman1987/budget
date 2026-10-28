@@ -26,7 +26,7 @@ index values. Keyboard chart inspection, a scrollable table, 44px disclosure and
 privacy masking retain the normal shared UI primitives. No API/DB/domain,
 financial formula, settings/write path or dependency changes.
 
-## Prepared checks, not local results
+## Checks and evidence
 
 - New `portfolio-class-histories.test.tsx`: literal held index
   `[100,110,null,121,133.1]`, sold `[100,105,null,null,null]`, and empty
@@ -48,11 +48,16 @@ financial formula, settings/write path or dependency changes.
   and shared chart tests. This checks daily markers/financial oracles independently
   from the new class table. No old tests or baselines were removed or weakened.
 
-No local Node/npm/build/test/browser/install/lint/formatter or cloud dispatch was
-run under the host RAM restriction. Author verification is source review and
-`git diff --check` only. Formatting, independent HIGH review, focused desktop /
-Chromium phone / WebKit iPhone runtime proof, screenshots and exact-head delivery
-remain pending coordinator work. No PR/push by author.
+No local Node/npm/build/test/browser/install/lint/formatter was run under the
+host RAM restriction. Independent full source review
+`private/525-class-mini-final-review.md` and later scoped test reviews cleared
+the immutable deltas. Focused 40615094999 exposed only a new WebKit test tooltip
+locator ambiguity; focused 40615830773 passed the corrected new case in all
+three profiles. Focused 40616926360 passed 3 literal units and all 6 selected
+browser cases first attempt. All 48 caption text-range checks passed in their
+actual viewports; clean phone viewport images show complete labels. The only
+red result was formatting; the exact reviewed patch was applied. Required
+public exact-head CI and verified delivery remain pending.
 
 ## Separate acceptance
 
