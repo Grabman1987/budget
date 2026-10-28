@@ -108,3 +108,39 @@ itself and do not introduce a production test route.
 Still pending: goal/contact browser adaptation, accepted Explorer template tests,
 actual focused proof findings and any justified current wrapper selector changes.
 Phase A does not claim those tests pass or that #620 is ready for integration.
+
+## Coverage phase B (prepared, runtime checks pending)
+
+- `e2e/goals-progress-report.spec.ts`: the old report table's literal target,
+  saved, remaining, future rate and forecasts remain in the live Plan list/detail
+  browser test. Enter opens the actual detail, whose existing GoalDetail still
+  supplies month-end category/account booking links and Plan assignment links.
+  The old aggregate/source/large-cent/negative-rate/reached/no-date/overdue
+  renderer checks were retained additively in
+  `goals-progress-retained-620.test.tsx` before this browser adaptation. Pending
+  metadata, error, retry and missing-goal withholding also run against the actual
+  Plan detail; source ambiguity must not show a euro amount in that detail. The
+  real sample still asserts five goals, three in plan, every goal's exact target,
+  saved, remaining, average and needed rate, plus no writes and both-theme Axe.
+  Retired chart/aggregate horizontal scroll is replaced by actual destination
+  keyboard link navigation and44px Back action. The existing90s timeout stays.
+  Overflow compares the exact configured viewport in all three profiles.
+- `e2e/contact-report.spec.ts`: same real booking/settlement fixture, receipt Undo
+  and Undo-of-Undo. Contact credit−2000/2000, signed10000/−12000, running10000/−2000
+  and pending/confirmed account provenance are independently asserted from the
+  real statement API; the destination renders signed shares and words for the
+  same balance. Recorded receipt disclosure retains20 EUR credit. The retired
+  running-balance chart/jump-list and report-only read-only action chrome are
+  superseded by the owner-approved contact statement. Its actual heading focus,
+  keyboard source opening, fresh whole-booking editor, dialog Escape,44px source
+  action and both-theme Axe stay covered; navigation/source opening must write
+  nothing. Balanced history now uses the actual Offen/Alle area filter, retained
+  across detail/reload/Back. Mixed-currency422, blocked retry, recovery and failed
+  background refresh withhold all person amounts/tables on the actual target.
+  List withholding has the additive Contacts QueryClient regression from phaseA;
+  unchanged real API tests retain global mixed-currency totals rejection and
+  no-partial-payload guarantees. Original60s fixture test timing stays unchanged.
+
+No balance, goal source, audit/Undo or rate implementation changed. Old screenshot
+filenames and exact retired wrapper/chart geometry are presentation evidence,
+not a reason to recreate those owner-retired pages inside this routing package.
