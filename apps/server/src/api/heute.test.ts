@@ -672,6 +672,50 @@ it('Heute uses the wealth valuation and compares month start and exactly twelve 
   expect(today.attention).toMatchObject({ pendingCount: 0, pendingBefore: '2026-03-11' });
 });
 
+it.each(['2025-01-01', '2026-01-01'])(
+  'keeps the exact current wealth with historical FX gaps for an account opened %s',
+  async (openingDate) => {
+    db.insert(schema.account).values({
+      id: 'foreign-reserve', name: 'Synthetic USD reserve', type: 'savings',
+      role: 'reserve', onBudget: false, currency: 'USD', openingDate,
+      openingBalanceCents: 10_000,
+    }).run();
+    db.insert(schema.fxRate).values({ currency: 'USD', date: '2026-03-01', rateMicro: 2_000_000 }).run();
+    const before = db.select().from(schema.booking).all();
+    const result = await call('GET', '/heute');
+    expect(result.status).toBe(200);
+    const net = result.body.netWorth;
+    expect(net.totalCents).toBe(193_000); // EUR 1,880 + USD 100 / 2.
+    expect(net.series.map((p: any) => p.day)).toEqual([
+      '2025-04-30', '2025-05-31', '2025-06-30', '2025-07-31', '2025-08-31',
+      '2025-09-30', '2025-10-31', '2025-11-30', '2025-12-31', '2026-01-31',
+      '2026-02-28', '2026-03-18',
+    ]);
+    expect(net.series.at(-1)).toEqual({ day: TODAY, cents: 193_000 });
+    expect(net.series[9]).toMatchObject({
+      day: '2026-01-31', cents: null, unavailable: { reason: 'missing_fx', asOf: '2026-01-31' },
+    });
+    expect(net.series[10]).toMatchObject({ day: '2026-02-28', cents: null });
+    expect(net).toMatchObject({ previousMonthEndCents: null, deltaCents: null, deltaBp: null });
+    expect(net.yearAgoCents).toBe(openingDate === '2025-01-01' ? null : 0);
+    expect(net.yearDeltaCents).toBe(openingDate === '2025-01-01' ? null : 193_000);
+    if (openingDate === '2026-01-01') expect(net.series[8]).toEqual({ day: '2025-12-31', cents: 0 });
+    expect(db.select().from(schema.booking).all()).toEqual(before);
+  },
+);
+
+it('keeps current wealth unavailable when its FX input is missing', async () => {
+  db.insert(schema.account).values({
+    id: 'foreign-reserve', name: 'Synthetic USD reserve', type: 'savings',
+    role: 'reserve', onBudget: false, currency: 'USD', openingDate: '2026-01-01',
+    openingBalanceCents: 10_000,
+  }).run();
+  const result = await call('GET', '/heute');
+  expect(result.status).toBe(200);
+  expect(result.body.netWorth).toMatchObject({ unavailable: { reason: 'missing_fx', asOf: TODAY } });
+  expect(result.body.netWorth.totalCents).toBeUndefined();
+});
+
 it('attention counts pending bookings at least seven days old, with an inclusive cutoff', async () => {
   for (const date of ['2026-03-10', '2026-03-11', '2026-03-12']) {
     await call('POST', '/bookings', {

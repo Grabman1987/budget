@@ -1,11 +1,66 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, fireEvent } from '@testing-library/react';
+import { act, cleanup, render, screen, fireEvent } from '@testing-library/react';
+import { setAmountsHidden } from '@budget/ui';
 import { afterEach, expect, it, vi } from 'vitest';
 import { paceForecastCurve, paceModel } from '@budget/domain';
 import { BalanceChart, DailyBudgetLine, HeutePaceChart, type PaceChartData } from './charts';
 import type { Heute } from './api';
+import { HeuteWealthLine } from './heute-page';
+vi.mock('../shell/app-link', () => ({
+  AppLink: ({ children }: { children: React.ReactNode }) => <a href="/vermoegen/nettovermoegen">{children}</a>,
+}));
 vi.mock('../charts/use-element-width', () => ({ useElementWidth: () => [vi.fn(), 360] }));
 afterEach(cleanup);
+afterEach(() => act(() => setAmountsHidden(false)));
+
+it('inspects exact wealth dates and cents by pointer and keyboard without bridging a missing month', () => {
+  const { container } = render(<HeuteWealthLine data={wealthData} />);
+  const chart = screen.getByRole('group', { name: /Nettovermögen.*12 Monate/ });
+  fireEvent.focus(chart);
+  expect(screen.getByRole('status').textContent).toContain('30.11.2025');
+  expect(screen.getByRole('status').textContent).toContain('100,00 €');
+  fireEvent.keyDown(chart, { key: 'ArrowRight' });
+  expect(screen.getByRole('status').textContent).toContain('120,00 €');
+  fireEvent.keyDown(chart, { key: 'ArrowRight' });
+  expect(screen.getByRole('status').textContent).toContain('31.01.2026');
+  expect(screen.getByRole('status').textContent).toContain('Bewertung nicht verfügbar');
+  fireEvent.keyDown(chart, { key: 'ArrowRight' });
+  expect(screen.getByRole('status').textContent).toContain('0,00 €');
+  fireEvent.keyDown(chart, { key: 'ArrowRight' });
+  expect(screen.getByRole('status').textContent).toContain('18.03.2026');
+  expect(screen.getByRole('status').textContent).toContain('150,01 €');
+  const keyboard = screen.getByRole('status').textContent;
+  fireEvent.keyDown(chart, { key: 'Escape' });
+  fireEvent.pointerMove(container.querySelector('[data-chart-point="4"]')!);
+  expect(screen.getByRole('status').textContent).toBe(keyboard);
+  const segments = container.querySelectorAll('path.heute-wealth-segment');
+  expect(segments).toHaveLength(2);
+  for (const segment of segments) expect(segment.getAttribute('d')?.match(/L/g)).toHaveLength(1);
+});
+
+it('keeps a missing annual comparison explicit and hides chart amounts in privacy mode', () => {
+  render(<HeuteWealthLine data={wealthData} />);
+  expect(screen.getByRole('link').textContent).toContain('Jahresvergleich nicht verfügbar');
+  const chart = screen.getByRole('group', { name: /Nettovermögen.*12 Monate/ });
+  fireEvent.focus(chart);
+  act(() => setAmountsHidden(true));
+  expect(screen.getByRole('status').textContent).not.toContain('100,00');
+  expect(chart.getAttribute('aria-label')).not.toContain('150,01');
+  expect(screen.getByRole('status').textContent).toContain('30.11.2025');
+});
+
+const wealthData = {
+  stand: { today: '2026-03-18', month: '2026-03' }, valuationSources: [],
+  netWorth: {
+    totalCents: 15_001, asOf: '2026-03-18', yearAgoDay: '2025-03-18', yearAgoCents: null,
+    yearDeltaCents: null,
+    series: [
+      { day: '2025-11-30', cents: 10_000 }, { day: '2025-12-31', cents: 12_000 },
+      { day: '2026-01-31', cents: null, unavailable: { reason: 'missing_fx', asOf: '2026-01-31', message: 'Missing synthetic FX.' } },
+      { day: '2026-02-28', cents: 0 }, { day: '2026-03-18', cents: 15_001 },
+    ],
+  },
+} as unknown as Pick<Heute, 'stand' | 'netWorth' | 'valuationSources'>;
 it('labels actual history before today and separates payment numbers from the low point', () => {
   const { container } = render(
     <BalanceChart
