@@ -473,7 +473,7 @@ pallocation's next peinzahlungen bookmark therefore returned to its own current
 canonical contribution view. This was a real header-navigation source gap.
 
 Tests-only c4009978 first declared the literal16-report order, endpoints,13
-normalized report aliases,5 retired-area/unknown safe IDs, no self edges,
+normalized report aliases, five retired-area IDs plus unknown, no self edges,
 canonical names/numbers and preserved search/keyboard/input/dialog/Escape
 behavior. Chart-inspection preserves all preceding source path-length/money/date/
 tooltip/Axe/theme/layout checks; actual view switches cover the three Portfolio
@@ -493,3 +493,32 @@ helper, route, API, financial calculation or ledger write is added. Existing
 period/trend/month propagation, neighbor intent reset, keyboard guards and
 Escape/focus behavior are unchanged. Exact reviewed GREEN proof remains pending;
 no local runtime/formatter, push or workflow dispatch was performed by the author.
+
+## Navigation GREEN proof and independently reviewed formatting application
+
+Focused run40716010860 checked source6c374aee: all186 units and121 Playwright
+results passed (118 actual browser cases plus3 setup), without retries. Browser
+coverage included all34 legacy landings and four landing-state cases across all
+three profiles, canonical chart navigation and the real R07 response contracts
+on desktop/mobile. The workflow remained RED only because the original source
+failed formatting. The formatted candidate's canonical whole-repository lint,
+types, build, cleanup and three-pass byte-idempotence checks passed. Runtime
+checks used the restored semantic source; this is not a post-application public
+full-CI pass. The genuine earlier navigation RED/type qualification above remains
+part of the evidence.
+
+Before application, the independent reviewer read every one of2767 patch lines,
+53 hunks and21 paths and returned HIGH CLEAR. Root verified the patch hash,
+native application check and candidate identities. The author then rechecked
+the exact140444-byte patch SHA256
+`EA08A8F1C767698589A48F95D955A3E86E694CD3A96D1FCA94285753FD3DA812`,
+applied only that patch and committed mechanical formatting as97fbef29. All52
+candidate full blobs match the reviewed manifest, the changed path set is exactly
+the21 formatter paths, and native diff checking passes. No local formatter or
+runtime was run.
+
+PR816 remains at its previously published7ed head until root authorizes an
+update after checking CI capacity and the actual main baseline. Exact new-head
+public full CI, live publication/health and acceptance gates remain pending.
+There is no new deployment, live or acceptance-pass claim from this focused
+proof or mechanical application.
