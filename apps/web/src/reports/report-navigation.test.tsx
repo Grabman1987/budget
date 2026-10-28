@@ -43,10 +43,10 @@ describe('report navigation', () => {
   });
   it('disables only the real canonical first and last directions', () => {
     const view = render(<ReportNavigation id="einnahmen-ausgaben" />);
-    expect((screen.getByRole('button', { name: 'Vorheriger Bericht', exact: true }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Vorheriger Bericht' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Nächster Bericht: Ausgabenanalyse' }) as HTMLButtonElement).disabled).toBe(false);
     view.rerender(<ReportNavigation id="jahresreport" />);
-    expect((screen.getByRole('button', { name: 'Nächster Bericht', exact: true }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Nächster Bericht' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Vorheriger Bericht: Monatsbericht' }) as HTMLButtonElement).disabled).toBe(false);
   });
   it('names the destination and supports the advertised shortcut without stealing input keys', () => {
