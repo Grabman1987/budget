@@ -124,6 +124,7 @@ for (const failure of ['conflict', 'lost response'] as const) test(`pending and 
 test('explicit replace and rename preserve identity, and deleting a view has preference-only Undo', async ({ page, isolatedLedger }, info) => {
   const origin = isolatedLedger.origin;
   for (const theme of ['light', 'dark'] as const) {
+    const renamed = theme === 'light' ? 'W'.repeat(40) : 'M'.repeat(40);
     const read = await page.request.get(`${origin}/api/bookings/saved-views`);
     const state = await read.json() as { revision: string };
     const saved = await page.request.post(`${origin}/api/bookings/saved-views`, { headers: { origin }, data: {
@@ -140,15 +141,15 @@ test('explicit replace and rename preserve identity, and deleting a view has pre
     await manager.getByRole('button', { name: `Filter von Original ${theme} ersetzen`, exact: true }).click();
     const editor = page.getByRole('dialog', { name: 'Filteransicht speichern', exact: true });
     await expect(editor.getByLabel('Name', { exact: true })).toHaveValue(`Original ${theme}`);
-    await editor.getByLabel('Name', { exact: true }).fill(`Renamed ${theme}`);
+    await editor.getByLabel('Name', { exact: true }).fill(renamed);
     await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(editor).toBeHidden();
     const current = await page.request.get(`${origin}/api/bookings/saved-views`);
-    expect((await current.json()).views.find((view: { id: string }) => view.id === created.id)).toEqual({ id: created.id, name: `Renamed ${theme}`, search: { markierung: 'none', q: 'Replacement' } });
+    expect((await current.json()).views.find((view: { id: string }) => view.id === created.id)).toEqual({ id: created.id, name: renamed, search: { markierung: 'none', q: 'Replacement' } });
     const actions = page.locator('.kregister-actions');
     if (await actions.getAttribute('open') === null) await actions.locator('summary').click();
     await page.getByRole('button', { name: 'Gespeicherte Ansichten', exact: true }).click();
-    const remove = manager.getByRole('button', { name: `Ansicht Renamed ${theme} löschen`, exact: true });
+    const remove = manager.getByRole('button', { name: `Ansicht ${renamed} löschen`, exact: true });
     if (info.project.name !== 'desktop') for (const button of await manager.locator('button:visible').all()) {
       const box = (await button.boundingBox())!;
       expect(box.width).toBeGreaterThanOrEqual(44); expect(box.height).toBeGreaterThanOrEqual(44);
@@ -156,7 +157,7 @@ test('explicit replace and rename preserve identity, and deleting a view has pre
     await remove.click();
     await expect(remove).toHaveCount(0);
     await page.getByRole('button', { name: 'Rückgängig', exact: true }).last().click();
-    await expect(manager.getByRole('button', { name: `Renamed ${theme}`, exact: true })).toBeVisible();
+    await expect(manager.getByRole('button', { name: renamed, exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.keyboard.press('Escape');
     await expect(manager).toBeHidden();

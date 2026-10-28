@@ -15,7 +15,8 @@
   min-height: var(--touch);
   min-width: var(--touch);
 }
-.kregister-menu > .btn {
+.kregister-menu > .btn,
+.booking-view-row > .btn {
   max-width: 100%;
   white-space: normal;
 }
