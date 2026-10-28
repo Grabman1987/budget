@@ -27,8 +27,10 @@ This bounded content package does not complete #487 or unblock all of #620.
   values; existing representation and validation rules remain unchanged.
 - Legacy `/reports/planungstreue` and `/reports/kosten` still render their original
   standalone pages. No redirects, new calculations, API, writes, migrations,
-  dependency, CSS or workflow changes. Existing audit/undo/locks and financial
+  dependency or workflow changes. Existing audit/undo/locks and financial
   tests are untouched. Existing responsive segmented-control CSS is reused.
+  A phone-only bank chart legend wrap prevents its long unchanged label from
+  widening the page; the bank tables retain their own horizontal scroll.
 
 ## Prepared verification (not executed locally)
 
@@ -64,9 +66,14 @@ interest, missing-FX coverage, zero/negative budgets, 50/30/20 and old navigatio
 The independent reviewer should inspect the new tests' actual coverage.
 
 Host RAM restriction: no local Node/npm/build/test/browser/install/lint/formatter
-was run. Author performed source inspection and `git diff --check` only. Runtime,
-formatting, screenshots, independent HIGH full-diff review and exact-head CI are
-pending coordinator delivery. No PR, push or cloud dispatch by the author.
+was run. Exact-source focused runs 40612381910 and 40613363144 exposed the
+bank landmark and WebKit legend overflow defects. Their narrow source fixes
+were independently reviewed. Final focused run 40614866065 passed eight cases
+first attempt, with format, lint, CSS scale, typecheck and e2e build green.
+Independent full source and checked-main integration reviews are recorded in
+`private/487-target-content-final-review.md` and
+`private/487-target-integration-review.md`. Public exact-head CI and verified
+publication remain delivery gates.
 
 ## Remaining scope
 
