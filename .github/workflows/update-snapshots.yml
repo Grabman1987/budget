@@ -1,75 +1,77 @@
-name: Update e2e snapshots
+name: Focused report frame proof
 
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: Branch whose baselines to update (never main)
-        required: true
-      specs:
-        description: Space-separated spec paths (e.g. e2e/shell.spec.ts); empty = every spec that compares screenshots
-        required: false
-        default: ''
 
 permissions:
-  contents: write
-
-concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
+  contents: read
 
 jobs:
-  update:
-    if: inputs.branch != 'main'
+  proof:
     runs-on: ubuntu-24.04
-    # Match the CI browser image instead of reinstalling its OS/browser dependencies.
+    timeout-minutes: 45
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     defaults:
       run:
         shell: bash
-    # A type-scale change regenerates nearly every baseline; give it room.
-    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.branch }}
-      - name: Allow Git reads and baseline commits in the container workspace
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          fetch-depth: 2
+      - name: Verify exact source and workflow-only delta
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          test "$(git rev-parse HEAD^)" = '79d790e8f13e9b6967bf076c9f09ed862aa23d88'
+          test "$(git diff --name-only HEAD^..HEAD)" = '.github/workflows/update-snapshots.yml'
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        env:
-          SPECS: ${{ inputs.specs }}
+      - name: Scoped static, literal units and unchanged browser oracles
         run: |
-          npm run build:e2e
-          read -r -a specs <<< "$SPECS"
-          if [ "${#specs[@]}" -eq 0 ]; then
-            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
+          set +e
+          files=(
+            apps/web/src/pages/payee-analysis-report.tsx
+            apps/web/src/pages/payee-analysis-report.test.ts
+            apps/web/src/reports/assets-debts-report.tsx
+            apps/web/src/reports/report-views.css
+            apps/web/src/reports/spending-analysis-report.tsx
+            apps/web/src/reports/spending-report-views.tsx
+            apps/web/src/reports/wealth-history-report.tsx
+            apps/web/src/reports/wealth-report-views.tsx
+            apps/web/src/reports/whole-picture-report.tsx
+            e2e/issue-622-623-report-views.spec.ts
+            e2e/payee-analysis-report.spec.ts
+          )
+          mkdir -p proof-artifacts
+          npx prettier --check "${files[@]}"; format_rc=$?
+          if [ "$format_rc" -ne 0 ]; then
+            npx prettier --write "${files[@]}"
+            git diff -- "${files[@]}" > proof-artifacts/format.patch
+            git restore -- "${files[@]}"
           fi
-          npx playwright test --update-snapshots=changed "${specs[@]}" || true
+          npx eslint "${files[@]:0:3}" "${files[@]:4}"; lint_rc=$?
+          node packages/ui/scripts/check-css-scale.mjs; css_rc=$?
+          npm run typecheck; type_rc=$?
+          npx vitest run apps/web/src/pages/payee-analysis-report.test.ts; unit_rc=$?
+          npm run build:e2e; build_rc=$?
+          if [ "$build_rc" -eq 0 ]; then
+            npx playwright test e2e/issue-552-report-frame.spec.ts e2e/issue-622-623-report-views.spec.ts e2e/payee-analysis-report.spec.ts --project=desktop --project=mobile --project=webkit-iphone --workers=1 --retries=0 --update-snapshots=none
+            browser_rc=$?
+          else
+            browser_rc=99
+          fi
+          echo "RESULT format=$format_rc lint=$lint_rc css=$css_rc type=$type_rc unit=$unit_rc build=$build_rc browser=$browser_rc"
+          test "$format_rc" -eq 0 && test "$lint_rc" -eq 0 && test "$css_rc" -eq 0 && test "$type_rc" -eq 0 && test "$unit_rc" -eq 0 && test "$build_rc" -eq 0 && test "$browser_rc" -eq 0
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: scoped-browser-screenshots
-          path: test-results/**/*.png
+          name: focused-report-frame-evidence
+          path: |
+            proof-artifacts/**
+            test-results/**/*.png
+            test-results/**/trace.zip
           if-no-files-found: ignore
           retention-days: 7
-      - name: Commit the new baselines
-        env:
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
