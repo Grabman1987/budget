@@ -36,7 +36,12 @@ async function portfolioTitleVisible(page: Page, info: TestInfo) {
       height: innerHeight,
       text: [...range.getClientRects()]
         .filter((rect) => rect.width > 0 && rect.height > 0)
-        .map((rect) => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom })),
+        .map((rect) => ({
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+        })),
     };
   });
   expect(geometry.text.length).toBeGreaterThan(0);
@@ -86,11 +91,15 @@ async function monthlyTableReachable(page: Page, info: TestInfo) {
   const overflow = await region.evaluate((element) => element.scrollWidth > element.clientWidth);
   if (info.project.name !== 'desktop') expect(overflow).toBe(true);
   if (overflow) {
-    await region.evaluate((element) => { element.scrollLeft = 0; });
+    await region.evaluate((element) => {
+      element.scrollLeft = 0;
+    });
     await region.focus();
     await page.keyboard.press('ArrowRight');
     await expect.poll(() => region.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
-    await region.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
+    await region.evaluate((element) => {
+      element.scrollLeft = element.scrollWidth;
+    });
     const end = await region.evaluate((element) => {
       const box = element.getBoundingClientRect();
       const range = document.createRange();
@@ -105,7 +114,9 @@ async function monthlyTableReachable(page: Page, info: TestInfo) {
     });
     expect(end.textLeft).toBeGreaterThanOrEqual(end.left);
     expect(end.textRight).toBeLessThanOrEqual(end.right);
-    await region.evaluate((element) => { element.scrollLeft = 0; });
+    await region.evaluate((element) => {
+      element.scrollLeft = 0;
+    });
   }
 }
 
@@ -217,7 +228,9 @@ test('487 global project results retain literal August cents and require an expl
   });
   await page.goto(`/reports/projekte?zeitraum=${period}`);
   await expect(page.getByTestId('projects-report')).toContainText('2.700,03');
-  await expect(page.getByTestId('projects-report').locator('section.mr-wide .tbd-fig').first()).toHaveText('2.700,03 €');
+  await expect(
+    page.getByTestId('projects-report').locator('section.mr-wide .tbd-fig').first(),
+  ).toHaveText('2.700,03 €');
   const body = await page.getByTestId('projects-report').innerText();
   const verdict = await page.getByTestId('report-verdict').innerText();
   await page.goto(
