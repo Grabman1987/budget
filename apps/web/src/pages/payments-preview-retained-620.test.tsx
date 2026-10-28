@@ -46,6 +46,10 @@ it('retains literal twelve-month renderer amounts independently of the retired r
   expect(screen.getByText('Ø je Monat: 141,67 €')).toBeDefined();
   expect(container.querySelectorAll('.preview-table thead th')).toHaveLength(14);
   const totals = container.querySelectorAll('.preview-sum td');
+  expect(Array.from(totals).slice(0, 12).map((cell) => cell.textContent)).toEqual([
+    '100,00', '100,00', '120,00', '120,00', '420,00', '120,00',
+    '120,00', '120,00', '120,00', '120,00', '120,00', '120,00',
+  ]);
   expect(totals[0]?.textContent).toBe('100,00');
   expect(totals[2]?.textContent).toBe('120,00');
   expect(totals[4]?.textContent).toBe('420,00');
