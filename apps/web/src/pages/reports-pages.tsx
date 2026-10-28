@@ -184,7 +184,8 @@ export function ReportRoute() {
         search.trend === true &&
         (['kategorien', 'sparquote', 'cashflow', 'vermoegen', 'peinzahlungen', 'pdepots'].includes(
           reportId,
-        ) || (reportId === 'pallocation' && search.darstellung === 'einzahlungen'))
+        ) ||
+          (reportId === 'pallocation' && search.darstellung === 'einzahlungen'))
       }
     >
       <ReportPage reportId={reportId} />

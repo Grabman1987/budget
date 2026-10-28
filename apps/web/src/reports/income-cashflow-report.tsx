@@ -168,8 +168,8 @@ export function IncomeCashflowReport({
       >
         <p role="status">
           Ein Projekt ist ausgewählt. Die vollständigen Projekt-Ergebnisse sind eine globale
-          Ansicht. Wähle ausdrücklich „Alle Projekte zeigen“, um sie zu öffnen, oder wechsle
-          zurück zu einer gefilterten Ansicht.
+          Ansicht. Wähle ausdrücklich „Alle Projekte zeigen“, um sie zu öffnen, oder wechsle zurück
+          zu einer gefilterten Ansicht.
         </p>
         {status}
       </PageFrame>
