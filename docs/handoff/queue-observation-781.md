@@ -1,7 +1,6 @@
 # #781: bounded CI observation and PR reference guard
 
-Base: checked/live main `614a2bf9e38ab086d5da0bdd3b0f3945d857606e`.
-Source-only package; independent capable HIGH source review and focused proof completed. Required public exact-head CI and delivery remain pending.
+Base: checked main `4696066ebd9c14c0ae80dbbbcd338266580d7c35`; its production release is pending. Independent capable HIGH source and integration reviews and focused proofs are complete. Final public exact-head CI and delivery remain pending.
 
 ## Behavior
 
@@ -31,8 +30,9 @@ STOP/bypass/unattended-loop behavior and workflow files are unchanged.
 34 new literal CLI-stub cases are added to the existing mandatory
 `scripts/queue/queue-glue.test.mjs`; no old assertion, timeout or skip changes.
 The unchanged `vitest.config.ts` includes `scripts/queue/*.test.mjs` in normal CI.
-Tests execute the real helper function declarations with the existing throw-away
-fixture, normal PATH-only `gh`/`sleep` stubs and no production test/eval hook.
+Tests execute the real helper function declarations with lightweight temporary
+directories for the new observation cases and the unchanged Git fixture for old
+cases. They use normal PATH-only `gh`/`sleep` stubs and no production test/eval hook.
 They never enter the real integration body or access GitHub/production.
 
 - Ordinary watch success and transient nonzero watch with queued → running →
@@ -45,6 +45,6 @@ They never enter the real integration body or access GitHub/production.
   null/unknown/malformed output, duplicate output and exhausted API errors block
   it. Observation cases assert no merge, API mutation or new workflow dispatch.
 
-Exact-source focused Cloud proof [40620237506](https://github.com/Grabman1987/budget/actions/runs/40620237506) ran all three mandatory queue test files: 165/165 first-pass, including all 34 new cases, with shell syntax, diff check, lint and discovery green. Its only red result was formatting. The exact one-file formatting patch was independently reviewed and applied without changing helper logic or test expectations. Final format remains for public exact-head static CI to verify. No frontend build or browser was part of this bounded proof.
+Initial focused Cloud proof [40620237506](https://github.com/Grabman1987/budget/actions/runs/40620237506) ran all three mandatory queue test files: 165/165 first-pass, including all 34 new cases, with shell syntax, diff check, lint and discovery green. Its only red result was formatting; the reviewed mechanical patch was applied. The first public PR CI attempt and its failed-job rerun then failed the unchanged Windows PDF intake case at its existing 20-second worker cap. Those attempts remain red. The new observation fixtures were made lighter without changing any of the 34 cases or the old 40 cases. Focused Windows shard proof [40629108854](https://github.com/Grabman1987/budget/actions/runs/40629108854) passed 2961 tests, including all 74 queue cases and the protected PDF gross-amount assertion in 3.662 seconds. This measured pass supports the fixture change; it does not establish exclusive causality for the prior failures or resolve the separate recurring #783 issue. Final formatting and all required checks remain for the new exact-head public CI. No frontend build or browser was part of these bounded proofs.
 
-No local Node/npm/build/test/browser/install/lint/formatter was run. No PR, merge, deploy or production setting/data change has occurred for this package.
+No local Node/npm/build/test/browser/install/lint/formatter was run. [PR807](https://github.com/Grabman1987/budget/pull/807) is open; no merge, deploy or production setting/data change has occurred for this package.
