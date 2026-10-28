@@ -1,7 +1,7 @@
 import { unfundedSavingsGoals } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { RevisionTable, maskMoneyText, useAmountPrivacy, type RevisionRow } from '@budget/ui';
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { budgetQuery } from '../budget/budget-api';
@@ -25,10 +25,14 @@ export function AttentionBar({
   savingsPending?: boolean;
 }) {
   useAmountPrivacy();
+  // Keep native disclosure ownership through an unrelated aggregate outage, never its values.
+  const reviewOwner = useRef<'visible' | 'remaining'>('visible');
   const independent: AttentionTask[] = savingsRows.length || savingsError || savingsPending
     ? [{ id: 'review:work', kind: 'review' }] : [];
   const model = data ? attentionModel(data, { count: savingsRows.length, unavailable: !!savingsError || savingsPending })
-    : { tasks: independent, visible: independent, remaining: [] };
+    : { tasks: independent, visible: reviewOwner.current === 'visible' ? independent : [], remaining: reviewOwner.current === 'remaining' ? independent : [] };
+  if (data && model.tasks.some((task) => task.kind === 'review'))
+    reviewOwner.current = model.remaining.some((task) => task.kind === 'review') ? 'remaining' : 'visible';
   const financeMessage =
     data && 'unavailable' in data.financeCheck ? data.financeCheck.unavailable.message : null;
   const financeUnavailable = financeMessage !== null;
