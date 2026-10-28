@@ -2,7 +2,7 @@
 
 Implementation handoff, 2026-10-28. Base: verified live
 `ea86c24fe21b524cd90d88c04389f988e7b1bc1d`; production source freeze:
-`5a927943b8eadd653d408d96d8d4f04e9f1349e4` on
+`6477836998e0602041c79fd6e78724e425bf5d5b` on
 `codex/heute-wealth-chart-572-20261028`.
 
 The owner decision in [#475](https://github.com/Grabman1987/budget/issues/475#issuecomment-6209367096)
@@ -42,6 +42,7 @@ order; the permission to scroll to tasks does not waive the separate desktop
 | `e2e/issue-572-heute-charts.spec.ts` | Exercise both chart inspections, API/tile/endpoint parity, a synthetic historical gap, desktop KPI/chart bounds, both themes, Axe, overflow, chart target height and privacy in the configured desktop/390px/WebKit profiles. No existing timeout, financial expectation or assertion is relaxed. |
 | `apps/web/src/pwa/offline-wealth-comparison.test.tsx` | Render the real saved Heute view with snapshot I/O supplied by a synthetic fixture: null is unavailable, zero stays zero, positive/negative 123 cents retain their sign, and current wealth remains 15,001 cents. |
 | `packages/fixtures/src/heute.test.ts` | Narrow the now-nullable comparison/history before arithmetic. Fully quoted sample data must still be complete; the existing 85,744 / −1,014 / 63,606 / 71,456 EUR expectations are unchanged. |
+| `apps/web/src/heute/valuation-attention-511.test.tsx` | Supply the existing fixed-width test adapter now that the retained visible wealth section measures its width. All original quote/cost quality, exact-amount, privacy and source-hint assertions remain unchanged. |
 
 ## Evidence and open gates
 
@@ -69,6 +70,23 @@ The chart acceptance case was moved verbatim from `e2e/heute.spec.ts` to
 pattern includes it. Its original 60-second test setup, 15-second expect timeout
 and saved phone-detail preference are retained. The old Heute spec returns to its
 base content; Playwright configuration and all acceptance assertions are unchanged.
+
+The first combined [cloud proof 40667528467](https://github.com/Grabman1987/budget/actions/runs/40667528467)
+passed type, build, CSS and lint checks, including the new FX/current-value,
+offline, chart and fully quoted sample cases. It remained red: two existing
+source-hint tests lacked jsdom's `ResizeObserver`, the desktop chart bottom was
+919.8125 pixels against the unchanged 900-pixel bound, and WebKit's pace inspection
+jumped from day 6 to day 30 during focus scrolling. The mobile chart acceptance
+case passed both themes, Axe, gaps and inspection.
+
+`64778369` supplies the same fixed-width unit adapter already used by the chart
+tests, reduces only Heute's desktop sheet top padding/title gap by 24 pixels using
+existing tokens, and moves the browser pointer outside the chart before explicit
+Escape/ArrowRight selection of its first point. An additional start-date assertion
+precedes the unchanged today date/amount and pointer-parity assertions. No font,
+chart height, value, 900-pixel bound, 44-pixel bound, timeout, retry or profile is
+relaxed. These corrections require fresh proof; the old formatter patch was not
+applied after the semantic edits.
 
 Local work used only native Git/PowerShell/`rg` under the owner's RAM constraint.
 `git diff --check` passed at the source freeze. No local Node install, test, build,
