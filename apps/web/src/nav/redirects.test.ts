@@ -132,6 +132,21 @@ it.each(['true', '%22true%22'])('retains the exact heatmap flag encoded as %s', 
   });
 });
 
+it.each([
+  ['kategorien', '%223M%22', '3M'],
+  ['jahresansicht', '%223M%22', '3M'],
+  ['gesamttabelle', '%223M%22', '3M'],
+  ['kategorien', '%222026-01..2026-08%22', '2026-01..2026-08'],
+  ['jahresansicht', '%222026-01..2026-08%22', '2026-01..2026-08'],
+  ['gesamttabelle', '%222026-01..2026-08%22', '2026-01..2026-08'],
+  ['kategorien', 'unknown', 'YTD'],
+  ['jahresansicht', 'unknown', 'YTD'],
+  ['gesamttabelle', 'unknown', 'Alles'],
+])('validates the decoded period on %s before applying a source fallback', async (slug, period, expected) => {
+  const router = await open(`/reports/${slug}?zeitraum=${period}`);
+  expect(router.state.matches.at(-1)?.search).toMatchObject({ zeitraum: expected });
+});
+
 it('retains recipient and contact identity and supports return to a Heute/Plan entry', async () => {
   const payee = await open('/reports/empfaenger?empfaenger=recipient-a&zeitraum=1J');
   expect(payee.state.matches.at(-1)?.search).toMatchObject({ empfaenger: 'recipient-a', zeitraum: '1J' });

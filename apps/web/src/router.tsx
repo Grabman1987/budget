@@ -149,13 +149,13 @@ const redirectRoute = (
   createRoute({
     getParentRoute: () => shellRoute,
     path,
-    beforeLoad: ({ location, params }) => {
+    beforeLoad: ({ location, params, search }) => {
       const target = new URL(
         `${to.replace('$id', encodeURIComponent((params as { id?: string }).id ?? ''))}${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
         'https://budget.invalid',
       );
       for (const [key, value] of Object.entries(intent)) target.searchParams.set(key, value);
-      if (fallbackPeriod && !isZeitraum(target.searchParams.get('zeitraum')))
+      if (fallbackPeriod && !isZeitraum(search.zeitraum))
         target.searchParams.set('zeitraum', fallbackPeriod);
       throw redirect({
         href: `${target.pathname}${target.search}${target.hash}`,
