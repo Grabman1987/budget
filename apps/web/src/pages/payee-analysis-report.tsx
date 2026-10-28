@@ -61,6 +61,13 @@ interface DetailPage {
 }
 
 const PERIODS: readonly ReportPeriod[] = ['1M', '3M', 'YTD', '1J', '3J', 'Alles'];
+/** Compact the title-row basis; the report body still shows both full calendar dates. */
+export function payeeHeaderRange(from: string | null | undefined, to: string | null | undefined) {
+  if (!from || !to) return 'keine geschlossenen Monate';
+  return from.slice(0, 7) === to.slice(0, 7)
+    ? `${from.slice(8)}.–${longDay(to)}`
+    : `${shortDay(from)}${from.slice(2, 4)}–${shortDay(to)}${to.slice(2, 4)}`;
+}
 const reportQuery = (period: ReportPeriod) =>
   queryOptions({
     queryKey: [...LEDGER_KEY, 'payee-analysis', period],
@@ -125,12 +132,7 @@ export function PayeeAnalysisReport({
   const selected = selection ? selection.id : localSelected;
   const setSelected = selection ? selection.onChange : setLocalSelected;
   const data = !query.isFetching && query.isSuccess ? query.data : undefined;
-  const range =
-    data?.from && data.to
-      ? data.from.slice(0, 7) === data.to.slice(0, 7)
-        ? `${data.from.slice(8)}.–${longDay(data.to)}`
-        : `${shortDay(data.from)}${data.from.slice(2, 4)}–${shortDay(data.to)}${data.to.slice(2, 4)}`
-      : 'keine geschlossenen Monate';
+  const range = payeeHeaderRange(data?.from, data?.to);
 
   return (
     <PageFrame
