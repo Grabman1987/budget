@@ -323,8 +323,8 @@ function SavingsBody({
           <p className="vnote">
             Vergleichsziel: {days(goal)}. Die Monatsstände gelten zum Monatsende, im laufenden
             Monat bis heute. Das Geldalter beschreibt vergangene Abflüsse; Plan und Kontoprognose
-            zeigen, ob kommende Rechnungen gedeckt sind. Verfügbar und Frei bis Gehalt behalten
-            ihre eigene Berechnung.
+            helfen einzuschätzen, ob erfasste kommende Zahlungen gedeckt sind. Verfügbar und Frei
+            bis Gehalt behalten ihre eigene Berechnung.
           </p>
         </section>
       </div>
