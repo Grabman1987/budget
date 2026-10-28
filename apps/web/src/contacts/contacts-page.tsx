@@ -222,37 +222,49 @@ export function ContactsPage() {
             />
           )}
         </FormDialog>
-        {writeOff && <ContactWriteOffDialog contact={currentWriteOff ?? writeOff} ready={!contacts.isFetching && !contacts.isError && !!currentWriteOff} onClose={() => setWriteOff(null)} />}
+        {writeOff && (
+          <ContactWriteOffDialog
+            contact={currentWriteOff ?? writeOff}
+            ready={!contacts.isFetching && !contacts.isError && !!currentWriteOff}
+            onClose={() => setWriteOff(null)}
+          />
+        )}
         <ContactRenameDialog contact={renaming} onClose={() => setRenaming(null)} />
       </div>
     </PageFrame>
   );
 }
 
-function ContactRename({ contact, onOpen }: { contact: { id: string; name: string }; onOpen: () => void }) {
+function ContactRename({
+  contact,
+  onOpen,
+}: {
+  contact: { id: string; name: string };
+  onOpen: () => void;
+}) {
   return (
-      <button
-        type="button"
-        className="icon-btn contact-rename"
-        aria-label={`${contact.name} umbenennen`}
-        onClick={onOpen}
-      >
-        <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
-      </button>
+    <button
+      type="button"
+      className="icon-btn contact-rename"
+      aria-label={`${contact.name} umbenennen`}
+      onClick={onOpen}
+    >
+      <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
+    </button>
   );
 }
 
-function ContactRenameDialog({ contact, onClose }: { contact: { id: string; name: string } | null; onClose: () => void }) {
+function ContactRenameDialog({
+  contact,
+  onClose,
+}: {
+  contact: { id: string; name: string } | null;
+  onClose: () => void;
+}) {
   return (
-      <FormDialog open={contact !== null} onClose={onClose} title="Kontakt umbenennen">
-        {contact && (
-          <NewContact
-            contact={contact}
-            onClose={onClose}
-            onDone={onClose}
-          />
-        )}
-      </FormDialog>
+    <FormDialog open={contact !== null} onClose={onClose} title="Kontakt umbenennen">
+      {contact && <NewContact contact={contact} onClose={onClose} onDone={onClose} />}
+    </FormDialog>
   );
 }
 
@@ -361,7 +373,11 @@ export function ContactStatementPage() {
         )}
         {/* A read refresh hides statement figures, but must not discard an open editor/draft. */}
         {statement.data && (
-          <ContactBody key={id} statement={statement.data} ready={!statement.isFetching && !statement.isError} />
+          <ContactBody
+            key={id}
+            statement={statement.data}
+            ready={!statement.isFetching && !statement.isError}
+          />
         )}
       </section>
     </PageFrame>
@@ -416,37 +432,44 @@ function ContactBody({ statement, ready }: { statement: Statement; ready: boolea
         </h2>
         <ContactRename contact={statement.contact} onOpen={() => setRenaming(true)} />
       </div>
-      {ready && <>
-      <p className={`contacts-balance is-${balance.tone}`}>
-        <span className="contacts-balance-words">{balance.words}</span>{' '}
-        <span className="contacts-balance-amount">{balance.amount}</span>
-      </p>
-      <div className="contacts-actions">
-        <Button onClick={() => setReceipt((r) => !r)}>
-          {receipt ? 'Rückzahlung schließen' : 'Rückzahlung buchen'}
-        </Button>
-        {statement.balanceCents !== 0 && (
-          <ContactActionsMenu name={statement.contact.name} onSettle={() => setWriteOff(true)} />
-        )}
-        <button
-          type="button"
-          className="icon-btn contact-info"
-          aria-expanded={info}
-          aria-controls={noteId}
-          aria-label="Erläuterung zu Rückzahlung und Ausgleich"
-          onClick={() => setInfo((open) => !open)}
-        >
-          <Info size={16} strokeWidth={1.75} aria-hidden="true" />
-        </button>
-      </div>
-      {info && (
-        <p id={noteId} className="contacts-note">
-          Auslagen und Rückzahlungen bewegen Geld. Ein Ausgleich übernimmt Guthaben ins Budget oder
-          erlässt eine Forderung als Ausgabe, ohne Geldbewegung.
-        </p>
+      {ready && (
+        <>
+          <p className={`contacts-balance is-${balance.tone}`}>
+            <span className="contacts-balance-words">{balance.words}</span>{' '}
+            <span className="contacts-balance-amount">{balance.amount}</span>
+          </p>
+          <div className="contacts-actions">
+            <Button onClick={() => setReceipt((r) => !r)}>
+              {receipt ? 'Rückzahlung schließen' : 'Rückzahlung buchen'}
+            </Button>
+            {statement.balanceCents !== 0 && (
+              <ContactActionsMenu
+                name={statement.contact.name}
+                onSettle={() => setWriteOff(true)}
+              />
+            )}
+            <button
+              type="button"
+              className="icon-btn contact-info"
+              aria-expanded={info}
+              aria-controls={noteId}
+              aria-label="Erläuterung zu Rückzahlung und Ausgleich"
+              onClick={() => setInfo((open) => !open)}
+            >
+              <Info size={16} strokeWidth={1.75} aria-hidden="true" />
+            </button>
+          </div>
+          {info && (
+            <p id={noteId} className="contacts-note">
+              Auslagen und Rückzahlungen bewegen Geld. Ein Ausgleich übernimmt Guthaben ins Budget
+              oder erlässt eine Forderung als Ausgabe, ohne Geldbewegung.
+            </p>
+          )}
+        </>
       )}
-      </>}
-      {receipt && <ReceiptForm statement={statement} ready={ready} onDone={() => setReceipt(false)} />}
+      {receipt && (
+        <ReceiptForm statement={statement} ready={ready} onDone={() => setReceipt(false)} />
+      )}
       {writeOff && (
         <ContactWriteOffDialog
           contact={{ ...statement.contact, balanceCents: statement.balanceCents }}
@@ -454,65 +477,70 @@ function ContactBody({ statement, ready }: { statement: Statement; ready: boolea
           onClose={() => setWriteOff(false)}
         />
       )}
-      {ready && <>
-      {currentMonthMovements.length === 0 ? (
+      {ready && (
         <>
-          <h3>{monthTitle}</h3>
-          <p>In diesem Monat gibt es noch keine Kontaktbuchungen.</p>
+          {currentMonthMovements.length === 0 ? (
+            <>
+              <h3>{monthTitle}</h3>
+              <p>In diesem Monat gibt es noch keine Kontaktbuchungen.</p>
+            </>
+          ) : (
+            <ContactMovementTable
+              statement={statement}
+              movements={currentMonthMovements}
+              title={monthTitle}
+              caption="Kontaktbuchungen im aktuellen Monat"
+              onOpen={openSource}
+            />
+          )}
+          {openOlderOutlays.length > 0 && (
+            <section aria-labelledby="contacts-open-older">
+              <ContactMovementTable
+                statement={statement}
+                movements={openOlderOutlays}
+                title="Offene ältere Auslagen"
+                headingId="contacts-open-older"
+                caption="Noch offene Auslagen aus früheren Monaten"
+                onOpen={openSource}
+              />
+            </section>
+          )}
+          {visibleHistory.length === 0 ? (
+            <>
+              <h3>Verlauf</h3>
+              <p>Noch keine ältere oder spätere Kontaktbewegung.</p>
+            </>
+          ) : (
+            <ContactMovementTable
+              statement={statement}
+              movements={visibleHistory}
+              title="Verlauf außerhalb des aktuellen Monats"
+              heading="Verlauf"
+              caption="Kontaktbuchungen außerhalb des aktuellen Monats"
+              onOpen={openSource}
+            />
+          )}
+          {archived.length > 0 && (
+            <details className="contacts-closed-history">
+              <summary>
+                Abgeschlossene Historie bis zum Ausgleich anzeigen ({archived.length} Buchungen)
+              </summary>
+              <ContactMovementTable
+                statement={statement}
+                movements={archived}
+                title="Abgeschlossene Historie bis zum Ausgleich"
+                heading={false}
+                caption="Abgeschlossene Kontaktbuchungen bis zum Ausgleich"
+                onOpen={openSource}
+              />
+            </details>
+          )}
         </>
-      ) : (
-        <ContactMovementTable
-          statement={statement}
-          movements={currentMonthMovements}
-          title={monthTitle}
-          caption="Kontaktbuchungen im aktuellen Monat"
-          onOpen={openSource}
-        />
       )}
-      {openOlderOutlays.length > 0 && (
-        <section aria-labelledby="contacts-open-older">
-          <ContactMovementTable
-            statement={statement}
-            movements={openOlderOutlays}
-            title="Offene ältere Auslagen"
-            headingId="contacts-open-older"
-            caption="Noch offene Auslagen aus früheren Monaten"
-            onOpen={openSource}
-          />
-        </section>
-      )}
-      {visibleHistory.length === 0 ? (
-        <>
-          <h3>Verlauf</h3>
-          <p>Noch keine ältere oder spätere Kontaktbewegung.</p>
-        </>
-      ) : (
-        <ContactMovementTable
-          statement={statement}
-          movements={visibleHistory}
-          title="Verlauf außerhalb des aktuellen Monats"
-          heading="Verlauf"
-          caption="Kontaktbuchungen außerhalb des aktuellen Monats"
-          onOpen={openSource}
-        />
-      )}
-      {archived.length > 0 && (
-        <details className="contacts-closed-history">
-          <summary>
-            Abgeschlossene Historie bis zum Ausgleich anzeigen ({archived.length} Buchungen)
-          </summary>
-          <ContactMovementTable
-            statement={statement}
-            movements={archived}
-            title="Abgeschlossene Historie bis zum Ausgleich"
-            heading={false}
-            caption="Abgeschlossene Kontaktbuchungen bis zum Ausgleich"
-            onOpen={openSource}
-          />
-        </details>
-      )}
-      </>}
-      <ContactRenameDialog contact={renaming ? statement.contact : null} onClose={() => setRenaming(false)} />
+      <ContactRenameDialog
+        contact={renaming ? statement.contact : null}
+        onClose={() => setRenaming(false)}
+      />
       <ContactBookingSource opening={sourceOpening} onClose={() => setSourceOpening(null)} />
     </div>
   );
@@ -530,7 +558,8 @@ export function ContactWriteOffDialog({
   useAmountPrivacy();
   const accounts = useQuery(accountsQuery());
   const lookups = useQuery(lookupsQuery());
-  const sourceReady = ready && accounts.isSuccess && !accounts.isFetching && lookups.isSuccess && !lookups.isFetching;
+  const sourceReady =
+    ready && accounts.isSuccess && !accounts.isFetching && lookups.isSuccess && !lookups.isFetching;
   const budgetAccounts =
     accounts.data?.accounts.filter(
       (a) =>
@@ -565,7 +594,8 @@ export function ContactWriteOffDialog({
     Number.isFinite(Date.parse(date)) &&
     new Date(date).toISOString().slice(0, 10) === date &&
     date <= todayInVienna();
-  const valid = sourceReady && validAmount && chosenAccount && validDate && (credit ? chosenType : categoryId);
+  const valid =
+    sourceReady && validAmount && chosenAccount && validDate && (credit ? chosenType : categoryId);
   return (
     <FormDialog open onClose={onClose} title="Kontakt ausgleichen" beforeClose={() => !busy}>
       <form
@@ -598,7 +628,10 @@ export function ContactWriteOffDialog({
         </div>
         <div className="bk-body contacts-form">
           <p>
-            {contact.name}{sourceReady ? ` · ${credit ? 'Einnahme ins Budget' : 'Ausgabe'}` : ' · Kontostand wird geprüft'}
+            {contact.name}
+            {sourceReady
+              ? ` · ${credit ? 'Einnahme ins Budget' : 'Ausgabe'}`
+              : ' · Kontostand wird geprüft'}
           </p>
           <AmountInput label="Betrag" value={amount} onChange={setAmount} />
           {sourceReady && !validAmount && (
@@ -703,7 +736,11 @@ export function ContactWriteOffDialog({
               onRetry={() => void lookups.refetch()}
             />
           )}
-          {!ready || accounts.isFetching || lookups.isFetching || accounts.isPending || lookups.isPending ? (
+          {!ready ||
+          accounts.isFetching ||
+          lookups.isFetching ||
+          accounts.isPending ||
+          lookups.isPending ? (
             <LoadingNote what="Ausgleich" />
           ) : (
             !budgetAccounts.length && (
@@ -724,7 +761,15 @@ export function ContactWriteOffDialog({
   );
 }
 
-function ReceiptForm({ statement, ready, onDone }: { statement: Statement; ready: boolean; onDone: () => void }) {
+function ReceiptForm({
+  statement,
+  ready,
+  onDone,
+}: {
+  statement: Statement;
+  ready: boolean;
+  onDone: () => void;
+}) {
   useAmountPrivacy();
   const accounts = useQuery(accountsQuery());
   const cash =
@@ -749,7 +794,8 @@ function ReceiptForm({ statement, ready, onDone }: { statement: Statement; ready
       ),
     enabled: /^\d{4}-\d{2}-\d{2}$/.test(date),
   });
-  const sourceReady = ready && accounts.isSuccess && !accounts.isFetching && target.isSuccess && !target.isFetching;
+  const sourceReady =
+    ready && accounts.isSuccess && !accounts.isFetching && target.isSuccess && !target.isFetching;
   const open = target.data?.outlays.filter((o) => o.remainingCents > 0) ?? [];
   const parsed = parseAmount(amount);
   const amountCents = parsed.ok && parsed.cents > 0 ? parsed.cents : 0;
@@ -834,8 +880,12 @@ function ReceiptForm({ statement, ready, onDone }: { statement: Statement; ready
         }}
       />
       <p>Standard: älteste offene Auslage zuerst. Anteile vor dem Speichern ändern.</p>
-      {(!ready || target.isPending || target.isFetching || accounts.isFetching) && <LoadingNote what="Offene Auslagen" />}
-      {accounts.isError && <ErrorNote what="Konten" error={accounts.error} onRetry={() => void accounts.refetch()} />}
+      {(!ready || target.isPending || target.isFetching || accounts.isFetching) && (
+        <LoadingNote what="Offene Auslagen" />
+      )}
+      {accounts.isError && (
+        <ErrorNote what="Konten" error={accounts.error} onRetry={() => void accounts.refetch()} />
+      )}
       {target.isError && (
         <ErrorNote
           what="Offene Auslagen"
@@ -846,7 +896,11 @@ function ReceiptForm({ statement, ready, onDone }: { statement: Statement; ready
       {open.map((o, i) => (
         <Field
           key={o.splitId}
-          label={sourceReady ? `Auslage ${i + 1} · ${longDay(o.date)} · offen ${eur(o.remainingCents)}` : `Auslage ${i + 1}`}
+          label={
+            sourceReady
+              ? `Auslage ${i + 1} · ${longDay(o.date)} · offen ${eur(o.remainingCents)}`
+              : `Auslage ${i + 1}`
+          }
         >
           {({ id }) => (
             <TextInput
@@ -859,9 +913,11 @@ function ReceiptForm({ statement, ready, onDone }: { statement: Statement; ready
           )}
         </Field>
       ))}
-      {sourceReady && <p>
-        Guthaben aus dieser Rückzahlung: <strong>{eur(plan.creditCents)}</strong>
-      </p>}
+      {sourceReady && (
+        <p>
+          Guthaben aus dieser Rückzahlung: <strong>{eur(plan.creditCents)}</strong>
+        </p>
+      )}
       {sourceReady && amountCents > 0 && allocationError && (
         <p className="field-error" role="alert">
           {allocationError}

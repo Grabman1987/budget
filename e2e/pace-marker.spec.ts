@@ -124,7 +124,12 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
   // The retired bookmark now opens Heute; check the generic DS3 ladder on its live charts.
   // BalanceChart's historical report-mode figures and drawing remain covered in charts.test.tsx.
   await page.goto('/reports/finanzcheck?monat=2026-09&period=month');
-  await expect(page).toHaveURL((url) => url.pathname === '/' && url.searchParams.get('monat') === '2026-09' && url.searchParams.get('period') === 'month');
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/' &&
+      url.searchParams.get('monat') === '2026-09' &&
+      url.searchParams.get('period') === 'month',
+  );
   const wealth = page.getByTestId('heute-wealth-history');
   const forecast = page.getByTestId('liquidity-chart');
   await expect(wealth).toBeVisible();

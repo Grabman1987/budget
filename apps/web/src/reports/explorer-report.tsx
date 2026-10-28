@@ -259,8 +259,8 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
             ? explorerTemplateVerdictFacts(templateModel, templateRead.data)
             : undefined
           : data && !result.isFetching && !result.isPlaceholderData && !result.isError
-          ? { reportId: report.id, period: `${query.period}:${data.ref}` }
-          : undefined
+            ? { reportId: report.id, period: `${query.period}:${data.ref}` }
+            : undefined
       }
       meta={meta}
       title={report.name}
@@ -320,7 +320,10 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
       }
     >
       <div className="kview ov explorer-report">
-        <section className={`card ov-card${template ? ' ex-template-controls' : ''}`} aria-labelledby="ex-views">
+        <section
+          className={`card ov-card${template ? ' ex-template-controls' : ''}`}
+          aria-labelledby="ex-views"
+        >
           <div className="tbd-head">
             <h2 id="ex-views">Gespeicherte Ansichten</h2>
           </div>
@@ -610,27 +613,27 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
             <>
               {template === 'category' && (
                 <div className="ex-template-controls">
-                <Field label="Kategorie">
-                  {({ id }) => (
-                    <Select
-                      id={id}
-                      value={templateModel.categoryId ?? ''}
-                      onChange={(event) =>
-                        changeTemplateSearch({
-                          kategorien: [event.target.value],
-                          zelle: undefined,
-                          spalte: undefined,
-                        })
-                      }
-                    >
-                      {templateRead.data.categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </Field>
+                  <Field label="Kategorie">
+                    {({ id }) => (
+                      <Select
+                        id={id}
+                        value={templateModel.categoryId ?? ''}
+                        onChange={(event) =>
+                          changeTemplateSearch({
+                            kategorien: [event.target.value],
+                            zelle: undefined,
+                            spalte: undefined,
+                          })
+                        }
+                      >
+                        {templateRead.data.categories.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
                 </div>
               )}
               <ExplorerTemplates

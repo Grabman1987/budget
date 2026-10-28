@@ -17,8 +17,14 @@ sampleTest(
     await expect(
       page.getByRole('heading', { name: 'Vermögen & Schulden', exact: true }).first(),
     ).toBeVisible();
-    await expect(page).toHaveURL((url) => url.pathname === '/reports/vermoegen-schulden' && url.searchParams.get('darstellung') === 'gesamt');
-    await expect(page.getByRole('button', { name: 'Gesamtübersicht', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === '/reports/vermoegen-schulden' &&
+        url.searchParams.get('darstellung') === 'gesamt',
+    );
+    await expect(
+      page.getByRole('button', { name: 'Gesamtübersicht', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('whole-chart')).toBeVisible();
     await expect(page.getByTestId('whole-table').locator('tbody tr')).toHaveCount(
       data.rows.length + 1,

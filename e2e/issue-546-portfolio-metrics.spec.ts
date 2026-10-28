@@ -170,7 +170,13 @@ test('546 metrics share the report period and literal deposit-neutral return, fl
     await expect(flows.getByRole('row').nth(1)).toContainText('+100,00 €');
   }
   await metrics.getByRole('link', { name: 'Portfolio-Auswertung öffnen' }).click();
-  await expect(page).toHaveURL((url) => url.pathname === '/reports/pallocation' && url.searchParams.get('darstellung') === 'rendite' && url.searchParams.get('zeitraum') === 'YTD' && url.searchParams.size === 2);
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/reports/pallocation' &&
+      url.searchParams.get('darstellung') === 'rendite' &&
+      url.searchParams.get('zeitraum') === 'YTD' &&
+      url.searchParams.size === 2,
+  );
   await expect(page.getByTestId('period-ttwror')).toHaveText('+10 %');
   await expect(page.locator('.performance-metrics dd').nth(0)).toHaveText('+10 %');
   await expect(page.locator('.performance-metrics dd').nth(1)).toHaveText(/^\+20 %\s*actual\/365$/);

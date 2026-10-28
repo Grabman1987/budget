@@ -323,7 +323,12 @@ for (const label of ['configured-profile', 'desktop-layout'] as const) {
         await actual.goBack();
         await expect(actual).toHaveURL(/vermoegen\/portfolio\?zeitraum=1M/);
         await actual.goBack();
-        await expect(actual).toHaveURL((url) => url.pathname === '/reports/pallocation' && url.searchParams.get('darstellung') === 'rendite' && url.searchParams.get('zeitraum') === '1M');
+        await expect(actual).toHaveURL(
+          (url) =>
+            url.pathname === '/reports/pallocation' &&
+            url.searchParams.get('darstellung') === 'rendite' &&
+            url.searchParams.get('zeitraum') === '1M',
+        );
       }
       expect(writes).toEqual([]);
       expect(snapshot(isolatedLedger.databasePath)).toBe(before);

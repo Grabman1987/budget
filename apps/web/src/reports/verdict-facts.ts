@@ -1,19 +1,45 @@
-import { monthConsumption, savingsRateOf, tableRowTotal, type VerdictFacts, type ExplorerTemplateFacts, type ExplorerTemplateModel } from '@budget/domain';
+import {
+  monthConsumption,
+  savingsRateOf,
+  tableRowTotal,
+  type VerdictFacts,
+  type ExplorerTemplateFacts,
+  type ExplorerTemplateModel,
+} from '@budget/domain';
 import type { AssetsDebtsHistory, NetWorthHistory, ReportTables, WholePicture } from '@budget/db';
 import type { OnePagerData } from './month-api';
 import type { Heute } from '../heute/api';
 
 /** Answer only with the same row and months actually displayed by the fixed template. */
-export function explorerTemplateVerdictFacts(model: ExplorerTemplateModel, facts: Pick<ExplorerTemplateFacts, 'lastFullMonth'>): VerdictFacts {
-  const period = model.months.length ? `${model.months[0]}..${model.months.at(-1)}` : 'kein Zeitraum';
-  const partial = !!model.partialMonth || (model.id === 'year' && model.months.some((month) => !facts.lastFullMonth || month > facts.lastFullMonth));
+export function explorerTemplateVerdictFacts(
+  model: ExplorerTemplateModel,
+  facts: Pick<ExplorerTemplateFacts, 'lastFullMonth'>,
+): VerdictFacts {
+  const period = model.months.length
+    ? `${model.months[0]}..${model.months.at(-1)}`
+    : 'kein Zeitraum';
+  const partial =
+    !!model.partialMonth ||
+    (model.id === 'year' &&
+      model.months.some((month) => !facts.lastFullMonth || month > facts.lastFullMonth));
   if (model.id === 'heatmap') return { reportId: 'explorer', period, partial };
-  const row = model.id === 'category' ? model.rows[0] : model.rows.find((candidate) => candidate.key === 'cons');
+  const row =
+    model.id === 'category'
+      ? model.rows[0]
+      : model.rows.find((candidate) => candidate.key === 'cons');
   // tableRowTotal intentionally sums missing cells as zero; missing evidence is not observed zero.
   const observed = !!row?.vals.some((value) => value !== null);
   return {
-    reportId: 'explorer', period, partial, unavailable: !observed,
-    metric: { label: model.id === 'category' ? (row?.label ?? 'Kategorie') : 'Konsum', value: observed ? tableRowTotal(row!) : null, unit: 'money', better: row?.good === 'high' ? 'higher' : 'lower' },
+    reportId: 'explorer',
+    period,
+    partial,
+    unavailable: !observed,
+    metric: {
+      label: model.id === 'category' ? (row?.label ?? 'Kategorie') : 'Konsum',
+      value: observed ? tableRowTotal(row!) : null,
+      unit: 'money',
+      better: row?.good === 'high' ? 'higher' : 'lower',
+    },
   };
 }
 

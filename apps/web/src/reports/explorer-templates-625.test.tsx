@@ -207,11 +207,23 @@ describe('625 fixed templates beside retained custom views', () => {
     expect(verdict.textContent).toContain('••• €');
     expect(verdict.textContent).not.toContain('30,02');
     let release!: (response: Response) => void;
-    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((done) => { release = done; })));
-    act(() => { void client.invalidateQueries({ queryKey: explorerTemplateQuery.queryKey }); });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<Response>((done) => {
+            release = done;
+          }),
+      ),
+    );
+    act(() => {
+      void client.invalidateQueries({ queryKey: explorerTemplateQuery.queryKey });
+    });
     await waitFor(() => expect(screen.queryByTestId('report-verdict')).toBeNull());
     expect(screen.queryByTestId('template-category')).toBeNull();
-    await act(async () => { release(new Response(JSON.stringify({ error: 'unavailable' }), { status: 503 })); });
+    await act(async () => {
+      release(new Response(JSON.stringify({ error: 'unavailable' }), { status: 503 }));
+    });
     await screen.findByRole('alert');
     expect(screen.queryByTestId('report-verdict')).toBeNull();
   });
@@ -222,15 +234,21 @@ describe('625 fixed templates beside retained custom views', () => {
     expect(table.classList.contains('report-table-print')).toBe(true);
     expect(table.classList.contains('table-report')).toBe(true);
     expect(table.querySelectorAll('table.rtable thead th')).toHaveLength(15);
-    const toggle = await within(table).findByRole('button', { name: /Abschnitt ein- oder ausklappen.*Datenbasis und Darstellung/ });
+    const toggle = await within(table).findByRole('button', {
+      name: /Abschnitt ein- oder ausklappen.*Datenbasis und Darstellung/,
+    });
     const section = toggle.closest('section')!;
     fireEvent.click(toggle);
     expect(section.dataset['collapsed']).toBe('true');
-    expect(localStorage.getItem(`budget.report-sections.${location.pathname}`)).toContain('explorer-template-year-basis');
+    expect(localStorage.getItem(`budget.report-sections.${location.pathname}`)).toContain(
+      'explorer-template-year-basis',
+    );
     first.unmount();
     mount('?vorlage=year');
     const second = await screen.findByTestId('template-year');
-    const restored = await within(second).findByRole('button', { name: /Abschnitt ein- oder ausklappen.*Datenbasis und Darstellung/ });
+    const restored = await within(second).findByRole('button', {
+      name: /Abschnitt ein- oder ausklappen.*Datenbasis und Darstellung/,
+    });
     expect(restored.getAttribute('aria-expanded')).toBe('false');
     expect(second.querySelectorAll('table.rtable thead th')).toHaveLength(15);
     localStorage.removeItem(`budget.report-sections.${location.pathname}`);

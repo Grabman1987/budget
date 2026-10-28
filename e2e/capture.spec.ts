@@ -641,7 +641,9 @@ test('visible growing note, direct split and responsive account note column', as
   await note.fill(memo);
   // Measure controls after the finite phone-sheet transform, using the existing dialog pattern.
   await panel.evaluate(async (element) => {
-    const finite = element.getAnimations({ subtree: true }).filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
+    const finite = element
+      .getAnimations({ subtree: true })
+      .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
     await Promise.all(finite.map((animation) => animation.finished.catch(() => undefined)));
   });
   for (const control of [
