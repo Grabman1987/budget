@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { setAmountsHidden, ToastProvider } from '@budget/ui';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ContactStatementPage, ContactsPage } from './contacts-page';
+import { LEDGER_KEY } from '../ledger/queries';
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => vi.fn(),
@@ -144,3 +145,86 @@ it('keeps current-month movements out of history when no recorded closure exists
   expect(screen.getByText('Noch keine ältere oder spätere Kontaktbewegung.')).toBeDefined();
   expect(screen.queryByText('Zuordnung nicht protokolliert')).toBeNull();
 });
+
+it.each(['list', 'statement'])(
+  'withholds cached %s money during refresh, failure and retry',
+  async (page) => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const key =
+      page === 'list'
+        ? [...LEDGER_KEY, 'contacts', true]
+        : [...LEDGER_KEY, 'contact', 'synthetic-contact'];
+    const data =
+      page === 'list'
+        ? {
+            contacts: [
+              {
+                id: 'synthetic-contact',
+                name: 'Kontakt Beispiel',
+                balanceCents: 10001,
+                creditCents: 0,
+              },
+            ],
+          }
+        : {
+            contact: { id: 'synthetic-contact', name: 'Kontakt Beispiel' },
+            asOf: '2026-09-17',
+            balanceCents: 10001,
+            creditCents: 0,
+            movements: [],
+            outlays: [],
+            receipts: [],
+            closedThroughSplitId: null,
+          };
+    client.setQueryData(key, data);
+    let release!: (response: Response) => void;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            release = resolve;
+          }),
+      ),
+    );
+    try {
+      render(
+        <QueryClientProvider client={client}>
+          <ToastProvider>
+            {page === 'list' ? <ContactsPage /> : <ContactStatementPage />}
+          </ToastProvider>
+        </QueryClientProvider>,
+      );
+      expect(screen.getAllByText(/100,01/).length).toBeGreaterThan(0);
+      act(() => {
+        void client.invalidateQueries({ queryKey: key });
+      });
+      await waitFor(() => expect(screen.queryAllByText(/100,01/)).toHaveLength(0));
+      await act(async () => {
+        release(
+          new Response(
+            JSON.stringify({
+              error: 'booking_invariant',
+              message: 'Contact statements require EUR movements',
+            }),
+            { status: 422 },
+          ),
+        );
+      });
+      await screen.findByRole('alert');
+      expect(screen.queryAllByText(/100,01/)).toHaveLength(0);
+      fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
+      expect(screen.queryAllByText(/100,01/)).toHaveLength(0);
+      await act(async () => {
+        release(new Response(JSON.stringify(data)));
+      });
+      await waitFor(() => expect(screen.getAllByText(/100,01/).length).toBeGreaterThan(0));
+      expect(screen.queryByRole('alert')).toBeNull();
+    } finally {
+      cleanup();
+      client.clear();
+    }
+  },
+);

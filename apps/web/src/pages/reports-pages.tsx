@@ -185,6 +185,8 @@ export function ReportRoute() {
         (['kategorien', 'sparquote', 'cashflow', 'vermoegen', 'peinzahlungen', 'pdepots'].includes(
           reportId,
         ) ||
+          (reportId === 'einnahmen-ausgaben' && search.darstellung === 'cashflow') ||
+          (reportId === 'vermoegen-schulden' && search.darstellung === 'verlauf') ||
           (reportId === 'pallocation' && search.darstellung === 'einzahlungen'))
       }
     >

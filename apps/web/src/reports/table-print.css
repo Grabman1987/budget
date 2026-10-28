@@ -27,7 +27,9 @@
       .rtools,
       .seg-depth,
       .table-scroll-hint,
-      .chart-tooltip
+      .chart-tooltip,
+      .ex-template-controls,
+      .ex-view-toggle
     ),
   body:has(.report-table-print) .titleblock .tb-field:has(button, select, input) {
     display: none !important;
@@ -51,6 +53,12 @@
   .report-table-print {
     display: block;
     margin: 0;
+  }
+  .report-table-print .ex-native-view[hidden] {
+    display: block;
+  }
+  .report-table-print .ex-chart-626 {
+    display: none;
   }
   /* Reapply the normal surface/ink roles on the actual printed containers so
      dark-screen → print also invalidates their painted and inherited values. */
@@ -98,6 +106,11 @@
   .table-report.report-table-print .rtable td.n {
     white-space: nowrap;
     overflow-wrap: normal;
+  }
+  /* Fixed-template month headers may break at the space, never inside the year token. */
+  .table-report.report-table-print.ex-template .rtable thead th.n {
+    overflow-wrap: normal;
+    word-break: normal;
   }
   .report-table-print .rtable .rg-first {
     width: 20%;

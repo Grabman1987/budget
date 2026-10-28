@@ -14,7 +14,9 @@ async function openExpenseHeatmap(page: Page) {
   expect(new URL(page.url()).searchParams.get('exakt')).toBe('true');
 }
 
-test('category choice, period and previous-year month survive reload; month links reconcile with bookings', async ({
+// Owner517 replaces the multicategory/previous-year overlay with one category plus its mean.
+// Null versus zero and previous-year pairing retain their literal domain regression unchanged.
+test('category choice and period survive reload; exact month sources and booking sums still reconcile', async ({
   page,
 }, info) => {
   const response = await page.request.get('/api/report-tables/months');
@@ -24,29 +26,95 @@ test('category choice, period and previous-year month survive reload; month link
   await page.goto(
     `/reports/kategorien?zeitraum=3M&kategorien=${encodeURIComponent(JSON.stringify(ids))}&vorjahr=true`,
   );
-  const values = page.locator('.category-trend-values');
-  await expect(values.locator('tbody tr')).toHaveCount(3);
-  await expect(values.locator('thead th')).toHaveCount(3);
-  await expect(page.getByLabel('Vorjahresmonat anzeigen')).toBeChecked();
-  await page.locator('.category-trend-picker summary').click();
-  await page.getByRole('checkbox', { name: data.categories[1]!.name, exact: true }).uncheck();
-  await expect(values.locator('thead th')).toHaveCount(2);
-  await page.getByRole('checkbox', { name: data.categories[1]!.name, exact: true }).check();
-  await page.getByRole('button', { name: '1M', exact: true }).click();
-  await expect(values.locator('tbody tr')).toHaveCount(1);
-  await page.getByRole('button', { name: '3M', exact: true }).click();
+  const template = page.getByTestId('template-category');
+  const picker = page.getByRole('combobox', { name: 'Kategorie', exact: true });
+  await expect(picker).toHaveValue(ids[0]!);
+  expect(new URL(page.url()).searchParams.get('vorjahr')).toBe('true');
+  await expect(template.locator('tbody tr td')).toHaveCount(5);
+  await picker.selectOption(ids[1]!);
+  await expect(picker).toHaveValue(ids[1]!);
+  await picker.selectOption(ids[0]!);
+  await page
+    .getByRole('group', { name: 'Zeitraum', exact: true })
+    .getByRole('button', { name: '1M', exact: true })
+    .click();
+  await expect(template.locator('tbody tr td')).toHaveCount(3);
+  await page
+    .getByRole('group', { name: 'Zeitraum', exact: true })
+    .getByRole('button', { name: '3M', exact: true })
+    .click();
   await page.reload();
-  await expect(values.locator('tbody tr')).toHaveCount(3);
-  await expect(values.locator('thead th')).toHaveCount(3);
-  await expect(page.locator('[data-testid="category-trend-chart"] .l-prev')).toHaveCount(2);
+  await expect(picker).toHaveValue(ids[0]!);
+  await expect(template.locator('tbody tr td')).toHaveCount(5);
+  await expect(template.locator('.ex-template-trend svg')).toBeVisible();
+  const paths = template.locator('.ex-template-trend .l-actual, .ex-template-trend .l-prev');
+  await expect(paths).toHaveCount(2);
+  // A painted horizontal stroke has a zero-height bbox; SVG visibility and finite geometry
+  // cover that valid constant series without mistaking the path for a hidden chart.
+  const geometry = await paths.evaluateAll((elements) =>
+    elements.map((element) => {
+      if (!(element instanceof SVGPathElement)) throw new Error('Expected a trend path');
+      const box = element.getBBox();
+      const style = getComputedStyle(element);
+      return {
+        d: element.getAttribute('d'),
+        length: element.getTotalLength(),
+        width: box.width,
+        height: box.height,
+        display: style.display,
+        visibility: style.visibility,
+      };
+    }),
+  );
+  for (const path of geometry) {
+    expect(path.d).toMatch(/^M/);
+    expect(path.d).not.toMatch(/NaN|Infinity/);
+    expect(path.display).not.toBe('none');
+    expect(path.visibility).toBe('visible');
+    expect([path.length, path.width, path.height].every(Number.isFinite)).toBe(true);
+    expect(path.length).toBeGreaterThan(0);
+    expect(path.width).toBeGreaterThan(0);
+  }
+  const recent = data.months.filter((month) =>
+    ['2026-06', '2026-07', '2026-08'].includes(month.month),
+  );
+  expect(recent.map((month) => month.month)).toEqual(['2026-06', '2026-07', '2026-08']);
+  const varying = data.categories.find(
+    (category) => new Set(recent.map((month) => month.spending[category.id] ?? 0)).size > 1,
+  );
+  expect(varying).toBeDefined();
+  await picker.selectOption(varying!.id);
+  await expect
+    .poll(() =>
+      template.locator('.ex-template-trend .l-actual').evaluate((element) => {
+        if (!(element instanceof SVGPathElement)) throw new Error('Expected a trend path');
+        return element.getBBox().height;
+      }),
+    )
+    .toBeGreaterThan(0);
+  await picker.selectOption(ids[0]!);
   await inspectReport(page, info, 'category-trend');
-  const link = values.locator('tbody tr').last().locator('td').first().locator('a').first();
   const expected = data.months.find((m) => m.month === '2026-08')!.spending[ids[0]!] ?? 0;
-  await expect(link).toHaveText(formatEuro(cents(expected)));
-  await page.locator('.category-trend-picker summary').click();
-  await page.getByRole('checkbox', { name: data.categories[1]!.name, exact: true }).uncheck();
-  await page.locator('[data-testid="category-trend-chart"] a').last().click();
-  await expect(page).toHaveURL(/\/konten\/buchungen\?/);
+  const cell = template.locator('[data-template-column="2026-08"]');
+  expect((await cell.innerText()).replace(/\s*[↑↓]$/, '').trim()).toBe(formatEuro(cents(expected)));
+  await cell.click();
+  const sources = page.getByTestId('template-sources');
+  await expect(sources.locator(':scope > p').first().locator('strong')).toHaveText([
+    formatEuro(cents(expected)),
+    formatEuro(cents(expected)),
+  ]);
+  await expect(sources.getByRole('alert')).toHaveCount(0);
+  const link = sources.locator('.report-source-link').first();
+  const booking = new URL((await link.getAttribute('href'))!, page.url()).searchParams.get(
+    'buchung',
+  );
+  expect(booking).toBeTruthy();
+  await link.click();
+  await expect(page).toHaveURL(new RegExp(`buchung=${booking}`));
+  // Keep the independent all-bookings category-month reconciliation at its existing consumer.
+  await page.goto(
+    `/konten/buchungen?kategorie=${encodeURIComponent(ids[0]!)}&von=2026-08-01&bis=2026-08-31&basis=category-spending`,
+  );
   const params = new URL(page.url()).searchParams;
   expect(params.get('kategorie')).toBe(ids[0]);
   expect(params.get('von')).toBe('2026-08-01');
@@ -56,17 +124,16 @@ test('category choice, period and previous-year month survive reload; month link
   );
 });
 
-test('missing previous-year data stays blank and masking covers trend values and heatmap', async ({
+test('masking covers the accepted category trend values and exact heatmap source cells', async ({
   page,
 }) => {
   await page.goto('/reports/kategorien?zeitraum=Alles&vorjahr=true');
-  const values = page.locator('.category-trend-values');
-  await expect(values.locator('tbody tr').first().locator('td div')).toHaveText('–');
-  await expect(values.locator('tbody tr').first().locator('td a')).toHaveCount(1);
+  const template = page.getByTestId('template-category');
+  await expect(template.locator('.table-cell-open').first()).toBeVisible();
   const privacy = page.getByRole('button', { name: 'Beträge verbergen' });
   if (!(await privacy.isVisible())) await page.locator('.m-profile summary').click();
   await privacy.click();
-  await expect(values.locator('a').first()).toHaveText('••• €');
+  await expect(template.locator('.table-cell-open').first()).toHaveText(/••• €/);
   await page.goto('/reports/ausgaben?zeitraum=1M');
   await openExpenseHeatmap(page);
   const cell = page
@@ -77,7 +144,6 @@ test('missing previous-year data stays blank and masking covers trend values and
   await expect(cell).toHaveAttribute('aria-label', /••• €/);
   expect((await cell.innerText()).replace(/\s*[↑↓]$/, '').trim()).toBe('••• €');
 });
-
 test('heatmap month cell opens the exact classified category sum and has usable touch targets', async ({
   page,
 }, info) => {

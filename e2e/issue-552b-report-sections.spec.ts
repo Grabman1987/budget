@@ -6,12 +6,12 @@ import { sampleTest as test, expect } from './sample';
 /**
  * Collapsible report sections (#640, split from #552): every framed report section has a
  * disclosure button, the collapsed state is remembered per report, and the page works without
- * storage. One month report (Einnahmen) and one table report (Jahresansicht) on the sample server.
+ * storage. A retained month reader and the canonical income/expense table on the sample server.
  */
 test.describe.configure({ timeout: 90_000 });
 
-const MONTH = '/reports/einnahmen?monat=2026-08';
-const TABLE = '/reports/jahresansicht';
+const MONTH = '/reports/geldfluss?monat=2026-08';
+const TABLE = '/reports/einnahmen-ausgaben';
 const NOTE_FIRST = '/reports/sparquote'; // its main section starts with a note, not the head
 
 const sections = (page: Page) =>
@@ -29,9 +29,9 @@ async function reload(page: Page) {
 }
 
 for (const [label, path] of [
-  ['month report Einnahmen', MONTH],
+  ['month report Geldfluss', MONTH],
   ['table report Sparquote (note before the head)', NOTE_FIRST],
-  ['table report Jahresansicht', TABLE],
+  ['table report Einnahmen und Ausgaben', TABLE],
 ] as const) {
   test(`${label}: collapses a section, shows it again and remembers it after a reload`, async ({
     page,

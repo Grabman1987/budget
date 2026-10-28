@@ -103,14 +103,20 @@ test.describe('UX-3c phone chart and table containers', () => {
     expect(bar.height).toBe(16);
   });
 
-  test('Jahresansicht exposes Veränderung without page scrolling', async ({ page }) => {
+  test('Jahresansicht exposes its final average column without page scrolling', async ({
+    page,
+  }) => {
     await page.goto('/reports/jahresansicht?monat=2026-09');
-    const region = page.getByRole('region', { name: /Jahresansicht 2026/ });
+    const region = page.getByRole('region', {
+      name: 'Jahresansicht, bei Bedarf horizontal verschiebbar',
+      exact: true,
+    });
     await expect(region).toBeVisible({ timeout: 30_000 });
-    await expect(region.getByText('Seitlich wischen für weitere Spalten')).toBeVisible();
+    await region.focus();
+    await expect(region).toBeFocused();
     await region.evaluate((el) => (el.scrollLeft = el.scrollWidth));
     const last = (await region
-      .getByRole('columnheader', { name: 'Veränderung', exact: true })
+      .getByRole('columnheader', { name: 'Ø Monat', exact: true })
       .boundingBox())!;
     expect(last.x + last.width).toBeLessThanOrEqual(390);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

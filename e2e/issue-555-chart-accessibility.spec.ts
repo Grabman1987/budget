@@ -13,6 +13,7 @@ test('existing report bars retain one data-rich image summary per shared chart',
     '/reports/onepager?monat=2026-08',
   ]) {
     await page.goto(path);
+    if (path === '/reports/sparziele') await page.locator('.goals tr.prow .pname').first().click();
     const charts = page.locator('.chart-interactive');
     await expect(charts.first()).toBeVisible();
     const imageCounts = await charts.evaluateAll((containers) =>

@@ -12,6 +12,7 @@ import './table-print.css';
 import { tableVerdictFacts } from './verdict-facts';
 import { reportPeriodMonths, type Period } from '@budget/domain';
 import type { IncomeExpenseReportData } from '@budget/db';
+import { VerdictLine } from './verdict-line';
 
 type FrameFacts = ReportTables | IncomeExpenseReportData;
 const fullTables = (tables: FrameFacts): tables is ReportTables =>
@@ -38,6 +39,7 @@ export function TableReportFrame<T extends FrameFacts = ReportTables>({
   verdictEnd,
   verdictPeriod,
   reportControls,
+  embedded = false,
 }: {
   report: ReportEntry;
   verdictEnd?: string | undefined;
@@ -50,8 +52,9 @@ export function TableReportFrame<T extends FrameFacts = ReportTables>({
   extraFields?: Array<{ label: string; value: ReactNode }> | undefined;
   className: string;
   children: (tables: T) => ReactNode;
+  embedded?: boolean;
 }) {
-  const tables = query.data;
+  const tables = embedded && (query.isFetching || query.isError) ? undefined : query.data;
   const end =
     tables && (through === 'full' && !currentAllowed ? tables.lastFullMonth : tables.currentMonth);
   const basis = query.isError
@@ -78,6 +81,30 @@ export function TableReportFrame<T extends FrameFacts = ReportTables>({
         : undefined,
     [tables, verdictMonth, query.isFetching, query.isError, report.id],
   );
+  const body = (
+    <div ref={sectionsRef} className={`kview table-report report-table-print ${className}`}>
+      {(query.isPending || (embedded && query.isFetching)) && <LoadingNote what="Monatsdaten" />}
+      {query.isError && (
+        <ErrorNote what="Monatsdaten" error={query.error} onRetry={() => void query.refetch()} />
+      )}
+      {tables && !usable && (
+        <EmptyNote>
+          {tables.firstMonth === null
+            ? 'Noch keine Monatsdaten: Sobald es ein Budgetkonto mit Buchungen gibt, erscheint dieser Report.'
+            : 'Noch kein vollständiger Monat: Der Report beginnt mit dem ersten abgeschlossenen Monat.'}
+        </EmptyNote>
+      )}
+      {tables && usable && children(tables)}
+    </div>
+  );
+  if (embedded)
+    return (
+      <section aria-label="Gesamttabelle mit Vermögensständen und CSV">
+        <p>Datenbasis: {basis}</p>
+        {verdict && <VerdictLine facts={verdict} testId="total-history-verdict" />}
+        {body}
+      </section>
+    );
   return (
     <PageFrame
       verdict={verdict}
@@ -88,20 +115,7 @@ export function TableReportFrame<T extends FrameFacts = ReportTables>({
       reportDataBasis={basis}
       {...(extraFields ? { extraFields } : {})}
     >
-      <div ref={sectionsRef} className={`kview table-report report-table-print ${className}`}>
-        {query.isPending && <LoadingNote what="Monatsdaten" />}
-        {query.isError && (
-          <ErrorNote what="Monatsdaten" error={query.error} onRetry={() => void query.refetch()} />
-        )}
-        {tables && !usable && (
-          <EmptyNote>
-            {tables.firstMonth === null
-              ? 'Noch keine Monatsdaten: Sobald es ein Budgetkonto mit Buchungen gibt, erscheint dieser Report.'
-              : 'Noch kein vollständiger Monat: Der Report beginnt mit dem ersten abgeschlossenen Monat.'}
-          </EmptyNote>
-        )}
-        {tables && usable && children(tables)}
-      </div>
+      {body}
     </PageFrame>
   );
 }

@@ -5,6 +5,16 @@ test('report terms explain returns with keyboard and touch without leaving the r
   page,
 }, info) => {
   await page.goto('/reports/prendite?zeitraum=3J');
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/reports/pallocation' &&
+      url.searchParams.get('darstellung') === 'rendite' &&
+      url.searchParams.get('zeitraum') === '3J',
+  );
+  await expect(page.getByRole('button', { name: 'Rendite & Risiko', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   const term = page.getByRole('button', { name: 'TTWROR', exact: true }).first();
   await expect(term).toBeVisible({ timeout: 60_000 });
   await term.focus();
@@ -35,7 +45,7 @@ test('report terms explain returns with keyboard and touch without leaving the r
     expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
     await page.screenshot({ path: info.outputPath(`glossary-${theme}.png`), fullPage: true });
   }
-  await page.getByRole('heading', { name: 'Rendite und Kennzahlen', exact: true }).click();
+  await page.getByRole('heading', { name: 'Portfolio-Auswertung', exact: true }).click();
   await expect(explanation).toHaveCount(0);
   const irr = page.getByRole('button', { name: 'XIRR', exact: true });
   await irr.click();
