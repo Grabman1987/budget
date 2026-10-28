@@ -1,7 +1,7 @@
 # #781: bounded CI observation and PR reference guard
 
 Base: checked/live main `614a2bf9e38ab086d5da0bdd3b0f3945d857606e`.
-Source-only package; independent capable HIGH review and runtime proof are pending.
+Source-only package; independent capable HIGH source review and focused proof completed. Required public exact-head CI and delivery remain pending.
 
 ## Behavior
 
@@ -45,14 +45,6 @@ They never enter the real integration body or access GitHub/production.
   null/unknown/malformed output, duplicate output and exhausted API errors block
   it. Observation cases assert no merge, API mutation or new workflow dispatch.
 
-Required focused proof: existing queue test files, including the full updated
-queue-glue suite and unchanged policy/review-followup suites, plus applicable
-script syntax/static formatting checks. Queue tests use Vitest and Node builtins;
-the unchanged Vitest setup also imports Vitest. Bare Node alone cannot execute
-those test imports without the test runner dependency. No frontend build or
-browser is needed for this bounded private proof. Normal required public full
-CI and high-risk independent integration review remain unchanged.
+Exact-source focused Cloud proof [40620237506](https://github.com/Grabman1987/budget/actions/runs/40620237506) ran all three mandatory queue test files: 165/165 first-pass, including all 34 new cases, with shell syntax, diff check, lint and discovery green. Its only red result was formatting. The exact one-file formatting patch was independently reviewed and applied without changing helper logic or test expectations. Final format remains for public exact-head static CI to verify. No frontend build or browser was part of this bounded proof.
 
-No local Node/npm/build/test/browser/install/lint/formatter or Cloud proof was run.
-Author checks are source/CLI-capability inspection and `git diff --check` only.
-No push/PR/merge/deploy or production setting/data change by the author.
+No local Node/npm/build/test/browser/install/lint/formatter was run. No PR, merge, deploy or production setting/data change has occurred for this package.
