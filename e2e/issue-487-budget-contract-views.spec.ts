@@ -51,6 +51,40 @@ async function inspect(page: Page, info: TestInfo, label: string) {
       theme,
     );
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    if (info.project.name === 'webkit-iphone' && label === 'bank-costs') {
+      const metrics = await page.evaluate(() => {
+        const width = innerWidth;
+        const nodes = [...document.querySelectorAll<HTMLElement>('*')]
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            const scrollParent = element.closest('.sr-scroll');
+            return {
+              tag: element.tagName,
+              className: String(element.className).slice(0, 100),
+              text: (element.textContent ?? '').trim().slice(0, 70),
+              left: rect.left,
+              right: rect.right,
+              width: rect.width,
+              clientWidth: element.clientWidth,
+              scrollWidth: element.scrollWidth,
+              overflowX: style.overflowX,
+              scrollParent: scrollParent?.getAttribute('aria-label') ?? null,
+            };
+          })
+          .filter((node) => node.right > width || node.left < 0)
+          .sort((a, b) => b.right - a.right);
+        return {
+          innerWidth: width,
+          docClientWidth: document.documentElement.clientWidth,
+          docScrollWidth: document.documentElement.scrollWidth,
+          bodyScrollWidth: document.body.scrollWidth,
+          viewportWidth: visualViewport?.width,
+          offenders: nodes.slice(0, 35),
+        };
+      });
+      console.log('OVERFLOW_DIAG ' + JSON.stringify(metrics));
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
