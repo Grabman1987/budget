@@ -9,6 +9,7 @@ import type { ValuationSource } from '../ledger/valuation-hint';
 import { AttentionBar } from './attention-bar';
 import { Kennzahlen } from './kennzahlen';
 import type { BudgetMonthView } from '../budget/budget-api';
+vi.mock('../charts/use-element-width', () => ({ useElementWidth: () => [vi.fn(), 360] }));
 vi.mock('../shell/app-link', () => ({
   AppLink: ({
     to,

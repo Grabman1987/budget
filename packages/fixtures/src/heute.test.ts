@@ -60,13 +60,23 @@ describe('prototype figures reproduced', () => {
 
   it('delta to the previous month end: -1.014 EUR, -1,2 % (prototype 85.744 to 84.730)', () => {
     const n = month.netWorth;
+    if (n.previousMonthEndCents === null || n.deltaCents === null)
+      throw new Error('Fully quoted sample must retain its previous-month comparison');
     expect(Math.round(n.previousMonthEndCents / 100)).toBe(85_744);
     expect(Math.round(n.deltaCents / 100)).toBe(-1014);
     expect(n.deltaBp).toBe(-118);
     expect(n.series).toHaveLength(12);
     expect(n.series[11]).toEqual({ day: TODAY, cents: 8_473_000 });
     // The prototype's series starts 63.606, 71.456 (whole euros).
-    expect(n.series.map((s) => Math.round(s.cents / 100)).slice(0, 2)).toEqual([63_606, 71_456]);
+    expect(
+      n.series
+        .map((s) => {
+          if (s.cents === null)
+            throw new Error('Fully quoted sample history must remain available');
+          return Math.round(s.cents / 100);
+        })
+        .slice(0, 2),
+    ).toEqual([63_606, 71_456]);
   });
 
   it('the planning payday is the 15th while the stored salary jump keeps its actual schedule', () => {

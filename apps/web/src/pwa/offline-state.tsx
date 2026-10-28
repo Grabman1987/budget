@@ -376,7 +376,7 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
                   </div>
                   <div>
                     <dt>Veränderung zum Vorjahr</dt>
-                    <dd>{eur(heute.netWorth.yearDeltaCents)}</dd>
+                    <dd>{savedMoney(heute.netWorth.yearDeltaCents)}</dd>
                   </div>
                 </dl>
               )}

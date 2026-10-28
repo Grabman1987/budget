@@ -158,13 +158,17 @@ export interface Heute extends WithValuationNotes {
         debtCents: number;
         totalCents: number;
         asOf: string;
-        previousMonthEndCents: number;
-        yearAgoCents: number;
+        previousMonthEndCents: number | null;
+        yearAgoCents: number | null;
         yearAgoDay: string;
-        yearDeltaCents: number;
-        deltaCents: number;
+        yearDeltaCents: number | null;
+        deltaCents: number | null;
         deltaBp: number | null;
-        series: Array<{ day: string; cents: number }>;
+        series: Array<{
+          day: string;
+          cents: number | null;
+          unavailable?: HeuteUnavailable['unavailable'];
+        }>;
       }
     | HeuteUnavailable;
   attention: {
