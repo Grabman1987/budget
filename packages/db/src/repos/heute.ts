@@ -219,7 +219,11 @@ export interface Heute {
         /** Change against the previous month end in basis points; `null` from 0. */
         deltaBp: number | null;
         /** The 11 previous month ends and today, oldest first. */
-        series: { day: string; cents: number | null; unavailable?: HeuteUnavailable['unavailable'] }[];
+        series: {
+          day: string;
+          cents: number | null;
+          unavailable?: HeuteUnavailable['unavailable'];
+        }[];
       })
     | HeuteUnavailable;
   attention: {
@@ -678,7 +682,8 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
       asOf: today,
       previousMonthEndCents,
       deltaCents: previousMonthEndCents === null ? null : nw.totalCents - previousMonthEndCents,
-      deltaBp: previousMonthEndCents === null ? null : changeBp(nw.totalCents, previousMonthEndCents),
+      deltaBp:
+        previousMonthEndCents === null ? null : changeBp(nw.totalCents, previousMonthEndCents),
       series: nwSeries,
     };
   });

@@ -7,7 +7,9 @@ import { BalanceChart, DailyBudgetLine, HeutePaceChart, type PaceChartData } fro
 import type { Heute } from './api';
 import { HeuteWealthLine } from './heute-page';
 vi.mock('../shell/app-link', () => ({
-  AppLink: ({ children }: { children: React.ReactNode }) => <a href="/vermoegen/nettovermoegen">{children}</a>,
+  AppLink: ({ children }: { children: React.ReactNode }) => (
+    <a href="/vermoegen/nettovermoegen">{children}</a>
+  ),
 }));
 vi.mock('../charts/use-element-width', () => ({ useElementWidth: () => [vi.fn(), 360] }));
 afterEach(cleanup);
@@ -50,14 +52,24 @@ it('keeps a missing annual comparison explicit and hides chart amounts in privac
 });
 
 const wealthData = {
-  stand: { today: '2026-03-18', month: '2026-03' }, valuationSources: [],
+  stand: { today: '2026-03-18', month: '2026-03' },
+  valuationSources: [],
   netWorth: {
-    totalCents: 15_001, asOf: '2026-03-18', yearAgoDay: '2025-03-18', yearAgoCents: null,
+    totalCents: 15_001,
+    asOf: '2026-03-18',
+    yearAgoDay: '2025-03-18',
+    yearAgoCents: null,
     yearDeltaCents: null,
     series: [
-      { day: '2025-11-30', cents: 10_000 }, { day: '2025-12-31', cents: 12_000 },
-      { day: '2026-01-31', cents: null, unavailable: { reason: 'missing_fx', asOf: '2026-01-31', message: 'Missing synthetic FX.' } },
-      { day: '2026-02-28', cents: 0 }, { day: '2026-03-18', cents: 15_001 },
+      { day: '2025-11-30', cents: 10_000 },
+      { day: '2025-12-31', cents: 12_000 },
+      {
+        day: '2026-01-31',
+        cents: null,
+        unavailable: { reason: 'missing_fx', asOf: '2026-01-31', message: 'Missing synthetic FX.' },
+      },
+      { day: '2026-02-28', cents: 0 },
+      { day: '2026-03-18', cents: 15_001 },
     ],
   },
 } as unknown as Pick<Heute, 'stand' | 'netWorth' | 'valuationSources'>;

@@ -164,7 +164,11 @@ export interface Heute extends WithValuationNotes {
         yearDeltaCents: number | null;
         deltaCents: number | null;
         deltaBp: number | null;
-        series: Array<{ day: string; cents: number | null; unavailable?: HeuteUnavailable['unavailable'] }>;
+        series: Array<{
+          day: string;
+          cents: number | null;
+          unavailable?: HeuteUnavailable['unavailable'];
+        }>;
       }
     | HeuteUnavailable;
   attention: {
