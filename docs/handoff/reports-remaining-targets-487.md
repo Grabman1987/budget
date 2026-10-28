@@ -101,5 +101,20 @@ read-only reviewer visually cleared the eight selected desktop-light and
 WebKit-dark view images in `docs/evidence/reports-remaining-targets-487/`.
 The keyboard-focused phone capture includes a visible skip link, so no claim
 of an unobstructed full-page viewport or physical-device acceptance follows.
-Checked-main integration remains before a public PR and its required exact CI.
+Checked-main integration `156fc3b71831d56e74cdb5c4987a4f86dee58acb`
+preserved all 23 owned paths and the four incoming paths from checked main
+`3ef991eda59d58b159c3b39ec6da57d1e12d3d53`, with independent review.
+Public PR809's first full run
+[40639253411](https://github.com/Grabman1987/budget/actions/runs/40639253411)
+was cancelled after two shards found the same unchanged global-search palette
+test expecting the former Income catalog title. The cancelled tails are not
+claimed as passes. The two stale option/recent-choice expectations were updated
+to `1.10 Einnahmen und Cashflow`; the query, route, selection, actions, privacy,
+shortcuts and timing stayed unchanged. Independent review cleared this old-test
+adaptation. Focused [40640923427](https://github.com/Grabman1987/budget/actions/runs/40640923427)
+passed the complete palette case in desktop, mobile and WebKit plus three setup
+cases on the first attempt; the relevant search unit passed 5/5, and format,
+lint, typecheck and build passed. Final required exact-head public CI, merge,
+preview and live verification remain pending. The cancelled run inventory and
+both failed job logs are retained at `private/487-pr809-old-full-40639253411/`.
 No local Node/npm/tests/build/browser/formatter ran because of host RAM.
