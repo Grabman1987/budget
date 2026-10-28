@@ -17,3 +17,4 @@ export { goalsReport } from './repos/goals';
 export * from './repos/account-preview';
 
 export { databaseStamp } from './repos/request-memo';
+export * from './repos/booking-views';

@@ -25,6 +25,7 @@ import { importRoutes } from '../imports/routes';
 import { importHttpEnabled } from '../imports/config';
 import { accountRoutes } from './accounts';
 import { bookingRoutes } from './bookings';
+import { bookingViewsRoutes } from './booking-views';
 import { budgetRoutes, categoryRoutes } from './budget';
 import { cashflowRoutes } from './cashflow-report';
 import { expectedRoutes } from './expected';
@@ -155,6 +156,7 @@ export function createLedgerApi({
   api.route('/accounts', accountRoutes(db, today));
   api.route('/inbox', inboxRoutes(db, today));
   api.route('/month-close', monthCloseRoutes(db, today));
+  api.route('/bookings/saved-views', bookingViewsRoutes(db));
   api.route('/bookings', bookingRoutes(db, today));
   api.route('/receipts', receiptRoutes(db, receiptsDir));
   api.route('/payees', payeeRoutes(db));

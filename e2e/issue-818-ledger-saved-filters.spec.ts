@@ -59,6 +59,106 @@ test('named filter save lives in the existing actions menu and persists the exac
     await expect(page.locator('.ksum')).toContainText('−15,57 €');
     await page.evaluate(() => document.fonts.ready);
     expect((await page.locator('.kbookings-bar').boundingBox())!.height).toBe(bar.height);
+    await page.goto('/konten/buchungen?q=Outside%20filter&kategorie=none&sortierung=date');
+    await expect(page.locator('.ksum')).toContainText('1 Buchung');
+    await page.locator('.kregister-actions summary').click();
+    await page.getByRole('button', { name: 'Gespeicherte Ansichten', exact: true }).click();
+    const manager = page.getByRole('dialog', { name: 'Gespeicherte Filteransichten', exact: true });
+    await manager.getByRole('button', { name: `Synthetic ${theme}`, exact: true }).click();
+    await expect(manager).toBeHidden();
+    await expect(page).toHaveURL((url) => url.searchParams.size === Object.keys(search).length && Object.entries(search).every(([key, value]) => url.searchParams.get(key) === value));
+    await expect.poll(async () => new Set(await page.locator('tr[data-booking]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-booking'))))).toEqual(new Set(ids));
+    await expect(page.locator('.ksum')).toContainText('3 Buchungen');
+    await expect(page.locator('.ksum')).toContainText('−15,57 €');
+    const actions = page.locator('.kregister-actions');
+    if (await actions.getAttribute('open') === null) await actions.locator('summary').click();
+    const csv = await page.request.get((await page.getByRole('link', { name: 'Aktuellen Filter als CSV exportieren' }).getAttribute('href'))!);
+    expect(csv.status()).toBe(200);
+    const lines = (await csv.text()).replace(/^\uFEFF/, '').trimEnd().split('\r\n');
+    expect(lines).toHaveLength(4);
+    expect(new Set(lines.slice(1).map((line) => line.split(';')[0]!.replaceAll('"', '')))).toEqual(new Set(ids));
   }
   expect(writes).toEqual([]);
+});
+
+for (const failure of ['conflict', 'lost response'] as const) test(`pending and ${failure} saves retain the draft while ordinary URL filters remain independent`, async ({ page, isolatedLedger }) => {
+  const origin = isolatedLedger.origin;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  let fail = true;
+  await page.route('**/api/bookings/saved-views', async (route) => {
+    if (route.request().method() === 'POST' && fail) {
+      await gate;
+      if (failure === 'conflict') await route.fulfill({ status: 409, json: { error: 'conflict', message: 'Synthetic concurrent edit' } });
+      else { await route.fetch(); await route.abort('failed'); }
+    } else await route.continue();
+  });
+  try {
+    await page.goto('/konten/buchungen?q=Synthetic%20draft');
+    await page.locator('.kregister-actions summary').click();
+    await page.getByRole('button', { name: 'Ansicht speichern', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Filteransicht speichern', exact: true });
+    await dialog.getByLabel('Name', { exact: true }).fill('Draft survives');
+    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeVisible();
+    release();
+    await expect(dialog.getByRole('alert')).toContainText('Entwurf bleibt erhalten');
+    await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('Draft survives');
+    const state = await page.request.get(`${origin}/api/bookings/saved-views`);
+    const views = (await state.json()).views as Array<{ name: string }>;
+    expect(views.map((view) => view.name)).toEqual(failure === 'conflict' ? [] : ['Draft survives']);
+    fail = false;
+    if (failure === 'lost response') await dialog.getByLabel('Name', { exact: true }).fill('Explicit retry');
+    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await expect(dialog).toBeHidden();
+    const actions = page.locator('.kregister-actions');
+    if (await actions.getAttribute('open') !== null) await actions.locator('summary').click();
+    const input = page.getByLabel('In Buchungen suchen');
+    await input.fill('Still independent');
+    await expect(page).toHaveURL(/q=Still%20independent/);
+  } finally { release(); }
+});
+
+test('explicit replace and rename preserve identity, and deleting a view has preference-only Undo', async ({ page, isolatedLedger }, info) => {
+  const origin = isolatedLedger.origin;
+  for (const theme of ['light', 'dark'] as const) {
+    const read = await page.request.get(`${origin}/api/bookings/saved-views`);
+    const state = await read.json() as { revision: string };
+    const saved = await page.request.post(`${origin}/api/bookings/saved-views`, { headers: { origin }, data: {
+      kind: 'save', revision: state.revision, view: { name: `Original ${theme}`, search: { q: 'Before', status: 'confirmed' } },
+    } });
+    expect(saved.status()).toBe(200);
+    const created = (await saved.json()).views.find((view: { name: string }) => view.name === `Original ${theme}`) as { id: string };
+    await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+    await page.goto('/konten/buchungen?q=Replacement&markierung=none');
+    await page.locator('.kregister-actions summary').click();
+    await page.getByRole('button', { name: 'Gespeicherte Ansichten', exact: true }).click();
+    const manager = page.getByRole('dialog', { name: 'Gespeicherte Filteransichten', exact: true });
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    await manager.getByRole('button', { name: `Filter von Original ${theme} ersetzen`, exact: true }).click();
+    const editor = page.getByRole('dialog', { name: 'Filteransicht speichern', exact: true });
+    await expect(editor.getByLabel('Name', { exact: true })).toHaveValue(`Original ${theme}`);
+    await editor.getByLabel('Name', { exact: true }).fill(`Renamed ${theme}`);
+    await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await expect(editor).toBeHidden();
+    const current = await page.request.get(`${origin}/api/bookings/saved-views`);
+    expect((await current.json()).views.find((view: { id: string }) => view.id === created.id)).toEqual({ id: created.id, name: `Renamed ${theme}`, search: { markierung: 'none', q: 'Replacement' } });
+    const actions = page.locator('.kregister-actions');
+    if (await actions.getAttribute('open') === null) await actions.locator('summary').click();
+    await page.getByRole('button', { name: 'Gespeicherte Ansichten', exact: true }).click();
+    const remove = manager.getByRole('button', { name: `Ansicht Renamed ${theme} löschen`, exact: true });
+    if (info.project.name !== 'desktop') for (const button of await manager.locator('button:visible').all()) {
+      const box = (await button.boundingBox())!;
+      expect(box.width).toBeGreaterThanOrEqual(44); expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+    await remove.click();
+    await expect(remove).toHaveCount(0);
+    await page.getByRole('button', { name: 'Rückgängig', exact: true }).last().click();
+    await expect(manager.getByRole('button', { name: `Renamed ${theme}`, exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(manager).toBeHidden();
+  }
 });
