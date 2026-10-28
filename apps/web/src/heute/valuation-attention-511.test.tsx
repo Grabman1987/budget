@@ -25,7 +25,7 @@ afterEach(() => {
   cleanup();
   act(() => setAmountsHidden(false));
 });
-const data = (count: number): Parameters<typeof AttentionBar>[0]['data'] => ({
+const data = (count: number): NonNullable<Parameters<typeof AttentionBar>[0]['data']> => ({
   stand: {
     today: '2026-09-20',
     month: '2026-08',
