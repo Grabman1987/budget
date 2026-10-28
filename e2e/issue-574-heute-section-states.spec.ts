@@ -58,6 +58,38 @@ test('initial section placeholders keep above-fold geometry while independent re
   }
 });
 
+test('the independent forecast reserves its own initial pending plot before its real response arrives', async ({ page }, info) => {
+  test.setTimeout(60_000);
+  let release!: () => void;
+  let held: Promise<void>;
+  await page.route('**/api/liquidity?*', async (route) => {
+    await held;
+    await route.continue();
+  });
+  for (const colorScheme of ['light', 'dark'] as const) {
+    held = new Promise<void>((resolve) => { release = resolve; });
+    try {
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await page.goto('/?monat=2026-09&period=month');
+      await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
+      await expect(page.locator('[data-kennzahl="zu-verteilen"]')).toBeVisible();
+      const forecast = page.getByRole('region', { name: 'Kontoprognose · 35 Tage' });
+      await expect(forecast.getByTestId('liquidity-chart')).toHaveCount(0);
+      await expect(forecast.getByText('Kontoprognose werden geladen …')).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      const pending = await bounds(page);
+      expect(pending.every(Boolean)).toBe(true);
+      release();
+      await expect(forecast.getByTestId('liquidity-chart')).toBeVisible();
+      expect(await bounds(page)).toEqual(pending);
+      await accessible(page);
+      await page.screenshot({ path: info.outputPath(`574-forecast-${colorScheme}-settled.png`) });
+    } finally {
+      release();
+    }
+  }
+});
+
 for (const read of ['heute', 'budget', 'liquidity', 'savings'] as const) {
   test(`${read} failure stays in its read boundary and retries without hiding successful sections`, async ({ page }, info) => {
     test.setTimeout(60_000);
@@ -100,6 +132,9 @@ for (const read of ['heute', 'budget', 'liquidity', 'savings'] as const) {
       const boundary = read === 'budget' ? budget : read === 'liquidity' ? forecast : read === 'savings' ? savings : page.locator('.heute');
       const retry = boundary.getByRole('button', { name: 'Erneut versuchen' }).first();
       await expect(retry).toBeVisible();
+      // Compare layout, independently of scrolling caused by the retry control's focus.
+      if (read === 'liquidity') await page.evaluate(() => window.scrollTo(0, 0));
+      const errorBounds = read === 'liquidity' ? await bounds(page) : undefined;
       await accessible(page, retry);
       await page.screenshot({ path: info.outputPath(`574-${read}-${colorScheme}-error.png`) });
       fail = false;
@@ -108,6 +143,10 @@ for (const read of ['heute', 'budget', 'liquidity', 'savings'] as const) {
       else if (read === 'liquidity') await expect(forecast.getByTestId('liquidity-chart')).toBeVisible();
       else if (read === 'savings') await expect(savings.getByText('1 Sparplanausführung prüfen')).toBeVisible();
       else await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
+      if (errorBounds) {
+        await page.evaluate(() => window.scrollTo(0, 0));
+        expect(await bounds(page)).toEqual(errorBounds);
+      }
       await accessible(page);
     }
     expect(writes).toEqual([]);
