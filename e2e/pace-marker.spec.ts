@@ -17,17 +17,15 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
     await expect(chart).toBeVisible({ timeout: 30_000 });
     if (url.startsWith('/?')) {
       expect(
-        await page
-          .locator('.heute-lead')
-          .evaluate((el) => {
-            const overview = el.nextElementSibling;
-            return (
-              overview?.classList.contains('heute-overview-charts') &&
-              overview.children[0]?.classList.contains('heute-pace') &&
-              overview.children[1]?.classList.contains('heute-compact-forecast') &&
-              overview.children[2]?.classList.contains('heute-wealth-line')
-            );
-          }),
+        await page.locator('.heute-lead').evaluate((el) => {
+          const overview = el.nextElementSibling;
+          return (
+            overview?.classList.contains('heute-overview-charts') &&
+            overview.children[0]?.classList.contains('heute-pace') &&
+            overview.children[1]?.classList.contains('heute-compact-forecast') &&
+            overview.children[2]?.classList.contains('heute-wealth-line')
+          );
+        }),
       ).toBe(true);
       await expect(page.getByTestId('liquidity-chart')).toBeVisible();
     }

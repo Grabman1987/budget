@@ -46,11 +46,13 @@ test('Heute keeps its device fold choice and the primary order, net worth matche
     '.heute-more',
   ];
   expect(
-    await page.locator(selectors.join(',')).evaluateAll(
-      (elements, order) =>
-        elements.map((element) => order.find((selector) => element.matches(selector))),
-      selectors,
-    ),
+    await page
+      .locator(selectors.join(','))
+      .evaluateAll(
+        (elements, order) =>
+          elements.map((element) => order.find((selector) => element.matches(selector))),
+        selectors,
+      ),
   ).toEqual(selectors);
   const boxes = await Promise.all(
     selectors.map((selector) => page.locator(selector).boundingBox()),
