@@ -202,6 +202,7 @@ it('keeps a savings disclosure in its existing remaining-task owner when the agg
       })), unavailable: [],
     } },
   })));
+  await waitFor(() => expect(document.querySelector('.attention-remaining')).not.toBeNull());
   const proposalDetails = screen.getByText('1 Sparplanausführung prüfen').closest('details')!;
   const remaining = proposalDetails.closest('.attention-remaining') as HTMLDetailsElement;
   expect(remaining).not.toBeNull();

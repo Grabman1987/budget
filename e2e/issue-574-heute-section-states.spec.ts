@@ -15,6 +15,19 @@ async function bounds(page: Page) {
   return Promise.all(['.heute-kennzahlen', '.heute-pace', '.heute-compact-forecast', '.heute-wealth-line']
     .map((selector) => page.locator(selector).boundingBox()));
 }
+async function paceGeometry(page: Page) {
+  return page.locator('.heute-pace').evaluate((section) => [...section.querySelectorAll(
+    '.head, .head h2, .head .aside, .head .aside > *, .heute-figures, .heute-figure, .heute-figure > *, .heute-chart, .chart-interactive, svg.chart, .heute-pace-state-plot, .chart-legend, .pace-context-toggle, .heute-note',
+  )].map((element) => {
+    const box = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return { tag: element.tagName, class: element.getAttribute('class'),
+      x: box.x, y: box.y, width: box.width, height: box.height,
+      font: style.font, lineHeight: style.lineHeight, display: style.display,
+      alignItems: style.alignItems, verticalAlign: style.verticalAlign,
+      margin: style.margin, padding: style.padding, minHeight: style.minHeight };
+  }));
+}
 async function accessible(page: Page, retry?: Locator) {
   const fits = await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
   if (!fits) console.log('Heute horizontal overflow', await page.evaluate(() => ({
@@ -54,12 +67,15 @@ test('initial section placeholders keep above-fold geometry while independent re
     await expect(page.getByRole('region', { name: 'Letzte Buchungen' })).toHaveAttribute('aria-busy', 'true');
     await page.evaluate(() => document.fonts.ready);
     const pending = await bounds(page);
+    const pendingPace = await paceGeometry(page);
     expect(pending.every(Boolean)).toBe(true);
     await accessible(page);
     release();
     await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
     await expect(page.getByTestId('heute-pace-chart')).toBeVisible();
     const settled = await bounds(page);
+    if (JSON.stringify(settled) !== JSON.stringify(pending))
+      console.log('Heute Pace slot comparison', { pending: pendingPace, settled: await paceGeometry(page) });
     expect(settled).toEqual(pending);
     if (info.project.name === 'desktop') {
       for (const box of settled) expect(box!.y + box!.height).toBeLessThanOrEqual(900);
