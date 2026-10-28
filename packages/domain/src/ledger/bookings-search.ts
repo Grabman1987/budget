@@ -70,4 +70,3 @@ export function validateBookingsSearch(search: Record<string, unknown>): Booking
     richtung: oneOf(search['richtung'], ['asc', 'desc'] as const),
   };
 }
-
