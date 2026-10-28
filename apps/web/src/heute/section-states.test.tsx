@@ -8,7 +8,7 @@ import { ToastProvider, setAmountsHidden } from '@budget/ui';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createLedgerApi } from '../../../server/src/api';
 import { HeutePage } from './heute-page';
-import { HEUTE_KEY } from './api';
+import { HEUTE_KEY, type Heute } from './api';
 import { budgetQuery } from '../budget/budget-api';
 import { liquidityQuery } from '../reports/liquidity-api';
 import { savingsProposalsQuery } from '../wealth/savings-api';
@@ -169,6 +169,36 @@ it('withholds cached aggregate money after refetch failure while retaining indep
   expect(proposalDetails.isConnected && proposalDetails.open).toBe(true);
   expect(proposalDetails.textContent).toContain('Synthetic instrument');
   expect(card().querySelector('.heute-forecast-low')).toBeTruthy();
+});
+
+it('keeps a savings disclosure in its existing remaining-task owner when the aggregate fails', async () => {
+  mount();
+  await screen.findByTestId('heute-wealth-history');
+  await ready();
+  const query = client.getQueryCache().find({ queryKey: HEUTE_KEY })!;
+  act(() => client.setQueryData<Heute>(query.queryKey, (data) => ({
+    ...data!,
+    attention: { ...data!.attention, monthCloseTasks: {
+      tasks: ['2026-05', '2026-06', '2026-07', '2026-08'].map((month) => ({
+        id: `close-changed:${month}`, kind: 'close-changed' as const, month,
+        target: `/monatsabschluss/${month}`,
+      })), unavailable: [],
+    } },
+  })));
+  const proposalDetails = screen.getByText('1 Sparplanausführung prüfen').closest('details')!;
+  const remaining = proposalDetails.closest('.attention-remaining') as HTMLDetailsElement;
+  expect(remaining).not.toBeNull();
+  await userEvent.setup().click(remaining.querySelector('summary')!);
+  await userEvent.setup().click(within(proposalDetails).getByText('1 Sparplanausführung prüfen'));
+  expect(proposalDetails.open && remaining.open).toBe(true);
+  failed = 'heute';
+  await act(async () => { await refresh('heute'); });
+  await ready();
+  expect(proposalDetails.isConnected && proposalDetails.open).toBe(true);
+  expect(remaining.isConnected && remaining.open).toBe(true);
+  expect(proposalDetails.textContent).toContain('123,45');
+  expect(document.querySelector('[data-kennzahl="nettovermoegen"]')).toBeNull();
+  expect(screen.queryByTestId('heute-wealth-history')).toBeNull();
 });
 
 it.each(['budget', 'liquidity', 'savings'] as const)('withholds %s own cached financial content during pending and error without hiding other reads', async (read) => {
