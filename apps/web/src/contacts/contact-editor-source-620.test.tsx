@@ -59,10 +59,11 @@ async function mount(page: 'list' | 'statement') {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
   });
   const created = await post('/bookings', {
+    type: 'booking',
     accountId: 'giro', date: '2026-09-01', amountCents: -3000,
     splits: [{ categoryId: 'auslagen', contactId: 'k1', amountCents: -3000, memo: 'Ältere offene Auslage' }],
   });
-  expect(created.status).toBe(201);
+  expect(created.status, await created.clone().text()).toBe(201);
   const older = (await created.json()).bookings[0];
   const settled = await post('/contacts/k1/settlements', { accountId: 'giro', date: '2026-09-02', amountCents: 1000 });
   expect(settled.ok).toBe(true);

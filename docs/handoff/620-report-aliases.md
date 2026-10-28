@@ -394,3 +394,24 @@ month. No clock, timeout, server writer or product route changes are introduced.
 
 These are test-only adaptations; their exact full diff still needs independent
 review and focused runtime proof. No new legacy reader route or UI backdoor exists.
+
+## Actual focused proof40703436343: fixture discriminator and print-header fix
+
+Root's exact3ab targeted run passed types and candidate whole-repository lint,
+then restored original source before runtime. Units recorded164 passes and10
+failures: every new Contact controller test stopped at its initial fixture POST,
+which omitted the required `type: booking` discriminator and received400 instead
+of the protected201. The fixture now supplies only that missing discriminator
+and includes the real response text in its unchanged201 assertion. Original
+−3000/+1000,422, draft, readiness, Save and Undo oracles remain.
+
+Browser proof recorded26 passes and3 failures: all12 real Contact cases and both
+Pace cases passed. Year print failed on all3 profiles because the strict numeric
+token oracle found Sep/Okt/Nov/Dez26 year digits split across lines. The generic
+print rule allows `overflow-wrap:anywhere` on headers, while restoring nowrap
+only for numeric data cells. A template-numeric-header-only normal word-wrap
+override now permits the month/year space break but keeps26 atomic. Fonts,
+column counts, dates, money, bounds, PDF geometry and every strict token/state
+assertion are unchanged. The year PDF stage was not reached in that red run;
+corrected source still needs exact-head focused proof. No stale format patch was
+applied and no local runtime/formatter command ran.

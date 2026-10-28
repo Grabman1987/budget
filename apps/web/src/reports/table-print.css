@@ -107,6 +107,11 @@
     white-space: nowrap;
     overflow-wrap: normal;
   }
+  /* Fixed-template month headers may break at the space, never inside the year token. */
+  .table-report.report-table-print.ex-template .rtable thead th.n {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
   .report-table-print .rtable .rg-first {
     width: 20%;
     min-width: 0;
