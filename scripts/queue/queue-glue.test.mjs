@@ -241,6 +241,157 @@ ${snippet}`,
 
 const GOOD_MAIN = 'a'.repeat(40);
 
+/** Exercise only the real helper declarations; never enter its integration/release body. */
+function mergeObserver(states = [`42\t${GOOD_MAIN}\t2\tcompleted\tsuccess`]) {
+  const f = fixture();
+  const source = readFileSync(join(QUEUE, 'merge-pr.sh'), 'utf8');
+  const declarations = source.slice(source.indexOf('retry()'), source.indexOf('until main=$(gate_ok)'));
+  writeFileSync(join(f.tmp, 'bin', 'gh'), `#!/usr/bin/env bash
+echo "$*" >> "$STUB_DIR/calls.log"
+case "$1 $2" in
+  "run list") echo 42 ;;
+  "run watch") exit "$(cat "$STUB_DIR/watch-exit")" ;;
+  "run view")
+    case "$*" in
+      *--log-failed*) echo 'FAIL synthetic-terminal' ;;
+      *status,conclusion*)
+        [ -f "$STUB_DIR/status-error" ] && exit 1
+        n=$(cat "$STUB_DIR/read-count"); n=$((n + 1)); echo "$n" > "$STUB_DIR/read-count"
+        row=$(sed -n "\${n}p" "$STUB_DIR/states")
+        [ -n "$row" ] || row=$(tail -n 1 "$STUB_DIR/states")
+        printf '%s\n' "$row" ;;
+      *) [ -f "$STUB_DIR/identity-error" ] && exit 1; cat "$STUB_DIR/identity" ;;
+    esac ;;
+  "pr view") [ -f "$STUB_DIR/metadata-error" ] && exit 1; cat "$STUB_DIR/closing-result" ;;
+esac
+`);
+  writeFileSync(join(f.tmp, 'bin', 'sleep'), '#!/usr/bin/env bash\nexit 0\n');
+  chmodSync(join(f.tmp, 'bin', 'sleep'), 0o755);
+  f.write('identity', `42\t${GOOD_MAIN}\t2\n`);
+  f.write('states', states.join('\n') + '\n');
+  f.write('read-count', '0');
+  f.write('watch-exit', '1');
+  f.write('closing-result', 'true\n');
+  return {
+    ...f,
+    observe: () => f.sh(['-c', `set -uo pipefail\npr=781\n${declarations}\nwait_ci '${GOOD_MAIN}'`]),
+    metadata: () => f.sh(['-c', `set -uo pipefail\npr=781\n${declarations}\nclosing_refs_ok || exit 1\ngh pr merge 781 --squash`]),
+    reads: () => Number(readFileSync(join(f.stub, 'read-count'), 'utf8')),
+  };
+}
+
+describe('merge-pr CI observation and closing-reference guard', () => {
+  it('confirms an ordinary successful watch with an authoritative same-attempt success', () => {
+    const f = mergeObserver();
+    f.write('watch-exit', '0');
+    expect(f.observe().status).toBe(0);
+    expect(f.reads()).toBe(1);
+  });
+
+  it('recovers a transient watch error on the same live run/head/attempt and observes its success', () => {
+    const f = mergeObserver([
+      `42\t${GOOD_MAIN}\t2\tqueued\t`,
+      `42\t${GOOD_MAIN}\t2\tin_progress\t`,
+      `42\t${GOOD_MAIN}\t2\tcompleted\tsuccess`,
+    ]);
+    const result = f.observe();
+    expect(result.status).toBe(0);
+    expect(result.out).not.toContain('CI red');
+    expect(f.reads()).toBe(3);
+    expect(f.calls().match(/^run watch /gm)).toHaveLength(1);
+    expect(f.calls()).not.toMatch(/^(workflow run|run rerun|pr merge|api) /m);
+  });
+
+  it.each(['failure', 'cancelled', 'timed_out', 'neutral', 'skipped', 'action_required', 'stale', 'startup_failure'])(
+    'reports authoritative terminal %s as red',
+    (conclusion) => {
+      const f = mergeObserver([`42\t${GOOD_MAIN}\t2\tcompleted\t${conclusion}`]);
+      const result = f.observe();
+      expect(result.status).toBe(1);
+      expect(result.out).toContain('CI red');
+      expect(result.out).toContain('synthetic-terminal');
+    },
+  );
+
+  it.each([
+    `43\t${GOOD_MAIN}\t2\tcompleted\tsuccess`,
+    `42\t${'b'.repeat(40)}\t2\tcompleted\tsuccess`,
+    `42\t${GOOD_MAIN}\t3\tcompleted\tsuccess`,
+    `42\t${GOOD_MAIN}\t2\tunknown\t`,
+    `42\t${GOOD_MAIN}\t2\tcompleted\t`,
+    `42\t${GOOD_MAIN}\t2\tcompleted\tunknown`,
+    `42\t${GOOD_MAIN}\t2\tin_progress\tfailure`,
+    'malformed',
+  ])('fails closed on unknown or mismatched authoritative state %s', (state) => {
+    const f = mergeObserver([state]);
+    f.write('watch-exit', '0');
+    const result = f.observe();
+    expect(result.status).toBe(1);
+    expect(result.out).toContain('CI observation');
+    expect(result.out).not.toContain('CI red');
+  });
+
+  it.each(['identity-error', 'status-error'])('fails closed after bounded API read errors: %s', (flag) => {
+    const f = mergeObserver();
+    f.write(flag, '');
+    const result = f.observe();
+    expect(result.status).toBe(1);
+    expect(result.out).toContain('CI observation');
+    expect(result.out).not.toContain('CI red');
+    const reads = f.calls().split('\n').filter((line) => line.startsWith('run view '));
+    expect(reads).toHaveLength(flag === 'identity-error' ? 3 : 4);
+  });
+
+  it.each([
+    `43\t${GOOD_MAIN}\t2`,
+    `42\t${'b'.repeat(40)}\t2`,
+    `42\t${GOOD_MAIN}\t0`,
+    `42\t${GOOD_MAIN}\tunknown`,
+    '',
+  ])('rejects an unverified initial run/head/attempt identity: %s', (identity) => {
+    const f = mergeObserver();
+    f.write('identity', identity);
+    const result = f.observe();
+    expect(result.status).toBe(1);
+    expect(result.out).toContain('CI observation');
+    expect(f.calls()).not.toContain('run watch');
+  });
+
+  it('exhausts its bounded live-state readback without merging or calling it red', () => {
+    const f = mergeObserver([`42\t${GOOD_MAIN}\t2\tin_progress\t`]);
+    const result = f.observe();
+    expect(result.status).toBe(1);
+    expect(result.out).toContain('CI observation exhausted');
+    expect(result.out).not.toContain('CI red');
+    expect(f.reads()).toBe(30);
+    expect(f.calls()).not.toMatch(/^(workflow run|run rerun|pr merge|api) /m);
+  });
+
+  it('allows the merge command only after an authoritative typed-empty closing-reference result', () => {
+    const f = mergeObserver();
+    expect(f.metadata().status).toBe(0);
+    expect(f.calls()).toContain('pr merge 781 --squash');
+  });
+
+  it.each(['false', 'null', '', '{}', 'unknown', 'true\ntrue'])(
+    'blocks nonempty, unavailable or malformed closing-reference results: %s',
+    (result) => {
+      const f = mergeObserver();
+      f.write('closing-result', result);
+      expect(f.metadata().status).toBe(1);
+      expect(f.calls()).not.toContain('pr merge');
+    },
+  );
+
+  it('blocks closing-reference API errors after bounded retries', () => {
+    const f = mergeObserver();
+    f.write('metadata-error', '');
+    expect(f.metadata().status).toBe(1);
+    expect(f.calls().match(/^pr view /gm)).toHaveLength(3);
+    expect(f.calls()).not.toContain('pr merge');
+  });
+});
+
 describe.skipIf(!BASH)('gate.sh (fails closed)', () => {
   it('passes and prints the validated main head only when CI, deploy and /health all confirm it', () => {
     const f = fixture();
