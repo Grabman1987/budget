@@ -93,7 +93,7 @@ export function ProjectsReport({
                 <>
                   <div className="tbd-fig">
                     {parts?.whole}
-                    <small>{parts?.fraction} €</small>
+                    <small>,{parts?.fraction} €</small>
                   </div>
                   <DimensionChain
                     precision="cent"

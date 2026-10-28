@@ -217,6 +217,7 @@ test('487 global project results retain literal August cents and require an expl
   });
   await page.goto(`/reports/projekte?zeitraum=${period}`);
   await expect(page.getByTestId('projects-report')).toContainText('2.700,03');
+  await expect(page.getByTestId('projects-report').locator('section.mr-wide .tbd-fig').first()).toHaveText('2.700,03 €');
   const body = await page.getByTestId('projects-report').innerText();
   const verdict = await page.getByTestId('report-verdict').innerText();
   await page.goto(
