@@ -130,12 +130,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function mount(search = '') {
+function mount(search = '', templateFacts = facts) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity, gcTime: Infinity } },
   });
   clients.push(client);
-  client.setQueryData(explorerTemplateQuery.queryKey, facts);
+  client.setQueryData(explorerTemplateQuery.queryKey, templateFacts);
   client.setQueryData(explorerQuery(DEFAULT_EXPLORER_QUERY).queryKey, {
     today: '2024-03-05',
     ref: '2024-02',
@@ -189,6 +189,14 @@ function mount(search = '') {
 }
 
 describe('625 fixed templates beside retained custom views', () => {
+  it('defaults a year bookmark to the latest year with full source data, including gaps after it', async () => {
+    mount('?vorlage=year', { ...facts, currentMonth: '2025-03', lastFullMonth: '2025-02' });
+    const table = await screen.findByTestId('template-year');
+    expect(table.querySelector('[data-template-column="2024-02"]')?.textContent).toContain('20,01');
+    expect(table.querySelector('[data-template-column="2025-02"]')).toBeNull();
+    expect((screen.getByRole('combobox', { name: 'Jahr' }) as HTMLSelectElement).value).toBe('2024');
+  });
+
   it('offers all four templates in addition to the unchanged custom presets and validates exact deep-link selectors', async () => {
     mount();
     const chips = await screen.findByRole('group', { name: 'Vorlagen' });

@@ -140,13 +140,25 @@ const pageRoute = (path: string, meta: PageMeta) =>
     component: () => <PlaceholderPage meta={meta} />,
   });
 
-const redirectRoute = (path: string, to: string) =>
+const redirectRoute = (
+  path: string,
+  to: string,
+  intent: Readonly<Record<string, string>> = {},
+  fallbackPeriod?: Period,
+) =>
   createRoute({
     getParentRoute: () => shellRoute,
     path,
     beforeLoad: ({ location, params }) => {
+      const target = new URL(
+        `${to.replace('$id', encodeURIComponent((params as { id?: string }).id ?? ''))}${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+        'https://budget.invalid',
+      );
+      for (const [key, value] of Object.entries(intent)) target.searchParams.set(key, value);
+      if (fallbackPeriod && !isZeitraum(target.searchParams.get('zeitraum')))
+        target.searchParams.set('zeitraum', fallbackPeriod);
       throw redirect({
-        href: `${to.replace('$id', encodeURIComponent((params as { id?: string }).id ?? ''))}${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+        href: `${target.pathname}${target.search}${target.hash}`,
         replace: true,
       });
     },
@@ -576,6 +588,23 @@ const settingsIndexRoute = createRoute({
 });
 const redirects = [
   redirectRoute('/reports/liquiditaet', '/plan/prognose'),
+  redirectRoute('/reports/einnahmen', '/reports/einnahmen-ausgaben', { darstellung: 'income' }),
+  redirectRoute('/reports/cashflow', '/reports/einnahmen-ausgaben', { darstellung: 'cashflow' }),
+  redirectRoute('/reports/projekte', '/reports/einnahmen-ausgaben', { darstellung: 'projekte' }),
+  redirectRoute('/reports/empfaenger', '/reports/ausgaben', { darstellung: 'empfaenger' }),
+  redirectRoute('/reports/planungstreue', '/reports/budgettreue', { darstellung: 'planungstreue' }),
+  redirectRoute('/reports/kosten', '/reports/abos', { darstellung: 'bankkosten' }),
+  redirectRoute('/reports/vermoegen', '/reports/vermoegen-schulden', { darstellung: 'verlauf' }),
+  redirectRoute('/reports/gesamtuebersicht', '/reports/vermoegen-schulden', { darstellung: 'gesamt' }),
+  redirectRoute('/reports/peinzahlungen', '/reports/pallocation', { darstellung: 'einzahlungen' }),
+  redirectRoute('/reports/prendite', '/reports/pallocation', { darstellung: 'rendite' }),
+  redirectRoute('/reports/jahresansicht', '/reports/explorer', { vorlage: 'year' }, 'YTD'),
+  redirectRoute('/reports/kategorien', '/reports/explorer', { vorlage: 'category' }, 'YTD'),
+  redirectRoute('/reports/gesamttabelle', '/reports/explorer', { vorlage: 'total' }, 'Alles'),
+  redirectRoute('/reports/vorschau', '/plan/erwartet'),
+  redirectRoute('/reports/sparziele', '/plan/sparziele'),
+  redirectRoute('/reports/kontakte', '/konten/kontakte'),
+  redirectRoute('/reports/finanzcheck', '/'),
   redirectRoute('/konten/posteingang', '/konten/pruefen'),
   redirectRoute('/konten/posteingang/$id', '/konten/pruefen/$id'),
   // Legacy import bookmarks lead to the export placeholder; no import action remains in the UI.

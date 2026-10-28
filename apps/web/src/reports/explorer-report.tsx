@@ -102,16 +102,22 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
   const templateRead = useQuery({ ...explorerTemplateQuery, enabled: Boolean(template) });
   const templateCategory = search.kategorien?.[0];
   const templateModel = useMemo(
-    () =>
-      template && templateRead.data
+    () => {
+      const year = templateRead.data ? explorerTemplateYears(templateRead.data).at(-1) : undefined;
+      return template && templateRead.data
         ? explorerTemplate(templateRead.data, {
             id: template,
             period: templatePeriod,
             ...(template === 'heatmap' && search.exakt ? { exactWindow: true } : {}),
             ...(templateCategory ? { categoryId: templateCategory } : {}),
-            ...(templatePeriod.includes('..') ? { year: Number(templatePeriod.slice(0, 4)) } : {}),
+            ...(templatePeriod.includes('..')
+              ? { year: Number(templatePeriod.slice(0, 4)) }
+              : template === 'year' && year !== undefined
+                ? { year }
+                : {}),
           })
-        : undefined,
+        : undefined;
+    },
     [template, templateRead.data, templatePeriod, templateCategory, search.exakt],
   );
   const [query, setQuery] = useState<ExplorerQuery>(DEFAULT_EXPLORER_QUERY);
