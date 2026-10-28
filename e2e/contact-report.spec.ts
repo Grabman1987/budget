@@ -104,7 +104,10 @@ test('fixed EUR report preserves credit, running history, source links and recei
     await capture(page, `contact-report-${theme}`, info);
   }
   const source = outlay.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ });
-  expect((await source.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  const touch = await page.evaluate(() => matchMedia('(pointer: coarse), (max-width: 767px)').matches);
+  // The existing contact source is compact on desktop; the shared touch floor remains 44px.
+  if (touch) expect((await source.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  else expect((await source.boundingBox())!.height).toBe(34);
   await source.focus();
   const sourceRead = page.waitForRequest((r) => new URL(r.url()).pathname === `/api/bookings/${data.outlay.bookings[0].id}`);
   await page.keyboard.press('Enter');

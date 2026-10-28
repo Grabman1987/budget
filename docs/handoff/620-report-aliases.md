@@ -259,3 +259,19 @@ unit/browser proof after the corrected test commit is frozen.
 Independent review additionally required both trend paths' computed display and
 visibility to remain rendered, so hidden paths cannot pass via retained geometry;
 zero-height flat strokes and the positive-height varying series remain covered.
+
+## Causal proof 40678643271: two remaining selector/geometry corrections
+
+The root-managed workflow child d2df of source24fcaf26 passed all137 units in12
+files, lint, TypeScript and build. Browser results were302 actual passes plus3
+setup passes,17 existing skips and4 failures without retries. Contact's newly
+added source-button size assertion required44px on desktop, although the existing
+`.contact-source` rule defines a34px compact target; the LIVE-base spec had no
+such assertion. The same actual touch media condition now requires at least44px
+on coarse/mobile and exactly34px on fine desktop, retaining keyboard, exact source
+read, amounts, Sep1 date and both Undo directions. Total's region regex matched
+both its enclosing section and scroll region. The selector now uses the exact
+existing scroll-region accessible name; all36 dated values,84,730, current-month
+note, right-edge scroll and CSV assertions are unchanged. The stale134828-byte
+format patch remains unapplied. These two test corrections await independent
+review and the next small exact-head cloud proof; no local runtime was run.

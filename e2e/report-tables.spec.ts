@@ -342,7 +342,7 @@ test.describe('1.8 Gesamttabelle', () => {
     expect(nw[35]?.trim()).toBe('84.730');
 
     // the table starts scrolled to the running month
-    const scroller = page.locator('.ex-total-history').getByRole('region', { name: /Gesamttabelle/ });
+    const scroller = page.locator('.ex-total-history').getByRole('region', { name: 'Gesamttabelle, bei Bedarf horizontal verschiebbar', exact: true });
     const scrolled = await scroller.evaluate(
       (el) => el.scrollLeft + el.clientWidth >= el.scrollWidth - 2,
     );
