@@ -463,3 +463,33 @@ selected monthSeptember2026 and periodpayday. The UI pressed state and original
 changes. The remaining chart-navigation selector failure is a separate confirmed
 canonical-header/catalog issue; no timeout increase or passing self-loop is
 encoded as a fix. Corrected exact-head proof remains pending.
+
+## Canonical header adjacency prerequisite: measured RED before source fix
+
+The chart trace showed no successful next-click followed by retry: it waited for
+a Rendite label that did not exist. AreaHead uses the actual canonical route ID,
+but ReportNavigation still calculated neighbors from the old33-entry catalog;
+pallocation's next peinzahlungen bookmark therefore returned to its own current
+canonical contribution view. This was a real header-navigation source gap.
+
+Tests-only c4009978 first declared the literal16-report order, endpoints,13
+normalized report aliases,5 retired-area/unknown safe IDs, no self edges,
+canonical names/numbers and preserved search/keyboard/input/dialog/Escape
+behavior. Chart-inspection preserves all preceding source path-length/money/date/
+tooltip/Axe/theme/layout checks; actual view switches cover the three Portfolio
+readers, then real canonical next psteuern and keyboard-back bare allocation
+retain YTD. The true canonical endpoint checks use Einnahmen/Ausgaben and
+Jahresbericht, consistent with the existing owner-approved Hub order.
+
+Root's old-production proof40714264808 observed all4 new navigation assertions
+fail and all4 existing Hub assertions pass, with unchanged production blob and
+clean restoration. Type checking failed only on two unsupported TestingLibrary
+`exact` options in the new unit test; it did not pass. Tests-only a1d0aa7a removes
+those options while retaining the same exact string names and every oracle.
+
+The subsequent narrow source fix reuses existing HUB_REPORTS and hubReport for
+adjacency and switcher identity, with canonical no/name labels. No catalog,
+helper, route, API, financial calculation or ledger write is added. Existing
+period/trend/month propagation, neighbor intent reset, keyboard guards and
+Escape/focus behavior are unchanged. Exact reviewed GREEN proof remains pending;
+no local runtime/formatter, push or workflow dispatch was performed by the author.
