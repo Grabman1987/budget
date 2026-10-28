@@ -243,7 +243,34 @@ const GOOD_MAIN = 'a'.repeat(40);
 
 /** Exercise only the real helper declarations; never enter its integration/release body. */
 function mergeObserver(states = [`42\t${GOOD_MAIN}\t2\tcompleted\tsuccess`]) {
-  const f = fixture();
+  // These declarations do not read Git: keep the real PATH boundary without cloning repositories.
+  const tmp = mkdtempSync(join(tmpdir(), 'queue-observer-'));
+  dirs.push(tmp);
+  const root = join(tmp, 'root');
+  const bin = join(tmp, 'bin');
+  const stub = join(tmp, 'stub');
+  for (const path of [root, bin, stub]) mkdirSync(path);
+  const f = {
+    tmp,
+    stub,
+    write: (name, text) => writeFileSync(join(stub, name), text),
+    calls: () =>
+      existsSync(join(stub, 'calls.log')) ? readFileSync(join(stub, 'calls.log'), 'utf8') : '',
+    sh(args) {
+      const r = spawnSync(BASH, ['-c', `export PATH="$STUB_BIN:$PATH"; ${args[1]}`], {
+        cwd: root,
+        env: {
+          ...process.env,
+          PATH: `${bin}${delimiter}${process.env.PATH}`,
+          STUB_DIR: fwd(stub),
+          STUB_BIN: posix(bin),
+        },
+        encoding: 'utf8',
+        timeout: 90_000,
+      });
+      return { status: r.status, out: `${r.stdout}${r.stderr}`.trim() };
+    },
+  };
   const source = readFileSync(join(QUEUE, 'merge-pr.sh'), 'utf8');
   const declarations = source.slice(
     source.indexOf('retry()'),
@@ -252,25 +279,36 @@ function mergeObserver(states = [`42\t${GOOD_MAIN}\t2\tcompleted\tsuccess`]) {
   writeFileSync(
     join(f.tmp, 'bin', 'gh'),
     `#!/usr/bin/env bash
+emit_file() {
+  [ -r "$1" ] || return 1
+  local contents=''
+  IFS= read -r -d '' contents < "$1" || :
+  printf '%s' "$contents"
+}
 echo "$*" >> "$STUB_DIR/calls.log"
 case "$1 $2" in
   "run list") echo 42 ;;
-  "run watch") exit "$(cat "$STUB_DIR/watch-exit")" ;;
+  "run watch") exit "$(< "$STUB_DIR/watch-exit")" ;;
   "run view")
     case "$*" in
       *--log-failed*) echo 'FAIL synthetic-terminal' ;;
       *status,conclusion*)
         [ -f "$STUB_DIR/status-error" ] && exit 1
-        n=$(cat "$STUB_DIR/read-count"); n=$((n + 1)); echo "$n" > "$STUB_DIR/read-count"
-        row=$(sed -n "\${n}p" "$STUB_DIR/states")
-        [ -n "$row" ] || row=$(tail -n 1 "$STUB_DIR/states")
+        n=$(< "$STUB_DIR/read-count"); n=$((n + 1)); echo "$n" > "$STUB_DIR/read-count"
+        mapfile -t rows < "$STUB_DIR/states"
+        row=''
+        if [ "\${#rows[@]}" -gt 0 ]; then
+          row=\${rows[n-1]-}
+          [ -n "$row" ] || row=\${rows[\${#rows[@]}-1]}
+        fi
         printf '%s\n' "$row" ;;
-      *) [ -f "$STUB_DIR/identity-error" ] && exit 1; cat "$STUB_DIR/identity" ;;
+      *) [ -f "$STUB_DIR/identity-error" ] && exit 1; emit_file "$STUB_DIR/identity" ;;
     esac ;;
-  "pr view") [ -f "$STUB_DIR/metadata-error" ] && exit 1; cat "$STUB_DIR/closing-result" ;;
+  "pr view") [ -f "$STUB_DIR/metadata-error" ] && exit 1; emit_file "$STUB_DIR/closing-result" ;;
 esac
 `,
   );
+  chmodSync(join(f.tmp, 'bin', 'gh'), 0o755);
   writeFileSync(join(f.tmp, 'bin', 'sleep'), '#!/usr/bin/env bash\nexit 0\n');
   chmodSync(join(f.tmp, 'bin', 'sleep'), 0o755);
   f.write('identity', `42\t${GOOD_MAIN}\t2\n`);
