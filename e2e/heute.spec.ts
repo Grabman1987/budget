@@ -142,6 +142,7 @@ test('a direct R07 visit falls back to Bis Gehalt without a stored choice', asyn
   expect(selected.searchParams.get('month')).toBe('2026-09');
   expect(selected.searchParams.get('period')).toBe('payday');
   const data = (await response.json()) as Heute;
+  expect(data.stand.month).toBe('2026-09');
   expect(data.stand.period).toBe('payday');
   expect(data.stand.payday.day).toBe('2026-10-15');
   expect(data.stand.to).toBe('2026-10-17');
