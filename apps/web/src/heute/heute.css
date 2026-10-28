@@ -235,7 +235,7 @@
       ) {
       display: none;
     }
-    .heute-kennzahl > a,
+    .heute-answer.heute-kennzahl > a,
     .heute-kennzahl > .heute-kennzahl-figure {
       grid-column: auto;
       min-height: 44px;
@@ -1088,6 +1088,16 @@
 }
 
 @media (max-width: 767px) {
+  /* Keep the actual monthly chart on the first screen without reducing type or controls. */
+  .sheet:has(> .heute) {
+    row-gap: var(--space-sm);
+  }
+  .heute {
+    gap: var(--space-sm);
+  }
+  .heute > .report-verdict {
+    margin: 0;
+  }
   .heute {
     padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
   }
