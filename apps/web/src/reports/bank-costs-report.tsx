@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import {
   AxisLine,
   ChartSvg,
@@ -26,15 +27,24 @@ const costsQuery = queryOptions({
   queryFn: () => request<BankCostsReport>('GET', '/api/reports/spending/costs'),
 });
 const COLORS = ['var(--line)', 'var(--want)', 'var(--future)', 'var(--ink-3)', 'var(--line-2)'];
-export function BankCostsReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function BankCostsReportPage({
+  report,
+  meta,
+  viewControl,
+}: {
+  report: ReportEntry;
+  meta: PageMeta;
+  viewControl?: ReactNode;
+}) {
   const query = useQuery(costsQuery);
   const data = !query.isFetching ? query.data : undefined;
   return (
     <PageFrame
+      reportControls={viewControl}
       verdict={
         data && !query.isError
           ? {
-              reportId: report.id,
+              reportId: 'kosten',
               period: `${data.from}..${data.to}`,
               metric: {
                 label: 'Erfasste Kosten',

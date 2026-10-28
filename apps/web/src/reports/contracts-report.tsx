@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
@@ -44,12 +45,21 @@ const rateText = (micro: number | null, currency: string) =>
   micro === null ? '–' : `${privateAmount(rate.format(micro / 1_000_000))} €/${currency}`;
 
 /** 2.3 Verträge und Abos: Welche Verträge binden uns, und was lässt sich kündigen? */
-export function ContractsReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function ContractsReportPage({
+  report,
+  meta,
+  viewControl,
+}: {
+  report: ReportEntry;
+  meta: PageMeta;
+  viewControl?: ReactNode;
+}) {
   useAmountPrivacy();
   const query = useQuery(contractsQuery);
   const data = query.data && !query.isFetching ? query.data : undefined;
   return (
     <PageFrame
+      reportControls={viewControl}
       verdict={
         data && !query.isError
           ? {

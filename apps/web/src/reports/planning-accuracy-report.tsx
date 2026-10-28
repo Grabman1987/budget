@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { PlanningAccuracyReport } from '@budget/db';
 import { lastDayOfMonth } from '@budget/domain';
 import { ChartValue, useAmountPrivacy } from '@budget/ui';
@@ -46,9 +47,11 @@ export function PaceAccuracyNote({ summary }: { summary?: Summary | undefined })
 export function PlanningAccuracyReportPage({
   report,
   meta,
+  viewControl,
 }: {
   report: ReportEntry;
   meta: PageMeta;
+  viewControl?: ReactNode;
 }) {
   const [month, shift] = useMonth();
   const query = useQuery({
@@ -60,10 +63,11 @@ export function PlanningAccuracyReportPage({
   useAmountPrivacy();
   return (
     <PageFrame
+      reportControls={viewControl}
       verdict={
         query.data && !query.isFetching && !query.isError
           ? {
-              reportId: report.id,
+              reportId: 'planungstreue',
               period: month,
               metric: {
                 label: 'Mittlere Prognoseabweichung',
@@ -143,7 +147,20 @@ export function PlanningAccuracyReportPage({
                           {data.months.map((r) => (
                             <tr key={r.month}>
                               <th scope="row">
-                                <AppLink to="/reports/planungstreue" search={{ monat: r.month }}>
+                                <AppLink
+                                  to={
+                                    report.id === 'budgettreue'
+                                      ? '/reports/budgettreue'
+                                      : '/reports/planungstreue'
+                                  }
+                                  search={(previous) => ({
+                                    ...previous,
+                                    monat: r.month,
+                                    ...(report.id === 'budgettreue'
+                                      ? { darstellung: 'planungstreue' }
+                                      : {}),
+                                  })}
+                                >
                                   {monthLabel(r.month)}
                                 </AppLink>
                               </th>
