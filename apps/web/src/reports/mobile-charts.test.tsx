@@ -49,4 +49,26 @@ describe('phone chart variants', () => {
     expect(list.textContent).toContain('€');
     expect(list.textContent).toContain('%');
   });
+
+  // Keep both compact suffixes and tall second lines in a rendered value role.
+  it('keeps compact and tall Sankey values in separate value-role SVG nodes', () => {
+    const { container } = render(<SankeyChart width={1000} model={SAMPLE_SANKEY} />);
+    const compactValues = [...container.querySelectorAll('text.svg-label-strong tspan.svg-value')];
+    const tallValues = [...container.querySelectorAll('text.svg-label.svg-value')];
+
+    expect(compactValues.length).toBeGreaterThan(0);
+    expect(tallValues.length).toBeGreaterThan(0);
+    expect(
+      compactValues.some(
+        (value) => value.textContent?.includes('€') && value.textContent.includes('%'),
+      ),
+    ).toBe(true);
+    expect(tallValues.some((value) => value.textContent?.includes('3.812,00'))).toBe(true);
+    expect(
+      tallValues.some(
+        (value) => value.textContent?.includes('€') && value.textContent.includes('%'),
+      ),
+    ).toBe(true);
+    expect(container.querySelector('text.svg-label-strong')?.textContent).toContain('Gehalt');
+  });
 });
