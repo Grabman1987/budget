@@ -415,3 +415,11 @@ column counts, dates, money, bounds, PDF geometry and every strict token/state
 assertion are unchanged. The year PDF stage was not reached in that red run;
 corrected source still needs exact-head focused proof. No stale format patch was
 applied and no local runtime/formatter command ran.
+
+The separately authorized `e2e/capture.spec.ts` growing-note case now waits for
+finite panel/subtree animations immediately before its unchanged44px geometry
+loop, using the existing capture-dialog-layout pattern. The actual full-run trace
+measured Close238–247ms into the260ms phone-sheet transform at
+43.999999861px. No rounding, forced completion, fixed sleep, shared helper,
+product CSS or timing/size threshold changes are made; all remaining note/split/
+save/register/source assertions are unchanged. Exact focused proof remains pending.
