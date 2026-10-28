@@ -24,6 +24,7 @@ let failed: Read | undefined;
 let gate: { read: Read; promise: Promise<void>; release: () => void } | undefined;
 let writes: string[];
 let unexpected: string[];
+let inFlight: Set<Promise<Response>>;
 const proposal: SavingsExecutionProposal = {
   type: 'savings', id: 'synthetic-proposal', kind: 'revision', urgent: false,
   planId: 'synthetic-plan', month: '2026-09', securityId: 'synthetic-security',
@@ -49,7 +50,9 @@ beforeEach(() => {
   gate = undefined;
   writes = [];
   unexpected = [];
-  vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
+  inFlight = new Set();
+  vi.stubGlobal('fetch', (input: string, init?: RequestInit) => {
+    const response = (async () => {
     const url = new URL(input, 'http://localhost');
     if ((init?.method ?? 'GET') !== 'GET') {
       writes.push(`${init?.method} ${url.pathname}`);
@@ -70,12 +73,18 @@ beforeEach(() => {
       return Response.json({ error: 'unexpected_test_read' }, { status: 500 });
     }
     return api.request(url.pathname.replace(/^\/api/, '') + url.search, init);
+    })();
+    inFlight.add(response);
+    void response.then(() => inFlight.delete(response), () => inFlight.delete(response));
+    return response;
   });
 });
 afterEach(async () => {
   gate?.release();
   cleanup();
   await client.cancelQueries();
+  // Query cancellation does not stop an already released synthetic API read.
+  const completed = await Promise.allSettled([...inFlight]);
   client.clear();
   opened.close();
   act(() => setAmountsHidden(false));
@@ -84,6 +93,7 @@ afterEach(async () => {
   localStorage.clear();
   expect(writes).toEqual([]);
   expect(unexpected).toEqual([]);
+  expect(completed.filter((result) => result.status === 'rejected')).toEqual([]);
 });
 function mount(at = '/?monat=2026-09&period=month') {
   const root = createRootRoute({ validateSearch: (search: Record<string, unknown>) => ({
@@ -125,6 +135,7 @@ it('keeps successful independent reads on initial aggregate failure without inve
   mount();
   await screen.findByRole('alert');
   await ready();
+  expect(budgetTile()).not.toBeNull();
   expect(within(budgetTile()).getByTestId('kennzahl-value')).toBeTruthy();
   expect(card().querySelector('.heute-forecast-low')).toBeTruthy();
   expect(screen.getByText('1 Sparplanausführung prüfen')).toBeTruthy();
