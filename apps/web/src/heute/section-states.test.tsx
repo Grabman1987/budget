@@ -130,6 +130,22 @@ it('reserves each aggregate section while pending and keeps independently loaded
   expect(document.querySelector('[data-kennzahl="nettovermoegen"]')).toBeNull();
 });
 
+it('retains an honest empty goal slot after the real no-goal response settles', async () => {
+  hold('heute');
+  mount();
+  await screen.findByText('Zu verteilen');
+  const slot = document.querySelector('.heute-nearest-goal')!;
+  expect(slot).not.toBeNull();
+  expect(slot.getAttribute('aria-hidden')).toBe('true');
+  act(() => gate!.release());
+  await screen.findByTestId('heute-wealth-history');
+  await ready();
+  expect(document.querySelector('.heute-nearest-goal')).toBe(slot);
+  expect(slot.getAttribute('aria-hidden')).toBe('true');
+  expect(slot.querySelector('a')).toBeNull();
+  expect(slot.textContent).toBe('');
+});
+
 it('keeps successful independent reads on initial aggregate failure without inventing current net worth', async () => {
   failed = 'heute';
   mount();

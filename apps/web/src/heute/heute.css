@@ -1225,7 +1225,7 @@
 .heute .heute-answer-value:is(.is-unavailable, [aria-busy='true']) {
   color: var(--ink-3);
 }
-.heute-goal-state {
+.heute-nearest-goal {
   min-block-size: 1lh;
 }
 .heute .rev-empty .btn {
@@ -1240,7 +1240,7 @@
   .heute-pace-state-note {
     min-block-size: 3lh;
   }
-  .heute-goal-state {
+  .heute-nearest-goal {
     min-block-size: 2lh;
   }
 }

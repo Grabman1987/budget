@@ -198,7 +198,7 @@ export function Kennzahlen({
           </AppLink>
         </p>
       )}
-      {!data && <p className="heute-nearest-goal heute-goal-state" aria-hidden="true">…</p>}
+      {!goal && <p className="heute-nearest-goal" aria-hidden="true" />}
     </div>
   );
 }
