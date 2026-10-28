@@ -595,7 +595,9 @@ const redirects = [
   redirectRoute('/reports/planungstreue', '/reports/budgettreue', { darstellung: 'planungstreue' }),
   redirectRoute('/reports/kosten', '/reports/abos', { darstellung: 'bankkosten' }),
   redirectRoute('/reports/vermoegen', '/reports/vermoegen-schulden', { darstellung: 'verlauf' }),
-  redirectRoute('/reports/gesamtuebersicht', '/reports/vermoegen-schulden', { darstellung: 'gesamt' }),
+  redirectRoute('/reports/gesamtuebersicht', '/reports/vermoegen-schulden', {
+    darstellung: 'gesamt',
+  }),
   redirectRoute('/reports/peinzahlungen', '/reports/pallocation', { darstellung: 'einzahlungen' }),
   redirectRoute('/reports/prendite', '/reports/pallocation', { darstellung: 'rendite' }),
   redirectRoute('/reports/jahresansicht', '/reports/explorer', { vorlage: 'year' }, 'YTD'),

@@ -101,25 +101,22 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
   const [templatePeriod, setTemplatePeriod] = useZeitraum('1J');
   const templateRead = useQuery({ ...explorerTemplateQuery, enabled: Boolean(template) });
   const templateCategory = search.kategorien?.[0];
-  const templateModel = useMemo(
-    () => {
-      const year = templateRead.data ? explorerTemplateYears(templateRead.data).at(-1) : undefined;
-      return template && templateRead.data
-        ? explorerTemplate(templateRead.data, {
-            id: template,
-            period: templatePeriod,
-            ...(template === 'heatmap' && search.exakt ? { exactWindow: true } : {}),
-            ...(templateCategory ? { categoryId: templateCategory } : {}),
-            ...(templatePeriod.includes('..')
-              ? { year: Number(templatePeriod.slice(0, 4)) }
-              : template === 'year' && year !== undefined
-                ? { year }
-                : {}),
-          })
-        : undefined;
-    },
-    [template, templateRead.data, templatePeriod, templateCategory, search.exakt],
-  );
+  const templateModel = useMemo(() => {
+    const year = templateRead.data ? explorerTemplateYears(templateRead.data).at(-1) : undefined;
+    return template && templateRead.data
+      ? explorerTemplate(templateRead.data, {
+          id: template,
+          period: templatePeriod,
+          ...(template === 'heatmap' && search.exakt ? { exactWindow: true } : {}),
+          ...(templateCategory ? { categoryId: templateCategory } : {}),
+          ...(templatePeriod.includes('..')
+            ? { year: Number(templatePeriod.slice(0, 4)) }
+            : template === 'year' && year !== undefined
+              ? { year }
+              : {}),
+        })
+      : undefined;
+  }, [template, templateRead.data, templatePeriod, templateCategory, search.exakt]);
   const [query, setQuery] = useState<ExplorerQuery>(DEFAULT_EXPLORER_QUERY);
   const entryInstance = useId();
   const [observedEntry, setObservedEntry] = useState({ id: search.ansicht, generation: 0 });
