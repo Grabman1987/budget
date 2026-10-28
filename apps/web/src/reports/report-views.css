@@ -65,3 +65,22 @@
     min-height: var(--touch);
   }
 }
+
+@media (max-width: 767px), (pointer: coarse) {
+  .report-view-switch.seg button {
+    min-height: var(--touch);
+  }
+}
+
+@media (max-width: 767px) {
+  .report-wealth-switch.seg {
+    display: grid;
+    grid-auto-flow: row;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+  .report-wealth-switch.seg button {
+    height: auto;
+    min-height: var(--touch);
+  }
+}

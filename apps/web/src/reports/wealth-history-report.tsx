@@ -1,7 +1,7 @@
 import { ReportPeriodControl } from './period-quick-select';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { userText } from '../api/error-text';
 import { ApiError } from '../api/http';
@@ -28,7 +28,15 @@ const percent = new Intl.NumberFormat('de-AT', {
  * Report 3.3 Vermögensverläufe: the net worth of the chosen Zeitraum with its Maßkette (the same
  * series and chain as Vermögen › Nettovermögen) and how it is made up by account type over time.
  */
-export function WealthHistoryReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function WealthHistoryReport({
+  report,
+  meta,
+  viewControl,
+}: {
+  report: ReportEntry;
+  meta: PageMeta;
+  viewControl?: ReactNode;
+}) {
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
   const query = useQuery(netWorthHistoryQuery(period));
@@ -53,6 +61,7 @@ export function WealthHistoryReport({ report, meta }: { report: ReportEntry; met
             ? 'nicht verfügbar'
             : 'wird geladen'
       }
+      reportControls={viewControl}
       extraFields={[
         {
           label: 'Zeitraum',

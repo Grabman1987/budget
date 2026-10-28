@@ -36,6 +36,12 @@ sampleTest(
     await expect(
       page.locator('.titleblock .tb-field').filter({ hasText: 'Stichtag' }).locator('.tb-value'),
     ).toHaveText('31.08.2026 · Monatsende');
+    await expect(
+      page.locator('.titleblock .tb-field').filter({ hasText: 'Datenbasis' }).locator('.tb-value'),
+    ).toHaveText('01.10.23–31.08.26');
+    if (info.project.name === 'desktop') {
+      expect((await page.locator('.titleblock').first().boundingBox())!.height).toBe(64);
+    }
     expect(initialData.bookingCount).toBeGreaterThan(0);
     expect(initialData.rows.length).toBeGreaterThan(0);
     await expect(
