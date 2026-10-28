@@ -340,18 +340,21 @@ test('class mini histories retain the shared period, full class universe and mon
     );
     for (const measurement of measurements) {
       // Figure/section bounds are diagnostic; only actual viewport or ancestor clipping fails.
-      expect(measurement.textRange.left, `${measurement.text}: viewport left`).toBeGreaterThanOrEqual(
-        measurement.viewport.left,
-      );
-      expect(measurement.textRange.right, `${measurement.text}: viewport right`).toBeLessThanOrEqual(
-        measurement.viewport.right,
-      );
+      expect(
+        measurement.textRange.left,
+        `${measurement.text}: viewport left`,
+      ).toBeGreaterThanOrEqual(measurement.viewport.left);
+      expect(
+        measurement.textRange.right,
+        `${measurement.text}: viewport right`,
+      ).toBeLessThanOrEqual(measurement.viewport.right);
       expect(measurement.textRange.top, `${measurement.text}: viewport top`).toBeGreaterThanOrEqual(
         measurement.viewport.top,
       );
-      expect(measurement.textRange.bottom, `${measurement.text}: viewport bottom`).toBeLessThanOrEqual(
-        measurement.viewport.bottom,
-      );
+      expect(
+        measurement.textRange.bottom,
+        `${measurement.text}: viewport bottom`,
+      ).toBeLessThanOrEqual(measurement.viewport.bottom);
       for (const ancestor of measurement.clipping) {
         if (ancestor.clipX) {
           expect(measurement.textRange.left).toBeGreaterThanOrEqual(ancestor.bounds.left);
@@ -363,7 +366,11 @@ test('class mini histories retain the shared period, full class universe and mon
         }
       }
     }
-    await classes.getByTestId('portfolio-class-history').last().locator('figcaption').scrollIntoViewIfNeeded();
+    await classes
+      .getByTestId('portfolio-class-history')
+      .last()
+      .locator('figcaption')
+      .scrollIntoViewIfNeeded();
     await page.mouse.move(0, 0);
     await page.evaluate(() => {
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
