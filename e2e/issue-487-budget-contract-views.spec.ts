@@ -63,6 +63,35 @@ async function inspect(page: Page, info: TestInfo, label: string) {
   }
 }
 
+async function privacy(page: Page, hidden: boolean) {
+  const profile = page.locator('.m-profile > summary');
+  const phone = await profile.isVisible();
+  if (phone) await profile.click();
+  const button = page.getByRole('button', { name: 'Beträge verbergen', exact: true });
+  await expect(button).toHaveAttribute('aria-pressed', String(!hidden));
+  await button.click();
+  await expect(button).toHaveAttribute('aria-pressed', String(hidden));
+  if (phone) await profile.click();
+}
+
+async function masked(page: Page, bodyId: string, clearAmount: RegExp, clearVerdict: string) {
+  await expect(page.getByTestId(bodyId)).toContainText('••• €');
+  await expect(page.getByTestId('report-verdict')).toContainText('•••');
+  await expect(page.getByTestId('report-verdict')).not.toHaveText(clearVerdict);
+  const exposed = await page.locator('body').evaluate((body) => {
+    const attributes = [body, ...body.querySelectorAll('*')].flatMap((element) =>
+      [...element.attributes]
+        .filter(
+          (attribute) =>
+            attribute.name.startsWith('aria-') || ['title', 'alt', 'value'].includes(attribute.name),
+        )
+        .map((attribute) => attribute.value),
+    );
+    return [body.textContent ?? '', ...attributes].join('\n');
+  });
+  expect(exposed).not.toMatch(clearAmount);
+}
+
 test('Budgettreue retains exact plan and stored forecast bodies, quality, month and query intent', async ({
   page,
   request,
@@ -136,6 +165,23 @@ test('Budgettreue retains exact plan and stored forecast bodies, quality, month 
   await expect(page.getByTestId('planning-accuracy')).toContainText(
     'Für diesen Monat liegt noch kein Vergleich vor.',
   );
+
+  await page.goto('/reports/budgettreue?monat=2026-09');
+  await expect(page.getByTestId('budget-adherence')).toHaveText(budget, { useInnerText: true });
+  await expect(page.getByTestId('budget-adherence')).toContainText('300,01 €');
+  const budgetVerdict = await page.getByTestId('report-verdict').innerText();
+  await privacy(page, true);
+  await masked(page, 'budget-adherence', /300[,.]01/, budgetVerdict);
+  await page.getByRole('button', { name: 'Planungstreue', exact: true }).click();
+  await masked(page, 'planning-accuracy', /300[,.]0[01]/, verdict);
+  await privacy(page, false);
+  await expect(page.getByTestId('planning-accuracy')).toHaveText(forecast, { useInnerText: true });
+  await expect(page.getByTestId('planning-accuracy')).toContainText('300,01 €');
+  await expect(page.getByTestId('planning-accuracy')).toContainText('300,00 €');
+  await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
+  await page.getByRole('button', { name: 'Plan und Ist', exact: true }).click();
+  await expect(page.getByTestId('budget-adherence')).toHaveText(budget, { useInnerText: true });
+  await expect(page.getByTestId('report-verdict')).toHaveText(budgetVerdict, { useInnerText: true });
 });
 
 test('Verträge und Kosten retains separate source periods, subtotal coverage and legacy bodies', async ({
@@ -195,4 +241,20 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
   }
   await page.goBack();
   await expect(page.getByTestId('bank-costs-report')).toHaveText(bankBody, { useInnerText: true });
+
+  await expect(page.getByTestId('bc-total')).toHaveText('6,91 €');
+  await expect(page.getByTestId('report-verdict')).toContainText('6,91 €');
+  await privacy(page, true);
+  await expect(page.getByTestId('bc-total')).toHaveText('••• €');
+  await masked(page, 'bank-costs-report', /6[,.]91/, verdict);
+  await page.getByRole('button', { name: 'Verträge', exact: true }).click();
+  // This fixture has no contracts; only the bank reader's known money is asserted for privacy.
+  await expect(page.getByTestId('contracts-report')).toContainText('Noch keine Verträge');
+  await page.getByRole('button', { name: 'Bank- und Zinskosten', exact: true }).click();
+  await expect(page.getByTestId('bc-total')).toHaveText('••• €');
+  await masked(page, 'bank-costs-report', /6[,.]91/, verdict);
+  await privacy(page, false);
+  await expect(page.getByTestId('bc-total')).toHaveText('6,91 €');
+  await expect(page.getByTestId('bank-costs-report')).toHaveText(bankBody, { useInnerText: true });
+  await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
 });
