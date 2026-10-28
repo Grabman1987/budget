@@ -42,7 +42,7 @@ remain open; there are no redirects or new financial calculations.
   shared benchmark acceptance and physical-device acceptance are not established
   by this source package.
 
-## Evidence prepared, not executed locally
+## Evidence and verification
 
 New mandatory unit spec: `remaining-target-search-487.test.ts` (four parameterized
 search-state cases plus canonical catalog/legacy identity assertions).
@@ -66,9 +66,36 @@ WebKit issue-spec patterns without configuration changes:
 - Both themes, full Axe, no page overflow, phone 44px view controls and PNGs are
   prepared. No skip, timeout extension, snapshot update or old oracle edit.
 
-All old test files, readers' API queries, financial engines and CSS are unchanged.
+All old test files, readers' API queries and financial engines are unchanged.
 Shared overlaps for integration review: `report-search.ts` representation union,
 `reports-catalog.ts` two canonical names, `reports-pages.tsx` dispatch/trend context.
-Reader edits are optional controls only. No local Node/npm/tests/build/browser/
-formatter ran because of the RAM restriction. Independent HIGH review and
-scheduled runtime/static/format verification are still required before delivery.
+Reader edits are optional controls and the Project hero comma glyph. A scoped
+Portfolio title rule shows the full canonical heading on desktop. The monthly
+contribution table retains every value and uses its existing keyboard-scroll
+region with single-line date and amount cells. No redirect or new writer exists.
+
+Independent capable full source review and later bounded visual delta review
+cleared the source for runtime (`private/487-remaining-final-review.md`,
+`private/487-remaining-visual-delta-review.md`). First focused
+[40632840717](https://github.com/Grabman1987/budget/actions/runs/40632840717)
+passed 38 browser cases plus three setup cases; three new global Project cases
+failed because the test URL omitted its August month. The fixture's existing
+household side income and literal cents were retained. The scoped URL correction
+passed all three profiles in
+[40633683222](https://github.com/Grabman1987/budget/actions/runs/40633683222),
+three browsers plus three setup cases. An independently reviewed mechanical
+format patch was applied. Actual screenshots from that stage revealed the
+truncated desktop canonical Portfolio title and wrapped phone monthly cells;
+the bounded CSS and geometry/keyboard corrections were then reviewed.
+
+Combined affected [40634964847](https://github.com/Grabman1987/budget/actions/runs/40634964847)
+passed all 15 new browser cases and three setup cases, plus seven old
+contribution reader cases, first attempt. Restored-source, lint, typecheck,
+build and discovery flags were green; the workflow was red only for formatting
+of the new E2E file. Root independently reviewed and applied that exact
+mechanical patch. The corrected image packet
+[40635676194](https://github.com/Grabman1987/budget/actions/runs/40635676194)
+passed four affected cases in desktop and WebKit, both themes, and retained
+16 actual PNGs in `private/487-visual-40635676194/`. Independent visual review
+and checked-main integration remain before a public PR and its required exact
+CI. No local Node/npm/tests/build/browser/formatter ran because of host RAM.
