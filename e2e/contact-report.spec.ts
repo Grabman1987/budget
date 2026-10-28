@@ -79,20 +79,23 @@ test('fixed EUR report preserves credit, running history, source links and recei
   };
   const actual = await statement();
   expect(actual).toMatchObject({ currency: 'EUR', balanceCents: -2000, creditCents: 2000 });
-  expect(actual.movements.map((m: { amountCents: number; balanceCents: number; status: string; accountId: string }) => [m.amountCents, m.balanceCents, m.status, m.accountId])).toEqual([
-    [-10000, 10000, 'pending', data.account.id], [12000, -2000, 'confirmed', data.account.id],
+  expect(actual.movements.map((m: { amountCents: number; balanceCents: number; status: string; accountId: string; bookingId: string; date: string }) => [m.amountCents, m.balanceCents, m.status, m.accountId, m.bookingId, m.date])).toEqual([
+    [-10000, 10000, 'pending', data.account.id, data.outlay.bookings[0].id, '2026-09-01'], [12000, -2000, 'confirmed', data.account.id, data.receipt.bookingId, data.today],
   ]);
   await page.goto(`/reports/kontakte?kontakt=${data.contact.id}`);
   await expect(page).toHaveURL(new RegExp(`/konten/kontakte/${data.contact.id}$`));
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   await expect(sheet.locator('.contacts-balance')).toContainText('Du schuldest 20,00 €');
-  const table = sheet.getByRole('table', { name: 'Kontaktbuchungen im aktuellen Monat' });
-  await expect(table.getByRole('row')).toHaveCount(3);
-  await expect(table.locator('tbody tr').nth(0).locator('td').nth(1)).toHaveText('+100,00 €');
-  await expect(table.locator('tbody tr').nth(1).locator('td').nth(1)).toHaveText('−120,00 €');
+  const movements = sheet.locator('.contact-movements tbody tr');
+  await expect(movements).toHaveCount(2);
+  const outlay = movements.filter({ has: sheet.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ }) });
+  const receipt = movements.filter({ hasText: '−120,00 €' });
+  await expect(outlay.locator('td').nth(1)).toHaveText('+100,00 €');
+  await expect(outlay).toContainText('01.09.2026');
+  await expect(receipt.locator('td').nth(1)).toHaveText('−120,00 €');
   await expect(sheet.getByRole('heading', { name: data.contact.name, exact: true })).toBeFocused();
-  await table.locator('.contact-allocation-details > summary').click();
-  await expect(table.locator('.contact-allocation-details')).toContainText('Guthaben: 20,00 €');
+  await receipt.locator('.contact-allocation-details > summary').click();
+  await expect(receipt.locator('.contact-allocation-details')).toContainText('Guthaben: 20,00 €');
   await expect(page.getByRole('combobox', { name: /Monat|Zeitraum/ })).toHaveCount(0);
   const overview = await (await request.get(`${MAIN_URL}/api/contacts?history=1`)).json();
   expect(overview.totals.balanceCents).toBe(overview.totals.receivableCents - overview.totals.payableCents);
@@ -100,10 +103,12 @@ test('fixed EUR report preserves credit, running history, source links and recei
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
     await capture(page, `contact-report-${theme}`, info);
   }
-  const source = table.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ });
+  const source = outlay.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ });
   expect((await source.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await source.focus();
+  const sourceRead = page.waitForRequest((r) => new URL(r.url()).pathname === `/api/bookings/${data.outlay.bookings[0].id}`);
   await page.keyboard.press('Enter');
+  await sourceRead;
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('dialog')).toContainText(data.account.name);
   await page.keyboard.press('Escape');
@@ -111,12 +116,12 @@ test('fixed EUR report preserves credit, running history, source links and recei
   expect(writes).toEqual([]);
   const undone = await data.post('/undo', { groupId: data.receipt.groupId });
   await page.reload();
-  await expect(table.getByRole('row')).toHaveCount(2);
+  await expect(movements).toHaveCount(1);
   await expect(sheet.locator('.contacts-balance')).toContainText('100,00 €');
   expect((await statement()).movements.map((m: { balanceCents: number }) => m.balanceCents)).toEqual([10000]);
   await data.post('/undo', { groupId: undone.groupId });
   await page.reload();
-  await expect(table.getByRole('row')).toHaveCount(3);
+  await expect(movements).toHaveCount(2);
   await expect(sheet.locator('.contacts-balance')).toContainText('Du schuldest 20,00 €');
   expect((await statement()).movements.map((m: { balanceCents: number }) => m.balanceCents)).toEqual([10000, -2000]);
 });
@@ -133,10 +138,15 @@ test('balanced contacts stay hidden by default and retain deep-linked full histo
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   await expect(sheet.locator('.contacts-balance')).toContainText('Ausgeglichen');
   await expect(sheet.locator('.contacts-balance')).toContainText('0,00 €');
-  await expect(sheet.getByRole('table').getByRole('row')).toHaveCount(3);
+  const closed = sheet.locator('.contacts-closed-history > summary');
+  if (await closed.count()) await closed.click();
+  await expect(sheet.locator('.contact-movements tbody tr')).toHaveCount(2);
+  await expect(sheet.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ })).toBeVisible();
   await page.reload();
   await expect(sheet).toBeVisible();
-  await expect(sheet.getByRole('table').getByRole('row')).toHaveCount(3);
+  if (await closed.count()) await closed.click();
+  await expect(sheet.locator('.contact-movements tbody tr')).toHaveCount(2);
+  await expect(sheet.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ })).toBeVisible();
   // Source context is now explicitly the area's retained-history filter.
   await page.getByRole('link', { name: 'Zurück zu Kontakte', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Alle', exact: true })).toHaveAttribute('aria-pressed', 'true');

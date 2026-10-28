@@ -170,3 +170,26 @@ disclosure that mounts the existing TotalTableReport only when opened.
   owner-approved replacement shapes remain the year matrix and one-category
   line/mean. Existing domain previous-year, share, missing-month and CSV oracles
   remain unchanged, as do all source calculations and table schemas.
+
+## Coverage phase C (prepared, runtime checks pending)
+
+| Existing file | Exact reason and preserved coverage |
+| --- | --- |
+| `e2e/report-tables.spec.ts` | Total opens the explicit all-history disclosure, then keeps the original36 dated columns/values,84730 last value, depth, BOM/filename/exact `tableCsv` bytes and unavailable net-worth oracles. Source-basis and scroller selectors move into that disclosure;44px opening is added. Year now checks every old source-model month and row total at exact cents, selected year/reload/missing cells and category/group equality. Owner517 replaces the old rounded chain/comparison/depth UI with the fixed category matrix; paired-year availability8/12/3/0 and missing months remain checked from the same real API, with unchanged literal previous-year/domain tests. Category now selects each source category and checks exact months/sum/rounded average, source peak, cell details/reload/close and all-history period changes; original consumption-share sum invariant remains. Old overview payee/share/previous-period displays are superseded by the accepted single-category view; their domain/API contracts remain unchanged. Empty/error/retry/loading mocks target the actual canonical read, retaining the original timing limits and no invented zero. Sparquote financial checks are unchanged. |
+| `e2e/category-trend.spec.ts` | Accepted single-category picker replaces the old multicategory/previous-year overlay. Category identity, explicit period and `vorjahr` query survive reload; exact original August value now reconciles with actual cell-source amounts/booking links. The original independent category-month filtered-bookings sum, dates and identity are retained at the existing register consumer. Privacy still masks the category values and exact heatmap cell; the later heatmap source/44px test is untouched. Literal missing-versus-zero and prior-year pairing stay in unchanged `packages/domain/src/report-tables/category-trend.test.ts`. |
+| `e2e/issue-552-report-frame.spec.ts` | Account for exactly one approved project/category combobox on Cashflow/Category. Period control uniqueness,64px geometry, keyboard/trend,44px and accessibility checks are retained. |
+| `e2e/issue-552b-report-sections.spec.ts` | Generic collapse/expand/reload/storage/print/44px checks use current Geldfluss month reader and canonical income/expense table, rather than the replaced year template. Separate paths preserve the original per-page storage test intent; no financial assertions in this file are removed. |
+| `e2e/issue-555-chart-accessibility.spec.ts` | Goal alias opens the actual Plan goal detail before testing the same shared GoalHistory chart's one-image summary. All original exact onepager percentages, table alternatives,44px/Axe/keyboard checks remain. |
+| `e2e/mobile-chart-containers.spec.ts` | Year region and final column become the accepted template's native scroll region and Ø column. Native focus, rightmost visibility within390px and no page overflow remain; the obsolete prior-year Veränderung column/hint is not recreated. |
+| `e2e/report-polish.spec.ts` | Only the year heatmap selector changes to actual `data-heat` cells; both-theme4.5 contrast threshold and all other report cases remain unchanged. |
+| `e2e/report-panel-layouts.spec.ts` | Retired Finanzcheck sections map to actual Heute attention/upcoming sections. Category's actual cell-source heading/facts and exact booking link replace the removed overview detail wrapper. Original vertical ordering/full-width2px bounds and both-theme inspection remain. |
+| `e2e/contact-report.spec.ts` | Reviewer correction: preserve original2026-09-01 outlay and server-today receipt. Count exact movements across current/history groups; expand recorded closed history where needed. Real API checks include exact source booking IDs and both original dates/statuses/amounts/running balances. No fixture date was moved to fit a current-month selector. |
+| `e2e/issue-620-report-aliases.spec.ts` | Alias/direct Heute normalization parity also retains explicit month/range. With supported explicit `period=month`, all34 browser cases retain hash forwarding; without it, both direct and alias follow existing target normalization. |
+
+The first root cloud proof on source5b387f19 (workflow child a362) had passing
+lint/type/build,68 redirect units,12 pre-existing template units and144 actual
+browser cases across desktop/mobile/WebKit, without retries. It failed the new
+trend mock setup, the new year test's unscoped cell selector and three Heute hash
+cases. Their test setup/selectors and explicit-period/direct-target parity were
+corrected; that old proof does not validate later commits. No current full-green
+or publication claim is made.

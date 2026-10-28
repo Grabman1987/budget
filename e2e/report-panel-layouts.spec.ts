@@ -14,8 +14,8 @@ test('secondary report sections follow their main content at full width', async 
     },
     {
       path: '/reports/finanzcheck',
-      main: '[aria-labelledby="fc-today"]',
-      secondary: '[aria-labelledby="fc-actions"]',
+      main: '.heute-attention',
+      secondary: '[aria-labelledby="heute-upcoming-title"]',
       name: 'overview-inline',
     },
     {
@@ -56,15 +56,15 @@ test('secondary report sections follow their main content at full width', async 
     await inspectReport(page, info, item.name);
   }
   await page.goto('/reports/kategorien?zeitraum=1J');
-  await page.locator('.rc-btn[aria-expanded="false"]').first().click();
-  const summary = page.locator('.rc-d').first();
+  await page.getByTestId('template-category').locator('[data-template-column]').first().click();
+  const summary = page.getByTestId('template-sources');
   await expect(summary).toBeVisible();
-  const container = (await summary.boundingBox())!;
-  const facts = (await summary.locator('.rc-facts').boundingBox())!;
+  const container = (await summary.locator('.ex-template-source-heading').boundingBox())!;
+  const facts = (await summary.locator(':scope > p').first().boundingBox())!;
   expect(Math.abs(container.width - facts.width)).toBeLessThan(2);
-  await expect(page.locator('.category-month-link').first()).toHaveAttribute(
+  await expect(summary.locator('.report-source-link').first()).toHaveAttribute(
     'href',
-    /basis=category-spending/,
+    /buchung=/,
   );
   await inspectReport(page, info, 'category-inline-summary');
 });

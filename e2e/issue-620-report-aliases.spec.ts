@@ -59,10 +59,11 @@ for (const [slug, target, view] of landings) {
 
 test('620 absent Heute period uses the same normalization through the alias and the direct target', async ({ page }) => {
   for (const path of ['/', '/reports/finanzcheck']) {
-    await page.goto(`${path}?monat=2026-08#details`);
+    await page.goto(`${path}?monat=2026-08&zeitraum=2026-01..2026-08#details`);
     await expect.poll(() => new URL(page.url()).searchParams.get('period')).toBe('month');
     expect(new URL(page.url()).pathname).toBe('/');
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
+    expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('2026-01..2026-08');
     expect(new URL(page.url()).hash).toBe('');
   }
 });
