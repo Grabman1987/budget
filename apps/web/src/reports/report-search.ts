@@ -22,6 +22,10 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
     'income',
     'overview',
     'cashflow',
+    'projekte',
+    'rendite',
+    'verteilung',
+    'einzahlungen',
     'gruppen',
     'empfaenger',
     'bilanz',
@@ -36,6 +40,10 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
         | 'income'
         | 'overview'
         | 'cashflow'
+        | 'projekte'
+        | 'rendite'
+        | 'verteilung'
+        | 'einzahlungen'
         | 'gruppen'
         | 'empfaenger'
         | 'bilanz'

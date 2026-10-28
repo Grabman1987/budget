@@ -7,6 +7,18 @@
   min-width: 0;
   white-space: normal;
 }
+@media (min-width: 768px) {
+  .titleblock-report:has(+ .report-portfolio-switch) {
+    flex-wrap: wrap;
+  }
+  .titleblock-report:has(+ .report-portfolio-switch) .tb-title {
+    flex: 1 0 min(100%, 28rem);
+  }
+  .titleblock-report:has(+ .report-portfolio-switch) .tb-title h1 {
+    white-space: normal;
+    overflow: visible;
+  }
+}
 .report-income-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(12rem, 16rem) auto;
