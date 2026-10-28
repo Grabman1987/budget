@@ -78,7 +78,12 @@ test('initial section placeholders keep above-fold geometry while independent re
       console.log('Heute Pace slot comparison', { pending: pendingPace, settled: await paceGeometry(page) });
     expect(settled).toEqual(pending);
     if (info.project.name === 'desktop') {
-      for (const box of settled) expect(box!.y + box!.height).toBeLessThanOrEqual(900);
+      // Match #572/#575: three KPIs and both plots fit; full card geometry stays equal above.
+      for (const selector of ['.heute-kennzahlen', '[data-testid="heute-pace-chart"]', '[data-testid="heute-wealth-history"]']) {
+        const box = (await page.locator(selector).boundingBox())!;
+        expect(box.y).toBeGreaterThanOrEqual(0);
+        expect(box.y + box.height).toBeLessThanOrEqual(900);
+      }
     }
     await accessible(page);
     await page.screenshot({ path: info.outputPath(`574-settled-${colorScheme}.png`) });
