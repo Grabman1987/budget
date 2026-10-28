@@ -34,6 +34,7 @@ test('initial section placeholders keep above-fold geometry while independent re
   await page.route('**/api/heute?*', async (route) => { await held; await route.fulfill({ json: data }); });
   for (const colorScheme of ['light', 'dark'] as const) {
     held = new Promise<void>((resolve) => { release = resolve; });
+    try {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
     await page.goto('/?monat=2026-09&period=month');
     await expect(page.locator('[data-kennzahl="zu-verteilen"]')).toBeVisible();
@@ -55,6 +56,9 @@ test('initial section placeholders keep above-fold geometry while independent re
     }
     await accessible(page);
     await page.screenshot({ path: info.outputPath(`574-settled-${colorScheme}.png`) });
+    } finally {
+      release();
+    }
   }
 });
 
