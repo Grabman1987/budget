@@ -165,7 +165,7 @@ test.describe('1.6 Kategorie im Verlauf', () => {
     for (const expected of overview.rows.slice(0, 6)) {
       await page.getByRole('combobox', { name: 'Kategorie', exact: true }).selectOption(expected.category.id);
       const row = page.getByTestId('template-category').locator(`[data-template-row="cat:${expected.category.id}"]`);
-      await expect(row.getByRole('rowheader')).toHaveText(expected.category.name);
+      await expect(row.getByRole('rowheader')).toHaveAccessibleName(expected.category.name);
       const cells = await row.locator('td').allInnerTexts();
       expected.history.forEach((point, i) => expect(cells[i]?.replace(/\s*[↑↓]$/, '').trim()).toBe(point.spentCents === null ? '–' : formatEuro(cents(point.spentCents))));
       expect(cells[window.length]?.replace(/\s*[↑↓]$/, '').trim()).toBe(formatEuro(cents(expected.sumCents)));
