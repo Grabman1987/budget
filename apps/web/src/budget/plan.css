@@ -509,7 +509,8 @@
   display: block;
   margin: 8px -2px 0 auto;
   padding: 2px 8px;
-  border: 1px dashed var(--line);
+  /* Keep the frame's 1px geometry without drawing a ghost-button border. */
+  border: 1px solid transparent;
   border-radius: 4px;
   font-family: var(--font-tech);
   font-weight: 600;
@@ -519,7 +520,6 @@
 }
 .plan .ghost:hover {
   background: var(--tint-2);
-  border-style: solid;
 }
 .plan .is-distributing .col-assign {
   background: var(--tint);
