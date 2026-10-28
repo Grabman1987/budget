@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { PortfolioPerformanceHistory, PortfolioPositionsView } from '@budget/db';
 import type { Page } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
 import { expect, sampleTest as test } from './sample';
 
 const registers = [
@@ -279,6 +280,104 @@ test('class mini histories retain the shared period, full class universe and mon
       expect(summary.height).toBeGreaterThanOrEqual(44);
       expect(summary.width).toBeGreaterThanOrEqual(44);
     }
+    await page.evaluate(() => document.fonts.ready);
+    const measurements = [];
+    for (const figure of await classes.getByTestId('portfolio-class-history').all()) {
+      await figure.scrollIntoViewIfNeeded();
+      for (const child of await figure.locator('figcaption > *').all()) {
+        const measurement = await child.evaluate((element) => {
+          const rect = (bounds: DOMRect) => ({
+            left: bounds.left,
+            right: bounds.right,
+            top: bounds.top,
+            bottom: bounds.bottom,
+            width: bounds.width,
+            height: bounds.height,
+          });
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          const clipping = [];
+          for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+            const style = getComputedStyle(ancestor);
+            const clipX = /^(auto|scroll|hidden|clip)$/.test(style.overflowX);
+            const clipY = /^(auto|scroll|hidden|clip)$/.test(style.overflowY);
+            if (clipX || clipY) {
+              const bounds = ancestor.getBoundingClientRect();
+              clipping.push({
+                tag: ancestor.tagName,
+                className: ancestor.className,
+                overflowX: style.overflowX,
+                overflowY: style.overflowY,
+                clipX,
+                clipY,
+                bounds: {
+                  left: bounds.left + ancestor.clientLeft,
+                  right: bounds.left + ancestor.clientLeft + ancestor.clientWidth,
+                  top: bounds.top + ancestor.clientTop,
+                  bottom: bounds.top + ancestor.clientTop + ancestor.clientHeight,
+                },
+              });
+            }
+          }
+          return {
+            text: element.textContent,
+            textRange: rect(range.getBoundingClientRect()),
+            element: rect(element.getBoundingClientRect()),
+            figure: rect(element.closest('figure')!.getBoundingClientRect()),
+            section: rect(element.closest('section')!.getBoundingClientRect()),
+            viewport: { left: 0, right: innerWidth, top: 0, bottom: innerHeight },
+            clientWidth: element.clientWidth,
+            scrollWidth: element.scrollWidth,
+            clipping,
+          };
+        });
+        measurements.push(measurement);
+      }
+    }
+    await writeFile(
+      info.outputPath(`class-caption-bounds-${period}.json`),
+      JSON.stringify(measurements, null, 2),
+    );
+    for (const measurement of measurements) {
+      // Figure/section bounds are diagnostic; only actual viewport or ancestor clipping fails.
+      expect(measurement.textRange.left, `${measurement.text}: viewport left`).toBeGreaterThanOrEqual(
+        measurement.viewport.left,
+      );
+      expect(measurement.textRange.right, `${measurement.text}: viewport right`).toBeLessThanOrEqual(
+        measurement.viewport.right,
+      );
+      expect(measurement.textRange.top, `${measurement.text}: viewport top`).toBeGreaterThanOrEqual(
+        measurement.viewport.top,
+      );
+      expect(measurement.textRange.bottom, `${measurement.text}: viewport bottom`).toBeLessThanOrEqual(
+        measurement.viewport.bottom,
+      );
+      for (const ancestor of measurement.clipping) {
+        if (ancestor.clipX) {
+          expect(measurement.textRange.left).toBeGreaterThanOrEqual(ancestor.bounds.left);
+          expect(measurement.textRange.right).toBeLessThanOrEqual(ancestor.bounds.right);
+        }
+        if (ancestor.clipY) {
+          expect(measurement.textRange.top).toBeGreaterThanOrEqual(ancestor.bounds.top);
+          expect(measurement.textRange.bottom).toBeLessThanOrEqual(ancestor.bounds.bottom);
+        }
+      }
+    }
+    await classes.getByTestId('portfolio-class-history').last().locator('figcaption').scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    await page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    });
+    await expect(page.locator('.chart-tooltip')).toHaveCount(0);
+    const skip = page.getByRole('link', { name: 'Zum Inhalt springen', exact: true });
+    await expect(skip).not.toBeFocused();
+    expect(
+      await skip.evaluate((element) => element.getBoundingClientRect().bottom),
+    ).toBeLessThanOrEqual(0);
+    await page.screenshot({
+      path: info.outputPath(`class-histories-viewport-${period}.png`),
+      fullPage: false,
+    });
     await classes.screenshot({ path: info.outputPath(`class-histories-${period}.png`) });
   }
 });
