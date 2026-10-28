@@ -23,7 +23,7 @@ import { PageFrame } from '../pages/placeholder-page';
 import { monthLabel as monthName } from '../nav/month';
 import { currentMonth, useMonth } from '../shell/use-month';
 import { AppLink } from '../shell/app-link';
-import { HeutePaceChart } from './charts';
+import { HeutePaceChart, HeuteWealthChart } from './charts';
 import { LiquidityChart } from '../reports/liquidity-chart';
 import { liquidityQuery } from '../reports/liquidity-api';
 import { salaryDay } from '../reports/liquidity-selection';
@@ -139,21 +139,8 @@ function HeuteBody({ data }: { data: Heute }) {
         onLeadClick={() => setChainOpen((open) => !open)}
       />
       <VerdictLine facts={heuteFacts} />
-      <section className="heute-lead" aria-labelledby="heute-lead-title">
+      <section className="heute-lead" aria-label="Spielraum bis Gehalt">
         <div className="heute-lead-head">
-          <div>
-            <h2 id="heute-lead-title">Spielraum bis Gehalt</h2>
-            <p>
-              Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor
-              dem Gehalt noch fällig sind.
-            </p>
-            {away && (
-              <span className="heute-anchor" data-testid="heute-anchor">
-                Frei bis Gehalt: Stand heute · {longDay(data.stand.today)}. Ansicht:{' '}
-                {monthName(data.stand.month)}.
-              </span>
-            )}
-          </div>
           <Button
             variant="ghost"
             size="sm"
@@ -163,10 +150,20 @@ function HeuteBody({ data }: { data: Heute }) {
           >
             {chainOpen ? 'Herleitung ausblenden' : 'Herleitung zeigen'}
           </Button>
+          <DailyBudgetLine data={data} />
         </div>
-        <DailyBudgetLine data={data} />
+        {away && (
+          <span className="heute-anchor" data-testid="heute-anchor">
+            Frei bis Gehalt: Stand heute · {longDay(data.stand.today)}. Ansicht: {monthName(data.stand.month)}.
+          </span>
+        )}
         {chainOpen && (
           <div id="heute-lead-chain" className="heute-chain-area">
+            <h2 id="heute-lead-title">Spielraum bis Gehalt</h2>
+            <p>
+              Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor
+              dem Gehalt noch fällig sind.
+            </p>
             <DimensionChain
               terms={leadTerms}
               label="Maßkette: Bedarf plus Wunsch minus offene Rechnungen bis Gehalt"
@@ -181,6 +178,7 @@ function HeuteBody({ data }: { data: Heute }) {
         )}
       </section>
 
+      <div className="heute-overview-charts">
       <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">
         <SectionHead
           id="heute-pace-title"
@@ -260,6 +258,7 @@ function HeuteBody({ data }: { data: Heute }) {
       <CompactForecastCard />
 
       <HeuteWealthLine data={data} />
+      </div>
       <AttentionBar
         data={data}
         savingsRows={savingsRows}
@@ -425,14 +424,14 @@ function HeuteBody({ data }: { data: Heute }) {
             {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
             {net ? (
               <>
-                <div className={`heute-delta ${net.deltaCents < 0 ? 'text-bad' : 'text-good'}`}>
+                {net.deltaCents === null ? <p className="heute-note">Vormonatsvergleich nicht verfügbar.</p> : <div className={`heute-delta ${net.deltaCents < 0 ? 'text-bad' : 'text-good'}`}>
                   {net.deltaCents < 0 ? (
                     <ArrowDown size={16} strokeWidth={1.75} aria-hidden="true" />
                   ) : (
                     <ArrowUp size={16} strokeWidth={1.75} aria-hidden="true" />
                   )}
                   {eur(net.deltaCents, { cents: false, sign: true })} · {deltaText}
-                </div>
+                </div>}
                 <div
                   data-testid="heute-networth-chart"
                   className={`heute-net-composition${net.totalCents <= 0 ? ' is-nonpositive' : ''}`}
@@ -493,7 +492,7 @@ function HeuteBody({ data }: { data: Heute }) {
                   {net.debtCents < 0 ? ' Gestrichelt: Schulden, werden abgezogen.' : ''}
                 </p>
                 <p className="heute-note">
-                  Stichtag {longDay(net.asOf)} · Vormonatsende {eur(net.previousMonthEndCents)}
+                  Stichtag {longDay(net.asOf)} · Vormonatsende {net.previousMonthEndCents === null ? 'Bewertung nicht verfügbar' : eur(net.previousMonthEndCents)}
                 </p>
               </>
             ) : (
@@ -616,9 +615,9 @@ export function HeuteWealthLine({
       {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
       {net ? (
         <>
-          <WealthSparkline series={net.series} />
+          <HeuteWealthChart net={net} />
           <AppLink to="/vermoegen/nettovermoegen" search={{ zeitraum: '1J' }}>
-            {eur(net.yearDeltaCents, { sign: true })} seit {shortDay(net.yearAgoDay)} vor 12 Monaten
+            {net.yearDeltaCents === null ? 'Jahresvergleich nicht verfügbar · Details' : <>{eur(net.yearDeltaCents, { sign: true })} seit {shortDay(net.yearAgoDay)} vor 12 Monaten</>}
           </AppLink>
         </>
       ) : (
@@ -631,35 +630,6 @@ export function HeuteWealthLine({
         label="Verlauf Nettovermögen · aktueller Stand"
       />
     </section>
-  );
-}
-
-function WealthSparkline({ series }: { series: { day: string; cents: number }[] }) {
-  const min = Math.min(...series.map((p) => p.cents));
-  const span = Math.max(1, Math.max(...series.map((p) => p.cents)) - min);
-  const points = series
-    .map(
-      (p, i) =>
-        `${4 + (i * 152) / Math.max(1, series.length - 1)},${32 - ((p.cents - min) * 28) / span}`,
-    )
-    .join(' ');
-  return (
-    <AppLink to="/vermoegen/nettovermoegen" search={{ zeitraum: '1J' }}>
-      <svg
-        viewBox="0 0 160 36"
-        width="160"
-        height="36"
-        role="img"
-        aria-label="Nettovermögen · Verlauf der letzten 12 Monate"
-      >
-        <polyline
-          points={points}
-          fill="none"
-          stroke="var(--line)"
-          strokeWidth="var(--stroke-measure)"
-        />
-      </svg>
-    </AppLink>
   );
 }
 

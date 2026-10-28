@@ -31,6 +31,7 @@ test('monthly pace and wealth expose exact dates and amounts with honest gaps in
     const pace = page.getByTestId('heute-pace-chart');
     await expect(wealth).toBeVisible();
     await expect(pace).toBeVisible();
+    await expect(page.locator('[data-kennzahl="nettovermoegen"]')).toHaveText(eur(net.totalCents));
     await page.evaluate(async () => { await document.fonts.ready; });
     if (info.project.name === 'desktop') {
       expect(page.viewportSize()).toEqual({ width: 1440, height: 900 });

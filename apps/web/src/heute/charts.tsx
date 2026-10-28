@@ -11,6 +11,7 @@ import {
   SlashTick,
   Graticule,
   Line,
+  linePath,
   LineLegend,
   StepLine,
   TodayLine,
@@ -19,12 +20,66 @@ import {
 } from '@budget/ui';
 import { scaleLinear } from 'd3-scale';
 import { useElementWidth } from '../charts/use-element-width';
-import { eur, eurParts, shortDay } from '../ledger/format';
+import { eur, eurParts, longDay, shortDay } from '../ledger/format';
 import type { Heute } from './api';
 import { addDays, daysBetween } from '@budget/domain';
 
 const number = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 });
 const dayValue = (day: string) => Date.parse(`${day}T00:00:00Z`);
+
+/** The same dated cents as the current wealth tile; missing valuations break the drawing. */
+export function HeuteWealthChart({ net }: { net: Exclude<Heute['netWorth'], { unavailable: unknown }> }) {
+  useAmountPrivacy();
+  const [ref, width] = useWidth();
+  return <div ref={ref} className="heute-wealth-chart">
+    {width > 0 && <WealthDrawing net={net} width={width} />}
+  </div>;
+}
+
+function WealthDrawing({ net, width }: { net: Exclude<Heute['netWorth'], { unavailable: unknown }>; width: number }) {
+  const height = 72;
+  const values = net.series.flatMap((point) => point.cents === null ? [] : [point.cents]);
+  const low = values.length ? Math.min(...values) : 0;
+  const high = values.length ? Math.max(...values) : 1;
+  const padding = (high - low) * 0.1 || Math.max(Math.abs(high) * 0.02, 1);
+  const y = scaleLinear().domain([low - padding, high + padding]).range([height - 24, 8]);
+  const first = net.series[0]?.day ?? net.asOf;
+  const last = net.series.at(-1)?.day ?? net.asOf;
+  const xScale = scaleLinear().domain([dayValue(first), dayValue(last)]).range([32, width - 32]);
+  const x = (index: number) => xScale(dayValue(net.series[index]!.day));
+  const segments: Point[][] = [];
+  let segment: Point[] = [];
+  net.series.forEach((point, index) => {
+    if (point.cents === null) {
+      if (segment.length) segments.push(segment);
+      segment = [];
+    } else segment.push([x(index), y(point.cents)]);
+  });
+  if (segment.length) segments.push(segment);
+  const missing = net.series.filter((point) => point.cents === null).length;
+  const points = chartPoints(net.series.map((point) => point.day), x, [
+    { name: 'Nettovermögen', values: net.series.map((point) => point.cents), color: 'var(--line)' },
+  ]).map((point, index) => net.series[index]!.cents === null ? {
+    ...point, series: [{ name: 'Nettovermögen', value: 'Bewertung nicht verfügbar', color: 'var(--ink-3)' }],
+  } : point);
+  return <ChartSvg
+    width={width} height={height} testId="heute-wealth-history"
+    label={`Nettovermögen · 12 Monate: ${eur(net.totalCents)} am ${longDay(net.asOf)}. ${missing} fehlende Bewertungen bleiben Lücken.`}
+    points={points}
+  >
+    <Graticule x1={32} x2={width - 32} lines={[{ y: 8 }, { y: height - 24 }]} />
+    {segments.map((part, index) => <path key={index} d={linePath(part)} className="l-actual heute-wealth-segment" />)}
+    {net.series.map((point, index) => <g key={point.day} data-chart-point={index}>
+      {point.cents === null
+        ? <text x={x(index)} y={32} textAnchor="middle" className="svg-label">–</text>
+        : <circle cx={x(index)} cy={y(point.cents)} r={2.5} fill="var(--line)" />}
+    </g>)}
+    <XTicks y={height - 4} ticks={[
+      { x: xScale(dayValue(first)), label: shortDay(first) },
+      { x: xScale(dayValue(last)), label: 'heute' },
+    ]} />
+  </ChartSvg>;
+}
 
 function useWidth() {
   return useElementWidth<HTMLDivElement>();

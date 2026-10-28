@@ -187,7 +187,7 @@
   .heute-phone-only {
     display: none;
   }
-  .heute-lead > .heute-daily-budget {
+  .heute-lead .heute-daily-budget {
     position: relative;
     inset: auto;
     justify-content: start;
@@ -1002,6 +1002,55 @@
   gap: 8px 20px;
   padding-block: 12px;
   border-block: 1px solid var(--rule);
+}
+.heute-wealth-chart {
+  width: 100%;
+  min-width: 0;
+  flex-basis: 100%;
+}
+.heute-overview-charts {
+  display: grid;
+  gap: var(--space-gutter);
+  min-width: 0;
+}
+.heute-overview-charts > section {
+  min-width: 0;
+}
+@media (min-width: 1180px) {
+  .sheet:has(> .heute) {
+    row-gap: var(--space-lg);
+  }
+  .heute {
+    gap: var(--space-sm);
+  }
+  .heute > .report-verdict {
+    margin: 0;
+  }
+  .heute-overview-charts {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+    gap: var(--space-sm) var(--space-xl);
+    align-items: start;
+  }
+  .heute-overview-charts > .heute-pace {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+  .heute-overview-charts > .heute-compact-forecast,
+  .heute-overview-charts > .heute-wealth-line {
+    grid-column: 2;
+  }
+  .heute-compact-forecast .heute-note {
+    font-size: var(--fs-meta);
+    line-height: 1.35;
+    margin: 0;
+  }
+  .heute-compact-forecast .heute-forecast-low {
+    margin-block: var(--space-xs);
+  }
+  .heute-wealth-line {
+    padding-block: var(--space-sm);
+    gap: var(--space-xs) var(--space-md);
+  }
 }
 .heute-wealth-line h2 {
   font-size: var(--fs-title);

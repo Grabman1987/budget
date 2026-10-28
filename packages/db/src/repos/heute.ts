@@ -211,15 +211,15 @@ export interface Heute {
           | { deltaCents: number; investmentsInCents: number; marketCents: number }
           | HeuteUnavailable;
         asOf: string;
-        previousMonthEndCents: number;
-        yearAgoCents: number;
+        previousMonthEndCents: number | null;
+        yearAgoCents: number | null;
         yearAgoDay: string;
-        yearDeltaCents: number;
-        deltaCents: number;
+        yearDeltaCents: number | null;
+        deltaCents: number | null;
         /** Change against the previous month end in basis points; `null` from 0. */
         deltaBp: number | null;
         /** The 11 previous month ends and today, oldest first. */
-        series: { day: string; cents: number }[];
+        series: { day: string; cents: number | null; unavailable?: HeuteUnavailable['unavailable'] }[];
       })
     | HeuteUnavailable;
   attention: {
@@ -653,15 +653,19 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
         return role ? [{ role, valueCents }] : [];
       }),
     );
-    const nwSeries = netWorthDays(today).map((day) => ({
-      day,
-      cents: day === today ? nw.totalCents : netWorthAsOf(db, day).totalCents,
-    }));
-    const previousMonthEndCents = nwSeries[nwSeries.length - 2]?.cents ?? nw.totalCents;
+    const nwSeries = netWorthDays(today).map((day) => {
+      if (day === today) return { day, cents: nw.totalCents };
+      const historical = availableSection(() => netWorthAsOf(db, day));
+      return 'unavailable' in historical
+        ? { day, cents: null, unavailable: historical.unavailable }
+        : { day, cents: historical.totalCents };
+    });
+    const previousMonthEndCents = nwSeries[nwSeries.length - 2]?.cents ?? null;
 
     const yearAgoMonth = addMonths(monthOf(today), -12);
     const yearAgoDay = earliest(`${yearAgoMonth}-${today.slice(8)}`, lastDayOfMonth(yearAgoMonth));
-    const yearAgoCents = netWorthAsOf(db, yearAgoDay).totalCents;
+    const yearAgo = availableSection(() => netWorthAsOf(db, yearAgoDay));
+    const yearAgoCents = 'unavailable' in yearAgo ? null : yearAgo.totalCents;
     return {
       ...parts,
       assetsCents,
@@ -670,11 +674,11 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
       totalCents: nw.totalCents,
       yearAgoDay,
       yearAgoCents,
-      yearDeltaCents: nw.totalCents - yearAgoCents,
+      yearDeltaCents: yearAgoCents === null ? null : nw.totalCents - yearAgoCents,
       asOf: today,
       previousMonthEndCents,
-      deltaCents: nw.totalCents - previousMonthEndCents,
-      deltaBp: changeBp(nw.totalCents, previousMonthEndCents),
+      deltaCents: previousMonthEndCents === null ? null : nw.totalCents - previousMonthEndCents,
+      deltaBp: previousMonthEndCents === null ? null : changeBp(nw.totalCents, previousMonthEndCents),
       series: nwSeries,
     };
   });
