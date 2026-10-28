@@ -67,7 +67,7 @@ test('487 global project results retain literal August cents and require an expl
   await expect(page.getByTestId('projects-report')).toContainText('2.700,03');
   const body = await page.getByTestId('projects-report').innerText();
   const verdict = await page.getByTestId('report-verdict').innerText();
-  await page.goto(`/reports/einnahmen-ausgaben?zeitraum=${period}&darstellung=income&projekt=a&ansicht=saved-id&exakt=true`);
+  await page.goto(`/reports/einnahmen-ausgaben?monat=2026-08&zeitraum=${period}&darstellung=income&projekt=a&ansicht=saved-id&exakt=true`);
   await expect(page.getByTestId('income-total')).toHaveText('1.000,01 €');
   await page.getByRole('button', { name: 'Projekt-Ergebnisse', exact: true }).click();
   await expect(page.getByTestId('projects-report')).toHaveCount(0);
@@ -84,7 +84,7 @@ test('487 global project results retain literal August cents and require an expl
   await expect(page.getByTestId('projects-report')).toContainText('500,03 €');
   await expect(page).toHaveTitle(/Einnahmen und Cashflow/);
   if (info.project.name !== 'desktop') await expect(page.locator('.m-title-text')).toHaveText('Einnahmen und Cashflow');
-  for (const [key, value] of Object.entries({ zeitraum: period, darstellung: 'projekte', ansicht: 'saved-id', exakt: 'true' })) expect(new URL(page.url()).searchParams.get(key)).toBe(value);
+  for (const [key, value] of Object.entries({ monat: '2026-08', zeitraum: period, darstellung: 'projekte', ansicht: 'saved-id', exakt: 'true' })) expect(new URL(page.url()).searchParams.get(key)).toBe(value);
   await inspect(page, info, 'global-projects');
   await privacy(page, true);
   await expect(page.getByTestId('projects-report')).toContainText('••• €');
@@ -93,10 +93,10 @@ test('487 global project results retain literal August cents and require an expl
   await expect(page.getByTestId('projects-report')).toHaveText(body, { useInnerText: true });
   await page.reload();
   await expect(page.getByTestId('projects-report')).toHaveText(body, { useInnerText: true });
-  await page.goto(`/reports/einnahmen-ausgaben?zeitraum=${period}&darstellung=projekte&projekt=`);
+  await page.goto(`/reports/einnahmen-ausgaben?monat=2026-08&zeitraum=${period}&darstellung=projekte&projekt=`);
   await expect(page.getByRole('alert')).toContainText('Projektfilter ist ungültig');
   await expect(page.getByTestId('projects-report')).toHaveCount(0);
-  await page.goto(`/reports/einnahmen-ausgaben?zeitraum=${period}&darstellung=projekte&projekt=deleted-id`);
+  await page.goto(`/reports/einnahmen-ausgaben?monat=2026-08&zeitraum=${period}&darstellung=projekte&projekt=deleted-id`);
   await expect(page.getByText('Ein Projekt ist ausgewählt.', { exact: false })).toBeVisible();
   await expect(page.getByTestId('projects-report')).toHaveCount(0);
   expect(new URL(page.url()).searchParams.get('projekt')).toBe('deleted-id');
