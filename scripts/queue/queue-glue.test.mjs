@@ -245,8 +245,13 @@ const GOOD_MAIN = 'a'.repeat(40);
 function mergeObserver(states = [`42\t${GOOD_MAIN}\t2\tcompleted\tsuccess`]) {
   const f = fixture();
   const source = readFileSync(join(QUEUE, 'merge-pr.sh'), 'utf8');
-  const declarations = source.slice(source.indexOf('retry()'), source.indexOf('until main=$(gate_ok)'));
-  writeFileSync(join(f.tmp, 'bin', 'gh'), `#!/usr/bin/env bash
+  const declarations = source.slice(
+    source.indexOf('retry()'),
+    source.indexOf('until main=$(gate_ok)'),
+  );
+  writeFileSync(
+    join(f.tmp, 'bin', 'gh'),
+    `#!/usr/bin/env bash
 echo "$*" >> "$STUB_DIR/calls.log"
 case "$1 $2" in
   "run list") echo 42 ;;
@@ -264,7 +269,8 @@ case "$1 $2" in
     esac ;;
   "pr view") [ -f "$STUB_DIR/metadata-error" ] && exit 1; cat "$STUB_DIR/closing-result" ;;
 esac
-`);
+`,
+  );
   writeFileSync(join(f.tmp, 'bin', 'sleep'), '#!/usr/bin/env bash\nexit 0\n');
   chmodSync(join(f.tmp, 'bin', 'sleep'), 0o755);
   f.write('identity', `42\t${GOOD_MAIN}\t2\n`);
@@ -274,8 +280,13 @@ esac
   f.write('closing-result', 'true\n');
   return {
     ...f,
-    observe: () => f.sh(['-c', `set -uo pipefail\npr=781\n${declarations}\nwait_ci '${GOOD_MAIN}'`]),
-    metadata: () => f.sh(['-c', `set -uo pipefail\npr=781\n${declarations}\nclosing_refs_ok || exit 1\ngh pr merge 781 --squash`]),
+    observe: () =>
+      f.sh(['-c', `set -uo pipefail\npr=781\n${declarations}\nwait_ci '${GOOD_MAIN}'`]),
+    metadata: () =>
+      f.sh([
+        '-c',
+        `set -uo pipefail\npr=781\n${declarations}\nclosing_refs_ok || exit 1\ngh pr merge 781 --squash`,
+      ]),
     reads: () => Number(readFileSync(join(f.stub, 'read-count'), 'utf8')),
   };
 }
@@ -302,16 +313,22 @@ describe('merge-pr CI observation and closing-reference guard', () => {
     expect(f.calls()).not.toMatch(/^(workflow run|run rerun|pr merge|api) /m);
   });
 
-  it.each(['failure', 'cancelled', 'timed_out', 'neutral', 'skipped', 'action_required', 'stale', 'startup_failure'])(
-    'reports authoritative terminal %s as red',
-    (conclusion) => {
-      const f = mergeObserver([`42\t${GOOD_MAIN}\t2\tcompleted\t${conclusion}`]);
-      const result = f.observe();
-      expect(result.status).toBe(1);
-      expect(result.out).toContain('CI red');
-      expect(result.out).toContain('synthetic-terminal');
-    },
-  );
+  it.each([
+    'failure',
+    'cancelled',
+    'timed_out',
+    'neutral',
+    'skipped',
+    'action_required',
+    'stale',
+    'startup_failure',
+  ])('reports authoritative terminal %s as red', (conclusion) => {
+    const f = mergeObserver([`42\t${GOOD_MAIN}\t2\tcompleted\t${conclusion}`]);
+    const result = f.observe();
+    expect(result.status).toBe(1);
+    expect(result.out).toContain('CI red');
+    expect(result.out).toContain('synthetic-terminal');
+  });
 
   it.each([
     `43\t${GOOD_MAIN}\t2\tcompleted\tsuccess`,
@@ -331,16 +348,22 @@ describe('merge-pr CI observation and closing-reference guard', () => {
     expect(result.out).not.toContain('CI red');
   });
 
-  it.each(['identity-error', 'status-error'])('fails closed after bounded API read errors: %s', (flag) => {
-    const f = mergeObserver();
-    f.write(flag, '');
-    const result = f.observe();
-    expect(result.status).toBe(1);
-    expect(result.out).toContain('CI observation');
-    expect(result.out).not.toContain('CI red');
-    const reads = f.calls().split('\n').filter((line) => line.startsWith('run view '));
-    expect(reads).toHaveLength(flag === 'identity-error' ? 3 : 4);
-  });
+  it.each(['identity-error', 'status-error'])(
+    'fails closed after bounded API read errors: %s',
+    (flag) => {
+      const f = mergeObserver();
+      f.write(flag, '');
+      const result = f.observe();
+      expect(result.status).toBe(1);
+      expect(result.out).toContain('CI observation');
+      expect(result.out).not.toContain('CI red');
+      const reads = f
+        .calls()
+        .split('\n')
+        .filter((line) => line.startsWith('run view '));
+      expect(reads).toHaveLength(flag === 'identity-error' ? 3 : 4);
+    },
+  );
 
   it.each([
     `43\t${GOOD_MAIN}\t2`,

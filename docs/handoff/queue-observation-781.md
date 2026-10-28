@@ -15,7 +15,7 @@ existing three-attempt read retry. Malformed/unavailable status, mismatched
 identity/attempt, contradictory/unknown state and exhaustion fail closed with an
 observation message. No automatic workflow dispatch or CI retry is added.
 
-The owner-authorized related prevention enforces the existing Refs-only rule:
+Related prevention enforces the existing Refs-only rule:
 `closingIssuesReferences` must be an array with length zero. A Boolean projection
 from the supported GitHub CLI field must be exactly `true`; errors or unknown
 output block the action. The guard runs before a possible remote branch update
