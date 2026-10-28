@@ -40,15 +40,15 @@ const landings = [
 
 for (const [slug, target, view] of landings) {
   test(`620 ${slug} opens ${target} with its supported bookmark state`, async ({ page }) => {
-    // Heute normalizes its balance period and has no report-details fragment.
-    const hash = slug === 'finanzcheck' ? '' : '#details';
-    await page.goto(`/reports/${slug}?monat=2026-08&zeitraum=2026-01..2026-08${hash}`);
+    // An explicit Heute period avoids its existing other-month normalization.
+    const todayPeriod = slug === 'finanzcheck' ? '&period=month' : '';
+    await page.goto(`/reports/${slug}?monat=2026-08&zeitraum=2026-01..2026-08${todayPeriod}#details`);
     await expect.poll(() => new URL(page.url()).pathname).toBe(target);
     await expect(page.getByRole('main')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Report nicht gefunden', exact: true })).toHaveCount(0);
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('2026-01..2026-08');
-    expect(new URL(page.url()).hash).toBe(hash);
+    expect(new URL(page.url()).hash).toBe('#details');
     if (view) await expect(page.getByRole('button', { name: view, exact: true, pressed: true })).toBeVisible();
     const bookmark = page.url();
     await page.reload();
@@ -56,6 +56,16 @@ for (const [slug, target, view] of landings) {
     if (view) await expect(page.getByRole('button', { name: view, exact: true, pressed: true })).toBeVisible();
   });
 }
+
+test('620 absent Heute period uses the same normalization through the alias and the direct target', async ({ page }) => {
+  for (const path of ['/', '/reports/finanzcheck']) {
+    await page.goto(`${path}?monat=2026-08#details`);
+    await expect.poll(() => new URL(page.url()).searchParams.get('period')).toBe('month');
+    expect(new URL(page.url()).pathname).toBe('/');
+    expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
+    expect(new URL(page.url()).hash).toBe('');
+  }
+});
 
 test('620 aliases preserve exact Explorer state and a missing saved view takes precedence over the template', async ({ page }) => {
   await page.goto('/reports/kategorien?ansicht=missing-view-620&exakt=true&zeitraum=3M&kategorien=%5B%22food%22%5D');
