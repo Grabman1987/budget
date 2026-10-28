@@ -1227,6 +1227,10 @@
   align-items: center;
   color: var(--ink-3);
 }
+/* Arrow and text statuses use the same natural header box in every read state. */
+.heute-pace > .head {
+  align-items: center;
+}
 .heute-pace-state-note {
   min-block-size: 1lh;
 }
