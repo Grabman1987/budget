@@ -16,7 +16,17 @@ async function bounds(page: Page) {
     .map((selector) => page.locator(selector).boundingBox()));
 }
 async function accessible(page: Page, retry?: Locator) {
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const fits = await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+  if (!fits) console.log('Heute horizontal overflow', await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth, viewport: innerWidth,
+    elements: [...document.querySelectorAll('main *')].flatMap((element) => {
+      const box = element.getBoundingClientRect();
+      return box.width > 0 && box.height > 0 && (box.left < 0 || box.right > innerWidth)
+        ? [{ tag: element.tagName, class: element.getAttribute('class'), id: element.id,
+          x: box.x, y: box.y, width: box.width, right: box.right }] : [];
+    }).slice(0, 12),
+  })));
+  expect(fits).toBe(true);
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
   if (retry && page.viewportSize()!.width === 390) {
     const box = (await retry.boundingBox())!;

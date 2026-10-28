@@ -45,10 +45,15 @@ test('actual monthly pace starts on the first phone screen and both folds clear 
           window.scrollTo(0, document.documentElement.scrollHeight);
           await new Promise(requestAnimationFrame);
           await new Promise(requestAnimationFrame);
-          window.scrollBy(0, -1);
+        });
+        await expect(page.locator('.fab')).toBeHidden();
+        const bottom = await page.evaluate(() => window.scrollY);
+        await page.evaluate(async () => {
+          window.scrollBy(0, -60);
           await new Promise(requestAnimationFrame);
           await new Promise(requestAnimationFrame);
         });
+        expect(await page.evaluate(() => window.scrollY)).toBeLessThan(bottom);
         await expect(page.locator('.fab')).toBeVisible();
         const controls = await page.locator('.tabbar, .fab').evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
         const controlsTop = Math.min(...controls);
