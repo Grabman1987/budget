@@ -18,13 +18,36 @@ retry() { # up to 3 tries with a short sleep for transient git/gh errors
 }
 log() { echo "$(date +%H:%M:%S) #$pr $*"; }
 health() { curl -fsS -m 15 https://budget-fg.fly.dev/health | node -e 'const h=JSON.parse(require("fs").readFileSync(0,"utf8"));if(h.status!=="ok"||!/^[a-f0-9]{40}$/.test(h.revision))process.exit(1);console.log(h.revision)'; }
-wait_ci() { # $1 sha -> 0 green, 1 red
-  local id=""
+wait_ci() { # $1 sha -> 0 confirmed success, 1 terminal failure or observation error
+  local id="" identity attempt state observed_id observed_head observed_attempt status conclusion i
+  [[ "$1" =~ ^[0-9a-f]{40}$ ]] || { log 'CI observation invalid head, stop'; return 1; }
   for _ in $(seq 1 30); do id=$(gh run list --workflow=ci.yml --commit "$1" -L 1 --json databaseId -q '.[0].databaseId' 2>/dev/null); [ -n "$id" ] && break; sleep 20; done
   [ -z "$id" ] && { log "no CI run for ${1:0:8}"; return 1; }
-  gh run watch "$id" --exit-status >/dev/null 2>&1 && return 0
-  log "CI red ${1:0:8} run $id: $(gh run view "$id" --log-failed 2>/dev/null | grep -oE '\[[a-z-]+\] › e2e/[^ ]+|FAIL [^ ]+' | sort -u | head -5 | tr '\n' ' ')"
+  [[ "$id" =~ ^[1-9][0-9]*$ ]] || { log 'CI observation invalid run ID, stop'; return 1; }
+  identity=$(retry gh run view "$id" --json databaseId,headSha,attempt -q '[.databaseId,.headSha,.attempt] | @tsv') || { log "CI observation unavailable for run $id, stop"; return 1; }
+  IFS=$'\t' read -r observed_id observed_head attempt <<< "$identity"
+  [[ "$identity" = "$id"$'\t'"$1"$'\t'"$attempt" && "$attempt" =~ ^[1-9][0-9]*$ ]] || { log "CI observation identity mismatch for run $id, stop"; return 1; }
+  gh run watch "$id" --exit-status >/dev/null 2>&1 || log "CI observation interrupted for run $id; checking authoritative state"
+  for i in $(seq 1 30); do
+    state=$(retry gh run view "$id" --json databaseId,headSha,attempt,status,conclusion -q '[.databaseId,.headSha,.attempt,.status,.conclusion] | @tsv') || { log "CI observation unavailable for run $id, stop"; return 1; }
+    IFS=$'\t' read -r observed_id observed_head observed_attempt status conclusion <<< "$state"
+    [[ "$state" = "$identity"$'\t'"$status"$'\t'"$conclusion" ]] || { log "CI observation identity/state mismatch for run $id, stop"; return 1; }
+    case "$status:$conclusion" in
+      completed:success) return 0 ;;
+      completed:failure|completed:cancelled|completed:timed_out|completed:neutral|completed:skipped|completed:action_required|completed:stale|completed:startup_failure)
+        log "CI red ${1:0:8} run $id: $(gh run view "$id" --log-failed 2>/dev/null | grep -oE '\[[a-z-]+\] › e2e/[^ ]+|FAIL [^ ]+' | sort -u | head -5 | tr '\n' ' ')"
+        return 1 ;;
+      queued:|in_progress:) [ "$i" -lt 30 ] && sleep 20 ;;
+      *) log "CI observation unknown state for run $id, stop"; return 1 ;;
+    esac
+  done
+  log "CI observation exhausted for ${1:0:8} run $id attempt $attempt, stop"
   return 1
+}
+closing_refs_ok() {
+  local empty
+  empty=$(retry gh pr view "$pr" --json closingIssuesReferences -q '.closingIssuesReferences | type == "array" and length == 0') || { log 'cannot verify closing issue references, stop'; return 1; }
+  [ "$empty" = true ] || { log 'PR must have no closing issue references; use Refs only, stop'; return 1; }
 }
 gate_ok() { # checked main; published revision is a successfully deployed ancestor
   retry git fetch -q origin main || return 1
@@ -42,6 +65,7 @@ until main=$(gate_ok); do log "gate: main not live/green yet"; sleep 60; done
 is_sha() { [[ "$1" =~ ^[0-9a-f]{40}$ ]]; }
 pr_head() { retry gh pr view "$pr" --json headRefOid -q .headRefOid; }
 head=$(pr_head) && is_sha "$head" || { log "cannot read PR head, stop"; exit 1; }
+closing_refs_ok || exit 1
 retry git fetch -q origin "pull/$pr/head" || { log "cannot fetch PR head, stop"; exit 1; }
 if ! git merge-base --is-ancestor "$main" "$head"; then
   log "behind main, updating once"
@@ -55,6 +79,7 @@ wait_ci "$head" || exit 1
 fresh_main=$(gate_ok) || { log "gate closed after CI, stop"; exit 1; }
 [ "$fresh_main" = "$main" ] || { log "main changed while waiting, restart integration"; exit 1; }
 [ "$(git ls-remote origin refs/heads/main | cut -f1)" = "$main" ] || { log "main moved, stop"; exit 1; }
+closing_refs_ok || exit 1
 gh pr merge "$pr" --squash --match-head-commit "$head" >/dev/null || { log "merge failed"; exit 1; }
 mc=$(gh pr view "$pr" --json mergeCommit -q .mergeCommit.oid); log "merged ${mc:0:8} (head ${head:0:8})"
 wait_ci "$mc" || { log 'main verification failed'; exit 2; }
