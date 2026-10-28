@@ -51,7 +51,9 @@ async function inspect(page: Page, info: TestInfo, label: string) {
       theme,
     );
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
     if (info.project.name !== 'desktop') {
       for (const control of await page.locator('.report-view-switch button').all()) {
         const box = (await control.boundingBox())!;
@@ -83,7 +85,8 @@ async function masked(page: Page, bodyId: string, clearAmount: RegExp, clearVerd
       [...element.attributes]
         .filter(
           (attribute) =>
-            attribute.name.startsWith('aria-') || ['title', 'alt', 'value'].includes(attribute.name),
+            attribute.name.startsWith('aria-') ||
+            ['title', 'alt', 'value'].includes(attribute.name),
         )
         .map((attribute) => attribute.value),
     );
@@ -98,7 +101,9 @@ test('Budgettreue retains exact plan and stored forecast bodies, quality, month 
   isolatedLedger,
 }, info) => {
   seed(isolatedLedger.databasePath);
-  const adherence = await (await request.get('/api/reports/spending/adherence?month=2026-09')).json();
+  const adherence = await (
+    await request.get('/api/reports/spending/adherence?month=2026-09')
+  ).json();
   expect(adherence).toMatchObject({
     month: '2026-09',
     planCents: 30001,
@@ -125,7 +130,9 @@ test('Budgettreue retains exact plan and stored forecast bodies, quality, month 
   const budget = await page.getByTestId('budget-adherence').innerText();
   await inspect(page, info, 'budget');
   await page.goto('/reports/planungstreue?monat=2026-09');
-  await expect(page.getByTestId('planning-accuracy')).toContainText('Erst ab November 2026 belastbar');
+  await expect(page.getByTestId('planning-accuracy')).toContainText(
+    'Erst ab November 2026 belastbar',
+  );
   const forecast = await page.getByTestId('planning-accuracy').innerText();
   const verdict = await page.getByTestId('report-verdict').innerText();
   await page.goto(
@@ -181,7 +188,9 @@ test('Budgettreue retains exact plan and stored forecast bodies, quality, month 
   await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
   await page.getByRole('button', { name: 'Plan und Ist', exact: true }).click();
   await expect(page.getByTestId('budget-adherence')).toHaveText(budget, { useInnerText: true });
-  await expect(page.getByTestId('report-verdict')).toHaveText(budgetVerdict, { useInnerText: true });
+  await expect(page.getByTestId('report-verdict')).toHaveText(budgetVerdict, {
+    useInnerText: true,
+  });
 });
 
 test('Verträge und Kosten retains separate source periods, subtotal coverage and legacy bodies', async ({
@@ -221,13 +230,17 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
   await expect(page.getByTestId('bc-components')).toContainText(
     'Gebucht: 6,91 € · aus Konditionen geschätzt: 0,00 €',
   );
-  await expect(page.getByTestId('bc-coverage')).toContainText('nicht die vollständige Gesamtbelastung');
+  await expect(page.getByTestId('bc-coverage')).toContainText(
+    'nicht die vollständige Gesamtbelastung',
+  );
   await expect(page.getByTestId('bc-coverage')).toContainText('02.10.2026: 1');
   await inspect(page, info, 'bank-costs');
   await page.reload();
   await expect(page.getByTestId('bank-costs-report')).toHaveText(bankBody, { useInnerText: true });
   await page.getByRole('button', { name: 'Verträge', exact: true }).click();
-  await expect(page.getByTestId('contracts-report')).toHaveText(contractBody, { useInnerText: true });
+  await expect(page.getByTestId('contracts-report')).toHaveText(contractBody, {
+    useInnerText: true,
+  });
   const query = new URL(page.url()).searchParams;
   for (const [key, value] of Object.entries({
     monat: '2020-01',
