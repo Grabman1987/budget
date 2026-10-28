@@ -25,17 +25,19 @@ export function Kennzahlen({
   context,
   aggregatePending = false,
 }: {
-  data: Pick<
-    Heute,
-    | 'stand'
-    | 'netWorth'
-    | 'budgetAnswer'
-    | 'nearestGoal'
-    | 'monthResult'
-    | 'lead'
-    | 'balance'
-    | 'valuationSources'
-  > | undefined;
+  data:
+    | Pick<
+        Heute,
+        | 'stand'
+        | 'netWorth'
+        | 'budgetAnswer'
+        | 'nearestGoal'
+        | 'monthResult'
+        | 'lead'
+        | 'balance'
+        | 'valuationSources'
+      >
+    | undefined;
   context?: { month: string; period: HeutePeriod };
   aggregatePending?: boolean;
   budget: UseQueryResult<BudgetMonthView>;
@@ -50,7 +52,8 @@ export function Kennzahlen({
   const plan = data?.budgetAnswer;
   const householdMonth = data?.stand.today.slice(0, 7);
   const payday = scope.period === 'payday';
-  const month = !budget.isFetching && !budget.isPending && !budget.isError ? budget.data : undefined;
+  const month =
+    !budget.isFetching && !budget.isPending && !budget.isError ? budget.data : undefined;
   const summary = month?.summary;
   const available = month ? availableInEnvelopes(planRows(month)) : undefined;
   const goal = data?.nearestGoal;
@@ -79,15 +82,22 @@ export function Kennzahlen({
           }
           line={summary && `Zugewiesen ${eurWhole(summary.assignedCents)}`}
           note={
-            summary && (
+            (summary && (
               <>
                 {`Geld, das noch keinem Envelope zugewiesen ist: Übertrag ${eur(summary.carryInCents)} + Einnahmen ${eur(summary.incomeCents)} − Ungedeckt ${eur(summary.uncoveredCents)} − Zugewiesen ${eur(summary.assignedCents)} − Gehalten ${eur(summary.heldCents)}. Dieselbe Zahl wie im Plan. `}
-                {data && householdMonth && `Haushaltseinnahmen ${eur(data.monthResult.earnedCents)} im ${monthLabel(householdMonth)} nach Buchungsdatum. Mit „Für nächsten Monat“ zählt der Zufluss im Plan erst im Folgemonat. `}
-                <AppLink to="/plan/monat/einnahmen" search={{ monat: householdMonth ?? scope.month }}>
+                {data &&
+                  householdMonth &&
+                  `Haushaltseinnahmen ${eur(data.monthResult.earnedCents)} im ${monthLabel(householdMonth)} nach Buchungsdatum. Mit „Für nächsten Monat“ zählt der Zufluss im Plan erst im Folgemonat. `}
+                <AppLink
+                  to="/plan/monat/einnahmen"
+                  search={{ monat: householdMonth ?? scope.month }}
+                >
                   Planmonat {monthLabel(householdMonth ?? scope.month)} ansehen
                 </AppLink>
               </>
-            ) || <span>Budgetangaben {budget.isError ? 'nicht verfügbar' : 'werden geladen'}.</span>
+            )) || (
+              <span>Budgetangaben {budget.isError ? 'nicht verfügbar' : 'werden geladen'}.</span>
+            )
           }
         />
         {payday ? (
@@ -104,19 +114,33 @@ export function Kennzahlen({
             expanded={chainOpen}
             controls="heute-lead-chain"
             testId="heute-lead-value"
-            ariaLabel={data ? `Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${chainOpen ? 'ausblenden' : 'zeigen'}` : undefined}
-            bar={plan && {
-              value: plan.spentCents,
-              total: plan.plannedCents,
-              label: `Ausgegeben ${eur(plan.spentCents)} von Plan ${eur(plan.plannedCents)} · Tag ${plan.day} von ${plan.daysInMonth}`,
-              marker: plan.day / plan.daysInMonth,
-            }}
-            line={data ? `Bis ${shortDay(data.stand.payday.day)} · noch ${data.stand.payday.daysToPayday} Tage` : undefined}
-            note={data && plan ? `Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind. Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}. Plan-Rest: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben. ${
-              data.balance.salary
-                ? `Nächster erwarteter Geldeingang: ${shortDay(data.balance.salary.day)} · ${eur(data.balance.salary.cents)}`
-                : 'Kein Geldeingang im Prognosezeitraum erwartet.'
-            }` : 'Diese Angabe benötigt den Heute-Abruf.'}
+            ariaLabel={
+              data
+                ? `Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${chainOpen ? 'ausblenden' : 'zeigen'}`
+                : undefined
+            }
+            bar={
+              plan && {
+                value: plan.spentCents,
+                total: plan.plannedCents,
+                label: `Ausgegeben ${eur(plan.spentCents)} von Plan ${eur(plan.plannedCents)} · Tag ${plan.day} von ${plan.daysInMonth}`,
+                marker: plan.day / plan.daysInMonth,
+              }
+            }
+            line={
+              data
+                ? `Bis ${shortDay(data.stand.payday.day)} · noch ${data.stand.payday.daysToPayday} Tage`
+                : undefined
+            }
+            note={
+              data && plan
+                ? `Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind. Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}. Plan-Rest: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben. ${
+                    data.balance.salary
+                      ? `Nächster erwarteter Geldeingang: ${shortDay(data.balance.salary.day)} · ${eur(data.balance.salary.cents)}`
+                      : 'Kein Geldeingang im Prognosezeitraum erwartet.'
+                  }`
+                : 'Diese Angabe benötigt den Heute-Abruf.'
+            }
           />
         ) : (
           <Kennzahl
@@ -129,18 +153,33 @@ export function Kennzahlen({
             alert={(available ?? 0) < 0}
             nonpositive={available === 0}
             href={month ? { to: '/plan/monat', search: { monat: scope.month } } : undefined}
-            bar={month && plan ? {
-              value: plan.spentCents,
-              total: plan.plannedCents,
-              label: `Ausgegeben ${eur(plan.spentCents)} von Plan ${eur(plan.plannedCents)} · Tag ${plan.day} von ${plan.daysInMonth}`,
-              marker: plan.day / plan.daysInMonth,
-            } : undefined}
+            bar={
+              month && plan
+                ? {
+                    value: plan.spentCents,
+                    total: plan.plannedCents,
+                    label: `Ausgegeben ${eur(plan.spentCents)} von Plan ${eur(plan.plannedCents)} · Tag ${plan.day} von ${plan.daysInMonth}`,
+                    marker: plan.day / plan.daysInMonth,
+                  }
+                : undefined
+            }
             line={
               available === undefined || !plan
                 ? undefined
                 : `Ausgegeben ${eurWhole(plan.spentCents)} von ${eurWhole(plan.plannedCents)}`
             }
-            note={month ? <>Summe „Verfügbar“ aller Envelopes im Monat, wie im Plan-Inspektor.{plan ? ` Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}.` : ''}</> : <span>Budgetangaben {budget.isError ? 'nicht verfügbar' : 'werden geladen'}.</span>}
+            note={
+              month ? (
+                <>
+                  Summe „Verfügbar“ aller Envelopes im Monat, wie im Plan-Inspektor.
+                  {plan
+                    ? ` Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}.`
+                    : ''}
+                </>
+              ) : (
+                <span>Budgetangaben {budget.isError ? 'nicht verfügbar' : 'werden geladen'}.</span>
+              )
+            }
           />
         )}
         <Kennzahl
@@ -152,7 +191,10 @@ export function Kennzahlen({
           reserveBar
           reserveLine
           sourceHint={
-            <ValuationSourceHint sources={data?.valuationSources} label="Nettovermögen · Kennzahl" />
+            <ValuationSourceHint
+              sources={data?.valuationSources}
+              label="Nettovermögen · Kennzahl"
+            />
           }
           nonpositive={Boolean(net && net.totalCents <= 0)}
           href={net ? { to: '/vermoegen/nettovermoegen', search: { zeitraum: '1J' } } : undefined}
@@ -275,7 +317,11 @@ function Kennzahl({
   } else if (missing) {
     figure = null;
   } else if (unavailable || value === undefined) {
-    figure = <span className={`${className} is-unavailable`} aria-label={`${label} nicht verfügbar`}>–</span>;
+    figure = (
+      <span className={`${className} is-unavailable`} aria-label={`${label} nicht verfügbar`}>
+        –
+      </span>
+    );
   } else if (onValueClick) {
     figure = (
       <button
@@ -343,8 +389,20 @@ function Kennzahl({
         figure
       )}
       {missing}
-      {bar ? <Bar {...bar} /> : reserveBar && <div className="heute-answer-bar is-empty" aria-hidden="true" />}
-      {line ? <p className="heute-kennzahl-line">{line}</p> : reserveLine && <p className="heute-kennzahl-line" aria-hidden="true">…</p>}
+      {bar ? (
+        <Bar {...bar} />
+      ) : (
+        reserveBar && <div className="heute-answer-bar is-empty" aria-hidden="true" />
+      )}
+      {line ? (
+        <p className="heute-kennzahl-line">{line}</p>
+      ) : (
+        reserveLine && (
+          <p className="heute-kennzahl-line" aria-hidden="true">
+            …
+          </p>
+        )
+      )}
       {info && note && (
         <p id={noteId} className="heute-kennzahl-note">
           {line && <span className="heute-phone-only">{line} · </span>}

@@ -27,20 +27,38 @@ export function AttentionBar({
   useAmountPrivacy();
   // Keep native disclosure ownership through an unrelated aggregate outage, never its values.
   const [reviewOwner, setReviewOwner] = useState<'visible' | 'remaining'>('visible');
-  const independent: AttentionTask[] = savingsRows.length || savingsError || savingsPending
-    ? [{ id: 'review:work', kind: 'review' }] : [];
-  const model = data ? attentionModel(data, { count: savingsRows.length, unavailable: !!savingsError || savingsPending })
-    : { tasks: independent, visible: reviewOwner === 'visible' ? independent : [], remaining: reviewOwner === 'remaining' ? independent : [] };
-  const verifiedOwner = data && model.tasks.some((task) => task.kind === 'review')
-    ? model.remaining.some((task) => task.kind === 'review') ? 'remaining' : 'visible' : undefined;
+  const independent: AttentionTask[] =
+    savingsRows.length || savingsError || savingsPending
+      ? [{ id: 'review:work', kind: 'review' }]
+      : [];
+  const model = data
+    ? attentionModel(data, {
+        count: savingsRows.length,
+        unavailable: !!savingsError || savingsPending,
+      })
+    : {
+        tasks: independent,
+        visible: reviewOwner === 'visible' ? independent : [],
+        remaining: reviewOwner === 'remaining' ? independent : [],
+      };
+  const verifiedOwner =
+    data && model.tasks.some((task) => task.kind === 'review')
+      ? model.remaining.some((task) => task.kind === 'review')
+        ? 'remaining'
+        : 'visible'
+      : undefined;
   if (verifiedOwner && verifiedOwner !== reviewOwner) setReviewOwner(verifiedOwner);
   const financeMessage =
     data && 'unavailable' in data.financeCheck ? data.financeCheck.unavailable.message : null;
   const financeUnavailable = financeMessage !== null;
   const missingInputs =
-    data && !('unavailable' in data.financeCheck) ? (data.financeCheck.counts?.notEvaluated ?? 0) : 0;
+    data && !('unavailable' in data.financeCheck)
+      ? (data.financeCheck.counts?.notEvaluated ?? 0)
+      : 0;
   if (
-    data && !pending && !model.tasks.length &&
+    data &&
+    !pending &&
+    !model.tasks.length &&
     !data.attention.monthCloseTasks?.unavailable.length &&
     !data.attention.contactReminders?.unavailableCount &&
     !financeUnavailable &&
@@ -58,12 +76,21 @@ export function AttentionBar({
     />
   );
   return (
-    <section className="heute-attention" aria-labelledby="attention-title" aria-busy={pending || undefined}>
+    <section
+      className="heute-attention"
+      aria-labelledby="attention-title"
+      aria-busy={pending || undefined}
+    >
       <h2 id="attention-title">Zu tun</h2>
       {data && data.stand.month !== data.stand.today.slice(0, 7) && (
         <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>
       )}
-      {!data && (pending ? <LoadingNote what="Aufgaben aus Heute" /> : <p className="heute-note">Die weiteren Aufgaben benötigen den Heute-Abruf.</p>)}
+      {!data &&
+        (pending ? (
+          <LoadingNote what="Aufgaben aus Heute" />
+        ) : (
+          <p className="heute-note">Die weiteren Aufgaben benötigen den Heute-Abruf.</p>
+        ))}
       {model.visible.map(renderRow)}
       {model.remaining.length > 0 && (
         <details className="attention-remaining">
@@ -116,17 +143,50 @@ function AttentionRow({
     return (
       <div className="attention-row">
         <span>
-          {data && data.attention.inboxCount > 0 && <>{data.attention.inboxCount} unter Prüfen{uncategorized ? ` · ohne Kategorie: ${eur(uncategorized.cents)}` : ''}</>}
-          {data && data.attention.pendingCount > 0 && <>{data.attention.inboxCount > 0 ? ' · ' : ''}{data.attention.pendingCount} unbestätigte Buchungen · bis {longDay(data.attention.pendingBefore)} (mindestens 7 Tage alt)</>}
+          {data && data.attention.inboxCount > 0 && (
+            <>
+              {data.attention.inboxCount} unter Prüfen
+              {uncategorized ? ` · ohne Kategorie: ${eur(uncategorized.cents)}` : ''}
+            </>
+          )}
+          {data && data.attention.pendingCount > 0 && (
+            <>
+              {data.attention.inboxCount > 0 ? ' · ' : ''}
+              {data.attention.pendingCount} unbestätigte Buchungen · bis{' '}
+              {longDay(data.attention.pendingBefore)} (mindestens 7 Tage alt)
+            </>
+          )}
         </span>
         <div className="attention-actions">
-          {data && data.attention.inboxCount > 0 && <AppLink to="/konten/pruefen">Zuordnen</AppLink>}
-          {data && data.attention.pendingCount > 0 && <AppLink to="/konten/buchungen" search={{ status: 'pending', bis: data.attention.pendingBefore }}>Bestätigen</AppLink>}
+          {data && data.attention.inboxCount > 0 && (
+            <AppLink to="/konten/pruefen">Zuordnen</AppLink>
+          )}
+          {data && data.attention.pendingCount > 0 && (
+            <AppLink
+              to="/konten/buchungen"
+              search={{ status: 'pending', bis: data.attention.pendingBefore }}
+            >
+              Bestätigen
+            </AppLink>
+          )}
         </div>
         {(savingsRows.length > 0 || savingsPending || savingsError) && (
           <details className="attention-proposals" aria-busy={savingsPending || undefined}>
-            <summary>{savingsRows.length > 0 ? <>{savingsRows.length} {savingsRows.length === 1 ? 'Sparplanausführung' : 'Sparplanausführungen'} prüfen</> : 'Sparplanvorschläge'}</summary>
-            {savingsRows.length > 0 ? <RevisionTable rows={savingsRows} caption="Sparplanausführungen" /> : <p>{savingsPending ? 'Vorschläge werden geladen.' : 'Vorschläge nicht verfügbar.'}</p>}
+            <summary>
+              {savingsRows.length > 0 ? (
+                <>
+                  {savingsRows.length}{' '}
+                  {savingsRows.length === 1 ? 'Sparplanausführung' : 'Sparplanausführungen'} prüfen
+                </>
+              ) : (
+                'Sparplanvorschläge'
+              )}
+            </summary>
+            {savingsRows.length > 0 ? (
+              <RevisionTable rows={savingsRows} caption="Sparplanausführungen" />
+            ) : (
+              <p>{savingsPending ? 'Vorschläge werden geladen.' : 'Vorschläge nicht verfügbar.'}</p>
+            )}
           </details>
         )}
         {savingsPending && <LoadingNote what="Sparplanvorschläge" />}
@@ -229,26 +289,41 @@ function AttentionRow({
 }
 
 /** Ordinary funding work stays available below the fold, in ink. */
-export function FundingNotes({ data, requestMonth }: { data: Heute | undefined; requestMonth?: string | undefined }) {
+export function FundingNotes({
+  data,
+  requestMonth,
+}: {
+  data: Heute | undefined;
+  requestMonth?: string | undefined;
+}) {
   const month = data?.stand.today.slice(0, 7) ?? requestMonth;
   // The empty key is disabled: no server month is guessed before the first verified context.
   const budget = useQuery({ ...budgetQuery(month ?? ''), enabled: !!month });
   const savings = useQuery({ ...goalsQuery(month ?? ''), enabled: !!month });
-  const previous = useQuery({ ...goalsQuery(month ? shiftMonth(month, -1) : ''), enabled: !!month });
-  if (!month) return <p className="heute-note">Für Finanzierungsgrundlagen fehlt der Monatskontext aus Heute.</p>;
+  const previous = useQuery({
+    ...goalsQuery(month ? shiftMonth(month, -1) : ''),
+    enabled: !!month,
+  });
+  if (!month)
+    return (
+      <p className="heute-note">Für Finanzierungsgrundlagen fehlt der Monatskontext aus Heute.</p>
+    );
   const budgetReady = !budget.isFetching && !budget.isPending && !budget.isError && !!budget.data;
-  const savingsReady = !savings.isFetching && !savings.isPending && !savings.isError && !!savings.data;
-  const previousReady = !previous.isFetching && !previous.isPending && !previous.isError && !!previous.data;
+  const savingsReady =
+    !savings.isFetching && !savings.isPending && !savings.isError && !!savings.data;
+  const previousReady =
+    !previous.isFetching && !previous.isPending && !previous.isError && !!previous.data;
   const envelopes = budgetReady ? budget.data!.summary.envelopes : [];
   const goals = envelopes.filter((e) => e.target && e.needCents > 0);
   const complete = budgetReady && savingsReady && previousReady;
-  const unfunded = complete ? unfundedSavingsGoals(
-    savings.data!.goals,
-    previous.data!.goals,
-    envelopes.filter((e) => e.target).map((e) => e.categoryId),
-  ) : [];
-  if (complete && !goals.length && !unfunded.length)
-    return null;
+  const unfunded = complete
+    ? unfundedSavingsGoals(
+        savings.data!.goals,
+        previous.data!.goals,
+        envelopes.filter((e) => e.target).map((e) => e.categoryId),
+      )
+    : [];
+  if (complete && !goals.length && !unfunded.length) return null;
   return (
     <section className="heute-section" aria-label="Ziele finanzieren">
       <h2>Ziele finanzieren</h2>
@@ -256,7 +331,12 @@ export function FundingNotes({ data, requestMonth }: { data: Heute | undefined; 
       {data && data.stand.month !== month && (
         <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>
       )}
-      {(budget.isFetching || budget.isPending || savings.isFetching || savings.isPending || previous.isFetching || previous.isPending) && <LoadingNote what="Finanzierungsgrundlagen" />}
+      {(budget.isFetching ||
+        budget.isPending ||
+        savings.isFetching ||
+        savings.isPending ||
+        previous.isFetching ||
+        previous.isPending) && <LoadingNote what="Finanzierungsgrundlagen" />}
       {goals.length > 0 && (
         <p>
           <AppLink to="/plan/monat" search={{ monat: month, ansicht: 'triage' }}>
