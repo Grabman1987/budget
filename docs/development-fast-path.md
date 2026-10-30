@@ -159,3 +159,18 @@ Board state describes actual work. A merged child does not complete a parent or 
 physical-device acceptance check. Close/reconcile cards only after their acceptance
 is met; blocked/unattended historical branches do not consume active implementation
 slots unless someone is actually working on them.
+
+## Local pre-push gate
+
+Typecheck and lint failures were the cheapest CI failures to avoid (8 of 28 sampled red runs,
+2026-10-20..30). Enable the gate once per clone or worktree:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+`git push` then runs `scripts/dev/pre-push-check.mjs`: typecheck, ESLint and Prettier on the
+changed files, the CSS scale check for stylesheets, and `vitest related` for the touched code,
+compared with `origin/main`. It adds no required check and changes no CI behaviour; CI still
+decides. Use `node scripts/dev/pre-push-check.mjs --list` to see the plan and
+`BUDGET_SKIP_PREPUSH=1 git push` to skip it deliberately.
