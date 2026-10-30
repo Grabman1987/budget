@@ -123,3 +123,8 @@ Contact alias/merge/archive and encrypted-backup download are explicitly identif
 - Antigravity owns router.tsx, reports/report-search.ts, pages/reports-pages.tsx, minimal existing Finanzcheck report reuse and only related tests/evidence. Root retains shared flags/build/CI/PROGRESS and coordination. No second writer on these scopes.
 - Root retains S1 delivery/CI and the next T2 forecast/offline scope, then T3 as dependencies permit. T4 is a possible subsequent Antigravity slice only after explicit dispatch and a fresh branch; no bulk delegation of the remaining plan or later Moonshot extensions. At most one implementation package per environment plus independent review.
 - The handoff preserves the original grant: branches/PRs allowed; production merges, releases, activation and real-data changes need separate owner OK. T6 is distinct from the new health-score feature #814 and must reuse the existing rule-history body without changing R-rule evaluation.
+
+## S1 delivery and handoff base
+
+- Draft PR [#878](https://github.com/Grabman1987/budget/pull/878), feat/redesign-build-flag-20261030, targets T1 #876. Executable code/evidence commit c0bdf71c0291d66b5d4343f429ea030c331701fa is independently reviewed; the following checkpoint-only commit records the high-risk CI context and handoff. Full exact-head CI/default+preview Docker builds remain pending. No merge or deployment.
+- Manual Antigravity T6 worktree: C:/Users/fabia/budget-antigravity-t6-20261030, branch feat/redesign-t6-finanzcheck-20261030, to be created from this published S1 dependency. No external provider is started. The owner receives a standalone current assignment prompt in the FinanzApp workspace; generic handoff 02 remains available.
