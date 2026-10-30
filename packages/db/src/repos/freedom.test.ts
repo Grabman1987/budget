@@ -103,7 +103,7 @@ describe('current freedom read model shares R16 sources', () => {
     expect(view.months.slice(0, -1).every((month) => month.consumptionCents === 10_000)).toBe(true);
     expect(view.months.at(-1)).toEqual({ month: '2026-09', consumptionCents: 8_000 });
     expect(view.annualSpendCents).toBe(118_000);
-    expect(ruleInputs(db, today).freedom.annualSpendCents).toBe(118_000);
+    expect(ruleInputs(db, today).freedom).toMatchObject({ annualSpendCents: 118_000 });
   });
 
   it('redesign F09 annualises eight available months and excludes future history', () => {
