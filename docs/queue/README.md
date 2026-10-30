@@ -26,6 +26,15 @@ Keep all four required GitHub check names and branch protection. Required aggreg
 
 Separate implementation/preview from publication: a PR can be ready for user review before the full delivery gate completes. Do not duplicate a full CI run locally or repeatedly rebuild evidence after an unrelated documentation edit. On actual failures distinguish infrastructure, contract/fixture and product failures before a targeted retry. Use the five-task timing pilot in the guide to measure the change; do not claim an unmeasured speedup.
 
+## Failures and pre-push habits
+
+Owner authorization (2026-10-30): these habits address the measured CI churn (44 % of finished PR runs red, 2026-10-20..30) and do not relax any check.
+
+- Enable the local gate once per worktree (`git config core.hooksPath .githooks`, see the [fast-path guide](../development-fast-path.md)). Opening a PR does not require it to pass locally, but pushing with a known typecheck/lint failure is not allowed.
+- After a red CI run, classify the failure (contract/fixture, flake, infrastructure) before pushing again, as already required above. If the same job fails twice for the same reason, record cause and evidence in the issue and take the next step in "After two failed diagnostic approaches" instead of pushing a third attempt.
+- A change that moves or removes a route, report id, test id or visible text migrates every spec that mentions it in the same PR (`rg` over `e2e`, `apps`, `packages`); the migration is a scoped technical adaptation under "Tests and local checks".
+- Sub-pixel tolerance: touch-target checks use `MIN_TARGET_PX` (43.9, `e2e/ledger-helpers.ts`) instead of an exact 44. Other tolerances, timeouts and assertions stay under the rules above.
+
 ## Review and risk
 
 Every completed change gets an independent review of the final diff. For a small change, a short explanation and relevant evidence are enough. After edits, review the affected portion again unless the change has wider effects. Existing-test changes always need independent review; financial, security and migration changes need a capable reviewer of the complete diff. The reviewer must not be the implementer.
