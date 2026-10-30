@@ -1,4 +1,4 @@
-import { createTestDatabase } from '@budget/db';
+import { createTestDatabase, type freedomInvestmentBasis } from '@budget/db';
 import { Hono } from 'hono';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -39,12 +39,17 @@ afterEach(() => {
   rmSync(directory, { recursive: true, force: true });
 });
 
-async function read() {
+type HeuteWire = {
+  investmentBasis: { asOf: string } & ReturnType<typeof freedomInvestmentBasis>;
+  netWorth: unknown;
+};
+
+async function read(): Promise<HeuteWire> {
   const bytes = opened.sqlite.serialize();
   const writes = opened.sqlite.prepare('SELECT total_changes() AS n').get();
   const response = await app.request('/api/heute?period=month&month=2026-09');
   expect(response.status).toBe(200);
-  const result = await response.json();
+  const result = (await response.json()) as HeuteWire;
   expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
   expect(opened.sqlite.prepare('SELECT total_changes() AS n').get()).toEqual(writes);
   return result;
@@ -53,11 +58,7 @@ async function read() {
 it('F07 keeps selected signed basis separate from the unchanged positive-assets/net-debt chain', async () => {
   const result = await read();
   expect(result.investmentBasis).toMatchObject({ asOf: day, investedCents: 17_000 });
-  expect(
-    result.investmentBasis.accounts
-      .map((row: { id: string; valueCents: number }) => [row.id, row.valueCents])
-      .sort(),
-  ).toEqual([
+  expect(result.investmentBasis.accounts.map((row) => [row.id, row.valueCents]).sort()).toEqual([
     ['negative', -3_000],
     ['positive', 20_000],
   ]);
@@ -81,7 +82,7 @@ it('uses explicit selected membership, retaining closed selected accounts withou
   `);
   const result = await read();
   expect(result.investmentBasis.investedCents).toBe(2_000);
-  expect(result.investmentBasis.accounts.map((row: { id: string }) => row.id).sort()).toEqual([
+  expect(result.investmentBasis.accounts.map((row) => row.id).sort()).toEqual([
     'negative',
     'savings',
   ]);
@@ -93,9 +94,7 @@ it('selected missing FX is null with its actual source reason, never a zero cont
     VALUES ('fx','Selected USD','brokerage','investment','USD',0,'2026-01-01',333,'included');`);
   const result = await read();
   expect(result.investmentBasis.investedCents).toBeNull();
-  expect(
-    result.investmentBasis.accounts.find((row: { id: string }) => row.id === 'fx'),
-  ).toMatchObject({
+  expect(result.investmentBasis.accounts.find((row) => row.id === 'fx')).toMatchObject({
     valueCents: null,
     missingPrice: false,
     missingFxCurrencies: ['USD'],
@@ -107,7 +106,7 @@ it('an unrelated off-budget excluded FX gap does not hide a healthy selected bas
     .exec(`INSERT INTO account (id,name,type,role,currency,on_budget,opening_date,opening_balance_cents,allocation_scope)
     VALUES ('fx','Excluded USD reserve','savings','reserve','USD',0,'2026-01-01',333,'excluded');`);
   const result = await read();
-  expect(result.netWorth.unavailable.reason).toBe('missing_fx');
+  expect(result.netWorth).toMatchObject({ unavailable: { reason: 'missing_fx' } });
   expect(result.investmentBasis).toMatchObject({ asOf: day, investedCents: 17_000 });
 });
 
@@ -118,9 +117,10 @@ it('a missing selected security price remains an explained unavailable basis', a
   `);
   const result = await read();
   expect(result.investmentBasis.investedCents).toBeNull();
-  expect(
-    result.investmentBasis.accounts.find((row: { id: string }) => row.id === 'positive'),
-  ).toMatchObject({ valueCents: null, missingPrice: true });
+  expect(result.investmentBasis.accounts.find((row) => row.id === 'positive')).toMatchObject({
+    valueCents: null,
+    missingPrice: true,
+  });
 });
 
 it('preserves literal zero and negative signed basis values', async () => {

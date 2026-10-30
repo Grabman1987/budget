@@ -74,3 +74,7 @@ No local browser/build/full suite was run. Independent executable full-diff and 
 ## Current T2 artifact provenance
 
 Corrected-head run 41085770470 at 39233bad passed Visual specs and the actual OFF/ON offline smoke again. Artifact 12991243999 has GitHub digest sha256:5b3c574b37f6bfb701a3087f5e05d97508efa78dbeeabd4c60b6e02dc5264b91. Root downloaded it and compared all eight forecast PNG SHA256 values to the previously inspected first-candidate images: every file is byte-identical. This reuses verified visual content without claiming that the remaining required browser aggregate has passed. Both Linux/Windows unit shards, static, Docker and restore are green; full browser completion remains pending.
+
+## First T3 CI diagnosis
+
+Run 41088134571 at d3dd291e passed both full Linux unit shards, Docker and restore, but failed strict types in the two new test files: unknown JSON and three unsupported Testing Library exact options. Conservative aggregates failed and dependent Windows/browser jobs did not run. The bounded harness correction adds truthful canonical wire typing and preserves exact nested FX/name assertions; production/smoke and all financial/read-only expectations are unchanged. Independent delta review and scoped lint/format/whitespace passed. Corrected-head full types and required CI remain pending; no previous result is claimed as current-head green.

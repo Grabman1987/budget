@@ -154,7 +154,7 @@ it('ON keeps selected signed Investiert separate from the positive Anlagen/net-d
 it('OFF retains its positive-asset Investiert label and does not add a selected-basis surface', async () => {
   flags.REDESIGN_ENABLED = false;
   mount(detail);
-  expect(await screen.findByRole('heading', { name: 'Investiert', exact: true })).toBeTruthy();
+  expect(await screen.findByRole('heading', { name: 'Investiert' })).toBeTruthy();
   expect(screen.queryByRole('region', { name: 'Investiert · Anlagebasis' })).toBeNull();
 });
 
@@ -190,7 +190,7 @@ it('cold hash navigation waits for the source section and focuses its real headi
 
 it('same-page hash and Back/revisit focus once per navigation, not an ordinary data refresh', async () => {
   const router = mount(detail);
-  await screen.findByRole('heading', { name: 'Anlagen', exact: true });
+  await screen.findByRole('heading', { name: 'Anlagen' });
   await act(async () => {
     await router.navigate({
       to: '/heute/details/$kind',
@@ -275,7 +275,6 @@ it('ON labels a positive net credit as Guthaben auf Schuldkonten (netto)', async
   mount('/heute/details/debt?monat=2026-09&period=month');
   const heading = await screen.findByRole('heading', {
     name: 'Guthaben auf Schuldkonten (netto)',
-    exact: true,
   });
   expect(
     within(heading.closest('section')!).getByText('Guthaben auf Schuldkonten (netto)', {
