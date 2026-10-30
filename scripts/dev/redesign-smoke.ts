@@ -514,6 +514,17 @@ async function finanzcheckScreenshots(page: Page, state: 'forecast' | 'history' 
   }
 }
 
+async function expectFinanzcheckMatrixFocus(page: Page) {
+  const heading = page.locator('#fc-matrix');
+  await expect(heading).toBeFocused();
+  const bounds = await heading.boundingBox();
+  if (!bounds) throw new Error('Focused Finanzcheck heading has no layout bounds');
+  const topbar = page.locator('.topbar');
+  const bar = (await topbar.isVisible()) ? await topbar.boundingBox() : null;
+  expect(bounds.y).toBeGreaterThanOrEqual(bar ? bar.y + bar.height : 0);
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+}
+
 async function finanzcheckProof(page: Page, origin: string) {
   const headers = { origin };
   const created = await page.request.post(`${origin}/api/accounts`, {
@@ -560,7 +571,7 @@ async function finanzcheckProof(page: Page, origin: string) {
     await expect(
       page.getByRole('heading', { name: 'Finanz-Check-Verlauf', exact: true }),
     ).toBeVisible();
-    await expect(page.locator('#fc-matrix')).toBeFocused();
+    await expectFinanzcheckMatrixFocus(page);
     const row = page.locator('.fc-table tr[data-rule="R07"]');
     await expect(row.locator('.ov-strip .ov-cell')).toHaveCount(13);
     await expect(row).toContainText('verletzt');
@@ -589,10 +600,10 @@ async function finanzcheckProof(page: Page, origin: string) {
     await finanzcheckScreenshots(page, 'source');
     await page.goBack();
     await expect(page).toHaveURL(`${origin}${finanzcheckBookmark}`);
-    await expect(page.locator('#fc-matrix')).toBeFocused();
+    await expectFinanzcheckMatrixFocus(page);
     await page.reload();
     await expect(page).toHaveURL(`${origin}${finanzcheckBookmark}`);
-    await expect(page.locator('#fc-matrix')).toBeFocused();
+    await expectFinanzcheckMatrixFocus(page);
     await expect(row.locator('.ov-strip .ov-cell')).toHaveCount(13);
     // The past August budget window ends before today; numeric projection belongs to September.
     await page.goto(`${origin}${finanzcheckBookmark.replace('monat=2026-08', 'monat=2026-09')}`);

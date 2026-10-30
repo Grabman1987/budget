@@ -113,7 +113,7 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
     if (!heading) return;
     focusedNavigation.current = navigationKey;
     heading.focus({ preventScroll: true });
-    heading.scrollIntoView?.({ block: 'start' });
+    heading.scrollIntoView?.({ block: 'center' });
   }, [data, location.hash, navigationKey]);
   return (
     <PageFrame
