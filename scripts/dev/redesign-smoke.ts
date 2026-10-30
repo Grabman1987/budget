@@ -412,26 +412,50 @@ const finanzcheckBookmark =
   '/reports/onepager?monat=2026-08&period=month&zeitraum=2026-01..2026-08&darstellung=finanzcheck&trend=true&ansicht=synthetic-view&kategorien=%5B%22synthetic-food%22%5D#fc-matrix';
 
 async function finanzcheckOff(page: Page, origin: string) {
-  await page.goto(`${origin}/reports/finanzcheck?monat=2026-08&period=month#fc-matrix`);
-  await expect(page).toHaveURL((url) => url.pathname === '/');
-  await expect(page.locator('.app')).not.toHaveAttribute('data-budget-redesign');
-  await expect(
-    page.getByRole('heading', { name: 'August 2026', level: 1, exact: true }),
-  ).toBeVisible();
-  await expect(page.locator('.heute')).toBeVisible();
-  await expect(page.locator('.finanzcheck-report')).toHaveCount(0);
-  await page.goto(`${origin}${finanzcheckBookmark}`);
-  await expect(page.getByRole('heading', { name: 'Monats-One-Pager', exact: true })).toBeVisible();
-  await expect(page.getByRole('article', { name: 'Monats-One-Pager August 2026' })).toBeVisible();
-  await expect(page.locator('.finanzcheck-report')).toHaveCount(0);
-  await page.goto(`${origin}${bookmark}`);
-  await expectBody(page, origin, false);
+  const headers = { origin };
+  const created = await page.request.post(`${origin}/api/accounts`, {
+    headers,
+    data: {
+      name: 'T6 OFF historical budget',
+      type: 'checking',
+      role: 'budget',
+      onBudget: true,
+      openingDate: '2025-01-01',
+      openingBalanceCents: 0,
+    },
+  });
+  expect(created.ok()).toBe(true);
+  const { groupId } = (await created.json()) as { groupId: string };
+  try {
+    await page.goto(`${origin}/reports/finanzcheck?monat=2026-08&period=month#fc-matrix`);
+    await expect(page).toHaveURL((url) => url.pathname === '/');
+    await expect(page.locator('.app')).not.toHaveAttribute('data-budget-redesign');
+    await expect(
+      page.getByRole('heading', { name: 'August 2026', level: 1, exact: true }),
+    ).toBeVisible();
+    await expect(page.locator('.heute')).toBeVisible();
+    await expect(page.locator('.finanzcheck-report')).toHaveCount(0);
+    await page.goto(`${origin}${finanzcheckBookmark}`);
+    await expect(
+      page.getByRole('heading', { name: 'Monats-One-Pager', exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('article', { name: 'Monats-One-Pager August 2026' })).toBeVisible();
+    await expect(page.locator('.finanzcheck-report')).toHaveCount(0);
+  } finally {
+    const undone = await page.request.post(`${origin}/api/undo`, { headers, data: { groupId } });
+    expect(undone.ok()).toBe(true);
+    await page.goto(`${origin}${bookmark}`);
+    await expectBody(page, origin, false);
+  }
 }
 
 async function finanzcheckScreenshots(page: Page, state: 'forecast' | 'history' | 'source') {
   const output = join(root, 'test-results/redesign-finanzcheck');
   mkdirSync(output, { recursive: true });
   const previous = await page.locator('html').getAttribute('data-theme');
+  const scroller = page.locator('.finanzcheck-report .ov-scroll');
+  const previousScroll =
+    state === 'history' ? await scroller.evaluate((element) => element.scrollLeft) : undefined;
   try {
     for (const theme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme: theme });
@@ -443,14 +467,24 @@ async function finanzcheckScreenshots(page: Page, state: 'forecast' | 'history' 
         state === 'forecast'
           ? '#r07-title'
           : state === 'history'
-            ? '.fc-table tr[data-rule="R07"]'
+            ? '.fc-table tr[data-rule="R07"] .ov-strip'
             : '#rule-result-R07',
       );
       await target.evaluate((element) =>
-        element.scrollIntoView({ block: 'center', inline: 'nearest' }),
+        element.scrollIntoView({ block: 'center', inline: 'center' }),
       );
       const bounds = await target.boundingBox();
       if (!bounds) throw new Error('Finanzcheck evidence target has no layout bounds');
+      if (state === 'history') {
+        const viewport = await scroller.evaluate((element) => {
+          const left = element.getBoundingClientRect().left + element.clientLeft;
+          return { left, right: left + element.clientWidth };
+        });
+        expect(bounds.x).toBeGreaterThanOrEqual(Math.max(0, viewport.left));
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(
+          Math.min(page.viewportSize()!.width, viewport.right),
+        );
+      }
       const tabbar = page.locator('.tabbar');
       const tabbarBounds = (await tabbar.isVisible()) ? await tabbar.boundingBox() : null;
       const header = page.locator('.m-head');
@@ -468,6 +502,10 @@ async function finanzcheckScreenshots(page: Page, state: 'forecast' | 'history' 
       });
     }
   } finally {
+    if (previousScroll !== undefined)
+      await scroller.evaluate((element, value) => {
+        element.scrollLeft = value;
+      }, previousScroll);
     await page.emulateMedia({ colorScheme: 'light' });
     await page.evaluate((value) => {
       if (value === null) document.documentElement.removeAttribute('data-theme');
