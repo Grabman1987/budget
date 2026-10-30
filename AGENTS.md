@@ -10,9 +10,7 @@ Project skill profiles and their provenance are listed in [`docs/skills.md`](doc
 
 ## Before every push
 
-These are working habits, not a second process; [`docs/queue/README.md`](docs/queue/README.md) still governs delivery.
+Working habits; the rules behind them are in [`docs/queue/README.md`](docs/queue/README.md) (section "Failures and pre-push habits").
 
-1. Once per worktree: `git config core.hooksPath .githooks`. The hook runs `scripts/dev/pre-push-check.mjs` (typecheck, ESLint/Prettier on changed files, related unit tests, and a check for removed identifiers that e2e specs still reference).
-2. If you move, rename or remove a route, report id, `data-testid` or visible text: run `rg "<old value>" e2e apps packages` and migrate every hit in the same PR. A spec must never point at something that no longer exists.
-3. After a red CI run, classify the failure first (contract, flake, infrastructure), fix that class and push once. If the same job fails twice for the same reason, stop and record cause and evidence in the issue instead of pushing a third attempt.
-4. In new specs, do not assert layout values exactly; allow sub-pixel tolerance (for example `>= 43.5` for a 44 px target).
+1. Once per worktree: `git config core.hooksPath .githooks`. The hook runs `scripts/dev/pre-push-check.mjs`; its coverage and limits are listed in [`docs/development-fast-path.md`](docs/development-fast-path.md).
+2. If you move, rename or remove a route, report id, `data-testid` or visible text: run `rg "<old value>" e2e apps packages` and migrate every hit in the same PR.
