@@ -73,6 +73,14 @@
 .fc-table .ov-name {
   white-space: normal;
 }
+.fc-table .fc-rule-source {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: var(--touch);
+  min-height: var(--touch);
+}
 .finanzcheck-report .ov-cell.is-none {
   background: var(--quiet-soft);
 }
