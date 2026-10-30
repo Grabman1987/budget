@@ -415,7 +415,10 @@ async function finanzcheckOff(page: Page, origin: string) {
   await page.goto(`${origin}/reports/finanzcheck?monat=2026-08&period=month#fc-matrix`);
   await expect(page).toHaveURL((url) => url.pathname === '/');
   await expect(page.locator('.app')).not.toHaveAttribute('data-budget-redesign');
-  await expect(page.getByRole('heading', { name: 'Heute', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'August 2026', level: 1, exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('.heute')).toBeVisible();
   await expect(page.locator('.finanzcheck-report')).toHaveCount(0);
   await page.goto(`${origin}${finanzcheckBookmark}`);
   await expect(page.getByRole('heading', { name: 'Monats-One-Pager', exact: true })).toBeVisible();
