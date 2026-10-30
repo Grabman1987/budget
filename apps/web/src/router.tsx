@@ -15,6 +15,7 @@ import {
 } from '@budget/domain';
 import type { HeutePeriod } from './heute/api';
 import { AUTH_STATUS_KEY, authStatusQuery, queryClient } from './auth/status-query';
+import { REDESIGN_ENABLED } from './shell/redesign-flag';
 import { clearDeviceFinancialData } from './pwa/local-data';
 import { validateBookingsSearch } from './ledger/bookings-search';
 import { validatePlanFilterSearch, type PlanFilterSearch } from './budget/plan-filters';
@@ -606,7 +607,11 @@ const redirects = [
   redirectRoute('/reports/vorschau', '/plan/erwartet'),
   redirectRoute('/reports/sparziele', '/plan/sparziele'),
   redirectRoute('/reports/kontakte', '/konten/kontakte'),
-  redirectRoute('/reports/finanzcheck', '/'),
+  redirectRoute(
+    '/reports/finanzcheck',
+    REDESIGN_ENABLED ? '/reports/onepager' : '/',
+    REDESIGN_ENABLED ? { darstellung: 'finanzcheck' } : {},
+  ),
   redirectRoute('/konten/posteingang', '/konten/pruefen'),
   redirectRoute('/konten/posteingang/$id', '/konten/pruefen/$id'),
   // Legacy import bookmarks lead to the export placeholder; no import action remains in the UI.
@@ -678,8 +683,13 @@ const reportRoute = createRoute({
   path: '/reports/$reportId',
   validateSearch: validateReportSearch,
   staticData: { meta: { ...REPORTS_CATALOG, title: 'Report', register: 'katalog' } },
-  loader: ({ params }): PageTitleData => {
-    const report = findReport(params.reportId);
+  loaderDeps: ({ search }) => ({
+    finanzcheck: REDESIGN_ENABLED && search.darstellung === 'finanzcheck',
+  }),
+  loader: ({ params, deps }): PageTitleData => {
+    const report = findReport(
+      params.reportId === 'onepager' && deps.finanzcheck ? 'finanzcheck' : params.reportId,
+    );
     return report ? { title: report.name } : {};
   },
   component: lazyRouteComponent(reportsPages, 'ReportRoute'),

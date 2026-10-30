@@ -9,6 +9,7 @@ import { chromium, expect, request, type Page } from '@playwright/test';
 import { bootstrapPasskey } from '../../e2e/bootstrap';
 import { E2E_SETUP_TOKEN } from '../../e2e/setup-token';
 import type { Heute } from '../../apps/web/src/heute/api';
+import type { HistoryMatrix } from '@budget/domain';
 
 const root = resolve(import.meta.dirname, '../..');
 const directory = mkdtempSync(join(tmpdir(), 'budget-redesign-smoke-'));
@@ -407,6 +408,161 @@ async function investmentProof(page: Page, origin: string) {
   }
 }
 
+const finanzcheckBookmark =
+  '/reports/onepager?monat=2026-08&period=month&zeitraum=2026-01..2026-08&darstellung=finanzcheck&trend=true&ansicht=synthetic-view&kategorien=%5B%22synthetic-food%22%5D#fc-matrix';
+
+async function finanzcheckOff(page: Page, origin: string) {
+  await page.goto(`${origin}/reports/finanzcheck?monat=2026-08&period=month#fc-matrix`);
+  await expect(page).toHaveURL((url) => url.pathname === '/');
+  await expect(page.locator('.app')).not.toHaveAttribute('data-budget-redesign');
+  await expect(page.getByRole('heading', { name: 'Heute', exact: true })).toBeVisible();
+  await expect(page.locator('.finanzcheck-report')).toHaveCount(0);
+  await page.goto(`${origin}${finanzcheckBookmark}`);
+  await expect(page.getByRole('heading', { name: 'Monats-One-Pager', exact: true })).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Monats-One-Pager August 2026' })).toBeVisible();
+  await expect(page.locator('.finanzcheck-report')).toHaveCount(0);
+  await page.goto(`${origin}${bookmark}`);
+  await expectBody(page, origin, false);
+}
+
+async function finanzcheckScreenshots(page: Page, state: 'forecast' | 'history' | 'source') {
+  const output = join(root, 'test-results/redesign-finanzcheck');
+  mkdirSync(output, { recursive: true });
+  const previous = await page.locator('html').getAttribute('data-theme');
+  try {
+    for (const theme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: theme });
+      await page.evaluate(async (value) => {
+        document.documentElement.dataset['theme'] = value;
+        await document.fonts.ready;
+      }, theme);
+      const target = page.locator(
+        state === 'forecast'
+          ? '#r07-title'
+          : state === 'history'
+            ? '.fc-table tr[data-rule="R07"]'
+            : '#rule-result-R07',
+      );
+      await target.evaluate((element) =>
+        element.scrollIntoView({ block: 'center', inline: 'nearest' }),
+      );
+      const bounds = await target.boundingBox();
+      if (!bounds) throw new Error('Finanzcheck evidence target has no layout bounds');
+      const tabbar = page.locator('.tabbar');
+      const tabbarBounds = (await tabbar.isVisible()) ? await tabbar.boundingBox() : null;
+      const header = page.locator('.m-head');
+      const headerBounds = (await header.isVisible()) ? await header.boundingBox() : null;
+      expect(bounds.y).toBeGreaterThanOrEqual(
+        headerBounds ? headerBounds.y + headerBounds.height : 0,
+      );
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(
+        page.viewportSize()!.height - (tabbarBounds?.height ?? 0),
+      );
+      // Viewport evidence retains actual responsive overflow, fixed chrome and surrounding context.
+      await page.screenshot({
+        path: join(output, `finanzcheck-${page.viewportSize()!.width}-${state}-${theme}.png`),
+        animations: 'disabled',
+      });
+    }
+  } finally {
+    await page.emulateMedia({ colorScheme: 'light' });
+    await page.evaluate((value) => {
+      if (value === null) document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.dataset['theme'] = value;
+    }, previous);
+  }
+}
+
+async function finanzcheckProof(page: Page, origin: string) {
+  const headers = { origin };
+  const created = await page.request.post(`${origin}/api/accounts`, {
+    headers,
+    data: {
+      name: 'T6 synthetic checking',
+      type: 'checking',
+      role: 'budget',
+      onBudget: true,
+      openingDate: '2025-01-01',
+      openingBalanceCents: -500,
+    },
+  });
+  expect(created.ok()).toBe(true);
+  const { groupId } = (await created.json()) as { groupId: string };
+  try {
+    const derived = await page.request.post(`${origin}/api/rules/evaluate`, { headers });
+    expect(derived.ok()).toBe(true);
+    const response = await page.request.get(`${origin}/api/rules/results`);
+    expect(response.ok()).toBe(true);
+    const matrix = (await response.json()) as HistoryMatrix;
+    expect(matrix.days).toEqual([
+      '2025-09-30',
+      '2025-10-31',
+      '2025-11-30',
+      '2025-12-31',
+      '2026-01-31',
+      '2026-02-28',
+      '2026-03-31',
+      '2026-04-30',
+      '2026-05-31',
+      '2026-06-30',
+      '2026-07-31',
+      '2026-08-31',
+      '2026-09-17',
+    ]);
+    expect(matrix.rules.find((rule) => rule.code === 'R07')?.cells.at(-1)?.status).toBe('bad');
+    await page.clock.setFixedTime(new Date('2026-09-17T08:30:00+02:00'));
+    await page.goto(
+      `${origin}${finanzcheckBookmark.replace('/reports/onepager', '/reports/finanzcheck').replace('darstellung=finanzcheck', 'darstellung=bilanz')}`,
+    );
+    await expect(page).toHaveURL(`${origin}${finanzcheckBookmark}`);
+    await expect(page).toHaveTitle('Finanz-Check-Verlauf · Budget');
+    await expect(
+      page.getByRole('heading', { name: 'Finanz-Check-Verlauf', exact: true }),
+    ).toBeVisible();
+    await expect(page.locator('#fc-matrix')).toBeFocused();
+    const row = page.locator('.fc-table tr[data-rule="R07"]');
+    await expect(row.locator('.ov-strip .ov-cell')).toHaveCount(13);
+    await expect(row).toContainText('verletzt');
+    await expect(row.locator('.ov-cell').first()).toHaveAttribute('title', /Sep 25/);
+    await expect(row.locator('.ov-cell').last()).toHaveAttribute('title', /17\.09\./);
+    const forecast = page.getByRole('region', { name: 'R07 · Kontoprognose', exact: true });
+    await expect(forecast).toContainText('Budgetzeitraum');
+    await expect(forecast).toContainText('−5,00');
+    await finanzcheckScreenshots(page, 'forecast');
+    await finanzcheckScreenshots(page, 'history');
+    const source = row.getByRole('link', { name: /R07/ });
+    await expect(source).toHaveAttribute(
+      'href',
+      '/einstellungen/regelwerk?monat=2026-08&period=month#rule-result-R07',
+    );
+    await source.click();
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === '/einstellungen/regelwerk' &&
+        url.searchParams.get('monat') === '2026-08' &&
+        url.searchParams.get('period') === 'month' &&
+        url.hash === '#rule-result-R07',
+    );
+    await expect(page.locator('#rule-result-R07')).toBeFocused();
+    await expect(page.locator('#rule-result-R07')).toContainText('Stand 17.09.2026');
+    await finanzcheckScreenshots(page, 'source');
+    await page.goBack();
+    await expect(page).toHaveURL(`${origin}${finanzcheckBookmark}`);
+    await expect(page.locator('#fc-matrix')).toBeFocused();
+    await page.reload();
+    await expect(page).toHaveURL(`${origin}${finanzcheckBookmark}`);
+    await expect(page.locator('#fc-matrix')).toBeFocused();
+    await expect(row.locator('.ov-strip .ov-cell')).toHaveCount(13);
+    console.log(
+      'PASS T6: ON alias/context/title, real13-day R07 history, budget-window forecast, focused source, Back and reload',
+    );
+  } finally {
+    const undone = await page.request.post(`${origin}/api/undo`, { headers, data: { groupId } });
+    expect(undone.ok()).toBe(true);
+    await page.goto(`${origin}${bookmark}`);
+  }
+}
+
 async function smoke() {
   build('off');
   build('on');
@@ -484,6 +640,7 @@ async function smoke() {
           await expectBody(page, origin, false);
           await page.goto(`${origin}${bookmark}`);
           await expectBody(page, origin, false);
+          await finanzcheckOff(page, origin);
           await page.evaluate(async () => navigator.serviceWorker.ready);
           await expect
             .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null))
@@ -491,7 +648,9 @@ async function smoke() {
           await upgrade(page, origin, true);
           await forecastParity(page, origin);
           await investmentProof(page, origin);
+          await finanzcheckProof(page, origin);
           await upgrade(page, origin, false);
+          await finanzcheckOff(page, origin);
           // The clean bookmark remains usable after a complete OFF → ON → OFF installed-PWA cycle.
           await page.goto(`${origin}${bookmark}`);
           await expectBody(page, origin, false);
