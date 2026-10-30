@@ -10,6 +10,7 @@
 // Skip in an emergency:                  BUDGET_SKIP_PREPUSH=1 git push
 import { execFileSync, spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { checkRemovedIds } from './removed-ids.mjs';
 
 const CODE = /\.(?:[cm]?[jt]sx?)$/;
 const FORMAT = /\.(?:[cm]?[jt]sx?|json|css|md|ya?ml)$/;
@@ -50,7 +51,12 @@ function git(args) {
 }
 
 export function changedFiles(base) {
-  const mergeBase = git(['merge-base', base, 'HEAD']).trim();
+  let mergeBase;
+  try {
+    mergeBase = git(['merge-base', base, 'HEAD']).trim();
+  } catch {
+    mergeBase = base; // shallow clone: no common ancestor available, compare with the tip
+  }
   return git([
     'diff',
     '--name-only',
@@ -90,6 +96,18 @@ function main() {
     return 0;
   }
   const failed = [];
+  try {
+    const stale = checkRemovedIds(base, files);
+    for (const { token, specs } of stale) {
+      console.error(
+        `pre-push: "${token}" was removed from the app but is still used by ${specs.join(', ')}`,
+      );
+    }
+    if (stale.length)
+      failed.push('removed identifiers still referenced by e2e specs (migrate them in this PR)');
+  } catch {
+    console.warn('pre-push: removed-identifier check skipped (git comparison unavailable).');
+  }
   for (const step of steps) {
     console.log(`\n> ${step.name}`);
     const result = spawnSync(step.cmd[0], step.cmd.slice(1), {
