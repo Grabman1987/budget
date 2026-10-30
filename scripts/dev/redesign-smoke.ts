@@ -281,7 +281,23 @@ async function investmentScreenshots(page: Page, state: 'basis' | 'chain' | 'sou
           : state === 'chain'
             ? '.heute-net-worth'
             : '#anlagebasis';
-      await page.locator(selector).screenshot({
+      const target = page.locator(selector);
+      await target.evaluate((element) =>
+        element.scrollIntoView({ block: 'center', inline: 'nearest' }),
+      );
+      const bounds = await target.boundingBox();
+      if (!bounds) throw new Error('Investment screenshot target has no layout bounds');
+      const tabbar = page.locator('.tabbar');
+      const tabbarBounds = (await tabbar.isVisible()) ? await tabbar.boundingBox() : null;
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(
+        page.viewportSize()!.height - (tabbarBounds?.height ?? 0),
+      );
+      const header = page.locator('.m-head');
+      const headerBounds = (await header.isVisible()) ? await header.boundingBox() : null;
+      expect(bounds.y).toBeGreaterThanOrEqual(
+        headerBounds ? headerBounds.y + headerBounds.height : 0,
+      );
+      await target.screenshot({
         path: join(output, `investment-${page.viewportSize()!.width}-${state}-${theme}.png`),
         animations: 'disabled',
       });
