@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import {
   again,
+  MIN_TARGET_PX,
   openLedgerFilters,
   applyLedgerFilters,
   balance,
@@ -11,9 +12,6 @@ import {
   toast,
   visit,
 } from './ledger-helpers';
-
-// Touch target is 44 CSS px; layout may report 43.99999… for a 44 px box (sub-pixel rounding).
-const MIN_TARGET_PX = 43.5;
 
 /**
  * "+ Buchung" end to end: the capture panel opens by shortcut (desktop) or button (phone), takes

@@ -1,8 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator } from '@playwright/test';
-
-// Touch target is 44 CSS px; layout may report 43.99999… for a 44 px box (sub-pixel rounding).
-const MIN_TARGET_PX = 43.5;
+import { MIN_TARGET_PX } from './ledger-helpers';
 
 async function choose(line: Locator, label: string, search: string, option: RegExp | string) {
   await line.getByLabel(label, { exact: true }).fill(search);
