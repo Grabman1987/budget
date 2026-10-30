@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { changedPaths, planChanges, verificationPassed } from './change-plan.mjs';
+import { changedPaths, leafSpec, planChanges, verificationPassed } from './change-plan.mjs';
 
 describe('verification lane selection', () => {
   it('covers price-history presentation and unions independent UI scopes', () => {
@@ -59,8 +59,8 @@ describe('verification lane selection', () => {
     'AGENTS.md',
     'CLAUDE.md',
     'SPEC.md',
-    'e2e/funding-plan.spec.ts',
-    'e2e/shell.spec.ts-snapshots/example.png',
+    'e2e/ledger-helpers.ts',
+    'e2e/shell.spec.ts-snapshots/example.txt',
     'docs/example.mjs',
     'unknown.txt',
     '../README.md',
@@ -151,5 +151,40 @@ describe('required status aggregates', () => {
     expect(verificationPassed(needs, true)).toBe(true);
     needs.reuse.result = 'failure';
     expect(verificationPassed(needs)).toBe(false);
+  });
+});
+
+describe('leaf e2e spec lane', () => {
+  it('runs only the changed specs, including baseline-only changes', () => {
+    expect(
+      planChanges([
+        'e2e/inbox.spec.ts',
+        'e2e/shell.spec.ts-snapshots/shell-desktop-linux.png',
+        'docs/notes.md',
+      ]),
+    ).toMatchObject({ lane: 'ui', shards: [1], specs: ['e2e/inbox.spec.ts', 'e2e/shell.spec.ts'] });
+  });
+
+  it('keeps the full suite for shared e2e files and app code', () => {
+    for (const path of [
+      'e2e/ledger-helpers.ts',
+      'e2e/auth.setup.ts',
+      'e2e/bank-followups.config.ts',
+      'playwright.config.ts',
+      'e2e/sub/dir.spec.ts',
+    ])
+      expect(planChanges(['e2e/inbox.spec.ts', path]).lane).toBe('full');
+  });
+
+  it('keeps the full suite for high risk and non-pull-request events', () => {
+    expect(planChanges(['e2e/inbox.spec.ts'], 'pull_request', true).lane).toBe('full');
+    expect(planChanges(['e2e/inbox.spec.ts'], 'push').lane).toBe('full');
+  });
+
+  it('maps only spec files and png baselines', () => {
+    expect(leafSpec('e2e/a.spec.ts')).toBe('e2e/a.spec.ts');
+    expect(leafSpec('e2e/a.spec.ts-snapshots/x.png')).toBe('e2e/a.spec.ts');
+    expect(leafSpec('e2e/a.spec.ts-snapshots/x.txt')).toBeNull();
+    expect(leafSpec('e2e/a.ts')).toBeNull();
   });
 });

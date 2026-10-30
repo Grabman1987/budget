@@ -159,8 +159,12 @@ jobs:
       - name: E2E shard ${{ matrix.shard }}/${{ env.SHARDS }}
         run: |
           if [ "$CI_LANE" = "ui" ]; then
-            read -r -a specs <<< "$SPECS"
-            [ "${#specs[@]}" -gt 0 ] || exit 1
+            read -r -a planned <<< "$SPECS"
+            [ "${#planned[@]}" -gt 0 ] || exit 1
+            # A leaf spec deleted by the PR cannot affect other specs; run the ones that still exist.
+            specs=()
+            for spec in "${planned[@]}"; do [ -f "$spec" ] && specs+=("$spec"); done
+            if [ "${#specs[@]}" -eq 0 ]; then echo 'Only deleted specs in the plan; nothing to run.'; exit 0; fi
             # Focused runs retain screenshot assertions and every configured browser profile.
             npx playwright test "${specs[@]}"
           else

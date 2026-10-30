@@ -18,6 +18,15 @@ const UI_SCOPES = new Map([
     ['e2e/report-polish.spec.ts', 'e2e/portfolio-instruments.spec.ts'],
   ],
 ]);
+// A spec file is a leaf: no spec imports another spec (helpers, setup and config files are not
+// leaves and keep the full suite). A change to only spec files or their screenshot baselines is
+// proven by running exactly those specs in every configured profile, with screenshot assertions.
+const LEAF_SPEC = /^e2e\/([\w.-]+\.spec\.ts)$/;
+const LEAF_BASELINE = /^e2e\/([\w.-]+\.spec\.ts)-snapshots\/[^/]+\.png$/;
+export function leafSpec(path) {
+  const match = LEAF_SPEC.exec(path) ?? LEAF_BASELINE.exec(path);
+  return match ? `e2e/${match[1]}` : null;
+}
 const isDoc = (path) =>
   path === 'README.md' || (/^docs\/.+\.md$/.test(path) && !/^docs\/(queue\/|ops\.md$)/.test(path));
 
@@ -40,6 +49,11 @@ export function planChanges(paths, event = 'pull_request', highRisk = false) {
     )
       return fullPlan('Invalid path evidence.');
     if (isDoc(path)) continue;
+    const leaf = leafSpec(path);
+    if (leaf) {
+      specs.add(leaf);
+      continue;
+    }
     const affected = UI_SCOPES.get(path);
     if (!affected) return fullPlan(`Full coverage required by ${path}.`);
     affected.forEach((spec) => specs.add(spec));
@@ -49,7 +63,7 @@ export function planChanges(paths, event = 'pull_request', highRisk = false) {
         lane: 'ui',
         shards: [1],
         specs: [...specs].sort(),
-        reason: 'Explicitly mapped isolated UI changes.',
+        reason: 'Explicitly mapped isolated UI changes or leaf e2e specs.',
       }
     : {
         lane: 'docs',
