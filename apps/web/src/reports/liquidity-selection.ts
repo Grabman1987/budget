@@ -96,7 +96,7 @@ export function upcomingEvents(report: LiquidityReport, limit: number) {
 
 /** Next salary receipt in the forecast (the first income of a salary payment after the start day). */
 export function salaryDay(
-  report: LiquidityReport,
+  report: Pick<LiquidityReport, 'startDay' | 'scheduledInflows'>,
   salaryPaymentIds: ReadonlySet<string>,
 ): string | null {
   const row = report.scheduledInflows.find(

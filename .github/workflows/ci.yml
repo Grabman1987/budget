@@ -216,14 +216,14 @@ jobs:
       - run: npm ci
       - name: Build (e2e mode)
         run: npm run build:e2e
-      - name: Redesign OFF/ON build and installed-PWA smoke
-        run: npx tsx scripts/dev/redesign-smoke.ts
       - name: Visual specs
         run: |
           mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
           npx playwright test "${specs[@]}"
+      - name: Redesign OFF/ON build and installed-PWA smoke
+        run: npx tsx scripts/dev/redesign-smoke.ts
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: failure()
+        if: always()
         with:
           name: playwright-report-visual
           path: |
