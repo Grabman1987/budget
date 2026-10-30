@@ -454,6 +454,7 @@ function Body({
                       <td>
                         {REDESIGN_ENABLED ? (
                           <AppLink
+                            className="fc-rule-source"
                             to="/einstellungen/regelwerk"
                             search={search}
                             hash={`rule-result-${t.code}`}

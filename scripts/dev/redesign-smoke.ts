@@ -568,8 +568,8 @@ async function finanzcheckProof(page: Page, origin: string) {
     await expect(row.locator('.ov-cell').last()).toHaveAttribute('title', /17\.09\./);
     const forecast = page.getByRole('region', { name: 'R07 · Kontoprognose', exact: true });
     await expect(forecast).toContainText('Budgetzeitraum');
-    await expect(forecast).toContainText('−5,00');
-    await finanzcheckScreenshots(page, 'forecast');
+    await expect(forecast).toContainText('Tiefpunkt nicht verfügbar');
+    await expect(forecast).toContainText('Kein Verlauf im gewählten Zeitraum.');
     await finanzcheckScreenshots(page, 'history');
     const source = row.getByRole('link', { name: /R07/ });
     await expect(source).toHaveAttribute(
@@ -594,8 +594,13 @@ async function finanzcheckProof(page: Page, origin: string) {
     await expect(page).toHaveURL(`${origin}${finanzcheckBookmark}`);
     await expect(page.locator('#fc-matrix')).toBeFocused();
     await expect(row.locator('.ov-strip .ov-cell')).toHaveCount(13);
+    // The past August budget window ends before today; numeric projection belongs to September.
+    await page.goto(`${origin}${finanzcheckBookmark.replace('monat=2026-08', 'monat=2026-09')}`);
+    await expect(forecast).toContainText('Budgetzeitraum Monat');
+    await expect(forecast).toContainText('−5,00');
+    await finanzcheckScreenshots(page, 'forecast');
     console.log(
-      'PASS T6: ON alias/context/title, real13-day R07 history, budget-window forecast, focused source, Back and reload',
+      'PASS T6: ON alias/context/title, real13-day R07 history, historical-unavailable/current-500 budget window, focused source, Back and reload',
     );
   } finally {
     const undone = await page.request.post(`${origin}/api/undo`, { headers, data: { groupId } });
