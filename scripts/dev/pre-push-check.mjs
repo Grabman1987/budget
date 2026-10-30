@@ -126,10 +126,6 @@ function main() {
     return 0;
   }
   const steps = planChecks(files, { windows });
-  if (!steps.length) {
-    console.log('pre-push: nothing to check (no code, format-relevant or test-relevant files).');
-    return 0;
-  }
   if (argv.includes('--list')) {
     for (const s of steps) console.log(`${s.name}: ${s.cmd.join(' ')}`);
     return 0;
@@ -146,6 +142,10 @@ function main() {
       failed.push('removed identifiers still referenced by e2e specs (migrate them in this PR)');
   } catch (error) {
     console.warn(`pre-push: removed-identifier check skipped (${error.message.split('\n')[0]}).`);
+  }
+  if (!steps.length && !failed.length) {
+    console.log('pre-push: nothing to check (no code, format-relevant or test-relevant files).');
+    return 0;
   }
   for (const step of steps) {
     console.log(`\n> ${step.name}`);
