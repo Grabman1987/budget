@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { test } from './isolated-ledger';
+import { test } from './coverage-pilot-fixture';
 import { fundingTemplate } from '@budget/domain';
 import AxeBuilder from '@axe-core/playwright';
 
