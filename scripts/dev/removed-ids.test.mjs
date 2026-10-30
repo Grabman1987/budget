@@ -42,4 +42,26 @@ describe('removed identifiers', () => {
       }),
     ).toEqual([]);
   });
+
+  it('sees test ids in a deleted file (+++ /dev/null)', () => {
+    const deleted = [
+      'diff --git a/apps/web/src/a.tsx b/apps/web/src/a.tsx',
+      'deleted file mode 100644',
+      '--- a/apps/web/src/a.tsx',
+      '+++ /dev/null',
+      '-<i data-testid="gone-id1" />',
+    ].join('\n');
+    expect(removedTokens(deleted)).toEqual(['gone-id1']);
+  });
+
+  it('honours an explicit allow list', () => {
+    expect(
+      staleReferences(['legacy-id'], {
+        stillInApp: () => false,
+        specsMentioning: () => ['e2e/redirect.spec.ts'],
+        changedSpecs: [],
+        allowed: ['legacy-id'],
+      }),
+    ).toEqual([]);
+  });
 });

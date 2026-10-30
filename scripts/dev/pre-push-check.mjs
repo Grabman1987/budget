@@ -1,14 +1,23 @@
 // Local pre-push gate: catches the cheap CI failures (typecheck, lint, formatting, unit tests of
-// the touched code) before a push starts a 20-job CI run. It never replaces CI and never touches
-// a required check; it only runs the same commands CI would run, earlier and scoped.
+// the touched code, removed identifiers still used by e2e specs) before a push starts a 20-job CI
+// run. It never replaces CI and never touches a required check.
+//
+// Scope and limits (so nobody over-trusts it):
+//   - It checks the checked-out HEAD against the base (default origin/main), not the refs that
+//     `git push` was asked to send, and it runs against the working tree.
+//   - Unit tests run with BUDGET_REQUIRE_AGE=0 (CI sets 1), so the encrypted-backup test may skip
+//     locally; CI still runs it.
+//   - Removed-identifier coverage is documented in removed-ids.mjs (test ids and route strings only).
 //
 // Usage:
 //   node scripts/dev/pre-push-check.mjs            run against origin/main...HEAD
 //   node scripts/dev/pre-push-check.mjs --base REF compare with another base
 //   node scripts/dev/pre-push-check.mjs --list     print the plan only
 // Install as a git hook once per clone:  git config core.hooksPath .githooks
-// Skip in an emergency:                  BUDGET_SKIP_PREPUSH=1 git push
+// Skip everything in an emergency:       BUDGET_SKIP_PREPUSH=1 git push
+// Allow a legitimate leftover reference: BUDGET_PREPUSH_ALLOW_REMOVED=token1,token2 git push
 import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { checkRemovedIds } from './removed-ids.mjs';
 
@@ -16,10 +25,18 @@ const CODE = /\.(?:[cm]?[jt]sx?)$/;
 const FORMAT = /\.(?:[cm]?[jt]sx?|json|css|md|ya?ml)$/;
 const CSS = /\.css$/;
 const TESTABLE = /^(?:apps|packages|scripts)\/.*\.(?:[cm]?[jt]sx?|css)$/;
+// On Windows the tools run through cmd.exe, which re-parses the argument string.
+const WINDOWS_UNSAFE = /[&|<>^%"!()`\r\n]/;
 
 /** Pure planning step, unit-tested without running any tool. */
-export function planChecks(paths) {
-  const files = paths.filter((p) => typeof p === 'string' && p && !p.startsWith('node_modules/'));
+export function planChecks(paths, { windows = false } = {}) {
+  const files = paths.filter(
+    (p) =>
+      typeof p === 'string' &&
+      p &&
+      !p.startsWith('node_modules/') &&
+      !(windows && WINDOWS_UNSAFE.test(p)),
+  );
   const code = files.filter((p) => CODE.test(p));
   const format = files.filter((p) => FORMAT.test(p));
   const related = files.filter((p) => TESTABLE.test(p));
@@ -30,12 +47,12 @@ export function planChecks(paths) {
   if (code.length)
     steps.push({
       name: 'eslint (changed files)',
-      cmd: ['npx', 'eslint', '--no-warn-ignored', ...code],
+      cmd: ['npx', 'eslint', '--no-warn-ignored', '--', ...code],
     });
   if (format.length)
     steps.push({
       name: 'prettier (changed files)',
-      cmd: ['npx', 'prettier', '--check', '--ignore-unknown', ...format],
+      cmd: ['npx', 'prettier', '--check', '--ignore-unknown', '--', ...format],
     });
   if (related.length)
     steps.push({
@@ -47,16 +64,19 @@ export function planChecks(paths) {
 }
 
 function git(args) {
-  return execFileSync('git', args, { encoding: 'utf8' });
+  return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
-export function changedFiles(base) {
-  let mergeBase;
+/** Common ancestor with the base; a shallow clone has none, so callers fall back to the base tip. */
+export function resolveMergeBase(base) {
   try {
-    mergeBase = git(['merge-base', base, 'HEAD']).trim();
+    return git(['merge-base', base, 'HEAD']).trim();
   } catch {
-    mergeBase = base; // shallow clone: no common ancestor available, compare with the tip
+    return null;
   }
+}
+
+export function changedFiles(base, mergeBase = resolveMergeBase(base) ?? base) {
   return git([
     'diff',
     '--name-only',
@@ -77,16 +97,35 @@ function main() {
     console.log('pre-push: skipped (BUDGET_SKIP_PREPUSH=1).');
     return 0;
   }
+  if (!existsSync('node_modules')) {
+    console.warn('pre-push: node_modules missing, skipping (run "npm ci" to enable the gate).');
+    return 0;
+  }
   const baseIndex = argv.indexOf('--base');
   const base = baseIndex >= 0 ? argv[baseIndex + 1] : 'origin/main';
+  try {
+    git(['rev-parse', '--verify', '--end-of-options', `${base}^{commit}`]);
+  } catch {
+    console.warn(`pre-push: base ${base} not found; run "git fetch origin main". Skipping.`);
+    return 0;
+  }
+  const mergeBase = resolveMergeBase(base);
+  if (!mergeBase) {
+    console.warn(
+      `pre-push: no common ancestor with ${base} (shallow clone?); comparing with its tip, so files changed on ${base} may be listed too.`,
+    );
+  }
+  const windows = process.platform === 'win32';
   let files;
   try {
-    files = changedFiles(base);
-  } catch {
-    console.error(`pre-push: cannot compare with ${base}; run "git fetch origin main" first.`);
-    return 1;
+    files = changedFiles(base, mergeBase ?? base);
+  } catch (error) {
+    console.warn(
+      `pre-push: cannot list changed files (${error.message.split('\n')[0]}). Skipping.`,
+    );
+    return 0;
   }
-  const steps = planChecks(files);
+  const steps = planChecks(files, { windows });
   if (!steps.length) {
     console.log('pre-push: nothing to check (no code, format-relevant or test-relevant files).');
     return 0;
@@ -97,7 +136,7 @@ function main() {
   }
   const failed = [];
   try {
-    const stale = checkRemovedIds(base, files);
+    const stale = checkRemovedIds(base, files, mergeBase ?? base);
     for (const { token, specs } of stale) {
       console.error(
         `pre-push: "${token}" was removed from the app but is still used by ${specs.join(', ')}`,
@@ -105,14 +144,14 @@ function main() {
     }
     if (stale.length)
       failed.push('removed identifiers still referenced by e2e specs (migrate them in this PR)');
-  } catch {
-    console.warn('pre-push: removed-identifier check skipped (git comparison unavailable).');
+  } catch (error) {
+    console.warn(`pre-push: removed-identifier check skipped (${error.message.split('\n')[0]}).`);
   }
   for (const step of steps) {
     console.log(`\n> ${step.name}`);
     const result = spawnSync(step.cmd[0], step.cmd.slice(1), {
       stdio: 'inherit',
-      shell: process.platform === 'win32',
+      shell: windows,
       env: { ...process.env, ...step.env },
     });
     if (result.status !== 0) failed.push(step.name);

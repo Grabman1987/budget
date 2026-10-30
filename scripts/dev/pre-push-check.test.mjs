@@ -34,4 +34,22 @@ describe('pre-push plan', () => {
   it('ignores vendored dependencies', () => {
     expect(planChecks(['node_modules/x/index.js'])).toEqual([]);
   });
+
+  it('drops file names that cmd.exe would re-parse, on Windows only', () => {
+    const risky = ['apps/a&b.ts', 'apps/ok.ts'];
+    const lint = (opts) => planChecks(risky, opts).find((s) => s.name.startsWith('eslint')).cmd;
+    expect(lint({ windows: true })).toEqual([
+      'npx',
+      'eslint',
+      '--no-warn-ignored',
+      '--',
+      'apps/ok.ts',
+    ]);
+    expect(lint({})).toContain('apps/a&b.ts');
+  });
+
+  it('ends option parsing before the file list', () => {
+    const lint = planChecks(['-odd.ts']).find((s) => s.name.startsWith('eslint'));
+    expect(lint.cmd.indexOf('--')).toBeLessThan(lint.cmd.indexOf('-odd.ts'));
+  });
 });

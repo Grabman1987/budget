@@ -162,15 +162,22 @@ slots unless someone is actually working on them.
 
 ## Local pre-push gate
 
-Typecheck and lint failures were the cheapest CI failures to avoid (8 of 28 sampled red runs,
-2026-10-20..30). Enable the gate once per clone or worktree:
+Typecheck, lint and unit failures are the cheapest CI failures to avoid: in the CI run sample of
+2026-10-20..30 (300 runs of `ci.yml`, 28 failed PR runs inspected by job) they accounted for 15 of
+the failing jobs next to the e2e failures. Enable the gate once per clone or worktree:
 
 ```sh
 git config core.hooksPath .githooks
 ```
 
 `git push` then runs `scripts/dev/pre-push-check.mjs`: typecheck, ESLint and Prettier on the
-changed files, the CSS scale check for stylesheets, and `vitest related` for the touched code,
-compared with `origin/main`. It adds no required check and changes no CI behaviour; CI still
-decides. Use `node scripts/dev/pre-push-check.mjs --list` to see the plan and
-`BUDGET_SKIP_PREPUSH=1 git push` to skip it deliberately.
+changed files, the CSS scale check for stylesheets, `vitest related` for the touched code and a
+check for removed identifiers. It adds no required check and changes no CI behaviour; CI decides.
+
+Limits: it checks the checked-out `HEAD` against `origin/main` (not the refs being pushed), runs
+unit tests with `BUDGET_REQUIRE_AGE=0`, skips without `node_modules`, and the removed-identifier
+check covers literal `data-testid`/`testId` values and quoted multi-segment route strings only; it
+does not see visible text, bare report ids or CSS selectors. Use
+`node scripts/dev/pre-push-check.mjs --list` to see the plan, `BUDGET_SKIP_PREPUSH=1 git push` to
+skip it, or `BUDGET_PREPUSH_ALLOW_REMOVED=<token>,…` for a deliberate leftover (for example a spec
+that tests a redirect or 404 for a removed route).
