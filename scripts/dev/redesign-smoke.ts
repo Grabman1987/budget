@@ -618,6 +618,7 @@ async function finanzcheckProof(page: Page, origin: string) {
     await expect(row.locator('.ov-strip .ov-cell')).toHaveCount(13);
     // The past August budget window ends before today; numeric projection belongs to September.
     await page.goto(`${origin}${finanzcheckBookmark.replace('monat=2026-08', 'monat=2026-09')}`);
+    await expectFinanzcheckMatrixFocus(page);
     await expect(forecast).toContainText('Budgetzeitraum Monat');
     await expect(forecast).toContainText('−5,00');
     await finanzcheckScreenshots(page, 'forecast');
