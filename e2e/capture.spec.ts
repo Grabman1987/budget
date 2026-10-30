@@ -12,6 +12,9 @@ import {
   visit,
 } from './ledger-helpers';
 
+// Touch target is 44 CSS px; layout may report 43.99999… for a 44 px box (sub-pixel rounding).
+const MIN_TARGET_PX = 43.5;
+
 /**
  * "+ Buchung" end to end: the capture panel opens by shortcut (desktop) or button (phone), takes
  * an expense by keyboard, an income with income type, transfers, keeps its context with "Speichern
@@ -653,8 +656,8 @@ test('visible growing note, direct split and responsive account note column', as
     panel.getByRole('button', { name: 'Schließen' }),
   ]) {
     const box = (await control.boundingBox())!;
-    expect(box.height).toBeGreaterThanOrEqual(44);
-    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    expect(box.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
   }
   await panel.getByLabel('Betrag', { exact: true }).fill('5');
   await panel.getByLabel('Empfänger').fill(payee);
