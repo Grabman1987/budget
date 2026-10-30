@@ -57,7 +57,7 @@ import type { PageTitleData } from './shell/page-meta';
 import { isMonth } from './nav/month';
 import { isZeitraum } from './wealth/zeitraum';
 import { isPanelId, type PanelId } from './shell/panels';
-import { validateReportSearch } from './reports/report-search';
+import { FINANZCHECK_HEADING_HASHES, validateReportSearch } from './reports/report-search';
 import { validateLiquiditySearch } from './reports/liquidity-selection';
 
 // Route-level code splitting: everything except the shell and the generic placeholder page is
@@ -907,13 +907,19 @@ const routeTree = rootRoute.addChildren([
 export const router = createRouter({
   routeTree,
   scrollRestoration: ({ location }) =>
-    location.pathname.startsWith('/plan/monat') ||
-    location.pathname.startsWith('/plan/sparziele') ||
-    location.pathname.startsWith('/einstellungen/kategorien') ||
-    location.pathname === '/reports/sparziele' ||
-    location.pathname.startsWith('/vermoegen/portfolio') ||
-    location.pathname.startsWith('/einstellungen/regelwerk') ||
-    location.pathname.startsWith('/reports/'),
+    !(
+      REDESIGN_ENABLED &&
+      location.pathname === '/reports/onepager' &&
+      location.search['darstellung'] === 'finanzcheck' &&
+      FINANZCHECK_HEADING_HASHES.includes(location.hash)
+    ) &&
+    (location.pathname.startsWith('/plan/monat') ||
+      location.pathname.startsWith('/plan/sparziele') ||
+      location.pathname.startsWith('/einstellungen/kategorien') ||
+      location.pathname === '/reports/sparziele' ||
+      location.pathname.startsWith('/vermoegen/portfolio') ||
+      location.pathname.startsWith('/einstellungen/regelwerk') ||
+      location.pathname.startsWith('/reports/')),
 });
 
 declare module '@tanstack/react-router' {

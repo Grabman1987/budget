@@ -40,10 +40,10 @@ import { PAYDAY_ONLY_THIS_MONTH, useBalancePeriod } from '../heute/use-balance-p
 import { useMonth } from '../shell/use-month';
 import { AppLink } from '../shell/app-link';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { FINANZCHECK_HEADING_HASHES } from './report-search';
 import '../heute/heute.css';
 
 type Status = 'ok' | 'warn' | 'bad' | 'open' | null;
-const REPORT_HASHES = ['r07-title', 'fc-stage', 'fc-today', 'fc-actions', 'fc-matrix'];
 
 const STATUS_TEXT: Record<'ok' | 'warn' | 'bad' | 'open', string> = {
   ok: 'erfüllt',
@@ -104,7 +104,7 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
   // Re-derive idempotently once on every visit, including changes to book-rule sources.
   useRuleDerivation(data !== undefined);
   useEffect(() => {
-    if (!REDESIGN_ENABLED || !REPORT_HASHES.includes(location.hash)) {
+    if (!REDESIGN_ENABLED || !FINANZCHECK_HEADING_HASHES.includes(location.hash)) {
       focusedNavigation.current = undefined;
       return;
     }

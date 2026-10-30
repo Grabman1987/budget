@@ -2,6 +2,14 @@ import { isMonth } from '../nav/month';
 import { isExplorerTemplate } from '@budget/domain';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
+export const FINANZCHECK_HEADING_HASHES: readonly string[] = [
+  'r07-title',
+  'fc-stage',
+  'fc-today',
+  'fc-actions',
+  'fc-matrix',
+];
+
 const id = (value: unknown) =>
   typeof value === 'string' && value.length > 0 && value.length <= 64 ? value : undefined;
 const ids = (value: unknown) =>

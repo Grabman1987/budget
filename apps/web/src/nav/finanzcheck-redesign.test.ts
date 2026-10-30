@@ -5,9 +5,11 @@ import { AUTH_STATUS_KEY, queryClient } from '../auth/status-query';
 import { router as appRouter } from '../router';
 import { validateReportSearch } from '../reports/report-search';
 
-vi.mock('../shell/redesign-flag', () => ({ REDESIGN_ENABLED: true }));
+const flags = vi.hoisted(() => ({ REDESIGN_ENABLED: true }));
+vi.mock('../shell/redesign-flag', () => flags);
 
 beforeEach(() => {
+  flags.REDESIGN_ENABLED = true;
   queryClient.setQueryData(AUTH_STATUS_KEY, { authenticated: true, setupRequired: false });
 });
 
@@ -52,3 +54,30 @@ it('ON changes the real route title with the validated presentation on the same 
   await router.navigate({ to: '/reports/onepager', search: {} });
   expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ title: 'Monats-One-Pager' });
 });
+
+it.each([
+  [false, '/reports/onepager?darstellung=finanzcheck#fc-matrix', true],
+  [true, '/reports/onepager#fc-matrix', true],
+  [true, '/reports/onepager?darstellung=unknown-finanzcheck#fc-matrix', true],
+  [true, '/reports/onepager?darstellung=finanzcheck#unknown-heading', true],
+  [true, '/reports/ausgaben?darstellung=finanzcheck#fc-matrix', true],
+  [true, '/reports/onepager?darstellung=finanzcheck#r07-title', false],
+  [true, '/reports/onepager?darstellung=finanzcheck#fc-stage', false],
+  [true, '/reports/onepager?darstellung=finanzcheck#fc-today', false],
+  [true, '/reports/onepager?darstellung=finanzcheck#fc-actions', false],
+  [true, '/reports/onepager?darstellung=finanzcheck#fc-matrix', false],
+] as const)(
+  'keeps router scroll restoration scoped for flag %s at %s',
+  async (enabled, at, expected) => {
+    flags.REDESIGN_ENABLED = enabled;
+    const router = createRouter({
+      routeTree: appRouter.routeTree,
+      history: createMemoryHistory({ initialEntries: [at] }),
+    });
+    await router.load();
+    const restoration = appRouter.options.scrollRestoration;
+    if (typeof restoration !== 'function')
+      throw new Error('Expected the existing scroll restoration callback');
+    expect(restoration({ location: router.state.location })).toBe(expected);
+  },
+);
