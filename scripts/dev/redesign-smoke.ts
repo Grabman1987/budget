@@ -463,6 +463,8 @@ async function finanzcheckScreenshots(page: Page, state: 'forecast' | 'history' 
         document.documentElement.dataset['theme'] = value;
         await document.fonts.ready;
       }, theme);
+      if (state === 'forecast')
+        await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => done())));
       const target = page.locator(
         state === 'forecast'
           ? '.finanzcheck-report > section[aria-labelledby="r07-title"]'
@@ -473,7 +475,7 @@ async function finanzcheckScreenshots(page: Page, state: 'forecast' | 'history' 
       await target.evaluate((element) =>
         element.scrollIntoView({ block: 'center', inline: 'center' }),
       );
-      const bounds = await target.boundingBox();
+      let bounds = await target.boundingBox();
       if (!bounds) throw new Error('Finanzcheck evidence target has no layout bounds');
       if (state === 'history') {
         const viewport = await scroller.evaluate((element) => {
@@ -488,7 +490,34 @@ async function finanzcheckScreenshots(page: Page, state: 'forecast' | 'history' 
       const tabbar = page.locator('.tabbar');
       const tabbarBounds = (await tabbar.isVisible()) ? await tabbar.boundingBox() : null;
       const header = page.locator('.m-head');
-      const headerBounds = (await header.isVisible()) ? await header.boundingBox() : null;
+      let headerBounds = (await header.isVisible()) ? await header.boundingBox() : null;
+      if (state === 'forecast') {
+        const topbar = page.locator('.topbar');
+        const topbarBounds = (await topbar.isVisible()) ? await topbar.boundingBox() : null;
+        const fab = page.locator('.fab');
+        const initialFab = (await fab.isVisible()) ? await fab.boundingBox() : null;
+        const top = Math.max(0, topbarBounds ? topbarBounds.y + topbarBounds.height : 0);
+        const bottom = Math.min(
+          page.viewportSize()!.height - (tabbarBounds?.height ?? 0),
+          initialFab &&
+            bounds.x < initialFab.x + initialFab.width &&
+            bounds.x + bounds.width > initialFab.x
+            ? initialFab.y
+            : page.viewportSize()!.height,
+        );
+        expect(bounds.height).toBeLessThanOrEqual(bottom - top);
+        await target.evaluate(
+          (element, desiredTop) => {
+            window.scrollBy(0, element.getBoundingClientRect().top - desiredTop);
+          },
+          top + (bottom - top - bounds.height) / 2,
+        );
+        bounds = await target.boundingBox();
+        if (!bounds) throw new Error('Finanzcheck card lost layout during native framing');
+        headerBounds = (await header.isVisible()) ? await header.boundingBox() : null;
+        expect(bounds.y).toBeGreaterThanOrEqual(top);
+        expect(bounds.y + bounds.height).toBeLessThanOrEqual(bottom);
+      }
       expect(bounds.y).toBeGreaterThanOrEqual(
         headerBounds ? headerBounds.y + headerBounds.height : 0,
       );
