@@ -181,6 +181,24 @@ describe('leaf e2e spec lane', () => {
     expect(planChanges(['e2e/inbox.spec.ts'], 'push').lane).toBe('full');
   });
 
+  it.each([
+    'e2e/../x.spec.ts',
+    'e2e//x.spec.ts',
+    'e2e/a b.spec.ts',
+    'e2e/x.spec.ts\n',
+    'e2e/x.spec.ts-snapshots/../y.png',
+    'e2e/.spec.ts',
+  ])('fails closed for malformed leaf path %j', (path) => {
+    expect(planChanges([path]).lane).toBe('full');
+  });
+
+  it('unions leaf specs with mapped UI scopes, but not with queue docs', () => {
+    expect(
+      planChanges(['apps/web/src/wealth/funding-plan.css', 'e2e/inbox.spec.ts']).specs,
+    ).toEqual(['e2e/funding-plan.spec.ts', 'e2e/inbox.spec.ts', 'e2e/savings-plans.spec.ts']);
+    expect(planChanges(['e2e/inbox.spec.ts', 'docs/queue/README.md']).lane).toBe('full');
+  });
+
   it('maps only spec files and png baselines', () => {
     expect(leafSpec('e2e/a.spec.ts')).toBe('e2e/a.spec.ts');
     expect(leafSpec('e2e/a.spec.ts-snapshots/x.png')).toBe('e2e/a.spec.ts');
