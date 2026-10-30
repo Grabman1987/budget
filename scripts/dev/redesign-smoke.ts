@@ -465,7 +465,7 @@ async function finanzcheckScreenshots(page: Page, state: 'forecast' | 'history' 
       }, theme);
       const target = page.locator(
         state === 'forecast'
-          ? '#r07-title'
+          ? '.finanzcheck-report > section[aria-labelledby="r07-title"]'
           : state === 'history'
             ? '.fc-table tr[data-rule="R07"] .ov-strip'
             : '#rule-result-R07',
@@ -495,6 +495,17 @@ async function finanzcheckScreenshots(page: Page, state: 'forecast' | 'history' 
       expect(bounds.y + bounds.height).toBeLessThanOrEqual(
         page.viewportSize()!.height - (tabbarBounds?.height ?? 0),
       );
+      if (state === 'forecast') {
+        const fab = page.locator('.fab');
+        const fabBounds = (await fab.isVisible()) ? await fab.boundingBox() : null;
+        if (
+          fabBounds &&
+          bounds.x < fabBounds.x + fabBounds.width &&
+          bounds.x + bounds.width > fabBounds.x
+        ) {
+          expect(bounds.y + bounds.height).toBeLessThanOrEqual(fabBounds.y);
+        }
+      }
       // Viewport evidence retains actual responsive overflow, fixed chrome and surrounding context.
       await page.screenshot({
         path: join(output, `finanzcheck-${page.viewportSize()!.width}-${state}-${theme}.png`),
