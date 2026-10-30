@@ -1,6 +1,6 @@
 import { useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from '@tanstack/react-router';
+import { useLocation, useParams } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 import { fetchAccounts } from '../ledger/api';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -12,6 +12,8 @@ import { AppLink } from '../shell/app-link';
 import { useMonth } from '../shell/use-month';
 import { heuteQuery, type Heute } from './api';
 import { useBalancePeriod } from './use-balance-period';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { InvestmentBasisDetails } from './investment-basis';
 import './heute.css';
 
 export type DimensionKind = 'liquid' | 'invested' | 'receivable' | 'debt';
@@ -23,17 +25,47 @@ export function DimensionPage() {
   const { period } = useBalancePeriod();
   const query = useQuery(heuteQuery(month, period));
   const net = query.data && !('unavailable' in query.data.netWorth) ? query.data.netWorth : null;
+  const location = useLocation();
+  const basisHash = REDESIGN_ENABLED && kind === 'invested' && location.hash === 'anlagebasis';
+  const navigationKey = location.state.__TSR_key ?? location.href;
+  const basisHeading = useRef<HTMLHeadingElement>(null);
+  const focusedBasis = useRef<string | undefined>(undefined);
   const names = {
     liquid: 'Liquidität',
-    invested: 'Investiert',
+    invested: REDESIGN_ENABLED ? 'Anlagen' : 'Investiert',
     receivable: 'Forderungen',
-    debt: net && net.debtCents > 0 ? 'Guthaben auf Schuldkonten' : 'Schulden',
+    debt: REDESIGN_ENABLED
+      ? net && net.debtCents > 0
+        ? 'Guthaben auf Schuldkonten (netto)'
+        : 'Schulden (netto)'
+      : net && net.debtCents > 0
+        ? 'Guthaben auf Schuldkonten'
+        : 'Schulden',
   };
   const title = names[kind];
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
+    if (basisHash) return;
     heading.current?.focus({ preventScroll: true });
-  }, [kind, net?.asOf]);
+  }, [kind, net?.asOf, basisHash]);
+  useEffect(() => {
+    if (!basisHash) {
+      focusedBasis.current = undefined;
+      return;
+    }
+    if (
+      query.isPending ||
+      query.isFetching ||
+      query.isError ||
+      !query.data ||
+      focusedBasis.current === navigationKey ||
+      !basisHeading.current
+    )
+      return;
+    focusedBasis.current = navigationKey;
+    basisHeading.current.focus({ preventScroll: true });
+    basisHeading.current.scrollIntoView?.({ block: 'start' });
+  }, [basisHash, navigationKey, query.isPending, query.isFetching, query.isError, query.data]);
   const search = { monat: month, period };
   return (
     <PageFrame meta={HEUTE} heutePeriod={period} standDay={query.data?.stand.today}>
@@ -63,6 +95,14 @@ export function DimensionPage() {
             <NetWorthDetails net={net} kind={kind} />
           </section>
         )}
+        {REDESIGN_ENABLED && kind === 'invested' && (
+          <InvestmentBasisDetails
+            basis={!query.isFetching && !query.isError ? query.data?.investmentBasis : undefined}
+            pending={query.isPending || query.isFetching}
+            headingRef={basisHeading}
+            search={search}
+          />
+        )}
       </div>
     </PageFrame>
   );
@@ -78,9 +118,15 @@ function NetWorthDetails({
   useAmountPrivacy();
   const names = {
     liquid: 'Liquidität',
-    invested: 'Investiert',
+    invested: REDESIGN_ENABLED ? 'Anlagen' : 'Investiert',
     receivable: 'Forderungen',
-    debt: net.debtCents > 0 ? 'Guthaben auf Schuldkonten' : 'Schulden',
+    debt: REDESIGN_ENABLED
+      ? net.debtCents > 0
+        ? 'Guthaben auf Schuldkonten (netto)'
+        : 'Schulden (netto)'
+      : net.debtCents > 0
+        ? 'Guthaben auf Schuldkonten'
+        : 'Schulden',
   };
   const totals = {
     liquid: net.liquidCents,
@@ -109,6 +155,14 @@ function NetWorthDetails({
         <p>
           Positive Salden aus Budget- und Reservekonten. Negative Kontosalden zählen zu Schulden;
           das Maß ist kein frei verfügbares Budget.
+        </p>
+      )}
+      {REDESIGN_ENABLED && kind === 'debt' && (
+        <p>
+          Die Netto-Schuldenkomponente enthält negative Kontosalden und auch positive Guthaben auf
+          Konten mit Schuldenrolle. Vermögenswerte (brutto): {eur(net.assetsCents)} ·
+          Verbindlichkeiten (brutto): {eur(net.liabilitiesCents)}. Dies ist nicht die Summe der
+          Kredite.
         </p>
       )}
       {query.isPending && <LoadingNote what="Konten" />}

@@ -1,6 +1,7 @@
 import {
   availableSection,
   currentValuationSources,
+  freedomInvestmentBasis,
   liquidityReportView,
   heute,
   planningAccuracyReport,
@@ -54,6 +55,7 @@ export function heuteRoutes(db: Db, today: () => string): Hono {
     };
     return c.json({
       ...data,
+      investmentBasis: { asOf: day, ...availableSection(() => freedomInvestmentBasis(db, day)) },
       forecast35d,
       valuationSources: provenance.sources,
       attention: {

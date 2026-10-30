@@ -41,6 +41,8 @@ import { VerdictLine } from '../reports/verdict-line';
 import { heuteVerdictFacts } from '../reports/verdict-facts';
 import { Upcoming } from './upcoming-payments';
 import type { DimensionKind } from './dimension-page';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { InvestmentBasisSummary } from './investment-basis';
 import { useElementWidth } from '../charts/use-element-width';
 
 const pct = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 });
@@ -546,7 +548,7 @@ function HeuteBody({
                           },
                           {
                             key: 'invested',
-                            label: 'Investiert',
+                            label: REDESIGN_ENABLED ? 'Anlagen' : 'Investiert',
                             cents: cents(net.investedCents),
                             fill: 'need',
                           },
@@ -554,7 +556,9 @@ function HeuteBody({
                             ? [
                                 {
                                   key: 'debt',
-                                  label: 'Guthaben auf Schuldkonten',
+                                  label: REDESIGN_ENABLED
+                                    ? 'Schuldkonten (netto)'
+                                    : 'Guthaben auf Schuldkonten',
                                   cents: cents(net.debtCents),
                                   fill: 'plain' as const,
                                 },
@@ -575,7 +579,7 @@ function HeuteBody({
                           ? {
                               minus: {
                                 key: 'debt',
-                                label: 'Schulden',
+                                label: REDESIGN_ENABLED ? 'Schulden (netto)' : 'Schulden',
                                 cents: cents(-net.debtCents),
                                 kind: 'debt' as const,
                               },
@@ -588,8 +592,19 @@ function HeuteBody({
                     </div>
                     <p className="heute-note">
                       Wähle ein Maß für die Konten.
-                      {net.debtCents < 0 ? ' Gestrichelt: Schulden, werden abgezogen.' : ''}
+                      {net.debtCents < 0
+                        ? REDESIGN_ENABLED
+                          ? ' Gestrichelt: Schulden (netto), werden abgezogen.'
+                          : ' Gestrichelt: Schulden, werden abgezogen.'
+                        : ''}
                     </p>
+                    {REDESIGN_ENABLED && (
+                      <p className="heute-note">
+                        Die Netto-Schuldenkomponente enthält auch positive Guthaben auf Konten mit
+                        Schuldenrolle. Brutto-Verbindlichkeiten und die Summe der Kredite haben
+                        einen anderen Umfang.
+                      </p>
+                    )}
                     <p className="heute-note">
                       Stichtag {longDay(net.asOf)} · Vormonatsende{' '}
                       {net.previousMonthEndCents === null
@@ -728,7 +743,7 @@ function MoreMonth({ phone, children }: { phone: boolean; children: ReactNode })
 export function HeuteWealthLine({
   data,
 }: {
-  data: Pick<Heute, 'stand' | 'netWorth' | 'valuationSources'>;
+  data: Pick<Heute, 'stand' | 'netWorth' | 'valuationSources' | 'investmentBasis'>;
 }) {
   useAmountPrivacy();
   const away = data.stand.month !== data.stand.today.slice(0, 7);
@@ -736,6 +751,12 @@ export function HeuteWealthLine({
   return (
     <section className="heute-wealth-line" aria-labelledby="heute-wealth-title">
       <h2 id="heute-wealth-title">Nettovermögen · 12 Monate</h2>
+      {REDESIGN_ENABLED && (
+        <InvestmentBasisSummary
+          basis={data.investmentBasis}
+          search={{ monat: data.stand.month, period: data.stand.period }}
+        />
+      )}
       {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
       {net ? (
         <>
