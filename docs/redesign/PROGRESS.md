@@ -96,3 +96,30 @@ Contact alias/merge/archive and encrypted-backup download are explicitly identif
 - Typechecking found nullable freedom in the new F09 access. Replaced only that new assertion with toMatchObject({ annualSpendCents: 118000 }), which still rejects null and preserves the exact cents. Independent re-review CLEAR.
 - The final income file passed all 7 tests. Concurrent scoped typechecking left about 300 MB free RAM; five freedom fixture hooks exceeded the existing 10000 ms setup limit. After typechecks completed, unchanged freedom.test.ts alone passed all 11 tests (4.19 s). No timeout, retry, oracle or skip changed. The earlier six-file suite passed all 54 tests; untouched reference files retain that evidence.
 - T0 exact-head CI currently has successful Docker, restore, Windows aggregate, static/unit/visual and tested inbox shard evidence; remaining browser shards still run. No aggregate success or merge approval is inferred early.
+
+## S1 isolated implementation started
+
+- Ticket #822, branch feat/redesign-build-flag-20261030, base 0acbcd284f9ab0fd74fef707e4be4be965762f7d (T1 draft #876, stacked on T0 #875). The clean T0 checkout was reused on this new branch to keep its installed workspace dependencies; original T0 branch and PR head remain unchanged.
+- One local implementation agent owns only the flag/module unit cases, shell root attribute, bounded real-build smoke, Docker build inputs, required existing CI job wiring and its synthetic evidence file. Root owns this checkpoint; independent reviewer is separate. No concurrent local heavy tests or typechecks.
+- Initial TDD RED: exact 1 activation fails against the current OFF stub; seven invalid/missing flag cases remain OFF. Actual two-artifact shell/PWA smoke and final verification are in progress.
+- T1 current PR head is 0acbcd284f9ab0fd74fef707e4be4be965762f7d; exact-head CI 41067792958 is running. Superseded initial-head CI failed before the nullable-test fix. Local final tests/typechecks and independent review are green; owner preview/full current CI are still pending.
+- No production merge/release/activation, live source setup, data change or external model run. Existing preview/release guards and STOP files remain intact.
+
+## T5 evidence-only preparation
+
+- Ticket #821, branch docs/redesign-freedom-reconciliation-20261030, base T1 0acbcd284f9ab0fd74fef707e4be4be965762f7d. Root reused its clean documentation checkout on a separate branch; T1 remote branch/PR remains unchanged.
+- Only docs/redesign/04-freedom-expense-reconciliation.md is added: canonical reference-period/source chain, net need/want consumption, neutral internal transfers and actual category boundary for principal/investment, F09 literal evidence and limits. No universal principal exclusion, financial formula correction, production/test/fixture change or private-data acceptance is inferred.
+- The concrete documentation-only diff is risk:low under the queue's routine-documentation rule. Any later classification/formula change retains High/protected approval and full review. Existing T1 results are reused only for unchanged relevant source/tests. Independent source/document review is pending.
+
+## Reviewed candidate checkpoint
+
+- T0 PR #875: exact-head CI 41065065297 passed all four required checks at 84c291e5255e8e024a3c5802ce602fc016f6306e. Main remains 50c0016560ee634c6ee8ede8180169bc60cb29a6 with its previously red observed main run; PR success is not integration or publication. No merge/release was attempted.
+- T5 independent source/doc review returned CLEAR. PR [#877](https://github.com/Grabman1987/budget/pull/877), head b3fb2e517b293f1ae1c33684cb8f38893a0274c5, targets T1 #876. It changes only the bounded evidence note; documentation-lane required CI is pending. Issue #821 is CI / Review, not complete.
+- S1 final local verification: actual two-build OFF/ON/PWA upgrade smoke passed desktop/phone; five targeted unit/regression files passed 81 tests; web/smoke typechecks, scoped ESLint, explicit Prettier and whitespace passed. Broad browser result: 46 passed, 2 unchanged 120-second route-sweep timeouts (desktop/mobile), 9 existing profile skips. Latest trace navigations occurred near 119.4/117.1 seconds; one direct control command against the same fresh candidate artifacts and copied synthetic DB passed both destinations (2943/880 ms). No timeout, assertion or skip changed. Independent executable and final evidence reviews returned CLEAR; the reviewer also matched both recorded artifact hashes. This is not a fully green local broad run. Actual Docker/default+preview compilation, full required exact-head CI and owner preview remain pending.
+
+## Manual Antigravity division authorised
+
+- The owner explicitly requested sharing work with Antigravity and a copyable prompt. Antigravity receives only T6 #826 (Finanz-Check history restoration) in its own branch/worktree after the reviewed S1 base is published. No Antigravity/Gemini session has been started or contacted here.
+- Antigravity owns router.tsx, reports/report-search.ts, pages/reports-pages.tsx, minimal existing Finanzcheck report reuse and only related tests/evidence. Root retains shared flags/build/CI/PROGRESS and coordination. No second writer on these scopes.
+- Root retains S1 delivery/CI and the next T2 forecast/offline scope, then T3 as dependencies permit. T4 is a possible subsequent Antigravity slice only after explicit dispatch and a fresh branch; no bulk delegation of the remaining plan or later Moonshot extensions. At most one implementation package per environment plus independent review.
+- The handoff preserves the original grant: branches/PRs allowed; production merges, releases, activation and real-data changes need separate owner OK. T6 is distinct from the new health-score feature #814 and must reuse the existing rule-history body without changing R-rule evaluation.
