@@ -910,7 +910,7 @@ export const router = createRouter({
     !(
       REDESIGN_ENABLED &&
       location.pathname === '/reports/onepager' &&
-      location.search['darstellung'] === 'finanzcheck' &&
+      validateReportSearch(location.search).darstellung === 'finanzcheck' &&
       FINANZCHECK_HEADING_HASHES.includes(location.hash)
     ) &&
     (location.pathname.startsWith('/plan/monat') ||
