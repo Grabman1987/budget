@@ -80,9 +80,19 @@ export function planChanges(paths, event = 'pull_request', highRisk = false) {
       };
 }
 
+function repositoryGit(cwd) {
+  const env = { ...process.env };
+  const localVariables = execFileSync('git', ['rev-parse', '--local-env-vars'], {
+    cwd,
+    encoding: 'utf8',
+  });
+  for (const name of localVariables.trim().split(/\r?\n/)) delete env[name];
+  return (args) => execFileSync('git', args, { cwd, env, encoding: 'utf8' });
+}
+
 export function changedPaths(base, head, cwd = process.cwd()) {
   // Resolve refs before using them in revision expressions, including local CLI arguments.
-  const git = (args) => execFileSync('git', args, { cwd, encoding: 'utf8' });
+  const git = repositoryGit(cwd);
   const resolve = (ref) =>
     git(['rev-parse', '--verify', '--end-of-options', `${ref}^{commit}`]).trim();
   const ancestor = git(['merge-base', resolve(base), resolve(head)]).trim();
@@ -93,7 +103,7 @@ export function changedPaths(base, head, cwd = process.cwd()) {
 
 function validateSpecTargets(plan, base, head, cwd = process.cwd()) {
   if (plan.lane !== 'ui') return plan;
-  const git = (args) => execFileSync('git', args, { cwd, encoding: 'utf8' });
+  const git = repositoryGit(cwd);
   const resolve = (ref) =>
     git(['rev-parse', '--verify', '--end-of-options', `${ref}^{commit}`]).trim();
   const revision = resolve(head);

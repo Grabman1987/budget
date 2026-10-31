@@ -12,6 +12,9 @@ import {
   verificationPassed,
 } from './change-plan.mjs';
 
+const fixtureEnvironment = () =>
+  Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')));
+
 describe('verification lane selection', () => {
   it('covers price-history presentation and unions independent UI scopes', () => {
     expect(planChanges(['apps/web/src/wealth/price-history.css']).specs).toEqual([
@@ -97,7 +100,8 @@ describe('verification lane selection', () => {
   });
   it('includes deleted executable paths when renamed into documentation, and uses the PR merge base', () => {
     const cwd = mkdtempSync(join(tmpdir(), 'budget-change-plan-'));
-    const git = (...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+    const git = (...args) =>
+      execFileSync('git', args, { cwd, env: fixtureEnvironment(), encoding: 'utf8' }).trim();
     try {
       git('init', '-b', 'main');
       git('config', 'user.email', 'test@example.invalid');
@@ -295,6 +299,7 @@ describe('CLI leaf target evidence', () => {
     const git = (...args) =>
       execFileSync('git', args, {
         cwd,
+        env: fixtureEnvironment(),
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'pipe'],
       }).trim();
@@ -323,7 +328,7 @@ describe('CLI leaf target evidence', () => {
           cwd,
           encoding: 'utf8',
           env: {
-            ...process.env,
+            ...fixtureEnvironment(),
             GITHUB_EVENT_NAME: 'pull_request',
             HIGH_RISK: 'false',
             BASE_SHA: '',
@@ -341,4 +346,49 @@ describe('CLI leaf target evidence', () => {
       rmSync(cwd, { recursive: true, force: true });
     }
   });
+});
+
+it('honors the comparison cwd when a Git hook supplies another repository context', () => {
+  const cwd = mkdtempSync(join(tmpdir(), 'budget-hook-cwd-'));
+  if (!resolve(cwd).startsWith(`${resolve(tmpdir())}${sep}budget-hook-cwd-`))
+    throw new Error('Unexpected test cleanup path');
+  const env = fixtureEnvironment();
+  const parent = fileURLToPath(new URL('../../', import.meta.url));
+  const git = (...args) =>
+    execFileSync('git', args, {
+      cwd,
+      env,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+  const parentGit = execFileSync('git', ['rev-parse', '--absolute-git-dir'], {
+    cwd: parent,
+    env,
+    encoding: 'utf8',
+  }).trim();
+  const previous = {
+    GIT_DIR: process.env.GIT_DIR,
+    GIT_WORK_TREE: process.env.GIT_WORK_TREE,
+    GIT_INDEX_FILE: process.env.GIT_INDEX_FILE,
+  };
+  try {
+    git('init', '-b', 'main');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'Synthetic CI Test');
+    git('commit', '--allow-empty', '-m', 'base');
+    writeFileSync(join(cwd, 'fixture.ts'), '// synthetic comparison\n');
+    git('add', '.');
+    git('commit', '-m', 'head');
+    process.env.GIT_DIR = parentGit;
+    process.env.GIT_WORK_TREE = parent;
+    process.env.GIT_INDEX_FILE = join(parentGit, 'index');
+    // Only the read-only comparison sees this simulated hook context; fixture mutations use env.
+    expect(changedPaths('HEAD~1', 'HEAD', cwd)).toEqual(['fixture.ts']);
+  } finally {
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+    rmSync(cwd, { recursive: true, force: true });
+  }
 });
