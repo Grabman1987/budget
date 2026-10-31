@@ -12,6 +12,13 @@ import type { ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { PlanMonthPage } from './plan-page';
 
+const redesign = vi.hoisted(() => ({ enabled: false }));
+vi.mock('../shell/redesign-flag', () => ({
+  get REDESIGN_ENABLED() {
+    return redesign.enabled;
+  },
+}));
+
 vi.mock('../shell/app-link', () => ({
   AppLink: ({
     children,
@@ -147,4 +154,19 @@ it('offers "Monat abschließen" as a visible link to the shown month, no positio
   expect(close.getAttribute('href')).toBe('/monatsabschluss/2026-09');
   expect(close.closest('details')).toBeNull();
   expect(container.querySelector('.ptable .col-pos, .ptable .grp-no')).toBeNull();
+});
+
+afterEach(() => {
+  redesign.enabled = false;
+});
+
+it('redesign uses the budget-month income in the head, matching the chain and allocation basis', async () => {
+  redesign.enabled = true;
+  const { container } = renderPlan(0);
+  await screen.findByTestId('to-be-assigned');
+  expect(
+    (await screen.findByRole('button', { name: /100,00 €.*Einnahmen im Detail/ })).textContent,
+  ).toContain('100,00 €');
+  expect(container.querySelector('.sb-note')?.textContent).toContain('100,00 €');
+  expect(container.querySelector('.chain-inline')?.textContent).toMatch(/Einnahmen.*100/);
 });
