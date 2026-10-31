@@ -26,6 +26,15 @@ Keep all four required GitHub check names and branch protection. Required aggreg
 
 Separate implementation/preview from publication: a PR can be ready for user review before the full delivery gate completes. Do not duplicate a full CI run locally or repeatedly rebuild evidence after an unrelated documentation edit. On actual failures distinguish infrastructure, contract/fixture and product failures before a targeted retry. Use the five-task timing pilot in the guide to measure the change; do not claim an unmeasured speedup.
 
+## Failures and pre-push habits
+
+Owner authorization (2026-10-30): these habits address the measured CI churn (44 % of finished PR runs red, 2026-10-20..30) and do not relax any check.
+
+- Enable the local gate once per worktree (`git config core.hooksPath .githooks`, see the [fast-path guide](../development-fast-path.md)). Opening a PR does not require it to pass locally, but pushing with a known typecheck/lint failure is not allowed.
+- After a red CI run, classify the failure (contract/fixture, flake, infrastructure) before pushing again, as already required above. If the same job fails twice for the same reason, record cause and evidence in the issue and take the next step in "After two failed diagnostic approaches" instead of pushing a third attempt.
+- A change that moves or removes a route, report id, test id or visible text migrates every spec that mentions it in the same PR (`rg` over `e2e`, `apps`, `packages`); the migration is a scoped technical adaptation under "Tests and local checks".
+- Sub-pixel tolerance: touch-target checks use `MIN_TARGET_PX` (43.9, `e2e/ledger-helpers.ts`) instead of an exact 44. Other tolerances, timeouts and assertions stay under the rules above.
+
 ## Review and risk
 
 Every completed change gets an independent review of the final diff. For a small change, a short explanation and relevant evidence are enough. After edits, review the affected portion again unless the change has wider effects. Existing-test changes always need independent review; financial, security and migration changes need a capable reviewer of the complete diff. The reviewer must not be the implementer.
@@ -45,7 +54,9 @@ For an intended UI change, regenerate only the affected screenshot specs using `
 
 ## Integration and deployment
 
-Normal serial merges and deployments by the orchestrator are preauthorized once independent review, required checks and existing integration conditions pass. Implementers do not merge. Use only `scripts/queue/merge-pr.sh <pr>` for integration; do not use direct GitHub merge, auto-merge or bypass flags.
+Owner authorization (2026-10-30): merges with `--hold-release` need no further individual owner approval when the final diff has an independent review by a different agent, required CI is green on the exact head, integration uses only `scripts/queue/merge-pr.sh`, and the change either acts only behind the redesign flag with production OFF or affects only tools, tests, CI helper scripts or documentation. This standing permission excludes migrations and changes to money/ledger semantics, security, locks, audit, undo, secrets or real data. Releases, flag activation, migrations, real-data changes and every protected change still require separate owner approval. Other changes retain their existing approval requirements. All existing integration gates, STOP files and the ban on unattended loops remain binding.
+
+Implementers do not merge. Use only `scripts/queue/merge-pr.sh <pr> --hold-release` under this standing permission; do not use direct GitHub merge, auto-merge or bypass flags.
 
 Owner continuation (2026-10-25): integration and release are separate. The helper requires green current-main CI, exact-head PR CI, and a healthy successfully deployed production revision that is an ancestor of main. It stops if main moves while waiting, a deployment is pending/failed, or verification fails. `merge-pr.sh PR --hold-release` merges and waits for main verification without publishing; multiple reviewed PRs may form a batch. Default `merge-pr.sh PR` also calls the release helper. `release.sh FULL_MAIN_SHA` explicitly publishes the current checked main revision through the main-only Deploy workflow and verifies exact live health. A merge awaiting release is not live and must not receive queue:complete. Releases remain serial; required check names, branch protection and data protections remain unchanged. No direct merge, auto-merge, bypass or force push.
 
