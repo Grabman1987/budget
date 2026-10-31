@@ -17,7 +17,7 @@ Measured on real runs of the same suite (155 e2e specs): baseline = CI run 39001
 - `check` (required) needs `static`, `unit`, `e2e` and `visual`.
 - `static`: typecheck and lint on Ubuntu. They are OS-independent (`.gitattributes` pins `eol=lf`), so Windows no longer repeats them.
 - `unit`: `vitest --shard=i/2` on Ubuntu, with `age` installed (`BUDGET_REQUIRE_AGE=1`).
-- `e2e`: 12 Playwright shards with `--ignore-snapshots`. Screenshot assertions are skipped there, every other assertion still runs. Each shard builds the bundle itself (seconds), so no build artifact is passed around.
+- `e2e`: 14 Playwright shards (8 `chromium`, 6 `webkit`, see "E2E groups" below) with `--ignore-snapshots`. Screenshot assertions are skipped there, every other assertion still runs. Each shard builds the bundle itself (seconds), so no build artifact is passed around.
 - `visual`: only the specs that call `expectScreenshot` / `toHaveScreenshot` (found by grep, so new ones are picked up), without `--ignore-snapshots`. Still blocking through `check`.
 - `check-windows` (required) is the aggregate of `windows-unit` (`npm ci` without compiler, `vitest --shard=i/2` incl. DB path handling).
 - `docker` and `restore-test` are unchanged.
@@ -32,5 +32,18 @@ an empty commit afterwards.
 
 ## Limits
 
-GitHub's free plan runs 20 jobs at once; one PR now uses about 20, so several PRs in parallel queue.
-Shard 12 (6.5 min) is the slowest; Playwright splits by test count, not by duration.
+GitHub's free plan runs 20 jobs at once; one full PR run peaks at about 19-21 jobs (14 e2e shards plus unit, visual and Windows), so a second concurrent run queues. Playwright splits by test count, not by duration.
+
+## E2E groups (2026-10-30)
+
+Measured on four green PR runs (2026-10-30): queueing was negligible (max 1.6 min), but shards 10-12
+took 21-28 min while shards 1-9 took 9-11 min. Cause: `webkit-iphone` runs with `workers: 1` and
+its `testMatch` includes every `issue-*` spec, so 551 of 2493 test executions are serial WebKit
+runs, and Playwright's single 12-way split placed them in the last shards.
+
+Full E2E now runs two independently sharded groups (`E2E_GROUPS` in `scripts/ci/change-plan.mjs`):
+`chromium` (desktop, mobile, auth-desktop, auth-mobile; 8 shards) and `webkit` (webkit-iphone;
+6 shards). `playwright test --list` confirms the union equals the full set (1945 + 551 tests, the
+3 setup tests run in both groups). No test, assertion, project, worker count or retry changed.
+Expected wall time from the measured per-test rates: about 14 min instead of about 31 min; to be
+confirmed on the first runs of this change.

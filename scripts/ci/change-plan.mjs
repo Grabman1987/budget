@@ -1,10 +1,17 @@
-// Deliberately small allowlist. Unknown paths, changed tests/config and missing Git evidence
+// Deliberately small allowlist. Unknown paths, shared tests/config and missing Git evidence
 // require the full suite. Both sides of renames are examined with --no-renames.
 import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-const FULL_SHARDS = Array.from({ length: 12 }, (_, i) => i + 1);
+// Full E2E shards as "<group>-<index>-<total>". WebKit (webkit-iphone, workers: 1, about 46 % of all
+// test executions) gets its own shards: with a single 12-way split Playwright placed the whole serial
+// WebKit share into the last three shards (21-28 min vs 9-11 min for the rest, PR runs 2026-10-30).
+// Coverage is unchanged: the union of both groups is exactly the previous full project set.
+export const E2E_GROUPS = { chromium: 8, webkit: 6 };
+const FULL_SHARDS = Object.entries(E2E_GROUPS).flatMap(([group, total]) =>
+  Array.from({ length: total }, (_, i) => `${group}-${i + 1}-${total}`),
+);
 const FUNDING_SPECS = ['e2e/funding-plan.spec.ts', 'e2e/savings-plans.spec.ts'];
 const UI_SCOPES = new Map([
   ['apps/web/src/wealth/funding-plan.tsx', FUNDING_SPECS],
@@ -84,6 +91,26 @@ export function changedPaths(base, head, cwd = process.cwd()) {
     .filter(Boolean);
 }
 
+function validateSpecTargets(plan, base, head, cwd = process.cwd()) {
+  if (plan.lane !== 'ui') return plan;
+  const git = (args) => execFileSync('git', args, { cwd, encoding: 'utf8' });
+  const resolve = (ref) =>
+    git(['rev-parse', '--verify', '--end-of-options', `${ref}^{commit}`]).trim();
+  const revision = resolve(head);
+  const ancestor = git(['merge-base', resolve(base), revision]).trim();
+  const entry = (ref, spec) => git(['ls-tree', '-z', ref, '--', spec]);
+  const isFile = (value) => /^100(?:644|755) blob /.test(value);
+  const specs = [];
+  let deleted = 0;
+  for (const spec of plan.specs) {
+    const current = entry(revision, spec);
+    if (isFile(current)) specs.push(spec);
+    else if (!current && isFile(entry(ancestor, spec))) deleted += 1;
+    else return fullPlan(`Missing or unsupported spec target without deletion evidence: ${spec}.`);
+  }
+  return { ...plan, specs, deletedOnly: specs.length === 0 && deleted > 0 };
+}
+
 // Exact status vectors: an unexpected skip/cancellation/failure can never turn an aggregate green.
 export function verificationPassed(needs, windows = false) {
   const reused = needs.reuse?.result === 'success' && needs.reuse?.outputs?.reuse === 'true';
@@ -114,17 +141,15 @@ function main() {
   const event = process.env.GITHUB_EVENT_NAME || 'pull_request';
   let plan;
   try {
-    plan =
-      event === 'pull_request'
-        ? planChanges(
-            changedPaths(
-              process.env.BASE_SHA || process.argv[2] || 'origin/main',
-              process.env.HEAD_SHA || process.argv[3] || 'HEAD',
-            ),
-            event,
-            process.env.HIGH_RISK === 'true',
-          )
-        : fullPlan('Push, scheduled audit or manual full verification.');
+    if (event === 'pull_request') {
+      const base = process.env.BASE_SHA || process.argv[2] || 'origin/main';
+      const head = process.env.HEAD_SHA || process.argv[3] || 'HEAD';
+      plan = validateSpecTargets(
+        planChanges(changedPaths(base, head), event, process.env.HIGH_RISK === 'true'),
+        base,
+        head,
+      );
+    } else plan = fullPlan('Push, scheduled audit or manual full verification.');
   } catch {
     plan = fullPlan('Git comparison unavailable; using the full suite.');
   }
@@ -132,7 +157,7 @@ function main() {
   if (process.env.GITHUB_OUTPUT)
     appendFileSync(
       process.env.GITHUB_OUTPUT,
-      `lane=${plan.lane}\nshards=${JSON.stringify(plan.shards)}\nspecs=${plan.specs.join(' ')}\n`,
+      `lane=${plan.lane}\nshards=${JSON.stringify(plan.shards)}\nspecs=${plan.specs.join(' ')}\ndeleted_specs_only=${plan.deletedOnly === true}\n`,
     );
   if (process.env.GITHUB_STEP_SUMMARY)
     appendFileSync(
