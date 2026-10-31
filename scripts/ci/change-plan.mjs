@@ -1,4 +1,4 @@
-// Deliberately small allowlist. Unknown paths, changed tests/config and missing Git evidence
+// Deliberately small allowlist. Unknown paths, shared tests/config and missing Git evidence
 // require the full suite. Both sides of renames are examined with --no-renames.
 import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
@@ -25,6 +25,15 @@ const UI_SCOPES = new Map([
     ['e2e/report-polish.spec.ts', 'e2e/portfolio-instruments.spec.ts'],
   ],
 ]);
+// A spec file is a leaf: no spec imports another spec (helpers, setup and config files are not
+// leaves and keep the full suite). A change to only spec files or their screenshot baselines is
+// proven by running exactly those specs in every configured profile, with screenshot assertions.
+const LEAF_SPEC = /^e2e\/([\w.-]+\.spec\.ts)$/;
+const LEAF_BASELINE = /^e2e\/([\w.-]+\.spec\.ts)-snapshots\/[^/]+\.png$/;
+export function leafSpec(path) {
+  const match = LEAF_SPEC.exec(path) ?? LEAF_BASELINE.exec(path);
+  return match ? `e2e/${match[1]}` : null;
+}
 const isDoc = (path) =>
   path === 'README.md' || (/^docs\/.+\.md$/.test(path) && !/^docs\/(queue\/|ops\.md$)/.test(path));
 
@@ -47,6 +56,11 @@ export function planChanges(paths, event = 'pull_request', highRisk = false) {
     )
       return fullPlan('Invalid path evidence.');
     if (isDoc(path)) continue;
+    const leaf = leafSpec(path);
+    if (leaf) {
+      specs.add(leaf);
+      continue;
+    }
     const affected = UI_SCOPES.get(path);
     if (!affected) return fullPlan(`Full coverage required by ${path}.`);
     affected.forEach((spec) => specs.add(spec));
@@ -56,7 +70,7 @@ export function planChanges(paths, event = 'pull_request', highRisk = false) {
         lane: 'ui',
         shards: [1],
         specs: [...specs].sort(),
-        reason: 'Explicitly mapped isolated UI changes.',
+        reason: 'Explicitly mapped isolated UI changes or leaf e2e specs.',
       }
     : {
         lane: 'docs',
@@ -66,15 +80,45 @@ export function planChanges(paths, event = 'pull_request', highRisk = false) {
       };
 }
 
+function repositoryGit(cwd) {
+  const env = { ...process.env };
+  const localVariables = execFileSync('git', ['rev-parse', '--local-env-vars'], {
+    cwd,
+    encoding: 'utf8',
+  });
+  for (const name of localVariables.trim().split(/\r?\n/)) delete env[name];
+  return (args) => execFileSync('git', args, { cwd, env, encoding: 'utf8' });
+}
+
 export function changedPaths(base, head, cwd = process.cwd()) {
   // Resolve refs before using them in revision expressions, including local CLI arguments.
-  const git = (args) => execFileSync('git', args, { cwd, encoding: 'utf8' });
+  const git = repositoryGit(cwd);
   const resolve = (ref) =>
     git(['rev-parse', '--verify', '--end-of-options', `${ref}^{commit}`]).trim();
   const ancestor = git(['merge-base', resolve(base), resolve(head)]).trim();
   return git(['diff', '--name-only', '--no-renames', '-z', ancestor, resolve(head), '--'])
     .split('\0')
     .filter(Boolean);
+}
+
+function validateSpecTargets(plan, base, head, cwd = process.cwd()) {
+  if (plan.lane !== 'ui') return plan;
+  const git = repositoryGit(cwd);
+  const resolve = (ref) =>
+    git(['rev-parse', '--verify', '--end-of-options', `${ref}^{commit}`]).trim();
+  const revision = resolve(head);
+  const ancestor = git(['merge-base', resolve(base), revision]).trim();
+  const entry = (ref, spec) => git(['ls-tree', '-z', ref, '--', spec]);
+  const isFile = (value) => /^100(?:644|755) blob /.test(value);
+  const specs = [];
+  let deleted = 0;
+  for (const spec of plan.specs) {
+    const current = entry(revision, spec);
+    if (isFile(current)) specs.push(spec);
+    else if (!current && isFile(entry(ancestor, spec))) deleted += 1;
+    else return fullPlan(`Missing or unsupported spec target without deletion evidence: ${spec}.`);
+  }
+  return { ...plan, specs, deletedOnly: specs.length === 0 && deleted > 0 };
 }
 
 // Exact status vectors: an unexpected skip/cancellation/failure can never turn an aggregate green.
@@ -107,17 +151,15 @@ function main() {
   const event = process.env.GITHUB_EVENT_NAME || 'pull_request';
   let plan;
   try {
-    plan =
-      event === 'pull_request'
-        ? planChanges(
-            changedPaths(
-              process.env.BASE_SHA || process.argv[2] || 'origin/main',
-              process.env.HEAD_SHA || process.argv[3] || 'HEAD',
-            ),
-            event,
-            process.env.HIGH_RISK === 'true',
-          )
-        : fullPlan('Push, scheduled audit or manual full verification.');
+    if (event === 'pull_request') {
+      const base = process.env.BASE_SHA || process.argv[2] || 'origin/main';
+      const head = process.env.HEAD_SHA || process.argv[3] || 'HEAD';
+      plan = validateSpecTargets(
+        planChanges(changedPaths(base, head), event, process.env.HIGH_RISK === 'true'),
+        base,
+        head,
+      );
+    } else plan = fullPlan('Push, scheduled audit or manual full verification.');
   } catch {
     plan = fullPlan('Git comparison unavailable; using the full suite.');
   }
@@ -125,7 +167,7 @@ function main() {
   if (process.env.GITHUB_OUTPUT)
     appendFileSync(
       process.env.GITHUB_OUTPUT,
-      `lane=${plan.lane}\nshards=${JSON.stringify(plan.shards)}\nspecs=${plan.specs.join(' ')}\n`,
+      `lane=${plan.lane}\nshards=${JSON.stringify(plan.shards)}\nspecs=${plan.specs.join(' ')}\ndeleted_specs_only=${plan.deletedOnly === true}\n`,
     );
   if (process.env.GITHUB_STEP_SUMMARY)
     appendFileSync(
