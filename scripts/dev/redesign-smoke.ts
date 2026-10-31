@@ -1,13 +1,14 @@
 /** Local/CI smoke only: real builds, disposable ledger, no hosted environment or integrations. */
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { cpSync, mkdtempSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
-import { chromium, expect, request, type Page } from '@playwright/test';
+import { chromium, expect, request, webkit, type Page } from '@playwright/test';
 import { bootstrapPasskey } from '../../e2e/bootstrap';
 import { E2E_SETUP_TOKEN } from '../../e2e/setup-token';
+import { verifyRedesignGallery, verifyRedesignGalleryPhone } from './redesign-s2-proof';
 
 const root = resolve(import.meta.dirname, '../..');
 const directory = mkdtempSync(join(tmpdir(), 'budget-redesign-smoke-'));
@@ -15,19 +16,25 @@ if (!resolve(directory).startsWith(resolve(tmpdir()) + sep))
   throw new Error('Unsafe smoke directory');
 const active = join(directory, 'web');
 const builds = { off: join(directory, 'off'), on: join(directory, 'on') };
+const galleryBuilds = { off: join(directory, 'gallery-off'), on: join(directory, 'gallery-on') };
+const galleryOutput = join(root, 'test-results/redesign-s2');
 const bookmark = '/konten/pruefen?von=%2Fkonten';
 
-function build(mode: 'off' | 'on') {
-  console.log(`Building redesign ${mode.toUpperCase()} (production frontend)`);
+function build(
+  mode: 'off' | 'on',
+  output = builds[mode],
+  buildMode: 'production' | 'e2e' = 'production',
+) {
+  console.log(`Building redesign ${mode.toUpperCase()} (${buildMode} frontend)`);
   execFileSync(
     process.execPath,
     [
       resolve(root, 'node_modules/vite/bin/vite.js'),
       'build',
       '--mode',
-      'production',
+      buildMode,
       '--outDir',
-      builds[mode],
+      output,
       '--logLevel',
       'warn',
     ],
@@ -107,9 +114,90 @@ async function upgrade(page: Page, origin: string, enabled: boolean) {
     .toBe(true);
 }
 
+async function expectAppHosts(page: Page, origin: string, enabled: boolean) {
+  const previousTheme = await page.locator('html').getAttribute('data-theme');
+  try {
+    for (const theme of ['light', 'dark'] as const) {
+      await page.goto(`${origin}${bookmark}&panel=anlageklasse`);
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+      await page.emulateMedia({ colorScheme: theme });
+      await page.evaluate((value) => {
+        document.documentElement.dataset['theme'] = value;
+      }, theme);
+      const expected = {
+        rule: enabled
+          ? theme === 'light'
+            ? '#d3deec'
+            : '#1f4d7c'
+          : theme === 'light'
+            ? '#d6dfed'
+            : '#25557a',
+        warning: enabled ? (theme === 'light' ? '#8a5300' : '#ffd37a') : '',
+      };
+      for (const target of [page.locator('body'), page.locator('.app'), dialog]) {
+        const roles = await target.evaluate((element) => {
+          const style = getComputedStyle(element);
+          return {
+            rule: style.getPropertyValue('--rule').trim(),
+            warning: style.getPropertyValue('--warning').trim(),
+          };
+        });
+        expect(roles).toEqual(expected);
+      }
+      if (page.viewportSize()!.width === 390) {
+        const tabbar = page.locator('.tabbar');
+        await expect(tabbar).toBeVisible();
+        expect(
+          await tabbar.evaluate((element) =>
+            getComputedStyle(element).getPropertyValue('--rule').trim(),
+          ),
+        ).toBe(expected.rule);
+      }
+      await page.evaluate(async () => document.fonts.ready);
+      await page.screenshot({
+        path: join(
+          galleryOutput,
+          `app-panel-${enabled ? 'on' : 'off'}-${theme}-${page.viewportSize()!.width}.png`,
+        ),
+        animations: 'disabled',
+      });
+      if (enabled) {
+        await page.emulateMedia({ media: 'print', colorScheme: theme });
+        expect(
+          await page.locator('body').evaluate((element) => {
+            const style = getComputedStyle(element);
+            return ['rule', 'rule-strong', 'warning', 'warning-soft'].map((role) =>
+              style.getPropertyValue(`--${role}`).trim(),
+            );
+          }),
+        ).toEqual(['#d3deec', '#6786ac', '#8a5300', '#fff3d6']);
+        await page.emulateMedia({ media: 'screen', colorScheme: theme });
+      }
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
+    }
+  } finally {
+    await page.emulateMedia({ media: 'screen', colorScheme: 'light' });
+    await page.goto(`${origin}${bookmark}`);
+    await page.evaluate((value) => {
+      if (value === null) document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.dataset['theme'] = value;
+    }, previousTheme);
+  }
+  await expectBody(page, origin, enabled);
+}
+
 async function smoke() {
   build('off');
   build('on');
+  // CI builds this OFF artifact immediately before Visual/smoke. Local callers must do likewise.
+  const currentE2E = join(root, 'apps/web/dist');
+  if (!existsSync(join(currentE2E, 'index.html')))
+    throw new Error('Build the current OFF e2e artifact before running the redesign smoke.');
+  cpSync(currentE2E, galleryBuilds.off, { recursive: true });
+  build('on', galleryBuilds.on, 'e2e');
+  mkdirSync(galleryOutput, { recursive: true });
   cpSync(builds.off, active, { recursive: true });
   const origin = `http://localhost:${await freePort()}`;
   const revision = randomBytes(20).toString('hex');
@@ -189,16 +277,41 @@ async function smoke() {
             .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null))
             .toBe(true);
           await upgrade(page, origin, true);
+          await expectAppHosts(page, origin, true);
           await upgrade(page, origin, false);
           // The clean bookmark remains usable after a complete OFF → ON → OFF installed-PWA cycle.
           await page.goto(`${origin}${bookmark}`);
           await expectBody(page, origin, false);
+          await expectAppHosts(page, origin, false);
           console.log(
             `PASS ${viewport.width}px: OFF overrides denied, real ON/OFF upgrade, session and bookmark retained`,
           );
         } finally {
           await context.close();
         }
+      }
+      for (const mode of ['off', 'on'] as const) {
+        cpSync(galleryBuilds[mode], active, { recursive: true });
+        await verifyRedesignGallery(browser, {
+          origin,
+          storageState: storage,
+          mode,
+          outputDir: galleryOutput,
+        });
+      }
+      const phoneBrowser = await webkit.launch();
+      try {
+        for (const mode of ['off', 'on'] as const) {
+          cpSync(galleryBuilds[mode], active, { recursive: true });
+          await verifyRedesignGalleryPhone(phoneBrowser, {
+            origin,
+            storageState: storage,
+            mode,
+            outputDir: galleryOutput,
+          });
+        }
+      } finally {
+        await phoneBrowser.close();
       }
     } finally {
       await browser.close();

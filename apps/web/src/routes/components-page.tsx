@@ -3,6 +3,7 @@ import {
   AmountInput,
   FormDialog,
   Button,
+  BudgetStateMark,
   ClassTag,
   Count,
   DimensionChain,
@@ -30,6 +31,8 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { useState, type CSSProperties } from 'react';
 import { ChartPrimitivesShowcase } from './bauteile-charts';
 import { AppLink } from '../shell/app-link';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { StatusCell } from '../ledger/booking-cells';
 
 const TOKEN_ROLES = [
   'ground',
@@ -83,7 +86,7 @@ function Tokens() {
     <section aria-labelledby="farben" id="farben">
       <SectionHead id="farben" title="Farben und Schrift" detail={1} />
       <div className="swatch-grid">
-        {TOKEN_ROLES.map((role) => (
+        {[...TOKEN_ROLES, ...(REDESIGN_ENABLED ? ['warning', 'warning-soft'] : [])].map((role) => (
           <div className="token" key={role}>
             <i style={{ '--swatch': `var(--${role})` } as CSSProperties} />
             <code>{role}</code>
@@ -106,7 +109,10 @@ function Tokens() {
         <p className="type-sample t-headline">Headline: frei verfügbar bis Gehalt</p>
         <p className="type-sample t-title">Title: Abschnittskopf</p>
         <p className="type-sample t-figure">Figure: 3.812 €</p>
-        <p className="type-sample">Body 14 px mit Tabellenziffern: 1.111 · 2.222 · 3.333</p>
+        <p className="type-sample">
+          {REDESIGN_ENABLED ? 'Body 15 px / mobil 16 px' : 'Body 14 px'} mit Tabellenziffern: 1.111 ·
+          2.222 · 3.333
+        </p>
         <p className="type-sample tech">Label · Barlow Semi Condensed</p>
       </div>
     </section>
@@ -177,6 +183,26 @@ function Basics() {
             <TextInput id={id} aria-describedby={describedBy} aria-invalid={invalid} />
           )}
         </Field>
+      </div>
+    </section>
+  );
+}
+
+function RedesignStates() {
+  return (
+    <section aria-labelledby="zustandszeichen">
+      <SectionHead id="zustandszeichen" title="Zustandszeichen" />
+      <div className="dev-row" role="group" aria-label="Budgetzustände">
+        <BudgetStateMark state="met" />
+        <BudgetStateMark state="open" />
+        <BudgetStateMark state="overspent" />
+        <BudgetStateMark state="overfunded" />
+        <BudgetStateMark state="neutral" />
+      </div>
+      <div className="dev-row" role="group" aria-label="Buchungsstatus">
+        <StatusCell status="pending" />
+        <StatusCell status="confirmed" />
+        <StatusCell status="reconciled" />
       </div>
     </section>
   );
@@ -325,26 +351,38 @@ function Lists() {
   return (
     <section aria-labelledby="stueckliste" id="stueckliste">
       <SectionHead id="stueckliste" title="Stückliste" detail={5} />
-      <PartsList<Envelope>
-        caption="Envelopes nach Stufen"
-        getRowKey={(r) => r.id}
-        groups={GROUPS}
-        columns={[
-          { key: 'name', header: 'Kategorie', render: (r) => r.name },
-          { key: 'assigned', header: 'Zugewiesen', numeric: true, render: (r) => eur(r.assigned) },
-          {
-            key: 'available',
-            header: 'Verfügbar',
-            numeric: true,
-            render: (r) =>
-              r.available < 0 ? (
-                <span className="text-alert">{eur(r.available)}</span>
-              ) : (
-                eur(r.available)
-              ),
-          },
-        ]}
-      />
+      <div
+        className="dev-table"
+        role="region"
+        aria-label="Alle Spalten der Stückliste"
+        tabIndex={0}
+      >
+        <PartsList<Envelope>
+          caption="Envelopes nach Stufen"
+          getRowKey={(r) => r.id}
+          groups={GROUPS}
+          columns={[
+            { key: 'name', header: 'Kategorie', render: (r) => r.name },
+            {
+              key: 'assigned',
+              header: 'Zugewiesen',
+              numeric: true,
+              render: (r) => eur(r.assigned),
+            },
+            {
+              key: 'available',
+              header: 'Verfügbar',
+              numeric: true,
+              render: (r) =>
+                r.available < 0 ? (
+                  <span className="text-alert">{eur(r.available)}</span>
+                ) : (
+                  eur(r.available)
+                ),
+            },
+          ]}
+        />
+      </div>
     </section>
   );
 }
@@ -480,6 +518,7 @@ function ComponentsPage() {
       <Header />
       <Tokens />
       <Basics />
+      {REDESIGN_ENABLED && <RedesignStates />}
       <Amount />
       <Chains />
       <Lists />
@@ -498,9 +537,10 @@ function ComponentsPage() {
 
 export function ComponentsRoute() {
   useAmountPrivacy();
-  return (
+  const gallery = (
     <ToastProvider>
       <ComponentsPage />
     </ToastProvider>
   );
+  return REDESIGN_ENABLED ? <div data-budget-redesign="1">{gallery}</div> : gallery;
 }
