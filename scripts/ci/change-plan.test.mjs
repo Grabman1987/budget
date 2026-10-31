@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { changedPaths, planChanges, verificationPassed } from './change-plan.mjs';
+import { E2E_GROUPS, changedPaths, planChanges, verificationPassed } from './change-plan.mjs';
 
 describe('verification lane selection', () => {
   it('covers price-history presentation and unions independent UI scopes', () => {
@@ -78,7 +78,10 @@ describe('verification lane selection', () => {
     (event) => {
       expect(planChanges(['README.md'], event)).toMatchObject({
         lane: 'full',
-        shards: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        shards: [
+          ...Array.from({ length: 8 }, (_, i) => `chromium-${i + 1}-8`),
+          ...Array.from({ length: 6 }, (_, i) => `webkit-${i + 1}-6`),
+        ],
       });
     },
   );
@@ -151,5 +154,18 @@ describe('required status aggregates', () => {
     expect(verificationPassed(needs, true)).toBe(true);
     needs.reuse.result = 'failure';
     expect(verificationPassed(needs)).toBe(false);
+  });
+});
+
+describe('full e2e shard groups', () => {
+  it('covers each group index exactly once and keeps artifact-safe names', () => {
+    const { shards } = planChanges(['README.md'], 'push');
+    for (const [group, total] of Object.entries(E2E_GROUPS)) {
+      const mine = shards.filter((s) => s.startsWith(`${group}-`));
+      expect(mine.map((s) => Number(s.split('-')[1]))).toEqual(
+        Array.from({ length: total }, (_, i) => i + 1),
+      );
+    }
+    expect(shards.every((s) => /^[a-z]+-\d+-\d+$/.test(s))).toBe(true);
   });
 });

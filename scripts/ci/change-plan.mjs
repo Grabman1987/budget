@@ -4,7 +4,14 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-const FULL_SHARDS = Array.from({ length: 12 }, (_, i) => i + 1);
+// Full E2E shards as "<group>-<index>-<total>". WebKit (webkit-iphone, workers: 1, about 46 % of all
+// test executions) gets its own shards: with a single 12-way split Playwright placed the whole serial
+// WebKit share into the last three shards (21-28 min vs 9-11 min for the rest, PR runs 2026-10-30).
+// Coverage is unchanged: the union of both groups is exactly the previous full project set.
+export const E2E_GROUPS = { chromium: 8, webkit: 6 };
+const FULL_SHARDS = Object.entries(E2E_GROUPS).flatMap(([group, total]) =>
+  Array.from({ length: total }, (_, i) => `${group}-${i + 1}-${total}`),
+);
 const FUNDING_SPECS = ['e2e/funding-plan.spec.ts', 'e2e/savings-plans.spec.ts'];
 const UI_SCOPES = new Map([
   ['apps/web/src/wealth/funding-plan.tsx', FUNDING_SPECS],
