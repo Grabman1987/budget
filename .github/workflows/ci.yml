@@ -235,6 +235,8 @@ jobs:
       - run: npm ci
       - name: Build (e2e mode)
         run: npm run build:e2e
+      - name: Redesign OFF/ON build and installed-PWA smoke
+        run: npx tsx scripts/dev/redesign-smoke.ts
       - name: Visual specs
         run: |
           mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
@@ -314,6 +316,9 @@ jobs:
           done
           docker logs budget
           exit 1
+
+      - name: Build isolated preview image (no push)
+        run: docker build --target preview --build-arg BUDGET_BUILD_REVISION="$(git rev-parse HEAD)" -t budget:preview-ci .
 
   restore-test:
     needs: reuse
