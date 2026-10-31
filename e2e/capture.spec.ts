@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import {
   again,
+  MIN_TARGET_PX,
   openLedgerFilters,
   applyLedgerFilters,
   balance,
@@ -653,8 +654,8 @@ test('visible growing note, direct split and responsive account note column', as
     panel.getByRole('button', { name: 'Schließen' }),
   ]) {
     const box = (await control.boundingBox())!;
-    expect(box.height).toBeGreaterThanOrEqual(44);
-    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    expect(box.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
   }
   await panel.getByLabel('Betrag', { exact: true }).fill('5');
   await panel.getByLabel('Empfänger').fill(payee);
