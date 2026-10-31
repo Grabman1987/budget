@@ -110,8 +110,8 @@ function Tokens() {
         <p className="type-sample t-title">Title: Abschnittskopf</p>
         <p className="type-sample t-figure">Figure: 3.812 €</p>
         <p className="type-sample">
-          {REDESIGN_ENABLED ? 'Body 15 px / mobil 16 px' : 'Body 14 px'} mit Tabellenziffern: 1.111 ·
-          2.222 · 3.333
+          {REDESIGN_ENABLED ? 'Body 15 px / mobil 16 px' : 'Body 14 px'} mit Tabellenziffern: 1.111
+          · 2.222 · 3.333
         </p>
         <p className="type-sample tech">Label · Barlow Semi Condensed</p>
       </div>
@@ -351,12 +351,7 @@ function Lists() {
   return (
     <section aria-labelledby="stueckliste" id="stueckliste">
       <SectionHead id="stueckliste" title="Stückliste" detail={5} />
-      <div
-        className="dev-table"
-        role="region"
-        aria-label="Alle Spalten der Stückliste"
-        tabIndex={0}
-      >
+      <div className="dev-table" role="region" aria-label="Alle Spalten der Stückliste">
         <PartsList<Envelope>
           caption="Envelopes nach Stufen"
           getRowKey={(r) => r.id}

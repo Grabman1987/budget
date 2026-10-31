@@ -241,12 +241,14 @@ async function gallery(browser: Browser, options: GalleryProofOptions, widths: r
         });
         const list = page.getByRole('region', { name: 'Alle Spalten der Stückliste', exact: true });
         if (await list.evaluate((element) => element.scrollWidth > element.clientWidth + 0.5)) {
-          await list.focus();
-          await expect(list).toBeFocused();
-          await list.press('ArrowRight');
+          const entry = list.getByRole('button').first();
+          await entry.focus();
+          await expect(entry).toBeFocused();
+          const before = await list.evaluate((element) => element.scrollLeft);
+          await entry.press('ArrowRight');
           await expect
             .poll(() => list.evaluate((element) => element.scrollLeft))
-            .toBeGreaterThan(0);
+            .toBeGreaterThan(before);
           await list.screenshot({
             path: join(options.outputDir, filename.replace('.png', '-table-scrolled.png')),
             animations: 'disabled',
@@ -256,6 +258,9 @@ async function gallery(browser: Browser, options: GalleryProofOptions, widths: r
       } finally {
         await context.close();
       }
+      console.log(
+        `PASS gallery ${browser.browserType().name()} ${options.mode} ${theme} ${width}px`,
+      );
     }
 }
 

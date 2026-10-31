@@ -299,22 +299,23 @@ async function smoke() {
           outputDir: galleryOutput,
         });
       }
-      const phoneBrowser = await webkit.launch();
-      try {
-        for (const mode of ['off', 'on'] as const) {
-          cpSync(galleryBuilds[mode], active, { recursive: true });
-          await verifyRedesignGalleryPhone(phoneBrowser, {
-            origin,
-            storageState: storage,
-            mode,
-            outputDir: galleryOutput,
-          });
-        }
-      } finally {
-        await phoneBrowser.close();
-      }
     } finally {
       await browser.close();
+    }
+    console.log('Starting WebKit gallery after Chromium cleanup');
+    const phoneBrowser = await webkit.launch();
+    try {
+      for (const mode of ['off', 'on'] as const) {
+        cpSync(galleryBuilds[mode], active, { recursive: true });
+        await verifyRedesignGalleryPhone(phoneBrowser, {
+          origin,
+          storageState: storage,
+          mode,
+          outputDir: galleryOutput,
+        });
+      }
+    } finally {
+      await phoneBrowser.close();
     }
   } finally {
     if (server.exitCode === null && server.signalCode === null && !spawnError) {
