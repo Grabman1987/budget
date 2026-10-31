@@ -190,7 +190,8 @@ test('balanced contacts stay hidden by default and retain deep-linked full histo
   ).toBeVisible();
   await page.reload();
   await expect(sheet).toBeVisible();
-  if (await closed.count()) await closed.click();
+  await expect(closed).toBeVisible();
+  await closed.click();
   await expect(sheet.locator('.contact-movements tbody tr')).toHaveCount(2);
   await expect(
     sheet.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ }),

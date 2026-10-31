@@ -2,7 +2,26 @@
 
 Date: 2026-10-30 (Europe/Vienna). Scope: Phases A and B completed; STOP 2 accepted and Phase C plus implementation in branches/PRs explicitly authorised on 2026-10-30.
 
-## Current state
+## S1 integration continuation — 2026-10-31
+
+- T1 [#876](https://github.com/Grabman1987/budget/pull/876) is held-integrated: exact-head CI [41189431712](https://github.com/Grabman1987/budget/actions/runs/41189431712) passed, and main `1e6d1dee49938f7ba91f031f41c66ba9a08e5391` is verified by CI [41190699786](https://github.com/Grabman1987/budget/actions/runs/41190699786). This satisfies S1's technical prerequisite, not publication or Owner financial acceptance.
+- Existing S1 [#878](https://github.com/Grabman1987/budget/pull/878) now incorporates that verified main by normal merge. The current shard/leaf selection, required aggregates, pre-push gate and financial reference content are retained. The inherited plan conflict takes the exact reviewed main plan; S1 adds no plan change. The old heading-readiness test is already identical on main and needs no duplicate edit.
+- The flag, production-OFF/preview-ON Docker wiring and disposable two-artifact build/PWA smoke retain their original implementation. Application/package/build inputs are unchanged from S1's original T1 parent; historical local evidence below remains limited to that unchanged content. The final composed diff still needs independent review, the actual configured push gate and fresh exact-head CI, including real smoke and default/preview Docker builds.
+- The 2026-10-31 coordination grant is effective through the Owner's instruction; its paired Queue/plan update is a separate bounded [#897](https://github.com/Grabman1987/budget/issues/897) change. S2/T4/T6 implementation waits for actual verified S1 integration. Production stays OFF; release, deployment, protected semantics, real data and Owner previews retain separate gates.
+
+## Integration continuation — 2026-10-31
+
+- T0's owner-exception merge is verified and documented in [#819](https://github.com/Grabman1987/budget/issues/819). The subsequent #882/#884/#883 integrations used `--hold-release`; main `1469c40ae681dd0694b3579a50b7fb88323fccc5` passed CI [41148006581](https://github.com/Grabman1987/budget/actions/runs/41148006581). This is integration evidence, not publication or financial acceptance.
+- The later standing held-merge grant applies through the authoritative [queue process](../queue/README.md), recorded by documentation PR [#890](https://github.com/Grabman1987/budget/pull/890). It is integrated in main `795fa48b8cb811b4122920d9a73ed2ad2135835c`, verified by CI [41150511567](https://github.com/Grabman1987/budget/actions/runs/41150511567). Releases and all protected approvals retain their separate gates.
+- Phase 6 applied 136 of 140 planned dependency edges and the authorized WIP reconciliation; four outgoing edges on the protected Waiting cards remain withheld. [Report E #891](https://github.com/Grabman1987/budget/issues/891) records the actual results and legacy-card proposals. No issues were closed to change readiness labels.
+- The first current-head T1 CI [41151052400](https://github.com/Grabman1987/budget/actions/runs/41151052400) failed an inherited Shell fixture contract; its separate Savings case was flaky. Independently reviewed test-only repairs [#892](https://github.com/Grabman1987/budget/pull/892), [#893](https://github.com/Grabman1987/budget/pull/893) and [#894](https://github.com/Grabman1987/budget/pull/894) are held-integrated in main `ff533743aac5d886b61dc019721af8c135438d16`, verified by CI [41163082113](https://github.com/Grabman1987/budget/actions/runs/41163082113). Existing financial expectations, timeouts and retries remain unchanged.
+- The subsequent T1 CI [41173260053](https://github.com/Grabman1987/budget/actions/runs/41173260053) failed a different inherited Forecast geometry condition: date top 738.875 versus amount bottom 739.875 in both attempts. The bounded font-readiness repair [#895](https://github.com/Grabman1987/budget/issues/895) / [#896](https://github.com/Grabman1987/budget/pull/896) preserves every existing geometry, financial and Undo assertion and all limits. Its exact-head CI [41188596194](https://github.com/Grabman1987/budget/actions/runs/41188596194) passed, including all 15 selected browser tests; held main `6ebd427dd0b90acdebfd1766388f8ceeba86f6b9` is verified by CI [41189035799](https://github.com/Grabman1987/budget/actions/runs/41189035799).
+- The owner's 2026-10-31 CI-first grant authorized [#886](https://github.com/Grabman1987/budget/pull/886) and [#887](https://github.com/Grabman1987/budget/pull/887), both held-integrated before the font repair. Their selected checks preserve the required check names, branch protection and nightly/manual full regression. Later orchestration changes are recorded by the dated owner grant; their paired queue/plan documentation remains a separate small change.
+- T1 ([#820](https://github.com/Grabman1987/budget/issues/820), [#876](https://github.com/Grabman1987/budget/pull/876)) remains the next technical slot after verified T0; S1 follows its merge. T1's literal reference tests remain unchanged, and its branch now incorporates the verified font-repair main for one cause-targeted continuation. The two preceding failed runs had different causes; this is not a third attempt at the same job failure. Read the final configured pre-push and fresh exact-head CI evidence on that PR for each pushed candidate. Owner preview and financial/UI parity remain separate acceptance criteria.
+
+The records below are historical planning and verification checkpoints at their stated revisions. Later integration authority comes from the queue process and dated owner grants, rather than the older individual-OK wording.
+
+## Planning state — 2026-10-30
 
 - A1: Source and instruction discovery complete. Current comparison revision: `50c0016560ee634c6ee8ede8180169bc60cb29a6`.
 - A2: GitHub board, all PR states, remote branch inventory, current main CI and public health inspected without remote changes.
@@ -96,6 +115,10 @@ Contact alias/merge/archive and encrypted-backup download are explicitly identif
 - Typechecking found nullable freedom in the new F09 access. Replaced only that new assertion with toMatchObject({ annualSpendCents: 118000 }), which still rejects null and preserves the exact cents. Independent re-review CLEAR.
 - The final income file passed all 7 tests. Concurrent scoped typechecking left about 300 MB free RAM; five freedom fixture hooks exceeded the existing 10000 ms setup limit. After typechecks completed, unchanged freedom.test.ts alone passed all 11 tests (4.19 s). No timeout, retry, oracle or skip changed. The earlier six-file suite passed all 54 tests; untouched reference files retain that evidence.
 - T0 exact-head CI currently has successful Docker, restore, Windows aggregate, static/unit/visual and tested inbox shard evidence; remaining browser shards still run. No aggregate success or merge approval is inferred early.
+
+## Historical S1 preparation records — 2026-10-30
+
+The following records retain the original stacked preparation and handoff evidence. Their pending states and older individual-approval wording are historical; the dated current integration checkpoints and authoritative queue process take precedence.
 
 ## S1 isolated implementation started
 
