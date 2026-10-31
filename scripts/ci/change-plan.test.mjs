@@ -1,9 +1,19 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { E2E_GROUPS, changedPaths, planChanges, verificationPassed } from './change-plan.mjs';
+import {
+  E2E_GROUPS,
+  changedPaths,
+  leafSpec,
+  planChanges,
+  verificationPassed,
+} from './change-plan.mjs';
+
+const fixtureEnvironment = () =>
+  Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')));
 
 describe('verification lane selection', () => {
   it('covers price-history presentation and unions independent UI scopes', () => {
@@ -59,8 +69,8 @@ describe('verification lane selection', () => {
     'AGENTS.md',
     'CLAUDE.md',
     'SPEC.md',
-    'e2e/funding-plan.spec.ts',
-    'e2e/shell.spec.ts-snapshots/example.png',
+    'e2e/ledger-helpers.ts',
+    'e2e/shell.spec.ts-snapshots/example.txt',
     'docs/example.mjs',
     'unknown.txt',
     '../README.md',
@@ -90,7 +100,8 @@ describe('verification lane selection', () => {
   });
   it('includes deleted executable paths when renamed into documentation, and uses the PR merge base', () => {
     const cwd = mkdtempSync(join(tmpdir(), 'budget-change-plan-'));
-    const git = (...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+    const git = (...args) =>
+      execFileSync('git', args, { cwd, env: fixtureEnvironment(), encoding: 'utf8' }).trim();
     try {
       git('init', '-b', 'main');
       git('config', 'user.email', 'test@example.invalid');
@@ -157,6 +168,59 @@ describe('required status aggregates', () => {
   });
 });
 
+describe('leaf e2e spec lane', () => {
+  it('runs only the changed specs, including baseline-only changes', () => {
+    expect(
+      planChanges([
+        'e2e/inbox.spec.ts',
+        'e2e/shell.spec.ts-snapshots/shell-desktop-linux.png',
+        'docs/notes.md',
+      ]),
+    ).toMatchObject({ lane: 'ui', shards: [1], specs: ['e2e/inbox.spec.ts', 'e2e/shell.spec.ts'] });
+  });
+
+  it('keeps the full suite for shared e2e files and app code', () => {
+    for (const path of [
+      'e2e/ledger-helpers.ts',
+      'e2e/auth.setup.ts',
+      'e2e/bank-followups.config.ts',
+      'playwright.config.ts',
+      'e2e/sub/dir.spec.ts',
+    ])
+      expect(planChanges(['e2e/inbox.spec.ts', path]).lane).toBe('full');
+  });
+
+  it('keeps the full suite for high risk and non-pull-request events', () => {
+    expect(planChanges(['e2e/inbox.spec.ts'], 'pull_request', true).lane).toBe('full');
+    expect(planChanges(['e2e/inbox.spec.ts'], 'push').lane).toBe('full');
+  });
+
+  it.each([
+    'e2e/../x.spec.ts',
+    'e2e//x.spec.ts',
+    'e2e/a b.spec.ts',
+    'e2e/x.spec.ts\n',
+    'e2e/x.spec.ts-snapshots/../y.png',
+    'e2e/.spec.ts',
+  ])('fails closed for malformed leaf path %j', (path) => {
+    expect(planChanges([path]).lane).toBe('full');
+  });
+
+  it('unions leaf specs with mapped UI scopes, but not with queue docs', () => {
+    expect(
+      planChanges(['apps/web/src/wealth/funding-plan.css', 'e2e/inbox.spec.ts']).specs,
+    ).toEqual(['e2e/funding-plan.spec.ts', 'e2e/inbox.spec.ts', 'e2e/savings-plans.spec.ts']);
+    expect(planChanges(['e2e/inbox.spec.ts', 'docs/queue/README.md']).lane).toBe('full');
+  });
+
+  it('maps only spec files and png baselines', () => {
+    expect(leafSpec('e2e/a.spec.ts')).toBe('e2e/a.spec.ts');
+    expect(leafSpec('e2e/a.spec.ts-snapshots/x.png')).toBe('e2e/a.spec.ts');
+    expect(leafSpec('e2e/a.spec.ts-snapshots/x.txt')).toBeNull();
+    expect(leafSpec('e2e/a.ts')).toBeNull();
+  });
+});
+
 describe('full e2e shard groups', () => {
   it('covers each group index exactly once and keeps artifact-safe names', () => {
     const { shards } = planChanges(['README.md'], 'push');
@@ -168,4 +232,163 @@ describe('full e2e shard groups', () => {
     }
     expect(shards.every((s) => /^[a-z]+-\d+-\d+$/.test(s))).toBe(true);
   });
+});
+
+describe('CLI leaf target evidence', () => {
+  const live = 'e2e/live.spec.ts';
+  const gone = 'e2e/gone.spec.ts';
+  const baseline = 'e2e/live.spec.ts-snapshots/desktop.png';
+  const orphan = 'e2e/ghost.spec.ts-snapshots/desktop.png';
+  const body = '// Synthetic file evidence.\n';
+  it.each([
+    {
+      name: 'modified live spec',
+      base: { [live]: body },
+      head: { [live]: `${body}// changed\n` },
+      lane: 'ui',
+      specs: [live],
+    },
+    { name: 'added live spec', base: {}, head: { [live]: body }, lane: 'ui', specs: [live] },
+    {
+      name: 'baseline with tracked backing spec',
+      base: { [live]: body },
+      head: { [live]: body, [baseline]: 'synthetic PNG' },
+      lane: 'ui',
+      specs: [live],
+    },
+    {
+      name: 'added orphan baseline',
+      base: {},
+      head: { [orphan]: 'synthetic PNG' },
+      lane: 'full',
+      specs: [],
+    },
+    {
+      name: 'orphan mixed with valid changed spec',
+      base: {},
+      head: { [live]: body, [orphan]: 'synthetic PNG' },
+      lane: 'full',
+      specs: [],
+    },
+    {
+      name: 'verified deleted-only spec',
+      base: { [gone]: body },
+      head: {},
+      lane: 'ui',
+      specs: [],
+      deletedOnly: true,
+    },
+    {
+      name: 'verified deletion mixed with live spec',
+      base: { [gone]: body },
+      head: { [live]: body },
+      lane: 'ui',
+      specs: [live],
+    },
+    {
+      name: 'mapped UI with missing backing specs',
+      base: {},
+      head: { 'apps/web/src/wealth/funding-plan.css': '/* synthetic */' },
+      lane: 'full',
+      specs: [],
+    },
+  ])('$name', ({ base, head, lane, specs, deletedOnly = false }) => {
+    const cwd = mkdtempSync(join(tmpdir(), 'budget-leaf-evidence-'));
+    if (!resolve(cwd).startsWith(`${resolve(tmpdir())}${sep}budget-leaf-evidence-`))
+      throw new Error('Unexpected test cleanup path');
+    const git = (...args) =>
+      execFileSync('git', args, {
+        cwd,
+        env: fixtureEnvironment(),
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }).trim();
+    const writeFiles = (files) => {
+      for (const [path, content] of Object.entries(files)) {
+        mkdirSync(dirname(join(cwd, path)), { recursive: true });
+        writeFileSync(join(cwd, path), content);
+      }
+    };
+    try {
+      git('init', '-b', 'main');
+      git('config', 'user.email', 'test@example.invalid');
+      git('config', 'user.name', 'Synthetic CI Test');
+      writeFiles(base);
+      git('add', '.');
+      git('commit', '--allow-empty', '-m', 'base');
+      const baseSha = git('rev-parse', 'HEAD');
+      for (const path of Object.keys(base)) if (!(path in head)) rmSync(join(cwd, path));
+      writeFiles(head);
+      git('add', '.');
+      git('commit', '--allow-empty', '-m', 'head');
+      const output = execFileSync(
+        process.execPath,
+        [fileURLToPath(new URL('./change-plan.mjs', import.meta.url)), baseSha, 'HEAD'],
+        {
+          cwd,
+          encoding: 'utf8',
+          env: {
+            ...fixtureEnvironment(),
+            GITHUB_EVENT_NAME: 'pull_request',
+            HIGH_RISK: 'false',
+            BASE_SHA: '',
+            HEAD_SHA: '',
+            GITHUB_OUTPUT: '',
+            GITHUB_STEP_SUMMARY: '',
+          },
+        },
+      );
+      const plan = JSON.parse(output);
+      expect(plan.lane).toBe(lane);
+      expect(plan.specs).toEqual(specs);
+      expect(plan.deletedOnly === true).toBe(deletedOnly);
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+});
+
+it('honors the comparison cwd when a Git hook supplies another repository context', () => {
+  const cwd = mkdtempSync(join(tmpdir(), 'budget-hook-cwd-'));
+  if (!resolve(cwd).startsWith(`${resolve(tmpdir())}${sep}budget-hook-cwd-`))
+    throw new Error('Unexpected test cleanup path');
+  const env = fixtureEnvironment();
+  const parent = fileURLToPath(new URL('../../', import.meta.url));
+  const git = (...args) =>
+    execFileSync('git', args, {
+      cwd,
+      env,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+  const parentGit = execFileSync('git', ['rev-parse', '--absolute-git-dir'], {
+    cwd: parent,
+    env,
+    encoding: 'utf8',
+  }).trim();
+  const previous = {
+    GIT_DIR: process.env.GIT_DIR,
+    GIT_WORK_TREE: process.env.GIT_WORK_TREE,
+    GIT_INDEX_FILE: process.env.GIT_INDEX_FILE,
+  };
+  try {
+    git('init', '-b', 'main');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'Synthetic CI Test');
+    git('commit', '--allow-empty', '-m', 'base');
+    writeFileSync(join(cwd, 'fixture.ts'), '// synthetic comparison\n');
+    git('add', '.');
+    git('commit', '-m', 'head');
+    process.env.GIT_DIR = parentGit;
+    process.env.GIT_WORK_TREE = parent;
+    process.env.GIT_INDEX_FILE = join(parentGit, 'index');
+    // Only the read-only comparison sees this simulated hook context; fixture mutations use env.
+    expect(changedPaths('HEAD~1', 'HEAD', cwd)).toEqual(['fixture.ts']);
+  } finally {
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+    rmSync(cwd, { recursive: true, force: true });
+  }
 });

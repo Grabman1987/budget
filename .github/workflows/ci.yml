@@ -28,6 +28,7 @@ jobs:
       lane: ${{ steps.plan.outputs.lane }}
       shards: ${{ steps.plan.outputs.shards }}
       specs: ${{ steps.plan.outputs.specs }}
+      deleted_specs_only: ${{ steps.plan.outputs.deleted_specs_only }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -140,6 +141,7 @@ jobs:
     env:
       CI_LANE: ${{ needs.plan.outputs.lane }}
       SPECS: ${{ needs.plan.outputs.specs }}
+      DELETED_SPECS_ONLY: ${{ needs.plan.outputs.deleted_specs_only }}
     strategy:
       fail-fast: false
       matrix:
@@ -162,10 +164,17 @@ jobs:
           SHARD: ${{ matrix.shard }}
         run: |
           if [ "$CI_LANE" = "ui" ]; then
-            read -r -a specs <<< "$SPECS"
-            [ "${#specs[@]}" -gt 0 ] || exit 1
+            if [ -z "$SPECS" ]; then
+              [ "$DELETED_SPECS_ONLY" = "true" ] || exit 1
+              echo 'Only Git-verified deleted specs in the plan; nothing to run.'
+              exit 0
+            fi
+            read -r -a planned <<< "$SPECS"
+            [ "${#planned[@]}" -gt 0 ] || exit 1
+            # The planner proved every live target; a checkout mismatch must fail, never disappear.
+            for spec in "${planned[@]}"; do [ -f "$spec" ] || exit 1; done
             # Focused runs retain screenshot assertions and every configured browser profile.
-            npx playwright test "${specs[@]}"
+            npx playwright test "${planned[@]}"
             exit
           fi
           IFS=- read -r group index total <<< "$SHARD"
