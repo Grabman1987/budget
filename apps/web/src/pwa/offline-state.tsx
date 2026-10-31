@@ -12,7 +12,6 @@ import {
   type Snapshot,
 } from './snapshots';
 import { QueueList } from './queue-ui';
-import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 type Saved = Partial<Record<SnapshotKind, Snapshot>>;
 const stamp = new Intl.DateTimeFormat('de-AT', { dateStyle: 'medium', timeStyle: 'short' });
@@ -306,12 +305,7 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
                     : `${heute.planningAccuracy.meanAbsoluteBp} Basispunkte`}
                 </p>
               )}
-              {REDESIGN_ENABLED && <SavedAccountForecast forecast={heute.forecast35d} />}
-              <h3>
-                {REDESIGN_ENABLED
-                  ? `Budgetkontoverlauf · ${heute.stand.period === 'payday' ? 'Bis Gehalt' : 'Monat'}`
-                  : 'Kontoverlauf und Prognose'}
-              </h3>
+              <h3>Kontoverlauf und Prognose</h3>
               <ul>
                 {heute.balance.actual.map((point) => (
                   <li key={`actual-${point.day}`}>
@@ -343,8 +337,7 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
               )}
               {heute.balance.low && (
                 <p>
-                  {REDESIGN_ENABLED ? 'Tiefpunkt im Budgetzeitraum' : 'Tiefpunkt'}{' '}
-                  {heute.balance.low.day} · {eur(heute.balance.low.cents)}
+                  Tiefpunkt {heute.balance.low.day} · {eur(heute.balance.low.cents)}
                 </p>
               )}
               {'unavailable' in heute.netWorth ? null : (
@@ -362,13 +355,7 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
                     <dd>{eur(heute.netWorth.receivableCents)}</dd>
                   </div>
                   <div>
-                    <dt>
-                      {REDESIGN_ENABLED
-                        ? heute.netWorth.debtCents > 0
-                          ? 'Guthaben auf Schuldkonten (netto)'
-                          : 'Schulden (netto)'
-                        : 'Schulden'}
-                    </dt>
+                    <dt>Schulden</dt>
                     <dd>{eur(heute.netWorth.debtCents)}</dd>
                   </div>
                   <div>
@@ -841,55 +828,4 @@ function Stamp({ snapshot }: { snapshot: Snapshot }) {
 }
 function Missing() {
   return <p>Kein gespeicherter Abruf vorhanden.</p>;
-}
-
-/** The same response-owned canonical field as the live card; never the legacy budget-window low. */
-function SavedAccountForecast({ forecast }: { forecast: Heute['forecast35d'] }) {
-  const report = forecast && !('unavailable' in forecast) ? forecast.report : undefined;
-  return (
-    <section aria-labelledby="offline-forecast-35d-title">
-      <h3 id="offline-forecast-35d-title">Kontoprognose · 35 Tage</h3>
-      <p>
-        {forecast
-          ? `Letzter bekannter Stand · ${longDay(forecast.asOf)} · ohne Stellschrauben`
-          : '35-Tage-Prognose in diesem gespeicherten Stand nicht verfügbar.'}
-      </p>
-      {forecast && 'unavailable' in forecast ? (
-        <p>{maskMoneyText(forecast.unavailable.message)}</p>
-      ) : report ? (
-        <>
-          <p>
-            Tiefpunkt:{' '}
-            {report.low ? (
-              <strong>
-                {eur(report.low.cents)} · {longDay(report.low.day)}
-              </strong>
-            ) : (
-              'Nicht verfügbar'
-            )}
-          </p>
-          <ul aria-label="Gespeicherte 35-Tage-Kontoprognose">
-            {report.points.map((point) => (
-              <li key={point.day}>
-                {longDay(point.day)} · {eur(point.balanceCents)}
-              </li>
-            ))}
-          </ul>
-          {report.eventMarks.length > 0 && (
-            <ul aria-label="Geplante Ereignisse der Kontoprognose">
-              {report.eventMarks.map((event) => (
-                <li key={`${event.day}-${event.label}-${event.cents}`}>
-                  {longDay(event.day)} · {event.label} · {eur(event.cents)}
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      ) : forecast && !('unavailable' in forecast) && !forecast.available ? (
-        <p>Ohne Budget-Konto gibt es keine Kontoprognose.</p>
-      ) : forecast ? (
-        <p>Die gespeicherte 35-Tage-Prognose ist nicht verfügbar.</p>
-      ) : null}
-    </section>
-  );
 }

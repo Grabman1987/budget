@@ -1,5 +1,4 @@
-import type { AccountReviewStatus, PlannedEventOccurrence, LiquidityReport } from '@budget/domain';
-import type { freedomInvestmentBasis } from '@budget/db';
+import type { AccountReviewStatus, PlannedEventOccurrence } from '@budget/domain';
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -39,31 +38,7 @@ export interface HeuteOccurrence {
   covered: boolean | null;
 }
 
-/** A copied canonical result, excluding the six-month verdict and movement detail. */
-export type HeuteForecastReport = Pick<
-  LiquidityReport,
-  | 'startDay'
-  | 'startCents'
-  | 'horizon'
-  | 'horizonDays'
-  | 'points'
-  | 'eventMarks'
-  | 'low'
-  | 'scheduledInflows'
->;
-export type HeuteForecast35d = {
-  asOf: string;
-  horizon: '35d';
-  levers: [];
-} & ({ available: boolean; report: HeuteForecastReport | null } | HeuteUnavailable);
-
 export interface Heute extends WithValuationNotes {
-  /** Selected signed basis; separate from the positive investment assets in netWorth. */
-  investmentBasis?: { asOf: string } & (
-    ReturnType<typeof freedomInvestmentBasis> | HeuteUnavailable
-  );
-  /** Optional for saved responses from before the canonical compact-forecast contract. */
-  forecast35d?: HeuteForecast35d;
   valuationSources?: ValuationSource[];
   monthResult: { earnedCents: number; consumptionCents: number; savedCents: number };
   budgetAnswer: {

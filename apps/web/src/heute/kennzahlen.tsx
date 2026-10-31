@@ -10,7 +10,6 @@ import { ErrorNote } from '../ledger/states';
 import { ValuationSourceHint } from '../ledger/valuation-hint';
 import { AppLink } from '../shell/app-link';
 import type { Heute, HeutePeriod } from './api';
-import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 /**
  * The three Kennzahlen of Heute (#571): Zu verteilen · Verfügbar im Budget · Nettovermögen, each
@@ -211,7 +210,7 @@ export function Kennzahlen({
               ? {
                   value: net.assetsCents,
                   total: net.assetsCents + net.liabilitiesCents,
-                  label: `Vermögen ${eur(net.assetsCents)} · ${REDESIGN_ENABLED ? 'Verbindlichkeiten' : 'Schulden'} ${eur(net.liabilitiesCents)}`,
+                  label: `Vermögen ${eur(net.assetsCents)} · Schulden ${eur(net.liabilitiesCents)}`,
                   assets: true,
                 }
               : undefined
@@ -225,7 +224,7 @@ export function Kennzahlen({
           }
           note={
             net
-              ? `Vermögen ${eur(net.assetsCents)} − ${REDESIGN_ENABLED ? 'Verbindlichkeiten' : 'Schulden'} ${eur(net.liabilitiesCents)}.${
+              ? `Vermögen ${eur(net.assetsCents)} − Schulden ${eur(net.liabilitiesCents)}.${
                   change
                     ? ` Δ Monat ${eur(change.deltaCents, { sign: true })}: Einzahlung ${eur(change.investmentsInCents, { sign: true })} · Markt ${eur(change.marketCents, { sign: true })}.`
                     : ` ${'unavailable' in net.monthChange ? net.monthChange.unavailable.message : ''}`

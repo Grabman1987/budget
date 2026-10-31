@@ -25,8 +25,11 @@ import { monthLabel as monthName } from '../nav/month';
 import { currentMonth, useMonth } from '../shell/use-month';
 import { AppLink } from '../shell/app-link';
 import { HeutePaceChart, HeuteWealthChart } from './charts';
+import { LiquidityChart } from '../reports/liquidity-chart';
+import { liquidityQuery } from '../reports/liquidity-api';
+import { salaryDay } from '../reports/liquidity-selection';
+import { expectedQuery } from '../expected/api';
 import { heuteQuery, type Heute } from './api';
-import { CompactForecastCard } from './compact-forecast-card';
 import { useBalancePeriod } from './use-balance-period';
 import './heute.css';
 import { useIsPhone } from '../budget/month-span';
@@ -41,8 +44,6 @@ import { VerdictLine } from '../reports/verdict-line';
 import { heuteVerdictFacts } from '../reports/verdict-facts';
 import { Upcoming } from './upcoming-payments';
 import type { DimensionKind } from './dimension-page';
-import { REDESIGN_ENABLED } from '../shell/redesign-flag';
-import { InvestmentBasisSummary } from './investment-basis';
 import { useElementWidth } from '../charts/use-element-width';
 
 const pct = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 });
@@ -310,7 +311,7 @@ function HeuteBody({
           />
         )}
 
-        <CompactForecastCard data={data} read={read} />
+        <CompactForecastCard />
 
         {data ? (
           <HeuteWealthLine data={data} />
@@ -548,7 +549,7 @@ function HeuteBody({
                           },
                           {
                             key: 'invested',
-                            label: REDESIGN_ENABLED ? 'Anlagen' : 'Investiert',
+                            label: 'Investiert',
                             cents: cents(net.investedCents),
                             fill: 'need',
                           },
@@ -556,9 +557,7 @@ function HeuteBody({
                             ? [
                                 {
                                   key: 'debt',
-                                  label: REDESIGN_ENABLED
-                                    ? 'Schuldkonten (netto)'
-                                    : 'Guthaben auf Schuldkonten',
+                                  label: 'Guthaben auf Schuldkonten',
                                   cents: cents(net.debtCents),
                                   fill: 'plain' as const,
                                 },
@@ -579,7 +578,7 @@ function HeuteBody({
                           ? {
                               minus: {
                                 key: 'debt',
-                                label: REDESIGN_ENABLED ? 'Schulden (netto)' : 'Schulden',
+                                label: 'Schulden',
                                 cents: cents(-net.debtCents),
                                 kind: 'debt' as const,
                               },
@@ -592,19 +591,8 @@ function HeuteBody({
                     </div>
                     <p className="heute-note">
                       Wähle ein Maß für die Konten.
-                      {net.debtCents < 0
-                        ? REDESIGN_ENABLED
-                          ? ' Gestrichelt: Schulden (netto), werden abgezogen.'
-                          : ' Gestrichelt: Schulden, werden abgezogen.'
-                        : ''}
+                      {net.debtCents < 0 ? ' Gestrichelt: Schulden, werden abgezogen.' : ''}
                     </p>
-                    {REDESIGN_ENABLED && (
-                      <p className="heute-note">
-                        Die Netto-Schuldenkomponente enthält auch positive Guthaben auf Konten mit
-                        Schuldenrolle. Brutto-Verbindlichkeiten und die Summe der Kredite haben
-                        einen anderen Umfang.
-                      </p>
-                    )}
                     <p className="heute-note">
                       Stichtag {longDay(net.asOf)} · Vormonatsende{' '}
                       {net.previousMonthEndCents === null
@@ -718,6 +706,87 @@ function PaceSectionState({
   );
 }
 
+/** Stand-today forecast: exactly the same read and unmodified series as the linked detail. */
+function CompactForecastCard() {
+  useAmountPrivacy();
+  const forecast = useQuery(liquidityQuery('35d', []));
+  const payments = useQuery(expectedQuery());
+  const pending = forecast.isPending || forecast.isFetching;
+  const view = !pending && !forecast.isError ? forecast.data : undefined;
+  const report = view?.report;
+  const salaryIds = new Set(
+    (!payments.isFetching && !payments.isPending && !payments.isError ? (payments.data ?? []) : [])
+      .filter((payment) => payment.incomeTypeId === 'income-salary')
+      .map((payment) => payment.id),
+  );
+  return (
+    <section
+      className="heute-section heute-compact-forecast"
+      aria-labelledby="heute-forecast-title"
+      aria-busy={pending || undefined}
+    >
+      <div className="heute-compact-forecast-head">
+        <h2 id="heute-forecast-title">Kontoprognose · 35 Tage</h2>
+        <AppLink
+          className="btn btn-ghost"
+          to="/plan/prognose"
+          search={{ horizon: '35d', levers: '' }}
+          aria-label="Details zur Kontoprognose für 35 Tage"
+        >
+          Details
+        </AppLink>
+      </div>
+      <p className="heute-note">
+        {view ? (
+          <>Stand heute · {longDay(view.asOf)}</>
+        ) : pending ? (
+          'Stand wird noch geladen'
+        ) : (
+          'Stand nicht verfügbar'
+        )}{' '}
+        · ohne Stellschrauben
+        {' · Budget-Konten; Kreditkarten im Budget eingeschlossen, Reservekonten ausgeschlossen.'}
+      </p>
+      {report ? (
+        <LiquidityChart report={report} salaryDay={salaryDay(report, salaryIds)} compact />
+      ) : (
+        <div className="rf-chart heute-forecast-state">
+          {pending ? (
+            <LoadingNote what="Kontoprognose" />
+          ) : forecast.isError ? (
+            <ErrorNote
+              what="Kontoprognose"
+              error={forecast.error}
+              onRetry={() => void forecast.refetch()}
+            />
+          ) : (
+            <EmptyNote>Ohne Budget-Konto gibt es keine Kontoprognose.</EmptyNote>
+          )}
+        </div>
+      )}
+      <p
+        className={report ? 'heute-forecast-low' : 'heute-forecast-low-state'}
+        data-day={report?.low?.day}
+        data-cents={report?.low?.cents}
+        aria-hidden={!report || undefined}
+      >
+        {report?.low ? (
+          <>
+            Tiefpunkt: <strong>{eur(report.low.cents)}</strong>
+            {' · '}am {longDay(report.low.day)}
+          </>
+        ) : report ? (
+          'Kein Tiefpunkt verfügbar.'
+        ) : pending ? (
+          'Tiefpunkt wird geladen.'
+        ) : (
+          'Tiefpunkt nicht verfügbar.'
+        )}
+      </p>
+    </section>
+  );
+}
+
 function MoreMonth({ phone, children }: { phone: boolean; children: ReactNode }) {
   const [changed, setChanged] = useStoredFlag(`budget-heute-more-${phone ? 'phone' : 'desktop'}`);
   const open = phone ? changed : !changed;
@@ -743,7 +812,7 @@ function MoreMonth({ phone, children }: { phone: boolean; children: ReactNode })
 export function HeuteWealthLine({
   data,
 }: {
-  data: Pick<Heute, 'stand' | 'netWorth' | 'valuationSources' | 'investmentBasis'>;
+  data: Pick<Heute, 'stand' | 'netWorth' | 'valuationSources'>;
 }) {
   useAmountPrivacy();
   const away = data.stand.month !== data.stand.today.slice(0, 7);
@@ -751,12 +820,6 @@ export function HeuteWealthLine({
   return (
     <section className="heute-wealth-line" aria-labelledby="heute-wealth-title">
       <h2 id="heute-wealth-title">Nettovermögen · 12 Monate</h2>
-      {REDESIGN_ENABLED && (
-        <InvestmentBasisSummary
-          basis={data.investmentBasis}
-          search={{ monat: data.stand.month, period: data.stand.period }}
-        />
-      )}
       {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
       {net ? (
         <>

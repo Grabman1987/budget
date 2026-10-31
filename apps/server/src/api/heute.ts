@@ -1,8 +1,5 @@
 import {
-  availableSection,
   currentValuationSources,
-  freedomInvestmentBasis,
-  liquidityReportView,
   heute,
   planningAccuracyReport,
   readOverdueContactReminders,
@@ -20,7 +17,7 @@ const heuteQuery = z.object({
 });
 
 /**
- * The legacy balance follows its budget window; the compact forecast copies the canonical 35d read.
+ * Heute and R07 share a period-bound balance forecast with fourteen days of actual history.
  * Pace/envelopes follow `month`; lead, net worth and next steps always refer to today.
  */
 export function heuteRoutes(db: Db, today: () => string): Hono {
@@ -28,35 +25,10 @@ export function heuteRoutes(db: Db, today: () => string): Hono {
   app.get('/', (c) => {
     const { period, month: shown } = readQuery(c, heuteQuery);
     const day = today();
-    // Preserve the plain-handle read path so existing per-request memo entries can be populated.
     const data = heute(db, { today: day, period, ...(shown && { month: shown }) });
     const provenance = currentValuationSources(db, day);
-    const forecast35d = {
-      asOf: day,
-      horizon: '35d' as const,
-      levers: [],
-      ...availableSection(() => {
-        const view = liquidityReportView(db, day, { horizon: '35d', levers: [] });
-        const report = view.report;
-        return {
-          available: view.available,
-          report: report && {
-            startDay: report.startDay,
-            startCents: report.startCents,
-            horizon: report.horizon,
-            horizonDays: report.horizonDays,
-            points: report.points,
-            eventMarks: report.eventMarks,
-            low: report.low,
-            scheduledInflows: report.scheduledInflows,
-          },
-        };
-      }),
-    };
     return c.json({
       ...data,
-      investmentBasis: { asOf: day, ...availableSection(() => freedomInvestmentBasis(db, day)) },
-      forecast35d,
       valuationSources: provenance.sources,
       attention: {
         ...data.attention,
