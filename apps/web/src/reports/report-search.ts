@@ -1,5 +1,14 @@
 import { isMonth } from '../nav/month';
 import { isExplorerTemplate } from '@budget/domain';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+
+export const FINANZCHECK_HEADING_HASHES: readonly string[] = [
+  'r07-title',
+  'fc-stage',
+  'fc-today',
+  'fc-actions',
+  'fc-matrix',
+];
 
 const id = (value: unknown) =>
   typeof value === 'string' && value.length > 0 && value.length <= 64 ? value : undefined;
@@ -35,6 +44,7 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
     'planungstreue',
     'vertraege',
     'bankkosten',
+    ...(REDESIGN_ENABLED ? ['finanzcheck'] : []),
   ].includes(search['darstellung'] as string)
     ? (search['darstellung'] as
         | 'income'
@@ -52,7 +62,8 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
         | 'budget'
         | 'planungstreue'
         | 'vertraege'
-        | 'bankkosten')
+        | 'bankkosten'
+        | 'finanzcheck')
     : undefined,
   vorlage: isExplorerTemplate(search['vorlage']) ? search['vorlage'] : undefined,
   exakt: search['exakt'] === true || search['exakt'] === 'true' ? true : undefined,

@@ -1,6 +1,17 @@
 # Redesign checkpoint
 
+## T6 current-main candidate — 2026-10-31
+
+Main `b06d75e6e7fb66008976181f376fbfab788b5df0` is now published through Owner-approved Deploy41217059325 with production redesign OFF. T6 remains a separate candidate, reconciled with S2 and without unmerged T2/T3 API or projection changes. Seven owned frontend/test blobs and the T6 proof block remain independently reviewed and unchanged. Fresh standalone local check36042 passed strict/static/build checks, both installed-PWA viewport cycles, R07 history/source/Back/reload cases and all twenty S2 gallery contexts. The genuine pre-push gate and required fresh exact-head CI remain pending. Historical stacked CI below does not establish current-head completion. Owner product/device acceptance and any later release remain separate.
+
 Date: 2026-10-30 (Europe/Vienna). Scope: Phases A and B completed; STOP 2 accepted and Phase C plus implementation in branches/PRs explicitly authorised on 2026-10-30.
+
+## T6 standalone integration continuation — 2026-10-31
+
+- T1 #876 and S1 #878 are held-integrated and verified through main `c41ab25237f7ea387c4b992043307242043ff647` / CI [41194037939](https://github.com/Grabman1987/budget/actions/runs/41194037939). Existing T6 #881 resumes on its original branch; the old T2/T3 Git stack is not a product prerequisite.
+- Twenty-one inherited T2/T3-only application/test/evidence paths are reconciled to that approved main. Neither always-on Heute API extension is part of this standalone candidate. The seven original T6 frontend/test blobs remain identical to `e824142beeeec3cb7227e42e01def6a34d6c709f`; its own Finanzcheck smoke helpers and assertions are retained with the current S1 lifecycle, without the unintegrated forecast/investment proof calls.
+- The complete original takeover, fixture, type, focus and capture history remains at the immutable [e824 implementation checkpoint](https://github.com/Grabman1987/budget/blob/e824142beeeec3cb7227e42e01def6a34d6c709f/docs/redesign/PROGRESS.md) and in the dated T6 evidence note. Those stacked results are historical, not fresh standalone/API-environment parity or Owner acceptance. No old assertion, deadline, capture scale or tolerance is relaxed.
+- The composed standalone diff still requires independent review, targeted route/body tests, actual OFF/ON/PWA/history/source/Back/reload evidence, the genuine pre-push gate and exact-head CI. The existing derived rule-evaluation call in synthetic proof is not described as a write-free database visit. Production remains OFF; held integration follows the standing queue grant, with release/deploy, protected semantics, real data and Owner previews separately gated.
 
 ## S1 integration continuation — 2026-10-31
 

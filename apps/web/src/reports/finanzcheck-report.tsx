@@ -19,6 +19,8 @@ import {
   type RuleTimeline,
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from '@tanstack/react-router';
+import { useEffect, useRef } from 'react';
 import { CircleAlert, TriangleAlert, CircleCheck, CircleDashed } from 'lucide-react';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, longDay } from '../ledger/format';
@@ -32,10 +34,13 @@ import { useRuleDerivation } from './overview-api';
 import { monthLong, monthShortYear } from './overview-format';
 import './overview-reports.css';
 import './finanzcheck-report.css';
-import { heuteQuery } from '../heute/api';
+import { heuteQuery, type HeutePeriod } from '../heute/api';
 import { BalanceChart } from '../heute/charts';
 import { PAYDAY_ONLY_THIS_MONTH, useBalancePeriod } from '../heute/use-balance-period';
 import { useMonth } from '../shell/use-month';
+import { AppLink } from '../shell/app-link';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { FINANZCHECK_HEADING_HASHES } from './report-search';
 import '../heute/heute.css';
 
 type Status = 'ok' | 'warn' | 'bad' | 'open' | null;
@@ -92,9 +97,24 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
   const forecast = forecastQuery.data;
   const query = useQuery(finanzcheckVerlaufQuery());
   const data = query.data;
+  const location = useLocation();
+  const navigationKey = location.state.__TSR_key ?? location.href;
+  const focusedNavigation = useRef<string | undefined>(undefined);
   const days = data?.matrix.days ?? [];
   // Re-derive idempotently once on every visit, including changes to book-rule sources.
   useRuleDerivation(data !== undefined);
+  useEffect(() => {
+    if (!REDESIGN_ENABLED || !FINANZCHECK_HEADING_HASHES.includes(location.hash)) {
+      focusedNavigation.current = undefined;
+      return;
+    }
+    if (!data || focusedNavigation.current === navigationKey) return;
+    const heading = document.getElementById(location.hash);
+    if (!heading) return;
+    focusedNavigation.current = navigationKey;
+    heading.focus({ preventScroll: true });
+    heading.scrollIntoView?.({ block: 'center' });
+  }, [data, location.hash, navigationKey]);
   return (
     <PageFrame
       verdict={
@@ -144,7 +164,9 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
       <div className="kview ov finanzcheck-report">
         <section className="card ov-card" aria-labelledby="r07-title">
           <div className="tbd-head">
-            <h2 id="r07-title">R07 · Kontoprognose</h2>
+            <h2 id="r07-title" tabIndex={REDESIGN_ENABLED ? -1 : undefined}>
+              R07 · Kontoprognose
+            </h2>
           </div>
           {forecastQuery.isPending && <LoadingNote what="Kontoprognose" />}
           {forecastQuery.isError && (
@@ -164,8 +186,17 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
               </p>
               <BalanceChart data={forecast} chainOpen={false} onToggleChain={() => {}} report />
               <p className="heute-note">
-                Kontoprognose bis {longDay(forecast.stand.to)} · 14 Tage Rückblick · gleicher
-                Horizont wie Heute.
+                {REDESIGN_ENABLED ? (
+                  <>
+                    Kontoprognose im Budgetzeitraum {period === 'month' ? 'Monat' : 'Bis Gehalt'}{' '}
+                    bis {longDay(forecast.stand.to)} · 14 Tage Rückblick.
+                  </>
+                ) : (
+                  <>
+                    Kontoprognose bis {longDay(forecast.stand.to)} · 14 Tage Rückblick · gleicher
+                    Horizont wie Heute.
+                  </>
+                )}
               </p>
             </>
           )}
@@ -179,13 +210,19 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
           />
         )}
 
-        {data && <Body data={data} />}
+        {data && <Body data={data} search={{ monat: month, period }} />}
       </div>
     </PageFrame>
   );
 }
 
-function Body({ data }: { data: FinanzcheckVerlauf }) {
+function Body({
+  data,
+  search,
+}: {
+  data: FinanzcheckVerlauf;
+  search: { monat: string; period: HeutePeriod };
+}) {
   useAmountPrivacy();
   const { matrix, check, book } = data;
   const timelines = ruleTimelines(matrix);
@@ -203,7 +240,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
     <>
       <section className="card ov-card" aria-labelledby="fc-stage">
         <div className="tbd-head">
-          <h2 id="fc-stage">
+          <h2 id="fc-stage" tabIndex={REDESIGN_ENABLED ? -1 : undefined}>
             Stufe {current.stage} von {STAGES.length}: {current.label}
           </h2>
           <span className="tbd-state">
@@ -309,7 +346,9 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
       <div className="ov-split">
         <section className="card ov-card" aria-labelledby="fc-today">
           <div className="tbd-head">
-            <h2 id="fc-today">Heute</h2>
+            <h2 id="fc-today" tabIndex={REDESIGN_ENABLED ? -1 : undefined}>
+              Heute
+            </h2>
             <span className="tbd-state">
               <span className={check.counts.bad > 0 ? 'neg-alert' : 'ok'}>
                 {check.counts.bad} verletzt, {check.counts.warn} Warnung
@@ -351,7 +390,9 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
 
         <section className="card ov-card" aria-labelledby="fc-actions">
           <div className="tbd-head">
-            <h2 id="fc-actions">Maßnahmen</h2>
+            <h2 id="fc-actions" tabIndex={REDESIGN_ENABLED ? -1 : undefined}>
+              Maßnahmen
+            </h2>
           </div>
           <RevisionTable
             caption="Maßnahmen zu Regeln, die nicht erfüllt sind"
@@ -376,7 +417,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
 
       <section className="card ov-card" aria-labelledby="fc-matrix">
         <div className="tbd-head">
-          <h2 id="fc-matrix">
+          <h2 id="fc-matrix" tabIndex={REDESIGN_ENABLED ? -1 : undefined}>
             {timelines.length} aktive Regeln, {matrix.days.length} Auswertungstage
           </h2>
         </div>
@@ -411,8 +452,23 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
                   return (
                     <tr key={t.code} data-rule={t.code}>
                       <td>
-                        <span className="ov-pos">{t.code}</span>
-                        <span className="ov-name">{t.name}</span>
+                        {REDESIGN_ENABLED ? (
+                          <AppLink
+                            className="fc-rule-source"
+                            to="/einstellungen/regelwerk"
+                            search={search}
+                            hash={`rule-result-${t.code}`}
+                            aria-label={`${t.code} ${t.name} im Regelwerk`}
+                          >
+                            <span className="ov-pos">{t.code}</span>
+                            <span className="ov-name">{t.name}</span>
+                          </AppLink>
+                        ) : (
+                          <>
+                            <span className="ov-pos">{t.code}</span>
+                            <span className="ov-name">{t.name}</span>
+                          </>
+                        )}
                       </td>
                       <td>{maskMoneyText(rule?.latest?.valueText ?? '–')}</td>
                       <td className="muted">{rule ? thresholdText(t.code, rule.params) : ''}</td>
