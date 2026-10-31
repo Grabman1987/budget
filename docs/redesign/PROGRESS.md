@@ -1,5 +1,9 @@
 # Redesign checkpoint
 
+## T6 current-main candidate — 2026-10-31
+
+Main `b06d75e6e7fb66008976181f376fbfab788b5df0` is now published through Owner-approved Deploy41217059325 with production redesign OFF. T6 remains a separate candidate, reconciled with S2 and without unmerged T2/T3 API or projection changes. Seven owned frontend/test blobs and the T6 proof block remain independently reviewed and unchanged. Fresh standalone local check36042 passed strict/static/build checks, both installed-PWA viewport cycles, R07 history/source/Back/reload cases and all twenty S2 gallery contexts. The genuine pre-push gate and required fresh exact-head CI remain pending. Historical stacked CI below does not establish current-head completion. Owner product/device acceptance and any later release remain separate.
+
 Date: 2026-10-30 (Europe/Vienna). Scope: Phases A and B completed; STOP 2 accepted and Phase C plus implementation in branches/PRs explicitly authorised on 2026-10-30.
 
 ## T6 standalone integration continuation — 2026-10-31

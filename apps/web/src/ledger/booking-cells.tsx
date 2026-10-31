@@ -1,4 +1,4 @@
-import { ClassSwatch, type SwatchKind } from '@budget/ui';
+import { BookingStatusIcon, ClassSwatch, type SwatchKind } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { TriangleAlert, ArrowLeftRight, Check, CircleCheck, Clock, Split } from 'lucide-react';
 import { FlagGlyph, FlagPicker } from './flag-picker';
@@ -6,6 +6,7 @@ import { FLAG_LABEL, STATUS_LABEL } from './labels';
 import { accountsQuery, lookupsQuery } from './queries';
 import { depotTradesQuery } from './depot-queries';
 import type { BookingFlag, BookingStatus, ListedBooking } from './types';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 const STATUS_ICON = { pending: Clock, confirmed: Check, reconciled: CircleCheck } as const;
 
@@ -24,7 +25,11 @@ export function StatusCell({
   const Icon = STATUS_ICON[status];
   const content = (
     <>
-      <Icon className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
+      {REDESIGN_ENABLED ? (
+        <BookingStatusIcon status={status} className="icon" />
+      ) : (
+        <Icon className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
+      )}
       {!iconOnly && STATUS_LABEL[status]}
     </>
   );
