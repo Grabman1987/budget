@@ -87,6 +87,7 @@ async function chartGeometry(chart: Locator) {
   await expect(chart.getByTestId('liquidity-mark-gehalt')).toHaveText('GEHALT 07.10.');
   await expect(chart.getByTestId('liquidity-lowpoint')).toHaveAttribute('data-day', '2026-09-27');
   await expect(chart.getByTestId('liquidity-lowpoint')).toHaveAttribute('data-cents', '70000');
+  await chart.page().evaluate(() => document.fonts.ready);
   const geometry = await chart.evaluate((element) => {
     const rect = (node: Element) => {
       const r = node.getBoundingClientRect();
