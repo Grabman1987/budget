@@ -2,7 +2,16 @@
 
 Date: 2026-10-30 (Europe/Vienna). Scope: Phases A and B completed; STOP 2 accepted and Phase C plus implementation in branches/PRs explicitly authorised on 2026-10-30.
 
-## Current state
+## Integration continuation — 2026-10-31
+
+- T0's owner-exception merge is verified and documented in [#819](https://github.com/Grabman1987/budget/issues/819). The subsequent #882/#884/#883 integrations used `--hold-release`; main `1469c40ae681dd0694b3579a50b7fb88323fccc5` passed CI [41148006581](https://github.com/Grabman1987/budget/actions/runs/41148006581). This is integration evidence, not publication or financial acceptance.
+- The later standing held-merge grant applies through the authoritative [queue process](../queue/README.md), recorded by documentation PR [#890](https://github.com/Grabman1987/budget/pull/890). Its exact-head CI is still pending at this checkpoint. Releases and all protected approvals retain their separate gates.
+- Phase 6 applied 136 of 140 planned dependency edges and the authorized WIP reconciliation; four outgoing edges on the protected Waiting cards remain withheld. [Report E #891](https://github.com/Grabman1987/budget/issues/891) records the actual results and legacy-card proposals. No issues were closed to change readiness labels.
+- T1 ([#820](https://github.com/Grabman1987/budget/issues/820), [#876](https://github.com/Grabman1987/budget/pull/876)) is the next technical slot after verified T0; S1 follows its merge. T1's existing literal reference tests remain unchanged. Its branch is refreshed locally, while the final current-main update, pre-push gate and fresh exact-head CI are pending. Owner preview and financial/UI parity remain separate acceptance criteria.
+
+The records below are historical planning and verification checkpoints at their stated revisions. Later integration authority comes from the queue process and dated owner grants, rather than the older individual-OK wording.
+
+## Planning state — 2026-10-30
 
 - A1: Source and instruction discovery complete. Current comparison revision: `50c0016560ee634c6ee8ede8180169bc60cb29a6`.
 - A2: GitHub board, all PR states, remote branch inventory, current main CI and public health inspected without remote changes.

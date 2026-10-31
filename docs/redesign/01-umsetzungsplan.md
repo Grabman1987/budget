@@ -1,8 +1,8 @@
 # Redesign implementation plan — STOP 2
 
-Date: 30 October 2026 (Europe/Vienna). Status: **STOP 2 accepted; Phase C and implementation in branches/PRs authorised. Production integration/release and real-data changes remain separately gated**.
+Date: 30 October 2026 (Europe/Vienna). Status: **STOP 2 accepted; Phase C and implementation in branches/PRs authorised. Integration follows the current queue process; releases and real-data changes remain separately gated**.
 
-The owner explicitly approved Phase B after [STOP 1](00-bestand.md). This document is the complete planning deliverable. The owner accepted STOP 2 on 2026-10-30 and explicitly authorised Phase C and implementation in branches/PRs. Production merges, releases and real-data changes still require a separate owner OK; protected-rule changes and new external data sharing retain their specific gates. [PROGRESS](PROGRESS.md) records the checkpoint; GitHub Project 1 remains the only execution board.
+The owner explicitly approved Phase B after [STOP 1](00-bestand.md). This document is the complete planning deliverable. The owner accepted STOP 2 on 2026-10-30 and explicitly authorised Phase C and implementation in branches/PRs. Held integrations follow the current dated owner grants in the [queue process](../queue/README.md); releases, flag activation, real-data changes, protected-rule changes and new external data sharing retain their specific gates. [PROGRESS](PROGRESS.md) records the checkpoint; GitHub Project 1 remains the only execution board.
 
 ## 1. Executive summary
 
