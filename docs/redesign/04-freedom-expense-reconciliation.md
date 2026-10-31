@@ -1,6 +1,6 @@
 # T5: freedom annual-expense reconciliation (N8)
 
-Refs #821. This is a source/reference diagnosis, not a financial formula change or private-data acceptance. Parent contract: [approved plan](01-umsetzungsplan.md), T1/T5 and F09. Prepared against T1 `0acbcd284f9ab0fd74fef707e4be4be965762f7d`, stacked on T0 #875 / T1 #876. The inspected production sources remain identical to baseline `50c0016560ee634c6ee8ede8180169bc60cb29a6`.
+Refs #821. This is a source/reference diagnosis, not a financial formula change or private-data acceptance. Parent contract: [approved plan](01-umsetzungsplan.md), T1/T5 and F09. Originally prepared against T1 `0acbcd284f9ab0fd74fef707e4be4be965762f7d`; now reconciled with verified held main `c41ab25237f7ea387c4b992043307242043ff647` after T1 #876 and S1 #878. The five canonical production sources below remain identical to baseline `50c0016560ee634c6ee8ede8180169bc60cb29a6`; the referenced F09 test file retains its reviewed T1 content. Historical local test results below are content-bound evidence, not fresh final-head CI.
 
 ## Finding
 
@@ -41,4 +41,4 @@ A temporary test-only negative control changed the imported annual metric by +1 
 - These are source and synthetic test results, not owner preview, physical-device evidence, full exact-head CI or production verification. Current candidate CI is tracked in the PRs and [Project 1](https://github.com/users/Grabman1987/projects/1).
 - Existing empty-history behavior remains annual zero with no source months and unavailable progress; unsafe inputs and missing investment valuation retain their separate meanings. This document does not silently change those contracts.
 - R3b still owes the actual rendered period, source months/categories, assumptions and complete tables. A Should-level presentation improvement is not implemented by this evidence note.
-- T5 remains open for its explicit acceptance and authorised publication criteria. No correction ticket or new formula is created without a demonstrated defect. Production merges, releases, activation and real-data changes require separate owner OK.
+- T5 remains open for its explicit acceptance and authorised publication criteria. No correction ticket or new formula is created without a demonstrated defect. This documentation-only diagnosis may use the standing held-merge grant in the authoritative [queue process](../queue/README.md), with independent review and exact-head CI. Releases, deployment, activation, protected corrections and real-data changes retain separate owner approval; a held merge is not publication or acceptance.
