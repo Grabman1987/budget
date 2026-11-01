@@ -1,3 +1,4 @@
+import { ClosedAccountNotice } from './closed-account-disclosure';
 import { AccountFreshness } from './account-freshness';
 import { AccountStatementIntake } from '../statement-intake/statement-review-726';
 import { InboxWorkflow } from '../inbox/inbox-page';
@@ -94,6 +95,7 @@ export function AccountPage({ id }: { id: string }) {
           <ChevronLeft className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
           Übersicht
         </Link>
+        {account && <ClosedAccountNotice account={account} />}
         {account && <AccountStatementIntake key={account.id} accountId={account.id} />}
         {accounts.isPending && <LoadingNote what="Konto" />}
         {accounts.isError && (
