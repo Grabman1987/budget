@@ -160,4 +160,3 @@ export async function verifyT2Forecast(page: Page, origin: string, bookmark: str
     await page.goto(`${origin}${bookmark}`);
   }
 }
-
