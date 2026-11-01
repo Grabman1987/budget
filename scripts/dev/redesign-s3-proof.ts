@@ -145,6 +145,24 @@ export async function verifyRedesignShell(
     await page.keyboard.press('Enter');
     const views = page.getByRole('navigation', { name: 'Ansichten von Plan', exact: true });
     await expect(views).toBeVisible();
+    const firstView = views.getByRole('link', { name: 'Monat', exact: true });
+    await firstView.focus();
+    await expect(firstView).toBeFocused();
+    // The later sticky Plan toolbar must not intercept the first menu entry.
+    expect(
+      await firstView.evaluate((link) => {
+        const bounds = link.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          bounds.x + bounds.width / 2,
+          bounds.y + bounds.height / 2,
+        );
+        return hit === link || link.contains(hit);
+      }),
+    ).toBe(true);
+    await firstView.click();
+    await expect(views).toBeHidden();
+    await menu.click();
+    await expect(views).toBeVisible();
     expect(
       (await new AxeBuilder({ page }).include('.area-page-menu').analyze()).violations,
     ).toEqual([]);

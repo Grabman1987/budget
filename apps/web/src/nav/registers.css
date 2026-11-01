@@ -1,7 +1,7 @@
 /* Short area registers retain the shared underline, type scale and scroll-edge fades. */
 [data-budget-redesign='1'] .area-page-menu {
   position: relative;
-  z-index: 5;
+  z-index: 6;
   width: fit-content;
   max-width: 100%;
   margin-block: 12px;
