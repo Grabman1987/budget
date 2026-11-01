@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import { cents, formatEuro, lastDayOfMonth } from '@budget/domain';
 import type { Page } from '@playwright/test';
 import type { ReportTables } from '../apps/web/src/reports/table-reports-api';
@@ -130,9 +131,9 @@ test('masking covers the accepted category trend values and exact heatmap source
   await page.goto('/reports/kategorien?zeitraum=Alles&vorjahr=true');
   const template = page.getByTestId('template-category');
   await expect(template.locator('.table-cell-open').first()).toBeVisible();
-  const privacy = page.getByRole('button', { name: 'Beträge verbergen' });
-  if (!(await privacy.isVisible())) await page.locator('.m-profile summary').click();
-  await privacy.click();
+  await withShellControls(page, async ({ privacy }) => {
+    await privacy.click();
+  });
   await expect(template.locator('.table-cell-open').first()).toHaveText(/••• €/);
   await page.goto('/reports/ausgaben?zeitraum=1M');
   await openExpenseHeatmap(page);

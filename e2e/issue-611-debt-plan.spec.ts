@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -90,8 +91,9 @@ test('twelve actual month ends and the saved loan plan share exact chart and tab
     await page.screenshot({ path: info.outputPath(`debt-plan-611-${theme}.png`), fullPage: true });
   }
 
-  if (info.project.name !== 'desktop') await page.locator('.m-head .m-profile summary').click();
-  await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
+  await withShellControls(page, async ({ privacy }) => {
+    await privacy.click();
+  });
   await expect(table).not.toContainText('100,00 €');
   await expect(table).toContainText('•••');
   await expect(chart.locator('line.graticule + text').first()).toHaveText('•••');

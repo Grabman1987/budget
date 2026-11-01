@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { accounts, createBooking, openDatabase, schema, stagePayslip } from '@budget/db';
 import { expect, type Locator, type Page } from '@playwright/test';
@@ -18,16 +19,16 @@ async function theme(page: Page, desired: 'light' | 'dark') {
     });
   if ((await resolved()) !== desired) {
     if (page.viewportSize()!.width === 390) {
-      const menu = page.locator('.m-profile > summary');
-      await menu.click();
-      await page
-        .locator('.m-profile')
-        .getByRole('button', {
-          name: desired === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
-          exact: true,
-        })
-        .click();
-      await menu.click();
+      await withShellControls(
+        page,
+        async ({ theme: control }) => {
+          await expect(control).toHaveAccessibleName(
+            desired === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
+          );
+          await control.click();
+        },
+        false,
+      );
     } else
       await page
         .locator('.sidebar-foot')

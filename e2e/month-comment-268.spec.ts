@@ -1,3 +1,4 @@
+import { openShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -91,10 +92,6 @@ test('Today and One-Pager explain booked month progress beside expected salary',
     { path: '/?monat=2026-03&period=month', name: 'heute', count: 1 },
     { path: '/reports/onepager?monat=2026-03', name: 'onepager', count: 2 },
   ] as const;
-  const mobileProfile = page.locator('.m-profile');
-  const privacyToggle = page
-    .locator(mobile ? '.m-profile' : '.topbar')
-    .getByRole('button', { name: 'Beträge verbergen', exact: true });
 
   for (const scene of scenes) {
     await page.goto(scene.path);
@@ -110,7 +107,8 @@ test('Today and One-Pager explain booked month progress beside expected salary',
       await verdicts.nth(scene.count - 1).textContent(),
     );
 
-    if (mobile) await mobileProfile.locator('summary').click();
+    let controls = await openShellControls(page);
+    let privacyToggle = controls.privacy;
     await privacyToggle.click();
     await expect(privacyToggle).toHaveAttribute('aria-pressed', 'true');
     for (let index = 0; index < scene.count; index++) {
@@ -125,18 +123,22 @@ test('Today and One-Pager explain booked month progress beside expected salary',
     if (mobile) {
       await privacyToggle.press('Escape');
       await expect(privacyToggle).toBeHidden();
-      await expect(mobileProfile).not.toHaveAttribute('open');
-      await expect(mobileProfile.locator('summary')).toBeFocused();
-      await mobileProfile.locator('summary').click();
+      if (controls.kind === 'avatar') await expect(controls.container!).not.toHaveAttribute('open');
+      else await expect(controls.container!).toBeHidden();
+      await expect(controls.entry!).toBeFocused();
+      controls = await openShellControls(page);
+      privacyToggle = controls.privacy;
     }
     await privacyToggle.click();
     await expect(privacyToggle).toHaveAttribute('aria-pressed', 'false');
     if (mobile) {
       await privacyToggle.press('Escape');
       await expect(privacyToggle).toBeHidden();
-      await expect(mobileProfile).not.toHaveAttribute('open');
-      await expect(mobileProfile.locator('summary')).toBeFocused();
+      if (controls.kind === 'avatar') await expect(controls.container!).not.toHaveAttribute('open');
+      else await expect(controls.container!).toBeHidden();
+      await expect(controls.entry!).toBeFocused();
     }
+    await controls.close();
 
     for (const theme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });

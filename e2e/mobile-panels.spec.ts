@@ -506,10 +506,26 @@ test.describe('behaviour', () => {
     page,
   }) => {
     await app(page, '/reports');
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    if (redesign) {
+      await expect(page.locator('.m-profile')).toHaveCount(0);
+      await page
+        .getByRole('navigation', { name: 'Hauptnavigation' })
+        .getByRole('link', { name: 'Heute', exact: true })
+        .tap();
+      await expect(page).toHaveURL(/\/$/);
+    }
     await page.locator('.m-profile summary').tap();
     await page.getByRole('link', { name: 'Profil und Einstellungen' }).tap();
-    await expect(page).toHaveURL(/\/einstellungen$/);
-    await page.goto('/einstellungen/anlageklassen');
+    await expect(page).toHaveURL(redesign ? /\/einstellungen\/profil$/ : /\/einstellungen$/);
+    if (redesign) {
+      await page
+        .locator('.settings-back')
+        .getByRole('link', { name: 'Einstellungen', exact: true })
+        .tap();
+      await expect(page).toHaveURL(/\/einstellungen$/);
+      await page.getByRole('link', { name: 'Anlageklassen', exact: true }).tap();
+    } else await page.goto('/einstellungen/anlageklassen');
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     // The shared primitive on this page: the capture sheet opens, closes, reopens, Back closes.
     const s = SCENARIOS[0] as Scenario;

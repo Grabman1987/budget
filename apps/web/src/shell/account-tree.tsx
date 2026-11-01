@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
+import { REDESIGN_ENABLED } from './redesign-flag';
 import { useOrderedAccounts, useReorder } from '../ledger/account-order';
 import { AccountFormPanel } from '../ledger/account-form';
 import { eur } from '../ledger/format';
@@ -89,7 +90,13 @@ export function AccountTree() {
       <nav className="acct-tree" aria-labelledby="acct-tree-label">
         <div className="acct-tree-head">
           <div className="sheetlist-label tech" id="acct-tree-label">
-            Konten
+            {REDESIGN_ENABLED ? (
+              <AppLink to="/konten/buchungen" title="Alle Buchungen öffnen">
+                Konten
+              </AppLink>
+            ) : (
+              'Konten'
+            )}
           </div>
           {editing && (
             <button type="button" className="acct-done" onClick={() => setEditing(false)}>

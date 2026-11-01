@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase } from '@budget/db';
 import type { ExplorerQuery, ExplorerViewsState } from '@budget/domain';
@@ -339,19 +340,18 @@ test('628 saved-view chips reload across contexts and resolve only the current s
         path: info.outputPath(`saved-hub-${theme}.png`),
         animations: 'disabled',
       });
-      const profile = other.locator('.m-profile > summary');
-      if (info.project.name !== 'desktop') await profile.click();
-      await other.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
+      await withShellControls(other, async ({ privacy }) => {
+        await privacy.click();
+      });
       await expect(chip).not.toContainText('123,45');
       await expect(chip).toContainText('•••');
-      if (info.project.name !== 'desktop') await profile.click();
       await other.screenshot({
         path: info.outputPath(`saved-hub-private-${theme}.png`),
         animations: 'disabled',
       });
-      if (info.project.name !== 'desktop') await profile.click();
-      await other.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
-      if (info.project.name !== 'desktop') await profile.click();
+      await withShellControls(other, async ({ privacy }) => {
+        await privacy.click();
+      });
       await expect(chip).toHaveText('Synthetic 123,45 €');
       const resultRead = other.waitForResponse((response) => {
         const url = new URL(response.url());

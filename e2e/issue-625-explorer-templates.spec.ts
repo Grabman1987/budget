@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase } from '@budget/db';
 import { expect, type Page, type TestInfo } from '@playwright/test';
@@ -74,16 +75,16 @@ function financialFingerprint(path: string) {
 async function theme(page: Page, value: 'light' | 'dark') {
   const phone = page.viewportSize()!.width === 390;
   if (phone) {
-    const summary = page.locator('.m-profile > summary');
-    await summary.tap();
-    await page
-      .locator('.m-profile')
-      .getByRole('button', {
-        name: value === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
-        exact: true,
-      })
-      .tap();
-    await summary.tap();
+    await withShellControls(
+      page,
+      async ({ theme: control }) => {
+        await expect(control).toHaveAccessibleName(
+          value === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
+        );
+        await control.tap();
+      },
+      true,
+    );
   } else
     await page
       .locator('.sidebar-foot')
