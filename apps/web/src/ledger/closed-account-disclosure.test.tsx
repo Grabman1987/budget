@@ -34,7 +34,11 @@ async function fixture(missingFx = false) {
     (id,name,type,role,on_budget,currency,opening_date,opening_balance_cents,closed_at)
     VALUES ('fx','Synthetic missing FX','checking','budget',1,'USD','2026-01-01',500,'2026-08-01');`);
   const writes: string[] = [];
-  const api = createLedgerApi({ db: opened.db, today: () => '2026-09-17' });
+  const api = createLedgerApi({
+    db: opened.db,
+    today: () => '2026-09-17',
+    stepUp: async (_c, next) => next(),
+  });
   const request = async (path: string, init?: RequestInit) => {
     if ((init?.method ?? 'GET') !== 'GET') writes.push(`${init?.method} ${path}`);
     return api.request(path, init);

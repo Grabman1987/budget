@@ -41,7 +41,11 @@ Do not add it to an investment-basis sum or infer allocation membership from it.
 
 ## Local evidence
 
-- `npm run typecheck`: passed.
+- Initial workspace typecheck passed before the new test was added. The real pre-push
+  gate then caught the new test API fixture missing its required `stepUp` middleware
+  (contract/fixture failure); fixed with the established test-only pass-through.
+  No protected API behavior or production middleware was changed. Final gate
+  status is recorded in the PR.
 - `npx vitest run apps/web/src/ledger/closed-account-disclosure.test.tsx apps/web/src/ledger/overview-model.test.ts apps/web/src/ledger/tree-values.test.ts`:
   **42 tests passed in 3 files**. Existing grouping/valuation cases retained.
 - Changed-file ESLint and CSS scale check: passed.
