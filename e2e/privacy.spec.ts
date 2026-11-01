@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import type { AccountList, AccountSeriesBatch } from '../apps/web/src/ledger/types';
@@ -115,11 +116,9 @@ test('privacy follows routes and reload, masks money and chart alternatives, pre
     '/einstellungen/regelwerk',
   ]) {
     await page.goto(path);
-    if (info.project.name === 'mobile') await menu.click();
-    await expect(
-      header.getByRole('button', { name: 'Beträge verbergen', exact: true }),
-    ).toHaveAttribute('aria-pressed', 'true');
-    if (info.project.name === 'mobile') await menu.press('Escape');
+    await withShellControls(page, async ({ privacy }) => {
+      await expect(privacy).toHaveAttribute('aria-pressed', 'true');
+    });
     await expect(page.locator('main')).toContainText('•••', { timeout: 20_000 });
     if (path === '/konten') {
       await expect(page.locator('.krow').first()).toBeVisible();

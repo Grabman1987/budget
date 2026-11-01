@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, INCOME_TYPES, openDatabase } from '@budget/db';
 import { expect, type Page, type TestInfo } from '@playwright/test';
@@ -143,14 +144,11 @@ async function inspect(page: Page, info: TestInfo, label: string) {
 }
 
 async function privacy(page: Page, hidden: boolean) {
-  const profile = page.locator('.m-profile > summary');
-  const phone = await profile.isVisible();
-  if (phone) await profile.click();
-  const button = page.getByRole('button', { name: 'Beträge verbergen', exact: true });
-  await expect(button).toHaveAttribute('aria-pressed', String(!hidden));
-  await button.click();
-  await expect(button).toHaveAttribute('aria-pressed', String(hidden));
-  if (phone) await profile.click();
+  await withShellControls(page, async ({ privacy: button }) => {
+    await expect(button).toHaveAttribute('aria-pressed', String(!hidden));
+    await button.click();
+    await expect(button).toHaveAttribute('aria-pressed', String(hidden));
+  });
 }
 
 async function noClearMoney(page: Page, amount: RegExp) {

@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
@@ -5,10 +6,9 @@ import { test } from './isolated-ledger';
 
 test.use({ ledgerToday: '2026-10-15' });
 async function togglePrivacy(page: Page) {
-  const profile = page.locator('.m-profile summary');
-  if (await profile.isVisible()) await profile.click();
-  await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
-  if (await profile.isVisible()) await profile.click();
+  await withShellControls(page, async ({ privacy: button }) => {
+    await button.click();
+  });
 }
 async function checkPanel(page: Page, phone: boolean) {
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);

@@ -1,4 +1,59 @@
 /* Short area registers retain the shared underline, type scale and scroll-edge fades. */
+[data-budget-redesign='1'] .area-page-menu {
+  position: relative;
+  z-index: 6;
+  width: fit-content;
+  max-width: 100%;
+  margin-block: 12px;
+}
+
+[data-budget-redesign='1'] .area-page-menu > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--touch);
+  padding: 8px 12px;
+  border: var(--stroke-hairline) solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+[data-budget-redesign='1'] .area-page-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+[data-budget-redesign='1'] .area-page-menu > nav {
+  position: absolute;
+  inset-block-start: calc(100% + 4px);
+  inset-inline-start: 0;
+  min-width: min(240px, calc(100vw - 32px));
+  max-height: min(288px, 40dvh);
+  overflow-y: auto;
+  padding: 4px;
+  border: var(--stroke-hairline) solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+[data-budget-redesign='1'] .area-page-menu > nav > a {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 8px 12px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+[data-budget-redesign='1'] .area-page-menu > nav > a[aria-current='page'] {
+  background: var(--tint);
+  color: var(--primary);
+  font-weight: 600;
+}
+
 @media (max-width: 767px) {
   .registers[aria-label^='Register von '] {
     gap: 0;
