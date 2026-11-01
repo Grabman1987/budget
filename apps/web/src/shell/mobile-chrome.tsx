@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { useLocation } from '@tanstack/react-router';
 import { MAIN_AREAS, areaById, type AreaId } from '../nav/areas';
 import type { PageMeta } from '../nav/pages';
 import { AppLink } from './app-link';
@@ -10,6 +11,7 @@ import { useShellIdentity } from './use-profile';
 import { MobileStatusLine } from './header-status';
 import { PrivacyButton } from './privacy-button';
 import { useFabVisible } from './use-fab-visible';
+import { REDESIGN_ENABLED } from './redesign-flag';
 
 /**
  * What the phone header shows, as in the prototype: the area name (the month switch and the strip
@@ -35,6 +37,8 @@ export function MobileHeader({
   onSearchChange?: (open: boolean) => void;
 }) {
   const identity = useShellIdentity();
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const showProfile = !REDESIGN_ENABLED || pathname === '/';
   const profileMenu = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const menu = profileMenu.current;
@@ -54,7 +58,7 @@ export function MobileHeader({
       menu?.removeEventListener('keydown', onKey);
       document.removeEventListener('pointerdown', onOutside);
     };
-  }, []);
+  }, [showProfile]);
   return (
     <>
       <header className="m-head">
@@ -66,25 +70,27 @@ export function MobileHeader({
           )}
         </div>
         <GlobalSearch mobile onOpenChange={onSearchChange} />
-        <details className="m-profile" ref={profileMenu}>
-          <summary
-            className="avatar"
-            aria-label={`${identity.initials} · ${identity.name}: Profilmenü`}
-          >
-            {identity.initials}
-          </summary>
-          <div className="m-profile-actions">
-            <PrivacyButton text />
-            <ThemeButton variant="side" />
-            <AppLink
-              className="btn btn-ghost"
-              to="/einstellungen"
-              onClick={(event) => event.currentTarget.closest('details')?.removeAttribute('open')}
+        {showProfile && (
+          <details className="m-profile" ref={profileMenu}>
+            <summary
+              className="avatar"
+              aria-label={`${identity.initials} · ${identity.name}: Profilmenü`}
             >
-              Profil und Einstellungen
-            </AppLink>
-          </div>
-        </details>
+              {identity.initials}
+            </summary>
+            <div className="m-profile-actions">
+              <PrivacyButton text />
+              <ThemeButton variant="side" />
+              <AppLink
+                className="btn btn-ghost"
+                to={REDESIGN_ENABLED ? '/einstellungen/profil' : '/einstellungen'}
+                onClick={(event) => event.currentTarget.closest('details')?.removeAttribute('open')}
+              >
+                Profil und Einstellungen
+              </AppLink>
+            </div>
+          </details>
+        )}
       </header>
       <MobileStatusLine />
     </>

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Request } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import yauzl from 'yauzl';
@@ -177,6 +177,62 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
 
     await page.getByRole('button', { name: 'Mit Passkey anmelden' }).click();
     await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('heading', { level: 1, name: HEUTE_HEADING })).toBeVisible();
+  });
+
+  await test.step('capture continuation survives a real passkey login and rejects an external return', async () => {
+    const response = await page.request.post('/api/accounts', {
+      headers: { origin },
+      data: {
+        name: 'Synthetic capture continuation',
+        type: 'cash',
+        openingDate: '2026-01-01',
+        openingBalanceCents: 0,
+      },
+    });
+    expect(response.ok()).toBe(true);
+    const { account } = await response.json();
+    const continuation = `/erfassen?betrag=12%2C34&empfaenger=Synthetic+continuation&konto=${encodeURIComponent(account.id)}`;
+    await page.goto('/einstellungen/sicherheit');
+    await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+    await page.goto(continuation);
+    await expect(page).toHaveURL(
+      (url) => url.pathname === '/login' && url.searchParams.get('weiter') === continuation,
+    );
+    const writes: string[] = [];
+    const observe = (request: Request) => {
+      if (request.method() !== 'GET' && /\/api\/(bookings|payees)(?:[/?]|$)/.test(request.url()))
+        writes.push(request.url());
+    };
+    page.on('request', observe);
+    try {
+      await page.getByRole('button', { name: 'Mit Passkey anmelden', exact: true }).click();
+      await expect(page).toHaveURL(`${origin}${continuation}`);
+      const dialog = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
+      await expect(dialog.getByLabel('Betrag', { exact: true })).toHaveValue('12,34');
+      await expect(dialog.getByLabel('Empfänger', { exact: true })).toHaveValue(
+        'Synthetic continuation',
+      );
+      await expect(dialog.getByLabel('Bezahlt von', { exact: true })).toHaveValue(account.id);
+      await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
+      const discard = dialog.getByRole('alertdialog', { name: 'Eingaben verwerfen?', exact: true });
+      await expect(discard).toBeVisible();
+      await discard.getByRole('button', { name: 'Verwerfen', exact: true }).click();
+      await expect(dialog).toBeHidden();
+      expect(writes).toEqual([]);
+      const bookings = await page.request.get(
+        `/api/bookings?accountId=${encodeURIComponent(account.id)}`,
+      );
+      expect(bookings.ok()).toBe(true);
+      expect((await bookings.json()).items).toEqual([]);
+    } finally {
+      page.off('request', observe);
+    }
+    await page.goto('/einstellungen/sicherheit');
+    await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+    await page.goto('/login?weiter=https%3A%2F%2Fexample.invalid%2Ferfassen');
+    await page.getByRole('button', { name: 'Mit Passkey anmelden', exact: true }).click();
+    await expect(page).toHaveURL(`${origin}/`);
     await expect(page.getByRole('heading', { level: 1, name: HEUTE_HEADING })).toBeVisible();
   });
 

@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
 import { eachDay, performanceReportSeries, windowPerformance } from '@budget/domain';
@@ -88,10 +89,9 @@ test('portfolio value/return shares a period, exact inspection, privacy and acce
       });
     }
   }
-  const profileMenu = page.locator('.m-profile summary');
-  if (info.project.name !== 'desktop') await profileMenu.click();
-  await page.getByRole('button', { name: 'Beträge verbergen' }).click();
-  if (info.project.name !== 'desktop') await profileMenu.press('Escape');
+  await withShellControls(page, async ({ privacy }) => {
+    await privacy.click();
+  });
   await chart.focus();
   await chart.press('ArrowRight');
   await expect(page.locator('.chart-tooltip')).toContainText('•••');

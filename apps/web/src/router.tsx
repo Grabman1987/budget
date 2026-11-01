@@ -716,7 +716,7 @@ const loginRoute = createRoute({
   path: '/login',
   validateSearch: (search: Record<string, unknown>): { weiter?: string | undefined } => {
     const weiter = captureContinuation(search['weiter']);
-    return weiter ? { weiter } : {};
+    return { weiter };
   },
   beforeLoad: async () => {
     const status = await queryClient.fetchQuery(authStatusQuery);
@@ -919,7 +919,8 @@ export const router = createRouter({
       location.pathname === '/reports/sparziele' ||
       location.pathname.startsWith('/vermoegen/portfolio') ||
       location.pathname.startsWith('/einstellungen/regelwerk') ||
-      location.pathname.startsWith('/reports/')),
+      location.pathname.startsWith('/reports/') ||
+      (REDESIGN_ENABLED && location.pathname === '/konten/buchungen')),
 });
 
 declare module '@tanstack/react-router' {

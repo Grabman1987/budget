@@ -5,10 +5,11 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
-import { chromium, expect, request, webkit, type Page } from '@playwright/test';
+import { chromium, devices, expect, request, webkit, type Page } from '@playwright/test';
 import { bootstrapPasskey } from '../../e2e/bootstrap';
 import { E2E_SETUP_TOKEN } from '../../e2e/setup-token';
 import { verifyRedesignGallery, verifyRedesignGalleryPhone } from './redesign-s2-proof';
+import { verifyRedesignShell } from './redesign-s3-proof';
 import type { HistoryMatrix } from '@budget/domain';
 
 const root = resolve(import.meta.dirname, '../..');
@@ -533,15 +534,39 @@ async function smoke() {
             .toBe(true);
           await upgrade(page, origin, true);
           await expectAppHosts(page, origin, true);
+          await verifyRedesignShell(page, origin, true, join(root, 'test-results/redesign-s3'));
           await finanzcheckProof(page, origin);
           await upgrade(page, origin, false);
           // The clean bookmark remains usable after a complete OFF → ON → OFF installed-PWA cycle.
           await page.goto(`${origin}${bookmark}`);
           await expectBody(page, origin, false);
           await expectAppHosts(page, origin, false);
+          await verifyRedesignShell(page, origin, false, join(root, 'test-results/redesign-s3'));
           await finanzcheckOff(page, origin);
           console.log(
             `PASS ${viewport.width}px: OFF overrides denied, real ON/OFF upgrade, session and bookmark retained`,
+          );
+        } finally {
+          await context.close();
+        }
+      }
+      for (const mode of ['off', 'on'] as const) {
+        cpSync(builds[mode], active, { recursive: true });
+        const context = await browser.newContext({
+          storageState: storage,
+          viewport: { width: 320, height: 844 },
+          isMobile: true,
+          hasTouch: true,
+          colorScheme: 'light',
+          reducedMotion: 'reduce',
+          serviceWorkers: 'block',
+        });
+        try {
+          await verifyRedesignShell(
+            await context.newPage(),
+            origin,
+            mode === 'on',
+            join(root, 'test-results/redesign-s3'),
           );
         } finally {
           await context.close();
@@ -564,6 +589,24 @@ async function smoke() {
     try {
       for (const mode of ['off', 'on'] as const) {
         cpSync(galleryBuilds[mode], active, { recursive: true });
+        const context = await phoneBrowser.newContext({
+          ...devices['iPhone 13'],
+          storageState: storage,
+          colorScheme: 'light',
+          reducedMotion: 'reduce',
+          serviceWorkers: 'block',
+        });
+        try {
+          await verifyRedesignShell(
+            await context.newPage(),
+            origin,
+            mode === 'on',
+            join(root, 'test-results/redesign-s3/webkit'),
+            false,
+          );
+        } finally {
+          await context.close();
+        }
         await verifyRedesignGalleryPhone(phoneBrowser, {
           origin,
           storageState: storage,

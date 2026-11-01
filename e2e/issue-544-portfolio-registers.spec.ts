@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import type { PortfolioPerformanceHistory, PortfolioPositionsView } from '@budget/db';
 import type { Page } from '@playwright/test';
@@ -230,11 +231,9 @@ test('class mini histories retain the shared period, full class universe and mon
     const tooltip = page.locator(`[id="${tooltipId}"]`);
     await expect(tooltip).toContainText(known);
     await chart.press('Escape');
-    const profile = page.locator('.m-profile > summary');
-    const phone = await profile.isVisible();
-    if (phone) await profile.click();
-    await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
-    if (phone) await profile.click();
+    await withShellControls(page, async ({ privacy }) => {
+      await privacy.click();
+    });
     await expect(first.locator('figcaption')).toContainText('Letzter Index: •••');
     await expect(classes.getByTestId('portfolio-class-history-table')).not.toContainText(known);
     await chart.focus();
@@ -254,9 +253,9 @@ test('class mini histories retain the shared period, full class universe and mon
       );
     expect(accessible).not.toContain(known);
     await chart.press('Escape');
-    if (phone) await profile.click();
-    await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
-    if (phone) await profile.click();
+    await withShellControls(page, async ({ privacy }) => {
+      await privacy.click();
+    });
     await expect(first.locator('figcaption')).toHaveText(clear, { useInnerText: true });
     const responseAfter = await request.get(
       `/api/portfolio?period=${period}&view=securities&history=performance`,

@@ -18,6 +18,11 @@ import { REPORTS } from '../nav/reports-catalog';
 import { isTyping } from './capture-shortcut';
 import { KeyboardShortcuts } from './keyboard-shortcuts';
 import { AppLink } from './app-link';
+import { PrivacyButton } from './privacy-button';
+import { ThemeButton } from './theme-button';
+import { REDESIGN_ENABLED } from './redesign-flag';
+import { isMonth } from '../nav/month';
+import { isZeitraum } from '../wealth/zeitraum';
 import './global-search.css';
 
 type PaletteItem = Omit<GlobalSearchResult, 'kind'> & {
@@ -79,12 +84,33 @@ const SEARCH_TERMS: Record<string, readonly string[]> = {
   'page:/vermoegen/schulden': ['dispo', 'kredit', 'tilgung'],
   'report:kosten': ['gebühren', 'bankgebühren', 'zinskosten'],
 };
+// Additional names share the existing result IDs and matching pipeline, only in redesign builds.
+const REDESIGN_SEARCH_TERMS: Record<string, readonly string[]> = {
+  'page:/plan/erwartet': ['wiederkehrende zahlungen', 'erwartete zahlungen'],
+  'page:/plan/jahr': ['jahresplan'],
+  'page:/konten/buchungen': ['alle buchungen'],
+};
 // Only IDs in session memory; dynamic choices are revalidated by the server on opening.
 let recent: Pick<PaletteItem, 'kind' | 'id'>[] = [];
 const itemKey = (item: Pick<PaletteItem, 'kind' | 'id'>) => `${item.kind}:${item.id}`;
-function destination(result: PaletteItem) {
-  if (result.kind === 'page') return { to: result.id, search: {} };
-  if (result.kind === 'report') return { to: `/reports/${result.id}`, search: {} };
+function destination(result: PaletteItem, source: URL) {
+  const context: Record<string, unknown> = {};
+  if (REDESIGN_ENABLED && (result.kind === 'page' || result.kind === 'report')) {
+    const month = source.searchParams.get('monat');
+    if (isMonth(month)) context['monat'] = month;
+    if (result.kind === 'report' || result.id.startsWith('/vermoegen/')) {
+      const period = source.searchParams.get('zeitraum');
+      if (isZeitraum(period)) context['zeitraum'] = period;
+    }
+    if (result.kind === 'report') {
+      const trend = source.searchParams.get('trend');
+      if (trend === 'true' || trend === 'false') context['trend'] = trend === 'true';
+      const period = source.searchParams.get('period');
+      if (period) context['period'] = period;
+    }
+  }
+  if (result.kind === 'page') return { to: result.id, search: context };
+  if (result.kind === 'report') return { to: `/reports/${result.id}`, search: context };
   if (result.kind === 'account')
     return { to: `/konten/${encodeURIComponent(result.id)}`, search: {} };
   if (result.kind === 'contact')
@@ -339,7 +365,9 @@ export function SearchResults({
           item.kind === 'action' ||
           recent.some((r) => itemKey(r) === itemKey(item))) &&
         (matchesSearch(`${item.label} ${item.id}`, text) ||
-          SEARCH_TERMS[itemKey(item)]?.includes(text.toLocaleLowerCase('de-AT'))),
+          SEARCH_TERMS[itemKey(item)]?.includes(text.toLocaleLowerCase('de-AT')) ||
+          (REDESIGN_ENABLED &&
+            REDESIGN_SEARCH_TERMS[itemKey(item)]?.includes(text.toLocaleLowerCase('de-AT')))),
     ),
   ];
   const results = [...new Map(candidates.map((item) => [itemKey(item), item])).values()].filter(
@@ -416,7 +444,7 @@ export function SearchResults({
           search: { ...Object.fromEntries(source.searchParams), panel: result.id } as never,
           state: { panelOpenedInApp: true } as never,
         });
-    } else void navigate(destination(result) as never);
+    } else void navigate(destination(result, source) as never);
   };
 
   const field = (
@@ -561,6 +589,12 @@ export function SearchResults({
           <button type="button" className="btn btn-ghost" onClick={() => setHelp(true)}>
             Tastenkürzel anzeigen (?)
           </button>
+        </div>
+      )}
+      {REDESIGN_ENABLED && (
+        <div className="redesign-search-utilities" role="group" aria-label="Darstellung">
+          <PrivacyButton text />
+          <ThemeButton variant="side" />
         </div>
       )}
     </div>

@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, type TestInfo } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -74,16 +75,16 @@ async function enter(page: Page) {
 }
 async function setTheme(page: Page, theme: 'dark' | 'light') {
   if (page.viewportSize()!.width < 768) {
-    const summary = page.locator('.m-profile > summary');
-    await summary.tap();
-    await page
-      .locator('.m-profile')
-      .getByRole('button', {
-        name: theme === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
-        exact: true,
-      })
-      .tap();
-    await summary.tap();
+    await withShellControls(
+      page,
+      async ({ theme: control }) => {
+        await expect(control).toHaveAccessibleName(
+          theme === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
+        );
+        await control.tap();
+      },
+      true,
+    );
   } else {
     const current = await page.locator('html').getAttribute('data-theme');
     if (current !== theme)

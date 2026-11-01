@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -100,12 +101,15 @@ test('local Sondertilgung reproduces V16 without a write', async ({
     await page.screenshot({ path: info.outputPath(`debt-live-612-${theme}.png`), fullPage: true });
   }
   await section.locator('.chart-data-table > summary').click();
-  if (info.project.name !== 'desktop') await page.locator('.m-head .m-profile summary').click();
-  await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
+  await withShellControls(page, async ({ privacy }) => {
+    await privacy.click();
+  });
   await expect(section).not.toContainText('32,63 €');
   await expect(section).not.toContainText('128,94 €');
   await expect(section.locator('.chart-data-table table')).toContainText('•••');
-  await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
+  await withShellControls(page, async ({ privacy }) => {
+    await privacy.click();
+  });
   await page.reload();
   await expect(section.locator('.debt-live-result')).toHaveCount(0);
   await expect(section.getByLabel(/Einmalige Sondertilgung/)).toHaveValue('0');

@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import { withShellControls } from './shell-actions';
 import { openDatabase, schema } from '@budget/db';
 import {
   expect,
@@ -249,22 +250,29 @@ async function scene(
   await expect(tools).toHaveAttribute('open');
   await expect(draft).toHaveValue('Synthetic draft');
   const profileMenu = page.locator('.m-profile');
+  const profileSummary = profileMenu.locator(':scope > summary');
+  const hasAvatar = await profileSummary.isVisible();
   if (profile === 'configured') {
-    const profileSummary = profileMenu.locator(':scope > summary');
-    await hit(profileSummary, minimum);
-    await profileSummary.click();
-    await expect(profileMenu).toHaveAttribute('open');
+    const entry = hasAvatar
+      ? profileSummary
+      : page.locator('.m-head').getByRole('button', { name: 'Suchen', exact: true });
+    await hit(entry, minimum);
   }
-  const privacy = page.getByRole('button', { name: 'Beträge verbergen', exact: true });
-  await hit(privacy, minimum);
-  await privacy.click();
-  await expect(page.getByTestId('liq-low')).not.toContainText(/\d/);
-  await expect(draft).toHaveValue('Synthetic draft');
-  await privacy.click();
-  await expect(page.getByTestId('liq-low')).toHaveText('700,00 €');
+  await withShellControls(page, async ({ kind, container, privacy }) => {
+    if (profile === 'configured') {
+      if (kind === 'avatar') await expect(profileMenu).toHaveAttribute('open');
+      else await expect(container!).toBeVisible();
+    }
+    await hit(privacy, minimum);
+    await privacy.click();
+    await expect(page.getByTestId('liq-low')).not.toContainText(/\d/);
+    await expect(draft).toHaveValue('Synthetic draft');
+    await privacy.click();
+    await expect(page.getByTestId('liq-low')).toHaveText('700,00 €');
+  });
   if (profile === 'configured') {
-    await profileMenu.locator(':scope > summary').click();
-    await expect(profileMenu).not.toHaveAttribute('open');
+    if (hasAvatar) await expect(profileMenu).not.toHaveAttribute('open');
+    else await expect(page.getByRole('dialog', { name: 'Suchen', exact: true })).toBeHidden();
   }
   const strike = page.getByRole('button', {
     name: 'Diesmal streichen: Synthetic debit, 27.09.',
