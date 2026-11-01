@@ -716,7 +716,7 @@ const loginRoute = createRoute({
   path: '/login',
   validateSearch: (search: Record<string, unknown>): { weiter?: string | undefined } => {
     const weiter = captureContinuation(search['weiter']);
-    return weiter ? { weiter } : {};
+    return { weiter };
   },
   beforeLoad: async () => {
     const status = await queryClient.fetchQuery(authStatusQuery);
