@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, INCOME_TYPES, openDatabase } from '@budget/db';
 import { expect, type Page, type TestInfo } from '@playwright/test';
@@ -137,11 +138,10 @@ async function inspect(page: Page, info: TestInfo, label: string) {
   }
   await page.screenshot({ path: info.outputPath(`${label}.png`), animations: 'disabled' });
 }
-async function privacy(page: Page, phone: boolean) {
-  const profile = page.locator('.m-profile > summary');
-  if (phone) await profile.click();
-  await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
-  if (phone) await profile.click();
+async function privacy(page: Page) {
+  await withShellControls(page, async ({ privacy }) => {
+    await privacy.click();
+  });
 }
 
 test('621 fixed August views equal each former report to literal cents without replacing distinct net meanings', async ({
@@ -198,7 +198,6 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
   isolatedLedger,
 }, info) => {
   const salary = seed(isolatedLedger.databasePath);
-  const phone = info.project.name !== 'desktop';
   for (const theme of ['light', 'dark']) {
     await page.goto(`${path}?monat=2026-08&zeitraum=${period}&darstellung=income&projekt=a`);
     await page.evaluate((value) => {
@@ -217,11 +216,11 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
         .locator('option')
         .evaluateAll((options) => options.map((option) => option.getAttribute('value')).sort()),
     ).toEqual(['', 'a', 'b', 'empty']);
-    await privacy(page, phone);
+    await privacy(page);
     await expect(page.getByTestId('income-total')).toContainText('•••');
     await expect(page.getByTestId('income-total')).not.toContainText('1.000,01');
     await expect(page.locator('.report-project-note')).not.toContainText('123,45');
-    await privacy(page, phone);
+    await privacy(page);
     await expect(page.getByTestId('income-total')).toHaveText('1.000,01 €');
     await inspect(page, info, `project-income-${theme}`);
     await page

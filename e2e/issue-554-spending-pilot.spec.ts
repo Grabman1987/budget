@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase } from '@budget/db';
 import { expect } from '@playwright/test';
@@ -59,13 +60,11 @@ test('554 signed group pilot has exact lead/category/Explorer/drill totals and c
     opened.close();
   }
   const setPrivacy = async (hidden: boolean) => {
-    const profile = page.locator('.m-profile > summary');
-    if (info.project.name !== 'desktop') await profile.click();
-    const privacy = page.getByRole('button', { name: 'Beträge verbergen', exact: true });
-    await expect(privacy).toHaveAttribute('aria-pressed', String(!hidden));
-    await privacy.click();
-    await expect(privacy).toHaveAttribute('aria-pressed', String(hidden));
-    if (info.project.name !== 'desktop') await profile.click();
+    await withShellControls(page, async ({ privacy }) => {
+      await expect(privacy).toHaveAttribute('aria-pressed', String(!hidden));
+      await privacy.click();
+      await expect(privacy).toHaveAttribute('aria-pressed', String(hidden));
+    });
   };
   await page.goto('/reports/ausgaben?zeitraum=1M');
   await expect(page.getByTestId('sa-consumption')).toHaveText('22,45 €');

@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import type { PortfolioAllocationView } from '@budget/db';
 import { sampleTest, expect } from './sample';
@@ -68,11 +69,9 @@ sampleTest(
     await expect(allocation).toContainText('Keine wirksame Exposure-Version hinterlegt.');
     await expect(allocation).toContainText('Vollständigkeit nicht hinterlegt.');
 
-    const profile = page.locator('.m-profile summary');
-    const mobile = await profile.isVisible();
-    if (mobile) await profile.click();
-    const privacy = page.getByRole('button', { name: 'Beträge verbergen', exact: true });
-    if ((await privacy.getAttribute('aria-pressed')) !== 'true') await privacy.click();
+    await withShellControls(page, async ({ privacy }) => {
+      if ((await privacy.getAttribute('aria-pressed')) !== 'true') await privacy.click();
+    });
     const evidenceList = allocation.getByRole('list', { name: 'Wirksame Exposure-Quellen' });
     await expect(evidenceList).toContainText('Synthetic feed ••• EUR');
     await expect(evidenceList).not.toContainText('123,45');
@@ -86,7 +85,6 @@ sampleTest(
           .join(' '),
       );
     expect(evidenceAttributes).not.toContain('123,45');
-    if (mobile) await profile.press('Escape');
 
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => {
@@ -112,10 +110,10 @@ sampleTest(
     await expect(allocation).toContainText('Datengrundlage am 17.09.2026');
     if (sourceValueCents !== null)
       await expect(allocation).toContainText('Netto-Allokationsuniversum: ••• €.');
-    if (mobile) await profile.click();
-    await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
-    await expect(privacy).toHaveAttribute('aria-pressed', 'false');
-    if (mobile) await profile.press('Escape');
+    await withShellControls(page, async ({ privacy }) => {
+      await privacy.click();
+      await expect(privacy).toHaveAttribute('aria-pressed', 'false');
+    });
     await expect(allocation).toContainText(expectedValueText);
     await expect(allocation).toContainText(expectedQualityText);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

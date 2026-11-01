@@ -1,4 +1,5 @@
 import { sampleTest as test, expect } from './sample';
+import { MIN_TARGET_PX } from './ledger-helpers';
 
 const PAGES = ['/', '/einstellungen', '/vermoegen/portfolio', '/plan/monat'];
 
@@ -53,22 +54,58 @@ test.describe('UX-3a phone shell', () => {
       // races WebKit's own pending navigation (interrupted goto, then a crashed page), so
       // only navigate when the page is not already there.
       if (new URL(page.url()).pathname !== path) await page.goto(path);
+      const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
       const avatar = page.locator('.m-profile summary');
-      await expect(avatar).toBeVisible();
-      const hit = await avatar.evaluate((el) => {
+      const searchOnly = redesign && path !== '/';
+      const entry = searchOnly
+        ? page.locator('.m-head').getByRole('button', { name: 'Suchen', exact: true })
+        : avatar;
+      await expect(entry).toBeVisible();
+      const hit = await entry.evaluate((el) => {
         const box = el.getBoundingClientRect();
         const target = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
         return { receivesTap: target === el || el.contains(target), target: target?.outerHTML };
       });
       expect(hit.receivesTap, `${path}: ${hit.target}`).toBe(true);
-      await avatar.tap();
-      await expect(page.locator('.m-profile')).toHaveAttribute('open');
-      const settings = page.getByRole('link', { name: 'Profil und Einstellungen', exact: true });
-      await expect(settings).toBeVisible();
-      await page.screenshot({ path: info.outputPath(`profile-${PAGES.indexOf(path)}.png`) });
-      await settings.tap();
-      await expect(page).toHaveURL(/\/einstellungen$/);
-      await expect(page.locator('.m-profile')).not.toHaveAttribute('open');
+      if (searchOnly) {
+        await expect(page.locator('.m-profile')).toHaveCount(0);
+        await expect(
+          page
+            .locator('.m-head')
+            .getByRole('link', { name: 'Profil und Einstellungen', exact: true }),
+        ).toHaveCount(0);
+        const bounds = await entry.boundingBox();
+        expect(bounds!.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+        expect(bounds!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+      }
+      await entry.tap();
+      if (searchOnly) {
+        const dialog = page.getByRole('dialog', { name: 'Suchen', exact: true });
+        await expect(dialog).toBeVisible();
+        const utilities = dialog.getByRole('group', { name: 'Darstellung', exact: true });
+        for (const control of [
+          utilities.getByRole('button', { name: 'Beträge verbergen', exact: true }),
+          utilities.getByTitle('Hell/Dunkel umschalten', { exact: true }),
+        ]) {
+          await expect(control).toBeVisible();
+          const bounds = await control.boundingBox();
+          expect(bounds!.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+          expect(bounds!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+        }
+        await page.screenshot({ path: info.outputPath(`utilities-${PAGES.indexOf(path)}.png`) });
+        await dialog.getByRole('combobox', { name: 'Suchen', exact: true }).press('Escape');
+        await expect(dialog).toBeHidden();
+        await expect(entry).toBeFocused();
+      } else {
+        await expect(page.locator('.m-profile')).toHaveAttribute('open');
+        const settings = page.getByRole('link', { name: 'Profil und Einstellungen', exact: true });
+        await expect(settings).toBeVisible();
+        await page.screenshot({ path: info.outputPath(`profile-${PAGES.indexOf(path)}.png`) });
+        await settings.tap();
+        await expect(page).toHaveURL(redesign ? /\/einstellungen\/profil$/ : /\/einstellungen$/);
+        if (redesign) await expect(page.locator('.m-profile')).toHaveCount(0);
+        else await expect(page.locator('.m-profile')).not.toHaveAttribute('open');
+      }
       // Let the tap-triggered navigation settle before the next page.goto, which would
       // otherwise be interrupted when both target the same URL.
       await page.waitForLoadState('load');

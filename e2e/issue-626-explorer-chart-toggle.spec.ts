@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase } from '@budget/db';
 import { expect, type Page, type TestInfo } from '@playwright/test';
@@ -79,15 +80,16 @@ function fingerprint(path: string) {
 async function realTheme(page: Page, value: 'dark' | 'light') {
   if ((await page.locator('html').getAttribute('data-theme')) === value) return;
   if (page.viewportSize()!.width < 768) {
-    const menu = page.locator('.m-profile');
-    await menu.locator('summary').click();
-    await menu
-      .getByRole('button', {
-        name: value === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
-        exact: true,
-      })
-      .click();
-    await menu.locator('summary').click();
+    await withShellControls(
+      page,
+      async ({ theme: control }) => {
+        await expect(control).toHaveAccessibleName(
+          value === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
+        );
+        await control.click();
+      },
+      false,
+    );
   } else
     await page
       .locator('.sidebar-foot')

@@ -1,4 +1,5 @@
 import { useNavigate, useSearch } from '@tanstack/react-router';
+import { captureContinuation } from '../ledger/capture-link';
 import { LoginPage } from './login-page';
 import { refreshAuthStatus } from './status-query';
 
@@ -10,7 +11,8 @@ export function LoginRoute() {
     <LoginPage
       onAuthenticated={async () => {
         await refreshAuthStatus();
-        if (weiter) window.location.assign(weiter);
+        const continuation = captureContinuation(weiter);
+        if (continuation) window.location.assign(continuation);
         else await navigate({ to: '/' });
       }}
     />
