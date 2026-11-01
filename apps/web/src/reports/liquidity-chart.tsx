@@ -45,7 +45,7 @@ export function LiquidityChart({
   salaryDay = null,
   compact = false,
 }: {
-  report: LiquidityReport;
+  report: Pick<LiquidityReport, 'horizon' | 'points' | 'eventMarks'>;
   salaryDay?: string | null;
   compact?: boolean;
 }) {
@@ -66,7 +66,7 @@ function Drawing({
   salaryDay,
   compact,
 }: {
-  report: LiquidityReport;
+  report: Pick<LiquidityReport, 'horizon' | 'points' | 'eventMarks'>;
   width: number;
   salaryDay: string | null;
   compact: boolean;

@@ -492,6 +492,7 @@ describe('GET /heute', () => {
         'budgetAnswer',
         'dailyBudget',
         'financeCheck',
+        'forecast35d',
         'lastBookings',
         'lead',
         'monthResult',
