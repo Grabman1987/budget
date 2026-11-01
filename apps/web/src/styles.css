@@ -99,6 +99,11 @@
     margin: 0;
   }
 
+  .dev .dev-table {
+    min-width: 0;
+    overflow-x: auto;
+  }
+
   .dev-note {
     margin: 0;
     color: var(--ink-2);

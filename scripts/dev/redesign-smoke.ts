@@ -1,14 +1,15 @@
 /** Local/CI smoke only: real builds, disposable ledger, no hosted environment or integrations. */
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { cpSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
-import { chromium, expect, request, type Page } from '@playwright/test';
+import { chromium, expect, request, webkit, type Page } from '@playwright/test';
 import { bootstrapPasskey } from '../../e2e/bootstrap';
 import { E2E_SETUP_TOKEN } from '../../e2e/setup-token';
-import type { Heute } from '../../apps/web/src/heute/api';
+import { verifyRedesignGallery, verifyRedesignGalleryPhone } from './redesign-s2-proof';
+import type { HistoryMatrix } from '@budget/domain';
 
 const root = resolve(import.meta.dirname, '../..');
 const directory = mkdtempSync(join(tmpdir(), 'budget-redesign-smoke-'));
@@ -16,19 +17,25 @@ if (!resolve(directory).startsWith(resolve(tmpdir()) + sep))
   throw new Error('Unsafe smoke directory');
 const active = join(directory, 'web');
 const builds = { off: join(directory, 'off'), on: join(directory, 'on') };
+const galleryBuilds = { off: join(directory, 'gallery-off'), on: join(directory, 'gallery-on') };
+const galleryOutput = join(root, 'test-results/redesign-s2');
 const bookmark = '/konten/pruefen?von=%2Fkonten';
 
-function build(mode: 'off' | 'on') {
-  console.log(`Building redesign ${mode.toUpperCase()} (production frontend)`);
+function build(
+  mode: 'off' | 'on',
+  output = builds[mode],
+  buildMode: 'production' | 'e2e' = 'production',
+) {
+  console.log(`Building redesign ${mode.toUpperCase()} (${buildMode} frontend)`);
   execFileSync(
     process.execPath,
     [
       resolve(root, 'node_modules/vite/bin/vite.js'),
       'build',
       '--mode',
-      'production',
+      buildMode,
       '--outDir',
-      builds[mode],
+      output,
       '--logLevel',
       'warn',
     ],
@@ -108,31 +115,128 @@ async function upgrade(page: Page, origin: string, enabled: boolean) {
     .toBe(true);
 }
 
-async function savedHeute(page: Page) {
-  return page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((done, fail) => {
-      const open = indexedDB.open('budget-offline-views');
-      open.onsuccess = () => done(open.result);
-      open.onerror = () => fail(open.error);
-    });
-    try {
-      return await new Promise<
-        { key: string; fetchedAt: number; epoch: string; data: Heute } | undefined
-      >((done, fail) => {
-        const get = db.transaction('views', 'readonly').objectStore('views').get('heute');
-        get.onsuccess = () => done(get.result);
-        get.onerror = () => fail(get.error);
+async function expectAppHosts(page: Page, origin: string, enabled: boolean) {
+  const previousTheme = await page.locator('html').getAttribute('data-theme');
+  try {
+    for (const theme of ['light', 'dark'] as const) {
+      await page.goto(`${origin}${bookmark}&panel=anlageklasse`);
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+      await page.emulateMedia({ colorScheme: theme });
+      await page.evaluate((value) => {
+        document.documentElement.dataset['theme'] = value;
+      }, theme);
+      const expected = {
+        rule: enabled
+          ? theme === 'light'
+            ? '#d3deec'
+            : '#1f4d7c'
+          : theme === 'light'
+            ? '#d6dfed'
+            : '#25557a',
+        warning: enabled ? (theme === 'light' ? '#8a5300' : '#ffd37a') : '',
+      };
+      for (const target of [page.locator('body'), page.locator('.app'), dialog]) {
+        const roles = await target.evaluate((element) => {
+          const style = getComputedStyle(element);
+          return {
+            rule: style.getPropertyValue('--rule').trim(),
+            warning: style.getPropertyValue('--warning').trim(),
+          };
+        });
+        expect(roles).toEqual(expected);
+      }
+      if (page.viewportSize()!.width === 390) {
+        const tabbar = page.locator('.tabbar');
+        await expect(tabbar).toBeVisible();
+        expect(
+          await tabbar.evaluate((element) =>
+            getComputedStyle(element).getPropertyValue('--rule').trim(),
+          ),
+        ).toBe(expected.rule);
+      }
+      await page.evaluate(async () => document.fonts.ready);
+      await page.screenshot({
+        path: join(
+          galleryOutput,
+          `app-panel-${enabled ? 'on' : 'off'}-${theme}-${page.viewportSize()!.width}.png`,
+        ),
+        animations: 'disabled',
       });
-    } finally {
-      db.close();
+      if (enabled) {
+        await page.emulateMedia({ media: 'print', colorScheme: theme });
+        expect(
+          await page.locator('body').evaluate((element) => {
+            const style = getComputedStyle(element);
+            return ['rule', 'rule-strong', 'warning', 'warning-soft'].map((role) =>
+              style.getPropertyValue(`--${role}`).trim(),
+            );
+          }),
+        ).toEqual(['#d3deec', '#6786ac', '#8a5300', '#fff3d6']);
+        await page.emulateMedia({ media: 'screen', colorScheme: theme });
+      }
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
     }
-  });
+  } finally {
+    await page.emulateMedia({ media: 'screen', colorScheme: 'light' });
+    await page.goto(`${origin}${bookmark}`);
+    await page.evaluate((value) => {
+      if (value === null) document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.dataset['theme'] = value;
+    }, previousTheme);
+  }
+  await expectBody(page, origin, enabled);
 }
 
-async function forecastScreenshots(page: Page, state: 'online' | 'offline') {
-  const output = join(root, 'test-results/redesign-forecast');
+const finanzcheckBookmark =
+  '/reports/onepager?monat=2026-08&period=month&zeitraum=2026-01..2026-08&darstellung=finanzcheck&trend=true&ansicht=synthetic-view&kategorien=%5B%22synthetic-food%22%5D#fc-matrix';
+
+async function finanzcheckOff(page: Page, origin: string) {
+  const headers = { origin };
+  const created = await page.request.post(`${origin}/api/accounts`, {
+    headers,
+    data: {
+      name: 'T6 OFF historical budget',
+      type: 'checking',
+      role: 'budget',
+      onBudget: true,
+      openingDate: '2025-01-01',
+      openingBalanceCents: 0,
+    },
+  });
+  expect(created.ok()).toBe(true);
+  const { groupId } = (await created.json()) as { groupId: string };
+  try {
+    await page.goto(`${origin}/reports/finanzcheck?monat=2026-08&period=month#fc-matrix`);
+    await expect(page).toHaveURL((url) => url.pathname === '/');
+    await expect(page.locator('.app')).not.toHaveAttribute('data-budget-redesign');
+    await expect(
+      page.getByRole('heading', { name: 'August 2026', level: 1, exact: true }),
+    ).toBeVisible();
+    await expect(page.locator('.heute')).toBeVisible();
+    await expect(page.locator('.finanzcheck-report')).toHaveCount(0);
+    await page.goto(`${origin}${finanzcheckBookmark}`);
+    await expect(
+      page.getByRole('heading', { name: 'Monats-One-Pager', exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('article', { name: 'Monats-One-Pager August 2026' })).toBeVisible();
+    await expect(page.locator('.finanzcheck-report')).toHaveCount(0);
+  } finally {
+    const undone = await page.request.post(`${origin}/api/undo`, { headers, data: { groupId } });
+    expect(undone.ok()).toBe(true);
+    await page.goto(`${origin}${bookmark}`);
+    await expectBody(page, origin, false);
+  }
+}
+
+async function finanzcheckScreenshots(page: Page, state: 'forecast' | 'history' | 'source') {
+  const output = join(root, 'test-results/redesign-finanzcheck');
   mkdirSync(output, { recursive: true });
-  const previousTheme = await page.locator('html').getAttribute('data-theme');
+  const previous = await page.locator('html').getAttribute('data-theme');
+  const scroller = page.locator('.finanzcheck-report .ov-scroll');
+  const previousScroll =
+    state === 'history' ? await scroller.evaluate((element) => element.scrollLeft) : undefined;
   try {
     for (const theme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme: theme });
@@ -140,126 +244,200 @@ async function forecastScreenshots(page: Page, state: 'online' | 'offline') {
         document.documentElement.dataset['theme'] = value;
         await document.fonts.ready;
       }, theme);
-      await page.getByRole('region', { name: 'Kontoprognose · 35 Tage', exact: true }).screenshot({
-        path: join(output, `forecast-${page.viewportSize()!.width}-${state}-${theme}.png`),
+      if (state === 'forecast')
+        await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => done())));
+      const target = page.locator(
+        state === 'forecast'
+          ? '.finanzcheck-report > section[aria-labelledby="r07-title"]'
+          : state === 'history'
+            ? '.fc-table tr[data-rule="R07"] .ov-strip'
+            : '#rule-result-R07',
+      );
+      await target.evaluate((element) =>
+        element.scrollIntoView({ block: 'center', inline: 'center' }),
+      );
+      let bounds = await target.boundingBox();
+      if (!bounds) throw new Error('Finanzcheck evidence target has no layout bounds');
+      if (state === 'history') {
+        const viewport = await scroller.evaluate((element) => {
+          const left = element.getBoundingClientRect().left + element.clientLeft;
+          return { left, right: left + element.clientWidth };
+        });
+        expect(bounds.x).toBeGreaterThanOrEqual(Math.max(0, viewport.left));
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(
+          Math.min(page.viewportSize()!.width, viewport.right),
+        );
+      }
+      const tabbar = page.locator('.tabbar');
+      const tabbarBounds = (await tabbar.isVisible()) ? await tabbar.boundingBox() : null;
+      const header = page.locator('.m-head');
+      let headerBounds = (await header.isVisible()) ? await header.boundingBox() : null;
+      if (state === 'forecast') {
+        const topbar = page.locator('.topbar');
+        const topbarBounds = (await topbar.isVisible()) ? await topbar.boundingBox() : null;
+        const fab = page.locator('.fab');
+        const initialFab = (await fab.isVisible()) ? await fab.boundingBox() : null;
+        const top = Math.max(0, topbarBounds ? topbarBounds.y + topbarBounds.height : 0);
+        const bottom = Math.min(
+          page.viewportSize()!.height - (tabbarBounds?.height ?? 0),
+          initialFab &&
+            bounds.x < initialFab.x + initialFab.width &&
+            bounds.x + bounds.width > initialFab.x
+            ? initialFab.y
+            : page.viewportSize()!.height,
+        );
+        expect(bounds.height).toBeLessThanOrEqual(bottom - top);
+        await target.evaluate(
+          (element, desiredTop) => {
+            window.scrollBy(0, element.getBoundingClientRect().top - desiredTop);
+          },
+          top + (bottom - top - bounds.height) / 2,
+        );
+        bounds = await target.boundingBox();
+        if (!bounds) throw new Error('Finanzcheck card lost layout during native framing');
+        headerBounds = (await header.isVisible()) ? await header.boundingBox() : null;
+        expect(bounds.y).toBeGreaterThanOrEqual(top);
+        expect(bounds.y + bounds.height).toBeLessThanOrEqual(bottom);
+      }
+      expect(bounds.y).toBeGreaterThanOrEqual(
+        headerBounds ? headerBounds.y + headerBounds.height : 0,
+      );
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(
+        page.viewportSize()!.height - (tabbarBounds?.height ?? 0),
+      );
+      if (state === 'forecast') {
+        const fab = page.locator('.fab');
+        const fabBounds = (await fab.isVisible()) ? await fab.boundingBox() : null;
+        if (
+          fabBounds &&
+          bounds.x < fabBounds.x + fabBounds.width &&
+          bounds.x + bounds.width > fabBounds.x
+        ) {
+          expect(bounds.y + bounds.height).toBeLessThanOrEqual(fabBounds.y);
+        }
+      }
+      // Viewport evidence retains actual responsive overflow, fixed chrome and surrounding context.
+      await page.screenshot({
+        path: join(output, `finanzcheck-${page.viewportSize()!.width}-${state}-${theme}.png`),
         animations: 'disabled',
       });
     }
   } finally {
+    if (previousScroll !== undefined)
+      await scroller.evaluate((element, value) => {
+        element.scrollLeft = value;
+      }, previousScroll);
     await page.emulateMedia({ colorScheme: 'light' });
     await page.evaluate((value) => {
       if (value === null) document.documentElement.removeAttribute('data-theme');
       else document.documentElement.dataset['theme'] = value;
-    }, previousTheme);
+    }, previous);
   }
 }
 
-/** Same real response and existing permission epoch, not a second offline forecast. */
-async function forecastParity(page: Page, origin: string) {
-  const groups: string[] = [];
+async function expectFinanzcheckMatrixFocus(page: Page) {
+  const heading = page.locator('#fc-matrix');
+  await expect(heading).toBeFocused();
+  const bounds = await heading.boundingBox();
+  if (!bounds) throw new Error('Focused Finanzcheck heading has no layout bounds');
+  const topbar = page.locator('.topbar');
+  const bar = (await topbar.isVisible()) ? await topbar.boundingBox() : null;
+  expect(bounds.y).toBeGreaterThanOrEqual(bar ? bar.y + bar.height : 0);
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+}
+
+async function finanzcheckProof(page: Page, origin: string) {
   const headers = { origin };
-  const post = async <T extends { groupId: string }>(path: string, data: unknown): Promise<T> => {
-    const response = await page.request.post(`${origin}/api${path}`, { headers, data });
-    expect(response.ok()).toBe(true);
-    const result = (await response.json()) as T;
-    groups.push(result.groupId);
-    return result;
-  };
-  try {
-    const { account } = await post<{ groupId: string; account: { id: string } }>('/accounts', {
-      name: 'Synthetic T2 budget',
+  const created = await page.request.post(`${origin}/api/accounts`, {
+    headers,
+    data: {
+      name: 'T6 synthetic checking',
       type: 'checking',
       role: 'budget',
       onBudget: true,
-      openingDate: '2026-09-17',
-      openingBalanceCents: 100_000,
-    });
-    for (const [name, kind, date, dueDay, amountCents] of [
-      ['Synthetic day10 outflow', 'outflow', '2026-09-27', 27, 12_500],
-      ['Synthetic day20 salary', 'inflow', '2026-10-07', 7, 9_000],
-    ] as const)
-      await post('/expected', {
-        name,
-        kind,
-        accountId: account.id,
-        rhythm: 'monthly',
-        startDate: date,
-        endDate: date,
-        validFrom: '2026-09-17',
-        dueDay,
-        dateShift: 'none',
-        amountCents,
-        ...(kind === 'inflow' ? { incomeTypeId: 'income-salary' } : {}),
-      });
-    await post('/liquidity/events', {
-      name: 'Synthetic day35 event',
-      date: '2026-10-22',
-      amountCents: -100_000,
-    });
-    const response = await page.request.get(`${origin}/api/heute?period=month&month=2026-09`);
+      openingDate: '2025-01-01',
+      openingBalanceCents: -500,
+    },
+  });
+  expect(created.ok()).toBe(true);
+  const { groupId } = (await created.json()) as { groupId: string };
+  try {
+    const derived = await page.request.post(`${origin}/api/rules/evaluate`, { headers });
+    expect(derived.ok()).toBe(true);
+    const response = await page.request.get(`${origin}/api/rules/results`);
     expect(response.ok()).toBe(true);
-    const source = (await response.json()) as Heute;
-    expect(source.forecast35d).toMatchObject({
-      asOf: '2026-09-17',
-      horizon: '35d',
-      levers: [],
-      available: true,
-      report: { low: { day: '2026-10-22', index: 35, cents: -3_500 } },
-    });
-    expect(source.forecast35d).not.toHaveProperty('events');
-    expect(source.forecast35d).not.toHaveProperty('incomePauses');
-    expect(source.forecast35d).not.toHaveProperty('report.verdict');
-    expect(source.forecast35d).not.toHaveProperty('report.movements');
+    const matrix = (await response.json()) as HistoryMatrix;
+    expect(matrix.days).toEqual([
+      '2025-09-30',
+      '2025-10-31',
+      '2025-11-30',
+      '2025-12-31',
+      '2026-01-31',
+      '2026-02-28',
+      '2026-03-31',
+      '2026-04-30',
+      '2026-05-31',
+      '2026-06-30',
+      '2026-07-31',
+      '2026-08-31',
+      '2026-09-17',
+    ]);
+    expect(matrix.rules.find((rule) => rule.code === 'R07')?.cells.at(-1)?.status).toBe('bad');
     await page.clock.setFixedTime(new Date('2026-09-17T08:30:00+02:00'));
-    await page.goto(`${origin}/?monat=2026-09&period=month`);
-    const live = page.getByRole('region', { name: 'Kontoprognose · 35 Tage', exact: true });
-    await expect(live.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '-3500');
-    await expect(live.locator('.heute-forecast-low')).toHaveAttribute('data-day', '2026-10-22');
-    await expect(live.getByTestId('liquidity-lowpoint')).toHaveAttribute('data-cents', '-3500');
-    await expect(live).toContainText('17.09.2026');
-    // Permission is granted by the unchanged authenticated app, never by the smoke.
-    await expect
-      .poll(() => page.evaluate(() => localStorage.getItem('budget-offline-read-epoch')))
-      .not.toBeNull();
-    await expect
-      .poll(async () => (await savedHeute(page))?.data.forecast35d)
-      .toEqual(source.forecast35d);
-    const saved = (await savedHeute(page))!;
-    expect(new URL(saved.key, origin).searchParams.get('month')).toBe('2026-09');
-    expect(new URL(saved.key, origin).searchParams.get('period')).toBe('month');
-    expect(saved.fetchedAt).toBe(Date.parse('2026-09-17T08:30:00+02:00'));
-    expect(saved.epoch).toBeTruthy();
-    await forecastScreenshots(page, 'online');
-    await page.context().setOffline(true);
-    await page.reload();
-    await expect(page.getByRole('heading', { name: 'Budget ist offline' })).toBeVisible();
-    const offline = page.getByRole('region', { name: 'Kontoprognose · 35 Tage', exact: true });
-    await expect(offline).toContainText('−35,00');
-    await expect(offline).toContainText('22.10.2026');
-    await expect(offline).toContainText('17.09.2026');
+    await page.goto(
+      `${origin}${finanzcheckBookmark.replace('/reports/onepager', '/reports/finanzcheck').replace('darstellung=finanzcheck', 'darstellung=bilanz')}`,
+    );
+    await expect(page).toHaveURL(`${origin}${finanzcheckBookmark}`);
+    await expect(page).toHaveTitle('Finanz-Check-Verlauf · Budget');
     await expect(
-      offline
-        .getByRole('list', { name: 'Gespeicherte 35-Tage-Kontoprognose' })
-        .getByRole('listitem'),
-    ).toHaveCount(36);
-    expect((await savedHeute(page))?.fetchedAt).toBe(saved.fetchedAt);
-    await forecastScreenshots(page, 'offline');
-    await page.context().setOffline(false);
+      page.getByRole('heading', { name: 'Finanz-Check-Verlauf', exact: true }),
+    ).toBeVisible();
+    await expectFinanzcheckMatrixFocus(page);
+    const row = page.locator('.fc-table tr[data-rule="R07"]');
+    await expect(row.locator('.ov-strip .ov-cell')).toHaveCount(13);
+    await expect(row).toContainText('verletzt');
+    await expect(row.locator('.ov-cell').first()).toHaveAttribute('title', /Sep 25/);
+    await expect(row.locator('.ov-cell').last()).toHaveAttribute('title', /17\.09\./);
+    const forecast = page.getByRole('region', { name: 'R07 · Kontoprognose', exact: true });
+    await expect(forecast).toContainText('Budgetzeitraum');
+    await expect(forecast).toContainText('Tiefpunkt nicht verfügbar');
+    await expect(forecast).toContainText('Kein Verlauf im gewählten Zeitraum.');
+    await finanzcheckScreenshots(page, 'history');
+    const source = row.getByRole('link', { name: /R07/ });
+    await expect(source).toHaveAttribute(
+      'href',
+      '/einstellungen/regelwerk?monat=2026-08&period=month#rule-result-R07',
+    );
+    await source.click();
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === '/einstellungen/regelwerk' &&
+        url.searchParams.get('monat') === '2026-08' &&
+        url.searchParams.get('period') === 'month' &&
+        url.hash === '#rule-result-R07',
+    );
+    await expect(page.locator('#rule-result-R07')).toBeFocused();
+    await expect(page.locator('#rule-result-R07')).toContainText('Stand 17.09.2026');
+    await finanzcheckScreenshots(page, 'source');
+    await page.goBack();
+    await expect(page).toHaveURL(`${origin}${finanzcheckBookmark}`);
+    await expectFinanzcheckMatrixFocus(page);
     await page.reload();
-    await expect(live.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '-3500');
+    await expect(page).toHaveURL(`${origin}${finanzcheckBookmark}`);
+    await expectFinanzcheckMatrixFocus(page);
+    await expect(row.locator('.ov-strip .ov-cell')).toHaveCount(13);
+    // The past August budget window ends before today; numeric projection belongs to September.
+    await page.goto(`${origin}${finanzcheckBookmark.replace('monat=2026-08', 'monat=2026-09')}`);
+    await expectFinanzcheckMatrixFocus(page);
+    await expect(forecast).toContainText('Budgetzeitraum Monat');
+    await expect(forecast).toContainText('−5,00');
+    await finanzcheckScreenshots(page, 'forecast');
     console.log(
-      'PASS T2: literal day35 low, response-owned IndexedDB source, offline reload and reconnection',
+      'PASS T6: ON alias/context/title, real13-day R07 history, historical-unavailable/current-500 budget window, focused source, Back and reload',
     );
   } finally {
-    await page.context().setOffline(false);
-    // Only this smoke's fixture groups; do not sign out the shared bootstrap session.
-    for (const groupId of groups.reverse()) {
-      const response = await page.request.post(`${origin}/api/undo`, {
-        headers,
-        data: { groupId },
-      });
-      expect(response.ok()).toBe(true);
-    }
+    const undone = await page.request.post(`${origin}/api/undo`, { headers, data: { groupId } });
+    expect(undone.ok()).toBe(true);
     await page.goto(`${origin}${bookmark}`);
   }
 }
@@ -267,6 +445,13 @@ async function forecastParity(page: Page, origin: string) {
 async function smoke() {
   build('off');
   build('on');
+  // CI builds this OFF artifact immediately before Visual/smoke. Local callers must do likewise.
+  const currentE2E = join(root, 'apps/web/dist');
+  if (!existsSync(join(currentE2E, 'index.html')))
+    throw new Error('Build the current OFF e2e artifact before running the redesign smoke.');
+  cpSync(currentE2E, galleryBuilds.off, { recursive: true });
+  build('on', galleryBuilds.on, 'e2e');
+  mkdirSync(galleryOutput, { recursive: true });
   cpSync(builds.off, active, { recursive: true });
   const origin = `http://localhost:${await freePort()}`;
   const revision = randomBytes(20).toString('hex');
@@ -341,16 +526,20 @@ async function smoke() {
           await expectBody(page, origin, false);
           await page.goto(`${origin}${bookmark}`);
           await expectBody(page, origin, false);
+          await finanzcheckOff(page, origin);
           await page.evaluate(async () => navigator.serviceWorker.ready);
           await expect
             .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null))
             .toBe(true);
           await upgrade(page, origin, true);
-          await forecastParity(page, origin);
+          await expectAppHosts(page, origin, true);
+          await finanzcheckProof(page, origin);
           await upgrade(page, origin, false);
           // The clean bookmark remains usable after a complete OFF → ON → OFF installed-PWA cycle.
           await page.goto(`${origin}${bookmark}`);
           await expectBody(page, origin, false);
+          await expectAppHosts(page, origin, false);
+          await finanzcheckOff(page, origin);
           console.log(
             `PASS ${viewport.width}px: OFF overrides denied, real ON/OFF upgrade, session and bookmark retained`,
           );
@@ -358,8 +547,32 @@ async function smoke() {
           await context.close();
         }
       }
+      for (const mode of ['off', 'on'] as const) {
+        cpSync(galleryBuilds[mode], active, { recursive: true });
+        await verifyRedesignGallery(browser, {
+          origin,
+          storageState: storage,
+          mode,
+          outputDir: galleryOutput,
+        });
+      }
     } finally {
       await browser.close();
+    }
+    console.log('Starting WebKit gallery after Chromium cleanup');
+    const phoneBrowser = await webkit.launch();
+    try {
+      for (const mode of ['off', 'on'] as const) {
+        cpSync(galleryBuilds[mode], active, { recursive: true });
+        await verifyRedesignGalleryPhone(phoneBrowser, {
+          origin,
+          storageState: storage,
+          mode,
+          outputDir: galleryOutput,
+        });
+      }
+    } finally {
+      await phoneBrowser.close();
     }
   } finally {
     if (server.exitCode === null && server.signalCode === null && !spawnError) {

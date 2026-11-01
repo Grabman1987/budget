@@ -2,6 +2,12 @@ import { expect, type Locator, type Page, type TestInfo } from '@playwright/test
 
 /** Helpers shared by the ledger and capture specs. */
 
+/**
+ * Touch targets are 44 CSS px. Layout can report 43.99999986 for a 44 px box (observed in CI run
+ * 40686588523, capture.spec.ts), so assert with a 0.1 px tolerance instead of exactly 44.
+ */
+export const MIN_TARGET_PX = 43.9;
+
 /** Phone filters live in a sheet; desktop keeps the inline controls. */
 export async function openLedgerFilters(page: Page) {
   await page.getByLabel('In Buchungen suchen').waitFor({ state: 'visible' });
