@@ -126,3 +126,33 @@ reviewed manifest. OFF build/run logs are
 `/workspace/work/heute-refresh-off-results/`. The committed ON PNGs and manifest,
 source code and tests are unchanged. This remains programmatically simulated
 visibility, not native focus or physical-device acceptance.
+
+## PR #911 smoke selector continuation
+
+CI run `41449199053`, head `80d5ed4`, failed its Visual job specifically in
+`Redesign OFF/ON build and installed-PWA smoke`; the visual specs had passed
+120 cases with 17 skips. Root supplied that CI result; the raw CI log endpoint
+was blocked, so no claim is made to have read its stack. Local execution of the
+unchanged `scripts/dev/redesign-smoke.ts` reproduced exit 1: the click in
+`redesign-t3-proof.ts` timed out after its unchanged 30000 ms while waiting for
+exact accessible name `Quelle der Anlagebasis`. The earlier authorized ARIA
+repair had changed that name. This is a missed test-selector migration, not a
+financial, source-contract or installed-PWA failure.
+
+Per-file rationale: `scripts/dev/redesign-t3-proof.ts` changes only that exact
+link-name selector to `Anlagebasis ansehen · Quelle der Anlagebasis` (plus
+Prettier wrapping). Every literal money, source, context, URL, focus, reload and
+Back assertion and every timeout remains unchanged. Whole-repository source
+search including scripts found this sole missed old-only name selector; other
+hits were the updated component, unit selector and historical documentation.
+
+Actual local RED: `/workspace/work/heute-refresh-smoke-red.log`, exit 1 at the
+old selector. Actual local GREEN after the one-selector migration:
+`/workspace/work/heute-refresh-smoke-green.log`, exit 0 for the entire existing
+smoke, including T2/T3/T6, installed-PWA OFF→ON→OFF at 1440/390, shell checks at
+320, and OFF/ON Chromium/WebKit galleries in both themes. This was one unchanged
+smoke execution after the technical selector adaptation, without looser checks or
+retries. Existing ON/OFF artifacts and raw results were preserved before these
+runs. No committed original screenshot, manifest or application source changed;
+new smoke-generated scratch screenshots are not adopted as H1 evidence or claimed
+as separately inspected originals. Required exact-head CI remains a separate gate.
