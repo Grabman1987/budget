@@ -386,7 +386,10 @@ function PortfolioBody({ register }: { register: PortfolioRegister }) {
         )}
         {register === 'allocation' && <PortfolioAllocation />}
         {register === 'savings' && (
-          <SavingsSection navigationPath="/vermoegen/portfolio/sparplaene" />
+          <SavingsSection
+            navigationPath="/vermoegen/portfolio/sparplaene"
+            art={REDESIGN_ENABLED ? art : 'alle'}
+          />
         )}
         {register === 'metrics' && <PortfolioMetrics />}
       </div>

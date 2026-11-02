@@ -1,3 +1,7 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SavingsExecutions } from './savings-executions';
+import { matchesAsset, type AssetType } from './redesign-filters';
+import { WealthReadStatus } from './redesign-frame';
 import { useAmountPrivacy, Button } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import type { Period } from '@budget/domain';
@@ -15,8 +19,10 @@ import { FundingPlanner } from './funding-plan';
 
 export function SavingsSection({
   navigationPath = '/vermoegen/portfolio',
+  art = 'alle',
 }: {
   navigationPath?: '/vermoegen/portfolio' | '/vermoegen/portfolio/sparplaene';
+  art?: AssetType;
 }) {
   useAmountPrivacy();
   const plans = useQuery(savingsPlansQuery());
@@ -53,7 +59,16 @@ export function SavingsSection({
       });
     });
   const ready = plans.data && accounts.data && instruments.data;
-  const groups = ready ? planGroups(plans.data.plans, accounts.data.asOf) : [];
+  const groups = ready
+    ? planGroups(plans.data.plans, accounts.data.asOf).filter((group) => {
+        const security = instruments.data.securities.find(
+          (item) => item.id === group.latest.securityId,
+        );
+        return (
+          !REDESIGN_ENABLED || art === 'alle' || (!!security && matchesAsset(security.kind, art))
+        );
+      })
+    : [];
   const endedCount = groups.filter(
     (group) => !group.effective.length && !group.future.length,
   ).length;
@@ -216,6 +231,16 @@ export function SavingsSection({
               </Button>
             )}
           </div>
+        </>
+      )}
+      {REDESIGN_ENABLED && (
+        <>
+          <WealthReadStatus
+            fetching={plans.isFetching}
+            paused={plans.isPaused}
+            date={accounts.data ? longDay(accounts.data.asOf) : undefined}
+          />
+          <SavingsExecutions />
         </>
       )}
       <p className="vnote">{BANK_NOTE}</p>

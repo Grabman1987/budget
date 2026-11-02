@@ -1,3 +1,7 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { AllocationStages } from './allocation-stages';
+import { WealthReadStatus, useAssetType } from './redesign-frame';
+import { matchesAsset } from './redesign-filters';
 import { ChartValue } from '@budget/ui';
 import type { Period, RebalanceProposal } from '@budget/domain';
 import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
@@ -16,6 +20,7 @@ import './allocation.css';
 export function PortfolioAllocation() {
   const query = useQuery(allocationQuery());
   const navigate = useNavigate();
+  const art = useAssetType();
   const select = () =>
     void navigate({
       to: '/einstellungen/anlageklassen',
@@ -154,99 +159,115 @@ export function PortfolioAllocation() {
                     : 'Keine positive Bewertungsbasis. Ist-Anteile und Rebalancing sind nicht bestimmbar.'}
               </p>
             )}
+            {REDESIGN_ENABLED && art !== 'alle' && (
+              <p className="vnote">
+                Anlageart filtert die angezeigten Klassen. Ist-Anteile, Ziele und Stufenschwellen
+                behalten das gesamte ausgewählte Netto-Allokationsuniversum einschließlich
+                Verrechnungskassa.
+              </p>
+            )}
             {rows.length === 0 ? (
               <p className="vnote">Noch keine Anlageklassen erfasst.</p>
             ) : (
               <ul className="vallo">
-                {rows.map((row) => {
-                  const actual = known ? row.actual : undefined;
-                  const breach = !provisional && (actual?.breach ?? false);
-                  // Geometry only: target/band/actual arrive from the shared server projection.
-                  const left =
-                    row.targetBp === null || row.bandBp === null
-                      ? 0
-                      : Math.max(0, row.targetBp - row.bandBp);
-                  const right =
-                    row.targetBp === null || row.bandBp === null
-                      ? 0
-                      : Math.min(10_000, row.targetBp + row.bandBp);
-                  return (
-                    <li key={row.key} className={breach ? 'is-out' : ''}>
-                      <span className="va-name">
-                        {row.name}
-                        <small>
-                          {actual
-                            ? `${provisional ? 'Vorläufig · ' : ''}${actual.breach ? 'Außerhalb des Bands · ' : ''}${actual.targetBp === null ? 'Kein Soll festgelegt' : `${actual.side === 'under' ? 'Unter Soll' : actual.side === 'over' ? 'Über Soll' : 'Im Soll'} · Umschichtungsabstand ${eurWhole(Math.abs(actual.gapCents))}`}`
-                            : row.targetBp === null
-                              ? 'Kein Soll festgelegt'
-                              : `Band ±${percentText(row.bandBp)}`}
-                        </small>
-                        {row.assignedSecurities
-                          .filter((s) => !s.held || s.kind === 'other')
-                          .map((s) => (
-                            <small key={s.securityId}>
-                              <AppLink
-                                className="allocation-security-link"
-                                to="/vermoegen/portfolio"
-                                search={(previous) => ({ ...previous, produkt: s.securityId })}
-                              >
-                                {s.name}
-                              </AppLink>
-                              {!s.held && (
-                                <> · {s.isin ?? 'ISIN nicht hinterlegt'} · noch nicht gekauft</>
-                              )}
-                              {s.kind === 'other' && (
-                                <> · Typ „Sonstiges“ prüfen · im Wertpapier bearbeiten</>
-                              )}
-                            </small>
-                          ))}
-                      </span>
-                      <ChartValue
-                        label="Allocation Soll/Ist"
-                        date={view!.asOf}
-                        series={[
-                          {
-                            name: 'Ist',
-                            value: actual ? chartPercent(actual.shareBp) : '–',
-                            color: 'var(--line)',
-                          },
-                          {
-                            name: 'Soll',
-                            value: row.targetBp === null ? '–' : chartPercent(row.targetBp),
-                            color: 'var(--line-2)',
-                          },
-                        ]}
-                      >
-                        <span className="va-track" aria-hidden="true">
-                          {row.targetBp !== null && (
-                            <>
+                {rows
+                  .filter(
+                    (row) =>
+                      !REDESIGN_ENABLED ||
+                      art === 'alle' ||
+                      row.assignedSecurities.some((security) => {
+                        return matchesAsset(security.kind, art);
+                      }),
+                  )
+                  .map((row) => {
+                    const actual = known ? row.actual : undefined;
+                    const breach = !provisional && (actual?.breach ?? false);
+                    // Geometry only: target/band/actual arrive from the shared server projection.
+                    const left =
+                      row.targetBp === null || row.bandBp === null
+                        ? 0
+                        : Math.max(0, row.targetBp - row.bandBp);
+                    const right =
+                      row.targetBp === null || row.bandBp === null
+                        ? 0
+                        : Math.min(10_000, row.targetBp + row.bandBp);
+                    return (
+                      <li key={row.key} className={breach ? 'is-out' : ''}>
+                        <span className="va-name">
+                          {row.name}
+                          <small>
+                            {actual
+                              ? `${provisional ? 'Vorläufig · ' : ''}${actual.breach ? 'Außerhalb des Bands · ' : ''}${actual.targetBp === null ? 'Kein Soll festgelegt' : `${actual.side === 'under' ? 'Unter Soll' : actual.side === 'over' ? 'Über Soll' : 'Im Soll'} · Umschichtungsabstand ${eurWhole(Math.abs(actual.gapCents))}`}`
+                              : row.targetBp === null
+                                ? 'Kein Soll festgelegt'
+                                : `Band ±${percentText(row.bandBp)}`}
+                          </small>
+                          {row.assignedSecurities
+                            .filter((s) => !s.held || s.kind === 'other')
+                            .map((s) => (
+                              <small key={s.securityId}>
+                                <AppLink
+                                  className="allocation-security-link"
+                                  to="/vermoegen/portfolio"
+                                  search={(previous) => ({ ...previous, produkt: s.securityId })}
+                                >
+                                  {s.name}
+                                </AppLink>
+                                {!s.held && (
+                                  <> · {s.isin ?? 'ISIN nicht hinterlegt'} · noch nicht gekauft</>
+                                )}
+                                {s.kind === 'other' && (
+                                  <> · Typ „Sonstiges“ prüfen · im Wertpapier bearbeiten</>
+                                )}
+                              </small>
+                            ))}
+                        </span>
+                        <ChartValue
+                          label="Allocation Soll/Ist"
+                          date={view!.asOf}
+                          series={[
+                            {
+                              name: 'Ist',
+                              value: actual ? chartPercent(actual.shareBp) : '–',
+                              color: 'var(--line)',
+                            },
+                            {
+                              name: 'Soll',
+                              value: row.targetBp === null ? '–' : chartPercent(row.targetBp),
+                              color: 'var(--line-2)',
+                            },
+                          ]}
+                        >
+                          <span className="va-track" aria-hidden="true">
+                            {row.targetBp !== null && (
+                              <>
+                                <i
+                                  className="va-band"
+                                  style={{
+                                    left: `${left / 100}%`,
+                                    width: `${(right - left) / 100}%`,
+                                  }}
+                                />
+                                <i className="va-soll" style={{ left: `${row.targetBp / 100}%` }} />
+                              </>
+                            )}
+                            {actual && (
                               <i
-                                className="va-band"
+                                className="va-ist"
                                 style={{
-                                  left: `${left / 100}%`,
-                                  width: `${(right - left) / 100}%`,
+                                  width: `${Math.max(0, Math.min(100, actual.shareBp / 100))}%`,
                                 }}
                               />
-                              <i className="va-soll" style={{ left: `${row.targetBp / 100}%` }} />
-                            </>
-                          )}
-                          {actual && (
-                            <i
-                              className="va-ist"
-                              style={{
-                                width: `${Math.max(0, Math.min(100, actual.shareBp / 100))}%`,
-                              }}
-                            />
-                          )}
+                            )}
+                          </span>
+                        </ChartValue>
+                        <span className="va-val">
+                          <strong>{percentText(actual?.shareBp ?? null)}</strong>
+                          <small>Soll {percentText(row.targetBp)}</small>
                         </span>
-                      </ChartValue>
-                      <span className="va-val">
-                        <strong>{percentText(actual?.shareBp ?? null)}</strong>
-                        <small>Soll {percentText(row.targetBp)}</small>
-                      </span>
-                    </li>
-                  );
-                })}
+                      </li>
+                    );
+                  })}
               </ul>
             )}
             <div className="allocation-actions">
@@ -257,6 +278,16 @@ export function PortfolioAllocation() {
           </>
         )}
       </section>
+      {REDESIGN_ENABLED && view && (
+        <>
+          <WealthReadStatus
+            fetching={query.isFetching}
+            paused={query.isPaused}
+            date={longDay(view.asOf)}
+          />
+          <AllocationStages view={view} />
+        </>
+      )}
       <section className="vrebal" aria-labelledby="rebalance-title">
         <div className="head">
           <h2 id="rebalance-title">Rebalancing</h2>
