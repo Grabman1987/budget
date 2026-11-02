@@ -8,6 +8,9 @@ import { accountsQuery, lookupsQuery } from './queries';
 import type { ListedBooking } from './types';
 import type { UpcomingModel } from './upcoming-register';
 
+const flags = vi.hoisted(() => ({ REDESIGN_ENABLED: false }));
+vi.mock('../shell/redesign-flag', () => flags);
+
 const patch = vi.hoisted(() => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }));
 vi.mock('./mutations', () => ({ useLedgerWrites: () => ({ patch }) }));
 
@@ -181,3 +184,27 @@ it('retains the projected unavailable marker without showing an unscoped histori
   expect(container.querySelector('.is-upcoming .kx-run')!.textContent).toBe('Saldo offen');
   expect(container.querySelector('[data-booking="history"] .kx-run')!.textContent).toBe('');
 });
+
+it.each([false, true])(
+  'deliberate editing keeps focus and unchanged category blur read-only with redesign %s (#840)',
+  (enabled) => {
+    flags.REDESIGN_ENABLED = enabled;
+    patch.mutate.mockClear();
+    patch.mutateAsync.mockClear();
+    const { container, onOpen } = setup([booking], 'all');
+    expect(container.querySelector('.kbooking-edit-mark') !== null).toBe(enabled);
+    const category = screen.getByRole('button', { name: /^Kategorie ändern/ });
+    category.focus();
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(patch.mutate).not.toHaveBeenCalled();
+    fireEvent.click(category);
+    const select = screen.getByRole('combobox', { name: /^Kategorie für/ });
+    fireEvent.focus(select);
+    fireEvent.blur(select);
+    expect(patch.mutate).not.toHaveBeenCalled();
+    expect(patch.mutateAsync).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /bearbeiten ·/ }));
+    expect(onOpen).toHaveBeenCalledWith(booking);
+    flags.REDESIGN_ENABLED = false;
+  },
+);

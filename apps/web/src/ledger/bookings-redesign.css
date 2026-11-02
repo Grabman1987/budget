@@ -1,0 +1,47 @@
+.bookings-redesign.kview {
+  gap: 16px;
+}
+.bookings-redesign .bookings-redesign-heading {
+  margin-inline-end: auto;
+}
+.bookings-redesign-heading h2 {
+  margin: 0;
+  font-size: var(--fs-headline);
+  line-height: var(--lh-headline);
+}
+.bookings-redesign .kbar {
+  flex-wrap: wrap;
+}
+.bookings-redesign .kfilter {
+  gap: 12px 16px;
+}
+.bookings-redesign .kfilter :is(input, select, button),
+.bookings-redesign :is(.ksort, .kcat-btn, .kname-btn, .kinline-btn, .kstatus-btn, .kflagbtn),
+.bookings-redesign .kregister-actions > summary,
+.bookings-redesign .kstatus-chips .btn {
+  min-height: 44px;
+}
+.bookings-redesign .ktx-all thead th {
+  color: var(--ink-2);
+  border-bottom-color: var(--rule-strong);
+}
+.bookings-redesign .kday td {
+  background: var(--surface-2);
+}
+.bookings-redesign .ktx-all tr[data-booking] > td {
+  border-bottom-color: var(--rule);
+}
+.bookings-redesign .kbooking-edit-mark {
+  margin-inline-start: 6px;
+  color: var(--ink-2);
+  flex-shrink: 0;
+}
+.bookings-redesign :is(button, a, summary):focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+@media (max-width: 767px) {
+  .bookings-redesign .kbooking-edit-mark {
+    display: none;
+  }
+}

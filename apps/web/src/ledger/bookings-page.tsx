@@ -36,7 +36,7 @@ import {
   type BookingsSearch,
 } from './bookings-search';
 import { pickableCategories } from './capture-model';
-import { eur, nativeCurrency, pluralBookings } from './format';
+import { eur, longDay, nativeCurrency, pluralBookings } from './format';
 import { FLAG_LABEL, STATUS_LABEL } from './labels';
 import { useLedgerWrites } from './mutations';
 import { AccountOptions } from './account-options';
@@ -44,6 +44,8 @@ import { accountsQuery, bookingsInfiniteQuery, lookupsQuery } from './queries';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import { LoadOlder } from './load-older';
 import { BookingViews } from './booking-views';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import './bookings-redesign.css';
 import {
   BOOKING_FLAGS,
   BOOKING_STATUSES,
@@ -182,13 +184,21 @@ export function BookingsPage() {
 
   return (
     <PageFrame meta={KONTEN_BUCHUNGEN_META}>
-      <div className="kview">
+      <div
+        className={REDESIGN_ENABLED ? 'kview bookings-redesign' : 'kview'}
+        data-redesign={REDESIGN_ENABLED ? 'bookings' : undefined}
+      >
         {search.ruecksprung && (
           <AppLink className="btn btn-ghost" to={search.ruecksprung}>
             Zurück zur Report-Zelle
           </AppLink>
         )}
         <div className="kbar kbookings-bar">
+          {REDESIGN_ENABLED && (
+            <div className="bookings-redesign-heading">
+              <span className="kmeta">Stand {longDay(today)}</span>
+            </div>
+          )}
           {isPhone && (
             <Button
               variant="ghost"

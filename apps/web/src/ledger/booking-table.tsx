@@ -16,6 +16,7 @@ import { flashRows, useFlashing } from './flash';
 import { useLedgerWrites } from './mutations';
 import { lookupsQuery } from './queries';
 import type { BookingFlag, BookingSort, ListedBooking } from './types';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 export interface Selection {
   selected: ReadonlySet<string>;
@@ -448,6 +449,14 @@ function Row({
                 : { hideNote: true }
               : {})}
           />
+          {REDESIGN_ENABLED && !selectionMode && (
+            <Pencil
+              className="icon kbooking-edit-mark"
+              size={14}
+              strokeWidth={1.75}
+              aria-hidden="true"
+            />
+          )}
         </button>
         {variant === 'account' && !upcomingToday && (
           // Outside the labelled button so the row still reads its category and note; the button
