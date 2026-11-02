@@ -60,16 +60,14 @@ const mount = (onMonth = vi.fn()) =>
 it('ON restores the URL metric/month, shows category groups and retains exact year-end cents', () => {
   const changeMonth = vi.fn();
   mount(changeMonth);
+  expect(screen.getByRole('button', { name: 'Verfügbar' }).getAttribute('aria-pressed')).toBe(
+    'true',
+  );
   expect(
-    screen.getByRole('button', { name: 'Verfügbar', exact: true }).getAttribute('aria-pressed'),
-  ).toBe('true');
-  expect(
-    screen
-      .getAllByRole('button', { name: 'Synthetic group', exact: true })[0]!
-      .getAttribute('aria-expanded'),
+    screen.getAllByRole('button', { name: 'Synthetic group' })[0]!.getAttribute('aria-expanded'),
   ).toBe('true');
   expect(screen.getAllByText('150,01 €').length).toBeGreaterThan(0);
-  fireEvent.click(screen.getByRole('button', { name: 'Aktivität', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Aktivität' }));
   const navigation = state.navigate.mock.calls[0]![0] as {
     search: (previous: Record<string, unknown>) => Record<string, unknown>;
   };
@@ -87,15 +85,13 @@ it('ON restores the URL metric/month, shows category groups and retains exact ye
 it('OFF retains the assigned metric and collapsed groups without a URL write', () => {
   state.enabled = false;
   mount();
+  expect(screen.getByRole('button', { name: 'Zugewiesen' }).getAttribute('aria-pressed')).toBe(
+    'true',
+  );
   expect(
-    screen.getByRole('button', { name: 'Zugewiesen', exact: true }).getAttribute('aria-pressed'),
-  ).toBe('true');
-  expect(
-    screen
-      .getAllByRole('button', { name: 'Synthetic group', exact: true })[0]!
-      .getAttribute('aria-expanded'),
+    screen.getAllByRole('button', { name: 'Synthetic group' })[0]!.getAttribute('aria-expanded'),
   ).toBe('false');
-  fireEvent.click(screen.getByRole('button', { name: 'Aktivität', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Aktivität' }));
   expect(state.navigate).not.toHaveBeenCalled();
 });
 
