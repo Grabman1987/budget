@@ -410,8 +410,9 @@ test('the dialog is a centred card on the desktop and a sheet on the phone with 
     expect(box!.width).toBeGreaterThanOrEqual(viewport.width - 1);
     expect(box!.y + box!.height).toBeGreaterThanOrEqual(viewport.height - 1);
   } else {
-    // #583: centred wide two-column card of 960 px, with a gap to every edge.
-    expect(Math.round(box!.width)).toBe(960);
+    // The redesigned two-column card is wider; both builds keep a gap to every edge.
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    expect(Math.round(box!.width)).toBe(redesign ? 1040 : 960);
     expect(Math.abs(box!.x + box!.width / 2 - viewport.width / 2)).toBeLessThan(2);
     expect(box!.y).toBeGreaterThan(8);
     expect(box!.x + box!.width).toBeLessThan(viewport.width);
@@ -660,7 +661,7 @@ test('visible growing note, direct split and responsive account note column', as
   await panel.getByLabel('Betrag', { exact: true }).fill('5');
   await panel.getByLabel('Empfänger').fill(payee);
   await pickCategory(panel, `Cap A ${tag}`);
-  await page.screenshot({ path: `docs/evidence/capture-note-split/dialog-${tag}.png` });
+  await page.screenshot({ path: testInfo.outputPath(`dialog-${tag}.png`) });
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(panel).toBeHidden({ timeout: 30_000 });
   const row = page.getByRole('row', { name: new RegExp(payee) });
@@ -684,7 +685,7 @@ test('visible growing note, direct split and responsive account note column', as
     ),
   ).toBe(true);
   await row.scrollIntoViewIfNeeded();
-  await page.screenshot({ path: `docs/evidence/capture-note-split/register-${tag}.png` });
+  await page.screenshot({ path: testInfo.outputPath(`register-${tag}.png`) });
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   await expect(
     page.getByRole('dialog', { name: 'Buchung bearbeiten' }).getByLabel('Notiz'),

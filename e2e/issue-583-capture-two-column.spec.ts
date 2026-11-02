@@ -79,12 +79,16 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
     }
 
     await page.screenshot({
-      path: `docs/evidence/issue-583-capture-two-column/${scenario}-desktop.png`,
+      path: info.outputPath(`${scenario}-desktop.png`),
     });
     const box = async (locator: Locator) => (await locator.boundingBox())!;
     const dialogBox = await box(dialog);
-    expect(dialogBox.width).toBeGreaterThanOrEqual(940);
-    expect(dialogBox.width).toBeLessThanOrEqual(962);
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    if (redesign) expect(dialogBox.width).toBe(1040);
+    else {
+      expect(dialogBox.width).toBeGreaterThanOrEqual(940);
+      expect(dialogBox.width).toBeLessThanOrEqual(962);
+    }
     const [betrag, empfaenger, konto, datum, wiederholen, notiz, kategorie] = await Promise.all(
       [
         amount,
@@ -216,7 +220,7 @@ test('at most three suggestions in one line without overflow; Mehr and Notiz', a
   }
   if (desktop(info))
     await page.screenshot({
-      path: `docs/evidence/issue-583-capture-two-column/capture-${info.project.name}.png`,
+      path: info.outputPath(`capture-${info.project.name}.png`),
     });
 });
 
