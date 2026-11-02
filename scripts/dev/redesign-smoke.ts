@@ -10,6 +10,8 @@ import { bootstrapPasskey } from '../../e2e/bootstrap';
 import { E2E_SETUP_TOKEN } from '../../e2e/setup-token';
 import { verifyRedesignGallery, verifyRedesignGalleryPhone } from './redesign-s2-proof';
 import { verifyRedesignShell } from './redesign-s3-proof';
+import { verifyT2Forecast } from './redesign-t2-proof';
+import { verifyT3InvestmentBasis } from './redesign-t3-proof';
 import type { HistoryMatrix } from '@budget/domain';
 
 const root = resolve(import.meta.dirname, '../..');
@@ -536,6 +538,8 @@ async function smoke() {
           await expectAppHosts(page, origin, true);
           await verifyRedesignShell(page, origin, true, join(root, 'test-results/redesign-s3'));
           await finanzcheckProof(page, origin);
+          await verifyT2Forecast(page, origin, bookmark);
+          await verifyT3InvestmentBasis(page, origin, bookmark);
           await upgrade(page, origin, false);
           // The clean bookmark remains usable after a complete OFF → ON → OFF installed-PWA cycle.
           await page.goto(`${origin}${bookmark}`);

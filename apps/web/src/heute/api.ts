@@ -1,4 +1,5 @@
 import type { AccountReviewStatus, PlannedEventOccurrence, LiquidityReport } from '@budget/domain';
+import type { freedomInvestmentBasis } from '@budget/db';
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -57,6 +58,10 @@ export type HeuteForecast35d = {
 } & ({ available: boolean; report: HeuteForecastReport | null } | HeuteUnavailable);
 
 export interface Heute extends WithValuationNotes {
+  /** Selected signed basis; separate from the positive investment assets in netWorth. */
+  investmentBasis?: { asOf: string } & (
+    ReturnType<typeof freedomInvestmentBasis> | HeuteUnavailable
+  );
   /** Optional for saved responses from before the canonical compact-forecast contract. */
   forecast35d?: HeuteForecast35d;
   valuationSources?: ValuationSource[];

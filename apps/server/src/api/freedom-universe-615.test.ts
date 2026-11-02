@@ -45,10 +45,16 @@ async function expectReads(valueCents: number, progressBp: number) {
   for (const date of [day, historical]) {
     asOf = date;
     const before = opened.sqlite.prepare('SELECT total_changes() AS n').get();
+    const bytes = opened.sqlite.serialize();
     for (let repeat = 0; repeat < 2; repeat++) {
       const freedom = await call('GET', '/wealth/freedom');
       const allocation = await call('GET', '/portfolio/allocation');
       const rules = await call('GET', '/rules');
+      const heute = await call('GET', '/heute');
+      expect(heute.status).toBe(200);
+      expect(await heute.json()).toMatchObject({
+        investmentBasis: { asOf: date, investedCents: valueCents },
+      });
       expect([freedom.status, allocation.status, rules.status]).toEqual([200, 200, 200]);
       expect((await freedom.json()) as FreedomView).toMatchObject({
         asOf: date,
@@ -69,6 +75,7 @@ async function expectReads(valueCents: number, progressBp: number) {
       });
     }
     expect(opened.sqlite.prepare('SELECT total_changes() AS n').get()).toEqual(before);
+    expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
   }
   asOf = day;
   const check = await call('GET', '/rules/check');
