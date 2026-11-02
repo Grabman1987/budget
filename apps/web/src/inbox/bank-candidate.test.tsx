@@ -5,7 +5,11 @@ import { ToastProvider } from '@budget/ui';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { BankCandidate } from './bank-candidate';
 
+const flags = vi.hoisted(() => ({ REDESIGN_ENABLED: false }));
+vi.mock('../shell/redesign-flag', () => flags);
+
 beforeEach(() => {
+  flags.REDESIGN_ENABLED = false;
   vi.stubGlobal('matchMedia', (media: string) => ({
     matches: false,
     media,
@@ -121,3 +125,63 @@ it('prepares no suggestion while the match check is still loading, then prefers 
   expect(seen).not.toContain('rule');
   client.clear();
 });
+
+it.each([
+  ['unique rule', 1, false, true],
+  ['ambiguous rules', 2, false, false],
+  ['possible transfer', 1, true, false],
+] as const)(
+  'prepares safe shortcut metadata only after complete checks: %s (#842)',
+  async (_name, ruleCount, transfer, expected) => {
+    flags.REDESIGN_ENABLED = true;
+    vi.stubGlobal('fetch', async (input: string) =>
+      Response.json(
+        input.includes('/matches')
+          ? {
+              merge: [],
+              link: [],
+              transfers: transfer
+                ? [
+                    {
+                      id: 'transfer-1',
+                      date: '2026-09-17',
+                      accountName: 'Synthetic other',
+                      memo: null,
+                      amountCents: 1201,
+                    },
+                  ]
+                : [],
+            }
+          : input.includes('/candidates/')
+            ? {
+                suggestions: Array.from({ length: ruleCount }, (_, index) => ({
+                  id: `rule-${index}`,
+                  name: `Synthetic rule ${index}`,
+                  revision: 'b'.repeat(64),
+                  automatic: true,
+                  unavailable: null,
+                  actions: { categoryId: 'category-1' },
+                })),
+                cleanup: { cleaned: 'Synthetic shop', payeeId: null },
+                candidateRevision: 'a'.repeat(64),
+              }
+            : { categories: [], incomeTypes: [], payees: [], accounts: [] },
+      ),
+    );
+    const prepared = vi.fn();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <BankCandidate id="safe-candidate" onPrepared={prepared} />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
+    await waitFor(() =>
+      expect(prepared.mock.calls.some(([suggestion]) => suggestion?.action === 'rule')).toBe(true),
+    );
+    expect(prepared.mock.calls.at(-1)?.[0].bulkSafe).toBe(expected);
+    client.clear();
+  },
+);

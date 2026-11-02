@@ -9,6 +9,7 @@ import { LEDGER_KEY, lookupsQuery, payeesQuery } from '../ledger/queries';
 import { candidateAssignmentQuery } from '../assignment/api';
 import { AssignmentSummary } from '../assignment/review';
 import { ErrorNote, LoadingNote } from '../ledger/states';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import '../pages/data-sources.css';
 import '../assignment/assignment.css';
 
@@ -22,7 +23,7 @@ type Match = {
 const NO_MATCHES: Match[] = [];
 export type PreparedBankSuggestion = (
   { action: 'rule'; ruleId: string; revision: string } | { action: 'merge'; bookingId: string }
-) & { candidateRevision?: string; label: string };
+) & { candidateRevision?: string; label: string; bulkSafe?: boolean };
 type PreparedCallback = (suggestion: PreparedBankSuggestion | undefined) => void;
 
 export function BankReview({
@@ -163,6 +164,14 @@ function BankCandidateForm({
   const recipient = payeeId ?? review.data?.cleanup.payeeId ?? '';
   const mergeRows = [...(matches.data?.merge ?? []), ...(matches.data?.link ?? [])];
   const merge = mergeRows.find((row) => row.id === mergeId) ?? mergeRows[0];
+  const bulkSafe = Boolean(
+    rule?.automatic &&
+    review.data?.suggestions.filter((row) => row.automatic && !row.unavailable).length === 1 &&
+    mergeRows.length === 0 &&
+    Array.isArray(matches.data?.merge) &&
+    Array.isArray(matches.data?.transfers) &&
+    matches.data.transfers.length === 0,
+  );
   useEffect(() => {
     const candidateRevision = review.data?.candidateRevision;
     onPrepared(
@@ -187,6 +196,9 @@ function BankCandidateForm({
                 revision: rule.revision,
                 candidateRevision,
                 label: rule.name,
+                // Presentation-only eligibility for the stricter redesign shortcut. Existing
+                // individual/selected actions keep their current checks and payloads.
+                ...(REDESIGN_ENABLED ? { bulkSafe } : {}),
               }
             : undefined,
     );
@@ -201,6 +213,7 @@ function BankCandidateForm({
     rule,
     categoryId,
     payeeId,
+    bulkSafe,
   ]);
   return (
     <form className="bkform bank-candidate-dialog" onSubmit={(event) => event.preventDefault()}>

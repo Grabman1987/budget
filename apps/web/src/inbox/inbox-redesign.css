@@ -1,0 +1,40 @@
+.inbox-redesign {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+}
+.inbox-redesign .inbox-source-date {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.inbox-redesign .inbox-segments {
+  justify-self: start;
+  width: min(100%, 440px);
+}
+.inbox-redesign .inbox-filters {
+  flex-wrap: wrap;
+}
+.inbox-redesign :is(.btn, .seg button, summary) {
+  min-height: 44px;
+  min-width: 44px;
+}
+.inbox-redesign .rev-table {
+  border-color: var(--rule);
+  background: var(--surface);
+}
+.inbox-redesign .rev-row {
+  border-color: var(--rule);
+}
+.inbox-redesign :is(button, a, summary):focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+@media (max-width: 767px) {
+  .inbox-redesign .inbox-segments {
+    width: 100%;
+  }
+  .inbox-redesign .bank-bulk-actions {
+    gap: 8px;
+  }
+}

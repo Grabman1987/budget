@@ -37,6 +37,8 @@ import type { ListedBooking } from '../ledger/types';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import './inbox-redesign.css';
 import {
   inboxPagesQuery,
   inboxDetailQuery,
@@ -237,7 +239,13 @@ export function InboxWorkflow({
   );
   return (
     <>
-      {body}
+      {REDESIGN_ENABLED ? (
+        <div className="inbox-redesign" data-redesign="inbox">
+          {body}
+        </div>
+      ) : (
+        body
+      )}
       <BookingPanel
         state={editing ? { mode: 'edit', booking: editing } : null}
         onClose={() => {
@@ -524,6 +532,9 @@ function PaginatedInboxBodyContent({
     taskSource === 'plan' || taskSource === 'payslips' || taskSource === 'other';
   return (
     <>
+      {REDESIGN_ENABLED && firstPage && (
+        <p className="inbox-source-date">Stand {longDay(firstPage.asOf)}</p>
+      )}
       {segmentCounts && (
         <Segmented<InboxSegment>
           className="inbox-segments"
@@ -743,9 +754,16 @@ function InboxBodyContent({
   const [shown, setShown] = useState(INBOX_PAGE_SIZE);
   const [expandedTitle, setExpandedTitle] = useState<string | null>(null);
   const [selectedBank, setSelectedBank] = useState<Set<string>>(new Set());
-  const preparedBank = useRef(new Map<string, PreparedBankSuggestion | undefined>());
+  const [preparedBank, setPreparedBank] = useState(
+    new Map<string, PreparedBankSuggestion | undefined>(),
+  );
   const prepareBank = useCallback((id: string, suggestion: PreparedBankSuggestion | undefined) => {
-    preparedBank.current.set(id, suggestion);
+    setPreparedBank((previous) => {
+      if (JSON.stringify(previous.get(id)) === JSON.stringify(suggestion)) return previous;
+      const next = new Map(previous);
+      next.set(id, suggestion);
+      return next;
+    });
   }, []);
   const resolve = async (item: InboxStored) => {
     if (busy) return;
@@ -843,7 +861,7 @@ function InboxBodyContent({
               rows={entries.filter(isBankInboxRow)}
               selected={selectedBank}
               onSelect={setSelectedBank}
-              prepared={(id) => preparedBank.current.get(id)}
+              prepared={(id) => preparedBank.get(id)}
               sourceId={search.bankSource}
             />
           )}
