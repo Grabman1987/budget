@@ -9,11 +9,11 @@ import { expect, sampleTest as test } from './sample';
  * no position numbers in the rows. Read-only on the shared sample ledger (responses are faked).
  */
 
-const EVIDENCE = 'docs/evidence/issue-587-plan-monat-kopf';
+const monthRead = /\/api\/budget\/2026-09(?:\?previewBasis=1)?$/;
 
 /** Fakes only the "Zu verteilen" figure of the month; nothing is written. */
 async function withToBeAssigned(page: Page, cents: number) {
-  await page.route('**/api/budget/2026-09', async (route) => {
+  await page.route(monthRead, async (route) => {
     const response = await route.fetch();
     const body = (await response.json()) as BudgetMonthView;
     body.summary.toBeAssignedCents = cents;
@@ -48,7 +48,7 @@ test('"Zu verteilen" is green when positive, red only when negative, neutral at 
   await expect(send).toBeEnabled();
   await expect(hint).toHaveCount(0);
 
-  await page.unroute('**/api/budget/2026-09');
+  await page.unroute(monthRead);
   await withToBeAssigned(page, -5_000);
   await page.reload();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('−50,00 €');
@@ -57,7 +57,7 @@ test('"Zu verteilen" is green when positive, red only when negative, neutral at 
   await expect(hint).toHaveText('Zu viel zugewiesen');
   await expect(send).toHaveAccessibleDescription('Zu viel zugewiesen');
 
-  await page.unroute('**/api/budget/2026-09');
+  await page.unroute(monthRead);
   await withToBeAssigned(page, 0);
   await page.reload();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('0,00 €');
@@ -126,7 +126,7 @@ for (const scheme of ['light', 'dark'] as const) {
       }
     }
     if (info.project.name === 'desktop') {
-      await page.screenshot({ path: `${EVIDENCE}/plan-head-${scheme}.png` });
+      await page.screenshot({ path: info.outputPath(`plan-head-${scheme}.png`) });
     }
   });
 }
@@ -152,7 +152,7 @@ test('no overspending chip in the head; the cover actions open from the Zu verte
   await expect(page.locator('#cover-all-source')).toBeHidden();
 });
 
-test('"Zu verteilen" is the largest figure of the Plan head, in the DS2 display size', async ({
+test('"Zu verteilen" is the largest figure of the Plan head, using its display token', async ({
   page,
 }) => {
   await page.goto('/plan/monat?monat=2026-09');
@@ -176,7 +176,13 @@ test('"Zu verteilen" is the largest figure of the Plan head, in the DS2 display 
       compared: others.length,
       hero: px(hero),
       display: parseFloat(
-        getComputedStyle(document.documentElement).getPropertyValue('--fs-display'),
+        getComputedStyle(document.documentElement).getPropertyValue(
+          document.querySelector('.app')?.getAttribute('data-budget-redesign') === '1'
+            ? innerWidth < 768
+              ? '--fs-figure'
+              : '--fs-dimension'
+            : '--fs-display',
+        ),
       ),
       largestOther: Math.max(...others),
     };

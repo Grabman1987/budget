@@ -13,7 +13,7 @@ test('591 no-selection overview preserves cents, canonical target shortfalls and
       sessionStorage.setItem('591-initialized', '1');
     }
   });
-  await page.route('**/api/budget/2026-10', async (route) => {
+  await page.route(/\/api\/budget\/2026-10(?:\?previewBasis=1)?$/, async (route) => {
     const response = await route.fetch();
     const view = (await response.json()) as BudgetMonthView;
     view.summary.envelopes = view.summary.envelopes.map((row, index) => ({
