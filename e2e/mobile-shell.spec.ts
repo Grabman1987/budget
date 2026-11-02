@@ -102,7 +102,7 @@ test.describe('UX-3a phone shell', () => {
         await expect(settings).toBeVisible();
         await page.screenshot({ path: info.outputPath(`profile-${PAGES.indexOf(path)}.png`) });
         await settings.tap();
-        await expect(page).toHaveURL(redesign ? /\/einstellungen\/profil$/ : /\/einstellungen$/);
+        await expect(page).toHaveURL(/\/einstellungen$/);
         if (redesign) await expect(page.locator('.m-profile')).toHaveCount(0);
         else await expect(page.locator('.m-profile')).not.toHaveAttribute('open');
       }

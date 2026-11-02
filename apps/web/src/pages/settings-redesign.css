@@ -1,0 +1,248 @@
+/* Settings v2: the reference's compact head, working rail, row lists and forms. OFF is untouched. */
+[data-budget-redesign='1']:has(.settings-redesign) .sheet {
+  padding: 12px 28px 40px;
+  row-gap: 12px;
+}
+[data-budget-redesign='1']:has(.settings-redesign) .topbar {
+  border-bottom: 0;
+  background: transparent;
+}
+[data-budget-redesign='1']:has(.settings-redesign) .topbar-inner {
+  padding: 0 28px;
+  gap: 12px;
+}
+[data-budget-redesign='1']:has(.settings-redesign) .settings-shell-title {
+  margin: 0;
+  font-size: var(--fs-headline);
+  font-weight: 650;
+}
+[data-budget-redesign='1']:has(.settings-redesign) .topbar .search {
+  margin-left: auto;
+  max-width: 200px;
+}
+[data-budget-redesign='1']:has(.settings-redesign) .topbar .topbar-actions {
+  margin-left: 0;
+}
+[data-budget-redesign='1']:has(.settings-redesign) .brand-name {
+  font-size: var(--fs-headline);
+  text-transform: uppercase;
+}
+[data-budget-redesign='1']:has(.settings-redesign) .sheetlist-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.settings-redesign .settings-body {
+  gap: 12px;
+}
+.settings-redesign :is(.head, .settings-primary-head) {
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.settings-redesign .settings-primary-head > h2,
+.settings-redesign > h2,
+.settings-redesign .settings-body > section > .head > h2 {
+  margin: 0;
+  font-size: var(--fs-headline);
+  font-weight: 650;
+}
+.settings-redesign :is(.btn, .icon-btn, select, input:not([type='checkbox'])) {
+  min-height: var(--touch);
+}
+.settings-redesign .settings-source-stamp {
+  margin: 0;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+.settings-redesign .settings-advanced {
+  margin-top: 8px;
+  color: var(--ink-2);
+}
+.settings-redesign .settings-advanced > summary {
+  min-height: var(--touch);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+}
+.settings-redesign .settings-advanced[open] > summary {
+  margin-bottom: 12px;
+}
+.settings-redesign .settings-advanced > :not(summary) {
+  color: var(--ink);
+}
+.settings-redesign .settings-surface {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.settings-redesign .settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  min-height: 56px;
+  padding: 6px 16px;
+}
+.settings-redesign .settings-row + .settings-row {
+  border-top: 1px solid var(--rule);
+}
+.settings-redesign .settings-row strong {
+  font-size: var(--fs-table);
+  font-weight: 600;
+}
+.settings-redesign .settings-row small {
+  display: block;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.settings-redesign .settings-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.settings-redesign .settings-section-title {
+  margin: 8px 0 0;
+  font-size: var(--fs-table);
+  font-weight: 650;
+}
+.settings-redesign .settings-group-index {
+  gap: 0;
+}
+.settings-redesign .settings-group-index > ul {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+.settings-redesign .settings-group-index > ul > li {
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+}
+.settings-redesign .settings-group-index > ul > li > a {
+  min-height: 64px;
+  padding: 8px 0;
+  gap: 10px;
+  border-radius: 0;
+}
+.settings-redesign .settings-group-index strong {
+  display: block;
+  font-weight: 600;
+}
+.settings-redesign .settings-group-index small {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+.settings-redesign .settings-index-back {
+  min-height: var(--touch);
+  padding: 0;
+}
+.settings-redesign .settings-back {
+  margin: 0;
+}
+.settings-redesign .settings-nav-rail {
+  scrollbar-gutter: auto;
+  max-height: calc(100dvh - 88px);
+}
+.settings-redesign .settings-nav-rail .settings-group-label {
+  font-size: var(--fs-table);
+}
+.settings-redesign .settings-nav-rail a {
+  font-size: var(--fs-meta);
+}
+@media (max-width: 767px) {
+  [data-budget-redesign='1']:has(.settings-redesign) .sheet {
+    padding: 0 16px 96px;
+  }
+  .settings-redesign .settings-body {
+    gap: 12px;
+  }
+  .settings-redesign .settings-back {
+    gap: 8px;
+    min-height: 44px;
+  }
+  .settings-redesign .settings-here {
+    display: none;
+  }
+  .settings-redesign .settings-row {
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  .settings-redesign .settings-primary-head > h2 {
+    font-size: var(--fs-title);
+  }
+}
+
+.settings-redesign .settings-row-menu > summary::before {
+  display: none;
+}
+@media (max-width: 767px) {
+  .settings-redesign .profile-settings > .head:has(#profile-title) {
+    display: none;
+  }
+  [data-budget-redesign='1']:has(.settings-redesign) .m-status {
+    display: none;
+  }
+  [data-budget-redesign='1']:has(.settings-redesign) .fab {
+    display: none;
+  }
+}
+
+.settings-redesign .settings-compact-form {
+  display: grid;
+  gap: 12px;
+  max-width: none;
+}
+.settings-redesign .settings-form-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(160px, 320px);
+  gap: 12px 20px;
+  align-items: center;
+  min-height: 60px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.settings-redesign .settings-form-row label {
+  font-size: var(--fs-table);
+  font-weight: 600;
+}
+.settings-redesign .settings-form-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.settings-redesign .settings-benchmarks-v2 .benchmark-choices {
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  margin: 12px 0;
+}
+.settings-redesign .settings-benchmarks-v2 .benchmark-choices label {
+  min-height: var(--touch);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 16px;
+}
+@media (max-width: 767px) {
+  .settings-redesign .settings-form-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}

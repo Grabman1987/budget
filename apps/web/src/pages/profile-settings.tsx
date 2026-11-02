@@ -64,6 +64,22 @@ type Errors = Partial<Record<'birthDate' | 'household', string>>;
 /** Einstellungen › Profil: who the owner is, for the later comparison with Statistik Austria. */
 export function ProfileSettingsPage() {
   useAmountPrivacy();
+  if (REDESIGN_ENABLED)
+    return (
+      <PageFrame meta={PROFILE_META}>
+        <ProfilePanel />
+        <details className="settings-advanced">
+          <summary>Darstellung & Datenschutz</summary>
+          <section className="profile-settings" aria-labelledby="privacy-title">
+            <SectionHead id="privacy-title" title="Privatmodus" />
+            <PrivacyButton text />
+            <p>Beträge auf diesem Gerät verbergen · Strg Umschalt H.</p>
+          </section>
+          <FuturePreviewSetting />
+          <FuturePreviewSetting reminder />
+        </details>
+      </PageFrame>
+    );
   return (
     <PageFrame meta={PROFILE_META} revealCurrentRegister>
       {REDESIGN_ENABLED && <ProfilePanel />}
@@ -88,11 +104,14 @@ export function ProfilePanel() {
   return (
     <section className="profile-settings" aria-labelledby="profile-title">
       <SectionHead id="profile-title" title="Profil" />
-      <p className="profile-purpose">
-        Wofür? Die App soll später dein Einkommen und Vermögen mit den Zahlen der Statistik Austria
-        vergleichen: nach Alter, Haushaltsgröße und Bundesland. Alle Angaben sind freiwillig und
-        bleiben in deiner Datenbank. Name und Kürzel erscheinen in der Seitenleiste.
-      </p>
+      {!REDESIGN_ENABLED && (
+        <p className="profile-purpose">
+          Wofür? Die App soll später dein Einkommen und Vermögen mit den Zahlen der Statistik
+          Austria vergleichen: nach Alter, Haushaltsgröße und Bundesland. Alle Angaben sind
+          freiwillig und bleiben in deiner Datenbank. Name und Kürzel erscheinen in der
+          Seitenleiste.
+        </p>
+      )}
       {query.isPending && <p role="status">Lädt …</p>}
       {query.isError && (
         <p className="field-error" role="alert">
@@ -102,19 +121,28 @@ export function ProfilePanel() {
           </Button>
         </p>
       )}
-      {REDESIGN_ENABLED && query.dataUpdatedAt > 0 && (
-        <p className="text-muted">
-          Profil geladen:{' '}
-          {new Intl.DateTimeFormat('de-AT', { dateStyle: 'medium', timeStyle: 'short' }).format(
-            query.dataUpdatedAt,
-          )}
-        </p>
-      )}
       {query.data && (
         <ProfileForm
           key={REDESIGN_ENABLED ? 'profile' : JSON.stringify(query.data)}
           saved={query.data}
         />
+      )}
+      {REDESIGN_ENABLED && (
+        <details className="settings-advanced">
+          <summary>Wofür werden die Profilangaben verwendet?</summary>
+          <p>
+            Die Angaben sind freiwillig. Alter, Haushaltsgröße und Bundesland dienen dem Vergleich
+            mit Statistik Austria. Name und Kürzel erscheinen in der Seitenleiste.
+          </p>
+        </details>
+      )}
+      {REDESIGN_ENABLED && query.dataUpdatedAt > 0 && (
+        <p className="settings-source-stamp">
+          Profil geladen:{' '}
+          {new Intl.DateTimeFormat('de-AT', { dateStyle: 'medium', timeStyle: 'short' }).format(
+            query.dataUpdatedAt,
+          )}
+        </p>
       )}
     </section>
   );

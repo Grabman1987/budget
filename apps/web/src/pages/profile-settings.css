@@ -27,6 +27,54 @@
   border-radius: var(--radius-sheet);
   background: var(--surface);
 }
+.settings-redesign .profile-settings {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.settings-redesign .profile-settings form {
+  max-width: none;
+}
+.settings-redesign .profile-grid {
+  display: block;
+  margin: 0 0 12px;
+}
+.settings-redesign .profile-grid > .field-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(160px, 320px);
+  gap: 6px 20px;
+  align-items: center;
+  min-height: 60px;
+  margin: 0;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.settings-redesign .profile-grid .field-row > label {
+  font-size: var(--fs-table);
+  font-weight: 600;
+}
+.settings-redesign .profile-grid .field-hint {
+  display: none;
+}
+.settings-redesign .profile-grid .field-error {
+  grid-column: 1 / -1;
+}
+@media (max-width: 767px) {
+  .settings-redesign #profile-title {
+    display: none;
+  }
+  .settings-redesign .profile-grid > .field-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+    padding: 6px 0;
+  }
+  .settings-redesign .profile-grid .field-row > label {
+    font-size: var(--fs-meta);
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+}
 [data-budget-redesign='1'] .profile-actions {
   display: flex;
   flex-wrap: wrap;

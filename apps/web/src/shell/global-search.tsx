@@ -123,9 +123,11 @@ function destination(result: PaletteItem, source: URL) {
 /** Header entry point; opening and typing never change the underlying page. */
 export function GlobalSearch({
   mobile = false,
+  compact = false,
   onOpenChange,
 }: {
   mobile?: boolean;
+  compact?: boolean;
   onOpenChange?: ((open: boolean) => void) | undefined;
 }) {
   const router = useRouter();
@@ -181,17 +183,21 @@ export function GlobalSearch({
         id={mobile ? 'global-search-mobile' : 'global-search'}
         type="button"
         className={mobile ? 'icon-btn global-search-trigger' : 'search global-search-launch'}
-        aria-label={mobile ? 'Suchen' : undefined}
+        aria-label={
+          mobile ? 'Suchen' : compact ? 'Suchen: Seiten, Reports, Buchungen, Aktionen' : undefined
+        }
         aria-keyshortcuts="Control+k Meta+k"
         onClick={() => open()}
       >
         <Search className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
         {!mobile && (
           <>
-            <span>Suchen: Seiten, Reports, Buchungen, Aktionen</span>
-            <span className="kbd" aria-hidden="true">
-              Strg K
-            </span>
+            <span>{compact ? 'Suchen' : 'Suchen: Seiten, Reports, Buchungen, Aktionen'}</span>
+            {!compact && (
+              <span className="kbd" aria-hidden="true">
+                Strg K
+              </span>
+            )}
           </>
         )}
       </button>

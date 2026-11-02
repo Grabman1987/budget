@@ -4,6 +4,8 @@ import { PanelLink } from './panel-link';
 import { InboxHeaderLink } from '../inbox/navigation';
 import { useInboxCount } from './inbox';
 import { PrivacyButton } from './privacy-button';
+import { useLocation } from '@tanstack/react-router';
+import { REDESIGN_ENABLED } from './redesign-flag';
 
 /**
  * Desktop top bar. The bar spans the window, its content (`.topbar-inner`) is as wide as the page
@@ -22,9 +24,12 @@ export function Topbar({
   onSearchChange?: (open: boolean) => void;
 }) {
   const inbox = useInboxCount();
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const settings = REDESIGN_ENABLED && pathname.startsWith('/einstellungen');
   return (
     <header className="topbar">
       <div className="topbar-inner">
+        {settings && <h1 className="settings-shell-title">Einstellungen</h1>}
         <button
           type="button"
           className="icon-btn"
@@ -35,7 +40,7 @@ export function Topbar({
         >
           <PanelLeft size={16} strokeWidth={1.75} aria-hidden="true" />
         </button>
-        <GlobalSearch onOpenChange={onSearchChange} />
+        <GlobalSearch compact={settings} onOpenChange={onSearchChange} />
         <div className="topbar-actions">
           <PrivacyButton />
           <InboxHeaderLink className="review-pill" aria-label={inbox.label}>

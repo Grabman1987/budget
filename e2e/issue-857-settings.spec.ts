@@ -40,6 +40,7 @@ test('E1 keeps profile fields, dirty decisions, stale drafts and source returns'
   await name.fill('Synthetic profile');
   await form.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByText('Profil gespeichert.', { exact: true })).toBeVisible();
+  await page.getByText('Darstellung & Datenschutz', { exact: true }).click();
   const preview = page.getByLabel('Zukunftsvorschau (Tage)');
   await preview.fill('21');
   page.once('dialog', (dialog) => dialog.dismiss());

@@ -20,6 +20,11 @@ import { REDESIGN_ENABLED } from './redesign-flag';
  */
 export function phoneTitle(page: PageMeta | undefined, fallback: string): string {
   if (!page) return fallback;
+  if (REDESIGN_ENABLED && page.area === 'einstellungen' && page.register)
+    return (
+      areaById('einstellungen').registers.find((item) => item.id === page.register)?.label ??
+      page.title
+    );
   if (page.area === 'reports') {
     return page.title === 'Reports' || page.title.startsWith('Reports · ') ? 'Reports' : page.title;
   }
@@ -83,7 +88,7 @@ export function MobileHeader({
               <ThemeButton variant="side" />
               <AppLink
                 className="btn btn-ghost"
-                to={REDESIGN_ENABLED ? '/einstellungen/profil' : '/einstellungen'}
+                to="/einstellungen"
                 onClick={(event) => event.currentTarget.closest('details')?.removeAttribute('open')}
               >
                 Profil und Einstellungen

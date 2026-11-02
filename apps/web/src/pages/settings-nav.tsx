@@ -29,6 +29,7 @@ export interface SettingsNavProps {
  */
 export function SettingsNav({ variant }: SettingsNavProps) {
   const pathname = useLocation({ select: (location) => location.pathname });
+  if (REDESIGN_ENABLED && variant === 'index') return <SettingsGroupIndex />;
   return (
     <nav className={`settings-nav settings-nav-${variant}`} aria-label="Einstellungen">
       {SETTINGS_GROUPS.map((group) =>
@@ -67,6 +68,66 @@ export function SettingsNav({ variant }: SettingsNavProps) {
           </div>
         ),
       )}
+    </nav>
+  );
+}
+
+function SettingsGroupIndex() {
+  const { search } = useLocation();
+  const group =
+    typeof search['gruppe'] === 'string'
+      ? SETTINGS_GROUPS.find((item) => item.id === search['gruppe'])
+      : undefined;
+  const von = validateInboxSearch(search).von;
+  if (group)
+    return (
+      <nav className="settings-nav settings-group-index" aria-label="Einstellungen">
+        <AppLink
+          className="settings-index-back"
+          to="/einstellungen"
+          search={{ ...(von ? { von } : {}), ansicht: 'index' }}
+        >
+          <ChevronLeft size={16} />
+          Einstellungen
+        </AppLink>
+        <h2>{group.label}</h2>
+        <ul aria-label={group.label}>
+          {group.items.map((item) => (
+            <li key={item.id}>
+              <AppLink to={item.to} search={von ? { von } : {}}>
+                <span className="settings-item-label">{item.label}</span>
+                <ChevronRight size={16} aria-hidden="true" />
+              </AppLink>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    );
+  return (
+    <nav
+      className="settings-nav settings-nav-index settings-group-index"
+      aria-label="Einstellungen"
+    >
+      <ul aria-label="Einstellungsbereiche">
+        {SETTINGS_GROUPS.map((item) => {
+          const Icon = GROUP_ICONS[item.id as keyof typeof GROUP_ICONS];
+          return (
+            <li key={item.id}>
+              <AppLink
+                to="/einstellungen"
+                search={{ ...(von ? { von } : {}), ansicht: 'index', gruppe: item.id }}
+              >
+                <Icon size={20} strokeWidth={1.5} aria-hidden="true" />
+                <span className="settings-item-label">
+                  <strong>{item.label}</strong>
+                  <small>{item.items.map((entry) => entry.label).join(' · ')}</small>
+                </span>
+                <ChevronRight size={16} aria-hidden="true" />
+              </AppLink>
+            </li>
+          );
+        })}
+      </ul>
     </nav>
   );
 }
