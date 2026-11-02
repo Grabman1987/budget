@@ -30,7 +30,7 @@ import {
 } from '@budget/db';
 import { addMonths } from '@budget/domain';
 import { Hono } from 'hono';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import {
@@ -163,10 +163,41 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
   const monthParam = (value: string) => month.parse(value);
   const cursorEpoch = randomUUID();
 
+  // A conservative canonical revision: total_changes + data_version cover writes from
+  // this connection and other connections (including targets, funding, zero-row existence
+  // and ordering). The epoch invalidates tokens after restart. Read the revision and the
+  // displayed view in one SQLite snapshot; no later read may supply a preview's basis.
+  const previewBasis = (
+    tx: Parameters<typeof databaseStamp>[0],
+    m: string,
+    day: string,
+    cardRule = 'ynab',
+  ) =>
+    createHash('sha256')
+      .update(JSON.stringify(['plan-preview-v1', cursorEpoch, databaseStamp(tx), m, day, cardRule]))
+      .digest('hex');
+  const monthViews = (
+    tx: Parameters<typeof databaseStamp>[0],
+    months: string[],
+    cardRule?: 'ynab' | 'concept',
+  ) => {
+    const day = today();
+    const views = planMonthViews(tx, months, cardRule ? { cardRule } : {}, day);
+    return Object.fromEntries(
+      Object.entries(views).map(([m, view]) => [
+        m,
+        {
+          ...view,
+          previewBasis: previewBasis(tx, m, day, cardRule),
+        },
+      ]),
+    );
+  };
+
   /** Several months at once: `{ months: { 'YYYY-MM': <the answer of GET /:month> } }`. */
   app.get('/months', (c) => {
     const { months, cardRule } = readQuery(c, budgetMonthsQuery);
-    return c.json({ months: planMonthViews(db, months, cardRule ? { cardRule } : {}, today()) });
+    return c.json(db.transaction((tx) => ({ months: monthViews(tx, months, cardRule) })));
   });
 
   app.get('/:month/uncategorized', (c) => {
@@ -310,12 +341,42 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
   app.get('/:month', (c) => {
     const m = monthParam(c.req.param('month'));
     const { cardRule } = readQuery(c, budgetQuery);
-    return c.json(planMonthViews(db, [m], cardRule ? { cardRule } : {}, today())[m]);
+    return c.json(db.transaction((tx) => monthViews(tx, [m], cardRule)[m]));
   });
 
   app.put('/:month/assigned', async (c) => {
     const m = monthParam(c.req.param('month'));
-    const { items, closeMonth } = await readBody(c, assignBody);
+    const { items, closeMonth, expectedBasis } = await readBody(
+      c,
+      assignBody.extend({
+        expectedBasis: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
+      }),
+    );
+    if (expectedBasis)
+      return c.json(
+        db.transaction(
+          (tx) => {
+            // Acquire the write lock before comparing; reject before assignment/audit writes.
+            if (expectedBasis !== previewBasis(tx, m, today()))
+              throw new ApiError(
+                409,
+                'plan_preview_changed',
+                'Der Plan hat sich geändert. Vorschau aktualisieren und erneut bestätigen.',
+              );
+            if (closeMonth)
+              throw new ApiError(
+                422,
+                'preview_close_month',
+                'Diese Vorschau gehört zum Monatsplan.',
+              );
+            return assignMany(tx, m, items, audit());
+          },
+          { behavior: 'immediate' },
+        ),
+      );
     if (!closeMonth) return c.json(assignMany(db, m, items, audit()));
     if (addMonths(closeMonth, 1) !== m)
       throw new ApiError(422, 'close_plan_month', 'Der Plan muss zum nächsten Monat gehören.');

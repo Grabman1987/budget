@@ -7,6 +7,79 @@ import { MIN_TARGET_PX } from './ledger-helpers';
 
 test.use({ ledgerToday: '2026-10-15' });
 
+test('computed preview conflict refreshes and waits for explicit confirmation, then grouped Undo restores cents', async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  const send = async (path: string, method: string, data: unknown) => {
+    const response = await request.fetch(`/api${path}`, {
+      method,
+      data,
+      headers: { origin: baseURL! },
+    });
+    expect(response.ok()).toBe(true);
+    return response.json();
+  };
+  await send('/accounts', 'POST', {
+    name: 'Synthetic conflict funds',
+    type: 'checking',
+    openingDate: '2026-10-01',
+    openingBalanceCents: 20_000,
+  });
+  const { group } = await send('/categories/groups', 'POST', { name: 'Synthetic conflict group' });
+  const { category } = await send('/categories', 'POST', {
+    name: 'Synthetic conflict target',
+    groupId: group.id,
+    kind: 'variable',
+    class: 'need',
+    stage: 2,
+  });
+  await send(`/categories/${category.id}/target`, 'PUT', {
+    validFrom: '2026-10',
+    target: { kind: 'monthly', amountCents: 5_000 },
+  });
+  await send('/budget/2026-10/assigned', 'PUT', {
+    items: [{ categoryId: category.id, assignedCents: 1_000 }],
+  });
+  await page.goto('/plan/monat?monat=2026-10');
+  await expect(page.getByTestId('to-be-assigned')).toHaveText('190,00 €');
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) !== '1') {
+    await expect(page.getByRole('region', { name: 'Monatsbudget', exact: true })).toHaveCount(0);
+    return;
+  }
+  await page.locator('.plan-menu-verteilen > summary').click();
+  await page.getByRole('button', { name: 'Alle Ziele füllen', exact: true }).click();
+  const preview = page.getByRole('dialog', { name: 'Alle Ziele füllen', exact: true });
+  await expect(
+    preview.getByRole('button', { name: '40,00 € zuweisen', exact: true }),
+  ).toBeEnabled();
+  // A second client commits while A is looking at the old proposal.
+  await send('/budget/2026-10/assigned', 'PUT', {
+    items: [{ categoryId: category.id, assignedCents: 2_000 }],
+  });
+  const rejected = page.waitForResponse(
+    (r) => r.url().endsWith('/budget/2026-10/assigned') && r.request().method() === 'PUT',
+  );
+  await preview.getByRole('button', { name: '40,00 € zuweisen', exact: true }).click();
+  expect((await rejected).status()).toBe(409);
+  await expect(preview.getByRole('alert')).toContainText('erneut bestätigen');
+  const fresh = preview.getByRole('button', { name: '30,00 € zuweisen', exact: true });
+  await expect(fresh).toBeEnabled();
+  const assigned = async () => {
+    const response = await request.get('/api/budget/2026-10');
+    const view = (await response.json()) as BudgetMonthView;
+    return view.summary.envelopes.find((e) => e.categoryId === category.id)!.assignedCents;
+  };
+  expect(await assigned()).toBe(2_000);
+  await fresh.click();
+  await expect(preview).toBeHidden();
+  expect(await assigned()).toBe(5_000);
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(page.getByTestId('to-be-assigned')).toHaveText('180,00 €');
+  expect(await assigned()).toBe(2_000);
+});
+
 for (const theme of ['light', 'dark'] as const) {
   test(`P1 monthly presentation retains canonical cents and cancels its target preview without writes (${theme})`, async ({
     page,

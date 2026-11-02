@@ -52,6 +52,8 @@ export interface MonthSummary {
 }
 
 export interface BudgetMonthView {
+  /** Revision captured in the same transaction as this exact canonical view. */
+  previewBasis?: string;
   incomeTargets?: IncomeTargets;
   budgetMoney?: ReturnType<typeof budgetAccountMoney>;
   summary: MonthSummary;
@@ -82,10 +84,12 @@ export const assign = (
   month: string,
   items: Array<{ categoryId: string; assignedCents: number }>,
   closeMonth?: string,
+  expectedBasis?: string,
 ) =>
   request<WriteResult>('PUT', `${path(month)}/assigned`, {
     items,
     ...(closeMonth && { closeMonth }),
+    ...(expectedBasis && { expectedBasis }),
   });
 export const quickAssign = (month: string, mode: QuickAssignMode, categoryIds: string[]) =>
   request<WriteResult & { changedCount: number; openCount: number; missingCents: number }>(

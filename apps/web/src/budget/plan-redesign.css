@@ -82,9 +82,11 @@
 .plan-month-v2 .prow[data-plan-class] > .col-name {
   box-shadow: inset 2px 0 var(--plan-class);
 }
-.plan-month-v2 .prow[data-plan-state='met'],
-.plan-month-v2 .prow[data-plan-state='overfunded'] {
+.plan-month-v2 .prow[data-plan-state='met'] {
   --plan-bar: var(--primary);
+}
+.plan-month-v2 .prow[data-plan-state='overfunded'] {
+  --plan-bar: var(--good);
 }
 .plan-month-v2 .prow[data-plan-state='open'] {
   --plan-bar: var(--warning);
@@ -140,6 +142,24 @@
   overflow-wrap: anywhere;
 }
 @media (max-width: 767px) {
+  /* Match the legacy selector's specificity. Its inline-flex + 10px gap otherwise
+     wins over the compact two-line lead. Keep an explicit chevron beside the label. */
+  .plan.plan-month-v2 .plan-popover summary.plan-tba {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0 var(--space-xs);
+    padding: 0 var(--space-xs);
+    white-space: normal;
+  }
+  .plan.plan-month-v2 .plan-popover summary.plan-tba::before {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: center;
+    margin: 0;
+  }
+  .plan.plan-month-v2 .plan-popover summary.plan-tba > * {
+    grid-column: 1;
+  }
   .plan-month-v2 .plan-lead-controls {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

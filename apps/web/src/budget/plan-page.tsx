@@ -20,7 +20,8 @@ import {
   cx,
 } from '@budget/ui';
 import { coverShortfall, overspentEnvelopes, todayInVienna } from '@budget/domain';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ApiError } from '../api/http';
 import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 import { TriangleAlert, ArrowLeftRight, Check, CircleCheck, ChevronDown, Info } from 'lucide-react';
 import {
@@ -94,7 +95,7 @@ import {
   type PlanRow,
   type PlanView,
 } from './plan-model';
-import { categoriesQuery, useBudgetWrite } from './use-category-writes';
+import { BUDGET_KEY, categoriesQuery, useBudgetWrite } from './use-category-writes';
 import { CategoryPanel, type PanelState } from './category-panel';
 
 /** `05.10.` of `2026-10-05`. */
@@ -196,6 +197,29 @@ function PlanBody({
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
+  const qc = useQueryClient();
+  const [previewChanged, setPreviewChanged] = useState(false);
+  const computedAssign = async (items: Array<{ categoryId: string; assignedCents: number }>) => {
+    try {
+      // OFF and intentional absolute edits keep their existing writer. Never fall back
+      // to an unguarded ON preview when an old/offline snapshot lacks its basis.
+      if (REDESIGN_ENABLED && !data.previewBasis) throw new ApiError(409, 'plan_preview_changed');
+      const result = await assign(
+        month,
+        items,
+        undefined,
+        REDESIGN_ENABLED ? data.previewBasis : undefined,
+      );
+      setPreviewChanged(false);
+      return result;
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'plan_preview_changed') {
+        setPreviewChanged(true);
+        await qc.invalidateQueries({ queryKey: BUDGET_KEY });
+      }
+      throw error;
+    }
+  };
   const [categoryForm, setCategoryForm] = useState<PanelState>(null);
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const expected = useQuery(expectedQuery()).data;
@@ -568,8 +592,7 @@ function PlanBody({
     if (!list.length) return Promise.resolve(undefined);
     return write(
       () =>
-        assign(
-          month,
+        computedAssign(
           list.map((id) => ({
             categoryId: id,
             assignedCents: byId.get(id)!.assignedCents + sug[id]!,
@@ -630,8 +653,7 @@ function PlanBody({
     const plan = unassignPlan(rows, -tba);
     void write(
       () =>
-        assign(
-          month,
+        computedAssign(
           plan.map(([id, v]) => ({
             categoryId: id,
             assignedCents: byId.get(id)!.assignedCents - v,
@@ -761,6 +783,11 @@ function PlanBody({
       }
     >
       <div className="plan-main">
+        {previewChanged && (
+          <p role="alert">
+            Der Plan hat sich geändert. Vorschau aktualisiert. Bitte prüfen und erneut bestätigen.
+          </p>
+        )}
         <PlanTopBar
           data={data}
           month={month}
@@ -1295,7 +1322,9 @@ function PlanBody({
             {targetPreviewTotal === 0 && <p>Keine offenen Ziele mit verfügbarem Geld.</p>}
             {targetPreviewError && (
               <p role="alert">
-                Verteilung nicht übernommen. Bitte den aktuellen Stand prüfen und erneut versuchen.
+                {previewChanged
+                  ? 'Der Plan hat sich geändert. Die aktualisierte Vorschau bitte prüfen und erneut bestätigen.'
+                  : 'Verteilung nicht übernommen. Bitte den aktuellen Stand prüfen und erneut versuchen.'}
               </p>
             )}
             <div className="panel-actions">
