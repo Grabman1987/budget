@@ -587,7 +587,9 @@ function PlanBody({
     .map((group) => ({ ...group, rows: group.rows.filter((row) => matchingIds.has(row.id)) }))
     .filter((group) => !narrowed || group.rows.length > 0);
   const collapsibleKeys = groups
-    .filter((g) => multi || shownView !== 'group' || g.rows.length !== 1)
+    .filter(
+      (g) => multi || shownView !== 'group' || g.rows.length !== 1 || (REDESIGN_ENABLED && phone),
+    )
     .map((g) => g.key);
   const shownRows = groups.flatMap((g) => g.rows);
   const shownIds = new Set(shownRows.map((r) => r.id));
@@ -1160,7 +1162,8 @@ function PlanBody({
                 <tbody>
                   {groups.map((g, index) => {
                     const st = groupStatus(g.rows);
-                    const singleBand = shownView === 'group' && g.rows.length === 1;
+                    const singleBand =
+                      shownView === 'group' && g.rows.length === 1 && !(REDESIGN_ENABLED && phone);
                     const isCollapsed = !singleBand && collapsed.has(g.key);
                     const band = singleBand;
                     const sugSum = g.rows.reduce((a, r) => a + (sug[r.id] ?? 0), 0);
@@ -1241,7 +1244,21 @@ function PlanBody({
                             {eur(st.activity)}
                           </td>
                           <td className="col-num col-avail" data-label="Verfügbar">
-                            {eur(st.available)}
+                            {REDESIGN_ENABLED && phone ? (
+                              <span
+                                className={cx(
+                                  'pill plan-group-available',
+                                  st.available < 0 && 'is-bad',
+                                )}
+                              >
+                                <span className="sr-only">Verfügbar </span>
+                                <span className="plan-group-available-amount">
+                                  {eur(st.available)}
+                                </span>
+                              </span>
+                            ) : (
+                              eur(st.available)
+                            )}
                           </td>
                         </tr>
                       ),

@@ -188,6 +188,34 @@ for (const theme of ['light', 'dark'] as const) {
       await page.evaluate(() => window.scrollTo(0, 0));
       await expect(row).toBeVisible();
       if (on) {
+        if (width < 768) {
+          const groupRow = page.locator(`#grp-${group.id}`);
+          await expect(groupRow).toBeVisible();
+          const toggle = await groupRow.locator('.grp-toggle').boundingBox();
+          const available = await groupRow.locator('.plan-group-available').boundingBox();
+          expect(
+            Math.abs(toggle!.y + toggle!.height / 2 - available!.y - available!.height / 2),
+          ).toBeLessThanOrEqual(0.5);
+          expect(toggle!.x + toggle!.width).toBeLessThanOrEqual(available!.x);
+          expect((await groupRow.locator('.col-assign').boundingBox())!.width).toBeLessThanOrEqual(
+            1,
+          );
+          expect((await row.boundingBox())!.y).toBeGreaterThanOrEqual(
+            (await groupRow.boundingBox())!.y + (await groupRow.boundingBox())!.height,
+          );
+        } else {
+          // A real name needs the remaining cell width, rather than the legacy 1:3 status split.
+          const name = row.locator('.category-name');
+          expect(
+            await name.evaluate((node) => node.scrollWidth - node.clientWidth),
+          ).toBeLessThanOrEqual(1);
+          for (const column of ['.col-assign', '.col-act', '.col-avail']) {
+            expect((await row.locator(column).boundingBox())!.width).toBeCloseTo(108, 0);
+            expect(
+              await row.locator(column).evaluate((node) => getComputedStyle(node).textAlign),
+            ).toBe('right');
+          }
+        }
         if (width === 1440 || (width === 390 && initial.height === 844)) {
           const first = await row.boundingBox();
           const navigation = page.locator('.tabbar');

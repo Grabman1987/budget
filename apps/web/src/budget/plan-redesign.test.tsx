@@ -251,6 +251,39 @@ it('OFF retains the original compact head and original unadorned values', async 
   expect(screen.getByRole('button', { name: 'Geld verteilen' })).toBeTruthy();
 });
 
+it('ON phone separates a singleton group heading and its available sum from the member row', async () => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: /max-width: (767|1179)px/.test(query),
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+  const fetchFixture = fetch;
+  vi.stubGlobal('fetch', (input: string, init?: RequestInit) => {
+    if (new URL(input, 'http://localhost').pathname === '/api/budget/2026-09')
+      return Promise.resolve(
+        Response.json({
+          ...data,
+          groups: [...data.groups, { id: 'single', name: 'Synthetic singleton', sortOrder: 1 }],
+          categories: data.categories.map((category) =>
+            category.id === 'goal' ? { ...category, groupId: 'single' } : category,
+          ),
+        }),
+      );
+    return fetchFixture(input, init);
+  });
+  const { container } = mount();
+  const toggle = await screen.findByRole('button', { name: 'Synthetic singleton', exact: true });
+  const heading = toggle.closest('tr')!;
+  expect(heading.classList.contains('prow')).toBe(false);
+  expect(heading.querySelector('.plan-group-available')!.textContent).toBe('Verfügbar 110,00 €');
+  expect(heading.nextElementSibling!.querySelector('.pname')!.textContent).toBe('Synthetic goal');
+  expect(container.querySelector('.pgroup.psingle')).toBeNull();
+  fireEvent.click(toggle);
+  expect(screen.queryByRole('button', { name: 'Synthetic goal', exact: true })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Synthetic singleton', exact: true }));
+  expect(await screen.findByRole('button', { name: 'Synthetic goal', exact: true })).toBeTruthy();
+});
+
 it('ON phone keeps month read utilities reachable through native menu keyboard navigation and returns to the income inspector without writes', async () => {
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: /max-width: (767|1179)px/.test(query),

@@ -256,7 +256,8 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   ] as const) {
     const total = firstParent.locator(`.col-num[data-label="${metric}"]`);
     await expect(total).toHaveCount(1);
-    await expect(total).toHaveText(value);
+    const availableAmount = total.locator('.plan-group-available-amount');
+    await expect((await availableAmount.count()) ? availableAmount : total).toHaveText(value);
   }
   await expect(firstParent.locator('.pname')).toHaveCount(0);
   await expect(firstCategory.locator('.col-assign')).toHaveText(

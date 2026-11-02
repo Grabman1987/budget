@@ -1,4 +1,53 @@
 /* P1 presentation is opt-in; the legacy worksheet keeps its original selectors. */
+@media (min-width: 768px) {
+  /* Status copy is now visually hidden: give its former track back to the name. */
+  .plan-month-v2 .ptable-zero .prow:not(.psingle) .pname {
+    grid-column: 2 / -1;
+  }
+}
+@media (max-width: 767px) {
+  .plan-month-v2 .ptable-zero tr.pgroup:not(.prow) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: var(--space-xs);
+  }
+  .plan-month-v2 .ptable-zero .pgroup:not(.prow) .col-name {
+    grid-column: 1;
+    min-width: 0;
+  }
+  .plan-month-v2 .ptable-zero .pgroup:not(.prow) .group-heading {
+    min-width: 0;
+    gap: 0;
+  }
+  .plan-month-v2 .ptable-zero .pgroup:not(.prow) .grp-toggle {
+    flex: 1;
+    min-width: 0;
+    min-height: var(--touch);
+  }
+  .plan-month-v2 .ptable-zero .pgroup:not(.prow) .grp-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .plan-month-v2 .ptable-zero .pgroup:not(.prow) .col-avail {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 0;
+  }
+  .plan-month-v2 .plan-group-available {
+    min-width: 112px;
+    justify-content: flex-end;
+    font-variant-numeric: tabular-nums;
+  }
+  .plan-month-v2 .ptable-zero .pgroup:not(.prow) :is(.col-assign, .col-act) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
 .plan-month-v2 .plan-topbar-v2,
 .plan-month-v2 .plan-month-lead {
   display: grid;
