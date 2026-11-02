@@ -105,7 +105,10 @@ test('checks off-budget accounts, updates manual values with undo and prepares t
     if (info.project.name === 'mobile')
       expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     if (account.type === 'brokerage' || account.type === 'crypto') {
+      if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+        await page.locator('.kacct-source > summary').click();
       const status = page.getByRole('group', { name: 'Datenstand', exact: true });
+      await expect(status).toBeVisible();
       await expect(status).toContainText('Kontostand geprüft');
       await expect(status.locator('strong')).toHaveText('Unbekannt');
       await button.click();
