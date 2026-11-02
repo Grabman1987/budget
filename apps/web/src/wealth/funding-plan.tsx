@@ -1,3 +1,4 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { useState } from 'react';
 import { useBlocker } from '@tanstack/react-router';
 import { useQuery, useQueryClient, queryOptions } from '@tanstack/react-query';
@@ -78,7 +79,11 @@ function planOf(p: Draft): FundingPlan {
 export function FundingPlanner() {
   const state = useQuery(fundingQuery());
   return (
-    <details className="funding-planner">
+    <details
+      className="funding-planner"
+      id={REDESIGN_ENABLED ? 'funding-plan-title' : undefined}
+      open={REDESIGN_ENABLED && window.location.hash === '#funding-plan-title' ? true : undefined}
+    >
       <summary>Anlageplan: Vermögen, Sparrate und nächste Käufe</summary>
       {state.isPending && <LoadingNote what="Anlageplan" />}
       {state.isError && (

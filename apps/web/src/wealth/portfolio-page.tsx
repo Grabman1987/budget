@@ -1,9 +1,11 @@
-import { useAmountPrivacy, Button, DimensionChain } from '@budget/ui';
+import { useAmountPrivacy, Button, DimensionChain, privateAmount } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { periodWindow, ratioBp, type Period } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { VERMOEGEN_PORTFOLIO_META } from '../nav/pages';
-import { PageFrame } from '../pages/placeholder-page';
+import { WealthFrame, useAssetType, WealthReadStatus } from './redesign-frame';
+import { matchesAsset } from './redesign-filters';
+import { WealthActivities, InvestmentAccounts } from './redesign-positions';
 import { ErrorNote, LoadingNote, EmptyNote } from '../ledger/states';
 import { ValuationHint } from '../ledger/valuation-hint';
 import { eurParts, eurWhole, longDay } from '../ledger/format';
@@ -38,6 +40,9 @@ import {
 } from './portfolio-registers';
 import { useZeitraum } from './zeitraum';
 import { ZeitraumSwitch } from './frame';
+import { PositionsV3 } from './positions-v3';
+import { WealthOverview } from './redesign-overview';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 export function PortfolioPositionsPage() {
   return <PortfolioPage register="positions" />;
@@ -53,6 +58,15 @@ export function PortfolioMetricsPage() {
 }
 
 export function PortfolioPage({ register = 'overview' }: { register?: PortfolioRegister }) {
+  const search = useSearch({ strict: false }) as { ansicht?: string };
+  return REDESIGN_ENABLED && register === 'overview' && search.ansicht !== 'analyse' ? (
+    <WealthOverview />
+  ) : (
+    <PortfolioBody register={register} />
+  );
+}
+
+function PortfolioBody({ register }: { register: PortfolioRegister }) {
   useAmountPrivacy();
   const [period] = useZeitraum();
   const search = useSearch({ strict: false }) as {
@@ -60,7 +74,10 @@ export function PortfolioPage({ register = 'overview' }: { register?: PortfolioR
     handel?: string;
     sparplan?: string;
     zeitraum?: Period;
+    anlageart?: string;
+    ansicht?: string;
   };
+  const art = useAssetType();
   const datedPositions = register === 'overview' || register === 'positions';
   const performance = useQuery({ ...portfolioPerformanceQuery(period), enabled: datedPositions });
   // Keep the existing current-position read usable if only historical performance is unavailable.
@@ -85,13 +102,20 @@ export function PortfolioPage({ register = 'overview' }: { register?: PortfolioR
         ? {
             to: '/vermoegen/portfolio/instrument/$id',
             params: { id: produkt },
-            search: { zeitraum: search.zeitraum },
+            search: {
+              zeitraum: search.zeitraum,
+              ...(REDESIGN_ENABLED ? { anlageart: search.anlageart, ansicht: search.ansicht } : {}),
+            },
             state: { wealthDetailOpenedInApp: true },
             replace,
           }
         : {
             to: path,
-            search: { zeitraum: search.zeitraum, produkt },
+            search: {
+              zeitraum: search.zeitraum,
+              produkt,
+              ...(REDESIGN_ENABLED ? { anlageart: search.anlageart, ansicht: search.ansicht } : {}),
+            },
           },
     );
   const trade = (handel?: string, produkt = search.produkt) =>
@@ -101,16 +125,114 @@ export function PortfolioPage({ register = 'overview' }: { register?: PortfolioR
         ...prev,
         produkt,
         handel,
+        fokus: handel ? prev['fokus'] : undefined,
         allokation: undefined,
         sparplan: undefined,
       })) as never,
     });
   const view = datedPositions && performance.isPending ? undefined : query.data;
   const held = new Set(view?.classes.flatMap((group) => group.positions.map((p) => p.securityId)));
-  const unheld = instruments.data?.securities.filter((security) => !held.has(security.id));
+  const visibleSecurity = (id: string) => {
+    if (!REDESIGN_ENABLED || art === 'alle') return true;
+    const security = instruments.data?.securities.find((row) => row.id === id);
+    return !!security && matchesAsset(security.kind, art);
+  };
+  const groups = view?.classes
+    .map((group) => ({
+      ...group,
+      positions: group.positions.filter((position) => visibleSecurity(position.securityId)),
+    }))
+    .filter((group) => group.positions.length);
+  const unheld = instruments.data?.securities.filter(
+    (security) => !held.has(security.id) && visibleSecurity(security.id),
+  );
   return (
-    <PageFrame meta={VERMOEGEN_PORTFOLIO_META}>
-      <PortfolioRegisters current={register} period={period} />
+    <WealthFrame
+      legacy={register === 'overview' || register === 'metrics'}
+      meta={VERMOEGEN_PORTFOLIO_META}
+      date={datedPositions ? view?.asOf : undefined}
+      controls={
+        REDESIGN_ENABLED && register === 'positions' ? (
+          <>
+            <div
+              className="wealth-position-mode wealth-position-mode-desktop"
+              role="group"
+              aria-label="Positionen anzeigen"
+            >
+              <Button
+                variant="ghost"
+                aria-pressed={search.ansicht !== 'aktivitaeten'}
+                onClick={() =>
+                  void navigate({
+                    to: '.',
+                    search: ((prev: Record<string, unknown>) => ({
+                      ...prev,
+                      ansicht: undefined,
+                    })) as never,
+                    replace: true,
+                  })
+                }
+              >
+                Positionen
+              </Button>
+              <Button
+                variant="ghost"
+                aria-pressed={search.ansicht === 'aktivitaeten'}
+                onClick={() =>
+                  void navigate({
+                    to: '.',
+                    search: ((prev: Record<string, unknown>) => ({
+                      ...prev,
+                      ansicht: 'aktivitaeten',
+                    })) as never,
+                    replace: true,
+                  })
+                }
+              >
+                Aktivitäten
+              </Button>
+            </div>
+            <label>
+              <span className="sr-only">Zeitraum</span>
+              <select
+                aria-label="Zeitraum"
+                value={period}
+                onChange={(event) =>
+                  void navigate({
+                    to: '.',
+                    search: ((prev: Record<string, unknown>) => ({
+                      ...prev,
+                      zeitraum: event.target.value,
+                    })) as never,
+                    replace: true,
+                  })
+                }
+              >
+                {['1M', '3M', 'YTD', '1J', '3J', 'Alles'].map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </label>
+          </>
+        ) : register === 'allocation' && REDESIGN_ENABLED ? (
+          <span className="wealth-grouping">
+            Gruppieren nach <b>Anlageklasse</b>
+          </span>
+        ) : undefined
+      }
+      page={
+        register === 'positions'
+          ? 'positions'
+          : register === 'savings'
+            ? 'savings'
+            : register === 'allocation'
+              ? 'allocation'
+              : 'overview'
+      }
+    >
+      {(!REDESIGN_ENABLED || register === 'overview' || register === 'metrics') && (
+        <PortfolioRegisters current={register} period={period} />
+      )}
       <div className="kview vview portfolio-view">
         {datedPositions && performance.isError && (
           <ErrorNote
@@ -131,7 +253,9 @@ export function PortfolioPage({ register = 'overview' }: { register?: PortfolioR
               />
             )}
             <ValuationHint incomplete={query.data?.incomplete} />
-            {view && <PortfolioLead view={view} />}
+            {view && (!REDESIGN_ENABLED || register === 'overview') && (
+              <PortfolioLead view={view} />
+            )}
             {view && performance.isError && (
               <p className="vnote">
                 Die Zeitraum-Auswertung ist nicht verfügbar. Der separat bewertete Bestand oben gilt
@@ -139,7 +263,7 @@ export function PortfolioPage({ register = 'overview' }: { register?: PortfolioR
                 möglich.
               </p>
             )}
-            {register === 'positions' && <ZeitraumSwitch />}
+            {register === 'positions' && !REDESIGN_ENABLED && <ZeitraumSwitch />}
           </>
         )}
         {register === 'overview' && (
@@ -156,8 +280,93 @@ export function PortfolioPage({ register = 'overview' }: { register?: PortfolioR
             </div>
           </>
         )}
-        {register === 'positions' && (
+        {register === 'positions' && REDESIGN_ENABLED && (
           <>
+            {instruments.isPending && <LoadingNote what="Instrumente" />}
+            {instruments.isError && (
+              <ErrorNote
+                what="Instrumente"
+                error={instruments.error}
+                onRetry={() => void instruments.refetch()}
+              />
+            )}
+            {query.isPaused && (
+              <p className="vnote" role="status">
+                Offline · letzter verfügbarer Stand {view ? longDay(view.asOf) : 'nicht verfügbar'}
+              </p>
+            )}
+          </>
+        )}
+        {register === 'positions' && REDESIGN_ENABLED && view && (
+          <PositionsV3
+            view={view}
+            securities={instruments.data?.securities ?? []}
+            art={art}
+            period={period}
+            activities={search.ansicht === 'aktivitaeten'}
+            onMode={(active) =>
+              void navigate({
+                to: '.',
+                search: ((prev: Record<string, unknown>) => ({
+                  ...prev,
+                  ansicht: active ? 'aktivitaeten' : undefined,
+                })) as never,
+                replace: true,
+              })
+            }
+            onSelect={select}
+            onTrade={trade}
+          />
+        )}
+        {register === 'positions' && !REDESIGN_ENABLED && (
+          <>
+            {REDESIGN_ENABLED && (
+              <>
+                <WealthReadStatus
+                  fetching={query.isFetching}
+                  paused={query.isPaused}
+                  date={view ? longDay(view.asOf) : undefined}
+                />
+                <p className="vnote">
+                  Anlageart filtert die Liste. Portfoliowert, Gewinn und Anteilsbasis beziehen sich
+                  weiterhin auf den gesamten bewerteten Instrumentenbestand.
+                </p>
+                <div className="wealth-position-mode" role="group" aria-label="Positionen anzeigen">
+                  <Button
+                    variant="ghost"
+                    aria-pressed={search.ansicht !== 'aktivitaeten'}
+                    onClick={() =>
+                      void navigate({
+                        to: '.',
+                        search: ((prev: Record<string, unknown>) => ({
+                          ...prev,
+                          ansicht: undefined,
+                        })) as never,
+                        replace: true,
+                      })
+                    }
+                  >
+                    Positionen
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    aria-pressed={search.ansicht === 'aktivitaeten'}
+                    onClick={() =>
+                      void navigate({
+                        to: '.',
+                        search: ((prev: Record<string, unknown>) => ({
+                          ...prev,
+                          ansicht: 'aktivitaeten',
+                        })) as never,
+                        replace: true,
+                      })
+                    }
+                  >
+                    Aktivitäten
+                  </Button>
+                </div>
+              </>
+            )}
             <div className="instrument-actions">
               <Button variant="ghost" onClick={() => select('neu')}>
                 Instrument anlegen
@@ -165,79 +374,94 @@ export function PortfolioPage({ register = 'overview' }: { register?: PortfolioR
               <Button onClick={() => trade('neu', undefined)}>Handel erfassen</Button>
             </div>
 
-            {view && (
-              <>
-                {view.classes.length === 0 ? (
-                  <EmptyNote>Keine Positionen zum {longDay(view.asOf)} vorhanden.</EmptyNote>
-                ) : (
-                  <section className="portfolio-positions" aria-labelledby="positions-title">
-                    <div className="head">
-                      <h2 id="positions-title">Positionen</h2>
-                      <span className="aside">
-                        {view.costCents === null
-                          ? basisReason(
-                              view.classes.flatMap((g) => g.positions.flatMap((p) => p.accounts)),
-                            )
-                          : `Einstand ${eurWhole(view.costCents)}`}
-                      </span>
-                    </div>
-                    <table className="ktable vtable portfolio-table">
-                      <caption className="sr-only">Positionen nach Anlageklasse</caption>
-                      <thead>
-                        <tr>
-                          <th scope="col" className="tech">
-                            Pos.
-                          </th>
-                          <th scope="col" className="tech">
-                            Position
-                          </th>
-                          <th scope="col" className="tech">
-                            Plattform
-                          </th>
-                          <th scope="col" className="num tech">
-                            Stück
-                          </th>
-                          <th scope="col" className="num tech">
-                            Kurs
-                          </th>
-                          <th scope="col" className="num tech">
-                            Wert
-                          </th>
-                          <th scope="col" className="num tech">
-                            Anteil · Marktwert
-                          </th>
-                          <th scope="col" className="num tech">
-                            seit Kauf
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {view.classes.map((group, gi) => (
-                          <GroupRows
-                            key={group.id ?? 'none'}
-                            group={group}
-                            gi={gi}
-                            onSelect={select}
-                          />
-                        ))}
-                      </tbody>
-                    </table>
-                    <p className="vnote">
-                      Anteil = Klassen- oder Positionswert / Marktwert aller gehaltenen Wertpapiere
-                      ({moneyText(view.valueCents)}), ohne Kassa. Die Aufteilung Soll/Ist verwendet
-                      dagegen das ausgewählte Netto-Allokationsuniversum einschließlich
-                      Anlage-Kassa.
-                    </p>
-                    <p className="vnote">
-                      Werte in EUR, Kurse in der gespeicherten Kurswährung. „seit Kauf“ zeigt den
-                      Wertzuwachs auf den dokumentierten Einstand (
-                      {view.costMethod === 'fifo' ? 'FIFO' : 'gleitender Durchschnitt'}).
-                    </p>
-                  </section>
-                )}
-              </>
+            {REDESIGN_ENABLED && search.ansicht === 'aktivitaeten' ? (
+              <WealthActivities
+                art={art}
+                from={
+                  performance.data?.portfolio.performance?.from ??
+                  (view ? periodWindow(period, view.asOf).from : undefined)
+                }
+                to={view?.asOf}
+                onEdit={(id, security) => trade(id, security)}
+              />
+            ) : (
+              view && (
+                <>
+                  {groups?.length === 0 ? (
+                    <EmptyNote>Keine Positionen zum {longDay(view.asOf)} vorhanden.</EmptyNote>
+                  ) : (
+                    <section className="portfolio-positions" aria-labelledby="positions-title">
+                      <div className="head">
+                        <h2 id="positions-title" tabIndex={-1} ref={focusPositionHeading}>
+                          Positionen
+                        </h2>
+                        <span className="aside">
+                          {view.costCents === null
+                            ? basisReason(
+                                view.classes.flatMap((g) => g.positions.flatMap((p) => p.accounts)),
+                              )
+                            : `Einstand ${eurWhole(view.costCents)}`}
+                        </span>
+                      </div>
+                      <table className="ktable vtable portfolio-table">
+                        <caption className="sr-only">Positionen nach Anlageklasse</caption>
+                        <thead>
+                          <tr>
+                            <th scope="col" className="tech">
+                              Pos.
+                            </th>
+                            <th scope="col" className="tech">
+                              Position
+                            </th>
+                            <th scope="col" className="tech">
+                              Plattform
+                            </th>
+                            <th scope="col" className="num tech">
+                              Stück
+                            </th>
+                            <th scope="col" className="num tech">
+                              Kurs
+                            </th>
+                            <th scope="col" className="num tech">
+                              Wert
+                            </th>
+                            <th scope="col" className="num tech">
+                              Anteil · Marktwert
+                            </th>
+                            <th scope="col" className="num tech">
+                              seit Kauf
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {groups?.map((group, gi) => (
+                            <GroupRows
+                              key={group.id ?? 'none'}
+                              group={group}
+                              gi={gi}
+                              onSelect={select}
+                            />
+                          ))}
+                        </tbody>
+                      </table>
+                      <p className="vnote">
+                        Anteil = Klassen- oder Positionswert / Marktwert aller gehaltenen
+                        Wertpapiere ({moneyText(view.valueCents)}), ohne Kassa. Die Aufteilung
+                        Soll/Ist verwendet dagegen das ausgewählte Netto-Allokationsuniversum
+                        einschließlich Anlage-Kassa.
+                      </p>
+                      <p className="vnote">
+                        Werte in EUR, Kurse in der gespeicherten Kurswährung. „seit Kauf“ zeigt den
+                        Wertzuwachs auf den dokumentierten Einstand (
+                        {view.costMethod === 'fifo' ? 'FIFO' : 'gleitender Durchschnitt'}).
+                      </p>
+                    </section>
+                  )}
+                </>
+              )
             )}
 
+            {REDESIGN_ENABLED && <InvestmentAccounts art={art} />}
             {instruments.isPending && <LoadingNote what="Instrumente" />}
             {instruments.isError && (
               <ErrorNote
@@ -289,7 +513,10 @@ export function PortfolioPage({ register = 'overview' }: { register?: PortfolioR
         )}
         {register === 'allocation' && <PortfolioAllocation />}
         {register === 'savings' && (
-          <SavingsSection navigationPath="/vermoegen/portfolio/sparplaene" />
+          <SavingsSection
+            navigationPath="/vermoegen/portfolio/sparplaene"
+            art={REDESIGN_ENABLED ? art : 'alle'}
+          />
         )}
         {register === 'metrics' && <PortfolioMetrics />}
       </div>
@@ -304,6 +531,7 @@ export function PortfolioPage({ register = 'overview' }: { register?: PortfolioR
       ) : search.produkt === 'neu' ? (
         <InstrumentPanel
           id="neu"
+          initialKind={REDESIGN_ENABLED && art === 'krypto' ? 'crypto' : undefined}
           position={(view?.positions ?? view?.classes.flatMap((g) => g.positions) ?? []).find(
             (p) => p.securityId === search.produkt,
           )}
@@ -315,7 +543,7 @@ export function PortfolioPage({ register = 'overview' }: { register?: PortfolioR
           onTrade={trade}
         />
       ) : null}
-    </PageFrame>
+    </WealthFrame>
   );
 }
 function PortfolioLead({ view }: { view: PortfolioPositionsView }) {
@@ -423,6 +651,16 @@ function PositionRow({
         >
           {p.name}
         </button>
+        {REDESIGN_ENABLED && (
+          <small className="wealth-phone-position">
+            {privateAmount(unitsText(p.unitsE8))} Stück · Kurs {quoteText(p.quote)} ·{' '}
+            {quoteStand(p.quote)}
+            <br />
+            Einstand {moneyText(p.costCents)} · Gewinn {moneyText(p.gainCents)}
+            <br />
+            {[...new Set(p.accounts.map((a) => a.institution ?? a.name))].join(' · ')}
+          </small>
+        )}
         {p.exposureWeightBp !== undefined && p.exposureWeightBp < 10000 && (
           <small className="portfolio-status">
             {percentText(p.exposureWeightBp)} Klassengewicht · Stück und Kurs: gesamtes Instrument
@@ -452,4 +690,12 @@ function PositionRow({
       </td>
     </tr>
   );
+}
+
+/** Focus an explicit allocation drilldown after the asynchronous positions body mounts. */
+function focusPositionHeading(element: HTMLHeadingElement | null) {
+  if (REDESIGN_ENABLED && element && window.location.hash === '#positions-title') {
+    element.scrollIntoView({ block: 'start' });
+    element.focus({ preventScroll: true });
+  }
 }

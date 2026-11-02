@@ -1,3 +1,4 @@
+import { showDebtOverview, gotoWealthAnalysis } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -77,13 +78,14 @@ test('Schulden: cards are debt, "laufend ausgeglichen", Restschuld = negative ac
   expect(negatives.slice().sort((a, b) => a - b)).toEqual([-100_000, -30_010, -15_025]);
   expect(positives).toEqual([50_000]);
   await noHorizontalScroll(page);
-  await page.goto('/vermoegen/nettovermoegen');
+  await gotoWealthAnalysis(page, '/vermoegen/nettovermoegen');
   await expect(page.getByTestId('nw-figure')).toBeVisible();
   expect(toCents(await page.getByTestId('nw-figure').innerText())).toBe(-95_035);
   await noHorizontalScroll(page);
 
   // Schulden: Restschuld is exactly the sum of the negative accounts, the card included.
   await page.goto('/vermoegen/schulden');
+  await showDebtOverview(page);
   await expect(page.getByTestId('debt-total')).toHaveText('1.450,35 €');
   expect(toCents(await page.getByTestId('debt-total').innerText())).toBe(
     -negatives.reduce((sum, v) => sum + v, 0),
@@ -138,6 +140,7 @@ test('Schulden: a lone card without terms stays quiet and matches Konten to the 
   expect(response.ok(), await response.text()).toBe(true);
 
   await page.goto('/vermoegen/schulden');
+  await showDebtOverview(page);
   await expect(page.getByTestId('debt-total')).toHaveText('300,10 €');
   const overview = page.locator('.debt-overview');
   await expect(overview).toContainText('laufend ausgeglichen');
@@ -158,7 +161,7 @@ test('Schulden: a lone card without terms stays quiet and matches Konten to the 
     ).map(toCents),
   ).toEqual([-30_010]);
   await noHorizontalScroll(page);
-  await page.goto('/vermoegen/nettovermoegen');
+  await gotoWealthAnalysis(page, '/vermoegen/nettovermoegen');
   await expect(page.getByTestId('nw-figure')).toBeVisible();
   expect(toCents(await page.getByTestId('nw-figure').innerText())).toBe(-30_010);
   await noHorizontalScroll(page);

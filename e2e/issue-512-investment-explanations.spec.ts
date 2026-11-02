@@ -1,3 +1,4 @@
+import { showPortfolioAnalysis } from './wealth-navigation';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, schema } from '@budget/db';
@@ -244,6 +245,7 @@ async function checkSurfaces(page: Page, info: TestInfo, label: string, touch: b
     await capture(page, info, label, selected, 'report', observedPointer);
     await page.getByRole('button', { name: 'Portfolio öffnen', exact: true }).click();
     await expect(page).toHaveURL(/vermoegen\/portfolio\?zeitraum=1M/);
+    await showPortfolioAnalysis(page);
     const overview = page.getByRole('region', { name: 'Portfolioentwicklung', exact: true });
     const returnSummary = overview.getByTestId('portfolio-return');
     await returnSummary.click();
