@@ -42,3 +42,27 @@
     transition: none;
   }
 }
+
+/* Keep the existing Undo action reachable without covering the next capture's kind controls. */
+@media (max-width: 767px) {
+  .bk-focus-scope dialog.sheet-bottom:has(.bkform-redesign):has(.toast.is-open) {
+    display: flex;
+    flex-direction: column;
+  }
+  .bk-focus-scope dialog.sheet-bottom:has(.bkform-redesign):has(.toast.is-open) > .overlay-inner {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+  }
+  .bk-focus-scope dialog.sheet-bottom:has(.bkform-redesign):has(.toast.is-open) > .toast-host {
+    order: -1;
+    flex: none;
+  }
+  .bk-focus-scope dialog.sheet-bottom:has(.bkform-redesign):has(.toast.is-open) .toast {
+    position: static;
+    width: auto;
+    max-width: none;
+    margin: 8px;
+    translate: none;
+  }
+}

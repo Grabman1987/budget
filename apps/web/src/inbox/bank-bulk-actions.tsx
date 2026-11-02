@@ -182,10 +182,11 @@ export function BankBulkActions({
           {preview?.safeOnly && (
             <>
               <p>
-                Sicher sind bereits vorbereitete, eindeutig automatisch anwendbare Regeln mit
-                abgeschlossener Trefferprüfung. Umbuchungen, mögliche Duplikate, Zusammenführungen
-                und mehrdeutige Treffer bleiben einzeln zu prüfen. Der aktuelle Quellen- und
-                Regelstand wird beim Ausführen erneut geprüft.
+                Sicher für diese Sammelaktion sind offene Quellumsätze mit einer bereits
+                vorbereiteten, eindeutig automatisch anwendbaren Regel und abgeschlossener
+                Trefferprüfung. Umbuchungen, mögliche Duplikate, Zusammenführungen und mehrdeutige
+                Treffer bleiben einzeln zu prüfen. Der aktuelle Quellen- und Regelstand wird beim
+                Ausführen erneut geprüft.
               </p>
               <ul aria-label="Auswirkung der sicheren Vorschläge">
                 {preview.rows.map((row) => {
