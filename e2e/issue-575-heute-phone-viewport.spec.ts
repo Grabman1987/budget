@@ -1,9 +1,13 @@
+import { detectHeuteRedesign } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect as baseExpect } from './sample';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
 
-const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 
 test('actual monthly pace starts on the first phone screen and both folds clear bottom controls', async ({
   page,

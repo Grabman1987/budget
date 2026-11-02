@@ -1,10 +1,14 @@
+import { detectHeuteRedesign } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
 import { MIN_TARGET_PX } from './ledger-helpers';
 import { sampleTest as test, expect } from './sample';
 
 // Run against the matching build flag; both states preserve their own readiness contract.
-const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 
 const rectsApart = (
   a: { x: number; y: number; width: number; height: number },

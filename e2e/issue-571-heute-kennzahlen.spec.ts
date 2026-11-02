@@ -1,3 +1,4 @@
+import { detectHeuteRedesign } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
 import type { Heute } from '../apps/web/src/heute/api';
@@ -73,7 +74,10 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('budget-heute-more-phone', '1'));
 });
 
-const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 
 test('three Kennzahlen with the names of the owner decision; Bis Gehalt renames the middle one', async ({
   page,

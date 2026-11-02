@@ -1,3 +1,4 @@
+import { detectHeuteRedesign } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect as baseExpect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
@@ -5,7 +6,10 @@ import type { RuleBook } from '../apps/web/src/rules/api';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
 
-const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 
 test('Today keeps payday first, unknown counts explicit and additional steps consistent', async ({
   page,

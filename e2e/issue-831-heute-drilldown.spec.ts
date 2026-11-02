@@ -157,3 +157,45 @@ test('investment sources retain account returns and missing valuation reasons', 
   await expect(basis).toContainText('Synthetischer Kurs fehlt.');
   await expect(basis).not.toContainText('0,00 €');
 });
+
+test('selected-month budget explanation keeps its canonical figure and category return context', async ({
+  page,
+}) => {
+  await page.goto('/?monat=2026-08&period=month');
+  const tile = page.getByRole('region', { name: 'Verfügbar im Budget', exact: true });
+  await expect(tile.locator('[data-kennzahl="verfuegbar"]')).toBeVisible();
+  const amount = await tile.locator('[data-kennzahl="verfuegbar"]').innerText();
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  await tile.getByRole('button', { name: 'Herleitung Verfügbar im Budget' }).click();
+  const source = tile.getByRole('link', { name: 'Alle Envelopes und Quellen' });
+  if (!redesign) {
+    await expect(source).toHaveCount(0);
+    return;
+  }
+  await source.click();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/heute/details/budget' && url.searchParams.get('monat') === '2026-08',
+  );
+  const detail = page.getByRole('region', {
+    name: 'Verfügbar im Budget · Herleitung',
+    exact: true,
+  });
+  await expect(detail).toContainText(amount);
+  await expect(detail).toContainText('Planmonat August 2026');
+  await detail.locator('li a').first().click();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname.startsWith('/plan/monat/envelope/') &&
+      url.searchParams.get('monat') === '2026-08',
+  );
+  await page.reload();
+  await page.getByRole('link', { name: 'Zurück zur Heute-Herleitung' }).click();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/heute/details/budget' && url.searchParams.get('monat') === '2026-08',
+  );
+  await expect(
+    page.getByRole('region', { name: 'Verfügbar im Budget · Herleitung', exact: true }),
+  ).toContainText(amount);
+});

@@ -1,3 +1,4 @@
+import { detectHeuteRedesign } from './heute-visual-fixture';
 import { test as isolatedTest } from './isolated-ledger';
 import { sampleTest as test, expect as baseExpect } from './sample';
 import AxeBuilder from '@axe-core/playwright';
@@ -56,7 +57,10 @@ async function currentForecast(page: Page, month = '2026-09') {
   return { card, chart, report: source.report };
 }
 
-const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 
 test('daily budget uses the live lead and next payday, wraps and explains the formula in both themes', async ({
   page,

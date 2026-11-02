@@ -8,7 +8,8 @@ import {
   refreshOccurrences,
 } from '@budget/db';
 import { seedDatabase } from '@budget/fixtures/seed';
-import { expect, type Page } from '@playwright/test';
+import { expect, type Browser, type Page } from '@playwright/test';
+import { SAMPLE_URL, STORAGE_STATE_SAMPLE } from '../playwright.config';
 
 /** Only shell visuals use this read model; behavior tests keep the real HTTP API. */
 export async function freezeHeuteVisual(page: Page) {
@@ -80,4 +81,16 @@ export async function expectHeuteVisualReady(page: Page) {
         .map((animation) => animation.finished),
     );
   });
+}
+
+/** Detect the served artifact without changing the behavioral test's page, routes or storage. */
+export async function detectHeuteRedesign(browser: Browser): Promise<boolean> {
+  const page = await browser.newPage({ storageState: STORAGE_STATE_SAMPLE });
+  try {
+    await page.goto(`${SAMPLE_URL}/?monat=2026-09&period=month`);
+    await expect(page.locator('.app')).toBeVisible();
+    return (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  } finally {
+    await page.close();
+  }
 }

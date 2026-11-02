@@ -1,3 +1,4 @@
+import { detectHeuteRedesign } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdirSync } from 'node:fs';
 import { sampleTest as test, expect } from './sample';
@@ -5,7 +6,10 @@ import type { Heute } from '../apps/web/src/heute/api';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 import { eur } from '../apps/web/src/ledger/format';
 
-const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 
 test('three Kennzahlen use source cents, fit the phone and link to the current source views', async ({
   page,

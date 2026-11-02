@@ -1,9 +1,13 @@
+import { detectHeuteRedesign } from './heute-visual-fixture';
 import { sampleTest as test, expect as baseExpect } from './sample';
 import AxeBuilder from '@axe-core/playwright';
 import type { Heute } from '../apps/web/src/heute/api';
 import { eur } from '../apps/web/src/ledger/format';
 
-const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 const expect = baseExpect.configure({ timeout: 15_000 });
 
 // Retain the original Heute spec's setup and timeout for this moved acceptance case.

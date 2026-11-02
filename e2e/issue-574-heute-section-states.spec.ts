@@ -1,10 +1,14 @@
+import { detectHeuteRedesign } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
 import { sampleTest as test, expect as baseExpect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
 import type { SavingsExecutionProposal } from '../apps/web/src/wealth/savings-api';
 
-const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 const expect = baseExpect.configure({ timeout: 15_000 });
 const proposal: SavingsExecutionProposal = {
   type: 'savings',
