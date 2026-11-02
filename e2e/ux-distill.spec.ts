@@ -147,7 +147,7 @@ test('Heute has eight warning items once, two first, neutral debts and accessibl
     { ...today.pinned[0]!, id: 'synthetic-over-0', name: 'Testenvelope 1', availableCents: -1000 },
   ];
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: today }));
-  await page.goto('/?monat=2026-09');
+  await page.goto(redesign ? '/?monat=2026-09&period=month' : '/?monat=2026-09');
   // The top-bar chip owns cover actions; Today summarizes the same eight findings once.
   await expect(page.locator('[data-overspent]')).toHaveCount(0);
   const tasks = page.getByRole('region', { name: 'Zu tun', exact: true });
