@@ -620,12 +620,32 @@ function NextWork({
       label: 'Handeln',
       to: '/einstellungen/regelwerk',
     });
+  if (
+    tasks.length < 4 &&
+    model.tasks.some(
+      (task) =>
+        task.kind === 'contact' ||
+        task.kind === 'month-close' ||
+        (task.kind === 'accounts' && !tasks.some((row) => row.id === 'accounts')),
+    )
+  )
+    tasks.push({
+      id: 'more',
+      title: 'Weitere offene Aufgaben',
+      label: 'Prüfen',
+      to: '/heute/details/tasks',
+      search: {
+        monat: month,
+        period: data?.stand.period ?? 'month',
+        von: `/?monat=${month}&period=${data?.stand.period ?? 'month'}`,
+      },
+    });
   if (!tasks.length && (!data || assignment === undefined)) return null;
   if (!tasks.length)
     return (
       <p className="hv-quiet">
         <CircleCheck size={16} aria-hidden="true" />
-        Aktuell nichts zu tun. <DetailLink kind="tasks">Alle Grundlagen →</DetailLink>
+        Keine vorrangigen Aufgaben. <DetailLink kind="tasks">Alle Grundlagen →</DetailLink>
       </p>
     );
   return (

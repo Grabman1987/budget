@@ -267,7 +267,8 @@ async function theme(page: Page, selected: 'light' | 'dark') {
 async function capture(page: Page, info: TestInfo, label: string) {
   for (const selected of ['light', 'dark'] as const) {
     for (const surface of ['accounts', 'today'] as const) {
-      await page.goto(surface === 'accounts' ? '/konten' : '/');
+      if (surface === 'accounts') await page.goto('/konten');
+      else await openHeuteReview(page, '/');
       await theme(page, selected);
       if (surface === 'today') {
         const amountLink = page

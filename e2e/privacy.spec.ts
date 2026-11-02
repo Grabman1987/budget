@@ -116,7 +116,8 @@ test('privacy follows routes and reload, masks money and chart alternatives, pre
     '/reports/gesamttabelle',
     '/einstellungen/regelwerk',
   ]) {
-    await page.goto(path);
+    if (path === '/' || path.startsWith('/?')) await openHeuteReview(page, path);
+    else await page.goto(path);
     await withShellControls(page, async ({ privacy }) => {
       await expect(privacy).toHaveAttribute('aria-pressed', 'true');
     });

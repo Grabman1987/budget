@@ -983,3 +983,76 @@
   justify-content: start;
   flex-wrap: wrap;
 }
+
+/* Keep action labels out of the floating capture target and let the final row scroll clear. */
+@media (max-width: 767px) {
+  .heute-screen {
+    padding-bottom: 72px;
+  }
+  .hv-revisions td:last-child {
+    padding-right: 64px;
+  }
+  .hv-revisions td:last-child a {
+    scroll-margin-block: 88px;
+  }
+  .heute-detail-screen {
+    padding-bottom: 88px;
+  }
+}
+
+/* Exact source terms keep the overview's table density; the phone retains one readable column. */
+.heute-lead-explanation {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px 20px;
+}
+.heute-lead-explanation > :not(.heute-breakdown) {
+  grid-column: 1 / -1;
+}
+.heute-lead-explanation > p {
+  margin-block: 4px;
+}
+.heute-lead-explanation .heute-breakdown {
+  min-width: 0;
+}
+.heute-lead-explanation .heute-breakdown ul {
+  margin: 0;
+}
+.heute-lead-explanation .heute-breakdown li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding-block: 0;
+  min-height: 44px;
+}
+.heute-lead-explanation .heute-breakdown li a {
+  min-width: 44px;
+  min-height: 44px;
+  overflow-wrap: anywhere;
+}
+.heute-lead-explanation .heute-breakdown li strong {
+  white-space: nowrap;
+}
+@media (min-width: 980px) {
+  .heute-lead-explanation {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  [data-heute-detail='metrics'] .heute-kennzahlen {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  [data-heute-detail='metrics'] .heute-kennzahlen > .heute-note {
+    grid-column: 1 / -1;
+  }
+  [data-heute-detail='wealth'] .heute-explanation {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 12px 28px;
+    align-items: start;
+  }
+  [data-heute-detail='wealth'] :is(.heute-detail-nav, .heute-detail-title, .heute-more) {
+    grid-column: 1 / -1;
+  }
+}

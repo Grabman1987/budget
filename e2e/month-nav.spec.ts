@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import { addMonths } from '@budget/domain';
 import AxeBuilder from '@axe-core/playwright';
 import { test as mainTest, type APIRequestContext, type Page } from '@playwright/test';
@@ -24,7 +25,7 @@ test.describe('Heute month switch', () => {
   test('payday is disabled outside this month and falls back after navigation and reload', async ({
     page,
   }, info) => {
-    await page.goto('/?monat=2026-09&period=payday');
+    await openHeuteReview(page, '/?monat=2026-09&period=payday');
     const payday = page.getByRole('button', { name: 'Bis Gehalt', exact: true });
     const month = page.getByRole('button', { name: 'Monat', exact: true });
     await expect(payday).toBeEnabled();
@@ -50,7 +51,7 @@ test.describe('Heute month switch', () => {
     await page.getByRole('button', { name: 'Nächster Monat' }).click();
     await expect(payday).toBeEnabled();
     await expect(month).toHaveAttribute('aria-pressed', 'true');
-    await page.goto('/?monat=2026-10&period=payday');
+    await openHeuteReview(page, '/?monat=2026-10&period=payday');
     await expect(payday).toBeDisabled();
     await expect(month).toHaveAttribute('aria-pressed', 'true');
     await expect(page).toHaveURL(/period=month/);
@@ -60,7 +61,7 @@ test.describe('Heute month switch', () => {
     test.slow();
     // Pace lives in the "Mehr zum Monat" fold, closed on the phone by default (UX-2).
     await page.addInitScript(() => localStorage.setItem('budget-heute-more-phone', '1'));
-    await page.goto('/');
+    await openHeuteReview(page, '/');
     await expect(
       page.locator('h1, .hv-head:visible .month-name').filter({ hasText: 'September 2026' }),
     ).toBeVisible();
@@ -106,7 +107,7 @@ test.describe('Heute month switch', () => {
     await page.keyboard.press('ArrowLeft');
     await expect(page).toHaveURL(/monat=2026-09/);
     // The search field keeps the arrow keys for its caret.
-    await page.goto('/?monat=2026-09');
+    await openHeuteReview(page, '/?monat=2026-09');
     await page.locator('#global-search').click();
     // Wait for the dialog's field before typing.
     await expect(page.getByRole('dialog', { name: 'Suchen', exact: true })).toBeVisible();
@@ -186,7 +187,7 @@ test.describe('axe on the new views', () => {
         page,
       }, info) => {
         test.slow();
-        await page.goto('/?monat=2026-08');
+        await openHeuteReview(page, '/?monat=2026-08');
         await expect(page.getByTestId('heute-anchor')).toBeVisible({ timeout: 20_000 });
         const heute = await new AxeBuilder({ page }).include('main').analyze();
         expect(heute.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);

@@ -93,6 +93,7 @@ export function DimensionPage() {
   const backUrl = new URL(back ?? '/', 'https://budget.invalid');
   return (
     <DimensionFrame
+      kind={kind}
       period={period}
       data={data}
       updatedAt={query.dataUpdatedAt}
@@ -273,6 +274,7 @@ function NetWorthDetails({
 
 function DimensionFrame({
   children,
+  kind,
   data,
   period,
   updatedAt,
@@ -280,6 +282,7 @@ function DimensionFrame({
   paydayAvailable,
 }: {
   children: ReactNode;
+  kind: DimensionKind;
   data: Heute | undefined;
   period: Heute['stand']['period'];
   updatedAt: number;
@@ -287,7 +290,7 @@ function DimensionFrame({
   paydayAvailable: boolean;
 }) {
   return REDESIGN_ENABLED ? (
-    <div className="heute-detail-screen">
+    <div className="heute-detail-screen" data-heute-detail={kind}>
       <HeuteHeader
         phone
         data={data}

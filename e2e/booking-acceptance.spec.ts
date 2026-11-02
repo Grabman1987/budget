@@ -309,8 +309,10 @@ sampleTest(
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
     await openHeuteReview(page, '/');
     await expect(page.getByTestId('liquidity-chart')).toBeVisible();
+    const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     await page.goto('/reports/finanzcheck');
-    await expect(page).toHaveURL((url) => url.pathname === '/');
+    await expect(page).toHaveURL((url) => url.pathname === (on ? '/reports/onepager' : '/'));
+    if (on) await openHeuteReview(page, '/');
     const response = await page.request.get('/api/liquidity?horizon=35d');
     expect(response.ok()).toBe(true);
     const forecast = (await response.json()) as LiquidityReportView;

@@ -23,7 +23,7 @@ export function LeadExplanation({ data }: { data: Heute }) {
   });
   const labels = { need: 'Bedarf', want: 'Wunsch', open: 'Offen bis Gehalt' };
   return (
-    <>
+    <div className="heute-lead-explanation">
       <p>
         Frei bis Gehalt <strong>{eur(data.lead.freeCents)}</strong>
       </p>
@@ -140,7 +140,7 @@ export function LeadExplanation({ data }: { data: Heute }) {
       <AppLink to="/plan/prognose" search={{ ...search, horizon: '35d', levers: '' }}>
         Kontoprognose · 35 Tage vergleichen
       </AppLink>
-    </>
+    </div>
   );
 }
 

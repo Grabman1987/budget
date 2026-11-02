@@ -78,21 +78,25 @@ test('Heute matches the numbered compact overview and preserves expanded drilldo
           (await page.locator('.hv-forecast').boundingBox())!.height,
       ).toBeLessThanOrEqual(900);
     } else {
-      const action = page.locator('.hv-revisions a').first();
-      expect(
-        await action.evaluate((element) => {
-          const b = element.getBoundingClientRect();
-          return [
-            [b.left + 3, b.top + 3],
-            [b.right - 3, b.top + 3],
-            [b.left + 3, b.bottom - 3],
-            [b.right - 3, b.bottom - 3],
-          ].every(([x, y]) => {
-            const hit = document.elementFromPoint(x!, y!);
-            return element === hit || element.contains(hit);
-          });
-        }),
-      ).toBe(true);
+      for (const action of [
+        page.locator('.hv-revisions a').nth(0),
+        page.locator('.hv-revisions a').nth(1),
+      ]) {
+        expect(
+          await action.evaluate((element) => {
+            const b = element.getBoundingClientRect();
+            return [
+              [b.left + 3, b.top + 3],
+              [b.right - 3, b.top + 3],
+              [b.left + 3, b.bottom - 3],
+              [b.right - 3, b.bottom - 3],
+            ].every(([x, y]) => {
+              const hit = document.elementFromPoint(x!, y!);
+              return element === hit || element.contains(hit);
+            });
+          }),
+        ).toBe(true);
+      }
       expect(
         (await page.locator('.hv-revisions a').first().boundingBox())!.y +
           (await page.locator('.hv-revisions a').first().boundingBox())!.height,
