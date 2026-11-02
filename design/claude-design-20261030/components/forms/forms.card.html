@@ -1,0 +1,16 @@
+<!-- @dsCard group="Components" viewport="700x400" name="Felder & Auswahl" subtitle="Feld Normal · Fokus · Fehler · Erfolg · Deaktiviert, Checkbox, Schalter" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{background:var(--ground);padding:16px}.row{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}.col{display:flex;flex-direction:column;gap:10px}.pane{padding:14px;background:var(--ground);display:flex;flex-direction:column;gap:10px}.cap{font-family:var(--font-tech);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--subtle)}</style>
+</head><body><div id="root"></div>
+<script type="text/babel">
+const { FeldNormal, FeldFokus, FeldFehler, FeldErfolg, FeldDeaktiviert, Checkbox, Schalter } = window.BudgetBlueprintDesignSystem_63932b;
+function Card(){return (<><div style={{display:'grid',gridTemplateColumns:'330px 330px',gap:'6px 16px'}}>
+ <FeldNormal text1="Empfänger" text2="REWE Markt"/><FeldFokus text1="Betrag" text2="−42,90 €"/>
+ <FeldFehler text1="Kategorie" text2="—"/><FeldErfolg text1="IBAN" text2="AT61 1904 3002 3457 3201"/>
+ <FeldDeaktiviert text1="Konto"/><div className="row" style={{alignItems:'center'}}><Checkbox text1="Wiederholen"/><Schalter text1="Vorgemerkt"/></div></div></>);}
+ReactDOM.createRoot(document.getElementById('root')).render(<Card/>);
+</script></body></html>

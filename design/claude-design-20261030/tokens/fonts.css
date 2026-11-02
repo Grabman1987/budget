@@ -1,0 +1,7 @@
+/* Self-hosted from Grabman1987/budget design/prototype/fonts */
+@font-face{font-family:'Archivo';src:url('../fonts/archivo-latin.woff2') format('woff2');font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+@font-face{font-family:'Barlow Semi Condensed';src:url('../fonts/barlow-sc-400.woff2') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Barlow Semi Condensed';src:url('../fonts/barlow-sc-500.woff2') format('woff2');font-weight:500;font-display:swap}
+@font-face{font-family:'Barlow Semi Condensed';src:url('../fonts/barlow-sc-600.woff2') format('woff2');font-weight:600;font-display:swap}
+/* Secondary faces used in the Figma file (KPI labels in Archivo Narrow; exploration frames in Inter, Courier Prime, IBM Plex Mono, Caveat) — Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Courier+Prime:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=Caveat:wght@400;700&display=swap');
