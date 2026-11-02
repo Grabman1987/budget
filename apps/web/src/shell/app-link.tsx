@@ -22,24 +22,34 @@ type Props = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {
 };
 
 /** Router link for paths that come from data tables (nav config), where literal types are lost. */
-export function AppLink({ to, search, state, ...rest }: Props) {
+export function AppLink(props: Props) {
+  return REDESIGN_ENABLED && props.to === '/einstellungen/warenkorb' ? (
+    <BasketSourceLink {...props} />
+  ) : (
+    <RouterLink {...props} />
+  );
+}
+
+/** Only the basket entry needs source context; other links retain their existing hook contract. */
+function BasketSourceLink({ search, ...props }: Props) {
   const location = useLocation();
-  const sourceSearch =
-    REDESIGN_ENABLED &&
-    to === '/einstellungen/warenkorb' &&
-    !location.pathname.startsWith('/einstellungen')
-      ? (previous: SearchParams) => ({
-          ...(typeof search === 'function' ? search(previous) : search),
-          von: location.href,
-        })
-      : search;
+  const sourceSearch = !location.pathname.startsWith('/einstellungen')
+    ? (previous: SearchParams) => ({
+        ...(typeof search === 'function' ? search(previous) : search),
+        von: location.href,
+      })
+    : search;
+  return <RouterLink {...props} search={sourceSearch} />;
+}
+
+function RouterLink({ to, search, state, ...rest }: Props) {
   const controlled = Object.hasOwn(rest, 'aria-current');
   const props = useLooseLinkProps({
     ...rest,
     to,
     activeOptions: { exact: true },
     ...(controlled ? { activeProps: {} } : {}),
-    ...(sourceSearch ? { search: sourceSearch } : {}),
+    ...(search ? { search } : {}),
     ...(state ? { state } : {}),
   });
   // Explicit nav state also overrides the router's automatic exact-URL active state.
