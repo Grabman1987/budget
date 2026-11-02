@@ -47,9 +47,11 @@ function DetailBack({
           Zurück{' '}
           {label === 'Kategorien'
             ? 'zu Kategorien'
-            : label === 'Sparziele'
-              ? 'zu Sparzielen'
-              : 'zum Sparzielreport'}
+            : label === 'Ziele'
+              ? 'zu Zielen'
+              : label === 'Sparziele'
+                ? 'zu Sparzielen'
+                : 'zum Sparzielreport'}
         </AppLink>
       </nav>
     </div>

@@ -306,7 +306,9 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     } else expect(dimensions.beforeGrid).toBeLessThanOrEqual(120);
     expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(40);
     expect(Math.max(...dimensions.groups)).toBeLessThanOrEqual(36);
-    expect(dimensions.visible).toBeGreaterThanOrEqual(14);
+    // The compact OFF worksheet retains its original density. The ON canvas exposes
+    // the lead chain; its fold contract is the first-row check above and P1's phone bound.
+    if (!redesigned) expect(dimensions.visible).toBeGreaterThanOrEqual(14);
   }
   const firstGroup = page.getByRole('button', { name: 'Gruppe Mustergruppe 1', exact: true });
   await firstGroup.focus();
@@ -392,6 +394,11 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
       expect(Math.max(...dimensions.groups)).toBeLessThanOrEqual(76);
       expect(Math.max(...dimensions.bandHeights)).toBeLessThanOrEqual(152);
       const bar = page.locator('.plan-topbar');
+      if (redesigned) {
+        // ON exposes the full lead at the top and compacts it at the sticky edge.
+        await page.evaluate(() => window.scrollTo(0, 400));
+        await expect.poll(async () => (await bar.boundingBox())!.height).toBeLessThanOrEqual(56);
+      }
       expect((await bar.boundingBox())!.height).toBeLessThanOrEqual(56);
       await page.locator('.ptoolbar').scrollIntoViewIfNeeded();
       const topbar = (await bar.boundingBox())!;
