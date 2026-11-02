@@ -122,7 +122,7 @@ describe.each([false, true])('contact Settings destination, redesign=%s', (enabl
               ['Kategorien', 'Regelwerk', 'Zuordnungsregeln', 'Warenkorb (Teuerung)'],
             ],
             ['Verbindungen', ['Datenquellen']],
-            ['Vermögen', ['Anlageklassen']],
+            ['Vermögen', ['Zielallokation und Stufen', 'Anlageklassen']],
             ['Daten', ['CSV-Export', 'Projekte']],
           ]
         : [

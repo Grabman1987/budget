@@ -65,8 +65,10 @@ function mount(node: React.ReactNode = <ProfilePanel />, entry = '/einstellungen
   );
   const root = createRootRoute({ component: Outlet });
   const paths = [
-    '/einstellungen',
-    ...SETTINGS_GROUPS.flatMap((group) => group.items.map((item) => item.to)),
+    ...new Set([
+      '/einstellungen',
+      ...SETTINGS_GROUPS.flatMap((group) => group.items.map((item) => item.to)),
+    ]),
   ];
   const routes = paths.map((path) =>
     createRoute({

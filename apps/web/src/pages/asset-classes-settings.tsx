@@ -1,6 +1,6 @@
 import { Button, Field, Select, TextInput, maskMoneyText } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useSearch } from '@tanstack/react-router';
+import { useLocation, useSearch } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 import { request } from '../api/http';
 import { errorText } from '../ledger/labels';
@@ -24,6 +24,9 @@ import { targetVersionsQuery, type TargetVersion } from '../wealth/allocation-ap
 import { InstrumentForm } from '../wealth/instrument-form';
 import '../wealth/allocation.css';
 import './asset-classes-settings.css';
+
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsDraftGuard } from './settings-draft-guard';
 
 type ClassRow = AssetClassesSettingsView['classes'][number];
 const range = (cls: ClassRow) =>
@@ -56,9 +59,115 @@ function SettingsPanelLink({
 }
 export function AssetClassesSettingsPage() {
   const query = useQuery(assetSettingsQuery());
+  const { search } = useLocation();
   const data = query.isError ? undefined : query.data;
   const allocation = data?.allocation;
   const active = data?.classes.filter((c) => c.deletedAt === null) ?? [];
+  if (REDESIGN_ENABLED && search['ansicht'] === 'stufen')
+    return (
+      <PageFrame
+        meta={{
+          ...PAGES.find((p) => p.path === '/einstellungen/anlageklassen')!,
+          register: 'zielallokation',
+        }}
+      >
+        <InlineTargets />
+      </PageFrame>
+    );
+  if (REDESIGN_ENABLED)
+    return (
+      <PageFrame meta={PAGES.find((p) => p.path === '/einstellungen/anlageklassen')!}>
+        <section className="settings-classes-v2" aria-labelledby="asset-list-title">
+          <div className="settings-primary-head">
+            <h2 id="asset-list-title">Anlageklassen</h2>
+            <div className="settings-row-actions">
+              <SettingsPanelLink panel="anlagegruppe">Gruppe anlegen</SettingsPanelLink>
+              <SettingsPanelLink panel="anlageklasse">Anlageklasse anlegen</SettingsPanelLink>
+            </div>
+          </div>
+          {query.isPending && <LoadingNote what="Anlageklassen" />}
+          {query.isError && (
+            <ErrorNote
+              what="Anlageklassen"
+              error={query.error}
+              onRetry={() => void query.refetch()}
+            />
+          )}
+          {data && (
+            <div className="settings-surface">
+              <table className="settings-classes-table asset-class-table">
+                <caption className="sr-only">Anlageklassen</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Anlageklasse</th>
+                    <th scope="col">Gruppe</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.classes.map((cls) => (
+                    <tr key={cls.id}>
+                      <th scope="row">
+                        <SettingsPanelLink panel="anlageklasse" klasse={cls.id}>
+                          {cls.name}
+                        </SettingsPanelLink>
+                        <small>
+                          {cls.instruments.length} Instrumente ·{' '}
+                          {cls.actual
+                            ? eur(cls.actual.valueCents)
+                            : allocation?.status === 'empty'
+                              ? eur(0)
+                              : 'Wert nicht verfügbar'}
+                        </small>
+                      </th>
+                      <td>
+                        {cls.isGroup ? (
+                          'Gruppe'
+                        ) : (
+                          <GroupSelect cls={cls} groups={active.filter((entry) => entry.isGroup)} />
+                        )}
+                      </td>
+                      <td>
+                        {cls.deletedAt
+                          ? 'Archiviert'
+                          : cls.isGroup
+                            ? 'Aktiv'
+                            : data.targetsUnavailable
+                              ? 'Soll nicht ermittelbar'
+                              : cls.target?.targetBp == null
+                                ? 'Aktiv · unverwaltet'
+                                : `Aktiv · verwaltet · Soll ${bpText(cls.target.targetBp)} %`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {data?.classes.length === 0 && (
+            <p>Noch keine Anlageklassen. Die erste Klasse erhält zunächst keine Sollquote.</p>
+          )}
+          <AppLink
+            className="btn btn-ghost"
+            to="/einstellungen/anlageklassen"
+            search={{ ansicht: 'stufen' }}
+          >
+            Zielallokation und Stufen
+          </AppLink>
+          <SettingsPanelLink panel="sollquoten">Sollquoten bearbeiten</SettingsPanelLink>
+          {allocation && (
+            <p className="settings-source-stamp">
+              Bewertung zum {allocation.asOf} ·{' '}
+              {allocation.valuationQuality === 'exact'
+                ? 'vollständig'
+                : allocation.valuationQuality === 'estimated'
+                  ? 'teilweise geschätzt'
+                  : 'unvollständig'}
+            </p>
+          )}
+        </section>
+      </PageFrame>
+    );
   return (
     <PageFrame
       meta={PAGES.find((p) => p.path === '/einstellungen/anlageklassen')!}
@@ -209,6 +318,66 @@ export function AssetClassesSettingsPage() {
         )}
       </section>
     </PageFrame>
+  );
+}
+
+function InlineTargets() {
+  const query = useQuery(assetSettingsQuery());
+  const versions = useQuery(targetVersionsQuery());
+  const [dirty, setDirty] = useState(false),
+    [busy, setBusy] = useState(false),
+    [epoch, setEpoch] = useState(0);
+  return (
+    <section className="settings-targets-v2" aria-labelledby="settings-target-title">
+      <div className="settings-primary-head">
+        <h2 id="settings-target-title">Zielallokation und Stufen</h2>
+        <Button type="submit" form="settings-target-form" disabled={busy || !dirty}>
+          {busy ? 'Speichert …' : 'Speichern'}
+        </Button>
+      </div>
+      <p className="settings-source-stamp">
+        Lege fest, wie sich dein investiertes Vermögen aufteilen soll. Stufen gelten automatisch ab
+        ihrer Anlagesumme.
+      </p>
+      {(query.isPending || versions.isPending) && <LoadingNote what="Zielallokation" />}
+      {query.isError && (
+        <ErrorNote what="Zielallokation" error={query.error} onRetry={() => void query.refetch()} />
+      )}
+      {versions.isError && (
+        <ErrorNote
+          what="Sollversionen"
+          error={versions.error}
+          onRetry={() => void versions.refetch()}
+        />
+      )}
+      <SettingsDraftGuard dirty={dirty} busy={busy} />
+      {query.data && versions.data && !query.isError && !versions.isError && (
+        <TargetEditor
+          key={epoch}
+          presentation="settings"
+          view={query.data.allocation}
+          versions={versions.data.versions}
+          onDirty={setDirty}
+          onBusy={setBusy}
+          onSaved={() => {
+            setDirty(false);
+            setEpoch((value) => value + 1);
+          }}
+        />
+      )}
+      <Button
+        variant="ghost"
+        disabled={!dirty || busy}
+        onClick={() => {
+          if (window.confirm('Ungespeicherte Änderungen verwerfen?')) {
+            setDirty(false);
+            setEpoch((value) => value + 1);
+          }
+        }}
+      >
+        Verwerfen
+      </Button>
+    </section>
   );
 }
 

@@ -8,6 +8,7 @@ export interface RegisterDef {
   id: string;
   label: string;
   to: string;
+  search?: Record<string, string>;
 }
 
 export interface AreaDef {
@@ -85,6 +86,16 @@ export const AREAS: ReadonlyArray<AreaDef> = [
       { id: 'regelwerk', label: 'Regelwerk', to: '/einstellungen/regelwerk' },
       { id: 'zuordnung', label: 'Zuordnungsregeln', to: '/einstellungen/zuordnung' },
       { id: 'datenquellen', label: 'Datenquellen', to: '/einstellungen/datenquellen' },
+      ...(REDESIGN_ENABLED
+        ? [
+            {
+              id: 'zielallokation',
+              label: 'Zielallokation und Stufen',
+              to: '/einstellungen/anlageklassen',
+              search: { ansicht: 'stufen' },
+            },
+          ]
+        : []),
       { id: 'anlageklassen', label: 'Anlageklassen', to: '/einstellungen/anlageklassen' },
       { id: 'export', label: 'CSV-Export', to: '/einstellungen/export' },
       { id: 'sicherheit', label: 'Sicherheit', to: '/einstellungen/sicherheit' },
@@ -122,7 +133,7 @@ const SETTINGS_GROUP_IDS: ReadonlyArray<{ id: string; label: string; registers: 
           registers: ['kategorien', 'regelwerk', 'zuordnung', 'warenkorb'],
         },
         { id: 'verbindungen', label: 'Verbindungen', registers: ['datenquellen'] },
-        { id: 'vermoegen', label: 'Vermögen', registers: ['anlageklassen'] },
+        { id: 'vermoegen', label: 'Vermögen', registers: ['zielallokation', 'anlageklassen'] },
         { id: 'daten', label: 'Daten', registers: ['export', 'projekte'] },
       ]
     : [

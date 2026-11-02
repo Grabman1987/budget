@@ -36,6 +36,7 @@ interface ExpectedSettingsItem {
   id: string;
   label: string;
   to: string;
+  search?: Record<string, string>;
 }
 interface ExpectedSettingsGroup {
   id: string;
@@ -98,7 +99,19 @@ export function expectedSettingsGroups(redesign: boolean): readonly ExpectedSett
       items: [item('kategorien'), item('regelwerk'), item('zuordnung'), item('warenkorb')],
     },
     { id: 'verbindungen', label: 'Verbindungen', items: [item('datenquellen')] },
-    { id: 'vermoegen', label: 'Vermögen', items: [item('anlageklassen')] },
+    {
+      id: 'vermoegen',
+      label: 'Vermögen',
+      items: [
+        {
+          id: 'zielallokation',
+          label: 'Zielallokation und Stufen',
+          to: '/einstellungen/anlageklassen',
+          search: { ansicht: 'stufen' },
+        },
+        item('anlageklassen'),
+      ],
+    },
     { id: 'daten', label: 'Daten', items: [item('export'), item('projekte')] },
   ];
 }

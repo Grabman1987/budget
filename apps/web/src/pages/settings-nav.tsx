@@ -94,7 +94,7 @@ function SettingsGroupIndex() {
         <ul aria-label={group.label}>
           {group.items.map((item) => (
             <li key={item.id}>
-              <AppLink to={item.to} search={von ? { von } : {}}>
+              <AppLink to={item.to} search={{ ...item.search, ...(von ? { von } : {}) }}>
                 <span className="settings-item-label">{item.label}</span>
                 <ChevronRight size={16} aria-hidden="true" />
               </AppLink>
@@ -120,7 +120,17 @@ function SettingsGroupIndex() {
                 <Icon size={20} strokeWidth={1.5} aria-hidden="true" />
                 <span className="settings-item-label">
                   <strong>{item.label}</strong>
-                  <small>{item.items.map((entry) => entry.label).join(' · ')}</small>
+                  <small>
+                    {item.items
+                      .map((entry) =>
+                        entry.id === 'warenkorb'
+                          ? 'Warenkorb'
+                          : entry.id === 'datenquellen'
+                            ? 'Verbindungen'
+                            : entry.label,
+                      )
+                      .join(' · ')}
+                  </small>
                 </span>
                 <ChevronRight size={16} aria-hidden="true" />
               </AppLink>
@@ -152,9 +162,12 @@ function RedesignSettingsGroup({
 }) {
   const { search } = useLocation();
   const von = validateInboxSearch(search).von;
-  const active = group.items.some(
-    (item) => pathname === item.to || pathname.startsWith(`${item.to}/`),
-  );
+  const selected = (item: (typeof group.items)[number]) =>
+    (pathname === item.to || pathname.startsWith(`${item.to}/`)) &&
+    (item.search?.['ansicht'] === 'stufen'
+      ? search['ansicht'] === 'stufen'
+      : item.id !== 'anlageklassen' || search['ansicht'] !== 'stufen');
+  const active = group.items.some(selected);
   const Icon = GROUP_ICONS[group.id as keyof typeof GROUP_ICONS];
   return (
     <details
@@ -177,10 +190,8 @@ function RedesignSettingsGroup({
           <li key={item.id}>
             <AppLink
               to={item.to}
-              search={von ? { von } : {}}
-              aria-current={
-                pathname === item.to || pathname.startsWith(`${item.to}/`) ? 'page' : undefined
-              }
+              search={{ ...item.search, ...(von ? { von } : {}) }}
+              aria-current={selected(item) ? 'page' : undefined}
             >
               <span className="settings-item-label">{item.label}</span>
               <ChevronRight
