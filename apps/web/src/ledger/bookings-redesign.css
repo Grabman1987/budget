@@ -53,3 +53,10 @@
 .bookings-redesign > * {
   min-width: 0;
 }
+
+[data-budget-redesign='1'] .sheet:has(> .bookings-redesign) {
+  row-gap: 16px;
+}
+[data-budget-redesign='1'] .sheet:has(> .bookings-redesign) > .area-page-menu {
+  margin-block: 0;
+}
