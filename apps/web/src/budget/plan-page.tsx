@@ -409,6 +409,14 @@ function PlanBody({
       }
     };
     const outside = (event: MouseEvent) => {
+      // S3 puts phone privacy/theme controls in Search. Opening or using that
+      // shell surface must retain the current category and its form/cover source.
+      if (
+        REDESIGN_ENABLED &&
+        event.target instanceof Element &&
+        event.target.closest('.m-head, [role="dialog"]')
+      )
+        return;
       if (
         phone &&
         (phoneSelection ||
