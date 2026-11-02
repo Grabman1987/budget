@@ -152,10 +152,17 @@ export function OverviewPage() {
         {accounts.isError && (
           <ErrorNote what="Konten" error={accounts.error} onRetry={() => void accounts.refetch()} />
         )}
+        {REDESIGN_ENABLED && positions.isError && (
+          <ErrorNote
+            what="Depotwerte"
+            error={positions.error}
+            onRetry={() => void positions.refetch()}
+          />
+        )}
         {model && presentation && (
           <>
             <OverviewLead presentation={presentation} asOf={asOf} sourcesByRow={sourcesByRow} />
-            {ordered.accounts && asOf && (
+            {!REDESIGN_ENABLED && ordered.accounts && asOf && (
               <ClosedAccountDisclosure accounts={ordered.accounts} asOf={asOf} />
             )}
             {presentation.visible.length === 0 ? (
@@ -224,6 +231,9 @@ export function OverviewPage() {
                   </table>
                 </section>
               </>
+            )}
+            {REDESIGN_ENABLED && ordered.accounts && asOf && (
+              <ClosedAccountDisclosure accounts={ordered.accounts} asOf={asOf} />
             )}
           </>
         )}

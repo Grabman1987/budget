@@ -186,7 +186,13 @@ async function scene(
   await expect(page.getByTestId('budget-accounts-balance')).toHaveText('120,00 €');
   await expect(scope.getByRole('link', { name: '4 von 8 Konten geprüft' })).toBeVisible();
   await expect(scope.locator('[data-account-id]')).toHaveCount(8);
-  await expect(scope.getByText('Synthetic Closed', { exact: true })).toHaveCount(0);
+  await expect(
+    scope.locator('.overview-accounts').getByText('Synthetic Closed', { exact: true }),
+  ).toHaveCount(0);
+  // T7 retains closed-account history inside a collapsed disclosure in the ON build.
+  await expect(
+    scope.getByRole('link', { name: 'Synthetic Closed', exact: true }),
+  ).not.toBeVisible();
   await expect(scope.locator('.grp-title')).toHaveText([
     'Budget-Konten',
     'Kreditkarten',

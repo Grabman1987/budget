@@ -294,7 +294,7 @@
 
 /* K1: presentation only. The OFF branch and shared account/order/value styles stay intact. */
 .account-overview-redesign.kview {
-  gap: 12px;
+  gap: 8px;
 }
 .account-overview-redesign .overview-actions {
   gap: 8px;
@@ -303,7 +303,7 @@
   margin-inline-end: auto;
 }
 .account-overview-redesign .overview-lead {
-  padding-block: 8px 12px;
+  padding-block: 4px 8px;
   border-bottom: 1px solid var(--rule-strong);
 }
 .account-overview-redesign .overview-lead-links {
@@ -442,4 +442,85 @@
 }
 .account-overview-redesign .overview-review-track > [data-review-state='due'] {
   background: var(--warning);
+}
+
+@media (min-width: 1101px) {
+  .account-overview-redesign .overview-lead {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'label links' 'value links';
+    column-gap: 32px;
+    align-items: center;
+  }
+  .account-overview-redesign .overview-lead h2 {
+    grid-area: label;
+  }
+  .account-overview-redesign .overview-lead-value {
+    grid-area: value;
+  }
+  .account-overview-redesign .overview-lead-links {
+    grid-area: links;
+    display: grid;
+    grid-template-columns: max-content max-content;
+  }
+  .account-overview-redesign .overview-lead-links > span {
+    grid-column: 1 / -1;
+  }
+}
+.account-overview-redesign .overview-table > tbody > .overview-account-row > th,
+.account-overview-redesign .overview-table > tbody > .overview-account-row > td,
+.account-overview-redesign .overview-table > tbody > .overview-group > th,
+.account-overview-redesign .overview-table > tbody > .overview-group > td {
+  border-bottom: 0;
+}
+.account-overview-redesign .overview-account-row,
+.account-overview-redesign .overview-group {
+  box-shadow: inset 0 -1px var(--rule);
+}
+
+@media (min-width: 1101px) {
+  [data-budget-redesign='1'] .sheet:has(> .account-overview-redesign) {
+    row-gap: 24px;
+  }
+  .account-overview-redesign.kview {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
+    column-gap: 16px;
+  }
+  .account-overview-redesign > * {
+    grid-column: 1 / -1;
+  }
+  .account-overview-redesign .overview-actions {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+  }
+  .account-overview-redesign .overview-lead {
+    grid-column: 1;
+    grid-row: 1;
+    border-bottom: 0;
+  }
+  .account-overview-redesign .overview-bookings-link {
+    margin-inline-end: 0;
+  }
+}
+
+@media (max-width: 1100px) {
+  .account-overview-redesign .overview-table > tbody > .overview-group > th,
+  .account-overview-redesign .overview-table > tbody > .overview-group > td {
+    height: auto;
+  }
+}
+@media (min-width: 360px) and (max-width: 480px) {
+  .account-overview-redesign .overview-table > tbody > .overview-account-row {
+    grid-template-columns: minmax(0, 1fr) 60px max-content 44px;
+    grid-template-areas: 'name line value details';
+    gap: 0 4px;
+    padding-block: 4px;
+  }
+  .account-overview-redesign .overview-table.is-ordering > tbody > .overview-account-row {
+    grid-template-areas: 'name line value details' 'order order order order';
+  }
+  .account-overview-redesign .overview-table > tbody > .overview-group {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
 }
