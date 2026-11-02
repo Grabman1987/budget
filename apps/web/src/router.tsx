@@ -1,3 +1,4 @@
+import { assetType } from './wealth/redesign-filters';
 import {
   createRootRoute,
   createRoute,
@@ -472,6 +473,12 @@ const netWorthRoute = createRoute({
   component: lazyRouteComponent(() => import('./wealth/networth-page'), 'NetWorthPage'),
 });
 const portfolioRegisterSearch = (search: Record<string, unknown>) => ({
+  ...(REDESIGN_ENABLED
+    ? {
+        anlageart: assetType(search['anlageart']),
+        ansicht: search['ansicht'] === 'aktivitaeten' ? 'aktivitaeten' : undefined,
+      }
+    : {}),
   sparplan:
     typeof search['sparplan'] === 'string' && search['sparplan'].length <= 64
       ? search['sparplan']
@@ -505,7 +512,11 @@ const portfolioLegacyRedirect = ({
     throw redirect({
       to: '/vermoegen/portfolio/instrument/$id',
       params: { id: search.produkt },
-      search: { zeitraum: search.zeitraum, handel: search.handel },
+      search: {
+        zeitraum: search.zeitraum,
+        handel: search.handel,
+        ...(REDESIGN_ENABLED ? { anlageart: search.anlageart, ansicht: search.ansicht } : {}),
+      },
     });
 };
 const portfolioRoute = createRoute({
@@ -553,6 +564,12 @@ const instrumentRoute = createRoute({
   path: '/vermoegen/portfolio/instrument/$id',
   staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Instrument' } },
   validateSearch: (search: Record<string, unknown>) => ({
+    ...(REDESIGN_ENABLED
+      ? {
+          anlageart: assetType(search['anlageart']),
+          ansicht: search['ansicht'] === 'aktivitaeten' ? 'aktivitaeten' : undefined,
+        }
+      : {}),
     handel:
       typeof search['handel'] === 'string' && search['handel'].length <= 64
         ? search['handel']

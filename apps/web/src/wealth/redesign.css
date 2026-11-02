@@ -131,3 +131,64 @@
     gap: 0;
   }
 }
+.wealth-redesign .wealth-net-flows {
+  stroke: var(--line-2);
+}
+.wealth-redesign .wealth-position-mode {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.wealth-redesign .wealth-phone-position {
+  display: none;
+}
+.wealth-redesign .portfolio-lead {
+  padding: 12px 0;
+  border: 0;
+}
+.wealth-redesign .portfolio-lead .tbd-fig {
+  font-size: var(--fs-figure);
+}
+.wealth-redesign .portfolio-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.wealth-redesign .portfolio-view > * {
+  width: 100%;
+  min-width: 0;
+}
+@media (max-width: 767px) {
+  .wealth-redesign .wealth-phone-position {
+    display: block;
+    font-size: var(--fs-meta);
+    font-weight: 400;
+    color: var(--ink-2);
+    overflow-wrap: anywhere;
+  }
+  .wealth-redesign .portfolio-table tr {
+    grid-template-columns: minmax(0, 1fr) minmax(70px, auto);
+  }
+  .wealth-redesign .portfolio-product {
+    overflow-wrap: anywhere;
+    text-align: left;
+  }
+}
+.wealth-redesign .debts-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.wealth-redesign .debts-view > * {
+  width: 100%;
+  min-width: 0;
+}
+.wealth-redesign .debt-rechenweg,
+.wealth-redesign .debt-overview {
+  box-shadow: none;
+}
+.wealth-redesign .wealth-sheet a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}

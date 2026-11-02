@@ -15,7 +15,7 @@ import { undoGroup } from '../ledger/api';
 import { errorText } from '../ledger/labels';
 import { LoadingNote, ErrorNote } from '../ledger/states';
 import { AppLink } from '../shell/app-link';
-import { instrumentQuery, type PortfolioPosition } from './portfolio-api';
+import { instrumentQuery, type PortfolioPosition, type SecurityRecord } from './portfolio-api';
 import { basisReason, moneyText, quoteStand, quoteText, unitsText } from './portfolio-format';
 import { InstrumentForm, INSTRUMENT_KIND } from './instrument-form';
 import { TradeHistory } from './trade-history';
@@ -25,6 +25,7 @@ import { longDay } from '../ledger/format';
 
 export function InstrumentPanel({
   id,
+  initialKind,
   position: currentPosition,
   asOf,
   historyPeriod = 'YTD',
@@ -35,6 +36,7 @@ export function InstrumentPanel({
   onTrade,
 }: {
   id: string;
+  initialKind?: SecurityRecord['kind'] | undefined;
   position?: PortfolioPosition | undefined;
   asOf?: string | undefined;
   historyPeriod?: Period | undefined;
@@ -309,6 +311,7 @@ export function InstrumentPanel({
                 />
               ) : (
                 <InstrumentForm
+                  initialKind={initialKind}
                   key={id}
                   security={creating ? undefined : instrument.data?.security}
                   effectiveDay={asOf}

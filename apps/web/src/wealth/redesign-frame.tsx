@@ -17,24 +17,19 @@ export const WEALTH_PAGES = [
   { id: 'debts', label: 'Schulden', to: '/vermoegen/schulden' },
 ] as const;
 export type WealthPage = (typeof WEALTH_PAGES)[number]['id'];
-export const ASSET_TYPES = ['alle', 'wertpapiere', 'krypto', 'p2p'] as const;
-export type AssetType = (typeof ASSET_TYPES)[number];
-export const assetType = (value: unknown): AssetType =>
-  ASSET_TYPES.includes(value as AssetType) ? (value as AssetType) : 'alle';
-export const matchesAsset = (kind: string, art: AssetType) =>
-  art === 'alle' ||
-  (art === 'krypto'
-    ? kind === 'crypto'
-    : art === 'p2p'
-      ? kind === 'p2p'
-      : kind !== 'crypto' && kind !== 'p2p');
+import { assetType } from './redesign-filters';
 export function useAssetType() {
   const search = useSearch({ strict: false }) as { anlageart?: unknown };
   return assetType(search.anlageart);
 }
 
-export function WealthFrame({ page, children, ...props }: PageFrameProps & { page: WealthPage }) {
-  if (!REDESIGN_ENABLED) return <PageFrame {...props}>{children}</PageFrame>;
+export function WealthFrame({
+  page,
+  legacy,
+  children,
+  ...props
+}: PageFrameProps & { page: WealthPage; legacy?: boolean }) {
+  if (!REDESIGN_ENABLED || legacy) return <PageFrame {...props}>{children}</PageFrame>;
   return (
     <div className="wealth-redesign" data-testid="wealth-redesign">
       <PageFrame {...props} title="Vermögen" pageNavigation={<WealthToolbar page={page} />}>
