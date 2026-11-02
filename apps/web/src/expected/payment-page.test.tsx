@@ -2,11 +2,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { expectedQuery, type ExpectedPayment } from './api';
 import { PaymentPage } from './payment-page';
 
 const navigate = vi.fn();
+afterEach(() => vi.unstubAllGlobals());
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigate,
   useParams: () => ({ id: 'synthetic-payment' }),
@@ -23,6 +24,9 @@ vi.mock('./payment-panel', () => ({
     <button onClick={onClose}>Zahlung gelöscht</button>
   ),
 }));
+
+vi.mock('../budget/month-span', () => ({ useIsPhone: () => false }));
+vi.mock('./expected-page', () => ({ ExpectedPage: () => null }));
 
 it('returns to the originating Expected view and kind after deletion', () => {
   const payment: ExpectedPayment = {

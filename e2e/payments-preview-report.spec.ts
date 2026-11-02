@@ -1,3 +1,4 @@
+import { paymentView } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import type { PaymentsPreview } from '@budget/domain';
 import { expect, sampleTest as test } from './sample';
@@ -27,13 +28,33 @@ test('preview bookmark opens Plan payments, while the real twelve-month API stay
       writes.push(new URL(r.url()).pathname);
   });
   await page.goto('/reports/vorschau?monat=2026-09');
-  await expect(page).toHaveURL(/\/plan\/erwartet\?monat=2026-09$/);
+  await expect(page).toHaveURL(/\/plan\/erwartet\?/);
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-09');
+  if (redesign) {
+    expect(new URL(page.url()).searchParams.get('ansicht')).toBe('kalender');
+    await expect(
+      page.getByRole('heading', { name: 'Zahlungskalender', exact: true }),
+    ).toBeVisible();
+    await expect(page.locator('.preview-table')).toBeVisible();
+    expect(writes).toEqual([]);
+    await paymentView(page, 'next');
+    expect(writes).toEqual([]);
+    await page.getByRole('button', { name: 'Fälligkeiten aktualisieren', exact: true }).click();
+  } else await expect(page).toHaveURL(/\/plan\/erwartet\?monat=2026-09$/);
   await expect(page.locator('tr.prow', { hasText: 'Gehalt' }).first()).toContainText('+3.812,00 €');
   await expect(page.locator('tr.prow', { hasText: 'Miete' }).first()).toContainText('Do 01.10.');
-  const contracts = page.getByRole('button', { name: 'Verträge und Abos', exact: true });
+  const contracts = redesign
+    ? page.getByRole('combobox', { name: 'Ansicht', exact: true })
+    : page.getByRole('button', { name: 'Verträge und Abos', exact: true });
   await contracts.focus();
-  await page.keyboard.press('Enter');
-  await expect(contracts).toHaveAttribute('aria-pressed', 'true');
+  if (redesign) {
+    await contracts.selectOption('contracts');
+    await expect(contracts).toHaveValue('contracts');
+  } else {
+    await page.keyboard.press('Enter');
+    await expect(contracts).toHaveAttribute('aria-pressed', 'true');
+  }
   await expect(page.locator('tr.prow', { hasText: 'KI-Assistent' })).toContainText(
     '20,00 $ je Zahlung',
   );
@@ -42,7 +63,7 @@ test('preview bookmark opens Plan payments, while the real twelve-month API stay
     () => matchMedia('(pointer: coarse), (max-width: 767px)').matches,
   );
   // DESIGN's compact segmented control is 28px; the shared touch floor is 44px.
-  if (touch) expect((await contracts.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  if (touch || redesign) expect((await contracts.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   else expect((await contracts.boundingBox())!.height).toBe(28);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
@@ -61,9 +82,12 @@ test('preview bookmark opens Plan payments, while the real twelve-month API stay
   }
   // Plan's existing idempotent occurrence refresh is permitted; navigation must not book money.
   expect(writes.filter((path) => path !== '/api/expected/refresh')).toEqual([]);
+  if (redesign) expect(writes).toEqual(['/api/expected/refresh']);
   await page.reload();
-  await expect(page).toHaveURL(/\/plan\/erwartet\?monat=2026-09$/);
-  await expect(
-    page.getByRole('button', { name: 'Verträge und Abos', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  if (redesign) {
+    expect(new URL(page.url()).searchParams.get('ansicht')).toBe('contracts');
+    expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-09');
+  } else await expect(page).toHaveURL(/\/plan\/erwartet\?monat=2026-09$/);
+  if (redesign) await expect(contracts).toHaveValue('contracts');
+  else await expect(contracts).toHaveAttribute('aria-pressed', 'true');
 });

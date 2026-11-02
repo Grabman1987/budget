@@ -1,3 +1,4 @@
+import { goalView, redesignEnabled } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { cents, formatEuro } from '@budget/domain';
@@ -97,6 +98,13 @@ test('goal bookmark opens Plan and retains literal figures, keyboard detail and 
 }, info) => {
   await mock(page, [goal(), account]);
   await page.goto('/reports/sparziele?monat=2026-09');
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+    await expect(page.locator('.goals-reference .plan-v2-view > summary')).toContainText(
+      'Ansicht: Fortschritt',
+    );
+    await expect(page.getByTestId('goal-report-summary')).toBeVisible();
+    await goalView(page, 'Liste');
+  }
   await expect(page).toHaveURL(/\/plan\/sparziele\?monat=2026-09$/);
   const rows = page.locator('.goals tr.prow');
   const travel = rows.filter({ hasText: 'Reiseziel' });
@@ -119,7 +127,13 @@ test('goal bookmark opens Plan and retains literal figures, keyboard detail and 
     'href',
     /monat=2026-09/,
   );
-  const back = page.getByRole('link', { name: 'Zurück zu Sparzielen', exact: true });
+  const back = page.getByRole('link', {
+    name:
+      (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+        ? 'Zurück zu Zielen'
+        : 'Zurück zu Sparzielen',
+    exact: true,
+  });
   expect((await back.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await back.click();
   await page.locator('.goals').getByRole('link', { name: 'Reserve', exact: true }).click();
@@ -140,12 +154,23 @@ test('live goal detail withholds ambiguous source money and metadata while refre
 }) => {
   await mock(page, [goal(), goal({ id: 'second', name: 'Zweites Ziel' })]);
   await page.goto('/reports/sparziele?monat=2026-09');
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+    await expect(page.locator('.goals-reference .plan-v2-view > summary')).toContainText(
+      'Ansicht: Fortschritt',
+    );
+    await expect(page.getByTestId('goal-report-summary')).toBeVisible();
+    await goalView(page, 'Liste');
+  }
   await expect(page.locator('[data-goal-unknown]')).toHaveCount(2);
   await expect(page.getByTestId('goals-summary')).toHaveText(
     'Keine eindeutig belegten Zielstände · 2 ungeklärt',
   );
-  await expect(page.locator('.goals .ptable-wrap')).not.toContainText('850,00');
-  await expect(page.locator('.goals .ptable-wrap')).not.toContainText('1.700,00');
+  await expect(
+    page.locator((await redesignEnabled(page)) ? '.goals-reference-scroll' : '.goals .ptable-wrap'),
+  ).not.toContainText('850,00');
+  await expect(
+    page.locator((await redesignEnabled(page)) ? '.goals-reference-scroll' : '.goals .ptable-wrap'),
+  ).not.toContainText('1.700,00');
   await expect(page.locator('.goals .pbar')).toHaveCount(0);
   await page.locator('.goals').getByRole('link', { name: 'Reiseziel', exact: true }).click();
   const detail = page.locator('.goal-report-detail');
@@ -198,10 +223,21 @@ sampleTest(
     });
     const response = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/goals');
     await page.goto('/reports/sparziele?monat=2026-09');
+    if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+      await expect(page.locator('.goals-reference .plan-v2-view > summary')).toContainText(
+        'Ansicht: Fortschritt',
+      );
+      await expect(page.getByTestId('goal-report-summary')).toBeVisible();
+      await goalView(page, 'Liste');
+    }
     const data = (await (await response).json()) as { month: string; goals: GoalView[] };
     expect(data.month).toBe('2026-09');
     expect(data.goals).toHaveLength(5);
-    await expect(page.getByTestId('goals-summary')).toHaveText('3 von 5 im Plan');
+    await expect(page.getByTestId('goals-summary')).toHaveText(
+      (await redesignEnabled(page))
+        ? 'Gesamtfortschritt 1.379,72 €von 6.066,00 € · 5 aktive Ziele'
+        : '3 von 5 im Plan',
+    );
     for (const g of data.goals) {
       for (const toggle of await page.locator('.goals .grp-toggle[aria-expanded="false"]').all())
         await toggle.click();
@@ -217,7 +253,15 @@ sampleTest(
       await expect(detail).toContainText(
         g.neededMonthlyCents === null ? 'ohne Zieldatum' : formatEuro(cents(g.neededMonthlyCents)),
       );
-      await page.getByRole('link', { name: 'Zurück zu Sparzielen', exact: true }).click();
+      await page
+        .getByRole('link', {
+          name:
+            (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+              ? 'Zurück zu Zielen'
+              : 'Zurück zu Sparzielen',
+          exact: true,
+        })
+        .click();
     }
     expect(writes).toEqual([]);
     await inspect(page, info, 'goals-real-sample');

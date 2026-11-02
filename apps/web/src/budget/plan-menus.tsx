@@ -262,6 +262,7 @@ export function OptionenMenu({
   onSelectionMode,
   onView,
   onToggleAll,
+  readUtilities,
 }: {
   month: string;
   view: PlanView;
@@ -273,6 +274,8 @@ export function OptionenMenu({
   onSelectionMode?: () => void;
   onView: (view: PlanView) => void;
   onToggleAll: () => void;
+  /** Optional same-month read controls; no assignment actions or nested menu summaries. */
+  readUtilities?: ReactNode;
 }) {
   const span = useStoredMonthSpan();
   return (
@@ -317,6 +320,7 @@ export function OptionenMenu({
           Monatsabschluss starten oder fortsetzen
         </AppLink>
       </div>
+      {readUtilities}
     </PlanMenu>
   );
 }

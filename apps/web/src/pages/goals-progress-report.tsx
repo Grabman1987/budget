@@ -17,6 +17,7 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { AppLink } from '../shell/app-link';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { goalReportRows, type GoalReportRow } from './goals-progress-model';
 import { PageFrame } from './placeholder-page';
 import './goals-progress-report.css';
@@ -113,6 +114,33 @@ export function GoalsProgressReport({ report, meta }: { report: ReportEntry; met
     </PageFrame>
   );
 }
+/** Full retained progress destination inside Plan, using the same validated source query. */
+export function GoalsProgress({ month }: { month: string }) {
+  useAmountPrivacy();
+  const query = useQuery(goalsProgressReportQuery(month));
+  const ready = !query.isFetching && query.isSuccess ? query.data : undefined;
+  return (
+    <div className="kview vview goals-progress-report">
+      {(query.isPending || query.isFetching) && <LoadingNote what="Sparziele und Quellen" />}
+      {!query.isFetching && query.isError && (
+        <ErrorNote
+          what="Sparziele und Quellen"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
+      )}
+      {ready && (
+        <>
+          <p>
+            Stand {longDay(lastDayOfMonth(ready.month))} · Monatsende · gespeicherte Ziele und
+            Quellen
+          </p>
+          <ReportBody month={ready.month} rows={ready.rows} report={ready.report} />
+        </>
+      )}
+    </div>
+  );
+}
 function ReportBody({
   month,
   rows,
@@ -168,7 +196,9 @@ function ReportBody({
         {rows.length === 0 && (
           <p role="status">
             Noch keine gespeicherten Sparziele.{' '}
-            <AppLink to="/plan/sparziele">Sparziele im Plan öffnen</AppLink>
+            <AppLink to="/plan/sparziele" search={REDESIGN_ENABLED ? { monat: month } : undefined}>
+              Sparziele im Plan öffnen
+            </AppLink>
           </p>
         )}
         <div className="goals-report-list">
@@ -311,7 +341,9 @@ function ReportBody({
         </section>
       )}
       <p>
-        <AppLink to="/plan/sparziele">Sparziele im Plan öffnen</AppLink>
+        <AppLink to="/plan/sparziele" search={REDESIGN_ENABLED ? { monat: month } : undefined}>
+          Sparziele im Plan öffnen
+        </AppLink>
       </p>
     </>
   );

@@ -27,10 +27,11 @@ import {
   appSetting,
   getEntity,
   createEntity,
+  readMonthClose,
 } from '@budget/db';
 import { addMonths } from '@budget/domain';
 import { Hono } from 'hono';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import {
@@ -163,10 +164,48 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
   const monthParam = (value: string) => month.parse(value);
   const cursorEpoch = randomUUID();
 
+  // A conservative canonical revision: total_changes + data_version cover writes from
+  // this connection and other connections (including targets, funding, zero-row existence
+  // and ordering). The epoch invalidates tokens after restart. Read the revision and the
+  // displayed view in one SQLite snapshot; no later read may supply a preview's basis.
+  const previewBasis = (
+    tx: Parameters<typeof databaseStamp>[0],
+    m: string,
+    day: string,
+    cardRule = 'ynab',
+  ) =>
+    createHash('sha256')
+      .update(JSON.stringify(['plan-preview-v1', cursorEpoch, databaseStamp(tx), m, day, cardRule]))
+      .digest('hex');
+  const monthViews = (
+    tx: Parameters<typeof databaseStamp>[0],
+    months: string[],
+    cardRule?: 'ynab' | 'concept',
+    withBasis = false,
+  ) => {
+    const day = today();
+    const views = planMonthViews(tx, months, cardRule ? { cardRule } : {}, day);
+    if (!withBasis) return views;
+    return Object.fromEntries(
+      Object.entries(views).map(([m, view]) => [
+        m,
+        {
+          ...view,
+          previewBasis: previewBasis(tx, m, day, cardRule),
+        },
+      ]),
+    );
+  };
+
   /** Several months at once: `{ months: { 'YYYY-MM': <the answer of GET /:month> } }`. */
   app.get('/months', (c) => {
-    const { months, cardRule } = readQuery(c, budgetMonthsQuery);
-    return c.json({ months: planMonthViews(db, months, cardRule ? { cardRule } : {}, today()) });
+    const { months, cardRule, previewBasis } = readQuery(
+      c,
+      budgetMonthsQuery.extend({ previewBasis: z.literal('1').optional() }),
+    );
+    return c.json(
+      db.transaction((tx) => ({ months: monthViews(tx, months, cardRule, previewBasis === '1') })),
+    );
   });
 
   app.get('/:month/uncategorized', (c) => {
@@ -309,25 +348,81 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
 
   app.get('/:month', (c) => {
     const m = monthParam(c.req.param('month'));
-    const { cardRule } = readQuery(c, budgetQuery);
-    return c.json(planMonthViews(db, [m], cardRule ? { cardRule } : {}, today())[m]);
+    const { cardRule, previewBasis } = readQuery(
+      c,
+      budgetQuery.extend({ previewBasis: z.literal('1').optional() }),
+    );
+    return c.json(db.transaction((tx) => monthViews(tx, [m], cardRule, previewBasis === '1')[m]));
   });
 
   app.put('/:month/assigned', async (c) => {
     const m = monthParam(c.req.param('month'));
-    const { items, closeMonth } = await readBody(c, assignBody);
+    const { items, closeMonth, expectedBasis, expectedCloseBasis } = await readBody(
+      c,
+      assignBody.extend({
+        expectedBasis: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
+        expectedCloseBasis: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
+      }),
+    );
+    if (expectedCloseBasis && (!closeMonth || expectedBasis))
+      throw new ApiError(422, 'preview_close_month', 'Bitte genau einen Vorschaukontext wählen.');
+    if (expectedBasis)
+      return c.json(
+        db.transaction(
+          (tx) => {
+            // Acquire the write lock before comparing; reject before assignment/audit writes.
+            if (expectedBasis !== previewBasis(tx, m, today()))
+              throw new ApiError(
+                409,
+                'plan_preview_changed',
+                'Der Plan hat sich geändert. Vorschau aktualisieren und erneut bestätigen.',
+              );
+            if (closeMonth)
+              throw new ApiError(
+                422,
+                'preview_close_month',
+                'Diese Vorschau gehört zum Monatsplan.',
+              );
+            return assignMany(tx, m, items, audit());
+          },
+          { behavior: 'immediate' },
+        ),
+      );
     if (!closeMonth) return c.json(assignMany(db, m, items, audit()));
     if (addMonths(closeMonth, 1) !== m)
       throw new ApiError(422, 'close_plan_month', 'Der Plan muss zum nächsten Monat gehören.');
     return c.json(
-      db.transaction((tx) => {
-        const id = `month_close_plan.${closeMonth}`;
-        const stored = getEntity(tx, appSetting, id);
-        const ctx = stored ? { actor: ACTOR, groupId: z.uuid().parse(stored.value) } : audit();
-        const result = assignMany(tx, m, items, ctx);
-        if (!stored) createEntity(tx, appSetting, { id, value: ctx.groupId }, ctx);
-        return result;
-      }),
+      db.transaction(
+        (tx) => {
+          if (expectedCloseBasis) {
+            // Hash the original complete close-plan snapshot: history/order/targets/funding,
+            // plus the existing audited source revision. No independently read basis token.
+            const { sourceRevision, nextPlan } = readMonthClose(tx, closeMonth, today());
+            const current = createHash('sha256')
+              .update(JSON.stringify({ sourceRevision, nextPlan }))
+              .digest('hex');
+            if (current !== expectedCloseBasis)
+              throw new ApiError(
+                409,
+                'close_plan_changed',
+                'Der nächste Monatsplan hat sich geändert. Entwurf prüfen und erneut bestätigen.',
+              );
+          }
+          const id = `month_close_plan.${closeMonth}`;
+          const stored = getEntity(tx, appSetting, id);
+          const ctx = stored ? { actor: ACTOR, groupId: z.uuid().parse(stored.value) } : audit();
+          const result = assignMany(tx, m, items, ctx);
+          if (!stored) createEntity(tx, appSetting, { id, value: ctx.groupId }, ctx);
+          return result;
+        },
+        { behavior: 'immediate' },
+      ),
     );
   });
 
