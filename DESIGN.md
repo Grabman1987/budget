@@ -374,6 +374,10 @@ Five opt-in budget presentation marks consume an already determined state, witho
 
 Charts use at most four series with direct labels. Heatmaps use single-hue density with direction markers. This token-only slice leaves the existing signed heatmap fills and chart structure unchanged; their markers, density scale and series-label migration require a separate UI slice.
 
+### Frozen export foundation (2026-11-02)
+
+The [bounded export reference](design/export/2026-11-02/README.md) pins the owner-supplied archive and reconciles generic component/page contracts with this system and SPEC.md. Refs #820 and #874. It preserves existing prototype/screens and the delivered S2 adapter (#828); raw source tokens are archival references, never generator inputs or app styles. The source inventory records exclusions and conflicts, including deferred onboarding/pension, EUR-only scope, retained CSV and no arbitrary import UI. Only three individually inspected anonymous PNGs are admitted. Production redesign remains OFF; source import is not area, browser or owner acceptance.
+
 ### Named Rules
 **The Signal Rule.** Grün sagt „das Geld ist da“ (Hero, Mint-Pillen, erfüllt), Rot sagt „handeln“; beide erscheinen nie ohne Zahl, Vorzeichen oder Symbol.
 
