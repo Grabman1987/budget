@@ -218,7 +218,7 @@ export const hubReport = (id: string) => HUB_REPORTS.find((report) => report.sou
 export function reportAliases(report: HubReport) {
   return report.sources.flatMap((id) => {
     const source = findReport(id);
-    return source && source.name !== report.name ? [source] : [];
+    return source && id !== report.id && source.name !== report.name ? [source] : [];
   });
 }
 export const matchingHubReports = (search: string, group?: HubGroup) => {

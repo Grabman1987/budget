@@ -184,9 +184,14 @@ test.describe('routes', () => {
   }, info) => {
     await page.goto('/reports');
     await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     await expect(
       page.getByRole('group', { name: 'Berichtsgruppen' }).getByRole('button'),
-    ).toHaveText(['Alle', 'Einnahmen/Ausgaben', 'Vermögen', 'Portfolio', 'Berichte']);
+    ).toHaveText(
+      redesign
+        ? ['Alle', 'Berichte', 'Auswertungen', 'Portfolio', 'Einnahmen und Ausgaben']
+        : ['Alle', 'Einnahmen/Ausgaben', 'Vermögen', 'Portfolio', 'Berichte'],
+    );
     await expect(page.locator('.report-hub-number')).toHaveText([
       '1',
       '2',
@@ -208,7 +213,9 @@ test.describe('routes', () => {
     // The catalog keeps the question; chart implementation and period controls belong to reports.
     const first = page.locator('.report-hub-list > li > a').first();
     await expect(first.locator('.report-hub-question')).toHaveText(
-      'Woher kommt das Geld, und was bleibt nach den Ausgaben?',
+      redesign
+        ? 'Wie lief der Monat, auf einem Blatt?'
+        : 'Woher kommt das Geld, und was bleibt nach den Ausgaben?',
     );
     await expect(page.locator('.rcat-form, .rcat-ctl')).toHaveCount(0);
     await expect(
@@ -236,7 +243,9 @@ test.describe('routes', () => {
       );
       await page.screenshot({ path: info.outputPath(`catalog-${theme}.png`), fullPage: true });
     }
-    await page.locator('.report-hub-list > li').nth(3).locator('.report-hub-question').click();
+    await page
+      .locator('.report-hub-list > li > a[href="/reports/geldfluss"] .report-hub-question')
+      .click();
     await expect(page).toHaveURL(/\/reports\/geldfluss$/);
   });
 });

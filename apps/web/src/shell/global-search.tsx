@@ -93,7 +93,7 @@ const REDESIGN_SEARCH_TERMS: Record<string, readonly string[]> = {
   ...Object.fromEntries(
     REPORTS.map((report) => [
       `report:${report.id}`,
-      [report.id, report.pos, report.name, hubReport(report.id)?.name ?? ''],
+      [report.id, `${report.pos} ${report.name}`, hubReport(report.id)?.name ?? ''],
     ]),
   ),
   'page:/plan/erwartet': ['wiederkehrende zahlungen', 'erwartete zahlungen'],
