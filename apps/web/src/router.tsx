@@ -26,6 +26,7 @@ import { findReport } from './nav/reports-catalog';
 import {
   ACCOUNT_PAGE,
   CSV_EXPORT_META,
+  CONTACT_SETTINGS_META,
   EINSTELLUNGEN_KATEGORIEN,
   KONTEN_SETTINGS_META,
   PLAN_ERWARTET,
@@ -179,6 +180,7 @@ const captureRoute = createRoute({
   component: lazyRouteComponent(() => import('./ledger/capture-page'), 'CapturePage'),
 });
 const BUILT_PATHS = new Set<string>([
+  CONTACT_SETTINGS_META.path,
   '/einstellungen/zuordnung',
   '/einstellungen/datenquellen',
   SECURITY_META.path,
@@ -242,6 +244,17 @@ const contactsRoute = createRoute({
   staticData: { meta: PAGES.find((p) => p.path === '/konten/kontakte')! },
   component: lazyRouteComponent(() => import('./contacts/contacts-page'), 'ContactsPage'),
 });
+const contactSettingsRoute = REDESIGN_ENABLED
+  ? createRoute({
+      getParentRoute: () => shellRoute,
+      path: CONTACT_SETTINGS_META.path,
+      staticData: { meta: CONTACT_SETTINGS_META },
+      component: lazyRouteComponent(
+        () => import('./pages/contact-settings'),
+        'ContactSettingsPage',
+      ),
+    })
+  : redirectRoute(CONTACT_SETTINGS_META.path, '/konten/kontakte');
 const overviewRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/konten',
@@ -890,6 +903,7 @@ const routeTree = rootRoute.addChildren([
     overviewRoute,
     bookingsRoute,
     contactsRoute,
+    contactSettingsRoute,
     inboxRoute,
     inboxDetailRoute,
     accountRoute,

@@ -1,4 +1,5 @@
 import { ChartColumn, Home, Landmark, Table2, TrendingUp, type LucideIcon } from 'lucide-react';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 /** The five areas of the sitemap (SPEC §3) plus settings. Same order on desktop and phone. */
 export type AreaId = 'heute' | 'plan' | 'konten' | 'vermoegen' | 'reports' | 'einstellungen';
@@ -75,6 +76,9 @@ export const AREAS: ReadonlyArray<AreaDef> = [
     to: '/einstellungen/konten',
     registers: [
       { id: 'konten', label: 'Konten', to: '/einstellungen/konten' },
+      ...(REDESIGN_ENABLED
+        ? [{ id: 'kontakte', label: 'Kontakte', to: '/einstellungen/kontakte' }]
+        : []),
       { id: 'projekte', label: 'Projekte', to: '/einstellungen/projekte' },
       { id: 'warenkorb', label: 'Warenkorb (Teuerung)', to: '/einstellungen/warenkorb' },
       { id: 'kategorien', label: 'Kategorien', to: '/einstellungen/kategorien' },
@@ -111,7 +115,15 @@ const SETTINGS_GROUP_IDS: ReadonlyArray<{ id: string; label: string; registers: 
   {
     id: 'daten',
     label: 'Daten',
-    registers: ['konten', 'kategorien', 'warenkorb', 'projekte', 'anlageklassen', 'depots'],
+    registers: [
+      'konten',
+      ...(REDESIGN_ENABLED ? ['kontakte'] : []),
+      'kategorien',
+      'warenkorb',
+      'projekte',
+      'anlageklassen',
+      'depots',
+    ],
   },
   { id: 'automatik', label: 'Automatik', registers: ['regelwerk', 'zuordnung', 'datenquellen'] },
   { id: 'system', label: 'System', registers: ['sicherheit', 'export', 'profil'] },
