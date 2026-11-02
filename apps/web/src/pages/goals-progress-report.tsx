@@ -113,6 +113,33 @@ export function GoalsProgressReport({ report, meta }: { report: ReportEntry; met
     </PageFrame>
   );
 }
+/** Full retained progress destination inside Plan, using the same validated source query. */
+export function GoalsProgress({ month }: { month: string }) {
+  useAmountPrivacy();
+  const query = useQuery(goalsProgressReportQuery(month));
+  const ready = !query.isFetching && query.isSuccess ? query.data : undefined;
+  return (
+    <div className="kview vview goals-progress-report">
+      {(query.isPending || query.isFetching) && <LoadingNote what="Sparziele und Quellen" />}
+      {!query.isFetching && query.isError && (
+        <ErrorNote
+          what="Sparziele und Quellen"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
+      )}
+      {ready && (
+        <>
+          <p>
+            Stand {longDay(lastDayOfMonth(ready.month))} · Monatsende · gespeicherte Ziele und
+            Quellen
+          </p>
+          <ReportBody month={ready.month} rows={ready.rows} report={ready.report} />
+        </>
+      )}
+    </div>
+  );
+}
 function ReportBody({
   month,
   rows,

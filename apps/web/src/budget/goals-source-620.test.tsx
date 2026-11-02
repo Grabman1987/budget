@@ -15,12 +15,21 @@ import { createLedgerApi } from '../../../server/src/api';
 import { seedBasics, testCtx } from '../../../../packages/db/src/repos/test-helpers';
 import { goalsProgressReportQuery } from '../pages/goals-progress-report';
 import { GoalsPage } from './goals-page';
+const presentation = vi.hoisted(() => ({ enabled: false, progress: false }));
+vi.mock('../shell/redesign-flag', () => ({
+  get REDESIGN_ENABLED() {
+    return presentation.enabled;
+  },
+}));
 
 vi.mock('../pages/placeholder-page', () => ({
   PageFrame: ({ children }: { children: ReactNode }) => <main>{children}</main>,
 }));
 vi.mock('@tanstack/react-router', () => ({
-  useSearch: () => ({ monat: '2026-09' }),
+  useSearch: () => ({
+    monat: '2026-09',
+    ansicht: presentation.progress ? 'fortschritt' : undefined,
+  }),
   useNavigate: () => vi.fn(),
   useLinkProps: ({ to, search }: { to: string; search?: Record<string, string> }) => ({
     href: `${to}${search ? `?${new URLSearchParams(search)}` : ''}`,
@@ -52,6 +61,8 @@ beforeEach(() => {
   });
 });
 afterEach(() => {
+  presentation.enabled = false;
+  presentation.progress = false;
   cleanup();
   for (const client of clients.splice(0)) client.clear();
   for (const database of databases.splice(0)) database.close();
@@ -60,6 +71,27 @@ afterEach(() => {
     else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
   }
   vi.unstubAllGlobals();
+});
+
+it('ON restores the full progress view from URL state using proven sources without any writes', async () => {
+  presentation.enabled = true;
+  presentation.progress = true;
+  const { opened, fetcher } = mount();
+  await screen.findByTestId('goal-report-summary');
+  expect(screen.getByRole('button', { name: 'Fortschritt' }).getAttribute('aria-pressed')).toBe(
+    'true',
+  );
+  expect(screen.getByRole('heading', { name: /Sparziele · Sep/ })).toBeTruthy();
+  expect(
+    opened.db
+      .select()
+      .from(schema.auditLog)
+      .all()
+      .some((row) => row.actor !== testCtx.actor),
+  ).toBe(false);
+  expect(fetcher.mock.calls.every(([, options]) => (options?.method ?? 'GET') === 'GET')).toBe(
+    true,
+  );
 });
 
 function mount(mode: 'valid' | 'duplicate' | 'mixed' | 'missing' | 'foreign' = 'valid') {

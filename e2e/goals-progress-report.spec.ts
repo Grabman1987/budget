@@ -97,6 +97,14 @@ test('goal bookmark opens Plan and retains literal figures, keyboard detail and 
 }, info) => {
   await mock(page, [goal(), account]);
   await page.goto('/reports/sparziele?monat=2026-09');
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+    await expect(page.getByRole('button', { name: 'Fortschritt', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(page.getByTestId('goal-report-summary')).toBeVisible();
+    await page.getByRole('button', { name: 'Ziele', exact: true }).click();
+  }
   await expect(page).toHaveURL(/\/plan\/sparziele\?monat=2026-09$/);
   const rows = page.locator('.goals tr.prow');
   const travel = rows.filter({ hasText: 'Reiseziel' });
@@ -119,7 +127,13 @@ test('goal bookmark opens Plan and retains literal figures, keyboard detail and 
     'href',
     /monat=2026-09/,
   );
-  const back = page.getByRole('link', { name: 'Zurück zu Sparzielen', exact: true });
+  const back = page.getByRole('link', {
+    name:
+      (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+        ? 'Zurück zu Zielen'
+        : 'Zurück zu Sparzielen',
+    exact: true,
+  });
   expect((await back.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await back.click();
   await page.locator('.goals').getByRole('link', { name: 'Reserve', exact: true }).click();
@@ -140,6 +154,14 @@ test('live goal detail withholds ambiguous source money and metadata while refre
 }) => {
   await mock(page, [goal(), goal({ id: 'second', name: 'Zweites Ziel' })]);
   await page.goto('/reports/sparziele?monat=2026-09');
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+    await expect(page.getByRole('button', { name: 'Fortschritt', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(page.getByTestId('goal-report-summary')).toBeVisible();
+    await page.getByRole('button', { name: 'Ziele', exact: true }).click();
+  }
   await expect(page.locator('[data-goal-unknown]')).toHaveCount(2);
   await expect(page.getByTestId('goals-summary')).toHaveText(
     'Keine eindeutig belegten Zielstände · 2 ungeklärt',
@@ -198,6 +220,14 @@ sampleTest(
     });
     const response = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/goals');
     await page.goto('/reports/sparziele?monat=2026-09');
+    if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+      await expect(page.getByRole('button', { name: 'Fortschritt', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      await expect(page.getByTestId('goal-report-summary')).toBeVisible();
+      await page.getByRole('button', { name: 'Ziele', exact: true }).click();
+    }
     const data = (await (await response).json()) as { month: string; goals: GoalView[] };
     expect(data.month).toBe('2026-09');
     expect(data.goals).toHaveLength(5);
@@ -217,7 +247,15 @@ sampleTest(
       await expect(detail).toContainText(
         g.neededMonthlyCents === null ? 'ohne Zieldatum' : formatEuro(cents(g.neededMonthlyCents)),
       );
-      await page.getByRole('link', { name: 'Zurück zu Sparzielen', exact: true }).click();
+      await page
+        .getByRole('link', {
+          name:
+            (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+              ? 'Zurück zu Zielen'
+              : 'Zurück zu Sparzielen',
+          exact: true,
+        })
+        .click();
     }
     expect(writes).toEqual([]);
     await inspect(page, info, 'goals-real-sample');

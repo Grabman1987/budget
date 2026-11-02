@@ -186,7 +186,14 @@ mainTest('goals: create, edit, delete and undo', async ({ page }, testInfo) => {
   await edit.getByLabel('Ziel', { exact: true }).fill('2000');
   await edit.getByRole('button', { name: 'Speichern' }).click();
   await expect(toast(page)).toContainText(`${name} geändert`);
-  await page.getByRole('link', { name: 'Zurück zu Sparzielen' }).click();
+  await page
+    .getByRole('link', {
+      name:
+        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+          ? 'Zurück zu Zielen'
+          : 'Zurück zu Sparzielen',
+    })
+    .click();
   await expect(row.locator('.col-target')).toHaveText('2.000,00 €');
   await expect(row.locator('.col-rate')).not.toHaveText(rateBefore);
 
@@ -195,7 +202,14 @@ mainTest('goals: create, edit, delete and undo', async ({ page }, testInfo) => {
   await page.getByRole('button', { name: 'Sparziel bearbeiten', exact: true }).click();
   await page.getByRole('dialog', { name }).getByRole('button', { name: 'Löschen' }).click();
   await expect(toast(page)).toContainText(`Sparziel „${name}“ gelöscht`);
-  await page.getByRole('link', { name: 'Zurück zu Sparzielen' }).click();
+  await page
+    .getByRole('link', {
+      name:
+        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+          ? 'Zurück zu Zielen'
+          : 'Zurück zu Sparzielen',
+    })
+    .click();
   await expect(row).toHaveCount(0);
   await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
   await expect(row).toHaveCount(1);

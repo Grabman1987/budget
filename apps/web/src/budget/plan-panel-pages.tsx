@@ -9,6 +9,7 @@ import { PageFrame } from '../pages/placeholder-page';
 import { GoalDetail, GoalHistory, goalsProgressReportQuery } from '../pages/goals-progress-report';
 import { AppLink } from '../shell/app-link';
 import { useMonth } from '../shell/use-month';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { CategoryPanel, type PanelState } from './category-panel';
 import { CategoryIcon } from './category-icon';
 import { GoalPanel } from './goals-panel';
@@ -162,9 +163,21 @@ export function GoalDetailPage() {
     <PageFrame meta={PLAN_SPARZIELE}>
       <div className="plan plan-panel-detail">
         <DetailBack
-          to={quelle === 'report' ? '/reports/sparziele' : '/plan/sparziele'}
-          search={quelle === 'report' ? {} : { monat: month }}
-          label={quelle === 'report' ? 'Sparzielreport' : 'Sparziele'}
+          to={
+            REDESIGN_ENABLED
+              ? '/plan/sparziele'
+              : quelle === 'report'
+                ? '/reports/sparziele'
+                : '/plan/sparziele'
+          }
+          search={
+            REDESIGN_ENABLED
+              ? { monat: month, ...(quelle === 'report' ? { ansicht: 'fortschritt' } : {}) }
+              : quelle === 'report'
+                ? {}
+                : { monat: month }
+          }
+          label={REDESIGN_ENABLED ? 'Ziele' : quelle === 'report' ? 'Sparzielreport' : 'Sparziele'}
         />
         {(query.isPending || query.isFetching) && <LoadingNote what="Sparziel und Quellen" />}
         {!query.isFetching && query.isError && (

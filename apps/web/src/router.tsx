@@ -594,6 +594,10 @@ const planGoalsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_SPARZIELE.path,
   staticData: { meta: PLAN_SPARZIELE },
+  validateSearch: (search: Record<string, unknown>) =>
+    REDESIGN_ENABLED
+      ? { ansicht: search['ansicht'] === 'fortschritt' ? 'fortschritt' : undefined }
+      : {},
   component: lazyRouteComponent(() => import('./budget/goals-page'), 'GoalsPage'),
 });
 /** Whether the viewport is wide enough for the settings rail (the app's desktop breakpoint). */
@@ -634,7 +638,11 @@ const redirects = [
     '/plan/erwartet',
     REDESIGN_ENABLED ? { ansicht: 'kalender' } : {},
   ),
-  redirectRoute('/reports/sparziele', '/plan/sparziele'),
+  redirectRoute(
+    '/reports/sparziele',
+    '/plan/sparziele',
+    REDESIGN_ENABLED ? { ansicht: 'fortschritt' } : {},
+  ),
   redirectRoute('/reports/kontakte', '/konten/kontakte'),
   redirectRoute(
     '/reports/finanzcheck',
