@@ -155,7 +155,7 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(lead).toContainText('Monatszuweisung · Oktober 2026');
       await expect(lead).toContainText('7,50 €');
       await expect(
-        lead.getByRole('group', { name: 'Maßkette Monatsbudget', exact: true }),
+        lead.getByRole('group', { name: 'Zuweisungen nach Klasse', exact: true }),
       ).toBeVisible();
       await expect(row.locator('.plan-row-state')).toHaveText('Offen');
       await expect(row.locator('.plan-row-state svg')).toHaveCount(1);

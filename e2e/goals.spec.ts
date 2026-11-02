@@ -1,3 +1,4 @@
+import { redesignEnabled } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test as mainTest, type APIRequestContext, type Page } from '@playwright/test';
 import { MAIN_URL } from '../playwright.config';
@@ -49,7 +50,25 @@ sampleTest('the five fixture goals show their needed rates for 17.09.2026', asyn
     await menu.locator('summary').click();
   } else
     await expect(page.getByRole('link', { name: 'Ziele' })).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByTestId('goals-summary')).toHaveText('3 von 5 im Plan');
+  if (await redesignEnabled(page)) {
+    await expect(page.getByTestId('goals-summary')).toHaveText(
+      'Gesamtfortschritt 1.379,72 €von 6.066,00 € · 5 aktive Ziele',
+    );
+    await expect(page.locator('.goals-reference-table thead th')).toHaveText([
+      'Name',
+      'Kategorie',
+      'Zielbetrag',
+      'Zieldatum',
+      'Rate/Monat',
+      'Fortschritt',
+      'Status',
+      'Aktion',
+    ]);
+    await expect(page.locator('[data-goal-group=completed] button')).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+  } else await expect(page.getByTestId('goals-summary')).toHaveText('3 von 5 im Plan');
   await expect(page.locator('tr.prow')).toHaveCount(5);
   for (const [name, target, saved, needed, line] of NEEDED) {
     const row = goalRow(page, name);
@@ -59,7 +78,8 @@ sampleTest('the five fixture goals show their needed rates for 17.09.2026', asyn
     await expect(row.getByTestId('goal-future-line')).toHaveText(line);
   }
   // Group sum "Offen": the needed rates add up.
-  await expect(page.getByTestId('goal-future-rate-total')).toHaveText('630,84 €');
+  if (!(await redesignEnabled(page)))
+    await expect(page.getByTestId('goal-future-rate-total')).toHaveText('630,84 €');
   // Soonest target date first.
   await expect(page.locator('tr.prow .goal-name').first()).toHaveText('Weihnachten 2026');
 });
@@ -172,7 +192,13 @@ mainTest('goals: create, edit, delete and undo', async ({ page }, testInfo) => {
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
   // Create: the form says what is missing, then takes arithmetic in the target.
-  await page.getByRole('button', { name: 'Neues Sparziel' }).first().click();
+  await page
+    .getByRole('button', {
+      name: (await redesignEnabled(page)) ? 'Ziel' : 'Neues Sparziel',
+      exact: true,
+    })
+    .first()
+    .click();
   const panel = page.getByRole('dialog', { name: 'Neues Sparziel' });
   await panel.getByRole('button', { name: 'Anlegen' }).click();
   await expect(panel.getByText('Bitte einen Namen eintragen.')).toBeVisible();

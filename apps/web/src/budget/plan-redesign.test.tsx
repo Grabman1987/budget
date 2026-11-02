@@ -198,13 +198,17 @@ function mount() {
   };
 }
 
-it('ON exposes the selected budget month and its literal cent chain before any disclosure, preserving the income destination', async () => {
+it('ON leads with class assignments and keeps the literal cent derivation in the amount disclosure', async () => {
   const { router } = mount();
   const lead = await screen.findByRole('region', { name: 'Monatsbudget' });
   expect(lead.textContent).toContain('Monatszuweisung · September 2026');
   expect(lead.textContent).toContain('140,00 €');
-  const chain = within(lead).getByRole('group', { name: 'Maßkette Monatsbudget' });
-  expect(chain.closest('[hidden]')).toBeNull();
+  const classes = within(lead).getByRole('group', { name: 'Zuweisungen nach Klasse' });
+  expect(classes.textContent).toMatch(/Bedarf.*50,00.*Wunsch.*0,00.*Zukunft.*0,00/);
+  const summary = lead.querySelector('summary.plan-tba')!;
+  summary.parentElement!.setAttribute('open', '');
+  fireEvent(summary.parentElement!, new Event('toggle'));
+  const chain = await within(lead).findByRole('group', { name: 'Maßkette Zu verteilen' });
   expect(chain.textContent).toMatch(
     /Übertrag.*90,00.*Einnahmen.*100,00.*Zugewiesen.*50,00.*Zu verteilen.*140,00/,
   );

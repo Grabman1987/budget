@@ -18,6 +18,7 @@ export {
   type XTick,
 } from './frame';
 export { LineLegend } from './legend';
+export { ChartDataTable } from './data-table';
 export {
   Band,
   Line,

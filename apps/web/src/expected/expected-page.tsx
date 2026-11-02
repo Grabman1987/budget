@@ -5,13 +5,22 @@ import {
   ClassSwatch,
   Segmented,
   SectionHead,
+  Select,
   cx,
 } from '@budget/ui';
 import { addDays, todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from '@tanstack/react-router';
-import { ChevronDown, Plus } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDown, Plus, RefreshCw, Repeat, Ellipsis } from 'lucide-react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { eur, dayHeading, longDay } from '../ledger/format';
 import { lookupsQuery } from '../ledger/queries';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
@@ -34,6 +43,7 @@ import {
 } from './api';
 import {
   cadenceText,
+  RHYTHM_LABEL,
   contractGroups,
   isContract,
   money,
@@ -49,6 +59,10 @@ import { IncomeButton } from './income-panel';
 import { draftFromBooking } from './payment-draft';
 import { PaymentPanel, type PaymentPanelState } from './payment-panel';
 import { StatusStamp } from './status-stamp';
+import { PlanPageFrame } from '../budget/plan-page-frame';
+
+const PaymentSources = createContext<readonly ExpectedPayment[]>([]);
+const SelectedPayment = createContext<string | undefined>(undefined);
 
 type View = PaymentView;
 type KindFilter = 'all' | 'inflow' | 'outflow';
@@ -76,7 +90,10 @@ const LOAD_DAYS = HORIZONS[1];
  * of contracts and subscriptions (monthly equivalent and yearly sum). Payment details have
  * their own URL; only input opens a dialog. Figures come from `/api/expected`.
  */
-export function ExpectedPage() {
+export function ExpectedPage({
+  detail,
+  selectedId,
+}: { detail?: ReactNode; selectedId?: string } = {}) {
   useAmountPrivacy();
   const [month] = useMonth();
   const today = todayInVienna();
@@ -92,8 +109,8 @@ export function ExpectedPage() {
   const [localHorizon, setHorizon] = useState<Horizon>(saved.expectedHorizon ?? HORIZONS[0]);
   // URL defaults also apply when Back returns to the initial, query-free list.
   const view = REDESIGN_ENABLED ? (route.ansicht ?? 'next') : localView;
-  const kind = REDESIGN_ENABLED ? (route.art as KindFilter) : localKind;
-  const horizon = REDESIGN_ENABLED ? (route.tage as Horizon) : localHorizon;
+  const kind = REDESIGN_ENABLED ? (route.art ?? 'all') : localKind;
+  const horizon = REDESIGN_ENABLED ? (route.tage ?? HORIZONS[0]) : localHorizon;
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<unknown>(null);
   const [panel, setPanel] = useState<PaymentPanelState>(null);
@@ -179,113 +196,238 @@ export function ExpectedPage() {
   const error = payments.error ?? (view === 'next' ? occurrences.error : null);
 
   return (
-    <PageFrame
-      meta={PLAN_ERWARTET}
-      income={
-        <IncomeButton
-          value={income.data ? `${eur(income.data.expectedCents)} erwartet` : '–'}
-          onOpen={() => void navigate({ to: '/plan/erwartet/einnahmen', search: detailSearch })}
-        />
-      }
+    <PaymentSources.Provider value={payments.data ?? []}>
+      <SelectedPayment.Provider value={selectedId}>
+        <ExpectedFrame
+          controls={
+            <>
+              <Select
+                aria-label="Ansicht"
+                value={view}
+                onChange={(event) => remember(event.target.value as View, kind)}
+              >
+                {[...VIEWS, { value: 'kalender', label: 'Kalender' }].map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </Select>
+              {view !== 'contracts' && view !== 'kalender' && (
+                <Select
+                  aria-label="Einnahmen oder Ausgaben"
+                  value={kind}
+                  onChange={(event) => remember(view, event.target.value as KindFilter)}
+                >
+                  {KINDS.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </Select>
+              )}
+              {view === 'next' && (
+                <Select
+                  aria-label="Zeitraum"
+                  value={String(horizon)}
+                  onChange={(event) => remember(view, kind, event.target.value === '90' ? 90 : 35)}
+                >
+                  {HORIZON_OPTIONS.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </Select>
+              )}
+              {view !== 'kalender' && (
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={refreshing ? 'Wird aktualisiert …' : 'Fälligkeiten aktualisieren'}
+                  disabled={refreshing}
+                  onClick={() => void manualRefresh()}
+                >
+                  <RefreshCw size={16} aria-hidden="true" />
+                </button>
+              )}
+              <Button
+                size="sm"
+                aria-label="Wiederkehrende Zahlung"
+                onClick={() => setPanel({ mode: 'create' })}
+              >
+                <Plus size={16} aria-hidden="true" />
+                Zahlung
+              </Button>
+            </>
+          }
+          income={
+            <IncomeButton
+              value={income.data ? `${eur(income.data.expectedCents)} erwartet` : '–'}
+              onOpen={() => void navigate({ to: '/plan/erwartet/einnahmen', search: detailSearch })}
+            />
+          }
+        >
+          <PaymentLayout detail={detail}>
+            <div className={cx('xp', REDESIGN_ENABLED && 'payments-v2')}>
+              {!REDESIGN_ENABLED && (
+                <div className="xp-toolbar">
+                  <Segmented
+                    label="Ansicht"
+                    options={
+                      REDESIGN_ENABLED
+                        ? [...VIEWS, { value: 'kalender', label: 'Kalender' }]
+                        : VIEWS
+                    }
+                    value={view}
+                    onChange={(next) => remember(next, kind)}
+                  />
+                  {view !== 'contracts' && view !== 'kalender' && (
+                    <Segmented
+                      label="Einnahmen oder Ausgaben"
+                      options={KINDS}
+                      value={kind}
+                      onChange={(next) => remember(view, next)}
+                    />
+                  )}
+                  {view === 'next' && (
+                    <Segmented
+                      label="Zeitraum"
+                      options={HORIZON_OPTIONS}
+                      value={String(horizon) as '35' | '90'}
+                      onChange={(next) => remember(view, kind, next === '90' ? 90 : 35)}
+                    />
+                  )}
+                  <span className="xp-spacer" />
+                  {REDESIGN_ENABLED && view !== 'kalender' && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={refreshing}
+                      onClick={() => void manualRefresh()}
+                    >
+                      {refreshing ? 'Wird aktualisiert …' : 'Fälligkeiten aktualisieren'}
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" onClick={() => setPanel({ mode: 'create' })}>
+                    <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
+                    Wiederkehrende Zahlung
+                  </Button>
+                </div>
+              )}
+              {view === 'kalender' && REDESIGN_ENABLED ? (
+                <PaymentsCalendar />
+              ) : (
+                <>
+                  {refreshError && (
+                    <ErrorNote
+                      what="Fälligkeiten"
+                      error={refreshError}
+                      onRetry={() => void manualRefresh()}
+                    />
+                  )}
+                  {pending && <LoadingNote what="Wiederkehrende Zahlungen" />}
+                  {error && (
+                    <ErrorNote
+                      what="Wiederkehrende Zahlungen"
+                      error={error}
+                      onRetry={() => {
+                        void payments.refetch();
+                        void occurrences.refetch();
+                      }}
+                    />
+                  )}
+                  {!pending && !error && view === 'next' && occurrences.data && (
+                    <NextDays
+                      rows={occurrences.data}
+                      today={today}
+                      kind={kind}
+                      horizon={horizon}
+                      rates={rates}
+                      onOpen={openPayment}
+                      onCreate={() => setPanel({ mode: 'create' })}
+                    />
+                  )}
+                  {!pending && !error && view !== 'next' && payments.data && (
+                    <Contracts
+                      payments={payments.data}
+                      outflowsOnly={view === 'contracts'}
+                      kind={kind}
+                      rates={rates}
+                      groupOf={(categoryId) => {
+                        const category = lookups.data?.categories.find((c) => c.id === categoryId);
+                        const group = lookups.data?.groups.find((g) => g.id === category?.groupId);
+                        return group ?? null;
+                      }}
+                      categoryOf={(categoryId) =>
+                        lookups.data?.categories.find((c) => c.id === categoryId) ?? null
+                      }
+                      onOpen={openPayment}
+                      onCreate={() => setPanel({ mode: 'create' })}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+          </PaymentLayout>
+          <PaymentPanel state={panel} onClose={() => setPanel(null)} />
+        </ExpectedFrame>
+      </SelectedPayment.Provider>
+    </PaymentSources.Provider>
+  );
+}
+
+function PaymentLayout({ detail, children }: { detail?: ReactNode; children: ReactNode }) {
+  return REDESIGN_ENABLED ? (
+    <div className={cx('payments-reference-layout', !!detail && 'has-detail')}>
+      {children}
+      {detail}
+    </div>
+  ) : (
+    <>{children}</>
+  );
+}
+
+function ExpectedFrame({
+  income,
+  controls,
+  children,
+}: {
+  income: ReactNode;
+  controls: ReactNode;
+  children: ReactNode;
+}) {
+  const [month, , setMonth] = useMonth();
+  if (!REDESIGN_ENABLED)
+    return (
+      <PageFrame meta={PLAN_ERWARTET} income={income}>
+        {children}
+      </PageFrame>
+    );
+  return (
+    <PlanPageFrame
+      page="erwartet"
+      title="Zahlungen"
+      className="payments-reference"
+      actions={controls}
     >
-      <div className={cx('xp', REDESIGN_ENABLED && 'payments-v2')}>
-        <div className="xp-toolbar">
-          <Segmented
-            label="Ansicht"
-            options={
-              REDESIGN_ENABLED ? [...VIEWS, { value: 'kalender', label: 'Kalender' }] : VIEWS
-            }
-            value={view}
-            onChange={(next) => remember(next, kind)}
+      {children}
+      <details className="payments-reference-source">
+        <summary>Einnahmen und Stand</summary>
+        {income}
+        <label className="payments-reference-month">
+          Monat{' '}
+          <input
+            type="month"
+            value={month}
+            onChange={(event) => {
+              if (/^\d{4}-\d{2}$/.test(event.target.value)) setMonth(event.target.value);
+            }}
           />
-          {view !== 'contracts' && view !== 'kalender' && (
-            <Segmented
-              label="Einnahmen oder Ausgaben"
-              options={KINDS}
-              value={kind}
-              onChange={(next) => remember(view, next)}
-            />
-          )}
-          {view === 'next' && (
-            <Segmented
-              label="Zeitraum"
-              options={HORIZON_OPTIONS}
-              value={String(horizon) as '35' | '90'}
-              onChange={(next) => remember(view, kind, next === '90' ? 90 : 35)}
-            />
-          )}
-          <span className="xp-spacer" />
-          {REDESIGN_ENABLED && view !== 'kalender' && (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={refreshing}
-              onClick={() => void manualRefresh()}
-            >
-              {refreshing ? 'Wird aktualisiert …' : 'Fälligkeiten aktualisieren'}
-            </Button>
-          )}
-          <Button size="sm" variant="ghost" onClick={() => setPanel({ mode: 'create' })}>
-            <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
-            Wiederkehrende Zahlung
-          </Button>
-        </div>
-        {view === 'kalender' && REDESIGN_ENABLED ? (
-          <PaymentsCalendar />
-        ) : (
-          <>
-            {refreshError && (
-              <ErrorNote
-                what="Fälligkeiten"
-                error={refreshError}
-                onRetry={() => void manualRefresh()}
-              />
-            )}
-            {pending && <LoadingNote what="Wiederkehrende Zahlungen" />}
-            {error && (
-              <ErrorNote
-                what="Wiederkehrende Zahlungen"
-                error={error}
-                onRetry={() => {
-                  void payments.refetch();
-                  void occurrences.refetch();
-                }}
-              />
-            )}
-            {!pending && !error && view === 'next' && occurrences.data && (
-              <NextDays
-                rows={occurrences.data}
-                today={today}
-                kind={kind}
-                horizon={horizon}
-                rates={rates}
-                onOpen={openPayment}
-                onCreate={() => setPanel({ mode: 'create' })}
-              />
-            )}
-            {!pending && !error && view !== 'next' && payments.data && (
-              <Contracts
-                payments={payments.data}
-                outflowsOnly={view === 'contracts'}
-                kind={kind}
-                rates={rates}
-                groupOf={(categoryId) => {
-                  const category = lookups.data?.categories.find((c) => c.id === categoryId);
-                  const group = lookups.data?.groups.find((g) => g.id === category?.groupId);
-                  return group ?? null;
-                }}
-                categoryOf={(categoryId) =>
-                  lookups.data?.categories.find((c) => c.id === categoryId) ?? null
-                }
-                onOpen={openPayment}
-                onCreate={() => setPanel({ mode: 'create' })}
-              />
-            )}
-          </>
-        )}
-      </div>
-      <PaymentPanel state={panel} onClose={() => setPanel(null)} />
-    </PageFrame>
+        </label>
+        <p className="plan-v2-source">
+          Stand {longDay(todayInVienna())} · gespeicherte Fälligkeiten · Beträge in Originalwährung
+        </p>
+      </details>
+    </PlanPageFrame>
   );
 }
 
@@ -347,40 +489,72 @@ function NextDays({
   const sum = groups.reduce((a, g) => a + g.sumCents, 0);
   return (
     <section aria-labelledby="xp-next">
-      <SectionHead
-        id="xp-next"
-        title="Wiederkehrende Zahlungen"
-        aside={
-          <span className="xp-aside">
-            {groups.reduce((a, g) => a + g.rows.length, 0)} Fälligkeiten ·{' '}
-            {eur(sum, { sign: true })}
-          </span>
-        }
-      />
+      {REDESIGN_ENABLED ? (
+        <h2 className="sr-only" id="xp-next">
+          Wiederkehrende Zahlungen
+        </h2>
+      ) : (
+        <SectionHead
+          id="xp-next"
+          title="Wiederkehrende Zahlungen"
+          aside={
+            <span className="xp-aside">
+              {groups.reduce((a, g) => a + g.rows.length, 0)} Fälligkeiten ·{' '}
+              {eur(sum, { sign: true })}
+            </span>
+          }
+        />
+      )}
       <table className="ptable xp-table xp-next">
         <caption className="sr-only">
           Fällige und wiederkehrende Zahlungen der nächsten {horizon} Tage in Gruppen mit Summe
         </caption>
         <thead>
           <tr>
-            <th className="tech col-pos" scope="col">
-              Pos.
-            </th>
+            {!REDESIGN_ENABLED && (
+              <th className="tech col-pos" scope="col">
+                Pos.
+              </th>
+            )}
             <th className="tech col-name" scope="col">
               Zahlung
             </th>
-            <th className="tech col-due" scope="col">
-              Fällig
-            </th>
-            <th className="tech col-cat" scope="col">
-              Kategorie
-            </th>
+            {REDESIGN_ENABLED && (
+              <>
+                <th className="tech col-interval" scope="col">
+                  Intervall
+                </th>
+                <th className="tech col-account" scope="col">
+                  Konto
+                </th>
+              </>
+            )}
+            {!REDESIGN_ENABLED && (
+              <th className="tech col-due" scope="col">
+                Fällig
+              </th>
+            )}
+            {!REDESIGN_ENABLED && (
+              <th className="tech col-cat" scope="col">
+                Kategorie
+              </th>
+            )}
             <th className="tech col-num" scope="col">
               Betrag
             </th>
+            {REDESIGN_ENABLED && (
+              <th className="tech col-due" scope="col">
+                Fällig
+              </th>
+            )}
             <th className="tech col-state" scope="col">
-              Status
+              <span className={REDESIGN_ENABLED ? 'sr-only' : undefined}>Status</span>
             </th>
+            {REDESIGN_ENABLED && (
+              <th className="col-action" scope="col">
+                <span className="sr-only">Aktion</span>
+              </th>
+            )}
           </tr>
         </thead>
         {groups.map((g, gi) => (
@@ -430,7 +604,9 @@ function HeadRow({
       className={cx('pgroup', week && 'is-week', collapsed && 'is-collapsed')}
       data-testid={testId}
     >
-      <td className="col-pos">{no !== undefined && <CircleNumber n={no} size="sm" />}</td>
+      {!REDESIGN_ENABLED && (
+        <td className="col-pos">{no !== undefined && <CircleNumber n={no} size="sm" />}</td>
+      )}
       <td className="col-name" colSpan={3}>
         <button type="button" className="grp-toggle" aria-expanded={!collapsed} onClick={onToggle}>
           <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
@@ -442,7 +618,9 @@ function HeadRow({
         {eur(sumCents, { sign: true })}
         {leftOut > 0 && <span className="xp-sub"> ohne Fremdwährung</span>}
       </td>
+      {REDESIGN_ENABLED && <td className="col-due" />}
       <td className="col-state" />
+      {REDESIGN_ENABLED && <td className="col-action" />}
     </tr>
   );
 }
@@ -541,14 +719,82 @@ function Rows({
   onOpen: (paymentId: string) => void;
 }) {
   useAmountPrivacy();
+  const sources = useContext(PaymentSources);
+  const selectedId = useContext(SelectedPayment);
+  const byId = new Map(sources.map((payment) => [payment.id, payment]));
   return (
     <>
       {rows.map((o, i) => {
         const alert = needsAction(o, today);
         const eurValue = o.currency === 'EUR' ? null : eurOf(o.amountCents, o.currency, rates);
         const counterparty = o.payeeName ?? o.contactName;
+        if (REDESIGN_ENABLED) {
+          const payment = byId.get(o.paymentId);
+          const interval = payment
+            ? payment.rhythm === 'weekly'
+              ? cadenceText(payment)
+              : RHYTHM_LABEL[payment.rhythm]
+            : '–';
+          return (
+            <tr
+              key={o.occurrenceId}
+              className={cx(
+                'prow is-clickable',
+                alert && 'is-alert',
+                REDESIGN_ENABLED && o.paymentId === selectedId && 'is-selected',
+              )}
+            >
+              <td className="col-name">
+                <button
+                  type="button"
+                  className="prow-btn xp-name"
+                  aria-pressed={selectedId ? o.paymentId === selectedId : undefined}
+                  title={[counterparty, o.categoryName].filter(Boolean).join(' · ')}
+                  onClick={() => onOpen(o.paymentId)}
+                >
+                  <strong>{o.name}</strong>
+                  <Repeat size={14} aria-hidden="true" />
+                </button>
+              </td>
+              <td className="col-interval" title={payment ? cadenceText(payment) : undefined}>
+                {interval.charAt(0).toLocaleUpperCase('de-AT') + interval.slice(1)}
+              </td>
+              <td className="col-account">{o.accountName ?? 'ohne Konto'}</td>
+              <td className="col-num" data-label="Betrag">
+                {money(o.amountCents, o.currency, o.kind === 'inflow')}
+                {eurValue !== null && (
+                  <span className="xp-sub">≈ {eur(eurValue, { sign: o.kind === 'inflow' })}</span>
+                )}
+              </td>
+              <td className="col-due" data-label="Fällig">
+                {dayHeading(o.dueDate)}
+                <span className="sr-only"> {longDay(o.dueDate)}</span>
+              </td>
+              <td className="col-state">
+                <StatusStamp status={o.status} alert={alert} compact />
+              </td>
+              <td className="col-action">
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={o.name + ' öffnen'}
+                  onClick={() => onOpen(o.paymentId)}
+                >
+                  <Ellipsis size={18} aria-hidden="true" />
+                </button>
+              </td>
+            </tr>
+          );
+        }
         return (
-          <tr key={o.occurrenceId} className={cx('prow is-clickable', alert && 'is-alert')}>
+          <tr
+            key={o.occurrenceId}
+            className={cx(
+              'prow is-clickable',
+              alert && 'is-alert',
+              REDESIGN_ENABLED && o.paymentId === selectedId && 'is-selected',
+            )}
+          >
             <td className="col-pos pos">
               {no}.{start + i + 1}
             </td>

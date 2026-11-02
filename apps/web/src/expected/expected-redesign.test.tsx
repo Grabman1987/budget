@@ -62,13 +62,13 @@ it('ON opens the full twelve-month calendar from URL state without an occurrence
   );
   await screen.findByRole('heading', { name: 'Zahlungskalender' });
   expect(container.querySelectorAll('.preview-table thead th')).toHaveLength(14);
-  expect(screen.getByRole('button', { name: 'Kalender' }).getAttribute('aria-pressed')).toBe(
-    'true',
+  expect((screen.getByRole('combobox', { name: 'Ansicht' }) as HTMLSelectElement).value).toBe(
+    'kalender',
   );
   expect(methods.every((method) => method === 'GET')).toBe(true);
   client.clear();
 });
-it('bounds calendar/list URL state and restores the existing horizons', () => {
+it('bounds calendar/list URL state and keeps absent defaults out of deep links', () => {
   expect(validateExpectedSearch({ ansicht: 'kalender', tage: '90', art: 'inflow' })).toEqual({
     ansicht: 'kalender',
     tage: 90,
@@ -76,7 +76,7 @@ it('bounds calendar/list URL state and restores the existing horizons', () => {
   });
   expect(validateExpectedSearch({ ansicht: 'invented', tage: -1 })).toEqual({
     ansicht: undefined,
-    tage: 35,
-    art: 'all',
+    tage: undefined,
+    art: undefined,
   });
 });

@@ -152,7 +152,6 @@ test('591 no-selection overview preserves cents, canonical target shortfalls and
   await expect(month).toHaveAttribute('open', '');
   await inspector.getByRole('button', { name: 'Monatsüberblick einklappen', exact: true }).click();
   const phoneReadUtilities =
-    page.viewportSize()!.width < 768 &&
     (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   if (phoneReadUtilities) await page.locator('.plan-menu-optionen > summary').click();
   await page

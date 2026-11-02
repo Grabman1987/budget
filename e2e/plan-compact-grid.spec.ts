@@ -238,7 +238,6 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   }
   await expect(page.getByTestId('to-be-assigned')).toHaveText('1.909,82 €');
   const phoneReadUtilities =
-    page.viewportSize()!.width < 768 &&
     (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   const readOptions = page.locator('.plan-menu-optionen > summary');
   if (phoneReadUtilities) await readOptions.click();

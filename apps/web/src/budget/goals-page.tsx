@@ -27,6 +27,7 @@ import {
   type GoalGroup,
 } from './goals-model';
 import { GoalPanel, type GoalPanelState } from './goals-panel';
+import { GoalsRedesign } from './goals-redesign';
 import { CLASS_TEXT } from './plan-model';
 
 /**
@@ -43,6 +44,21 @@ export function GoalsPage() {
   const goals = useQuery(goalsProgressReportQuery(month));
   const budget = useQuery(budgetQuery(month));
   const income = budget.data ? eur(budget.data.summary.incomeCents) : '–';
+  if (REDESIGN_ENABLED)
+    return (
+      <GoalsRedesign
+        month={month}
+        progress={progress}
+        goals={goals.data?.goals}
+        rows={goals.data?.rows}
+        categories={goals.data?.categories.categories}
+        accounts={goals.data?.accounts}
+        pending={goals.isPending}
+        fetching={goals.isFetching}
+        error={goals.error}
+        onRetry={() => void goals.refetch()}
+      />
+    );
   return (
     <PageFrame meta={PLAN_SPARZIELE} income={income}>
       <div className={cx('plan goals', REDESIGN_ENABLED && 'goals-v2')}>

@@ -1,3 +1,4 @@
+import { paymentHorizon, expectPaymentHorizon } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
 import { sampleTest as test, expect } from './sample';
@@ -123,10 +124,7 @@ test('the 35-day list ends on 22.10.; 90 days extends it without changing the fi
   page,
 }) => {
   await open(page);
-  await expect(page.getByRole('button', { name: '35 Tage' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expectPaymentHorizon(page, '35 Tage');
   const short = await rowsOf(page);
   expect(short.length).toBeGreaterThan(3);
   for (const r of short.filter((r) => r.group !== 'overdue'))
@@ -140,11 +138,8 @@ test('the 35-day list ends on 22.10.; 90 days extends it without changing the fi
     );
   const firstSums = await sums();
 
-  await page.getByRole('button', { name: '90 Tage' }).click();
-  await expect(page.getByRole('button', { name: '90 Tage' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await paymentHorizon(page, '90 Tage');
+  await expectPaymentHorizon(page, '90 Tage');
   const long = await rowsOf(page);
   expect(long.length).toBeGreaterThan(short.length);
   // The first 35 days are the same rows in the same order.
@@ -156,24 +151,15 @@ test('the 35-day list ends on 22.10.; 90 days extends it without changing the fi
 
   if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
     await page.reload();
-    await expect(page.getByRole('button', { name: '90 Tage' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    await expectPaymentHorizon(page, '90 Tage');
     await page.goBack();
-    await expect(page.getByRole('button', { name: '35 Tage' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    await expectPaymentHorizon(page, '35 Tage');
     expect(await rowsOf(page)).toEqual(short);
     await page.goForward();
-    await expect(page.getByRole('button', { name: '90 Tage' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    await expectPaymentHorizon(page, '90 Tage');
   }
 
-  await page.getByRole('button', { name: '35 Tage' }).click();
+  await paymentHorizon(page, '35 Tage');
   expect(await rowsOf(page)).toEqual(short);
 });
 
@@ -193,7 +179,7 @@ test('the list fits 1440 x 900 plus one scroll page', async ({ page, isMobile })
 test('the group head sticks while its rows scroll', async ({ page, isMobile }) => {
   await page.setViewportSize(isMobile ? { width: 390, height: 520 } : { width: 1440, height: 420 });
   await open(page);
-  await page.getByRole('button', { name: '90 Tage' }).click();
+  await paymentHorizon(page, '90 Tage');
   // The week with the most rows.
   const weeks = page.locator('table.xp-next tbody').filter({ has: page.locator('tr.prow') });
   const counts = await weeks.evaluateAll((bodies) =>
@@ -225,7 +211,7 @@ test('phone: rows have two lines, targets are 44 px, no horizontal page scroll',
 }) => {
   test.skip(!isMobile, 'phone viewport');
   await open(page);
-  await page.getByRole('button', { name: '90 Tage' }).click();
+  await paymentHorizon(page, '90 Tage');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
@@ -278,7 +264,7 @@ for (const scheme of ['light', 'dark'] as const) {
     }) => {
       await open(page);
       for (const days of ['35 Tage', '90 Tage']) {
-        await page.getByRole('button', { name: days }).click();
+        await paymentHorizon(page, days as '35 Tage' | '90 Tage');
         await page.evaluate(() => document.fonts.ready);
         const result = await new AxeBuilder({ page })
           .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])

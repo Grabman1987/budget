@@ -12,6 +12,7 @@ import { LIQUIDITY_FORECAST } from '../nav/reports-catalog';
 import type * as LiquiditySelection from './liquidity-selection';
 
 vi.mock('../shell/redesign-flag', () => ({ REDESIGN_ENABLED: true }));
+vi.mock('../shell/use-month', () => ({ useMonth: () => ['2026-10', vi.fn(), vi.fn()] }));
 vi.mock('./liquidity-selection', async (importOriginal) => ({
   ...(await importOriginal<typeof LiquiditySelection>()),
   useLiquiditySelection: () => ({
@@ -77,7 +78,7 @@ it('ON retains the shared 35-day result, source date and all horizon controls; t
   expect(screen.getByTestId('liq-low').textContent).toBe('100,01 €');
   expect(screen.getByText(/Stand 15.10.2026/)).toBeTruthy();
   expect(
-    screen.getByRole('group', { name: 'Prognosezeitraum' }).querySelectorAll('button'),
+    screen.getByRole('combobox', { name: 'Prognosezeitraum' }).querySelectorAll('option'),
   ).toHaveLength(4);
   const tools = container.querySelector<HTMLDetailsElement>('details.rf-tools')!;
   expect(tools.open).toBe(false);

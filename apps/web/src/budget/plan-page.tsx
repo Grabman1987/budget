@@ -35,7 +35,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { expectedQuery, incomeQuery } from '../expected/api';
+import { expectedQuery, incomeQuery, type MonthIncome } from '../expected/api';
 import { PLAN_MONAT } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
@@ -97,6 +97,8 @@ import {
 } from './plan-model';
 import { BUDGET_KEY, categoriesQuery, useBudgetWrite } from './use-category-writes';
 import { CategoryPanel, type PanelState } from './category-panel';
+import { PlanPageFrame } from './plan-page-frame';
+import { MonthSwitch } from '../shell/month-switch';
 
 /** `05.10.` of `2026-10-05`. */
 const dayMonth = (day: string) => `${day.slice(8, 10)}.${day.slice(5, 7)}.`;
@@ -159,7 +161,7 @@ export function PlanMonthPage() {
   const income =
     incomeCents !== undefined ? <IncomeButton value={eur(incomeCents)} onOpen={openIncome} /> : '–';
   return (
-    <PageFrame meta={PLAN_MONAT} income={income}>
+    <MonthFrame month={month} income={income}>
       <div className={cx('plan plan-month', REDESIGN_ENABLED && 'plan-month-v2')}>
         {budget.isPending && <LoadingNote what="Envelopes" />}
         {budget.isError && (
@@ -173,10 +175,63 @@ export function PlanMonthPage() {
             data={data}
             views={views}
             onIncome={openIncome}
+            monthIncome={receivedIncome.data}
           />
         )}
       </div>
-    </PageFrame>
+    </MonthFrame>
+  );
+}
+
+function MonthFrame({
+  month,
+  income,
+  children,
+}: {
+  month: string;
+  income: ReactNode;
+  children: ReactNode;
+}) {
+  const span = useMonthSpan();
+  if (!REDESIGN_ENABLED)
+    return (
+      <PageFrame meta={PLAN_MONAT} income={income}>
+        {children}
+      </PageFrame>
+    );
+  return (
+    <PlanPageFrame
+      page="monat"
+      title={monthLabel(month)}
+      heading={false}
+      className="plan-month-frame"
+      period={<MonthSwitch heading={monthLabel(month)} />}
+      actions={
+        <>
+          <div className="month-reference-count">
+            <span>Monate</span>
+            <div className="seg" role="group" aria-label="Sichtbare Monate">
+              {([1, 2, 3] as const).map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  aria-pressed={span === count}
+                  onClick={() => setMonthSpan(count)}
+                >
+                  {count}
+                </button>
+              ))}
+            </div>
+          </div>
+          <span className="month-reference-income">Einnahmen {income}</span>
+        </>
+      }
+    >
+      {children}
+      <p className="plan-v2-source">
+        Stand {todayInVienna()} · Monatszuweisung {monthLabel(month)}
+      </p>
+    </PlanPageFrame>
   );
 }
 
@@ -186,6 +241,7 @@ function PlanBody({
   data,
   views,
   onIncome,
+  monthIncome,
 }: {
   month: string;
   /** The visible months, leftmost first (`month` is the first). */
@@ -194,6 +250,7 @@ function PlanBody({
   /** All visible months once loaded. */
   views: BudgetMonthView[] | null;
   onIncome: () => void;
+  monthIncome?: MonthIncome | undefined;
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
@@ -748,6 +805,19 @@ function PlanBody({
       )}
     </section>
   );
+  const topbar = (
+    <PlanTopBar
+      data={data}
+      month={month}
+      unfunded={groupStatus(rows).need}
+      distributeBlock={distributeBlock}
+      onIncome={onIncome}
+      onDistribute={startDistribute}
+      coverControls={filter === 'overspent' ? null : coverControls}
+      phone={phone}
+      monthIncome={monthIncome}
+    />
+  );
   return (
     <div
       onClickCapture={(event) => {
@@ -790,22 +860,14 @@ function PlanBody({
           : undefined
       }
     >
+      {REDESIGN_ENABLED && topbar}
       <div className="plan-main">
         {previewChanged && (
           <p role="alert">
             Der Plan hat sich geändert. Vorschau aktualisiert. Bitte prüfen und erneut bestätigen.
           </p>
         )}
-        <PlanTopBar
-          data={data}
-          month={month}
-          unfunded={groupStatus(rows).need}
-          distributeBlock={distributeBlock}
-          onIncome={onIncome}
-          onDistribute={startDistribute}
-          coverControls={filter === 'overspent' ? null : coverControls}
-          phone={phone}
-        />
+        {!REDESIGN_ENABLED && topbar}
         <section className="ptable-wrap card" aria-labelledby="table-title">
           <h2 className="sr-only" id="table-title">
             Envelopes im Monat
@@ -824,30 +886,79 @@ function PlanBody({
                 onChange={(event) => changeFilter(filter, event.target.value)}
               />
             </label>
-            <div className="seg plan-filter-segments" role="group" aria-label="Kategoriefilter">
-              {(
-                [
-                  ['all', 'Alle', counts.all],
-                  ['underfunded', 'Unterfinanziert', counts.underfunded],
-                  ['overspent', 'Überzogen', counts.overspent],
-                  ['available', 'Verfügbar', counts.available],
-                  ['uncategorized', 'Ohne Kategorie', counts.uncategorized],
-                ] as const
-              ).map(([value, label, count]) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={filter === value}
-                  className={cx(value === 'overspent' && (count ?? 0) > 0 && 'has-overspending')}
-                  onClick={() => changeFilter(value)}
-                >
-                  {label} ({count ?? '…'})
-                </button>
-              ))}
-            </div>
+            {REDESIGN_ENABLED ? (
+              <details className="plan-v2-view plan-reference-filters">
+                <summary>
+                  Ansicht <ChevronDown size={14} aria-hidden="true" />
+                </summary>
+                <div className="plan-v2-view-menu">
+                  {' '}
+                  <div
+                    className="seg plan-filter-segments"
+                    role="group"
+                    aria-label="Kategoriefilter"
+                  >
+                    {(
+                      [
+                        ['all', 'Alle', counts.all],
+                        ['underfunded', 'Unterfinanziert', counts.underfunded],
+                        ['overspent', 'Überzogen', counts.overspent],
+                        ['available', 'Verfügbar', counts.available],
+                        ['uncategorized', 'Ohne Kategorie', counts.uncategorized],
+                      ] as const
+                    ).map(([value, label, count]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={filter === value}
+                        className={cx(
+                          value === 'overspent' && (count ?? 0) > 0 && 'has-overspending',
+                        )}
+                        onClick={() => changeFilter(value)}
+                      >
+                        {label} ({count ?? '…'})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </details>
+            ) : (
+              <div className="seg plan-filter-segments" role="group" aria-label="Kategoriefilter">
+                {(
+                  [
+                    ['all', 'Alle', counts.all],
+                    ['underfunded', 'Unterfinanziert', counts.underfunded],
+                    ['overspent', 'Überzogen', counts.overspent],
+                    ['available', 'Verfügbar', counts.available],
+                    ['uncategorized', 'Ohne Kategorie', counts.uncategorized],
+                  ] as const
+                ).map(([value, label, count]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={filter === value}
+                    className={cx(value === 'overspent' && (count ?? 0) > 0 && 'has-overspending')}
+                    onClick={() => changeFilter(value)}
+                  >
+                    {label} ({count ?? '…'})
+                  </button>
+                ))}
+              </div>
+            )}
+            {REDESIGN_ENABLED && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="plan-reference-add"
+                onClick={() => setCategoryForm({ mode: 'group' })}
+              >
+                + Kategoriegruppe
+              </Button>
+            )}
+
             <OptionenMenu
               readUtilities={
-                REDESIGN_ENABLED && phone ? (
+                REDESIGN_ENABLED ? (
                   <PlanReadUtilities
                     summary={s}
                     month={month}
@@ -1391,6 +1502,7 @@ function PlanTopBar({
   onDistribute,
   coverControls,
   phone,
+  monthIncome,
 }: {
   data: BudgetMonthView;
   month: string;
@@ -1400,6 +1512,7 @@ function PlanTopBar({
   onDistribute: () => void;
   coverControls: React.ReactNode;
   phone: boolean;
+  monthIncome?: MonthIncome | undefined;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const head = useRef<HTMLElement>(null);
@@ -1529,23 +1642,41 @@ function PlanTopBar({
     >
       {REDESIGN_ENABLED ? (
         <>
-          <PlanMonthLead
-            summary={s}
-            onIncome={onIncome}
-            controls={
-              <>
-                {tbaControl}
-                {distributeControl}
-                {hint}
-              </>
-            }
-          />
-          {!phone && (
-            <div className="plan-head-utilities">
-              {underfundedControl}
-              {pendingControl}
-            </div>
-          )}
+          <div className="plan-reference-lead-layout">
+            <PlanMonthLead
+              summary={s}
+              data={data}
+              controls={
+                <>
+                  {tbaControl}
+                  {distributeControl}
+                  {hint}
+                </>
+              }
+            />
+            {monthIncome && (
+              <aside className="plan-reference-income" aria-label="Einnahmen im Planmonat">
+                <div>
+                  <strong>Einnahmen · {monthLabel(month)}</strong>
+                  <button type="button" onClick={onIncome}>
+                    Details →
+                  </button>
+                </div>
+                <p>
+                  erhalten <strong>{eur(monthIncome.receivedCents)}</strong> von erwartet{' '}
+                  {eur(monthIncome.expectedCents)}
+                </p>
+                <progress
+                  aria-label="Erhaltene Einnahmen"
+                  max={Math.max(1, monthIncome.expectedCents)}
+                  value={Math.max(0, monthIncome.receivedCents)}
+                />
+                <AppLink to="/plan/erwartet" search={{ monat: month }}>
+                  Zahlungen →
+                </AppLink>
+              </aside>
+            )}
+          </div>
         </>
       ) : (
         <div className="plan-chip-scroll">

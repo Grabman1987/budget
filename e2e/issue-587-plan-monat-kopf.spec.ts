@@ -1,3 +1,4 @@
+import { redesignEnabled } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
@@ -23,7 +24,9 @@ async function withToBeAssigned(page: Page, cents: number) {
 
 test('the month switch in the title block moves across the year boundary', async ({ page }) => {
   await page.goto('/plan/monat?monat=2026-01');
-  const title = page.locator('.titleblock').getByRole('heading', { level: 1 });
+  const title = page
+    .locator((await redesignEnabled(page)) ? '.plan-v2-page-head' : '.titleblock')
+    .getByRole('heading', { level: 1 });
   await expect(title).toContainText('2026');
   await page.getByRole('button', { name: 'Vormonat' }).click();
   await expect(page).toHaveURL(/monat=2025-12/);
@@ -37,7 +40,7 @@ test('"Zu verteilen" is green when positive, red only when negative, neutral at 
   page,
 }) => {
   const hero = page.locator('.plan-tba');
-  const send = page.getByRole('button', { name: 'Geld verteilen' });
+  const send = page.getByRole('button', { name: 'Geld verteilen', includeHidden: true });
   const hint = page.getByTestId('distribute-hint');
 
   await withToBeAssigned(page, 12_345);
@@ -69,8 +72,16 @@ test('"Zu verteilen" is green when positive, red only when negative, neutral at 
 
 test('Einnahmen link and "Monat abschließen" are visible without a menu', async ({ page }) => {
   await page.goto('/plan/monat?monat=2026-09');
-  const income = page.locator('.titleblock').getByRole('button', { name: /Einnahmen im Detail/ });
+  const on = await redesignEnabled(page);
+  const income =
+    on && page.viewportSize()!.width < 768
+      ? page.locator('#plan-chip-panel-0').getByRole('button', { name: /Einnahmen/ })
+      : page
+          .locator(on ? '.plan-v2-page-head' : '.titleblock')
+          .getByRole('button', { name: /Einnahmen im Detail/ });
+  if (on && page.viewportSize()!.width < 768) await page.locator('.plan-tba').click();
   await expect(income).toBeVisible();
+  if (on && page.viewportSize()!.width < 768) await page.keyboard.press('Escape');
   const close = page.getByRole('link', { name: 'Monat abschließen', exact: true });
   await expect(close).toBeVisible();
   await close.click();
@@ -80,6 +91,7 @@ test('Einnahmen link and "Monat abschließen" are visible without a menu', async
   ).toBeVisible();
 
   await page.goto('/plan/monat?monat=2026-09');
+  if (on && page.viewportSize()!.width < 768) await page.locator('.plan-tba').click();
   await income.click();
   await expect(page).toHaveURL(/\/plan\/monat\/einnahmen/);
 });

@@ -65,6 +65,7 @@ export function AppShell() {
         />
         <div className="main">
           <Topbar
+            {...(REDESIGN_ENABLED && area === 'plan' ? { title: 'Plan' } : {})}
             collapsed={collapsed}
             onToggle={() => setCollapsed(!collapsed)}
             onSearchChange={setSearchOpen}

@@ -78,6 +78,8 @@ it('ON restores the full progress view from URL state using proven sources witho
   presentation.progress = true;
   const { opened, fetcher } = mount();
   await screen.findByTestId('goal-report-summary');
+  const menu = screen.getByText(/Ansicht: Fortschritt/).closest('details')!;
+  menu.open = true;
   expect(screen.getByRole('button', { name: 'Fortschritt' }).getAttribute('aria-pressed')).toBe(
     'true',
   );
@@ -90,6 +92,30 @@ it('ON restores the full progress view from URL state using proven sources witho
       .all()
       .some((row) => row.actor !== testCtx.actor),
   ).toBe(false);
+  expect(fetcher.mock.calls.every(([, options]) => (options?.method ?? 'GET') === 'GET')).toBe(
+    true,
+  );
+});
+
+it('ON goal list keeps the reference columns and compact warnings on proven sources without writes', async () => {
+  presentation.enabled = true;
+  const { fetcher } = mount();
+  await screen.findByTestId('goals-summary');
+  expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual([
+    'Name',
+    'Kategorie',
+    'Zielbetrag',
+    'Zieldatum',
+    'Rate/Monat',
+    'Fortschritt',
+    'Status',
+    'Aktion',
+  ]);
+  expect(screen.getByText(/Ansicht: Liste/)).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Ziel' })).toBeTruthy();
+  expect(screen.queryByText('Ziel abstimmen', { exact: true })).toBeNull();
+  expect(screen.queryByText('Kategorie-Ziel abstimmen', { exact: true })).toBeNull();
+  expect(screen.getAllByRole('button', { name: /Abgeschlossen/ })).toHaveLength(1);
   expect(fetcher.mock.calls.every(([, options]) => (options?.method ?? 'GET') === 'GET')).toBe(
     true,
   );

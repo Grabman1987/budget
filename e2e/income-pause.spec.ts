@@ -1,3 +1,4 @@
+import { forecastHorizon } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import { expect as baseExpect } from '@playwright/test';
 import { test as isolatedTest } from './isolated-ledger';
@@ -110,7 +111,7 @@ isolatedTest(
     const before = await getForecast();
     expect(monthIncome(before, '2026-10')).toBe(520_123);
     await assertScheduleAndNoBookings();
-    await page.goto('/reports/liquiditaet');
+    await page.goto('/reports/liquiditaet?horizon=6m');
     await page.locator('details.rf-tools > summary').click();
 
     const pauseCard = page.locator('section[aria-labelledby="liq-pauses"]');
@@ -324,7 +325,7 @@ isolatedTest(
       },
     ]);
     await expect(pauseCard).toContainText('Außerhalb des gewählten Prognosezeitraums.');
-    await page.getByRole('button', { name: '12 Monate' }).click();
+    await forecastHorizon(page, '12m', '12 Monate');
     forecast = await getForecast('12m');
     expect(forecast.incomePauses).toMatchObject([
       {
@@ -345,7 +346,7 @@ isolatedTest(
       data: { sourceId: sideIncomeId, startDate: '2027-02-15', endDate: '2027-02-15' },
     });
     expect(verdictOnlyPause.status(), await verdictOnlyPause.text()).toBe(201);
-    await page.getByRole('button', { name: '90 Tage' }).click();
+    await forecastHorizon(page, '90d', '90 Tage');
     forecast = await getForecast('90d');
     expect(forecast.incomePauses).toHaveLength(2);
     expect(forecast.incomePauses).toMatchObject([

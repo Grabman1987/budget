@@ -2,12 +2,14 @@ import { cents, lastDayOfMonth } from '@budget/domain';
 import type { ReactNode } from 'react';
 import {
   BudgetStateMark,
-  DimensionChain,
+  maskMoneyText,
   useAmountPrivacy,
   type BudgetPresentationState,
   type DimensionChainTerm,
 } from '@budget/ui';
 import { CircleAlert } from 'lucide-react';
+import { planRows, splitState } from './plan-model';
+import type { BudgetMonthView } from './budget-api';
 import { eur } from '../ledger/format';
 import { monthLabel } from '../nav/month';
 import { AppLink } from '../shell/app-link';
@@ -69,11 +71,11 @@ export function PlanRowState({ row }: { row: EnvelopeSummary }) {
 
 export function PlanMonthLead({
   summary,
-  onIncome,
+  data,
   controls,
 }: {
   summary: MonthSummary;
-  onIncome: () => void;
+  data: BudgetMonthView;
   controls: ReactNode;
 }) {
   useAmountPrivacy();
@@ -81,11 +83,49 @@ export function PlanMonthLead({
     <div className="plan-month-lead">
       <p className="plan-month-scope">Monatszuweisung · {monthLabel(summary.month)}</p>
       <div className="plan-lead-controls plan-chip-scroll">{controls}</div>
-      <DimensionChain
-        terms={planMonthTerms(summary, onIncome)}
-        precision="cent"
-        label="Maßkette Monatsbudget"
-      />
+      <PlanClassLead data={data} />
+    </div>
+  );
+}
+
+/** The same assignment classes and income denominator as the existing 50/30/20 inspector. */
+function PlanClassLead({ data }: { data: BudgetMonthView }) {
+  const rows = planRows(data);
+  const state = splitState(data.summary, rows);
+  const classes = [
+    ['need', 'Bedarf', 50],
+    ['want', 'Wunsch', 30],
+    ['future', 'Zukunft', 20],
+  ] as const;
+  const amounts = { need: 0, want: 0, future: 0 };
+  for (const row of rows) if (row.cls) amounts[row.cls] += Math.max(0, row.assignedCents);
+  const total = amounts.need + amounts.want + amounts.future;
+  return (
+    <div className="plan-class-lead" role="group" aria-label="Zuweisungen nach Klasse">
+      {classes.map(([key, label]) => (
+        <div key={key}>
+          <span>{label}</span>
+          <strong>{eur(amounts[key])}</strong>
+        </div>
+      ))}
+      <div className="plan-class-strip" aria-hidden="true">
+        {classes.map(([key]) => (
+          <i
+            key={key}
+            data-class={key}
+            style={{ width: total > 0 ? (amounts[key] / total) * 100 + '%' : '0%' }}
+          />
+        ))}
+      </div>
+      {classes.map(([key, , target]) => (
+        <small key={key}>
+          {state.kind === 'shares'
+            ? `${maskMoneyText(state[key] + ' %')} (Ziel ${target} %)`
+            : state.kind === 'no-income'
+              ? 'Ohne Einnahmen'
+              : 'Noch nichts zugewiesen'}
+        </small>
+      ))}
     </div>
   );
 }

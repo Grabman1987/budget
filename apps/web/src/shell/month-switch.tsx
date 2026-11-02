@@ -9,8 +9,9 @@ const OWN_KEYS = 'input, textarea, select, [contenteditable="true"], [role="slid
  * Left and right arrow move the month by one, as the buttons do. Only while nothing else wants
  * the arrow keys: focus on the page itself or on the month switch, no modifier, no open dialog.
  */
-function useMonthKeys(shift: (delta: number) => void) {
+export function useMonthKeys(shift: (delta: number) => void, enabled = true) {
   useEffect(() => {
+    if (!enabled) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;

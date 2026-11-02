@@ -27,11 +27,13 @@ afterEach(() => {
   cleanup();
   state.navigate.mockClear();
   state.enabled = true;
+  state.search = { kennzahl: 'availableCents' };
 });
 const months = planYearMonths(2026);
 const views = months.map((month, i) => ({
   summary: {
     month,
+    incomeCents: 0,
     envelopes: [
       {
         categoryId: 'category',
@@ -66,7 +68,8 @@ it('ON restores the URL metric/month, shows category groups and retains exact ye
   expect(
     screen.getAllByRole('button', { name: 'Synthetic group' })[0]!.getAttribute('aria-expanded'),
   ).toBe('true');
-  expect(screen.getAllByText('150,01 €').length).toBeGreaterThan(0);
+  expect(screen.getAllByText('150,01').length).toBeGreaterThan(0);
+  expect(screen.getByRole('columnheader', { name: 'Ø' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Aktivität' }));
   const navigation = state.navigate.mock.calls[0]![0] as {
     search: (previous: Record<string, unknown>) => Record<string, unknown>;
@@ -80,6 +83,12 @@ it('ON restores the URL metric/month, shows category groups and retains exact ye
     target: { value: '2026-03' },
   });
   expect(changeMonth).toHaveBeenCalledWith('2026-03');
+});
+
+it('ON annual means use the existing exact-cent rounding and twelve source months', () => {
+  state.search = { kennzahl: 'assignedCents' };
+  const { container } = mount();
+  expect(container.querySelector('tfoot .year-average')?.textContent).toBe('12,50');
 });
 
 it('OFF retains the assigned metric and collapsed groups without a URL write', () => {

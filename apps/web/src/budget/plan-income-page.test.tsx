@@ -138,7 +138,10 @@ function headIncome(container: HTMLElement) {
   const label = [...container.querySelectorAll('.tb-label')].find(
     (node) => node.textContent === 'Einnahmen',
   );
-  return label?.parentElement?.querySelector('.tb-value')?.textContent;
+  return (
+    container.querySelector('.month-reference-income .xp-income-btn')?.textContent ??
+    label?.parentElement?.querySelector('.tb-value')?.textContent
+  );
 }
 
 beforeEach(() => {
