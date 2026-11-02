@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '@budget/ui';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { BankCandidate } from './bank-candidate';
+import { candidateAssignmentQuery } from '../assignment/api';
 
 const flags = vi.hoisted(() => ({ REDESIGN_ENABLED: false }));
 vi.mock('../shell/redesign-flag', () => flags);
@@ -127,12 +128,13 @@ it('prepares no suggestion while the match check is still loading, then prefers 
 });
 
 it.each([
-  ['unique rule', 1, false, true],
-  ['ambiguous rules', 2, false, false],
-  ['possible transfer', 1, true, false],
+  ['unique rule', 1, false, false, true],
+  ['ambiguous rules', 2, false, false, false],
+  ['possible transfer', 1, true, false, false],
+  ['existing transfer counterpart', 1, false, true, false],
 ] as const)(
   'prepares safe shortcut metadata only after complete checks: %s (#842)',
-  async (_name, ruleCount, transfer, expected) => {
+  async (_name, ruleCount, transfer, existingTransfer, expected) => {
     flags.REDESIGN_ENABLED = true;
     vi.stubGlobal('fetch', async (input: string) =>
       Response.json(
@@ -164,6 +166,9 @@ it.each([
                 })),
                 cleanup: { cleaned: 'Synthetic shop', payeeId: null },
                 candidateRevision: 'a'.repeat(64),
+                existingTransfer: existingTransfer
+                  ? { bookingId: 'existing-counterpart', transferId: 'existing-transfer' }
+                  : null,
               }
             : { categories: [], incomeTypes: [], payees: [], accounts: [] },
       ),
@@ -185,3 +190,63 @@ it.each([
     client.clear();
   },
 );
+
+it('withdraws a cached safe suggestion during refresh and after a failed assignment check (#842)', async () => {
+  flags.REDESIGN_ENABLED = true;
+  let failing = false;
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  vi.stubGlobal('fetch', async (input: string) => {
+    if (input.includes('/assignment-rules/candidates/')) {
+      if (failing) {
+        await gate;
+        return Response.json({ error: 'Synthetic source unavailable' }, { status: 503 });
+      }
+      return Response.json({
+        suggestions: [
+          {
+            id: 'rule-1',
+            name: 'Synthetic rule',
+            revision: 'b'.repeat(64),
+            automatic: true,
+            unavailable: null,
+            actions: { categoryId: 'category-1' },
+          },
+        ],
+        cleanup: { cleaned: 'Synthetic shop', payeeId: null },
+        candidateRevision: 'a'.repeat(64),
+        existingTransfer: null,
+      });
+    }
+    return Response.json(
+      input.includes('/matches')
+        ? { merge: [], link: [], transfers: [] }
+        : { categories: [], incomeTypes: [], payees: [], accounts: [] },
+    );
+  });
+  const prepared = vi.fn();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <ToastProvider>
+        <BankCandidate id="cached-candidate" onPrepared={prepared} />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
+  await waitFor(() => expect(prepared.mock.calls.at(-1)?.[0]?.bulkSafe).toBe(true));
+  failing = true;
+  const queryKey = candidateAssignmentQuery('cached-candidate').queryKey;
+  let refreshed: Promise<void> | undefined;
+  act(() => {
+    refreshed = client.invalidateQueries({ queryKey });
+  });
+  await waitFor(() => expect(prepared.mock.calls.at(-1)?.[0]?.bulkSafe).toBe(false));
+  await act(async () => {
+    release();
+    await refreshed;
+  });
+  await waitFor(() => expect(prepared.mock.calls.at(-1)?.[0]).toBeUndefined());
+  expect(client.getQueryData(queryKey)).toBeTruthy();
+  client.clear();
+});

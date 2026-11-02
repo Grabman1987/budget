@@ -165,6 +165,11 @@ function BankCandidateForm({
   const mergeRows = [...(matches.data?.merge ?? []), ...(matches.data?.link ?? [])];
   const merge = mergeRows.find((row) => row.id === mergeId) ?? mergeRows[0];
   const bulkSafe = Boolean(
+    review.isSuccess &&
+    review.fetchStatus === 'idle' &&
+    !review.data.existingTransfer &&
+    matches.isSuccess &&
+    matches.fetchStatus === 'idle' &&
     rule?.automatic &&
     review.data?.suggestions.filter((row) => row.automatic && !row.unavailable).length === 1 &&
     mergeRows.length === 0 &&
