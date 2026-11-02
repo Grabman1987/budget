@@ -5,6 +5,9 @@ import { PanelLink } from './panel-link';
 import { InboxHeaderLink } from '../inbox/navigation';
 import { useInboxCount } from './inbox';
 import { PrivacyButton } from './privacy-button';
+import { useLocation } from '@tanstack/react-router';
+import { REDESIGN_ENABLED } from './redesign-flag';
+import '../budget/plan-page-frame.css';
 
 /**
  * Desktop top bar. The bar spans the window, its content (`.topbar-inner`) is as wide as the page
@@ -18,28 +21,36 @@ export function Topbar({
   onToggle,
   onSearchChange,
   leading,
+  title,
 }: {
   leading?: ReactNode;
   collapsed: boolean;
   onToggle: () => void;
   onSearchChange?: (open: boolean) => void;
+  title?: string;
 }) {
   const inbox = useInboxCount();
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const settings = REDESIGN_ENABLED && pathname.startsWith('/einstellungen');
   return (
-    <header className="topbar">
+    <header className={title ? 'topbar plan-shell-topbar' : 'topbar'}>
       <div className="topbar-inner">
         {leading}
+        {settings && <h1 className="settings-shell-title">Einstellungen</h1>}
         <button
           type="button"
-          className="icon-btn"
+          className={title ? 'plan-shell-title' : 'icon-btn'}
           onClick={onToggle}
-          aria-label={collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'}
+          aria-label={
+            (title ? title + ' · ' : '') +
+            (collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen')
+          }
           aria-expanded={!collapsed}
           aria-controls="sidebar"
         >
-          <PanelLeft size={16} strokeWidth={1.75} aria-hidden="true" />
+          {title ?? <PanelLeft size={16} strokeWidth={1.75} aria-hidden="true" />}
         </button>
-        <GlobalSearch onOpenChange={onSearchChange} />
+        <GlobalSearch compact={settings} compactLabel={!!title} onOpenChange={onSearchChange} />
         <div className="topbar-actions">
           <PrivacyButton />
           <InboxHeaderLink className="review-pill" aria-label={inbox.label}>

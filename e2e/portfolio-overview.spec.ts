@@ -1,3 +1,4 @@
+import { gotoWealthAnalysis } from './wealth-navigation';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
@@ -12,7 +13,7 @@ test('portfolio value/return shares a period, exact inspection, privacy and acce
     if (request.url().includes('/api/') && !['GET', 'HEAD'].includes(request.method()))
       writes.push(request.url());
   });
-  await page.goto('/vermoegen/portfolio');
+  await gotoWealthAnalysis(page, '/vermoegen/portfolio');
   const overview = page.getByRole('region', { name: 'Portfolioentwicklung', exact: true });
   await expect(overview.getByRole('button', { name: 'Wert €', exact: true })).toHaveAttribute(
     'aria-pressed',
@@ -127,7 +128,7 @@ test('selected benchmark shares base 100, a missing quote breaks the line, and f
     ];
     await route.fulfill({ json: body });
   });
-  await page.goto('/vermoegen/portfolio');
+  await gotoWealthAnalysis(page, '/vermoegen/portfolio');
   const overview = page.getByRole('region', { name: 'Portfolioentwicklung', exact: true });
   await expect(overview.getByTestId('portfolio-flow-marker')).toHaveCount(1);
   await overview.getByRole('button', { name: 'Rendite %', exact: true }).click();

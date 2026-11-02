@@ -1,3 +1,4 @@
+import { assetType } from './wealth/redesign-filters';
 import {
   createRootRoute,
   createRoute,
@@ -20,6 +21,8 @@ import { REDESIGN_ENABLED } from './shell/redesign-flag';
 import { clearDeviceFinancialData } from './pwa/local-data';
 import { validateBookingsSearch } from './ledger/bookings-search';
 import { validatePlanFilterSearch, type PlanFilterSearch } from './budget/plan-filters';
+import { validatePlanYearSearch } from './budget/plan-year-search';
+import { validateExpectedSearch } from './expected/search';
 import { validateInboxSearch } from './inbox/navigation';
 import { accountsQuery } from './ledger/queries';
 import { captureContinuation, validateCaptureSearch } from './ledger/capture-link';
@@ -419,25 +422,35 @@ const planYearRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_JAHR.path,
   staticData: { meta: PLAN_JAHR },
-  validateSearch: (search: Record<string, unknown>) => ({
-    ereignis:
-      typeof search['ereignis'] === 'string' && search['ereignis'].length <= 64
-        ? search['ereignis']
-        : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>) =>
+    REDESIGN_ENABLED
+      ? validatePlanYearSearch(search)
+      : {
+          ereignis:
+            typeof search['ereignis'] === 'string' && search['ereignis'].length <= 64
+              ? search['ereignis']
+              : undefined,
+        },
   component: lazyRouteComponent(() => import('./budget/plan-year-page'), 'PlanYearPage'),
 });
 const planExpectedRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_ERWARTET.path,
   staticData: { meta: PLAN_ERWARTET },
+  validateSearch: (search: Record<string, unknown>) =>
+    REDESIGN_ENABLED ? validateExpectedSearch(search) : {},
   component: lazyRouteComponent(() => import('./expected/expected-page'), 'ExpectedPage'),
 });
-const expectedDetailSearch = (search: Record<string, unknown>) => ({
-  ansicht:
-    search['ansicht'] === 'contracts' || search['ansicht'] === 'all' ? search['ansicht'] : 'next',
-  art: search['art'] === 'inflow' || search['art'] === 'outflow' ? search['art'] : 'all',
-});
+const expectedDetailSearch = (search: Record<string, unknown>) =>
+  REDESIGN_ENABLED
+    ? validateExpectedSearch(search)
+    : {
+        ansicht:
+          search['ansicht'] === 'contracts' || search['ansicht'] === 'all'
+            ? search['ansicht']
+            : 'next',
+        art: search['art'] === 'inflow' || search['art'] === 'outflow' ? search['art'] : 'all',
+      };
 const expectedPaymentRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/plan/erwartet/$id',
@@ -491,10 +504,21 @@ const freedomRoute = createRoute({
 const netWorthRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: VERMOEGEN_NETTO_META.path,
+  validateSearch: (search) =>
+    REDESIGN_ENABLED && search['ansicht'] === 'analyse' ? { ansicht: 'analyse' } : {},
   staticData: { meta: VERMOEGEN_NETTO_META },
   component: lazyRouteComponent(() => import('./wealth/networth-page'), 'NetWorthPage'),
 });
+const wealthPresentationSearch = (search: Record<string, unknown>) => ({
+  ...(search['fokus'] === 'investment' ? { fokus: 'investment' } : {}),
+  anlageart: search['anlageart'] === undefined ? undefined : assetType(search['anlageart']),
+  ansicht:
+    search['ansicht'] === 'aktivitaeten' || search['ansicht'] === 'analyse'
+      ? search['ansicht']
+      : undefined,
+});
 const portfolioRegisterSearch = (search: Record<string, unknown>) => ({
+  ...(REDESIGN_ENABLED ? wealthPresentationSearch(search) : {}),
   sparplan:
     typeof search['sparplan'] === 'string' && search['sparplan'].length <= 64
       ? search['sparplan']
@@ -522,13 +546,20 @@ const portfolioLegacyRedirect = ({
     throw redirect({
       to: '/vermoegen/portfolio/sparplan/$id',
       params: { id: search.sparplan },
-      search: { zeitraum: search.zeitraum },
+      search: {
+        zeitraum: search.zeitraum,
+        ...(REDESIGN_ENABLED ? { anlageart: search.anlageart, ansicht: search.ansicht } : {}),
+      },
     });
   if (!search.sparplan && search.produkt && search.produkt !== 'neu')
     throw redirect({
       to: '/vermoegen/portfolio/instrument/$id',
       params: { id: search.produkt },
-      search: { zeitraum: search.zeitraum, handel: search.handel },
+      search: {
+        zeitraum: search.zeitraum,
+        handel: search.handel,
+        ...(REDESIGN_ENABLED ? { anlageart: search.anlageart, ansicht: search.ansicht } : {}),
+      },
     });
 };
 const portfolioRoute = createRoute({
@@ -576,6 +607,7 @@ const instrumentRoute = createRoute({
   path: '/vermoegen/portfolio/instrument/$id',
   staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Instrument' } },
   validateSearch: (search: Record<string, unknown>) => ({
+    ...(REDESIGN_ENABLED ? wealthPresentationSearch(search) : {}),
     handel:
       typeof search['handel'] === 'string' && search['handel'].length <= 64
         ? search['handel']
@@ -586,6 +618,7 @@ const instrumentRoute = createRoute({
 const savingsPlanRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/vermoegen/portfolio/sparplan/$id',
+  ...(REDESIGN_ENABLED ? { validateSearch: wealthPresentationSearch } : {}),
   staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Sparplan' } },
   component: lazyRouteComponent(() => import('./wealth/portfolio-detail-page'), 'SavingsPlanPage'),
 });
@@ -605,6 +638,10 @@ const planGoalsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_SPARZIELE.path,
   staticData: { meta: PLAN_SPARZIELE },
+  validateSearch: (search: Record<string, unknown>) =>
+    REDESIGN_ENABLED
+      ? { ansicht: search['ansicht'] === 'fortschritt' ? 'fortschritt' : undefined }
+      : {},
   component: lazyRouteComponent(() => import('./budget/goals-page'), 'GoalsPage'),
 });
 /** Whether the viewport is wide enough for the settings rail (the app's desktop breakpoint). */
@@ -618,8 +655,16 @@ const settingsIndexRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/einstellungen',
   staticData: { meta: SETTINGS_INDEX },
-  beforeLoad: () => {
-    if (isDesktopViewport()) throw redirect({ to: '/einstellungen/konten' as never });
+  beforeLoad: ({ location }) => {
+    if (isDesktopViewport()) {
+      if (!REDESIGN_ENABLED) throw redirect({ to: '/einstellungen/konten' as never });
+      if (new URLSearchParams(location.searchStr).get('ansicht') === 'index') return;
+      const to = '/einstellungen/profil';
+      throw redirect({
+        href: `${to}${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+        replace: true,
+      });
+    }
   },
   component: lazyRouteComponent(() => import('./pages/settings-index'), 'SettingsIndexPage'),
 });
@@ -640,8 +685,16 @@ const redirects = [
   redirectRoute('/reports/jahresansicht', '/reports/explorer', { vorlage: 'year' }, 'YTD'),
   redirectRoute('/reports/kategorien', '/reports/explorer', { vorlage: 'category' }, 'YTD'),
   redirectRoute('/reports/gesamttabelle', '/reports/explorer', { vorlage: 'total' }, 'Alles'),
-  redirectRoute('/reports/vorschau', '/plan/erwartet'),
-  redirectRoute('/reports/sparziele', '/plan/sparziele'),
+  redirectRoute(
+    '/reports/vorschau',
+    '/plan/erwartet',
+    REDESIGN_ENABLED ? { ansicht: 'kalender' } : {},
+  ),
+  redirectRoute(
+    '/reports/sparziele',
+    '/plan/sparziele',
+    REDESIGN_ENABLED ? { ansicht: 'fortschritt' } : {},
+  ),
   redirectRoute('/reports/kontakte', '/konten/kontakte'),
   redirectRoute(
     '/reports/finanzcheck',
@@ -653,7 +706,14 @@ const redirects = [
   // Legacy import bookmarks lead to the export placeholder; no import action remains in the UI.
   redirectRoute('/einstellungen/import', '/einstellungen/export'),
   redirectRoute('/plan', '/plan/monat'),
-  redirectRoute('/vermoegen', '/vermoegen/nettovermoegen'),
+  REDESIGN_ENABLED
+    ? createRoute({
+        getParentRoute: () => shellRoute,
+        path: '/vermoegen',
+        staticData: { meta: VERMOEGEN_NETTO_META },
+        component: lazyRouteComponent(() => import('./wealth/redesign-overview'), 'WealthOverview'),
+      })
+    : redirectRoute('/vermoegen', '/vermoegen/nettovermoegen'),
 ];
 
 const accountRoute = createRoute({

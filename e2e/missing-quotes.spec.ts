@@ -1,4 +1,5 @@
 import { openHeuteReview, detectHeuteRedesign } from './heute-visual-fixture';
+import { gotoWealthAnalysis, wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { join } from 'node:path';
@@ -152,17 +153,31 @@ test('a position without market quote is valued at cost and flagged; the first q
   await quote.getByRole('button', { name: 'Kurs speichern', exact: true }).click();
   await expect(toast(page)).toContainText('Manueller Kurs gespeichert');
   await expect(panel.locator('.instrument-accounts')).toContainText('120,00 €');
-  await expect(
-    panel.getByText('Einstand 100,00 € · Wertzuwachs 20,00 €', { exact: true }),
-  ).toContainText('Wertzuwachs 20,00 €');
+  if (await wealthRedesign(page)) {
+    await expect(
+      panel.locator('.wealth-instrument-strip').getByText('100,00 €', { exact: true }),
+    ).toBeVisible();
+    await expect(panel.getByText('Wertzuwachs 20,00 €', { exact: true })).toBeVisible();
+  } else {
+    await expect(
+      panel.getByText('Einstand 100,00 € · Wertzuwachs 20,00 €', { exact: true }),
+    ).toContainText('Wertzuwachs 20,00 €');
+  }
   await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
   await expect(panel).toContainText('geschätzt');
   await expect(panel).toContainText('100,00 €');
   await toast(page).getByRole('button', { name: 'Wiederholen' }).click();
   await expect(panel.locator('.instrument-accounts')).toContainText('120,00 €');
-  await expect(
-    panel.getByText('Einstand 100,00 € · Wertzuwachs 20,00 €', { exact: true }),
-  ).toContainText('Wertzuwachs 20,00 €');
+  if (await wealthRedesign(page)) {
+    await expect(
+      panel.locator('.wealth-instrument-strip').getByText('100,00 €', { exact: true }),
+    ).toBeVisible();
+    await expect(panel.getByText('Wertzuwachs 20,00 €', { exact: true })).toBeVisible();
+  } else {
+    await expect(
+      panel.getByText('Einstand 100,00 € · Wertzuwachs 20,00 €', { exact: true }),
+    ).toContainText('Wertzuwachs 20,00 €');
+  }
   await page.keyboard.press('Escape');
 
   await openHeuteReview(page, '/');
@@ -195,7 +210,7 @@ test('a position without market quote is valued at cost and flagged; the first q
   }
   // Once quoted, the position is no longer flagged (the hint only names currently held positions
   // without quote or usable execution price); the history answers without error.
-  await page.goto('/vermoegen/nettovermoegen');
+  await gotoWealthAnalysis(page, '/vermoegen/nettovermoegen');
   await expect(page.getByTestId('nw-figure')).toBeVisible();
   await expect(page.getByTestId('valuation-hint')).toHaveCount(0);
   await expect(page.getByRole('alert')).toHaveCount(0);

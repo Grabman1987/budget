@@ -57,6 +57,10 @@ describe('public chart accessibility contract', () => {
     ),
   };
 
+  const nativeTables: Record<string, ReactElement> = {
+    ChartDataTable: <charts.ChartDataTable label={label} points={points} />,
+  };
+
   it('requires a named contract test when another public chart container is exported', () => {
     // Marks are composed inside an image; the context is not a drawing container.
     const primitives = [
@@ -80,7 +84,7 @@ describe('public chart accessibility contract', () => {
       Object.keys(charts)
         .filter((name) => /^[A-Z]/.test(name))
         .sort(),
-    ).toEqual([...Object.keys(examples), ...primitives].sort());
+    ).toEqual([...Object.keys(examples), ...Object.keys(nativeTables), ...primitives].sort());
     expectTypeOf<ChartSvgProps['label']>().toEqualTypeOf<string>();
     expectTypeOf<Parameters<typeof ChartValues>[0]['label']>().toEqualTypeOf<string>();
     expectTypeOf<Parameters<typeof ChartValue>[0]['label']>().toEqualTypeOf<string>();
@@ -91,6 +95,30 @@ describe('public chart accessibility contract', () => {
     expect(screen.getAllByRole('img')).toHaveLength(1);
     expect(screen.getByRole('img', { name: label })).toBeTruthy();
   });
+
+  it.each(Object.keys(nativeTables))(
+    '%s exposes native headers, caption and keyboard scrolling with privacy intact',
+    async (name) => {
+      render(nativeTables[name]!);
+      await userEvent.click(screen.getByText('Tabelle anzeigen'));
+      const table = screen.getByRole('table', { name: label });
+      expect(
+        within(table)
+          .getAllByRole('columnheader')
+          .map((cell) => cell.textContent),
+      ).toEqual(['Zeitpunkt / Position', 'Datenreihe', 'Wert']);
+      expect(within(table).getByText('−0,01 €')).toBeTruthy();
+      expect(within(table).getByText('–')).toBeTruthy();
+      expect(screen.queryByRole('img')).toBeNull();
+      const region = screen.getByRole('region', { name: label + ' – dargestellte Werte' });
+      await userEvent.tab();
+      expect(document.activeElement).toBe(region);
+      act(() => setAmountsHidden(true));
+      expect(table.textContent).not.toMatch(/123,45|12,34|0,000001|0,01/);
+      expect(table.textContent).toContain('02.10.2026');
+      expect(table.textContent).toContain('Nicht vorhanden');
+    },
+  );
 
   it('preserves links in an interactive SVG while exposing the chart summary', () => {
     render(

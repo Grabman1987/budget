@@ -1,3 +1,4 @@
+import { redesignEnabled } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext } from '@playwright/test';
 import { MAIN_URL } from '../playwright.config';
@@ -64,31 +65,51 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
   });
   await page.goto('/plan/jahr?monat=2026-01');
   await expect(page.getByRole('heading', { name: '2026', exact: true })).toBeVisible();
+  const redesign = await redesignEnabled(page);
+  if (redesign) await page.locator('.year-reference-context > summary').click();
   await expect(page.locator('.year-scenario-context')).toContainText('Einnahmen:');
   await expect(page.locator('.year-scenario-context')).toContainText('Konsum:');
+  if (redesign) await page.locator('.year-reference-context > summary').click();
   const mobile = page.viewportSize()!.width <= 767;
-  const groupButton = mobile
+  const phoneCards = mobile && !redesign;
+  const amount = (value: string) => (redesign ? value.replace(' €', '') : value);
+  const metric = async (value: string, label: string) => {
+    if (redesign) {
+      const menu = page.locator('.year-reference-metric');
+      if (!(await menu.evaluate((el) => (el as HTMLDetailsElement).open)))
+        await menu.locator('summary').click();
+      await menu.getByRole('combobox', { name: 'Kennzahl im Jahresplan' }).selectOption(value);
+      await menu.locator('summary').click();
+    } else await page.getByRole('button', { name: label, exact: true }).click();
+  };
+  const groupButton = phoneCards
     ? page.locator('.year-phone-summary').filter({ hasText: groupName })
     : page.getByRole('button', { name: groupName, exact: true });
   await expect(groupButton).toHaveAttribute('aria-expanded', 'false');
   await groupButton.click();
-  const row = mobile
+  const row = phoneCards
     ? page.locator('.year-phone-row', { hasText: categoryName }).first()
     : page.locator('.year-sheet .year-table tbody tr', { hasText: categoryName });
-  await expect(row).toContainText('100,01 €');
-  if (!mobile) {
-    await expect(row.locator('.year-end')).toHaveText('150,01 €');
-    await expect(page.locator('.year-sheet .year-table thead th')).toHaveCount(14);
+  await expect(row).toContainText(amount('100,01 €'));
+  if (!phoneCards) {
+    await expect(row.locator('.year-end')).toHaveText(amount('150,01 €'));
+    await expect(page.locator('.year-sheet .year-table thead th')).toHaveCount(redesign ? 15 : 14);
     expect(await row.locator('th').evaluate((element) => getComputedStyle(element).position)).toBe(
       'sticky',
     );
   }
-  await page.getByRole('button', { name: 'Aktivität', exact: true }).click();
-  await expect(row).toContainText('−30,02 €');
-  if (!mobile) await expect(row.locator('.year-end')).toHaveText('−27,99 €');
-  await page.getByRole('button', { name: 'Verfügbar', exact: true }).click();
-  await expect(row).toContainText('69,99 €');
-  if (mobile) {
+  await metric('activityCents', 'Aktivität');
+  await expect(row).toContainText(amount('−30,02 €'));
+  if (!phoneCards) await expect(row.locator('.year-end')).toHaveText(amount('−27,99 €'));
+  await metric('availableCents', 'Verfügbar');
+  if (redesign) {
+    await expect(page).toHaveURL(/kennzahl=availableCents/);
+    await page.reload();
+    await expect(page.locator('.year-reference-metric > summary')).toContainText('Verfügbar');
+    await groupButton.click();
+  }
+  await expect(row).toContainText(amount('69,99 €'));
+  if (phoneCards) {
     await page
       .locator('.year-sheet')
       .getByRole('combobox', { name: 'Monat' })
@@ -98,7 +119,7 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
     await expect(
       page.locator('.year-phone-annual .year-phone-row', { hasText: categoryName }),
     ).toContainText('122,02 €');
-  } else await expect(row.locator('.year-end')).toHaveText('122,02 €');
+  } else await expect(row.locator('.year-end')).toHaveText(amount('122,02 €'));
   await groupButton.click();
   await expect(groupButton).toHaveAttribute('aria-expanded', 'false');
   await groupButton.click();
@@ -114,10 +135,10 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
     fullPage: true,
   });
   await page.getByRole('button', { name: 'Vorjahr', exact: true }).click();
-  await expect(page).toHaveURL(/monat=2025-01/);
+  await expect(page).toHaveURL(new RegExp(`monat=2025-01`));
   await expect(page.getByRole('heading', { name: '2025', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Nächstes Jahr', exact: true }).click();
-  await expect(page).toHaveURL(/monat=2026-01/);
+  await expect(page).toHaveURL(new RegExp(`monat=2026-01`));
   await groupButton.click();
   await expect(row).toBeVisible();
   expect(writes).toEqual([]);
@@ -135,8 +156,11 @@ test('annual plan: a failed month never becomes a partial zero-filled year', asy
   await expect(page.getByRole('button', { name: 'Erneut versuchen' })).toBeVisible({
     timeout: 20_000,
   });
-  await expect(page.getByRole('heading', { name: 'Jahresübersicht' })).toHaveCount(0);
+  const overview = (await redesignEnabled(page))
+    ? page.locator('.year-table')
+    : page.getByRole('heading', { name: 'Jahresübersicht' });
+  await expect(overview).toHaveCount(0);
   await page.unroute('**/api/budget/months*');
   await page.getByRole('button', { name: 'Erneut versuchen' }).click();
-  await expect(page.getByRole('heading', { name: 'Jahresübersicht' })).toBeVisible();
+  await expect(overview).toBeVisible();
 });

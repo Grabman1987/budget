@@ -6,6 +6,7 @@ import {
 import {
   AxisLine,
   ChartSvg,
+  ChartDataTable,
   Graticule,
   LineLegend,
   StepLine,
@@ -20,6 +21,8 @@ import { scaleLinear } from 'd3-scale';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, longDay } from '../ledger/format';
 import { kfmt, yTicks } from '../wealth/networth-model';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { Table2 } from 'lucide-react';
 
 type Scenario = ReturnType<typeof planYearScenario>;
 type Occurrence = ReturnType<typeof plannedEventOccurrences>[number];
@@ -59,7 +62,7 @@ export function YearScenarioChart({
   const future = months.filter((row) => row.date > asOf);
   const values = [...actual, ...future.map(({ date, value }) => ({ date, value }))];
   const low = values.reduce((a, b) => (b.value < a.value ? b : a));
-  const height = width < 600 ? 176 : 244;
+  const height = width < 600 ? 176 : REDESIGN_ENABLED ? 230 : 244;
   const top = width < 600 ? 30 : 38;
   const bottom = height - 30;
   const left = 54;
@@ -144,7 +147,7 @@ export function YearScenarioChart({
             label={summary}
             testId="year-scenario-chart"
             points={inspectionPoints}
-            table
+            table={!REDESIGN_ENABLED}
             tooltipNote="Die Stufen zeigen Monatsstände. Ereignismarker zeigen echte Termine; zwischen Monatsständen wird kein Tagesguthaben berechnet."
           >
             <Graticule
@@ -195,6 +198,16 @@ export function YearScenarioChart({
               stroke="var(--line)"
               strokeWidth={2}
             />
+            {REDESIGN_ENABLED && (
+              <text
+                x={right - 6}
+                y={Math.max(top + 16, y(months[11]!.value) - 12)}
+                textAnchor="end"
+                className="year-end-annotation"
+              >
+                Frei am 31.12. {eur(months[11]!.value)}
+              </text>
+            )}
             <XTicks
               y={height - 8}
               ticks={months
@@ -210,18 +223,37 @@ export function YearScenarioChart({
           </ChartSvg>
         )}
       </div>
-      <LineLegend
-        items={[
-          { kind: 'actual', label: 'Stand bis heute' },
-          {
-            kind: 'plan',
-            label: without ? 'Plan ohne Ereignisse' : 'Plan mit Ereignissen',
-          },
-        ]}
-      />
-      <p className="year-chart-low">
-        Tiefpunkt (dargestellte Stände): <strong>{eur(low.value)}</strong> · {longDay(low.date)}.
-      </p>
+      {REDESIGN_ENABLED ? (
+        <details className="year-chart-reference-extra">
+          <summary>
+            <Table2 size={16} aria-hidden="true" />
+            <span className="sr-only">Diagrammdaten und Tiefpunkt</span>
+          </summary>
+          <div className="year-chart-reference-popup">
+            <p>
+              Tiefpunkt (dargestellte Stände): <strong>{eur(low.value)}</strong> ·{' '}
+              {longDay(low.date)}.
+            </p>
+            <ChartDataTable label={summary} points={inspectionPoints} />
+          </div>
+        </details>
+      ) : (
+        <>
+          <LineLegend
+            items={[
+              { kind: 'actual', label: 'Stand bis heute' },
+              {
+                kind: 'plan',
+                label: without ? 'Plan ohne Ereignisse' : 'Plan mit Ereignissen',
+              },
+            ]}
+          />
+          <p className="year-chart-low">
+            Tiefpunkt (dargestellte Stände): <strong>{eur(low.value)}</strong> · {longDay(low.date)}
+            .
+          </p>
+        </>
+      )}
     </div>
   );
 }

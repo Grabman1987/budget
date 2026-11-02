@@ -1,3 +1,4 @@
+import { redesignEnabled } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import { expect as baseExpect, type Page, type TestInfo } from '@playwright/test';
 import type { LiquidityReportView } from '@budget/db';
@@ -86,11 +87,17 @@ isolatedTest(
       active: false,
     });
 
-    await page.goto('/reports/liquiditaet');
-    const forecastCard = page.locator('section[aria-labelledby="liq-title"]');
-    const basis = forecastCard.locator('p.vnote').first();
+    await page.goto('/reports/liquiditaet?horizon=6m');
+    const on = await redesignEnabled(page);
+    if (on) await page.locator('.forecast-reference-basis > summary').click();
+    const forecastCard = page.getByTestId('liq-forecast-card');
+    const basis = on
+      ? forecastCard.getByTestId('liq-scenario-basis')
+      : forecastCard.locator('p.vnote').first();
     await expect(forecastCard).toHaveCount(1);
-    await expect(forecastCard.getByText('Tiefpunkt im Grundplan', { exact: true })).toBeVisible();
+    await expect(
+      forecastCard.getByText(on ? 'Tiefpunkt' : 'Tiefpunkt im Grundplan', { exact: true }),
+    ).toBeVisible();
     await expect(basis).toContainText('Grundplan');
     await expect(basis).toContainText('Noch keine geplanten Ereignisse eingerichtet');
     await page.locator('details.rf-tools > summary').click();
@@ -136,6 +143,7 @@ isolatedTest(
     expect(later.events).toHaveLength(1);
     expect(['in_horizon', 'later']).toContain(later.events[0]?.status);
     await page.reload();
+    if (on) await page.locator('.forecast-reference-basis > summary').click();
     await expect(basis).toContainText(
       'Geplante Ereignisse liegen außerhalb des gewählten Prognosezeitraums',
     );
@@ -159,6 +167,8 @@ isolatedTest(
       ).length,
     ).toBeGreaterThan(1);
     await page.reload();
+    if (await redesignEnabled(page))
+      await page.locator('.forecast-reference-basis > summary').click();
     await expect(page.getByTestId('liq-verdict')).toContainText('mit 1 geplantem Ereignis');
   },
 );
@@ -166,10 +176,14 @@ isolatedTest(
 test('figures, verdict, chart and tables agree with the forecast API', async ({ page }, info) => {
   const view = await api(page, '/api/liquidity?horizon=6m');
   const report = view.report!;
-  await page.goto('/reports/liquiditaet');
+  await page.goto('/reports/liquiditaet?horizon=6m');
+  const on = await redesignEnabled(page);
   await expect(
-    page.getByRole('heading', { name: 'Budget-Konten · nächste 6 Monate' }),
+    page.getByRole('heading', {
+      name: on ? 'Kontostand Budget-Konten' : 'Budget-Konten · nächste 6 Monate',
+    }),
   ).toBeVisible();
+  if (on) await page.locator('.forecast-reference-basis > summary').click();
   await expect(page.getByTestId('liq-start')).toHaveText(eur(report.startCents));
   await expect(page.getByTestId('liq-low')).toHaveText(eur(report.low!.cents));
   await expect(page.getByTestId('liq-low-buffer')).toHaveText(eur(report.lowBuffer!.cents));
@@ -197,11 +211,17 @@ test('horizon and levers change the forecast like the API says', async ({ page }
   const plain = (await api(page, '/api/liquidity?horizon=90d')).report!;
   const trimmed = (await api(page, '/api/liquidity?horizon=90d&levers=trim-variable')).report!;
   expect(trimmed.low!.cents).toBeGreaterThan(plain.low!.cents);
-  await page.goto('/reports/liquiditaet');
+  await page.goto('/reports/liquiditaet?horizon=6m');
   await page.locator('details.rf-tools > summary').click();
-  await page.getByRole('button', { name: '90 Tage' }).click();
+  const on = await redesignEnabled(page);
+  if (on) {
+    await page.getByRole('combobox', { name: 'Prognosezeitraum' }).selectOption('90d');
+    await page.locator('.forecast-reference-basis > summary').click();
+  } else await page.getByRole('button', { name: '90 Tage' }).click();
   await expect(
-    page.getByRole('heading', { name: 'Budget-Konten · nächste 90 Tage' }),
+    page.getByRole('heading', {
+      name: on ? 'Kontostand Budget-Konten' : 'Budget-Konten · nächste 90 Tage',
+    }),
   ).toBeVisible();
   await expect(page.getByTestId('liq-low')).toHaveText(eur(plain.low!.cents));
   const gain = plain.levers.find((l) => l.id === 'trim-variable')!.gainCents;
@@ -218,7 +238,7 @@ test('horizon and levers change the forecast like the API says', async ({ page }
 
 test('a planned event can be added, switched off and removed', async ({ page }, info) => {
   const name = `E2E Ereignis ${info.project.name} ${Date.now()}`;
-  await page.goto('/reports/liquiditaet');
+  await page.goto('/reports/liquiditaet?horizon=6m');
   await page.locator('details.rf-tools > summary').click();
   // beyond 12 months: stored, but the shared sample forecast stays as it is
   await page.getByLabel('Ereignis', { exact: true }).fill(name);
@@ -236,7 +256,7 @@ test('a planned event can be added, switched off and removed', async ({ page }, 
 });
 
 test('refuses an incomplete event', async ({ page }) => {
-  await page.goto('/reports/liquiditaet');
+  await page.goto('/reports/liquiditaet?horizon=6m');
   await page.locator('details.rf-tools > summary').click();
   await page.getByRole('button', { name: 'Ereignis', exact: true }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'benennen' })).toBeVisible();

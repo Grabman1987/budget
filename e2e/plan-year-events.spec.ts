@@ -1,3 +1,4 @@
+import { redesignEnabled } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, type TestInfo, type Request } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -51,6 +52,16 @@ test('year events: create, edit recurrence, scenario without writes, off/delete 
       financialWrites.push(r.method());
   });
   await page.goto('/plan/jahr?monat=2026-11');
+  const on = await redesignEnabled(page);
+  const showContext = async () => {
+    if (
+      on &&
+      !(await page
+        .locator('.year-reference-context')
+        .evaluate((el) => (el as HTMLDetailsElement).open))
+    )
+      await page.locator('.year-reference-context > summary').click();
+  };
   const baseline = page.locator('.year-scenario-lead');
   await expect(baseline).toHaveCount(1);
   await expect(baseline).toContainText('Freies Geld am 31.12.2026');
@@ -71,7 +82,7 @@ test('year events: create, edit recurrence, scenario without writes, off/delete 
   await panel.getByRole('button', { name: 'Ereignis speichern' }).click();
   await expect(panel).not.toBeVisible();
   await expect(page.getByTestId('scenario-year-effect')).toHaveText('−300,01 €');
-  await page.locator('.year-planning .year-instructions > summary').click();
+  await page.getByText('Grundlage und Grenzen der Planung', { exact: true }).click();
   const help = page
     .getByRole('button', { name: 'Zu verteilen mit Ereignissen erklären' })
     .filter({ visible: true });
@@ -80,7 +91,8 @@ test('year events: create, edit recurrence, scenario without writes, off/delete 
   await expect(page.getByRole('tooltip')).toContainText('geplanten Beträge');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('tooltip')).toHaveCount(0);
-  await page.locator('.year-events > summary').click();
+  if (!(await page.locator('.year-events').evaluate((el) => (el as HTMLDetailsElement).open)))
+    await page.locator('.year-events > summary').click();
   await page.getByRole('button', { name: 'Urlaub bearbeiten', exact: true }).click();
   panel = page.getByRole('dialog', { name: 'Ereignis bearbeiten' });
   await panel.getByLabel('Datum / Beginn', { exact: true }).fill('2026-10-31');
@@ -103,12 +115,13 @@ test('year events: create, edit recurrence, scenario without writes, off/delete 
     if (r.url().includes('/api/') && r.method() !== 'GET') scenarioWrites.push(r.method());
   };
   page.on('request', listener);
+  await showContext();
   await page.getByRole('button', { name: 'Ohne Auswahl' }).click();
   await expect(page.getByTestId('scenario-year-end')).toHaveText('10.000,00 €');
   await page.getByRole('button', { name: 'Mit Auswahl' }).click();
-  await page.getByRole('checkbox', { name: 'Urlaub im Szenario' }).uncheck();
+  await page.getByRole(on ? 'switch' : 'checkbox', { name: 'Urlaub im Szenario' }).uncheck();
   await expect(page.getByTestId('scenario-year-effect')).toHaveText('0,00 €');
-  await page.getByRole('checkbox', { name: 'Urlaub im Szenario' }).check();
+  await page.getByRole(on ? 'switch' : 'checkbox', { name: 'Urlaub im Szenario' }).check();
   await expect(page.getByTestId('scenario-year-end')).toHaveText('9.699,97 €');
   page.off('request', listener);
   expect(scenarioWrites).toEqual([]);
@@ -137,9 +150,11 @@ test('year events: create, edit recurrence, scenario without writes, off/delete 
     { day: '2026-11-30', label: 'Urlaub', cents: -10_001 },
     { day: '2026-12-31', label: 'Urlaub', cents: -10_001 },
   ]);
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    await page.locator('.area-page-menu > summary').click();
   await page.getByRole('link', { name: 'Prognose', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: 'Liquiditätsprognose', exact: true }),
+    page.getByRole('heading', { name: on ? 'Prognose' : 'Liquiditätsprognose', exact: true }),
   ).toBeVisible();
   expect(financialWrites).toEqual([]);
 });

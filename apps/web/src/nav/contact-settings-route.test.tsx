@@ -109,25 +109,36 @@ describe.each([false, true])('contact Settings destination, redesign=%s', (enabl
     expect(router.state.location.hash).toBe('synthetic-source');
   });
 
-  it('adds only the ON Contacts entry and preserves every existing Settings group and order', () => {
+  it('keeps contacts reachable in the approved grouping in both modes', () => {
     expect(
       areas.SETTINGS_GROUPS.map((group) => [group.label, group.items.map((item) => item.label)]),
-    ).toEqual([
-      [
-        'Daten',
-        [
-          'Konten',
-          ...(enabled ? ['Kontakte'] : []),
-          'Kategorien',
-          'Warenkorb (Teuerung)',
-          'Projekte',
-          'Anlageklassen',
-          'Depots & Kryptos',
-        ],
-      ],
-      ['Automatik', ['Regelwerk', 'Zuordnungsregeln', 'Datenquellen']],
-      ['System', ['Sicherheit', 'CSV-Export', 'Profil']],
-    ]);
+    ).toEqual(
+      enabled
+        ? [
+            ['Profil & Sicherheit', ['Profil', 'Sicherheit']],
+            ['Konten & Depots', ['Konten', 'Depots & Kryptos', 'Kontakte']],
+            ['Kategorien & Regeln', ['Kategorien', 'Regelwerk', 'Zuordnungsregeln', 'Warenkorb']],
+            ['Verbindungen', ['Verbindungen']],
+            ['Vermögen', ['Zielallokation und Stufen', 'Anlageklassen']],
+            ['Daten', ['CSV-Export', 'Projekte']],
+          ]
+        : [
+            [
+              'Daten',
+              [
+                'Konten',
+                ...(enabled ? ['Kontakte'] : []),
+                'Kategorien',
+                'Warenkorb (Teuerung)',
+                'Projekte',
+                'Anlageklassen',
+                'Depots & Kryptos',
+              ],
+            ],
+            ['Automatik', ['Regelwerk', 'Zuordnungsregeln', 'Datenquellen']],
+            ['System', ['Sicherheit', 'CSV-Export', 'Profil']],
+          ],
+    );
     expect(
       areas.areaById('einstellungen').registers.filter((item) => item.id === 'kontakte'),
     ).toEqual(

@@ -1,3 +1,4 @@
+import { gotoWealthAnalysis } from './wealth-navigation';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import type { AssetCompositionPoint } from '@budget/domain';
@@ -27,7 +28,7 @@ test('550/551 literal signed composition reconciles lead, monthly chart, account
     });
     expect(response.ok(), await response.text()).toBe(true);
   }
-  await page.goto('/vermoegen/nettovermoegen?zeitraum=YTD');
+  await gotoWealthAnalysis(page, '/vermoegen/nettovermoegen?zeitraum=YTD');
   await expect(page.getByTestId('nw-figure')).toHaveText('8.000,00 €');
   const response = await request.get('/api/wealth/networth?period=YTD');
   expect(response.ok()).toBe(true);

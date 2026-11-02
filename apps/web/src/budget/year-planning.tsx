@@ -1,5 +1,5 @@
 import { plannedEventOccurrences, planYearScenario } from '@budget/domain';
-import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
+import { Button, Switch, LineLegend, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useId, useState, type ReactNode } from 'react';
@@ -10,17 +10,21 @@ import { plannedEventsQuery, type PlannedEventView } from '../reports/liquidity-
 import type { BudgetMonthView } from './budget-api';
 import { EventPanel, RECURRENCE_LABELS } from './event-panel';
 import { YearScenarioChart } from './year-scenario-chart';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 export function YearPlanning({
   year,
   selectedMonth,
   views,
   context,
+  overview,
 }: {
   year: number;
   selectedMonth: string;
   views: BudgetMonthView[];
   context?: ReactNode;
+  overview?:
+    ((scenario: ReturnType<typeof planYearScenario>, without: boolean) => ReactNode) | undefined;
 }) {
   useAmountPrivacy();
   const query = useQuery(plannedEventsQuery());
@@ -90,175 +94,280 @@ export function YearPlanning({
           : [],
       );
   const edit = events.find((e) => e.id === search.ereignis);
-  const selection = (e: PlannedEventView) => (
-    <label className="event-check">
-      <input
-        type="checkbox"
-        aria-label={`${maskMoneyText(e.name)} im Szenario`}
+  const selection = (e: PlannedEventView) =>
+    REDESIGN_ENABLED ? (
+      <Switch
+        label={
+          maskMoneyText(e.name) +
+          ' im Szenario' +
+          (!e.enabled
+            ? ' · ausgeschaltet'
+            : !eligible.includes(e)
+              ? ' · Konto nicht verfügbar'
+              : '')
+        }
         checked={ids.includes(e.id) && e.enabled}
         disabled={!e.enabled || !eligible.includes(e)}
-        onChange={(change) =>
+        onChange={(checked) =>
           setExcluded((previous) =>
-            change.target.checked ? previous.filter((id) => id !== e.id) : [...previous, e.id],
+            checked ? previous.filter((id) => id !== e.id) : [...previous, e.id],
           )
         }
       />
-      <span>
-        {maskMoneyText(e.name)}
-        {!e.enabled ? ' · ausgeschaltet' : !eligible.includes(e) ? ' · Konto nicht verfügbar' : ''}
-      </span>
-    </label>
+    ) : (
+      <label className="event-check">
+        <input
+          type="checkbox"
+          aria-label={`${maskMoneyText(e.name)} im Szenario`}
+          checked={ids.includes(e.id) && e.enabled}
+          disabled={!e.enabled || !eligible.includes(e)}
+          onChange={(change) =>
+            setExcluded((previous) =>
+              change.target.checked ? previous.filter((id) => id !== e.id) : [...previous, e.id],
+            )
+          }
+        />
+        <span>
+          {maskMoneyText(e.name)}
+          {!e.enabled
+            ? ' · ausgeschaltet'
+            : !eligible.includes(e)
+              ? ' · Konto nicht verfügbar'
+              : ''}
+        </span>
+      </label>
+    );
+  const lead = (
+    <dl className="year-scenario-lead">
+      <dt>
+        Freies Geld am 31.12.{year} {without ? 'ohne Ereignisse' : 'mit Ereignissen'}
+      </dt>
+      <dd>
+        <span data-testid="scenario-year-end" aria-live="polite">
+          {eur(without ? scenario.yearEnd.withoutCents : scenario.yearEnd.withCents)}
+        </span>
+        <div className="seg" role="group" aria-label="Szenario">
+          <button type="button" aria-pressed={!without} onClick={() => setWithout(false)}>
+            Mit Auswahl
+          </button>
+          <button type="button" aria-pressed={without} onClick={() => setWithout(true)}>
+            Ohne Auswahl
+          </button>
+        </div>
+      </dd>
+    </dl>
+  );
+  const instructions = (
+    <details className="year-instructions">
+      <summary>
+        <Info aria-hidden="true" size={16} strokeWidth={1.75} /> Grundlage und Grenzen der Planung
+      </summary>
+      <p className="year-note">
+        <ScenarioLabel kind="available" />
+      </p>
+      <p className="year-note">
+        Zu verteilen mit Ereignissen = „Zu verteilen“ laut gespeichertem Monatsplan plus kumulierte
+        ausgewählte Ereignisse nach {longDay(asOf)}. Keine zusätzlichen Gehaltsannahmen.
+        Wiederholungen gelten ab ihrem Beginn. Bereits gebuchte Zahlungen werden nicht automatisch
+        mit Ereignissen abgeglichen.
+      </p>
+      <p className="year-note">
+        Einnahmen und Konsum oben beziehen sich wie im Jahresreport auf abgeschlossene Monate.
+        Erstattungen mindern Konsum; Kapitalerträge, Umbuchungen und Eröffnungssalden sind keine
+        Haushaltseinnahmen. Die Ereignisauswahl wird nicht gespeichert.
+      </p>
+    </details>
   );
   return (
-    <section
-      className="card year-planning"
-      aria-labelledby="year-scenario-title"
-      aria-busy={query.isFetching}
-    >
-      <div className="year-toolbar">
-        <h2 id="year-scenario-title">Geld bis Jahresende</h2>
-      </div>
-      <dl className="year-scenario-lead">
-        <dt>
-          Freies Geld am 31.12.{year} {without ? 'ohne Ereignisse' : 'mit Ereignissen'}
-        </dt>
-        <dd>
-          <span data-testid="scenario-year-end" aria-live="polite">
-            {eur(without ? scenario.yearEnd.withoutCents : scenario.yearEnd.withCents)}
-          </span>
-          <div className="seg" role="group" aria-label="Szenario">
-            <button type="button" aria-pressed={!without} onClick={() => setWithout(false)}>
-              Mit Auswahl
-            </button>
-            <button type="button" aria-pressed={without} onClick={() => setWithout(true)}>
-              Ohne Auswahl
-            </button>
+    <>
+      <section
+        className={
+          REDESIGN_ENABLED ? 'card year-planning year-planning-reference' : 'card year-planning'
+        }
+        aria-labelledby="year-scenario-title"
+        aria-busy={query.isFetching}
+      >
+        <YearChartPanel>
+          <div className="year-toolbar">
+            <h2 id="year-scenario-title">
+              {REDESIGN_ENABLED ? 'Frei, kumuliert' : 'Geld bis Jahresende'}
+            </h2>
+            {REDESIGN_ENABLED && (
+              <LineLegend
+                items={[
+                  { kind: 'actual', label: 'Ist' },
+                  { kind: 'plan', label: without ? 'Plan ohne Auswahl' : 'Plan' },
+                ]}
+              />
+            )}
           </div>
-        </dd>
-      </dl>
-      <div className="year-scenario-context">
-        {context}
-        <span>
-          Ereignisse:{' '}
-          <strong data-testid="scenario-year-effect">
-            {eur(without ? 0 : scenario.yearEnd.effectCents, { sign: true })}
-          </strong>
-        </span>
-      </div>
-      <YearScenarioChart
-        year={year}
-        scenario={scenario}
-        without={without}
-        asOf={asOf}
-        occurrences={selectedOccurrences}
-      />
-      <div className="year-event-controls">
-        <h3 id="events-title" className="sr-only">
-          Ereignisse
-        </h3>
-        <Button data-event="neu" onClick={() => select('neu')}>
-          Ereignis planen
-        </Button>
-        {!rows.length ? (
-          <p className="year-empty">
-            Noch keine Ereignisse geplant. Auch ohne Ereignisse gilt der gespeicherte Jahresplan.
-          </p>
-        ) : (
-          <details className="year-events">
-            <summary>
-              <ChevronDown aria-hidden="true" size={16} strokeWidth={1.75} /> {rows.length}{' '}
-              {rows.length === 1 ? 'Ereignis' : 'Ereignisse'}
-              <span className="sr-only"> ansehen und auswählen</span>
-            </summary>
-            <p className="year-note">
-              Auswahl nur für dieses Szenario; ein Häkchen bucht kein Geld. „Ohne Auswahl“ blendet
-              alle Wirkungen aus.
-            </p>
-            <ul className="year-event-list" aria-labelledby="events-title">
-              {rows.map(({ event: e, occurrences }) => {
-                const upcoming = occurrences.find((o) => o.date > asOf);
-                const date = upcoming?.date ?? occurrences[0]?.date ?? e.date;
-                return (
-                  <li key={e.id}>
-                    <div className="year-event-date">
-                      <time dateTime={date}>{longDay(date)}</time>
-                      <small>{RECURRENCE_LABELS[e.recurrence]}</small>
-                    </div>
-                    <div>
-                      {selection(e)}
-                      <small>
-                        {maskMoneyText(
-                          e.categoryName ??
-                            (e.categoryId ? 'Kategorie nicht verfügbar' : 'Ohne Kategorie'),
-                        )}
-                      </small>
-                      {!upcoming && (
-                        <small>
-                          Kein weiterer Termin in diesem Jahr; keine neue Szenariowirkung.
-                        </small>
-                      )}
-                    </div>
-                    <strong className="year-event-amount">
-                      {eur(e.amountCents, { sign: true })}
-                    </strong>
-                    <Button
-                      variant="ghost"
-                      data-event={e.id}
-                      onClick={() => select(e.id)}
-                      aria-label={`${maskMoneyText(e.name)} bearbeiten`}
-                    >
-                      Bearbeiten
-                    </Button>
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="year-note">
-              Wirkung auf den Jahresendstand:{' '}
-              {eur(without ? 0 : scenario.yearEnd.effectCents, { sign: true })}. Nur ausgewählte,
-              eingeschaltete Termine nach {longDay(asOf)} auf verfügbaren Budgetkonten zählen.
-            </p>
-          </details>
-        )}
-      </div>
-      <details className="year-instructions">
-        <summary>
-          <Info aria-hidden="true" size={16} strokeWidth={1.75} /> Grundlage und Grenzen der Planung
-        </summary>
-        <p className="year-note">
-          <ScenarioLabel kind="available" />
-        </p>
-        <p className="year-note">
-          Zu verteilen mit Ereignissen = „Zu verteilen“ laut gespeichertem Monatsplan plus
-          kumulierte ausgewählte Ereignisse nach {longDay(asOf)}. Keine zusätzlichen
-          Gehaltsannahmen. Wiederholungen gelten ab ihrem Beginn. Bereits gebuchte Zahlungen werden
-          nicht automatisch mit Ereignissen abgeglichen.
-        </p>
-        <p className="year-note">
-          Einnahmen und Konsum oben beziehen sich wie im Jahresreport auf abgeschlossene Monate.
-          Erstattungen mindern Konsum; Kapitalerträge, Umbuchungen und Eröffnungssalden sind keine
-          Haushaltseinnahmen. Die Ereignisauswahl wird nicht gespeichert.
-        </p>
-      </details>
-      {search.ereignis &&
-        (edit || search.ereignis === 'neu' ? (
-          <EventPanel
-            key={search.ereignis}
-            event={edit}
-            date={selectedMonth + '-01'}
-            categories={categories}
-            accounts={budgetAccounts}
-            onClose={() => select()}
+          {!REDESIGN_ENABLED && lead}
+          <YearContext>
+            {REDESIGN_ENABLED && lead}
+            {context}
+            <span>
+              Ereignisse:{' '}
+              <strong data-testid="scenario-year-effect">
+                {eur(without ? 0 : scenario.yearEnd.effectCents, { sign: true })}
+              </strong>
+            </span>
+          </YearContext>
+          <YearScenarioChart
+            year={year}
+            scenario={scenario}
+            without={without}
+            asOf={asOf}
+            occurrences={selectedOccurrences}
           />
-        ) : (
-          <p className="year-empty" role="alert">
-            Ereignis nicht mehr verfügbar.{' '}
-            <Button variant="ghost" onClick={() => select()}>
-              Schließen
-            </Button>
-          </p>
-        ))}
-    </section>
+        </YearChartPanel>
+        <div className="year-event-controls">
+          <h3 id="events-title" className="sr-only">
+            Ereignisse
+          </h3>
+          <Button data-event="neu" onClick={() => select('neu')}>
+            Ereignis planen
+          </Button>
+          {!rows.length ? (
+            <p className="year-empty">
+              Noch keine Ereignisse geplant. Auch ohne Ereignisse gilt der gespeicherte Jahresplan.
+            </p>
+          ) : (
+            <details className="year-events" open={REDESIGN_ENABLED || undefined}>
+              <summary>
+                <ChevronDown aria-hidden="true" size={16} strokeWidth={1.75} /> {rows.length}{' '}
+                {rows.length === 1 ? 'Ereignis' : 'Ereignisse'}
+                <span className="sr-only"> ansehen und auswählen</span>
+              </summary>
+              <p className="year-note">
+                Auswahl nur für dieses Szenario; ein Häkchen bucht kein Geld. „Ohne Auswahl“ blendet
+                alle Wirkungen aus.
+              </p>
+              <ul className="year-event-list" aria-labelledby="events-title">
+                {rows.map(({ event: e, occurrences }) => {
+                  const upcoming = occurrences.find((o) => o.date > asOf);
+                  const date = upcoming?.date ?? occurrences[0]?.date ?? e.date;
+                  return REDESIGN_ENABLED ? (
+                    <li key={e.id} className="year-event-reference">
+                      <div className="year-event-name">
+                        <button
+                          type="button"
+                          data-event={e.id}
+                          aria-label={maskMoneyText(e.name) + ' bearbeiten'}
+                          title={maskMoneyText(
+                            (e.categoryName ?? 'Ohne Kategorie') +
+                              ' · ' +
+                              RECURRENCE_LABELS[e.recurrence],
+                          )}
+                          onClick={() => select(e.id)}
+                        >
+                          {maskMoneyText(e.name)}
+                        </button>
+                        <time dateTime={date}>· {longDay(date)}</time>
+                      </div>
+                      <strong className="year-event-amount">
+                        {eur(e.amountCents, { sign: true })}
+                        <span className="sr-only">
+                          {' '}
+                          {maskMoneyText(e.categoryName ?? 'Ohne Kategorie')} ·{' '}
+                          {RECURRENCE_LABELS[e.recurrence]}
+                        </span>
+                      </strong>
+                      {selection(e)}
+                    </li>
+                  ) : (
+                    <li key={e.id}>
+                      <div className="year-event-date">
+                        <time dateTime={date}>{longDay(date)}</time>
+                        <small>{RECURRENCE_LABELS[e.recurrence]}</small>
+                      </div>
+                      <div>
+                        {selection(e)}
+                        <small>
+                          {maskMoneyText(
+                            e.categoryName ??
+                              (e.categoryId ? 'Kategorie nicht verfügbar' : 'Ohne Kategorie'),
+                          )}
+                        </small>
+                        {!upcoming && (
+                          <small>
+                            Kein weiterer Termin in diesem Jahr; keine neue Szenariowirkung.
+                          </small>
+                        )}
+                      </div>
+                      <strong className="year-event-amount">
+                        {eur(e.amountCents, { sign: true })}
+                      </strong>
+                      <Button
+                        variant="ghost"
+                        data-event={e.id}
+                        onClick={() => select(e.id)}
+                        aria-label={`${maskMoneyText(e.name)} bearbeiten`}
+                      >
+                        Bearbeiten
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="year-note">
+                Wirkung auf den Jahresendstand:{' '}
+                {eur(without ? 0 : scenario.yearEnd.effectCents, { sign: true })}. Nur ausgewählte,
+                eingeschaltete Termine nach {longDay(asOf)} auf verfügbaren Budgetkonten zählen.
+              </p>
+            </details>
+          )}
+        </div>
+        {!REDESIGN_ENABLED && instructions}
+        {search.ereignis &&
+          (edit || search.ereignis === 'neu' ? (
+            <EventPanel
+              key={search.ereignis}
+              event={edit}
+              date={selectedMonth + '-01'}
+              categories={categories}
+              accounts={budgetAccounts}
+              onClose={() => select()}
+            />
+          ) : (
+            <p className="year-empty" role="alert">
+              Ereignis nicht mehr verfügbar.{' '}
+              <Button variant="ghost" onClick={() => select()}>
+                Schließen
+              </Button>
+            </p>
+          ))}
+      </section>
+      {REDESIGN_ENABLED && overview?.(scenario, without)}
+      {REDESIGN_ENABLED && instructions}
+      {REDESIGN_ENABLED && (
+        <p className="plan-v2-source">
+          Stand {longDay(asOf)} · gespeicherte Monatsstände und ausgewählte Ereignisse · keine
+          tägliche Kontostandsprognose
+        </p>
+      )}
+    </>
+  );
+}
+
+function YearChartPanel({ children }: { children: ReactNode }) {
+  return REDESIGN_ENABLED ? (
+    <div className="year-reference-chart-panel">{children}</div>
+  ) : (
+    <>{children}</>
+  );
+}
+
+function YearContext({ children }: { children: ReactNode }) {
+  return REDESIGN_ENABLED ? (
+    <details className="year-scenario-context year-reference-context">
+      <summary>
+        <Info size={16} aria-hidden="true" />
+        <span className="sr-only">Jahresgrundlage</span>
+      </summary>
+      <div className="year-reference-context-inner">{children}</div>
+    </details>
+  ) : (
+    <div className="year-scenario-context">{children}</div>
   );
 }
 

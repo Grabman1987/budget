@@ -1,3 +1,4 @@
+import { redesignEnabled } from './plan-redesign-controls';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
@@ -106,7 +107,12 @@ for (const profile of ['desktop', 'phone'] as const)
               .getByRole('button', { name: 'Hell/Dunkel umschalten', exact: true })
               .click();
         }
-        await page.getByRole('button', { name: 'Neues Sparziel', exact: true }).click();
+        await page
+          .getByRole('button', {
+            name: (await redesignEnabled(page)) ? 'Ziel' : 'Neues Sparziel',
+            exact: true,
+          })
+          .click();
         const editor = page.getByRole('dialog', { name: 'Neues Sparziel', exact: true });
         await editor.getByLabel('Name', { exact: true }).fill('Synthetic native goal');
         await editor.getByLabel('Ziel', { exact: true }).fill('1200,00');

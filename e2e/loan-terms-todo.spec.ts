@@ -1,4 +1,5 @@
 import { openHeuteReview } from './heute-visual-fixture';
+import { showDebtCalculation } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect as baseExpect, type APIRequestContext } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -117,8 +118,10 @@ test('terms row and Schulden page: no red, no overflow, Axe clean, 44 px targets
       await expect(page.getByRole('link', { name: 'Konditionen ergänzen' })).toBeVisible();
     } else {
       await expect(page.getByTestId('debt-total')).toBeVisible();
-      await page.getByText('Rechenweg', { exact: true }).click();
-      await expect(page.getByRole('heading', { name: 'Schulden nach Konto' })).toBeVisible();
+      await showDebtCalculation(page);
+      await expect(
+        page.locator('.debt-accounts').getByRole('heading', { name: 'Schulden nach Konto' }),
+      ).toBeVisible();
     }
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => {

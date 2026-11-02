@@ -100,7 +100,12 @@ test.describe('routes', () => {
       ['/vermoegen', '/vermoegen/nettovermoegen'],
     ] as const) {
       await page.goto(from);
-      await expect(page).toHaveURL(new RegExp(`${to}$`));
+      const expected =
+        from === '/vermoegen' &&
+        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+          ? '/vermoegen'
+          : to;
+      await expect(page).toHaveURL(new RegExp(`${expected}$`));
     }
   });
 
@@ -112,7 +117,8 @@ test.describe('routes', () => {
       await expect(page).toHaveURL(/\/einstellungen$/);
       await expect(page.getByRole('navigation', { name: 'Einstellungen' })).toBeVisible();
     } else {
-      await expect(page).toHaveURL(/\/einstellungen\/konten$/);
+      const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      await expect(page).toHaveURL(on ? /\/einstellungen\/profil$/ : /\/einstellungen\/konten$/);
     }
   });
 

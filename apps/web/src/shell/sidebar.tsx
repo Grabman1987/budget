@@ -3,6 +3,7 @@ import { MAIN_AREAS, type AreaId } from '../nav/areas';
 import { AccountTree } from './account-tree';
 import { AppLink } from './app-link';
 import { ThemeButton } from './theme-button';
+import { REDESIGN_ENABLED } from './redesign-flag';
 import { useShellIdentity } from './use-profile';
 import { useRef } from 'react';
 import { GripVertical } from 'lucide-react';
@@ -114,8 +115,16 @@ export function Sidebar({
           </span>
           {/* One entry: the owner's name when set, otherwise the entry label. */}
           <span className="profile-text">
-            <strong>{named ? identity.name : 'Profil / Einstellungen'}</strong>{' '}
-            <span>{named ? 'Profil / Einstellungen' : authMethod}</span>
+            <strong>
+              {REDESIGN_ENABLED ? identity.name : named ? identity.name : 'Profil / Einstellungen'}
+            </strong>{' '}
+            <span>
+              {REDESIGN_ENABLED
+                ? 'Einstellungen › Profil'
+                : named
+                  ? 'Profil / Einstellungen'
+                  : authMethod}
+            </span>
           </span>
         </AppLink>
         <ThemeButton variant="icon" />

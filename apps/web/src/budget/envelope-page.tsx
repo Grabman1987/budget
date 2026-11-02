@@ -125,6 +125,7 @@ export function PlanIncomePage() {
     REDESIGN_ENABLED && !expected ? budget.data?.summary.incomeCents : income.data?.receivedCents;
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
+    if (REDESIGN_ENABLED) window.scrollTo(0, 0);
     heading.current?.focus({ preventScroll: true });
   }, [month]);
   return (

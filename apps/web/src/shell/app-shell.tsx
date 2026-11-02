@@ -72,6 +72,7 @@ export function AppShell() {
                 <HeuteShellHead />
               ) : undefined
             }
+            {...(REDESIGN_ENABLED && area === 'plan' ? { title: 'Plan' } : {})}
             collapsed={collapsed}
             onToggle={() => setCollapsed(!collapsed)}
             onSearchChange={setSearchOpen}

@@ -1,0 +1,213 @@
+.liquidity-report.liquidity-v2 {
+  padding: 0 0 var(--space-xl);
+  gap: var(--space-lg);
+  min-width: 0;
+}
+.liquidity-v2 .forecast-source {
+  margin: var(--space-xs) 0;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.liquidity-v2 .seg button,
+.liquidity-v2 .btn,
+.liquidity-v2 summary,
+.liquidity-v2 select {
+  min-height: var(--touch);
+}
+@media (max-width: 767px) {
+  .liquidity-v2 .seg {
+    max-width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  .liquidity-v2 .seg button {
+    flex-shrink: 0;
+  }
+  .liquidity-v2 .rf-tools > summary {
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+}
+
+.forecast-reference-page .liquidity-v2 {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+.forecast-reference-page .forecast-reference {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+}
+.forecast-reference-lead {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-xl);
+  min-height: 64px;
+}
+.forecast-reference-lead > div > span {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-weight: 600;
+}
+.forecast-reference-lead strong {
+  display: block;
+  font-size: var(--fs-dimension);
+  line-height: 1.08;
+  font-weight: 640;
+}
+.forecast-reference-lead > span {
+  padding-bottom: var(--space-xs);
+  color: var(--ink-2);
+  font-size: var(--fs-table);
+}
+.forecast-reference-chart {
+  min-width: 0;
+  padding: var(--space-md) var(--space-lg);
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.forecast-reference-chart-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  justify-content: space-between;
+}
+.forecast-reference-chart-head h2 {
+  margin: 0;
+  font-size: var(--fs-table);
+}
+.forecast-reference-chart-head .rf-legend {
+  margin: 0;
+  padding: 0;
+  font-size: var(--fs-label);
+}
+.forecast-reference-table-wrap {
+  position: relative;
+  overflow-x: auto;
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.forecast-reference-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-meta);
+}
+.forecast-reference-table th,
+.forecast-reference-table td {
+  padding: var(--space-xs) var(--space-md);
+  height: 30px;
+  text-align: left;
+  border-bottom: var(--stroke-hairline) solid var(--rule);
+}
+.forecast-reference-table th {
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  font-weight: 500;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.forecast-reference-table :is(th, td):nth-child(1) {
+  width: 108px;
+  white-space: nowrap;
+}
+.forecast-reference-table :is(th, td):nth-child(3),
+.forecast-reference-table :is(th, td):nth-child(4) {
+  text-align: right;
+  width: 140px;
+  white-space: nowrap;
+}
+.forecast-reference-table td:nth-child(4) {
+  font-weight: 600;
+}
+.forecast-reference-table tr.is-low {
+  background: var(--tint);
+  font-weight: 600;
+}
+.forecast-reference-table .lq-what {
+  display: table-cell;
+}
+.forecast-low-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-left: var(--space-sm);
+  padding: 0 var(--space-sm);
+  background: var(--tint);
+  color: var(--primary);
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-label);
+}
+.forecast-reference-basis > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch);
+  font-size: var(--fs-meta);
+}
+.forecast-reference-basis > dl {
+  display: flex;
+  gap: var(--space-xl);
+}
+.forecast-reference-basis dd {
+  margin: 0;
+  font-weight: 600;
+}
+.forecast-reference .forecast-reference-empty {
+  padding: var(--space-md);
+}
+.forecast-reference-page .rf-tools,
+.forecast-reference-page .rf-wide {
+  width: 100%;
+}
+.forecast-reference-page .forecast-reference-scope {
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+.forecast-reference-page .plan-v2-page-actions select {
+  min-height: var(--touch);
+}
+@media (max-width: 767px) {
+  .forecast-reference-lead {
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+  .forecast-reference-chart-head {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .forecast-reference-chart {
+    padding-inline: var(--space-sm);
+  }
+  .forecast-reference-table {
+    min-width: 620px;
+  }
+  .forecast-reference-page .forecast-reference-scope {
+    display: none;
+  }
+}
+.forecast-reference-page .liquidity-v2 {
+  align-items: stretch;
+}
+.forecast-reference-page .forecast-reference {
+  width: 100%;
+  align-self: stretch;
+}
+.forecast-reference-page .forecast-reference-scope {
+  white-space: nowrap;
+}
+
+.forecast-reference-chart-head .rf-legend {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.forecast-reference-chart-head .rf-legend li {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

@@ -418,15 +418,16 @@ export async function verifyRedesignShell(
 
   await page.goto(`${origin}/vermoegen/portfolio?zeitraum=1J`);
   if (enabled) {
-    const wealth = page.getByLabel('Vermögensansicht wählen: Portfolio', { exact: true });
+    const wealth = page.getByLabel('Vermögensansicht wählen: Übersicht', { exact: true });
     await target(wealth, 'WealthMenu');
     await wealth.click();
     const views = page.getByRole('navigation', { name: 'Ansichten von Vermögen', exact: true });
     expect(await views.getByRole('link').allTextContents()).toEqual([
-      'Nettovermögen',
-      'Portfolio',
+      'Übersicht',
+      'Positionen',
+      'Sparpläne',
+      'Allokation',
       'Schulden',
-      'Freiheit',
     ]);
     await views.getByRole('link', { name: 'Schulden', exact: true }).click();
     await expect(page).toHaveURL(`${origin}/vermoegen/schulden?zeitraum=1J`);
@@ -445,11 +446,9 @@ export async function verifyRedesignShell(
     await avatar.click();
     const profile = page.getByRole('link', { name: 'Profil und Einstellungen', exact: true });
     await profile.click();
-    await expect(page).toHaveURL(
-      `${origin}${enabled ? '/einstellungen/profil' : '/einstellungen'}`,
-    );
+    await expect(page).toHaveURL(`${origin}/einstellungen`);
     if (enabled)
-      await expect(page.getByRole('heading', { name: 'Profil', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Einstellungen', exact: true })).toBeVisible();
   } else if (enabled) {
     const accounts = page.locator('#acct-tree-label > a');
     await target(accounts, 'AccountTree');
