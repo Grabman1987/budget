@@ -71,7 +71,13 @@ test('catalog preserves all sixteen destinations, legacy names and usable fallba
   }
   if (!redesign) return;
   await page.goto('/reports');
-  await page.keyboard.press('Control+k');
+  await page
+    .getByRole('button', {
+      name:
+        info.project.name === 'desktop' ? 'Suchen: Seiten, Reports, Buchungen, Aktionen' : 'Suchen',
+      exact: true,
+    })
+    .click();
   const palette = page.getByRole('combobox', { name: 'Suchen', exact: true });
   await expect(palette).toBeVisible();
   for (const [term, label] of [
