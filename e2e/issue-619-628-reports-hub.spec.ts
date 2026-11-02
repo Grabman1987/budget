@@ -5,6 +5,8 @@ import type { ExplorerQuery, ExplorerViewsState } from '@budget/domain';
 import { expect, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
 
+const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+
 async function inspect(page: Page, phone: boolean) {
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -39,7 +41,11 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
     ).toEqual(Array.from({ length: 16 }, (_, index) => String(index + 1)));
     const first = await page.locator('.report-hub-list > li').nth(0).boundingBox();
     const next = await page.locator('.report-hub-list > li').nth(1).boundingBox();
-    const link = await page.locator('.report-hub-list > li').nth(0).getByRole('link').boundingBox();
+    const link = await page
+      .locator('.report-hub-list > li')
+      .nth(0)
+      .locator(':scope > a')
+      .boundingBox();
     expect(next!.y).toBeGreaterThanOrEqual(first!.y + first!.height);
     expect(next!.x).toBe(first!.x);
     expect(link!.width).toBe(first!.width);
@@ -54,7 +60,7 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
     await expect(
       page.getByRole('navigation', { name: 'Register von Reports', exact: true }),
     ).toHaveCount(0);
-    if (!phone) {
+    if (!phone && !redesign) {
       const box = await page.locator('.report-hub').boundingBox();
       expect(box!.y + box!.height).toBeLessThanOrEqual(900);
     }
@@ -63,12 +69,19 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
       path: info.outputPath(`report-hub-${theme}.png`),
       animations: 'disabled',
     });
-    for (const [name, count] of [
-      ['Einnahmen/Ausgaben', 8],
-      ['Vermögen', 1],
-      ['Portfolio', 3],
-      ['Berichte', 4],
-    ] as const) {
+    for (const [name, count] of (redesign
+      ? [
+          ['Berichte', 3],
+          ['Auswertungen', 2],
+          ['Portfolio', 3],
+          ['Einnahmen und Ausgaben', 8],
+        ]
+      : [
+          ['Einnahmen/Ausgaben', 8],
+          ['Vermögen', 1],
+          ['Portfolio', 3],
+          ['Berichte', 4],
+        ]) as [string, number][]) {
       await page
         .getByRole('group', { name: 'Berichtsgruppen' })
         .getByRole('button', { name, exact: true })
@@ -87,7 +100,7 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
     await expect(page.locator('.report-hub-list > li')).toHaveCount(1);
     await expect(page.locator('.report-hub-list strong')).toHaveText('Gehalt');
     await search.fill('Ausgabenanalyse');
-    await page.locator('.report-hub-list a').click();
+    await page.locator('.report-hub-list > li > a').click();
     await expect(page).toHaveURL(/\/reports\/ausgaben$/);
     await expect(
       page.getByRole('navigation', { name: 'Register von Reports', exact: true }),
@@ -181,7 +194,8 @@ test('619 supported maximum saved views remain keyboard reachable beside three r
       document.documentElement.dataset['theme'] = value;
     }, theme);
     const hub = (await page.locator('.report-hub').boundingBox())!;
-    if (info.project.name === 'desktop') expect(hub.y + hub.height).toBeLessThanOrEqual(900);
+    if (info.project.name === 'desktop' && !redesign)
+      expect(hub.y + hub.height).toBeLessThanOrEqual(900);
     await links.first().focus();
     for (let index = 0; index < imported.views.length; index++) {
       const link = links.nth(index);

@@ -82,7 +82,7 @@ export function ReportGroupPage({ slug }: { slug: string }) {
   const initial: Record<string, HubGroup> = {
     monat: 'income',
     ausgaben: 'income',
-    zukunft: 'wealth',
+    zukunft: REDESIGN_ENABLED ? 'portfolio' : 'wealth',
     portfolio: 'portfolio',
     ueberblick: 'reports',
   };

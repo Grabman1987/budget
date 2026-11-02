@@ -15,6 +15,7 @@ import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
 import { AREAS } from '../nav/areas';
 import { REPORTS } from '../nav/reports-catalog';
+import { hubReport } from '../reports/report-hub-model';
 import { isTyping } from './capture-shortcut';
 import { KeyboardShortcuts } from './keyboard-shortcuts';
 import { AppLink } from './app-link';
@@ -69,7 +70,10 @@ const STATIC_ITEMS: PaletteItem[] = [
   ...REPORTS.map((r) => ({
     kind: 'report' as const,
     id: r.id,
-    label: `${r.pos} ${r.name}`,
+    label:
+      REDESIGN_ENABLED && hubReport(r.id)?.id === r.id
+        ? `${hubReport(r.id)!.no} ${hubReport(r.id)!.name}`
+        : `${r.pos} ${r.name}`,
     detail: null,
   })),
 ];
@@ -86,6 +90,12 @@ const SEARCH_TERMS: Record<string, readonly string[]> = {
 };
 // Additional names share the existing result IDs and matching pipeline, only in redesign builds.
 const REDESIGN_SEARCH_TERMS: Record<string, readonly string[]> = {
+  ...Object.fromEntries(
+    REPORTS.map((report) => [
+      `report:${report.id}`,
+      [report.id, report.pos, report.name, hubReport(report.id)?.name ?? ''],
+    ]),
+  ),
   'page:/plan/erwartet': ['wiederkehrende zahlungen', 'erwartete zahlungen'],
   'page:/plan/jahr': ['jahresplan'],
   'page:/konten/buchungen': ['alle buchungen'],

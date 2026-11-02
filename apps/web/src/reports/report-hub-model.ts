@@ -1,13 +1,22 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { findReport, type ReportEntry } from '../nav/reports-catalog';
 
 /** Navigation only: report bodies and their financial queries remain independent. */
-export const HUB_GROUPS = [
+const LEGACY_HUB_GROUPS = [
   { id: 'income', name: 'Einnahmen/Ausgaben' },
   { id: 'wealth', name: 'Vermögen' },
   { id: 'portfolio', name: 'Portfolio' },
   { id: 'reports', name: 'Berichte' },
 ] as const;
-export type HubGroup = (typeof HUB_GROUPS)[number]['id'];
+export type HubGroup = 'income' | 'wealth' | 'portfolio' | 'reports' | 'analysis';
+export const HUB_GROUPS = REDESIGN_ENABLED
+  ? ([
+      { id: 'reports', name: 'Berichte' },
+      { id: 'analysis', name: 'Auswertungen' },
+      { id: 'portfolio', name: 'Portfolio' },
+      { id: 'income', name: 'Einnahmen und Ausgaben' },
+    ] as const)
+  : LEGACY_HUB_GROUPS;
 export interface HubReport {
   id: string;
   no: number;
@@ -18,7 +27,7 @@ export interface HubReport {
 }
 
 /** Owner mapping in #487; content consolidation belongs to #621–623, not this catalog. */
-export const HUB_REPORTS: readonly HubReport[] = [
+const LEGACY_HUB_REPORTS: readonly HubReport[] = [
   {
     id: 'einnahmen-ausgaben',
     no: 1,
@@ -149,13 +158,84 @@ export const HUB_REPORTS: readonly HubReport[] = [
   },
 ];
 
+/** Display numbers never become route or saved-view identities. Keep the old readers until cut-over. */
+const redesignOrder = [
+  'onepager',
+  'jahresreport',
+  'vergleich',
+  'kontakte',
+  'explorer',
+  'vermoegen-schulden',
+  'pdepots',
+  'psteuern',
+  'einnahmen-ausgaben',
+  'ausgaben',
+  'gehalt',
+  'geldfluss',
+  'sparquote',
+  'budgettreue',
+  'abos',
+  'inflation',
+] as const;
+const REDESIGN_HUB_REPORTS: readonly HubReport[] = redesignOrder.map((id, index) => {
+  const original = LEGACY_HUB_REPORTS.find((report) => report.id === id);
+  const source = findReport(id)!;
+  return {
+    id,
+    name: source.name,
+    question: source.question,
+    ...original,
+    group: index < 3 ? 'reports' : index < 5 ? 'analysis' : index < 8 ? 'portfolio' : 'income',
+    ...(id === 'kontakte' ? { name: 'Kontakte' } : {}),
+    ...(id === 'vermoegen-schulden' ? { name: 'Vermögensreport' } : {}),
+    no: index + 1,
+    sources:
+      id === 'onepager'
+        ? ['onepager', 'finanzcheck']
+        : id === 'vermoegen-schulden'
+          ? [
+              'vermoegen-schulden',
+              'vermoegen',
+              'gesamtuebersicht',
+              'pallocation',
+              'peinzahlungen',
+              'prendite',
+            ]
+          : (original?.sources ?? [id]),
+  };
+});
+export const HUB_REPORTS = REDESIGN_ENABLED ? REDESIGN_HUB_REPORTS : LEGACY_HUB_REPORTS;
+
+/** Capabilities moved into Plan retain their direct compatibility URLs and searchable old names. */
+export const MOVED_REPORTS = [
+  { id: 'liquiditaet', name: 'Liquiditätsprognose', destination: 'Plan › Prognose' },
+  { id: 'vorschau', name: 'Jahresvorschau Zahlungen', destination: 'Plan › Zahlungen' },
+  { id: 'sparziele', name: 'Sparziele-Fortschritt', destination: 'Plan › Ziele' },
+] as const;
 export const hubReport = (id: string) => HUB_REPORTS.find((report) => report.sources.includes(id));
+export function reportAliases(report: HubReport) {
+  return report.sources.flatMap((id) => {
+    const source = findReport(id);
+    return source && source.name !== report.name ? [source] : [];
+  });
+}
 export const matchingHubReports = (search: string, group?: HubGroup) => {
   const query = search.trim().toLocaleLowerCase('de-AT');
   return HUB_REPORTS.filter(
     (report) =>
       (!group || report.group === group) &&
-      `${report.name} ${report.question}`.toLocaleLowerCase('de-AT').includes(query),
+      `${report.name} ${report.question} ${
+        REDESIGN_ENABLED
+          ? report.sources
+              .map((id) => {
+                const source = findReport(id);
+                return `${id} ${source?.name ?? ''} ${source?.question ?? ''}`;
+              })
+              .join(' ')
+          : ''
+      }`
+        .toLocaleLowerCase('de-AT')
+        .includes(query),
   );
 };
 const RECENTS_KEY = 'budget.reports.recent.v1';
