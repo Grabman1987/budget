@@ -88,3 +88,8 @@
 [data-budget-redesign='1'] .sheet:has(> .account-detail-redesign) > .area-page-menu {
   margin-block: 0;
 }
+
+.account-detail-redesign .ktx-account .kschedule-actions .btn {
+  min-height: 44px;
+  min-width: 44px;
+}
