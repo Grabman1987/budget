@@ -23,6 +23,8 @@ export interface PlaceholderPageProps {
 }
 
 export interface PageFrameProps {
+  /** Area-owned navigation for a migrated page; legacy frames keep their registers. */
+  pageNavigation?: ReactNode;
   /** Optional report controls below the unchanged title block, before the answer/body. */
   reportControls?: ReactNode;
   /** The detail supplies its own contextual return link. Keep the settings rail. */
@@ -99,6 +101,7 @@ export function PageFrame({
   verdict,
   verdictTestId,
   reportControls,
+  pageNavigation,
 }: PageFrameProps) {
   if (REDESIGN_ENABLED && meta.area === 'einstellungen')
     return <RedesignSettingsFrame meta={meta}>{children}</RedesignSettingsFrame>;
@@ -134,28 +137,29 @@ export function PageFrame({
         </SettingsFrame>
       ) : (
         <>
-          {REDESIGN_ENABLED && (meta.area === 'plan' || meta.area === 'vermoegen') ? (
-            <PageMenu area={area} current={meta.register ?? ''} />
-          ) : (
-            items.length > 0 && (
-              <Registers
-                label={`Register von ${area.label}`}
-                items={items}
-                current={meta.register ?? ''}
-                revealCurrent={revealCurrentRegister}
-                renderLink={(item, props) => (
-                  <AppLink
-                    to={item.href ?? '/'}
-                    // The Zeitraum travels along between the Vermögen registers.
-                    search={meta.area === 'vermoegen' ? keepZeitraum : undefined}
-                    {...props}
-                  >
-                    {item.label}
-                  </AppLink>
-                )}
-              />
-            )
-          )}
+          {pageNavigation ??
+            (REDESIGN_ENABLED && (meta.area === 'plan' || meta.area === 'vermoegen') ? (
+              <PageMenu area={area} current={meta.register ?? ''} />
+            ) : (
+              items.length > 0 && (
+                <Registers
+                  label={`Register von ${area.label}`}
+                  items={items}
+                  current={meta.register ?? ''}
+                  revealCurrent={revealCurrentRegister}
+                  renderLink={(item, props) => (
+                    <AppLink
+                      to={item.href ?? '/'}
+                      // The Zeitraum travels along between the Vermögen registers.
+                      search={meta.area === 'vermoegen' ? keepZeitraum : undefined}
+                      {...props}
+                    >
+                      {item.label}
+                    </AppLink>
+                  )}
+                />
+              )
+            ))}
           {children}
         </>
       )}

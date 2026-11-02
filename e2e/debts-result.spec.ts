@@ -1,3 +1,4 @@
+import { showDebtOverview } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -23,6 +24,7 @@ test('stored terms show results first, live extra repayment and principal progre
   });
   expect(response.ok()).toBe(true);
   await page.goto('/vermoegen/schulden');
+  await showDebtOverview(page);
   await expect(page.getByRole('heading', { name: 'Schuldenfrei am 30.11.2026' })).toBeVisible();
   const overview = page.getByRole('region', { name: 'Schuldenfrei am 30.11.2026' });
   await page.locator('.debt-result .wealth-details > summary').click();
@@ -38,7 +40,8 @@ test('stored terms show results first, live extra repayment and principal progre
   await page.getByText('Konditionen anpassen', { exact: true }).click();
   await expect(page.getByLabel('Monatsrate (EUR) – Kredit Beispiel')).toHaveValue('60,00');
   await expect(page.getByLabel('Nominaler Jahreszins (%) – Kredit Beispiel')).toHaveValue('12,00');
-  await page.getByText('Sondertilgung berechnen', { exact: true }).click();
+  const extra = page.getByText('Sondertilgung berechnen', { exact: true });
+  if ((await extra.locator('..').getAttribute('open')) === null) await extra.click();
   await page.getByLabel('+ Sondertilgung/Monat (EUR)').fill('50');
   await expect(page.getByRole('heading', { name: 'Schuldenfrei am 31.10.2026' })).toBeVisible();
   await expect(page.locator('.debt-overview')).toContainText('0,41 € Zinsen gespart');
@@ -63,6 +66,7 @@ test('stored terms show results first, live extra repayment and principal progre
     await page.screenshot({ path: info.outputPath(`debts-result-${theme}.png`), fullPage: true });
   }
   await page.reload();
+  await showDebtOverview(page);
   await expect(page.getByRole('heading', { name: 'Schuldenfrei am 30.11.2026' })).toBeVisible();
   await expect(page.getByLabel('+ Sondertilgung/Monat (EUR)')).toHaveValue('0');
   // A card without terms is laufend ausgeglichen (#610): it counts as debt but does not hold back
@@ -83,6 +87,7 @@ test('stored terms show results first, live extra repayment and principal progre
     ).ok(),
   ).toBe(true);
   await page.reload();
+  await showDebtOverview(page);
   await expect(page.getByRole('heading', { name: 'Schuldenfrei am 30.11.2026' })).toBeVisible();
   await expect(page.locator('.debt-overview')).toContainText('laufend ausgeglichen');
   await expect(page.locator('.debt-overview')).not.toContainText('Konditionen fehlen');
@@ -119,6 +124,7 @@ test('mixed-currency debts explain why principal progress is not combined', asyn
   }
 
   await page.goto('/vermoegen/schulden');
+  await showDebtOverview(page);
   const overview = page.locator('.debt-overview');
   await expect(overview.getByRole('progressbar')).toHaveCount(0);
   await expect(overview).toContainText(

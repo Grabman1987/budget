@@ -1,3 +1,4 @@
+import { gotoWealthAnalysis, wealthRedesign } from './wealth-navigation';
 import type { Page } from '@playwright/test';
 import { openDatabase, schema } from '@budget/db';
 import { test as isolatedTest } from './isolated-ledger';
@@ -107,7 +108,9 @@ for (const [value, text] of [
       const term = page.getByRole('link', { name: 'Vermögen ansehen', exact: true });
       await expect(term).toBeVisible();
       await term.click();
-      await expect(page.getByTestId('nw-figure')).toHaveText(text);
+      await expect(
+        page.getByTestId((await wealthRedesign(page)) ? 'wealth-net-value' : 'nw-figure'),
+      ).toHaveText(text);
       await page.goto('/einstellungen/konten');
       await expect(page.getByRole('heading', { name: /Geschlossene Konten/ })).toBeVisible();
       await expect(page.getByText('Closed residual', { exact: true })).toBeVisible();
@@ -125,7 +128,7 @@ test('Vermögen shows exact cents at rounding, sign and grouping boundaries', as
   });
   for (const [cents, text] of cases) {
     value = cents;
-    await page.goto('/vermoegen/nettovermoegen');
+    await gotoWealthAnalysis(page, '/vermoegen/nettovermoegen');
     await expect(page.getByTestId('nw-figure')).toHaveText(text);
   }
   await screenshot(page);

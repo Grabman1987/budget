@@ -1,3 +1,4 @@
+import { selectPortfolioView, showAllocationEvidence, wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import type { PortfolioAllocationView } from '@budget/db';
 import type { Locator, Page } from '@playwright/test';
@@ -37,19 +38,21 @@ sampleTest(
       const toggle = catalog.locator('summary');
       await expect(toggle).toHaveText(/Instrumente ohne Bestand \([1-9]\d*\)/);
       await expect(catalog).not.toHaveAttribute('open', '');
-      await expect(page.locator('.portfolio-table')).toContainText('ETF Welt');
+      await expect(
+        page.locator((await wealthRedesign(page)) ? '.wealth-position-table' : '.portfolio-table'),
+      ).toContainText('ETF Welt');
       const unused = catalog.getByRole('button', { name: created.security.name, exact: true });
       await expect(unused).not.toBeVisible();
       await toggle.focus();
       await toggle.press('Enter');
       await expect(unused).toBeVisible();
-      const count = await catalog.locator('tbody tr').count();
+      const count = await catalog.getByRole('button').count();
       await expect(toggle).toHaveText(`Instrumente ohne Bestand (${count})`);
       expect((await toggle.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       await toggle.press('Enter');
       await expect(unused).not.toBeVisible();
       await toggle.press('Enter');
-      await expect(catalog.locator('tbody tr')).toHaveCount(count);
+      await expect(catalog.getByRole('button')).toHaveCount(count);
       await unused.click();
       await expect(page).toHaveURL(new RegExp(`/instrument/${created.security.id}`));
       await page.getByRole('button', { name: 'Stammdaten bearbeiten' }).click();
@@ -88,11 +91,11 @@ sampleTest(
       await route.fulfill({ json: data });
     });
     await page.goto('/vermoegen/portfolio/positionen');
-    await expect(page.locator('.portfolio-positions')).toContainText('ohne Kassa');
-    await page
-      .getByRole('navigation', { name: 'Portfolio-Register', exact: true })
-      .getByRole('link', { name: 'Allokation', exact: true })
-      .click();
+    await expect(
+      page.locator((await wealthRedesign(page)) ? '.wealth-positions-v3' : '.portfolio-positions'),
+    ).toContainText('ohne Kassa');
+    await selectPortfolioView(page, 'Allokation');
+    await showAllocationEvidence(page);
     const allocation = page.getByRole('region', { name: 'Aufteilung Soll/Ist', exact: true });
     await allocation.getByText('Wie wird gerechnet?', { exact: true }).click();
     await expect(allocation).toContainText('Netto-Allokationsuniversum');

@@ -1,3 +1,10 @@
+import {
+  gotoWealthAnalysis,
+  selectPortfolioView,
+  showDebtHistory,
+  showDebtOverview,
+  wealthRedesign,
+} from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
 
@@ -5,7 +12,7 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
   page,
 }, info) => {
   test.setTimeout(180_000);
-  await page.goto('/vermoegen/portfolio');
+  await gotoWealthAnalysis(page, '/vermoegen/portfolio');
   await page.getByRole('button', { name: 'Rendite %', exact: true }).click();
   await expect(page.getByTestId('portfolio-return')).toContainText('zeitgewichtet');
   await expect(page.getByTestId('portfolio-overview-chart')).toBeVisible();
@@ -38,7 +45,7 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
     .not.toBe(firstChartDate);
   await expect(page.locator('.chart-tooltip')).toContainText('Entwicklung (Indexbasis 100)');
   for (const period of ['1M', '1J', '3J']) {
-    await page.goto(`/vermoegen/portfolio?zeitraum=${period}`);
+    await gotoWealthAnalysis(page, `/vermoegen/portfolio?zeitraum=${period}`);
     const periodChart = page.getByTestId('portfolio-overview-chart');
     await expect(periodChart).toBeVisible();
     const axisLabels = await periodChart.locator('text.svg-label').evaluateAll((nodes) =>
@@ -64,24 +71,26 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
     for (let i = 1; i < bottomAxisLabels.length; i++)
       expect(bottomAxisLabels[i]!.left).toBeGreaterThanOrEqual(bottomAxisLabels[i - 1]!.right);
   }
-  await page.goto('/vermoegen/portfolio');
+  await gotoWealthAnalysis(page, '/vermoegen/portfolio');
   await expect(page.getByTestId('portfolio-gain')).toContainText('€');
   if (info.project.name === 'desktop') {
-    const chart = await page.getByTestId('portfolio-overview-chart').boundingBox();
-    expect(chart!.y + chart!.height).toBeLessThan(page.viewportSize()!.height);
+    if (await wealthRedesign(page)) {
+      await page.goto('/vermoegen');
+      await expect(page.getByTestId('wealth-compact-chart')).toBeVisible();
+      const compact = await page.getByTestId('wealth-compact-chart').boundingBox();
+      expect(compact!.y + compact!.height).toBeLessThan(page.viewportSize()!.height);
+      await gotoWealthAnalysis(page, '/vermoegen/portfolio');
+    } else {
+      const chart = await page.getByTestId('portfolio-overview-chart').boundingBox();
+      expect(chart!.y + chart!.height).toBeLessThan(page.viewportSize()!.height);
+    }
   }
-  await page
-    .getByRole('navigation', { name: 'Portfolio-Register', exact: true })
-    .getByRole('link', { name: 'Positionen', exact: true })
-    .click();
+  await selectPortfolioView(page, 'Positionen');
   const instrument = await page
     .locator('[data-portfolio-security]')
     .first()
     .getAttribute('data-portfolio-security');
-  await page
-    .getByRole('navigation', { name: 'Portfolio-Register', exact: true })
-    .getByRole('link', { name: 'Sparpläne', exact: true })
-    .click();
+  await selectPortfolioView(page, 'Sparpläne');
   const savings = await page
     .locator('[data-savings-plan]:not([data-savings-plan="neu"])')
     .first()
@@ -95,16 +104,22 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
     ['savings', `/vermoegen/portfolio/sparplan/${savings}`],
   ];
   for (const [name, route] of routes) {
-    await page.goto(route!);
+    if (name === 'portfolio' || name === 'networth') await gotoWealthAnalysis(page, route!);
+    else await page.goto(route!);
     await expect(page.locator('main')).toBeVisible();
     if (name === 'portfolio')
       await expect(page.getByTestId('portfolio-overview-chart')).toBeVisible();
     if (name === 'debts') {
       await expect(page.getByTestId('debt-total')).toBeVisible();
+      await showDebtHistory(page);
       await expect(page.getByTestId('debt-history-chart')).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Schuldenfrei am …' })).toHaveCount(0);
+      await showDebtOverview(page);
       await expect(page.locator('.debt-quick-scenario')).toBeHidden();
-      await page.getByRole('link', { name: 'Konditionen ergänzen' }).click();
+      await page
+        .locator('.debt-overview')
+        .getByRole('link', { name: 'Konditionen ergänzen', exact: true })
+        .click();
       await expect(page.locator('#debt-adjustments')).toHaveAttribute('open', '');
       await page.locator('#debt-adjustments > summary').click();
     }

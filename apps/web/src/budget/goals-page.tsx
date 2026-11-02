@@ -1,4 +1,5 @@
-import { useAmountPrivacy, ClassSwatch, Button, cx, maskMoneyText } from '@budget/ui';
+import { useAmountPrivacy, ClassSwatch, Button, Segmented, cx, maskMoneyText } from '@budget/ui';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { TriangleAlert, Check, CircleCheck, ChevronDown, Plus } from 'lucide-react';
 import { useState } from 'react';
@@ -14,7 +15,8 @@ import type { CategoryRow } from './api';
 import { budgetQuery } from './budget-api';
 import { CategoryIcon } from './category-icon';
 import { fundGoalRate, type GoalView } from './goals-api';
-import { goalsProgressReportQuery } from '../pages/goals-progress-report';
+import { GoalsProgress, goalsProgressReportQuery } from '../pages/goals-progress-report';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import type { GoalReportRow } from '../pages/goals-progress-model';
 import {
   goalBar,
@@ -25,6 +27,7 @@ import {
   type GoalGroup,
 } from './goals-model';
 import { GoalPanel, type GoalPanelState } from './goals-panel';
+import { GoalsRedesign } from './goals-redesign';
 import { CLASS_TEXT } from './plan-model';
 
 /**
@@ -35,17 +38,64 @@ import { CLASS_TEXT } from './plan-model';
 export function GoalsPage() {
   useAmountPrivacy();
   const [month] = useMonth();
+  const search = useSearch({ strict: false }) as { ansicht?: string };
+  const navigate = useNavigate();
+  const progress = REDESIGN_ENABLED && search.ansicht === 'fortschritt';
   const goals = useQuery(goalsProgressReportQuery(month));
   const budget = useQuery(budgetQuery(month));
   const income = budget.data ? eur(budget.data.summary.incomeCents) : '–';
+  if (REDESIGN_ENABLED)
+    return (
+      <GoalsRedesign
+        month={month}
+        progress={progress}
+        goals={goals.data?.goals}
+        rows={goals.data?.rows}
+        categories={goals.data?.categories.categories}
+        accounts={goals.data?.accounts}
+        pending={goals.isPending}
+        fetching={goals.isFetching}
+        error={goals.error}
+        onRetry={() => void goals.refetch()}
+      />
+    );
   return (
     <PageFrame meta={PLAN_SPARZIELE} income={income}>
-      <div className="plan goals">
-        {(goals.isPending || goals.isFetching) && <LoadingNote what="Sparziele und Quellen" />}
-        {goals.isError && (
-          <ErrorNote what="Sparziele" error={goals.error} onRetry={() => void goals.refetch()} />
+      <div className={cx('plan goals', REDESIGN_ENABLED && 'goals-v2')}>
+        {REDESIGN_ENABLED && (
+          <Segmented
+            label="Zielansicht"
+            options={[
+              { value: 'ziele', label: 'Ziele' },
+              { value: 'fortschritt', label: 'Fortschritt' },
+            ]}
+            value={progress ? 'fortschritt' : 'ziele'}
+            onChange={(ansicht) =>
+              void navigate({
+                to: '.',
+                search: ((previous: Record<string, unknown>) => ({
+                  ...previous,
+                  ansicht: ansicht === 'fortschritt' ? ansicht : undefined,
+                })) as never,
+              })
+            }
+          />
         )}
-        {goals.data && (
+        {progress ? (
+          <GoalsProgress month={month} />
+        ) : (
+          <>
+            {(goals.isPending || goals.isFetching) && <LoadingNote what="Sparziele und Quellen" />}
+            {goals.isError && (
+              <ErrorNote
+                what="Sparziele"
+                error={goals.error}
+                onRetry={() => void goals.refetch()}
+              />
+            )}
+          </>
+        )}
+        {!progress && goals.data && (
           <GoalsBody
             key={month}
             month={month}
@@ -307,7 +357,10 @@ function GoalRow({
   const line = goalLine(g, month);
   const cls = category?.class ?? null;
   return (
-    <tr className={cx('prow', 'grow', g.status === 'reached' && 'is-reached')}>
+    <tr
+      className={cx('prow', 'grow', g.status === 'reached' && 'is-reached')}
+      data-goal-tone={REDESIGN_ENABLED ? line.tone : undefined}
+    >
       <td className="col-pos">
         <span className="pos">{pos}</span>
       </td>

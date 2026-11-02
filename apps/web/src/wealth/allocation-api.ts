@@ -15,3 +15,9 @@ export const targetVersionsQuery = () =>
     retry: false,
     queryFn: () => request<{ versions: TargetVersion[] }>('GET', '/api/asset-classes/targets'),
   });
+
+/** Keep the read-only stage preview from warming an editable form's read/error state. */
+export const allocationStageVersionsQuery = () => ({
+  ...targetVersionsQuery(),
+  queryKey: [...targetVersionsQuery().queryKey, 'read-only-stages'],
+});

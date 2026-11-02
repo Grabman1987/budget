@@ -300,7 +300,7 @@ isolatedTest(
     const nextMonth = shiftMonth(month, 1);
     const nextBudget = page.waitForResponse(
       (response) =>
-        response.url().endsWith(`/api/budget/${nextMonth}`) &&
+        new URL(response.url()).pathname === `/api/budget/${nextMonth}` &&
         response.request().method() === 'GET',
     );
     await page.getByRole('button', { name: 'Nächster Monat' }).click();

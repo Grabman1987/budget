@@ -1,3 +1,4 @@
+import { openPaymentManagement } from './plan-redesign-controls';
 import { withShellControls } from './shell-actions';
 import { writeFile } from 'node:fs/promises';
 import AxeBuilder from '@axe-core/playwright';
@@ -92,6 +93,7 @@ test('direct detail retains real signed history, default three, fourth-term vers
       writes.push(request.method() + ' ' + new URL(request.url()).pathname);
   });
   await page.goto(`/plan/erwartet/${paymentId}`);
+  await openPaymentManagement(page);
   const history = page.getByRole('list', {
     name: 'Vergangene Fälligkeiten von Synthetic monthly payment',
   });
@@ -126,6 +128,7 @@ test('direct detail retains real signed history, default three, fourth-term vers
     201,
   );
   await page.goto(`/plan/erwartet/${versioned.id}`);
+  await openPaymentManagement(page);
   await page.getByRole('button', { name: 'Weitere Termine', exact: true }).click();
   const march = page.locator('.xp-occ li', { hasText: '28.03.2027' });
   await expect(march).toContainText('1.000,00 €');
@@ -164,6 +167,7 @@ test('direct detail retains real signed history, default three, fourth-term vers
     201,
   );
   await page.goto(`/plan/erwartet/${annual.id}`);
+  await openPaymentManagement(page);
   const annualRows = page.getByRole('list', {
     name: 'Kommende Fälligkeiten von Synthetic annual preview',
   });
@@ -211,6 +215,7 @@ async function inspect(
   label: string,
 ) {
   await page.goto(`/plan/erwartet/${id}`);
+  await openPaymentManagement(page);
   await theme(page, value);
   await expect(page.getByRole('heading', { name: 'Soll gegen Ist', exact: true })).toBeVisible();
   const more = page.getByRole('button', { name: 'Weitere Termine', exact: true });
@@ -365,6 +370,7 @@ for (const viewport of [
           writes.push(request.method() + ' ' + new URL(request.url()).pathname);
       });
       await page.goto(`/plan/erwartet/${paymentId}`);
+      await openPaymentManagement(page);
       const row = page
         .getByRole('list', { name: 'Vergangene Fälligkeiten von Synthetic monthly payment' })
         .locator('li', { hasText: '20.08.2026' });

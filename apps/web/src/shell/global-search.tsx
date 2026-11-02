@@ -131,10 +131,12 @@ export function GlobalSearch({
   mobile = false,
   compact = false,
   onOpenChange,
+  compactLabel = false,
 }: {
   mobile?: boolean;
   compact?: boolean;
   onOpenChange?: ((open: boolean) => void) | undefined;
+  compactLabel?: boolean;
 }) {
   const router = useRouter();
   const trigger = useRef<HTMLButtonElement>(null);
@@ -198,8 +200,10 @@ export function GlobalSearch({
         <Search className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
         {!mobile && (
           <>
-            <span>{compact ? 'Suchen' : 'Suchen: Seiten, Reports, Buchungen, Aktionen'}</span>
-            {!compact && (
+            <span>
+              {compact || compactLabel ? 'Suchen' : 'Suchen: Seiten, Reports, Buchungen, Aktionen'}
+            </span>
+            {!(compact || compactLabel) && (
               <span className="kbd" aria-hidden="true">
                 Strg K
               </span>

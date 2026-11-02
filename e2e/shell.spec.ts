@@ -100,7 +100,12 @@ test.describe('routes', () => {
       ['/vermoegen', '/vermoegen/nettovermoegen'],
     ] as const) {
       await page.goto(from);
-      await expect(page).toHaveURL(new RegExp(`${to}$`));
+      const expected =
+        from === '/vermoegen' &&
+        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+          ? '/vermoegen'
+          : to;
+      await expect(page).toHaveURL(new RegExp(`${expected}$`));
     }
   });
 

@@ -54,7 +54,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
     id: 'vermoegen',
     label: 'Vermögen',
     no: '04',
-    to: '/vermoegen/nettovermoegen',
+    to: REDESIGN_ENABLED ? '/vermoegen' : '/vermoegen/nettovermoegen',
     icon: TrendingUp,
     registers: [
       { id: 'nettovermoegen', label: 'Nettovermögen', to: '/vermoegen/nettovermoegen' },
