@@ -147,4 +147,3 @@ export async function verifyT3InvestmentBasis(page: Page, origin: string, bookma
     await page.goto(`${origin}${bookmark}`);
   }
 }
-
