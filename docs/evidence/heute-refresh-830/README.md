@@ -111,3 +111,18 @@ remain legible during refresh; status text wraps without horizontal overflow.
 Full-page fixed navigation capture is not physical-device viewport acceptance.
 No new visual direction, screenshot-baseline replacement or original export image
 is included.
+
+## OFF-path validation
+
+The unchanged new browser spec also passed against an actual
+`VITE_BUDGET_REDESIGN=0` build of candidate `cd7c88d7`: **6/6 passed**, 31.2 seconds,
+zero retries, desktop/390/actual WebKit and both themes, full-main Axe empty.
+The spec asserted the redesign DOM marker absent. Before rebuilding, reviewed ON
+web/server bundles and raw test-results were copied to
+`/workspace/work/heute-refresh-on-preserved/`; preserved build hashes matched the
+reviewed manifest. OFF build/run logs are
+`/workspace/work/heute-refresh-off-build.log` and
+`/workspace/work/heute-refresh-off-browser.log`; raw OFF output is separate at
+`/workspace/work/heute-refresh-off-results/`. The committed ON PNGs and manifest,
+source code and tests are unchanged. This remains programmatically simulated
+visibility, not native focus or physical-device acceptance.
