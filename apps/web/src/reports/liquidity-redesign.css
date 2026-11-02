@@ -1,0 +1,30 @@
+.liquidity-report.liquidity-v2 {
+  padding: 0 0 var(--space-xl);
+  gap: var(--space-lg);
+  min-width: 0;
+}
+.liquidity-v2 .forecast-source {
+  margin: var(--space-xs) 0;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.liquidity-v2 .seg button,
+.liquidity-v2 .btn,
+.liquidity-v2 summary,
+.liquidity-v2 select {
+  min-height: var(--touch);
+}
+@media (max-width: 767px) {
+  .liquidity-v2 .seg {
+    max-width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  .liquidity-v2 .seg button {
+    flex-shrink: 0;
+  }
+  .liquidity-v2 .rf-tools > summary {
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+}

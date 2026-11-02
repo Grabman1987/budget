@@ -28,6 +28,8 @@ import {
   X,
 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import './liquidity-redesign.css';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { eur, longDay, monthName, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
@@ -101,7 +103,7 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
   return (
     <PageFrame
       verdict={
-        view && !query.isFetching && !query.isError
+        !REDESIGN_ENABLED && view && !query.isFetching && !query.isError
           ? {
               reportId: report.id,
               period: `${view.asOf}..${view.report?.verdictEnd ?? view.asOf}`,
@@ -120,7 +122,7 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
       reportDataBasis="Budget-Konten, wiederkehrende Zahlungen, Einkommenspausen und geplante Ereignisse"
       standDay={view?.asOf}
     >
-      <div className="kview rf-report liquidity-report">
+      <div className={`kview rf-report liquidity-report${REDESIGN_ENABLED ? ' liquidity-v2' : ''}`}>
         {query.isPending && <LoadingNote what="Prognose" />}
         {query.isError && (
           <ErrorNote what="Prognose" error={query.error} onRetry={() => void query.refetch()} />
@@ -258,6 +260,11 @@ function ForecastCard({
           onChange={onHorizon}
         />
       </div>
+      {REDESIGN_ENABLED && (
+        <p className="forecast-source">
+          Stand {longDay(view.asOf)} · {HORIZON_TITLE[horizon]} · Budget-Konten
+        </p>
+      )}
       <div className={`rf-verdict is-${verdict.status}`} role="status" data-testid="liq-verdict">
         <Icon className="icon" size={20} strokeWidth={1.5} aria-hidden="true" />
         <div>
@@ -289,18 +296,22 @@ function ForecastCard({
                 : 'Tiefpunkt im Grundplan'}
           </span>
           <strong className={low && low.cents < 0 ? 'is-alert' : undefined} data-testid="liq-low">
-            {eur(low?.cents ?? 0)}
+            {REDESIGN_ENABLED && !low ? 'nicht verfügbar' : eur(low?.cents ?? 0)}
           </strong>
           <small>{low ? `am ${shortDay(low.day)} · Ziel ≥ 0 € (R07)` : 'keine Prognose'}</small>
         </div>
         <div>
           <span className="tech">Mit {LIQUIDITY_BUFFER_PERCENT} % Puffer</span>
-          <strong data-testid="liq-low-buffer">{eur(lowBuffer?.cents ?? 0)}</strong>
+          <strong data-testid="liq-low-buffer">
+            {REDESIGN_ENABLED && !lowBuffer ? 'nicht verfügbar' : eur(lowBuffer?.cents ?? 0)}
+          </strong>
           <small>variable Ausgaben +{LIQUIDITY_BUFFER_PERCENT} %</small>
         </div>
         <div>
           <span className="tech">Ohne Ereignisse</span>
-          <strong data-testid="liq-low-plain">{eur(lowPlain?.cents ?? 0)}</strong>
+          <strong data-testid="liq-low-plain">
+            {REDESIGN_ENABLED && !lowPlain ? 'nicht verfügbar' : eur(lowPlain?.cents ?? 0)}
+          </strong>
           <small>{lowPlain ? `Tiefpunkt am ${shortDay(lowPlain.day)}` : ''}</small>
         </div>
         <div>
