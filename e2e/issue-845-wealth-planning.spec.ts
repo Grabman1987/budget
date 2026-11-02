@@ -1,9 +1,11 @@
+import { showAllocationEvidence } from './wealth-navigation';
 import { sampleTest as test, expect } from './sample';
 
 test('allocation uses one settings editor and returns to the original selection; schedules keep capture', async ({
   page,
 }) => {
   await page.goto('/vermoegen/portfolio/allokation?zeitraum=1J');
+  await showAllocationEvidence(page);
   await expect(
     page.getByRole('button', { name: 'Sollquoten bearbeiten', exact: true }),
   ).toBeVisible();
@@ -29,10 +31,12 @@ test('allocation uses one settings editor and returns to the original selection;
       'krypto',
     );
   }
-  await page.locator('[data-savings-plan="neu"]').click();
+  await page.locator('[data-savings-plan="neu"]:visible').first().click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).not.toBeVisible();
-  if (on)
+  if (on) {
+    await page.locator('summary').getByText('Ausführungen prüfen', { exact: true }).click();
     await expect(page.getByRole('region', { name: 'Fällige Sparplanausführungen' })).toBeVisible();
+  }
 });

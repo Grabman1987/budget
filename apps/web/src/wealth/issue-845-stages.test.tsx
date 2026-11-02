@@ -39,11 +39,45 @@ it('shows persisted lower thresholds and the resolver buffer without a second ta
       <AllocationStages view={view} />
     </QueryClientProvider>,
   );
-  expect(screen.getByText('Stufe 2 · ab 100,00 €')).toBeTruthy();
-  expect(screen.getByText('· aktiv im Puffer')).toBeTruthy();
+  expect(screen.getByRole('rowheader', { name: 'Stufe 2' })).toBeTruthy();
+  expect(screen.getByText('aktiv im Puffer')).toBeTruthy();
   expect(
     screen.getByRole('link', { name: 'In Einstellungen bearbeiten' }).getAttribute('href'),
   ).toBe('/einstellungen/anlageklassen');
+  expect(screen.getByRole('table').textContent).toContain('100,00 €');
   expect(result.container.querySelectorAll('input,select,form,button')).toHaveLength(0);
+  client.clear();
+});
+
+it('keeps unclassified actual allocation visible and uses producer deviations', async () => {
+  const { AllocationV3 } = await import('./allocation-v3');
+  const client = new QueryClient({
+    defaultOptions: { queries: { staleTime: Infinity, retry: false } },
+  });
+  client.setQueryData(allocationStageVersionsQuery().queryKey, { versions: [] });
+  const view = {
+    asOf: '2026-09-17',
+    valueCents: 10000,
+    policy: { targetValidFrom: '2026-09-01' },
+    quality: { confidence: 'exact' },
+    classes: [{ id: 'a', name: 'Synthetic class', targetBp: 5000, assignedSecurities: [] }],
+    risk: {
+      allocation: {
+        totalCents: 10000,
+        rows: [
+          { assetClass: 'a', shareBp: 6000, targetBp: 5000, deviationBp: 1000, gapCents: -1000 },
+          { assetClass: '', shareBp: 4000, targetBp: null, deviationBp: null, gapCents: 0 },
+        ],
+      },
+    },
+  } as unknown as PortfolioAllocationView;
+  render(
+    <QueryClientProvider client={client}>
+      <AllocationV3 view={view} art="alle" />
+    </QueryClientProvider>,
+  );
+  expect(screen.getByRole('row', { name: /Ohne Anlageklasse/ }).textContent).toContain('40,0 %');
+  expect(screen.getByRole('row', { name: /Synthetic class/ }).textContent).toContain('+10,0 Pp');
+  expect(screen.getByRole('row', { name: /Synthetic class/ }).textContent).toContain('10,00 €');
   client.clear();
 });

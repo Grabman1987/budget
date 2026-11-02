@@ -1,5 +1,5 @@
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
-import { AllocationStages } from './allocation-stages';
+import { AllocationV3 } from './allocation-v3';
 import { WealthReadStatus, useAssetType } from './redesign-frame';
 import { matchesAsset } from './redesign-filters';
 import { ChartValue } from '@budget/ui';
@@ -57,7 +57,7 @@ export function PortfolioAllocation() {
       art === 'alle' ||
       row.assignedSecurities.some((security) => matchesAsset(security.kind, art)),
   );
-  return (
+  const legacy = (
     <>
       <section className="valloc" aria-labelledby="allocation-title">
         <div className="head">
@@ -279,16 +279,6 @@ export function PortfolioAllocation() {
           </>
         )}
       </section>
-      {REDESIGN_ENABLED && view && (
-        <>
-          <WealthReadStatus
-            fetching={query.isFetching}
-            paused={query.isPaused}
-            date={longDay(view.asOf)}
-          />
-          <AllocationStages view={view} />
-        </>
-      )}
       <section className="vrebal" aria-labelledby="rebalance-title">
         <div className="head">
           <h2 id="rebalance-title">Rebalancing</h2>
@@ -383,6 +373,26 @@ export function PortfolioAllocation() {
         )}
       </section>
     </>
+  );
+  return REDESIGN_ENABLED ? (
+    <>
+      {query.isPending && <LoadingNote what="Aufteilung" />}
+      {query.isError && (
+        <ErrorNote what="Aufteilung" error={query.error} onRetry={() => void query.refetch()} />
+      )}
+      {view && <AllocationV3 view={view} art={art} />}
+      <WealthReadStatus
+        fetching={query.isFetching}
+        paused={query.isPaused}
+        date={view ? longDay(view.asOf) : undefined}
+      />
+      <details className="wealth-details">
+        <summary>Bewertungsbasis, Zuordnung und Rebalancing-Hinweise</summary>
+        {legacy}
+      </details>
+    </>
+  ) : (
+    legacy
   );
 }
 function AllocationEvidence({ view }: { view: PortfolioAllocationView }) {
