@@ -151,8 +151,12 @@ test('591 no-selection overview preserves cents, canonical target shortfalls and
   for (const section of [income, money, rail]) await expect(section).toHaveAttribute('open', '');
   await expect(month).toHaveAttribute('open', '');
   await inspector.getByRole('button', { name: 'Monatsüberblick einklappen', exact: true }).click();
+  const phoneReadUtilities =
+    page.viewportSize()!.width < 768 &&
+    (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  if (phoneReadUtilities) await page.locator('.plan-menu-optionen > summary').click();
   await page
-    .locator('.plan-topbar')
+    .locator(phoneReadUtilities ? '.plan-read-utilities' : '.plan-topbar')
     .getByRole('button', { name: /^Unterfinanziert / })
     .click();
   await expect(

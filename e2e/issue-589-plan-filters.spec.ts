@@ -159,12 +159,22 @@ async function scene(
   await expect(
     filters.getByRole('button', { name: 'Ohne Kategorie (1)', exact: true }),
   ).toBeVisible();
-  const combined = page.locator('summary[aria-controls="plan-chip-panel-2"]');
+  const phoneReadUtilities =
+    page.viewportSize()!.width < 768 &&
+    (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  const readOptions = page.locator('.plan-menu-optionen > summary');
+  if (phoneReadUtilities) await clickPlanControl(readOptions);
+  const combined = phoneReadUtilities
+    ? page
+        .getByRole('group', { name: 'Monatsdetails', exact: true })
+        .getByText('2 vorgemerkt / ohne Kategorie', { exact: true })
+    : page.locator('summary[aria-controls="plan-chip-panel-2"]');
   await expect(combined).toHaveText('2 vorgemerkt / ohne Kategorie');
   await expect(combined).toHaveAttribute(
     'title',
     'Buchungen mit vorgemerktem Status oder mindestens einem Anteil ohne Kategorie. Jede Buchung wird einmal gezählt.',
   );
+  if (phoneReadUtilities) await clickPlanControl(readOptions);
   await clickPlanControl(page.locator(`.pname[data-category-id="${ids.recipientId}"]`));
   await expect(
     page.getByRole('heading', { name: 'Synthetic Recipient', exact: true }),
