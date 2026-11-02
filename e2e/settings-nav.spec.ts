@@ -32,12 +32,21 @@ test.describe('Einstellungen navigation, desktop', () => {
     await expect(nav).toBeVisible();
     const groups = await groupsForPage(page);
     const items = groups.flatMap((group) => group.items);
-    for (const group of groups)
+    for (const group of groups) {
+      const disclosure = nav
+        .locator('details')
+        .filter({ has: page.getByText(group.label, { exact: true }) });
+      if (await disclosure.count()) {
+        if (!(await disclosure.evaluate((node) => (node as HTMLDetailsElement).open)))
+          await disclosure.locator('summary').click();
+      }
       await expect(nav.getByRole('list', { name: group.label })).toBeVisible();
+    }
     // The old tab row clipped its last entries ("Profi…"): every link must lie inside the viewport.
     const viewport = page.viewportSize()!;
     for (const item of items) {
       const link = nav.getByRole('link', { name: item.label, exact: true });
+      await link.scrollIntoViewIfNeeded();
       await expect(link).toBeVisible();
       const box = (await link.boundingBox())!;
       expect(box.x, item.label).toBeGreaterThanOrEqual(0);
@@ -56,9 +65,27 @@ test.describe('Einstellungen navigation, desktop', () => {
     await page.goto('/einstellungen/konten');
     const items = (await groupsForPage(page)).flatMap((group) => group.items);
     for (const item of items) {
+      const link = settingsNav(page).getByRole('link', {
+        name: item.label,
+        exact: true,
+        includeHidden: true,
+      });
+      const disclosure = link.locator('xpath=ancestor::details');
+      if (await disclosure.count()) {
+        if (!(await disclosure.evaluate((node) => (node as HTMLDetailsElement).open)))
+          await disclosure.locator('summary').click();
+      }
       await settingsNav(page).getByRole('link', { name: item.label, exact: true }).click();
-      await expect(page).toHaveURL(new RegExp(`${item.to}$`));
-      await expect(settingsNav(page).locator('[aria-current="page"]')).toHaveText(item.label);
+      await expect(page).toHaveURL(
+        (url) =>
+          url.pathname === item.to &&
+          Object.entries(item.search ?? {}).every(
+            ([key, value]) => url.searchParams.get(key) === value,
+          ),
+      );
+      await expect(settingsNav(page).locator('[aria-current="page"]')).toHaveAccessibleName(
+        item.label,
+      );
       await expect(settingsNav(page).locator('[aria-current="page"]')).toHaveCount(1);
     }
   });
@@ -69,6 +96,13 @@ test.describe('Einstellungen navigation, desktop', () => {
     await page.goto('/einstellungen/konten');
     const nav = settingsNav(page);
     const items = (await groupsForPage(page)).flatMap((group) => group.items);
+    const firstGroup = nav
+      .locator('details')
+      .filter({ has: page.getByText((await groupsForPage(page))[0]!.label, { exact: true }) });
+    if (await firstGroup.count()) {
+      if (!(await firstGroup.evaluate((node) => (node as HTMLDetailsElement).open)))
+        await firstGroup.locator('summary').click();
+    }
     await nav.getByRole('link', { name: items[0]!.label, exact: true }).focus();
     await page.keyboard.press('Tab');
     await expect(nav.getByRole('link', { name: items[1]!.label, exact: true })).toBeFocused();
@@ -101,15 +135,35 @@ test.describe('Einstellungen navigation, phone', () => {
     const nav = settingsNav(page);
     const groups = await groupsForPage(page);
     const items = groups.flatMap((group) => group.items);
-    for (const group of groups)
-      await expect(nav.getByRole('list', { name: group.label })).toBeVisible();
+    const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     const viewport = page.viewportSize()!;
-    for (const item of items) {
-      const link = nav.getByRole('link', { name: item.label, exact: true });
-      await expect(link).toBeVisible();
-      const box = (await link.boundingBox())!;
-      expect(box.height, item.label).toBeGreaterThanOrEqual(43.5);
-      expect(box.x + box.width, item.label).toBeLessThanOrEqual(viewport.width);
+    if (on) {
+      for (const group of groups) {
+        await page.goto('/einstellungen');
+        const entry = nav.getByRole('link', { name: new RegExp(`^${group.label}`) });
+        await expect(entry).toBeVisible();
+        expect((await entry.boundingBox())!.height).toBeGreaterThanOrEqual(43.5);
+        await entry.click();
+        await expect(nav.getByRole('list', { name: group.label })).toBeVisible();
+        for (const item of group.items) {
+          const link = nav.getByRole('link', { name: item.label, exact: true });
+          await expect(link).toBeVisible();
+          const box = (await link.boundingBox())!;
+          expect(box.height, item.label).toBeGreaterThanOrEqual(43.5);
+          expect(box.x + box.width, item.label).toBeLessThanOrEqual(viewport.width);
+        }
+      }
+    } else {
+      for (const group of groups)
+        await expect(nav.getByRole('list', { name: group.label })).toBeVisible();
+      for (const item of items) {
+        const link = nav.getByRole('link', { name: item.label, exact: true });
+        await link.scrollIntoViewIfNeeded();
+        await expect(link).toBeVisible();
+        const box = (await link.boundingBox())!;
+        expect(box.height, item.label).toBeGreaterThanOrEqual(43.5);
+        expect(box.x + box.width, item.label).toBeLessThanOrEqual(viewport.width);
+      }
     }
     await expect(nav.locator('[aria-current]')).toHaveCount(0);
     expect(await fitsWidth(page)).toBe(true);
@@ -119,10 +173,15 @@ test.describe('Einstellungen navigation, phone', () => {
     page,
   }) => {
     await page.goto('/einstellungen');
+    const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    if (on)
+      await settingsNav(page)
+        .getByRole('link', { name: /^Profil & Sicherheit/ })
+        .click();
     await settingsNav(page).getByRole('link', { name: 'Sicherheit', exact: true }).click();
     await expect(page).toHaveURL(/\/einstellungen\/sicherheit$/);
     await expect(page.getByRole('navigation', { name: 'Einstellungen' })).toBeHidden();
-    await expect(page.locator('.settings-here')).toHaveText('Sicherheit');
+    await expect(page.locator(on ? '.m-title-text' : '.settings-here')).toHaveText('Sicherheit');
     const back = page.locator('.settings-back').getByRole('link', { name: 'Einstellungen' });
     const box = (await back.boundingBox())!;
     expect(box.height).toBeGreaterThanOrEqual(43.5);

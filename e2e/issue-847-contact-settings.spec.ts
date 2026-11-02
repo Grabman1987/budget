@@ -76,8 +76,15 @@ for (const theme of ['light', 'dark'] as const) {
     const navigation = page.getByRole('navigation', { name: 'Einstellungen', exact: true });
     await expect(navigation).toBeVisible();
     if (on) {
+      if (page.viewportSize()!.width < 768)
+        await navigation.getByRole('link', { name: /^Konten & Depots/ }).click();
+      else {
+        const group = navigation.locator('details').filter({ hasText: 'Konten & Depots' });
+        if (!(await group.evaluate((node) => (node as HTMLDetailsElement).open)))
+          await group.locator('summary').click();
+      }
       await navigation.getByRole('link', { name: 'Kontakte', exact: true }).click();
-      await expect(page.getByRole('table', { name: 'Kontakt-Stammdaten' })).toContainText(
+      await expect(page.getByRole('region', { name: 'Kontakt-Stammdaten' })).toContainText(
         contact.name,
       );
     } else {
@@ -86,7 +93,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.goto(bookmark);
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
     if (on) {
-      await expect(page.getByRole('table', { name: 'Kontakt-Stammdaten' })).toContainText(
+      await expect(page.getByRole('region', { name: 'Kontakt-Stammdaten' })).toContainText(
         contact.name,
       );
       await expect(page.getByText(contact.id, { exact: true })).toBeVisible();
@@ -95,7 +102,8 @@ for (const theme of ['light', 'dark'] as const) {
         await expect(
           navigation.getByRole('link', { name: 'Kontakte', exact: true }),
         ).toHaveAttribute('aria-current', 'page');
-      else await expect(page.locator('.settings-here')).toHaveText('Kontakte');
+      else
+        await expect(page.locator(on ? '.m-title-text' : '.settings-here')).toHaveText('Kontakte');
     } else {
       await expect(page).toHaveURL(/\/konten\/kontakte\?/);
       await expect(page.getByRole('link', { name: contact.name, exact: true })).toBeVisible();
@@ -185,7 +193,7 @@ for (const theme of ['light', 'dark'] as const) {
       ).toContainText(contact.name);
       await expect(page).toHaveURL(new RegExp(`/konten/kontakte/${contact.id}\\?.*verlauf=1`));
       await page.goBack();
-      await expect(page.getByRole('table', { name: 'Kontakt-Stammdaten' })).toContainText(
+      await expect(page.getByRole('region', { name: 'Kontakt-Stammdaten' })).toContainText(
         contact.name,
       );
       await expect(page).toHaveURL(new RegExp('/einstellungen/kontakte\\?.*#synthetic-source$'));

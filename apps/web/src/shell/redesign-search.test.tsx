@@ -103,3 +103,12 @@ it('OFF does not activate the additional redesign search terms', () => {
   search('Wiederkehrende Zahlungen');
   expect(screen.queryByRole('option', { name: /Plan · Zahlungen/ })).toBeNull();
 });
+
+it('ON opens the distinct allocation editor from search and retains the selected month', () => {
+  search('Zielallokation');
+  fireEvent.click(screen.getByRole('option', { name: /Zielallokation und Stufen/ }));
+  expect(navigate).toHaveBeenLastCalledWith({
+    to: '/einstellungen/anlageklassen',
+    search: { monat: '2026-09', ansicht: 'stufen' },
+  });
+});

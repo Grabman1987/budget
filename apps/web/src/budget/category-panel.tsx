@@ -11,7 +11,7 @@ import {
   maskMoneyText,
 } from '@budget/ui';
 import { cents, formatDecimal, parseAmount, todayInVienna } from '@budget/domain';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
 import { AccountOptions } from '../ledger/account-options';
 import { accountsQuery } from '../ledger/queries';
@@ -22,6 +22,7 @@ import {
   createCategory,
   createGroup,
   fetchSplitOff,
+  fetchCategories,
   mergeCategories,
   patchCategory,
   renameGroup,
@@ -36,7 +37,7 @@ import {
 import { budgetQuery } from './budget-api';
 import { CategoryIcon } from './category-icon';
 import { KIND_LABEL, RHYTHM_LABEL, STAGES } from './labels';
-import { useBudgetWrite } from './use-category-writes';
+import { categoriesQuery, useBudgetWrite } from './use-category-writes';
 
 export type PanelState =
   | null
@@ -44,6 +45,9 @@ export type PanelState =
   | { mode: 'group'; group?: GroupRow }
   | { mode: 'merge'; category: CategoryRow }
   | { mode: 'split'; category: CategoryRow };
+
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsDraftGuard } from '../pages/settings-draft-guard';
 
 const TITLE = {
   edit: 'Kategorie',
@@ -65,6 +69,22 @@ export function CategoryPanel({
   onSwitch: (next: PanelState) => void;
 }) {
   useAmountPrivacy();
+  const [dirty, setDirty] = useState(false);
+  const beforeClose = () =>
+    !REDESIGN_ENABLED || !dirty || window.confirm('Ungespeicherte Änderungen verwerfen?');
+  const done = () => {
+    setDirty(false);
+    onClose();
+  };
+  const cancel = () => {
+    if (beforeClose()) done();
+  };
+  const switchPanel = (next: PanelState) => {
+    if (beforeClose()) {
+      setDirty(false);
+      onSwitch(next);
+    }
+  };
   const title =
     state?.mode === 'edit' && !state.category
       ? 'Kategorie anlegen'
@@ -74,30 +94,32 @@ export function CategoryPanel({
           ? TITLE[state.mode]
           : '';
   return (
-    <FormDialog open={state !== null} onClose={onClose} title={title}>
+    <FormDialog open={state !== null} onClose={done} beforeClose={beforeClose} title={title}>
       <div className="bk-head">
         <h2>{title}</h2>
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" onClick={cancel}>
           Schließen
         </Button>
       </div>
-      <div className="bk-body">
+      <div
+        className="bk-body"
+        onChangeCapture={() => {
+          if (REDESIGN_ENABLED) setDirty(true);
+        }}
+      >
+        {REDESIGN_ENABLED && state && <SettingsDraftGuard dirty={dirty} />}
         {state?.mode === 'edit' && (
           <CategoryForm
             key={state.category?.id ?? 'new'}
             state={state}
             tree={tree}
-            onDone={onClose}
-            onSwitch={onSwitch}
+            onDone={done}
+            onSwitch={switchPanel}
           />
         )}
-        {state?.mode === 'group' && <GroupForm group={state.group} onDone={onClose} />}
-        {state?.mode === 'merge' && (
-          <MergeForm source={state.category} tree={tree} onDone={onClose} />
-        )}
-        {state?.mode === 'split' && (
-          <SplitForm source={state.category} tree={tree} onDone={onClose} />
-        )}
+        {state?.mode === 'group' && <GroupForm group={state.group} onDone={done} />}
+        {state?.mode === 'merge' && <MergeForm source={state.category} tree={tree} onDone={done} />}
+        {state?.mode === 'split' && <SplitForm source={state.category} tree={tree} onDone={done} />}
       </div>
     </FormDialog>
   );
@@ -106,6 +128,9 @@ export function CategoryPanel({
 function GroupForm({ group, onDone }: { group: GroupRow | undefined; onDone: () => void }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
+  const client = useQueryClient();
+  const [opened] = useState(group);
+  const [error, setError] = useState('');
   const [name, setName] = useState(group?.name ?? '');
   // A second Enter while the first write runs must not rename or create twice.
   const busy = useRef(false);
@@ -113,6 +138,24 @@ function GroupForm({ group, onDone }: { group: GroupRow | undefined; onDone: () 
     e.preventDefault();
     if (busy.current) return;
     busy.current = true;
+    setError('');
+    if (REDESIGN_ENABLED && opened) {
+      try {
+        const latest = await fetchCategories();
+        if (latest.groups.find((row) => row.id === opened.id)?.name !== opened.name) {
+          client.setQueryData(categoriesQuery().queryKey, latest);
+          setError(
+            'Die Gruppe wurde inzwischen geändert. Dein Entwurf bleibt erhalten. Schließe den Entwurf und lade den aktuellen Stand.',
+          );
+          busy.current = false;
+          return;
+        }
+      } catch {
+        setError('Der aktuelle Stand konnte nicht gelesen werden. Dein Entwurf bleibt erhalten.');
+        busy.current = false;
+        return;
+      }
+    }
     const done = group
       ? await write(
           () => renameGroup(group.id, name),
@@ -127,6 +170,7 @@ function GroupForm({ group, onDone }: { group: GroupRow | undefined; onDone: () 
   };
   return (
     <form className="kform" onSubmit={(e) => void submit(e)}>
+      {error && <p role="alert">{error}</p>}
       <Field label="Name">
         {({ id }) => (
           <TextInput
@@ -163,13 +207,15 @@ function CategoryForm({
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
+  const client = useQueryClient();
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const cards = accounts.filter((a) => a.type === 'credit_card' && !a.closedAt);
   const c = state.category;
   // A card payment envelope follows its card: kind and card are fixed (the server refuses both).
   const locked = c?.kind === 'card_payment';
   const versions = tree.targets.filter((t) => t.categoryId === c?.id);
-  const current = versions[versions.length - 1];
+  const [current] = useState(versions[versions.length - 1]);
+  const [openedTargets] = useState(versions);
   const [name, setName] = useState(c?.name ?? '');
   const [icon, setIcon] = useState(c?.icon ?? '');
   const [groupId, setGroupId] = useState(c?.groupId ?? state.groupId);
@@ -187,6 +233,7 @@ function CategoryForm({
   const [dueDay, setDueDay] = useState(current?.dueDay ? String(current.dueDay) : '');
   const [dueDate, setDueDate] = useState(current?.targetDate ?? '');
   const [error, setError] = useState<string>();
+  const [stale, setStale] = useState(false);
   const classless = CLASSLESS_KINDS.has(kind);
 
   const submit = async (e: FormEvent) => {
@@ -224,6 +271,41 @@ function CategoryForm({
     };
     const changed = JSON.stringify(target) !== JSON.stringify(was ?? null);
     const withTarget = changed ? { target: { validFrom: month(), target } } : {};
+    if (REDESIGN_ENABLED && c) {
+      try {
+        const latest = await fetchCategories();
+        const row = latest.categories.find((category) => category.id === c.id);
+        const metadata = (category: CategoryRow) => [
+          category.name,
+          category.icon,
+          category.groupId,
+          category.class,
+          category.kind,
+          category.stage,
+          category.cardAccountId,
+          category.inflationTrailingMean ?? null,
+          Boolean(category.hiddenAt),
+        ];
+        if (
+          !row ||
+          JSON.stringify(metadata(row)) !== JSON.stringify(metadata(c)) ||
+          JSON.stringify(latest.targets.filter((target) => target.categoryId === c.id)) !==
+            JSON.stringify(openedTargets)
+        ) {
+          client.setQueryData(categoriesQuery().queryKey, latest);
+          setStale(true);
+          setError(
+            'Die Kategorie wurde inzwischen geändert. Dein Entwurf bleibt erhalten. Lade den aktuellen Stand, bevor du speicherst.',
+          );
+          return;
+        }
+      } catch {
+        setError(
+          'Der aktuelle Stand konnte nicht gelesen werden. Dein Entwurf bleibt erhalten. Bitte erneut versuchen.',
+        );
+        return;
+      }
+    }
     const done = await write(
       () =>
         c
@@ -236,6 +318,16 @@ function CategoryForm({
 
   return (
     <form className="kform" onSubmit={(e) => void submit(e)} noValidate>
+      {stale && (
+        <Button
+          variant="ghost"
+          onClick={() => {
+            if (window.confirm('Entwurf verwerfen und aktuellen Stand laden?')) onDone();
+          }}
+        >
+          Aktuellen Stand laden
+        </Button>
+      )}
       <Field label="Name">
         {({ id }) => (
           <TextInput
