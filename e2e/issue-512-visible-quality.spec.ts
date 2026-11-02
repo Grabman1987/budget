@@ -440,7 +440,9 @@ sampleTest(
       // The compact v3 chart is the default above-the-fold view. The full historical
       // source cue remains keyboard reachable in the retained, scrollable analysis.
       if (redesigned) {
-        await actual.getByTestId('portfolio-overview-chart').scrollIntoViewIfNeeded();
+        await actual
+          .getByTestId('portfolio-overview-chart')
+          .evaluate((chart) => chart.scrollIntoView({ block: 'center', behavior: 'instant' }));
         await link.scrollIntoViewIfNeeded();
       }
       const geometry = await actual.evaluate(() => {
