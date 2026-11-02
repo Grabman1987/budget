@@ -1056,3 +1056,9 @@
     grid-column: 1 / -1;
   }
 }
+
+@media (min-width: 980px) {
+  [data-heute-detail='wealth'] .heute-explanation > :is([role='status'], [role='alert']) {
+    grid-column: 1 / -1;
+  }
+}

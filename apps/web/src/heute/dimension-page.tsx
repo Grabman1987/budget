@@ -64,9 +64,12 @@ export function DimensionPage() {
   };
   const title = names[kind];
   const heading = useRef<HTMLHeadingElement>(null);
+  const focusedHeading = useRef<DimensionKind | undefined>(undefined);
   useEffect(() => {
-    if (basisHash) return;
-    heading.current?.focus({ preventScroll: true });
+    if (basisHash || (REDESIGN_ENABLED && focusedHeading.current === kind) || !heading.current)
+      return;
+    focusedHeading.current = kind;
+    heading.current.focus({ preventScroll: true });
   }, [kind, net?.asOf, data?.stand.today, basisHash]);
   useEffect(() => {
     if (!basisHash) {

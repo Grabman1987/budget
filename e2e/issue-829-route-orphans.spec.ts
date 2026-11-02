@@ -101,8 +101,15 @@ async function projects(p: Page) {
   await expect(p.locator('.pp-settings .pp-scroll table')).toContainText(data.projects[0]!.name);
 }
 const probes = {
-  heute: (p: Page) =>
-    expect(p.getByRole('region', { name: 'Frei bis Gehalt', exact: true })).toBeVisible(),
+  heute: async (p: Page) => {
+    const redesigned = (await p.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    await expect(
+      p.getByRole('region', {
+        name: redesigned ? 'Frei bis Gehalt' : 'Spielraum bis Gehalt',
+        exact: true,
+      }),
+    ).toBeVisible();
+  },
   dimension: async (p: Page) => {
     await css(p, '.heute-dimension .heute-breakdown a[href="/konten/acc-giro"]');
     await expect(p.locator('#dimension-title')).toHaveText('Liquidität');

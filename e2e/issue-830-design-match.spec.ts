@@ -4,10 +4,10 @@ import { sampleTest as test, expect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
 import { eur } from '../apps/web/src/ledger/format';
 
-const evidence = 'docs/evidence/redesign-heute-20261102';
+const evidenceRoot = 'docs/evidence/redesign-heute-20261102';
 test('Heute matches the numbered compact overview and preserves expanded drilldowns', async ({
   page,
-}) => {
+}, info) => {
   // Two overview frames and ten full detail captures, including native WebKit.
   test.setTimeout(90_000);
   await page.goto('/?monat=2026-09&period=payday');
@@ -18,6 +18,8 @@ test('Heute matches the numbered compact overview and preserves expanded drilldo
     await expect(page.locator('.heute-screen')).toHaveCount(0);
     return;
   }
+  const evidence =
+    info.project.name === 'desktop' ? evidenceRoot : info.outputPath('redesign-heute');
   mkdirSync(evidence, { recursive: true });
   const source = (await (
     await page.request.get('/api/heute?month=2026-09&period=payday')
