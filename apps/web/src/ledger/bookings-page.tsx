@@ -43,6 +43,7 @@ import { AccountOptions } from './account-options';
 import { accountsQuery, bookingsInfiniteQuery, lookupsQuery } from './queries';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import { LoadOlder } from './load-older';
+import { BookingViews } from './booking-views';
 import {
   BOOKING_FLAGS,
   BOOKING_STATUSES,
@@ -213,16 +214,25 @@ export function BookingsPage() {
             <summary aria-label="Weitere Buchungsaktionen">
               <MoreHorizontal size={20} strokeWidth={1.5} aria-hidden="true" />
             </summary>
-            <a
-              className="btn btn-ghost"
-              href={filteredBookingsCsvUrl({
-                ...filter,
-                to: filter.to && filter.to < today ? filter.to : today,
-              })}
-              download
-            >
-              Aktuellen Filter als CSV exportieren
-            </a>
+            <div className="kregister-menu">
+              <BookingViews
+                search={search}
+                disabled={pending}
+                onOpen={(next) => {
+                  if (!pending) void navigate({ to: '/konten/buchungen', search: next as never });
+                }}
+              />
+              <a
+                className="btn btn-ghost"
+                href={filteredBookingsCsvUrl({
+                  ...filter,
+                  to: filter.to && filter.to < today ? filter.to : today,
+                })}
+                download
+              >
+                Aktuellen Filter als CSV exportieren
+              </a>
+            </div>
           </details>
         </div>
         <section aria-labelledby="filter-title">
