@@ -230,7 +230,7 @@ it('ON changes month without leaking the previous budget value while the new mon
   await waitFor(() => expect(headIncome(container)).toBe('–'));
   await act(async () => next.resolve(budgetView('2026-12', 32_100)));
   await waitFor(() => expect(headIncome(container)).toBe('321,00 €'));
-  expect(calls).toContain('GET /api/budget/2026-12');
+  expect(calls).toContain('GET /api/budget/2026-12?previewBasis=1');
   expect(screen.getByRole('link', { name: 'Zurück zum Monat' }).getAttribute('href')).toBe(
     '/plan/monat?monat=2026-12',
   );
@@ -245,6 +245,6 @@ it('ON multi-month Plan head, chain and allocation keep the leftmost batch month
   await waitFor(() => expect(headIncome(container)).toContain('100,00 €'));
   expect(container.querySelector('.chain-inline')?.textContent).toMatch(/Einnahmen.*100/);
   expect(container.querySelector('.sb-note')?.textContent).toContain('100,00 €');
-  expect(calls).toContain('GET /api/budget/months?months=2026-11,2026-12');
-  expect(calls).not.toContain('GET /api/budget/2026-11');
+  expect(calls).toContain('GET /api/budget/months?months=2026-11,2026-12&previewBasis=1');
+  expect(calls).not.toContain('GET /api/budget/2026-11?previewBasis=1');
 });

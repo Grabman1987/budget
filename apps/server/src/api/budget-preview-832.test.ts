@@ -58,7 +58,7 @@ async function send(method: string, url: string, body?: unknown) {
   });
 }
 const view = async () => {
-  const response = await send('GET', path);
+  const response = await send('GET', `${path}?previewBasis=1`);
   expect(response.status).toBe(200);
   return response.json() as Promise<{
     previewBasis: string;
@@ -173,7 +173,9 @@ it('applies a fresh batch once and one grouped Undo restores exact cents', async
 it('reading and cancelling a preview writes nothing; batch and single reads share the basis', async () => {
   const before = counts();
   const a = await view();
-  const batch = (await (await send('GET', '/budget/months?months=2026-10,2026-11')).json()) as {
+  const batch = (await (
+    await send('GET', '/budget/months?months=2026-10,2026-11&previewBasis=1')
+  ).json()) as {
     months: Record<string, { previewBasis: string }>;
   };
   expect(batch.months['2026-10']!.previewBasis).toBe(a.previewBasis);

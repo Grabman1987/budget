@@ -9,10 +9,11 @@ import { liquidityQuery } from './liquidity-api';
 import { LiquidityReportPage } from './liquidity-report';
 import { PLAN_PROGNOSE } from '../nav/pages';
 import { LIQUIDITY_FORECAST } from '../nav/reports-catalog';
+import type * as LiquiditySelection from './liquidity-selection';
 
 vi.mock('../shell/redesign-flag', () => ({ REDESIGN_ENABLED: true }));
 vi.mock('./liquidity-selection', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./liquidity-selection')>()),
+  ...(await importOriginal<typeof LiquiditySelection>()),
   useLiquiditySelection: () => ({
     horizon: '35d',
     levers: [],

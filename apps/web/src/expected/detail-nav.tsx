@@ -22,7 +22,12 @@ export function ExpectedDetailBack() {
       <nav aria-label="Brotkrumen">
         <AppLink
           to="/plan/erwartet"
-          search={{ monat: month, ...(REDESIGN_ENABLED ? { ansicht, art, tage } : {}) }}
+          search={{
+            monat: month,
+            ...(REDESIGN_ENABLED && (ansicht !== 'next' || art !== 'all' || tage !== 35)
+              ? { ansicht, art, tage }
+              : {}),
+          }}
           state={state}
         >
           Zurück zu Erwartet

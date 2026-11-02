@@ -224,8 +224,12 @@ export function snapshotRequest(path: string): { kind: SnapshotKind; key: string
   if (!path.startsWith('/api/')) return null;
   const url = new URL(path, 'https://budget.invalid');
   if (url.pathname === '/api/accounts' && !url.search) return { kind: 'accounts', key: path };
-  if (/^\/api\/budget\/\d{4}-\d{2}$/.test(url.pathname) && !url.search) {
-    if (url.pathname.endsWith(todayInVienna().slice(0, 7))) return { kind: 'plan', key: path };
+  if (
+    /^\/api\/budget\/\d{4}-\d{2}$/.test(url.pathname) &&
+    (!url.search || (url.searchParams.size === 1 && url.searchParams.get('previewBasis') === '1'))
+  ) {
+    if (url.pathname.endsWith(todayInVienna().slice(0, 7)))
+      return { kind: 'plan', key: url.pathname };
   }
   if (url.pathname === '/api/heute' && url.searchParams.size === 2) {
     const month = url.searchParams.get('month');

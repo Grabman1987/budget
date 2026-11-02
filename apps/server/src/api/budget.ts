@@ -181,9 +181,11 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
     tx: Parameters<typeof databaseStamp>[0],
     months: string[],
     cardRule?: 'ynab' | 'concept',
+    withBasis = false,
   ) => {
     const day = today();
     const views = planMonthViews(tx, months, cardRule ? { cardRule } : {}, day);
+    if (!withBasis) return views;
     return Object.fromEntries(
       Object.entries(views).map(([m, view]) => [
         m,
@@ -197,8 +199,13 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
 
   /** Several months at once: `{ months: { 'YYYY-MM': <the answer of GET /:month> } }`. */
   app.get('/months', (c) => {
-    const { months, cardRule } = readQuery(c, budgetMonthsQuery);
-    return c.json(db.transaction((tx) => ({ months: monthViews(tx, months, cardRule) })));
+    const { months, cardRule, previewBasis } = readQuery(
+      c,
+      budgetMonthsQuery.extend({ previewBasis: z.literal('1').optional() }),
+    );
+    return c.json(
+      db.transaction((tx) => ({ months: monthViews(tx, months, cardRule, previewBasis === '1') })),
+    );
   });
 
   app.get('/:month/uncategorized', (c) => {
@@ -341,8 +348,11 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
 
   app.get('/:month', (c) => {
     const m = monthParam(c.req.param('month'));
-    const { cardRule } = readQuery(c, budgetQuery);
-    return c.json(db.transaction((tx) => monthViews(tx, [m], cardRule)[m]));
+    const { cardRule, previewBasis } = readQuery(
+      c,
+      budgetQuery.extend({ previewBasis: z.literal('1').optional() }),
+    );
+    return c.json(db.transaction((tx) => monthViews(tx, [m], cardRule, previewBasis === '1')[m]));
   });
 
   app.put('/:month/assigned', async (c) => {

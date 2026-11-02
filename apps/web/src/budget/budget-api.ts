@@ -10,6 +10,7 @@ import { request } from '../api/http';
 import type { ListedBooking, WriteResult } from '../ledger/types';
 import type { CategoryRow, GroupRow, TargetRow } from './api';
 import { BUDGET_KEY } from './use-category-writes';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 /** Shapes and calls of the budget API (`/api/budget/:month`); amounts are integer cents. */
 
@@ -66,7 +67,8 @@ const path = (month: string) => `/api/budget/${month}`;
 export const budgetQuery = (month: string) =>
   queryOptions({
     queryKey: [...BUDGET_KEY, month],
-    queryFn: () => request<BudgetMonthView>('GET', path(month)),
+    queryFn: () =>
+      request<BudgetMonthView>('GET', `${path(month)}${REDESIGN_ENABLED ? '?previewBasis=1' : ''}`),
   });
 
 /** Several months in one call (Plan › Jahr): the same views as `budgetQuery`, keyed by month. */
@@ -76,7 +78,7 @@ export const budgetMonthsQuery = (months: string[]) =>
     queryFn: () =>
       request<{ months: Record<string, BudgetMonthView> }>(
         'GET',
-        `/api/budget/months?months=${months.join(',')}`,
+        `/api/budget/months?months=${months.join(',')}${REDESIGN_ENABLED ? '&previewBasis=1' : ''}`,
       ),
   });
 
