@@ -378,3 +378,42 @@ it.each(['heute', 'budget'] as const)(
     expect(within(budgetTile()).getByTestId('kennzahl-value').textContent).toBe('1.234,56 €');
   },
 );
+
+it.each([true, false])(
+  'orders the lead and actionable sources only with redesign %s',
+  async (enabled) => {
+    flags.REDESIGN_ENABLED = enabled;
+    mount('/?monat=2026-09&period=payday');
+    await screen.findByTestId('heute-wealth-history');
+    await ready();
+    const titles = [...document.querySelectorAll('.heute-answer-grid h2')].map(
+      (node) => node.textContent,
+    );
+    expect(titles).toEqual(
+      enabled
+        ? ['Frei bis Gehalt', 'Nettovermögen', 'Zu verteilen']
+        : ['Zu verteilen', 'Frei bis Gehalt', 'Nettovermögen'],
+    );
+    const work = screen.getByRole('region', { name: 'Zu tun' });
+    const lead = screen.getByTestId('heute-lead-value');
+    expect(Boolean(lead.compareDocumentPosition(work) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(
+      true,
+    );
+    expect(Boolean(document.querySelector('.heute-v2-monthline'))).toBe(enabled);
+    expect(screen.queryByRole('link', { name: 'Finanz-Check und Verlauf öffnen' }) !== null).toBe(
+      enabled,
+    );
+    if (enabled) {
+      expect(within(work).getByRole('link', { name: 'Verteilen' }).getAttribute('href')).toContain(
+        '/plan/monat',
+      );
+      expect(work.textContent).toContain('1.234,56 € zu verteilen');
+      expect(
+        Boolean(
+          work.compareDocumentPosition(document.querySelector('.heute-pace')!) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+        ),
+      ).toBe(true);
+    }
+  },
+);

@@ -29,6 +29,7 @@ import { heuteQuery, type Heute } from './api';
 import { CompactForecastCard } from './compact-forecast-card';
 import { useBalancePeriod } from './use-balance-period';
 import './heute.css';
+import './heute-v2.css';
 import { useIsPhone } from '../budget/month-span';
 import { useStoredFlag } from '../shell/use-stored-flag';
 import { AttentionBar, FundingNotes } from './attention-bar';
@@ -76,7 +77,7 @@ export function HeutePage() {
       onHeutePeriodChange={setPeriod}
       standDay={data?.stand.today}
     >
-      <div className="heute">
+      <div className={REDESIGN_ENABLED ? 'heute heute-v2' : 'heute'}>
         <HeuteBody data={data} read={query} period={period} />
       </div>
     </PageFrame>
@@ -144,7 +145,7 @@ function HeuteBody({
       : `${net.deltaBp >= 0 ? '+' : ''}${pct.format(net.deltaBp / 100)} % zum Vormonatsende`;
 
   return (
-    <>
+    <HeuteLayout>
       {refreshing && (
         <p className="heute-note" role="status">
           Heute-Daten werden aktualisiert · Stand heute {longDay(data!.stand.today)}
@@ -166,6 +167,25 @@ function HeuteBody({
         chainOpen={chainOpen}
         onLeadClick={() => setChainOpen((open) => !open)}
       />
+      {REDESIGN_ENABLED && (
+        <AttentionBar
+          data={data}
+          pending={pending}
+          savingsPending={savingsPending}
+          savingsRows={savingsRows}
+          budget={REDESIGN_ENABLED ? budget : undefined}
+          savingsError={
+            savings.isError &&
+            !savingsPending && (
+              <ErrorNote
+                what="Sparplanvorschläge"
+                error={savings.error}
+                onRetry={() => void savings.refetch()}
+              />
+            )
+          }
+        />
+      )}
       {heuteFacts ? (
         <VerdictLine facts={heuteFacts} />
       ) : (
@@ -347,22 +367,26 @@ function HeuteBody({
           </section>
         )}
       </div>
-      <AttentionBar
-        data={data}
-        pending={pending}
-        savingsPending={savingsPending}
-        savingsRows={savingsRows}
-        savingsError={
-          savings.isError &&
-          !savingsPending && (
-            <ErrorNote
-              what="Sparplanvorschläge"
-              error={savings.error}
-              onRetry={() => void savings.refetch()}
-            />
-          )
-        }
-      />
+      {!REDESIGN_ENABLED && (
+        <AttentionBar
+          data={data}
+          pending={pending}
+          savingsPending={savingsPending}
+          savingsRows={savingsRows}
+          budget={REDESIGN_ENABLED ? budget : undefined}
+          savingsError={
+            savings.isError &&
+            !savingsPending && (
+              <ErrorNote
+                what="Sparplanvorschläge"
+                error={savings.error}
+                onRetry={() => void savings.refetch()}
+              />
+            )
+          }
+        />
+      )}
+      {REDESIGN_ENABLED && <FinanceCheckSummary data={data} pending={pending} />}
       {data ? (
         <Upcoming
           items={data.upcoming14}
@@ -384,7 +408,7 @@ function HeuteBody({
         </section>
       )}
       <section
-        className="heute-section"
+        className="heute-section heute-bookings"
         aria-labelledby="heute-bookings-title"
         aria-busy={(!data && pending) || undefined}
       >
@@ -652,7 +676,7 @@ function HeuteBody({
         )}
         <FundingNotes data={data} requestMonth={read.data?.stand.today.slice(0, 7)} />
       </MoreMonth>
-    </>
+    </HeuteLayout>
   );
 }
 
@@ -957,4 +981,32 @@ function monthLabel(month: string) {
   return new Intl.DateTimeFormat('de-AT', { month: 'long', year: 'numeric' }).format(
     new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1, 15),
   );
+}
+
+function FinanceCheckSummary({ data, pending }: { data: Heute | undefined; pending: boolean }) {
+  const check = data?.financeCheck;
+  return (
+    <section
+      className="heute-v2-check"
+      aria-labelledby="heute-check-title"
+      aria-busy={pending || undefined}
+    >
+      <h2 id="heute-check-title">Finanz-Check</h2>
+      {!data ? (
+        <SectionReadNote name="Finanz-Check" pending={pending} />
+      ) : check && 'unavailable' in check ? (
+        <ValuationNote message={check.unavailable.message} />
+      ) : check ? (
+        <CheckCounts check={check} date={data.stand.today} />
+      ) : null}
+      {data && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
+      <AppLink to="/reports/finanzcheck" search={{ monat: data?.stand.month }}>
+        Finanz-Check und Verlauf öffnen
+      </AppLink>
+    </section>
+  );
+}
+
+function HeuteLayout({ children }: { children: ReactNode }) {
+  return REDESIGN_ENABLED ? <div className="heute-v2-layout">{children}</div> : <>{children}</>;
 }
