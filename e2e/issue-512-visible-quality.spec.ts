@@ -439,7 +439,10 @@ sampleTest(
       const link = cue.getByRole('link', { name: 'Bewertungsquellen ansehen' });
       // The compact v3 chart is the default above-the-fold view. The full historical
       // source cue remains keyboard reachable in the retained, scrollable analysis.
-      if (redesigned) await link.scrollIntoViewIfNeeded();
+      if (redesigned) {
+        await actual.getByTestId('portfolio-overview-chart').scrollIntoViewIfNeeded();
+        await link.scrollIntoViewIfNeeded();
+      }
       const geometry = await actual.evaluate(() => {
         const rect = (el: Element | null) => {
           if (!el) return null;
