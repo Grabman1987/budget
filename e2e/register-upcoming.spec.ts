@@ -106,7 +106,9 @@ test('separates future captures and next weekly occurrence, projects cents and u
       await scheduled.hover();
       const actions = await scheduled.getByRole('button', { name: 'Jetzt buchen' }).boundingBox();
       const skip = await scheduled.getByRole('button', { name: 'Überspringen' }).boundingBox();
-      expect(actions!.height).toBeLessThanOrEqual(34);
+      const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      if (redesign) expect(actions!.height).toBeGreaterThanOrEqual(43.9);
+      expect(actions!.height).toBeLessThanOrEqual(redesign ? 44 : 34);
       expect(Math.abs(actions!.y - skip!.y)).toBeLessThan(2);
     }
     if (info.project.name === 'mobile') {

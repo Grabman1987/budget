@@ -84,3 +84,7 @@
     row-gap: 24px;
   }
 }
+
+[data-budget-redesign='1'] .sheet:has(> .account-detail-redesign) > .area-page-menu {
+  margin-block: 0;
+}

@@ -382,7 +382,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
         [],
       );
-      await page.screenshot({ path: `docs/evidence/booking-lines/${tag}-${theme}.png` });
+      await page.screenshot({ path: info.outputPath(`${tag}-${theme}.png`) });
     }
     // Enter in an ordinary input saves a valid draft; dropdown Enter remains an option pick.
     if (scenario === 'category')

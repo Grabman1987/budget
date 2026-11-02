@@ -524,3 +524,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
   }
 }
+
+[data-budget-redesign='1'] .sheet:has(> .account-overview-redesign) > .area-page-menu {
+  margin-block: 0;
+}

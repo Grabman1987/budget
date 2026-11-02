@@ -4,7 +4,11 @@ import type { Page } from '@playwright/test';
 
 async function areaNavigation(page: Page, area: string) {
   await expect(page.locator('.app')).toHaveCount(1);
-  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+  await expect(page.locator('.area-page-menu, .registers')).toHaveCount(1);
+  if (
+    (await page.locator('.app').getAttribute('data-budget-redesign')) === '1' &&
+    (await page.locator('.area-page-menu').count()) > 0
+  ) {
     const menu = page.locator('.area-page-menu');
     await expect(menu.locator('summary')).toBeVisible();
     if (!(await menu.evaluate((element) => (element as HTMLDetailsElement).open)))

@@ -94,7 +94,7 @@ for (const theme of ['light', 'dark'] as const) {
     const axe = await new AxeBuilder({ page }).analyze();
     expect(axe.violations).toEqual([]);
     await page.screenshot({
-      path: `docs/evidence/issue-561-pruefen-segments/pruefen-${info.project.name}-${theme}.png`,
+      path: info.outputPath(`pruefen-${info.project.name}-${theme}.png`),
       fullPage: true,
     });
   });

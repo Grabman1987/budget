@@ -23,7 +23,7 @@
   outline-offset: 2px;
 }
 @media (min-width: 768px) {
-  [data-budget-redesign='1'] dialog.overlay.modal:has(.bkform-redesign.bk-split-cols) {
+  .bk-focus-scope dialog.overlay.modal:has(.bkform-redesign.bk-split-cols) {
     width: min(1040px, calc(100vw - 32px));
   }
   .bkform-redesign.bk-split-cols .bk-cols {

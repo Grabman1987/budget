@@ -45,3 +45,11 @@
     display: none;
   }
 }
+
+.bookings-redesign.kview {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+.bookings-redesign > * {
+  min-width: 0;
+}

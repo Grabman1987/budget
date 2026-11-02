@@ -4,7 +4,7 @@ import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
 import { toast } from './ledger-helpers';
 
-test.use({ ledgerToday: '2026-09-17' });
+test.use({ ledgerToday: '2026-09-17', bankingConfigured: true });
 
 test('K5: safe source-backed rule preview is read-only until confirmation and uses one Undo', async ({
   page,
