@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import Database from 'better-sqlite3';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
-import { pickCategory } from './ledger-helpers';
+import { MIN_TARGET_PX, pickCategory } from './ledger-helpers';
 
 test.use({ ledgerToday: '2026-10-13' });
 
@@ -107,7 +107,7 @@ test('separates future captures and next weekly occurrence, projects cents and u
       const actions = await scheduled.getByRole('button', { name: 'Jetzt buchen' }).boundingBox();
       const skip = await scheduled.getByRole('button', { name: 'Überspringen' }).boundingBox();
       const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-      if (redesign) expect(actions!.height).toBeGreaterThanOrEqual(43.9);
+      if (redesign) expect(actions!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
       expect(actions!.height).toBeLessThanOrEqual(redesign ? 44 : 34);
       expect(Math.abs(actions!.y - skip!.y)).toBeLessThan(2);
     }

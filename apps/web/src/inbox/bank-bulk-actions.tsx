@@ -126,6 +126,12 @@ export function BankBulkActions({
   return (
     <div className="bank-bulk-actions">
       {REDESIGN_ENABLED && (
+        <p className="safe-bank-help">
+          Als sicher zählen hier nur bereits vorbereitete Quellumsätze. Öffne eine Zeile, um Regel
+          und mögliche Treffer zu prüfen.
+        </p>
+      )}
+      {REDESIGN_ENABLED && (
         <Button
           disabled={busy || !safe.length}
           onClick={() => setPreview({ ...planBulk('confirm', safe, prepared), safeOnly: true })}
