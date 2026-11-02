@@ -1319,18 +1319,12 @@
   flex-wrap: wrap;
   gap: var(--space-sm);
 }
-.heute--redesign .heute-priorities .report-verdict {
-  margin-block: var(--space-sm) 0;
-}
 .heute--redesign .heute-answer {
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
   padding: var(--space-xs) 0;
-}
-.heute--redesign .heute-answer-grid {
-  gap: var(--space-sm);
 }
 .heute--redesign .heute-answer-value {
   font-size: var(--fs-title);
@@ -1343,12 +1337,6 @@
 }
 .heute--redesign .heute-finance-check .heute-check-counts {
   margin: 0;
-}
-.heute--redesign .heute-finance-check .head a,
-.heute--redesign .heute-work-aside .head a {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
 }
 @media (min-width: 1180px) {
   .heute--redesign :is(.heute-priorities, .heute-work-grid) {
@@ -1398,7 +1386,6 @@
 .heute--redesign .heute-kennzahl > :is(a, .heute-kennzahl-figure, .heute-answer-value) {
   grid-column: 2;
   grid-row: 1;
-  min-width: 0;
   order: initial;
 }
 .heute--redesign .heute-figures {
@@ -1435,14 +1422,6 @@
   gap: var(--space-xs);
   text-align: left;
 }
-.heute--redesign .heute-booking a,
-.heute--redesign .heute-amount-status > a,
-.heute--redesign .heute-nearest-goal a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  min-width: 44px;
-}
 @media (max-width: 767px) {
   .heute--redesign .heute-kennzahl {
     grid-template-columns: minmax(0, 1fr) 44px;
@@ -1465,4 +1444,104 @@
   align-items: center;
   min-height: 44px;
   min-width: 44px;
+}
+
+/* Reserve the bounded source slots at the actual type size, without placeholder money. */
+.heute--redesign .heute-kennzahlen > .heute-note:first-child {
+  min-block-size: 2lh;
+}
+.heute--redesign .heute-nearest-goal {
+  min-block-size: var(--touch);
+}
+.heute--redesign .heute-wealth-line {
+  min-block-size: 14lh;
+  align-content: start;
+}
+@media (min-width: 1180px) {
+  .heute--redesign .heute-priorities {
+    min-block-size: 17lh;
+  }
+}
+.heute--redesign .heute-primary-answer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+.heute--redesign .heute-primary-source {
+  min-block-size: 1lh;
+}
+.heute--redesign .heute-kennzahl {
+  grid-template-rows: minmax(var(--touch), auto);
+}
+.heute--redesign .heute-verdict-slot {
+  min-block-size: 3lh;
+  margin-bottom: var(--space-sm);
+}
+.heute--redesign .heute-verdict-slot .report-verdict {
+  margin: 0;
+}
+@media (max-width: 767px) {
+  .heute--redesign .heute-priorities {
+    gap: var(--space-sm);
+  }
+  .heute--redesign .heute-attention {
+    padding-block: 0;
+    /* Four source groups, wrapped account text and the retained further-work disclosure. */
+    min-block-size: calc(
+      5 * var(--touch) + 2lh + 1.45 * var(--fs-title) + var(--space-sm) + 8 * var(--space-xs) + 6 *
+        var(--stroke-hairline)
+    );
+  }
+  .heute--redesign .attention-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: center;
+    column-gap: var(--space-sm);
+    row-gap: 0;
+  }
+  .heute--redesign .attention-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: var(--space-sm);
+    max-width: 100%;
+  }
+  .heute--redesign .attention-proposals {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 360px) {
+  .heute--redesign .heute-primary-source {
+    min-block-size: 2lh;
+  }
+}
+
+.heute--redesign .heute-kennzahl > .heute-kennzahl-figure {
+  min-width: 0;
+}
+
+.heute--redesign .heute-account-preview {
+  display: flex;
+}
+.heute--redesign .btn {
+  height: auto;
+  min-height: var(--touch);
+  max-inline-size: 100%;
+  padding-block: var(--space-xs);
+}
+@media (max-width: 360px) {
+  .heute--redesign .attention-row > span,
+  .heute--redesign .attention-row > .attention-actions {
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .heute--redesign .attention-row a {
+    max-inline-size: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }

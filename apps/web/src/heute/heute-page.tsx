@@ -180,15 +180,17 @@ function HeuteBody({
               />
             )}
             <div className="heute-lead-head">
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-expanded={chainOpen}
-                aria-controls="heute-lead-chain"
-                onClick={() => setChainOpen((open) => !open)}
-              >
-                {chainOpen ? 'Herleitung ausblenden' : 'Herleitung zeigen'}
-              </Button>
+              {!REDESIGN_ENABLED && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-expanded={chainOpen}
+                  aria-controls="heute-lead-chain"
+                  onClick={() => setChainOpen((open) => !open)}
+                >
+                  {chainOpen ? 'Herleitung ausblenden' : 'Herleitung zeigen'}
+                </Button>
+              )}
               <DailyBudgetLine data={data} />
             </div>
             {away && (
@@ -239,9 +241,11 @@ function HeuteBody({
             <PrimaryLead data={undefined} pending={pending} open={false} onToggle={() => {}} />
           )}
           <div className="heute-lead-head">
-            <Button variant="ghost" size="sm" disabled>
-              Herleitung zeigen
-            </Button>
+            {!REDESIGN_ENABLED && (
+              <Button variant="ghost" size="sm" disabled>
+                Herleitung zeigen
+              </Button>
+            )}
             <div className="heute-daily-budget">
               <SectionReadNote name="Tagesbudget" pending={pending} />
             </div>
@@ -272,6 +276,7 @@ function HeuteBody({
                 )
               }
             />
+            {REDESIGN_ENABLED && <div className="heute-verdict-slot">{verdict}</div>}
             <div className="heute-figures">
               <PaceFigure
                 label="Ausgegeben"
@@ -337,6 +342,7 @@ function HeuteBody({
       ) : (
         <PaceSectionState
           month={month}
+          verdict={REDESIGN_ENABLED ? verdict : undefined}
           pending={pending}
           failed={read.isError && !pending}
           error={read.error}
@@ -714,10 +720,7 @@ function HeuteBody({
       {REDESIGN_ENABLED ? (
         <>
           <div className="heute-priorities">
-            <div>
-              {lead}
-              {verdict}
-            </div>
+            <div>{lead}</div>
             {attention}
           </div>
           <div className="heute-work-grid">
@@ -773,34 +776,52 @@ function PrimaryLead({
   return (
     <div className="heute-primary">
       <h2>Frei bis Gehalt</h2>
-      {data ? (
-        <button
-          className={`heute-primary-value${data.lead.freeCents < 0 ? ' heute-alert' : ''}`}
-          type="button"
-          data-testid="heute-lead-value"
+      <div className="heute-primary-answer">
+        {data ? (
+          <button
+            className={`heute-primary-value${data.lead.freeCents < 0 ? ' heute-alert' : ''}`}
+            type="button"
+            data-testid="heute-lead-value"
+            aria-expanded={open}
+            aria-controls="heute-lead-chain"
+            aria-describedby={open ? 'heute-lead-chain' : undefined}
+            aria-label={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${open ? 'ausblenden' : 'zeigen'}`}
+            onClick={onToggle}
+          >
+            {eur(data.lead.freeCents)}
+          </button>
+        ) : (
+          <span className="heute-primary-value" aria-busy={pending || undefined}>
+            {pending ? '…' : '–'}
+          </span>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={!data}
           aria-expanded={open}
-          aria-controls="heute-lead-chain"
-          aria-describedby={open ? 'heute-lead-chain' : undefined}
-          aria-label={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${open ? 'ausblenden' : 'zeigen'}`}
+          aria-controls={data ? 'heute-lead-chain' : undefined}
           onClick={onToggle}
         >
-          {eur(data.lead.freeCents)}
-        </button>
-      ) : (
-        <span className="heute-primary-value" aria-busy={pending || undefined}>
-          {pending ? '…' : '–'}
-        </span>
-      )}
+          {open ? 'Herleitung ausblenden' : 'Herleitung zeigen'}
+        </Button>
+      </div>
       <p className="heute-note">
         Envelope-Spielraum für Bedarf und Wunsch nach offenen Rechnungen; kein Kontostand und kein
         Überziehungsrahmen.
       </p>
-      {data && (
-        <p className="heute-note">
-          Stand heute · {longDay(data.stand.today)} · bis {longDay(data.stand.payday.day)} · noch{' '}
-          {data.stand.payday.daysToPayday} Tage
-        </p>
-      )}
+      <p className="heute-note heute-primary-source">
+        {data ? (
+          <>
+            Stand heute · {longDay(data.stand.today)} · bis {longDay(data.stand.payday.day)} · noch{' '}
+            {data.stand.payday.daysToPayday} Tage
+          </>
+        ) : pending ? (
+          'Stand wird noch geladen.'
+        ) : (
+          'Stand nicht verfügbar.'
+        )}
+      </p>
     </div>
   );
 }
@@ -861,12 +882,14 @@ function SectionReadNote({ name, pending }: { name: string; pending: boolean }) 
 /** Only labels and plot geometry are reserved; no synthetic financial read model is created. */
 function PaceSectionState({
   month,
+  verdict,
   pending,
   failed,
   error,
   onRetry,
 }: {
   month: string;
+  verdict?: ReactNode;
   pending: boolean;
   failed: boolean;
   error: unknown;
@@ -887,6 +910,7 @@ function PaceSectionState({
           <span className="heute-state-label">{pending ? 'Wird geladen' : 'Nicht verfügbar'}</span>
         }
       />
+      {verdict && <div className="heute-verdict-slot">{verdict}</div>}
       <div className="heute-figures" aria-hidden="true">
         {['Ausgegeben', 'Plan bis heute', 'Prognose Monatsende'].map((label, index) => (
           <button key={label} type="button" className="heute-figure" disabled>

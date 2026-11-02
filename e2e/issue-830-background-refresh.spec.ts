@@ -1,8 +1,142 @@
 import AxeBuilder from '@axe-core/playwright';
+import type { Locator, Page } from '@playwright/test';
+import { MIN_TARGET_PX } from './ledger-helpers';
 import { sampleTest as test, expect } from './sample';
 
 // Run against the matching build flag; both states preserve their own readiness contract.
 const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+
+const rectsApart = (
+  a: { x: number; y: number; width: number; height: number },
+  b: { x: number; y: number; width: number; height: number },
+) => a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y;
+async function readableControl(control: Locator, scroll: boolean) {
+  if (scroll)
+    await control.evaluate((element) =>
+      element.scrollIntoView({ block: 'center', inline: 'nearest' }),
+    );
+  await expect(control).toBeVisible();
+  const result = await control.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    const text = [];
+    while (walker.nextNode())
+      if (walker.currentNode.textContent?.trim()) {
+        const range = document.createRange();
+        range.selectNodeContents(walker.currentNode);
+        text.push(
+          ...[...range.getClientRects()].map((r) => ({
+            x: r.x,
+            y: r.y,
+            width: r.width,
+            height: r.height,
+          })),
+        );
+      }
+    const radius = Number.parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0;
+    const insetX = Math.min(Math.max(1, radius), box.width / 4);
+    const insetY = Math.min(Math.max(1, radius), box.height / 4);
+    const points = [
+      [box.x + box.width / 2, box.y + box.height / 2],
+      [box.x + insetX, box.y + insetY],
+      [box.right - insetX, box.y + insetY],
+      [box.x + insetX, box.bottom - insetY],
+      [box.right - insetX, box.bottom - insetY],
+    ];
+    return {
+      html: element.outerHTML,
+      box: { x: box.x, y: box.y, width: box.width, height: box.height },
+      text,
+      overlays: [...document.querySelectorAll('.fab, .tabbar, .m-head, .topbar')]
+        .filter((el) => el.checkVisibility())
+        .map((el) => {
+          const r = el.getBoundingClientRect();
+          return { x: r.x, y: r.y, width: r.width, height: r.height };
+        }),
+      hits: points.map(([x, y]) => {
+        const hit = document.elementFromPoint(x!, y!);
+        return element === hit || element.contains(hit);
+      }),
+    };
+  });
+  expect(result.box.width, result.html).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+  expect(result.box.height, result.html).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+  for (const text of result.text) {
+    expect(text.x, result.html).toBeGreaterThanOrEqual(result.box.x);
+    expect(text.x + text.width, result.html).toBeLessThanOrEqual(result.box.x + result.box.width);
+    expect(text.y, result.html).toBeGreaterThanOrEqual(result.box.y);
+    expect(text.y + text.height, result.html).toBeLessThanOrEqual(result.box.y + result.box.height);
+  }
+  for (const overlay of result.overlays)
+    expect(rectsApart(result.box, overlay), result.html).toBe(true);
+  expect(result.hits, result.html).toEqual([true, true, true, true, true]);
+}
+async function readableNextWork(page: Page, enlarged: boolean) {
+  const rows = page.locator('.heute-priorities .heute-attention > .attention-row');
+  await expect(rows).toHaveCount(4);
+  for (const row of await rows.all()) {
+    await row.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
+    const layout = await row.evaluate((element) => {
+      const description = element.querySelector(':scope > span')!;
+      const d = description.getBoundingClientRect();
+      const b = element.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(description);
+      return {
+        box: { x: b.x, y: b.y, width: b.width, height: b.height },
+        description: { x: d.x, y: d.y, width: d.width, height: d.height },
+        lines: [...range.getClientRects()].map((r) => ({
+          x: r.x,
+          y: r.y,
+          width: r.width,
+          height: r.height,
+        })),
+      };
+    });
+    for (const line of layout.lines) {
+      expect(line.x).toBeGreaterThanOrEqual(layout.description.x);
+      expect(line.x + line.width).toBeLessThanOrEqual(
+        layout.description.x + layout.description.width,
+      );
+      expect(line.y).toBeGreaterThanOrEqual(layout.description.y);
+      expect(line.y + line.height).toBeLessThanOrEqual(
+        layout.description.y + layout.description.height,
+      );
+    }
+    const actions = row.locator('a:visible, button:visible, summary:visible');
+    for (const action of await actions.all()) {
+      await readableControl(action, true);
+      const box = (await action.boundingBox())!;
+      const description = await row.locator(':scope > span').boundingBox();
+      const rowBox = (await row.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(rowBox.x);
+      expect(box.x + box.width).toBeLessThanOrEqual(rowBox.x + rowBox.width);
+      expect(box.y).toBeGreaterThanOrEqual(rowBox.y);
+      expect(box.y + box.height).toBeLessThanOrEqual(rowBox.y + rowBox.height);
+      expect(rectsApart(description!, box)).toBe(true);
+      if (enlarged) expect(box.y).toBeGreaterThanOrEqual(description!.y + description!.height);
+    }
+    const actionBoxes = await actions.evaluateAll((elements) =>
+      elements.map((element) => {
+        const b = element.getBoundingClientRect();
+        return { x: b.x, y: b.y, width: b.width, height: b.height };
+      }),
+    );
+    for (let index = 0; index < actionBoxes.length; index++)
+      for (const other of actionBoxes.slice(index + 1))
+        expect(rectsApart(actionBoxes[index]!, other)).toBe(true);
+    if (enlarged) expect(layout.description.width).toBe(layout.box.width);
+  }
+  const boxes = await rows.evaluateAll((elements) =>
+    elements.map((element) => {
+      const b = element.getBoundingClientRect();
+      return { y: b.y, height: b.height };
+    }),
+  );
+  for (let index = 1; index < boxes.length; index++)
+    expect(boxes[index]!.y).toBeGreaterThanOrEqual(boxes[index - 1]!.y + boxes[index - 1]!.height);
+  await page.evaluate(() => window.scrollTo(0, 0));
+}
 
 test('same-context focus refresh preserves money only in the redesign and clears failed reads', async ({
   page,
@@ -86,6 +220,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await expect(primary.getByTestId('heute-lead-value')).toHaveText('988,26 €');
     await expect(primary).toContainText('kein Kontostand und kein Überziehungsrahmen');
     await expect(primary).toContainText('Stand heute · 17.09.2026');
+    await page.evaluate(() => document.fonts.ready);
     await expect(page.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '19101');
     const attention = page.locator('.heute-priorities .heute-attention');
     await expect(attention).toBeVisible();
@@ -106,18 +241,38 @@ for (const colorScheme of ['light', 'dark'] as const) {
       expect(leadBox.y).toBeLessThan(page.viewportSize()!.height);
       expect(workBox.y).toBeLessThan(page.viewportSize()!.height);
     }
+    await readableControl(primary.getByTestId('heute-lead-value'), false);
+    const initial = page.viewportSize()!.height >= 844 ? rows : rows.first();
+    for (const action of await initial.locator('a:visible, button:visible').all())
+      await readableControl(action, false);
+    await readableNextWork(page, false);
     await expect(page.getByRole('region', { name: 'Finanz-Check' })).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'Letzte Buchungen', exact: true }),
     ).toBeVisible();
     const due = page.getByRole('region', { name: 'Fällig 14 Tage' });
     await expect(due.locator('li')).toHaveCount(4);
+    const separated = await due
+      .locator('.heute-account-preview')
+      .first()
+      .evaluate((link) => {
+        const detail = link.parentElement!.querySelector('.heute-upcoming-meta')!;
+        return detail.getBoundingClientRect().top >= link.getBoundingClientRect().bottom;
+      });
+    expect(separated).toBe(true);
     const expand = due.getByRole('button', { name: /Weitere .* Fälligkeiten/ });
     await expand.focus();
     await page.keyboard.press('Space');
     await expect(due.locator('li')).toHaveCount(8);
     await due.getByRole('button', { name: 'Weniger Fälligkeiten' }).click();
     await page.evaluate(() => document.fonts.ready);
+    for (const control of await page
+      .locator('.heute--redesign :is(button, a, summary):visible')
+      .all()) {
+      const box = (await control.boundingBox())!;
+      expect(box.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+      expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    }
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     expect(
       await page.evaluate(
@@ -186,6 +341,21 @@ for (const colorScheme of ['light', 'dark'] as const) {
         if (Number.isFinite(value)) root.style.setProperty(`--fs-${token}`, `${value * 2}px`);
       }
     });
+    await readableControl(primary.getByTestId('heute-lead-value'), true);
+    await expect(primary.getByTestId('heute-lead-value')).toHaveText('988,26 €');
+    await readableNextWork(page, true);
+    const wrapped = [
+      page.getByTestId('heute-month-note').getByRole('button', { name: 'Zum aktuellen Monat' }),
+      due.getByRole('button', { name: /Diesen Monat streichen/ }).first(),
+      due.getByRole('button', { name: /Weitere .* Fälligkeiten/ }),
+    ];
+    for (const control of wrapped) {
+      await readableControl(control, true);
+    }
+    const strike = (await wrapped[1]!.boundingBox())!;
+    const expansion = (await wrapped[2]!.boundingBox())!;
+    expect(rectsApart(strike, expansion)).toBe(true);
+    await page.evaluate(() => window.scrollTo(0, 0));
     const fits = await page.evaluate(
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     );
@@ -211,11 +381,13 @@ for (const colorScheme of ['light', 'dark'] as const) {
             .slice(0, 25),
         ),
       );
+    expect(fits).toBe(true);
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+    // Keep the complete page at CSS-pixel output: 3x WebKit exceeds the bitmap limit.
     await page.screenshot({
       path: info.outputPath(`large-text-${colorScheme}.png`),
       fullPage: true,
+      scale: 'css',
     });
-    expect(fits).toBe(true);
-    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
   });
 }

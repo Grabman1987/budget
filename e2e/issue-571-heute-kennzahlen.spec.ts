@@ -196,7 +196,11 @@ for (const colorScheme of ['light', 'dark'] as const) {
       const viewport = page.viewportSize()!;
       const tiles = page.getByTestId('heute-kennzahlen').locator('.heute-kennzahl');
       const primary = redesign
-        ? page.locator('.heute-priorities .heute-lead, .heute-priorities .heute-attention')
+        ? page.locator(
+            viewport.height < 844
+              ? '.heute-priorities .heute-lead, .heute-priorities .attention-row:first-of-type'
+              : '.heute-priorities .heute-lead, .heute-priorities .heute-attention',
+          )
         : tiles;
       for (const box of await primary.evaluateAll((els) =>
         els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect),

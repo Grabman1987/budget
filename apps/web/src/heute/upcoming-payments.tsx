@@ -74,6 +74,10 @@ export function Upcoming({
               );
             }
             const item = row.item;
+            const sourceDetail =
+              [!item.accountId ? item.accountName : null, item.contactName, item.categoryName]
+                .filter(Boolean)
+                .join(' · ') || 'Ohne weitere Angabe';
             return (
               <li className="heute-upcoming" key={`${item.paymentId}-${item.dueDate}`}>
                 <time dateTime={item.dueDate}>{shortDay(item.dueDate)}</time>
@@ -94,13 +98,11 @@ export function Upcoming({
                         {item.accountName} · Kontovorschau
                       </AppLink>
                     )}
-                    {[
-                      !item.accountId ? item.accountName : null,
-                      item.contactName,
-                      item.categoryName,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ') || 'Ohne weitere Angabe'}
+                    {compact ? (
+                      <span className="heute-upcoming-meta">{sourceDetail}</span>
+                    ) : (
+                      sourceDetail
+                    )}
                   </span>
                 </div>
                 <div className="heute-amount-status">

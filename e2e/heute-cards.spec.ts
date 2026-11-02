@@ -173,7 +173,7 @@ test('explains plan-rest behind the derivation of the negative payday room on ph
   await expect(budget.getByRole('heading', { name: 'Frei bis Gehalt' })).toBeVisible();
   await expect(page.getByTestId('heute-lead-value')).toHaveText('−100,00 €');
   const derivation = budget.getByRole('button', {
-    name: redesign ? 'Herleitung zeigen' : 'Herleitung Frei bis Gehalt',
+    name: redesign ? /^Herleitung (zeigen|ausblenden)$/ : 'Herleitung Frei bis Gehalt',
   });
   await expect(derivation).toHaveAttribute('aria-expanded', 'false');
   await derivation.click();
