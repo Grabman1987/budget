@@ -40,6 +40,16 @@ test('E1 keeps profile fields, dirty decisions, stale drafts and source returns'
   await name.fill('Synthetic profile');
   await form.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByText('Profil gespeichert.', { exact: true })).toBeVisible();
+  const preview = page.getByLabel('Zukunftsvorschau (Tage)');
+  await preview.fill('21');
+  page.once('dialog', (dialog) => dialog.dismiss());
+  await page.getByRole('link', { name: 'Zurück zur Ausgangsseite' }).click();
+  await expect(preview).toHaveValue('21');
+  await page
+    .locator('section[aria-labelledby="preview-title"]')
+    .getByRole('button', { name: 'Verwerfen' })
+    .click();
+  await expect(preview).toHaveValue('35');
   await name.fill('Synthetic unsaved');
   page.once('dialog', (dialog) => dialog.dismiss());
   await page.getByRole('link', { name: 'Zurück zur Ausgangsseite' }).click();

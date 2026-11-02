@@ -17,6 +17,7 @@ import { ProfilePanel } from './profile-settings';
 import { SettingsNav, SettingsBack } from './settings-nav';
 import { SETTINGS_GROUPS } from '../nav/areas';
 import { PROFILE_KEY } from '../shell/use-profile';
+import { FuturePreviewSetting } from './future-preview-setting';
 
 const flag = vi.hoisted(() => ({ enabled: true }));
 vi.mock('../shell/redesign-flag', () => ({
@@ -38,11 +39,24 @@ afterEach(() => {
 
 function mount(node: React.ReactNode = <ProfilePanel />, entry = '/einstellungen/profil') {
   let stored: Profile = { ...EMPTY_PROFILE };
+  let preview = 35;
   const writes: string[] = [];
   vi.stubGlobal(
     'fetch',
     vi.fn(async (path: string, init: RequestInit) => {
       if (init.method !== 'GET') writes.push(`${init.method} ${path}`);
+      if (path === '/api/display-settings') {
+        if (init.method === 'PATCH')
+          preview = (JSON.parse(String(init.body)) as { futurePreviewDays: number })
+            .futurePreviewDays;
+        return new Response(
+          JSON.stringify({
+            futurePreviewDays: preview,
+            accountReminderDays: 14,
+            groupId: 'synthetic-preview',
+          }),
+        );
+      }
       if (init.method === 'PATCH') stored = JSON.parse(String(init.body)) as Profile;
       return new Response(
         JSON.stringify(init.method === 'GET' ? stored : { ...stored, groupId: 'synthetic-group' }),
@@ -86,6 +100,9 @@ function mount(node: React.ReactNode = <ProfilePanel />, entry = '/einstellungen
     router,
     client,
     writes,
+    changePreview: (days: number) => {
+      preview = days;
+    },
     changeStored: (profile: Profile) => {
       stored = profile;
     },
@@ -200,4 +217,19 @@ it.each([true, false])('saves the existing fields with redesign=%s', async (enab
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Speichern' }).hasAttribute('disabled')).toBe(true),
   );
+});
+
+it('ON protects the existing Kontovorschau editor from stale saves and retains its draft', async () => {
+  const { writes, changePreview } = mount(<FuturePreviewSetting />);
+  const input = await screen.findByLabelText('Zukunftsvorschau (Tage)');
+  await waitFor(() => expect((input as HTMLInputElement).value).toBe('35'));
+  await userEvent.clear(input);
+  await userEvent.type(input, '21');
+  changePreview(14);
+  await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+  await screen.findByText(/Die Kontovorschau wurde inzwischen geändert/);
+  expect((input as HTMLInputElement).value).toBe('21');
+  expect(writes).toEqual([]);
+  await userEvent.click(screen.getByRole('button', { name: 'Aktuellen Stand laden' }));
+  expect((input as HTMLInputElement).value).toBe('14');
 });

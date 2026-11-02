@@ -597,7 +597,8 @@ const settingsIndexRoute = createRoute({
   staticData: { meta: SETTINGS_INDEX },
   beforeLoad: ({ location }) => {
     if (isDesktopViewport()) {
-      const to = REDESIGN_ENABLED ? '/einstellungen/profil' : '/einstellungen/konten';
+      if (!REDESIGN_ENABLED) throw redirect({ to: '/einstellungen/konten' as never });
+      const to = '/einstellungen/profil';
       throw redirect({
         href: `${to}${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
         replace: true,

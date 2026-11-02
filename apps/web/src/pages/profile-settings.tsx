@@ -314,11 +314,11 @@ function ProfileForm({ saved }: { saved: Profile }) {
           {maskMoneyText(error)}
         </p>
       )}
-      <div className={REDESIGN_ENABLED ? 'profile-actions' : undefined}>
-        <Button type="submit" disabled={busy || !dirty || stale}>
-          {busy ? 'Speichert …' : 'Speichern'}
-        </Button>
-        {REDESIGN_ENABLED && (
+      {REDESIGN_ENABLED ? (
+        <div className="profile-actions">
+          <Button type="submit" disabled={busy || !dirty || stale}>
+            {busy ? 'Speichert …' : 'Speichern'}
+          </Button>
           <Button
             variant="ghost"
             disabled={busy || (!dirty && !stale)}
@@ -331,8 +331,12 @@ function ProfileForm({ saved }: { saved: Profile }) {
             {' '}
             {stale ? 'Aktuellen Stand laden' : 'Verwerfen'}{' '}
           </Button>
-        )}
-      </div>
+        </div>
+      ) : (
+        <Button type="submit" disabled={busy || !dirty}>
+          {busy ? 'Speichert …' : 'Speichern'}
+        </Button>
+      )}
     </form>
   );
 }

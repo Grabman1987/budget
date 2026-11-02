@@ -143,7 +143,7 @@ export function SettingsBack({ current }: { current: string | undefined }) {
   const label = areaById('einstellungen').registers.find((r) => r.id === current)?.label;
   return (
     <div className="settings-back">
-      <AppLink to="/einstellungen" search={REDESIGN_ENABLED && von ? { von } : {}}>
+      <AppLink to="/einstellungen" {...(REDESIGN_ENABLED && von ? { search: { von } } : {})}>
         <ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" />
         Einstellungen
       </AppLink>
