@@ -198,7 +198,12 @@ async function scene(
   if (profile === 'desktop') {
     expect(initial.viewport).toEqual({ width: 1440, height: 900 });
     expect(initial.pointerCoarse).toBe(false);
-    expect(initial.beforeGrid).toBeLessThanOrEqual(120);
+    if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+      // The ON lead exposes the month chain above the filters; keep the first
+      // working row on screen. OFF retains its original compact 120px contract.
+      const first = await page.locator('.ptable .prow:has(.pname)').first().boundingBox();
+      expect(first!.y + first!.height).toBeLessThanOrEqual(900);
+    } else expect(initial.beforeGrid).toBeLessThanOrEqual(120);
     expect(Math.max(...initial.controls.map((rect) => rect.top))).toBeLessThan(
       Math.min(...initial.controls.map((rect) => rect.bottom)),
     );
