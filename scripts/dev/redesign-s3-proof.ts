@@ -75,6 +75,166 @@ async function search(page: Page, phone: boolean) {
   return { dialog, input };
 }
 
+/** Scope the text probe to shared chrome; each page owns its own enlarged-content checks. */
+export async function verifyPhoneTextReflow(page: Page, origin: string, output: string) {
+  const returnUrl = page.url();
+  await page.goto(`${origin}/?monat=2026-09&period=month`);
+  const period = page.locator('.titleblock-heute .seg');
+  await expect(period).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  const original = await page.evaluate(() => {
+    const root = document.documentElement;
+    const style = getComputedStyle(root);
+    return {
+      style: root.getAttribute('style'),
+      theme: root.getAttribute('data-theme'),
+      sizes: Object.fromEntries(
+        ['body', 'meta', 'label', 'title', 'headline', 'display', 'figure', 'dimension'].map(
+          (name) => [`--fs-${name}`, Number.parseFloat(style.getPropertyValue(`--fs-${name}`))],
+        ),
+      ),
+    };
+  });
+  // Mobile innerWidth may expand to the overflowing content. Never use it as the reflow oracle.
+  const configuredWidth = page.viewportSize()?.width;
+  const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+  const width = Math.min(configuredWidth ?? clientWidth, clientWidth);
+  const results = [];
+  try {
+    for (const theme of ['light', 'dark'] as const) {
+      for (const scale of [1, 2]) {
+        await page.evaluate(
+          ({ theme, scale, original }) => {
+            const root = document.documentElement;
+            if (original.style === null) root.removeAttribute('style');
+            else root.setAttribute('style', original.style);
+            root.setAttribute('data-theme', theme);
+            if (scale === 2)
+              for (const [name, value] of Object.entries(original.sizes))
+                root.style.setProperty(name, `${value * scale}px`);
+          },
+          { theme, scale, original },
+        );
+        await page.evaluate(() => scrollTo(0, 0));
+        await expect(page.locator('.fab')).toBeVisible();
+        const geometry = await page.evaluate(() => {
+          const controls = [
+            ...document.querySelectorAll('.titleblock-heute .seg button, .tabbar a'),
+          ].map((element) => {
+            const bounds = element.getBoundingClientRect().toJSON();
+            const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+            const lines = [];
+            while (walker.nextNode()) {
+              if (!walker.currentNode.textContent?.trim()) continue;
+              const range = document.createRange();
+              range.selectNodeContents(walker.currentNode);
+              for (const bounds of range.getClientRects())
+                lines.push({
+                  left: bounds.left,
+                  right: bounds.right,
+                  top: bounds.top,
+                  bottom: bounds.bottom,
+                });
+            }
+            return { bounds, lines };
+          });
+          return {
+            period: document
+              .querySelector('.titleblock-heute .seg')!
+              .getBoundingClientRect()
+              .toJSON(),
+            tabs: document.querySelector('.tabbar')!.getBoundingClientRect().toJSON(),
+            fab: document.querySelector('.fab')!.getBoundingClientRect().toJSON(),
+            controls,
+          };
+        });
+        for (const bounds of [geometry.period, geometry.tabs, geometry.fab]) {
+          expect(bounds.left).toBeGreaterThanOrEqual(-0.5);
+          expect(bounds.right).toBeLessThanOrEqual(width + 0.5);
+        }
+        expect(geometry.fab.bottom).toBeLessThanOrEqual(geometry.tabs.top + 0.5);
+        for (const { bounds, lines } of geometry.controls) {
+          expect(bounds.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+          expect(bounds.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+          expect(lines.length).toBeGreaterThan(0);
+          for (const line of lines) {
+            // Text must fit its own control, not merely the document's overflowed viewport.
+            expect(line.left).toBeGreaterThanOrEqual(bounds.left - 0.5);
+            expect(line.right).toBeLessThanOrEqual(Math.min(width, bounds.right) + 0.5);
+            expect(line.top).toBeGreaterThanOrEqual(bounds.top - 0.5);
+            expect(line.bottom).toBeLessThanOrEqual(bounds.bottom + 0.5);
+          }
+        }
+        for (const control of await page
+          .locator('.titleblock-heute .seg button:not(:disabled), .tabbar a')
+          .all()) {
+          await control.focus();
+          await expect(control).toBeFocused();
+        }
+        const tabs = page.locator('.tabbar a');
+        await tabs.first().focus();
+        for (let index = 0; index < (await tabs.count()); index++) {
+          await expect(tabs.nth(index)).toBeFocused();
+          if (index + 1 < (await tabs.count())) await page.keyboard.press('Tab');
+        }
+        expect(
+          (await new AxeBuilder({ page }).include('.titleblock-heute').include('.tabbar').analyze())
+            .violations,
+        ).toEqual([]);
+        await page.evaluate(() => scrollTo(0, 0));
+        await screenshot(page, join(output, `shell-text-${width}-${theme}-${scale}x.png`));
+        const lastControl = page
+          .locator('main')
+          .locator('a[href], button:not(:disabled), input:not([type="hidden"]), select, summary')
+          .filter({ visible: true })
+          .last();
+        await lastControl.focus();
+        await expect(lastControl).toBeFocused();
+        await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+        // Deliberate downward travel hides the FAB; a one-pixel upward scroll reveals it again.
+        await page.evaluate(
+          () =>
+            new Promise<void>((done) =>
+              requestAnimationFrame(() => requestAnimationFrame(() => done())),
+            ),
+        );
+        await page.evaluate(() => scrollBy(0, -1));
+        await expect(page.locator('.fab')).toBeVisible();
+        const last = await rect(lastControl);
+        const fab = await rect(page.locator('.fab'));
+        expect(last.y + last.height).toBeLessThanOrEqual(fab.y + 0.5);
+        results.push({
+          width,
+          theme,
+          scale,
+          geometry,
+          lastControlBottom: last.y + last.height,
+          fabTop: fab.y,
+        });
+      }
+    }
+    writeFileSync(
+      join(output, `shell-text-${width}.json`),
+      JSON.stringify(results, null, 2) + '\n',
+    );
+  } finally {
+    await page.evaluate(({ style, theme }) => {
+      const root = document.documentElement;
+      if (style === null) root.removeAttribute('style');
+      else root.setAttribute('style', style);
+      if (theme === null) root.removeAttribute('data-theme');
+      else root.setAttribute('data-theme', theme);
+    }, original);
+    expect(
+      await page.evaluate(() => ({
+        style: document.documentElement.getAttribute('style'),
+        theme: document.documentElement.getAttribute('data-theme'),
+      })),
+    ).toEqual({ style: original.style, theme: original.theme });
+    await page.goto(returnUrl);
+  }
+}
+
 /** Real browser proof shared by the existing OFF/ON/PWA smoke; no financial mocks or writes. */
 export async function verifyRedesignShell(
   page: Page,
@@ -295,6 +455,7 @@ export async function verifyRedesignShell(
     await page.locator('.sidebar-foot > a.profile').click();
     await expect(page).toHaveURL(`${origin}/einstellungen/profil`);
   }
+  if (enabled && phone) await verifyPhoneTextReflow(page, origin, output);
   const geometry = await page.evaluate(() => ({
     client: document.documentElement.clientWidth,
     scroll: document.documentElement.scrollWidth,
