@@ -137,6 +137,8 @@ test('year events: create, edit recurrence, scenario without writes, off/delete 
     { day: '2026-11-30', label: 'Urlaub', cents: -10_001 },
     { day: '2026-12-31', label: 'Urlaub', cents: -10_001 },
   ]);
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    await page.getByRole('button', { name: 'Jahr', exact: true }).click();
   await page.getByRole('link', { name: 'Prognose', exact: true }).click();
   await expect(
     page.getByRole('heading', { name: 'Liquiditätsprognose', exact: true }),
