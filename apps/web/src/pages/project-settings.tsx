@@ -10,6 +10,10 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import { PageFrame } from './placeholder-page';
 import { PAGES } from '../nav/pages';
 import '../reports/payroll-projects.css';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsDraftGuard } from './settings-draft-guard';
+import { SettingsRowMenu } from './settings-row-menu';
+
 const projectsQuery = queryOptions({
   queryKey: [...LEDGER_KEY, 'project-management'],
   retry: false,
@@ -50,6 +54,96 @@ export function ProjectSettings() {
     );
     setBusy(false);
   };
+  if (REDESIGN_ENABLED)
+    return (
+      <PageFrame meta={PAGES.find((p) => p.path === '/einstellungen/projekte')!}>
+        <section className="settings-projects-v2" aria-labelledby="settings-projects-title">
+          <div className="settings-primary-head">
+            <h2 id="settings-projects-title">Projekte</h2>
+          </div>
+          <SettingsDraftGuard dirty={name.trim() !== ''} busy={busy} />
+          <form
+            className="settings-project-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void save();
+            }}
+          >
+            <label>
+              Projektname
+              <input
+                value={name}
+                required
+                maxLength={120}
+                disabled={busy}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </label>
+            <Button type="submit" disabled={busy}>
+              {editing ? 'Umbenennen' : 'Projekt anlegen'}
+            </Button>
+            {(editing || name) && (
+              <Button
+                variant="ghost"
+                disabled={busy}
+                onClick={() => {
+                  if (window.confirm('Ungespeicherte Änderungen verwerfen?')) {
+                    setEditing(null);
+                    setName('');
+                  }
+                }}
+              >
+                Abbrechen
+              </Button>
+            )}
+          </form>
+          {query.isPending && <LoadingNote what="Projekte" />}
+          {query.isError && (
+            <ErrorNote what="Projekte" error={query.error} onRetry={() => void query.refetch()} />
+          )}
+          {query.data?.projects.length === 0 && <p>Noch keine Projekte angelegt.</p>}
+          {query.data && (
+            <div className="settings-surface">
+              {query.data.projects.map((p) => (
+                <div className="settings-row" key={p.id}>
+                  <div>
+                    <strong>{p.name}</strong>
+                    <small>{p.archivedAt ? 'archiviert' : 'aktiv'}</small>
+                  </div>
+                  <SettingsRowMenu name={p.name}>
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => {
+                        if (!name || window.confirm('Ungespeicherte Änderungen verwerfen?')) {
+                          setEditing(p.id);
+                          setName(p.name);
+                          document
+                            .querySelector<HTMLInputElement>('.settings-project-form input')
+                            ?.focus();
+                        }
+                      }}
+                    >
+                      Umbenennen
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => void archive(p.id, !p.archivedAt)}
+                    >
+                      {p.archivedAt ? 'Aktivieren' : 'Archivieren'}
+                    </Button>
+                  </SettingsRowMenu>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="settings-source-stamp">
+            Archivierte Projekte behalten ihre Buchungen und bleiben im Report sichtbar.
+          </p>
+        </section>
+      </PageFrame>
+    );
   return (
     <PageFrame meta={PAGES.find((p) => p.path === '/einstellungen/projekte')!}>
       <section className="pp-settings">
