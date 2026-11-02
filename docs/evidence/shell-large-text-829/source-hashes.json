@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    {
+      "path": "packages/ui/src/styles/components.css",
+      "sha256": "afe651faaf90c2fe94cd55289d651b1118e0c7655f761ce1565f7651cd0576a3"
+    },
+    {
+      "path": "apps/web/src/shell/shell.css",
+      "sha256": "d3692fcb5d2bb37a3963f2d4e778f8ba98a8b4626ed6a446bc27e48bf789f8a8"
+    },
+    {
+      "path": "scripts/dev/redesign-s3-proof.ts",
+      "sha256": "0aee8a85d3fa818a2481dd35ec65dae38bf75d4bc80fe4379528841376926c6a"
+    }
+  ]
+}
