@@ -1402,6 +1402,18 @@ function PlanTopBar({
   phone: boolean;
 }) {
   const [active, setActive] = useState<string | null>(null);
+  const head = useRef<HTMLElement>(null);
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const element = head.current;
+    if (!REDESIGN_ENABLED || !phone || !element) return;
+    const stickyTop = Number.parseFloat(getComputedStyle(element).top) || 0;
+    const start = element.getBoundingClientRect().top + window.scrollY - stickyTop;
+    const sync = () => setCompact(window.scrollY > start + 1);
+    sync();
+    window.addEventListener('scroll', sync, { passive: true });
+    return () => window.removeEventListener('scroll', sync);
+  }, [phone]);
   const disclosureToggle = (element: HTMLDetailsElement, key: string) => {
     if (element.open) {
       document
@@ -1507,7 +1519,12 @@ function PlanTopBar({
   );
   return (
     <section
-      className={cx('plan-topbar', REDESIGN_ENABLED && 'plan-topbar-v2')}
+      ref={head}
+      className={cx(
+        'plan-topbar',
+        REDESIGN_ENABLED && 'plan-topbar-v2',
+        REDESIGN_ENABLED && phone && compact && 'is-compact',
+      )}
       aria-label={REDESIGN_ENABLED ? 'Monatsbudget' : 'Monat planen'}
     >
       {REDESIGN_ENABLED ? (

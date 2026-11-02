@@ -142,6 +142,17 @@
   overflow-wrap: anywhere;
 }
 @media (max-width: 767px) {
+  .plan.plan-month-v2 .plan-topbar-v2.is-compact {
+    padding: var(--space-xs);
+  }
+  .plan-month-v2 .plan-topbar-v2.is-compact .plan-month-scope,
+  .plan-month-v2 .plan-topbar-v2.is-compact .chain-inline,
+  .plan-month-v2 .plan-topbar-v2.is-compact .plan-hint {
+    display: none;
+  }
+  .plan-month-v2 .plan-topbar-v2.is-compact .plan-month-lead {
+    gap: 0;
+  }
   /* Match the legacy selector's specificity. Its inline-flex + 10px gap otherwise
      wins over the compact two-line lead. Keep an explicit chevron beside the label. */
   .plan.plan-month-v2 .plan-popover summary.plan-tba {

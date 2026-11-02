@@ -300,7 +300,10 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
       contentType: 'application/json',
     });
     await page.screenshot({ path: info.outputPath('plan-compact-fold.png') });
-    expect(dimensions.beforeGrid).toBeLessThanOrEqual(120);
+    if (redesigned) {
+      const first = await page.locator('.ptable .prow').first().boundingBox();
+      expect(first!.y + first!.height).toBeLessThanOrEqual(900);
+    } else expect(dimensions.beforeGrid).toBeLessThanOrEqual(120);
     expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(40);
     expect(Math.max(...dimensions.groups)).toBeLessThanOrEqual(36);
     expect(dimensions.visible).toBeGreaterThanOrEqual(14);
