@@ -19,7 +19,7 @@ order and destinations, wrapping their text within equal columns. Their shared
 height remains64px normally and grows to144px at200%, plus the existing safe-area
 inset. The sheet's bottom padding and FAB position consume that same height.
 A viewport width cap and viewport-relative FAB anchoring keep fixed controls
-within the configured screen even if an independently owned page overflows.
+within the configured horizontal screen bounds even if an independently owned page overflows.
 No page content is hidden or clipped by this repair.
 
 Only two CSS files and the existing S3 browser proof change. Styles are scoped
@@ -70,6 +70,13 @@ August other-month note and full-page200%/320 regression remain mandatory after
 composition. No full-page reflow or owner/device acceptance is claimed here.
 The current-month route preserves the actual canonical month/period controls
 without adopting or suppressing H1 content failures.
+
+These checks do not prove vertical containment within the configured844px
+viewport. In the committed enlarged Chromium results, inherited page overflow
+expands the mobile layout viewport: the tab bar bottom is953px at320 and877px
+at390. The probe proves configured horizontal bounds and relative FAB/tab/final-
+control clearance. Full viewport and page-reflow acceptance remain deferred to
+the composed H1 verification.
 
 [Normal Chromium320](chromium-320-light-1x.png) ·
 [Enlarged Chromium320](chromium-320-light-2x.png) ·
