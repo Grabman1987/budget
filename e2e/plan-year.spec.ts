@@ -70,8 +70,9 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
   const groupButton = mobile
     ? page.locator('.year-phone-summary').filter({ hasText: groupName })
     : page.getByRole('button', { name: groupName, exact: true });
-  await expect(groupButton).toHaveAttribute('aria-expanded', 'false');
-  await groupButton.click();
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  await expect(groupButton).toHaveAttribute('aria-expanded', redesign ? 'true' : 'false');
+  if (!redesign) await groupButton.click();
   const row = mobile
     ? page.locator('.year-phone-row', { hasText: categoryName }).first()
     : page.locator('.year-sheet .year-table tbody tr', { hasText: categoryName });
@@ -87,6 +88,14 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
   await expect(row).toContainText('−30,02 €');
   if (!mobile) await expect(row.locator('.year-end')).toHaveText('−27,99 €');
   await page.getByRole('button', { name: 'Verfügbar', exact: true }).click();
+  if (redesign) {
+    await expect(page).toHaveURL(/kennzahl=availableCents/);
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Verfügbar', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  }
   await expect(row).toContainText('69,99 €');
   if (mobile) {
     await page
@@ -114,11 +123,11 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
     fullPage: true,
   });
   await page.getByRole('button', { name: 'Vorjahr', exact: true }).click();
-  await expect(page).toHaveURL(/monat=2025-01/);
+  await expect(page).toHaveURL(new RegExp(`monat=2025-${mobile && redesign ? '02' : '01'}`));
   await expect(page.getByRole('heading', { name: '2025', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Nächstes Jahr', exact: true }).click();
-  await expect(page).toHaveURL(/monat=2026-01/);
-  await groupButton.click();
+  await expect(page).toHaveURL(new RegExp(`monat=2026-${mobile && redesign ? '02' : '01'}`));
+  if (!redesign) await groupButton.click();
   await expect(row).toBeVisible();
   expect(writes).toEqual([]);
 });

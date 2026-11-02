@@ -11,6 +11,7 @@ import {
   type PlanYearRow,
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ChevronDown, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { eur } from '../ledger/format';
@@ -19,6 +20,9 @@ import { areaById } from '../nav/areas';
 import { monthLabel } from '../nav/month';
 import { AppLink } from '../shell/app-link';
 import { useMonth } from '../shell/use-month';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { PageMenu } from '../nav/page-menu';
+import { validatePlanYearSearch } from './plan-year-search';
 import { budgetMonthsQuery, type BudgetMonthView } from './budget-api';
 import { CategoryIcon } from './category-icon';
 import './plan-year.css';
@@ -76,17 +80,21 @@ export function PlanYearPage() {
         }
         fields={[{ label: 'Ansicht', value: 'Jahresplanung', labelOnMobile: true }]}
       />
-      <Registers
-        label="Register von Plan"
-        current="jahr"
-        items={areaById('plan').registers.map((r) => ({ id: r.id, label: r.label, href: r.to }))}
-        renderLink={(item, props) => (
-          <AppLink to={item.href ?? '/plan/monat'} search={{ monat: month }} {...props}>
-            {item.label}
-          </AppLink>
-        )}
-      />
-      <div className="plan-year">
+      {REDESIGN_ENABLED ? (
+        <PageMenu area={areaById('plan')} current="jahr" />
+      ) : (
+        <Registers
+          label="Register von Plan"
+          current="jahr"
+          items={areaById('plan').registers.map((r) => ({ id: r.id, label: r.label, href: r.to }))}
+          renderLink={(item, props) => (
+            <AppLink to={item.href ?? '/plan/monat'} search={{ monat: month }} {...props}>
+              {item.label}
+            </AppLink>
+          )}
+        />
+      )}
+      <div className={cx('plan-year', REDESIGN_ENABLED && 'plan-year-v2')}>
         {failed ? (
           <ErrorNote
             what="Jahresplan"
@@ -139,6 +147,7 @@ export function PlanYearPage() {
               key={year}
               year={year}
               selectedMonth={month}
+              onMonth={setMonth}
               months={months}
               views={views}
             />
@@ -149,21 +158,43 @@ export function PlanYearPage() {
   );
 }
 
-function YearOverview({
+export function YearOverview({
   year,
   selectedMonth,
   months,
   views,
+  onMonth,
 }: {
   year: number;
   selectedMonth: string;
   months: string[];
   views: BudgetMonthView[];
+  onMonth: (month: string) => void;
 }) {
   useAmountPrivacy();
-  const [metric, setMetric] = useState<Metric>('assignedCents');
-  const [phoneMonth, setPhoneMonth] = useState(selectedMonth);
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const search = validatePlanYearSearch(useSearch({ strict: false }) as Record<string, unknown>);
+  const navigate = useNavigate();
+  const [legacyMetric, setLegacyMetric] = useState<Metric>('assignedCents');
+  const metric = REDESIGN_ENABLED ? (search.kennzahl ?? 'assignedCents') : legacyMetric;
+  const setMetric = (next: Metric) =>
+    REDESIGN_ENABLED
+      ? void navigate({
+          to: '.',
+          search: ((previous: Record<string, unknown>) => ({
+            ...previous,
+            kennzahl: next,
+          })) as never,
+        })
+      : setLegacyMetric(next);
+  const [legacyMonth, setLegacyMonth] = useState(selectedMonth);
+  const phoneMonth = REDESIGN_ENABLED ? selectedMonth : legacyMonth;
+  const setPhoneMonth = REDESIGN_ENABLED ? onMonth : setLegacyMonth;
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(
+    () =>
+      new Set(
+        REDESIGN_ENABLED ? views.flatMap((view) => view.groups.map((group) => group.id)) : [],
+      ),
+  );
   const isCollapsed = (id: string) => !expanded.has(id);
   const rows = planYearRows(
     year,

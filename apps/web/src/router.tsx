@@ -19,6 +19,7 @@ import { REDESIGN_ENABLED } from './shell/redesign-flag';
 import { clearDeviceFinancialData } from './pwa/local-data';
 import { validateBookingsSearch } from './ledger/bookings-search';
 import { validatePlanFilterSearch, type PlanFilterSearch } from './budget/plan-filters';
+import { validatePlanYearSearch } from './budget/plan-year-search';
 import { validateInboxSearch } from './inbox/navigation';
 import { accountsQuery } from './ledger/queries';
 import { captureContinuation, validateCaptureSearch } from './ledger/capture-link';
@@ -416,12 +417,15 @@ const planYearRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_JAHR.path,
   staticData: { meta: PLAN_JAHR },
-  validateSearch: (search: Record<string, unknown>) => ({
-    ereignis:
-      typeof search['ereignis'] === 'string' && search['ereignis'].length <= 64
-        ? search['ereignis']
-        : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>) =>
+    REDESIGN_ENABLED
+      ? validatePlanYearSearch(search)
+      : {
+          ereignis:
+            typeof search['ereignis'] === 'string' && search['ereignis'].length <= 64
+              ? search['ereignis']
+              : undefined,
+        },
   component: lazyRouteComponent(() => import('./budget/plan-year-page'), 'PlanYearPage'),
 });
 const planExpectedRoute = createRoute({

@@ -2,6 +2,36 @@
   padding: 28px 32px 72px;
   min-width: 0;
 }
+.plan-year.plan-year-v2 {
+  padding: 0 0 var(--space-xl);
+  display: grid;
+  gap: var(--space-lg);
+}
+.plan-year-v2 .year-planning {
+  margin-bottom: 0;
+}
+.plan-year-v2 .year-metric button,
+.plan-year-v2 .year-toolbar .btn,
+.plan-year-v2 .year-phone-summary,
+.plan-year-v2 .year-phone-row a {
+  min-height: var(--touch);
+}
+.plan-year-v2 .year-table th:first-child {
+  min-width: 160px;
+}
+@media (max-width: 767px) {
+  .plan-year.plan-year-v2 {
+    padding-inline: 0;
+  }
+  .plan-year-v2 .year-toolbar {
+    padding: var(--space-md);
+    gap: var(--space-sm);
+  }
+  .plan-year-v2 .year-metric {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
 .year-planning {
   margin-bottom: 32px;
   overflow: hidden;
