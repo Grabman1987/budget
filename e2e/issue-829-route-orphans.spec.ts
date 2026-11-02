@@ -343,8 +343,12 @@ const direct = [
 for (const [row, url, body] of direct)
   test(`A2 sample baseline ${row}: ${url}`, async ({ page }) => {
     const desktopIndex = row === 38 && page.viewportSize()!.width >= 768;
-    const path = desktopIndex ? '/einstellungen/konten' : new URL(url, 'http://fixture').pathname;
-    const expectedBody = desktopIndex ? 'accountSettings' : body;
+    const path = desktopIndex
+      ? on
+        ? '/einstellungen/profil'
+        : '/einstellungen/konten'
+      : new URL(url, 'http://fixture').pathname;
+    const expectedBody = desktopIndex ? (on ? 'profile' : 'accountSettings') : body;
     await page.goto(url);
     await loaded(page, path, expectedBody);
     await reload(page, path, expectedBody);

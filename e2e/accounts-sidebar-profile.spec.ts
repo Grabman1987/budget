@@ -59,7 +59,10 @@ test('Einstellungen › Profil fills name and initials in the shell', async ({ p
   await page.goto('/einstellungen/profil');
   await expect(page.getByRole('heading', { name: 'Profil', exact: true })).toBeVisible();
   await expect(page.getByText('Statistik Austria').first()).toBeVisible();
-  const avatar = isPhone(testInfo) ? page.locator('.m-head .avatar') : page.locator('.profile');
+  const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  if (isPhone(testInfo) && on) await expect(page.locator('.m-head .avatar')).toHaveCount(0);
+  const avatar =
+    isPhone(testInfo) && !on ? page.locator('.m-head .avatar') : page.locator('.profile');
   await expect(avatar).toContainText('NU');
   const save = page
     .locator('section[aria-labelledby="profile-title"]')

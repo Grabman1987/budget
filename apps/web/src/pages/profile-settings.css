@@ -19,6 +19,23 @@
   width: 100%;
   min-height: 44px;
 }
+[data-budget-redesign='1'] .profile-settings {
+  margin-top: 0;
+  max-width: 900px;
+  padding: 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sheet);
+  background: var(--surface);
+}
+[data-budget-redesign='1'] .profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+[data-budget-redesign='1'] .profile-settings .btn {
+  min-height: var(--touch);
+  min-width: var(--touch);
+}
 @media (max-width: 640px) {
   .profile-grid {
     grid-template-columns: 1fr;

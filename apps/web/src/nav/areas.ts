@@ -73,7 +73,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
   {
     id: 'einstellungen',
     label: 'Einstellungen',
-    to: '/einstellungen/konten',
+    to: REDESIGN_ENABLED ? '/einstellungen/profil' : '/einstellungen/konten',
     registers: [
       { id: 'konten', label: 'Konten', to: '/einstellungen/konten' },
       ...(REDESIGN_ENABLED
@@ -111,23 +111,41 @@ export interface SettingsGroup {
 }
 
 /** Register ids of Einstellungen per group, in display order. Every register is in exactly one. */
-const SETTINGS_GROUP_IDS: ReadonlyArray<{ id: string; label: string; registers: string[] }> = [
-  {
-    id: 'daten',
-    label: 'Daten',
-    registers: [
-      'konten',
-      ...(REDESIGN_ENABLED ? ['kontakte'] : []),
-      'kategorien',
-      'warenkorb',
-      'projekte',
-      'anlageklassen',
-      'depots',
-    ],
-  },
-  { id: 'automatik', label: 'Automatik', registers: ['regelwerk', 'zuordnung', 'datenquellen'] },
-  { id: 'system', label: 'System', registers: ['sicherheit', 'export', 'profil'] },
-];
+const SETTINGS_GROUP_IDS: ReadonlyArray<{ id: string; label: string; registers: string[] }> =
+  REDESIGN_ENABLED
+    ? [
+        { id: 'profil', label: 'Profil & Sicherheit', registers: ['profil', 'sicherheit'] },
+        { id: 'konten', label: 'Konten & Depots', registers: ['konten', 'depots', 'kontakte'] },
+        {
+          id: 'regeln',
+          label: 'Kategorien & Regeln',
+          registers: ['kategorien', 'regelwerk', 'zuordnung', 'warenkorb'],
+        },
+        { id: 'verbindungen', label: 'Verbindungen', registers: ['datenquellen'] },
+        { id: 'vermoegen', label: 'Vermögen', registers: ['anlageklassen'] },
+        { id: 'daten', label: 'Daten', registers: ['export', 'projekte'] },
+      ]
+    : [
+        {
+          id: 'daten',
+          label: 'Daten',
+          registers: [
+            'konten',
+            ...(REDESIGN_ENABLED ? ['kontakte'] : []),
+            'kategorien',
+            'warenkorb',
+            'projekte',
+            'anlageklassen',
+            'depots',
+          ],
+        },
+        {
+          id: 'automatik',
+          label: 'Automatik',
+          registers: ['regelwerk', 'zuordnung', 'datenquellen'],
+        },
+        { id: 'system', label: 'System', registers: ['sicherheit', 'export', 'profil'] },
+      ];
 
 export const SETTINGS_GROUPS: ReadonlyArray<SettingsGroup> = SETTINGS_GROUP_IDS.map((group) => ({
   id: group.id,

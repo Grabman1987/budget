@@ -76,6 +76,9 @@ for (const theme of ['light', 'dark'] as const) {
     const navigation = page.getByRole('navigation', { name: 'Einstellungen', exact: true });
     await expect(navigation).toBeVisible();
     if (on) {
+      const group = navigation.locator('details').filter({ hasText: 'Konten & Depots' });
+      if (!(await group.evaluate((node) => (node as HTMLDetailsElement).open)))
+        await group.locator('summary').click();
       await navigation.getByRole('link', { name: 'Kontakte', exact: true }).click();
       await expect(page.getByRole('table', { name: 'Kontakt-Stammdaten' })).toContainText(
         contact.name,

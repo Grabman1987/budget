@@ -29,6 +29,9 @@ import { PROFILE_KEY, PROFILE_PATH, profileQuery } from '../shell/use-profile';
 import { PageFrame } from './placeholder-page';
 import './profile-settings.css';
 import { PrivacyButton } from '../shell/privacy-button';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsDraftGuard } from './settings-draft-guard';
+import { undoGroup } from '../ledger/api';
 
 interface Draft {
   name: string;
@@ -49,6 +52,13 @@ const draftOf = (p: Profile): Draft => ({
   region: p.region ?? '',
 });
 
+const sameProfile = (a: Profile, b: Profile) =>
+  a.name === b.name &&
+  a.initials === b.initials &&
+  a.birthDate === b.birthDate &&
+  a.household === b.household &&
+  a.region === b.region;
+
 type Errors = Partial<Record<'birthDate' | 'household', string>>;
 
 /** Einstellungen › Profil: who the owner is, for the later comparison with Statistik Austria. */
@@ -56,6 +66,7 @@ export function ProfileSettingsPage() {
   useAmountPrivacy();
   return (
     <PageFrame meta={PROFILE_META} revealCurrentRegister>
+      {REDESIGN_ENABLED && <ProfilePanel />}
       <section className="profile-settings" aria-labelledby="privacy-title">
         <SectionHead id="privacy-title" title="Privatmodus" />
         <PrivacyButton text />
@@ -66,7 +77,7 @@ export function ProfileSettingsPage() {
       </section>
       <FuturePreviewSetting />
       <FuturePreviewSetting reminder />
-      <ProfilePanel />
+      {!REDESIGN_ENABLED && <ProfilePanel />}
     </PageFrame>
   );
 }
@@ -91,7 +102,20 @@ export function ProfilePanel() {
           </Button>
         </p>
       )}
-      {query.data && <ProfileForm key={JSON.stringify(query.data)} saved={query.data} />}
+      {REDESIGN_ENABLED && query.dataUpdatedAt > 0 && (
+        <p className="text-muted">
+          Profil geladen:{' '}
+          {new Intl.DateTimeFormat('de-AT', { dateStyle: 'medium', timeStyle: 'short' }).format(
+            query.dataUpdatedAt,
+          )}
+        </p>
+      )}
+      {query.data && (
+        <ProfileForm
+          key={REDESIGN_ENABLED ? 'profile' : JSON.stringify(query.data)}
+          saved={query.data}
+        />
+      )}
     </section>
   );
 }
@@ -100,7 +124,14 @@ function ProfileForm({ saved }: { saved: Profile }) {
   useAmountPrivacy();
   const client = useQueryClient();
   const toast = useToast();
-  const [draft, setDraft] = useState<Draft>(() => draftOf(saved));
+  const [edit, setEdit] = useState<{ source: Profile; draft: Draft }>();
+  const baseline = edit?.source ?? saved;
+  const draft = edit?.draft ?? draftOf(saved);
+  const setDraft = (update: (draft: Draft) => Draft) =>
+    setEdit((previous) => ({
+      source: previous?.source ?? saved,
+      draft: update(previous?.draft ?? draftOf(saved)),
+    }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [errors, setErrors] = useState<Errors>({});
@@ -116,11 +147,12 @@ function ProfileForm({ saved }: { saved: Profile }) {
     region: draft.region === '' ? null : (draft.region as RegionCode),
   };
   const dirty =
-    body.name !== saved.name ||
-    body.initials !== saved.initials ||
-    body.birthDate !== saved.birthDate ||
-    body.household !== saved.household ||
-    body.region !== saved.region;
+    body.name !== baseline.name ||
+    body.initials !== baseline.initials ||
+    body.birthDate !== baseline.birthDate ||
+    body.household !== baseline.household ||
+    body.region !== baseline.region;
+  const stale = REDESIGN_ENABLED && !sameProfile(baseline, saved);
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
@@ -139,6 +171,16 @@ function ProfileForm({ saved }: { saved: Profile }) {
     if (Object.keys(found).length > 0) return;
     setBusy(true);
     try {
+      if (REDESIGN_ENABLED) {
+        const latest = await request<Profile>('GET', PROFILE_PATH);
+        if (!sameProfile(latest, baseline)) {
+          client.setQueryData(PROFILE_KEY, latest);
+          setError(
+            'Das Profil wurde inzwischen geändert. Dein Entwurf bleibt erhalten. Lade den aktuellen Stand, bevor du erneut speicherst.',
+          );
+          return;
+        }
+      }
       const result = await request<Profile & { groupId: string }>('PATCH', PROFILE_PATH, body);
       const profile: Profile = {
         name: result.name,
@@ -148,7 +190,19 @@ function ProfileForm({ saved }: { saved: Profile }) {
         region: result.region,
       };
       client.setQueryData(PROFILE_KEY, profile);
-      toast.show({ message: 'Profil gespeichert.' });
+      setEdit(undefined);
+      toast.show({
+        message: 'Profil gespeichert.',
+        ...(REDESIGN_ENABLED
+          ? {
+              actionLabel: 'Rückgängig',
+              onAction: () =>
+                void undoGroup(result.groupId)
+                  .then(() => client.invalidateQueries({ queryKey: PROFILE_KEY }))
+                  .catch((e: unknown) => toast.show({ message: errorText(e) })),
+            }
+          : {}),
+      });
     } catch (e) {
       setError(
         e instanceof ApiError && e.status === 422
@@ -168,6 +222,12 @@ function ProfileForm({ saved }: { saved: Profile }) {
       }}
       noValidate
     >
+      {REDESIGN_ENABLED && <SettingsDraftGuard dirty={dirty} busy={busy} />}
+      {stale && (
+        <p role="alert">
+          Das Profil wurde inzwischen geändert. Dein Entwurf wurde nicht überschrieben.
+        </p>
+      )}
       <div className="profile-grid">
         <Field label="Name" hint="So steht es in der Seitenleiste.">
           {({ id, describedBy }) => (
@@ -254,9 +314,25 @@ function ProfileForm({ saved }: { saved: Profile }) {
           {maskMoneyText(error)}
         </p>
       )}
-      <Button type="submit" disabled={busy || !dirty}>
-        {busy ? 'Speichert …' : 'Speichern'}
-      </Button>
+      <div className={REDESIGN_ENABLED ? 'profile-actions' : undefined}>
+        <Button type="submit" disabled={busy || !dirty || stale}>
+          {busy ? 'Speichert …' : 'Speichern'}
+        </Button>
+        {REDESIGN_ENABLED && (
+          <Button
+            variant="ghost"
+            disabled={busy || (!dirty && !stale)}
+            onClick={() => {
+              setEdit(undefined);
+              setErrors({});
+              setError(undefined);
+            }}
+          >
+            {' '}
+            {stale ? 'Aktuellen Stand laden' : 'Verwerfen'}{' '}
+          </Button>
+        )}
+      </div>
     </form>
   );
 }

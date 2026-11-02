@@ -79,16 +79,26 @@ const LEGACY_SETTINGS_GROUPS: readonly ExpectedSettingsGroup[] = [
 /** The caller reads the actual rendered build marker after navigation, never a Node env flag. */
 export function expectedSettingsGroups(redesign: boolean): readonly ExpectedSettingsGroup[] {
   if (!redesign) return LEGACY_SETTINGS_GROUPS;
-  return LEGACY_SETTINGS_GROUPS.map((group) =>
-    group.id === 'daten'
-      ? {
-          ...group,
-          items: [
-            group.items[0]!,
-            { id: 'kontakte', label: 'Kontakte', to: CONTACT_SETTINGS_PATH },
-            ...group.items.slice(1),
-          ],
-        }
-      : group,
-  );
+  const legacy = LEGACY_SETTINGS_GROUPS.flatMap((group) => group.items);
+  const item = (id: string) => legacy.find((entry) => entry.id === id)!;
+  return [
+    { id: 'profil', label: 'Profil & Sicherheit', items: [item('profil'), item('sicherheit')] },
+    {
+      id: 'konten',
+      label: 'Konten & Depots',
+      items: [
+        item('konten'),
+        item('depots'),
+        { id: 'kontakte', label: 'Kontakte', to: CONTACT_SETTINGS_PATH },
+      ],
+    },
+    {
+      id: 'regeln',
+      label: 'Kategorien & Regeln',
+      items: [item('kategorien'), item('regelwerk'), item('zuordnung'), item('warenkorb')],
+    },
+    { id: 'verbindungen', label: 'Verbindungen', items: [item('datenquellen')] },
+    { id: 'vermoegen', label: 'Vermögen', items: [item('anlageklassen')] },
+    { id: 'daten', label: 'Daten', items: [item('export'), item('projekte')] },
+  ];
 }
