@@ -176,7 +176,8 @@ it('marks only the new Contacts entry current on its actual query/hash bookmark'
   const current = within(navigation)
     .getAllByRole('link')
     .filter((link) => link.getAttribute('aria-current') === 'page');
-  expect(current.map((link) => link.textContent)).toEqual(['Kontakte']);
+  expect(current).toHaveLength(1);
+  expect(current[0]).toBe(within(navigation).getByRole('link', { name: /^Kontakte$/ }));
 });
 
 it('shows zero and retained contact identities without financial report reads; opening/cancelling keeps bookings, audit and source history intact', async () => {
