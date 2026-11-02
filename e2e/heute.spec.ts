@@ -455,10 +455,15 @@ test('a debt account in credit adds to the composition and opens the matching de
     'aria-label',
     /100,00/,
   );
-  const credit = composition.getByRole('button', { name: /^Guthaben auf Schuldkonten/ });
+  const credit = composition.getByRole('button', {
+    name: redesign ? /^Schuldkonten \(netto\)/ : /^Guthaben auf Schuldkonten/,
+  });
   await expect(credit).toHaveAttribute('aria-label', /20,00/);
   await credit.press('Enter');
-  const panel = page.getByRole('region', { name: 'Guthaben auf Schuldkonten', exact: true });
+  const panel = page.getByRole('region', {
+    name: redesign ? 'Guthaben auf Schuldkonten (netto)' : 'Guthaben auf Schuldkonten',
+    exact: true,
+  });
   await expect(panel.getByRole('link', { name: 'Schuldkonto im Guthaben' })).toBeVisible();
   await expect(panel).toContainText('20,00 €');
   await page.goBack();
