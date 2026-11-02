@@ -117,8 +117,9 @@ it.each([false, true])(
         </ToastProvider>
       </QueryClientProvider>,
     );
-    const shortcut = screen.queryByRole('button', { name: 'Sichere Vorschläge prüfen (1)' });
+    const shortcut = screen.queryByRole('button', { name: 'Alle sicheren bestätigen (1)' });
     expect(shortcut !== null).toBe(enabled);
+    expect(document.querySelector('.bank-selection-controls') !== null).toBe(enabled);
     expect(requests).toEqual([]);
     if (!enabled) return;
     const user = userEvent.setup();

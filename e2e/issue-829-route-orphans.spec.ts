@@ -1,3 +1,4 @@
+import { inboxFilters } from './ledger-helpers';
 // A2 positive browser bodies, using the real sample ledger and isolated import-detail fixture.
 // Expected patterns: approved 00-bestand rows 1..54; bodies: s3-a2-body-bindings-20261031.md.
 // Run each owned OFF/ON artifact separately with A2_EXPECT_REDESIGN=0/1; this never activates a flag.
@@ -537,8 +538,10 @@ async function importBody(p: Page, detail: boolean) {
     await expect(p.locator('.source-inbox-detail pre')).toContainText('check-a');
     await expect(p.getByRole('link', { name: 'Datenquelle prüfen', exact: true })).toBeVisible();
   } else {
-    if ((await p.getByLabel('Zeitraum der Aufgaben').inputValue()) !== 'current')
+    if ((await p.getByLabel('Zeitraum der Aufgaben').inputValue()) !== 'current') {
+      await inboxFilters(p);
       await p.getByLabel('Zeitraum der Aufgaben').selectOption('current');
+    }
     await openPruefenSource(p, 'Weitere Aufgaben');
     const group = p.getByRole('button', { name: /Synthetische Datenprüfung.*2 Aufgaben/ });
     if ((await group.getAttribute('aria-expanded')) !== 'true') await group.click();

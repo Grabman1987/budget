@@ -207,6 +207,11 @@ function mount() {
   );
 }
 
+async function openActions(user = userEvent.setup()) {
+  const summary = screen.queryByLabelText('Kontenaktionen');
+  if (summary && !(summary.parentElement as HTMLDetailsElement).open) await user.click(summary);
+}
+
 it.each([false, true])(
   'retains canonical signed, unknown and zero figures with redesign %s',
   async (enabled) => {
@@ -217,6 +222,7 @@ it.each([false, true])(
       expect(screen.getByTestId('budget-accounts-balance').textContent).toBe('120,00 €'),
     );
     expect(container.querySelector('[data-redesign="account-overview"]') !== null).toBe(enabled);
+    if (enabled) await openActions();
     expect(screen.queryByRole('link', { name: 'Alle Buchungen' }) !== null).toBe(enabled);
     expect(
       [...container.querySelectorAll('[data-testid="account-group-value"]')].map(
@@ -231,7 +237,12 @@ it.each([false, true])(
       container.querySelector('[data-account-id="unknown"] [data-testid="account-value"]')
         ?.textContent,
     ).toBe('Nicht verfügbar');
-    expect(screen.getByRole('link', { name: '4 von 5 Konten geprüft' })).toBeTruthy();
+    expect(
+      screen.getByRole('link', { name: enabled ? '4 von 5 geprüft' : '4 von 5 Konten geprüft' }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('columnheader', { name: enabled ? 'Saldo' : 'Wert in EUR' }),
+    ).toBeTruthy();
     await waitFor(() => expect(client.isFetching()).toBe(0));
     expect(requests).toContain('GET /api/accounts/series?from=2026-09-21&to=2026-10-21&quality=1');
     expect(requests.every((request) => request.startsWith('GET '))).toBe(true);
@@ -246,7 +257,8 @@ it('keeps all bookings reachable without accounts or review work', async () => {
   await screen.findByText(
     'Keine offenen Konten. Lege ein Konto an, um hier Saldo und Prüfstand zu sehen.',
   );
-  expect(screen.getByRole('link', { name: '0 von 0 Konten geprüft' })).toBeTruthy();
+  expect(screen.getByRole('link', { name: '0 von 0 geprüft' })).toBeTruthy();
+  await openActions();
   expect(screen.getByRole('link', { name: 'Alle Buchungen' }).getAttribute('href')).toBe(
     '/konten/buchungen',
   );
@@ -260,12 +272,13 @@ it('collapses an ON group without losing its total or review summary and reveals
   const user = userEvent.setup();
   const { container } = mount();
   await screen.findByRole('link', { name: /^Synthetic Alpha / });
-  const group = screen.getByRole('button', { name: 'Budget-Konten Alle geprüft' });
+  const group = screen.getByRole('button', { name: 'Budget-Konten Prüfung alle 14 Tage' });
   expect(container.querySelectorAll('.overview-review-track > span')).toHaveLength(5);
   await user.click(group);
   expect(group.getAttribute('aria-expanded')).toBe('false');
   expect(screen.queryByRole('link', { name: /^Synthetic Alpha / })).toBeNull();
   expect(screen.getAllByText('120,00 €').length).toBeGreaterThan(0);
+  await openActions(user);
   await user.click(screen.getByRole('button', { name: 'Reihenfolge ändern' }));
   expect(group.getAttribute('aria-expanded')).toBe('true');
   expect(group.hasAttribute('disabled')).toBe(true);
@@ -287,6 +300,7 @@ it('retains closed residuals, source explanation, table and accessible ordering 
   await waitFor(() =>
     expect(container.querySelector('.overview-detail .chart-data-table')).toBeTruthy(),
   );
+  await openActions(user);
   await user.click(screen.getByRole('button', { name: 'Reihenfolge ändern' }));
   expect(
     screen.getByRole('button', { name: 'Synthetic Alpha nach oben' }).hasAttribute('disabled'),

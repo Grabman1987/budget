@@ -1,0 +1,332 @@
+.redesign-register-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding-inline: 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.redesign-register-toolbar > .kupcoming-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  min-width: 0;
+  border: 0;
+  padding: 0 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-meta);
+  text-align: left;
+}
+.redesign-register-toolbar > .kupcoming-toggle > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+.redesign-register-toolbar .kbooking-legend {
+  position: relative;
+  margin: 0;
+}
+.redesign-register-toolbar .kbooking-legend > summary {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  list-style: none;
+}
+.redesign-register-toolbar .kbooking-legend > summary::before,
+.redesign-register-toolbar .kbooking-legend > summary::-webkit-details-marker {
+  display: none;
+}
+.redesign-register-toolbar .kbooking-legend > .konten-menu-content {
+  position: absolute;
+  inset-inline-end: 0;
+  z-index: 15;
+  width: min(420px, calc(100vw - 48px));
+  padding: 16px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.redesign-register-toolbar + .kbooking-tools:not([data-selection-mode='1']) {
+  display: none;
+}
+.ktx.ktx-redesign {
+  border: 0;
+  font-size: var(--fs-table);
+  line-height: var(--lh-table);
+  background: var(--surface);
+}
+.ktx-redesign thead th {
+  height: 28px;
+  border-bottom: 1px solid var(--rule-strong);
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  font-weight: 500;
+  text-transform: uppercase;
+}
+.ktx-redesign .kcol-flag,
+.ktx-redesign .kcol-status {
+  width: 44px;
+}
+.ktx-redesign .kcol-date {
+  width: 68px;
+}
+.ktx-redesign .kcol-category {
+  width: 20%;
+}
+.ktx-redesign .kcol-note {
+  width: 14%;
+}
+.ktx-redesign .kcol-money {
+  width: 100px;
+}
+.ktx-redesign tr[data-booking] > td {
+  height: 44px;
+  padding-inline: 8px;
+  border-bottom: 1px solid var(--rule);
+}
+.ktx-redesign :is(.kname-btn, .kcat-btn, .kcell-edit, .kflagbtn, .kstatus-btn) {
+  min-height: 44px;
+}
+.ktx-redesign :is(.kflagbtn, .kstatus-btn) {
+  min-width: 44px;
+}
+.ktx-redesign .kmonth > th {
+  height: 28px;
+  padding: 4px 14px;
+  background: var(--surface-2);
+  border-block: 1px solid var(--rule);
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  font-weight: 650;
+  text-align: left;
+}
+.bookings-redesign fieldset:has(> .redesign-register-toolbar) {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+@media (max-width: 767px) {
+  .ktx-redesign :is(colgroup, thead) {
+    display: none;
+  }
+  .ktx-redesign .kmonth {
+    display: block;
+    padding: 0;
+  }
+  .ktx-redesign .kmonth > th {
+    display: block;
+    width: 100%;
+    min-height: 28px;
+  }
+  .ktx-redesign tr[data-booking]:not(.is-upcoming) .kx-amount:empty,
+  .ktx-redesign tr[data-occurrence] .kx-amount:empty {
+    display: none;
+  }
+  .ktx-redesign.ktx-all tr[data-booking]:not(.is-upcoming) {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) minmax(44px, 30%) 44px;
+    grid-template-areas: 'flag payee amount status';
+    align-items: center;
+    gap: 0 4px;
+    padding: 0;
+    min-height: 48px;
+  }
+  .ktx-redesign.ktx-all tr[data-booking]:not([data-selection-mode='1']) .kx-check,
+  .ktx-redesign.ktx-all tr[data-booking][data-selection-mode='1'] .kx-flag {
+    display: none;
+  }
+  .ktx-redesign.ktx-all tr[data-booking][data-selection-mode='1'] .kx-check {
+    display: flex;
+    grid-area: flag;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+  }
+  .ktx-redesign.ktx-all
+    tr[data-booking]:not(.is-upcoming)
+    :is(.kx-date, .kx-cat, .kx-note, .kx-acct, .kx-run) {
+    display: none;
+  }
+  .ktx-redesign.ktx-all tr[data-booking]:not(.is-upcoming) > td {
+    height: auto;
+    padding: 0;
+    min-width: 0;
+    border: 0;
+  }
+  .ktx-redesign.ktx-all tr[data-booking]:not(.is-upcoming) > td.kx-payee {
+    position: relative;
+    grid-area: payee;
+    min-height: 48px;
+    padding-block: 24px 4px;
+  }
+  .ktx-redesign.ktx-all tr[data-booking]:not(.is-upcoming) .kname-btn {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-start;
+    min-height: 48px;
+    height: 100%;
+    width: 100%;
+    padding: 2px 0 0;
+    overflow: hidden;
+  }
+  .ktx-redesign.ktx-all .kaccount-mobile-meta {
+    display: flex;
+    gap: 4px;
+    min-height: 18px;
+    font-size: var(--fs-meta);
+    color: var(--ink-2);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .ktx-redesign.ktx-all .kaccount-mobile-meta > * {
+    flex-shrink: 0;
+  }
+  .ktx-redesign.ktx-all .kaccount-mobile-meta > .kcat,
+  .ktx-redesign.ktx-all .kaccount-mobile-meta .kx-mobile-note {
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ktx-redesign.ktx-all .kselect-all {
+    min-height: 44px;
+  }
+}
+.register-day-totals > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.register-day-totals dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 4px;
+  font-size: var(--fs-meta);
+}
+.register-day-totals dd {
+  margin: 0;
+  font-family: var(--font-tech);
+}
+/* Override the legacy account colgroup without changing its OFF widths. */
+.ktx.ktx-redesign .kcol-flag,
+.ktx.ktx-redesign .kcol-status {
+  width: 44px;
+}
+.ktx.ktx-redesign .kcol-date {
+  width: 68px;
+}
+.ktx.ktx-redesign .kcol-category {
+  width: 20%;
+}
+.ktx.ktx-redesign .kcol-note {
+  width: 14%;
+}
+.ktx.ktx-redesign .kcol-money {
+  width: 100px;
+}
+@media (min-width: 768px) {
+  .ktx.ktx-redesign .kname-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .ktx.ktx-redesign .kname-btn > .kname-s {
+    flex: 1;
+    min-width: 0;
+  }
+  .ktx.ktx-redesign .kbooking-edit-mark {
+    flex-shrink: 0;
+  }
+}
+@media (max-width: 767px) {
+  .ktx.ktx-redesign .kbooking-edit-mark {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .ktx.ktx-redesign {
+    table-layout: fixed;
+  }
+  .ktx.ktx-redesign .kaccount-mobile-meta {
+    display: none;
+  }
+  .ktx.ktx-redesign .kcol-select {
+    width: 44px;
+  }
+  .ktx.ktx-redesign .kcol-account {
+    width: 15%;
+  }
+  .ktx.ktx-redesign tr[data-booking] > td {
+    padding-block: 0;
+  }
+  .ktx.ktx-redesign :is(.kname-btn, .kcat-btn) {
+    width: 100%;
+  }
+  .ktx.ktx-redesign :is(.kname-s, .kcat, .kx-note > span, .kx-acct > span) {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 768px) {
+  .ktx.ktx-redesign tr[data-occurrence] > td {
+    height: 44px;
+    padding-block: 0;
+  }
+}
+
+@media (hover: hover) and (min-width: 768px) {
+  .ktx.ktx-redesign .kschedule-line {
+    position: relative;
+    min-height: 44px;
+  }
+  .ktx.ktx-redesign .kschedule-actions {
+    position: absolute;
+    inset-inline-start: calc(100% + 4px);
+    inset-block-start: 0;
+    z-index: 5;
+    width: max-content;
+    background: var(--surface);
+  }
+}
+@media (max-width: 767px) {
+  .ktx.ktx-redesign tr.is-upcoming {
+    grid-template-columns: 44px minmax(0, 1fr) minmax(44px, 30%) 44px;
+    grid-template-areas: 'flag payee amount status' '. cat acct status' '. date run status';
+  }
+  .ktx.ktx-redesign tr.is-upcoming .kx-amount:empty {
+    display: none;
+  }
+  .ktx.ktx-redesign tr.is-upcoming .kschedule-name {
+    position: static;
+    height: auto;
+    min-height: 44px;
+    width: auto;
+  }
+}
+/* Fine-pointer legacy account rules use 36px controls; ON keeps the shared 44px target. */
+@media (min-width: 768px) {
+  .ktx.ktx-redesign tr[data-booking]:not(.is-upcoming) > td {
+    height: 44px;
+    padding-block: 0;
+  }
+  .ktx.ktx-redesign
+    :is(.kname-btn, .kcat-btn, .kcell-edit, .kflagbtn, .kstatus-btn, .kinline .input, .select-sm) {
+    min-height: 44px;
+    height: 44px;
+  }
+}

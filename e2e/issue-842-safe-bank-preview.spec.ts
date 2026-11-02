@@ -1,8 +1,9 @@
+import { bankPreviewControl, toast } from './ledger-helpers';
+
 import { randomUUID } from 'node:crypto';
 import { openDatabase, schema } from '@budget/db';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
-import { toast } from './ledger-helpers';
 
 test.use({ ledgerToday: '2026-09-17', bankingConfigured: true });
 
@@ -95,20 +96,20 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
   await page.goto(`/konten/pruefen?bankSource=${sourceId}`);
   await expect(page.locator('.bank-inbox-row')).toHaveCount(2);
   const redesign = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
-  const shortcut = page.getByRole('button', { name: /Sichere Vorschläge prüfen/ });
+  const shortcut = page.getByRole('button', { name: /Alle sicheren bestätigen/ });
   await expect(shortcut).toHaveCount(redesign ? 1 : 0);
   if (!redesign) return;
-  await expect(shortcut).toHaveText('Sichere Vorschläge prüfen (0)');
+  await expect(shortcut).toHaveText('Alle sicheren bestätigen (0)');
   const writes: string[] = [];
   page.on('request', (req) => {
     if (req.method() === 'POST') writes.push(new URL(req.url()).pathname);
   });
   const safe = page.locator('.bank-inbox-row').filter({ hasText: 'Synthetic safe' });
-  await safe.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  await (await bankPreviewControl(safe)).click();
   const candidate = page.getByRole('dialog', { name: 'Buchung übernehmen' });
   await expect(candidate.getByText('Synthetic explicit rule', { exact: true })).toBeVisible();
   await candidate.getByRole('button', { name: 'Schließen', exact: true }).click();
-  await expect(shortcut).toHaveText('Sichere Vorschläge prüfen (1)');
+  await expect(shortcut).toHaveText('Alle sicheren bestätigen (1)');
   await shortcut.click();
   const preview = page.getByRole('dialog', { name: 'Bankauswahl prüfen' });
   await expect(preview).toContainText('1 ausgewählt · 1 bestätigen · 0 übersprungen');

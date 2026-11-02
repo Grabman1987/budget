@@ -9,6 +9,7 @@ import { bookingsInfiniteQuery } from './queries';
 import { LoadOlder } from './load-older';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 /** Bookings per page of the continuous account history. */
 const PAGE_SIZE = 100;
@@ -31,7 +32,10 @@ export function AccountRegister({
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   return (
     <>
-      <div className="head kh" id={`account-register-${account.id}`}>
+      <div
+        className={REDESIGN_ENABLED ? 'head kh sr-only' : 'head kh'}
+        id={`account-register-${account.id}`}
+      >
         <h2>Buchungen</h2>
         {page && <span className="aside">{pluralBookings(page.total)}</span>}
       </div>

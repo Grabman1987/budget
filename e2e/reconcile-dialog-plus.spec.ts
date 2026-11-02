@@ -1,3 +1,4 @@
+import { accountBankReview, redesignLoaded } from './ledger-helpers';
 import { randomUUID } from 'node:crypto';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
@@ -61,9 +62,14 @@ test('takes an undated bank balance, captures the missing booking and locks only
     staged.close();
   }
   await page.goto(`/konten/${account.id}`);
-  await page
-    .getByRole('button', { name: 'Nie geprüft – jetzt prüfen · Kontostand prüfen', exact: true })
-    .click();
+  await (
+    (await redesignLoaded(page))
+      ? page.getByTestId('account-review-badge')
+      : page.getByRole('button', {
+          name: 'Nie geprüft – jetzt prüfen · Kontostand prüfen',
+          exact: true,
+        })
+  ).click();
   const dialog = page.getByRole('dialog', { name: 'Kontostand prüfen · Giro Muster', exact: true });
   await dialog.getByRole('button', { name: /Bankstand übernehmen/ }).click();
   await expect(dialog.getByLabel('Stichtag')).toHaveValue('01.10.2026');
@@ -112,6 +118,7 @@ test('takes an undated bank balance, captures the missing booking and locks only
     status: 'pending',
   });
   await page.reload();
+  await accountBankReview(page);
   await page.getByRole('button', { name: 'Abgleich sperren bis heute' }).click();
   await expect(page.getByText('Abgeglichen bis: 01.10.2026', { exact: false })).toBeVisible();
   const rows = await getBookings();
@@ -143,9 +150,14 @@ test('custom adjustment date/category creates one reviewed booking and supports 
     groupId: group.id,
   });
   await page.goto(`/konten/${account.id}`);
-  await page
-    .getByRole('button', { name: 'Nie geprüft – jetzt prüfen · Kontostand prüfen', exact: true })
-    .click();
+  await (
+    (await redesignLoaded(page))
+      ? page.getByTestId('account-review-badge')
+      : page.getByRole('button', {
+          name: 'Nie geprüft – jetzt prüfen · Kontostand prüfen',
+          exact: true,
+        })
+  ).click();
   const dialog = page.getByRole('dialog', { name: /Kontostand prüfen/ });
   await dialog.getByLabel('Stichtag').fill('01.10.2026');
   await dialog.getByLabel('Saldo laut Bank', { exact: true }).fill('99');

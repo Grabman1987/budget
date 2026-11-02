@@ -1,6 +1,8 @@
 import { Button, SectionHead, useToast } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Paperclip, Camera, Loader2 } from 'lucide-react';
 import { ApiError, notifyApiWrite, request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { nativeCurrency } from '../ledger/format';
@@ -25,7 +27,15 @@ const receiptQuery = (bookingId?: string) => ({
 });
 
 /** Attach to a saved booking, or capture first into the inbox. All writes use shared undo toasts. */
-export function ReceiptSection({ bookingId }: { bookingId?: string }) {
+export function ReceiptSection({
+  bookingId,
+  actionsHost,
+  uploadOnly = false,
+}: {
+  bookingId?: string;
+  actionsHost?: Element | null;
+  uploadOnly?: boolean;
+}) {
   const heading = useId(),
     uploadId = useId(),
     cameraId = useId();
@@ -33,7 +43,7 @@ export function ReceiptSection({ bookingId }: { bookingId?: string }) {
     camera = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false),
     [linking, setLinking] = useState<string | null>(null);
-  const receipts = useQuery(receiptQuery(bookingId));
+  const receipts = useQuery({ ...receiptQuery(bookingId), enabled: !uploadOnly });
   const unlinked = useQuery({ ...receiptQuery(), enabled: Boolean(bookingId) });
   const write = useBudgetWrite(),
     toast = useToast();
@@ -79,46 +89,77 @@ export function ReceiptSection({ bookingId }: { bookingId?: string }) {
     await write(run, () => message);
     setBusy(false);
   };
+  const actions = (
+    <div className="receipt-actions">
+      {actionsHost && busy && (
+        <span className="sr-only" role="status">
+          Beleg wird gespeichert …
+        </span>
+      )}
+      <input
+        ref={picker}
+        id={uploadId}
+        className="sr-only"
+        hidden={Boolean(actionsHost)}
+        tabIndex={-1}
+        type="file"
+        accept="image/*,application/pdf"
+        aria-label="Belegdatei auswählen"
+        disabled={busy}
+        onChange={(e) => {
+          void upload(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+      <input
+        ref={camera}
+        id={cameraId}
+        className="sr-only"
+        hidden={Boolean(actionsHost)}
+        tabIndex={-1}
+        type="file"
+        accept="image/*,application/pdf"
+        capture="environment"
+        aria-label="Beleg fotografieren"
+        disabled={busy}
+        onChange={(e) => {
+          void upload(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+      <Button variant="ghost" disabled={busy} onClick={() => picker.current?.click()}>
+        {actionsHost &&
+          (busy ? (
+            <Loader2 className="spin" size={16} aria-hidden="true" />
+          ) : (
+            <Paperclip size={16} aria-hidden="true" />
+          ))}
+        <span>Datei anhängen</span>
+      </Button>
+      <Button variant="ghost" disabled={busy} onClick={() => camera.current?.click()}>
+        {actionsHost && <Camera size={16} aria-hidden="true" />}
+        <span>Foto aufnehmen</span>
+      </Button>
+    </div>
+  );
+  if (uploadOnly)
+    return (
+      <section
+        className="receipt-upload-only"
+        aria-label="Beleg unter Prüfen speichern"
+        aria-busy={busy}
+      >
+        {actionsHost ? createPortal(actions, actionsHost) : actions}
+        <p className="sr-only">
+          Neue Belege werden zunächst unter Prüfen gespeichert und können einer gespeicherten
+          Buchung zugeordnet werden.
+        </p>
+      </section>
+    );
   return (
     <section className="receipt-section" aria-labelledby={heading} aria-busy={busy}>
       <SectionHead id={heading} title={bookingId ? 'Beleg' : 'Beleg ohne Buchung'} />
-      <div className="receipt-actions">
-        <input
-          ref={picker}
-          id={uploadId}
-          className="sr-only"
-          tabIndex={-1}
-          type="file"
-          accept="image/*,application/pdf"
-          aria-label="Belegdatei auswählen"
-          disabled={busy}
-          onChange={(e) => {
-            void upload(e.target.files?.[0]);
-            e.target.value = '';
-          }}
-        />
-        <input
-          ref={camera}
-          id={cameraId}
-          className="sr-only"
-          tabIndex={-1}
-          type="file"
-          accept="image/*,application/pdf"
-          capture="environment"
-          aria-label="Beleg fotografieren"
-          disabled={busy}
-          onChange={(e) => {
-            void upload(e.target.files?.[0]);
-            e.target.value = '';
-          }}
-        />
-        <Button variant="ghost" disabled={busy} onClick={() => picker.current?.click()}>
-          Datei anhängen
-        </Button>
-        <Button variant="ghost" disabled={busy} onClick={() => camera.current?.click()}>
-          Foto aufnehmen
-        </Button>
-      </div>
+      {actionsHost ? createPortal(actions, actionsHost) : actions}
       <p className="receipt-hint">
         JPEG, PNG, WebP, HEIC/HEIF oder PDF · höchstens 15 MB.{' '}
         {busy ? 'Wird gespeichert …' : 'HEIC/HEIF und PDF behalten ihre Metadaten.'}

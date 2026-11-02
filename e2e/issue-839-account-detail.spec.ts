@@ -50,10 +50,9 @@ for (const theme of ['light', 'dark'] as const) {
       expect(box!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
       await jump.press('Enter');
       await expect(page).toHaveURL(new RegExp(`#account-register-${account.id}$`));
+      await page.getByText('Dokumente und Kontoauszüge', { exact: true }).click();
       await expect(page.getByRole('region', { name: 'Dokumente und Kontoauszüge' })).toBeVisible();
-      await expect(
-        page.locator('.kacct').getByText('Stand 17.09.2026', { exact: true }),
-      ).toBeVisible();
+      await expect(page.getByText('Stand 17.09.2026', { exact: true })).toBeVisible();
     }
     const writes: string[] = [];
     const previews: string[] = [];
@@ -78,7 +77,9 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(dialog).toBeHidden();
     await expect(toast(page)).toContainText('Rückgängig');
     await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
-    await expect(page.getByTestId('account-review-badge')).toContainText('Nie geprüft');
+    await expect(page.getByTestId('account-review-badge')).toContainText(
+      redesign ? 'Kontostand prüfenfällig' : 'Nie geprüft',
+    );
     expect(writes).toEqual([`POST /api/accounts/${account.id}/reconciliation`, 'POST /api/undo']);
     await expect(page.getByTestId('account-balance')).toHaveText('98,77 €');
     if (redesign) {

@@ -1,3 +1,4 @@
+import { accountDocuments } from './ledger-helpers';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import {
@@ -133,6 +134,7 @@ for (const theme of ['light', 'dark'] as const)
       const before = financial();
       await page.goto(`/konten/${accountId}`);
       await setTheme(page, theme);
+      await accountDocuments(page);
       const launch = page.getByRole('button', { name: 'Abrechnung hochladen', exact: true });
       await launch.focus();
       await page.keyboard.press('Enter');

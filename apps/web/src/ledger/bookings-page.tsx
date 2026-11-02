@@ -14,12 +14,12 @@ import {
 } from '@budget/ui';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { ChevronDown, MoreHorizontal, Plus, X } from 'lucide-react';
+import { ChevronDown, MoreHorizontal, Plus, X, ListChecks } from 'lucide-react';
 import { todayInVienna } from '@budget/domain';
 import { useEffect, useMemo, useState } from 'react';
 import { budgetQuery } from '../budget/budget-api';
 import { KONTEN_BUCHUNGEN_META } from '../nav/pages';
-import { PageFrame } from '../pages/placeholder-page';
+import { KontenFrame } from './konten-frame';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { BookingTable, type Selection } from './booking-table';
 import { BookingSelectionBar, type BulkOutcome } from './booking-selection-bar';
@@ -182,8 +182,70 @@ export function BookingsPage() {
         : { sortierung: key, richtung: key === 'date' ? 'desc' : 'asc' },
     );
 
+  const headerTools = (
+    <div className="kbar kbookings-bar">
+      {REDESIGN_ENABLED && (
+        <div className="bookings-redesign-heading">
+          <span className="kmeta">Stand {longDay(today)}</span>
+        </div>
+      )}
+      {isPhone && (
+        <Button
+          variant="ghost"
+          disabled={pending}
+          aria-pressed={selecting}
+          onClick={() => {
+            setSelecting((value) => !value);
+            setSelected(new Set());
+          }}
+        >
+          {REDESIGN_ENABLED && <ListChecks size={16} aria-hidden="true" />}
+          <span className={REDESIGN_ENABLED ? 'sr-only' : undefined}>
+            {selecting ? 'Auswahl beenden' : 'Auswählen'}
+          </span>
+        </Button>
+      )}
+      <Button
+        size="sm"
+        disabled={pending}
+        onClick={() => setPanel({ mode: 'create', accountId: search.konto })}
+      >
+        <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
+        <span className={REDESIGN_ENABLED ? 'sr-only' : undefined}>Buchung erfassen</span>
+      </Button>
+      <details className="kregister-actions">
+        <summary aria-label="Weitere Buchungsaktionen">
+          <MoreHorizontal size={20} strokeWidth={1.5} aria-hidden="true" />
+        </summary>
+        <div className="kregister-menu">
+          <BookingViews
+            search={search}
+            disabled={pending}
+            onOpen={(next) => {
+              if (!pending) void navigate({ to: '/konten/buchungen', search: next as never });
+            }}
+          />
+          <a
+            className="btn btn-ghost"
+            href={filteredBookingsCsvUrl({
+              ...filter,
+              to: filter.to && filter.to < today ? filter.to : today,
+            })}
+            download
+          >
+            Aktuellen Filter als CSV exportieren
+          </a>
+        </div>
+      </details>
+    </div>
+  );
   return (
-    <PageFrame meta={KONTEN_BUCHUNGEN_META}>
+    <KontenFrame
+      meta={KONTEN_BUCHUNGEN_META}
+      view="bookings"
+      sourceDay={today}
+      headerTools={headerTools}
+    >
       <div
         className={REDESIGN_ENABLED ? 'kview bookings-redesign' : 'kview'}
         data-redesign={REDESIGN_ENABLED ? 'bookings' : undefined}
@@ -193,58 +255,7 @@ export function BookingsPage() {
             Zurück zur Report-Zelle
           </AppLink>
         )}
-        <div className="kbar kbookings-bar">
-          {REDESIGN_ENABLED && (
-            <div className="bookings-redesign-heading">
-              <span className="kmeta">Stand {longDay(today)}</span>
-            </div>
-          )}
-          {isPhone && (
-            <Button
-              variant="ghost"
-              disabled={pending}
-              aria-pressed={selecting}
-              onClick={() => {
-                setSelecting((value) => !value);
-                setSelected(new Set());
-              }}
-            >
-              {selecting ? 'Auswahl beenden' : 'Auswählen'}
-            </Button>
-          )}
-          <Button
-            size="sm"
-            disabled={pending}
-            onClick={() => setPanel({ mode: 'create', accountId: search.konto })}
-          >
-            <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
-            Buchung erfassen
-          </Button>
-          <details className="kregister-actions">
-            <summary aria-label="Weitere Buchungsaktionen">
-              <MoreHorizontal size={20} strokeWidth={1.5} aria-hidden="true" />
-            </summary>
-            <div className="kregister-menu">
-              <BookingViews
-                search={search}
-                disabled={pending}
-                onOpen={(next) => {
-                  if (!pending) void navigate({ to: '/konten/buchungen', search: next as never });
-                }}
-              />
-              <a
-                className="btn btn-ghost"
-                href={filteredBookingsCsvUrl({
-                  ...filter,
-                  to: filter.to && filter.to < today ? filter.to : today,
-                })}
-                download
-              >
-                Aktuellen Filter als CSV exportieren
-              </a>
-            </div>
-          </details>
-        </div>
+        {!REDESIGN_ENABLED && headerTools}
         <section aria-labelledby="filter-title">
           <h2 className="sr-only" id="filter-title">
             Filter
@@ -439,7 +450,7 @@ export function BookingsPage() {
         />
       </div>
       <BookingPanel state={panel} onClose={() => setPanel(null)} />
-    </PageFrame>
+    </KontenFrame>
   );
 }
 

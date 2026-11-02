@@ -4,6 +4,7 @@ import { setAmountsHidden } from '@budget/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { expect, it, vi } from 'vitest';
 import { BookingTable } from './booking-table';
+import { BookingLegend } from './booking-legend';
 import { accountsQuery, lookupsQuery } from './queries';
 import type { ListedBooking } from './types';
 import type { UpcomingModel } from './upcoming-register';
@@ -46,6 +47,42 @@ const booking: ListedBooking = {
     },
   ],
 };
+
+it.each([false, true])(
+  'keeps native cents and explicit editing in the reference columns with redesign %s',
+  (enabled) => {
+    flags.REDESIGN_ENABLED = enabled;
+    const { container } = setup([booking, { ...booking, id: 'income', amountCents: 1234 }]);
+    expect(
+      [...container.querySelectorAll('thead th')].map((node) => node.textContent?.trim()),
+    ).toEqual(
+      enabled
+        ? [
+            'Markierung',
+            'Datum',
+            'Empfänger',
+            'Kategorie',
+            'Notiz',
+            'Ausgang',
+            'Eingang',
+            'Saldo',
+            'Status',
+          ]
+        : ['Markierung', 'Datum', 'Empfänger', 'Notiz', 'Kategorie', 'Betrag', 'Saldo', 'Status'],
+    );
+    if (enabled) {
+      expect(container.querySelector('.kmonth')?.textContent).toBe('Oktober 2026');
+      expect(
+        container.querySelector('[data-booking="sample"] .kx-outgoing')?.textContent,
+      ).toContain('−12,34 €');
+      expect(container.querySelector('[data-booking="sample"] .kx-incoming')?.textContent).toBe('');
+      expect(
+        container.querySelector('[data-booking="income"] .kx-incoming')?.textContent,
+      ).toContain('+12,34 €');
+    }
+    flags.REDESIGN_ENABLED = false;
+  },
+);
 
 function setup(
   items: ListedBooking[] = [booking],
@@ -208,3 +245,20 @@ it.each([false, true])(
     flags.REDESIGN_ENABLED = false;
   },
 );
+
+it('dismisses the compact register context with Escape or an outside press and restores focus', () => {
+  flags.REDESIGN_ENABLED = true;
+  const { container } = render(<BookingLegend compact context={<p>Heute · Saldo 12,34 €</p>} />);
+  const menu = container.querySelector('details')!;
+  const summary = container.querySelector('summary')!;
+  fireEvent.click(summary);
+  expect(menu.open).toBe(true);
+  // A touch-opened disclosure can leave focus on the page body.
+  fireEvent.keyDown(document.body, { key: 'Escape' });
+  expect(menu.open).toBe(false);
+  expect(document.activeElement).toBe(summary);
+  fireEvent.click(summary);
+  fireEvent.pointerDown(document.body);
+  expect(menu.open).toBe(false);
+  flags.REDESIGN_ENABLED = false;
+});

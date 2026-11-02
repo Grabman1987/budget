@@ -7,7 +7,9 @@
   maskMoneyText,
 } from '@budget/ui';
 import { parseAmount } from '@budget/domain';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Plus, X, Info } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { KontenMenu } from './konten-menu';
 import { useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   newSplit,
@@ -38,6 +40,8 @@ export interface SplitEditorProps {
   error: string | undefined;
   suggestions?: ReadonlyArray<PickCategory>;
   singleMetadata?: Partial<SplitDraft>;
+  contactHost?: Element | null | undefined;
+  compact?: boolean;
 }
 
 /** Retain stored rows independently: the ledger does not store a gross-line grouping. */
@@ -84,6 +88,8 @@ export function SplitEditor({
   error,
   suggestions = [],
   singleMetadata,
+  contactHost,
+  compact = false,
 }: SplitEditorProps) {
   useAmountPrivacy();
   const editorRef = useRef<HTMLFieldSetElement>(null);
@@ -137,6 +143,31 @@ export function SplitEditor({
         toAccountId: '',
       });
   };
+  const addLineControl = (
+    <Button
+      className={contactHost ? 'bk-line-add' : undefined}
+      variant="ghost"
+      aria-label={compact && !multiple ? 'Kategorie hinzufügen' : undefined}
+      onClick={() => {
+        update([...lines, { ...newSplit(), shares: [] }]);
+        if (compact)
+          requestAnimationFrame(() =>
+            editorRef.current
+              ?.querySelector<HTMLInputElement>('.bk-line:last-of-type input')
+              ?.focus(),
+          );
+      }}
+    >
+      {contactHost ? (
+        <>
+          <Plus size={14} aria-hidden="true" />
+          <span className={compact && !multiple ? 'sr-only' : undefined}>Kategorie hinzufügen</span>
+        </>
+      ) : (
+        '+ Weitere Kategorie'
+      )}
+    </Button>
+  );
   return (
     <fieldset ref={editorRef} className="bk-lines" disabled={locked}>
       <legend className="sr-only">Betrag · Kategorie · Teilen</legend>
@@ -192,122 +223,8 @@ export function SplitEditor({
               ? `Umbuchung → ${accounts.find((a) => a.id === line.toAccountId)?.name ?? ''}`
               : (category?.name ??
                 (draft.kind === 'income' && !line.categoryId ? 'Zu verteilen' : ''));
-        return (
-          <div
-            className="bk-line"
-            key={line.key}
-            data-line-key={line.key}
-            role="group"
-            aria-label={`Zeile ${n}`}
-          >
-            <div className={`bk-line-fields${multiple ? ' is-multiple' : ''}`}>
-              {multiple && (
-                <AmountInput
-                  label={`Betrag ${n}`}
-                  value={line.amount}
-                  showOperators={false}
-                  onChange={(amount) => change(line.key, { amount })}
-                />
-              )}
-              <CategoryCombobox
-                label={multiple ? `Kategorie ${n}` : 'Kategorie'}
-                categories={categories}
-                leading={leading}
-                trailing={contactsLast}
-                capturePicker
-                selectedName={selectedName}
-                error={!multiple ? error : undefined}
-                onSelect={(id) => choose(line, id)}
-              />
-              {line.type === 'category' && (
-                <Button
-                  variant="ghost"
-                  className="bk-share-toggle"
-                  aria-expanded={line.shares.length > 0}
-                  onClick={() =>
-                    change(line.key, {
-                      shares: line.shares.length
-                        ? line.shares
-                        : [{ ...newSplit({ type: 'contact', amount: '50' }), mode: 'percent' }],
-                    })
-                  }
-                >
-                  Teilen{' '}
-                  <ChevronDown
-                    className="disclosure-chevron"
-                    size={16}
-                    strokeWidth={1.75}
-                    aria-hidden="true"
-                  />
-                </Button>
-              )}
-            </div>
-            {creatingLine === line.key && (
-              <ContactSelect
-                label="Neuer Kontakt"
-                value=""
-                onChange={(contactId) => {
-                  if (contactId) {
-                    choose(line, `__contact:${contactId}`);
-                    setCreatingLine(undefined);
-                    requestAnimationFrame(() => {
-                      const row = Array.from(
-                        editorRef.current?.querySelectorAll<HTMLElement>('.bk-line') ?? [],
-                      ).find((el) => el.dataset['lineKey'] === line.key);
-                      row?.querySelector<HTMLInputElement>('input[role="combobox"]')?.focus();
-                    });
-                  }
-                }}
-                contacts={contacts}
-                noneLabel="Kontakt wählen"
-                createInitially
-                onUndoCreated={(id) =>
-                  update((current) =>
-                    current.map((row) =>
-                      row.key === line.key && row.contactId === id
-                        ? { ...row, type: 'category', contactId: null, categoryId: '' }
-                        : row,
-                    ),
-                  )
-                }
-              />
-            )}
-            {line.type === 'transfer' &&
-              accounts.some((a) => a.id === line.toAccountId && !a.onBudget) && (
-                <CategoryCombobox
-                  label={`Kategorie für Umbuchung ${n}`}
-                  capturePicker
-                  categories={categories}
-                  selectedName={category?.name ?? ''}
-                  onSelect={(categoryId) => change(line.key, { categoryId })}
-                />
-              )}
-            {index === 0 && line.type === 'category' && suggestions.length > 0 && (
-              <div className="bk-suggestions" role="group" aria-label="Vorschläge">
-                {suggestions.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className="chip"
-                    aria-pressed={c.id === line.categoryId}
-                    onClick={() => choose(line, c.id)}
-                  >
-                    {c.cls && <ClassSwatch kind={c.cls} />}
-                    <span className="bk-chip-name">{c.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {line.type === 'category' &&
-              category?.availableCents !== null &&
-              category?.availableCents !== undefined && (
-                <p className="kavail" aria-live="polite">
-                  Verfügbar: <strong>{eur(category.availableCents)}</strong>
-                  {draft.kind === 'expense' && retained.ok && (
-                    <> · danach {eur(category.availableCents - retained.cents)}</>
-                  )}
-                </p>
-              )}
+        const shareFields = (
+          <>
             {line.shares.map((share, shareIndex) => {
               const label = `${n}.${shareIndex + 1}`;
               return (
@@ -361,7 +278,7 @@ export function SplitEditor({
                       change(line.key, { shares: line.shares.filter((s) => s.key !== share.key) })
                     }
                   >
-                    Entfernen
+                    {contactHost ? <X size={16} aria-hidden="true" /> : 'Entfernen'}
                   </Button>
                 </div>
               );
@@ -388,6 +305,176 @@ export function SplitEditor({
                 </Button>
               </>
             )}
+          </>
+        );
+        const categoryHints = (
+          <>
+            {' '}
+            {index === 0 && line.type === 'category' && suggestions.length > 0 && (
+              <div className="bk-suggestions" role="group" aria-label="Vorschläge">
+                {suggestions.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className="chip"
+                    aria-pressed={c.id === line.categoryId}
+                    onClick={() => choose(line, c.id)}
+                  >
+                    {c.cls && <ClassSwatch kind={c.cls} />}
+                    <span className="bk-chip-name">{c.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {line.type === 'category' &&
+              category?.availableCents !== null &&
+              category?.availableCents !== undefined && (
+                <p className="kavail" aria-live="polite">
+                  Verfügbar: <strong>{eur(category.availableCents)}</strong>
+                  {draft.kind === 'expense' && retained.ok && (
+                    <> · danach {eur(category.availableCents - retained.cents)}</>
+                  )}
+                </p>
+              )}
+          </>
+        );
+        return (
+          <div
+            className="bk-line"
+            key={line.key}
+            data-line-key={line.key}
+            role="group"
+            aria-label={`Zeile ${n}`}
+          >
+            <div className={`bk-line-fields${multiple ? ' is-multiple' : ''}`}>
+              {multiple && (
+                <AmountInput
+                  label={`Betrag ${n}`}
+                  value={line.amount}
+                  showOperators={false}
+                  onChange={(amount) => change(line.key, { amount })}
+                />
+              )}
+              <CategoryCombobox
+                label={multiple ? `Kategorie ${n}` : 'Kategorie'}
+                categories={categories}
+                leading={leading}
+                trailing={contactsLast}
+                capturePicker
+                selectedName={selectedName}
+                error={!multiple ? error : undefined}
+                onSelect={(id) => choose(line, id)}
+              />
+              {line.type === 'category' && !contactHost && (
+                <Button
+                  variant="ghost"
+                  className="bk-share-toggle"
+                  aria-expanded={line.shares.length > 0}
+                  onClick={() =>
+                    change(line.key, {
+                      shares: line.shares.length
+                        ? line.shares
+                        : [{ ...newSplit({ type: 'contact', amount: '50' }), mode: 'percent' }],
+                    })
+                  }
+                >
+                  Teilen{' '}
+                  <ChevronDown
+                    className="disclosure-chevron"
+                    size={16}
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                  />
+                </Button>
+              )}
+            </div>
+            {compact && !multiple && (
+              <div className="bk-category-tools">
+                {line.type === 'category' &&
+                  (suggestions.length > 0 || category?.availableCents != null) && (
+                    <KontenMenu
+                      className="bk-category-context"
+                      label="Vorschläge und Verfügbarkeit"
+                      icon={<Info size={16} aria-hidden="true" />}
+                      iconOnly
+                    >
+                      {categoryHints}
+                    </KontenMenu>
+                  )}
+                {addLineControl}
+              </div>
+            )}
+            {creatingLine === line.key && (
+              <ContactSelect
+                label="Neuer Kontakt"
+                value=""
+                onChange={(contactId) => {
+                  if (contactId) {
+                    choose(line, `__contact:${contactId}`);
+                    setCreatingLine(undefined);
+                    requestAnimationFrame(() => {
+                      const row = Array.from(
+                        editorRef.current?.querySelectorAll<HTMLElement>('.bk-line') ?? [],
+                      ).find((el) => el.dataset['lineKey'] === line.key);
+                      row?.querySelector<HTMLInputElement>('input[role="combobox"]')?.focus();
+                    });
+                  }
+                }}
+                contacts={contacts}
+                noneLabel="Kontakt wählen"
+                createInitially
+                onUndoCreated={(id) =>
+                  update((current) =>
+                    current.map((row) =>
+                      row.key === line.key && row.contactId === id
+                        ? { ...row, type: 'category', contactId: null, categoryId: '' }
+                        : row,
+                    ),
+                  )
+                }
+              />
+            )}
+            {line.type === 'transfer' &&
+              accounts.some((a) => a.id === line.toAccountId && !a.onBudget) && (
+                <CategoryCombobox
+                  label={`Kategorie für Umbuchung ${n}`}
+                  capturePicker
+                  categories={categories}
+                  selectedName={category?.name ?? ''}
+                  onSelect={(categoryId) => change(line.key, { categoryId })}
+                />
+              )}
+            {!(compact && !multiple) && categoryHints}
+            {contactHost && line.type === 'category'
+              ? createPortal(
+                  <fieldset
+                    disabled={locked}
+                    className="bk-contact-line"
+                    aria-label={`Kontaktanteile zu Zeile ${n}`}
+                  >
+                    <legend>Bezahlt für{multiple && ` · ${selectedName || `Zeile ${n}`}`}</legend>
+                    {shareFields}
+                    {line.shares.length === 0 && (
+                      <Button
+                        variant="ghost"
+                        className="bk-contact-add"
+                        onClick={() =>
+                          change(line.key, {
+                            shares: [
+                              { ...newSplit({ type: 'contact', amount: '50' }), mode: 'percent' },
+                            ],
+                          })
+                        }
+                      >
+                        <Plus size={14} aria-hidden="true" />
+                        Kontakt hinzufügen
+                      </Button>
+                    )}
+                  </fieldset>,
+                  contactHost,
+                  line.key,
+                )
+              : shareFields}
             {multiple && (
               <div className="bk-line-actions">
                 {rest !== 0 && (
@@ -410,16 +497,14 @@ export function SplitEditor({
                   aria-label={`Zeile ${n} entfernen`}
                   onClick={() => update(lines.filter((s) => s.key !== line.key))}
                 >
-                  Entfernen
+                  {contactHost ? <X size={16} aria-hidden="true" /> : 'Entfernen'}
                 </Button>
               </div>
             )}
           </div>
         );
       })}
-      <Button variant="ghost" onClick={() => update([...lines, { ...newSplit(), shares: [] }])}>
-        + Weitere Kategorie
-      </Button>
+      {!(compact && !multiple) && addLineControl}
       {(multiple || lines.some((line) => line.shares.length > 0)) && (
         <p
           className={rest === 0 && !sharingInvalid ? 'kdiff is-ok' : 'kdiff is-bad'}

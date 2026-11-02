@@ -7,6 +7,11 @@ import { ToastProvider } from '@budget/ui';
 import { CaptureForm } from './capture-form';
 import * as ledgerApi from './api';
 
+// jsdom has no native media query implementation.
+Object.defineProperty(window, 'matchMedia', {
+  configurable: true,
+  value: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
+});
 const flags = vi.hoisted(() => ({ REDESIGN_ENABLED: false }));
 vi.mock('../shell/redesign-flag', () => flags);
 
@@ -203,6 +208,16 @@ it.each([false, true])(
     expect(document.querySelector('[data-redesign="booking-editor"]') !== null).toBe(enabled);
     expect(status.querySelector('.booking-status-pending') !== null).toBe(enabled);
     expect(status.getAttribute('title')).toBe('Vorgemerkt');
+    expect(status.closest('.bk-amount-primary') !== null).toBe(enabled);
+    expect(screen.queryByRole('heading', { name: 'Buchung erfassen' }) !== null).toBe(enabled);
+    expect(screen.queryByRole('button', { name: 'Kontakt hinzufügen' }) !== null).toBe(enabled);
+    if (enabled) {
+      const addContact = screen.getByRole('button', { name: 'Kontakt hinzufügen' });
+      expect(addContact.closest('.bk-col-memo')).toBeTruthy();
+      await user.click(addContact);
+      expect(screen.getAllByText(/^Rest:/)).toHaveLength(1);
+      await user.click(screen.getByRole('button', { name: 'Kontaktanteil 1.1 entfernen' }));
+    }
     await user.click(status);
     expect(screen.getByRole('button', { name: 'Bestätigt' }).getAttribute('aria-pressed')).toBe(
       'true',

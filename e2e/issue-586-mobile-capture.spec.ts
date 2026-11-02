@@ -1,3 +1,4 @@
+import { categoryLineControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
@@ -12,8 +13,7 @@ async function openCapture(page: Page) {
 async function addManyLines(dialog: Locator) {
   await dialog.getByLabel('Betrag', { exact: true }).fill('120');
   await dialog.getByLabel('Empfänger', { exact: true }).fill('Musterladen mit mehreren Kategorien');
-  for (let index = 0; index < 5; index++)
-    await dialog.getByRole('button', { name: '+ Weitere Kategorie', exact: true }).click();
+  for (let index = 0; index < 5; index++) await (await categoryLineControl(dialog)).click();
   for (let line = 1; line <= 6; line++) {
     await dialog.getByLabel(`Betrag ${line}`, { exact: true }).fill('20');
     await dialog.getByLabel(`Kategorie ${line}`, { exact: true }).fill('Essen');
@@ -124,8 +124,7 @@ test('desktop card stays bounded and phone save follows keyboard-sized visual vi
   const dialog = await openCapture(page);
   if (page.viewportSize()!.width !== 390) {
     const bounds = (await dialog.boundingBox())!;
-    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-    expect(bounds.width).toBe(redesign ? 1040 : 960);
+    expect(bounds.width).toBe(960);
     expect(bounds.y).toBeGreaterThan(0);
     await saveWithin(dialog, 0, page.viewportSize()!.height);
     return;

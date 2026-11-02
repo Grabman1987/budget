@@ -1,3 +1,11 @@
+import {
+  categorySuggestions,
+  redesignLoaded,
+  captureFlagControl,
+  categoryLineControl,
+  contactShareControl,
+} from './ledger-helpers';
+
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
@@ -58,7 +66,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
     if (scenario === 'outlay') await choose(dialog, 'Kategorie', contact.name, /^Für Kontakt/);
     else await choose(dialog, 'Kategorie', 'Essen', /^Essen/);
     if (scenario === 'percent' || scenario === 'amount') {
-      await dialog.getByRole('button', { name: 'Teilen' }).click();
+      await (await contactShareControl(dialog)).click();
       await dialog.getByLabel('Kontakt 1.1', { exact: true }).selectOption(contact.id);
       if (scenario !== 'percent')
         await dialog
@@ -67,7 +75,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
           .click();
     }
     if (scenario === 'several') {
-      await dialog.getByRole('button', { name: '+ Weitere Kategorie', exact: true }).click();
+      await (await categoryLineControl(dialog)).click();
       await dialog.getByLabel('Betrag 1', { exact: true }).fill('100');
       await choose(
         dialog.getByRole('group', { name: 'Zeile 2', exact: true }),
@@ -84,7 +92,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
     const box = async (locator: Locator) => (await locator.boundingBox())!;
     const dialogBox = await box(dialog);
     const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-    if (redesign) expect(dialogBox.width).toBe(1040);
+    if (redesign) expect(dialogBox.width).toBe(960);
     else {
       expect(dialogBox.width).toBeGreaterThanOrEqual(940);
       expect(dialogBox.width).toBeLessThanOrEqual(962);
@@ -100,23 +108,36 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
         dialog.getByLabel(scenario === 'several' ? 'Kategorie 1' : 'Kategorie', { exact: true }),
       ].map(box),
     );
-    // Left column: Betrag, Empfänger, Bezahlt von, Datum, Notiz share one left edge and stack.
-    // (the amount input itself starts after its sign, so Empfänger is the reference edge)
-    for (const left of [konto, datum, notiz])
-      expect(Math.abs(left!.x - empfaenger!.x)).toBeLessThan(2);
-    expect(betrag!.x).toBeLessThan(empfaenger!.x + empfaenger!.width / 2);
-    expect(betrag!.y).toBeLessThan(empfaenger!.y);
-    expect(empfaenger!.y).toBeLessThan(konto!.y);
-    expect(konto!.y).toBeLessThan(datum!.y);
-    expect(datum!.y).toBeLessThan(notiz!.y);
-    // Datum 2/3, Wiederholen 1/3 of the row, side by side.
-    expect(wiederholen!.x).toBeGreaterThan(datum!.x + datum!.width);
-    expect(Math.abs(wiederholen!.y - datum!.y)).toBeLessThan(2);
-    // Right column: the lines start to the right of the whole head and at the top.
-    expect(kategorie!.x).toBeGreaterThan(betrag!.x + betrag!.width);
-    expect(kategorie!.x).toBeGreaterThan(wiederholen!.x + wiederholen!.width - 1);
-    // Notiz is one line and always visible (not folded into Mehr).
-    expect(notiz!.height).toBeLessThan(60);
+    if (redesign) {
+      // Reference: Art/amount, payee/date+account, category/note+contact columns.
+      expect(betrag!.x).toBeGreaterThan(empfaenger!.x + empfaenger!.width);
+      expect(Math.abs(kategorie!.x - empfaenger!.x)).toBeLessThan(2);
+      expect(datum!.x).toBeGreaterThan(empfaenger!.x + empfaenger!.width);
+      expect(konto!.x).toBeGreaterThan(datum!.x);
+      expect(notiz!.x).toBeGreaterThan(kategorie!.x + kategorie!.width);
+      expect(betrag!.y).toBeLessThan(empfaenger!.y);
+      expect(empfaenger!.y).toBeLessThan(kategorie!.y);
+      expect(notiz!.height).toBe(104);
+      expect(dialogBox.y).toBe(48);
+    } else {
+      // Left column: Betrag, Empfänger, Bezahlt von, Datum, Notiz share one left edge and stack.
+      // (the amount input itself starts after its sign, so Empfänger is the reference edge)
+      for (const left of [konto, datum, notiz])
+        expect(Math.abs(left!.x - empfaenger!.x)).toBeLessThan(2);
+      expect(betrag!.x).toBeLessThan(empfaenger!.x + empfaenger!.width / 2);
+      expect(betrag!.y).toBeLessThan(empfaenger!.y);
+      expect(empfaenger!.y).toBeLessThan(konto!.y);
+      expect(konto!.y).toBeLessThan(datum!.y);
+      expect(datum!.y).toBeLessThan(notiz!.y);
+      // Datum 2/3, Wiederholen 1/3 of the row, side by side.
+      expect(wiederholen!.x).toBeGreaterThan(datum!.x + datum!.width);
+      expect(Math.abs(wiederholen!.y - datum!.y)).toBeLessThan(2);
+      // Right column: the lines start to the right of the whole head and at the top.
+      expect(kategorie!.x).toBeGreaterThan(betrag!.x + betrag!.width);
+      expect(kategorie!.x).toBeGreaterThan(wiederholen!.x + wiederholen!.width - 1);
+      // Notiz is one line and always visible (not folded into Mehr).
+      expect(notiz!.height).toBeLessThan(60);
+    }
     expect(await dialog.locator('details.kmore').getByLabel('Notiz').count()).toBe(0);
     // No scrolling: the body shows everything and the card stays inside the viewport.
     const body = dialog.locator('.bk-body');
@@ -147,6 +168,7 @@ test('at most three suggestions in one line without overflow; Mehr and Notiz', a
   const dialog = await openNew(page, account.id);
   await dialog.getByLabel('Betrag', { exact: true }).fill('12');
   await choose(dialog, 'Kategorie', 'Essen', /^Essen/);
+  await categorySuggestions(dialog);
   const rail = dialog.getByRole('group', { name: 'Vorschläge' });
   const chips = rail.getByRole('button');
   expect(await chips.count()).toBeLessThanOrEqual(3);
@@ -179,14 +201,16 @@ test('at most three suggestions in one line without overflow; Mehr and Notiz', a
   await expect(more).toHaveAttribute('open', '');
   await expect(more.getByLabel('Markierung', { exact: true })).toBeVisible();
   // The flag shortcut stays first in the head, with its old name.
-  await expect(dialog.locator('.bk-head').getByRole('button').first()).toHaveAccessibleName(
-    'Markierung: keine',
-  );
+  if (!(await redesignLoaded(page)))
+    await expect(dialog.locator('.bk-head').getByRole('button').first()).toHaveAccessibleName(
+      'Markierung: keine',
+    );
+  else await expect(await captureFlagControl(dialog, 'Markierung: keine')).toBeVisible();
 
   // Both flag controls show the same value.
   await more.getByLabel('Markierung', { exact: true }).selectOption('blue');
-  await expect(dialog.getByRole('button', { name: 'Markierung: Blau' })).toBeVisible();
-  await dialog.getByRole('button', { name: 'Markierung: Blau' }).click();
+  await expect(await captureFlagControl(dialog, 'Markierung: Blau')).toBeVisible();
+  await (await captureFlagControl(dialog, 'Markierung: Blau')).click();
   await dialog.getByRole('menuitemradio', { name: /Gelb/ }).click();
   await expect(more.getByLabel('Markierung', { exact: true })).toHaveValue('yellow');
 
@@ -265,7 +289,7 @@ test('Mehr is open on load exactly when Markierung or Projekt is filled', async 
     const dialog = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
     await expect(dialog).toBeVisible();
     const more = dialog.locator('details.kmore');
-    if (open) await expect(more).toHaveAttribute('open', '');
+    if (open && !(await redesignLoaded(page))) await expect(more).toHaveAttribute('open', '');
     else await expect(more).not.toHaveAttribute('open', /.*/);
   }
 });

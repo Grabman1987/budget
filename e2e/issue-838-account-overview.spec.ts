@@ -1,8 +1,9 @@
+import { overviewActions, redesignLoaded, MIN_TARGET_PX, toast } from './ledger-helpers';
+
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, reconcileAccount, schema } from '@budget/db';
 import { expect, type Locator } from '@playwright/test';
 import { test } from './isolated-ledger';
-import { MIN_TARGET_PX, toast } from './ledger-helpers';
 
 test.use({ ledgerToday: '2026-10-21' });
 
@@ -114,8 +115,10 @@ for (const width of [1440, 390, 320]) {
       );
       await expect(scope.getByText('Keine offenen Konten.', { exact: false })).toBeVisible();
       const bookings = scope.getByRole('link', { name: 'Alle Buchungen', exact: true });
+      if (redesign) await overviewActions(page);
       await expect(bookings).toHaveCount(redesign ? 1 : 0);
       if (redesign) {
+        await overviewActions(page);
         await target(bookings);
         await bookings.focus();
         await expect(bookings).toBeFocused();
@@ -130,7 +133,11 @@ for (const width of [1440, 390, 320]) {
         document.documentElement.dataset['theme'] = value;
       }, theme);
       await expect(page.getByTestId('budget-accounts-balance')).toHaveText('120,00 €');
-      await expect(scope.getByRole('link', { name: '3 von 4 Konten geprüft' })).toBeVisible();
+      await expect(
+        scope.getByRole('link', {
+          name: (await redesignLoaded(page)) ? '3 von 4 geprüft' : '3 von 4 Konten geprüft',
+        }),
+      ).toBeVisible();
       await expect(scope.locator('[data-testid="account-group-value"]')).toHaveText([
         '120,00 €',
         '−20,00 €',
@@ -157,10 +164,15 @@ for (const width of [1440, 390, 320]) {
         page.getByRole('tooltip').filter({ hasText: 'Bewertungsgrundlage · Synthetic Unknown' }),
       ).toContainText('EUR-Umrechnung fehlt · USD');
       await page.keyboard.press('Escape');
-      await scope.getByRole('link', { name: '3 von 4 Konten geprüft' }).click();
+      await scope
+        .getByRole('link', {
+          name: (await redesignLoaded(page)) ? '3 von 4 geprüft' : '3 von 4 Konten geprüft',
+        })
+        .click();
       await expect(page).toHaveURL(/\/konten\/pruefen$/);
       await page.goBack();
       await expect(page.getByTestId('budget-accounts-balance')).toHaveText('120,00 €');
+      await overviewActions(page);
       await scope.getByRole('button', { name: 'Konto anlegen', exact: true }).click();
       await page
         .getByRole('dialog', { name: 'Konto anlegen' })
@@ -171,6 +183,7 @@ for (const width of [1440, 390, 320]) {
         scope
           .locator('[data-account-id="k1-alpha"] .kname, [data-account-id="k1-bravo"] .kname')
           .allTextContents();
+      await overviewActions(page);
       await scope.getByRole('button', { name: 'Reihenfolge ändern', exact: true }).click();
       const down = scope.getByRole('button', { name: 'Synthetic Alpha nach unten' });
       if (redesign) await target(down);
@@ -189,6 +202,7 @@ for (const width of [1440, 390, 320]) {
       await expect(page.getByTestId('budget-accounts-balance')).toHaveText('120,00 €');
       expect(writes).toEqual(['PATCH /api/accounts/order', 'POST /api/undo']);
       if (redesign) {
+        await overviewActions(page);
         await expect(bookings).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
           true,

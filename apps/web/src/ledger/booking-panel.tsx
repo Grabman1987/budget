@@ -76,7 +76,7 @@ export function BookingPanel({
       scope?.querySelectorAll<HTMLElement>(
         'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, [tabindex="0"]',
       ) ?? [],
-    ).filter((el) => el.getClientRects().length > 0);
+    ).filter((el) => el.getClientRects().length > 0 && el.tabIndex !== -1);
     const first = controls[0];
     const last = controls.at(-1);
     if (!first || !last) return;

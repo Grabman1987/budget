@@ -1,3 +1,5 @@
+import { redesignLoaded, bankDismissControl, bankPreviewControl } from './ledger-helpers';
+
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -275,7 +277,12 @@ test('connection cards explain limits and results, scope messages and deep-link 
   await sourceRequest;
   await expect(page).toHaveURL(new RegExp('bankSource=' + sourceId));
   await expect(page.getByText('Aufgabe von Bank A')).toBeVisible();
-  await page.getByRole('link', { name: 'Alle Aufgaben anzeigen', exact: true }).click();
+  await page
+    .getByRole('link', {
+      name: (await redesignLoaded(page)) ? 'Alle Quellen' : 'Alle Aufgaben anzeigen',
+      exact: true,
+    })
+    .click();
   expect(new URL(page.url()).search).toBe('');
 });
 
@@ -351,7 +358,7 @@ test('bank inbox suggestion requires an explicit posting decision', async ({ pag
   await page.goto('/konten/posteingang');
   await expect(page.getByText('Bankumsatz prüfen', { exact: true })).toBeVisible();
   expect(confirmed).toBe(false);
-  await expect(page.getByRole('button', { name: 'Nicht übernehmen', exact: true })).toBeVisible();
+  await expect(await bankDismissControl(page)).toBeVisible();
   const row = page.getByTestId('inbox-row');
   if ((page.viewportSize()?.width ?? 0) >= 768) {
     const cells = await row.locator(':scope > td').evaluateAll((nodes) =>
@@ -361,21 +368,27 @@ test('bank inbox suggestion requires an explicit posting decision', async ({ pag
         bottom: node.getBoundingClientRect().bottom,
       })),
     );
-    expect(cells).toHaveLength(3);
+    expect(cells).toHaveLength((await redesignLoaded(page)) ? 7 : 3);
     expect(cells.every((cell) => cell.display === 'table-cell')).toBe(true);
     expect(new Set(cells.map((cell) => cell.top)).size).toBe(1);
     expect(new Set(cells.map((cell) => cell.bottom)).size).toBe(1);
   }
-  const actionCenters = await row.locator('.inbox-row-actions > .btn').evaluateAll((buttons) =>
-    buttons.map((button) => {
-      const box = button.getBoundingClientRect();
-      return box.top + box.height / 2;
-    }),
-  );
-  expect(actionCenters).toHaveLength(2);
-  expect(Math.abs(actionCenters[0]! - actionCenters[1]!)).toBeLessThanOrEqual(1);
+  if (await redesignLoaded(page)) {
+    await expect(row.getByRole('button', { name: 'Prüfen', exact: true })).toBeVisible();
+    await expect(row.locator('.bank-v1-more > .konten-menu')).toHaveAttribute('open', '');
+  } else {
+    const actionCenters = await row.locator('.inbox-row-actions > .btn').evaluateAll((buttons) =>
+      buttons.map((button) => {
+        const box = button.getBoundingClientRect();
+        return box.top + box.height / 2;
+      }),
+    );
+    expect(actionCenters).toHaveLength(2);
+    expect(Math.abs(actionCenters[0]! - actionCenters[1]!)).toBeLessThanOrEqual(1);
+  }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  if (await redesignLoaded(page)) await page.keyboard.press('Escape');
+  await (await bankPreviewControl(page)).click();
   const candidateDialog = page.getByRole('dialog', { name: 'Buchung übernehmen', exact: true });
   await expect(candidateDialog).toBeVisible();
   await expect(
@@ -424,9 +437,14 @@ test('bank inbox suggestion requires an explicit posting decision', async ({ pag
   await candidateDialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
   await expect(candidateDialog).not.toBeVisible();
   expect(confirmed).toBe(false);
-  await expect(page.getByRole('button', { name: 'Übernehmen', exact: true })).toBeFocused();
-  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  await expect(await bankPreviewControl(page)).toBeFocused();
+  if (await redesignLoaded(page)) await page.keyboard.press('Escape');
+  await (await bankPreviewControl(page)).click();
   await page.getByRole('button', { name: 'Als Buchung bestätigen' }).click();
-  await expect(page.getByText('Prüfen leer.', { exact: false })).toBeVisible();
+  await expect(
+    page.getByText((await redesignLoaded(page)) ? 'Alles geprüft' : 'Prüfen leer.', {
+      exact: await redesignLoaded(page),
+    }),
+  ).toBeVisible();
   expect(confirmed).toBe(true);
 });

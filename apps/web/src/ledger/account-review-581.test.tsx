@@ -4,6 +4,11 @@ import { expect, it, vi } from 'vitest';
 import { AccountReview } from './account-review';
 import type { AccountRow } from './types';
 
+// jsdom has no native media query implementation.
+Object.defineProperty(window, 'matchMedia', {
+  configurable: true,
+  value: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
+});
 vi.mock('@tanstack/react-router', () => ({ useSearch: () => ({}), useNavigate: () => vi.fn() }));
 vi.mock('./upcoming-register', () => ({ useRegisterToday: () => '2026-10-18' }));
 vi.mock('./reconcile-panel', () => ({

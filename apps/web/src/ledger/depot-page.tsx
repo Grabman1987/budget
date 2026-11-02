@@ -19,6 +19,7 @@ import './depot.css';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { BankBalance } from './bank-balance';
+import { List } from 'lucide-react';
 
 const TABS = { bestaende: 'Bestände', trades: 'Trades', verrechnung: 'Verrechnung' } as const;
 type DepotTab = keyof typeof TABS;
@@ -47,25 +48,39 @@ export function DepotBody({
   const settlement = accounts.data?.accounts.find((a) => a.id === account.referenceAccountId);
   const depot = positions.data && depotHoldings(positions.data, account.id);
   return (
-    <div className="depot" data-testid="depot-page">
-      <h2 className="depot-name" ref={heading} tabIndex={-1}>
-        {account.name}
-      </h2>
-      {REDESIGN_ENABLED && (
-        <Link
-          className="btn btn-ghost"
-          to="/konten/$id"
-          params={{ id: account.id }}
-          search={
-            ((previous: Record<string, unknown>) => ({
-              ...previous,
-              depot: 'verrechnung',
-            })) as never
-          }
-        >
-          Verrechnung und Buchungen
-        </Link>
+    <div className={`depot${REDESIGN_ENABLED ? ' depot-v1' : ''}`} data-testid="depot-page">
+      {REDESIGN_ENABLED ? (
+        <div className="depot-v1-head">
+          <h2 className="depot-name" ref={heading} tabIndex={-1}>
+            {account.name}
+          </h2>
+          <div className="depot-v1-actions">
+            {' '}
+            {REDESIGN_ENABLED && (
+              <Link
+                className="btn btn-ghost depot-register-jump"
+                to="/konten/$id"
+                params={{ id: account.id }}
+                search={
+                  ((previous: Record<string, unknown>) => ({
+                    ...previous,
+                    depot: 'verrechnung',
+                  })) as never
+                }
+              >
+                <List size={16} aria-hidden="true" />
+                <span className="sr-only">Verrechnung und Buchungen</span>
+              </Link>
+            )}
+            <AccountReview account={account} />
+          </div>
+        </div>
+      ) : (
+        <h2 className="depot-name" ref={heading} tabIndex={-1}>
+          {account.name}
+        </h2>
       )}
+
       {positions.isPending && <LoadingNote what="Depotwert" />}
       {positions.isError && (
         <ErrorNote
@@ -98,9 +113,11 @@ export function DepotBody({
             bankBalance={account.closedAt ? undefined : account.bankBalance}
           />
         )}
-        <div className="kacct-actions">
-          <AccountReview account={account} />
-        </div>
+        {!REDESIGN_ENABLED && (
+          <div className="kacct-actions">
+            <AccountReview account={account} />
+          </div>
+        )}
       </div>
       {REDESIGN_ENABLED && (
         <details className="kacct-source">
@@ -112,7 +129,7 @@ export function DepotBody({
           <BankBalance account={account} />
         </details>
       )}
-      {account.balanceCents !== 0 && (
+      {(REDESIGN_ENABLED || account.balanceCents !== 0) && (
         <p className="depot-settlement" data-testid="depot-cash">
           Bargeld im Depotkonto: {nativeCurrency(account.balanceCents, account.currency)}
         </p>
@@ -125,7 +142,7 @@ export function DepotBody({
           </Link>
         </p>
       )}
-      {bankReview}
+      {!REDESIGN_ENABLED && bankReview}
       <nav className="depot-tabs" aria-label="Depotansicht">
         {Object.entries(TABS).map(([key, label]) => (
           <Link
@@ -213,6 +230,12 @@ export function DepotBody({
           {!settlement && <p className="kmeta">Kein separates Verrechnungskonto verknüpft.</p>}
           <AccountRegister account={settlement ?? account} showTodayBalance={false} />
         </>
+      )}
+      {REDESIGN_ENABLED && (
+        <details className="account-bank-queue">
+          <summary>Bankumsätze prüfen</summary>
+          {bankReview}
+        </details>
       )}
     </div>
   );

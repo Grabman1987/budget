@@ -528,3 +528,223 @@
 [data-budget-redesign='1'] .sheet:has(> .account-overview-redesign) > .area-page-menu {
   margin-block: 0;
 }
+
+/* K1's reference sheet: one lead, then the compact grouped account table. */
+.konten-frame-overview .account-overview-redesign.kview {
+  display: block;
+}
+.account-overview-redesign .overview-actions-menu {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  z-index: 12;
+}
+.account-overview-redesign .overview-actions-menu > summary {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  list-style: none;
+  cursor: pointer;
+}
+.account-overview-redesign .overview-actions-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.account-overview-redesign .overview-actions-menu > summary::before {
+  display: none;
+}
+.account-overview-redesign .overview-actions-menu .overview-actions {
+  position: static;
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.account-overview-redesign .overview-actions-menu > .konten-menu-content {
+  width: 256px;
+  padding: 8px;
+}
+.account-overview-redesign .overview-actions-menu > summary {
+  border: 0;
+  padding: 0;
+}
+.account-overview-redesign .overview-actions-menu a,
+.account-overview-redesign .overview-actions-menu .btn {
+  min-height: 44px;
+  justify-content: flex-start;
+}
+.account-overview-redesign .overview-lead {
+  min-height: 88px;
+  max-width: 960px;
+  display: grid;
+  grid-template-columns: 240px 240px minmax(0, 1fr);
+  grid-template-areas: 'label . .' 'value links .';
+  align-content: start;
+  align-items: end;
+  column-gap: 40px;
+  padding: 0 44px 12px 0;
+  border: 0;
+}
+.account-overview-redesign .overview-lead h2 {
+  grid-area: label;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+.account-overview-redesign .overview-lead-value {
+  grid-area: value;
+  margin-block: 0;
+  line-height: 1.05;
+}
+.account-overview-redesign .overview-lead-links {
+  grid-area: links;
+  display: block;
+  padding-block-end: 6px;
+}
+.account-overview-redesign .overview-lead-links > a:first-child {
+  width: 240px;
+  min-height: 44px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.account-overview-redesign .overview-accounts {
+  max-width: 960px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+}
+.account-overview-redesign .overview-table > thead > tr > th {
+  font-family: var(--font-tech);
+  text-transform: uppercase;
+  font-weight: 500;
+  height: 28px;
+}
+.account-overview-redesign .overview-col-details {
+  width: 44px;
+}
+.account-overview-redesign .overview-col-check {
+  width: 190px;
+}
+.account-overview-redesign .overview-col-line {
+  width: 150px;
+}
+.account-overview-redesign .overview-col-value {
+  width: 130px;
+}
+.account-overview-redesign .overview-account-link {
+  grid-template-columns: minmax(0, 1fr) 174px;
+  column-gap: 16px;
+}
+.account-overview-redesign .overview-row-details .btn {
+  padding-inline: 0;
+  border: 0;
+  color: var(--ink-3);
+}
+.account-overview-redesign .overview-check {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+.account-overview-redesign .overview-group-toggle {
+  font-size: var(--fs-meta);
+  font-weight: 650;
+}
+.account-overview-redesign .overview-group-review {
+  font-size: var(--fs-meta);
+}
+.account-overview-redesign .closed-account-disclosure {
+  max-width: 960px;
+}
+@media (max-width: 767px) {
+  .account-overview-redesign .overview-lead {
+    display: block;
+    padding: 0 0 8px;
+    min-height: 0;
+  }
+  .account-overview-redesign .overview-lead h2 {
+    font-size: var(--fs-table);
+    padding-inline-end: 44px;
+  }
+  .account-overview-redesign .overview-lead-value {
+    margin-block: 2px 0;
+    font-size: var(--fs-dimension);
+  }
+  .account-overview-redesign .overview-lead-links {
+    position: relative;
+    height: 24px;
+    padding: 0;
+  }
+  .account-overview-redesign .overview-lead-links > a:first-child {
+    position: absolute;
+    inset-block-start: -10px;
+    inset-inline-start: 0;
+    width: auto;
+    min-height: 44px;
+  }
+  .account-overview-redesign .overview-review-track {
+    display: none;
+  }
+  .account-overview-redesign .overview-accounts {
+    border: 0;
+    background: transparent;
+  }
+  .account-overview-redesign .overview-table > tbody > .overview-account-row {
+    grid-template-columns: minmax(0, 1fr) 60px max-content 44px;
+    grid-template-areas: 'name line value details';
+    min-height: 48px;
+    padding-block: 0;
+    column-gap: 6px;
+    border-bottom-color: var(--rule);
+    box-shadow: none;
+  }
+  .account-overview-redesign .overview-table > tbody > .overview-group {
+    grid-template-columns: minmax(0, 1fr) auto;
+    background: transparent;
+    padding: 0;
+    min-height: 44px;
+    box-shadow: none;
+  }
+  .account-overview-redesign .overview-group :is(.grp-title, .overview-group-amount) {
+    font-size: var(--fs-meta);
+    font-weight: 650;
+    color: var(--ink-2);
+  }
+  .account-overview-redesign .overview-table .overview-group > th,
+  .account-overview-redesign .overview-table .overview-group > td {
+    background: transparent;
+  }
+  .account-overview-redesign .overview-group-policy,
+  .account-overview-redesign .overview-check-age {
+    display: none;
+  }
+  .account-overview-redesign .overview-account-link {
+    display: flex;
+    min-height: 48px;
+    gap: 0;
+  }
+  .account-overview-redesign .kname {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    display: block;
+  }
+  .account-overview-redesign .overview-check {
+    font-size: var(--fs-meta);
+  }
+}
+.account-overview-redesign .overview-lead {
+  grid-template-columns: minmax(320px, max-content) 240px minmax(0, 1fr);
+}
+.account-overview-redesign .overview-lead-value {
+  white-space: nowrap;
+  flex-wrap: nowrap;
+}
+@media (max-width: 767px) {
+  .account-overview-redesign .overview-table > tbody > .overview-group > th,
+  .account-overview-redesign .overview-table > tbody > .overview-group > td {
+    padding-block: 0;
+    height: 44px;
+  }
+}

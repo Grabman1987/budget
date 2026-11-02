@@ -95,6 +95,8 @@ it.each([false, true])(
           </ToastProvider>
         </QueryClientProvider>,
       );
+      if (enabled)
+        await userEvent.setup().click(await screen.findByLabelText('Kontoverlauf einstellen'));
       const select = await screen.findByRole('combobox', { name: 'Kontovorschau Zeitraum' });
       await waitFor(() => expect(select).toHaveProperty('value', '35d'));
       expect(screen.getByRole('option', { name: 'Liquidität · 35 Tage' })).toHaveProperty(
@@ -111,10 +113,17 @@ it.each([false, true])(
       expect(document.querySelector('[data-redesign="account-detail"]') !== null).toBe(enabled);
       expect(screen.queryByRole('link', { name: 'Buchungen ansehen' }) !== null).toBe(enabled);
       expect(document.querySelector('#account-register-forecast-account')).toBeTruthy();
-      expect(screen.queryByRole('region', { name: 'Dokumente und Kontoauszüge' }) !== null).toBe(
-        enabled,
-      );
+      if (enabled) {
+        await userEvent.setup().click(screen.getByText('Dokumente und Kontoauszüge'));
+        expect(screen.getByRole('button', { name: 'Abrechnung hochladen' })).toBeTruthy();
+      } else expect(document.querySelector('.account-documents-redesign')).toBeNull();
       expect(screen.getByTestId('account-balance').textContent).toBe('1.000,00 €');
+      if (enabled) {
+        await userEvent.setup().click(screen.getByText('Werte als Tabelle'));
+        expect(
+          screen.getByRole('table', { name: 'Saldoverlauf · Tageswerte' }).textContent,
+        ).toContain('Verlauf');
+      }
       await userEvent.setup().selectOptions(select, '90d');
       await waitFor(() => expect(select).toHaveProperty('value', '90d'));
       await userEvent.setup().selectOptions(select, '35d');

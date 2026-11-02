@@ -34,6 +34,40 @@ export function BankReview({
   suggestion?: PreparedBankSuggestion | undefined;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [visited, setVisited] = useState(false);
+  if (REDESIGN_ENABLED)
+    return (
+      <>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setVisited(true);
+            setExpanded(true);
+          }}
+        >
+          Prüfen
+        </Button>
+        {visited && (
+          <FormDialog open={expanded} onClose={() => setExpanded(false)} title="Buchung prüfen">
+            <div className="bkform bank-booked-review-dialog">
+              <div className="bk-head">
+                <strong className="bk-kind">Buchung prüfen</strong>
+                <button
+                  type="button"
+                  className="icon-btn bk-close"
+                  aria-label="Schließen"
+                  onClick={() => setExpanded(false)}
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              </div>
+              <div className="bk-body kform">{children}</div>
+            </div>
+          </FormDialog>
+        )}
+      </>
+    );
   return (
     <details className="bank-review" onToggle={(event) => setExpanded(event.currentTarget.open)}>
       <summary>{suggestion?.label ?? 'Vorschläge beim Öffnen prüfen'}</summary>
@@ -48,12 +82,14 @@ export function BankCandidate({
   onPrepared,
   description,
   disabled,
+  triggerLabel,
 }: {
   id: string;
   onConfirmed?: ((id: string) => void) | undefined;
   onPrepared?: PreparedCallback | undefined;
   description?: string | undefined;
   disabled?: boolean | undefined;
+  triggerLabel?: string | undefined;
 }) {
   useAmountPrivacy();
   const [open, setOpen] = useState(false);
@@ -67,13 +103,14 @@ export function BankCandidate({
     <>
       <Button
         size="sm"
+        {...(triggerLabel ? { variant: 'ghost' as const } : {})}
         disabled={disabled}
         onClick={() => {
           setVisited(true);
           setOpen(true);
         }}
       >
-        Übernehmen
+        {triggerLabel ?? 'Übernehmen'}
       </Button>
       {visited && (
         <FormDialog

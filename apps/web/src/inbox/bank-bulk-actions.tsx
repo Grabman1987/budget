@@ -1,5 +1,9 @@
 import { Button, WideDialog, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { CheckCheck, ListChecks } from 'lucide-react';
+import { KontenMenu } from '../ledger/konten-menu';
+import { useKontenSlot } from '../ledger/konten-frame';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import type { InboxEntry } from './api';
@@ -116,29 +120,27 @@ export function BankBulkActions({
   sourceId: string;
 }) {
   useAmountPrivacy();
+  const safeSlot = useKontenSlot('inbox-safe');
+  const selectionSlot = useKontenSlot('inbox-selection');
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
   const write = useBudgetWrite();
   const chosen = rows.filter((row) => selected.has(row.id));
   const safe = safeBankRows(rows, prepared).slice(0, 100);
   const prepare = (action: 'dismiss' | 'confirm') => setPreview(planBulk(action, chosen, prepared));
-  if (!rows.length) return null;
-  return (
-    <div className="bank-bulk-actions">
-      {REDESIGN_ENABLED && (
-        <p className="safe-bank-help">
-          Als sicher zählen hier nur bereits vorbereitete Quellumsätze. Öffne eine Zeile, um Regel
-          und mögliche Treffer zu prüfen.
-        </p>
-      )}
-      {REDESIGN_ENABLED && (
-        <Button
-          disabled={busy || !safe.length}
-          onClick={() => setPreview({ ...planBulk('confirm', safe, prepared), safeOnly: true })}
-        >
-          Sichere Vorschläge prüfen ({safe.length})
-        </Button>
-      )}
+  const safeAction = (
+    <Button
+      className="inbox-safe-action"
+      disabled={busy || !safe.length}
+      onClick={() => setPreview({ ...planBulk('confirm', safe, prepared), safeOnly: true })}
+    >
+      <CheckCheck size={16} aria-hidden="true" />
+      Alle sicheren bestätigen ({safe.length})
+    </Button>
+  );
+  const selectionControls = (
+    <>
+      {' '}
       <label className="bank-select">
         <input
           type="checkbox"
@@ -159,6 +161,31 @@ export function BankBulkActions({
       <Button disabled={busy || !chosen.length} onClick={() => prepare('confirm')}>
         Auswahl mit vorbereitetem Vorschlag bestätigen
       </Button>
+    </>
+  );
+  const selectionAction = (
+    <KontenMenu
+      className="bank-selection-menu"
+      iconOnly
+      label={`Auswahl (${chosen.length})`}
+      icon={<ListChecks size={16} aria-hidden="true" />}
+    >
+      <div className="bank-selection-controls">{selectionControls}</div>
+      <p>
+        Als sicher zählen nur bereits vorbereitete Quellumsätze. Öffne eine Zeile, um Regel und
+        mögliche Treffer zu prüfen.
+      </p>
+    </KontenMenu>
+  );
+  if (!rows.length) return null;
+  return (
+    <div className="bank-bulk-actions">
+      {REDESIGN_ENABLED && (safeSlot ? createPortal(safeAction, safeSlot) : safeAction)}
+      {REDESIGN_ENABLED
+        ? selectionSlot
+          ? createPortal(selectionAction, selectionSlot)
+          : selectionAction
+        : selectionControls}
       <WideDialog
         open={!!preview}
         title="Bankauswahl prüfen"

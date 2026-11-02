@@ -65,3 +65,37 @@
   min-height: 44px;
   min-width: 44px;
 }
+
+.konten-frame-bookings .konten-view-bar {
+  min-height: 44px;
+}
+.konten-frame-bookings .kbookings-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-inline-start: auto;
+  min-width: 0;
+}
+.konten-frame-bookings .bookings-redesign-heading {
+  display: none;
+}
+.konten-frame-bookings .kbookings-bar .btn {
+  min-height: 44px;
+  min-width: 44px;
+}
+.konten-frame-bookings .kbookings-bar .btn:has(.sr-only) {
+  width: 44px;
+  padding-inline: 0;
+}
+.konten-frame-bookings .bookings-redesign {
+  gap: 10px;
+}
+.konten-frame-bookings .kfilter,
+.konten-frame-bookings .kstatus-chips {
+  gap: 6px;
+}
+.konten-frame-bookings .ksum {
+  margin-block: 6px;
+  font-size: var(--fs-meta);
+}

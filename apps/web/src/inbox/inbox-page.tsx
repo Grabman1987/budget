@@ -1,4 +1,8 @@
 import { TaskSourceSummary } from './task-source-summary';
+import { Check, CircleHelp, CircleCheck, Filter, MoreHorizontal } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import type { ReactNode } from 'react';
+import { KontenMenu } from '../ledger/konten-menu';
 import { AccountReminderRows } from '../heute/account-reminders';
 import {
   BankBookingMerge,
@@ -22,23 +26,23 @@ import {
   Segmented,
   SectionHead,
   useToast,
+  useIsPhone,
 } from '@budget/ui';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useId, useRef, useState, type ComponentProps } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { BookingPanel } from '../ledger/booking-panel';
-import { longDay, nativeCurrency } from '../ledger/format';
+import { longDay, shortDay, nativeCurrency } from '../ledger/format';
 import { errorText } from '../ledger/labels';
 import { useLedgerWrites } from '../ledger/mutations';
 import { LEDGER_KEY } from '../ledger/queries';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import type { ListedBooking } from '../ledger/types';
 import { PAGES } from '../nav/pages';
-import { PageFrame } from '../pages/placeholder-page';
+import { KontenFrame, useKontenSlot } from '../ledger/konten-frame';
 import { AppLink } from '../shell/app-link';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
-import './inbox-redesign.css';
 import {
   inboxPagesQuery,
   inboxDetailQuery,
@@ -52,10 +56,20 @@ import {
   type InboxStored,
 } from './api';
 import './inbox.css';
+import './inbox-redesign.css';
 import { ReceiptSection } from '../receipts/receipt-section';
 import { TradePanel } from '../wealth/trade-panel';
 import type { SavingsExecutionProposal } from '../wealth/savings-api';
 const META = PAGES.find((p) => p.path === '/konten/pruefen')!;
+
+function InboxHeaderItem({ slot, children }: { slot: string; children: ReactNode }) {
+  const target = useKontenSlot(slot);
+  return REDESIGN_ENABLED && target ? createPortal(children, target) : children;
+}
+
+function InboxSourceLine({ children }: { children: ReactNode }) {
+  return REDESIGN_ENABLED ? <div className="inbox-source-line">{children}</div> : children;
+}
 // Overspent categories are not part of Prüfen (Heute › Zu tun and Plan show them).
 const LABELS: Record<Exclude<InboxKind, 'overspent'>, string> = {
   uncategorized: 'Buchungen ohne Kategorie',
@@ -72,14 +86,14 @@ const LABELS: Record<Exclude<InboxKind, 'overspent'>, string> = {
 
 export function InboxPage() {
   useAmountPrivacy();
+  const isPhone = useIsPhone();
   const search = useSearch({ strict: false }) as InboxSearch;
-  return (
-    <PageFrame meta={META}>
-      {search.von && <InboxBack to={search.von} label="Zurück zur vorherigen Ansicht" />}
+  const sourceStatus = (
+    <InboxSourceLine>
       <BankStatusBlock />
       {search.bankSource && (
-        <p>
-          Aufgaben dieser Bankquelle.{' '}
+        <p className={REDESIGN_ENABLED ? 'inbox-source-scope' : undefined}>
+          {!REDESIGN_ENABLED && 'Aufgaben dieser Bankquelle. '}
           <AppLink
             to="/konten/pruefen"
             search={{
@@ -87,12 +101,19 @@ export function InboxPage() {
               ...(search.von && { von: search.von }),
             }}
           >
-            Alle Aufgaben anzeigen
+            {REDESIGN_ENABLED ? 'Alle Quellen' : 'Alle Aufgaben anzeigen'}
           </AppLink>
         </p>
       )}
+    </InboxSourceLine>
+  );
+  return (
+    <KontenFrame meta={META} view="inbox">
+      {search.von && <InboxBack to={search.von} label="Zurück zur vorherigen Ansicht" />}
+      {(!REDESIGN_ENABLED || isPhone) && sourceStatus}
       <InboxWorkflow bankSource={search.bankSource} />
-    </PageFrame>
+      {REDESIGN_ENABLED && !isPhone && sourceStatus}
+    </KontenFrame>
   );
 }
 
@@ -152,7 +173,12 @@ export function InboxDetailPage() {
     Object.entries(search).filter((p): p is [string, string] => p[1] !== undefined),
   );
   return (
-    <PageFrame meta={META} title={query.data?.entry.title ?? 'Datenwarnung'}>
+    <KontenFrame
+      meta={META}
+      view="inbox"
+      title={query.data?.entry.title ?? 'Datenwarnung'}
+      phoneTitle="Datenwarnung"
+    >
       <section className="kinbox">
         <nav aria-label="Brotkrumen">
           <AppLink to="/konten" search={{}}>
@@ -176,7 +202,7 @@ export function InboxDetailPage() {
         )}
         {query.data && !query.isError && <InboxWorkflow detailEntry={query.data.entry} />}
       </section>
-    </PageFrame>
+    </KontenFrame>
   );
 }
 /** Shared queue/actions on the inbox page, warning detail and month close. */
@@ -505,6 +531,12 @@ function PaginatedInboxBodyContent({
         : undefined,
     ),
   );
+  // The source queue does not carry segment totals. Reuse the canonical global query for
+  // the area's tabs, without changing the source queue or treating missing totals as zero.
+  const segmentOverview = useInfiniteQuery({
+    ...inboxPagesQuery(search.aufgaben),
+    enabled: REDESIGN_ENABLED && Boolean(bankSource),
+  });
   const loadingNextPage = useRef(false);
   const fetchNextPage = async () => {
     if (loadingNextPage.current || queue.isFetching || !queue.hasNextPage) return;
@@ -518,11 +550,13 @@ function PaginatedInboxBodyContent({
   const pages = queue.data?.pages ?? [];
   const entries = pages.flatMap((page) => page.entries);
   const firstPage = pages[0];
-  const shown = search.teil ?? firstPage?.segment;
+  const shown = REDESIGN_ENABLED && bankSource ? 'umsaetze' : (search.teil ?? firstPage?.segment);
   const resolved = firstPage?.segment;
   if (!search.teil && !pinned && resolved) setPinned(resolved);
+  const totals =
+    REDESIGN_ENABLED && bankSource ? segmentOverview.data?.pages[0]?.segments : firstPage?.segments;
   const segmentCounts =
-    !bankSource && firstPage?.segments && shown ? { shown, counts: firstPage.segments } : undefined;
+    (REDESIGN_ENABLED || !bankSource) && totals && shown ? { shown, counts: totals } : undefined;
   const fatalError = queue.isError && !queue.isFetchNextPageError ? queue.error : null;
   useEffect(() => {
     if (accountAnchor && shown === 'aufgaben' && taskSource === 'accounts' && !fatalError)
@@ -530,97 +564,138 @@ function PaginatedInboxBodyContent({
   }, [accountAnchor, shown, taskSource, fatalError, firstPage]);
   const entrySourceSelected =
     taskSource === 'plan' || taskSource === 'payslips' || taskSource === 'other';
-  return (
-    <>
-      {REDESIGN_ENABLED && firstPage && (
-        <p className="inbox-source-date">Stand {longDay(firstPage.asOf)}</p>
+  const isPhone = useIsPhone();
+  const sortControl = bankSource ? (
+    <label>
+      <span className={REDESIGN_ENABLED ? 'sr-only' : undefined}>Datumssortierung</span>
+      <select
+        className="select"
+        value={search.dateSort ?? 'newest'}
+        onChange={(event) =>
+          void navigate({
+            to: '.',
+            search: { ...search, dateSort: event.target.value, gruppe: undefined },
+            replace: true,
+          } as never)
+        }
+      >
+        <option value="newest">Neueste zuerst</option>
+        <option value="oldest">Älteste zuerst</option>
+      </select>
+    </label>
+  ) : null;
+  const filterControls = (
+    <div className="inbox-filters">
+      {bankSource && (
+        <>
+          {(!REDESIGN_ENABLED || isPhone) && sortControl}
+          <label>
+            Ab Datum
+            <input
+              className="input"
+              type="date"
+              value={search.fromDate ?? ''}
+              onChange={(event) =>
+                void navigate({
+                  to: '.',
+                  search: {
+                    ...search,
+                    fromDate: event.target.value || undefined,
+                    gruppe: undefined,
+                  },
+                  replace: true,
+                } as never)
+              }
+            />
+          </label>
+        </>
       )}
-      {segmentCounts && (
-        <Segmented<InboxSegment>
-          className="inbox-segments"
-          label="Teil von Prüfen"
-          stretch
-          value={segmentCounts.shown}
-          options={[
-            { value: 'umsaetze', label: `Umsätze · ${segmentCounts.counts.umsaetze}` },
-            { value: 'aufgaben', label: `Aufgaben · ${segmentCounts.counts.aufgaben}` },
-          ]}
-          onChange={(teil) =>
+      <label>
+        Zeitraum der Aufgaben
+        <select
+          className="select"
+          value={search.aufgaben ?? 'all'}
+          onChange={(event) =>
             void navigate({
               to: '/konten/pruefen',
-              search: { ...search, teil, gruppe: undefined },
+              search: {
+                ...search,
+                aufgaben: event.target.value === 'all' ? undefined : event.target.value,
+                gruppe: undefined,
+              },
             } as never)
           }
-        />
-      )}
-      <div className="inbox-filters">
-        {bankSource && (
-          <>
-            <label>
-              Datumssortierung
-              <select
-                className="select"
-                value={search.dateSort ?? 'newest'}
-                onChange={(event) =>
-                  void navigate({
-                    to: '.',
-                    search: { ...search, dateSort: event.target.value, gruppe: undefined },
-                    replace: true,
-                  } as never)
-                }
-              >
-                <option value="newest">Neueste zuerst</option>
-                <option value="oldest">Älteste zuerst</option>
-              </select>
-            </label>
-            <label>
-              Ab Datum
-              <input
-                className="input"
-                type="date"
-                value={search.fromDate ?? ''}
-                onChange={(event) =>
-                  void navigate({
-                    to: '.',
-                    search: {
-                      ...search,
-                      fromDate: event.target.value || undefined,
-                      gruppe: undefined,
-                    },
-                    replace: true,
-                  } as never)
-                }
-              />
-            </label>
-          </>
-        )}
-        <label>
-          Zeitraum der Aufgaben
-          <select
-            className="select"
-            value={search.aufgaben ?? 'all'}
-            onChange={(event) =>
+        >
+          <option value="all">Alle</option>
+          <option value="current">Aktueller Monat</option>
+          <option value="historical">Historische Nacharbeit</option>
+        </select>
+      </label>
+      <p>
+        {firstPage
+          ? `Aktuell: ab ${longDay(`${firstPage.asOf.slice(0, 7)}-01`)} · Historisch: davor`
+          : 'Zeitraum wird geladen.'}
+      </p>
+    </div>
+  );
+  return (
+    <>
+      {segmentCounts && (
+        <InboxHeaderItem slot="inbox-segments">
+          <Segmented<InboxSegment>
+            className="inbox-segments"
+            label="Teil von Prüfen"
+            stretch
+            value={segmentCounts.shown}
+            options={[
+              {
+                value: 'umsaetze',
+                label: `Umsätze${REDESIGN_ENABLED ? '' : ' ·'} ${segmentCounts.counts.umsaetze}`,
+              },
+              {
+                value: 'aufgaben',
+                label: `Aufgaben${REDESIGN_ENABLED ? '' : ' ·'} ${segmentCounts.counts.aufgaben}`,
+              },
+            ]}
+            onChange={(teil) =>
               void navigate({
                 to: '/konten/pruefen',
                 search: {
                   ...search,
-                  aufgaben: event.target.value === 'all' ? undefined : event.target.value,
+                  teil,
                   gruppe: undefined,
+                  ...(REDESIGN_ENABLED && teil === 'aufgaben' ? { bankSource: undefined } : {}),
                 },
               } as never)
             }
-          >
-            <option value="all">Alle</option>
-            <option value="current">Aktueller Monat</option>
-            <option value="historical">Historische Nacharbeit</option>
-          </select>
-        </label>
-        <p>
-          {firstPage
-            ? `Aktuell: ab ${longDay(`${firstPage.asOf.slice(0, 7)}-01`)} · Historisch: davor`
-            : 'Zeitraum wird geladen.'}
-        </p>
-      </div>
+          />
+        </InboxHeaderItem>
+      )}
+      {REDESIGN_ENABLED ? (
+        <>
+          {!isPhone && <InboxHeaderItem slot="inbox-sort">{sortControl}</InboxHeaderItem>}
+          <InboxHeaderItem slot="inbox-filters">
+            <KontenMenu
+              label="Filter"
+              icon={<Filter size={16} aria-hidden="true" />}
+              iconOnly={isPhone}
+            >
+              {filterControls}
+            </KontenMenu>
+          </InboxHeaderItem>
+          {(search.aufgaben || search.fromDate) && (
+            <div className="inbox-period-chip">
+              {search.aufgaben === 'current'
+                ? 'Aktueller Monat'
+                : search.aufgaben === 'historical'
+                  ? 'Historische Nacharbeit'
+                  : `Ab ${longDay(search.fromDate!)}`}
+            </div>
+          )}
+        </>
+      ) : (
+        filterControls
+      )}
       {segmentCounts?.shown === 'aufgaben' && firstPage?.taskSources && (
         <section aria-label="Aufgaben nach Quelle">
           {fatalError && !entrySourceSelected && (
@@ -631,8 +706,10 @@ function PaginatedInboxBodyContent({
               {firstPage.readSourceSummaries && (
                 <ReadSourceSummaries summaries={firstPage.readSourceSummaries} />
               )}
-              <h2>Offene Aufgaben · {segmentCounts.counts.aufgaben}</h2>
-              <p>
+              <h2 className={REDESIGN_ENABLED ? 'sr-only' : undefined}>
+                Offene Aufgaben · {segmentCounts.counts.aufgaben}
+              </h2>
+              <p className={REDESIGN_ENABLED ? 'sr-only' : undefined}>
                 Der Zeitraum gilt für Plan, Gehaltszettel und Weitere Aufgaben. Kontoprüfungen und
                 Belege bleiben unabhängig davon sichtbar.
               </p>
@@ -684,6 +761,9 @@ function PaginatedInboxBodyContent({
           loadingMore={queue.isFetching}
           loadMore={() => void fetchNextPage()}
         />
+      )}
+      {REDESIGN_ENABLED && firstPage && (
+        <p className="inbox-source-date">Stand {longDay(firstPage.asOf)}</p>
       )}
     </>
   );
@@ -774,8 +854,9 @@ function InboxBodyContent({
     );
     setBusy(null);
   };
+  const bankLayout = REDESIGN_ENABLED && entries.some(isBankInboxRow);
   const groups: (Exclude<InboxKind, 'overspent'> | null)[] =
-    accountScoped || search.bankSource || groupByTitle
+    bankLayout || accountScoped || search.bankSource || groupByTitle
       ? [null]
       : (Object.keys(LABELS) as Exclude<InboxKind, 'overspent'>[]);
   let room = serverPaginated ? entries.length : shown;
@@ -794,8 +875,26 @@ function InboxBodyContent({
     !learnBookingId
   )
     return null;
+  const reviewProgress = (segmentCounts?.shown === 'umsaetze' || search.bankSource) &&
+    bankProgress &&
+    bankProgress.total > 0 && (
+      <div className="bank-review-progress">
+        <p>
+          {bankProgress.total - bankProgress.reviewed} offen · {bankProgress.reviewed} von{' '}
+          {bankProgress.total} geprüft
+        </p>
+        <progress
+          value={bankProgress.reviewed}
+          max={bankProgress.total}
+          aria-label="Geprüfte Bankumsätze"
+        />
+      </div>
+    );
   return (
-    <section className="kinbox" aria-labelledby={headingId}>
+    <section
+      className={`kinbox${REDESIGN_ENABLED ? ' kinbox-v1' : ''}${bankLayout ? ' kinbox-bank-v1' : ''}`}
+      aria-labelledby={headingId}
+    >
       <SectionHead
         id={headingId}
         title={
@@ -813,37 +912,37 @@ function InboxBodyContent({
               : undefined
         }
       />
-      {(segmentCounts?.shown === 'umsaetze' || search.bankSource) &&
-        bankProgress &&
-        bankProgress.total > 0 && (
-          <div className="bank-review-progress">
-            <p>
-              {bankProgress.total - bankProgress.reviewed} offen · {bankProgress.reviewed} von{' '}
-              {bankProgress.total} geprüft
-            </p>
-            <progress
-              value={bankProgress.reviewed}
-              max={bankProgress.total}
-              aria-label="Geprüfte Bankumsätze"
-            />
-          </div>
-        )}
+      {!REDESIGN_ENABLED && reviewProgress}
       {pending && <LoadingNote what="Aufgaben" />}
       {learnBookingId && <AssignmentLearnOffer bookingId={learnBookingId} />}
       {error && <ErrorNote what="Aufgaben" error={error} onRetry={onRetry} />}
       {!pending && !error && readSourceSummaries && (
         <ReadSourceSummaries summaries={readSourceSummaries} />
       )}
-      {count === 0 && (
-        <EmptyNote>
-          {accountScoped
-            ? 'Keine offenen Bankumsätze für dieses Konto.'
-            : groupByTitle
-              ? 'Keine offenen Bewegungen vorhanden.'
-              : readSourceSummaries?.length
-                ? 'Keine offenen Entscheidungen vorhanden.'
-                : 'Prüfen leer. Es sind keine offenen Aufgaben vorhanden.'}
-        </EmptyNote>
+      {count === 0 &&
+      REDESIGN_ENABLED &&
+      !pending &&
+      !error &&
+      !accountScoped &&
+      !readSourceSummaries?.length &&
+      entries.length === 0 ? (
+        <div className="inbox-empty-v1">
+          <CircleCheck size={64} strokeWidth={1.2} aria-hidden="true" />
+          <h2>Alles geprüft</h2>
+          <p>Neue Buchungen aus dem Bank-Sync erscheinen hier.</p>
+        </div>
+      ) : (
+        count === 0 && (
+          <EmptyNote>
+            {accountScoped
+              ? 'Keine offenen Bankumsätze für dieses Konto.'
+              : groupByTitle
+                ? 'Keine offenen Bewegungen vorhanden.'
+                : readSourceSummaries?.length
+                  ? 'Keine offenen Entscheidungen vorhanden.'
+                  : 'Prüfen leer. Es sind keine offenen Aufgaben vorhanden.'}
+          </EmptyNote>
+        )
       )}
       {!pending && !error && count !== 0 && entries.length === 0 && (
         <EmptyNote>
@@ -865,22 +964,49 @@ function InboxBodyContent({
               sourceId={search.bankSource}
             />
           )}
-          <table className="rev-table kinbox-table">
+          <table className={`rev-table kinbox-table${bankLayout ? ' bank-v1-table' : ''}`}>
             <caption className="sr-only">
               {accountScoped
                 ? 'Offene Bankumsätze dieses Kontos'
                 : 'Offene Entscheidungen nach Typ'}
             </caption>
-            <thead>
-              <tr>
-                <th className="tech" scope="col" colSpan={2}>
-                  Aufgabe
-                </th>
-                <th className="tech rev-act" scope="col">
-                  Aktion
-                </th>
-              </tr>
-            </thead>
+            {!bankLayout && REDESIGN_ENABLED && (
+              <colgroup>
+                <col className="inbox-col-mark" />
+                <col />
+                <col className="inbox-col-action" />
+              </colgroup>
+            )}
+            {bankLayout ? (
+              <thead>
+                <tr>
+                  <th scope="col">
+                    <span className="sr-only">Auswahl</span>
+                  </th>
+                  <th scope="col">Empfänger</th>
+                  <th scope="col">Konto · Quelle</th>
+                  <th scope="col">Vorschlag</th>
+                  <th scope="col" className="num">
+                    Betrag
+                  </th>
+                  <th scope="col">Aktion</th>
+                  <th scope="col">
+                    <span className="sr-only">Weitere Aktionen</span>
+                  </th>
+                </tr>
+              </thead>
+            ) : (
+              <thead>
+                <tr>
+                  <th className="tech" scope="col" colSpan={2}>
+                    Aufgabe
+                  </th>
+                  <th className="tech rev-act" scope="col">
+                    Aktion
+                  </th>
+                </tr>
+              </thead>
+            )}
             <tbody>
               {groups.flatMap((kind) => {
                 const all = kind ? entries.filter((item) => item.kind === kind) : entries;
@@ -888,9 +1014,12 @@ function InboxBodyContent({
                 const items = all.slice(0, room);
                 room -= items.length;
                 return [
-                  <tr className="kgroup" key={kind ?? 'bank-source'}>
+                  <tr
+                    className={`kgroup${bankLayout ? ' sr-only' : ''}`}
+                    key={kind ?? 'bank-source'}
+                  >
                     <td className="rev-mark" />
-                    <th scope="rowgroup" colSpan={2}>
+                    <th scope="rowgroup" colSpan={bankLayout ? 6 : 2}>
                       {kind
                         ? LABELS[kind]
                         : accountScoped
@@ -920,7 +1049,7 @@ function InboxBodyContent({
                       total > 1 || groupByTitle ? (
                         <tr className="inbox-cause" key={`cause-${item.id}`}>
                           <td />
-                          <td colSpan={2}>
+                          <td colSpan={bankLayout ? 6 : 2}>
                             <Button
                               variant="ghost"
                               aria-expanded={expanded}
@@ -959,6 +1088,7 @@ function InboxBodyContent({
                             <InboxRow
                               key={item.id}
                               item={item}
+                              bankLayout={bankLayout}
                               bankSelected={selectedBank.has(item.id)}
                               onBankSelect={
                                 // Bulk actions need the source whose queue is shown.
@@ -1021,6 +1151,7 @@ function InboxBodyContent({
           </p>
         </>
       )}
+      {REDESIGN_ENABLED && reviewProgress}
       {showReceipts && (
         <>
           <ReceiptSection />
@@ -1031,6 +1162,7 @@ function InboxBodyContent({
 }
 
 function InboxRow({
+  bankLayout = false,
   bankSelected,
   onBankSelect,
   onBankPrepare,
@@ -1044,6 +1176,7 @@ function InboxRow({
   onConfirm,
   confirming,
 }: {
+  bankLayout?: boolean;
   bankSelected: boolean;
   onBankSelect: ((checked: boolean) => void) | undefined;
   onBankPrepare: (id: string, suggestion: PreparedBankSuggestion | undefined) => void;
@@ -1063,6 +1196,7 @@ function InboxRow({
     return (
       <BankInboxRow
         item={item}
+        bankLayout={bankLayout}
         selected={bankSelected}
         onSelect={onBankSelect}
         onPrepared={onBankPrepare}
@@ -1080,7 +1214,7 @@ function InboxRow({
           <InboxTypeIcon entry={item} />
         </div>
       </td>
-      <td className="rev-what">
+      <td className="rev-what" colSpan={bankLayout ? 4 : undefined}>
         <strong>
           {item.type === 'booking'
             ? `${item.payeeName ?? 'Buchung ohne Empfänger'} · ${nativeCurrency(item.amountCents, item.currency)}`
@@ -1116,7 +1250,7 @@ function InboxRow({
           <PayslipIntakeDetail id={item.refId} />
         )}
       </td>
-      <td className="rev-act kact">
+      <td className="rev-act kact" colSpan={bankLayout ? 2 : undefined}>
         <div className="inbox-row-actions">
           {item.type === 'booking' ? (
             <>
@@ -1185,6 +1319,7 @@ function InboxRow({
 }
 
 function BankInboxRow({
+  bankLayout,
   item,
   selected,
   onSelect,
@@ -1195,6 +1330,7 @@ function BankInboxRow({
   onResolve,
   busy,
 }: {
+  bankLayout: boolean;
   item: TaskEntry;
   selected: boolean;
   onSelect: ((checked: boolean) => void) | undefined;
@@ -1206,11 +1342,16 @@ function BankInboxRow({
   busy: boolean;
 }) {
   useAmountPrivacy();
+  const isPhone = useIsPhone();
+  const [candidate, setCandidate] = useState<PreparedBankSuggestion>();
   const [merge, setMerge] = useState<PreparedBankSuggestion>();
   const [rule, setRule] = useState<PreparedBankSuggestion>();
   const prepared = merge ?? rule;
   const prepareCandidate = useCallback(
-    (suggestion: PreparedBankSuggestion | undefined) => onPrepared(item.id, suggestion),
+    (suggestion: PreparedBankSuggestion | undefined) => {
+      setCandidate(suggestion);
+      onPrepared(item.id, suggestion);
+    },
     [onPrepared, item.id],
   );
   const prepareRule = useCallback(
@@ -1238,6 +1379,130 @@ function BankInboxRow({
   const data =
     item.type === 'booking' ? item : item.type === 'stored' ? item.bankCandidate : undefined;
   const suggestion = item.type === 'stored' ? item.bankCandidate?.suggestion : undefined;
+  const rowPrepared = item.type === 'booking' ? prepared : candidate;
+  const actions = (
+    <div className="inbox-row-actions">
+      {item.type === 'stored' && item.refId ? (
+        <>
+          <BankCandidate
+            id={item.refId}
+            triggerLabel={bankLayout ? (candidate?.bulkSafe ? 'Bestätigen' : 'Prüfen') : undefined}
+            disabled={busy}
+            description={
+              data
+                ? `${data.payeeName || data.memo || 'Bankumsatz'} · ${nativeCurrency(data.amountCents, data.currency)} · ${longDay(data.date)} · ${data.accountName}`
+                : item.title
+            }
+            onConfirmed={onConfirmed}
+            onPrepared={prepareCandidate}
+          />
+          {!bankLayout && (
+            <Button size="sm" variant="ghost" disabled={busy} onClick={onResolve}>
+              Nicht übernehmen
+            </Button>
+          )}
+        </>
+      ) : item.type === 'booking' ? (
+        <BankReview suggestion={prepared}>
+          <BookingAssignmentReview
+            id={item.bookingId}
+            onPrepared={prepareRule}
+            onApplied={(canLearn) => {
+              if (canLearn) onConfirmed(item.bookingId);
+            }}
+          />
+          {item.status === 'pending' && (
+            <BankBookingMerge bookingId={item.bookingId} onPrepared={setMerge} />
+          )}
+          <Button variant="ghost" disabled={busy} onClick={() => onEdit(item.bookingId)}>
+            Zuordnen
+          </Button>
+          {item.status === 'pending' && (
+            <Button variant="ghost" disabled={busy} onClick={() => onConfirm(item.bookingId)}>
+              Bestätigen
+            </Button>
+          )}
+        </BankReview>
+      ) : null}
+    </div>
+  );
+  if (bankLayout)
+    return (
+      <tr className="rev-row bank-inbox-row bank-v1-row" data-testid="inbox-row">
+        <td className="bank-v1-select">
+          {onSelect && !isPhone && (
+            <label className="bank-select">
+              <input
+                type="checkbox"
+                checked={selected}
+                disabled={busy}
+                aria-label={`Bankzeile auswählen: ${data?.payeeName ?? data?.memo ?? item.id}`}
+                onChange={(event) => onSelect(event.target.checked)}
+              />
+            </label>
+          )}
+        </td>
+        <td className="bank-v1-payee">
+          <strong>
+            {data?.payeeName || data?.memo || (item.type === 'stored' ? item.title : 'Bankumsatz')}
+          </strong>
+          <span>{data ? shortDay(data.date) : 'Datum nicht verfügbar'}</span>
+          <small className="bank-v1-phone-source">
+            {data?.accountName} · {item.type === 'stored' ? 'Bank-Sync' : 'Bankbuchung'}
+          </small>
+        </td>
+        <td className="bank-v1-source">
+          <span>{data?.accountName ?? 'Konto nicht verfügbar'}</span>
+          <small>{item.type === 'stored' ? 'Bank-Sync' : 'Bankbuchung'}</small>
+        </td>
+        <td className="bank-v1-suggestion">
+          <span
+            title={suggestion?.label}
+            className={`bank-suggestion-pill${rowPrepared?.bulkSafe ? ' is-safe' : ''}`}
+          >
+            {rowPrepared?.bulkSafe ? (
+              <Check size={14} aria-hidden="true" />
+            ) : (
+              <CircleHelp size={14} aria-hidden="true" />
+            )}
+            {rowPrepared?.label ??
+              (suggestion?.needsReview ? 'Unbekannt' : suggestion?.label) ??
+              'Unbekannt'}
+          </span>
+        </td>
+        <td className="bank-v1-amount num">
+          {data ? nativeCurrency(data.amountCents, data.currency) : '—'}
+        </td>
+        <td className="bank-v1-action">{actions}</td>
+        <td className="bank-v1-more">
+          {(item.type === 'stored' || onSelect) && (
+            <KontenMenu
+              label="Weitere Aktionen"
+              icon={<MoreHorizontal size={16} aria-hidden="true" />}
+              iconOnly
+            >
+              {onSelect && isPhone && (
+                <label className="bank-select">
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    disabled={busy}
+                    aria-label={`Bankzeile auswählen: ${data?.payeeName ?? data?.memo ?? item.id}`}
+                    onChange={(event) => onSelect(event.target.checked)}
+                  />
+                  Auswählen
+                </label>
+              )}
+              {item.type === 'stored' && (
+                <Button variant="ghost" disabled={busy} onClick={onResolve}>
+                  Nicht übernehmen
+                </Button>
+              )}
+            </KontenMenu>
+          )}
+        </td>
+      </tr>
+    );
   return (
     <tr className="rev-row bank-inbox-row" data-testid="inbox-row">
       <td className="rev-mark">
@@ -1273,49 +1538,7 @@ function BankInboxRow({
         </span>
         {suggestion && <span>{suggestion.label}</span>}
       </td>
-      <td className="rev-act kact">
-        <div className="inbox-row-actions">
-          {item.type === 'stored' && item.refId ? (
-            <>
-              <BankCandidate
-                id={item.refId}
-                disabled={busy}
-                description={
-                  data
-                    ? `${data.payeeName || data.memo || 'Bankumsatz'} · ${nativeCurrency(data.amountCents, data.currency)} · ${longDay(data.date)} · ${data.accountName}`
-                    : item.title
-                }
-                onConfirmed={onConfirmed}
-                onPrepared={prepareCandidate}
-              />
-              <Button size="sm" variant="ghost" disabled={busy} onClick={onResolve}>
-                Nicht übernehmen
-              </Button>
-            </>
-          ) : item.type === 'booking' ? (
-            <BankReview suggestion={prepared}>
-              <BookingAssignmentReview
-                id={item.bookingId}
-                onPrepared={prepareRule}
-                onApplied={(canLearn) => {
-                  if (canLearn) onConfirmed(item.bookingId);
-                }}
-              />
-              {item.status === 'pending' && (
-                <BankBookingMerge bookingId={item.bookingId} onPrepared={setMerge} />
-              )}
-              <Button variant="ghost" disabled={busy} onClick={() => onEdit(item.bookingId)}>
-                Zuordnen
-              </Button>
-              {item.status === 'pending' && (
-                <Button variant="ghost" disabled={busy} onClick={() => onConfirm(item.bookingId)}>
-                  Bestätigen
-                </Button>
-              )}
-            </BankReview>
-          ) : null}
-        </div>
-      </td>
+      <td className="rev-act kact">{actions}</td>
     </tr>
   );
 }

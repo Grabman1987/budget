@@ -1,8 +1,9 @@
+import { redesignLoaded, pickCategory } from './ledger-helpers';
+
 import Database from 'better-sqlite3';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
-import { pickCategory } from './ledger-helpers';
 
 test.use({ ledgerToday: '2026-10-02' });
 
@@ -53,7 +54,11 @@ test('scrolls account and all bookings through six months, with complete search 
     const past = page.locator('[data-booking]:not(.is-upcoming)');
     await expect(past.first()).toHaveAttribute('data-booking', 'history-151');
     const upcoming = page.locator('.kupcoming-toggle');
-    await expect(upcoming).toHaveText('28 kommend · nächste: History Muster 03.10.');
+    await expect(upcoming).toHaveText(
+      (await redesignLoaded(page))
+        ? 'Kommend28 kommend · nächste: History Muster 03.10.'
+        : '28 kommend · nächste: History Muster 03.10.',
+    );
     if ((await upcoming.getAttribute('aria-expanded')) === 'false') await upcoming.click();
     await expect(page.locator('[data-booking]').first()).toHaveAttribute(
       'data-booking',
@@ -81,6 +86,8 @@ test('scrolls account and all bookings through six months, with complete search 
     if (!url.endsWith('/buchungen')) {
       await expect(page.locator('[data-booking="history-179"] .kx-run')).toContainText('820,00');
       await expect(page.locator('[data-booking="history-000"] .kx-run')).toContainText('999,00');
+      if (await redesignLoaded(page))
+        await page.locator('.account-value-details > summary').click();
       await expect(page.getByText('−30,00 €', { exact: true })).toBeVisible();
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
@@ -137,7 +144,7 @@ for (const [rhythm, date] of [
     await panel.getByLabel('Datum', { exact: true }).fill(date.split('-').reverse().join('.'));
     await panel.getByLabel('Empfänger', { exact: true }).fill('Kleine Kartenzahlung Muster');
     await pickCategory(panel, category.name);
-    await panel.locator('summary').click();
+    await panel.locator('.kmore > summary').click();
     await panel.getByLabel('Wiederholen').selectOption(rhythm);
     const gets: string[] = [];
     page.on('request', (r) => {

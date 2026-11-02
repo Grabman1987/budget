@@ -1,6 +1,14 @@
+import {
+  categorySuggestions,
+  redesignLoaded,
+  captureFlagControl,
+  categoryLineControl,
+  contactShareControl,
+  MIN_TARGET_PX,
+} from './ledger-helpers';
+
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator } from '@playwright/test';
-import { MIN_TARGET_PX } from './ledger-helpers';
 
 async function choose(line: Locator, label: string, search: string, option: RegExp | string) {
   await line.getByLabel(label, { exact: true }).fill(search);
@@ -98,14 +106,22 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   const status = dialog.locator('.bk-status');
   await expect
     .poll(async () => {
-      const [a, b] = [(await accountSelect.boundingBox())!, (await status.boundingBox())!];
-      return b.x > a.x + a.width && Math.abs(b.y - a.y) < 2;
+      const reference = (await redesignLoaded(page)) ? amount : accountSelect;
+      const [a, b] = [(await reference.boundingBox())!, (await status.boundingBox())!];
+      return (
+        b.x > a.x + a.width &&
+        ((await redesignLoaded(page))
+          ? Math.abs(b.y + b.height - a.y - a.height) < 12
+          : Math.abs(b.y - a.y) < 2)
+      );
     })
     .toBe(true);
   const pending = await status.evaluate((el) => getComputedStyle(el).backgroundColor);
   await status.click();
   await expect(status).toHaveAttribute('aria-pressed', 'true');
-  expect(await status.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(pending);
+  if (await redesignLoaded(page)) await expect(status).toHaveAccessibleName('Bestätigt');
+  else
+    expect(await status.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(pending);
   await expect(dialog.getByRole('button', { name: 'Gestern' })).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: 'Heute', exact: true })).toHaveCount(0);
   await date.click();
@@ -143,7 +159,7 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   await expect(amount).toHaveValue('19,99');
   await expect(receiver).toBeFocused();
   await expect(discard).toHaveCount(0);
-  await dialog.getByRole('button', { name: 'Markierung: keine' }).click();
+  await (await captureFlagControl(dialog, 'Markierung: keine')).click();
   await dialog.getByRole('menuitemradio', { name: /Blau/ }).click();
   await expect(discard).toHaveCount(0);
   for (const theme of ['light', 'dark']) {
@@ -190,16 +206,21 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
     await page.screenshot({ path: info.outputPath(`dialog-${theme}.png`) });
   }
   const categoryBox = (await category.boundingBox())!;
-  const shareBox = (await dialog.getByRole('button', { name: 'Teilen' }).boundingBox())!;
-  expect(shareBox.x).toBeGreaterThan(categoryBox.x);
-  expect(Math.abs(shareBox.y - categoryBox.y)).toBeLessThan(2);
-  await dialog.getByRole('button', { name: '+ Weitere Kategorie' }).click();
+  const shareBox = (await (await contactShareControl(dialog)).boundingBox())!;
+  if (await redesignLoaded(page)) {
+    expect(shareBox.y).toBeGreaterThan(categoryBox.y);
+    if (page.viewportSize()!.width >= 768) expect(shareBox.x).toBeGreaterThan(categoryBox.x);
+  } else {
+    expect(shareBox.x).toBeGreaterThan(categoryBox.x);
+    expect(Math.abs(shareBox.y - categoryBox.y)).toBeLessThan(2);
+  }
+  await (await categoryLineControl(dialog)).click();
   const first = dialog.getByRole('group', { name: 'Zeile 1', exact: true });
   const second = dialog.getByRole('group', { name: 'Zeile 2', exact: true });
   await first.getByLabel('Betrag 1', { exact: true }).fill('10,00');
   await choose(second, 'Kategorie 2', contact.name, `Für Kontakt auslegen → ${contact.name}`);
   await second.getByLabel('Betrag 2', { exact: true }).fill('9,99');
-  await dialog.getByRole('button', { name: '+ Weitere Kategorie' }).click();
+  await (await categoryLineControl(dialog)).click();
   const remove = dialog.getByRole('button', { name: 'Zeile 3 entfernen' });
   const removeBox = (await remove.boundingBox())!;
   expect(removeBox.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
@@ -265,10 +286,16 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       await expect(accountField).toBeVisible();
       await expect(dialog.getByLabel('Datum', { exact: true })).toBeVisible();
       await amount.press('Tab');
+      if (await redesignLoaded(page)) {
+        await expect(dialog.locator('.bk-status')).toBeFocused();
+        await page.keyboard.press('Tab');
+      }
       const payeeField = dialog.getByLabel('Empfänger', { exact: true });
       await expect(payeeField).toBeFocused();
       await payeeField.press('Tab');
-      await expect(accountField).toBeFocused();
+      if (await redesignLoaded(page)) {
+        await expect(dialog.getByLabel('Datum', { exact: true })).toBeFocused();
+      } else await expect(accountField).toBeFocused();
     }
     if (mobile) {
       const boxes = await Promise.all(
@@ -287,6 +314,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       await choose(dialog, 'Kategorie', contact.name, /^Für Kontakt auslegen/);
     else await choose(dialog, 'Kategorie', 'Essen', /^Essen/);
     if (scenario === 'category') {
+      await categorySuggestions(dialog);
       const rail = dialog.getByRole('group', { name: 'Vorschläge' });
       // #583: at most three suggestions in the rail.
       await expect(rail.getByRole('button')).toHaveCount(3);
@@ -300,11 +328,12 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       await rail.evaluate((el) => {
         el.scrollLeft = 0;
       });
+      await categorySuggestions(dialog, false);
     }
 
     const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
     if (scenario === 'percent' || scenario === 'amount' || scenario === 'several') {
-      await dialog.getByRole('button', { name: 'Teilen' }).click();
+      await (await contactShareControl(dialog)).click();
       await expect(save).toBeDisabled();
       await dialog.getByLabel('Kontakt 1.1', { exact: true }).selectOption(contact.id);
       await expect(dialog.getByLabel('Anteil 1.1 (%)')).toHaveValue('50');
@@ -318,7 +347,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       }
     }
     if (scenario === 'several') {
-      await dialog.getByRole('button', { name: '+ Weitere Kategorie', exact: true }).click();
+      await (await categoryLineControl(dialog)).click();
       await dialog.getByLabel('Betrag 1', { exact: true }).fill('100');
       await expect(save).toBeDisabled();
       await expect(dialog.getByRole('button', { name: 'Speichern und neu' })).toBeDisabled();
@@ -341,7 +370,10 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
     await dialog.getByLabel('Datum', { exact: true }).press('Tab');
     const dateBox = (await dialog.locator('.kdate').boundingBox())!;
     const repeatBox = (await dialog.getByLabel('Wiederholen').boundingBox())!;
-    expect(dateBox.width / repeatBox.width).toBeCloseTo(2, 0);
+    if (await redesignLoaded(page)) {
+      expect(repeatBox.width).toBe(44);
+      expect(dateBox.width).toBeGreaterThan(repeatBox.width);
+    } else expect(dateBox.width / repeatBox.width).toBeCloseTo(2, 0);
     await expect(dialog.getByRole('button', { name: 'Gestern' })).toHaveCount(0);
     await expect(dialog.getByRole('button', { name: 'Split', exact: true })).toHaveCount(0);
     for (const theme of ['light', 'dark']) {
@@ -478,7 +510,7 @@ test('cash capture confirms immediately while bank capture stays pending', async
 test('sharing before entering an amount keeps the discard guard', async ({ page }) => {
   await page.goto('/?panel=buchung');
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
-  await dialog.getByRole('button', { name: 'Teilen' }).click();
+  await (await contactShareControl(dialog)).click();
   await dialog.getByLabel('Notiz').press('Escape');
   await expect(dialog.getByRole('alertdialog')).toBeVisible();
   await dialog.getByRole('button', { name: 'Verwerfen', exact: true }).click();
