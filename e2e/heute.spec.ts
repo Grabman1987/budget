@@ -422,7 +422,7 @@ test('a debt account in credit adds to the composition and opens the matching de
       },
     }),
   );
-  await page.goto('/?monat=2026-09');
+  await page.goto(redesign ? '/?monat=2026-09&period=month' : '/?monat=2026-09');
   const composition = page.getByRole('group', { name: 'Maßkette Nettovermögen' });
   await expect(composition).toBeVisible();
   await expect(composition.locator('.chain-minus')).toHaveCount(0);
@@ -520,7 +520,7 @@ test('empty due and next-step blocks disappear while data-list empty states stay
     },
   };
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: empty }));
-  await page.goto('/?monat=2026-09');
+  await page.goto(redesign ? '/?monat=2026-09&period=month' : '/?monat=2026-09');
   await expect(page.getByRole('heading', { name: 'Angepinnte Kategorien' })).toHaveCount(0);
   await page.getByText('Ansicht anpassen', { exact: true }).click();
   await page.getByRole('checkbox', { name: 'Angepinnte Kategorien anzeigen' }).check();
