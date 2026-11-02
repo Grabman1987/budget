@@ -69,7 +69,10 @@ export function ReportHub({ initialGroup }: { initialGroup?: HubGroup | undefine
             <span className="sr-only">Berichte nach Name oder Frage suchen</span>
             <input
               type="search"
-              placeholder="Name oder Frage suchen"
+              className={REDESIGN_ENABLED ? 'input' : undefined}
+              placeholder={
+                REDESIGN_ENABLED ? 'Report suchen, auch frühere Namen' : 'Name oder Frage suchen'
+              }
               value={search}
               maxLength={160}
               autoComplete="off"

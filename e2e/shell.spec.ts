@@ -146,7 +146,10 @@ test.describe('routes', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Geldfluss');
     const reports = page.getByRole('navigation', { name: 'Weitere Berichte' });
     await reports.locator('summary').click();
-    await expect(reports.locator('[aria-current="page"]')).toHaveText('4. Geldfluss');
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    await expect(reports.locator('[aria-current="page"]')).toHaveText(
+      redesign ? '12. Geldfluss' : '4. Geldfluss',
+    );
     await expect(reports.locator('[aria-current="page"]')).toHaveAttribute(
       'href',
       '/reports/geldfluss',
@@ -542,7 +545,11 @@ sampleTest.describe('regression baselines of the shell (own screenshots)', () =>
         await page.screenshot({ path: test.info().outputPath('heute-viewport-light.png') });
       }
       await page.evaluate(() => document.fonts.ready);
-      await expectScreenshot(page, `shell-${name}-light.png`);
+      if (name === 'reports') await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
+      const redesign =
+        name === 'reports' &&
+        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      await expectScreenshot(page, `shell-${name}${redesign ? '-redesign' : ''}-light.png`);
     });
   }
 
