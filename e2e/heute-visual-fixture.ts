@@ -114,6 +114,7 @@ export function heuteReviewUrl(redesign: boolean, url: string): string {
 export async function openHeuteReview(page: Page, at = '/') {
   await page.goto(at);
   await expect(page.locator('.app')).toBeVisible();
+  if (new URL(page.url()).searchParams.has('panel')) return;
   if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
     await page.getByRole('link', { name: 'Mehr zum Monat', exact: true }).click();
 }

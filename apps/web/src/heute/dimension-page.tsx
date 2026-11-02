@@ -236,7 +236,7 @@ function NetWorthDetails({
         </p>
       )}
       {query.isPending && <LoadingNote what="Konten" />}
-      {query.isError && kind !== 'pace' && kind !== 'month' && (
+      {query.isError && (
         <ErrorNote what="Konten" error={query.error} onRetry={() => void query.refetch()} />
       )}
       {query.data &&
