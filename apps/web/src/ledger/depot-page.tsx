@@ -17,6 +17,8 @@ import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
 import './depot.css';
 import { useEffect, useRef, type ReactNode } from 'react';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { BankBalance } from './bank-balance';
 
 const TABS = { bestaende: 'Bestände', trades: 'Trades', verrechnung: 'Verrechnung' } as const;
 type DepotTab = keyof typeof TABS;
@@ -49,6 +51,21 @@ export function DepotBody({
       <h2 className="depot-name" ref={heading} tabIndex={-1}>
         {account.name}
       </h2>
+      {REDESIGN_ENABLED && (
+        <Link
+          className="btn btn-ghost"
+          to="/konten/$id"
+          params={{ id: account.id }}
+          search={
+            ((previous: Record<string, unknown>) => ({
+              ...previous,
+              depot: 'verrechnung',
+            })) as never
+          }
+        >
+          Verrechnung und Buchungen
+        </Link>
+      )}
       {positions.isPending && <LoadingNote what="Depotwert" />}
       {positions.isError && (
         <ErrorNote
@@ -75,14 +92,26 @@ export function DepotBody({
             </p>
           )}
         </div>
-        <AccountFreshness
-          lastReconciledOn={account.lastReconciledOn}
-          bankBalance={account.closedAt ? undefined : account.bankBalance}
-        />
+        {!REDESIGN_ENABLED && (
+          <AccountFreshness
+            lastReconciledOn={account.lastReconciledOn}
+            bankBalance={account.closedAt ? undefined : account.bankBalance}
+          />
+        )}
         <div className="kacct-actions">
           <AccountReview account={account} />
         </div>
       </div>
+      {REDESIGN_ENABLED && (
+        <details className="kacct-source">
+          <summary>Datenstand und Bankstand</summary>
+          <AccountFreshness
+            lastReconciledOn={account.lastReconciledOn}
+            bankBalance={account.closedAt ? undefined : account.bankBalance}
+          />
+          <BankBalance account={account} />
+        </details>
+      )}
       {account.balanceCents !== 0 && (
         <p className="depot-settlement" data-testid="depot-cash">
           Bargeld im Depotkonto: {nativeCurrency(account.balanceCents, account.currency)}

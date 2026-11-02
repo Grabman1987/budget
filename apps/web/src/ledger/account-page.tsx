@@ -43,6 +43,8 @@ import { useLiquiditySelection } from '../reports/liquidity-selection';
 import { AppLink } from '../shell/app-link';
 import { DepotBody } from './depot-page';
 import { useStoredFlag } from '../shell/use-stored-flag';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import './account-redesign.css';
 
 /** localStorage key of the account-history disclosure (absent = collapsed). */
 export const CHART_OPEN_KEY = 'budget.account.chart-open';
@@ -90,13 +92,21 @@ export function AccountPage({ id }: { id: string }) {
         },
       ]}
     >
-      <section className="kacct">
+      <section
+        className={cx('kacct', REDESIGN_ENABLED && 'account-detail-redesign')}
+        data-redesign={REDESIGN_ENABLED ? 'account-detail' : undefined}
+      >
         <Link className="kback" to="/konten">
           <ChevronLeft className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
           Übersicht
         </Link>
         {account && <ClosedAccountNotice account={account} />}
-        {account && <AccountStatementIntake key={account.id} accountId={account.id} />}
+        {account && !REDESIGN_ENABLED && (
+          <AccountStatementIntake key={account.id} accountId={account.id} />
+        )}
+        {REDESIGN_ENABLED && accounts.data && (
+          <p className="kmeta">Stand {longDay(accounts.data.asOf)}</p>
+        )}
         {accounts.isPending && <LoadingNote what="Konto" />}
         {accounts.isError && (
           <ErrorNote what="Konto" error={accounts.error} onRetry={() => void accounts.refetch()} />
@@ -108,6 +118,12 @@ export function AccountPage({ id }: { id: string }) {
           ) : (
             <AccountBody account={account} bankReview={bankReview} />
           ))}
+        {account && REDESIGN_ENABLED && (
+          <section className="account-documents-redesign" aria-label="Dokumente und Kontoauszüge">
+            <h3>Dokumente und Kontoauszüge</h3>
+            <AccountStatementIntake key={account.id} accountId={account.id} />
+          </section>
+        )}
       </section>
     </PageFrame>
   );
@@ -207,6 +223,14 @@ function AccountBody({ account, bankReview }: { account: AccountRow; bankReview?
           </p>
         </div>
         <div className="kacct-actions">
+          {REDESIGN_ENABLED && (
+            <>
+              <a className="btn btn-ghost" href={`#account-register-${account.id}`}>
+                Buchungen ansehen
+              </a>
+              <AccountReview account={account} compact />
+            </>
+          )}
           {!account.closedAt && (
             <Button onClick={() => setPanel({ mode: 'create', accountId: account.id })}>
               <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
@@ -239,6 +263,11 @@ function AccountBody({ account, bankReview }: { account: AccountRow; bankReview?
             </p>
           )}
           {value === null && <p className="kmeta">{valuationMissingText(account)}</p>}
+          {REDESIGN_ENABLED && !manual && (
+            <p className="kmeta">
+              Bestätigt {nativeCurrency(account.clearedCents, account.currency)}
+            </p>
+          )}
         </div>
         <div className="fig kacct-pending">
           <small>davon vorgemerkt</small>
@@ -262,7 +291,7 @@ function AccountBody({ account, bankReview }: { account: AccountRow; bankReview?
             <p className="kmeta">Bewegung · EUR je Buchungstag, Kurse in der Tabelle</p>
           )}
         </div>
-        <AccountReview account={account} compact />
+        {!REDESIGN_ENABLED && <AccountReview account={account} compact />}
         {account.closedAt && (
           <span className="pill">
             {account.lastReconciledOn

@@ -1,0 +1,86 @@
+.account-detail-redesign {
+  min-width: 0;
+}
+.account-detail-redesign .kacct-head,
+.account-detail-redesign .kacct-actions {
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.account-detail-redesign .kacct-kpis {
+  align-items: baseline;
+  gap: 12px 32px;
+}
+.account-detail-redesign .kacct-saldo strong,
+.account-detail-redesign .depot [data-testid='depot-value'] {
+  font-size: var(--fs-dimension);
+  line-height: var(--lh-dimension);
+  font-weight: 640;
+}
+.account-detail-redesign .kacct-source[open] {
+  flex-basis: 100%;
+}
+.account-detail-redesign .kchart {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  background: var(--surface);
+}
+.account-detail-redesign .kchart-head {
+  flex-wrap: wrap;
+}
+.account-detail-redesign .kchart-toggle,
+.account-detail-redesign .kchart-head .seg button,
+.account-detail-redesign .btn,
+.account-detail-redesign .kback,
+.account-detail-redesign summary {
+  min-height: 44px;
+  min-width: 44px;
+}
+.account-detail-redesign .kback,
+.account-detail-redesign .btn {
+  display: inline-flex;
+  align-items: center;
+}
+.account-detail-redesign .account-documents-redesign {
+  margin-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+.account-detail-redesign summary {
+  cursor: pointer;
+  padding-block: 8px;
+}
+.account-detail-redesign :is(a, button, summary):focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.account-detail-redesign [id^='account-register-'] {
+  scroll-margin-block: 80px;
+}
+@media (max-width: 767px) {
+  .account-detail-redesign .kacct-kpis {
+    gap: 8px 16px;
+  }
+  .account-detail-redesign .kacct-saldo {
+    flex-basis: 100%;
+  }
+  .account-detail-redesign .kchart {
+    padding: 8px;
+  }
+  .account-detail-redesign .kacct-actions .btn {
+    height: auto;
+    white-space: normal;
+  }
+}
+
+.account-detail-redesign > .kmeta {
+  display: inline;
+  margin-inline-start: 16px;
+}
+.account-detail-redesign .kback {
+  margin-bottom: 8px;
+}
+@media (min-width: 1101px) {
+  [data-budget-redesign='1'] .sheet:has(> .account-detail-redesign) {
+    row-gap: 24px;
+  }
+}

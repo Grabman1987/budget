@@ -31,7 +31,7 @@ export function AccountRegister({
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   return (
     <>
-      <div className="head kh">
+      <div className="head kh" id={`account-register-${account.id}`}>
         <h2>Buchungen</h2>
         {page && <span className="aside">{pluralBookings(page.total)}</span>}
       </div>
