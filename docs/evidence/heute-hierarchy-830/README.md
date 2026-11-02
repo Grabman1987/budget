@@ -52,7 +52,9 @@ KPIs retain independent cents and reachability/readability checks.
 | `e2e/heute-cards.spec.ts` | ON canonical payday amount and derivation move to the primary region. Supporting budget amount, original signed money/Plan-Rest/source/link assertions and OFF card checks remain. |
 | `e2e/heute-hints-1009.spec.ts` | ON payday date/explanation targets the primary region with explicit long provenance date; new compact Finanz-Check exists ON. Original dates, counts, income amounts and OFF expectations remain. |
 | `e2e/heute.spec.ts` | Conditional ON lead/Finanz-Check presence, primary font token and source-section order; numeric, forecast geometry, privacy, errors and existing destination assertions remain. |
-| `e2e/issue-571-heute-kennzahlen.spec.ts` | ON middle tile stays budget-scoped; first-screen bounds target primary/next work. Three source-equal supporting KPIs still receive explicit reachability/readability checks. OFF checks remain. |
+| `e2e/issue-571-heute-kennzahlen.spec.ts` | ON middle tile stays budget-scoped; first-screen bounds target primary/next work. Three source-equal supporting KPIs receive direct label/value/info bounds, pairwise nonoverlap and post-scroll fixed-control clearance, in addition to visibility and horizontal bounds. OFF checks remain. |
+| `e2e/issue-572-heute-charts.spec.ts` | Desktop ON first-screen bounds follow primary/next work; chart/source cents, endpoint/gap/tooltip geometry and keyboard assertions remain, with support-chart scroll/reflow proof. OFF bounds remain. |
+| `e2e/issue-574-heute-section-states.spec.ts` | ON desktop first-screen bounds follow primary/next work. The exact pending-to-settled section geometry equality stays unchanged. The first case maps initial forecast readiness to delivered T2/#911: ON withholds the response-owned chart until aggregate success, then asserts literal canonical low 19101; OFF keeps its independent initial read. Independent budget, errors and refresh checks remain. |
 | `e2e/issue-575-heute-phone-viewport.spec.ts` | ON parent selector follows two-column layout; original chart order, first-phone-Pace, folds, bottom controls, target sizes and Axe remain. Desktop first-screen bounds follow primary/next work ON, unchanged OFF. |
 | `e2e/ux-distill.spec.ts` | ON DOM and column geometry follow the approved hierarchy, with all retained sections and same bounds. OFF geometry, net-worth identity and device preference/reload checks remain. |
 | `e2e/pace-marker.spec.ts` | ON checks the new main/secondary parents; every chart/marker/tooltip money and geometry assertion remains. OFF sibling structure remains. |
@@ -81,3 +83,11 @@ No original screenshot baseline has been replaced. Existing screenshot assertion
 continue to describe OFF; any later ON baseline adoption uses the documented
 scoped `update-snapshots` workflow. Independent final review and exact-head CI are
 required before integration. No broad H1 acceptance or publication is claimed.
+
+The inherited #574 initial-source fixture drift is separate from H1 financial
+behavior: main's `CompactForecastCard` selects the response-owned 35-day forecast
+ON until an aggregate error permits the independent fallback. Its old first case
+expected an independent initial chart in both modes. Root authorized a narrow
+source-owner adapter preserving OFF and the exact geometry equality; the ON check
+now asserts pending/withheld followed by the unchanged literal canonical low.
+No amount, date, formula, retry or timeout is changed by that adapter.

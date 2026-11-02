@@ -97,6 +97,11 @@ test('three Kennzahlen use source cents, fit the phone and link to the current s
       for (const box of boxes) expect(box.height).toBeLessThanOrEqual(120);
       expect(boxes[1]!.y).toBeGreaterThanOrEqual(boxes[0]!.y + boxes[0]!.height);
       expect(boxes[2]!.y).toBeGreaterThanOrEqual(boxes[1]!.y + boxes[1]!.height);
+    } else if (redesign) {
+      for (let index = 1; index < boxes.length; index++)
+        expect(boxes[index]!.y).toBeGreaterThanOrEqual(
+          boxes[index - 1]!.y + boxes[index - 1]!.height,
+        );
     } else expect(boxes.map((box) => box.y)).toEqual([boxes[0]!.y, boxes[0]!.y, boxes[0]!.y]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,

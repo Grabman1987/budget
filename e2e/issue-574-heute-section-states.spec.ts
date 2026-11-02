@@ -4,6 +4,7 @@ import { sampleTest as test, expect as baseExpect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
 import type { SavingsExecutionProposal } from '../apps/web/src/wealth/savings-api';
 
+const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
 const expect = baseExpect.configure({ timeout: 15_000 });
 const proposal: SavingsExecutionProposal = {
   type: 'savings',
@@ -113,7 +114,12 @@ test('initial section placeholders keep above-fold geometry while independent re
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
       await page.goto('/?monat=2026-09&period=month');
       await expect(page.locator('[data-kennzahl="zu-verteilen"]')).toBeVisible();
-      await expect(page.getByTestId('liquidity-chart')).toBeVisible();
+      if (redesign) {
+        // Delivered T2/#911 selects the response-owned source, not a second initial read.
+        await expect(page.locator('.heute-compact-forecast')).toHaveAttribute('aria-busy', 'true');
+        await expect(page.getByTestId('liquidity-chart')).toHaveCount(0);
+        await expect(page.locator('.heute-forecast-low')).toHaveCount(0);
+      } else await expect(page.getByTestId('liquidity-chart')).toBeVisible();
       await expect(page.locator('.heute-pace')).toHaveAttribute('aria-busy', 'true');
       await expect(page.locator('.heute-wealth-line')).toHaveAttribute('aria-busy', 'true');
       await expect(page.getByRole('region', { name: 'Letzte Buchungen' })).toHaveAttribute(
@@ -128,6 +134,14 @@ test('initial section placeholders keep above-fold geometry while independent re
       release();
       await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
       await expect(page.getByTestId('heute-pace-chart')).toBeVisible();
+      if (redesign) {
+        const saved = data.forecast35d;
+        if (!saved || !('report' in saved) || !saved.report?.low)
+          throw new Error('Synthetic canonical 35-day forecast unavailable');
+        expect(saved.report.low.cents).toBe(19_101);
+        await expect(page.getByTestId('liquidity-chart')).toBeVisible();
+        await expect(page.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '19101');
+      }
       const settled = await bounds(page);
       if (JSON.stringify(settled) !== JSON.stringify(pending))
         console.log('Heute Pace slot comparison', {
@@ -137,11 +151,13 @@ test('initial section placeholders keep above-fold geometry while independent re
       expect(settled).toEqual(pending);
       if (info.project.name === 'desktop') {
         // Match #572/#575: three KPIs and both plots fit; full card geometry stays equal above.
-        for (const selector of [
-          '.heute-kennzahlen',
-          '[data-testid="heute-pace-chart"]',
-          '[data-testid="heute-wealth-history"]',
-        ]) {
+        for (const selector of redesign
+          ? ['.heute-lead', '.heute-attention']
+          : [
+              '.heute-kennzahlen',
+              '[data-testid="heute-pace-chart"]',
+              '[data-testid="heute-wealth-history"]',
+            ]) {
           const box = (await page.locator(selector).boundingBox())!;
           expect(box.y).toBeGreaterThanOrEqual(0);
           expect(box.y + box.height).toBeLessThanOrEqual(900);

@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import type { Heute } from '../apps/web/src/heute/api';
 import { expect as baseExpect, sampleTest as test } from './sample';
 
@@ -15,6 +15,58 @@ test.describe.configure({ timeout: 90_000 });
 const EVIDENCE = 'docs/evidence/issue-571-heute-kennzahlen';
 const value = (page: Page, kennzahl: string) =>
   page.locator(`[data-kennzahl="${kennzahl}"]`).first();
+
+async function expectReadableSupport(page: Page, tiles: Locator) {
+  const viewport = page.viewportSize()!;
+  for (const tile of await tiles.all()) {
+    await tile.evaluate((element) =>
+      element.scrollIntoView({ block: 'center', inline: 'nearest' }),
+    );
+    await expect(tile).toBeVisible();
+    const box = (await tile.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+    const label = tile.getByRole('heading', { level: 2 });
+    const figure = tile.locator('.heute-answer-value').first();
+    const info = tile.locator(':scope > .heute-info');
+    const parts = [];
+    for (const target of [label, figure, info]) {
+      await expect(target).toBeVisible();
+      const part = (await target.boundingBox())!;
+      expect(part.width).toBeGreaterThan(0);
+      expect(part.height).toBeGreaterThan(0);
+      expect(part.x).toBeGreaterThanOrEqual(box.x);
+      expect(part.x + part.width).toBeLessThanOrEqual(box.x + box.width);
+      expect(part.y).toBeGreaterThanOrEqual(box.y);
+      expect(part.y + part.height).toBeLessThanOrEqual(box.y + box.height);
+      expect(part.y).toBeGreaterThanOrEqual(0);
+      expect(part.y + part.height).toBeLessThanOrEqual(viewport.height);
+      parts.push(part);
+    }
+    const controls = await page
+      .locator('.tabbar:visible, .fab:visible, .topbar:visible, .m-head:visible')
+      .evaluateAll((elements) =>
+        elements.map((element) => {
+          const b = element.getBoundingClientRect();
+          return { x: b.x, y: b.y, width: b.width, height: b.height };
+        }),
+      );
+    const separated = (
+      a: { x: number; y: number; width: number; height: number },
+      b: { x: number; y: number; width: number; height: number },
+    ) =>
+      a.x + a.width <= b.x ||
+      b.x + b.width <= a.x ||
+      a.y + a.height <= b.y ||
+      b.y + b.height <= a.y;
+    for (let index = 0; index < parts.length; index++) {
+      for (const control of controls) expect(separated(parts[index]!, control)).toBe(true);
+      for (const other of parts.slice(index + 1))
+        expect(separated(parts[index]!, other)).toBe(true);
+    }
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+}
 
 test.beforeEach(async ({ page }) => {
   // The "Mehr zum Monat" fold is closed on the phone by default.
@@ -125,14 +177,7 @@ test('phone list: the three Kennzahlen (the section "Monat im Blick") end inside
   expect(Math.max(...bottoms), 'the last primary section ends below 844 px').toBeLessThanOrEqual(
     844,
   );
-  if (redesign)
-    for (const tile of await tiles.all()) {
-      await tile.scrollIntoViewIfNeeded();
-      await expect(tile).toBeVisible();
-      const box = (await tile.boundingBox())!;
-      expect(box.x).toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width).toBeLessThanOrEqual(390);
-    }
+  if (redesign) await expectReadableSupport(page, tiles);
 });
 
 for (const colorScheme of ['light', 'dark'] as const) {
@@ -177,6 +222,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
           }
         }
       }
+      if (redesign) await expectReadableSupport(page, tiles);
       const axe = await new AxeBuilder({ page }).analyze();
       expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
       // Evidence (synthetic data): desktop light and phone dark.
