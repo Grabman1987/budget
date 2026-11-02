@@ -57,7 +57,18 @@ export function HeutePage() {
   const [month] = useMonth();
   const { period, setPeriod } = useBalancePeriod();
   const query = useQuery(heuteQuery(month, period));
-  const data = !query.isFetching && !query.isPending && !query.isError ? query.data : undefined;
+  // Only the selected query's successful response may survive a background refresh.
+  // In particular, never turn a previous-key placeholder into current money.
+  const matching =
+    !query.isPlaceholderData &&
+    query.data?.stand.month === month &&
+    query.data.stand.period === period;
+  const data =
+    !query.isPending &&
+    !query.isError &&
+    (REDESIGN_ENABLED ? matching && query.failureCount === 0 : !query.isFetching)
+      ? query.data
+      : undefined;
   return (
     <PageFrame
       meta={HEUTE}
@@ -95,7 +106,8 @@ function HeuteBody({
     });
   const [month, , setMonth] = useMonth();
   const away = month !== (data?.stand.today.slice(0, 7) ?? currentMonth());
-  const pending = read.isPending || read.isFetching;
+  const refreshing = REDESIGN_ENABLED && Boolean(data) && read.isFetching && !read.isError;
+  const pending = read.isPending || (read.isFetching && !refreshing);
   const net = data && !('unavailable' in data.netWorth) ? data.netWorth : null;
   const [showPinned, setShowPinned] = useStoredFlag('budget-heute-pinned-categories');
   const phone = useIsPhone();
@@ -133,6 +145,11 @@ function HeuteBody({
 
   return (
     <>
+      {refreshing && (
+        <p className="heute-note" role="status">
+          Heute-Daten werden aktualisiert · Stand heute {longDay(data!.stand.today)}
+        </p>
+      )}
       {away && (
         <p className="heute-month-note" role="note" data-testid="heute-month-note">
           <span>Ansicht: {monthName(month)} –</span>
@@ -310,7 +327,7 @@ function HeuteBody({
           />
         )}
 
-        <CompactForecastCard data={data} read={read} />
+        <CompactForecastCard data={data} read={read} refreshing={refreshing} />
 
         {data ? (
           <HeuteWealthLine data={data} />

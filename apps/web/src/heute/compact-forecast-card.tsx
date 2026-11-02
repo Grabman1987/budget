@@ -14,8 +14,11 @@ import type { Heute } from './api';
 export function CompactForecastCard({
   data,
   read,
+  refreshing = false,
 }: {
   data: Pick<Heute, 'forecast35d'> | undefined;
+  /** Parent verified the selected month/period and rejected placeholder/error data. */
+  refreshing?: boolean;
   read: Pick<UseQueryResult<Heute>, 'isPending' | 'isFetching' | 'isError'>;
 }) {
   useAmountPrivacy();
@@ -24,7 +27,7 @@ export function CompactForecastCard({
   const forecast = useQuery({ ...liquidityQuery('35d', []), enabled: !savedSource });
   const payments = useQuery(expectedQuery());
   const pending = savedSource
-    ? read.isPending || read.isFetching
+    ? read.isPending || (read.isFetching && !(refreshing && data))
     : forecast.isPending || forecast.isFetching;
   const view = pending
     ? undefined
@@ -44,7 +47,7 @@ export function CompactForecastCard({
     <section
       className="heute-section heute-compact-forecast"
       aria-labelledby="heute-forecast-title"
-      aria-busy={pending || undefined}
+      aria-busy={pending || (savedSource && read.isFetching) || undefined}
     >
       <div className="heute-compact-forecast-head">
         <h2 id="heute-forecast-title">Kontoprognose · 35 Tage</h2>
@@ -65,7 +68,7 @@ export function CompactForecastCard({
         ) : (
           'Stand nicht verfügbar'
         )}{' '}
-        · ohne Stellschrauben
+        {savedSource && refreshing && view && '· wird aktualisiert '}· ohne Stellschrauben
         {' · Budget-Konten; Kreditkarten im Budget eingeschlossen, Reservekonten ausgeschlossen.'}
       </p>
       {report ? (
