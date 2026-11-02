@@ -111,7 +111,15 @@ const probes = {
     ).toBeVisible();
   },
   dimension: async (p: Page) => {
-    await css(p, '.heute-dimension .heute-breakdown a[href="/konten/acc-giro"]');
+    const link = p.locator('.heute-dimension .heute-breakdown a[href^="/konten/acc-giro"]').first();
+    await expect(link).toBeVisible();
+    const target = new URL((await link.getAttribute('href'))!, p.url());
+    expect(target.pathname).toBe('/konten/acc-giro');
+    if ((await p.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+      expect(target.searchParams.get('monat')).toBe(new URL(p.url()).searchParams.get('monat'));
+      expect(target.searchParams.get('period')).toBe('month');
+      expect(target.searchParams.get('von')).toMatch(/^\/heute\/details\/liquid\?/);
+    } else expect(target.search).toBe('');
     await expect(p.locator('#dimension-title')).toHaveText('Liquidität');
   },
   capture: (p: Page) =>
