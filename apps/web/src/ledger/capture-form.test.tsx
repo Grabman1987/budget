@@ -199,7 +199,7 @@ it.each([false, true])(
       ),
     );
     const status = screen.getByRole('button', { name: 'Vorgemerkt' });
-    expect(status.querySelector('span')!.textContent).toBe('Vorgemerkt');
+    expect(status.textContent).toBe('Vorgemerkt');
     expect(document.querySelector('[data-redesign="booking-editor"]') !== null).toBe(enabled);
     expect(status.querySelector('.booking-status-pending') !== null).toBe(enabled);
     expect(status.getAttribute('title')).toBe('Vorgemerkt');
