@@ -1,4 +1,4 @@
-import { DimensionChain, useAmountPrivacy } from '@budget/ui';
+import { DimensionChain, useAmountPrivacy, privateAmount } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { VERMOEGEN_NETTO_META } from '../nav/pages';
 import { AppLink } from '../shell/app-link';
@@ -11,7 +11,7 @@ import { freedomQuery } from './freedom-api';
 import { savingsProposalsQuery } from './savings-api';
 import { portfolioContributionsQuery, portfolioPerformanceQuery } from './portfolio-api';
 import { AssetComposition } from './asset-composition';
-import { chainTerms } from './networth-model';
+import { cents } from '@budget/domain';
 import { OverviewChart } from './overview-chart';
 import { ZeitraumSwitch } from './frame';
 import { useZeitraum } from './zeitraum';
@@ -44,14 +44,16 @@ export function WealthOverview() {
   return (
     <WealthFrame meta={VERMOEGEN_NETTO_META} page="overview">
       <div className="wealth-overview">
-        {sources.map(({ query, what }) => (
-          <div key={what}>
-            {query.isPending && <LoadingNote what={what} />}
-            {query.isError && (
-              <ErrorNote what={what} error={query.error} onRetry={() => void query.refetch()} />
-            )}
-          </div>
-        ))}
+        {sources
+          .filter(({ query }) => query.isPending || query.isError)
+          .map(({ query, what }) => (
+            <div key={what}>
+              {query.isPending && <LoadingNote what={what} />}
+              {query.isError && (
+                <ErrorNote what={what} error={query.error} onRetry={() => void query.refetch()} />
+              )}
+            </div>
+          ))}
         <WealthReadStatus
           fetching={net.isFetching}
           paused={net.isPaused}
@@ -71,10 +73,27 @@ export function WealthOverview() {
                   vorläufig.
                 </p>
               )}
-              <DimensionChain
-                terms={chainTerms(view.chain, view.from)}
-                label="Maßkette Nettovermögen im Zeitraum"
-              />
+              {view.assetComposition?.complete && view.assetComposition.totalCents !== null && (
+                <DimensionChain
+                  terms={[
+                    ...view.assetComposition.groups
+                      .filter((group) => group.accounts.length > 0)
+                      .map((group) => ({
+                        label: group.label,
+                        value: cents(Math.abs(group.valueCents!)),
+                        op: group.valueCents! < 0 ? ('-' as const) : ('+' as const),
+                      })),
+                    {
+                      label: 'Nettovermögen',
+                      value: cents(view.assetComposition.totalCents),
+                      op: '=' as const,
+                      result: true,
+                    },
+                  ]}
+                  label="Zusammensetzung Nettovermögen"
+                  precision="cent"
+                />
+              )}
               <p className="vnote">
                 Alle Vermögenswerte abzüglich sämtlicher Verbindlichkeiten.{' '}
                 <AppLink to="/vermoegen/nettovermoegen" search={{ zeitraum: period }}>
@@ -172,11 +191,15 @@ export function WealthOverview() {
           )}
           {ytd.data && (
             <p>
-              Wertpapiere YTD {percentText(portfolioReturn)} · Weltaktien{' '}
-              {world ? `${world.name} ${percentText(world.benchmarkReturn)}` : 'nicht ausgewählt'} ·
-              Differenz{' '}
-              <strong>{comparison === null ? 'Nicht verfügbar' : ppText(comparison)}</strong> ·
-              Stand {longDay(ytd.data.portfolio.performance?.to ?? ytd.data.portfolio.asOf)}.{' '}
+              Wertpapiere YTD {privateAmount(percentText(portfolioReturn))} · Weltaktien{' '}
+              {world
+                ? `${world.name} ${privateAmount(percentText(world.benchmarkReturn))}`
+                : 'nicht ausgewählt'}{' '}
+              · Differenz{' '}
+              <strong>
+                {comparison === null ? 'Nicht verfügbar' : privateAmount(ppText(comparison))}
+              </strong>{' '}
+              · Stand {longDay(ytd.data.portfolio.performance?.to ?? ytd.data.portfolio.asOf)}.{' '}
               <AppLink to="/reports/prendite" search={{ zeitraum: 'YTD' }}>
                 Vergleich öffnen →
               </AppLink>
@@ -197,11 +220,17 @@ export function WealthOverview() {
           Finanzielle Freiheit ≈{' '}
           {freedom.data?.progressBp == null
             ? 'nicht verfügbar'
-            : `${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 1 }).format(freedom.data.progressBp / 100)} %`}{' '}
+            : privateAmount(
+                `${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 1 }).format(freedom.data.progressBp / 100)} %`,
+              )}{' '}
           · Annahme: {freedom.data?.multiple ?? '—'} Jahresausgaben.{' '}
           <AppLink to="/vermoegen/freiheit">Ausgabenbasis und Annahmen öffnen →</AppLink>
         </p>
         <p className="vnote">
+          <AppLink to="/vermoegen/portfolio" search={{ zeitraum: period }}>
+            Bestehende Portfolioanalyse
+          </AppLink>{' '}
+          ·
           <AppLink to="/vermoegen/portfolio/kennzahlen" search={{ zeitraum: period }}>
             Bestehende Portfolio-Kennzahlen
           </AppLink>{' '}

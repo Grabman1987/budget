@@ -43,8 +43,17 @@ function WealthToolbar({ page }: { page: WealthPage }) {
   const art = useAssetType();
   const navigate = useNavigate();
   const menu = useRef<HTMLDetailsElement>(null);
+  const toolbar = useRef<HTMLDivElement>(null);
   const [account, setAccount] = useState(false);
   useEffect(() => {
+    const element = toolbar.current;
+    const toggle = (event: Event) => {
+      if (!(event.target instanceof HTMLDetailsElement) || !event.target.open) return;
+      for (const sibling of element?.querySelectorAll<HTMLDetailsElement>('details[open]') ?? []) {
+        if (sibling !== event.target) sibling.open = false;
+      }
+    };
+    element?.addEventListener('toggle', toggle, true);
     const close = (event: Event) => {
       const target = menu.current;
       if (!target?.open) return;
@@ -62,6 +71,7 @@ function WealthToolbar({ page }: { page: WealthPage }) {
     document.addEventListener('keydown', close);
     document.addEventListener('pointerdown', close);
     return () => {
+      element?.removeEventListener('toggle', toggle, true);
       document.removeEventListener('keydown', close);
       document.removeEventListener('pointerdown', close);
     };
@@ -79,7 +89,7 @@ function WealthToolbar({ page }: { page: WealthPage }) {
   );
   return (
     <>
-      <div className="wealth-toolbar">
+      <div className="wealth-toolbar" ref={toolbar}>
         <PageMenu area={{ ...areaById('vermoegen'), registers: WEALTH_PAGES }} current={page} />
         {['positions', 'savings', 'allocation'].includes(page) && (
           <label className="wealth-art">

@@ -1,3 +1,4 @@
+import { portfolioNavigation, selectPortfolioView, wealthRedesign } from './wealth-navigation';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import type { PortfolioPerformanceHistory, PortfolioPositionsView } from '@budget/db';
@@ -19,8 +20,10 @@ test('portfolio navigation rows do not overlap at the 640px shell breakpoint', a
   await page.setViewportSize({ width: 640, height: 900 });
   await page.goto('/vermoegen/portfolio');
   await expect(page.getByTestId('portfolio-overview-chart')).toBeVisible();
-  const area = page.getByRole('navigation', { name: 'Register von Vermögen', exact: true });
-  const portfolio = page.getByRole('navigation', { name: 'Portfolio-Register', exact: true });
+  const area = (await wealthRedesign(page))
+    ? page.locator('.area-page-menu').first()
+    : page.getByRole('navigation', { name: 'Register von Vermögen', exact: true });
+  const portfolio = await portfolioNavigation(page);
   const areaBox = (await area.boundingBox())!;
   const portfolioBox = (await portfolio.boundingBox())!;
   expect(portfolioBox.y).toBeGreaterThanOrEqual(areaBox.y + areaBox.height);
@@ -53,15 +56,17 @@ async function expectLoadedRegister(page: Page, label: (typeof registers)[number
 test('five portfolio registers preserve period across navigation and reload', async ({ page }) => {
   await page.goto('/vermoegen/portfolio?zeitraum=3J');
   for (const [label, path] of registers) {
-    const nav = page.getByRole('navigation', { name: 'Portfolio-Register', exact: true });
+    let nav = await portfolioNavigation(page);
     await expect(nav.getByRole('link')).toHaveCount(5);
-    await nav.getByRole('link', { name: label, exact: true }).click();
+    await selectPortfolioView(page, label);
+    nav = await portfolioNavigation(page);
     await expect(page).toHaveURL(`${path}?zeitraum=3J`);
     await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute(
       'aria-current',
       'page',
     );
     await page.reload();
+    nav = await portfolioNavigation(page);
     await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute(
       'aria-current',
       'page',
@@ -76,7 +81,7 @@ for (const [label, path] of registers) {
     page,
   }, info) => {
     await page.goto(`${path}?zeitraum=3J`);
-    const nav = page.getByRole('navigation', { name: 'Portfolio-Register', exact: true });
+    const nav = await portfolioNavigation(page);
     await expectLoadedRegister(page, label);
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => {

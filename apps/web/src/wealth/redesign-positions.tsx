@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Button, useAmountPrivacy } from '@budget/ui';
+import { Button, useAmountPrivacy, privateAmount } from '@budget/ui';
 import { request, queryString } from '../api/http';
 import { accountsQuery, LEDGER_KEY } from '../ledger/queries';
 import { longDay } from '../ledger/format';
@@ -70,8 +70,15 @@ export function WealthActivities({
                   <br />
                   {longDay(row.date)} · {account?.name ?? 'Konto nicht verfügbar'}
                   <br />
-                  {unitsText(Math.abs(row.unitsE8))} Stück · Brutto {money(row.amountCents)} ·
-                  Gebühren {money(row.feeCents)} · Steuer {money(row.taxCents)}
+                  {privateAmount(
+                    unitsText(
+                      row.kind === 'buy' || row.kind === 'sell'
+                        ? Math.abs(row.unitsE8)
+                        : row.unitsE8,
+                    ),
+                  )}{' '}
+                  Stück · Brutto {money(row.amountCents)} · Gebühren {money(row.feeCents)} · Steuer{' '}
+                  {money(row.taxCents)}
                 </span>
                 <Button variant="ghost" onClick={() => onEdit(row.id, row.securityId)}>
                   Bearbeiten
@@ -100,6 +107,7 @@ export function InvestmentAccounts({ art }: { art: AssetType }) {
         (art === 'krypto' && account.type === 'crypto') ||
         (art === 'p2p' && account.type === 'p2p')),
   );
+  if (art === 'wertpapiere') return null;
   return (
     <section className="wealth-sheet" aria-label="Krypto- und P2P-Konten">
       <h2>Krypto- und P2P-Konten</h2>

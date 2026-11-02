@@ -168,6 +168,7 @@ const probes = {
     await expect(detail).toContainText('Noch keine ältere oder spätere Kontaktbewegung.');
   },
   networth: (p: Page) => id(p, 'nw-figure'),
+  wealthOverview: (p: Page) => id(p, 'wealth-net-value'),
   portfolio: (p: Page) => id(p, 'portfolio-overview-chart'),
   positions: async (p: Page) => {
     await id(p, 'portfolio-value');
@@ -441,7 +442,12 @@ for (const [slug, path, intent, view, body] of reportAliases)
   });
 const fixedAliases = [
   ['/plan', '/plan/monat', 'plan', 'monat=2026-09'],
-  ['/vermoegen', '/vermoegen/nettovermoegen', 'networth', ''],
+  [
+    '/vermoegen',
+    on ? '/vermoegen' : '/vermoegen/nettovermoegen',
+    on ? 'wealthOverview' : 'networth',
+    '',
+  ],
   ['/einstellungen/import', '/einstellungen/export', 'export', ''],
 ] as const;
 for (const [from, path, body, query] of fixedAliases)

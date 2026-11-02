@@ -1,3 +1,4 @@
+import { wealthRedesign } from './wealth-navigation';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, schema } from '@budget/db';
@@ -308,7 +309,12 @@ async function themes(page: Page, info: TestInfo, name: string) {
     await expect(entityHeading).toHaveCount(1);
     await expect(entityHeading).toBeVisible();
     await expect(
-      page.getByRole('heading', { name: 'Portfolio', level: 1, exact: true, includeHidden: true }),
+      page.locator('main').getByRole('heading', {
+        name: (await wealthRedesign(page)) ? 'Vermögen' : 'Portfolio',
+        level: 1,
+        exact: true,
+        includeHidden: true,
+      }),
     ).toHaveCount(1);
     const back = page.getByRole('link', {
       name: 'Zurück zum Portfolio',

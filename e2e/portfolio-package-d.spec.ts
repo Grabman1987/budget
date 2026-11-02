@@ -1,3 +1,4 @@
+import { selectPortfolioView } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import type { PortfolioAllocationView } from '@budget/db';
 import type { Locator, Page } from '@playwright/test';
@@ -89,10 +90,7 @@ sampleTest(
     });
     await page.goto('/vermoegen/portfolio/positionen');
     await expect(page.locator('.portfolio-positions')).toContainText('ohne Kassa');
-    await page
-      .getByRole('navigation', { name: 'Portfolio-Register', exact: true })
-      .getByRole('link', { name: 'Allokation', exact: true })
-      .click();
+    await selectPortfolioView(page, 'Allokation');
     const allocation = page.getByRole('region', { name: 'Aufteilung Soll/Ist', exact: true });
     await allocation.getByText('Wie wird gerechnet?', { exact: true }).click();
     await expect(allocation).toContainText('Netto-Allokationsuniversum');

@@ -4,13 +4,13 @@ import { useQuery } from '@tanstack/react-query';
 import { longDay, eur } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { AppLink } from '../shell/app-link';
-import { targetVersionsQuery, type PortfolioAllocationView } from './allocation-api';
+import { allocationStageVersionsQuery, type PortfolioAllocationView } from './allocation-api';
 import { percentText } from './portfolio-format';
 
 /** Read-only projection of saved tiers; activation and the month-end buffer stay in the resolver. */
 export function AllocationStages({ view }: { view: PortfolioAllocationView }) {
   useAmountPrivacy();
-  const query = useQuery(targetVersionsQuery());
+  const query = useQuery(allocationStageVersionsQuery());
   const version = query.data?.versions.find(
     (item) => item.validFrom === view.policy.targetValidFrom,
   );

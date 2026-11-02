@@ -1,3 +1,4 @@
+import { selectPortfolioView, showDebtHistory, wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
 
@@ -67,21 +68,23 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
   await page.goto('/vermoegen/portfolio');
   await expect(page.getByTestId('portfolio-gain')).toContainText('€');
   if (info.project.name === 'desktop') {
-    const chart = await page.getByTestId('portfolio-overview-chart').boundingBox();
-    expect(chart!.y + chart!.height).toBeLessThan(page.viewportSize()!.height);
+    if (await wealthRedesign(page)) {
+      await page.goto('/vermoegen');
+      await expect(page.getByTestId('wealth-compact-chart')).toBeVisible();
+      const compact = await page.getByTestId('wealth-compact-chart').boundingBox();
+      expect(compact!.y + compact!.height).toBeLessThan(page.viewportSize()!.height);
+      await page.goto('/vermoegen/portfolio');
+    } else {
+      const chart = await page.getByTestId('portfolio-overview-chart').boundingBox();
+      expect(chart!.y + chart!.height).toBeLessThan(page.viewportSize()!.height);
+    }
   }
-  await page
-    .getByRole('navigation', { name: 'Portfolio-Register', exact: true })
-    .getByRole('link', { name: 'Positionen', exact: true })
-    .click();
+  await selectPortfolioView(page, 'Positionen');
   const instrument = await page
     .locator('[data-portfolio-security]')
     .first()
     .getAttribute('data-portfolio-security');
-  await page
-    .getByRole('navigation', { name: 'Portfolio-Register', exact: true })
-    .getByRole('link', { name: 'Sparpläne', exact: true })
-    .click();
+  await selectPortfolioView(page, 'Sparpläne');
   const savings = await page
     .locator('[data-savings-plan]:not([data-savings-plan="neu"])')
     .first()
@@ -101,9 +104,12 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
       await expect(page.getByTestId('portfolio-overview-chart')).toBeVisible();
     if (name === 'debts') {
       await expect(page.getByTestId('debt-total')).toBeVisible();
+      await showDebtHistory(page);
       await expect(page.getByTestId('debt-history-chart')).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Schuldenfrei am …' })).toHaveCount(0);
-      await expect(page.locator('.debt-quick-scenario')).toBeHidden();
+      if (await wealthRedesign(page))
+        await expect(page.locator('.debt-quick-scenario')).toBeVisible();
+      else await expect(page.locator('.debt-quick-scenario')).toBeHidden();
       await page.getByRole('link', { name: 'Konditionen ergänzen' }).click();
       await expect(page.locator('#debt-adjustments')).toHaveAttribute('open', '');
       await page.locator('#debt-adjustments > summary').click();

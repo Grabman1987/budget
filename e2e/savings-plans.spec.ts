@@ -1,3 +1,4 @@
+import { selectPortfolioView } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
 import { join } from 'node:path';
@@ -109,8 +110,7 @@ test('native savings CRUD, future/current history, end, reload and audited undo'
   expect(retained.filter((security) => security.id === data.security.id)).toHaveLength(1);
   await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
   await expect.poll(async () => (await list()).length).toBe(1);
-  const registers = page.getByRole('navigation', { name: 'Portfolio-Register', exact: true });
-  await registers.getByRole('link', { name: 'Positionen', exact: true }).click();
+  await selectPortfolioView(page, 'Positionen');
   // The retained instrument's catalog is on Positions and starts closed.
   await page.locator('.instrument-catalog > summary').click();
   await expect(
@@ -118,7 +118,7 @@ test('native savings CRUD, future/current history, end, reload and audited undo'
       .locator('.instrument-catalog')
       .getByRole('button', { name: data.security.name, exact: true }),
   ).toHaveCount(1);
-  await registers.getByRole('link', { name: 'Sparpläne', exact: true }).click();
+  await selectPortfolioView(page, 'Sparpläne');
   const section = page.getByRole('region', { name: 'Sparpläne', exact: true });
   const row = section
     .getByRole('row')
@@ -357,10 +357,7 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
   await expect(page.locator('dialog[open]')).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(page.locator('dialog[open]')).toHaveCount(0);
-  await page
-    .getByRole('navigation', { name: 'Portfolio-Register', exact: true })
-    .getByRole('link', { name: 'Positionen', exact: true })
-    .click();
+  await selectPortfolioView(page, 'Positionen');
   await page.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Handel erfassen', exact: true })).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(1);
@@ -383,10 +380,7 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
-  await page
-    .getByRole('navigation', { name: 'Portfolio-Register', exact: true })
-    .getByRole('link', { name: 'Sparpläne', exact: true })
-    .click();
+  await selectPortfolioView(page, 'Sparpläne');
   const opener = page
     .getByRole('region', { name: 'Sparpläne', exact: true })
     .getByRole('button', { name: data.security.name, exact: true });

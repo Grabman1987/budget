@@ -1,4 +1,4 @@
-import { useAmountPrivacy, Button, DimensionChain } from '@budget/ui';
+import { useAmountPrivacy, Button, DimensionChain, privateAmount } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { periodWindow, ratioBp, type Period } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
@@ -97,7 +97,7 @@ function PortfolioBody({ register }: { register: PortfolioRegister }) {
             params: { id: produkt },
             search: {
               zeitraum: search.zeitraum,
-              ...(REDESIGN_ENABLED ? { anlageart: art, ansicht: search.ansicht } : {}),
+              ...(REDESIGN_ENABLED ? { anlageart: search.anlageart, ansicht: search.ansicht } : {}),
             },
             state: { wealthDetailOpenedInApp: true },
             replace,
@@ -107,7 +107,7 @@ function PortfolioBody({ register }: { register: PortfolioRegister }) {
             search: {
               zeitraum: search.zeitraum,
               produkt,
-              ...(REDESIGN_ENABLED ? { anlageart: art, ansicht: search.ansicht } : {}),
+              ...(REDESIGN_ENABLED ? { anlageart: search.anlageart, ansicht: search.ansicht } : {}),
             },
           },
     );
@@ -209,6 +209,10 @@ function PortfolioBody({ register }: { register: PortfolioRegister }) {
                   paused={query.isPaused}
                   date={view ? longDay(view.asOf) : undefined}
                 />
+                <p className="vnote">
+                  Anlageart filtert die Liste. Portfoliowert, Gewinn und Anteilsbasis beziehen sich
+                  weiterhin auf den gesamten bewerteten Instrumentenbestand.
+                </p>
                 <div className="wealth-position-mode" role="group" aria-label="Positionen anzeigen">
                   <Button
                     variant="ghost"
@@ -255,7 +259,10 @@ function PortfolioBody({ register }: { register: PortfolioRegister }) {
             {REDESIGN_ENABLED && search.ansicht === 'aktivitaeten' ? (
               <WealthActivities
                 art={art}
-                from={performance.data?.portfolio.performance?.from}
+                from={
+                  performance.data?.portfolio.performance?.from ??
+                  (view ? periodWindow(period, view.asOf).from : undefined)
+                }
                 to={view?.asOf}
                 onEdit={(id, security) => trade(id, security)}
               />
@@ -267,7 +274,9 @@ function PortfolioBody({ register }: { register: PortfolioRegister }) {
                   ) : (
                     <section className="portfolio-positions" aria-labelledby="positions-title">
                       <div className="head">
-                        <h2 id="positions-title">Positionen</h2>
+                        <h2 id="positions-title" tabIndex={-1} ref={focusPositionHeading}>
+                          Positionen
+                        </h2>
                         <span className="aside">
                           {view.costCents === null
                             ? basisReason(
@@ -526,7 +535,8 @@ function PositionRow({
         </button>
         {REDESIGN_ENABLED && (
           <small className="wealth-phone-position">
-            {unitsText(p.unitsE8)} Stück · Kurs {quoteText(p.quote)} · {quoteStand(p.quote)}
+            {privateAmount(unitsText(p.unitsE8))} Stück · Kurs {quoteText(p.quote)} ·{' '}
+            {quoteStand(p.quote)}
             <br />
             Einstand {moneyText(p.costCents)} · Gewinn {moneyText(p.gainCents)}
             <br />
@@ -562,4 +572,12 @@ function PositionRow({
       </td>
     </tr>
   );
+}
+
+/** Focus an explicit allocation drilldown after the asynchronous positions body mounts. */
+function focusPositionHeading(element: HTMLHeadingElement | null) {
+  if (REDESIGN_ENABLED && element && window.location.hash === '#positions-title') {
+    element.scrollIntoView({ block: 'start' });
+    element.focus({ preventScroll: true });
+  }
 }

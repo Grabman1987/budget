@@ -3,7 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, expect, it, vi } from 'vitest';
 import { AllocationStages } from './allocation-stages';
-import { targetVersionsQuery, type PortfolioAllocationView } from './allocation-api';
+import { allocationStageVersionsQuery, type PortfolioAllocationView } from './allocation-api';
 
 vi.mock('../shell/app-link', () => ({
   AppLink: ({ children, to }: { children: React.ReactNode; to: string }) => (
@@ -13,7 +13,7 @@ vi.mock('../shell/app-link', () => ({
 afterEach(cleanup);
 it('shows persisted lower thresholds and the resolver buffer without a second target editor', () => {
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
-  client.setQueryData(targetVersionsQuery().queryKey, {
+  client.setQueryData(allocationStageVersionsQuery().queryKey, {
     versions: [
       {
         validFrom: '2026-09-01',

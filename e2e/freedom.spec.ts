@@ -1,3 +1,4 @@
+import { wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { test as ledgerTest, expect } from '@playwright/test';
 import { sampleTest as test } from './sample';
@@ -252,7 +253,12 @@ ledgerTest(
       await expect(rulePanel.getByLabel('Jahresausgaben mal')).toHaveValue(String(multiple));
       await page.keyboard.press('Escape');
       await page.getByRole('link', { name: 'Vermögen', exact: true }).click();
-      await page.getByRole('link', { name: 'Freiheit', exact: true }).click();
+      await page
+        .getByRole('link', {
+          name: (await wealthRedesign(page)) ? 'Ausgabenbasis und Annahmen öffnen →' : 'Freiheit',
+          exact: true,
+        })
+        .click();
       await expect(
         page.getByRole('link', { name: new RegExp(`^${multiple} Jahresausgaben`) }),
       ).toBeVisible();

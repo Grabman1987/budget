@@ -472,13 +472,12 @@ const netWorthRoute = createRoute({
   staticData: { meta: VERMOEGEN_NETTO_META },
   component: lazyRouteComponent(() => import('./wealth/networth-page'), 'NetWorthPage'),
 });
+const wealthPresentationSearch = (search: Record<string, unknown>) => ({
+  anlageart: search['anlageart'] === undefined ? undefined : assetType(search['anlageart']),
+  ansicht: search['ansicht'] === 'aktivitaeten' ? 'aktivitaeten' : undefined,
+});
 const portfolioRegisterSearch = (search: Record<string, unknown>) => ({
-  ...(REDESIGN_ENABLED
-    ? {
-        anlageart: assetType(search['anlageart']),
-        ansicht: search['ansicht'] === 'aktivitaeten' ? 'aktivitaeten' : undefined,
-      }
-    : {}),
+  ...(REDESIGN_ENABLED ? wealthPresentationSearch(search) : {}),
   sparplan:
     typeof search['sparplan'] === 'string' && search['sparplan'].length <= 64
       ? search['sparplan']
@@ -506,7 +505,10 @@ const portfolioLegacyRedirect = ({
     throw redirect({
       to: '/vermoegen/portfolio/sparplan/$id',
       params: { id: search.sparplan },
-      search: { zeitraum: search.zeitraum },
+      search: {
+        zeitraum: search.zeitraum,
+        ...(REDESIGN_ENABLED ? { anlageart: search.anlageart, ansicht: search.ansicht } : {}),
+      },
     });
   if (!search.sparplan && search.produkt && search.produkt !== 'neu')
     throw redirect({
@@ -564,12 +566,7 @@ const instrumentRoute = createRoute({
   path: '/vermoegen/portfolio/instrument/$id',
   staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Instrument' } },
   validateSearch: (search: Record<string, unknown>) => ({
-    ...(REDESIGN_ENABLED
-      ? {
-          anlageart: assetType(search['anlageart']),
-          ansicht: search['ansicht'] === 'aktivitaeten' ? 'aktivitaeten' : undefined,
-        }
-      : {}),
+    ...(REDESIGN_ENABLED ? wealthPresentationSearch(search) : {}),
     handel:
       typeof search['handel'] === 'string' && search['handel'].length <= 64
         ? search['handel']
@@ -580,6 +577,7 @@ const instrumentRoute = createRoute({
 const savingsPlanRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/vermoegen/portfolio/sparplan/$id',
+  ...(REDESIGN_ENABLED ? { validateSearch: wealthPresentationSearch } : {}),
   staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Sparplan' } },
   component: lazyRouteComponent(() => import('./wealth/portfolio-detail-page'), 'SavingsPlanPage'),
 });

@@ -124,7 +124,9 @@ export function SavingsSection({
             <EmptyNote>
               {groups.length
                 ? 'Keine laufenden oder vorgemerkten Sparpläne.'
-                : 'Noch keine Sparpläne angelegt.'}
+                : REDESIGN_ENABLED && art !== 'alle'
+                  ? 'Keine Sparpläne für diese Anlageart.'
+                  : 'Noch keine Sparpläne angelegt.'}
             </EmptyNote>
           ) : (
             <table className="ktable savings-table">

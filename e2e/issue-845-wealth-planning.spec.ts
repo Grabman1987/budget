@@ -19,6 +19,16 @@ test('allocation uses one settings editor and returns to the original selection;
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(before);
   await page.goto('/vermoegen/portfolio/sparplaene?zeitraum=1J');
+  if (on) {
+    await page.getByRole('combobox', { name: 'Anlageart', exact: true }).selectOption('krypto');
+    await page.locator('[data-savings-plan]:not([data-savings-plan="neu"])').first().click();
+    await expect(page).toHaveURL(/\/sparplan\//);
+    await expect(page).toHaveURL(/anlageart=krypto/);
+    await page.getByRole('link', { name: 'Zurück zum Portfolio', exact: true }).click();
+    await expect(page.getByRole('combobox', { name: 'Anlageart', exact: true })).toHaveValue(
+      'krypto',
+    );
+  }
   await page.locator('[data-savings-plan="neu"]').click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');

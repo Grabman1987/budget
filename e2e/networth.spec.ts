@@ -1,3 +1,4 @@
+import { wealthAreaNavigation, wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { expectMatchesReference, type Rect, type RegionCheck } from './reference';
@@ -137,10 +138,7 @@ test('the Zeitraum switch updates the URL, the figures and travels to Portfolio'
   expect(m3.start + m3.own + m3.market).toBe(m3.now);
   await expect(page.getByTestId('networth-chart')).toContainText('Veränderung je Woche');
 
-  await page
-    .getByRole('navigation', { name: 'Register von Vermögen' })
-    .getByRole('link', { name: 'Portfolio' })
-    .click();
+  await (await wealthAreaNavigation(page)).getByRole('link', { name: 'Portfolio' }).click();
   await expect(page).toHaveURL(/vermoegen\/portfolio\?zeitraum=3M/);
   await expect(page.getByRole('button', { name: '3M' })).toHaveAttribute('aria-pressed', 'true');
 
@@ -229,7 +227,11 @@ test.describe('layout', () => {
     test(`own baseline, ${scheme}`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
       await ready(page);
-      await expectScreenshot(page, `vermoegen-netto-${scheme}.png`, { fullPage: true });
+      await expectScreenshot(
+        page,
+        `vermoegen-netto-${scheme}${(await wealthRedesign(page)) ? '-redesign' : ''}.png`,
+        { fullPage: true },
+      );
     });
   }
 });

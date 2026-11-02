@@ -192,3 +192,6 @@
   display: inline-flex;
   align-items: center;
 }
+.wealth-redesign .wealth-toolbar .area-page-menu[open] {
+  z-index: 7;
+}

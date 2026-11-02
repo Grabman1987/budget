@@ -33,7 +33,10 @@ function PortfolioDetailBack({ title, savings = false }: { title: string; saving
   return (
     <div className="portfolio-detail-nav">
       <nav aria-label="Brotkrumen">
-        <AppLink to="/vermoegen/nettovermoegen" search={context}>
+        <AppLink
+          to={REDESIGN_ENABLED ? '/vermoegen' : '/vermoegen/nettovermoegen'}
+          search={context}
+        >
           Vermögen
         </AppLink>
         {' › '}

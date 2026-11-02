@@ -41,7 +41,7 @@ export function OverviewChart({ history }: { history: ContributionHistory }) {
           <g key={value}>
             <line x1={left} x2={width - right} y1={y(value)} y2={y(value)} className="graticule" />
             <text x={left - 6} y={y(value) + 4} textAnchor="end" className="svg-label">
-              {kfmt(value / 100)} €
+              {kfmt(Math.round(value) === 0 ? 0 : Math.round(value) / 100)} €
             </text>
           </g>
         ))}
