@@ -1,3 +1,4 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import {
   AxisLine,
   ChartSvg,
@@ -58,7 +59,7 @@ export function DebtPlanChart({
   const to = Math.max(...all.map((point) => dayNumber(point.date)));
   const low = Math.min(0, ...all.map((point) => point.amount));
   const high = Math.max(1, ...all.map((point) => point.amount)) * 1.08;
-  const height = width < 500 ? 240 : 280;
+  const height = REDESIGN_ENABLED ? (width < 500 ? 170 : 190) : width < 500 ? 240 : 280;
   const left = 56,
     right = Math.max(left + 1, width - 16);
   const x = (date: string) => left + ((dayNumber(date) - from) / (to - from || 1)) * (right - left);

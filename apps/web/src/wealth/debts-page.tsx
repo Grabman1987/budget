@@ -8,7 +8,8 @@ import { fetchSeries } from '../ledger/api';
 import { eur, eurParts, longDay, monthName, nativeCurrency } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { VERMOEGEN_SCHULDEN_META } from '../nav/pages';
-import { PageFrame } from '../pages/placeholder-page';
+import { WealthFrame, WealthReadStatus } from './redesign-frame';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { AppLink } from '../shell/app-link';
 import {
   debtsQuery,
@@ -39,7 +40,7 @@ export function DebtsPage() {
   const [busy, setBusy] = useState(false);
   const choice = (
     <label className="debt-choice">
-      Kredit für das Modell
+      <span className={REDESIGN_ENABLED ? 'sr-only' : undefined}>Kredit für das Modell</span>
       <select
         disabled={busy}
         value={loan?.id ?? ''}
@@ -63,7 +64,12 @@ export function DebtsPage() {
     </label>
   );
   return (
-    <PageFrame meta={VERMOEGEN_SCHULDEN_META}>
+    <WealthFrame
+      meta={VERMOEGEN_SCHULDEN_META}
+      page="debts"
+      date={view?.asOf}
+      controls={REDESIGN_ENABLED ? choice : undefined}
+    >
       <div className="kview vview debts-view">
         {query.isPending && <LoadingNote what="Schulden" />}
         {query.isError && (
@@ -71,7 +77,7 @@ export function DebtsPage() {
         )}
         {view && (
           <>
-            <DebtLead view={view} />
+            <DebtLead view={view} loan={loan} />
             {loan && (
               <DebtPlanHistory
                 key={`${loan.id}:${view.asOf}`}
@@ -80,16 +86,51 @@ export function DebtsPage() {
                 choice={choice}
               />
             )}
-            <DebtHistory />
+            {REDESIGN_ENABLED ? (
+              <details className="wealth-details debt-full wealth-debt-history-disclosure">
+                <summary>Schuldenverlauf · letzte 12 Monate</summary>
+                <DebtHistory />
+              </details>
+            ) : (
+              <DebtHistory />
+            )}
             <DebtOverview view={view} />
-            <details className="debt-rechenweg debt-full">
-              <summary>Rechenweg</summary>
-              <p className="vnote">
-                Konstante Konditionen: Jahreszins ÷ 12, monatlich auf Cent gerundet; danach Gebühren
-                und Tilgung. Keine taggenaue Verzinsung, künftigen Zinsänderungen oder
-                Vorfälligkeitskosten. Die Vorschau erzeugt keine Zahlung. Gespeicherte
-                Zinsänderungen und Szenarien stehen in der Detailplanung.
-              </p>
+            {REDESIGN_ENABLED && (
+              <>
+                <DebtTermsPrompt view={view} />
+                <AppLink className="wealth-debt-report" to="/reports/vermoegen-schulden">
+                  Schuldenverlauf → Vermögensreport
+                </AppLink>
+                <WealthReadStatus
+                  fetching={query.isFetching}
+                  paused={query.isPaused}
+                  date={longDay(view.asOf)}
+                />
+              </>
+            )}
+            <details className="debt-rechenweg debt-full" open={undefined}>
+              <summary>
+                {REDESIGN_ENABLED ? 'Szenarien, Strategien und Konten' : 'Rechenweg'}
+              </summary>
+              {REDESIGN_ENABLED ? (
+                <details className="wealth-details">
+                  <summary>Rechenweg</summary>{' '}
+                  <p className="vnote">
+                    Konstante Konditionen: Jahreszins ÷ 12, monatlich auf Cent gerundet; danach
+                    Gebühren und Tilgung. Keine taggenaue Verzinsung, künftigen Zinsänderungen oder
+                    Vorfälligkeitskosten. Die Vorschau erzeugt keine Zahlung. Gespeicherte
+                    Zinsänderungen und Szenarien stehen in der Detailplanung.
+                  </p>
+                </details>
+              ) : (
+                <p className="vnote">
+                  Konstante Konditionen: Jahreszins ÷ 12, monatlich auf Cent gerundet; danach
+                  Gebühren und Tilgung. Keine taggenaue Verzinsung, künftigen Zinsänderungen oder
+                  Vorfälligkeitskosten. Die Vorschau erzeugt keine Zahlung. Gespeicherte
+                  Zinsänderungen und Szenarien stehen in der Detailplanung.
+                </p>
+              )}
+
               <div className="kview vview">
                 {loan ? (
                   <>
@@ -182,7 +223,7 @@ export function DebtsPage() {
           </>
         )}
       </div>
-    </PageFrame>
+    </WealthFrame>
   );
 }
 const unavailable = (a: DebtAccount) =>
@@ -191,8 +232,67 @@ const unavailable = (a: DebtAccount) =>
     : a.missingPriceSecurityIds.length
       ? 'Kurs für Kontowert fehlt'
       : `Wechselkurs fehlt: ${a.missingFxCurrencies.join(', ')}`;
-function DebtLead({ view }: { view: DebtsView }) {
+function DebtLead({ view, loan }: { view: DebtsView; loan?: DebtAccount | undefined }) {
   useAmountPrivacy();
+  if (REDESIGN_ENABLED)
+    return (
+      <section className="wealth-lead wealth-debt-lead" aria-label="Aktuelle Restschuld">
+        <div>
+          <h2 id="debts-title">Restschuld</h2>
+          <div className="wealth-figure" data-testid="debt-total">
+            {view.totalEurCents === null ? '—' : eur(view.totalEurCents)}
+          </div>
+          <p className="wealth-month">
+            {loan ? (
+              <>
+                Rate{' '}
+                {loan.installmentCents === null
+                  ? 'nicht verfügbar'
+                  : nativeCurrency(loan.installmentCents, loan.currency)}{' '}
+                · Jahreszins{' '}
+                {loan.interestRateBp === null
+                  ? 'nicht verfügbar'
+                  : `${formatDecimal(cents(loan.interestRateBp))} %`}
+              </>
+            ) : (
+              `${view.accounts.length} Konten · negative Kontowerte in EUR`
+            )}
+          </p>
+        </div>
+        <div className="wealth-net-chain">
+          <div>
+            {view.accounts.map((row) => (
+              <span key={row.id}>
+                {row.name} <b>{row.owedEurCents === null ? '—' : eur(row.owedEurCents)}</b>
+              </span>
+            ))}
+          </div>
+          {view.totalEurCents !== null && view.totalEurCents > 0 && (
+            <div className="wealth-thin-chain" aria-hidden="true">
+              {view.accounts.map((row) => (
+                <i
+                  key={row.id}
+                  className={row.type === 'loan' ? undefined : 'wealth-hatched'}
+                  style={{ flex: row.owedEurCents ?? 0 }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+        {view.totalEurCents === null && (
+          <p className="vnote wealth-debt-unavailable">
+            Gesamtschuld unbekannt.{' '}
+            {view.unavailableReason === 'calculation_limit'
+              ? 'Sichere Rechengrenze überschritten. '
+              : ''}
+            {view.accounts
+              .filter((row) => row.owedEurCents === null)
+              .map((row) => `${row.name}: ${unavailable(row)}`)
+              .join(' · ')}
+          </p>
+        )}
+      </section>
+    );
   const parts = view.totalEurCents === null ? null : eurParts(view.totalEurCents);
   return (
     <section className="vnw" aria-labelledby="debts-title">
@@ -248,6 +348,12 @@ function DebtLead({ view }: { view: DebtsView }) {
               .join(' · ')}`
           : 'Negative Kontowerte aus derselben aktuellen Bewertung wie in der Kontenübersicht.'}
       </p>
+      {REDESIGN_ENABLED && (
+        <p className="vnote">
+          Alle negativen Kontowerte; die Kontogruppe „Kredite“ hat einen engeren Umfang. Guthaben
+          auf Schuld-Konten zählen zum Vermögen und werden hier nicht als Restschuld verrechnet.
+        </p>
+      )}
     </section>
   );
 }
@@ -629,6 +735,30 @@ function Comparison({ result }: { result: DebtProjection }) {
         <span>{result.plan.monthsEarlier} Monate früher frei</span>
         <strong>{money(result.plan.interestSavedCents)} Zinsen gespart</strong>
       </div>
+    </section>
+  );
+}
+
+export function DebtTermsPrompt({ view }: { view: DebtsView }) {
+  const missing = view.accounts.filter(
+    (account) =>
+      account.type === 'loan' &&
+      (account.interestRateBp === null ||
+        account.installmentCents === null ||
+        account.monthlyFeeCents === null),
+  );
+  if (!missing.length) return null;
+  return (
+    <section
+      className="wealth-sheet wealth-debt-terms-prompt"
+      aria-label="Fehlende Kreditkonditionen"
+    >
+      <h2>Konditionen ergänzen</h2>
+      <p>
+        Für {missing.map((account) => account.name).join(' · ')} fehlen Zins, Rate oder Gebühren.
+        Ohne vollständige Konditionen bleibt ein Tilgungsdatum nicht verfügbar.
+      </p>
+      <AppLink to="/einstellungen/konten">Gespeicherte Konditionen pflegen</AppLink>
     </section>
   );
 }

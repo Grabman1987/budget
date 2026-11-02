@@ -1,3 +1,4 @@
+import { showDebtOverview, wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -53,6 +54,7 @@ test('shows stored debt terms, unknown freshness, type-specific limits and edit 
   expect(dated.ok()).toBe(true);
 
   await page.goto('/vermoegen/schulden');
+  await showDebtOverview(page);
   const known = page.getByTestId(`debt-terms-${knownLoan.id}`);
   await expect(known.getByText('Gespeicherte Konditionen', { exact: true })).toBeVisible();
   await expect(known).not.toHaveAttribute('open', '');
@@ -82,12 +84,16 @@ test('shows stored debt terms, unknown freshness, type-specific limits and edit 
   );
 
   await page.goto(`/vermoegen/schulden?kredit=${encodeURIComponent(unknownFeeLoan.id)}`);
-  await page.getByText('Rechenweg', { exact: true }).click();
+  if (await wealthRedesign(page))
+    await page.getByText('Szenarien, Strategien und Konten', { exact: true }).click();
+  else await page.getByText('Rechenweg', { exact: true }).click();
   await expect(page.getByTestId('loan-missing')).toContainText('Gebühr');
   await expect(page.getByTestId('loan-baseline')).toHaveCount(0);
 
   await page.goto(`/vermoegen/schulden?kredit=${encodeURIComponent(knownLoan.id)}`);
-  await page.getByText('Rechenweg', { exact: true }).click();
+  if (await wealthRedesign(page))
+    await page.getByText('Szenarien, Strategien und Konten', { exact: true }).click();
+  else await page.getByText('Rechenweg', { exact: true }).click();
   await expect(page.getByRole('table', { name: 'Gespeicherte Zinsänderungen' })).toContainText(
     '05.10.2026',
   );
@@ -110,6 +116,7 @@ test('shows stored debt terms, unknown freshness, type-specific limits and edit 
     });
   }
 
+  await showDebtOverview(page);
   await page.getByText('Konditionen anpassen', { exact: true }).click();
   await page.getByLabel('Monatsrate (EUR) – Kredit Nullzins').fill('40');
   await expect(known).toContainText(/Monatsrate\s*30,00 €/);

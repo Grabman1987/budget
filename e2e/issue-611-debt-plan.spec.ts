@@ -1,3 +1,4 @@
+import { showDebtCalculation, showDebtPlanFacts } from './wealth-navigation';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
@@ -34,6 +35,7 @@ test('twelve actual month ends and the saved loan plan share exact chart and tab
   const section = page.locator('.debt-plan-history');
   const chart = page.getByTestId('debt-plan-chart');
   await expect(chart).toBeVisible();
+  await showDebtPlanFacts(page);
   await expect(section.getByText('Schuldenfrei:')).toContainText('Jänner 2027');
   await expect(section.getByText('Zinsen gesamt:')).toContainText('0,00 €');
   await expect(chart.locator('path.l-actual')).toHaveCount(1);
@@ -55,7 +57,7 @@ test('twelve actual month ends and the saved loan plan share exact chart and tab
   ] as const) {
     await expect(table.locator('tbody tr').filter({ hasText: date })).toContainText(amount);
   }
-  await page.getByText('Rechenweg', { exact: true }).click();
+  await showDebtCalculation(page);
   await expect(page.getByLabel('Kredit für das Modell')).toHaveCount(1);
   const saved = page.getByTestId('loan-baseline');
   await expect(saved).toContainText('Jänner 2027');
@@ -83,7 +85,7 @@ test('twelve actual month ends and the saved loan plan share exact chart and tab
       true,
     );
     if (info.project.name !== 'desktop') {
-      for (const control of [section.getByLabel('Kredit für das Modell'), tableToggle]) {
+      for (const control of [page.getByLabel('Kredit für das Modell'), tableToggle]) {
         expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       }
     }

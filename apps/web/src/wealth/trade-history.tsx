@@ -13,12 +13,14 @@ export function TradeHistory({
   disabled,
   trades,
   purchases = false,
+  compact = false,
 }: {
   securityId: string;
   onEdit?: ((id: string) => void) | undefined;
   disabled: boolean;
   trades?: TradeRow[] | undefined;
   purchases?: boolean;
+  compact?: boolean;
 }) {
   useAmountPrivacy();
   const query = useQuery(tradesQuery(securityId));
@@ -27,10 +29,22 @@ export function TradeHistory({
   const ordered = [...(trades ?? query.data?.trades ?? [])].sort(
     (a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id),
   );
-  const visible = all ? ordered : ordered.slice(0, 12);
+  const limit = compact ? 4 : 12;
+  const visible = all ? ordered : ordered.slice(0, limit);
   return (
     <section className="trade-history" aria-labelledby="trade-history-title">
-      <h3 id="trade-history-title">{purchases ? 'Käufe' : 'Handelsverlauf'}</h3>
+      {compact ? (
+        <div className="wealth-section-head">
+          <h3 id="trade-history-title">Transaktionen</h3>
+          {onEdit && (
+            <Button variant="ghost" disabled={disabled} onClick={() => onEdit('neu')}>
+              + Transaktion
+            </Button>
+          )}
+        </div>
+      ) : (
+        <h3 id="trade-history-title">{purchases ? 'Käufe' : 'Handelsverlauf'}</h3>
+      )}
       {query.isPending && <LoadingNote what="Handelsverlauf" />}
       {query.isError && (
         <ErrorNote what="Handelsverlauf" error={query.error} onRetry={() => void query.refetch()} />
@@ -52,17 +66,18 @@ export function TradeHistory({
         role="region"
         aria-label="Handelsverlauf scrollen"
       >
-        <table className="wealth-trades trade-list">
+        <table className={`wealth-trades trade-list${compact ? ' wealth-trades-compact' : ''}`}>
           <caption className="sr-only">Handel je Datum und Konto; Beträge in Kontowährung</caption>
           <thead>
             <tr>
-              {['Datum', 'Art / Konto', 'Stück', 'Bruttobetrag', 'Gebühren', 'Steuer', 'Notiz'].map(
-                (label) => (
-                  <th key={label} scope="col">
-                    {label}
-                  </th>
-                ),
-              )}
+              {(compact
+                ? ['Datum', 'Art / Konto', 'Stück', 'Betrag', 'Kosten / Notiz']
+                : ['Datum', 'Art / Konto', 'Stück', 'Bruttobetrag', 'Gebühren', 'Steuer', 'Notiz']
+              ).map((label) => (
+                <th key={label} scope="col">
+                  {label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -90,7 +105,7 @@ export function TradeHistory({
                             return;
                           if (
                             event.target instanceof Element &&
-                            event.target.closest('button,a,input,select,textarea')
+                            event.target.closest('button,a,input,select,textarea,summary')
                           )
                             return;
                           onEdit(trade.id);
@@ -125,9 +140,28 @@ export function TradeHistory({
                     )}
                   </td>
                   <td className="num">{money(trade.amountCents)}</td>
-                  <td className="num">{money(trade.feeCents)}</td>
-                  <td className="num">{money(trade.taxCents)}</td>
-                  <td>{maskMoneyText(trade.note ?? '—')}</td>
+                  {compact ? (
+                    <td>
+                      <details className="wealth-trade-costs">
+                        <summary
+                          aria-label={`Details: Kosten und Notiz vom ${longDay(trade.date)}`}
+                        >
+                          Details
+                        </summary>
+                        <p>
+                          Gebühren {money(trade.feeCents)} · Steuer {money(trade.taxCents)}
+                          <br />
+                          {maskMoneyText(trade.note ?? 'Keine Notiz')}
+                        </p>
+                      </details>
+                    </td>
+                  ) : (
+                    <>
+                      <td className="num">{money(trade.feeCents)}</td>
+                      <td className="num">{money(trade.taxCents)}</td>
+                      <td>{maskMoneyText(trade.note ?? '—')}</td>
+                    </>
+                  )}
                 </tr>
               );
             })}
@@ -135,9 +169,13 @@ export function TradeHistory({
         </table>
       </div>
       {/* eslint-enable jsx-a11y/no-noninteractive-tabindex */}
-      {ordered.length > 12 && (
+      {ordered.length > limit && (
         <Button variant="ghost" onClick={() => setAll((shown) => !shown)}>
-          {all ? 'Letzte zwölf anzeigen' : `Alle anzeigen (${ordered.length})`}
+          {all
+            ? compact
+              ? 'Letzte vier anzeigen'
+              : 'Letzte zwölf anzeigen'
+            : `Alle anzeigen (${ordered.length})`}
         </Button>
       )}
     </section>

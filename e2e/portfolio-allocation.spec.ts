@@ -1,3 +1,4 @@
+import { showAllocationEvidence, wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { allocationQuality } from '@budget/domain';
 import type { PortfolioAllocationView } from '@budget/db';
@@ -64,6 +65,7 @@ sampleTest(
     ];
     await page.route('**/api/portfolio/allocation', (route) => route.fulfill({ json: base }));
     await page.goto('/vermoegen/portfolio/allokation');
+    await showAllocationEvidence(page);
     await expect(page.locator('.valloc')).toContainText('Produkt Reserve');
     await expect(page.locator('.valloc')).toContainText('AT0000000011 · noch nicht gekauft');
     await expect(page.locator('.valloc')).toContainText('Typ „Sonstiges“ prüfen');
@@ -83,6 +85,7 @@ sampleTest(
   'prototype allocation bands and existing rebalancing figures remain authoritative',
   async ({ page }, info) => {
     await page.goto('/vermoegen/portfolio/allokation');
+    await showAllocationEvidence(page);
     const allocation = page.locator('.valloc');
     await expect(allocation).toContainText('Schwellenländer');
     await expect(page.locator('.vrebal')).toContainText('Umschichtungsabstand 3.560 €');
@@ -99,7 +102,10 @@ sampleTest(
       .getByRole('button', { name: 'Positionen ansehen' })
       .first()
       .click();
-    await expect(page.getByRole('heading', { name: 'Positionen', exact: true })).toBeInViewport();
+    if (await wealthRedesign(page))
+      await expect(page.locator('.wealth-position-table')).toBeInViewport();
+    else
+      await expect(page.getByRole('heading', { name: 'Positionen', exact: true })).toBeInViewport();
   },
 );
 test('Portfolio links to the shared settings editor: sums, dirty/template guards, pending save, future version and undo/redo', async ({
@@ -114,6 +120,7 @@ test('Portfolio links to the shared settings editor: sums, dirty/template guards
     expect(response.ok()).toBe(true);
   }
   await page.goto('/vermoegen/portfolio/allokation');
+  await showAllocationEvidence(page);
   await page.getByRole('button', { name: 'Sollquoten bearbeiten', exact: true }).click();
   await expect(page).toHaveURL(/einstellungen\/anlageklassen.*panel=sollquoten/);
   const panel = page.getByRole('dialog', { name: 'Sollquoten bearbeiten' });
@@ -166,6 +173,7 @@ test('Portfolio links to the shared settings editor: sums, dirty/template guards
   await expect.poll(async () => (await versions()).some((v) => v.validFrom === date)).toBe(false);
   await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
   await expect.poll(async () => (await versions()).some((v) => v.validFrom === date)).toBe(true);
+  await showAllocationEvidence(page);
   await page.getByRole('button', { name: 'Sollquoten bearbeiten', exact: true }).click();
   await panel.getByLabel('Vorlage', { exact: true }).selectOption(date);
   await expect(panel.getByLabel(names[0] + ' · Soll (%)')).toHaveValue('75,00');
@@ -221,20 +229,23 @@ test('unknown current quote is estimated at cost with a hint, and API failures o
     amountCents: 0,
   });
   await page.goto('/vermoegen/portfolio/allokation');
+  await showAllocationEvidence(page);
   // Without any quote or usable execution price the position is valued at its cost basis and flagged, never dropped.
   await expect(page.getByText(/teilweise geschätzt/).first()).toBeVisible();
   await page.route('**/api/portfolio/allocation', (route) =>
     route.fulfill({ status: 503, json: { error: 'unavailable' } }),
   );
   await page.reload();
+  await showAllocationEvidence(page);
   await expect(page.locator('.valloc')).toContainText('Aufteilung konnten nicht geladen werden.');
   await page.unroute('**/api/portfolio/allocation');
-  await page.locator('.valloc').getByRole('button', { name: 'Erneut versuchen' }).click();
+  await page.locator('button:visible').filter({ hasText: 'Erneut versuchen' }).first().click();
   await expect(page.locator('.valloc')).not.toContainText('konnten nicht geladen werden');
   await expect(page.getByText(/teilweise geschätzt/).first()).toBeVisible();
   await page.route('**/api/asset-classes/targets', (route) =>
     route.fulfill({ status: 503, json: { error: 'unavailable' } }),
   );
+  await showAllocationEvidence(page);
   await page.getByRole('button', { name: 'Sollquoten bearbeiten' }).click();
   const panel = page.getByRole('dialog');
   await expect(panel).toContainText('Sollversionen konnten nicht geladen werden.');
@@ -283,6 +294,7 @@ sampleTest(
       }),
     );
     await page.goto('/vermoegen/portfolio/allokation');
+    await showAllocationEvidence(page);
     await expect(page.locator('.valloc')).toContainText('Unklassifiziert: 100 €');
     await expect(page.locator('.valloc')).toContainText('teilweise geschätzt');
     await expect(page.locator('.vrebal')).toContainText('Vorläufig:');
@@ -313,6 +325,7 @@ sampleTest(
       }),
     );
     await page.reload();
+    await showAllocationEvidence(page);
     await expect(page.locator('.valloc')).toContainText('nicht berechenbar');
     await expect(page.locator('.vrebal .rev-row')).toHaveCount(0);
   },

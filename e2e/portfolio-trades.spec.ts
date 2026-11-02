@@ -1,3 +1,4 @@
+import { wealthRedesign } from './wealth-navigation';
 import { openPruefenSource } from './pruefen-part';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
@@ -488,7 +489,9 @@ test('validation, server retry, busy guard and explicit discard retain source dr
   await form.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await expect(page).not.toHaveURL(/handel=/);
   await expect(
-    page.locator('.instrument-detail').getByRole('heading', { name: 'Handelsverlauf' }),
+    page.locator('.instrument-detail').getByRole('heading', {
+      name: (await wealthRedesign(page)) ? 'Transaktionen' : 'Handelsverlauf',
+    }),
   ).toBeVisible();
 });
 
