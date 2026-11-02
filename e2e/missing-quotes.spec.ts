@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { test } from './isolated-ledger';
 import { toast } from './ledger-helpers';
 
+const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+
 test('a position without market quote is valued at cost and flagged; the first quote and undo keep working', async ({
   page,
   request,
@@ -88,7 +90,9 @@ test('a position without market quote is valued at cost and flagged; the first q
   await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
   // This ledger contains only the synthetic holding; an empty due list stays hidden.
   await expect(page.getByRole('heading', { name: 'Fällig 14 Tage' })).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(
+    redesign ? 1 : 0,
+  );
   await expect(page.getByRole('region', { name: 'Zu tun' })).toContainText(
     'Wertpapier ohne aktuellen Kurs',
   );
@@ -159,7 +163,9 @@ test('a position without market quote is valued at cost and flagged; the first q
 
   await page.goto('/');
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(
+    redesign ? 1 : 0,
+  );
   await expect(page.getByText('1 Wertpapier ohne aktuellen Kurs', { exact: true })).toHaveCount(0);
   await expect(page.locator('.heute-net-worth')).not.toContainText('Bewertung nicht verfügbar');
   await page.evaluate(() => document.fonts.ready);
