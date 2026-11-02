@@ -1,5 +1,14 @@
 import { AllocationBar } from '../reports/allocation-bar';
 import './plan-allocation-labels.css';
+import './plan-redesign.css';
+import {
+  PlanMonthLead,
+  PlanRowState,
+  PlanReadUtilities,
+  PlanUnclassifiedReadout,
+  planMonthTerms,
+  planRowState,
+} from './plan-presentation';
 import { IncomeTargetsCard } from './income-targets-card';
 import {
   useAmountPrivacy,
@@ -9,9 +18,8 @@ import {
   Select,
   TextInput,
   cx,
-  type DimensionChainTerm,
 } from '@budget/ui';
-import { cents, coverShortfall, overspentEnvelopes, todayInVienna } from '@budget/domain';
+import { coverShortfall, overspentEnvelopes, todayInVienna } from '@budget/domain';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 import { TriangleAlert, ArrowLeftRight, Check, CircleCheck, ChevronDown, Info } from 'lucide-react';
@@ -37,7 +45,6 @@ import { monthLabel, shiftMonth } from '../nav/month';
 import { useMonth } from '../shell/use-month';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { AppLink } from '../shell/app-link';
-import { lastDayOfMonth } from '@budget/domain';
 import { setMonthSpan, useIsPhone, useMonthSpan } from './month-span';
 import { MultiTable } from './plan-multi';
 import { ActivityLink } from './activity-link';
@@ -152,7 +159,7 @@ export function PlanMonthPage() {
     incomeCents !== undefined ? <IncomeButton value={eur(incomeCents)} onOpen={openIncome} /> : '–';
   return (
     <PageFrame meta={PLAN_MONAT} income={income}>
-      <div className="plan plan-month">
+      <div className={cx('plan plan-month', REDESIGN_ENABLED && 'plan-month-v2')}>
         {budget.isPending && <LoadingNote what="Envelopes" />}
         {budget.isError && (
           <ErrorNote what="Envelopes" error={budget.error} onRetry={() => void budget.refetch()} />
@@ -762,6 +769,7 @@ function PlanBody({
           onIncome={onIncome}
           onDistribute={startDistribute}
           coverControls={filter === 'overspent' ? null : coverControls}
+          phone={phone}
         />
         <section className="ptable-wrap card" aria-labelledby="table-title">
           <h2 className="sr-only" id="table-title">
@@ -803,6 +811,19 @@ function PlanBody({
               ))}
             </div>
             <OptionenMenu
+              readUtilities={
+                REDESIGN_ENABLED && phone ? (
+                  <PlanReadUtilities
+                    summary={s}
+                    month={month}
+                    unfunded={groupStatus(rows).need}
+                    onUnderfunded={() => {
+                      clearSelection();
+                      focusIncomeInspector();
+                    }}
+                  />
+                ) : undefined
+              }
               month={month}
               view={shownView}
               multi={multi}
@@ -1312,6 +1333,18 @@ function PlanBody({
 }
 
 /** Sticky month controls; native disclosures keep the derivation and cover actions nearby. */
+function focusIncomeInspector() {
+  window.requestAnimationFrame(() => {
+    document.querySelector<HTMLDetailsElement>('.inspector-fold')?.setAttribute('open', '');
+    const section = document.querySelector<HTMLDetailsElement>('#inspector-income');
+    document
+      .querySelector<HTMLButtonElement>('.month-overview-head [aria-expanded="false"]')
+      ?.click();
+    section?.setAttribute('open', '');
+    window.requestAnimationFrame(() => section?.querySelector('summary')?.focus());
+  });
+}
+
 function PlanTopBar({
   data,
   month,
@@ -1320,6 +1353,7 @@ function PlanTopBar({
   onIncome,
   onDistribute,
   coverControls,
+  phone,
 }: {
   data: BudgetMonthView;
   month: string;
@@ -1328,6 +1362,7 @@ function PlanTopBar({
   onIncome: () => void;
   onDistribute: () => void;
   coverControls: React.ReactNode;
+  phone: boolean;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const disclosureToggle = (element: HTMLDetailsElement, key: string) => {
@@ -1373,86 +1408,100 @@ function PlanTopBar({
   useAmountPrivacy();
   const s = data.summary;
   const tba = s.toBeAssignedCents;
-  const terms: DimensionChainTerm[] = [
-    { label: 'Übertrag', value: cents(s.carryInCents) },
-    { label: 'Einnahmen', value: cents(s.incomeCents), op: '+', onSelect: onIncome },
-    ...(s.uncoveredCents !== 0
-      ? [{ label: 'Ungedeckt', value: cents(s.uncoveredCents), op: '-' as const }]
-      : []),
-    { label: 'Zugewiesen', value: cents(s.assignedCents), op: '-' },
-    ...(s.heldCents !== 0
-      ? [{ label: 'Gehalten', value: cents(s.heldCents), op: '-' as const }]
-      : []),
-    { label: 'Zu verteilen', value: cents(tba), op: '=' },
-  ];
+  const terms = planMonthTerms(s, onIncome);
+  const tbaControl = (
+    <details
+      className="plan-popover"
+      onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-0')}
+    >
+      <summary
+        aria-controls="plan-chip-panel-0"
+        className={cx('plan-tba', tba > 0 && 'is-positive', tba < 0 && 'is-negative')}
+      >
+        <span className="plan-tba-label">Zu verteilen</span>
+        <strong data-testid="to-be-assigned" aria-live="polite">
+          {eur(tba)}
+        </strong>
+      </summary>
+    </details>
+  );
+  const underfundedControl = (
+    <button
+      type="button"
+      className="plan-chip"
+      title="Summe der fehlenden Zielbeträge"
+      onClick={focusIncomeInspector}
+    >
+      Unterfinanziert {eur(unfunded)}
+    </button>
+  );
+  const pendingControl = (
+    <details
+      className="plan-popover"
+      onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-2')}
+    >
+      <summary
+        aria-controls="plan-chip-panel-2"
+        className="plan-chip"
+        title="Buchungen mit vorgemerktem Status oder mindestens einem Anteil ohne Kategorie. Jede Buchung wird einmal gezählt."
+      >
+        {s.unclassified?.count ?? 0} vorgemerkt / ohne Kategorie
+      </summary>
+    </details>
+  );
+  const distributeControl = (
+    <Button
+      size="sm"
+      disabled={Boolean(distributeBlock)}
+      aria-describedby={distributeBlock ? 'plan-distribute-hint' : undefined}
+      onClick={onDistribute}
+    >
+      Geld verteilen
+    </Button>
+  );
+  const hint = distributeBlock && (
+    <span
+      id="plan-distribute-hint"
+      className={cx('plan-hint', tba < 0 && 'is-negative')}
+      data-testid="distribute-hint"
+    >
+      {distributeBlock}
+    </span>
+  );
   return (
-    <section className="plan-topbar" aria-label="Monat planen">
-      <div className="plan-chip-scroll">
-        <details
-          className="plan-popover"
-          onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-0')}
-        >
-          <summary
-            aria-controls="plan-chip-panel-0"
-            className={cx('plan-tba', tba > 0 && 'is-positive', tba < 0 && 'is-negative')}
-          >
-            <span className="plan-tba-label">Zu verteilen</span>
-            <strong data-testid="to-be-assigned" aria-live="polite">
-              {eur(tba)}
-            </strong>
-          </summary>
-        </details>
-        <button
-          type="button"
-          className="plan-chip"
-          title="Summe der fehlenden Zielbeträge"
-          onClick={() => {
-            // Outside dismissal first restores the month sections when a category is selected.
-            window.requestAnimationFrame(() => {
-              document
-                .querySelector<HTMLDetailsElement>('.inspector-fold')
-                ?.setAttribute('open', '');
-              const section = document.querySelector<HTMLDetailsElement>('#inspector-income');
-              document
-                .querySelector<HTMLButtonElement>('.month-overview-head [aria-expanded="false"]')
-                ?.click();
-              section?.setAttribute('open', '');
-              window.requestAnimationFrame(() => section?.querySelector('summary')?.focus());
-            });
-          }}
-        >
-          Unterfinanziert {eur(unfunded)}
-        </button>
-        <details
-          className="plan-popover"
-          onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-2')}
-        >
-          <summary
-            aria-controls="plan-chip-panel-2"
-            className="plan-chip"
-            title="Buchungen mit vorgemerktem Status oder mindestens einem Anteil ohne Kategorie. Jede Buchung wird einmal gezählt."
-          >
-            {s.unclassified?.count ?? 0} vorgemerkt / ohne Kategorie
-          </summary>
-        </details>
-        <Button
-          size="sm"
-          disabled={Boolean(distributeBlock)}
-          aria-describedby={distributeBlock ? 'plan-distribute-hint' : undefined}
-          onClick={onDistribute}
-        >
-          Geld verteilen
-        </Button>
-        {distributeBlock && (
-          <span
-            id="plan-distribute-hint"
-            className={cx('plan-hint', tba < 0 && 'is-negative')}
-            data-testid="distribute-hint"
-          >
-            {distributeBlock}
-          </span>
-        )}
-      </div>
+    <section
+      className={cx('plan-topbar', REDESIGN_ENABLED && 'plan-topbar-v2')}
+      aria-label={REDESIGN_ENABLED ? 'Monatsbudget' : 'Monat planen'}
+    >
+      {REDESIGN_ENABLED ? (
+        <>
+          <PlanMonthLead
+            summary={s}
+            onIncome={onIncome}
+            controls={
+              <>
+                {tbaControl}
+                {distributeControl}
+                {hint}
+              </>
+            }
+          />
+          {!phone && (
+            <div className="plan-head-utilities">
+              {underfundedControl}
+              {pendingControl}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="plan-chip-scroll">
+          {tbaControl}
+          {underfundedControl}
+          {pendingControl}
+          {distributeControl}
+          {hint}
+        </div>
+      )}
       <div
         className="plan-popover-content"
         id="plan-chip-panel-0"
@@ -1469,22 +1518,7 @@ function PlanTopBar({
         id="plan-chip-panel-2"
         hidden={active !== 'plan-chip-panel-2'}
       >
-        <p>
-          Eingang {eur(s.unclassified?.inflowCents ?? 0)} · Ausgang{' '}
-          {eur(-(s.unclassified?.outflowCents ?? 0))} · Saldo {eur(s.unclassified?.netCents ?? 0)}
-        </p>
-        <AppLink
-          to="/konten/buchungen"
-          search={{ kategorie: 'none', von: `${month}-01`, bis: lastDayOfMonth(month) }}
-        >
-          Ohne Kategorie öffnen
-        </AppLink>
-        <AppLink
-          to="/konten/buchungen"
-          search={{ status: 'pending', von: `${month}-01`, bis: lastDayOfMonth(month) }}
-        >
-          Unbestätigte öffnen
-        </AppLink>
+        <PlanUnclassifiedReadout summary={s} month={month} />
       </div>
     </section>
   );
@@ -1907,6 +1941,8 @@ function EnvelopeRow({
   );
   return (
     <tr
+      data-plan-state={REDESIGN_ENABLED ? planRowState(r).state : undefined}
+      data-plan-class={REDESIGN_ENABLED ? (r.cls ?? undefined) : undefined}
       className={cx(
         'prow',
         band && 'pgroup psingle',
@@ -1996,7 +2032,14 @@ function EnvelopeRow({
           className={cx('spending-status', spending.over && 'neg-alert')}
           title={spending.status}
         >
-          {spending.status}
+          {REDESIGN_ENABLED ? (
+            <>
+              <PlanRowState row={r} />
+              <span className="plan-spending-copy">{spending.status}</span>
+            </>
+          ) : (
+            spending.status
+          )}
         </span>
         <span className={cx('pbar spending-bar', spending.over && 'is-over')} aria-hidden="true">
           <i className="pbar-fill" style={{ width: `${spending.spentShare * 100}%` }} />

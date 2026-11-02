@@ -240,7 +240,13 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).uncheck();
   }
   await expect(page.getByTestId('to-be-assigned')).toHaveText('1.909,82 €');
+  const phoneReadUtilities =
+    page.viewportSize()!.width < 768 &&
+    (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  const readOptions = page.locator('.plan-menu-optionen > summary');
+  if (phoneReadUtilities) await readOptions.click();
   await expect(page.getByText('Unterfinanziert 90,00 €', { exact: true })).toBeVisible();
+  if (phoneReadUtilities) await readOptions.click();
   const firstParent = page
     .getByRole('button', { name: 'Gruppe Mustergruppe 1', exact: true })
     .locator('xpath=ancestor::tr');

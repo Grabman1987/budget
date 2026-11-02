@@ -12,6 +12,8 @@ import { todayInVienna } from '@budget/domain';
 import { PlanAutomatic } from './plan-automatic';
 import type { PanelState } from './category-panel';
 import { MonthOverviewInspector } from './plan-overview';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { PlanRowState } from './plan-presentation';
 
 declare module '@tanstack/history' {
   interface HistoryState {
@@ -135,6 +137,7 @@ export function PlanInspector({
           </div>
           {row ? (
             <>
+              {REDESIGN_ENABLED && <PlanRowState row={row} />}
               <div className="inspector-activity">
                 <span>Aktivität</span>
                 <ActivityLink month={month} id={row.id} name={row.name} cents={row.activityCents} />

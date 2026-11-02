@@ -1,0 +1,164 @@
+import AxeBuilder from '@axe-core/playwright';
+import { expect, type APIRequestContext } from '@playwright/test';
+import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
+import { test } from './isolated-ledger';
+import { withShellControls } from './shell-actions';
+import { MIN_TARGET_PX } from './ledger-helpers';
+
+test.use({ ledgerToday: '2026-10-15' });
+
+for (const theme of ['light', 'dark'] as const) {
+  test(`P1 monthly presentation retains canonical cents and cancels its target preview without writes (${theme})`, async ({
+    page,
+    request,
+    baseURL,
+  }, info) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addInitScript((value) => localStorage.setItem('budget-theme', value), theme);
+    const send = async (path: string, method: string, data: unknown) => {
+      const response = await request.fetch(`/api${path}`, {
+        method,
+        data,
+        headers: { origin: baseURL! },
+      });
+      expect(response.ok()).toBe(true);
+      return response.json() as Promise<{ group: { id: string }; category: { id: string } }>;
+    };
+    await send('/accounts', 'POST', {
+      name: 'Synthetic monthly funds',
+      type: 'checking',
+      openingDate: '2026-10-01',
+      openingBalanceCents: 1150,
+    });
+    const { group } = await send('/categories/groups', 'POST', { name: 'Synthetic monthly group' });
+    const { category } = await send('/categories', 'POST', {
+      name: 'Synthetic monthly target',
+      groupId: group.id,
+      kind: 'variable',
+      class: 'need',
+      stage: 2,
+    });
+    await send(`/categories/${category.id}/target`, 'PUT', {
+      validFrom: '2026-10',
+      target: { kind: 'monthly', amountCents: 1000 },
+    });
+    await send('/budget/2026-10/assigned', 'PUT', {
+      items: [{ categoryId: category.id, assignedCents: 400 }],
+    });
+    const budget = async (api: APIRequestContext) => {
+      const response = await api.get('/api/budget/2026-10');
+      expect(response.ok()).toBe(true);
+      return response.json() as Promise<BudgetMonthView>;
+    };
+    const assertCents = (view: BudgetMonthView) => {
+      expect(view.summary).toMatchObject({
+        month: '2026-10',
+        assignedCents: 400,
+        toBeAssignedCents: 750,
+      });
+      expect(view.summary.envelopes.find((row) => row.categoryId === category.id)).toMatchObject({
+        assignedCents: 400,
+        availableCents: 400,
+        goalCents: 1000,
+        needCents: 600,
+      });
+    };
+    assertCents(await budget(request));
+    const writes: string[] = [];
+    page.on('request', (event) => {
+      const path = new URL(event.url()).pathname;
+      if (path.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(event.method()))
+        writes.push(`${event.method()} ${path}`);
+    });
+    await page.goto('/plan/monat?monat=2026-10');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    expect(await page.evaluate(() => localStorage.getItem('budget-theme'))).toBe(theme);
+    const row = page.locator(`.prow:has(.pname[data-category-id="${category.id}"])`);
+    await expect(row).toBeVisible();
+    await expect(page.getByTestId('to-be-assigned')).toHaveText('7,50 €');
+    const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    if (on) {
+      const lead = page.getByRole('region', { name: 'Monatsbudget', exact: true });
+      await expect(lead).toContainText('Monatszuweisung · Oktober 2026');
+      await expect(lead).toContainText('7,50 €');
+      await expect(
+        lead.getByRole('group', { name: 'Maßkette Monatsbudget', exact: true }),
+      ).toBeVisible();
+      await expect(row.locator('.plan-row-state')).toHaveText('Offen');
+      await expect(row.locator('.plan-row-state svg')).toHaveCount(1);
+    } else {
+      await expect(page.getByRole('region', { name: 'Monatsbudget', exact: true })).toHaveCount(0);
+      await expect(row.locator('.plan-row-state')).toHaveCount(0);
+    }
+
+    const distribute = page.locator('.plan-menu-verteilen > summary');
+    await distribute.focus();
+    await page.keyboard.press('Enter');
+    await page.getByRole('button', { name: 'Alle Ziele füllen', exact: true }).click();
+    const preview = page.getByRole('dialog', { name: 'Alle Ziele füllen', exact: true });
+    await expect(preview).toBeVisible();
+    await expect(preview).toContainText('Synthetic monthly target');
+    await expect(
+      preview.getByRole('button', { name: '6,00 € zuweisen', exact: true }),
+    ).toBeEnabled();
+    await preview.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+    await expect(preview).toBeHidden();
+    await expect(distribute).toBeFocused();
+    assertCents(await budget(request));
+    expect(writes).toEqual([]);
+
+    const initial = page.viewportSize()!;
+    const widths = initial.width < 768 ? [initial.width, 320] : [initial.width];
+    for (const width of widths) {
+      await page.setViewportSize({ width, height: initial.height });
+      await page.evaluate(() => document.fonts.ready);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await expect(row).toBeVisible();
+      if (on) {
+        if (width === 1440 || (width === 390 && initial.height === 844)) {
+          const first = await row.boundingBox();
+          const navigation = page.locator('.tabbar');
+          const bottomChrome = (await navigation.isVisible())
+            ? (await navigation.boundingBox())!.height
+            : 0;
+          expect(first!.y + first!.height).toBeLessThanOrEqual(initial.height - bottomChrome + 0.5);
+        }
+        const action = page.getByRole('button', { name: 'Geld verteilen', exact: true });
+        for (const control of [action, page.locator('.plan-tba')]) {
+          const rect = await control.boundingBox();
+          expect(rect!.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+          expect(rect!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+          expect(rect!.x).toBeGreaterThanOrEqual(-0.5);
+          expect(rect!.x + rect!.width).toBeLessThanOrEqual(width + 0.5);
+        }
+        if (width < 768) {
+          await row.evaluate((node) => node.scrollIntoView({ block: 'center' }));
+          await expect(row).toBeInViewport();
+          await expect(page.getByTestId('to-be-assigned')).toBeInViewport();
+          await expect(action).toBeInViewport();
+          await page.evaluate(() => window.scrollTo(0, 0));
+        }
+      }
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        ),
+      ).toBeLessThanOrEqual(0.5);
+      expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+      await page.screenshot({
+        path: info.outputPath(`plan-${on ? 'on' : 'off'}-${width}-${theme}.png`),
+      });
+    }
+    await withShellControls(page, async ({ privacy }) => {
+      await privacy.click();
+    });
+    await expect(page.getByTestId('to-be-assigned')).toHaveText('••• €');
+    await expect(row).not.toContainText('4,00 €');
+    await withShellControls(page, async ({ privacy }) => {
+      await privacy.click();
+    });
+    await expect(page.getByTestId('to-be-assigned')).toHaveText('7,50 €');
+    assertCents(await budget(request));
+    expect(writes).toEqual([]);
+  });
+}
