@@ -13,6 +13,8 @@ import { PageFrame } from './placeholder-page';
 import { CryptoReadSourceSection } from './read-source';
 import { PayslipSourceSection } from '../reports/payslip-intake';
 import './data-sources.css';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsConnections } from './settings-connections';
 
 type LinkedAccount = {
   locked: boolean;
@@ -46,7 +48,7 @@ type Account = Pick<AccountRow, 'id' | 'name' | 'type' | 'onBudget' | 'sortOrder
   currency: string;
   openingDate: string;
 };
-type Status = {
+export type BankSourceStatus = {
   workerEnabled?: boolean;
   configured: boolean;
   connections: Connection[];
@@ -78,11 +80,15 @@ export function DataSourcesPage() {
       meta={PAGES.find((p) => p.path === '/einstellungen/datenquellen')!}
       revealCurrentRegister
     >
-      <div className="data-sources">
-        <BankSourceSection />
-        <CryptoReadSourceSection />
-        <PayslipSourceSection />
-      </div>
+      {REDESIGN_ENABLED ? (
+        <SettingsConnections bankConfiguration={<BankSourceSection />} />
+      ) : (
+        <div className="data-sources">
+          <BankSourceSection />
+          <CryptoReadSourceSection />
+          <PayslipSourceSection />
+        </div>
+      )}
     </PageFrame>
   );
 }
@@ -90,7 +96,7 @@ export function DataSourcesPage() {
 function BankSourceSection() {
   const query = useQuery({
     queryKey: ['bank-sync'],
-    queryFn: () => request<Status>('GET', PATH),
+    queryFn: () => request<BankSourceStatus>('GET', PATH),
     refetchInterval: 30_000,
   });
   const [institutions, setInstitutions] = useState<Institution[]>([]);

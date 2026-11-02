@@ -6,8 +6,8 @@ test('category detail preserves list context, supports direct links and returns 
 }, info) => {
   await page.goto('/einstellungen/kategorien');
   await page.getByRole('switch', { name: /Ausgeblendete zeigen/ }).click();
-  const trigger = page.locator('.cat-table .kname-btn').last();
-  const name = (await trigger.innerText()).trim();
+  const trigger = page.locator('.cat-table .kname-btn, .settings-category-name').last();
+  const name = (await trigger.locator('strong, .kname-s').innerText()).trim();
   await trigger.scrollIntoViewIfNeeded();
   const scroll = await page.evaluate(() => window.scrollY);
   await trigger.click();
@@ -27,7 +27,10 @@ test('category detail preserves list context, supports direct links and returns 
     'true',
   );
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeCloseTo(scroll, 0);
-  await page.locator('.cat-table .kname-btn').filter({ hasText: name }).click();
+  await page
+    .locator('.cat-table .kname-btn, .settings-category-name')
+    .filter({ hasText: name })
+    .click();
   await page.goBack();
   await expect(page).toHaveURL(/\/einstellungen\/kategorien\?/);
   await page.goto(url);

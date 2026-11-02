@@ -19,7 +19,11 @@ test('average default, saved FIFO switch, reload, both themes and accessible con
   const select = page.getByLabel('Einstandskostenmethode');
   await expect(select).toHaveValue('average');
   // Desktop: the settings rail shows the page; phone: the back bar names it.
-  if (isMobile) await expect(page.locator('.settings-here')).toHaveText('Depots & Kryptos');
+  const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  if (isMobile)
+    await expect(page.locator(on ? '.m-title-text' : '.settings-here')).toHaveText(
+      'Depots & Kryptos',
+    );
   else
     await expect(
       page.getByRole('link', { name: 'Depots & Kryptos', exact: true }),
@@ -27,7 +31,9 @@ test('average default, saved FIFO switch, reload, both themes and accessible con
   await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
-    await expect(page.getByRole('heading', { name: 'Einstandskosten', exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: on ? 'Depots & Kryptos' : 'Einstandskosten', exact: true }),
+    ).toBeVisible();
     const axe = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
       .analyze();

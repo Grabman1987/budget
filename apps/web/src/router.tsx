@@ -632,8 +632,16 @@ const settingsIndexRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/einstellungen',
   staticData: { meta: SETTINGS_INDEX },
-  beforeLoad: () => {
-    if (isDesktopViewport()) throw redirect({ to: '/einstellungen/konten' as never });
+  beforeLoad: ({ location }) => {
+    if (isDesktopViewport()) {
+      if (!REDESIGN_ENABLED) throw redirect({ to: '/einstellungen/konten' as never });
+      if (new URLSearchParams(location.searchStr).get('ansicht') === 'index') return;
+      const to = '/einstellungen/profil';
+      throw redirect({
+        href: `${to}${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+        replace: true,
+      });
+    }
   },
   component: lazyRouteComponent(() => import('./pages/settings-index'), 'SettingsIndexPage'),
 });

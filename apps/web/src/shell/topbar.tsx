@@ -4,6 +4,8 @@ import { PanelLink } from './panel-link';
 import { InboxHeaderLink } from '../inbox/navigation';
 import { useInboxCount } from './inbox';
 import { PrivacyButton } from './privacy-button';
+import { useLocation } from '@tanstack/react-router';
+import { REDESIGN_ENABLED } from './redesign-flag';
 import '../budget/plan-page-frame.css';
 
 /**
@@ -25,9 +27,12 @@ export function Topbar({
   title?: string;
 }) {
   const inbox = useInboxCount();
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const settings = REDESIGN_ENABLED && pathname.startsWith('/einstellungen');
   return (
     <header className={title ? 'topbar plan-shell-topbar' : 'topbar'}>
       <div className="topbar-inner">
+        {settings && <h1 className="settings-shell-title">Einstellungen</h1>}
         <button
           type="button"
           className={title ? 'plan-shell-title' : 'icon-btn'}
@@ -41,7 +46,7 @@ export function Topbar({
         >
           {title ?? <PanelLeft size={16} strokeWidth={1.75} aria-hidden="true" />}
         </button>
-        <GlobalSearch onOpenChange={onSearchChange} compactLabel={!!title} />
+        <GlobalSearch compact={settings} compactLabel={!!title} onOpenChange={onSearchChange} />
         <div className="topbar-actions">
           <PrivacyButton />
           <InboxHeaderLink className="review-pill" aria-label={inbox.label}>

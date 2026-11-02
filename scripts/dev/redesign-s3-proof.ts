@@ -440,11 +440,9 @@ export async function verifyRedesignShell(
     await avatar.click();
     const profile = page.getByRole('link', { name: 'Profil und Einstellungen', exact: true });
     await profile.click();
-    await expect(page).toHaveURL(
-      `${origin}${enabled ? '/einstellungen/profil' : '/einstellungen'}`,
-    );
+    await expect(page).toHaveURL(`${origin}/einstellungen`);
     if (enabled)
-      await expect(page.getByRole('heading', { name: 'Profil', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Einstellungen', exact: true })).toBeVisible();
   } else if (enabled) {
     const accounts = page.locator('#acct-tree-label > a');
     await target(accounts, 'AccountTree');

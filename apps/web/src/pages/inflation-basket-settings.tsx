@@ -1,4 +1,7 @@
+import { SettingsReadStamp } from './settings-read-stamp';
 import { useState } from 'react';
+import { useLocation } from '@tanstack/react-router';
+import { validateInboxSearch } from '../inbox/navigation';
 import { useQuery } from '@tanstack/react-query';
 import type { InflationReport } from '@budget/db';
 import type { z } from 'zod';
@@ -16,6 +19,8 @@ import './inflation-basket-settings.css';
 
 type Row = InflationReport['basketSettings'][number];
 type Change = z.infer<typeof inflationBasketChanges>['changes'][number];
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+
 const PATH = '/api/inflation-basket';
 const RHYTHMS = {
   weekly: 'Wöchentlich',
@@ -83,6 +88,126 @@ export function InflationBasketSettingsPage() {
   const manual = included.filter(
     (c) => c.inclusion === 'always' || c.method === 'cpi' || c.trailingMean !== null,
   ).length;
+  const groups = (
+    <>
+      {[...new Set(rows.map((c) => c.groupId))].map((group) => (
+        <fieldset className="basket-group" key={group} disabled={pending.length > 0}>
+          <legend>{rows.find((c) => c.groupId === group)!.groupName}</legend>
+          {rows
+            .filter((c) => c.groupId === group)
+            .map((c) => (
+              <div className="basket-category" key={c.id} data-testid={'basket-category-' + c.id}>
+                <div className="basket-category-top">
+                  <strong>{c.name}</strong>
+                  <label>
+                    Zählt mit
+                    <select
+                      aria-label={'Zählt mit: ' + c.name}
+                      aria-describedby={'basket-effect-' + c.id}
+                      value={c.inclusion ?? 'automatic'}
+                      onChange={(e) =>
+                        void save([
+                          {
+                            categoryId: c.id,
+                            inclusion:
+                              e.target.value === 'automatic'
+                                ? null
+                                : (e.target.value as 'always' | 'never'),
+                          },
+                        ])
+                      }
+                    >
+                      <option value="automatic">Automatisch</option>
+                      <option value="always">Immer</option>
+                      <option value="never">Nie</option>
+                    </select>
+                  </label>
+                </div>
+                <p className="sr-note" id={'basket-effect-' + c.id}>
+                  {basketExplanation(c)}
+                </p>
+                <BasketMethod key={JSON.stringify([c.method, c.coicop])} row={c} save={save} />
+                <details>
+                  <summary>
+                    <span>Ausnahmen ({c.payees.length})</span>
+                    <small>Abwählen, was nicht als Preis zählen soll (z. B. Zinsen).</small>
+                  </summary>
+                  {c.payees.length === 0 ? (
+                    <p className="sr-note">Noch keine passenden Buchungen oder Verträge.</p>
+                  ) : (
+                    c.payees.map((p) => (
+                      <label className="basket-payee" key={p.id ?? 'none'}>
+                        <input
+                          type="checkbox"
+                          checked={p.included}
+                          aria-label={p.name + ' zählt mit'}
+                          onChange={(e) =>
+                            void save([
+                              {
+                                categoryId: c.id,
+                                excludedPayeeIds: e.target.checked
+                                  ? c.excludedPayeeIds.filter((id) => id !== p.id)
+                                  : [...c.excludedPayeeIds, p.id],
+                              },
+                            ])
+                          }
+                        />
+                        <span>
+                          {p.name} · zählt mit
+                          {p.contracts.length > 0 && <small>{p.contracts.join(', ')}</small>}
+                          {p.rhythm && (
+                            <small>
+                              {RHYTHMS[p.rhythm]}
+                              {!p.contracts.length ? ' · aus Buchungen abgeleitet' : ''}
+                            </small>
+                          )}
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </details>
+              </div>
+            ))}
+        </fieldset>
+      ))}
+    </>
+  );
+  if (REDESIGN_ENABLED)
+    return (
+      <PageFrame meta={PAGES.find((p) => p.path === '/einstellungen/warenkorb')!}>
+        <section className="settings-basket-v2" aria-labelledby="basket-settings-title">
+          <div className="settings-primary-head">
+            <h2 id="basket-settings-title">Warenkorb</h2>
+            <BasketReportReturn />
+          </div>
+          {query.isPending && <LoadingNote what="Warenkorb" />}
+          {query.isError && (
+            <ErrorNote what="Warenkorb" error={query.error} onRetry={() => void query.refetch()} />
+          )}
+          {query.isSuccess && (
+            <p role="status" className="settings-source-stamp">
+              Im Warenkorb: {included.length} Kategorien · Automatisch: {included.length - manual} ·
+              Von dir gesetzt: {manual} · Ausgeschlossen: {rows.length - included.length}
+            </p>
+          )}
+          {query.isSuccess && !rows.length && <p>Noch keine Ausgabenkategorien angelegt.</p>}
+          <div className="settings-basket-groups">{groups}</div>
+          <details className="settings-advanced">
+            <summary>Auswahl, Preisentwicklung und Speicherung</summary>
+            <p>
+              Bedarf mit festen oder regelmäßig wiederkehrenden Preisen zählt automatisch mit. Für
+              die übrigen Kategorien entscheidest du, was mitzählt. Die persönliche Inflation
+              vergleicht diese Preise mit dem offiziellen Verbraucherpreisindex (VPI).
+            </p>
+            <p>
+              Änderungen werden automatisch gespeichert. Im Hinweis „Warenkorb gespeichert.“ kannst
+              du sie rückgängig machen.
+            </p>
+          </details>
+          <SettingsReadStamp at={query.dataUpdatedAt} label="Warenkorb" />
+        </section>
+      </PageFrame>
+    );
   return (
     <PageFrame
       meta={PAGES.find((p) => p.path === '/einstellungen/warenkorb')!}
@@ -116,88 +241,21 @@ export function InflationBasketSettingsPage() {
         {query.isSuccess && !rows.length && (
           <p className="sr-note">Noch keine Ausgabenkategorien angelegt.</p>
         )}
-        {[...new Set(rows.map((c) => c.groupId))].map((group) => (
-          <fieldset className="basket-group" key={group} disabled={pending.length > 0}>
-            <legend>{rows.find((c) => c.groupId === group)!.groupName}</legend>
-            {rows
-              .filter((c) => c.groupId === group)
-              .map((c) => (
-                <div className="basket-category" key={c.id} data-testid={'basket-category-' + c.id}>
-                  <div className="basket-category-top">
-                    <strong>{c.name}</strong>
-                    <label>
-                      Zählt mit
-                      <select
-                        aria-label={'Zählt mit: ' + c.name}
-                        aria-describedby={'basket-effect-' + c.id}
-                        value={c.inclusion ?? 'automatic'}
-                        onChange={(e) =>
-                          void save([
-                            {
-                              categoryId: c.id,
-                              inclusion:
-                                e.target.value === 'automatic'
-                                  ? null
-                                  : (e.target.value as 'always' | 'never'),
-                            },
-                          ])
-                        }
-                      >
-                        <option value="automatic">Automatisch</option>
-                        <option value="always">Immer</option>
-                        <option value="never">Nie</option>
-                      </select>
-                    </label>
-                  </div>
-                  <p className="sr-note" id={'basket-effect-' + c.id}>
-                    {basketExplanation(c)}
-                  </p>
-                  <BasketMethod key={JSON.stringify([c.method, c.coicop])} row={c} save={save} />
-                  <details>
-                    <summary>
-                      <span>Ausnahmen ({c.payees.length})</span>
-                      <small>Abwählen, was nicht als Preis zählen soll (z. B. Zinsen).</small>
-                    </summary>
-                    {c.payees.length === 0 ? (
-                      <p className="sr-note">Noch keine passenden Buchungen oder Verträge.</p>
-                    ) : (
-                      c.payees.map((p) => (
-                        <label className="basket-payee" key={p.id ?? 'none'}>
-                          <input
-                            type="checkbox"
-                            checked={p.included}
-                            aria-label={p.name + ' zählt mit'}
-                            onChange={(e) =>
-                              void save([
-                                {
-                                  categoryId: c.id,
-                                  excludedPayeeIds: e.target.checked
-                                    ? c.excludedPayeeIds.filter((id) => id !== p.id)
-                                    : [...c.excludedPayeeIds, p.id],
-                                },
-                              ])
-                            }
-                          />
-                          <span>
-                            {p.name} · zählt mit
-                            {p.contracts.length > 0 && <small>{p.contracts.join(', ')}</small>}
-                            {p.rhythm && (
-                              <small>
-                                {RHYTHMS[p.rhythm]}
-                                {!p.contracts.length ? ' · aus Buchungen abgeleitet' : ''}
-                              </small>
-                            )}
-                          </span>
-                        </label>
-                      ))
-                    )}
-                  </details>
-                </div>
-              ))}
-          </fieldset>
-        ))}
+        {groups}
       </section>
     </PageFrame>
+  );
+}
+
+function BasketReportReturn() {
+  const source = validateInboxSearch(useLocation().search).von;
+  return (
+    <AppLink
+      className="btn btn-ghost"
+      to={source?.startsWith('/reports/inflation') ? source : '/reports/inflation'}
+    >
+      Zur persönlichen Inflation
+    </AppLink>
   );
 }
 

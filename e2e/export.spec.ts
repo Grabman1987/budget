@@ -8,7 +8,9 @@ test('CSV export downloads all account and portfolio CSVs as one ZIP', async ({
   await page.goto('/einstellungen/export');
   await expect(page).toHaveTitle('Einstellungen · CSV-Export · Budget');
   // Desktop: the settings rail marks the page; phone: the back bar names it.
-  if (isMobile) await expect(page.locator('.settings-here')).toHaveText('CSV-Export');
+  const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  if (isMobile)
+    await expect(page.locator(on ? '.m-title-text' : '.settings-here')).toHaveText('CSV-Export');
   else
     await expect(page.getByRole('link', { name: 'CSV-Export', exact: true })).toHaveAttribute(
       'aria-current',
@@ -16,7 +18,11 @@ test('CSV export downloads all account and portfolio CSVs as one ZIP', async ({
     );
   await expect(page.getByRole('heading', { name: 'CSV-Export', exact: true })).toBeVisible();
   await expect(
-    page.getByText('Alle Konten und Depots als CSV-Dateien in einer ZIP-Datei herunterladen.'),
+    page.getByText(
+      on
+        ? 'Konten, Depots, Buchungen und Quellenverläufe · ZIP-Datei'
+        : 'Alle Konten und Depots als CSV-Dateien in einer ZIP-Datei herunterladen.',
+    ),
   ).toBeVisible();
   await expect(page.locator('input[type=file], a[download]')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'ZIP-Export herunterladen' })).toBeEnabled();
@@ -42,6 +48,16 @@ test('legacy import entry points cannot open the removed wizard or report', asyn
   await expect(page.getByRole('heading', { name: 'CSV-Export', exact: true })).toBeVisible();
 
   await page.goto('/einstellungen/datenquellen?lauf=legacy&schritt=konten');
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+    await page
+      .getByRole('region', { name: 'Bank', exact: true })
+      .getByRole('button', { name: 'Prüfen' })
+      .click();
+    await page
+      .getByRole('region', { name: 'Krypto', exact: true })
+      .getByRole('button', { name: 'Prüfen' })
+      .click();
+  }
   await expect(page.getByRole('heading', { name: 'Bank-Sync (PSD2)', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Krypto-Lesequelle' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'YNAB-Import' })).toHaveCount(0);

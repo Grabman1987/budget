@@ -12,6 +12,7 @@ import type { VerdictFacts } from '@budget/domain';
 import { VerdictLine } from '../reports/verdict-line';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { PageMenu } from '../nav/page-menu';
+import { RedesignSettingsFrame } from './settings-frame';
 
 export interface PlaceholderPageProps {
   meta: PageMeta;
@@ -102,6 +103,8 @@ export function PageFrame({
   reportControls,
   pageNavigation,
 }: PageFrameProps) {
+  if (REDESIGN_ENABLED && meta.area === 'einstellungen')
+    return <RedesignSettingsFrame meta={meta}>{children}</RedesignSettingsFrame>;
   const area = areaById(meta.area);
   const items: RegisterItem[] = area.registers.map((r) => ({
     id: r.id,
