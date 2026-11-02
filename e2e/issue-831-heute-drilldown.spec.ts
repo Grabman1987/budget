@@ -4,8 +4,6 @@ import type { Heute } from '../apps/web/src/heute/api';
 import { eur } from '../apps/web/src/ledger/format';
 import { MIN_TARGET_PX } from './ledger-helpers';
 
-const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
-
 test('lead → exact terms → category/payment → return retains viewed month and source scope without writes', async ({
   page,
 }, info) => {
@@ -18,9 +16,12 @@ test('lead → exact terms → category/payment → return retains viewed month 
       writes.push(request.method() + ' ' + new URL(request.url()).pathname);
   });
   await page.goto('/?monat=2026-08&period=month');
-  await expect(page.getByTestId('heute-lead-value')).toBeVisible();
+  await expect(page.locator('.app')).toBeVisible();
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  await expect(page.getByTestId('heute-kennzahlen')).toBeVisible();
   if (!redesign) {
     await expect(page.locator('.heute--redesign')).toHaveCount(0);
+    await expect(page.getByTestId('heute-lead-value')).toHaveCount(0);
     await page.getByRole('button', { name: 'Herleitung zeigen', exact: true }).click();
     await expect(page.getByRole('link', { name: 'Alle Rechenschritte und Quellen' })).toHaveCount(
       0,
@@ -28,6 +29,7 @@ test('lead → exact terms → category/payment → return retains viewed month 
     expect(writes).toEqual([]);
     return;
   }
+  await expect(page.getByTestId('heute-lead-value')).toBeVisible();
   const source = await page.request.get('/api/heute?month=2026-08&period=month');
   expect(source.ok()).toBe(true);
   const data = (await source.json()) as Heute;
@@ -59,6 +61,12 @@ test('lead → exact terms → category/payment → return retains viewed month 
   expect(target.searchParams.get('monat')).toBe('2026-09');
   await need.click();
   await expect(page.getByRole('link', { name: 'Zurück zur Heute-Herleitung' })).toBeVisible();
+  await page.goBack();
+  await expect(
+    page.getByRole('heading', { name: 'Frei bis Gehalt · Herleitung', exact: true }),
+  ).toBeVisible();
+  await page.goForward();
+  await expect(page.getByRole('link', { name: 'Zurück zur Heute-Herleitung' })).toBeVisible();
   await page.reload();
   await page.getByRole('link', { name: 'Zurück zur Heute-Herleitung' }).click();
   await expect(page).toHaveURL(
@@ -71,6 +79,11 @@ test('lead → exact terms → category/payment → return retains viewed month 
   await expect(payment).toBeVisible();
   await payment.click();
   await expect(page).toHaveURL((url) => /^\/plan\/erwartet\/[^/]+$/.test(url.pathname));
+  await page.getByRole('link', { name: 'Zurück zur Heute-Herleitung' }).click();
+  await page.getByRole('link', { name: 'Kontoprognose · 35 Tage vergleichen' }).click();
+  await expect(page).toHaveURL(
+    (url) => url.pathname === '/plan/prognose' && url.searchParams.get('horizon') === '35d',
+  );
   await page.getByRole('link', { name: 'Zurück zur Heute-Herleitung' }).click();
   await page.reload();
   await expect(
@@ -106,6 +119,8 @@ test('investment sources retain account returns and missing valuation reasons', 
   page,
 }) => {
   await page.goto('/heute/details/invested?monat=2026-09&period=payday#anlagebasis');
+  await expect(page.locator('.app')).toBeVisible();
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   await expect(
     page.getByRole('heading', {
       name: redesign ? 'Investiert · Anlagebasis' : 'Investiert',

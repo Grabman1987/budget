@@ -20,7 +20,9 @@ export function HeuteSourceReturn() {
   const location = useLocation();
   if (
     !REDESIGN_ENABLED ||
-    !/^\/(konten\/[^/]+|plan\/(monat|erwartet|prognose))/.test(location.pathname)
+    !/^\/(konten\/[^/]+|plan\/(monat(?:\/envelope\/[^/]+)?|erwartet(?:\/[^/]+)?|prognose)|vermoegen\/(freiheit|portfolio\/allokation))$/.test(
+      location.pathname,
+    )
   )
     return null;
   const source = heuteReturn(

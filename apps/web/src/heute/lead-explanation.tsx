@@ -18,7 +18,7 @@ export function LeadExplanation({ data }: { data: Heute }) {
   const earliestOpen = data.lead.items.open.map((item) => item.day).sort()[0] ?? data.stand.today;
   const payments = useQuery({
     ...occurrencesQuery(earliestOpen, data.stand.payday.day),
-    enabled: data.lead.items.open.length > 0,
+    enabled: data.lead.items.open.some((item) => !item.id.endsWith(`|${item.day}`)),
   });
   const labels = { need: 'Bedarf', want: 'Wunsch', open: 'Offen bis Gehalt' };
   return (
@@ -70,9 +70,15 @@ export function LeadExplanation({ data }: { data: Heute }) {
                               `${row.paymentId}|${row.dueDate}` === item.id) &&
                             row.dueDate === item.day,
                         );
-                      return payment ? (
+                      // Preview occurrences retain the canonical paymentId|dueDate identity.
+                      const paymentId = item.id.endsWith(`|${item.day}`)
+                        ? item.id.slice(0, -(item.day.length + 1))
+                        : payment
+                          ? payment.paymentId
+                          : undefined;
+                      return paymentId ? (
                         <AppLink
-                          to={`/plan/erwartet/${encodeURIComponent(payment.paymentId)}`}
+                          to={`/plan/erwartet/${encodeURIComponent(paymentId)}`}
                           search={search}
                         >
                           {item.label} · {longDay(item.day)}
@@ -131,17 +137,20 @@ export function BudgetExplanation({ month, period }: { month: string; period: He
   const source = useLocation({ select: (location) => location.href });
   const query = useQuery(budgetQuery(month));
   const data =
-    !query.isError && !query.isPlaceholderData && query.data?.summary.month === month
+    !query.isError &&
+    !(query.failureCount > 0) &&
+    !query.isPlaceholderData &&
+    query.data?.summary.month === month
       ? query.data
       : undefined;
   const rows = data ? planRows(data) : [];
   return (
-    <>
+    <div className="heute-breakdown">
       <p>
         EUR · Alle Envelopes im Planmonat {monthLabel(month)}. Zugewiesenes Geld und Aktivität,
         einschließlich Übertrag. Dies ist kein Kontoguthaben.
       </p>
-      {query.isPending ? (
+      {query.isPending || (query.isFetching && !data) ? (
         <LoadingNote what="Budget" />
       ) : query.isError ? (
         <ErrorNote what="Budget" error={query.error} onRetry={() => void query.refetch()} />
@@ -168,6 +177,6 @@ export function BudgetExplanation({ month, period }: { month: string; period: He
           </>
         )
       )}
-    </>
+    </div>
   );
 }

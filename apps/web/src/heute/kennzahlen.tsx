@@ -192,6 +192,21 @@ export function Kennzahlen({
               month ? (
                 <>
                   Summe „Verfügbar“ aller Envelopes im Monat, wie im Plan-Inspektor.
+                  {REDESIGN_ENABLED && (
+                    <>
+                      {' '}
+                      <AppLink
+                        to="/heute/details/budget"
+                        search={{
+                          monat: scope.month,
+                          period: scope.period,
+                          von: `/?monat=${scope.month}&period=${scope.period}`,
+                        }}
+                      >
+                        Alle Envelopes und Quellen
+                      </AppLink>
+                    </>
+                  )}
                   {plan
                     ? ` Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}.`
                     : ''}

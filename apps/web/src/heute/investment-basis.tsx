@@ -112,11 +112,17 @@ export function InvestmentBasisDetails({
             </>
           )}
           <p>
-            <AppLink to="/vermoegen/freiheit" search={search}>
+            <AppLink
+              to="/vermoegen/freiheit"
+              search={REDESIGN_ENABLED ? { ...search, von: source } : search}
+            >
               Freiheit vergleichen
             </AppLink>
             {' · '}
-            <AppLink to="/vermoegen/portfolio/allokation" search={search}>
+            <AppLink
+              to="/vermoegen/portfolio/allokation"
+              search={REDESIGN_ENABLED ? { ...search, von: source } : search}
+            >
               Allokation vergleichen
             </AppLink>
           </p>

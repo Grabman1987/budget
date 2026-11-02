@@ -270,6 +270,8 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   });
 
   await page.goto('/?monat=2026-09&period=month');
+  await expect(page.locator('.app')).toBeVisible();
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   const response = await page.request.get('/api/heute?period=month&month=2026-09');
   expect(response.ok()).toBe(true);
   const initial: Heute = await response.json();
@@ -403,9 +405,14 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   const source = page
     .getByRole('region', { name: redesign ? 'Schulden (netto)' : 'Schulden', exact: true })
     .getByRole('link', { name: 'Kredit', exact: true });
-  const target = await source.getAttribute('href');
+  const target = new URL((await source.getAttribute('href'))!, page.url());
   await source.click();
-  await expect.poll(() => new URL(page.url()).pathname).toBe(target);
+  await expect.poll(() => new URL(page.url()).pathname).toBe(target.pathname);
+  if (redesign) {
+    await expect(page.getByRole('link', { name: 'Zurück zur Heute-Herleitung' })).toBeVisible();
+    expect(new URL(page.url()).searchParams.get('von')).toBe(target.searchParams.get('von'));
+    expect(target.searchParams.get('von')).toContain('/heute/details/debt');
+  }
   await expect(
     page.locator('.kacct-head').getByRole('heading', { name: 'Kredit', exact: true }),
   ).toBeVisible();

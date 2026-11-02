@@ -64,7 +64,7 @@ export function DimensionPage() {
   useEffect(() => {
     if (basisHash) return;
     heading.current?.focus({ preventScroll: true });
-  }, [kind, net?.asOf, basisHash]);
+  }, [kind, net?.asOf, data?.stand.today, basisHash]);
   useEffect(() => {
     if (!basisHash) {
       focusedBasis.current = undefined;
@@ -112,15 +112,15 @@ export function DimensionPage() {
             {'unavailable' in data.netWorth && data.netWorth.unavailable.message}
           </p>
         )}
-        {REDESIGN_ENABLED && leadKind && data && (
+        {REDESIGN_ENABLED && leadKind && (data || kind === 'budget') && (
           <section className="card heute-dimension" aria-labelledby="dimension-title">
             <h2 id="dimension-title" ref={heading} tabIndex={-1}>
               {title}
             </h2>
-            {query.isFetching && (
+            {query.isFetching && data && (
               <p role="status">Stand wird aktualisiert · {longDay(data.stand.today)}</p>
             )}
-            {kind === 'free' ? (
+            {kind === 'free' && data ? (
               <LeadExplanation data={data} />
             ) : (
               <BudgetExplanation month={month} period={period} />
