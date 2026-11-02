@@ -91,3 +91,12 @@ expected an independent initial chart in both modes. Root authorized a narrow
 source-owner adapter preserving OFF and the exact geometry equality; the ON check
 now asserts pending/withheld followed by the unchanged literal canonical low.
 No amount, date, formula, retry or timeout is changed by that adapter.
+
+The #574 independent-pending and liquidity-error cases receive the same bounded
+source-owner mapping. OFF is unchanged. ON first proves the successful canonical
+19101 chart ignores a held/failing unused independent endpoint (zero requests),
+then a deliberate aggregate 503/reload activates the real independent fallback.
+The pending case releases that fallback and retains exact bounds equality. The
+error case retries its actual fallback error and recovers 19101 while aggregate
+wealth stays withheld. Independent budget/savings, no-write, Axe and retry checks
+remain. No production read behavior is changed to satisfy an obsolete test path.

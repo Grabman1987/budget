@@ -177,6 +177,17 @@ test('the independent forecast reserves its own initial pending plot before its 
   test.setTimeout(60_000);
   let release!: () => void;
   let held: Promise<void>;
+  let aggregateFails = false;
+  let independentReads = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/liquidity') independentReads++;
+  });
+  if (redesign)
+    await page.route('**/api/heute?*', (route) =>
+      aggregateFails
+        ? route.fulfill({ status: 503, json: { error: 'synthetic_unavailable' } })
+        : route.fallback(),
+    );
   await page.route('**/api/liquidity?*', async (route) => {
     await held;
     await route.continue();
@@ -187,8 +198,19 @@ test('the independent forecast reserves its own initial pending plot before its 
     });
     try {
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      aggregateFails = false;
+      independentReads = 0;
       await page.goto('/?monat=2026-09&period=month');
       await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
+      if (redesign) {
+        // A held unused endpoint cannot delay the successful response-owned path.
+        await expect(page.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '19101');
+        expect(independentReads).toBe(0);
+        aggregateFails = true;
+        await page.reload();
+        await expect(page.getByTestId('heute-wealth-history')).toHaveCount(0);
+        await expect.poll(() => independentReads).toBeGreaterThan(0);
+      }
       await expect(page.locator('[data-kennzahl="zu-verteilen"]')).toBeVisible();
       const forecast = page.getByRole('region', { name: 'Kontoprognose · 35 Tage' });
       await expect(forecast.getByTestId('liquidity-chart')).toHaveCount(0);
@@ -198,6 +220,13 @@ test('the independent forecast reserves its own initial pending plot before its 
       expect(pending.every(Boolean)).toBe(true);
       release();
       await expect(forecast.getByTestId('liquidity-chart')).toBeVisible();
+      if (redesign) {
+        await expect(forecast.locator('.heute-forecast-low')).toHaveAttribute(
+          'data-cents',
+          '19101',
+        );
+        await expect(page.getByTestId('heute-wealth-history')).toHaveCount(0);
+      }
       expect(await bounds(page)).toEqual(pending);
       await accessible(page);
       await page.screenshot({ path: info.outputPath(`574-forecast-${colorScheme}-settled.png`) });
@@ -213,8 +242,17 @@ for (const read of ['heute', 'budget', 'liquidity', 'savings'] as const) {
   }, info) => {
     test.setTimeout(60_000);
     let fail = true;
+    let forceAggregateFailure = false;
+    let independentReads = 0;
+    if (redesign && read === 'liquidity')
+      await page.route('**/api/heute?*', (route) =>
+        forceAggregateFailure
+          ? route.fulfill({ status: 503, json: { error: 'synthetic_unavailable' } })
+          : route.fallback(),
+      );
     const writes: string[] = [];
     page.on('request', (request) => {
+      if (new URL(request.url()).pathname === '/api/liquidity') independentReads++;
       if (request.url().includes('/api/') && !['GET', 'HEAD'].includes(request.method()))
         writes.push(request.method());
     });
@@ -238,12 +276,25 @@ for (const read of ['heute', 'budget', 'liquidity', 'savings'] as const) {
     );
     for (const colorScheme of ['light', 'dark'] as const) {
       fail = true;
+      forceAggregateFailure = false;
+      independentReads = 0;
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
       await page.goto('/?monat=2026-09&period=month');
       const budget = page.locator('[aria-labelledby="kennzahl-zu-verteilen-title"]');
       const forecast = page.getByRole('region', { name: 'Kontoprognose · 35 Tage' });
       const savings = page.getByRole('region', { name: 'Zu tun' });
-      if (read === 'heute') {
+      if (redesign && read === 'liquidity') {
+        // Successful ON aggregates do not consult the failing fallback endpoint.
+        await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
+        await expect(forecast.locator('.heute-forecast-low')).toHaveAttribute(
+          'data-cents',
+          '19101',
+        );
+        expect(independentReads).toBe(0);
+        forceAggregateFailure = true;
+        await page.reload();
+      }
+      if (read === 'heute' || forceAggregateFailure) {
         await expect(page.locator('[data-kennzahl="nettovermoegen"]')).toHaveCount(0);
         await expect(page.getByTestId('heute-wealth-history')).toHaveCount(0);
       } else await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
@@ -280,9 +331,16 @@ for (const read of ['heute', 'budget', 'liquidity', 'savings'] as const) {
       fail = false;
       await retry.click();
       if (read === 'budget') await expect(budget.getByTestId('kennzahl-value')).toBeVisible();
-      else if (read === 'liquidity')
+      else if (read === 'liquidity') {
         await expect(forecast.getByTestId('liquidity-chart')).toBeVisible();
-      else if (read === 'savings')
+        if (redesign) {
+          await expect(forecast.locator('.heute-forecast-low')).toHaveAttribute(
+            'data-cents',
+            '19101',
+          );
+          await expect(page.getByTestId('heute-wealth-history')).toHaveCount(0);
+        }
+      } else if (read === 'savings')
         await expect(savings.getByText('1 Sparplanausführung prüfen')).toBeVisible();
       else await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
       if (errorBounds) {
