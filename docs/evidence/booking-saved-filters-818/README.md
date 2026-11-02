@@ -28,7 +28,10 @@ text and the target view. The URL independence test compared percent encoding
 instead of its value; it now checks the same literal decoded query string,
 accepting the current router's standard `+` space encoding.
 
-## Validation
+## Historical implementation validation
+
+The later capture checkpoint below supersedes the missing-WebKit and pending-CI
+statements in this historical record.
 
 - Domain, real SQLite/API and original URL parser: **16/16** passed, 2.25s.
 - Corrected #818 Chromium desktop1440 and mobile390: **13/13**, including three
@@ -70,3 +73,65 @@ Preview/release/live verification remain pending. No feature acceptance, parent
   name selectors, require explicit review/restart after a committed lost response,
   strengthen repeated-conflict preservation and capture actual save/manager
   surfaces. No timeout, skip, financial oracle or Axe rule was relaxed.
+
+## WebKit capture checkpoint — 2026-11-02
+
+Actual source: `b78369619837b0f4f9c7429c794f11ea27393581`. Session agent
+`/root/filters_evidence` (`gpt-6.1-sol`, medium) used an isolated shared-Cloud
+worktree, with independent environment review by `/root/evidence_review`
+(`gpt-6-astra`, high); these were session agents, not hosted tasks. All
+five source hashes above still match. The four earlier Chromium PNGs are preserved
+byte for byte. Required full CI [41434884784](https://github.com/Grabman1987/budget/actions/runs/41434884784)
+is green at this source head; any subsequent evidence commit still needs its own
+required exact-head checks before integration.
+
+The original CI feature PNGs could not be recovered: passing e2e shards upload
+artifacts only on failure, while the always-uploaded visual job selects
+`expectScreenshot|toHaveScreenshot` specs and excludes this `page.screenshot`
+spec. The sole artifact download redirects to a storage host outside the current
+network policy. These new files are actual local runtime originals, not inspected
+CI artifacts.
+
+`npm run build:e2e` passed. The unchanged focused spec passed Chromium desktop and
+390px mobile with setup **13/13**; its five WebKit cases initially stopped at
+launch because host libraries were unavailable. A WebKit-only diagnostic retry
+still stopped at the system linker-cache check. After those two infrastructure
+failures, the alternate environment route was independently reviewed before use.
+
+The reviewer found the pinned bundle launcher overwrites `LD_LIBRARY_PATH`, so
+extracting libraries to an external loader path alone could not launch the engine.
+Nine checksum-verified Debian library packages were extracted into a separate
+copied pinned browser cache. All 27 original browser files and seven original
+symlink targets remained identical; 34 library files/SONAME links were added to
+existing loader directories without overwriting originals. Direct unchanged
+`pw_run.sh --headless --version` then exited zero. Playwright's preflight checks
+`ldconfig -p` for runtime-loaded GLES and cannot see this isolated provisioning;
+only the final process used `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1` after
+actual loader validation and the successful direct smoke. App code, browser
+engine/launcher, spec, assertions, timeouts, retries and CI gates were unchanged.
+Detailed package/browser hashes and the exact command are in `manifest.json`.
+
+Final actual command, with the prepared Node environment:
+
+```sh
+PLAYWRIGHT_BROWSERS_PATH=/workspace/work/818-browser-cache PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1 npx playwright test e2e/issue-818-ledger-saved-filters.spec.ts --project=webkit-iphone --workers=1 --retries=0
+```
+
+Result: **8/8 passed**, including three setup and five feature cases, **42.9s**,
+zero retries. Save and manager cases exercise both themes, Axe, 44px controls,
+overflow, exact tuple persistence and preference-only Undo. The real concurrent
+rename and repeated conflict checks also passed. Playwright1.64.1 uses WebKit27.2,
+revision2370, with iPhone13 emulation at390×664 CSS pixels and device scale3.
+
+All four new unmodified full-page PNGs were opened and visually inspected:
+
+- [Light save](webkit-iphone-light.png)
+- [Dark save](webkit-iphone-dark.png)
+- [Light manager](webkit-iphone-manager-light.png)
+- [Dark manager](webkit-iphone-manager-dark.png)
+
+The save sheet and manager actions are legible and fit the viewport; 40-character
+names wrap within their controls in both themes. These are original device-scale
+captures, without resizing or cropping. This closes the missing persistent
+WebKit visual-evidence gap. It does not claim a physical-device result, owner
+acceptance, parent #479 completion, preview, integration or publication.

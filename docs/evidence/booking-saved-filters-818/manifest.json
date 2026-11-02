@@ -14,7 +14,180 @@
     "chromium-mobile-manager-dark.png": "7acb7c215889d9598c215ed4a62ce5cdd01fde2d1a842a3843551dec8f54dce0",
     "chromium-mobile-dark.png": "aa14d14e112746764b623a696994e6e0989f8ae1feed1b30153ecf903a8679dd",
     "chromium-desktop-manager-light.png": "e9050b69fa27dc55708a674013eb5ac8230e6843927f6749511cff932cbcaf79",
-    "chromium-desktop-light.png": "29bf8dd0c57cd5b3b66182545fd62607b44f3cc6eeec0a1d9d276ca0b820ee49"
+    "chromium-desktop-light.png": "29bf8dd0c57cd5b3b66182545fd62607b44f3cc6eeec0a1d9d276ca0b820ee49",
+    "webkit-iphone-light.png": "3239d4acffa19f23494ba456f170e75883d1290c5017c191d0c1580f2f599b21",
+    "webkit-iphone-dark.png": "1cdc0f33ff85bba6004745f732e542f36ec342f8a4013287927a024d4f5dbcfe",
+    "webkit-iphone-manager-dark.png": "58c01477af6f80e103a5e3569f73a166427b6c16b77b6d31525db1ad85b8ba34",
+    "webkit-iphone-manager-light.png": "fa9f6fec89f9bc9e753b624038c55af533917ff481e555045d0155b29ba173ca"
   },
-  "webkit": "Not run locally: known missing host libraries. Prepared CI and persistent WebKit-iPhone dark evidence remain required."
+  "webkit": "Captured and visually inspected on unchanged source b78369619837b0f4f9c7429c794f11ea27393581; Playwright1.64.1 WebKit27.2 revision2370, iPhone13 emulation, both themes. See webkitCapture and README.",
+  "webkitCapture": {
+    "date": "2026-11-02",
+    "sourceCommit": "b78369619837b0f4f9c7429c794f11ea27393581",
+    "execution": "session /root/filters_evidence gpt-6.1-sol medium in shared Cloud isolated worktree; synthetic data; not hosted task",
+    "profile": "webkit-iphone",
+    "viewportCssPixels": {
+      "width": 390,
+      "height": 664
+    },
+    "deviceScaleFactor": 3,
+    "playwrightVersion": "1.64.1",
+    "browserVersion": "27.2",
+    "browserRevision": "2370",
+    "launcherVersionOutput": "WPE WebKit 2.55.0 (unknown)",
+    "command": "PLAYWRIGHT_BROWSERS_PATH=/workspace/work/818-browser-cache PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1 npx playwright test e2e/issue-818-ledger-saved-filters.spec.ts --project=webkit-iphone --workers=1 --retries=0",
+    "result": {
+      "passed": 8,
+      "setupPassed": 3,
+      "featurePassed": 5,
+      "failed": 0,
+      "retries": 0,
+      "durationSeconds": 42.9
+    },
+    "capturePaths": [
+      "webkit-iphone-dark.png",
+      "webkit-iphone-light.png",
+      "webkit-iphone-manager-dark.png",
+      "webkit-iphone-manager-light.png"
+    ],
+    "runtimeProvisioning": {
+      "originalCache": "/workspace/.cache/ms-playwright/webkit-2370",
+      "isolatedCache": "/workspace/work/818-browser-cache/webkit-2370",
+      "originalRegularFilesVerified": 27,
+      "originalSymlinkTargetsVerifiedByIndependentReviewer": 7,
+      "addedDistroFilesAndSonameLinks": 34,
+      "noOriginalFilesOverwritten": true,
+      "directLauncherSmokeExitCode": 0,
+      "preflightOverrideReason": "Pinned bundle launcher overwrites LD_LIBRARY_PATH, so verified libraries were added without overwrites to copied sys/lib. Direct unchanged launcher smoke then passed. Host ldconfig cache still omits extracted libGLESv2; final process-only host-preflight override addresses that cache heuristic. Test assertions/config/gates unchanged.",
+      "debianPackageSha256": {
+        "libcairo-script-interpreter2_1.18.4-1+b1_amd64.deb": "52b45eb6e49c53c0a35ef45555a9457b094482eafef27d27cd777b916a2f06de",
+        "libgles2_1.7.0-1+b2_amd64.deb": "e12c18aa77939d122ee1dea520ba0440b97dc19200b7396e03dff03a3ece74c1",
+        "libgraphene-1.0-0_1.10.8-5_amd64.deb": "ddcf98f17f6c0a7c76974d7238be1468e59c186034c1b806638d32d9f446ea6e",
+        "libgtk-4-1_4.18.6+ds-2_amd64.deb": "51ab1114a57702e703cce745c24caf5bd31ec1d2a900c72fd15fe47c6c030e68",
+        "libharfbuzz-icu0_10.2.0-1+deb13u1_amd64.deb": "0b45d951629e98673c0da73b2bcd0886a467d833bb3b7499892a168f247165d2",
+        "libhidapi-hidraw0_0.14.0-1+b2_amd64.deb": "89c546cb55be403ce63fe668baff2515979100a30fa07e2b97de186b9c07f01e",
+        "libhyphen0_2.8.8-7+b2_amd64.deb": "fa9dca7b8cf1381fd52800c44a385c5725a78a88bd705f7c39b1046a5293435e",
+        "liblzo2-2_2.10-3+b1_amd64.deb": "f3032201fe2928a87e13f05ce256ff3ac2a7860c7e594dc51ae6d7348a4466ce",
+        "libmanette-0.2-0_0.2.12-1_amd64.deb": "98841a467692c46fd1870275113235691ebbfe71a3524f6b2a0fa7e9c33c6e56"
+      },
+      "originalBrowserFiles": [
+        {
+          "path": "INSTALLATION_COMPLETE",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "protocol.json",
+          "sha256": "fd820746f64ef8696d81a65a559fef8a6e0a7fd2a4e83a503b859130c11a7510"
+        },
+        {
+          "path": "pw_run.sh",
+          "sha256": "a85baad3d8c07173ac387a59b41500c382b21ed692afe0964d29aac247ccc63b"
+        },
+        {
+          "path": "minibrowser-gtk/MiniBrowser",
+          "sha256": "98384046ffbca250cfb254be6849210749f6455b0a5f18ebae022daf6bd39382"
+        },
+        {
+          "path": "minibrowser-gtk/README.txt",
+          "sha256": "2b59010908915ac1a66b9ae3bdfae5d0fde398683e6e2fc2f1355399275933dc"
+        },
+        {
+          "path": "minibrowser-gtk/install-dependencies.sh",
+          "sha256": "4f56e6c6f4066129370590d886ee16941be4abb93d736e8997b4f5adab26a403"
+        },
+        {
+          "path": "minibrowser-wpe/MiniBrowser",
+          "sha256": "990aafd77eb05fb166c0ab5ae9765d1e6ea728e1643f3d61773cb19be869e277"
+        },
+        {
+          "path": "minibrowser-wpe/README.txt",
+          "sha256": "6b457d548da68a070bf2e6b359e996f8e73915f103ef4b3d256cfa8c9ae80e03"
+        },
+        {
+          "path": "minibrowser-wpe/install-dependencies.sh",
+          "sha256": "d52bde0928e82720e8f2cd89b30d6473b7b0bafdc454f7e24676b8273815e647"
+        },
+        {
+          "path": "minibrowser-gtk/bin/MiniBrowser",
+          "sha256": "eadd1fab67807ed423ce5846b41c728d1ec77bdda9081999aa8cce7e54f6d6ae"
+        },
+        {
+          "path": "minibrowser-gtk/bin/WebKitGPUProcess",
+          "sha256": "3adc310cb3376886ee29a0aedead71d5fbfa4cb7ddd4a6203f5c3bc36f08b3e4"
+        },
+        {
+          "path": "minibrowser-gtk/bin/WebKitNetworkProcess",
+          "sha256": "9e151cce8e1084264495e390d4f8589e1272ffad14c38521607b469a5a4328c9"
+        },
+        {
+          "path": "minibrowser-gtk/bin/WebKitWebProcess",
+          "sha256": "52b260df03022f47ec9f377806e1d6f607ada9578f3a0802c7692ac767be5b1c"
+        },
+        {
+          "path": "minibrowser-gtk/lib/libjavascriptcoregtk-6.0.so.1.9.0",
+          "sha256": "ac32bbb5fc92a48187c11d46b24479cae0a7e84deb56cb3cc8507698bf41976c"
+        },
+        {
+          "path": "minibrowser-gtk/lib/libwebkitgtk-6.0.so.4.20.0",
+          "sha256": "01ba5218b1d9768e3f9482e33223908d1764241f1526001c73033e5a8ec18b53"
+        },
+        {
+          "path": "minibrowser-gtk/lib/libwebkitgtkinjectedbundle.so",
+          "sha256": "19613ebe0bb1c1a96d1cc252a3646d93094aa9506ed0ba46884af25946e72afc"
+        },
+        {
+          "path": "minibrowser-gtk/sys/lib/libbacktrace.so.0.0.0",
+          "sha256": "72b197c9012acd9deaf0012f1a689215f57e83fc6e3bd0799558e96734d35db7"
+        },
+        {
+          "path": "minibrowser-gtk/sys/lib/libsoup-3.0.so.0.7.4",
+          "sha256": "86a0b672e15186eae51674b5d5faac0f8b82e5872e217a3627c16127d5ce2923"
+        },
+        {
+          "path": "minibrowser-wpe/bin/MiniBrowser",
+          "sha256": "410ea0a6e278495d2511ca19379de93d47937a31c3382d296794b71f1c7c199e"
+        },
+        {
+          "path": "minibrowser-wpe/bin/WPEGPUProcess",
+          "sha256": "d53191da17a476456a197a1a8e3101cec6654cf2dc70a9187adae273f7763eab"
+        },
+        {
+          "path": "minibrowser-wpe/bin/WPENetworkProcess",
+          "sha256": "9c2a2ee784f08d546e5aa2b5728a62716b62f1b88815e10172f132b64d1a7bc9"
+        },
+        {
+          "path": "minibrowser-wpe/bin/WPEWebProcess",
+          "sha256": "2b029c6fb3692814be5bbd1a11c0d371a7e83450aed884b3b395343667746e2b"
+        },
+        {
+          "path": "minibrowser-wpe/lib/libWPEInjectedBundle.so",
+          "sha256": "96ac60e47c52245a88dc66e2788304563066415553471da3c3cad7997a2a70ff"
+        },
+        {
+          "path": "minibrowser-wpe/lib/libWPEWebKit-2.0.so.1.12.0",
+          "sha256": "b9b5ce06f940662062a8916990ff2fe8e6fb282b65a2ae532e7971b04a0f313c"
+        },
+        {
+          "path": "minibrowser-wpe/share/inspector.gresource",
+          "sha256": "a4e7cf526f638b8640692e9eadf23739e5da5d526daf33f856c80501f8440fdf"
+        },
+        {
+          "path": "minibrowser-wpe/sys/lib/libbacktrace.so.0.0.0",
+          "sha256": "5f4c1a879a298d66eb2d40ed8198bdaa0d63a1c5819894ed2d6505f14d9deb9f"
+        },
+        {
+          "path": "minibrowser-wpe/sys/lib/libsoup-3.0.so.0.7.4",
+          "sha256": "fb9f500217b917a75c08f41f77bfdc0672a08d36d57f794fe2226be535cfb0ba"
+        }
+      ]
+    },
+    "runLogSha256": "7c029653aac42e567fabfffdd48cfbb5a817b281661b0d647077924886283f45",
+    "ciRunAtSource": "41434884784",
+    "ciArtifactRetrieval": "Blocked by current network policy; successful e2e shards upload only on failure, and visual selector excludes this page.screenshot-only spec. These PNGs are local actual runtime originals, not recovered CI artifacts.",
+    "limitations": [
+      "Emulation, not a physical iPhone",
+      "No owner acceptance, parent479 completion, integration or publication claimed"
+    ],
+    "independentEnvironmentReviewer": "session /root/evidence_review gpt-6-astra high"
+  }
 }

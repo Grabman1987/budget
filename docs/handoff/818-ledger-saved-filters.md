@@ -62,7 +62,7 @@ ten-row account-register test measures after scrolling the first row into view;
 this feature does not reinterpret that as initial-screen parent acceptance or a
 physical-device proof.
 
-## Resumed checkpoint — 2026-11-02
+## Historical resumed checkpoint — 2026-11-02
 
 Continuation branch `codex/818-resume-20261102` preserves feature ancestry through
 `2af8b792`, normal-merging main `ef765f5f` as `58776575`. Original proof branches
@@ -96,3 +96,29 @@ Final local checks passed: workspace typecheck, scoped ESLint, changed-file
 Prettier check, evidence Markdown/JSON formatting, CSS scale and `git diff
 --check`. The builder is freezing this candidate for independent review; no
 additional local full suite or WebKit run is claimed.
+
+## Verified WebKit evidence checkpoint — 2026-11-02
+
+This checkpoint supersedes earlier missing-library, pending-WebKit and pending-CI
+statements. Required full CI41434884784 is green at exact source
+`b78369619837b0f4f9c7429c794f11ea27393581`; the independent full-diff CLEAR at
+`0d78f9aa` remains relevant because b783 has the identical reviewed tree.
+
+Session agent `/root/filters_evidence` (`gpt-6.1-sol`, medium), with independent
+environment review by `/root/evidence_review` (`gpt-6-astra`, high), captured actual
+WebKit/iPhone save and
+manager originals in light and dark on that unchanged source. After independent
+environment review, isolated distro-library provisioning preserved pinned browser
+engine and launcher bytes and passed direct launcher smoke; only the final local
+process disabled the system-cache preflight heuristic. The unchanged WebKit spec
+passed8/8 including three setup,42.9s, workers1 and zero retries. Earlier same-head
+Chromium desktop/mobile passed13/13 including setup. All four new WebKit originals
+were opened and visually inspected; old Chromium originals are unchanged.
+See [evidence and runtime provenance](../evidence/booking-saved-filters-818/README.md)
+and its manifest for hashes, exact command and failed-infrastructure history.
+
+No source, test, configuration, financial/safety oracle or original browser file
+changed. Any new evidence commit requires its own exact-head checks. Independent
+evidence-delta review and root-controlled preview/integration/publication remain
+separate; no owner acceptance, parent #479 completion or physical-device proof is
+claimed.
