@@ -27,6 +27,7 @@ import {
   appSetting,
   getEntity,
   createEntity,
+  readMonthClose,
 } from '@budget/db';
 import { addMonths } from '@budget/domain';
 import { Hono } from 'hono';
@@ -346,15 +347,21 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
 
   app.put('/:month/assigned', async (c) => {
     const m = monthParam(c.req.param('month'));
-    const { items, closeMonth, expectedBasis } = await readBody(
+    const { items, closeMonth, expectedBasis, expectedCloseBasis } = await readBody(
       c,
       assignBody.extend({
         expectedBasis: z
           .string()
           .regex(/^[a-f0-9]{64}$/)
           .optional(),
+        expectedCloseBasis: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
       }),
     );
+    if (expectedCloseBasis && (!closeMonth || expectedBasis))
+      throw new ApiError(422, 'preview_close_month', 'Bitte genau einen Vorschaukontext wählen.');
     if (expectedBasis)
       return c.json(
         db.transaction(
@@ -381,14 +388,31 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
     if (addMonths(closeMonth, 1) !== m)
       throw new ApiError(422, 'close_plan_month', 'Der Plan muss zum nächsten Monat gehören.');
     return c.json(
-      db.transaction((tx) => {
-        const id = `month_close_plan.${closeMonth}`;
-        const stored = getEntity(tx, appSetting, id);
-        const ctx = stored ? { actor: ACTOR, groupId: z.uuid().parse(stored.value) } : audit();
-        const result = assignMany(tx, m, items, ctx);
-        if (!stored) createEntity(tx, appSetting, { id, value: ctx.groupId }, ctx);
-        return result;
-      }),
+      db.transaction(
+        (tx) => {
+          if (expectedCloseBasis) {
+            // Hash the original complete close-plan snapshot: history/order/targets/funding,
+            // plus the existing audited source revision. No independently read basis token.
+            const { sourceRevision, nextPlan } = readMonthClose(tx, closeMonth, today());
+            const current = createHash('sha256')
+              .update(JSON.stringify({ sourceRevision, nextPlan }))
+              .digest('hex');
+            if (current !== expectedCloseBasis)
+              throw new ApiError(
+                409,
+                'close_plan_changed',
+                'Der nächste Monatsplan hat sich geändert. Entwurf prüfen und erneut bestätigen.',
+              );
+          }
+          const id = `month_close_plan.${closeMonth}`;
+          const stored = getEntity(tx, appSetting, id);
+          const ctx = stored ? { actor: ACTOR, groupId: z.uuid().parse(stored.value) } : audit();
+          const result = assignMany(tx, m, items, ctx);
+          if (!stored) createEntity(tx, appSetting, { id, value: ctx.groupId }, ctx);
+          return result;
+        },
+        { behavior: 'immediate' },
+      ),
     );
   });
 

@@ -1,6 +1,7 @@
 import { createTestDatabase, schema, type OpenedDatabase } from '@budget/db';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { createLedgerApi } from './index';
+import { createHash } from 'node:crypto';
 
 let opened: OpenedDatabase;
 let app: ReturnType<typeof createLedgerApi>;
@@ -191,4 +192,40 @@ it('keeps the existing funding guard and rolls a fresh but invalid batch back', 
   );
   expect(response.status).toBe(422);
   expect(counts()).toEqual(before);
+});
+
+it('guards the exact next-month close snapshot before grouped assignment or audit writes', async () => {
+  const closeBasis = async () => {
+    const response = await send('GET', '/month-close/2026-09');
+    expect(response.status).toBe(200);
+    const { sourceRevision, nextPlan } = (await response.json()) as {
+      sourceRevision: string;
+      nextPlan: unknown;
+    };
+    return createHash('sha256').update(JSON.stringify({ sourceRevision, nextPlan })).digest('hex');
+  };
+  const captured = await closeBasis();
+  await put([{ categoryId: 'first', assignedCents: 8_000 }]);
+  const before = counts();
+  const stale = await send('PUT', `${path}/assigned`, {
+    closeMonth: '2026-09',
+    expectedCloseBasis: captured,
+    items: [{ categoryId: 'first', assignedCents: 5_000 }],
+  });
+  expect(stale.status).toBe(409);
+  expect(counts()).toEqual(before);
+  expect(await centsOf('first')).toBe(8_000);
+  const fresh = await send('PUT', `${path}/assigned`, {
+    closeMonth: '2026-09',
+    expectedCloseBasis: await closeBasis(),
+    items: [
+      { categoryId: 'first', assignedCents: 5_000 },
+      { categoryId: 'second', assignedCents: 789 },
+    ],
+  });
+  expect(fresh.status).toBe(200);
+  const result = (await fresh.json()) as { groupId: string };
+  expect((await send('POST', '/undo', { groupId: result.groupId })).status).toBe(200);
+  expect(await centsOf('first')).toBe(8_000);
+  expect(await centsOf('second')).toBe(0);
 });

@@ -85,11 +85,13 @@ export const assign = (
   items: Array<{ categoryId: string; assignedCents: number }>,
   closeMonth?: string,
   expectedBasis?: string,
+  expectedCloseBasis?: string,
 ) =>
   request<WriteResult>('PUT', `${path(month)}/assigned`, {
     items,
     ...(closeMonth && { closeMonth }),
     ...(expectedBasis && { expectedBasis }),
+    ...(expectedCloseBasis && { expectedCloseBasis }),
   });
 export const quickAssign = (month: string, mode: QuickAssignMode, categoryIds: string[]) =>
   request<WriteResult & { changedCount: number; openCount: number; missingCents: number }>(

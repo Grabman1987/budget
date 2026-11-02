@@ -75,6 +75,18 @@ export const monthCloseQuery = (month: string) =>
     queryKey: [...LEDGER_KEY, 'month-close', month],
     queryFn: () => request<MonthCloseView>('GET', `/api/month-close/${month}`),
   });
+
+/** Hash exactly the canonical snapshot shown by the close query, never a later budget read. */
+export async function nextPlanBasis({
+  sourceRevision,
+  nextPlan,
+}: Pick<MonthCloseView, 'sourceRevision' | 'nextPlan'>) {
+  const hash = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(JSON.stringify({ sourceRevision, nextPlan })),
+  );
+  return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
 export const saveMonthClose = (
   month: string,
   patch: Pick<Partial<MonthCloseState>, 'currentStep' | 'decisions'> & {
