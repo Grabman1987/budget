@@ -1,3 +1,4 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { cents, debtOverview, formatDecimal, lastDayOfMonth, parseAmount } from '@budget/domain';
 import { TextInput, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -142,7 +143,7 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
       </div>
       {accounts.length > 0 && (
         <>
-          <details className="wealth-details">
+          <details className="wealth-details" open={REDESIGN_ENABLED ? true : undefined}>
             <summary>Sondertilgung berechnen</summary>
             <div className="debt-quick-scenario">
               <label>
