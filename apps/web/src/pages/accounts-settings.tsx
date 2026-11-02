@@ -11,16 +11,22 @@ import {
   useAmountPrivacy,
 } from '@budget/ui';
 import { cents, formatDecimal, parseAmount } from '@budget/domain';
-import { useQuery } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ApiError } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { AccountFormPanel, hasRate, percentToBp } from '../ledger/account-form';
 import { groupAccounts } from '../ledger/account-groups';
 import { useOrderedAccounts, useReorder } from '../ledger/account-order';
-import { closeAccount, patchAccount, reopenAccount, type AccountInput } from '../ledger/api';
+import {
+  closeAccount,
+  fetchAccounts,
+  patchAccount,
+  reopenAccount,
+  type AccountInput,
+} from '../ledger/api';
 import { ACCOUNT_TYPE_LABEL, errorText, groupOf, type AccountGroup } from '../ledger/labels';
-import { nativeCurrency } from '../ledger/format';
+import { longDay, nativeCurrency } from '../ledger/format';
 import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { ACCOUNT_TYPES, type AccountRow, type AccountType } from '../ledger/types';
@@ -30,6 +36,8 @@ import { SettingsFormDialog } from './settings-form-dialog';
 import { assetClassesQuery } from '../wealth/portfolio-api';
 import '../ledger/account-order.css';
 import './accounts-settings.css';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsDraftGuard } from './settings-draft-guard';
 
 /** Types that are never Budget-Konten (server rule): the switch is off and locked. */
 const TRACKING_ONLY: ReadonlySet<AccountType> = new Set([
@@ -99,6 +107,9 @@ export function AccountsSettings() {
       {query.isPending && <LoadingNote what="Konten" />}
       {query.isError && (
         <ErrorNote what="Konten" error={query.error} onRetry={() => void query.refetch()} />
+      )}
+      {REDESIGN_ENABLED && query.data && (
+        <p className="settings-read-stamp">Kontostände zum {longDay(query.data.asOf)}</p>
       )}
       {query.data && accounts.length === 0 && (
         <p className="vnote" role="status">
@@ -246,10 +257,39 @@ function AccountEditPanel({
   onClose: () => void;
 }) {
   useAmountPrivacy();
+  const [formState, setFormState] = useState({ dirty: false, busy: false });
+  const onStatus = useCallback(
+    (dirty: boolean, busy: boolean) =>
+      setFormState((previous) =>
+        previous.dirty === dirty && previous.busy === busy ? previous : { dirty, busy },
+      ),
+    [],
+  );
+  const mayClose = () =>
+    !REDESIGN_ENABLED ||
+    (!formState.busy &&
+      (!formState.dirty || window.confirm('Ungespeicherte Änderungen verwerfen?')));
   return (
-    <SettingsFormDialog open={account !== null} onClose={onClose} title="Konto bearbeiten">
+    <SettingsFormDialog
+      open={account !== null}
+      onClose={onClose}
+      title="Konto bearbeiten"
+      beforeClose={mayClose}
+    >
+      {REDESIGN_ENABLED && account && (
+        <SettingsDraftGuard dirty={formState.dirty} busy={formState.busy} />
+      )}
       {account && (
-        <AccountEditForm key={account.id} account={account} accounts={accounts} onDone={onClose} />
+        <AccountEditForm
+          key={account.id}
+          account={account}
+          accounts={accounts}
+          onDone={onClose}
+          onCancel={() => {
+            if (mayClose()) onClose();
+          }}
+          onStatus={onStatus}
+        />
       )}
     </SettingsFormDialog>
   );
@@ -271,15 +311,22 @@ type Errors = Partial<
 >;
 
 function AccountEditForm({
-  account,
+  account: currentAccount,
   accounts,
   onDone,
+  onCancel,
+  onStatus,
 }: {
   account: AccountRow;
   accounts: AccountRow[];
   onDone: () => void;
+  onCancel: () => void;
+  onStatus: (dirty: boolean, busy: boolean) => void;
 }) {
   useAmountPrivacy();
+  const [source] = useState(currentAccount);
+  const queryClient = useQueryClient();
+  const account = REDESIGN_ENABLED ? source : currentAccount;
   const write = useBudgetWrite();
   const classes = useQuery(assetClassesQuery());
   const [allocationClass, setAllocationClass] = useState(account.allocationAssetClassId ?? '');
@@ -301,6 +348,25 @@ function AccountEditForm({
   const [confirmClose, setConfirmClose] = useState<string>();
   const [busy, setBusy] = useState(false);
   const group = groupOf({ type, onBudget });
+  const dirty =
+    name !== account.name ||
+    type !== account.type ||
+    onBudget !== account.onBudget ||
+    allocationClass !== (account.allocationAssetClassId ?? '') ||
+    referenceAccountId !== (account.referenceAccountId ?? '') ||
+    limit !== moneyText(account.creditLimitCents) ||
+    overdraft !== moneyText(account.overdraftLimitCents) ||
+    fee !== moneyText(account.monthlyFeeCents) ||
+    rate !== rateText(account.interestRateBp) ||
+    kind !== (account.interestKind ?? '') ||
+    installment !== moneyText(account.installmentCents) ||
+    original !== moneyText(account.originalAmountCents) ||
+    termStart !== (account.termStart ?? '') ||
+    termEnd !== (account.termEnd ?? '');
+  useEffect(() => {
+    onStatus(dirty, busy);
+  }, [onStatus, dirty, busy]);
+  const stale = REDESIGN_ENABLED && accountMetadata(account) !== accountMetadata(currentAccount);
 
   const changeType = (next: AccountType) => {
     setType(next);
@@ -374,11 +440,24 @@ function AccountEditForm({
     }
     setBusy(true);
     try {
+      if (REDESIGN_ENABLED) {
+        const list = await fetchAccounts();
+        const latest = list.accounts.find((entry) => entry.id === account.id);
+        if (!latest || accountMetadata(latest) !== accountMetadata(account)) {
+          queryClient.setQueryData(accountsQuery().queryKey, list);
+          setFormError(
+            'Das Konto wurde inzwischen geändert. Dein Entwurf bleibt erhalten. Schließe den Dialog und öffne den aktuellen Stand erneut.',
+          );
+          return;
+        }
+      }
       const result = await write(
         () => patchAccount(account.id, patch),
         () => `Konto „${patch.name ?? account.name}“ gespeichert.`,
       );
       if (result) onDone();
+    } catch (error) {
+      setFormError(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -409,6 +488,12 @@ function AccountEditForm({
 
   return (
     <form className="kform" onSubmit={(e) => void submit(e)} noValidate>
+      {stale && (
+        <p role="alert">
+          Das Konto wurde inzwischen geändert. Bitte den aktuellen Stand erneut öffnen; dein Entwurf
+          bleibt bis dahin erhalten.
+        </p>
+      )}
       <Field label="Name" error={errors.name}>
         {({ id, describedBy, invalid }) => (
           <TextInput
@@ -610,18 +695,27 @@ function AccountEditForm({
         </p>
       )}
       <div className="panel-actions">
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" disabled={busy || stale}>
           {busy ? 'Speichert …' : 'Speichern'}
         </Button>
-        <Button variant="ghost" onClick={onDone} disabled={busy}>
+        <Button variant="ghost" onClick={onCancel} disabled={busy}>
           Abbrechen
         </Button>
-        {!account.closedAt && (
+        {!REDESIGN_ENABLED && !account.closedAt && (
           <Button variant="ghost" onClick={() => void close(false)} disabled={busy}>
             Konto schließen
           </Button>
         )}
       </div>
+      {REDESIGN_ENABLED && (
+        <div className="settings-destructive-actions">
+          {!account.closedAt && (
+            <Button variant="ghost" onClick={() => void close(false)} disabled={busy}>
+              Konto schließen
+            </Button>
+          )}
+        </div>
+      )}
       {confirmClose && (
         <div className="settings-confirm" role="alert">
           <p>{confirmClose}</p>
@@ -641,4 +735,26 @@ function AccountEditForm({
       )}
     </form>
   );
+}
+
+/** Only editable metadata; a new booking/balance must never invalidate an account-name draft. */
+function accountMetadata(account: AccountRow) {
+  return JSON.stringify([
+    account.name,
+    account.type,
+    account.onBudget,
+    account.currency,
+    account.closedAt,
+    account.allocationAssetClassId ?? null,
+    account.referenceAccountId ?? null,
+    account.creditLimitCents,
+    account.overdraftLimitCents,
+    account.monthlyFeeCents,
+    account.interestRateBp,
+    account.interestKind,
+    account.installmentCents,
+    account.originalAmountCents,
+    account.termStart,
+    account.termEnd,
+  ]);
 }

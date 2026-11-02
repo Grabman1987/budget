@@ -150,6 +150,8 @@ test('refuses a term end before its start and keeps the stored terms', async ({
   await panel.getByLabel('Laufzeit bis').fill('2020-01-01');
   await panel.getByRole('button', { name: 'Speichern' }).click();
   await expect(panel.getByText('Das Laufzeitende liegt vor dem Beginn.')).toBeVisible();
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    page.once('dialog', (dialog) => dialog.accept());
   await panel.getByRole('button', { name: 'Abbrechen' }).click();
   await page.getByRole('button', { name: 'Kredit Muster bearbeiten' }).click();
   await expect(page.getByRole('dialog').getByLabel('Laufzeit bis')).toHaveValue('01.01.2030');
