@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Worker } from 'node:worker_threads';
 import { parseStatementText, unavailableStatement, type StatementProposal } from '@budget/domain';
+import { PDF_TIME_LIMIT_MS } from '../pdf-time-limit';
 import { digest, RECEIPT_LIMIT, verifyReceiptFile } from '../receipts/files';
 /** Reuse the existing PDF worker, without loading a parent CLI's TypeScript hooks in its heap. */
 export function extractStatementText(
@@ -31,7 +32,7 @@ export function extractStatementText(
       void worker.terminate();
       done(result);
     };
-    const timer = setTimeout(() => finish({ error: 'limit' }), 20000);
+    const timer = setTimeout(() => finish({ error: 'limit' }), PDF_TIME_LIMIT_MS);
     worker.once('message', finish);
     worker.once('error', () => finish({ error: 'pdf' }));
     worker.once('exit', () => finish({ error: 'pdf' }));
