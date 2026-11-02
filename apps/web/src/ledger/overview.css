@@ -480,7 +480,7 @@
 
 @media (min-width: 1101px) {
   [data-budget-redesign='1'] .sheet:has(> .account-overview-redesign) {
-    row-gap: 24px;
+    row-gap: 12px;
   }
   .account-overview-redesign.kview {
     grid-template-columns: minmax(0, 1fr) minmax(0, 360px);

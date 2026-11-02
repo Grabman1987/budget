@@ -9,7 +9,12 @@ import { isZeitraum } from '../wealth/zeitraum';
 export function PageMenu({ area, current }: { area: AreaDef; current: string }) {
   const details = useRef<HTMLDetailsElement>(null);
   const selected = area.registers.find((item) => item.id === current);
-  const label = area.id === 'plan' ? 'Planansicht' : 'Vermögensansicht';
+  const label =
+    area.id === 'plan'
+      ? 'Planansicht'
+      : area.id === 'konten'
+        ? 'Kontenansicht'
+        : 'Vermögensansicht';
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const menu = details.current;
