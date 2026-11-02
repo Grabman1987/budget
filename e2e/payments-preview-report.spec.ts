@@ -38,6 +38,8 @@ test('preview bookmark opens Plan payments, while the real twelve-month API stay
     await expect(page.locator('.preview-table')).toBeVisible();
     expect(writes).toEqual([]);
     await page.getByRole('button', { name: 'Anstehend', exact: true }).click();
+    expect(writes).toEqual([]);
+    await page.getByRole('button', { name: 'Fälligkeiten aktualisieren', exact: true }).click();
   } else await expect(page).toHaveURL(/\/plan\/erwartet\?monat=2026-09$/);
   await expect(page.locator('tr.prow', { hasText: 'Gehalt' }).first()).toContainText('+3.812,00 €');
   await expect(page.locator('tr.prow', { hasText: 'Miete' }).first()).toContainText('Do 01.10.');
@@ -72,7 +74,7 @@ test('preview bookmark opens Plan payments, while the real twelve-month API stay
   }
   // Plan's existing idempotent occurrence refresh is permitted; navigation must not book money.
   expect(writes.filter((path) => path !== '/api/expected/refresh')).toEqual([]);
-  if (redesign) expect(writes).toEqual([]);
+  if (redesign) expect(writes).toEqual(['/api/expected/refresh']);
   await page.reload();
   if (redesign) {
     expect(new URL(page.url()).searchParams.get('ansicht')).toBe('contracts');
