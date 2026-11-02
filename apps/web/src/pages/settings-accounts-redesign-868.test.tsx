@@ -144,3 +144,24 @@ it('ON refuses a stale metadata save and preserves the current server name', asy
     'Synthetic concurrent name',
   );
 });
+
+it('ON presents compact account actions and protects an unsaved new account', async () => {
+  const { writes } = mount();
+  await screen.findByRole('button', { name: 'Giro bearbeiten' });
+  const actions = screen.getByLabelText('Aktionen für Giro');
+  await userEvent.click(actions);
+  expect(
+    within(actions.parentElement!).getByRole('button', { name: 'Konto archivieren' }),
+  ).toBeTruthy();
+  await userEvent.click(await screen.findByRole('button', { name: 'Konto anlegen', exact: true }));
+  const dialog = screen.getByRole('dialog');
+  await userEvent.type(within(dialog).getByLabelText('Name', { exact: true }), 'Synthetic draft');
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+  expect(confirm).toHaveBeenCalled();
+  expect(screen.getByRole('dialog')).toBeTruthy();
+  confirm.mockReturnValue(true);
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(writes).toEqual([]);
+});

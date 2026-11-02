@@ -64,6 +64,108 @@
 .settings-confirm .btn {
   margin: 4px;
 }
+.settings-redesign .settings-accounts-v2 {
+  gap: 12px;
+}
+.settings-redesign .settings-account-group h3 {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 14px;
+  margin: 0;
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface-2);
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.settings-redesign .settings-account-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 140px 120px 44px;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--rule);
+  position: relative;
+  font-size: var(--fs-table);
+}
+.settings-redesign .settings-account-group:last-child li:last-child {
+  border-bottom: 0;
+}
+.settings-redesign .settings-account-name {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.settings-redesign .settings-account-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.settings-redesign .settings-account-type {
+  color: var(--ink-2);
+}
+.settings-redesign .settings-row-menu {
+  position: relative;
+}
+.settings-redesign .settings-row-menu > summary {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  list-style: none;
+  cursor: pointer;
+  color: var(--ink-2);
+}
+.settings-redesign .settings-row-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.settings-redesign .settings-row-menu-items {
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  top: 100%;
+  width: 220px;
+  padding: 4px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.settings-redesign .settings-row-menu-items > .btn {
+  display: flex;
+  width: 100%;
+  justify-content: flex-start;
+}
+.settings-redesign .settings-accounts-table {
+  overflow: visible;
+}
+.settings-redesign .settings-reorder-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 12px;
+}
+@media (max-width: 1100px) {
+  .settings-redesign .settings-account-row {
+    grid-template-columns: 44px minmax(0, 1fr) 110px 44px;
+    gap: 4px;
+    padding: 0 4px;
+  }
+  .settings-redesign .settings-account-type {
+    display: none;
+  }
+}
 
 [data-budget-redesign='1'] .accounts-settings {
   margin-top: 0;
@@ -109,5 +211,20 @@
   }
   .accounts-actions {
     justify-content: flex-start;
+  }
+}
+
+.settings-redesign .settings-account-name strong {
+  font-weight: 600;
+}
+.settings-redesign .settings-account-name small {
+  display: block;
+  font-weight: 400;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+@media (max-width: 767px) {
+  .settings-redesign #accounts-settings-title {
+    display: none;
   }
 }

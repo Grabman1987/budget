@@ -17,7 +17,8 @@ async function post(request: APIRequestContext, origin: string, path: string, da
   return (await response.json()) as Record<string, any>;
 }
 
-const names = async (list: Locator) => await list.locator('.accounts-name strong').allInnerTexts();
+const names = async (list: Locator) =>
+  await list.locator('.accounts-name strong, .settings-account-name strong').allInnerTexts();
 
 test('lists, orders, edits loan terms, closes and reopens accounts', async ({
   page,
@@ -52,8 +53,10 @@ test('lists, orders, edits loan terms, closes and reopens accounts', async ({
 
   await page.goto('/einstellungen/konten');
   await expect(page.getByRole('heading', { name: 'Konten', exact: true })).toBeVisible();
+  const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   // Desktop: the settings rail names the page; phone: the back bar does.
-  if (isMobile) await expect(page.locator('.settings-here')).toHaveText('Konten');
+  if (isMobile && !on) await expect(page.locator('.settings-here')).toHaveText('Konten');
+  else if (isMobile) await expect(page.locator('.m-title-text')).toHaveText('Konten');
   else await expect(page.getByRole('link', { name: 'Konten', exact: true }).first()).toBeVisible();
   const budget = page.getByRole('region', { name: /Budget-Konten/ });
   const loans = page.getByRole('region', { name: /Kredite/ });
@@ -62,6 +65,7 @@ test('lists, orders, edits loan terms, closes and reopens accounts', async ({
   await expect(loans).toContainText('4,50 %');
 
   // Order: one step down, "Rückgängig" brings the old order back.
+  if (on) await page.getByLabel('Aktionen für Alpha', { exact: true }).click();
   await page.getByRole('button', { name: 'Alpha nach unten' }).click();
   await expect(toast(page)).toContainText('Reihenfolge der Konten gespeichert.');
   await expect.poll(() => names(budget)).toEqual(['Bravo', 'Alpha']);
@@ -100,6 +104,11 @@ test('lists, orders, edits loan terms, closes and reopens accounts', async ({
   await page.getByRole('button', { name: 'Bravo bearbeiten' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Konto schließen' }).click();
   await expect(toast(page)).toContainText('Konto „Bravo“ geschlossen.');
+  if (on)
+    await page
+      .locator('summary')
+      .filter({ hasText: /^Geschlossene Konten/ })
+      .click();
   const closed = page.getByRole('region', { name: /Geschlossene Konten/ });
   await expect(closed).toContainText('Bravo');
   await expect

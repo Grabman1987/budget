@@ -55,6 +55,8 @@ test('account forms cancel in their context; reconciliation writes only on confi
   await create.click();
   await inspect(page, 'account-create');
   await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill('Entwurf');
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('dialog').getByRole('button', { name: 'Abbrechen' }).click();
   await expect(create).toBeFocused();
   const edit = page.getByRole('button', { name: 'Giro Muster bearbeiten' });

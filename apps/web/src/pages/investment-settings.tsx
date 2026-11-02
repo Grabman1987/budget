@@ -75,6 +75,97 @@ export function InvestmentSettingsPanel() {
     }
   };
 
+  if (REDESIGN_ENABLED)
+    return (
+      <section className="settings-investment-v2" aria-labelledby="investment-method-title">
+        <div className="settings-primary-head">
+          <h2 id="investment-method-title">Depots &amp; Kryptos</h2>
+        </div>
+        {query.isPending && <p role="status">Lädt …</p>}
+        {query.isError && (
+          <p role="alert">
+            Die Einstellung konnte nicht geladen werden.{' '}
+            <Button variant="ghost" onClick={() => void query.refetch()}>
+              Erneut laden
+            </Button>
+          </p>
+        )}
+        {query.data && (
+          <form
+            className="settings-compact-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void save();
+            }}
+          >
+            <SettingsDraftGuard dirty={dirty} busy={busy} />
+            <div className="settings-form-row">
+              <label htmlFor="settings-cost-method">Einstandskostenmethode</label>
+              <Select
+                id="settings-cost-method"
+                value={method}
+                disabled={busy}
+                onChange={(event) => {
+                  setSource((previous) => previous ?? query.data?.costMethod);
+                  setChosen(event.target.value as CostMethod);
+                }}
+              >
+                <option value="average">Durchschnittseinstand (Standard)</option>
+                <option value="fifo">FIFO – älteste Kaufposten zuerst</option>
+              </Select>
+            </div>
+            <p className="settings-source-stamp">Gilt für alle Depots und Krypto-Konten.</p>
+            {stale && (
+              <p role="alert">
+                Die Einstellung wurde inzwischen geändert. Dein Entwurf bleibt erhalten.
+              </p>
+            )}
+            {error && <p role="alert">{maskMoneyText(error)}</p>}
+            <div className="settings-form-actions">
+              <Button type="submit" disabled={busy || stale || method === query.data.costMethod}>
+                {busy ? 'Speichert …' : 'Speichern'}
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={busy || (!dirty && !stale)}
+                onClick={() => {
+                  setChosen(undefined);
+                  setSource(undefined);
+                  setError(undefined);
+                }}
+              >
+                {stale ? 'Aktuellen Stand laden' : 'Verwerfen'}
+              </Button>
+            </div>
+          </form>
+        )}
+        <details className="settings-advanced">
+          <summary>Einstand, Gebühren und Steuern</summary>
+          <p>
+            Durchschnittseinstand: Jeder Kauf aktualisiert den durchschnittlichen Einstand. FIFO:
+            Bei Verkäufen werden die ältesten Kaufposten zuerst verwendet.
+          </p>
+          <p>
+            Ein Methodenwechsel berechnet die vorhandene Historie neu. Käufe, Verkäufe und
+            Bestandssnapshots bleiben erhalten. Belegte Verkaufsgewinne bleiben auch bei 0 Anteilen
+            sichtbar.
+          </p>
+          <p>
+            Erfasste Gebühren und abgeführte Steuern fließen in den Nettogewinn ein. Die App
+            berechnet oder bucht keine zusätzliche Kapitalertragsteuer.
+          </p>
+        </details>
+        {query.dataUpdatedAt > 0 && (
+          <p className="settings-source-stamp">
+            Einstellung geladen:{' '}
+            {new Intl.DateTimeFormat('de-AT', { dateStyle: 'medium', timeStyle: 'short' }).format(
+              query.dataUpdatedAt,
+            )}
+          </p>
+        )}
+      </section>
+    );
+
   return (
     <section className="investment-settings" aria-labelledby="investment-method-title">
       <SectionHead id="investment-method-title" title="Einstandskosten" />

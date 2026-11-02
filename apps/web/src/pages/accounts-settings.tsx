@@ -38,6 +38,8 @@ import '../ledger/account-order.css';
 import './accounts-settings.css';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { SettingsDraftGuard } from './settings-draft-guard';
+import { Ellipsis, Plus } from 'lucide-react';
+import { eur } from '../ledger/format';
 
 /** Types that are never Budget-Konten (server rule): the switch is off and locked. */
 const TRACKING_ONLY: ReadonlySet<AccountType> = new Set([
@@ -81,11 +83,73 @@ export function AccountsSettings() {
   const ordered = useOrderedAccounts(query.data?.accounts);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [archiving, setArchiving] = useState<AccountRow | null>(null);
   const accounts = ordered.accounts ?? [];
   const open = accounts.filter((a) => !a.closedAt);
   const closed = accounts.filter((a) => a.closedAt);
   const editing = accounts.find((a) => a.id === editingId) ?? null;
   const groups = groupAccounts(open);
+  if (REDESIGN_ENABLED)
+    return (
+      <section
+        className="accounts-settings settings-accounts-v2"
+        aria-labelledby="accounts-settings-title"
+      >
+        <div className="settings-primary-head">
+          <h2 id="accounts-settings-title">Konten</h2>
+          <Button onClick={() => setCreating(true)}>
+            <Plus size={16} aria-hidden="true" />
+            Konto anlegen
+          </Button>
+        </div>
+        {query.isPending && <LoadingNote what="Konten" />}
+        {query.isError && (
+          <ErrorNote what="Konten" error={query.error} onRetry={() => void query.refetch()} />
+        )}
+        {query.data && accounts.length === 0 && <p role="status">Noch keine Konten angelegt.</p>}
+        {groups.length > 0 && (
+          <div className="settings-surface settings-accounts-table">
+            {groups.map(({ group, accounts: members }) => (
+              <RedesignAccountGroup
+                key={group.id}
+                group={group}
+                accounts={members}
+                onEdit={setEditingId}
+                onArchive={setArchiving}
+                onReorder={(ids) => ordered.save(group.id, ids)}
+              />
+            ))}
+          </div>
+        )}
+        {query.data && (
+          <p className="settings-source-stamp">
+            Kontostände zum {longDay(query.data.asOf)} · Gesamtwert in Euro
+          </p>
+        )}
+        {closed.length > 0 && (
+          <details className="settings-advanced">
+            <summary>Geschlossene Konten · {closed.length}</summary>
+            <ClosedAccounts accounts={closed} onEdit={setEditingId} />
+          </details>
+        )}
+        <details className="settings-advanced">
+          <summary>Konditionen, Kontotypen und Datenquellen</summary>
+          <p>
+            Hier pflegst du Name, Typ, Reihenfolge und Konditionen deiner Konten. Das Gehaltskonto
+            wird bei den <a href="/einstellungen/datenquellen">Datenquellen</a> festgelegt.
+            Kreditkonditionen bleiben die Grundlage für den Schuldenrechner und den Kostenreport.
+            Jede Änderung ist protokolliert und lässt sich rückgängig machen.
+          </p>
+        </details>
+        <AccountEditPanel
+          account={editing}
+          accounts={accounts}
+          onClose={() => setEditingId(null)}
+        />
+        <AccountArchiveDialog account={archiving} onClose={() => setArchiving(null)} />
+        <AccountFormPanel open={creating} onClose={() => setCreating(false)} />
+      </section>
+    );
   return (
     <section className="accounts-settings" aria-labelledby="accounts-settings-title">
       <SectionHead
@@ -129,6 +193,144 @@ export function AccountsSettings() {
       <AccountEditPanel account={editing} accounts={accounts} onClose={() => setEditingId(null)} />
       <AccountFormPanel open={creating} onClose={() => setCreating(false)} />
     </section>
+  );
+}
+
+function RedesignAccountGroup({
+  group,
+  accounts,
+  onEdit,
+  onArchive,
+  onReorder,
+}: {
+  group: AccountGroup;
+  accounts: AccountRow[];
+  onEdit: (id: string) => void;
+  onArchive: (account: AccountRow) => void;
+  onReorder: (ids: string[]) => void;
+}) {
+  const names = new Map(accounts.map((account) => [account.id, account.name]));
+  const reorder = useReorder(
+    accounts.map((account) => account.id),
+    onReorder,
+    (id) => names.get(id) ?? '',
+  );
+  return (
+    <section className="settings-account-group" aria-labelledby={`accounts-group-${group.id}`}>
+      <h3 id={`accounts-group-${group.id}`}>{group.title}</h3>
+      {reorder.status}
+      <ul className="accounts-list">
+        {accounts.map((account) => {
+          const row = reorder.rowProps(account.id);
+          return (
+            <li {...row} key={account.id} className={cx(row.className, 'settings-account-row')}>
+              {reorder.controls(account.id, 'grip')}
+              <button
+                type="button"
+                className="settings-account-name"
+                aria-label={`${account.name} bearbeiten`}
+                onClick={() => onEdit(account.id)}
+              >
+                <strong>{account.name}</strong>
+                {account.type === 'loan' && termsSummary(account) && (
+                  <small>{termsSummary(account)}</small>
+                )}
+              </button>
+              <span className="settings-account-type">{ACCOUNT_TYPE_LABEL[account.type]}</span>
+              <span className="settings-account-value">
+                {account.valueEurCents === null ? 'Nicht verfügbar' : eur(account.valueEurCents)}
+              </span>
+              <details className="settings-row-menu">
+                <summary aria-label={`Aktionen für ${account.name}`}>
+                  <Ellipsis size={18} aria-hidden="true" />
+                </summary>
+                <div className="settings-row-menu-items">
+                  <Button variant="ghost" onClick={() => onEdit(account.id)}>
+                    Konto bearbeiten
+                  </Button>
+                  <Button variant="ghost" onClick={() => onArchive(account)}>
+                    Konto archivieren
+                  </Button>
+                  <span className="settings-reorder-actions">
+                    Reihenfolge {reorder.controls(account.id, 'steps')}
+                  </span>
+                </div>
+              </details>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function AccountArchiveDialog({
+  account,
+  onClose,
+}: {
+  account: AccountRow | null;
+  onClose: () => void;
+}) {
+  const write = useBudgetWrite();
+  const [busy, setBusy] = useState(false),
+    [force, setForce] = useState(false),
+    [error, setError] = useState('');
+  const close = async () => {
+    if (!account) return;
+    setBusy(true);
+    setError('');
+    try {
+      const result = await closeAccount(account.id, force);
+      await write(
+        () => Promise.resolve(result),
+        () => `Konto „${account.name}“ geschlossen.`,
+      );
+      setForce(false);
+      onClose();
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.code === 'account_not_empty') {
+        setForce(true);
+        setError(
+          'Das Konto enthält noch einen Saldo oder offene Buchungen. Trotzdem archivieren? Der Verlauf bleibt erhalten.',
+        );
+      } else setError(errorText(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <SettingsFormDialog
+      open={account !== null}
+      onClose={() => {
+        setForce(false);
+        setError('');
+        onClose();
+      }}
+      title="Konto archivieren"
+      beforeClose={() => !busy}
+    >
+      <p>
+        {account?.name} archivieren? Buchungen, Salden und Verlauf bleiben erhalten. Du kannst das
+        Konto wieder öffnen.
+      </p>
+      {error && <p role="alert">{error}</p>}
+      <div className="panel-actions">
+        <Button
+          variant="ghost"
+          disabled={busy}
+          onClick={() => {
+            setForce(false);
+            setError('');
+            onClose();
+          }}
+        >
+          Abbrechen
+        </Button>
+        <Button disabled={busy} onClick={() => void close()}>
+          {force ? 'Trotzdem archivieren' : 'Archivieren'}
+        </Button>
+      </div>
+    </SettingsFormDialog>
   );
 }
 
