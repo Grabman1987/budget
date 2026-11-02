@@ -60,7 +60,7 @@ test('lists, orders, edits loan terms, closes and reopens accounts', async ({
   else await expect(page.getByRole('link', { name: 'Konten', exact: true }).first()).toBeVisible();
   const budget = page.getByRole('region', { name: /Budget-Konten/ });
   const loans = page.getByRole('region', { name: /Kredite/ });
-  expect(await names(budget)).toEqual(['Alpha', 'Bravo']);
+  await expect.poll(() => names(budget)).toEqual(['Alpha', 'Bravo']);
   await expect(loans).toContainText('Kredit Muster');
   await expect(loans).toContainText('4,50 %');
 
