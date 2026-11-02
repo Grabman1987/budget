@@ -9,6 +9,8 @@ import { AccountOptions } from '../ledger/account-options';
 import { undoGroup } from '../ledger/api';
 import type { AccountRow } from '../ledger/types';
 import './read-source.css';
+import { SettingsSourceCard } from './settings-source-card';
+import { Bitcoin } from 'lucide-react';
 
 interface SourceStatus {
   configured: boolean;
@@ -50,7 +52,7 @@ const labels = {
 const stamp = (value: string | null) =>
   value ? new Date(value).toLocaleString('de-AT') : 'Noch nicht';
 
-export function CryptoReadSourceSection() {
+export function CryptoReadSourceSection({ compact = false }: { compact?: boolean } = {}) {
   const query = useQuery({ queryKey: key, queryFn: () => request<SourceStatus>('GET', path) });
   const client = useQueryClient();
   const [busy, setBusy] = useState(false);
@@ -85,6 +87,73 @@ export function CryptoReadSourceSection() {
       setPages(0);
     }
   }
+  if (compact)
+    return (
+      <SettingsSourceCard
+        title="Krypto"
+        icon={Bitcoin}
+        status={
+          busy || query.data?.running
+            ? 'Abruf läuft'
+            : !query.data?.configured
+              ? 'Nicht eingerichtet'
+              : labels[query.data.status]
+        }
+        attention={
+          !query.data?.configured ||
+          query.data.status === 'partial' ||
+          query.data.status === 'failed' ||
+          query.data.match.unmapped > 0
+        }
+        detail={
+          query.data
+            ? `Lesezugriff · ${query.data.mappings.length} Zuordnungen · ${query.data.match.missing} ausstehend · ${query.data.match.unmapped} ohne Zuordnung`
+            : 'Lesezugriff · Bewegungen und Bestände'
+        }
+        date={query.data?.lastSuccess}
+        loading={query.isPending}
+        error={query.isError}
+        onRetry={() => void query.refetch()}
+        action={
+          <Button
+            variant="ghost"
+            disabled={busy || query.data?.running || !query.data?.configured}
+            onClick={() => void refresh()}
+          >
+            {busy
+              ? `Ruft ab … ${pages} Seiten`
+              : query.data?.status === 'partial'
+                ? 'Abruf fortsetzen'
+                : 'Jetzt abrufen'}
+          </Button>
+        }
+      >
+        {query.data && (
+          <>
+            <h3>Krypto-Lesequelle</h3>
+            <p>Schlüssel gesetzt: {query.data.configured ? 'ja' : 'nein'}</p>
+            <p>
+              Letzter Versuch: {stamp(query.data.lastAttempt)}. Ein- und Auszahlungen mit den
+              Bankkonten abgleichen. Buchungen und Trades bestätigst du selbst.
+            </p>
+            <Button
+              variant="ghost"
+              disabled={busy || query.data.running || !query.data.configured}
+              onClick={() => void refresh(true)}
+            >
+              Gesamten Verlauf prüfen
+            </Button>
+            <SinceForm saved={query.data.since} />
+            <MatchSection match={query.data.match} disabled={busy || query.data.running} />
+            <InboxWorkflow readSource="crypto" />
+            {query.data.balances.map((balance) => (
+              <Mapping key={balance.key} balance={balance} data={query.data!} />
+            ))}
+          </>
+        )}
+        {error && <p role="alert">{error}</p>}
+      </SettingsSourceCard>
+    );
   return (
     <section aria-labelledby="crypto-source-title" className="data-source-section">
       <SectionHead id="crypto-source-title" title="Krypto-Lesequelle" />
@@ -127,7 +196,7 @@ export function CryptoReadSourceSection() {
               disabled={busy || query.data.running || !query.data.configured}
               onClick={() => void refresh()}
             >
-              {query.data.status === 'partial' ? 'Abruf fortsetzen' : 'Jetzt abrufen'}
+              {query.data?.status === 'partial' ? 'Abruf fortsetzen' : 'Jetzt abrufen'}
             </Button>
             <Button
               variant="ghost"
