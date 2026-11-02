@@ -298,6 +298,11 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
     await page.goto('/einstellungen/sicherheit');
     await expect(page.getByText(/weitere Sitzung/)).toBeVisible();
     await page.getByRole('button', { name: 'Alle anderen Sitzungen beenden' }).click();
+    if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+      await page
+        .getByRole('dialog', { name: 'Alle anderen Sitzungen beenden?' })
+        .getByRole('button', { name: 'Sitzungen beenden', exact: true })
+        .click();
     await expect(page.getByText(/andere Sitzung(en)? beendet/)).toBeVisible();
     await expect(page.getByText('Keine anderen Sitzungen aktiv.')).toBeVisible();
     const status = (await (await otherPage.request.get('/api/auth/status')).json()) as {
