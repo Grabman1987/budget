@@ -11,7 +11,25 @@ import { eur, shortDay } from '../apps/web/src/ledger/format';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
 
-/** The retired R07 bookmark now opens the independently sourced stand-today card. */
+/** Check the inherited T5 bookmark destination, then retain the separate Heute forecast proof. */
+async function retainedForecastHome(
+  page: Page,
+  requested: { month: string; period?: 'month' | 'payday' },
+) {
+  if (!redesign) return;
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/reports/onepager' &&
+      url.searchParams.get('monat') === requested.month &&
+      url.searchParams.get('darstellung') === 'finanzcheck' &&
+      (!requested.period || url.searchParams.get('period') === requested.period),
+  );
+  await page.goto(
+    `/?monat=${requested.month}${requested.period ? `&period=${requested.period}` : ''}`,
+  );
+}
+
+/** The current-day card keeps its existing independent source comparison in both modes. */
 async function currentForecast(page: Page, month = '2026-09') {
   await expect(page).toHaveURL(
     (url) => url.pathname === '/' && url.searchParams.get('monat') === month,
@@ -106,6 +124,7 @@ test('Heute month forecast ends two days after month end and names payments in t
   );
   await expect(page.getByTestId('liquidity-chart')).toBeVisible();
   await page.goto('/reports/finanzcheck?monat=2026-09');
+  await retainedForecastHome(page, { month: '2026-09' });
   const current = await currentForecast(page);
   await expect(page.getByRole('button', { name: 'Monat', exact: true })).toHaveAttribute(
     'aria-pressed',
@@ -143,6 +162,7 @@ test('Heute payday forecast follows the bracket and last axis label', async ({ p
     ),
   ).toBeVisible();
   await page.goto('/reports/finanzcheck?monat=2026-09');
+  await retainedForecastHome(page, { month: '2026-09' });
   await currentForecast(page);
   await expect(page.getByRole('button', { name: 'Bis Gehalt', exact: true })).toHaveAttribute(
     'aria-pressed',
@@ -173,6 +193,7 @@ test('a direct R07 visit falls back to Bis Gehalt without a stored choice', asyn
     );
   });
   await page.goto('/reports/finanzcheck?monat=2026-09');
+  await retainedForecastHome(page, { month: '2026-09' });
   await expect(page.getByRole('button', { name: 'Bis Gehalt', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -216,6 +237,7 @@ test('R07 remembers Heute period and retains its API forecast and low point in e
       ),
     ).toBe(true);
     await page.goto('/reports/finanzcheck?monat=2026-09');
+    await retainedForecastHome(page, { month: '2026-09' });
     await expect(
       page.getByRole('button', { name: period === 'month' ? 'Monat' : 'Bis Gehalt', exact: true }),
     ).toHaveAttribute('aria-pressed', 'true');
@@ -453,6 +475,7 @@ test('a past month has no out-of-range today marker in the balance or pace chart
     'HEUTE',
   );
   await page.goto('/reports/finanzcheck?monat=2026-08&period=month');
+  await retainedForecastHome(page, { month: '2026-08', period: 'month' });
   const historical: Heute = await (
     await page.request.get('/api/heute?period=month&month=2026-08')
   ).json();
@@ -700,6 +723,7 @@ test('settled balance reaches the forecast and the composition measures its part
     });
     await expect(page.getByTestId('liquidity-chart')).toBeVisible();
     await page.goto('/reports/finanzcheck?monat=2026-09');
+    await retainedForecastHome(page, { month: '2026-09' });
     const current = await currentForecast(page);
     await page.evaluate(async () => {
       await document.fonts.ready;
