@@ -198,10 +198,11 @@ for (const colorScheme of ['light', 'dark'] as const) {
       const primary = redesign
         ? page.locator(
             viewport.height < 844
-              ? '.heute-priorities .heute-lead, .heute-priorities .attention-row:first-of-type'
+              ? '.heute-priorities .heute-lead, .heute-priorities .heute-attention > .attention-row:first-of-type'
               : '.heute-priorities .heute-lead, .heute-priorities .heute-attention',
           )
         : tiles;
+      await expect(primary).toHaveCount(redesign ? 2 : 3);
       for (const box of await primary.evaluateAll((els) =>
         els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect),
       )) {

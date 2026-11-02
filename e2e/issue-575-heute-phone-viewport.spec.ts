@@ -57,8 +57,11 @@ test('actual monthly pace starts on the first phone screen and both folds clear 
         expect(primary.y).toBeGreaterThanOrEqual(0);
         expect(primary.y + primary.height).toBeLessThanOrEqual(viewport.height);
         const chart = page.getByTestId('heute-pace-chart');
-        await chart.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+        await page
+          .locator('#heute-pace-title')
+          .evaluate((element) => element.scrollIntoView({ block: 'center' }));
         await expect(chart).toBeVisible();
+        await expect(chart).toBeInViewport();
         const title = (await page.locator('#heute-pace-title').boundingBox())!;
         expect(title.y).toBeGreaterThanOrEqual(0);
         expect(title.y + title.height).toBeLessThanOrEqual(viewport.height);
