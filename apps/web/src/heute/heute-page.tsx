@@ -212,6 +212,15 @@ function HeuteBody({
                   precision="cent"
                 />
                 {REDESIGN_ENABLED && (
+                  <AppLink
+                    className="btn btn-ghost"
+                    to="/heute/details/free"
+                    search={{ monat: month, period, von: `/?monat=${month}&period=${period}` }}
+                  >
+                    Alle Rechenschritte und Quellen
+                  </AppLink>
+                )}
+                {REDESIGN_ENABLED && (
                   <div className="heute-lead-context">
                     <h3>Ausgabenplan · {monthName(data.stand.month)}</h3>
                     <p>{`Ausgabenplan: ${eur(data.budgetAnswer.spentCents)} ausgegeben von ${eur(data.budgetAnswer.plannedCents)} · Plan-Rest ${eur(data.budgetAnswer.remainingCents)}. Plan-Rest: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben.`}</p>

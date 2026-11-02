@@ -1545,3 +1545,22 @@
     overflow-wrap: anywhere;
   }
 }
+
+@layer pages {
+  .heute--redesign.heute-explanation :is(a, summary) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .heute--redesign.heute-explanation :is(p, li, a, strong) {
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  .heute--redesign.heute-explanation .heute-breakdown li {
+    gap: 8px 16px;
+    flex-wrap: wrap;
+  }
+  .heute--redesign.heute-explanation .heute-dimension {
+    min-width: 0;
+  }
+}

@@ -1,4 +1,6 @@
 import { maskMoneyText, useAmountPrivacy } from '@budget/ui';
+import { useLocation } from '@tanstack/react-router';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import type { Ref } from 'react';
 import { eur, longDay } from '../ledger/format';
 import { LoadingNote } from '../ledger/states';
@@ -49,6 +51,7 @@ export function InvestmentBasisDetails({
   pending: boolean;
 }) {
   useAmountPrivacy();
+  const source = useLocation({ select: (location) => location.href });
   return (
     <section
       id="anlagebasis"
@@ -85,7 +88,10 @@ export function InvestmentBasisDetails({
                 <ul>
                   {basis.accounts.map((account) => (
                     <li key={account.id}>
-                      <AppLink to={`/konten/${encodeURIComponent(account.id)}`} search={search}>
+                      <AppLink
+                        to={`/konten/${encodeURIComponent(account.id)}`}
+                        search={REDESIGN_ENABLED ? { ...search, von: source } : search}
+                      >
                         {account.name}
                       </AppLink>
                       {' · '}

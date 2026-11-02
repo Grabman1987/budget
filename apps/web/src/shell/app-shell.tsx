@@ -14,6 +14,7 @@ import { QueueList } from '../pwa/queue-ui';
 import { useStorageProtection } from '../pwa/storage-protection';
 import { usePrivacyShortcut } from './privacy-button';
 import { OfflineStatus } from './header-status';
+import { HeuteSourceReturn } from '../heute/return-context';
 import { REDESIGN_ENABLED } from './redesign-flag';
 
 const APP_NAME = 'Budget';
@@ -77,6 +78,7 @@ export function AppShell() {
           <OfflineStatus />
           <main className="sheet" id="main" tabIndex={-1} ref={main}>
             {(page?.area === 'heute' || page?.area === 'konten') && <QueueList />}
+            {REDESIGN_ENABLED && <HeuteSourceReturn />}
             <Outlet />
           </main>
         </div>
