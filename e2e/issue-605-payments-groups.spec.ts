@@ -30,6 +30,9 @@ const monthDay = (text: string) => {
 
 async function open(page: Page, query = '') {
   await page.goto(`/plan/erwartet${query}`);
+  // ON rendering is read-only; matching is now an explicit action in this fixture flow.
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    await page.getByRole('button', { name: 'Fälligkeiten aktualisieren', exact: true }).click();
   await expect(page.locator('tr.prow').first()).toBeVisible({ timeout: 30_000 });
 }
 
