@@ -18,6 +18,10 @@ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { PLAN_ERWARTET } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { useMonth } from '../shell/use-month';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { PaymentsCalendar } from '../pages/payments-preview-report';
+import { validateExpectedSearch, type PaymentView } from './search';
+import './expected-redesign.css';
 import {
   eurOf,
   expectedQuery,
@@ -46,7 +50,7 @@ import { draftFromBooking } from './payment-draft';
 import { PaymentPanel, type PaymentPanelState } from './payment-panel';
 import { StatusStamp } from './status-stamp';
 
-type View = 'next' | 'contracts' | 'all';
+type View = PaymentView;
 type KindFilter = 'all' | 'inflow' | 'outflow';
 
 const VIEWS = [
@@ -77,9 +81,20 @@ export function ExpectedPage() {
   const [month] = useMonth();
   const today = todayInVienna();
   const saved = useLocation({ select: (location) => location.state });
-  const [view, setView] = useState<View>(saved.expectedView ?? 'next');
-  const [kind, setKind] = useState<KindFilter>(saved.expectedKind ?? 'all');
-  const [horizon, setHorizon] = useState<Horizon>(saved.expectedHorizon ?? HORIZONS[0]);
+  const route = validateExpectedSearch(
+    (useLocation({ select: (location) => location.search }) as unknown as Record<
+      string,
+      unknown
+    >) ?? {},
+  );
+  const [localView, setView] = useState<View>(saved.expectedView ?? 'next');
+  const [localKind, setKind] = useState<KindFilter>(saved.expectedKind ?? 'all');
+  const [localHorizon, setHorizon] = useState<Horizon>(saved.expectedHorizon ?? HORIZONS[0]);
+  const view = REDESIGN_ENABLED ? (route.ansicht ?? localView) : localView;
+  const kind = REDESIGN_ENABLED && route.ansicht ? (route.art as KindFilter) : localKind;
+  const horizon = REDESIGN_ENABLED && route.ansicht ? (route.tage as Horizon) : localHorizon;
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<unknown>(null);
   const [panel, setPanel] = useState<PaymentPanelState>(null);
 
   // Plan the occurrences and match bookings once when the page opens (idempotent; the P4 worker
@@ -89,8 +104,9 @@ export function ExpectedPage() {
     queryFn: refreshExpected,
     staleTime: 300_000,
     retry: false,
+    enabled: !REDESIGN_ENABLED,
   });
-  const ready = !refresh.isPending;
+  const ready = REDESIGN_ENABLED || !refresh.isPending;
 
   const from = addDays(today, -31);
   const to = addDays(today, LOAD_DAYS);
@@ -116,10 +132,26 @@ export function ExpectedPage() {
     setHorizon(nextHorizon);
     void navigate({
       to: '.',
-      search: ((previous: object) => previous) as never,
-      replace: true,
+      search: ((previous: object) =>
+        REDESIGN_ENABLED
+          ? { ...previous, ansicht: nextView, art: nextKind, tage: nextHorizon }
+          : previous) as never,
+      replace: !REDESIGN_ENABLED,
       state: { expectedView: nextView, expectedKind: nextKind, expectedHorizon: nextHorizon },
     });
+  };
+  const manualRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setRefreshError(null);
+    try {
+      await refreshExpected();
+      await Promise.all([payments.refetch(), occurrences.refetch(), income.refetch()]);
+    } catch (error) {
+      setRefreshError(error);
+    } finally {
+      setRefreshing(false);
+    }
   };
   const detailSearch = { monat: month, ansicht: view, art: kind };
   const openPayment = (id: string) =>
@@ -150,15 +182,17 @@ export function ExpectedPage() {
         />
       }
     >
-      <div className="xp">
+      <div className={cx('xp', REDESIGN_ENABLED && 'payments-v2')}>
         <div className="xp-toolbar">
           <Segmented
             label="Ansicht"
-            options={VIEWS}
+            options={
+              REDESIGN_ENABLED ? [...VIEWS, { value: 'kalender', label: 'Kalender' }] : VIEWS
+            }
             value={view}
             onChange={(next) => remember(next, kind)}
           />
-          {view !== 'contracts' && (
+          {view !== 'contracts' && view !== 'kalender' && (
             <Segmented
               label="Einnahmen oder Ausgaben"
               options={KINDS}
@@ -175,50 +209,73 @@ export function ExpectedPage() {
             />
           )}
           <span className="xp-spacer" />
+          {REDESIGN_ENABLED && view !== 'kalender' && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={refreshing}
+              onClick={() => void manualRefresh()}
+            >
+              {refreshing ? 'Wird aktualisiert …' : 'Fälligkeiten aktualisieren'}
+            </Button>
+          )}
           <Button size="sm" variant="ghost" onClick={() => setPanel({ mode: 'create' })}>
             <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
             Wiederkehrende Zahlung
           </Button>
         </div>
-        {pending && <LoadingNote what="Wiederkehrende Zahlungen" />}
-        {error && (
-          <ErrorNote
-            what="Wiederkehrende Zahlungen"
-            error={error}
-            onRetry={() => {
-              void payments.refetch();
-              void occurrences.refetch();
-            }}
-          />
-        )}
-        {!pending && !error && view === 'next' && occurrences.data && (
-          <NextDays
-            rows={occurrences.data}
-            today={today}
-            kind={kind}
-            horizon={horizon}
-            rates={rates}
-            onOpen={openPayment}
-            onCreate={() => setPanel({ mode: 'create' })}
-          />
-        )}
-        {!pending && !error && view !== 'next' && payments.data && (
-          <Contracts
-            payments={payments.data}
-            outflowsOnly={view === 'contracts'}
-            kind={kind}
-            rates={rates}
-            groupOf={(categoryId) => {
-              const category = lookups.data?.categories.find((c) => c.id === categoryId);
-              const group = lookups.data?.groups.find((g) => g.id === category?.groupId);
-              return group ?? null;
-            }}
-            categoryOf={(categoryId) =>
-              lookups.data?.categories.find((c) => c.id === categoryId) ?? null
-            }
-            onOpen={openPayment}
-            onCreate={() => setPanel({ mode: 'create' })}
-          />
+        {view === 'kalender' && REDESIGN_ENABLED ? (
+          <PaymentsCalendar />
+        ) : (
+          <>
+            {refreshError && (
+              <ErrorNote
+                what="Fälligkeiten"
+                error={refreshError}
+                onRetry={() => void manualRefresh()}
+              />
+            )}
+            {pending && <LoadingNote what="Wiederkehrende Zahlungen" />}
+            {error && (
+              <ErrorNote
+                what="Wiederkehrende Zahlungen"
+                error={error}
+                onRetry={() => {
+                  void payments.refetch();
+                  void occurrences.refetch();
+                }}
+              />
+            )}
+            {!pending && !error && view === 'next' && occurrences.data && (
+              <NextDays
+                rows={occurrences.data}
+                today={today}
+                kind={kind}
+                horizon={horizon}
+                rates={rates}
+                onOpen={openPayment}
+                onCreate={() => setPanel({ mode: 'create' })}
+              />
+            )}
+            {!pending && !error && view !== 'next' && payments.data && (
+              <Contracts
+                payments={payments.data}
+                outflowsOnly={view === 'contracts'}
+                kind={kind}
+                rates={rates}
+                groupOf={(categoryId) => {
+                  const category = lookups.data?.categories.find((c) => c.id === categoryId);
+                  const group = lookups.data?.groups.find((g) => g.id === category?.groupId);
+                  return group ?? null;
+                }}
+                categoryOf={(categoryId) =>
+                  lookups.data?.categories.find((c) => c.id === categoryId) ?? null
+                }
+                onOpen={openPayment}
+                onCreate={() => setPanel({ mode: 'create' })}
+              />
+            )}
+          </>
         )}
       </div>
       <PaymentPanel state={panel} onClose={() => setPanel(null)} />

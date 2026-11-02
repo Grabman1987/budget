@@ -1,0 +1,26 @@
+.xp.payments-v2 {
+  padding: 0 0 var(--space-xl);
+  min-width: 0;
+}
+.payments-v2 .xp-toolbar {
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.payments-v2 .xp-toolbar button,
+.payments-v2 .xp-toolbar summary {
+  min-height: var(--touch);
+}
+.payments-v2 .payments-preview-report {
+  padding-inline: 0;
+  min-width: 0;
+}
+@media (max-width: 767px) {
+  .payments-v2 .xp-toolbar .seg {
+    max-width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  .payments-v2 .xp-toolbar .seg button {
+    flex-shrink: 0;
+  }
+}

@@ -20,6 +20,7 @@ import { clearDeviceFinancialData } from './pwa/local-data';
 import { validateBookingsSearch } from './ledger/bookings-search';
 import { validatePlanFilterSearch, type PlanFilterSearch } from './budget/plan-filters';
 import { validatePlanYearSearch } from './budget/plan-year-search';
+import { validateExpectedSearch } from './expected/search';
 import { validateInboxSearch } from './inbox/navigation';
 import { accountsQuery } from './ledger/queries';
 import { captureContinuation, validateCaptureSearch } from './ledger/capture-link';
@@ -432,13 +433,20 @@ const planExpectedRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_ERWARTET.path,
   staticData: { meta: PLAN_ERWARTET },
+  validateSearch: (search: Record<string, unknown>) =>
+    REDESIGN_ENABLED ? validateExpectedSearch(search) : {},
   component: lazyRouteComponent(() => import('./expected/expected-page'), 'ExpectedPage'),
 });
-const expectedDetailSearch = (search: Record<string, unknown>) => ({
-  ansicht:
-    search['ansicht'] === 'contracts' || search['ansicht'] === 'all' ? search['ansicht'] : 'next',
-  art: search['art'] === 'inflow' || search['art'] === 'outflow' ? search['art'] : 'all',
-});
+const expectedDetailSearch = (search: Record<string, unknown>) =>
+  REDESIGN_ENABLED
+    ? validateExpectedSearch(search)
+    : {
+        ansicht:
+          search['ansicht'] === 'contracts' || search['ansicht'] === 'all'
+            ? search['ansicht']
+            : 'next',
+        art: search['art'] === 'inflow' || search['art'] === 'outflow' ? search['art'] : 'all',
+      };
 const expectedPaymentRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/plan/erwartet/$id',
@@ -621,7 +629,11 @@ const redirects = [
   redirectRoute('/reports/jahresansicht', '/reports/explorer', { vorlage: 'year' }, 'YTD'),
   redirectRoute('/reports/kategorien', '/reports/explorer', { vorlage: 'category' }, 'YTD'),
   redirectRoute('/reports/gesamttabelle', '/reports/explorer', { vorlage: 'total' }, 'Alles'),
-  redirectRoute('/reports/vorschau', '/plan/erwartet'),
+  redirectRoute(
+    '/reports/vorschau',
+    '/plan/erwartet',
+    REDESIGN_ENABLED ? { ansicht: 'kalender' } : {},
+  ),
   redirectRoute('/reports/sparziele', '/plan/sparziele'),
   redirectRoute('/reports/kontakte', '/konten/kontakte'),
   redirectRoute(

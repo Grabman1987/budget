@@ -16,7 +16,7 @@ export function PaymentPage() {
   const [month] = useMonth();
   const navigate = useNavigate();
   const { ansicht = 'next', art = 'all' } = useSearch({ strict: false }) as {
-    ansicht?: 'next' | 'contracts' | 'all';
+    ansicht?: 'next' | 'contracts' | 'all' | 'kalender';
     art?: 'all' | 'inflow' | 'outflow';
   };
   const heading = useRef<HTMLHeadingElement>(null);
