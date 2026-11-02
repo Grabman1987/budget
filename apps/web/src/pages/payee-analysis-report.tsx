@@ -12,7 +12,7 @@ import { LEDGER_KEY } from '../ledger/queries';
 import { AppLink } from '../shell/app-link';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
-import { PageFrame } from './placeholder-page';
+import { ReportFrame as PageFrame } from '../reports/report-frame';
 import './payee-analysis-report.css';
 
 type ReportPeriod = Period;

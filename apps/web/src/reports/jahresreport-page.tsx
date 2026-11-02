@@ -3,12 +3,14 @@ import { useAmountPrivacy, Button, ClassSwatch, DimensionChain, Segmented } from
 import {
   addMonths,
   cents,
+  monthResult,
   overviewHeat,
   type YearCategoryRow,
   type YearFinding,
   type YearReport,
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { Printer } from 'lucide-react';
 import { useState } from 'react';
 import { eur, longDay } from '../ledger/format';
@@ -17,7 +19,7 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import { Term } from './term';
 import type { ReportEntry } from '../nav/reports-catalog';
-import { PageFrame } from '../pages/placeholder-page';
+import { ReportFrame as PageFrame, ReportTableScroll } from './report-frame';
 import { useRuleDerivation, yearReportQuery, type YearReportRead } from './overview-api';
 import {
   bpText,
@@ -46,12 +48,57 @@ export function JahresreportPage({ report, meta }: { report: ReportEntry; meta: 
       data.rules === null &&
       lastMonth >= addMonths(data.ref, -11),
   );
+  const yearControls = data && (
+    <>
+      {data.years.length > 0 && (
+        <Segmented
+          label="Jahr"
+          options={data.years.map((y) => ({ value: String(y), label: String(y) }))}
+          value={String(data.report.year)}
+          onChange={(value) => setYear(Number(value))}
+        />
+      )}
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={data.report.months.length === 0}
+        onClick={() => window.print()}
+      >
+        <Printer size={16} strokeWidth={1.75} aria-hidden="true" />
+        Drucken
+      </Button>
+    </>
+  );
+  const result = data
+    ? monthResult({
+        earnedCents: data.report.totals.incomeCents,
+        consumptionCents: data.report.totals.consumptionCents,
+        futureCents: data.report.totals.futureCents,
+      })
+    : undefined;
   return (
     <PageFrame
+      sourceReportId={report.id}
+      sourceDate={data?.today}
+      calculation={
+        data && result && data.report.months.length > 0 && !query.isFetching && !query.isError
+          ? {
+              label: 'Berechnung Jahresergebnis',
+              terms: [
+                { label: 'Einnahmen', value: cents(result.earnedCents) },
+                { op: '-', label: 'Konsum', value: cents(result.consumptionCents) },
+                { op: '=', label: 'Gespart', value: cents(result.savedCents), result: true },
+              ],
+              result: { label: 'Gespart', value: result.savedCents, unit: 'money' },
+            }
+          : undefined
+      }
+      {...(REDESIGN_ENABLED ? { extraFields: [{ label: 'Jahr', value: yearControls }] } : {})}
       verdict={
         data && !query.isFetching && !query.isError
           ? {
               reportId: report.id,
+              unavailable: REDESIGN_ENABLED && data.report.months.length === 0,
               period: `${data.report.months[0]}..${data.report.months.at(-1)}`,
               partial: data.report.partial,
               metric: {
@@ -83,34 +130,18 @@ export function JahresreportPage({ report, meta }: { report: ReportEntry; meta: 
         )}
         {data && (
           <>
-            <section className="card ov-card ov-noprint" aria-labelledby="yr-controls">
-              <div className="tbd-head">
-                <h2 id="yr-controls">Jahr</h2>
-                <div className="yr-actions">
-                  {data.years.length > 0 && (
-                    <Segmented
-                      label="Jahr"
-                      options={data.years.map((y) => ({ value: String(y), label: String(y) }))}
-                      value={String(data.report.year)}
-                      onChange={(value) => setYear(Number(value))}
-                    />
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={data.report.months.length === 0}
-                    onClick={() => window.print()}
-                  >
-                    <Printer size={16} strokeWidth={1.75} aria-hidden="true" />
-                    Drucken
-                  </Button>
+            {!REDESIGN_ENABLED && (
+              <section className="card ov-card ov-noprint" aria-labelledby="yr-controls">
+                <div className="tbd-head">
+                  <h2 id="yr-controls">Jahr</h2>
+                  <div className="yr-actions">{yearControls}</div>
                 </div>
-              </div>
-              <p className="ov-note">
-                Zwei Blätter im Format A4 aus den vollen Monaten des Jahres. Einkommen ohne
-                Kapitalerträge und Erstattungen; Kapitalerträge stehen für sich.
-              </p>
-            </section>
+                <p className="ov-note">
+                  Zwei Blätter im Format A4 aus den vollen Monaten des Jahres. Einkommen ohne
+                  Kapitalerträge und Erstattungen; Kapitalerträge stehen für sich.
+                </p>
+              </section>
+            )}
             {data.report.months.length === 0 ? (
               <section className="card ov-card" aria-live="polite">
                 <p className="ov-empty" role="status">
@@ -286,46 +317,48 @@ function SheetOne({
         </section>
         <section className="ov-sheet-sec" aria-label="Stückliste der Monate">
           <SectionTitle letter="C">Stückliste der Monate</SectionTitle>
-          <table className="ov-table ov-sheet-table" data-testid="yr-months">
-            <thead>
-              <tr>
-                <th className="tech">Monat</th>
-                <th className="tech n">Einkommen</th>
-                <th className="tech n">Konsum</th>
-                <th className="tech n">
-                  <Term>Zukunft</Term>
-                </th>
-                <th className="tech n">
-                  <Term>Sparquote</Term>
-                </th>
-                <th className="tech n">Nettovermögen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.rows.map((r) => (
-                <tr key={r.month}>
-                  <th scope="row">{monthNameOnly(r.month)}</th>
-                  <td className="n">{euroCellText(r.incomeCents)}</td>
-                  <td className="n">{euroCellText(r.consumptionCents)}</td>
-                  <td className="n">{euroCellText(r.futureCents)}</td>
-                  <td className="n">{bpText(r.savingsRateBp, { decimals: 0 })}</td>
+          <ReportTableScroll label="Stückliste der Monate">
+            <table className="ov-table ov-sheet-table" data-testid="yr-months">
+              <thead>
+                <tr>
+                  <th className="tech">Monat</th>
+                  <th className="tech n">Einkommen</th>
+                  <th className="tech n">Konsum</th>
+                  <th className="tech n">
+                    <Term>Zukunft</Term>
+                  </th>
+                  <th className="tech n">
+                    <Term>Sparquote</Term>
+                  </th>
+                  <th className="tech n">Nettovermögen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.rows.map((r) => (
+                  <tr key={r.month}>
+                    <th scope="row">{monthNameOnly(r.month)}</th>
+                    <td className="n">{euroCellText(r.incomeCents)}</td>
+                    <td className="n">{euroCellText(r.consumptionCents)}</td>
+                    <td className="n">{euroCellText(r.futureCents)}</td>
+                    <td className="n">{bpText(r.savingsRateBp, { decimals: 0 })}</td>
+                    <td className="n">
+                      {r.netWorthCents === null ? '–' : euroCellText(r.netWorthCents)}
+                    </td>
+                  </tr>
+                ))}
+                <tr className="is-total">
+                  <th scope="row">Summe</th>
+                  <td className="n">{euroCellText(t.incomeCents)}</td>
+                  <td className="n">{euroCellText(t.consumptionCents)}</td>
+                  <td className="n">{euroCellText(t.futureCents)}</td>
+                  <td className="n">{bpText(t.savingsRateBp, { decimals: 0 })}</td>
                   <td className="n">
-                    {r.netWorthCents === null ? '–' : euroCellText(r.netWorthCents)}
+                    {lastRow?.netWorthCents == null ? '–' : euroCellText(lastRow.netWorthCents)}
                   </td>
                 </tr>
-              ))}
-              <tr className="is-total">
-                <th scope="row">Summe</th>
-                <td className="n">{euroCellText(t.incomeCents)}</td>
-                <td className="n">{euroCellText(t.consumptionCents)}</td>
-                <td className="n">{euroCellText(t.futureCents)}</td>
-                <td className="n">{bpText(t.savingsRateBp, { decimals: 0 })}</td>
-                <td className="n">
-                  {lastRow?.netWorthCents == null ? '–' : euroCellText(lastRow.netWorthCents)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </ReportTableScroll>
         </section>
       </div>
       {titleBlock}

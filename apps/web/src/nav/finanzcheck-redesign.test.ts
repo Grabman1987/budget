@@ -48,11 +48,11 @@ it('ON changes the real route title with the validated presentation on the same 
     history: createMemoryHistory({ initialEntries: ['/reports/onepager'] }),
   });
   await router.load();
-  expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ title: 'Monats-One-Pager' });
+  expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ title: 'Monatsbericht' });
   await router.navigate({ to: '/reports/onepager', search: { darstellung: 'finanzcheck' } });
   expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ title: 'Finanz-Check-Verlauf' });
   await router.navigate({ to: '/reports/onepager', search: {} });
-  expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ title: 'Monats-One-Pager' });
+  expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ title: 'Monatsbericht' });
 });
 
 it.each([

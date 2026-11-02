@@ -8,7 +8,7 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import { findReport, type ReportEntry } from '../nav/reports-catalog';
 import { AppLink } from '../shell/app-link';
-import { PageFrame } from '../pages/placeholder-page';
+import { ReportFrame as PageFrame } from './report-frame';
 import { IncomeReport } from './income-report';
 import { IncomeExpenseReport } from './income-expense-report';
 import { ProjectsReport } from './projects-report';

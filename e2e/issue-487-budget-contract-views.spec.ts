@@ -1,3 +1,4 @@
+import { revealReportDetail } from './report-frame';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase, schema } from '@budget/db';
@@ -76,7 +77,9 @@ async function privacy(page: Page, hidden: boolean) {
 
 async function masked(page: Page, bodyId: string, clearAmount: RegExp, clearVerdict: string) {
   await expect(page.getByTestId(bodyId)).toContainText('••• €');
+  await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toContainText('•••');
+  await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).not.toHaveText(clearVerdict);
   const exposed = await page.locator('body').evaluate((body) => {
     const attributes = [body, ...body.querySelectorAll('*')].flatMap((element) =>
@@ -132,11 +135,13 @@ test('Budgettreue retains exact plan and stored forecast bodies, quality, month 
     'Erst ab November 2026 belastbar',
   );
   const forecast = await page.getByTestId('planning-accuracy').innerText();
+  await revealReportDetail(page);
   const verdict = await page.getByTestId('report-verdict').innerText();
   await page.goto(
     '/reports/budgettreue?monat=2026-09&zeitraum=1J&darstellung=planungstreue&ansicht=saved-id&exakt=true&projekt=project-id',
   );
   await expect(page.getByTestId('planning-accuracy')).toHaveText(forecast, { useInnerText: true });
+  await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
   await expect(page.getByTestId('planning-accuracy')).toContainText(
     'Fehlende Prognosen werden nicht nachträglich geschätzt.',
@@ -174,6 +179,7 @@ test('Budgettreue retains exact plan and stored forecast bodies, quality, month 
   await page.goto('/reports/budgettreue?monat=2026-09');
   await expect(page.getByTestId('budget-adherence')).toHaveText(budget, { useInnerText: true });
   await expect(page.getByTestId('budget-adherence')).toContainText('300,01 €');
+  await revealReportDetail(page);
   const budgetVerdict = await page.getByTestId('report-verdict').innerText();
   await privacy(page, true);
   await masked(page, 'budget-adherence', /300[,.]01/, budgetVerdict);
@@ -183,9 +189,11 @@ test('Budgettreue retains exact plan and stored forecast bodies, quality, month 
   await expect(page.getByTestId('planning-accuracy')).toHaveText(forecast, { useInnerText: true });
   await expect(page.getByTestId('planning-accuracy')).toContainText('300,01 €');
   await expect(page.getByTestId('planning-accuracy')).toContainText('300,00 €');
+  await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
   await page.getByRole('button', { name: 'Plan und Ist', exact: true }).click();
   await expect(page.getByTestId('budget-adherence')).toHaveText(budget, { useInnerText: true });
+  await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toHaveText(budgetVerdict, {
     useInnerText: true,
   });
@@ -223,6 +231,7 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
   await page.goto('/reports/kosten');
   await expect(page.getByTestId('bc-total')).toHaveText('6,91 €');
   const bankBody = await page.getByTestId('bank-costs-report').innerText();
+  await revealReportDetail(page);
   const verdict = await page.getByTestId('report-verdict').innerText();
   await page.goto(
     '/reports/abos?monat=2020-01&zeitraum=1M&darstellung=bankkosten&ansicht=saved-id&exakt=true&projektUngueltig=true',
@@ -232,6 +241,7 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
   if (info.project.name !== 'desktop') {
     await expect(page.locator('.m-title-text')).toHaveText('Verträge und Kosten');
   }
+  await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
   await expect(page.getByTestId('bc-components')).toContainText(
     'Gebucht: 6,91 € · aus Konditionen geschätzt: 0,00 €',
@@ -262,6 +272,7 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
   await expect(page.getByTestId('bank-costs-report')).toHaveText(bankBody, { useInnerText: true });
 
   await expect(page.getByTestId('bc-total')).toHaveText('6,91 €');
+  await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toContainText('6,91 €');
   await privacy(page, true);
   await expect(page.getByTestId('bc-total')).toHaveText('••• €');
@@ -275,5 +286,6 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
   await privacy(page, false);
   await expect(page.getByTestId('bc-total')).toHaveText('6,91 €');
   await expect(page.getByTestId('bank-costs-report')).toHaveText(bankBody, { useInnerText: true });
+  await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
 });

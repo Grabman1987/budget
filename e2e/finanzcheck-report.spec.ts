@@ -1,3 +1,4 @@
+import { redesignReportsOn } from './report-frame';
 import {
   DEFAULT_ACTIVE_RULE_COUNT,
   dayCounts,
@@ -67,6 +68,23 @@ test('retired Finanz-Check bookmark opens Heute while real history retains stage
   });
   const loaded = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/heute');
   await page.goto('/reports/finanzcheck');
+  if (await redesignReportsOn(page)) {
+    await loaded;
+    await expect(page).toHaveURL(/\/reports\/onepager\?.*darstellung=finanzcheck/);
+    await expect(page.getByTestId('fc-ok-count')).toHaveText(String(check.counts.ok));
+    await expect(page.locator('section[aria-labelledby="fc-today"]')).toContainText(
+      `von ${check.counts.total} erfüllt`,
+    );
+    await expect(page.locator('.fc-stages')).toContainText(check.stage.label);
+    await expect(page.locator('#fc-matrix')).toBeVisible();
+    await expect(page.locator('.fc-table tbody tr')).toHaveCount(DEFAULT_ACTIVE_RULE_COUNT);
+    const bookmark = page.url();
+    await page.reload();
+    await expect(page).toHaveURL(bookmark);
+    await expect(page.getByTestId('fc-ok-count')).toHaveText(String(check.counts.ok));
+    await inspectReport(page, info, 'finanzcheck-history');
+    return;
+  }
   const heute = (await (await loaded).json()) as Heute;
   await expect(page).toHaveURL(/\/$/);
   expect(days.at(-1)).toBe('2026-09-17');

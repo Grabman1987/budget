@@ -1,3 +1,4 @@
+import { redesignReportsOn, revealReportDetail } from './report-frame';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, INCOME_TYPES, openDatabase } from '@budget/db';
@@ -6,11 +7,13 @@ import { test } from './isolated-ledger';
 import { sampleTest } from './sample';
 
 async function portfolioTitleVisible(page: Page, info: TestInfo) {
+  const on = await redesignReportsOn(page);
   const title =
     info.project.name === 'desktop'
-      ? page.locator('.titleblock-report h1')
+      ? page.locator(on ? '.redesign-report-title h1' : '.titleblock-report h1')
       : page.locator('.m-title-text');
   await expect(title).toBeVisible();
+  await title.scrollIntoViewIfNeeded();
   await expect(title).toHaveText('Portfolio-Auswertung');
   const geometry = await title.evaluate((element) => {
     const range = document.createRange();
@@ -169,6 +172,7 @@ async function noClearMoney(page: Page, amount: RegExp) {
       ].join('\n'),
     );
   expect(exposed).not.toMatch(amount);
+  await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toContainText('•••');
 }
 
@@ -230,6 +234,7 @@ test('487 global project results retain literal August cents and require an expl
     page.getByTestId('projects-report').locator('section.mr-wide .tbd-fig').first(),
   ).toHaveText('2.700,03 €');
   const body = await page.getByTestId('projects-report').innerText();
+  await revealReportDetail(page);
   const verdict = await page.getByTestId('report-verdict').innerText();
   await page.goto(
     `/reports/einnahmen-ausgaben?monat=2026-08&zeitraum=${period}&darstellung=income&projekt=a&ansicht=saved-id&exakt=true`,
@@ -244,6 +249,7 @@ test('487 global project results retain literal August cents and require an expl
   await page.getByRole('button', { name: 'Projekt-Ergebnisse', exact: true }).click();
   await page.getByRole('button', { name: 'Alle Projekte zeigen', exact: true }).click();
   await expect(page.getByTestId('projects-report')).toHaveText(body, { useInnerText: true });
+  await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
   await expect(page.getByTestId('projects-report')).toContainText('Synthetic B · archiviert');
   await expect(page.getByTestId('projects-report')).toContainText('3.500,06 €');
@@ -291,6 +297,7 @@ for (const [view, legacy, bodySelector] of [
       await page.goto(`/reports/${legacy}?zeitraum=1J&trend=true`);
       const body = page.locator(bodySelector);
       await expect(body).toBeVisible();
+      await revealReportDetail(page);
       await expect(page.getByTestId('report-verdict')).toBeVisible();
       // Wait for the existing reader, rather than snapshotting its loading placeholder.
       await expect(body.locator('section')).not.toHaveCount(0);
@@ -300,11 +307,13 @@ for (const [view, legacy, bodySelector] of [
       }
       if (view === 'einzahlungen') await monthlyTableReachable(page, info);
       const content = await body.innerText();
+      await revealReportDetail(page);
       const verdict = await page.getByTestId('report-verdict').innerText();
       await page.goto(
         `/reports/pallocation?zeitraum=1J&darstellung=${view}&ansicht=saved-id&exakt=true&projekt=retained-id&trend=true`,
       );
       await expect(body).toHaveText(content, { useInnerText: true });
+      await revealReportDetail(page);
       await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
       await expect(page).toHaveTitle(/Portfolio-Auswertung/);
       await portfolioTitleVisible(page, info);
@@ -401,6 +410,7 @@ test('487 Portfolio switching preserves literal performance and contribution amo
   await expect(page.locator('.portfolio-performance-report')).toContainText(
     'Quellenhinweise unvollständig',
   );
+  await revealReportDetail(page);
   const verdict = await page.getByTestId('report-verdict').innerText();
   await privacy(page, true);
   await noClearMoney(page, /300[,.]03|1[.\s]?500[,.]06|6[,.]91/);
@@ -420,6 +430,7 @@ test('487 Portfolio switching preserves literal performance and contribution amo
   await page.goBack();
   await expect(page.getByTestId('period-ttwror')).toHaveText('+12,3 %');
   await expect(page.getByTestId('realized-gain')).toHaveText('+6,91 €');
+  await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
   for (const [key, value] of Object.entries({
     ansicht: 'saved-id',

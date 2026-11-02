@@ -9,7 +9,11 @@ import { findReport } from '../nav/reports-catalog';
 import { MonthReportFrame } from './month-frame';
 import { TableReportFrame } from './table-report-frame';
 
-vi.mock('@tanstack/react-router', () => ({ useSearch: () => ({}), useNavigate: () => vi.fn() }));
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useSearch: () => ({}),
+  useNavigate: () => vi.fn(),
+}));
 vi.mock('../pages/placeholder-page', () => ({
   PageFrame: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));

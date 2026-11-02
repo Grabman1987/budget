@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { AllocationBar } from './allocation-bar';
 import { AppLink } from '../shell/app-link';
 import { chartShare } from '../charts/tooltip-data';
@@ -42,6 +43,28 @@ export function OnePagerReport({ report, meta }: { report: ReportEntry; meta: Pa
   const facts = useMemo(() => (data ? onePagerVerdictFacts(data) : undefined), [data]);
   return (
     <MonthReportFrame
+      calculation={
+        data && !data.beforeRecords && !query.isFetching && !query.isError
+          ? {
+              label: 'Berechnung Planabweichung',
+              terms: [
+                { label: 'Plan bis heute', value: cents(data.pace.figures.planToDateCents) },
+                { op: '-', label: 'Ausgegeben', value: cents(data.pace.figures.spentCents) },
+                {
+                  op: '=',
+                  label: 'Planabweichung',
+                  value: cents(-data.pace.figures.deltaCents),
+                  result: true,
+                },
+              ],
+              result: {
+                label: data.pace.figures.over ? 'Über Plan' : 'Unter Plan',
+                value: -data.pace.figures.deltaCents,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       verdict={facts && !query.isFetching && !query.isError ? facts : undefined}
       report={report}
       meta={meta}
@@ -50,7 +73,13 @@ export function OnePagerReport({ report, meta }: { report: ReportEntry; meta: Pa
       current={current}
       firstMonth={data?.firstMonth}
       asOf={data?.asOf}
-      basis={query.isError ? 'nicht verfügbar' : undefined}
+      basis={
+        query.isError
+          ? 'nicht verfügbar'
+          : REDESIGN_ENABLED && data?.beforeRecords
+            ? 'keine Aufzeichnungen im gewählten Monat'
+            : undefined
+      }
       print
     >
       <div className="mrep onepager-report" data-testid="onepager-report">

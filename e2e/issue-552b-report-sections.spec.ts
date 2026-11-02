@@ -156,10 +156,14 @@ test('Axe is clean in light and dark, the toggle is a 44 px target on the phone'
       true,
     );
     if (scheme === 'light') {
-      mkdirSync('docs/evidence/issue-552b-report-sections', { recursive: true });
+      const evidence =
+        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+          ? 'docs/evidence/redesign-reports-20261102/r2-sections'
+          : 'docs/evidence/issue-552b-report-sections';
+      mkdirSync(evidence, { recursive: true });
       await page.screenshot({
         animations: 'disabled',
-        path: `docs/evidence/issue-552b-report-sections/${info.project.name}-collapsed.png`,
+        path: `${evidence}/${info.project.name}-collapsed.png`,
       });
     }
   }

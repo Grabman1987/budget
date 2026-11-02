@@ -38,13 +38,18 @@ for (const id of SAMPLE) {
     await expect(page.getByRole('checkbox', { name: 'Trendlinie' })).toHaveCount(0);
     await expect(rangeButton(page)).toBeVisible();
     if (phone(page)) return;
-    const head = (await page.locator('.titleblock').first().boundingBox())!;
-    expect(head.height).toBe(64);
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    const headSelector = redesign ? '.redesign-report-head' : '.titleblock';
+    const head = (await page.locator(headSelector).first().boundingBox())!;
+    if (redesign) {
+      await expect(page.getByTestId('report-frame-result')).toBeVisible();
+      await expect(page.getByTestId('report-frame-source')).toBeVisible();
+    } else expect(head.height).toBe(64);
     const box = (await first.boundingBox())!;
     expect(box.y + box.height).toBeLessThanOrEqual(page.viewportSize()!.height);
     // Everything in the head stays inside its frame.
     const fits = await page
-      .locator('.titleblock')
+      .locator(headSelector)
       .first()
       .evaluate((header) => {
         const frame = header.getBoundingClientRect();
@@ -116,11 +121,19 @@ for (const id of SAMPLE) {
   test(`${id}: Axe is clean in light and dark, no horizontal scroll, touch targets on the phone`, async ({
     page,
   }, info) => {
-    mkdirSync('docs/evidence/issue-552-report-frame', { recursive: true });
     await page.goto(`/reports/${id}`);
     await expect(firstHeading(page)).toBeVisible({ timeout: 30_000 });
+    const evidence =
+      (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+        ? 'docs/evidence/redesign-reports-20261102/r2-frame'
+        : 'docs/evidence/issue-552-report-frame';
+    mkdirSync(evidence, { recursive: true });
     if (phone(page)) {
-      for (const button of await page.locator('.titleblock').first().getByRole('button').all()) {
+      for (const button of await page
+        .locator('.titleblock, .redesign-report-head')
+        .first()
+        .getByRole('button')
+        .all()) {
         const box = (await button.boundingBox())!;
         const name = (await button.getAttribute('aria-label')) ?? (await button.innerText());
         expect(box.width, `${id} ${name}`).toBeGreaterThanOrEqual(44);
@@ -131,7 +144,7 @@ for (const id of SAMPLE) {
     await page.screenshot({
       animations: 'disabled',
       clip: { x: 0, y: 0, width: page.viewportSize()!.width, height: 360 },
-      path: `docs/evidence/issue-552-report-frame/${info.project.name}-${id}-head.png`,
+      path: `${evidence}/${info.project.name}-${id}-head.png`,
     });
     await rangeButton(page).click();
     await expect(page.getByLabel('Zeitraum-Schnellauswahl', { exact: true })).toBeVisible();
@@ -153,7 +166,7 @@ for (const id of SAMPLE) {
       if (id === 'cashflow')
         await page.screenshot({
           animations: 'disabled',
-          path: `docs/evidence/issue-552-report-frame/${info.project.name}-${scheme}-popover.png`,
+          path: `${evidence}/${info.project.name}-${scheme}-popover.png`,
         });
     }
   });
@@ -165,9 +178,11 @@ for (const id of ['projekte', 'finanzcheck', 'jahresansicht', 'gesamtuebersicht'
   test(`${id}: its own head control keeps its width`, async ({ page }) => {
     test.skip(phone(page), 'desktop head layout');
     await page.goto(`/reports/${id}`);
-    await expect(page.locator('.titleblock .tb-field').first()).toBeVisible({ timeout: 30_000 });
+    await expect(
+      page.locator('.titleblock .tb-field, .redesign-report-control').first(),
+    ).toBeVisible({ timeout: 30_000 });
     const squeezed = await page
-      .locator('.titleblock .tb-field')
+      .locator('.titleblock .tb-field, .redesign-report-control')
       .evaluateAll((cells) =>
         cells
           .filter((cell) => cell.querySelector('.seg, select'))

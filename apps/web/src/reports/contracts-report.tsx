@@ -21,7 +21,7 @@ import { eur, longDay, nativeCurrency } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
-import { PageFrame } from '../pages/placeholder-page';
+import { ReportFrame as PageFrame } from './report-frame';
 import { rhythmText } from '../expected/expected-model';
 import { AppLink } from '../shell/app-link';
 import { bpText, monthShort, ReportQuery, ScrollRegion } from './spending-shared';

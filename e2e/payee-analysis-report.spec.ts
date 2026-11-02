@@ -1,3 +1,4 @@
+import { redesignReportsOn } from './report-frame';
 import AxeBuilder from '@axe-core/playwright';
 import { formatEuro, cents } from '@budget/domain';
 import { mkdirSync } from 'node:fs';
@@ -34,12 +35,22 @@ sampleTest(
     await expect(page.getByTestId('payee-total')).toHaveText(euro(initialData.totalSpendCents));
     await expect(page.locator('.payee-period')).toHaveText('01.10.2023 bis 31.08.2026');
     await expect(
-      page.locator('.titleblock .tb-field').filter({ hasText: 'Stichtag' }).locator('.tb-value'),
+      (await redesignReportsOn(page))
+        ? page.getByTestId('report-frame-stand')
+        : page
+            .locator('.titleblock .tb-field')
+            .filter({ hasText: 'Stichtag' })
+            .locator('.tb-value'),
     ).toHaveText('31.08.2026 · Monatsende');
     await expect(
-      page.locator('.titleblock .tb-field').filter({ hasText: 'Datenbasis' }).locator('.tb-value'),
+      (await redesignReportsOn(page))
+        ? page.getByTestId('report-frame-basis')
+        : page
+            .locator('.titleblock .tb-field')
+            .filter({ hasText: 'Datenbasis' })
+            .locator('.tb-value'),
     ).toHaveText('01.10.23–31.08.26');
-    if (info.project.name === 'desktop') {
+    if (info.project.name === 'desktop' && !(await redesignReportsOn(page))) {
       expect((await page.locator('.titleblock').first().boundingBox())!.height).toBe(64);
     }
     expect(initialData.bookingCount).toBeGreaterThan(0);

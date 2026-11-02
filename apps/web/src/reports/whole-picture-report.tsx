@@ -31,7 +31,7 @@ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import { Term } from './term';
 import type { ReportEntry } from '../nav/reports-catalog';
-import { PageFrame } from '../pages/placeholder-page';
+import { ReportFrame as PageFrame } from './report-frame';
 import { AppLink } from '../shell/app-link';
 import { useZeitraum } from '../wealth/zeitraum';
 import { useElementWidth } from '../charts/use-element-width';

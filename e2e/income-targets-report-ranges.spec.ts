@@ -104,8 +104,12 @@ test('shared ranges, custom URL reload and optional trend', async ({ page }, inf
   ).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('navigation', { name: 'Weitere Berichte' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Zeitraum wählen' })).toBeVisible();
-  const headerFits = await page.locator('.titleblock').evaluate((header) => {
-    const cells = [...header.querySelectorAll<HTMLElement>('.tb-cell')];
+  const headerFits = await page.locator('.titleblock, .redesign-report-head').evaluate((header) => {
+    const cells = [
+      ...header.querySelectorAll<HTMLElement>(
+        '.tb-cell, .redesign-report-heading, .redesign-report-controls',
+      ),
+    ];
     return cells.every((cell) => {
       const box = cell.getBoundingClientRect();
       return [...cell.querySelectorAll<HTMLElement>('h1, input, select')]

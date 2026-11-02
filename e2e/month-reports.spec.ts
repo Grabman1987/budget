@@ -386,7 +386,7 @@ sampleTest(
     await page.setViewportSize({ width: 734, height: 1062 });
     await page.emulateMedia({ media: 'print' });
     await expect(page.locator('.sidebar')).toBeHidden();
-    await expect(page.locator('.titleblock')).toBeHidden();
+    await expect(page.locator('.titleblock, .redesign-report-head')).toBeHidden();
     const sheet = page.locator('.psheet');
     await expect(sheet).toBeVisible();
     // Nothing of the sheet is cut off: its content fits the fixed A4 height.

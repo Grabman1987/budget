@@ -1,3 +1,4 @@
+import { redesignReportsOn } from './report-frame';
 import { cents, formatEuro } from '@budget/domain';
 import { expect as baseExpect, sampleTest as test } from './sample';
 import { inspectReport } from './overview-report';
@@ -60,12 +61,17 @@ test('Zeitraumvergleich shows the figures of the endpoint and switches the mode'
   const next = page.waitForResponse(
     (r) => r.url().includes('/api/overview/compare?mode=ytd') && r.status() === 200,
   );
-  await page.getByRole('button', { name: 'Jahr bis heute gegen Vorjahr' }).click();
-  await next;
-  await expect(page.getByRole('button', { name: 'Jahr bis heute gegen Vorjahr' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  if (await redesignReportsOn(page)) {
+    await page.getByRole('combobox', { name: 'Vergleich', exact: true }).selectOption('ytd');
+    await next;
+    await expect(page.getByRole('combobox', { name: 'Vergleich', exact: true })).toHaveValue('ytd');
+  } else {
+    await page.getByRole('button', { name: 'Jahr bis heute gegen Vorjahr' }).click();
+    await next;
+    await expect(
+      page.getByRole('button', { name: 'Jahr bis heute gegen Vorjahr' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+  }
   await expect(
     page.getByRole('heading', { name: 'Jän 26 bis Aug 26 gegen Jän 25 bis Aug 25' }),
   ).toBeVisible();

@@ -5,21 +5,47 @@ import { longDay } from '../ledger/format';
 import { monthLabel, monthOf, shiftMonth } from '../nav/month';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
-import { PageFrame } from '../pages/placeholder-page';
+import { ReportFrame as PageFrame } from './report-frame';
 import { useMonth } from '../shell/use-month';
 import './month-report.css';
 import type { VerdictFacts } from '@budget/domain';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import type { ReportCalculation } from './report-frame';
 
 /** Per page, not per report: `/reports/gehalt` and `/reports/gehalt/historie` have their own sections. */
-const sectionsKey = () => `budget.report-sections.${location.pathname}`;
+const legacySectionsKey = () => `budget.report-sections.${location.pathname}`;
+const sectionsKey = () => {
+  if (!REDESIGN_ENABLED) return legacySectionsKey();
+  const search = new URLSearchParams(location.search);
+  const mode = ['darstellung', 'vorlage']
+    .map((key) => {
+      const value = search.get(key);
+      return value && /^[a-z-]{1,32}$/.test(value) ? `${key}=${value}` : '';
+    })
+    .filter(Boolean)
+    .join('&');
+  return `budget.report-sections.v2.${location.pathname}${mode ? `?${mode}` : ''}`;
+};
+/** A heading without an explicit ID uses a content identity, never its array position. */
+export function reportSectionId(slug: string, heading: string): string {
+  let hash = 2166136261;
+  for (const char of heading.trim()) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return `${slug}-section-${(hash >>> 0).toString(36)}`;
+}
 
 const NO_COLLAPSED_SECTIONS: readonly string[] = [];
 function collapsedSections(initial: readonly string[] = NO_COLLAPSED_SECTIONS): Set<string> {
   try {
-    const raw = localStorage.getItem(sectionsKey());
+    const raw =
+      localStorage.getItem(sectionsKey()) ??
+      (REDESIGN_ENABLED ? localStorage.getItem(legacySectionsKey()) : null);
     if (raw === null) return new Set(initial);
     const stored: unknown = JSON.parse(raw);
-    return new Set(Array.isArray(stored) ? stored.filter((k) => typeof k === 'string') : initial);
+    return new Set(
+      Array.isArray(stored)
+        ? stored.filter((k) => typeof k === 'string' && (!REDESIGN_ENABLED || !/^#\d+$/.test(k)))
+        : initial,
+    );
   } catch {
     return new Set(initial); // Existing callers retain their expanded default.
   }
@@ -31,7 +57,7 @@ function collapsedSections(initial: readonly string[] = NO_COLLAPSED_SECTIONS): 
  * ones per page in localStorage. The reports render their sections themselves, so the frame
  * enhances the DOM it owns (and again when a section is rendered later, e.g. after loading).
  * Collapsing hides everything but the marked head by stylesheet.
- * A section is keyed by its heading id, else by its position (ponytail: shifts if sections come and go).
+ * ON uses explicit heading IDs or stable heading hashes; OFF preserves its original stored positions.
  */
 export function useCollapsibleSections(
   slug: string,
@@ -53,10 +79,14 @@ export function useCollapsibleSections(
         const bare = heading.parentElement === section;
         const head = bare ? heading : heading.parentElement!;
         head.setAttribute('data-section-head', '');
-        const key = heading.id || `#${index}`;
-        heading.id ||= `${slug}-section-${index}`;
+        const key =
+          heading.id ||
+          (REDESIGN_ENABLED ? reportSectionId(slug, heading.textContent ?? '') : `#${index}`);
+        heading.id ||= REDESIGN_ENABLED ? key : `${slug}-section-${index}`;
+        if (REDESIGN_ENABLED) section.id ||= `${heading.id}-content`;
         const button = document.createElement('button');
         button.type = 'button';
+        if (REDESIGN_ENABLED) button.setAttribute('aria-controls', section.id);
         button.className = `icon-btn section-toggle${bare ? ' section-toggle-bare' : ''}`;
         // The name is the generic action followed by the section title, so voice control and
         // screen readers can tell the toggles apart (#647). Visible text is unchanged (icon only).
@@ -177,6 +207,7 @@ export function MonthReportFrame({
   children,
   verdict,
   reportControls,
+  calculation,
 }: {
   report: ReportEntry;
   verdict?: VerdictFacts | undefined;
@@ -193,10 +224,14 @@ export function MonthReportFrame({
   extraFields?: Array<{ label: string; value: ReactNode }>;
   children: ReactNode;
   reportControls?: ReactNode;
+  calculation?: ReportCalculation | undefined;
 }) {
   const sectionsRef = useCollapsibleSections(report.id);
   return (
     <PageFrame
+      sourceReportId={report.id}
+      calculation={calculation}
+      sourceDate={asOf}
       verdict={verdict}
       reportControls={reportControls}
       meta={meta}

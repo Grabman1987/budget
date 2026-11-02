@@ -1,3 +1,4 @@
+import { redesignReportsOn } from './report-frame';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { sampleTest } from './sample';
@@ -15,7 +16,12 @@ sampleTest(
     expect(response.status()).toBe(200);
     const data = (await response.json()) as WholePicture;
     await expect(
-      page.getByRole('heading', { name: 'Vermögen & Schulden', exact: true }).first(),
+      page
+        .getByRole('heading', {
+          name: (await redesignReportsOn(page)) ? 'Vermögensreport' : 'Vermögen & Schulden',
+          exact: true,
+        })
+        .first(),
     ).toBeVisible();
     await expect(page).toHaveURL(
       (url) =>
@@ -45,7 +51,7 @@ sampleTest(
     await expect(page.getByRole('group', { name: 'Maßkette Nettovermögen' })).toContainText(
       'Sonstiges',
     );
-    await expect(page.locator('.titleblock')).not.toContainText('noch nie');
+    await expect(page.locator('.titleblock, .redesign-report-head')).not.toContainText('noch nie');
     const chart = page.getByRole('group', {
       name: 'Monatlicher Sparbetrag und Markteffekt mit Nettovermögen',
     });

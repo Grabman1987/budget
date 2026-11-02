@@ -18,7 +18,7 @@ import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { AppLink } from '../shell/app-link';
 import { goalReportRows, type GoalReportRow } from './goals-progress-model';
-import { PageFrame } from './placeholder-page';
+import { ReportFrame as PageFrame } from '../reports/report-frame';
 import './goals-progress-report.css';
 
 const MONEY_FIELDS = [

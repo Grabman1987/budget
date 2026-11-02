@@ -7,7 +7,7 @@ import { ApiError } from '../api/http';
 import { eur, eurParts, longDay } from '../ledger/format';
 import { STATUS_LABEL } from '../ledger/labels';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
-import { PageFrame } from '../pages/placeholder-page';
+import { ReportFrame as PageFrame } from './report-frame';
 import { AppLink } from '../shell/app-link';
 import {
   contactOverviewQuery,
