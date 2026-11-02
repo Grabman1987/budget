@@ -1,5 +1,9 @@
+.sheet:has(> .payments-v2) {
+  padding-block: var(--space-xl);
+  row-gap: var(--space-xl);
+}
 .xp.payments-v2 {
-  padding: 0 0 var(--space-xl);
+  padding: 0;
   min-width: 0;
 }
 .payments-v2 .xp-toolbar {

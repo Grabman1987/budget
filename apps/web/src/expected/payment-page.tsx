@@ -8,6 +8,7 @@ import { expectedQuery } from './api';
 import { ExpectedDetailBack } from './detail-nav';
 import { PaymentPanel } from './payment-panel';
 import { useMonth } from '../shell/use-month';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 export function PaymentPage() {
   const { id } = useParams({ strict: false }) as { id: string };
@@ -15,9 +16,14 @@ export function PaymentPage() {
   const payment = payments.data?.find((p) => p.id === id);
   const [month] = useMonth();
   const navigate = useNavigate();
-  const { ansicht = 'next', art = 'all' } = useSearch({ strict: false }) as {
+  const {
+    ansicht = 'next',
+    art = 'all',
+    tage = 35,
+  } = useSearch({ strict: false }) as {
     ansicht?: 'next' | 'contracts' | 'all' | 'kalender';
     art?: 'all' | 'inflow' | 'outflow';
+    tage?: 35 | 90;
   };
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -49,7 +55,7 @@ export function PaymentPage() {
               onClose={() =>
                 void navigate({
                   to: '/plan/erwartet',
-                  search: { monat: month },
+                  search: { monat: month, ...(REDESIGN_ENABLED ? { ansicht, art, tage } : {}) },
                   state: { expectedView: ansicht, expectedKind: art },
                 })
               }

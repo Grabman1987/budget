@@ -39,7 +39,16 @@ const serious = (violations: Array<{ impact?: string | null }>) =>
 sampleTest('the five fixture goals show their needed rates for 17.09.2026', async ({ page }) => {
   await page.goto('/plan/sparziele');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('September 2026');
-  await expect(page.getByRole('link', { name: 'Ziele' })).toHaveAttribute('aria-current', 'page');
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+    const menu = page.locator('.area-page-menu');
+    await menu.locator('summary').click();
+    await expect(menu.getByRole('link', { name: 'Ziele', exact: true })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await menu.locator('summary').click();
+  } else
+    await expect(page.getByRole('link', { name: 'Ziele' })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByTestId('goals-summary')).toHaveText('3 von 5 im Plan');
   await expect(page.locator('tr.prow')).toHaveCount(5);
   for (const [name, target, saved, needed, line] of NEEDED) {
@@ -128,7 +137,8 @@ for (const scheme of ['light', 'dark'] as const) {
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
         .analyze();
       expect(serious(axe.violations)).toEqual([]);
-      await expectScreenshot(page, `sparziele-${scheme}.png`, { fullPage: true });
+      const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      await expectScreenshot(page, `sparziele${on ? '-v2' : ''}-${scheme}.png`, { fullPage: true });
     });
   });
 }

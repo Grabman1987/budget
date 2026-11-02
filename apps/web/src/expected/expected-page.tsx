@@ -90,9 +90,10 @@ export function ExpectedPage() {
   const [localView, setView] = useState<View>(saved.expectedView ?? 'next');
   const [localKind, setKind] = useState<KindFilter>(saved.expectedKind ?? 'all');
   const [localHorizon, setHorizon] = useState<Horizon>(saved.expectedHorizon ?? HORIZONS[0]);
-  const view = REDESIGN_ENABLED ? (route.ansicht ?? localView) : localView;
-  const kind = REDESIGN_ENABLED && route.ansicht ? (route.art as KindFilter) : localKind;
-  const horizon = REDESIGN_ENABLED && route.ansicht ? (route.tage as Horizon) : localHorizon;
+  // URL defaults also apply when Back returns to the initial, query-free list.
+  const view = REDESIGN_ENABLED ? (route.ansicht ?? 'next') : localView;
+  const kind = REDESIGN_ENABLED ? (route.art as KindFilter) : localKind;
+  const horizon = REDESIGN_ENABLED ? (route.tage as Horizon) : localHorizon;
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<unknown>(null);
   const [panel, setPanel] = useState<PaymentPanelState>(null);
@@ -153,7 +154,12 @@ export function ExpectedPage() {
       setRefreshing(false);
     }
   };
-  const detailSearch = { monat: month, ansicht: view, art: kind };
+  const detailSearch = {
+    monat: month,
+    ansicht: view,
+    art: kind,
+    ...(REDESIGN_ENABLED ? { tage: horizon } : {}),
+  };
   const openPayment = (id: string) =>
     void navigate({ to: '/plan/erwartet/$id', params: { id }, search: detailSearch });
   const consumed = useRef(false);

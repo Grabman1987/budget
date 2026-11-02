@@ -154,6 +154,25 @@ test('the 35-day list ends on 22.10.; 90 days extends it without changing the fi
   // The day before the 36th is not cut: every extra row is later than 22.10.
   for (const r of long.filter((r) => !inShort(r))) expect(r.md > LAST_35_MD).toBe(true);
 
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+    await page.reload();
+    await expect(page.getByRole('button', { name: '90 Tage' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await page.goBack();
+    await expect(page.getByRole('button', { name: '35 Tage' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(await rowsOf(page)).toEqual(short);
+    await page.goForward();
+    await expect(page.getByRole('button', { name: '90 Tage' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  }
+
   await page.getByRole('button', { name: '35 Tage' }).click();
   expect(await rowsOf(page)).toEqual(short);
 });

@@ -82,6 +82,7 @@ it('ON restores the full progress view from URL state using proven sources witho
     'true',
   );
   expect(screen.getByRole('heading', { name: /Sparziele · Sep/ })).toBeTruthy();
+  expect(screen.queryByTestId('goals-summary')).toBeNull();
   expect(
     opened.db
       .select()

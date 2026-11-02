@@ -17,6 +17,7 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { AppLink } from '../shell/app-link';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { goalReportRows, type GoalReportRow } from './goals-progress-model';
 import { PageFrame } from './placeholder-page';
 import './goals-progress-report.css';
@@ -195,7 +196,9 @@ function ReportBody({
         {rows.length === 0 && (
           <p role="status">
             Noch keine gespeicherten Sparziele.{' '}
-            <AppLink to="/plan/sparziele">Sparziele im Plan öffnen</AppLink>
+            <AppLink to="/plan/sparziele" search={REDESIGN_ENABLED ? { monat: month } : undefined}>
+              Sparziele im Plan öffnen
+            </AppLink>
           </p>
         )}
         <div className="goals-report-list">
@@ -338,7 +341,9 @@ function ReportBody({
         </section>
       )}
       <p>
-        <AppLink to="/plan/sparziele">Sparziele im Plan öffnen</AppLink>
+        <AppLink to="/plan/sparziele" search={REDESIGN_ENABLED ? { monat: month } : undefined}>
+          Sparziele im Plan öffnen
+        </AppLink>
       </p>
     </>
   );

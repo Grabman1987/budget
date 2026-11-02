@@ -79,7 +79,7 @@ export function GoalsPage() {
             )}
           </>
         )}
-        {goals.data && (
+        {!progress && goals.data && (
           <GoalsBody
             key={month}
             month={month}
@@ -341,7 +341,10 @@ function GoalRow({
   const line = goalLine(g, month);
   const cls = category?.class ?? null;
   return (
-    <tr className={cx('prow', 'grow', g.status === 'reached' && 'is-reached')}>
+    <tr
+      className={cx('prow', 'grow', g.status === 'reached' && 'is-reached')}
+      data-goal-tone={REDESIGN_ENABLED ? line.tone : undefined}
+    >
       <td className="col-pos">
         <span className="pos">{pos}</span>
       </td>

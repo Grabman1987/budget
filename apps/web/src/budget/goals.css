@@ -17,6 +17,16 @@
   padding: 0;
   min-width: 0;
 }
+.goals-v2 [data-goal-tone='warn'] .pmeta {
+  color: var(--warning);
+}
+.goals-v2 [data-goal-tone] .pmeta svg {
+  color: currentColor;
+}
+.goals-v2 [data-goal-tone='ok'] .pmeta,
+.goals-v2 [data-goal-tone='done'] .pmeta {
+  color: var(--primary);
+}
 
 .plan.goals .goals-toolbar {
   margin-bottom: -8px;

@@ -70,9 +70,13 @@ test('Plan and report open one goal history page and retain month and return rou
     .click();
   await expect(page).toHaveURL(/\/plan\/sparziele\?monat=2026-08$/);
   await page.goto('/reports/sparziele?monat=2026-09');
-  await expect(page).toHaveURL(/\/plan\/sparziele\?monat=2026-09$/);
+  const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  const reportReturn = on
+    ? /\/plan\/sparziele\?monat=2026-09&ansicht=fortschritt$/
+    : /\/plan\/sparziele\?monat=2026-09$/;
+  await expect(page).toHaveURL(reportReturn);
   await page
-    .locator('.goals')
+    .locator(on ? '.goals-report-list' : '.goals')
     .getByRole('link', { name: 'Urlaub Sommer 2027', exact: true })
     .click();
   await expect(page).toHaveURL(/\/plan\/sparziele\/[^?]+\?monat=2026-09/);
@@ -88,7 +92,7 @@ test('Plan and report open one goal history page and retain month and return rou
           : 'Zurück zu Sparzielen',
     })
     .click();
-  await expect(page).toHaveURL(/\/plan\/sparziele\?monat=2026-09$/);
+  await expect(page).toHaveURL(reportReturn);
   await page.goto('/plan/sparziele/unknown-synthetic-goal?monat=2026-08');
   await expect(page.getByText('Dieses Sparziel ist nicht vorhanden.')).toBeVisible();
 });
