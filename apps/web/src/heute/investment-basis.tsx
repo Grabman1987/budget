@@ -23,7 +23,7 @@ export function InvestmentBasisSummary({ basis, search }: { basis: Basis; search
           to="/heute/details/invested"
           search={search}
           hash="anlagebasis"
-          aria-label="Quelle der Anlagebasis"
+          aria-label="Anlagebasis ansehen · Quelle der Anlagebasis"
         >
           Anlagebasis ansehen
         </AppLink>

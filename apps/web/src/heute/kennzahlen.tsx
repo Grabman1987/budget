@@ -54,7 +54,15 @@ export function Kennzahlen({
   const householdMonth = data?.stand.today.slice(0, 7);
   const payday = scope.period === 'payday';
   const month =
-    !budget.isFetching && !budget.isPending && !budget.isError ? budget.data : undefined;
+    !budget.isPending &&
+    !budget.isError &&
+    (REDESIGN_ENABLED
+      ? !budget.isPlaceholderData &&
+        !(budget.failureCount > 0) &&
+        budget.data?.summary.month === scope.month
+      : !budget.isFetching)
+      ? budget.data
+      : undefined;
   const summary = month?.summary;
   const available = month ? availableInEnvelopes(planRows(month)) : undefined;
   const goal = data?.nearestGoal;
@@ -62,6 +70,11 @@ export function Kennzahlen({
     <div className="heute-answers heute-kennzahlen" data-testid="heute-kennzahlen">
       {data && data.stand.month && data.stand.month !== householdMonth && (
         <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>
+      )}
+      {REDESIGN_ENABLED && month && budget.isFetching && (
+        <p className="heute-note" role="status">
+          Budgetangaben werden aktualisiert · {monthLabel(scope.month)}
+        </p>
       )}
       <div className="heute-answer-grid">
         <Kennzahl
@@ -307,7 +320,11 @@ function Kennzahl({
   const describedBy = info && note ? noteId : undefined;
   const text = value === undefined ? undefined : eur(value);
   let figure: ReactNode;
-  if (state?.isPending || state?.isFetching || pending) {
+  if (
+    state?.isPending ||
+    (state?.isFetching && !(REDESIGN_ENABLED && value !== undefined && !state.isError)) ||
+    pending
+  ) {
     figure = (
       <span className={className} aria-busy="true">
         …

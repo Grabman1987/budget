@@ -143,7 +143,9 @@ it('ON keeps selected signed Investiert separate from the positive Anlagen/net-d
     '200',
   );
   expect(chain.textContent).toContain('Schulden (netto)');
-  const source = within(basis).getByRole('link', { name: 'Quelle der Anlagebasis' });
+  const source = within(basis).getByRole('link', {
+    name: 'Anlagebasis ansehen · Quelle der Anlagebasis',
+  });
   expect(source.getAttribute('href')).toBe(`${detail}#anlagebasis`);
   fireEvent.click(screen.getByRole('button', { name: 'Herleitung Nettovermögen' }));
   const note = document.getElementById('kennzahl-nettovermoegen-note')!;

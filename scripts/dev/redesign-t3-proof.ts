@@ -108,7 +108,9 @@ export async function verifyT3InvestmentBasis(page: Page, origin: string, bookma
     await expect(chain.getByRole('button', { name: /Schulden \(netto\).*95,00/ })).toBeVisible();
     await investmentScreenshots(page, 'basis');
     await investmentScreenshots(page, 'chain');
-    await basis.getByRole('link', { name: 'Quelle der Anlagebasis', exact: true }).click();
+    await basis
+      .getByRole('link', { name: 'Anlagebasis ansehen · Quelle der Anlagebasis', exact: true })
+      .click();
     const target = page.locator('#anlagebasis-title');
     await expect(page).toHaveURL(
       (url) =>
