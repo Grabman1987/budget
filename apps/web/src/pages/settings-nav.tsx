@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useLocation } from '@tanstack/react-router';
 import { SETTINGS_GROUPS, areaById } from '../nav/areas';
 import { AppLink } from '../shell/app-link';
 import './settings-nav.css';
@@ -15,6 +16,7 @@ export interface SettingsNavProps {
  * the sidebar), so the mark follows the URL even while a lazy page is still loading.
  */
 export function SettingsNav({ variant }: SettingsNavProps) {
+  const pathname = useLocation({ select: (location) => location.pathname });
   return (
     <nav className={`settings-nav settings-nav-${variant}`} aria-label="Einstellungen">
       {SETTINGS_GROUPS.map((group) => (
@@ -25,7 +27,12 @@ export function SettingsNav({ variant }: SettingsNavProps) {
           <ul aria-labelledby={`settings-group-${group.id}`}>
             {group.items.map((item) => (
               <li key={item.id}>
-                <AppLink to={item.to}>
+                <AppLink
+                  to={item.to}
+                  {...(item.to === '/einstellungen/kontakte'
+                    ? { 'aria-current': pathname === item.to ? ('page' as const) : undefined }
+                    : {})}
+                >
                   <span className="settings-item-label">{item.label}</span>
                   <ChevronRight
                     className="settings-chevron"

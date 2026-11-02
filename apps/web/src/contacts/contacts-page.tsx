@@ -254,7 +254,7 @@ function ContactRename({
   );
 }
 
-function ContactRenameDialog({
+export function ContactRenameDialog({
   contact,
   onClose,
 }: {
@@ -268,7 +268,7 @@ function ContactRenameDialog({
   );
 }
 
-function NewContact({
+export function NewContact({
   onDone,
   onClose,
   contact,

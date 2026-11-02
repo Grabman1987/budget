@@ -1,5 +1,6 @@
 import type { AreaId } from './areas';
 import { REPORT_GROUPS } from './reports-catalog';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 /** Route metadata, also attached to each route as `staticData` (page title in the phone header). */
 export interface PageMeta {
@@ -23,8 +24,18 @@ const P4 = 'P4 Datenquellen';
 const P5 = 'P5 Vermögen';
 const P6 = 'P6 Reports und Umstellung';
 
+export const CONTACT_SETTINGS_META: PageDef = {
+  path: '/einstellungen/kontakte',
+  title: 'Einstellungen · Kontakte',
+  area: 'einstellungen',
+  register: 'kontakte',
+  fills: P3,
+  spec: 'Kontakt-Stammdaten mit bestehendem Anlegen und Umbenennen; IDs und Verlauf bleiben erhalten.',
+};
+
 /** Every placeholder page with a fixed path. Heute, the report pages and dev pages are separate. */
 export const PAGES: ReadonlyArray<PageDef> = [
+  ...(REDESIGN_ENABLED ? [CONTACT_SETTINGS_META] : []),
   {
     path: '/plan/monat',
     title: 'Plan · Monat',
