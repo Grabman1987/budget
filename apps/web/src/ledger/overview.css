@@ -386,3 +386,60 @@
     width: 100%;
   }
 }
+
+.account-overview-redesign .overview-group-toggle {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.account-overview-redesign .overview-group-toggle:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.account-overview-redesign .overview-group-toggle:disabled {
+  cursor: default;
+}
+.account-overview-redesign .overview-group-review {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  font-weight: 400;
+}
+.account-overview-redesign .overview-check[data-review-state='checked'] {
+  color: var(--primary);
+}
+.account-overview-redesign .overview-check[data-review-state='due'] {
+  color: var(--warning);
+}
+.account-overview-redesign .overview-lead-links > a:first-child {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+}
+.account-overview-redesign .overview-review-track {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+  max-width: 240px;
+  height: 4px;
+}
+.account-overview-redesign .overview-review-track > span {
+  flex: 1;
+  min-width: 0;
+  background: var(--rule-strong);
+}
+.account-overview-redesign .overview-review-track > [data-review-state='checked'] {
+  background: var(--primary);
+}
+.account-overview-redesign .overview-review-track > [data-review-state='due'] {
+  background: var(--warning);
+}

@@ -2,7 +2,16 @@ import { ClosedAccountDisclosure } from './closed-account-disclosure';
 import { Button, CircleNumber, cx, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { TriangleAlert, Check, ChevronDown, ChevronUp, Pencil, Plus } from 'lucide-react';
+import {
+  TriangleAlert,
+  Check,
+  CircleDashed,
+  Minus,
+  ChevronDown,
+  ChevronUp,
+  Pencil,
+  Plus,
+} from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 import { KONTEN_META } from '../nav/pages';
 import { AppLink } from '../shell/app-link';
@@ -273,6 +282,13 @@ function OverviewLead({
       <div className="overview-lead-links">
         <Link to="/konten/pruefen">
           {presentation.checked} von {presentation.visible.length} Konten geprüft
+          {REDESIGN_ENABLED && presentation.visible.length > 0 && (
+            <span className="overview-review-track" aria-hidden="true">
+              {presentation.visible.map((account) => (
+                <span key={account.id} data-review-state={accountCheck(account).state} />
+              ))}
+            </span>
+          )}
         </Link>
         <Link to="/vermoegen/nettovermoegen">Vermögen ansehen</Link>
         {asOf && <span>Stand {longDay(asOf)}</span>}
@@ -322,6 +338,10 @@ function OverviewGroup({
   ordering: boolean;
   onReorder: (ids: string[]) => void;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const hidden = REDESIGN_ENABLED && collapsed && !ordering;
+  const due = group.accounts.filter((a) => a.reviewStatus?.state === 'due').length;
+  const unchecked = group.accounts.filter((a) => a.reviewStatus?.state !== 'checked').length;
   const names = new Map(group.accounts.map((a) => [a.id, maskMoneyText(a.name)]));
   const reorder = useReorder(
     group.accounts.map((a) => a.id),
@@ -332,8 +352,30 @@ function OverviewGroup({
     <>
       <tr className="kgroup overview-group" id={`kg-${group.group.id}`}>
         <th scope="rowgroup" colSpan={3}>
-          <CircleNumber n={index} size="sm" />
-          <span className="grp-title">{group.group.title}</span>
+          {REDESIGN_ENABLED ? (
+            <button
+              type="button"
+              className="overview-group-toggle"
+              aria-expanded={!hidden}
+              disabled={ordering}
+              onClick={() => setCollapsed(!collapsed)}
+            >
+              {hidden ? (
+                <ChevronUp size={16} aria-hidden="true" />
+              ) : (
+                <ChevronDown size={16} aria-hidden="true" />
+              )}
+              <span className="grp-title">{group.group.title}</span>{' '}
+              <span className="overview-group-review">
+                {due > 0 ? `${due} fällig` : unchecked > 0 ? `${unchecked} offen` : 'Alle geprüft'}
+              </span>
+            </button>
+          ) : (
+            <>
+              <CircleNumber n={index} size="sm" />
+              <span className="grp-title">{group.group.title}</span>
+            </>
+          )}
           {ordering && reorder.status}
         </th>
         <td className="kc-num overview-row-value">
@@ -348,23 +390,24 @@ function OverviewGroup({
         <td />
         {ordering && <td />}
       </tr>
-      {group.accounts.map((a) => (
-        <OverviewAccount
-          key={a.id}
-          account={a}
-          value={values?.get(a.id)}
-          useTreeValues={values !== undefined}
-          loading={loading}
-          sources={sourcesByRow.get(a.id)}
-          related={related.get(a.id) ?? []}
-          points={series?.series[a.id]?.points ?? []}
-          quality={series?.quality?.[a.id]}
-          seriesLoading={seriesLoading}
-          ordering={ordering}
-          rowProps={reorder.rowProps(a.id)}
-          controls={reorder.controls(a.id)}
-        />
-      ))}
+      {!hidden &&
+        group.accounts.map((a) => (
+          <OverviewAccount
+            key={a.id}
+            account={a}
+            value={values?.get(a.id)}
+            useTreeValues={values !== undefined}
+            loading={loading}
+            sources={sourcesByRow.get(a.id)}
+            related={related.get(a.id) ?? []}
+            points={series?.series[a.id]?.points ?? []}
+            quality={series?.quality?.[a.id]}
+            seriesLoading={seriesLoading}
+            ordering={ordering}
+            rowProps={reorder.rowProps(a.id)}
+            controls={reorder.controls(a.id)}
+          />
+        ))}
     </>
   );
 }
@@ -437,7 +480,17 @@ function OverviewAccount({
               data-review-state={check.state}
               className={cx('kcheck', 'overview-check', check.stale && 'is-due is-stale')}
             >
-              {check.stale && <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />}
+              {REDESIGN_ENABLED ? (
+                check.state === 'checked' ? (
+                  <Check size={16} aria-hidden="true" />
+                ) : check.state === 'due' ? (
+                  <CircleDashed size={16} aria-hidden="true" />
+                ) : (
+                  <Minus size={16} aria-hidden="true" />
+                )
+              ) : (
+                check.stale && <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
+              )}
               {CHECK_LABEL[check.state] ?? CHECK_LABEL['unavailable']}
             </span>
           </Link>

@@ -217,9 +217,7 @@ it.each([false, true])(
       expect(screen.getByTestId('budget-accounts-balance').textContent).toBe('120,00 €'),
     );
     expect(container.querySelector('[data-redesign="account-overview"]') !== null).toBe(enabled);
-    expect(screen.queryByRole('link', { name: 'Alle Buchungen', exact: true }) !== null).toBe(
-      enabled,
-    );
+    expect(screen.queryByRole('link', { name: 'Alle Buchungen' }) !== null).toBe(enabled);
     expect(
       [...container.querySelectorAll('[data-testid="account-group-value"]')].map(
         (node) => node.textContent,
@@ -249,12 +247,29 @@ it('keeps all bookings reachable without accounts or review work', async () => {
     'Keine offenen Konten. Lege ein Konto an, um hier Saldo und Prüfstand zu sehen.',
   );
   expect(screen.getByRole('link', { name: '0 von 0 Konten geprüft' })).toBeTruthy();
-  expect(
-    screen.getByRole('link', { name: 'Alle Buchungen', exact: true }).getAttribute('href'),
-  ).toBe('/konten/buchungen');
-  await userEvent.setup().click(screen.getByRole('link', { name: 'Alle Buchungen', exact: true }));
+  expect(screen.getByRole('link', { name: 'Alle Buchungen' }).getAttribute('href')).toBe(
+    '/konten/buchungen',
+  );
+  await userEvent.setup().click(screen.getByRole('link', { name: 'Alle Buchungen' }));
   await screen.findByText('Bookings destination');
   expect(requests.some((request) => request.includes('/series'))).toBe(false);
+  expect(requests.every((request) => request.startsWith('GET '))).toBe(true);
+});
+
+it('collapses an ON group without losing its total or review summary and reveals it for ordering', async () => {
+  const user = userEvent.setup();
+  const { container } = mount();
+  await screen.findByRole('link', { name: /^Synthetic Alpha / });
+  const group = screen.getByRole('button', { name: 'Budget-Konten Alle geprüft' });
+  expect(container.querySelectorAll('.overview-review-track > span')).toHaveLength(5);
+  await user.click(group);
+  expect(group.getAttribute('aria-expanded')).toBe('false');
+  expect(screen.queryByRole('link', { name: /^Synthetic Alpha / })).toBeNull();
+  expect(screen.getAllByText('120,00 €').length).toBeGreaterThan(0);
+  await user.click(screen.getByRole('button', { name: 'Reihenfolge ändern' }));
+  expect(group.getAttribute('aria-expanded')).toBe('true');
+  expect(group.hasAttribute('disabled')).toBe(true);
+  expect(screen.getByRole('button', { name: 'Synthetic Alpha nach unten' })).toBeTruthy();
   expect(requests.every((request) => request.startsWith('GET '))).toBe(true);
 });
 
@@ -272,15 +287,15 @@ it('retains closed residuals, source explanation, table and accessible ordering 
   await waitFor(() =>
     expect(container.querySelector('.overview-detail .chart-data-table')).toBeTruthy(),
   );
-  await user.click(screen.getByRole('button', { name: 'Reihenfolge ändern', exact: true }));
+  await user.click(screen.getByRole('button', { name: 'Reihenfolge ändern' }));
   expect(
     screen.getByRole('button', { name: 'Synthetic Alpha nach oben' }).hasAttribute('disabled'),
   ).toBe(true);
   expect(screen.getByRole('button', { name: 'Synthetic Alpha nach unten' })).toBeTruthy();
-  await user.click(screen.getByRole('button', { name: 'Fertig', exact: true }));
-  await user.click(screen.getByRole('button', { name: 'Konto anlegen', exact: true }));
+  await user.click(screen.getByRole('button', { name: 'Fertig' }));
+  await user.click(screen.getByRole('button', { name: 'Konto anlegen' }));
   const dialog = screen.getByRole('dialog', { name: 'Konto anlegen' });
-  await user.click(within(dialog).getByRole('button', { name: 'Abbrechen', exact: true }));
+  await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
   expect(requests.every((request) => request.startsWith('GET '))).toBe(true);
 });
 
@@ -291,7 +306,7 @@ it('masks the canonical lead and closed residuals live without changing the rest
     .setup()
     .click(screen.getByText('Geschlossene Konten · Restwerte im Nettovermögen'));
   act(() => setAmountsHidden(true));
-  expect(screen.getByTestId('budget-accounts-balance').textContent).toBe('•••');
+  expect(screen.getByTestId('budget-accounts-balance').textContent).toBe('••• €');
   expect(screen.queryByText('Restwert · 900,00 €')).toBeNull();
   expect(screen.queryByText('Restwert · −40,00 €')).toBeNull();
   act(() => setAmountsHidden(false));
