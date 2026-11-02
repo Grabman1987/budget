@@ -14,7 +14,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
 import { AREAS } from '../nav/areas';
-import { REPORTS } from '../nav/reports-catalog';
+import { REPORTS, LIQUIDITY_FORECAST } from '../nav/reports-catalog';
 import { hubReport } from '../reports/report-hub-model';
 import { isTyping } from './capture-shortcut';
 import { KeyboardShortcuts } from './keyboard-shortcuts';
@@ -96,6 +96,10 @@ const REDESIGN_SEARCH_TERMS: Record<string, readonly string[]> = {
       [report.id, `${report.pos} ${report.name}`, hubReport(report.id)?.name ?? ''],
     ]),
   ),
+  'page:/plan/prognose': [
+    LIQUIDITY_FORECAST.id,
+    `${LIQUIDITY_FORECAST.pos} ${LIQUIDITY_FORECAST.name}`,
+  ],
   'page:/plan/erwartet': ['wiederkehrende zahlungen', 'erwartete zahlungen'],
   'page:/plan/jahr': ['jahresplan'],
   'page:/konten/buchungen': ['alle buchungen'],

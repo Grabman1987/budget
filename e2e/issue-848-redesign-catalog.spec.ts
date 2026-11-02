@@ -84,6 +84,7 @@ test('catalog preserves all sixteen destinations, legacy names and usable fallba
     ['Monats-One-Pager', '1 Monatsbericht'],
     ['Vermögensreport', '6 Vermögensreport'],
     ['Gehaltsreport', '11 Gehalt'],
+    ['Liquiditätsprognose', 'Plan · Prognose'],
   ]) {
     await palette.fill(term!);
     await expect(page.getByRole('option', { name: new RegExp(label!) })).toBeVisible();
