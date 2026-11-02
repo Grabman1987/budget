@@ -281,6 +281,22 @@
   }
 }
 
+/* The opt-in shell keeps period labels readable when text grows inside a phone title block. */
+@media (max-width: 767px) {
+  :root:has([data-budget-redesign='1']) .titleblock-stack .tb-value,
+  :root:has([data-budget-redesign='1']) .titleblock-stack .seg {
+    min-width: 0;
+    white-space: normal;
+  }
+  :root:has([data-budget-redesign='1']) .titleblock-stack .seg button {
+    min-width: 0;
+    height: auto;
+    padding-block: 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
 /* ---------- Registers ---------- */
 .registers {
   display: flex;
