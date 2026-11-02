@@ -8,6 +8,7 @@ import { monthLabel } from '../nav/month';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
 import { useMonth } from '../shell/use-month';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { IncomeBody } from '../expected/income-panel';
 import { incomeQuery } from '../expected/api';
 import { eur } from '../ledger/format';
@@ -120,6 +121,8 @@ export function PlanIncomePage() {
   const expected = useLocation({
     select: (location) => location.pathname === '/plan/erwartet/einnahmen',
   });
+  const incomeCents =
+    REDESIGN_ENABLED && !expected ? budget.data?.summary.incomeCents : income.data?.receivedCents;
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
@@ -127,7 +130,7 @@ export function PlanIncomePage() {
   return (
     <PageFrame
       meta={expected ? PLAN_ERWARTET : PLAN_MONAT}
-      income={income.data ? eur(income.data.receivedCents) : '–'}
+      income={incomeCents !== undefined ? eur(incomeCents) : '–'}
     >
       <div className="plan plan-detail">
         {expected ? <ExpectedDetailBack /> : <PlanDetailBack month={month} />}

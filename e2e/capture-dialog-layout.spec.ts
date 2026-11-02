@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator } from '@playwright/test';
+import { MIN_TARGET_PX } from './ledger-helpers';
 
 async function choose(line: Locator, label: string, search: string, option: RegExp | string) {
   await line.getByLabel(label, { exact: true }).fill(search);
@@ -171,8 +172,8 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
           })),
       );
     for (const box of controls) {
-      expect(box.width, box.name).toBeGreaterThanOrEqual(44);
-      expect(box.height, box.name).toBeGreaterThanOrEqual(44);
+      expect(box.width, box.name).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+      expect(box.height, box.name).toBeGreaterThanOrEqual(MIN_TARGET_PX);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       page.viewportSize()!.width,
@@ -201,8 +202,8 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   await dialog.getByRole('button', { name: '+ Weitere Kategorie' }).click();
   const remove = dialog.getByRole('button', { name: 'Zeile 3 entfernen' });
   const removeBox = (await remove.boundingBox())!;
-  expect(removeBox.width).toBeGreaterThanOrEqual(44);
-  expect(removeBox.height).toBeGreaterThanOrEqual(44);
+  expect(removeBox.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+  expect(removeBox.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
   await remove.click();
   await expect(discard).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
@@ -375,8 +376,8 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
             })),
         );
       for (const box of controls) {
-        expect(box.width, box.name ?? '').toBeGreaterThanOrEqual(44);
-        expect(box.height, box.name ?? '').toBeGreaterThanOrEqual(44);
+        expect(box.width, box.name ?? '').toBeGreaterThanOrEqual(MIN_TARGET_PX);
+        expect(box.height, box.name ?? '').toBeGreaterThanOrEqual(MIN_TARGET_PX);
       }
       expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
         [],

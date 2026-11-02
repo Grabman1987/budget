@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import type { AssetCompositionPoint } from '@budget/domain';
 import { expect, type Page } from '@playwright/test';
@@ -5,13 +6,11 @@ import { test } from './isolated-ledger';
 test.use({ ledgerToday: '2026-03-01' });
 
 async function privacy(page: Page, hidden: boolean) {
-  const profile = page.locator('.m-profile summary');
-  if (await profile.isVisible()) await profile.click();
-  const button = page.getByRole('button', { name: 'Beträge verbergen', exact: true });
-  await expect(button).toHaveAttribute('aria-pressed', String(!hidden));
-  await button.click();
-  await expect(button).toHaveAttribute('aria-pressed', String(hidden));
-  if (await profile.isVisible()) await profile.click();
+  await withShellControls(page, async ({ privacy: button }) => {
+    await expect(button).toHaveAttribute('aria-pressed', String(!hidden));
+    await button.click();
+    await expect(button).toHaveAttribute('aria-pressed', String(hidden));
+  });
 }
 test('550/551 literal signed composition reconciles lead, monthly chart, accounts and private accessible values', async ({
   page,

@@ -1,8 +1,8 @@
 # Redesign implementation plan — STOP 2
 
-Date: 30 October 2026 (Europe/Vienna). Status: **STOP 2 accepted; Phase C and implementation in branches/PRs authorised. Production integration/release and real-data changes remain separately gated**.
+Date: 30 October 2026 (Europe/Vienna). Status: **STOP 2 accepted; Phase C and implementation in branches/PRs authorised. Integration follows the current queue process; releases and real-data changes remain separately gated**.
 
-The owner explicitly approved Phase B after [STOP 1](00-bestand.md). This document is the complete planning deliverable. The owner accepted STOP 2 on 2026-10-30 and explicitly authorised Phase C and implementation in branches/PRs. Production merges, releases and real-data changes still require a separate owner OK; protected-rule changes and new external data sharing retain their specific gates. [PROGRESS](PROGRESS.md) records the checkpoint; GitHub Project 1 remains the only execution board.
+The owner explicitly approved Phase B after [STOP 1](00-bestand.md). This document is the complete planning deliverable. The owner accepted STOP 2 on 2026-10-30 and explicitly authorised Phase C and implementation in branches/PRs. Held integrations follow the current dated owner grants in the [queue process](../queue/README.md); releases, flag activation, real-data changes, protected-rule changes and new external data sharing retain their specific gates. [PROGRESS](PROGRESS.md) records the checkpoint; GitHub Project 1 remains the only execution board.
 
 ## 1. Executive summary
 
@@ -100,7 +100,15 @@ G1 requests a separate exact-SHA production/activation decision after preview ac
 
 ## 5. Dependency order, delivery milestones and parallelism
 
-These are prerequisite gates, not calendar promises. Up to two builders may work on **disjoint owned files** after approval, plus an independent reviewer; one heavy local check at a time. Router/nav, shared UI, auth, ledger writers and migration sequences each have one writer. An idle builder slot does not override dependencies or competing active work.
+These are prerequisite gates, not calendar promises. One heavy local check at a time. An idle builder slot does not override dependencies or competing active work.
+
+**Owner authorization (2026-10-31):** Up to four builders may work on **disjoint owned files**, at most one builder per area, with independent review by a different agent from the implementer. Router/nav, packages/ui, auth, ledger writers and migration sequences each retain exactly one writer.
+
+After S1 (#822/#878), S2 and S3 (#829) have actually merged, Heute (H), Plan (P), Konten (K), Vermögen (V) and Reports (E0/R) may be built in parallel behind the redesign flag with production OFF. This overrides only the resource sequence between the area milestones B–F below; within-area order and factual prerequisites from the T-slices, S2/S3 and shared contracts in 03-issue-map.md and the per-slice contracts remain binding. No product dependency edge is added, removed or silently reclassified. Owner previews and area acceptance remain in the plan's original area order, even when implementation proceeds in parallel.
+
+Builder tasks may run in Codex Cloud with one issue, one branch and one PR. Briefs contain only the issue, owned files, acceptance criteria and dependencies, never real data or secrets. The local Codex remains orchestrator for assignment, independent review, the pre-push gate, CI observation and serial integration through merge-pr.sh --hold-release. All existing financial/security, protected-change, migration, production-OFF, release/activation and owner-acceptance gates remain unchanged.
+
+When multiple PRs are green, integrate the one that unblocks the most other work (critical path), then by age. Before each merge, incorporate current main and run one CI verification on the exact final head; do not push a third attempt for the same failure. Required checks and existing failure/stop rules remain binding.
 
 | Milestone                                 | Ordered work                                                          | Exit evidence                                                                                                  |
 | ----------------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
@@ -115,7 +123,7 @@ These are prerequisite gates, not calendar promises. Up to two builders may work
 
 Basic loading/empty/offline/error, source date, dirty guard and Undo are Must criteria in **each first area PR**. Z1 verifies their complete cross-area coverage; it is not permission to defer them.
 
-E0 is the only deliberate destination-enabling Settings slice before Reports. V3 can link to the existing target editor until E5 completes its styling. S3 can use existing report bodies/search before the report redesign. These exceptions preserve the requested area order while keeping every visible action functional.
+E0 is the only deliberate destination-enabling Settings slice before Reports. V3 can link to the existing target editor until E5 completes its styling. S3 can use existing report bodies/search before the report redesign. These functional prerequisites remain binding; they do not reinstate the cross-area resource sequence overridden above.
 
 One slice below is one reviewable PR boundary within its named area or one shared contract. No PR bundles Heute+Plan+Konten styling. Dependencies may span areas, but their implementation is not mixed. Aim for the repository's roughly 1500-line reviewable diff budget excluding generated locks/snapshots. If a composed slice such as R3 or E2 exceeds it, divide **before Phase C issue creation** into explicit owned view/contract PRs with the same acceptance checklist, rather than opening a mixed oversized branch.
 

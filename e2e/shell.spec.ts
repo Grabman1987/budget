@@ -4,8 +4,65 @@ import { monthLabel, monthOf } from '../apps/web/src/nav/month';
 import { ROUTES } from './routes';
 import { sampleTest } from './sample';
 import { expectHeuteVisualReady, freezeHeuteVisual } from './heute-visual-fixture';
+import type { InboxBooking } from '../apps/web/src/inbox/api';
 
 const isPhone = (testInfo: { project: { name: string } }) => testInfo.project.name === 'mobile';
+
+async function fixtureInboxTransactions(page: Page, count: number) {
+  const entries: InboxBooking[] = Array.from({ length: count }, (_, index) => ({
+    type: 'booking',
+    id: `shell-inbox-${index + 1}`,
+    bookingId: `shell-inbox-${index + 1}`,
+    kind: 'uncategorized',
+    urgent: false,
+    date: '2026-09-17',
+    accountName: 'Synthetisches Shell-Konto',
+    payeeName: `Synthetischer Shell-Umsatz ${index + 1}`,
+    memo: null,
+    amountCents: -1200,
+    currency: 'EUR',
+    status: 'pending',
+    source: 'manual',
+    missingSplits: 1,
+  }));
+  const fixture = {
+    asOf: '2026-09-17',
+    count,
+    entries,
+    // Positive transactions make the initial segment=auto request resolve naturally to Umsätze.
+    segment: 'umsaetze',
+    segments: { umsaetze: count, aufgaben: 0 },
+    taskSources: { accounts: 0, receipts: 0, plan: 0, payslips: 0, other: 0 },
+    accountReminders: [],
+  };
+  await page.route('**/api/inbox/count', (route) =>
+    route.fulfill({ json: { asOf: fixture.asOf, count } }),
+  );
+  await page.route(
+    (url) => url.pathname === '/api/inbox',
+    (route) => {
+      const url = new URL(route.request().url());
+      const limitText = url.searchParams.get('limit');
+      if (limitText === null) return route.fulfill({ json: fixture });
+      const limit = Number(limitText);
+      const offset = Number(url.searchParams.get('offset') ?? 0);
+      const pageEntries = entries.slice(offset, offset + limit);
+      return route.fulfill({
+        json: {
+          ...fixture,
+          entries: pageEntries,
+          totalEntries: entries.length,
+          countsByKind: { uncategorized: count },
+          countsByCause: {},
+          readSourceSummaries: [],
+          limit,
+          offset,
+          next: offset + pageEntries.length < entries.length ? offset + pageEntries.length : null,
+        },
+      });
+    },
+  );
+}
 
 function collectProblems(page: Page): string[] {
   const problems: string[] = [];
@@ -229,10 +286,14 @@ test.describe('panel via route param', () => {
   });
 
   test('legacy inbox links redirect to the page', async ({ page }) => {
+    await fixtureInboxTransactions(page, 1);
     await page.goto('/konten?panel=posteingang');
     await expect(page).toHaveURL(/\/konten\/pruefen/);
     await expect(page.getByRole('dialog', { name: 'Posteingang' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
+    await expect(
+      page.getByTestId('inbox-row').filter({ hasText: 'Synthetischer Shell-Umsatz 1' }),
+    ).toBeVisible();
   });
 
   // Opens the "Buchung" panel through the real shell trigger (top bar / phone FAB), so these tests
@@ -435,12 +496,15 @@ test.describe('phone shell', () => {
 
   test('phone header links to the inbox page and retains return context', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.route('**/api/inbox/count', (route) => route.fulfill({ json: { count: 4 } }));
+    await fixtureInboxTransactions(page, 4);
     await page.goto('/konten?monat=2026-09');
     await page.locator('.m-status').getByRole('link', { name: '4 zu prüfen' }).click();
     await expect(page).toHaveURL(/\/konten\/pruefen/);
     await expect(page.getByRole('dialog', { name: 'Posteingang' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
+    await expect(
+      page.getByTestId('inbox-row').filter({ hasText: 'Synthetischer Shell-Umsatz 1' }),
+    ).toBeVisible();
     await page.getByRole('link', { name: 'Zur\u00fcck zur vorherigen Ansicht' }).click();
     await expect(page).toHaveURL(/\/konten\?monat=2026-09$/);
   });

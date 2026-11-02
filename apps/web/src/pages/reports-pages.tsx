@@ -12,6 +12,7 @@ import { REPORTS_CATALOG, REPORT_GROUP_PAGES, type PageMeta } from '../nav/pages
 import { findReport, findReportGroup, type ReportEntry } from '../nav/reports-catalog';
 import { useParams } from '@tanstack/react-router';
 import { AppLink } from '../shell/app-link';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { AreaHead } from './area-head';
 import { PlaceholderPage } from './placeholder-page';
 import { GoalsProgressReport } from './goals-progress-report';
@@ -94,9 +95,21 @@ export function ReportGroupPage({ slug }: { slug: string }) {
 }
 
 /** Report dispatch: connected bodies where implemented, otherwise a placeholder from the catalog. */
-export function ReportPage({ reportId, detail = false }: { reportId: string; detail?: boolean }) {
+export function ReportPage({
+  reportId,
+  detail = false,
+  presentation,
+}: {
+  reportId: string;
+  detail?: boolean;
+  presentation?: string | undefined;
+}) {
   if (reportId === 'kontakte') return <ContactReportPage />;
-  const report = findReport(reportId);
+  const report = findReport(
+    REDESIGN_ENABLED && reportId === 'onepager' && presentation === 'finanzcheck'
+      ? 'finanzcheck'
+      : reportId,
+  );
   if (!report) return <ReportNotFound />;
   const meta: PageMeta = {
     title: report.name,
@@ -190,7 +203,7 @@ export function ReportRoute() {
           (reportId === 'pallocation' && search.darstellung === 'einzahlungen'))
       }
     >
-      <ReportPage reportId={reportId} />
+      <ReportPage reportId={reportId} presentation={search.darstellung} />
     </ReportTrendContext.Provider>
   );
 }

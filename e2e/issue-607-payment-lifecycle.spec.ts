@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import { writeFile } from 'node:fs/promises';
 import AxeBuilder from '@axe-core/playwright';
 import { addDays, addMonths, todayInVienna } from '@budget/domain';
@@ -259,16 +260,16 @@ async function theme(page: Page, value: 'light' | 'dark') {
     );
   if ((await resolved()) !== value) {
     if (page.viewportSize()!.width < 768) {
-      const summary = page.locator('.m-profile > summary');
-      await summary.click();
-      await page
-        .locator('.m-profile')
-        .getByRole('button', {
-          name: value === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
-          exact: true,
-        })
-        .click();
-      await summary.click();
+      await withShellControls(
+        page,
+        async ({ theme: control }) => {
+          await expect(control).toHaveAccessibleName(
+            value === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
+          );
+          await control.click();
+        },
+        false,
+      );
     } else
       await page
         .locator('.sidebar-foot')

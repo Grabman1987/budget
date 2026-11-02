@@ -15,6 +15,7 @@ import {
 } from '@budget/domain';
 import type { HeutePeriod } from './heute/api';
 import { AUTH_STATUS_KEY, authStatusQuery, queryClient } from './auth/status-query';
+import { REDESIGN_ENABLED } from './shell/redesign-flag';
 import { clearDeviceFinancialData } from './pwa/local-data';
 import { validateBookingsSearch } from './ledger/bookings-search';
 import { validatePlanFilterSearch, type PlanFilterSearch } from './budget/plan-filters';
@@ -25,6 +26,7 @@ import { findReport } from './nav/reports-catalog';
 import {
   ACCOUNT_PAGE,
   CSV_EXPORT_META,
+  CONTACT_SETTINGS_META,
   EINSTELLUNGEN_KATEGORIEN,
   KONTEN_SETTINGS_META,
   PLAN_ERWARTET,
@@ -56,7 +58,7 @@ import type { PageTitleData } from './shell/page-meta';
 import { isMonth } from './nav/month';
 import { isZeitraum } from './wealth/zeitraum';
 import { isPanelId, type PanelId } from './shell/panels';
-import { validateReportSearch } from './reports/report-search';
+import { FINANZCHECK_HEADING_HASHES, validateReportSearch } from './reports/report-search';
 import { validateLiquiditySearch } from './reports/liquidity-selection';
 
 // Route-level code splitting: everything except the shell and the generic placeholder page is
@@ -178,6 +180,7 @@ const captureRoute = createRoute({
   component: lazyRouteComponent(() => import('./ledger/capture-page'), 'CapturePage'),
 });
 const BUILT_PATHS = new Set<string>([
+  CONTACT_SETTINGS_META.path,
   '/einstellungen/zuordnung',
   '/einstellungen/datenquellen',
   SECURITY_META.path,
@@ -241,6 +244,17 @@ const contactsRoute = createRoute({
   staticData: { meta: PAGES.find((p) => p.path === '/konten/kontakte')! },
   component: lazyRouteComponent(() => import('./contacts/contacts-page'), 'ContactsPage'),
 });
+const contactSettingsRoute = REDESIGN_ENABLED
+  ? createRoute({
+      getParentRoute: () => shellRoute,
+      path: CONTACT_SETTINGS_META.path,
+      staticData: { meta: CONTACT_SETTINGS_META },
+      component: lazyRouteComponent(
+        () => import('./pages/contact-settings'),
+        'ContactSettingsPage',
+      ),
+    })
+  : redirectRoute(CONTACT_SETTINGS_META.path, '/konten/kontakte');
 const overviewRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/konten',
@@ -606,7 +620,11 @@ const redirects = [
   redirectRoute('/reports/vorschau', '/plan/erwartet'),
   redirectRoute('/reports/sparziele', '/plan/sparziele'),
   redirectRoute('/reports/kontakte', '/konten/kontakte'),
-  redirectRoute('/reports/finanzcheck', '/'),
+  redirectRoute(
+    '/reports/finanzcheck',
+    REDESIGN_ENABLED ? '/reports/onepager' : '/',
+    REDESIGN_ENABLED ? { darstellung: 'finanzcheck' } : {},
+  ),
   redirectRoute('/konten/posteingang', '/konten/pruefen'),
   redirectRoute('/konten/posteingang/$id', '/konten/pruefen/$id'),
   // Legacy import bookmarks lead to the export placeholder; no import action remains in the UI.
@@ -678,8 +696,13 @@ const reportRoute = createRoute({
   path: '/reports/$reportId',
   validateSearch: validateReportSearch,
   staticData: { meta: { ...REPORTS_CATALOG, title: 'Report', register: 'katalog' } },
-  loader: ({ params }): PageTitleData => {
-    const report = findReport(params.reportId);
+  loaderDeps: ({ search }) => ({
+    finanzcheck: REDESIGN_ENABLED && search.darstellung === 'finanzcheck',
+  }),
+  loader: ({ params, deps }): PageTitleData => {
+    const report = findReport(
+      params.reportId === 'onepager' && deps.finanzcheck ? 'finanzcheck' : params.reportId,
+    );
     return report ? { title: report.name } : {};
   },
   component: lazyRouteComponent(reportsPages, 'ReportRoute'),
@@ -706,7 +729,7 @@ const loginRoute = createRoute({
   path: '/login',
   validateSearch: (search: Record<string, unknown>): { weiter?: string | undefined } => {
     const weiter = captureContinuation(search['weiter']);
-    return weiter ? { weiter } : {};
+    return { weiter };
   },
   beforeLoad: async () => {
     const status = await queryClient.fetchQuery(authStatusQuery);
@@ -880,6 +903,7 @@ const routeTree = rootRoute.addChildren([
     overviewRoute,
     bookingsRoute,
     contactsRoute,
+    contactSettingsRoute,
     inboxRoute,
     inboxDetailRoute,
     accountRoute,
@@ -897,13 +921,20 @@ const routeTree = rootRoute.addChildren([
 export const router = createRouter({
   routeTree,
   scrollRestoration: ({ location }) =>
-    location.pathname.startsWith('/plan/monat') ||
-    location.pathname.startsWith('/plan/sparziele') ||
-    location.pathname.startsWith('/einstellungen/kategorien') ||
-    location.pathname === '/reports/sparziele' ||
-    location.pathname.startsWith('/vermoegen/portfolio') ||
-    location.pathname.startsWith('/einstellungen/regelwerk') ||
-    location.pathname.startsWith('/reports/'),
+    !(
+      REDESIGN_ENABLED &&
+      location.pathname === '/reports/onepager' &&
+      validateReportSearch(location.search).darstellung === 'finanzcheck' &&
+      FINANZCHECK_HEADING_HASHES.includes(location.hash)
+    ) &&
+    (location.pathname.startsWith('/plan/monat') ||
+      location.pathname.startsWith('/plan/sparziele') ||
+      location.pathname.startsWith('/einstellungen/kategorien') ||
+      location.pathname === '/reports/sparziele' ||
+      location.pathname.startsWith('/vermoegen/portfolio') ||
+      location.pathname.startsWith('/einstellungen/regelwerk') ||
+      location.pathname.startsWith('/reports/') ||
+      (REDESIGN_ENABLED && location.pathname === '/konten/buchungen')),
 });
 
 declare module '@tanstack/react-router' {

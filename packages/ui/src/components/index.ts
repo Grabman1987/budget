@@ -35,9 +35,12 @@ export { CircleNumber, SectionHead, type SectionHeadProps } from './section-head
 export { Segmented, type SegmentedOption, type SegmentedProps } from './segmented';
 export {
   Count,
+  BookingStatusIcon,
+  BudgetStateMark,
   SourceStamp,
   StatusMark,
   type CountProps,
+  type BudgetPresentationState,
   type RuleStatus,
   type StatusMarkProps,
 } from './stamps';

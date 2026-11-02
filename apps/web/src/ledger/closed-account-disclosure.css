@@ -1,0 +1,43 @@
+.closed-account-disclosure {
+  margin-block: var(--space-lg);
+  padding-block: var(--space-md);
+  border-block: 1px solid var(--rule);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.closed-account-disclosure summary,
+.closed-account-disclosure a {
+  min-height: 44px;
+  padding-block: var(--space-md);
+  cursor: pointer;
+}
+
+.closed-account-disclosure a {
+  min-width: var(--touch);
+  display: inline-flex;
+  align-items: center;
+}
+
+.closed-account-disclosure :is(summary, a):focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+
+.closed-account-disclosure :is(li, dl > div) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-lg);
+}
+
+.closed-account-disclosure :is(ul, dl) {
+  padding: 0;
+  list-style: none;
+}
+
+.closed-account-disclosure dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}

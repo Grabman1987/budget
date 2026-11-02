@@ -977,6 +977,31 @@ button.ct-term .ct-val {
 .status-mark.is-action {
   color: var(--red);
 }
+.budget-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+.budget-state-met,
+.booking-status-confirmed {
+  color: var(--primary);
+}
+.budget-state-open {
+  color: var(--warning);
+}
+.budget-state-overspent {
+  color: var(--red);
+}
+.budget-state-overfunded {
+  color: var(--good);
+}
+.budget-state-neutral,
+.booking-status-pending,
+.booking-status-reconciled {
+  color: var(--ink-2);
+}
 .count {
   min-width: 22px;
   height: 20px;

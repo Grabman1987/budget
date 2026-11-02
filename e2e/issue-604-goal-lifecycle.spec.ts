@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
 import { accounts, categories, createEntity, openDatabase, schema, setAssigned } from '@budget/db';
@@ -89,16 +90,16 @@ for (const profile of ['desktop', 'phone'] as const)
           )) !== theme
         ) {
           if (profile === 'phone') {
-            const menu = page.locator('.m-profile > summary');
-            await menu.click();
-            await page
-              .locator('.m-profile')
-              .getByRole('button', {
-                name: theme === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
-                exact: true,
-              })
-              .click();
-            await menu.click();
+            await withShellControls(
+              page,
+              async ({ theme: control }) => {
+                await expect(control).toHaveAccessibleName(
+                  theme === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
+                );
+                await control.click();
+              },
+              false,
+            );
           } else
             await page
               .locator('.sidebar-foot')

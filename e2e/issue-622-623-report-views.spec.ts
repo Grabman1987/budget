@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase, schema } from '@budget/db';
 import { expect, type Page, type TestInfo } from '@playwright/test';
@@ -29,11 +30,9 @@ async function inspect(page: Page, info: TestInfo, label: string) {
   await page.screenshot({ path: info.outputPath(`${label}.png`), animations: 'disabled' });
 }
 async function privacy(page: Page) {
-  const profile = page.locator('.m-profile > summary');
-  const phone = await profile.isVisible();
-  if (phone) await profile.click();
-  await page.getByRole('button', { name: 'Beträge verbergen', exact: true }).click();
-  if (phone) await profile.click();
+  await withShellControls(page, async ({ privacy: button }) => {
+    await button.click();
+  });
 }
 function seedPayees(path: string) {
   const opened = openDatabase(path);
