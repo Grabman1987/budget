@@ -729,7 +729,7 @@ export function CaptureForm({
           (REDESIGN_ENABLED ? (
             <div className="bk-repeat-native" data-recurring={draft.repeat ? '1' : undefined}>
               {repeatField}
-              <Repeat2 size={16} aria-hidden="true" />
+              <Repeat2 size={16} strokeWidth={1.75} aria-hidden="true" />
             </div>
           ) : (
             repeatField
@@ -823,7 +823,7 @@ export function CaptureForm({
       title="Schließen"
       onClick={requestClose}
     >
-      <X size={16} aria-hidden="true" />
+      <X size={16} strokeWidth={1.75} aria-hidden="true" />
     </button>
   );
   const kindHeader = (
@@ -1213,7 +1213,9 @@ export function CaptureForm({
             disabled={busy || blocked}
             onClick={() => void save(true)}
           >
-            {REDESIGN_ENABLED && <Plus className="bk-save-new-icon" size={18} aria-hidden="true" />}
+            {REDESIGN_ENABLED && (
+              <Plus className="bk-save-new-icon" size={16} strokeWidth={1.75} aria-hidden="true" />
+            )}
             <span className={REDESIGN_ENABLED ? 'bk-save-new-label' : undefined}>
               Speichern und neu
             </span>

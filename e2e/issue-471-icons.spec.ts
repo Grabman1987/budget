@@ -195,11 +195,14 @@ test('labelled booking status and capture caret remain usable on phone and deskt
   await expectStatusContentInsideButton(status);
 
   const more = dialog.locator('details.kmore');
-  const caret = more.locator('.disclosure-chevron');
-  expect(await caret.evaluate((el) => getComputedStyle(el).transform)).not.toBe('none');
+  const redesigned = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
+  const caret = more.locator(redesigned ? '.lucide-ellipsis' : '.disclosure-chevron');
+  if (redesigned) await expect(caret).toBeVisible();
+  else expect(await caret.evaluate((el) => getComputedStyle(el).transform)).not.toBe('none');
   await more.locator('summary').click();
   await expect(more).toHaveAttribute('open', '');
-  expect(await caret.evaluate((el) => getComputedStyle(el).transform)).toBe('none');
+  if (redesigned) await expect(caret).toBeVisible();
+  else expect(await caret.evaluate((el) => getComputedStyle(el).transform)).toBe('none');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );

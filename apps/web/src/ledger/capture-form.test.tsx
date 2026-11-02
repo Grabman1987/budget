@@ -205,6 +205,12 @@ it.each([false, true])(
     );
     const status = screen.getByRole('button', { name: 'Vorgemerkt' });
     expect(status.textContent).toBe('Vorgemerkt');
+    expect(
+      screen
+        .getByRole('button', { name: 'Schließen' })
+        .querySelector('svg')
+        ?.getAttribute('stroke-width'),
+    ).toBe('1.75');
     expect(document.querySelector('[data-redesign="booking-editor"]') !== null).toBe(enabled);
     expect(status.querySelector('.booking-status-pending') !== null).toBe(enabled);
     expect(status.getAttribute('title')).toBe('Vorgemerkt');
