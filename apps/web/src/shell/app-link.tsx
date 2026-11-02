@@ -1,10 +1,12 @@
-import { useLinkProps } from '@tanstack/react-router';
+import { useLinkProps, useLocation } from '@tanstack/react-router';
 import type { AnchorHTMLAttributes } from 'react';
 
 // The typed link hook only accepts literal route paths; nav tables carry plain strings.
 const useLooseLinkProps = useLinkProps as unknown as (
   options: Record<string, unknown>,
 ) => AnchorHTMLAttributes<HTMLAnchorElement>;
+
+import { REDESIGN_ENABLED } from './redesign-flag';
 
 type SearchParams = Record<string, unknown>;
 
@@ -21,13 +23,23 @@ type Props = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {
 
 /** Router link for paths that come from data tables (nav config), where literal types are lost. */
 export function AppLink({ to, search, state, ...rest }: Props) {
+  const location = useLocation();
+  const sourceSearch =
+    REDESIGN_ENABLED &&
+    to === '/einstellungen/warenkorb' &&
+    !location.pathname.startsWith('/einstellungen')
+      ? (previous: SearchParams) => ({
+          ...(typeof search === 'function' ? search(previous) : search),
+          von: location.href,
+        })
+      : search;
   const controlled = Object.hasOwn(rest, 'aria-current');
   const props = useLooseLinkProps({
     ...rest,
     to,
     activeOptions: { exact: true },
     ...(controlled ? { activeProps: {} } : {}),
-    ...(search ? { search } : {}),
+    ...(sourceSearch ? { search: sourceSearch } : {}),
     ...(state ? { state } : {}),
   });
   // Explicit nav state also overrides the router's automatic exact-URL active state.

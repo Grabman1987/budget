@@ -51,6 +51,12 @@ test.afterEach(async ({ page }) => {
 // A loaded machine answers slowly; the rule book is derived from the whole ledger.
 const expect = baseExpect.configure({ timeout: 15_000 });
 
+async function openRuleDetails(page: Page) {
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) !== '1') return;
+  const details = page.locator('.settings-check-details');
+  if (!(await details.evaluate((node) => (node as HTMLDetailsElement).open)))
+    await details.locator('summary').first().click();
+}
 const toast = (page: Page) => page.locator('.toast.is-open');
 const violations = async (page: Page) =>
   (
@@ -68,6 +74,7 @@ test('violations lead with values, thresholds and correction links; disabled rul
   page,
 }) => {
   await page.goto('/einstellungen/regelwerk');
+  await openRuleDetails(page);
   const r02 = page.locator('#rw-violated').locator('..').locator('[data-rule-code="R02"]');
   await expect(r02).toContainText('Ist: 2,5 Monate');
   await expect(r02).toContainText('Schwelle: min. 3, Ziel 6 Monate');
@@ -117,6 +124,7 @@ test('violations lead with values, thresholds and correction links; disabled rul
 
 test('stages and rules show the rule book, axe clean in both themes', async ({ page }, info) => {
   await page.goto('/einstellungen/regelwerk');
+  await openRuleDetails(page);
   await expect(page.getByRole('heading', { name: 'Stufen', level: 2 })).toBeVisible();
   await expect(page.getByText('aktuell Stufe 2 · automatisch nach Nettovermögen')).toBeVisible();
   await expect(
@@ -144,18 +152,31 @@ test('stages and rules show the rule book, axe clean in both themes', async ({ p
 
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
   expect(await violations(page), 'light').toEqual([]);
-  await expectScreenshot(page, 'regelwerk-light.png', { fullPage: true });
+  await expectScreenshot(
+    page,
+    (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+      ? 'regelwerk-v2-light.png'
+      : 'regelwerk-light.png',
+    { fullPage: true },
+  );
   if (process.platform !== 'linux')
     await page.screenshot({ path: info.outputPath('regelwerk-light-viewport.png') });
   await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
   expect(await violations(page), 'dark').toEqual([]);
-  await expectScreenshot(page, 'regelwerk-dark.png', { fullPage: true });
+  await expectScreenshot(
+    page,
+    (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+      ? 'regelwerk-v2-dark.png'
+      : 'regelwerk-dark.png',
+    { fullPage: true },
+  );
   if (process.platform !== 'linux')
     await page.screenshot({ path: info.outputPath('regelwerk-dark-viewport.png') });
 });
 
 test('the rule status page separates thresholds and is axe clean', async ({ page }) => {
   await page.goto('/einstellungen/regelwerk');
+  await openRuleDetails(page);
   await page.getByRole('link', { name: 'Einstellen R02 Notgroschen' }).click();
   const opener = page.getByRole('link', { name: 'Schwellen bearbeiten', exact: true });
   await opener.click();
@@ -181,6 +202,7 @@ test('the rule status page separates thresholds and is axe clean', async ({ page
 test('phone: switches and buttons are 44 px targets', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile', 'phone layout only');
   await page.goto('/einstellungen/regelwerk');
+  await openRuleDetails(page);
   await expect(
     page.getByText(`${DEFAULT_ACTIVE_RULE_COUNT} von ${RULE_CODES.length} aktiv`),
   ).toBeVisible();
@@ -206,6 +228,7 @@ test('R15 off changes the Finanz-Check counts, R02 minimum 3 → 2 flips its sta
     (await (await page.request.get('/api/rules/check', { maxRetries: 2 })).json()) as Check;
   const before = await check();
   await page.goto('/einstellungen/regelwerk');
+  await openRuleDetails(page);
   await expect(
     page.getByText(`${DEFAULT_ACTIVE_RULE_COUNT} von ${RULE_CODES.length} aktiv`),
   ).toBeVisible();
@@ -290,6 +313,7 @@ test('an item the app cannot compute is confirmed and reopened by the owner', as
     ).checklist.done;
   const before = await checklist();
   await page.goto('/einstellungen/regelwerk');
+  await openRuleDetails(page);
   const box = page.getByRole('checkbox', { name: 'erledigt' }).first();
   await expect(box).not.toBeChecked();
   await box.click();
@@ -306,6 +330,7 @@ test('book rules start disabled, toggle and threshold edit are undoable', async 
 }, info) => {
   test.skip(info.project.name !== 'desktop', 'shared sample writes once');
   await page.goto('/einstellungen/regelwerk');
+  await openRuleDetails(page);
   await page.locator('.rw-disabled > summary').click();
   const row = page.locator('.rw-rules > li').filter({ hasText: 'R17' });
   const toggle = row.getByRole('switch');

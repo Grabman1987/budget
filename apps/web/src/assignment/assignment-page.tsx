@@ -1,6 +1,6 @@
 import type { AssignmentRule, listPayeeCleanup } from '@budget/db';
 import type { AssignmentRuleInput, PayeeCleanup } from '@budget/domain';
-import { Button, Field, SectionHead, Select, TextInput } from '@budget/ui';
+import { Button, Field, SectionHead, Select, Switch, TextInput } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { request } from '../api/http';
@@ -15,6 +15,10 @@ import { assignmentQuery } from './api';
 import { AssignmentEditor } from './rule-editor';
 import { AssignmentSummary } from './review';
 import './assignment.css';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsRowMenu } from '../pages/settings-row-menu';
+import { SettingsRuleList } from '../rules/settings-rule-list';
+import { Plus } from 'lucide-react';
 
 export function AssignmentPage() {
   const rules = useQuery(assignmentQuery),
@@ -49,6 +53,153 @@ export function AssignmentPage() {
     );
     setBusy(false);
   };
+  if (REDESIGN_ENABLED)
+    return (
+      <PageFrame meta={PAGES.find((p) => p.path === '/einstellungen/zuordnung')!}>
+        <section
+          className="assignment-page settings-assignment-v2"
+          aria-labelledby="assignment-title"
+        >
+          <div className="settings-primary-head">
+            <h2 id="assignment-title">Zuordnungsregeln</h2>
+            <Button
+              onClick={() => {
+                setEditing(null);
+                setEditingId(undefined);
+                setCreate(true);
+              }}
+            >
+              <Plus size={16} aria-hidden="true" />
+              Regel erstellen
+            </Button>
+          </div>
+          {rules.isPending && <LoadingNote what="Zuordnungsregeln" />}
+          {rules.isError && (
+            <ErrorNote
+              what="Zuordnungsregeln"
+              error={rules.error}
+              onRetry={() => void rules.refetch()}
+            />
+          )}
+          {rules.data?.rules.length === 0 && (
+            <EmptyNote>
+              Noch keine Regeln. Erstelle eine Regel oder lerne sie aus einer kategorisierten
+              Bankbuchung.
+            </EmptyNote>
+          )}
+          {!!rules.data?.rules.length && (
+            <div className="settings-surface settings-assignment-list">
+              {rules.data.rules.map((r, i) => (
+                <div className="settings-row" key={r.id}>
+                  <div>
+                    <small>
+                      {r.match.conditions
+                        .map((c) =>
+                          c.type === 'contains'
+                            ? `Banktext enthält „${c.text}“`
+                            : c.type === 'regex'
+                              ? `Muster „${c.pattern}“`
+                              : c.type === 'counterparty'
+                                ? `Gegenpart „${c.text}“`
+                                : c.type === 'direction'
+                                  ? c.direction === 'inflow'
+                                    ? 'Eingang'
+                                    : 'Ausgang'
+                                  : c.type === 'amount'
+                                    ? 'Betragsbereich'
+                                    : c.type === 'account'
+                                      ? 'Konto'
+                                      : 'Empfänger',
+                        )
+                        .join(r.match.mode === 'all' ? ' · und ' : ' · oder ')}
+                    </small>
+                    <AssignmentSummary rule={{ ...r, unavailable: null }} />
+                    <small>
+                      {r.enabled ? 'aktiv' : 'deaktiviert'} ·{' '}
+                      {r.automatic ? 'automatisch vorbereitet' : 'Vorschlag'}
+                    </small>
+                  </div>
+                  <div className="settings-row-actions">
+                    <SettingsRowMenu name={r.name}>
+                      <Button
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={() => {
+                          setEditing(r);
+                          setEditingId(r.id);
+                          setCreate(true);
+                        }}
+                      >
+                        Bearbeiten<span className="sr-only">: {r.name}</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        disabled={busy || i === 0}
+                        aria-label={`${r.name} nach oben`}
+                        onClick={() => void move(i, -1)}
+                      >
+                        Nach oben
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        disabled={busy || i === rules.data!.rules.length - 1}
+                        aria-label={`${r.name} nach unten`}
+                        onClick={() => void move(i, 1)}
+                      >
+                        Nach unten
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={() => {
+                          setBusy(true);
+                          void write(
+                            () =>
+                              request<{ groupId: string }>(
+                                'DELETE',
+                                '/api/assignment-rules/' + encodeURIComponent(r.id),
+                              ),
+                            () => 'Regel entfernt.',
+                          ).finally(() => setBusy(false));
+                        }}
+                      >
+                        Entfernen<span className="sr-only">: {r.name}</span>
+                      </Button>
+                    </SettingsRowMenu>
+                    <Switch
+                      label={`${r.enabled ? 'Deaktivieren' : 'Aktivieren'}: ${r.name}`}
+                      checked={r.enabled}
+                      onChange={(enabled) => void change(r, enabled)}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <details className="settings-advanced">
+            <summary>Vorrang und gelernte Vorschläge</summary>
+            <p>
+              Die erste passende Regel hat Vorrang. Bestätigte Zuordnungen werden als Vorschläge
+              gemerkt. Die Buchung bestätigst du unter Prüfen; es wird nichts automatisch gebucht.
+              Bei 100 Regeln werden keine neuen Vorschläge gelernt.
+            </p>
+          </details>
+        </section>
+        <SettingsRuleList />
+        <details className="settings-advanced">
+          <summary>Empfänger bereinigen und Planmonat zuordnen</summary>
+          <CleanupSettings />
+          <IncomeMonthRulesSection />
+        </details>
+        {create && (
+          <AssignmentEditor
+            initial={editing ?? undefined}
+            id={editingId}
+            onClose={() => setCreate(false)}
+          />
+        )}
+      </PageFrame>
+    );
   return (
     <PageFrame
       meta={PAGES.find((p) => p.path === '/einstellungen/zuordnung')!}

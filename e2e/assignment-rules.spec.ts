@@ -113,15 +113,21 @@ test('assignment editor saves, tests, toggles and undoes on the real API', async
   });
   await editor.getByRole('button', { name: 'Regel speichern' }).click();
   await expect(editor).toBeHidden();
-  const row = page
-    .getByRole('row')
-    .filter({ has: page.getByRole('rowheader', { name: new RegExp(name) }) });
+  const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  const row = on
+    ? page.locator('.settings-assignment-list > .settings-row').filter({ hasText: name })
+    : page
+        .getByRole('row')
+        .filter({ has: page.getByRole('rowheader', { name: new RegExp(name) }) });
   await expect(row).toContainText('aktiv');
-  await row.getByRole('button', { name: new RegExp('Deaktivieren') }).click();
+  await row.getByRole(on ? 'switch' : 'button', { name: new RegExp('Deaktivieren') }).click();
   await expect(row).toContainText('deaktiviert');
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(row).toContainText('Vorschlag');
-  await expect(row.getByRole('button', { name: new RegExp('Deaktivieren') })).toBeVisible();
+  await expect(
+    row.getByRole(on ? 'switch' : 'button', { name: new RegExp('Deaktivieren') }),
+  ).toBeVisible();
+  if (on) await row.getByLabel(`Aktionen für ${name}`, { exact: true }).click();
   await row.getByRole('button', { name: new RegExp('Bearbeiten') }).click();
   await expect(page.getByRole('dialog', { name: 'Zuordnungsregel bearbeiten' })).toBeVisible();
   await page.keyboard.press('Escape');

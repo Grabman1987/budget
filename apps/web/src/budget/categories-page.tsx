@@ -21,6 +21,9 @@ import { CategoryPanel, type PanelState } from './category-panel';
 import { KIND_LABEL, STAGES, targetText } from './labels';
 import { categoriesQuery, useBudgetWrite } from './use-category-writes';
 
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsRowMenu } from '../pages/settings-row-menu';
+
 const CLASS_TEXT = { need: 'Bedarf', want: 'Wunsch', future: 'Zukunft' } as const;
 
 type Drag = { kind: 'category' | 'group'; id: string } | null;
@@ -111,6 +114,216 @@ export function CategoriesPage() {
     onDrop: (e: DragEvent) => onDrop(e, groupId, beforeId),
   });
 
+  if (REDESIGN_ENABLED)
+    return (
+      <PageFrame meta={EINSTELLUNGEN_KATEGORIEN}>
+        <section className="settings-categories-v2" aria-labelledby="cat-title">
+          <div className="settings-primary-head">
+            <h2 id="cat-title">Kategorien</h2>
+            <div className="settings-row-actions">
+              <Button variant="ghost" onClick={() => setPanel({ mode: 'group' })}>
+                <Plus size={16} aria-hidden="true" />
+                Gruppe
+              </Button>
+              <Button
+                disabled={!data?.groups.length}
+                onClick={() => setPanel({ mode: 'edit', groupId: data?.groups[0]?.id ?? '' })}
+              >
+                <Plus size={16} aria-hidden="true" />
+                Kategorie anlegen
+              </Button>
+            </div>
+          </div>
+          <div className="settings-hidden-toggle">
+            <span id="show-hidden">
+              Ausgeblendete zeigen{hiddenCount > 0 && ` (${hiddenCount})`}
+            </span>
+            <Switch
+              labelledBy="show-hidden"
+              checked={!!showHidden}
+              onChange={(value) =>
+                void navigate({
+                  to: '.',
+                  search: (prev: Record<string, unknown>) => ({
+                    ...prev,
+                    ausgeblendet: value || undefined,
+                  }),
+                  replace: true,
+                })
+              }
+            />
+          </div>
+          {tree.isPending && <LoadingNote what="Kategorien" />}
+          {tree.isError && (
+            <ErrorNote what="Kategorien" error={tree.error} onRetry={() => void tree.refetch()} />
+          )}
+          {data && (
+            <div className="settings-surface settings-category-list">
+              {order.map((g) => {
+                const group = data.groups.find((entry) => entry.id === g.id)!;
+                const rows = g.categoryIds
+                  .map((id) => byId.get(id)!)
+                  .filter((c) => showHidden || !c.hiddenAt);
+                return (
+                  <section
+                    key={g.id}
+                    aria-label={group.name}
+                    {...dropTarget(g.id, g.categoryIds[0] ?? null)}
+                  >
+                    <div className="settings-category-group">
+                      <Handle
+                        label={`Gruppe ${group.name} verschieben`}
+                        focusKey={g.id}
+                        draggable
+                        onDragStart={() => setDrag({ kind: 'group', id: g.id })}
+                        onDragEnd={() => setDrag(null)}
+                        onKeyDown={(event) => keys(event, (o, d) => stepGroup(o, g.id, d))}
+                      />
+                      <strong>{group.name}</strong>
+                      <small>{g.categoryIds.length} Kategorien</small>
+                      <SettingsRowMenu name={`Gruppe ${group.name}`}>
+                        <Button
+                          variant="ghost"
+                          aria-label={`Gruppe ${group.name} umbenennen`}
+                          onClick={() => setPanel({ mode: 'group', group })}
+                        >
+                          Gruppe umbenennen
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          aria-label={`Kategorie in ${group.name} anlegen`}
+                          onClick={() => setPanel({ mode: 'edit', groupId: g.id })}
+                        >
+                          Kategorie anlegen
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          disabled={order[0]?.id === g.id}
+                          onClick={() => step((o) => stepGroup(o, g.id, -1), g.id)}
+                        >
+                          Gruppe nach oben
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          disabled={order.at(-1)?.id === g.id}
+                          onClick={() => step((o) => stepGroup(o, g.id, 1), g.id)}
+                        >
+                          Gruppe nach unten
+                        </Button>
+                        {g.categoryIds.length === 0 && (
+                          <Button
+                            variant="ghost"
+                            aria-label={`Gruppe ${group.name} entfernen`}
+                            onClick={() =>
+                              void write(
+                                () => deleteGroup(g.id),
+                                () => `Gruppe „${group.name}“ entfernt.`,
+                              )
+                            }
+                          >
+                            Gruppe entfernen
+                          </Button>
+                        )}
+                      </SettingsRowMenu>
+                    </div>
+                    {rows.map((c) => {
+                      const target = data.targets.filter((t) => t.categoryId === c.id).at(-1);
+                      return (
+                        <div
+                          className="settings-category-row"
+                          key={c.id}
+                          {...dropTarget(g.id, c.id)}
+                        >
+                          <Handle
+                            label={`${c.name} verschieben`}
+                            focusKey={c.id}
+                            draggable
+                            onDragStart={() => setDrag({ kind: 'category', id: c.id })}
+                            onDragEnd={() => setDrag(null)}
+                            onKeyDown={(event) => keys(event, (o, d) => stepCategory(o, c.id, d))}
+                          />
+                          <div>
+                            <AppLink
+                              className="settings-category-name"
+                              to={`/einstellungen/kategorien/${c.id}`}
+                              search={{ ausgeblendet: showHidden || undefined }}
+                              state={{ planPanelDetailOpenedInApp: true }}
+                            >
+                              <CategoryIcon icon={c.icon} name={c.name} />
+                              <strong>{c.name}</strong>
+
+                              <small>
+                                {KIND_LABEL[c.kind]}
+                                {c.stage
+                                  ? ` · Stufe ${c.stage} · ${STAGES[c.stage - 1]?.short}`
+                                  : ''}
+                                {target ? ` · Ziel ${targetText(target)}` : ''}
+                                {c.hiddenAt ? ' · ausgeblendet' : ''}
+                              </small>
+                            </AppLink>
+                          </div>
+                          <span className="settings-category-class">
+                            {c.class && <ClassTag kind={c.class}>{CLASS_TEXT[c.class]}</ClassTag>}
+                          </span>
+                          <small className="settings-category-count">
+                            {c.splitCount} Buchungen
+                          </small>
+                          <SettingsRowMenu name={c.name}>
+                            <Button
+                              variant="ghost"
+                              aria-label={`${c.name} bearbeiten`}
+                              onClick={() =>
+                                setPanel({ mode: 'edit', groupId: c.groupId, category: c })
+                              }
+                            >
+                              Bearbeiten
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              aria-label={`${c.name} nach oben`}
+                              data-focus-key={`${c.id}:up`}
+                              disabled={order[0]?.categoryIds[0] === c.id}
+                              onClick={() => step((o) => stepCategory(o, c.id, -1), `${c.id}:up`)}
+                            >
+                              Nach oben
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              aria-label={`${c.name} nach unten`}
+                              data-focus-key={`${c.id}:down`}
+                              disabled={order.at(-1)?.categoryIds.at(-1) === c.id}
+                              onClick={() => step((o) => stepCategory(o, c.id, 1), `${c.id}:down`)}
+                            >
+                              Nach unten
+                            </Button>
+                          </SettingsRowMenu>
+                        </div>
+                      );
+                    })}
+                    {rows.length === 0 && (
+                      <p className="settings-empty-row">Keine sichtbaren Kategorien.</p>
+                    )}
+                  </section>
+                );
+              })}
+            </div>
+          )}
+          {data?.groups.length === 0 && <p>Noch keine Gruppen. Lege zuerst eine Gruppe an.</p>}
+          <p className="settings-source-stamp">
+            Ziehen am Griff sortiert · Tastatur: Griff fokussieren, Pfeil hoch oder runter.
+            Ausgeblendete Kategorien behalten ihr Geld.
+          </p>
+        </section>
+        {data && (
+          <CategoryPanel
+            state={panel}
+            tree={data}
+            onClose={() => setPanel(null)}
+            onSwitch={setPanel}
+          />
+        )}
+      </PageFrame>
+    );
   return (
     <PageFrame meta={EINSTELLUNGEN_KATEGORIEN}>
       <div className="kview">
