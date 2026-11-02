@@ -1,0 +1,10 @@
+/* Minimal base + Blueprint helpers */
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;font-family:var(--font-sans);font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink);background:var(--ground);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+a{color:var(--primary);text-decoration:none}
+a:hover{text-decoration:underline;text-underline-offset:3px}
+:focus-visible{outline:var(--stroke-focus) solid var(--primary);outline-offset:2px}
+.tnum{font-variant-numeric:tabular-nums}
+.bp-label{font-family:var(--font-tech);font-weight:500;font-size:var(--fs-label);line-height:var(--lh-label);letter-spacing:var(--tracking-label);text-transform:uppercase}
+.bp-grid{background-image:linear-gradient(to right,rgba(208,244,255,var(--grid-major-alpha)) 1px,transparent 1px),linear-gradient(to bottom,rgba(208,244,255,var(--grid-major-alpha)) 1px,transparent 1px),linear-gradient(to right,rgba(208,244,255,var(--grid-fine-alpha)) 1px,transparent 1px),linear-gradient(to bottom,rgba(208,244,255,var(--grid-fine-alpha)) 1px,transparent 1px);background-size:var(--grid-major) var(--grid-major),var(--grid-major) var(--grid-major),var(--grid-fine) var(--grid-fine),var(--grid-fine) var(--grid-fine)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

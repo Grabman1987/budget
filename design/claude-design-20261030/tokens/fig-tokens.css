@@ -1,0 +1,76 @@
+/* Generated from Figma Variables. First mode = :root default.
+   FLOAT tokens are unitless — multiply by 1px in calc() where a length is needed. */
+
+:root {
+  --active: rgb(220,234,248); /* @kind color */
+  --color-accent: rgb(208,244,255); /* @kind color */
+  --color-canvas: rgb(8,45,86); /* @kind color */
+  --color-danger-bg: rgb(98,56,81); /* @kind color */
+  --color-danger: rgb(255,149,138); /* @kind color */
+  --color-grid-major: rgb(208,244,255); /* @kind color */
+  --color-grid-minor: rgb(118,184,233); /* @kind color */
+  --color-header: rgb(9,90,174); /* @kind color */
+  --color-nav: rgb(5,37,74); /* @kind color */
+  --color-selection: rgb(23,86,135); /* @kind color */
+  --color-stroke-strong: rgb(157,218,252); /* @kind color */
+  --color-stroke: rgb(73,135,188); /* @kind color */
+  --color-success-bg: rgb(18,90,90); /* @kind color */
+  --color-success: rgb(84,255,195); /* @kind color */
+  --color-surface-elevated: rgb(19,81,138); /* @kind color */
+  --color-surface: rgb(11,55,102); /* @kind color */
+  --color-text-primary: rgb(255,255,255); /* @kind color */
+  --color-text-secondary: rgb(220,238,255); /* @kind color */
+  --color-text-tertiary: rgb(166,206,233); /* @kind color */
+  --field: rgb(103,134,172); /* @kind color */
+  --ground: rgb(238,243,249); /* @kind color */
+  --heatmap-0: rgb(240,246,251); /* @kind color */
+  --heatmap-1: rgb(213,231,244); /* @kind color */
+  --heatmap-2: rgb(177,208,231); /* @kind color */
+  --heatmap-3: rgb(133,178,213); /* @kind color */
+  --heatmap-4: rgb(92,152,195); /* @kind color */
+  --ink: rgb(10,35,66); /* @kind color */
+  --line: rgb(211,222,236); /* @kind color */
+  --muted: rgb(54,85,122); /* @kind color */
+  --negative: rgb(184,56,10); /* @kind color */
+  --negativesoft: rgb(253,238,230); /* @kind color */
+  --onprimary: rgb(255,255,255); /* @kind color */
+  --positive: rgb(11,114,133); /* @kind color */
+  --positivesoft: rgb(216,241,243); /* @kind color */
+  --primary: rgb(13,94,174); /* @kind color */
+  --sidebar: rgb(227,235,245); /* @kind color */
+  --soft: rgb(245,248,252); /* @kind color */
+  --subtle: rgb(77,106,137); /* @kind color */
+  --surface: rgb(255,255,255); /* @kind color */
+  --title: rgb(13,94,174); /* @kind color */
+  --warning: rgb(138,83,0); /* @kind color */
+  --warningsoft: rgb(255,243,214); /* @kind color */
+  --white: rgb(255,255,255); /* @kind color */
+}
+
+:root[data-mode="dunkel"] {
+  --active: rgb(23,86,135); /* @kind color */
+  --field: rgb(73,135,188); /* @kind color */
+  --ground: rgb(8,45,86); /* @kind color */
+  --heatmap-0: rgb(16,55,88); /* @kind color */
+  --heatmap-1: rgb(22,75,112); /* @kind color */
+  --heatmap-2: rgb(26,91,128); /* @kind color */
+  --heatmap-3: rgb(27,107,145); /* @kind color */
+  --heatmap-4: rgb(27,123,159); /* @kind color */
+  --ink: rgb(244,249,254); /* @kind color */
+  --line: rgb(31,77,124); /* @kind color */
+  --muted: rgb(166,206,233); /* @kind color */
+  --negative: rgb(255,157,122); /* @kind color */
+  --negativesoft: rgb(74,44,60); /* @kind color */
+  --onprimary: rgb(8,45,86); /* @kind color */
+  --positive: rgb(79,227,208); /* @kind color */
+  --positivesoft: rgb(15,70,81); /* @kind color */
+  --primary: rgb(208,244,255); /* @kind color */
+  --sidebar: rgb(5,37,74); /* @kind color */
+  --soft: rgb(17,59,96); /* @kind color */
+  --subtle: rgb(143,180,209); /* @kind color */
+  --surface: rgb(11,55,102); /* @kind color */
+  --title: rgb(13,94,174); /* @kind color */
+  --warning: rgb(255,211,122); /* @kind color */
+  --warningsoft: rgb(71,61,43); /* @kind color */
+  --white: rgb(255,255,255); /* @kind color */
+}
