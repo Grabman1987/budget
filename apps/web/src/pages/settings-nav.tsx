@@ -21,7 +21,8 @@ export interface SettingsNavProps {
 }
 
 /**
- * Grouped navigation of Einstellungen (Daten, Automatik, System). One list for both layouts: the
+ * Grouped navigation of Einstellungen. The redesign uses six groups; OFF retains the legacy list.
+ * One list serves both layouts: the
  * rail sits left of every settings page on desktop, the index lists the same links as full-width
  * rows on the phone. The router marks the open page with `aria-current="page"` (exact match, like
  * the sidebar), so the mark follows the URL even while a lazy page is still loading.
@@ -135,7 +136,7 @@ function RedesignSettingsGroup({
   );
 }
 
-/** Phone only: back link to the index plus the name of the open page (the title block has no room). */
+/** Phone index return and current page; an explicit source return is also visible on desktop. */
 export function SettingsBack({ current }: { current: string | undefined }) {
   const { search } = useLocation();
   const von = validateInboxSearch(search).von;

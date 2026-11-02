@@ -65,7 +65,11 @@ test.describe('Einstellungen navigation, desktop', () => {
     await page.goto('/einstellungen/konten');
     const items = (await groupsForPage(page)).flatMap((group) => group.items);
     for (const item of items) {
-      const link = settingsNav(page).getByRole('link', { name: item.label, exact: true });
+      const link = settingsNav(page).getByRole('link', {
+        name: item.label,
+        exact: true,
+        includeHidden: true,
+      });
       const disclosure = link.locator('xpath=ancestor::details');
       if (await disclosure.count()) {
         if (!(await disclosure.evaluate((node) => (node as HTMLDetailsElement).open)))
@@ -84,6 +88,13 @@ test.describe('Einstellungen navigation, desktop', () => {
     await page.goto('/einstellungen/konten');
     const nav = settingsNav(page);
     const items = (await groupsForPage(page)).flatMap((group) => group.items);
+    const firstGroup = nav
+      .locator('details')
+      .filter({ has: page.getByText((await groupsForPage(page))[0]!.label, { exact: true }) });
+    if (await firstGroup.count()) {
+      if (!(await firstGroup.evaluate((node) => (node as HTMLDetailsElement).open)))
+        await firstGroup.locator('summary').click();
+    }
     await nav.getByRole('link', { name: items[0]!.label, exact: true }).focus();
     await page.keyboard.press('Tab');
     await expect(nav.getByRole('link', { name: items[1]!.label, exact: true })).toBeFocused();

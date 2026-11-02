@@ -31,6 +31,15 @@ test('E1 keeps profile fields, dirty decisions, stale drafts and source returns'
     await expect(page.getByRole('link', { name: 'Zurück zur Ausgangsseite' })).toHaveCount(0);
     return;
   }
+  await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
+  await expect(name).toHaveValue('');
+  expect(await (await request.get('/api/profile')).json()).toMatchObject({
+    name: '',
+    initials: '',
+  });
+  await name.fill('Synthetic profile');
+  await form.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(page.getByText('Profil gespeichert.', { exact: true })).toBeVisible();
   await name.fill('Synthetic unsaved');
   page.once('dialog', (dialog) => dialog.dismiss());
   await page.getByRole('link', { name: 'Zurück zur Ausgangsseite' }).click();
@@ -54,13 +63,16 @@ test('E1 keeps profile fields, dirty decisions, stale drafts and source returns'
   await form.getByRole('button', { name: 'Aktuellen Stand laden' }).click();
   await expect(name).toHaveValue('Synthetic other device');
 
-  await page.setViewportSize({ width: 320, height: 844 });
+  const viewport = page.viewportSize()!;
   for (const theme of ['light', 'dark'] as const) {
+    await page.setViewportSize(viewport);
     await page.evaluate((value) => {
       localStorage.setItem('budget-theme', value);
       document.documentElement.dataset.theme = value;
     }, theme);
     await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.screenshot({ path: test.info().outputPath(`profile-${theme}.png`), fullPage: true });
+    await page.setViewportSize({ width: 320, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
@@ -76,6 +88,10 @@ test('E1 keeps profile fields, dirty decisions, stale drafts and source returns'
         (violation) => violation.impact === 'serious' || violation.impact === 'critical',
       ),
     ).toEqual([]);
+    await page.screenshot({
+      path: test.info().outputPath(`profile-320-${theme}.png`),
+      fullPage: true,
+    });
   }
   await page.reload();
   await expect(name).toHaveValue('Synthetic other device');
