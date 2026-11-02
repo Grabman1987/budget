@@ -72,3 +72,64 @@ it('filters activities by asset kind and opens the existing trade with its ident
   expect(edit).toHaveBeenCalledExactlyOnceWith('trade-crypto', 'crypto');
   client.clear();
 });
+
+it('ON positions render the twelve v3 columns and a whole instrument once across class splits', async () => {
+  const { PositionsV3 } = await import('./positions-v3');
+  const client = new QueryClient({
+    defaultOptions: { queries: { staleTime: Infinity, retry: false } },
+  });
+  client.setQueryData(accountsQuery().queryKey, {
+    asOf: '2026-09-17',
+    accounts: [],
+    netWorthEurCents: 0,
+    missingFxCurrencies: [],
+    missingPriceSecurityIds: [],
+  });
+  const position = {
+    securityId: 'synthetic',
+    name: 'Synthetic instrument',
+    unitsE8: 200000000,
+    quote: { priceMicro: 2000000, currency: 'EUR', date: '2026-09-17', source: 'manual' },
+    valueCents: 400,
+    costCents: 300,
+    gainCents: 100,
+    gainBp: 3333,
+    shareBp: 10000,
+    accounts: [],
+  };
+  render(
+    <QueryClientProvider client={client}>
+      <PositionsV3
+        view={{
+          asOf: '2026-09-17',
+          costMethod: 'average',
+          valueCents: 400,
+          costCents: 300,
+          gainCents: 100,
+          chain: null,
+          positions: [position],
+          classes: ['a', 'b'].map((id) => ({
+            id,
+            name: id,
+            valueCents: 200,
+            shareBp: 5000,
+            positions: [position],
+          })),
+        }}
+        securities={[{ id: 'synthetic', kind: 'etf' } as never]}
+        art="alle"
+        period="YTD"
+        activities={false}
+        onMode={vi.fn()}
+        onSelect={vi.fn()}
+        onTrade={vi.fn()}
+      />
+    </QueryClientProvider>,
+  );
+  const table = screen.getByRole('table', { name: 'Positionen nach Anlageart' });
+  expect(within(table.querySelector('thead')!).getAllByRole('columnheader')).toHaveLength(12);
+  expect(within(table).getAllByRole('button', { name: 'Synthetic instrument' })).toHaveLength(1);
+  expect(within(table).getByText('1,50 €')).toBeTruthy();
+  expect(within(table).getByText('a · b')).toBeTruthy();
+  client.clear();
+});

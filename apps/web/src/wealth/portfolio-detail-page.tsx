@@ -31,7 +31,9 @@ function PortfolioDetailBack({ title, savings = false }: { title: string; saving
   };
   const context = { zeitraum, ...(REDESIGN_ENABLED ? { anlageart, ansicht } : {}) };
   return (
-    <div className="portfolio-detail-nav">
+    <div
+      className={`portfolio-detail-nav${REDESIGN_ENABLED && !savings ? ' wealth-instrument-back' : ''}`}
+    >
       <nav aria-label="Brotkrumen">
         <AppLink
           to={REDESIGN_ENABLED ? '/vermoegen' : '/vermoegen/nettovermoegen'}
@@ -49,6 +51,7 @@ function PortfolioDetailBack({ title, savings = false }: { title: string; saving
       <AppLink
         to={fallback}
         search={context}
+        aria-label="Zurück zum Portfolio"
         onClick={(event) => {
           if (openedInApp && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
             event.preventDefault();
@@ -56,7 +59,7 @@ function PortfolioDetailBack({ title, savings = false }: { title: string; saving
           }
         }}
       >
-        Zurück zum Portfolio
+        {REDESIGN_ENABLED && !savings ? '‹ Portfolio' : 'Zurück zum Portfolio'}
       </AppLink>
     </div>
   );

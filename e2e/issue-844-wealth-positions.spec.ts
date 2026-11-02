@@ -1,3 +1,4 @@
+import { startInvestmentCapture } from './wealth-navigation';
 import { sampleTest as test, expect } from './sample';
 
 test('positions retain filtered activities, instrument returns and trade capture', async ({
@@ -23,7 +24,7 @@ test('positions retain filtered activities, instrument returns and trade capture
   await page.getByRole('link', { name: 'Zurück zum Portfolio', exact: true }).click();
   await expect(page).toHaveURL(/\/positionen\?/);
   await expect(page).toHaveURL(/zeitraum=1J/);
-  await page.getByRole('button', { name: 'Handel erfassen', exact: true }).first().click();
+  await startInvestmentCapture(page, 'Handel erfassen');
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).not.toBeVisible();

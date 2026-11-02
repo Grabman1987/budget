@@ -1,4 +1,9 @@
-import { portfolioNavigation, selectPortfolioView, wealthRedesign } from './wealth-navigation';
+import {
+  gotoWealthAnalysis,
+  portfolioNavigation,
+  selectPortfolioView,
+  wealthRedesign,
+} from './wealth-navigation';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import type { PortfolioPerformanceHistory, PortfolioPositionsView } from '@budget/db';
@@ -18,7 +23,7 @@ test('portfolio navigation rows do not overlap at the 640px shell breakpoint', a
   page,
 }, info) => {
   await page.setViewportSize({ width: 640, height: 900 });
-  await page.goto('/vermoegen/portfolio');
+  await gotoWealthAnalysis(page, '/vermoegen/portfolio');
   await expect(page.getByTestId('portfolio-overview-chart')).toBeVisible();
   const area = (await wealthRedesign(page))
     ? page.locator('.area-page-menu').first()
@@ -42,8 +47,14 @@ async function expectLoadedRegister(page: Page, label: (typeof registers)[number
     await expect(page.getByTestId('portfolio-overview-chart')).toBeVisible();
   if (label === 'Übersicht' || label === 'Positionen')
     await expect(page.getByTestId('portfolio-value')).toHaveText('88.000,00 €');
-  if (label === 'Positionen') await expect(page.locator('.portfolio-table')).toBeVisible();
-  if (label === 'Allokation') await expect(page.locator('.vallo')).toBeVisible();
+  if (label === 'Positionen')
+    await expect(
+      page.locator((await wealthRedesign(page)) ? '.wealth-position-table' : '.portfolio-table'),
+    ).toBeVisible();
+  if (label === 'Allokation')
+    await expect(
+      page.locator((await wealthRedesign(page)) ? '.wealth-allocation-table' : '.vallo'),
+    ).toBeVisible();
   if (label === 'Sparpläne')
     await expect(
       page.getByRole('region', { name: 'Sparpläne', exact: true }).getByRole('table'),
@@ -54,13 +65,14 @@ async function expectLoadedRegister(page: Page, label: (typeof registers)[number
 
 // Keep the complete sequential journey; accessibility/captures get independent register cases.
 test('five portfolio registers preserve period across navigation and reload', async ({ page }) => {
-  await page.goto('/vermoegen/portfolio?zeitraum=3J');
+  await gotoWealthAnalysis(page, '/vermoegen/portfolio?zeitraum=3J');
   for (const [label, path] of registers) {
     let nav = await portfolioNavigation(page);
     await expect(nav.getByRole('link')).toHaveCount(5);
     await selectPortfolioView(page, label);
     nav = await portfolioNavigation(page);
-    await expect(page).toHaveURL(`${path}?zeitraum=3J`);
+    expect(new URL(page.url()).pathname).toBe(path);
+    expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('3J');
     await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute(
       'aria-current',
       'page',
@@ -80,7 +92,8 @@ for (const [label, path] of registers) {
   test(`${label}: portfolio register fits accessible light and dark pages`, async ({
     page,
   }, info) => {
-    await page.goto(`${path}?zeitraum=3J`);
+    if (label === 'Übersicht') await gotoWealthAnalysis(page, `${path}?zeitraum=3J`);
+    else await page.goto(`${path}?zeitraum=3J`);
     const nav = await portfolioNavigation(page);
     await expectLoadedRegister(page, label);
     for (const theme of ['light', 'dark']) {
@@ -132,10 +145,25 @@ test('portfolio endpoint, lead and independently summed positions share exact da
   expect(rows.every((row) => row.valueCents !== null)).toBe(true);
   expect(rows.reduce((sum, row) => sum + row.valueCents!, 0)).toBe(8_800_000);
   for (const path of ['/vermoegen/portfolio', '/vermoegen/portfolio/positionen']) {
-    await page.goto(`${path}?zeitraum=3J`);
+    if (path === '/vermoegen/portfolio') await gotoWealthAnalysis(page, `${path}?zeitraum=3J`);
+    else await page.goto(`${path}?zeitraum=3J`);
     await expect(page.getByTestId('portfolio-value')).toHaveText('88.000,00 €');
-    await expect(page.locator('.vnw')).toContainText('17.09.2026');
-    await expect(page.locator('.vnw')).toContainText('Wertpapiere ohne Depot-Bargeld');
+    await expect(
+      page.locator(
+        (await wealthRedesign(page)) && path.endsWith('positionen') ? '.wealth-toolbar' : '.vnw',
+      ),
+    ).toContainText('17.09.2026');
+    await expect(
+      page.locator(
+        (await wealthRedesign(page)) && path.endsWith('positionen')
+          ? '.wealth-positions-v3'
+          : '.vnw',
+      ),
+    ).toContainText(
+      (await wealthRedesign(page)) && path.endsWith('positionen')
+        ? 'ohne Kassa'
+        : 'Wertpapiere ohne Depot-Bargeld',
+    );
   }
   await page
     .getByRole('region', { name: 'Positionen', exact: true })
@@ -166,8 +194,14 @@ test('a closed calendar month uses the chart endpoint date for lead and position
       .reduce((sum, position) => sum + position.valueCents!, 0),
   ).toBe(endpoint.valueCents);
   for (const path of ['/vermoegen/portfolio', '/vermoegen/portfolio/positionen']) {
-    await page.goto(`${path}?zeitraum=2026-08..2026-08`);
-    await expect(page.locator('.vnw')).toContainText('31.08.2026');
+    if (path === '/vermoegen/portfolio')
+      await gotoWealthAnalysis(page, `${path}?zeitraum=2026-08..2026-08`);
+    else await page.goto(`${path}?zeitraum=2026-08..2026-08`);
+    await expect(
+      page.locator(
+        (await wealthRedesign(page)) && path.endsWith('positionen') ? '.wealth-toolbar' : '.vnw',
+      ),
+    ).toContainText('31.08.2026');
     await expect(page.getByTestId('portfolio-value')).toHaveText('86.860,69 €');
   }
 });
@@ -193,7 +227,7 @@ test('class mini histories retain the shared period, full class universe and mon
       'Spekulativ',
       'Ohne Anlageklasse',
     ]);
-    await page.goto(`/vermoegen/portfolio?zeitraum=${period}`);
+    await gotoWealthAnalysis(page, `/vermoegen/portfolio?zeitraum=${period}`);
     const classes = page.getByRole('region', { name: 'Anlageklassen im Verlauf', exact: true });
     await expect(classes.getByTestId('portfolio-class-history')).toHaveCount(4);
     await expect(classes.getByRole('heading', { level: 3 })).toHaveText(

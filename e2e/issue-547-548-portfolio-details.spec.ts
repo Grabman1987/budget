@@ -182,11 +182,16 @@ async function compactDesktop(page: Page, info: TestInfo, state: string) {
   expect(geometry.height).toBeLessThanOrEqual(1800);
 }
 async function instrumentPrivacy(page: Page, info: TestInfo, theme: string) {
+  const on = await wealthRedesign(page);
+  if (on)
+    await page
+      .getByText('Zeitraum, gespeicherte Kurse und Bewertungsquellen', { exact: true })
+      .click();
   const history = page.getByRole('region', { name: 'Wert und Kurs', exact: true });
   for (const mode of ['Wert €', 'Kurs']) {
     await history.getByRole('button', { name: mode, exact: true }).click();
     const chart = history.getByTestId(
-      mode === 'Wert €' ? 'instrument-value-chart' : 'price-history-chart',
+      `${mode === 'Wert €' ? 'instrument-value-chart' : 'price-history-chart'}${on ? '-expanded' : ''}`,
     );
     const table = history.locator('.chart-data-table');
     await expect(table.locator('tbody tr')).toHaveCount(0);
@@ -235,6 +240,10 @@ async function instrumentPrivacy(page: Page, info: TestInfo, theme: string) {
     await expect(table.locator('tbody tr')).toHaveCount(0);
   }
   await history.getByRole('button', { name: 'Wert €', exact: true }).click();
+  if (on)
+    await page
+      .getByText('Zeitraum, gespeicherte Kurse und Bewertungsquellen', { exact: true })
+      .click();
 }
 async function savingsPrivacy(page: Page, info: TestInfo, theme: string) {
   const purchases = page.locator('.savings-purchases');
@@ -365,10 +374,13 @@ test('547 instrument shares literal value/basis and dates, hover/keyboard and la
   });
   expect(history.position).toMatchObject({ valueCents: 1750, costCents: 1000 });
   await page.goto('/vermoegen/portfolio/instrument/s?zeitraum=Alles');
-  await expect(page.getByRole('button', { name: 'Wert €', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  if (await wealthRedesign(page))
+    await expect(page.getByTestId('instrument-value-chart')).toBeVisible();
+  else
+    await expect(page.getByRole('button', { name: 'Wert €', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   const chart = page.getByTestId('instrument-value-chart');
   await expect(chart).toBeVisible();
   expect(
@@ -398,7 +410,7 @@ test('547 instrument shares literal value/basis and dates, hover/keyboard and la
   await expect(page.locator('.chart-tooltip')).toHaveText(keyboard!);
   await inspect.press('Escape');
   const trades = page.locator('.trade-list tbody tr');
-  await expect(trades).toHaveCount(12);
+  await expect(trades).toHaveCount((await wealthRedesign(page)) ? 4 : 12);
   await expect(trades.first()).toContainText('Synthetic depot');
   if (info.project.name === 'desktop') {
     await expect(page.locator('.price-history .chart-data-table')).not.toHaveAttribute('open', '');
@@ -418,17 +430,28 @@ test('547 instrument shares literal value/basis and dates, hover/keyboard and la
   await expect(page.getByRole('dialog', { name: 'Handel bearbeiten', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await trades.first().getByRole('button').focus();
-  await trades.first().getByRole('button').press('Enter');
+  await trades
+    .first()
+    .getByRole('button', { name: /bearbeiten/ })
+    .focus();
+  await trades
+    .first()
+    .getByRole('button', { name: /bearbeiten/ })
+    .press('Enter');
   await expect(page.getByRole('dialog', { name: 'Handel bearbeiten', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await themes(page, info, 'instrument');
+  if (await wealthRedesign(page))
+    await page
+      .getByText('Zeitraum, gespeicherte Kurse und Bewertungsquellen', { exact: true })
+      .click();
   await page.getByRole('button', { name: 'Kurs', exact: true }).click();
-  await expect(page.getByTestId('price-history-chart')).toBeVisible();
-  await expect(page.getByTestId('price-history-chart').locator('[data-chart-point]')).toHaveCount(
-    4,
+  const priceChart = page.getByTestId(
+    (await wealthRedesign(page)) ? 'price-history-chart-expanded' : 'price-history-chart',
   );
+  await expect(priceChart).toBeVisible();
+  await expect(priceChart.locator('[data-chart-point]')).toHaveCount(4);
   expect(snapshot(isolatedLedger.databasePath)).toBe(before);
 });
 

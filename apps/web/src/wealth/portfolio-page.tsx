@@ -40,6 +40,8 @@ import {
 } from './portfolio-registers';
 import { useZeitraum } from './zeitraum';
 import { ZeitraumSwitch } from './frame';
+import { PositionsV3 } from './positions-v3';
+import { WealthOverview } from './redesign-overview';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 export function PortfolioPositionsPage() {
@@ -56,7 +58,12 @@ export function PortfolioMetricsPage() {
 }
 
 export function PortfolioPage({ register = 'overview' }: { register?: PortfolioRegister }) {
-  return <PortfolioBody register={register} />;
+  const search = useSearch({ strict: false }) as { ansicht?: string };
+  return REDESIGN_ENABLED && register === 'overview' && search.ansicht !== 'analyse' ? (
+    <WealthOverview />
+  ) : (
+    <PortfolioBody register={register} />
+  );
 }
 
 function PortfolioBody({ register }: { register: PortfolioRegister }) {
@@ -142,6 +149,76 @@ function PortfolioBody({ register }: { register: PortfolioRegister }) {
     <WealthFrame
       legacy={register === 'overview' || register === 'metrics'}
       meta={VERMOEGEN_PORTFOLIO_META}
+      date={datedPositions ? view?.asOf : undefined}
+      controls={
+        REDESIGN_ENABLED && register === 'positions' ? (
+          <>
+            <div
+              className="wealth-position-mode wealth-position-mode-desktop"
+              role="group"
+              aria-label="Positionen anzeigen"
+            >
+              <Button
+                variant="ghost"
+                aria-pressed={search.ansicht !== 'aktivitaeten'}
+                onClick={() =>
+                  void navigate({
+                    to: '.',
+                    search: ((prev: Record<string, unknown>) => ({
+                      ...prev,
+                      ansicht: undefined,
+                    })) as never,
+                    replace: true,
+                  })
+                }
+              >
+                Positionen
+              </Button>
+              <Button
+                variant="ghost"
+                aria-pressed={search.ansicht === 'aktivitaeten'}
+                onClick={() =>
+                  void navigate({
+                    to: '.',
+                    search: ((prev: Record<string, unknown>) => ({
+                      ...prev,
+                      ansicht: 'aktivitaeten',
+                    })) as never,
+                    replace: true,
+                  })
+                }
+              >
+                Aktivitäten
+              </Button>
+            </div>
+            <label>
+              <span className="sr-only">Zeitraum</span>
+              <select
+                aria-label="Zeitraum"
+                value={period}
+                onChange={(event) =>
+                  void navigate({
+                    to: '.',
+                    search: ((prev: Record<string, unknown>) => ({
+                      ...prev,
+                      zeitraum: event.target.value,
+                    })) as never,
+                    replace: true,
+                  })
+                }
+              >
+                {['1M', '3M', 'YTD', '1J', '3J', 'Alles'].map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </label>
+          </>
+        ) : register === 'allocation' && REDESIGN_ENABLED ? (
+          <span className="wealth-grouping">
+            Gruppieren nach <b>Anlageklasse</b>
+          </span>
+        ) : undefined
+      }
       page={
         register === 'positions'
           ? 'positions'
@@ -175,7 +252,9 @@ function PortfolioBody({ register }: { register: PortfolioRegister }) {
               />
             )}
             <ValuationHint incomplete={query.data?.incomplete} />
-            {view && <PortfolioLead view={view} />}
+            {view && (!REDESIGN_ENABLED || register === 'overview') && (
+              <PortfolioLead view={view} />
+            )}
             {view && performance.isError && (
               <p className="vnote">
                 Die Zeitraum-Auswertung ist nicht verfügbar. Der separat bewertete Bestand oben gilt
@@ -183,7 +262,7 @@ function PortfolioBody({ register }: { register: PortfolioRegister }) {
                 möglich.
               </p>
             )}
-            {register === 'positions' && <ZeitraumSwitch />}
+            {register === 'positions' && !REDESIGN_ENABLED && <ZeitraumSwitch />}
           </>
         )}
         {register === 'overview' && (
@@ -200,7 +279,45 @@ function PortfolioBody({ register }: { register: PortfolioRegister }) {
             </div>
           </>
         )}
-        {register === 'positions' && (
+        {register === 'positions' && REDESIGN_ENABLED && (
+          <>
+            {instruments.isPending && <LoadingNote what="Instrumente" />}
+            {instruments.isError && (
+              <ErrorNote
+                what="Instrumente"
+                error={instruments.error}
+                onRetry={() => void instruments.refetch()}
+              />
+            )}
+            {query.isPaused && (
+              <p className="vnote" role="status">
+                Offline · letzter verfügbarer Stand {view ? longDay(view.asOf) : 'nicht verfügbar'}
+              </p>
+            )}
+          </>
+        )}
+        {register === 'positions' && REDESIGN_ENABLED && view && (
+          <PositionsV3
+            view={view}
+            securities={instruments.data?.securities ?? []}
+            art={art}
+            period={period}
+            activities={search.ansicht === 'aktivitaeten'}
+            onMode={(active) =>
+              void navigate({
+                to: '.',
+                search: ((prev: Record<string, unknown>) => ({
+                  ...prev,
+                  ansicht: active ? 'aktivitaeten' : undefined,
+                })) as never,
+                replace: true,
+              })
+            }
+            onSelect={select}
+            onTrade={trade}
+          />
+        )}
+        {register === 'positions' && !REDESIGN_ENABLED && (
           <>
             {REDESIGN_ENABLED && (
               <>

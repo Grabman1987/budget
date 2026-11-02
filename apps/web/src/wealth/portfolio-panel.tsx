@@ -1,3 +1,5 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { InstrumentV3 } from './instrument-v3';
 import {
   useAmountPrivacy,
   Button,
@@ -139,138 +141,164 @@ export function InstrumentPanel({
           onRetry={() => void instrument.refetch()}
         />
       )}
-      {!creating && instrument.data && (
-        <section className="instrument-detail" aria-label={instrument.data.security.name}>
-          <h2 tabIndex={-1} ref={heading}>
-            {instrument.data.security.name}
-          </h2>
+      {!creating &&
+        instrument.data &&
+        (REDESIGN_ENABLED ? (
+          <InstrumentV3
+            security={instrument.data.security}
+            position={position}
+            state={positionState}
+            history={history}
+            asOf={asOf}
+            period={historyPeriod}
+            heading={heading}
+            saving={saving}
+            canQuote={!!asOf && !!currentPosition}
+            onTrade={openTrade}
+            onQuote={() => setQuoting(true)}
+            onEdit={() => {
+              if (dirty) {
+                setDiscardTarget('edit');
+                setAsking(true);
+              } else setEditing(true);
+            }}
+            onRetry={() => {
+              if (!asOf) onRetryPositions();
+              else void history.query.refetch();
+            }}
+          />
+        ) : (
+          <section className="instrument-detail" aria-label={instrument.data.security.name}>
+            <h2 tabIndex={-1} ref={heading}>
+              {instrument.data.security.name}
+            </h2>
 
-          <dl className="instrument-metadata">
-            <div>
-              <dt>Art</dt>
-              <dd>{INSTRUMENT_KIND[instrument.data.security.kind]}</dd>
+            <dl className="instrument-metadata">
+              <div>
+                <dt>Art</dt>
+                <dd>{INSTRUMENT_KIND[instrument.data.security.kind]}</dd>
+              </div>
+              <div>
+                <dt>Währung</dt>
+                <dd>{instrument.data.security.currency}</dd>
+              </div>
+              <div>
+                <dt>ISIN</dt>
+                <dd>{instrument.data.security.isin ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Symbol</dt>
+                <dd>{instrument.data.security.symbol ?? '—'}</dd>
+              </div>
+            </dl>
+            <div className="instrument-detail-actions">
+              <Button
+                variant="ghost"
+                disabled={saving}
+                onClick={() => {
+                  if (dirty) {
+                    setDiscardTarget('edit');
+                    setAsking(true);
+                  } else setEditing(true);
+                }}
+              >
+                Stammdaten bearbeiten
+              </Button>
+              <Button disabled={saving} onClick={() => openTrade('neu')}>
+                Handel erfassen
+              </Button>
             </div>
-            <div>
-              <dt>Währung</dt>
-              <dd>{instrument.data.security.currency}</dd>
-            </div>
-            <div>
-              <dt>ISIN</dt>
-              <dd>{instrument.data.security.isin ?? '—'}</dd>
-            </div>
-            <div>
-              <dt>Symbol</dt>
-              <dd>{instrument.data.security.symbol ?? '—'}</dd>
-            </div>
-          </dl>
-          <div className="instrument-detail-actions">
-            <Button
-              variant="ghost"
-              disabled={saving}
-              onClick={() => {
-                if (dirty) {
-                  setDiscardTarget('edit');
-                  setAsking(true);
-                } else setEditing(true);
-              }}
-            >
-              Stammdaten bearbeiten
-            </Button>
-            <Button disabled={saving} onClick={() => openTrade('neu')}>
-              Handel erfassen
-            </Button>
-          </div>
-          <div className="instrument-layout">
-            <div className="instrument-valuation">
-              {!position && positionState === 'loading' && <LoadingNote what="Bestände" />}
-              {!position && positionState === 'unavailable' && (
-                <ErrorNote
-                  what="Bestände"
-                  error={history.query.error}
-                  onRetry={() => {
-                    if (!asOf) onRetryPositions();
-                    else void history.query.refetch();
-                  }}
-                />
-              )}
-              {!position && positionState === 'ready' && (
-                <p className="vnote">
-                  {historyView?.to && historyView.to !== asOf
-                    ? 'Dieses Instrument hat am gewählten Stichtag keinen Bestand.'
-                    : 'Dieses Instrument hat keinen aktuellen Bestand.'}
-                </p>
-              )}
-              {position && (
-                <>
-                  <h3>Kurs</h3>
-                  <p className="instrument-quote">
-                    {quoteText(position?.quote ?? null)}
-                    <small>{quoteStand(position?.quote ?? null)}</small>
-                  </p>
-                </>
-              )}
-              <PriceHistory key={id} securityId={id} controller={history} />
-              {position && (
-                <>
-                  <h3>Bestand je Konto</h3>
-                  {historyView && (
-                    <p className="vnote">
-                      Stichtag {longDay(historyView.to)} · dieselbe Bewertung wie im Wertverlauf.
-                    </p>
-                  )}
-                  <table className="instrument-accounts">
-                    <caption className="sr-only">
-                      Bestand des Instruments je Konto und Plattform
-                    </caption>
-                    <thead>
-                      <tr>
-                        <th>Konto / Plattform</th>
-                        <th className="num">Stück / Wert</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {position.accounts.map((a) => (
-                        <tr key={a.accountId}>
-                          <th scope="row">
-                            <AppLink to={`/konten/${encodeURIComponent(a.accountId)}`}>
-                              {a.name}
-                            </AppLink>
-                            <small>{a.institution ?? 'Kein Institut zugeordnet'}</small>
-                          </th>
-                          <td className="num">
-                            {unitsText(a.unitsE8)}
-                            <small>
-                              {a.valueCents === null
-                                ? a.valueStatus === 'missing_price'
-                                  ? 'Kurs fehlt'
-                                  : 'Wechselkurs fehlt'
-                                : `${moneyText(a.valueCents)}${a.valueStatus === 'estimated' ? ' · geschätzt' : ''}`}
-                            </small>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            <div className="instrument-layout">
+              <div className="instrument-valuation">
+                {!position && positionState === 'loading' && <LoadingNote what="Bestände" />}
+                {!position && positionState === 'unavailable' && (
+                  <ErrorNote
+                    what="Bestände"
+                    error={history.query.error}
+                    onRetry={() => {
+                      if (!asOf) onRetryPositions();
+                      else void history.query.refetch();
+                    }}
+                  />
+                )}
+                {!position && positionState === 'ready' && (
                   <p className="vnote">
-                    {position.costCents === null
-                      ? basisReason(position.accounts)
-                      : `Einstand ${moneyText(position.costCents)}`}{' '}
-                    · Wertzuwachs {moneyText(position.gainCents)}
+                    {historyView?.to && historyView.to !== asOf
+                      ? 'Dieses Instrument hat am gewählten Stichtag keinen Bestand.'
+                      : 'Dieses Instrument hat keinen aktuellen Bestand.'}
                   </p>
-                </>
-              )}
+                )}
+                {position && (
+                  <>
+                    <h3>Kurs</h3>
+                    <p className="instrument-quote">
+                      {quoteText(position?.quote ?? null)}
+                      <small>{quoteStand(position?.quote ?? null)}</small>
+                    </p>
+                  </>
+                )}
+                <PriceHistory key={id} securityId={id} controller={history} />
+                {position && (
+                  <>
+                    <h3>Bestand je Konto</h3>
+                    {historyView && (
+                      <p className="vnote">
+                        Stichtag {longDay(historyView.to)} · dieselbe Bewertung wie im Wertverlauf.
+                      </p>
+                    )}
+                    <table className="instrument-accounts">
+                      <caption className="sr-only">
+                        Bestand des Instruments je Konto und Plattform
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th>Konto / Plattform</th>
+                          <th className="num">Stück / Wert</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {position.accounts.map((a) => (
+                          <tr key={a.accountId}>
+                            <th scope="row">
+                              <AppLink to={`/konten/${encodeURIComponent(a.accountId)}`}>
+                                {a.name}
+                              </AppLink>
+                              <small>{a.institution ?? 'Kein Institut zugeordnet'}</small>
+                            </th>
+                            <td className="num">
+                              {unitsText(a.unitsE8)}
+                              <small>
+                                {a.valueCents === null
+                                  ? a.valueStatus === 'missing_price'
+                                    ? 'Kurs fehlt'
+                                    : 'Wechselkurs fehlt'
+                                  : `${moneyText(a.valueCents)}${a.valueStatus === 'estimated' ? ' · geschätzt' : ''}`}
+                              </small>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="vnote">
+                      {position.costCents === null
+                        ? basisReason(position.accounts)
+                        : `Einstand ${moneyText(position.costCents)}`}{' '}
+                      · Wertzuwachs {moneyText(position.gainCents)}
+                    </p>
+                  </>
+                )}
+              </div>
+              <div className="instrument-transactions">
+                <TradeHistory securityId={id} onEdit={openTrade} disabled={saving} />
+                {asOf && currentPosition && (
+                  <Button variant="ghost" disabled={saving} onClick={() => setQuoting(true)}>
+                    Kurs eintragen
+                  </Button>
+                )}
+              </div>
             </div>
-            <div className="instrument-transactions">
-              <TradeHistory securityId={id} onEdit={openTrade} disabled={saving} />
-              {asOf && currentPosition && (
-                <Button variant="ghost" disabled={saving} onClick={() => setQuoting(true)}>
-                  Kurs eintragen
-                </Button>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
+          </section>
+        ))}
       <FormDialog
         open={creating || editing || quoting}
         title={
