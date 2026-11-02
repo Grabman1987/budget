@@ -5,8 +5,6 @@ import type { ExplorerQuery, ExplorerViewsState } from '@budget/domain';
 import { expect, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
 
-const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
-
 async function inspect(page: Page, phone: boolean) {
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -30,6 +28,8 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
       await expect(page.locator('.report-switcher')).toBeVisible();
     }
     await page.goto('/reports');
+    await expect(page.locator('.report-hub')).toBeVisible();
+    const redesign = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
@@ -179,6 +179,8 @@ test('619 supported maximum saved views remain keyboard reachable beside three r
     await expect(page.locator('.report-switcher')).toBeVisible();
   }
   await page.goto('/reports');
+  await expect(page.locator('.report-hub')).toBeVisible();
+  const redesign = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
   const strip = page.getByRole('navigation', { name: 'Meine Auswertungen', exact: true });
   const links = strip.getByRole('link');
   await expect(links).toHaveCount(20);

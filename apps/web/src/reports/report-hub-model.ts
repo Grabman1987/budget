@@ -182,12 +182,14 @@ const REDESIGN_HUB_REPORTS: readonly HubReport[] = redesignOrder.map((id, index)
   const source = findReport(id)!;
   return {
     id,
-    name: source.name,
-    question: source.question,
-    ...original,
+    name:
+      id === 'kontakte'
+        ? 'Kontakte'
+        : id === 'vermoegen-schulden'
+          ? 'Vermögensreport'
+          : original!.name,
+    question: original?.question ?? source.question,
     group: index < 3 ? 'reports' : index < 5 ? 'analysis' : index < 8 ? 'portfolio' : 'income',
-    ...(id === 'kontakte' ? { name: 'Kontakte' } : {}),
-    ...(id === 'vermoegen-schulden' ? { name: 'Vermögensreport' } : {}),
     no: index + 1,
     sources:
       id === 'onepager'

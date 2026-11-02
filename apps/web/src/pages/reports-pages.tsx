@@ -68,7 +68,14 @@ function Controls({ report }: { report: ReportEntry }) {
 export function ReportsCatalogPage() {
   return (
     <>
-      <AreaHead meta={REPORTS_CATALOG} subtitle="16 Berichte aus einem Hauptbuch" />
+      {REDESIGN_ENABLED ? (
+        <header className="report-catalog-head">
+          <h1>Reports</h1>
+          <p>16 Berichte aus einem Hauptbuch</p>
+        </header>
+      ) : (
+        <AreaHead meta={REPORTS_CATALOG} subtitle="16 Berichte aus einem Hauptbuch" />
+      )}
       <ReportHub />
     </>
   );
@@ -88,7 +95,14 @@ export function ReportGroupPage({ slug }: { slug: string }) {
   };
   return (
     <>
-      <AreaHead meta={REPORTS_CATALOG} subtitle="16 Berichte aus einem Hauptbuch" />
+      {REDESIGN_ENABLED ? (
+        <header className="report-catalog-head">
+          <h1>Reports</h1>
+          <p>16 Berichte aus einem Hauptbuch</p>
+        </header>
+      ) : (
+        <AreaHead meta={REPORTS_CATALOG} subtitle="16 Berichte aus einem Hauptbuch" />
+      )}
       <ReportHub key={slug} initialGroup={initial[slug]} />
     </>
   );

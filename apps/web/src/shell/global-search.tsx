@@ -377,7 +377,7 @@ export function SearchResults({
         (matchesSearch(`${item.label} ${item.id}`, text) ||
           SEARCH_TERMS[itemKey(item)]?.includes(text.toLocaleLowerCase('de-AT')) ||
           (REDESIGN_ENABLED &&
-            REDESIGN_SEARCH_TERMS[itemKey(item)]?.includes(text.toLocaleLowerCase('de-AT')))),
+            REDESIGN_SEARCH_TERMS[itemKey(item)]?.some((term) => matchesSearch(term, text)))),
     ),
   ];
   const results = [...new Map(candidates.map((item) => [itemKey(item), item])).values()].filter(

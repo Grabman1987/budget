@@ -11,6 +11,7 @@ import {
   matchingHubReports,
 } from './report-hub-model';
 import { ReportHub } from './report-hub';
+import { adjacentReports } from './report-navigation';
 
 vi.mock('../shell/redesign-flag', () => ({ REDESIGN_ENABLED: true }));
 vi.mock('../shell/app-link', () => ({
@@ -51,6 +52,12 @@ it('ON uses the approved identities and 3+2+3+8 groups; every legacy name retain
     ['Portfolio', 3],
     ['Einnahmen und Ausgaben', 8],
   ]);
+  HUB_REPORTS.forEach((report, index) => {
+    expect(adjacentReports(report.id).previous?.id).toBe(HUB_REPORTS[index - 1]?.id);
+    expect(adjacentReports(report.id).next?.id).toBe(HUB_REPORTS[index + 1]?.id);
+    for (const id of report.sources)
+      expect(adjacentReports(id)).toEqual(adjacentReports(report.id));
+  });
   const moved = new Set<string>(MOVED_REPORTS.map((report) => report.id));
   for (const source of [LIQUIDITY_FORECAST, ...REPORTS]) {
     if (moved.has(source.id)) continue;
