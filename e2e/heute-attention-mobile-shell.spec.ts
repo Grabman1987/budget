@@ -158,7 +158,7 @@ test('empty tasks and due dates disappear while missing rule inputs remain expli
     actionRules: [],
   };
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: data }));
-  await page.goto('/?monat=2026-09');
+  await page.goto(redesign ? '/?monat=2026-09&period=month' : '/?monat=2026-09');
   await expect(page.locator('[data-kennzahl="verfuegbar"]')).toBeVisible();
   const taskBlock = page.getByRole('region', { name: 'Zu tun' });
   await expect(taskBlock.locator('.attention-row')).toHaveCount(0);

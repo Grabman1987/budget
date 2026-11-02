@@ -81,7 +81,10 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
     page.getByTestId('liquidity-chart').getByTestId('liquidity-mark-gehalt'),
   ).toBeAttached();
   await payday
-    .getByRole('button', { name: redesign ? 'Herleitung zeigen' : 'Herleitung Frei bis Gehalt' })
+    .getByRole('button', {
+      name: redesign ? 'Herleitung zeigen' : 'Herleitung Frei bis Gehalt',
+      exact: true,
+    })
     .click();
   await expect(payday).toContainText('Nächster erwarteter Geldeingang: 30.09. · 3.812,00 €');
   const more = page.getByRole('button', { name: /Mehr zum Monat/ });

@@ -344,6 +344,16 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await readableControl(primary.getByTestId('heute-lead-value'), true);
     await expect(primary.getByTestId('heute-lead-value')).toHaveText('988,26 €');
     await readableNextWork(page, true);
+    for (const row of await due.locator('li').all()) {
+      const separation = await row.evaluate((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element.querySelector('time')!);
+        const date = range.getBoundingClientRect();
+        const source = element.querySelector('.heute-account-preview')!.getBoundingClientRect();
+        return { dateRight: date.right, sourceLeft: source.left };
+      });
+      expect(separation.dateRight).toBeLessThanOrEqual(separation.sourceLeft);
+    }
     const wrapped = [
       page.getByTestId('heute-month-note').getByRole('button', { name: 'Zum aktuellen Monat' }),
       due.getByRole('button', { name: /Diesen Monat streichen/ }).first(),

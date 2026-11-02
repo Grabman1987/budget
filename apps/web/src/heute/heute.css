@@ -1399,7 +1399,7 @@
   overflow-wrap: anywhere;
 }
 .heute--redesign .heute-due-compact .heute-upcoming {
-  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-columns: minmax(44px, max-content) minmax(0, 1fr);
 }
 .heute--redesign .heute-due-compact .heute-amount-status {
   grid-column: 2;
