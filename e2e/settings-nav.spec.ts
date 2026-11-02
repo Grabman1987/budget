@@ -83,7 +83,9 @@ test.describe('Einstellungen navigation, desktop', () => {
             ([key, value]) => url.searchParams.get(key) === value,
           ),
       );
-      await expect(settingsNav(page).locator('[aria-current="page"]')).toHaveText(item.label);
+      await expect(settingsNav(page).locator('[aria-current="page"]')).toHaveAccessibleName(
+        item.label,
+      );
       await expect(settingsNav(page).locator('[aria-current="page"]')).toHaveCount(1);
     }
   });

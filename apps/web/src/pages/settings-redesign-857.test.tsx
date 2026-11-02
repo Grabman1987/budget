@@ -126,8 +126,12 @@ it('ON shows six accessible groups, preserves every destination and expands the 
   expect(within(current).getByRole('link', { name: 'Profil' }).getAttribute('aria-current')).toBe(
     'page',
   );
+  const connections = screen.getByRole('link', { name: /^Verbindungen$/ });
+  expect(connections.getAttribute('href')).toBe('/einstellungen/datenquellen');
+  expect(connections.closest('details')).toBeNull();
   expect(screen.getByText('Konten & Depots').closest('details')?.open).toBe(false);
   await userEvent.click(screen.getByText('Konten & Depots'));
+  expect(screen.getByText('neu hier').getAttribute('aria-hidden')).toBe('true');
   expect(screen.getByRole('link', { name: 'Kontakte' }).getAttribute('href')).toBe(
     '/einstellungen/kontakte',
   );

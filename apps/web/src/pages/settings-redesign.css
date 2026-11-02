@@ -419,7 +419,7 @@
   grid-template-columns: 36px minmax(0, 1fr) auto;
   align-items: start;
   gap: 4px 12px;
-  padding: 16px;
+  padding: 10px 16px;
 }
 .settings-redesign .settings-source-icon {
   display: grid;
@@ -431,6 +431,10 @@
   background: var(--surface-2);
   color: var(--ink-2);
 }
+.settings-redesign .settings-source-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .settings-redesign .settings-source-copy strong {
   font-size: var(--fs-table);
 }
@@ -438,7 +442,7 @@
   display: block;
   color: var(--ink-2);
   font-size: var(--fs-meta);
-  margin-top: 4px;
+  margin-top: 2px;
 }
 .settings-redesign .settings-source-head > .settings-row-actions {
   grid-column: 2 / -1;
@@ -467,9 +471,6 @@
     grid-template-columns: 36px minmax(0, 1fr);
     gap: 8px;
     padding: 12px;
-  }
-  .settings-redesign .settings-source-head > .status-mark {
-    grid-column: 2;
   }
   .settings-redesign .settings-source-details {
     padding-inline: 12px;
@@ -609,22 +610,29 @@
 }
 @media (min-width: 768px) {
   .settings-redesign .settings-source-head > .settings-source-icon {
-    grid-row: 1 / 3;
+    grid-row: 1;
   }
   .settings-redesign .settings-source-head > .settings-source-copy {
-    grid-row: 1 / 3;
+    grid-row: 1;
   }
   .settings-redesign .settings-source-head > .settings-row-actions {
     grid-column: 3;
-    grid-row: 2;
+    grid-row: 1;
+    align-self: center;
     justify-content: flex-end;
   }
 }
-.settings-redesign .settings-source-head > .status-mark {
+.settings-redesign .settings-source-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.settings-redesign .settings-source-title > .status-mark {
   justify-self: end;
   border: 1px solid var(--rule);
   border-radius: var(--radius-pill);
-  padding: 3px 8px;
+  padding: 2px 6px;
   font-size: var(--fs-meta);
 }
 .settings-redesign .settings-classes-table {

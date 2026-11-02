@@ -47,6 +47,20 @@ test('settings design: every destination and group at the reference viewport, wi
       ).toBeVisible();
       await expect(page.getByRole('navigation', { name: 'Hauptnavigation' })).toBeVisible();
     }
+    if (!isMobile) {
+      const contact = page
+        .locator('.settings-nav-rail')
+        .getByRole('link', { name: 'Kontakte', exact: true });
+      if (await contact.isVisible()) {
+        const bounds = await contact.boundingBox();
+        expect(bounds!.height, 'compact contact entry with location pill').toBeLessThanOrEqual(48);
+        expect(bounds!.height).toBeGreaterThanOrEqual(44);
+      }
+    }
+    if (!isMobile && name === 'verbindungen') {
+      for (const row of await page.locator('.settings-source-head').all())
+        expect((await row.boundingBox())!.height, 'compact source row').toBeLessThanOrEqual(96);
+    }
     await expect(page.locator('main')).not.toContainText('Seite nicht gefunden');
     await expect(page.locator('main')).not.toContainText('Noch nicht gebaut');
     expect(

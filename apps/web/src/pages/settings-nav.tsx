@@ -169,6 +169,24 @@ function RedesignSettingsGroup({
       : item.id !== 'anlageklassen' || search['ansicht'] !== 'stufen');
   const active = group.items.some(selected);
   const Icon = GROUP_ICONS[group.id as keyof typeof GROUP_ICONS];
+  if (group.items.length === 1) {
+    const item = group.items[0]!;
+    return (
+      <ul className="settings-direct-group" aria-label={group.label}>
+        <li>
+          <AppLink
+            className="settings-direct-link"
+            to={item.to}
+            search={{ ...item.search, ...(von ? { von } : {}) }}
+            aria-current={selected(item) ? 'page' : undefined}
+          >
+            <Icon size={20} strokeWidth={1.5} aria-hidden="true" />
+            <span className="settings-item-label">{group.label}</span>
+          </AppLink>
+        </li>
+      </ul>
+    );
+  }
   return (
     <details
       className="settings-group"
@@ -194,6 +212,11 @@ function RedesignSettingsGroup({
               aria-current={selected(item) ? 'page' : undefined}
             >
               <span className="settings-item-label">{item.label}</span>
+              {item.id === 'kontakte' && (
+                <span className="settings-nav-new" aria-hidden="true">
+                  neu hier
+                </span>
+              )}
               <ChevronRight
                 className="settings-chevron"
                 size={16}

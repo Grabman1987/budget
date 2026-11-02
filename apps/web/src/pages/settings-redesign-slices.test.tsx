@@ -10,6 +10,7 @@ import {
   createRoute,
   createRouter,
   createMemoryHistory,
+  useLocation,
 } from '@tanstack/react-router';
 import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -23,6 +24,7 @@ import { SecurityPanel } from './security-page';
 import { ProjectSettings } from './project-settings';
 import { InflationBasketSettingsPage } from './inflation-basket-settings';
 import { ExportPlaceholderPage } from './export-placeholder';
+import { AppLink } from '../shell/app-link';
 
 vi.mock('../shell/redesign-flag', () => ({ REDESIGN_ENABLED: true }));
 const databases: OpenedDatabase[] = [];
@@ -49,7 +51,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-function mount(node: React.ReactNode, path: string) {
+function mount(node: React.ReactNode, path: string, additionalPaths: string[] = []) {
   const database = createTestDatabase();
   databases.push(database);
   seedBasics(database.db);
@@ -86,13 +88,15 @@ function mount(node: React.ReactNode, path: string) {
     }),
   );
   const root = createRootRoute({ component: Outlet });
-  const route = createRoute({
-    getParentRoute: () => root,
-    path: path.split('?')[0]!,
-    component: () => node,
-  });
+  const routes = [path.split('?')[0]!, ...additionalPaths].map((routePath) =>
+    createRoute({
+      getParentRoute: () => root,
+      path: routePath,
+      component: () => node,
+    }),
+  );
   const router = createRouter({
-    routeTree: root.addChildren([route]),
+    routeTree: root.addChildren(routes),
     history: createMemoryHistory({ initialEntries: [path] }),
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -108,6 +112,7 @@ function mount(node: React.ReactNode, path: string) {
     writes,
     api,
     client,
+    router,
     failAssetReads: () => {
       failAssetReads = true;
     },
@@ -125,7 +130,7 @@ it('E4 ON orders the five real sources and makes unavailable-source recovery acc
   mount(<DataSourcesPage />, '/einstellungen/datenquellen');
   await screen.findByRole('heading', { name: 'Verbindungen' });
   expect(
-    [...document.querySelectorAll('.settings-source-copy > strong')].map(
+    [...document.querySelectorAll('.settings-source-copy strong')].map(
       (element) => element.textContent,
     ),
   ).toEqual(['Bank', 'Krypto', 'Gehaltszettel', 'Kurse', 'VPI']);
@@ -245,5 +250,28 @@ it('E5 ON keeps a dirty policy draft when a background settings read fails', asy
   expect((screen.getByLabelText('Bezeichnung (optional)') as HTMLInputElement).value).toBe(
     'Synthetic policy draft',
   );
+  expect(writes).toEqual([]);
+});
+
+it('E3 ON captures the actual report entry and returns to its full selection without writing', async () => {
+  const source = '/reports/inflation?monat=2026-09&zeitraum=1J#synthetic-source';
+  function ReportBasketJourney() {
+    const location = useLocation();
+    return location.pathname === '/einstellungen/warenkorb' ? (
+      <InflationBasketSettingsPage />
+    ) : (
+      <AppLink to="/einstellungen/warenkorb">Warenkorb bearbeiten</AppLink>
+    );
+  }
+  const { router, writes } = mount(<ReportBasketJourney />, source, ['/einstellungen/warenkorb']);
+  await userEvent.click(await screen.findByRole('link', { name: 'Warenkorb bearbeiten' }));
+  const back = await screen.findByRole('link', { name: 'Zur persönlichen Inflation' });
+  expect(
+    new URL(router.state.location.href, 'https://budget.invalid').searchParams.get('von'),
+  ).toBe(source);
+  expect(back.getAttribute('href')).toBe(source);
+  await userEvent.click(back);
+  await screen.findByRole('link', { name: 'Warenkorb bearbeiten' });
+  expect(router.state.location.href).toBe(source);
   expect(writes).toEqual([]);
 });

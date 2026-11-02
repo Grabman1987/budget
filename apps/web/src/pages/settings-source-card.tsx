@@ -45,20 +45,22 @@ export function SettingsSourceCard({
           <Icon size={20} strokeWidth={1.5} aria-hidden="true" />
         </span>
         <div className="settings-source-copy">
-          <strong>{title}</strong>
+          <div className="settings-source-title">
+            <strong>{title}</strong>
+            {loading ? (
+              <SourceStamp>Lädt …</SourceStamp>
+            ) : (
+              <StatusMark status={attention || error ? 'warning' : 'met'}>
+                {loading ? 'Lädt …' : error ? 'Dienst nicht erreichbar' : status}
+              </StatusMark>
+            )}
+          </div>
           <small>{detail}</small>
           <small>
             Letzter Erfolg: {sourceDate(date)}
             {next && <> · Nächster Abruf: {next}</>}
           </small>
         </div>
-        {loading ? (
-          <SourceStamp>Lädt …</SourceStamp>
-        ) : (
-          <StatusMark status={attention || error ? 'warning' : 'met'}>
-            {loading ? 'Lädt …' : error ? 'Dienst nicht erreichbar' : status}
-          </StatusMark>
-        )}
         <div className="settings-row-actions">
           {error ? (
             <Button variant="ghost" onClick={onRetry}>
