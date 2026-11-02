@@ -272,16 +272,16 @@ it('ON phone separates a singleton group heading and its available sum from the 
     return fetchFixture(input, init);
   });
   const { container } = mount();
-  const toggle = await screen.findByRole('button', { name: 'Synthetic singleton', exact: true });
+  const toggle = await screen.findByRole('button', { name: 'Synthetic singleton' });
   const heading = toggle.closest('tr')!;
   expect(heading.classList.contains('prow')).toBe(false);
   expect(heading.querySelector('.plan-group-available')!.textContent).toBe('Verfügbar 110,00 €');
   expect(heading.nextElementSibling!.querySelector('.pname')!.textContent).toBe('Synthetic goal');
   expect(container.querySelector('.pgroup.psingle')).toBeNull();
   fireEvent.click(toggle);
-  expect(screen.queryByRole('button', { name: 'Synthetic goal', exact: true })).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Synthetic singleton', exact: true }));
-  expect(await screen.findByRole('button', { name: 'Synthetic goal', exact: true })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Synthetic goal' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Synthetic singleton' }));
+  expect(await screen.findByRole('button', { name: 'Synthetic goal' })).toBeTruthy();
 });
 
 it('ON phone keeps month read utilities reachable through native menu keyboard navigation and returns to the income inspector without writes', async () => {
