@@ -377,12 +377,14 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
     .evaluate((svg) => svg.scrollIntoView({ block: 'center' }));
   for (const [name, account, total] of [
     ['Liquidität', 'Girokonto', '9.356,00 €'],
-    ['Investiert', 'Depot', '88.000,00 €'],
-    ['Schulden', 'Kredit', '−12.626,00 €'],
+    [redesign ? 'Anlagen' : 'Investiert', 'Depot', '88.000,00 €'],
+    [redesign ? 'Schulden (netto)' : 'Schulden', 'Kredit', '−12.626,00 €'],
   ]) {
     const segment = page
       .getByRole('group', { name: 'Maßkette Nettovermögen' })
-      .getByRole('button', { name: new RegExp(`^${name}`) });
+      .getByRole('button', {
+        name: new RegExp(`^${name.replaceAll('(', '\\(').replaceAll(')', '\\)')}`),
+      });
     await segment.locator('.seg-fill').click();
     const panel = page.getByRole('region', { name, exact: true });
     await expect(page).toHaveURL(/\/heute\/details\//);
@@ -399,7 +401,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
     .getByRole('button', { name: /^Schulden/ })
     .press('Enter');
   const source = page
-    .getByRole('region', { name: 'Schulden', exact: true })
+    .getByRole('region', { name: redesign ? 'Schulden (netto)' : 'Schulden', exact: true })
     .getByRole('link', { name: 'Kredit', exact: true });
   const target = await source.getAttribute('href');
   await source.click();
@@ -793,7 +795,9 @@ test('settled balance reaches the forecast and the composition measures its part
     });
     const composition = page.getByRole('group', { name: 'Maßkette Nettovermögen' });
     await expect(composition.getByRole('button', { name: /^Liquidität/ })).toBeVisible();
-    await expect(composition.getByRole('button', { name: /^Investiert/ })).toBeVisible();
+    await expect(
+      composition.getByRole('button', { name: redesign ? /^Anlagen/ : /^Investiert/ }),
+    ).toBeVisible();
     await expect(composition.getByRole('button', { name: /^Schulden/ })).toBeVisible();
     await expect(composition.locator('.chain-minus .seg-outline')).toHaveAttribute(
       'stroke-dasharray',
