@@ -1,5 +1,33 @@
 # Implementation and acceptance matrix
 
+## Published continuation — bounded evidence
+
+[STATUS](STATUS.md) records the exact published app revision, Preview, Deploy and health. The [handoff](handoff/rollout-20261102.md) preserves source/checks, the targeted CI retry and open acceptance. A subsequent documentation-only merge does not publish a new app revision.
+
+| Scope                             | Verified implementation/publication evidence                                                                                                                                 | Acceptance still required                                                                                                                 |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Saved filters #818 / PR #908      | Independently reviewed source; exact-head/main CI; Chromium and actual WebKit synthetic flows with inspected light/dark originals; included in the published batch           | Physical/private acceptance and parent #479 remain separate                                                                               |
+| Bounded design foundation PR #910 | Uploaded archive hashed; three admitted PNGs individually inspected; two inert token snapshots; complete provenance inventory; reviewed integration in the published source  | No full-image audit, whole-export import, full redesign or owner design acceptance                                                        |
+| H1 refresh #830 / PR #911         | Meaningful RED, 47 focused tests, actual ON/OFF browser runs across three profiles and both themes; full-main Axe, six inspected ON originals; final CI and published source | Remaining H1 hierarchy, 320px, native lifecycle and owner timing; unchanged month-close timing margin remains diagnosed, not proven fixed |
+
+No new private, physical-device, restore or Gates 1–4 evidence was collected. The historical matrix and gate definitions below remain unchanged.
+
+## Previous rollout update — 2026-11-02
+
+[STATUS](STATUS.md) records the current dated source, CI, Deploy and health evidence. The older matrix below is historical and does not describe the complete current backlog.
+
+| Scope                                               | Implementation/publication evidence                                                                                                                            | Acceptance still required                                                                                                                            |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T3 selected signed investment basis, #824 / PR #880 | Preserved implementation reconciled with current main; independent full financial/security/test/image review; exact-head CI and publication evidence in STATUS | Owner follows the source accounts, compares Freiheit/Allokation and the separate net-worth chain; named product/device cases remain open             |
+| Blaupause rollout                                   | Conservative missing-export handling approved; existing foundations reused; no full redesign or complete image import claimed                                  | Remaining area/state/parity work and named owner acceptance; approval of export handling does not accept application behavior                        |
+| Project reconciliation                              | Partial owner-export snapshot plus repository issue evidence; direct Board updates explicitly deferred                                                         | Reconcile the complete Board later; no status/closure inferred from the export                                                                       |
+| Gates 1–4 and private operations                    | No new owner evidence collected by this continuation                                                                                                           | Existing gate definitions, physical-device checks, private financial comparisons, receipt/restore and historical archive/link proof remain unchanged |
+
+Synthetic browser/CI evidence is not physical-device or private-finance acceptance. No existing criterion is weakened or marked complete by this documentation update.
+
+## Historical matrix and delivery definitions
+
+
 Source snapshot: main `5193b0a930656be210e6b447bfd0e8de8c9846a0`, verified live on 2026-10-08. [STATUS](STATUS.md) records immutable CI/deploy evidence and the observed health revision. This matrix is a starting acceptance register, not a claim of complete feature coverage or owner sign-off. SPEC remains authoritative.
 
 ## Reading and updating the evidence

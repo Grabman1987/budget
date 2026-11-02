@@ -1,5 +1,40 @@
 # Current status
 
+Updated 2026-11-02. This is a dated delivery snapshot, not a task backlog. Repository issues and Project 1 remain authoritative. Implementation, publication and owner acceptance are separate. This documentation follows the app revision below; a later documentation-only main commit is not a new app release.
+
+## Published continuation batch
+
+- Published app revision: `a8f2ecc513bcc86468053957f3732af471f3ed72`. Saved filters [PR #908](https://github.com/Grabman1987/budget/pull/908), bounded design foundation [PR #910](https://github.com/Grabman1987/budget/pull/910) and bounded H1 refresh [PR #911](https://github.com/Grabman1987/budget/pull/911) received independent review, exact-head CI and serial helper integration. [Main CI](https://github.com/Grabman1987/budget/actions/runs/41456729952) passed.
+- [Synthetic Preview](https://github.com/Grabman1987/budget/actions/runs/41456918454) and [Deploy](https://github.com/Grabman1987/budget/actions/runs/41457197342) succeeded. The release helper confirmed LIVE; a separate public health read at 2026-11-02 13:57:37 UTC returned status ok and exactly the full revision above. Production redesign remains OFF.
+- The uploaded ZIP resolves export access. Only three individually inspected generic PNGs and two inert token snapshots were admitted, with reconciled generic contracts and complete provenance. Personal-label desktop references and unseen originals remain excluded. No whole-export import or full redesign acceptance is claimed.
+- H1 preserves successful matching-context figures during refresh; errors/placeholders/wrong contexts still withhold affected figures. Actual ON and OFF local browser runs passed across all three profiles and both themes. The final CI required one targeted retry of an unchanged WebKit month-close timeout; it passed 109 cases with two existing skips and no flaky result. Local evidence shows a narrow timing margin; the original CI cause is unproven and no assertions/timeouts changed. [The handoff](handoff/rollout-20261102.md) records full provenance and limitations.
+- Broader H1 hierarchy/320px/native lifecycle/owner timing, T7's separate Heute disclosure, frozen P1 and named owner/private/device acceptance remain open. Board reconciliation is deferred; Gates 1–4 remain unchanged. No migration, real-data write or issue closure was performed.
+
+The earlier snapshot below is historical. Its pending export/PR908 statements are superseded by this batch; its historical bodies and gate definitions remain unchanged.
+
+## Previous rollout evidence — 2026-11-02
+
+- Source: main `9ee87f7f46a349661108b5978cc6400528cb8e35`, verified by [main CI](https://github.com/Grabman1987/budget/actions/runs/41432817822). T3 [PR #880](https://github.com/Grabman1987/budget/pull/880) retains the original selected signed investment-basis implementation, reconciled with current T2/S2/S3/T6/T7/E0 work and independently reviewed.
+- Candidate `bae157828dc622c204364d949e9b77c780ed0454`: [exact-head CI](https://github.com/Grabman1987/budget/actions/runs/41429933051); [fresh synthetic desktop/mobile evidence](evidence/redesign-t3-resume-20261102.md). The local final WebKit launch limitation is retained in that evidence; local Chromium completion is not represented as a local WebKit pass.
+- Publication: observed `/health` returned `status: ok` and revision `9ee87f7f46a349661108b5978cc6400528cb8e35`; [Deploy](https://github.com/Grabman1987/budget/actions/runs/41433660011). Redesign activation and named owner acceptance are not inferred from publication. Production redesign remains OFF.
+- The release workflow verified exact health. Its final local Node fetch encountered DNS `EAI_AGAIN`; a separate subsequent public HTTPS health read returned the exact revision above. No release was dispatched twice. [Synthetic Preview](https://github.com/Grabman1987/budget/actions/runs/41433086703) also succeeded. T3 exact-head CI includes successful WebKit common smoke.
+- Saved booking filters [draft PR #908](https://github.com/Grabman1987/budget/pull/908) remain separate, unmerged and unpublished; see the [continuation handoff](handoff/rollout-20261102.md) for exact reviewed source and remaining evidence.
+- No schema/data migration was added by this continuation. No production booking, private-data reconciliation, real-device acceptance or database restore was performed.
+
+## Remaining rollout boundaries
+
+- Conservative export-gap handling is owner-approved: preserve Blaupause and approved source precedence, derive missing responsive states from approved patterns, retain financial logic and existing ordering. Every imported original image still requires privacy and fidelity inspection. Binary export access remains pending; no complete design import is claimed.
+- The owner supplied a partial 75-row Board export and explicitly deferred Board synchronization. All 105 then-open repository issues were provisionally classified; the export does not establish complete Project coverage. No Board update, automatic issue closure or D disposition is claimed.
+- Preserve existing prepared branches and the frozen P1 attempt. T3 owner source-account/Freiheit/Allokation comparison and product/device acceptance remain open. Earlier integrated slices retain their own remaining acceptance.
+- Gates 1–4 remain open without new owner evidence: physical-device/design acceptance, private account/month equality, holdings/returns comparison and parallel month-end reconciliation. Existing definitions below are unchanged. Private receipt/restore and historical archive/link evidence remain owner work.
+- Budget usage/reset are not measurable in this runtime. Wave allocations are estimates with a 20% reserve, not observed usage.
+
+## Historical status
+
+<details>
+<summary>Earlier dated status snapshots, retained as historical evidence</summary>
+
+
 Updated 2026-10-10 against main `7571ac6f91f15bf0a603d7175f2df2f75c05f1aa`. The live health revision was read from `/health` on the same date and matched this source exactly (`7571ac6f91f15bf0a603d7175f2df2f75c05f1aa`). [Acceptance matrix](ACCEPTANCE.md) separates connected implementation, deployment evidence and remaining acceptance. [SPEC](../SPEC.md) still defines scope and source precedence; [ROADMAP](ROADMAP.md) retains task-specific checklists.
 
 ## Verified source and deployment
@@ -177,5 +212,7 @@ implementation separately from private YNAB/PP reconciliation and owner device,
 restore, design and month-end acceptance. Establish private file access and
 transfer procedures before processing real exports. No still-used finance tool
 is retired before Gate 4.
+
+</details>
 
 </details>
