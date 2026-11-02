@@ -1,0 +1,27 @@
+function VDesk({dark,mode}){return <VFrame dark={dark} w={1440} h={900} id={'heute.desktop.'+(dark?'dunkel':'hell')}><div style={{display:'flex',height:'100%'}}><VSide dark={dark}/><div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column'}}><VTop mode={mode}/>
+<main style={{flex:1,minHeight:0,padding:'10px 28px 16px',overflow:'hidden',display:'flex',flexDirection:'column',gap:10}}>
+<div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:28,alignItems:'stretch'}}><div style={{display:'flex',flexDirection:'column',justifyContent:'center'}}><VLead mode={mode}/><VMonth/></div><VNet W={341} H={92}/></div>
+<div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:28,alignItems:'start',minHeight:0}}>
+<div style={{display:'flex',flexDirection:'column',gap:12}}>
+<VCard id="heute.month" n={1} t="Monat im Blick" r={<Lk>Pace →</Lk>}><div style={{fontSize:14,marginBottom:6}}>Ausgegeben <b className="tn">2.180 €</b> · Prognose Monatsende <b className="tn">2.950 €</b> von <span className="tn">3.420 €</span> Deckel</div><VPace W={715} H={160}/><VLegend/></VCard>
+<VCard id="heute.forecast" n={2} t="Kontoprognose · Budget-Konten · 35 Tage" r={<Lk>Prognose →</Lk>}><VProg W={715} H={205}/></VCard></div>
+<div style={{display:'flex',flexDirection:'column',gap:12}}>
+<VCard id="heute.next" n={3} t="Als Nächstes" r="4 offen"><VRev/></VCard><VDue/><VLast n={4}/></div></div></main></div></div></VFrame>}
+function VPhone(){const tabs=[['Heute','Home'],['Plan','Table2'],['Konten','Rows3'],['Vermögen','TrendingUp'],['Reports','ChartColumn']];return <VFrame w={390} h={844} rad={38} id="heute.phone.hell"><div style={{display:'flex',flexDirection:'column',height:'100%'}}>
+<div style={{height:44,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 28px 0',fontSize:14,fontWeight:700}}><span>9:41</span><span style={{display:'flex',gap:5}}><Ic n="Signal" s={14}/><Ic n="Wifi" s={14}/><Ic n="BatteryFull" s={16}/></span></div>
+<div style={{height:52,flexShrink:0,display:'flex',alignItems:'center',gap:8,padding:'0 16px'}}><span style={{fontSize:24,fontWeight:650}}>Heute</span><span className="tn" style={{fontSize:12,color:'var(--muted)',flex:1,paddingTop:5}}></span><span style={{width:44,height:44,display:'grid',placeItems:'center'}}><Ic n="Search" s={20}/></span><span aria-label="Prüfen, 12 offen" style={{width:44,height:44,display:'grid',placeItems:'center'}}><span className="tn" style={{width:38,height:38,boxSizing:'border-box',borderRadius:'50%',display:'grid',placeItems:'center',boxShadow:'inset 0 0 0 1.5px var(--primary)',color:'var(--primary)',fontSize:14,fontWeight:700}}>12</span></span><span style={{width:36,height:36,borderRadius:'50%',display:'grid',placeItems:'center',fontSize:12,fontWeight:700,background:'var(--primary)',color:'var(--onprimary)'}}>FG</span></div>
+<div style={{padding:'0 16px',height:48,flexShrink:0,whiteSpace:'nowrap',display:'flex',justifyContent:'flex-end',alignItems:'center'}}><VSeg on="Bis Gehalt" ios/></div>
+<div className="noscroll" style={{flex:1,minHeight:0,overflowY:'auto',padding:'0 16px 84px',display:'flex',flexDirection:'column',gap:14,scrollbarWidth:'none'}}>
+<VLead mode="Bis Gehalt" ph/>
+<VNet W={326} H={96} compact/>
+<VMonth ph/>
+<VCard id="heute.next" n={3} t="Als Nächstes" pad="10px 12px"><VRev ph/></VCard></div>
+<span style={{position:'absolute',right:16,bottom:96,width:56,height:56,borderRadius:'50%',background:'var(--primary)',color:'var(--onprimary)',display:'grid',placeItems:'center',boxShadow:'0 10px 22px -10px rgba(11,27,51,.5)'}}><Ic n="Plus" s={26} w={2}/></span>
+<div style={{height:78,flexShrink:0,display:'flex',padding:'6px 8px 22px',background:'var(--sidebar)',boxShadow:'inset 0 1px 0 var(--line)'}}>{tabs.map(([a,ic],i)=><span key={a} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,fontSize:11.5,fontWeight:i?500:650,color:i?'var(--muted)':'var(--primary)',boxShadow:i?'none':'inset 0 2px 0 var(--primary)'}}><Ic n={ic} s={22}/>{a}</span>)}</div></div></VFrame>}
+function VCanvas(){const X=40,GAP=100,Y=210;const lb=(x,y,t)=><div style={{position:'absolute',left:x,top:y-30,fontSize:13,fontWeight:600,whiteSpace:'nowrap'}}>{t}</div>;
+return <div style={{position:'absolute',left:0,top:0,width:X*2+1440*2+390+GAP*2,height:Y+900+60,fontFamily:'Archivo,system-ui,sans-serif',color:'#0a2342'}}>
+<div style={{position:'absolute',left:X,top:30,width:1500}}><div style={{fontSize:34,fontWeight:700}}>Budget · Heute v2 · eine Richtung</div><div style={{fontSize:15,marginTop:6,color:'#36557a',maxWidth:1100}}>Basis ui_kits/app/hell.html, Spaltenraster 2 : 1, Maßkette als Balken, Revisionstabelle. Hell zeigt „Bis Gehalt“, Dunkel zeigt „Monat“. Beispieldaten. Jeder Block trägt eine data-id (heute.lead, heute.next, heute.month, heute.forecast, heute.networth, heute.due, heute.last).</div></div>
+{lb(X,Y,'Desktop 1440×900 · Lichtpause · Zeitraum „Bis Gehalt“')}<div style={{position:'absolute',left:X,top:Y}}><VDesk mode="Bis Gehalt"/></div>
+{lb(X+1440+GAP,Y,'Desktop 1440×900 · Blaupause · Zeitraum „Monat“')}<div style={{position:'absolute',left:X+1440+GAP,top:Y}}><VDesk dark mode="Monat"/></div>
+{lb(X+2880+GAP*2,Y,'Phone 390×844 · Lichtpause · „Bis Gehalt“')}<div style={{position:'absolute',left:X+2880+GAP*2,top:Y}}><VPhone/></div></div>}
+ReactDOM.createRoot(document.getElementById('root')).render(<VCanvas/>);

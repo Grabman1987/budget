@@ -1,0 +1,13 @@
+const CF=window.RD_CFG||{cols:['A','B','C'],dark:false};
+const COLW=1440,GAP=140,X0=40,Y0=330,YP=Y0+900+90;
+const LEG={A:['Volles Vokabular nach DESIGN.md: Schriftfeld mit Zellen, Maßketten (Verfügbar, Zu verteilen), Leitmaß und Höhenkote in der Prognose, Revisionstabelle, Kreisnummern ①–⑤, Vormonat strichpunktiert.','Lichtpause hell, Karten für Arbeitsflächen, Raster nur als Ausklang oben rechts.'],B:['Dasselbe System, maximal ruhig: Maßlinie nur am Leitmaß und an den zwei Diagrammen, sonst Haarlinien-Zeilen ohne Karten, mehr Weißraum, keine Maßketten.','Schriftfeld ohne Zellrahmen, Kreisnummern und Revisionstabelle bleiben.'],C:['Blaupause (helle Linien auf Preußischblau) als Hauptlook, ein großes Leitmaß (64 px) mit Maßkette über der Kontoprognose als Heldenfläche, kräftigere Skala.','Gleiche Tokens, gleiche Regeln; Rotstift und Grün nur als Signal.']};
+const nm=c=>CFG[c].name;
+function Canvas(){const cols=CF.cols;const W=X0*2+cols.length*COLW+(cols.length-1)*GAP,Hh=YP+844+80;
+return <div style={{position:'absolute',left:0,top:0,width:W,height:Hh,fontFamily:'Archivo,system-ui,sans-serif',color:'#0a2342'}}>
+<div style={{position:'fixed',left:0,right:0,top:0,zIndex:50,height:28,display:'flex',background:'#0a2342',color:'#fff',fontSize:13,fontWeight:700}}>{cols.map(c=><span key={c} style={{flex:1,display:'flex',alignItems:'center',padding:'0 16px',borderLeft:'1px solid rgba(255,255,255,.25)'}}>{nm(c)}</span>)}</div>
+<div style={{position:'absolute',left:X0,top:40,width:1500}}><div style={{fontSize:36,fontWeight:700}}>Budget · Heute in drei Stärken der Zeichensprache{CF.dark?' · Blaupause':''}</div><div style={{fontSize:16,marginTop:6,color:'#36557a',maxWidth:1000}}>Gleiche Struktur und Reihenfolge, gleiche Tokens aus DESIGN.md. Die Richtungen unterscheiden sich nur darin, wie stark das Konstruktionsblatt-Vokabular eingesetzt wird. Nur Heute; Prüfen und Plan folgen nach der Wahl. Beispieldaten.</div></div>
+{cols.map((c,ci)=>{const x=X0+ci*(COLW+GAP),k=CF.dark?{...CFG[c],dark:true}:CFG[c];return <div key={c}>
+<div style={{position:'absolute',left:x,top:150,width:COLW}}><div style={{fontSize:26,fontWeight:700}}>{nm(c)}</div>{LEG[c].map((l,i)=><div key={i} style={{fontSize:15,marginTop:6,color:'#36557a',maxWidth:1200}}>{l}</div>)}</div>
+<div style={{position:'absolute',left:x,top:Y0}}><div style={{position:'absolute',top:-30,left:0,fontSize:13,fontWeight:600,whiteSpace:'nowrap'}}>{c} · Heute · Desktop 1440×900</div><HeuteDesk k={k}/></div>
+<div style={{position:'absolute',left:x,top:YP}}><div style={{position:'absolute',top:-30,left:0,fontSize:13,fontWeight:600,whiteSpace:'nowrap'}}>{c} · Heute · Phone 390×844</div><HeutePh k={k}/></div></div>})}</div>}
+ReactDOM.createRoot(document.getElementById('root')).render(<Canvas/>);
