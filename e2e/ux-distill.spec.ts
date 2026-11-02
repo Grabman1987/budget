@@ -5,6 +5,8 @@ import type { Heute } from '../apps/web/src/heute/api';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
 
+const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+
 test('UX-2 sample evidence: Heute and Plan', async ({ page }, info) => {
   test.setTimeout(60_000);
   const phase = process.env['UX_CAPTURE_BEFORE'] ? 'before' : 'after';
@@ -33,18 +35,31 @@ test('Heute keeps its device fold choice and the primary order, net worth matche
   const fold = page.getByRole('button', { name: 'Mehr zum Monat' });
   const initiallyOpen = info.project.name === 'desktop';
   await expect(fold).toHaveAttribute('aria-expanded', String(initiallyOpen));
-  const selectors = [
-    '.heute-answers',
-    '.heute-lead',
-    '.heute-overview-charts',
-    '.heute-pace',
-    '.heute-compact-forecast',
-    '.heute-wealth-line',
-    '.heute-attention',
-    '#heute-upcoming-title',
-    '#heute-bookings-title',
-    '.heute-more',
-  ];
+  const selectors = redesign
+    ? [
+        '.heute-lead',
+        '.heute-attention',
+        '.heute-work-grid',
+        '.heute-pace',
+        '.heute-compact-forecast',
+        '.heute-answers',
+        '.heute-wealth-line',
+        '#heute-upcoming-title',
+        '#heute-bookings-title',
+        '.heute-more',
+      ]
+    : [
+        '.heute-answers',
+        '.heute-lead',
+        '.heute-overview-charts',
+        '.heute-pace',
+        '.heute-compact-forecast',
+        '.heute-wealth-line',
+        '.heute-attention',
+        '#heute-upcoming-title',
+        '#heute-bookings-title',
+        '.heute-more',
+      ];
   expect(
     await page
       .locator(selectors.join(','))
@@ -58,7 +73,23 @@ test('Heute keeps its device fold choice and the primary order, net worth matche
     selectors.map((selector) => page.locator(selector).boundingBox()),
   );
   expect(boxes.every((box) => box !== null)).toBe(true);
-  if (info.project.name === 'desktop') {
+  if (info.project.name === 'desktop' && redesign) {
+    const [lead, attention, overview, pace, forecast, answers, wealth] = boxes.map((box) => box!);
+    expect(attention!.x).toBeGreaterThanOrEqual(lead!.x + lead!.width);
+    expect(attention!.y).toBe(lead!.y);
+    expect(overview!.y).toBeGreaterThanOrEqual(lead!.y + lead!.height);
+    expect(overview!.y).toBeGreaterThanOrEqual(attention!.y + attention!.height);
+    expect(forecast!.x).toBe(pace!.x);
+    expect(forecast!.y).toBeGreaterThanOrEqual(pace!.y + pace!.height);
+    expect(answers!.x).toBeGreaterThanOrEqual(pace!.x + pace!.width);
+    expect(wealth!.x).toBe(answers!.x);
+    expect(wealth!.y).toBeGreaterThanOrEqual(answers!.y + answers!.height);
+    for (const chart of [pace!, forecast!, wealth!]) {
+      expect(chart.y).toBeGreaterThanOrEqual(overview!.y);
+      expect(chart.y + chart.height).toBeLessThanOrEqual(overview!.y + overview!.height);
+    }
+    for (let i = 7; i < boxes.length; i++) expect(boxes[i]!.y).toBeGreaterThan(boxes[i - 1]!.y);
+  } else if (info.project.name === 'desktop') {
     const [answers, lead, overview, pace, forecast, wealth, attention] = boxes.map((box) => box!);
     expect(lead!.y).toBeGreaterThanOrEqual(answers!.y + answers!.height);
     expect(overview!.y).toBeGreaterThanOrEqual(lead!.y + lead!.height);
@@ -116,7 +147,7 @@ test('Heute has eight warning items once, two first, neutral debts and accessibl
     { ...today.pinned[0]!, id: 'synthetic-over-0', name: 'Testenvelope 1', availableCents: -1000 },
   ];
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: today }));
-  await page.goto('/?monat=2026-09');
+  await page.goto(redesign ? '/?monat=2026-09&period=month' : '/?monat=2026-09');
   // The top-bar chip owns cover actions; Today summarizes the same eight findings once.
   await expect(page.locator('[data-overspent]')).toHaveCount(0);
   const tasks = page.getByRole('region', { name: 'Zu tun', exact: true });

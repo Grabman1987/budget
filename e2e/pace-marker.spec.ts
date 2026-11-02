@@ -2,6 +2,8 @@ import { sampleTest as test, expect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
 import { eur } from '../apps/web/src/ledger/format';
 
+const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+
 test('Pace reduces its lines and shares the plan marker and tooltip, with today on Plan bars', async ({
   page,
 }, info) => {
@@ -18,6 +20,13 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
     if (url.startsWith('/?')) {
       expect(
         await page.locator('.heute-lead').evaluate((el) => {
+          const redesigned = el.closest('.heute--redesign');
+          if (redesigned)
+            return Boolean(
+              redesigned.querySelector(
+                '.heute-work-main > .heute-pace + .heute-compact-forecast',
+              ) && redesigned.querySelector('.heute-work-aside > .heute-wealth-line'),
+            );
           const overview = el.nextElementSibling;
           return (
             overview?.classList.contains('heute-overview-charts') &&
@@ -121,9 +130,19 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
       });
     }
   }
-  // The retired bookmark now opens Heute; check the generic DS3 ladder on its live charts.
+  // Verify the canonical bookmark destination before the separate Heute chart-ladder proof.
   // BalanceChart's historical report-mode figures and drawing remain covered in charts.test.tsx.
   await page.goto('/reports/finanzcheck?monat=2026-09&period=month');
+  if (redesign) {
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === '/reports/onepager' &&
+        url.searchParams.get('monat') === '2026-09' &&
+        url.searchParams.get('period') === 'month' &&
+        url.searchParams.get('darstellung') === 'finanzcheck',
+    );
+    await page.goto('/?monat=2026-09&period=month');
+  }
   await expect(page).toHaveURL(
     (url) =>
       url.pathname === '/' &&

@@ -52,7 +52,7 @@ export function Kennzahlen({
   const change = net && !('unavailable' in net.monthChange) ? net.monthChange : null;
   const plan = data?.budgetAnswer;
   const householdMonth = data?.stand.today.slice(0, 7);
-  const payday = scope.period === 'payday';
+  const payday = !REDESIGN_ENABLED && scope.period === 'payday';
   const month =
     !budget.isPending &&
     !budget.isError &&
@@ -66,178 +66,15 @@ export function Kennzahlen({
   const summary = month?.summary;
   const available = month ? availableInEnvelopes(planRows(month)) : undefined;
   const goal = data?.nearestGoal;
-  const assignmentCard = (
-    <Kennzahl
-      id="zu-verteilen"
-      label="Zu verteilen"
-      state={budget}
-      value={summary?.toBeAssignedCents}
-      reserveBar
-      reserveLine
-      alert={(summary?.toBeAssignedCents ?? 0) < 0}
-      nonpositive={summary?.toBeAssignedCents === 0}
-      href={summary ? { to: '/plan/monat', search: { monat: scope.month } } : undefined}
-      bar={
-        summary && {
-          value: summary.assignedCents,
-          total: summary.carryInCents + summary.incomeCents,
-          label: `Zugewiesen ${eur(summary.assignedCents)} · Übertrag ${eur(summary.carryInCents)} · Einnahmen ${eur(summary.incomeCents)}`,
-        }
-      }
-      line={summary && `Zugewiesen ${eurWhole(summary.assignedCents)}`}
-      note={
-        (summary && (
-          <>
-            {`Geld, das noch keinem Envelope zugewiesen ist: Übertrag ${eur(summary.carryInCents)} + Einnahmen ${eur(summary.incomeCents)} − Ungedeckt ${eur(summary.uncoveredCents)} − Zugewiesen ${eur(summary.assignedCents)} − Gehalten ${eur(summary.heldCents)}. Dieselbe Zahl wie im Plan. `}
-            {data &&
-              householdMonth &&
-              `Haushaltseinnahmen ${eur(data.monthResult.earnedCents)} im ${monthLabel(householdMonth)} nach Buchungsdatum. Mit „Für nächsten Monat“ zählt der Zufluss im Plan erst im Folgemonat. `}
-            <AppLink to="/plan/monat/einnahmen" search={{ monat: householdMonth ?? scope.month }}>
-              Planmonat {monthLabel(householdMonth ?? scope.month)} ansehen
-            </AppLink>
-          </>
-        )) || <span>Budgetangaben {budget.isError ? 'nicht verfügbar' : 'werden geladen'}.</span>
-      }
-    />
-  );
-  const leadCard = (
-    <>
-      {payday ? (
-        <Kennzahl
-          id="frei-bis-gehalt"
-          label="Frei bis Gehalt"
-          value={data?.lead.freeCents}
-          pending={aggregatePending}
-          unavailable={!data}
-          reserveBar
-          reserveLine
-          alert={Boolean(data && data.lead.freeCents < 0)}
-          onValueClick={onLeadClick}
-          expanded={chainOpen}
-          controls="heute-lead-chain"
-          testId="heute-lead-value"
-          ariaLabel={
-            data
-              ? `Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${chainOpen ? 'ausblenden' : 'zeigen'}`
-              : undefined
-          }
-          bar={
-            plan && {
-              value: plan.spentCents,
-              total: plan.plannedCents,
-              label: `Ausgegeben ${eur(plan.spentCents)} von Plan ${eur(plan.plannedCents)} · Tag ${plan.day} von ${plan.daysInMonth}`,
-              marker: plan.day / plan.daysInMonth,
-            }
-          }
-          line={
-            data
-              ? `Bis ${shortDay(data.stand.payday.day)} · noch ${data.stand.payday.daysToPayday} Tage`
-              : undefined
-          }
-          note={
-            data && plan
-              ? `Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind. Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}. Plan-Rest: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben. ${
-                  data.balance.salary
-                    ? `Nächster erwarteter Geldeingang: ${shortDay(data.balance.salary.day)} · ${eur(data.balance.salary.cents)}`
-                    : 'Kein Geldeingang im Prognosezeitraum erwartet.'
-                }`
-              : 'Diese Angabe benötigt den Heute-Abruf.'
-          }
-        />
-      ) : (
-        <Kennzahl
-          id="verfuegbar"
-          label="Verfügbar im Budget"
-          state={budget}
-          value={available}
-          reserveBar
-          reserveLine
-          alert={(available ?? 0) < 0}
-          nonpositive={available === 0}
-          href={month ? { to: '/plan/monat', search: { monat: scope.month } } : undefined}
-          bar={
-            month && plan
-              ? {
-                  value: plan.spentCents,
-                  total: plan.plannedCents,
-                  label: `Ausgegeben ${eur(plan.spentCents)} von Plan ${eur(plan.plannedCents)} · Tag ${plan.day} von ${plan.daysInMonth}`,
-                  marker: plan.day / plan.daysInMonth,
-                }
-              : undefined
-          }
-          line={
-            available === undefined || !plan
-              ? undefined
-              : `Ausgegeben ${eurWhole(plan.spentCents)} von ${eurWhole(plan.plannedCents)}`
-          }
-          note={
-            month ? (
-              <>
-                Summe „Verfügbar“ aller Envelopes im Monat, wie im Plan-Inspektor.
-                {plan
-                  ? ` Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}.`
-                  : ''}
-              </>
-            ) : (
-              <span>Budgetangaben {budget.isError ? 'nicht verfügbar' : 'werden geladen'}.</span>
-            )
-          }
-        />
-      )}
-    </>
-  );
-  const netCard = (
-    <Kennzahl
-      id="nettovermoegen"
-      label="Nettovermögen"
-      value={net?.totalCents}
-      pending={aggregatePending}
-      unavailable={!data}
-      reserveBar
-      reserveLine
-      sourceHint={
-        <ValuationSourceHint sources={data?.valuationSources} label="Nettovermögen · Kennzahl" />
-      }
-      nonpositive={Boolean(net && net.totalCents <= 0)}
-      href={net ? { to: '/vermoegen/nettovermoegen', search: { zeitraum: '1J' } } : undefined}
-      missing={
-        data && !net ? (
-          <p className="heute-kennzahl-missing">
-            {'unavailable' in data.netWorth && data.netWorth.unavailable.message}
-          </p>
-        ) : undefined
-      }
-      bar={
-        net
-          ? {
-              value: net.assetsCents,
-              total: net.assetsCents + net.liabilitiesCents,
-              label: `Vermögen ${eur(net.assetsCents)} · ${REDESIGN_ENABLED ? 'Verbindlichkeiten' : 'Schulden'} ${eur(net.liabilitiesCents)}`,
-              assets: true,
-            }
-          : undefined
-      }
-      line={
-        net
-          ? change
-            ? `Δ Monat ${eurWhole(change.deltaCents, true)}`
-            : 'Monatsvergleich nicht verfügbar.'
-          : undefined
-      }
-      note={
-        net
-          ? `Vermögen ${eur(net.assetsCents)} − ${REDESIGN_ENABLED ? 'Verbindlichkeiten' : 'Schulden'} ${eur(net.liabilitiesCents)}.${
-              change
-                ? ` Δ Monat ${eur(change.deltaCents, { sign: true })}: Einzahlung ${eur(change.investmentsInCents, { sign: true })} · Markt ${eur(change.marketCents, { sign: true })}.`
-                : ` ${'unavailable' in net.monthChange ? net.monthChange.unavailable.message : ''}`
-            }`
-          : undefined
-      }
-    />
-  );
   return (
     <div className="heute-answers heute-kennzahlen" data-testid="heute-kennzahlen">
-      {data && data.stand.month && data.stand.month !== householdMonth && (
+      {REDESIGN_ENABLED && (
+        <p className="heute-note">
+          Budget: {monthLabel(scope.month)}
+          {data && ` · Nettovermögen: Stand heute · ${longDay(data.stand.today)}`}
+        </p>
+      )}
+      {!REDESIGN_ENABLED && data && data.stand.month && data.stand.month !== householdMonth && (
         <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>
       )}
       {REDESIGN_ENABLED && month && budget.isFetching && (
@@ -246,38 +83,176 @@ export function Kennzahlen({
         </p>
       )}
       <div className="heute-answer-grid">
-        {REDESIGN_ENABLED ? (
-          <>
-            {leadCard}
-            {netCard}
-            {assignmentCard}
-          </>
+        <Kennzahl
+          id="zu-verteilen"
+          label="Zu verteilen"
+          state={budget}
+          value={summary?.toBeAssignedCents}
+          reserveBar
+          reserveLine
+          alert={(summary?.toBeAssignedCents ?? 0) < 0}
+          nonpositive={summary?.toBeAssignedCents === 0}
+          href={summary ? { to: '/plan/monat', search: { monat: scope.month } } : undefined}
+          bar={
+            summary && {
+              value: summary.assignedCents,
+              total: summary.carryInCents + summary.incomeCents,
+              label: `Zugewiesen ${eur(summary.assignedCents)} · Übertrag ${eur(summary.carryInCents)} · Einnahmen ${eur(summary.incomeCents)}`,
+            }
+          }
+          line={summary && `Zugewiesen ${eurWhole(summary.assignedCents)}`}
+          note={
+            (summary && (
+              <>
+                {`Geld, das noch keinem Envelope zugewiesen ist: Übertrag ${eur(summary.carryInCents)} + Einnahmen ${eur(summary.incomeCents)} − Ungedeckt ${eur(summary.uncoveredCents)} − Zugewiesen ${eur(summary.assignedCents)} − Gehalten ${eur(summary.heldCents)}. Dieselbe Zahl wie im Plan. `}
+                {data &&
+                  householdMonth &&
+                  `Haushaltseinnahmen ${eur(data.monthResult.earnedCents)} im ${monthLabel(householdMonth)} nach Buchungsdatum. Mit „Für nächsten Monat“ zählt der Zufluss im Plan erst im Folgemonat. `}
+                <AppLink
+                  to="/plan/monat/einnahmen"
+                  search={{ monat: householdMonth ?? scope.month }}
+                >
+                  Planmonat {monthLabel(householdMonth ?? scope.month)} ansehen
+                </AppLink>
+              </>
+            )) || (
+              <span>Budgetangaben {budget.isError ? 'nicht verfügbar' : 'werden geladen'}.</span>
+            )
+          }
+        />
+        {payday ? (
+          <Kennzahl
+            id="frei-bis-gehalt"
+            label="Frei bis Gehalt"
+            value={data?.lead.freeCents}
+            pending={aggregatePending}
+            unavailable={!data}
+            reserveBar
+            reserveLine
+            alert={Boolean(data && data.lead.freeCents < 0)}
+            onValueClick={onLeadClick}
+            expanded={chainOpen}
+            controls="heute-lead-chain"
+            testId="heute-lead-value"
+            ariaLabel={
+              data
+                ? `Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${chainOpen ? 'ausblenden' : 'zeigen'}`
+                : undefined
+            }
+            bar={
+              plan && {
+                value: plan.spentCents,
+                total: plan.plannedCents,
+                label: `Ausgegeben ${eur(plan.spentCents)} von Plan ${eur(plan.plannedCents)} · Tag ${plan.day} von ${plan.daysInMonth}`,
+                marker: plan.day / plan.daysInMonth,
+              }
+            }
+            line={
+              data
+                ? `Bis ${shortDay(data.stand.payday.day)} · noch ${data.stand.payday.daysToPayday} Tage`
+                : undefined
+            }
+            note={
+              data && plan
+                ? `Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind. Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}. Plan-Rest: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben. ${
+                    data.balance.salary
+                      ? `Nächster erwarteter Geldeingang: ${shortDay(data.balance.salary.day)} · ${eur(data.balance.salary.cents)}`
+                      : 'Kein Geldeingang im Prognosezeitraum erwartet.'
+                  }`
+                : 'Diese Angabe benötigt den Heute-Abruf.'
+            }
+          />
         ) : (
-          <>
-            {assignmentCard}
-            {leadCard}
-            {netCard}
-          </>
+          <Kennzahl
+            id="verfuegbar"
+            label="Verfügbar im Budget"
+            state={budget}
+            value={available}
+            reserveBar
+            reserveLine
+            alert={(available ?? 0) < 0}
+            nonpositive={available === 0}
+            href={month ? { to: '/plan/monat', search: { monat: scope.month } } : undefined}
+            bar={
+              month && plan
+                ? {
+                    value: plan.spentCents,
+                    total: plan.plannedCents,
+                    label: `Ausgegeben ${eur(plan.spentCents)} von Plan ${eur(plan.plannedCents)} · Tag ${plan.day} von ${plan.daysInMonth}`,
+                    marker: plan.day / plan.daysInMonth,
+                  }
+                : undefined
+            }
+            line={
+              available === undefined || !plan
+                ? undefined
+                : `Ausgegeben ${eurWhole(plan.spentCents)} von ${eurWhole(plan.plannedCents)}`
+            }
+            note={
+              month ? (
+                <>
+                  Summe „Verfügbar“ aller Envelopes im Monat, wie im Plan-Inspektor.
+                  {plan
+                    ? ` Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}.`
+                    : ''}
+                </>
+              ) : (
+                <span>Budgetangaben {budget.isError ? 'nicht verfügbar' : 'werden geladen'}.</span>
+              )
+            }
+          />
         )}
+        <Kennzahl
+          id="nettovermoegen"
+          label="Nettovermögen"
+          value={net?.totalCents}
+          pending={aggregatePending}
+          unavailable={!data}
+          reserveBar
+          reserveLine
+          sourceHint={
+            <ValuationSourceHint
+              sources={data?.valuationSources}
+              label="Nettovermögen · Kennzahl"
+            />
+          }
+          nonpositive={Boolean(net && net.totalCents <= 0)}
+          href={net ? { to: '/vermoegen/nettovermoegen', search: { zeitraum: '1J' } } : undefined}
+          missing={
+            data && !net ? (
+              <p className="heute-kennzahl-missing">
+                {'unavailable' in data.netWorth && data.netWorth.unavailable.message}
+              </p>
+            ) : undefined
+          }
+          bar={
+            net
+              ? {
+                  value: net.assetsCents,
+                  total: net.assetsCents + net.liabilitiesCents,
+                  label: `Vermögen ${eur(net.assetsCents)} · ${REDESIGN_ENABLED ? 'Verbindlichkeiten' : 'Schulden'} ${eur(net.liabilitiesCents)}`,
+                  assets: true,
+                }
+              : undefined
+          }
+          line={
+            net
+              ? change
+                ? `Δ Monat ${eurWhole(change.deltaCents, true)}`
+                : 'Monatsvergleich nicht verfügbar.'
+              : undefined
+          }
+          note={
+            net
+              ? `Vermögen ${eur(net.assetsCents)} − ${REDESIGN_ENABLED ? 'Verbindlichkeiten' : 'Schulden'} ${eur(net.liabilitiesCents)}.${
+                  change
+                    ? ` Δ Monat ${eur(change.deltaCents, { sign: true })}: Einzahlung ${eur(change.investmentsInCents, { sign: true })} · Markt ${eur(change.marketCents, { sign: true })}.`
+                    : ` ${'unavailable' in net.monthChange ? net.monthChange.unavailable.message : ''}`
+                }`
+              : undefined
+          }
+        />
       </div>
-      {REDESIGN_ENABLED && data && (
-        <div className="heute-v2-monthline" aria-label="Monatsergebnis nach Buchungsdatum">
-          <span>
-            Einnahmen <strong>{eur(data.monthResult.earnedCents)}</strong>
-          </span>
-          <span aria-hidden="true">−</span>
-          <span>
-            Ausgaben <strong>{eur(data.monthResult.consumptionCents)}</strong>
-          </span>
-          <span aria-hidden="true">=</span>
-          <span>
-            Bisher übrig <strong>{eur(data.monthResult.savedCents, { sign: true })}</strong>
-          </span>
-          <p className="heute-note">
-            {monthLabel(data.stand.today.slice(0, 7))} · nach Buchungsdatum
-          </p>
-        </div>
-      )}
       {goal && (
         <p className="heute-nearest-goal">
           <AppLink to="/plan/sparziele">
@@ -413,10 +388,7 @@ function Kennzahl({
     );
   }
   return (
-    <section
-      className={`heute-answer heute-kennzahl heute-kennzahl-${id}`}
-      aria-labelledby={titleId}
-    >
+    <section className="heute-answer heute-kennzahl" aria-labelledby={titleId}>
       <h2 id={titleId}>{label}</h2>
       {note && (
         <button

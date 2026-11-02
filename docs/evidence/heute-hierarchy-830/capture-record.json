@@ -1,0 +1,193 @@
+{
+  "captureHead": "fa7ee69a9fe7b975f879d1056afaf7d02c09cb24",
+  "finalValidationHead": "a3fc11d3de9c97ecb370598c583af2e0f9cdf255",
+  "productionFreeze": "fa7ee69a9fe7b975f879d1056afaf7d02c09cb24",
+  "sourceBlobs": {
+    "apps/web/src/heute/background-refresh.test.tsx": "179a2e144e847d45deee82dcfb8021d927de9ff1",
+    "apps/web/src/heute/heute-page.tsx": "0983f2bf760618155d7fc926aea54949e1425fb8",
+    "apps/web/src/heute/heute.css": "6a7cfc1c12433da3e62589e6dc1c18ab068cb173",
+    "apps/web/src/heute/kennzahlen.tsx": "29535a0b16fea3c0089715d48c55436d5ae0a643",
+    "apps/web/src/heute/upcoming-payments.test.tsx": "6731e872d03e1fa02b22c71a8b594f88b33b2e94",
+    "apps/web/src/heute/upcoming-payments.tsx": "e4f99a2fc27907c52eae312faeccd057a5903f4d",
+    "e2e/heute-attention-mobile-shell.spec.ts": "00d5dae1636f45d4864edc5d0f5319011fc1a73d",
+    "e2e/heute-cards.spec.ts": "893a2ae7a3dcd867c6231e96f133609ee6b7bb33",
+    "e2e/heute-hints-1009.spec.ts": "3614cce9f685fa366b3e6279f6c93b436763b10a",
+    "e2e/heute-visual-fixture.ts": "75b59950d439f32f990f555c9814784afd23136b",
+    "e2e/heute.spec.ts": "adab78de57746e5f51d642a9338b746909d428b2",
+    "e2e/issue-571-heute-kennzahlen.spec.ts": "1ba427ef0802d046a4caffcf15a75f1ba1f914f3",
+    "e2e/issue-572-heute-charts.spec.ts": "c339befc834150198867caf2b5d9199897543186",
+    "e2e/issue-574-heute-section-states.spec.ts": "7f84fb7f3379e42382c41208a8c94a841157ee86",
+    "e2e/issue-575-heute-phone-viewport.spec.ts": "a8e60df521866e1e0120a909b287541ca666303d",
+    "e2e/issue-830-background-refresh.spec.ts": "5ef9a3a331a4575e47563de1fc27b39942a1ecbc",
+    "e2e/pace-marker.spec.ts": "c73eff9132f37d7d00a0b957b7f5446e4ce16489",
+    "e2e/ux-distill.spec.ts": "5d725dccbf00712e7a4c55f1050c0645ca08f702"
+  },
+  "build": {
+    "flag": "VITE_BUDGET_REDESIGN=1",
+    "actualMarker": "[data-budget-redesign=\"1\"] count1 asserted in each case",
+    "webSha256": "371692faed22de3650a0fd47350477f461dd972bbd2c66b05385d08f73276b01",
+    "serverSha256": "7fa5b1a4a95b2be1e07b31d3fc2b895c1c48616de277d8b8a40531d8c3adaede",
+    "preservedAt": "/workspace/work/heute-hierarchy-final-originals-2"
+  },
+  "browserResult": "12/12 passed including3setup in1.5m; zero retries; all3profiles/both themes; full-page clientWidth/Axe/direct text/date/control probes before capture",
+  "profiles": {
+    "desktop": "1440x900 Chromium; DPR1",
+    "mobile": "390x844 Chromium; DPR1",
+    "webkitIphone": "390x664 actual WebKit iPhone13; DPR3"
+  },
+  "images": [
+    {
+      "path": "docs/evidence/heute-hierarchy-830/desktop-light.png",
+      "sha256": "47c03f4325247c456a3bf8978e27628ec6bef614f562bc31ba34ada465a5b596",
+      "profile": "desktop",
+      "theme": "light",
+      "capture": "native device pixels",
+      "pngSize": [
+        1440,
+        3765
+      ]
+    },
+    {
+      "path": "docs/evidence/heute-hierarchy-830/desktop-dark.png",
+      "sha256": "dd4252580a7cbd29f240c7661fbed6de4ce555bc2b46702c6abe3800655b198d",
+      "profile": "desktop",
+      "theme": "dark",
+      "capture": "native device pixels",
+      "pngSize": [
+        1440,
+        3765
+      ]
+    },
+    {
+      "path": "docs/evidence/heute-hierarchy-830/desktop-320-large-light.png",
+      "sha256": "5d19a27b7b8f479788a67e5ef79765163fcd3bd516217bd864ccb38504e305f9",
+      "profile": "desktop",
+      "theme": "light",
+      "capture": "full page scale:css; viewport320x844; type tokens200%; native device scale retained",
+      "pngSize": [
+        320,
+        10521
+      ]
+    },
+    {
+      "path": "docs/evidence/heute-hierarchy-830/mobile-light.png",
+      "sha256": "9e4b9eb03a9f88246d1767c888475fdf99bce10563bfd5eefafdfa93aef321cc",
+      "profile": "mobile",
+      "theme": "light",
+      "capture": "native device pixels",
+      "pngSize": [
+        390,
+        4806
+      ]
+    },
+    {
+      "path": "docs/evidence/heute-hierarchy-830/mobile-dark.png",
+      "sha256": "59abb103aab0319094de6cfd16e602d0b3c46375e8bb7bb18c2fa741545c75d8",
+      "profile": "mobile",
+      "theme": "dark",
+      "capture": "native device pixels",
+      "pngSize": [
+        390,
+        4806
+      ]
+    },
+    {
+      "path": "docs/evidence/heute-hierarchy-830/mobile-320-large-dark.png",
+      "sha256": "5ace4028fb060b05b26b0e15f9d56cf0bf48f6969e359a287522e048214058ac",
+      "profile": "mobile",
+      "theme": "dark",
+      "capture": "full page scale:css; viewport320x844; type tokens200%; native device scale retained",
+      "pngSize": [
+        320,
+        12310
+      ]
+    },
+    {
+      "path": "docs/evidence/heute-hierarchy-830/webkit-iphone-light.png",
+      "sha256": "e4fb96460cd6f98c846987a12345db8ccb03a90881b5db40c1c9af6fca01b775",
+      "profile": "webkit-iphone",
+      "theme": "light",
+      "capture": "native device pixels",
+      "pngSize": [
+        1170,
+        14418
+      ]
+    },
+    {
+      "path": "docs/evidence/heute-hierarchy-830/webkit-iphone-dark.png",
+      "sha256": "76484ab61cd58eda99d318ff200bfffa1ee1823e1529a332c19aff442fc6b8a5",
+      "profile": "webkit-iphone",
+      "theme": "dark",
+      "capture": "native device pixels",
+      "pngSize": [
+        1170,
+        14418
+      ]
+    },
+    {
+      "path": "docs/evidence/heute-hierarchy-830/webkit-iphone-320-large-light.png",
+      "sha256": "5af5b60d4d991245d006f349864ac37b8967d9ce54559ff029ff81d43a85adc1",
+      "profile": "webkit-iphone",
+      "theme": "light",
+      "capture": "full page scale:css; viewport320x844; type tokens200%; native device scale retained",
+      "pngSize": [
+        320,
+        12348
+      ]
+    }
+  ],
+  "provenance": "production and capture-spec blobs identical at finalValidationHead; only separate reviewed technical test adapters follow captureHead",
+  "validationOnlyTestBlobs": {
+    "e2e/heute.spec.ts": "47d19465a77ccc278c7d6236997cdacbc46aa09f",
+    "e2e/missing-quotes.spec.ts": "78adac55e2e20cba8903f56a4b0ec0dfd7c35203",
+    "e2e/pace-marker.spec.ts": "9b10dabddcb9dc68a7ea84597e187d12a1dbaf03",
+    "e2e/ux-distill.spec.ts": "34f542df06db8347edbbbdb16978e7371c938e52"
+  },
+  "validationMatrix": {
+    "expected": 138,
+    "passed": 136,
+    "skipped": 2,
+    "profiles": {
+      "desktop": {
+        "expected": 54,
+        "passed": 53,
+        "skipped": 1
+      },
+      "mobile": {
+        "expected": 54,
+        "passed": 53,
+        "skipped": 1
+      },
+      "setup": {
+        "expected": 2,
+        "passed": 2,
+        "skipped": 0
+      },
+      "setup-sample": {
+        "expected": 1,
+        "passed": 1,
+        "skipped": 0
+      },
+      "webkit-iphone": {
+        "expected": 27,
+        "passed": 27,
+        "skipped": 0
+      }
+    },
+    "method": "union of nine focused runs reconciled against final --list JSON by project/file/full title; not one uninterrupted exact-head suite",
+    "rawListing": "/workspace/work/heute-hierarchy-final-expected.json",
+    "rawReconciliation": "/workspace/work/heute-hierarchy-final-coverage.json"
+  },
+  "validationLogs": [
+    "/workspace/work/heute-hierarchy-final-geometry.log",
+    "/workspace/work/heute-hierarchy-final-native-adapters.log",
+    "/workspace/work/heute-hierarchy-final-originals-2.log",
+    "/workspace/work/heute-hierarchy-final-r07.log",
+    "/workspace/work/heute-hierarchy-final-composition.log",
+    "/workspace/work/heute-hierarchy-final-remaining.log",
+    "/workspace/work/heute-hierarchy-final-positive-pace.log",
+    "/workspace/work/heute-hierarchy-final-mobile-native-remaining.log",
+    "/workspace/work/heute-hierarchy-final-ux.log"
+  ],
+  "runtime": "Reuses reviewed copied WebKit2370/WPE2.55.0 provenance and prior direct smoke in heute-refresh-830; process-local PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1, no shared config/dependency change."
+}

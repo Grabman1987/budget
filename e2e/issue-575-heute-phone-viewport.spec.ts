@@ -3,6 +3,8 @@ import { sampleTest as test, expect as baseExpect } from './sample';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
 
+const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+
 test('actual monthly pace starts on the first phone screen and both folds clear bottom controls', async ({
   page,
 }, info) => {
@@ -19,11 +21,13 @@ test('actual monthly pace starts on the first phone screen and both folds clear 
       await page.goto('/?monat=2026-09&period=month');
       await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
-      for (const selector of [
-        '.heute-kennzahlen',
-        '[data-testid="heute-pace-chart"]',
-        '[data-testid="heute-wealth-history"]',
-      ]) {
+      for (const selector of redesign
+        ? ['.heute-lead', '.heute-attention']
+        : [
+            '.heute-kennzahlen',
+            '[data-testid="heute-pace-chart"]',
+            '[data-testid="heute-wealth-history"]',
+          ]) {
         const box = (await page.locator(selector).boundingBox())!;
         expect(box.y).toBeGreaterThanOrEqual(0);
         expect(box.y + box.height).toBeLessThanOrEqual(900);
@@ -39,13 +43,36 @@ test('actual monthly pace starts on the first phone screen and both folds clear 
       await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
       await page.evaluate(() => window.scrollTo(0, 0));
-      const pace = (await page.locator('#heute-pace-title').boundingBox())!;
+      const firstScreen =
+        redesign && viewport.height < 844
+          ? page.locator('.heute-priorities .attention-row').first()
+          : page.locator('#heute-pace-title');
+      const pace = (await firstScreen.boundingBox())!;
       expect(pace.y).toBeGreaterThanOrEqual(0);
       expect(pace.y, 'the actual monthly chart section starts below the first screen').toBeLessThan(
         viewport.height,
       );
+      if (redesign && viewport.height < 844) {
+        const primary = (await page.locator('.heute-primary-answer').boundingBox())!;
+        expect(primary.y).toBeGreaterThanOrEqual(0);
+        expect(primary.y + primary.height).toBeLessThanOrEqual(viewport.height);
+        const chart = page.getByTestId('heute-pace-chart');
+        await page
+          .locator('#heute-pace-title')
+          .evaluate((element) => element.scrollIntoView({ block: 'center' }));
+        await expect(chart).toBeVisible();
+        await expect(chart).toBeInViewport();
+        const title = (await page.locator('#heute-pace-title').boundingBox())!;
+        expect(title.y).toBeGreaterThanOrEqual(0);
+        expect(title.y + title.height).toBeLessThanOrEqual(viewport.height);
+        await page.evaluate(() => window.scrollTo(0, 0));
+      }
       const order = await page
-        .locator('.heute-overview-charts > section')
+        .locator(
+          redesign
+            ? '.heute-work-main > section, .heute-work-aside > .heute-wealth-line'
+            : '.heute-overview-charts > section',
+        )
         .evaluateAll((sections) =>
           sections.map((section) => section.getAttribute('aria-labelledby')),
         );
@@ -92,7 +119,7 @@ test('actual monthly pace starts on the first phone screen and both folds clear 
         expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
         for (const target of await page
           .locator(
-            '.heute-lead-head .btn, .pace-context-toggle, .heute-compact-forecast-head .btn, .heute-more > button, .heute-wealth-line > a',
+            '.heute-lead-head .btn, .heute-primary-answer > .btn, .pace-context-toggle, .heute-compact-forecast-head .btn, .heute-more > button, .heute-wealth-line > a',
           )
           .all()) {
           const box = (await target.boundingBox())!;

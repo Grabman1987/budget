@@ -4,10 +4,6 @@ import { RevisionTable, maskMoneyText, useAmountPrivacy, type RevisionRow } from
 import { useState, type ReactNode } from 'react';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
-import type { UseQueryResult } from '@tanstack/react-query';
-import type { BudgetMonthView } from '../budget/budget-api';
-import { REDESIGN_ENABLED } from '../shell/redesign-flag';
-import { ArrowUp, TriangleAlert } from 'lucide-react';
 import { budgetQuery } from '../budget/budget-api';
 import { goalsQuery } from '../budget/goals-api';
 import { monthLabel, shiftMonth } from '../nav/month';
@@ -21,9 +17,7 @@ export function AttentionBar({
   savingsError,
   pending = false,
   savingsPending = false,
-  budget,
 }: {
-  budget?: UseQueryResult<BudgetMonthView> | undefined;
   data: AttentionData | undefined;
   savingsRows?: RevisionRow[];
   savingsError?: ReactNode;
@@ -61,19 +55,9 @@ export function AttentionBar({
     data && !('unavailable' in data.financeCheck)
       ? (data.financeCheck.counts?.notEvaluated ?? 0)
       : 0;
-  const assignment =
-    REDESIGN_ENABLED &&
-    budget?.data &&
-    data &&
-    !budget.isError &&
-    !budget.isPlaceholderData &&
-    budget.data?.summary.month === data?.stand.month
-      ? budget.data.summary.toBeAssignedCents
-      : undefined;
   if (
     data &&
     !pending &&
-    !assignment &&
     !model.tasks.length &&
     !data.attention.monthCloseTasks?.unavailable.length &&
     !data.attention.contactReminders?.unavailableCount &&
@@ -107,22 +91,6 @@ export function AttentionBar({
         ) : (
           <p className="heute-note">Die weiteren Aufgaben benötigen den Heute-Abruf.</p>
         ))}
-      {assignment !== undefined && assignment !== 0 && (
-        <div className="attention-row heute-v2-assignment">
-          <span>
-            {assignment > 0 ? (
-              <ArrowUp size={18} aria-hidden="true" />
-            ) : (
-              <TriangleAlert size={18} aria-hidden="true" />
-            )}{' '}
-            <strong>{eur(assignment)}</strong>{' '}
-            {assignment > 0 ? 'zu verteilen' : 'zu viel zugewiesen'}
-          </span>
-          <AppLink to="/plan/monat" search={{ monat: data!.stand.month }}>
-            Verteilen
-          </AppLink>
-        </div>
-      )}
       {model.visible.map(renderRow)}
       {model.remaining.length > 0 && (
         <details className="attention-remaining">

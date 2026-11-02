@@ -3,6 +3,7 @@ import { sampleTest as test, expect as baseExpect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
 
 const expect = baseExpect.configure({ timeout: 30_000 });
+const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
 
 test('Today groups work, preserves its review destinations and distinguishes selected month from today', async ({
   page,
@@ -48,7 +49,9 @@ test('Today groups work, preserves its review destinations and distinguishes sel
   await expect(page.getByRole('heading', { name: 'Nächste Schritte' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Fällig 14 Tage', exact: true })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: /Danach/ })).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(
+    redesign ? 1 : 0,
+  );
   const remaining = tasks.locator('.attention-remaining');
   const preferences = page.locator('.heute-view-preferences details');
   await expect(remaining).not.toHaveAttribute('open', /.*/);
@@ -94,7 +97,8 @@ test('Today groups work, preserves its review destinations and distinguishes sel
   const box = await tasks.boundingBox();
   const due = await page.locator('#heute-upcoming-title').boundingBox();
   const recent = await page.locator('#heute-bookings-title').boundingBox();
-  expect(box!.y).toBeGreaterThan(wealth!.y);
+  if (redesign) expect(box!.y + box!.height).toBeLessThan(wealth!.y);
+  else expect(box!.y).toBeGreaterThan(wealth!.y);
   expect(box!.y + box!.height).toBeLessThan(due!.y);
   expect(due!.y).toBeLessThan(recent!.y);
   await tasks.getByRole('link', { name: 'Prüfen', exact: true }).click();
@@ -154,7 +158,7 @@ test('empty tasks and due dates disappear while missing rule inputs remain expli
     actionRules: [],
   };
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: data }));
-  await page.goto('/?monat=2026-09');
+  await page.goto(redesign ? '/?monat=2026-09&period=month' : '/?monat=2026-09');
   await expect(page.locator('[data-kennzahl="verfuegbar"]')).toBeVisible();
   const taskBlock = page.getByRole('region', { name: 'Zu tun' });
   await expect(taskBlock.locator('.attention-row')).toHaveCount(0);

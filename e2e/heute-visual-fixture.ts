@@ -53,11 +53,12 @@ export async function freezeHeuteVisual(page: Page) {
 }
 
 export async function expectHeuteVisualReady(page: Page) {
+  const redesign = (await page.locator('[data-budget-redesign="1"]').count()) === 1;
   // #571: Frei bis Gehalt (the lead figure) is the middle Kennzahl in the mode Bis Gehalt.
   await expect(page.getByTestId('heute-lead-value')).toContainText('988,26');
   await expect(page.getByTestId('heute-kennzahlen').getByRole('heading', { level: 2 })).toHaveText([
     'Zu verteilen',
-    'Frei bis Gehalt',
+    redesign ? 'Verfügbar im Budget' : 'Frei bis Gehalt',
     'Nettovermögen',
   ]);
   const forecast = page.locator('section[aria-labelledby="heute-forecast-title"]');
