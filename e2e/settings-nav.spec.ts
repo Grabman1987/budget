@@ -1,10 +1,15 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { SETTINGS_GROUPS } from '../apps/web/src/nav/areas';
-
-const ITEMS = SETTINGS_GROUPS.flatMap((group) => group.items);
+import { expectedSettingsGroups } from './navigation-contract';
 
 const settingsNav = (page: Page) => page.getByRole('navigation', { name: 'Einstellungen' });
+
+async function groupsForPage(page: Page) {
+  await expect(page.locator('.app')).toBeVisible();
+  return expectedSettingsGroups(
+    (await page.locator('.app').getAttribute('data-budget-redesign')) === '1',
+  );
+}
 
 async function seriousViolations(page: Page) {
   const result = await new AxeBuilder({ page })
@@ -25,11 +30,13 @@ test.describe('Einstellungen navigation, desktop', () => {
     await page.goto('/einstellungen/regelwerk');
     const nav = settingsNav(page);
     await expect(nav).toBeVisible();
-    for (const group of SETTINGS_GROUPS)
+    const groups = await groupsForPage(page);
+    const items = groups.flatMap((group) => group.items);
+    for (const group of groups)
       await expect(nav.getByRole('list', { name: group.label })).toBeVisible();
     // The old tab row clipped its last entries ("Profi…"): every link must lie inside the viewport.
     const viewport = page.viewportSize()!;
-    for (const item of ITEMS) {
+    for (const item of items) {
       const link = nav.getByRole('link', { name: item.label, exact: true });
       await expect(link).toBeVisible();
       const box = (await link.boundingBox())!;
@@ -47,7 +54,8 @@ test.describe('Einstellungen navigation, desktop', () => {
 
   test('every page is reachable from the rail and marked as current', async ({ page }) => {
     await page.goto('/einstellungen/konten');
-    for (const item of ITEMS) {
+    const items = (await groupsForPage(page)).flatMap((group) => group.items);
+    for (const item of items) {
       await settingsNav(page).getByRole('link', { name: item.label, exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`${item.to}$`));
       await expect(settingsNav(page).locator('[aria-current="page"]')).toHaveText(item.label);
@@ -60,9 +68,10 @@ test.describe('Einstellungen navigation, desktop', () => {
   }) => {
     await page.goto('/einstellungen/konten');
     const nav = settingsNav(page);
-    await nav.getByRole('link', { name: ITEMS[0]!.label, exact: true }).focus();
+    const items = (await groupsForPage(page)).flatMap((group) => group.items);
+    await nav.getByRole('link', { name: items[0]!.label, exact: true }).focus();
     await page.keyboard.press('Tab');
-    await expect(nav.getByRole('link', { name: ITEMS[1]!.label, exact: true })).toBeFocused();
+    await expect(nav.getByRole('link', { name: items[1]!.label, exact: true })).toBeFocused();
     const outline = await page.evaluate(() => {
       const style = getComputedStyle(document.activeElement!);
       return { style: style.outlineStyle, width: parseFloat(style.outlineWidth) };
@@ -70,7 +79,7 @@ test.describe('Einstellungen navigation, desktop', () => {
     expect(outline.style).not.toBe('none');
     expect(outline.width).toBeGreaterThan(0);
     await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(new RegExp(`${ITEMS[1]!.to}$`));
+    await expect(page).toHaveURL(new RegExp(`${items[1]!.to}$`));
   });
 
   test('works in light and dark theme without accessibility violations', async ({ page }) => {
@@ -90,10 +99,12 @@ test.describe('Einstellungen navigation, phone', () => {
     await page.goto('/einstellungen');
     await expect(page).toHaveURL(/\/einstellungen$/);
     const nav = settingsNav(page);
-    for (const group of SETTINGS_GROUPS)
+    const groups = await groupsForPage(page);
+    const items = groups.flatMap((group) => group.items);
+    for (const group of groups)
       await expect(nav.getByRole('list', { name: group.label })).toBeVisible();
     const viewport = page.viewportSize()!;
-    for (const item of ITEMS) {
+    for (const item of items) {
       const link = nav.getByRole('link', { name: item.label, exact: true });
       await expect(link).toBeVisible();
       const box = (await link.boundingBox())!;
