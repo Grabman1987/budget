@@ -291,3 +291,98 @@
     scroll-margin-block: 64px calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 16px);
   }
 }
+
+/* K1: presentation only. The OFF branch and shared account/order/value styles stay intact. */
+.account-overview-redesign.kview {
+  gap: 12px;
+}
+.account-overview-redesign .overview-actions {
+  gap: 8px;
+}
+.account-overview-redesign .overview-bookings-link {
+  margin-inline-end: auto;
+}
+.account-overview-redesign .overview-lead {
+  padding-block: 8px 12px;
+  border-bottom: 1px solid var(--rule-strong);
+}
+.account-overview-redesign .overview-lead-links {
+  gap: 4px 16px;
+}
+.account-overview-redesign .overview-table > tbody > .overview-account-row > th,
+.account-overview-redesign .overview-table > tbody > .overview-account-row > td {
+  height: 44px;
+  border-bottom-color: var(--rule);
+}
+.account-overview-redesign .overview-table .overview-group > th,
+.account-overview-redesign .overview-table .overview-group > td {
+  background: var(--ground-2);
+  border-bottom-color: var(--rule-strong);
+}
+.account-overview-redesign .overview-col-details {
+  width: 60px;
+}
+.account-overview-redesign .overview-col-order {
+  width: 156px;
+}
+.account-overview-redesign .overview-actions .btn,
+.account-overview-redesign .overview-lead-links a,
+.account-overview-redesign .overview-account-link,
+.account-overview-redesign .overview-row-details .btn,
+.account-overview-redesign .order-controls .icon-btn,
+.account-overview-redesign .term-trigger,
+.account-overview-redesign .chart-interactive,
+.account-overview-redesign summary,
+.account-overview-redesign .overview-platform-links a,
+.account-overview-redesign .closed-account-disclosure a {
+  min-height: 44px;
+  min-width: 44px;
+}
+.account-overview-redesign .overview-platform-links a,
+.account-overview-redesign .closed-account-disclosure a {
+  display: inline-flex;
+  align-items: center;
+}
+.account-overview-redesign .overview-actions .btn {
+  height: auto;
+  white-space: normal;
+}
+.account-overview-redesign .overview-account-link:focus-visible,
+.account-overview-redesign .overview-lead-links a:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+@media (max-width: 1100px) {
+  .account-overview-redesign .overview-table > tbody > .overview-account-row > th,
+  .account-overview-redesign .overview-table > tbody > .overview-account-row > td {
+    height: auto;
+  }
+}
+@media (max-width: 480px) {
+  .account-overview-redesign .overview-actions {
+    justify-content: flex-start;
+  }
+  .account-overview-redesign .overview-bookings-link {
+    flex-basis: 100%;
+    margin-inline-end: 0;
+  }
+  .account-overview-redesign .overview-table > tbody > .overview-account-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+    grid-template-areas: 'name name details' 'line value details';
+    gap: 4px 8px;
+    padding-block: 8px;
+  }
+  .account-overview-redesign .overview-table.is-ordering > tbody > .overview-account-row {
+    grid-template-areas: 'name name details' 'line value details' 'order order order';
+  }
+  .account-overview-redesign .overview-table > tbody > .overview-group {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .account-overview-redesign .overview-group-amount {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .account-overview-redesign .overview-row-line .chart-interactive {
+    width: 100%;
+  }
+}

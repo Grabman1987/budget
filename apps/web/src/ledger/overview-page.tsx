@@ -5,6 +5,8 @@ import { Link } from '@tanstack/react-router';
 import { TriangleAlert, Check, ChevronDown, ChevronUp, Pencil, Plus } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 import { KONTEN_META } from '../nav/pages';
+import { AppLink } from '../shell/app-link';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { PageFrame } from '../pages/placeholder-page';
 import { AccountFormPanel } from './account-form';
 import { useOrderedAccounts, useReorder } from './account-order';
@@ -104,8 +106,19 @@ export function OverviewPage() {
   });
   return (
     <PageFrame meta={KONTEN_META}>
-      <div className="kview account-overview-577">
+      <div
+        className={cx(
+          'kview account-overview-577',
+          REDESIGN_ENABLED && 'account-overview-redesign',
+        )}
+        data-redesign={REDESIGN_ENABLED ? 'account-overview' : undefined}
+      >
         <div className="overview-actions">
+          {REDESIGN_ENABLED && (
+            <AppLink className="btn btn-ghost overview-bookings-link" to="/konten/buchungen">
+              Alle Buchungen
+            </AppLink>
+          )}
           {presentation && presentation.visible.length > 0 && (
             <Button
               size="sm"
