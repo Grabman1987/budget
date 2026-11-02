@@ -69,7 +69,7 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
   const selectedPlan = overview.rows.find((r) => r.id === selected)?.plan;
   const adjust = (i: number, key: keyof (typeof terms)[number], value: string) =>
     setTerms((old) => old.map((t, index) => (index === i ? { ...t, [key]: value } : t)));
-  return (
+  const legacy = (
     <section className="debt-overview debt-full" aria-labelledby="payoff-title">
       <div className="debt-result" aria-live="polite">
         <h2 id="payoff-title">
@@ -143,7 +143,7 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
       </div>
       {accounts.length > 0 && (
         <>
-          <details className="wealth-details" open={REDESIGN_ENABLED ? true : undefined}>
+          <details className="wealth-details" open={undefined}>
             <summary>Sondertilgung berechnen</summary>
             <div className="debt-quick-scenario">
               <label>
@@ -350,5 +350,85 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
         </>
       )}
     </section>
+  );
+  return REDESIGN_ENABLED ? (
+    <>
+      <section
+        className="wealth-sheet wealth-debt-accounts"
+        aria-label="Aktuelle Schulden nach Konto"
+      >
+        <div className="wealth-section-head">
+          <h2 id="wealth-debt-accounts-title">Schulden nach Konto</h2>
+          <span className="vnote">Stand {longDay(asOf)}</span>
+        </div>
+        <table className="wealth-table">
+          <thead>
+            <tr>
+              {[
+                'Konto',
+                'Restschuld',
+                'Rate',
+                'Zins',
+                'Schuldenfrei am',
+                'Noch Zinsen',
+                'Status',
+              ].map((label) => (
+                <th key={label}>{label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {accounts.map((account, index) => {
+              const row = overview.rows[index]!;
+              const plan = row.plan?.withExtra;
+              return (
+                <tr key={account.id}>
+                  <th scope="row">
+                    <AppLink to={`/konten/${encodeURIComponent(account.id)}`}>
+                      {account.name}
+                    </AppLink>
+                  </th>
+                  <td data-label="Restschuld" className="num">
+                    {account.owedEurCents === null
+                      ? '—'
+                      : nativeCurrency(account.owedEurCents, 'EUR')}
+                  </td>
+                  <td data-label="Rate" className="num">
+                    {account.installmentCents === null
+                      ? '—'
+                      : nativeCurrency(account.installmentCents, account.currency)}
+                  </td>
+                  <td data-label="Zins" className="num">
+                    {account.interestRateBp === null ? '—' : `${text(account.interestRateBp)} %`}
+                  </td>
+                  <td data-label="Schuldenfrei am">
+                    {plan?.payoffMonth ? longDay(lastDayOfMonth(plan.payoffMonth)) : '—'}
+                  </td>
+                  <td data-label="Noch Zinsen" className="num">
+                    {plan ? nativeCurrency(plan.totalInterestCents, account.currency) : '—'}
+                  </td>
+                  <td>
+                    <span className="wealth-pill">
+                      {row.status === 'settled_monthly'
+                        ? 'laufend ausgeglichen'
+                        : plan
+                          ? 'Tilgungsplan'
+                          : 'Konditionen prüfen'}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {accounts.length === 0 && <p>Keine offenen Schulden.</p>}
+      </section>
+      <details className="wealth-details">
+        <summary>Tilgungsübersicht und weitere Sondertilgungen</summary>
+        {legacy}
+      </details>
+    </>
+  ) : (
+    legacy
   );
 }

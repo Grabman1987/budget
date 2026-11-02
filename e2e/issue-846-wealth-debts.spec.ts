@@ -12,7 +12,7 @@ test('debt actions preserve actual history and reveal existing scenarios without
   await expect(page.getByTestId('debt-total')).toBeVisible();
   const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   if (on) {
-    await expect(page.locator('.debt-rechenweg')).toHaveAttribute('open', '');
+    await expect(page.locator('.debt-rechenweg')).not.toHaveAttribute('open', '');
     await page.getByText('Schuldenverlauf · letzte 12 Monate', { exact: true }).click();
   }
   await expect(page.getByTestId('debt-history-chart')).toBeVisible();

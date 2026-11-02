@@ -15,6 +15,7 @@ it('offers the existing terms editor for missing terms and never fabricates a pa
     accounts: [
       {
         id: 'loan',
+        type: 'loan',
         name: 'Synthetic loan',
         interestRateBp: null,
         installmentCents: 1000,
