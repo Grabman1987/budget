@@ -17,10 +17,11 @@ Three API/type/key-list conflicts retain precisely the existing T3 additive
 auto-merge with current main. The canonical helper, money/valuation partition,
 authentication, snapshot epoch, writers, migration, audit and Undo are unchanged.
 
-The seven original T3 source/test blobs checked against the preserved head are
-unchanged: both dedicated investment tests, freedom-universe-615 test,
-`dimension-page.tsx`, `investment-basis.tsx`, `kennzahlen.tsx`, and the canonical
-helper export in `packages/db/src/repos/index.ts`.
+Ten original T3 runtime/test blobs checked against the preserved head are
+byte-identical: both dedicated investment tests, freedom-universe-615 test,
+`heute.test.ts`, server `heute.ts`, web `heute/api.ts`, `dimension-page.tsx`,
+`investment-basis.tsx`, `kennzahlen.tsx`, and the canonical helper export in
+`packages/db/src/repos/index.ts`.
 
 The common smoke retains main's S1/S2/S3/T6 implementation and adds calls to the
 existing T2 proof and extracted T3 proof after the ON checks. This restores the
@@ -41,12 +42,35 @@ This continuation preserves that exception; it needs no renewed approval.
 
 - Focused T3: three files, **17/17 passed**, 7.24 s, one worker. Command:
   `BUDGET_REQUIRE_AGE=0 node node_modules/vitest/vitest.mjs run apps/server/src/api/heute-investment-basis.test.ts apps/server/src/api/freedom-universe-615.test.ts apps/web/src/heute/investment-basis.test.tsx --maxWorkers=1 --no-file-parallelism`.
-- Genuine pre-push gate: current outcome pending. Initial diagnosed setup failure
-  was the missing worktree link to prepared nested web dependencies
-  (`@vitejs/plugin-react`); dependencies now link to the prepared installation.
-  Extraction also left one extra blank line, corrected by Prettier. No product or
-  protected test expectation changed to address either failure.
-- Browser/build and current 1440/390 evidence: pending.
+- Genuine pre-push gate **passed** on `55e3f349`: workspace typechecks, scoped
+  ESLint/Prettier, removed-identifier check and **188 related files; 1728 passed,
+  two existing skips**, 96.65 s. `BUDGET_REQUIRE_AGE=0` is the standard gate limit.
+  Initial diagnosed failures were the missing worktree link to prepared nested
+  web dependencies (`@vitejs/plugin-react`) and one extraction blank line.
+  Corrected links/Prettier resolved both; the first related suite also passed
+  1728 tests, 96.49 s. No product or protected expectation changed.
+- Fresh `npm run build:e2e`: **passed**. Current production OFF/ON and e2e ON
+  frontends built once through the current common smoke.
+- Current common smoke: both **1440×900 and 390×844 OFF → ON → OFF installed-PWA
+  cycles passed**, including S3 navigation, T6 history/source, T2 exact saved
+  forecast/offline/reconnect, T3 literal selected17000 versus positive20000,
+  net-debt−9500, total110500, gross120500/10000, canonical comparison and loaded
+  source/reload/Back focus. Both S3 320px modes and all twelve Chromium S2 gallery
+  mode/theme/viewport cases also passed.
+- **Whole smoke exit 1, infrastructure:** its final WebKit launch failed before
+  assertions because the host lacks `libgtk-4.so.1`, `libgraphene-1.0.so.0`,
+  `libharfbuzz-icu.so.0`, `libmanette-0.2.so.0`, `libhyphen.so.0`,
+  `libGLESv2.so.2`. Current user is unprivileged and no sudo executable is
+  installed. Cached pinned browsers were found and reused. No dependency install,
+  full-smoke retry or test relaxation; WebKit remains for prepared CI.
+- Twelve fresh T3 target captures are retained in
+  [redesign-t3-20261102](redesign-t3-20261102/): basis, chain and sources at both
+  viewports, light/dark. All twelve were inspected together, plus full-size phone
+  light chain and desktop dark sources. Values, complete note/date, signed source
+  contributions and comparison links are readable. The original native centering
+  and real bounds checks passed for every capture; fixed chrome was not hidden.
+  These cropped target images do not establish full-page, 320px T3, Axe, WebKit or
+  physical-device acceptance. No identity with old artifact PNGs is claimed.
 
 Repository profiles applied: budget-caveman, budget-verified-delivery,
 budget-security-review and budget-impeccable; managed cloud-environment-runtime
@@ -62,7 +86,8 @@ original head 2d9c0f4. Unchanged T3 blobs preserve the earlier assertions and
 financial contract; later shell integration requires fresh visual/browser evidence.
 No old CI is reported as exact-head verification of this candidate.
 
-Independent full final-diff and test-impact review, fresh exact-head required CI,
+Independent full code/test-impact review is CLEAR at `55e3f349`; final evidence
+review, fresh exact-head required CI,
 PR retargeting from the old T2 branch to main, and named owner synthetic/device
 acceptance remain open. This implementer stops with a local reviewable candidate.
 Nothing has been pushed, merged, deployed, activated, closed or changed on the
