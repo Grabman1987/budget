@@ -101,7 +101,7 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
                       : 'Verbunden';
 
   return (
-    <div className="settings-connections-v2">
+    <div className="data-sources settings-connections-v2">
       <div className="settings-primary-head">
         <h2>Verbindungen</h2>
       </div>
@@ -170,7 +170,11 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
         error={payslip.isError}
         onRetry={() => void payslip.refetch()}
         action={
-          <AppLink className="btn btn-ghost" to="/konten/pruefen" search={{ teil: 'aufgaben' }}>
+          <AppLink
+            className="btn btn-ghost"
+            to="/konten/pruefen"
+            search={{ teil: 'aufgaben', von: '/einstellungen/datenquellen' }}
+          >
             Dokumente prüfen
           </AppLink>
         }
@@ -182,7 +186,7 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
         icon={LineChart}
         status={
           market.data?.lastRun?.status === 'ok'
-            ? 'Aktuell'
+            ? 'Abruf erfolgreich'
             : market.data?.lastRun
               ? 'Bitte prüfen'
               : 'Noch nicht abgerufen'

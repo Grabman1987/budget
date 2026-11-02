@@ -128,6 +128,9 @@ export function CategoryPanel({
 function GroupForm({ group, onDone }: { group: GroupRow | undefined; onDone: () => void }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
+  const client = useQueryClient();
+  const [opened] = useState(group);
+  const [error, setError] = useState('');
   const [name, setName] = useState(group?.name ?? '');
   // A second Enter while the first write runs must not rename or create twice.
   const busy = useRef(false);
@@ -135,6 +138,24 @@ function GroupForm({ group, onDone }: { group: GroupRow | undefined; onDone: () 
     e.preventDefault();
     if (busy.current) return;
     busy.current = true;
+    setError('');
+    if (REDESIGN_ENABLED && opened) {
+      try {
+        const latest = await fetchCategories();
+        if (latest.groups.find((row) => row.id === opened.id)?.name !== opened.name) {
+          client.setQueryData(categoriesQuery().queryKey, latest);
+          setError(
+            'Die Gruppe wurde inzwischen geändert. Dein Entwurf bleibt erhalten. Schließe den Entwurf und lade den aktuellen Stand.',
+          );
+          busy.current = false;
+          return;
+        }
+      } catch {
+        setError('Der aktuelle Stand konnte nicht gelesen werden. Dein Entwurf bleibt erhalten.');
+        busy.current = false;
+        return;
+      }
+    }
     const done = group
       ? await write(
           () => renameGroup(group.id, name),
@@ -149,6 +170,7 @@ function GroupForm({ group, onDone }: { group: GroupRow | undefined; onDone: () 
   };
   return (
     <form className="kform" onSubmit={(e) => void submit(e)}>
+      {error && <p role="alert">{error}</p>}
       <Field label="Name">
         {({ id }) => (
           <TextInput

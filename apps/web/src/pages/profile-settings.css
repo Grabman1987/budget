@@ -89,3 +89,22 @@
     grid-template-columns: 1fr;
   }
 }
+/* The phone reference uses one quiet, 56px field row. The existing inputs remain real 44px controls. */
+@media (max-width: 767px) {
+  .settings-redesign .profile-grid > .field-row {
+    grid-template-rows: 12px 44px;
+    min-height: 56px;
+    padding: 0;
+    gap: 0;
+  }
+  .settings-redesign .profile-grid .field-row > label {
+    line-height: 12px;
+  }
+  .settings-redesign .profile-grid :is(.input, .select) {
+    padding: 0;
+    border-color: transparent;
+    background: transparent;
+    font-size: var(--fs-body);
+    font-weight: 600;
+  }
+}

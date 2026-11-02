@@ -702,3 +702,104 @@
     display: block;
   }
 }
+.settings-redesign .settings-account-cell small {
+  display: block;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+  padding-bottom: 6px;
+}
+.settings-redesign .settings-category-phone-class {
+  display: none;
+}
+.settings-redesign .settings-basket-v2 .basket-category-top label {
+  white-space: nowrap;
+}
+.settings-redesign .settings-basket-v2 .basket-category-top select {
+  width: auto;
+  min-width: 0;
+  flex: 1;
+}
+@media (max-width: 1100px) {
+  .settings-redesign .settings-category-row .settings-category-count {
+    display: none;
+  }
+  .settings-redesign .settings-category-phone-class {
+    display: inline;
+  }
+}
+@media (max-width: 767px) {
+  .settings-redesign .settings-primary-head:has(> h2:only-child) {
+    display: none;
+  }
+  .settings-redesign[data-settings-page='zuordnung'] .settings-rule-list .settings-primary-head {
+    display: flex;
+  }
+  .settings-redesign .settings-contacts-v2 .settings-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .settings-redesign .settings-contacts-v2 .settings-row-actions {
+    justify-content: flex-start;
+  }
+  .settings-redesign .settings-classes-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 4px 8px;
+    padding: 8px 12px;
+  }
+  .settings-redesign .settings-classes-table tbody :is(th, td) {
+    padding: 0;
+  }
+  .settings-redesign .settings-classes-table tbody td:last-child {
+    grid-column: 1 / -1;
+    font-size: var(--fs-meta);
+  }
+  .settings-redesign .settings-classes-table tbody th > .btn {
+    border: 0;
+    background: transparent;
+    padding: 0;
+  }
+}
+.settings-redesign .settings-account-cell {
+  min-width: 0;
+}
+.settings-redesign .settings-category-name strong {
+  overflow-wrap: anywhere;
+}
+.settings-redesign .settings-classes-table th .btn {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  text-align: left;
+}
+/* Fieldsets retain a native min-content width unless reset; the stage grid scrolls inside its column. */
+.settings-redesign .settings-target-form {
+  width: 100%;
+  min-width: 0;
+}
+.settings-redesign .settings-target-form > fieldset {
+  min-inline-size: 0;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+.settings-redesign :is(.settings-stages, .settings-stage-scroll) {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+@media (max-width: 767px) {
+  .settings-redesign .kview.rw > .settings-primary-head,
+  .settings-redesign .kview.rw > .settings-primary-head > h2 {
+    display: flex;
+  }
+}
+/* Closed native details can still contribute intrinsic form widths in mobile Chromium. */
+.settings-redesign details:not([open]) > :not(summary) {
+  display: none;
+}
+/* Contain the table's absolutely positioned screen-reader labels inside the scrolling region. */
+.settings-redesign .settings-stage-scroll {
+  position: relative;
+}

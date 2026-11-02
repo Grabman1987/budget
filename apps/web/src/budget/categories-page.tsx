@@ -1,3 +1,4 @@
+import { SettingsReadStamp } from '../pages/settings-read-stamp';
 import { Button, CircleNumber, ClassTag, Switch, cx } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
@@ -253,6 +254,9 @@ export function CategoriesPage() {
                               <strong>{c.name}</strong>
 
                               <small>
+                                <span className="settings-category-phone-class">
+                                  {c.class ? `${CLASS_TEXT[c.class]} · ` : ''}
+                                </span>
                                 {KIND_LABEL[c.kind]}
                                 {c.stage
                                   ? ` · Stufe ${c.stage} · ${STAGES[c.stage - 1]?.short}`
@@ -309,6 +313,7 @@ export function CategoriesPage() {
             </div>
           )}
           {data?.groups.length === 0 && <p>Noch keine Gruppen. Lege zuerst eine Gruppe an.</p>}
+          <SettingsReadStamp at={tree.dataUpdatedAt} label="Kategorien" />
           <p className="settings-source-stamp">
             Ziehen am Griff sortiert · Tastatur: Griff fokussieren, Pfeil hoch oder runter.
             Ausgeblendete Kategorien behalten ihr Geld.

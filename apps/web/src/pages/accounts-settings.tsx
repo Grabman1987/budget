@@ -38,7 +38,8 @@ import '../ledger/account-order.css';
 import './accounts-settings.css';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { SettingsDraftGuard } from './settings-draft-guard';
-import { Ellipsis, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { SettingsRowMenu } from './settings-row-menu';
 import { eur } from '../ledger/format';
 
 /** Types that are never Budget-Konten (server rule): the switch is off and locked. */
@@ -133,10 +134,10 @@ export function AccountsSettings() {
           </details>
         )}
         <details className="settings-advanced">
-          <summary>Konditionen, Kontotypen und Datenquellen</summary>
+          <summary>Konditionen, Kontotypen und Verbindungen</summary>
           <p>
             Hier pflegst du Name, Typ, Reihenfolge und Konditionen deiner Konten. Das Gehaltskonto
-            wird bei den <a href="/einstellungen/datenquellen">Datenquellen</a> festgelegt.
+            wird bei den <a href="/einstellungen/datenquellen">Verbindungen</a> festgelegt.
             Kreditkonditionen bleiben die Grundlage für den Schuldenrechner und den Kostenreport.
             Jede Änderung ist protokolliert und lässt sich rückgängig machen.
           </p>
@@ -225,37 +226,34 @@ function RedesignAccountGroup({
           return (
             <li {...row} key={account.id} className={cx(row.className, 'settings-account-row')}>
               {reorder.controls(account.id, 'grip')}
-              <button
-                type="button"
-                className="settings-account-name"
-                aria-label={`${account.name} bearbeiten`}
-                onClick={() => onEdit(account.id)}
-              >
-                <strong>{account.name}</strong>
+              <div className="settings-account-cell">
+                <button
+                  type="button"
+                  className="settings-account-name"
+                  aria-label={`${account.name} bearbeiten`}
+                  onClick={() => onEdit(account.id)}
+                >
+                  <strong>{account.name}</strong>
+                </button>
                 {account.type === 'loan' && termsSummary(account) && (
                   <small>{termsSummary(account)}</small>
                 )}
-              </button>
+              </div>
               <span className="settings-account-type">{ACCOUNT_TYPE_LABEL[account.type]}</span>
               <span className="settings-account-value">
                 {account.valueEurCents === null ? 'Nicht verfügbar' : eur(account.valueEurCents)}
               </span>
-              <details className="settings-row-menu">
-                <summary aria-label={`Aktionen für ${account.name}`}>
-                  <Ellipsis size={18} aria-hidden="true" />
-                </summary>
-                <div className="settings-row-menu-items">
-                  <Button variant="ghost" onClick={() => onEdit(account.id)}>
-                    Konto bearbeiten
-                  </Button>
-                  <Button variant="ghost" onClick={() => onArchive(account)}>
-                    Konto archivieren
-                  </Button>
-                  <span className="settings-reorder-actions">
-                    Reihenfolge {reorder.controls(account.id, 'steps')}
-                  </span>
-                </div>
-              </details>
+              <SettingsRowMenu name={account.name}>
+                <Button variant="ghost" onClick={() => onEdit(account.id)}>
+                  Konto bearbeiten
+                </Button>
+                <Button variant="ghost" onClick={() => onArchive(account)}>
+                  Konto archivieren
+                </Button>
+                <span className="settings-reorder-actions">
+                  Reihenfolge {reorder.controls(account.id, 'steps')}
+                </span>
+              </SettingsRowMenu>
             </li>
           );
         })}

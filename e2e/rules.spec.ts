@@ -234,7 +234,9 @@ test('R15 off changes the Finanz-Check counts, R02 minimum 3 → 2 flips its sta
   ).toBeVisible();
 
   // R15 (Spekulativer Anteil, verletzt in the sample) off: one rule less in the Finanz-Check.
-  const r15 = page.getByRole('switch', { name: 'R15 Spekulativer Anteil', includeHidden: true });
+  const r15 = page
+    .locator('.rw')
+    .getByRole('switch', { name: 'R15 Spekulativer Anteil', includeHidden: true });
   const disabledSummary = page.locator('.rw-disabled > summary');
   await expect(r15).toBeChecked();
   await r15.focus();

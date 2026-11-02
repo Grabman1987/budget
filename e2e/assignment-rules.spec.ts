@@ -59,12 +59,16 @@ test('learned inbox assignment needs one owner click and can be removed in setti
   expect(after.status).toBe('confirmed');
   expect(after.splits[0].categoryId).toBe('e2e-essen');
   await page.goto('/einstellungen/zuordnung');
-  const learned = page
-    .getByRole('row')
-    .filter({ has: page.getByRole('rowheader', { name: new RegExp(name) }) });
+  const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  const learned = on
+    ? page.locator('.settings-assignment-list > .settings-row').filter({ hasText: name })
+    : page
+        .getByRole('row')
+        .filter({ has: page.getByRole('rowheader', { name: new RegExp(name) }) });
   await expect(learned).toContainText('Gelernt');
   await expect(learned).toContainText('Kategorie: Essen');
   await page.screenshot({ path: info.outputPath('learned-settings.png'), fullPage: true });
+  if (on) await learned.getByLabel(`Aktionen für ${name}`, { exact: true }).click();
   await learned.getByRole('button', { name: new RegExp('Entfernen') }).click();
   await expect(learned).toHaveCount(0);
   const third = await make();
@@ -132,10 +136,15 @@ test('assignment editor saves, tests, toggles and undoes on the real API', async
   await expect(page.getByRole('dialog', { name: 'Zuordnungsregel bearbeiten' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Zuordnungsregel bearbeiten' })).toBeHidden();
-  await expect(row.getByRole('button', { name: new RegExp('Bearbeiten') })).toBeFocused();
+  await expect(
+    on
+      ? row.getByLabel(`Aktionen für ${name}`, { exact: true })
+      : row.getByRole('button', { name: new RegExp('Bearbeiten') }),
+  ).toBeFocused();
   expect((await new AxeBuilder({ page }).include('.assignment-page').analyze()).violations).toEqual(
     [],
   );
+  if (on) await row.getByLabel(`Aktionen für ${name}`, { exact: true }).click();
   await row.getByRole('button', { name: new RegExp('Entfernen') }).click();
   await expect(row).toHaveCount(0);
 });

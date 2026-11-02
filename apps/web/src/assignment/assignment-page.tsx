@@ -116,7 +116,11 @@ export function AssignmentPage() {
                     <AssignmentSummary rule={{ ...r, unavailable: null }} />
                     <small>
                       {r.enabled ? 'aktiv' : 'deaktiviert'} ·{' '}
-                      {r.automatic ? 'automatisch vorbereitet' : 'Vorschlag'}
+                      {r.id.startsWith('inbox-learn:')
+                        ? 'Gelernt'
+                        : r.automatic
+                          ? 'automatisch vorbereitet'
+                          : 'Vorschlag'}
                     </small>
                   </div>
                   <div className="settings-row-actions">
@@ -168,6 +172,7 @@ export function AssignmentPage() {
                     </SettingsRowMenu>
                     <Switch
                       label={`${r.enabled ? 'Deaktivieren' : 'Aktivieren'}: ${r.name}`}
+                      disabled={busy}
                       checked={r.enabled}
                       onChange={(enabled) => void change(r, enabled)}
                     />

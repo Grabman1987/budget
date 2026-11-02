@@ -147,6 +147,7 @@ test('source status, read-only capture, explicit mapping and responsive themes',
     page.getByRole('heading', {
       level: 1,
       name:
+        page.viewportSize()!.width < 768 &&
         (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
           ? 'Verbindungen'
           : 'Einstellungen',

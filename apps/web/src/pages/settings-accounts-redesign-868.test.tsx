@@ -153,7 +153,7 @@ it('ON presents compact account actions and protects an unsaved new account', as
   expect(
     within(actions.parentElement!).getByRole('button', { name: 'Konto archivieren' }),
   ).toBeTruthy();
-  await userEvent.click(await screen.findByRole('button', { name: 'Konto anlegen', exact: true }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Konto anlegen' }));
   const dialog = screen.getByRole('dialog');
   await userEvent.type(within(dialog).getByLabelText('Name', { exact: true }), 'Synthetic draft');
   const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);

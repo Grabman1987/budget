@@ -1,7 +1,8 @@
+import { SettingsReadStamp } from './settings-read-stamp';
 import { ScrollRegion } from '../reports/spending-shared';
 import type { project } from '@budget/db';
 import { Button } from '@budget/ui';
-import { queryOptions, useQuery } from '@tanstack/react-query';
+import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
@@ -22,12 +23,36 @@ const projectsQuery = queryOptions({
 export function ProjectSettings() {
   const query = useQuery(projectsQuery);
   const write = useBudgetWrite();
+  const client = useQueryClient();
+  const [editSource, setEditSource] = useState<string | null>(null);
+  const [error, setError] = useState('');
   const [name, setName] = useState(''),
     [editing, setEditing] = useState<string | null>(null),
     [busy, setBusy] = useState(false);
   const save = async () => {
     if (!name.trim()) return;
     setBusy(true);
+    setError('');
+    if (REDESIGN_ENABLED && editing) {
+      try {
+        const latest = await request<{ projects: (typeof project.$inferSelect)[] }>(
+          'GET',
+          '/api/projects',
+        );
+        if (latest.projects.find((row) => row.id === editing)?.name !== editSource) {
+          client.setQueryData(projectsQuery.queryKey, latest);
+          setError(
+            'Das Projekt wurde inzwischen geändert. Dein Entwurf bleibt erhalten. Verwirf ihn und lade den aktuellen Stand.',
+          );
+          setBusy(false);
+          return;
+        }
+      } catch {
+        setError('Der aktuelle Stand konnte nicht gelesen werden. Dein Entwurf bleibt erhalten.');
+        setBusy(false);
+        return;
+      }
+    }
     const result = await write(
       () =>
         request<{ groupId: string }>(
@@ -54,6 +79,7 @@ export function ProjectSettings() {
     );
     setBusy(false);
   };
+  const dirty = editing ? name !== editSource : name.trim() !== '';
   if (REDESIGN_ENABLED)
     return (
       <PageFrame meta={PAGES.find((p) => p.path === '/einstellungen/projekte')!}>
@@ -61,7 +87,7 @@ export function ProjectSettings() {
           <div className="settings-primary-head">
             <h2 id="settings-projects-title">Projekte</h2>
           </div>
-          <SettingsDraftGuard dirty={name.trim() !== ''} busy={busy} />
+          <SettingsDraftGuard dirty={dirty} busy={busy} />
           <form
             className="settings-project-form"
             onSubmit={(event) => {
@@ -87,7 +113,7 @@ export function ProjectSettings() {
                 variant="ghost"
                 disabled={busy}
                 onClick={() => {
-                  if (window.confirm('Ungespeicherte Änderungen verwerfen?')) {
+                  if (!dirty || window.confirm('Ungespeicherte Änderungen verwerfen?')) {
                     setEditing(null);
                     setName('');
                   }
@@ -97,6 +123,7 @@ export function ProjectSettings() {
               </Button>
             )}
           </form>
+          {error && <p role="alert">{error}</p>}
           {query.isPending && <LoadingNote what="Projekte" />}
           {query.isError && (
             <ErrorNote what="Projekte" error={query.error} onRetry={() => void query.refetch()} />
@@ -115,8 +142,10 @@ export function ProjectSettings() {
                       variant="ghost"
                       disabled={busy}
                       onClick={() => {
-                        if (!name || window.confirm('Ungespeicherte Änderungen verwerfen?')) {
+                        if (!dirty || window.confirm('Ungespeicherte Änderungen verwerfen?')) {
                           setEditing(p.id);
+                          setEditSource(p.name);
+                          setError('');
                           setName(p.name);
                           document
                             .querySelector<HTMLInputElement>('.settings-project-form input')
@@ -141,6 +170,7 @@ export function ProjectSettings() {
           <p className="settings-source-stamp">
             Archivierte Projekte behalten ihre Buchungen und bleiben im Report sichtbar.
           </p>
+          <SettingsReadStamp at={query.dataUpdatedAt} label="Projekte" />
         </section>
       </PageFrame>
     );
@@ -212,6 +242,7 @@ export function ProjectSettings() {
                         disabled={busy}
                         onClick={() => {
                           setEditing(p.id);
+                          setEditSource(p.name);
                           setName(p.name);
                         }}
                       >

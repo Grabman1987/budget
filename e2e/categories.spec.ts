@@ -77,6 +77,8 @@ test('categories: create, target, hide, sort, merge and undo', async ({ page }, 
     await expect(
       page.getByRole('button', { name: `Lebensmittel ${tag} nach unten` }),
     ).toBeVisible();
+    if (await redesign(page))
+      await page.getByLabel(`Aktionen für Lebensmittel ${tag}`, { exact: true }).click();
     await actions(page, `Café ${tag}`);
     await up.click();
   }

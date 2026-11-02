@@ -1,4 +1,7 @@
+import { SettingsReadStamp } from './settings-read-stamp';
 import { useState } from 'react';
+import { useLocation } from '@tanstack/react-router';
+import { validateInboxSearch } from '../inbox/navigation';
 import { useQuery } from '@tanstack/react-query';
 import type { InflationReport } from '@budget/db';
 import type { z } from 'zod';
@@ -175,9 +178,7 @@ export function InflationBasketSettingsPage() {
         <section className="settings-basket-v2" aria-labelledby="basket-settings-title">
           <div className="settings-primary-head">
             <h2 id="basket-settings-title">Warenkorb</h2>
-            <AppLink className="btn btn-ghost" to="/reports/inflation">
-              Zur persönlichen Inflation
-            </AppLink>
+            <BasketReportReturn />
           </div>
           {query.isPending && <LoadingNote what="Warenkorb" />}
           {query.isError && (
@@ -203,6 +204,7 @@ export function InflationBasketSettingsPage() {
               du sie rückgängig machen.
             </p>
           </details>
+          <SettingsReadStamp at={query.dataUpdatedAt} label="Warenkorb" />
         </section>
       </PageFrame>
     );
@@ -242,6 +244,18 @@ export function InflationBasketSettingsPage() {
         {groups}
       </section>
     </PageFrame>
+  );
+}
+
+function BasketReportReturn() {
+  const source = validateInboxSearch(useLocation().search).von;
+  return (
+    <AppLink
+      className="btn btn-ghost"
+      to={source?.startsWith('/reports/inflation') ? source : '/reports/inflation'}
+    >
+      Zur persönlichen Inflation
+    </AppLink>
   );
 }
 

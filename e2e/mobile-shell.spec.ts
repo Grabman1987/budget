@@ -25,18 +25,28 @@ test.describe('UX-3a phone shell', () => {
           })
           .map((el) => el.getAttribute('aria-label')),
       );
-      expect(fixedActions, path).toEqual(['Buchung erfassen']);
+      const settingsOn =
+        path === '/einstellungen' &&
+        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      expect(fixedActions, path).toEqual(settingsOn ? [] : ['Buchung erfassen']);
       const fab = page.getByRole('link', { name: 'Buchung erfassen', exact: true });
-      const box = (await fab.boundingBox())!;
-      const bar = (await page.locator('.tabbar').boundingBox())!;
-      expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width - 16);
-      expect(bar.y - box.y - box.height).toBe(16);
+      if (settingsOn) await expect(fab).toBeHidden();
+      else {
+        const box = (await fab.boundingBox())!;
+        const bar = (await page.locator('.tabbar').boundingBox())!;
+        expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width - 16);
+        expect(bar.y - box.y - box.height).toBe(16);
+      }
       await search.tap();
       const input = page.getByRole('combobox', { name: 'Suchen', exact: true });
       await expect(input).toBeFocused();
       await input.press('Escape');
       await expect(search).toBeFocused();
-      await fab.tap();
+      if (settingsOn) {
+        await search.tap();
+        await page.getByRole('combobox', { name: 'Suchen', exact: true }).fill('Neue Buchung');
+        await page.getByRole('option', { name: /Neue Buchung/ }).tap();
+      } else await fab.tap();
       await expect(
         page.getByRole('dialog', { name: 'Buchung erfassen', exact: true }),
       ).toBeVisible();
@@ -123,6 +133,23 @@ test.describe('UX-3a phone shell', () => {
       await expect(page.locator('main')).toBeVisible();
       await page.waitForLoadState('networkidle');
       await page.evaluate(() => document.fonts.ready);
+      const settingsOn =
+        path === '/einstellungen' &&
+        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      if (settingsOn) {
+        await expect(page.locator('.fab')).toBeHidden();
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+        const clearance = await page.locator('main').evaluate((element) => {
+          const bottom = Math.max(
+            ...[...element.children]
+              .filter((child) => child.getClientRects().length > 0)
+              .map((child) => child.getBoundingClientRect().bottom),
+          );
+          return document.querySelector('.tabbar')!.getBoundingClientRect().top - bottom;
+        });
+        expect(clearance, path).toBeGreaterThanOrEqual(16);
+        continue;
+      }
       const clearance = await page.locator('main').evaluate((el) => {
         const fab = document.querySelector('.fab')!.getBoundingClientRect();
         return (

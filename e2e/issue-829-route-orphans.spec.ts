@@ -70,7 +70,12 @@ async function assignment(p: Page) {
   ).toBeVisible();
   if (data.rules.length)
     await expect(
-      p.getByRole('table', { name: 'Reihenfolge und Status der Zuordnungsregeln', exact: true }),
+      (await p.locator('.app').getAttribute('data-budget-redesign')) === '1'
+        ? p.locator('.settings-assignment-list')
+        : p.getByRole('table', {
+            name: 'Reihenfolge und Status der Zuordnungsregeln',
+            exact: true,
+          }),
     ).toContainText(data.rules[0]!.name);
   else
     await expect(
@@ -92,13 +97,22 @@ async function basket(p: Page) {
       .getByTestId('basket-category-cat-miete')
       .getByLabel(`Zählt mit: ${rent!.name}`, { exact: true }),
   ).toBeVisible();
-  await css(p, '.basket-settings .basket-summary');
+  const redesigned = (await p.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  await css(
+    p,
+    redesigned ? '.settings-basket-v2 [role="status"]' : '.basket-settings .basket-summary',
+  );
 }
 async function projects(p: Page) {
   const data = await read<{ projects: { name: string }[] }>(p, '/api/projects');
   expect(data.projects.length, 'real sample projects').toBeGreaterThan(0);
-  await expect(p.locator('.pp-settings').getByLabel('Projektname', { exact: true })).toBeVisible();
-  await expect(p.locator('.pp-settings .pp-scroll table')).toContainText(data.projects[0]!.name);
+  const redesigned = (await p.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  await expect(p.getByLabel('Projektname', { exact: true })).toBeVisible();
+  await expect(
+    p.locator(
+      redesigned ? '.settings-projects-v2 .settings-surface' : '.pp-settings .pp-scroll table',
+    ),
+  ).toContainText(data.projects[0]!.name);
 }
 const probes = {
   heute: (p: Page) =>
@@ -208,10 +222,14 @@ const probes = {
   security: (p: Page) =>
     expect(p.getByRole('button', { name: 'Abmelden', exact: true })).toBeVisible(),
   accountSettings: (p: Page) =>
-    expect(p.locator('.accounts-name strong').filter({ hasText: 'Girokonto' })).toBeVisible(),
+    expect(
+      p
+        .locator('.accounts-name strong, .settings-account-name strong')
+        .filter({ hasText: 'Girokonto' }),
+    ).toBeVisible(),
   depotSettings: (p: Page) =>
     expect(p.getByLabel('Einstandskostenmethode', { exact: true })).toBeEnabled(),
-  categories: (p: Page) => css(p, '.cat-table .kname-btn'),
+  categories: (p: Page) => css(p, '.cat-table .kname-btn, .settings-category-name'),
   category: async (p: Page) => {
     await expect(p.locator('#category-detail-title')).toHaveText('Lebensmittel');
     await expect(
@@ -220,17 +238,23 @@ const probes = {
         .getByRole('button', { name: 'Kategorie bearbeiten', exact: true }),
     ).toBeVisible();
   },
-  rules: (p: Page) => css(p, '[data-rule-code="R07"]'),
+  rules: (p: Page) => css(p, '[data-settings-rule-code="R07"], [data-rule-code="R07"]'),
   rule: async (p: Page) => {
     await css(p, '.rw-now[aria-label="Aktueller Stand"] .rw-action');
     await expect(p.locator('.rw-now')).toContainText('Schwelle:');
     await expect(p.locator('.rw nav [aria-current="page"]')).toContainText('R07');
   },
   assignment,
-  dataSources: (p: Page) =>
-    expect(p.locator('.data-sources .bank-connect')).toContainText(
+  dataSources: async (p: Page) => {
+    if ((await p.locator('.app').getAttribute('data-budget-redesign')) === '1')
+      await p
+        .getByRole('region', { name: 'Bank', exact: true })
+        .getByRole('button', { name: 'Prüfen', exact: true })
+        .click();
+    await expect(p.locator('.data-sources .bank-connect')).toContainText(
       'Bank-Sync ist noch nicht eingerichtet.',
-    ),
+    );
+  },
   assetClasses: (p: Page) => css(p, '.asset-class-table tbody tr'),
   basket,
   export: (p: Page) =>

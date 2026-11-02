@@ -1,3 +1,5 @@
+import { SettingsReadStamp } from '../pages/settings-read-stamp';
+import { useState } from 'react';
 import { Switch } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ErrorNote, LoadingNote } from '../ledger/states';
@@ -10,6 +12,7 @@ import { thresholdText } from './rules-model';
 export function SettingsRuleList() {
   const query = useQuery(rulesQuery());
   const write = useRuleWrite();
+  const [busy, setBusy] = useState(false);
   return (
     <section className="settings-rule-list" aria-labelledby="settings-rule-list-title">
       <div className="settings-primary-head">
@@ -39,12 +42,14 @@ export function SettingsRuleList() {
                 </AppLink>
                 <Switch
                   label={`${rule.code} ${rule.name}`}
+                  disabled={busy}
                   checked={rule.enabled}
                   onChange={(enabled) => {
+                    setBusy(true);
                     void write(
                       () => patchRule(rule.code, { enabled }),
                       () => `${rule.code} ${rule.name}: ${enabled ? 'an' : 'aus'}`,
-                    );
+                    ).finally(() => setBusy(false));
                   }}
                 />
               </div>
@@ -52,6 +57,7 @@ export function SettingsRuleList() {
           ))}
         </div>
       )}
+      <SettingsReadStamp at={query.dataUpdatedAt} label="Regelwerk" />
     </section>
   );
 }

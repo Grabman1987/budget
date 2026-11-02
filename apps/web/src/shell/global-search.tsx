@@ -42,7 +42,7 @@ const PAGES: PaletteItem[] = AREAS.flatMap((area) => [
   { kind: 'page' as const, id: area.to, label: area.label, detail: null },
   ...area.registers.map((r) => ({
     kind: 'page' as const,
-    id: r.to,
+    id: r.search ? `${r.to}?${new URLSearchParams(r.search).toString()}` : r.to,
     label: `${area.label} · ${r.label}`,
     detail: null,
   })),
@@ -109,7 +109,13 @@ function destination(result: PaletteItem, source: URL) {
       if (period) context['period'] = period;
     }
   }
-  if (result.kind === 'page') return { to: result.id, search: context };
+  if (result.kind === 'page') {
+    const target = new URL(result.id, source.origin);
+    return {
+      to: target.pathname,
+      search: { ...context, ...Object.fromEntries(target.searchParams) },
+    };
+  }
   if (result.kind === 'report') return { to: `/reports/${result.id}`, search: context };
   if (result.kind === 'account')
     return { to: `/konten/${encodeURIComponent(result.id)}`, search: {} };

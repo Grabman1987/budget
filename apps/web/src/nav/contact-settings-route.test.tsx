@@ -117,11 +117,8 @@ describe.each([false, true])('contact Settings destination, redesign=%s', (enabl
         ? [
             ['Profil & Sicherheit', ['Profil', 'Sicherheit']],
             ['Konten & Depots', ['Konten', 'Depots & Kryptos', 'Kontakte']],
-            [
-              'Kategorien & Regeln',
-              ['Kategorien', 'Regelwerk', 'Zuordnungsregeln', 'Warenkorb (Teuerung)'],
-            ],
-            ['Verbindungen', ['Datenquellen']],
+            ['Kategorien & Regeln', ['Kategorien', 'Regelwerk', 'Zuordnungsregeln', 'Warenkorb']],
+            ['Verbindungen', ['Verbindungen']],
             ['Vermögen', ['Zielallokation und Stufen', 'Anlageklassen']],
             ['Daten', ['CSV-Export', 'Projekte']],
           ]

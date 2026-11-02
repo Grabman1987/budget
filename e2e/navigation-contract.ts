@@ -96,9 +96,18 @@ export function expectedSettingsGroups(redesign: boolean): readonly ExpectedSett
     {
       id: 'regeln',
       label: 'Kategorien & Regeln',
-      items: [item('kategorien'), item('regelwerk'), item('zuordnung'), item('warenkorb')],
+      items: [
+        item('kategorien'),
+        item('regelwerk'),
+        item('zuordnung'),
+        { ...item('warenkorb'), label: 'Warenkorb' },
+      ],
     },
-    { id: 'verbindungen', label: 'Verbindungen', items: [item('datenquellen')] },
+    {
+      id: 'verbindungen',
+      label: 'Verbindungen',
+      items: [{ ...item('datenquellen'), label: 'Verbindungen' }],
+    },
     {
       id: 'vermoegen',
       label: 'Vermögen',

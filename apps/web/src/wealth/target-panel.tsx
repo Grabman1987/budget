@@ -301,6 +301,15 @@ export function TargetEditor({
         nextErrors['limit:' + i] = 'Vermögensstufen müssen aufsteigend sein.';
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
+      if (presentation === 'settings')
+        requestAnimationFrame(() => {
+          const input = document.querySelector<HTMLElement>(
+            '#settings-target-form [aria-invalid="true"]',
+          );
+          for (let parent = input?.parentElement; parent; parent = parent.parentElement)
+            if (parent instanceof HTMLDetailsElement) parent.open = true;
+          input?.focus();
+        });
       const bad = Object.keys(nextErrors).find((k) => /^(\d+:|limit:)/.test(k));
       if (bad)
         setSelected(Number(bad.startsWith('limit:') ? bad.split(':')[1] : bad.split(':')[0]));
@@ -668,6 +677,12 @@ export function TargetEditor({
                       <td>
                         <TextInput
                           aria-label={`Stufe ${index + 1} · Ab Vermögen (€)`}
+                          aria-invalid={Boolean(errors['limit:' + index])}
+                          aria-describedby={
+                            errors['limit:' + index]
+                              ? `${rowErrorPrefix}-limit:${index}`
+                              : undefined
+                          }
                           inputMode="decimal"
                           readOnly={index === 0}
                           value={index === 0 ? '0,00' : row.limit}
@@ -679,6 +694,12 @@ export function TargetEditor({
                           {row.entries[c.id]!.included ? (
                             <TextInput
                               aria-label={`Stufe ${index + 1} · ${c.name} · Soll (%)`}
+                              aria-invalid={Boolean(errors[`${index}:${c.id}:share`])}
+                              aria-describedby={
+                                errors[`${index}:${c.id}:share`]
+                                  ? `${rowErrorPrefix}-${index}:${c.id}:share`
+                                  : undefined
+                              }
                               inputMode="decimal"
                               value={row.entries[c.id]!.share}
                               onChange={(event) =>
@@ -756,6 +777,12 @@ export function TargetEditor({
                                     {({ id }) => (
                                       <TextInput
                                         id={id}
+                                        aria-invalid={Boolean(errors[`${index}:${c.id}:band`])}
+                                        aria-describedby={
+                                          errors[`${index}:${c.id}:band`]
+                                            ? `${rowErrorPrefix}-${index}:${c.id}:band`
+                                            : undefined
+                                        }
                                         value={entry.band}
                                         inputMode="decimal"
                                         onChange={(event) =>
@@ -799,9 +826,9 @@ export function TargetEditor({
               </table>
             </ScrollRegion>
             {Object.entries(errors)
-              .filter(([key]) => key !== 'form' && key !== 'sum')
+              .filter(([key]) => !['form', 'sum', 'date'].includes(key))
               .map(([key, message]) => (
-                <p role="alert" key={key}>
+                <p role="alert" id={`${rowErrorPrefix}-${key}`} key={key}>
                   {maskMoneyText(message)}
                 </p>
               ))}
@@ -1133,31 +1160,62 @@ export function TargetEditor({
                       <tr key={c.id}>
                         <th scope="row">{c.name}</th>
                         <td>
-                          <TextInput
-                            aria-label={`${c.name} · Soll (%)`}
-                            inputMode="decimal"
-                            value={entry.share}
-                            disabled={!entry.included}
-                            onChange={(event) => update(c.id, { share: event.target.value })}
-                          />
+                          {entry.included ? (
+                            <TextInput
+                              aria-label={`${c.name} · Soll (%)`}
+                              aria-invalid={Boolean(errors[`${selected}:${c.id}:share`])}
+                              aria-describedby={
+                                errors[`${selected}:${c.id}:share`]
+                                  ? `${rowErrorPrefix}-${selected}:${c.id}:share`
+                                  : undefined
+                              }
+                              inputMode="decimal"
+                              value={entry.share}
+                              disabled={!entry.included}
+                              onChange={(event) => update(c.id, { share: event.target.value })}
+                            />
+                          ) : (
+                            <span>Unverwaltet</span>
+                          )}
+                          {errors[`${selected}:${c.id}:share`] && (
+                            <p
+                              className="field-error"
+                              role="alert"
+                              id={`${rowErrorPrefix}-${selected}:${c.id}:share`}
+                            >
+                              {errors[`${selected}:${c.id}:share`]}
+                            </p>
+                          )}
                         </td>
                         <td>
-                          <Select
-                            aria-label={`${c.name} · Band`}
-                            value={entry.bandMode}
-                            disabled={!entry.included}
-                            onChange={(event) =>
-                              update(c.id, { bandMode: event.target.value as Entry['bandMode'] })
-                            }
-                          >
-                            <option value="standard">Standard</option>
-                            <option value="custom">Individuell</option>
-                          </Select>
+                          {entry.included ? (
+                            <Select
+                              aria-label={`${c.name} · Band`}
+                              value={entry.bandMode}
+                              disabled={!entry.included}
+                              onChange={(event) =>
+                                update(c.id, { bandMode: event.target.value as Entry['bandMode'] })
+                              }
+                            >
+                              <option value="standard">Standard</option>
+                              <option value="custom">Individuell</option>
+                            </Select>
+                          ) : (
+                            <span>—</span>
+                          )}
                         </td>
                         <td>
-                          {entry.bandMode === 'custom' ? (
+                          {!entry.included ? (
+                            <span>—</span>
+                          ) : entry.bandMode === 'custom' ? (
                             <TextInput
                               aria-label={`${c.name} · Band ± (Prozentpunkte)`}
+                              aria-invalid={Boolean(errors[`${selected}:${c.id}:band`])}
+                              aria-describedby={
+                                errors[`${selected}:${c.id}:band`]
+                                  ? `${rowErrorPrefix}-${selected}:${c.id}:band`
+                                  : undefined
+                              }
                               inputMode="decimal"
                               value={entry.band}
                               disabled={!entry.included}
@@ -1165,6 +1223,15 @@ export function TargetEditor({
                             />
                           ) : (
                             <span>Standard</span>
+                          )}
+                          {errors[`${selected}:${c.id}:band`] && (
+                            <p
+                              className="field-error"
+                              role="alert"
+                              id={`${rowErrorPrefix}-${selected}:${c.id}:band`}
+                            >
+                              {errors[`${selected}:${c.id}:band`]}
+                            </p>
                           )}
                         </td>
                         <td>

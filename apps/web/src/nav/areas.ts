@@ -81,11 +81,19 @@ export const AREAS: ReadonlyArray<AreaDef> = [
         ? [{ id: 'kontakte', label: 'Kontakte', to: '/einstellungen/kontakte' }]
         : []),
       { id: 'projekte', label: 'Projekte', to: '/einstellungen/projekte' },
-      { id: 'warenkorb', label: 'Warenkorb (Teuerung)', to: '/einstellungen/warenkorb' },
+      {
+        id: 'warenkorb',
+        label: REDESIGN_ENABLED ? 'Warenkorb' : 'Warenkorb (Teuerung)',
+        to: '/einstellungen/warenkorb',
+      },
       { id: 'kategorien', label: 'Kategorien', to: '/einstellungen/kategorien' },
       { id: 'regelwerk', label: 'Regelwerk', to: '/einstellungen/regelwerk' },
       { id: 'zuordnung', label: 'Zuordnungsregeln', to: '/einstellungen/zuordnung' },
-      { id: 'datenquellen', label: 'Datenquellen', to: '/einstellungen/datenquellen' },
+      {
+        id: 'datenquellen',
+        label: REDESIGN_ENABLED ? 'Verbindungen' : 'Datenquellen',
+        to: '/einstellungen/datenquellen',
+      },
       ...(REDESIGN_ENABLED
         ? [
             {

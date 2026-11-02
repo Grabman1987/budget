@@ -23,9 +23,19 @@ export function SettingsRowMenu({ name, children }: { name: string; children: Re
         menu.querySelector('summary')?.focus();
       }
     };
+    const choose = (event: MouseEvent) => {
+      const menu = ref.current;
+      if (menu?.open && event.target instanceof Element && event.target.closest('button, a')) {
+        menu.open = false;
+        menu.querySelector('summary')?.focus();
+      }
+    };
+    const menu = ref.current;
+    menu?.addEventListener('click', choose, true);
     document.addEventListener('pointerdown', close);
     document.addEventListener('keydown', keydown);
     return () => {
+      menu?.removeEventListener('click', choose, true);
       document.removeEventListener('pointerdown', close);
       document.removeEventListener('keydown', keydown);
     };

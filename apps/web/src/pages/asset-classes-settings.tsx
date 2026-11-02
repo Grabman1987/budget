@@ -1,7 +1,7 @@
 import { Button, Field, Select, TextInput, maskMoneyText } from '@budget/ui';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useSearch } from '@tanstack/react-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { errorText } from '../ledger/labels';
 import { eur } from '../ledger/format';
@@ -327,6 +327,13 @@ function InlineTargets() {
   const [dirty, setDirty] = useState(false),
     [busy, setBusy] = useState(false),
     [epoch, setEpoch] = useState(0);
+  const signature = JSON.stringify([query.data, versions.data]);
+  const previous = useRef(signature);
+  useEffect(() => {
+    const changed = previous.current !== signature;
+    previous.current = signature;
+    if (changed && !dirty && !busy) setEpoch((value) => value + 1);
+  }, [signature, dirty, busy]);
   return (
     <section className="settings-targets-v2" aria-labelledby="settings-target-title">
       <div className="settings-primary-head">
@@ -340,6 +347,12 @@ function InlineTargets() {
         ihrer Anlagesumme.
       </p>
       {(query.isPending || versions.isPending) && <LoadingNote what="Zielallokation" />}
+      {query.data && query.data.allocation.classes.length === 0 && (
+        <p role="status">
+          Noch keine Anlageklassen. Lege zuerst eine Anlageklasse an, um Zielquoten festzulegen.{' '}
+          <SettingsPanelLink panel="anlageklasse">Anlageklasse anlegen</SettingsPanelLink>
+        </p>
+      )}
       {query.isError && (
         <ErrorNote what="Zielallokation" error={query.error} onRetry={() => void query.refetch()} />
       )}
@@ -351,7 +364,7 @@ function InlineTargets() {
         />
       )}
       <SettingsDraftGuard dirty={dirty} busy={busy} />
-      {query.data && versions.data && !query.isError && !versions.isError && (
+      {query.data && versions.data && (
         <TargetEditor
           key={epoch}
           presentation="settings"
@@ -364,6 +377,12 @@ function InlineTargets() {
             setEpoch((value) => value + 1);
           }}
         />
+      )}
+      {query.data && (
+        <p className="settings-source-stamp">
+          Stand {query.data.allocation.asOf} · Sollversion{' '}
+          {query.data.allocation.policy.targetValidFrom ?? 'nicht vorhanden'}
+        </p>
       )}
       <Button
         variant="ghost"
@@ -457,9 +476,9 @@ export function AssetClassSettingsPanel({
             />
           )}
           {query.data &&
-            !query.isError &&
+            (REDESIGN_ENABLED || !query.isError) &&
             versions.data &&
-            !versions.isError &&
+            (REDESIGN_ENABLED || !versions.isError) &&
             (mode === 'sollquoten' || mode === 'anlageklasse-archivieren' ? (
               <TargetEditor
                 key={mode + (search.klasse ?? '')}
@@ -509,6 +528,8 @@ function ClassEditor({
   data: AssetClassesSettingsView;
   versions: TargetVersion[];
 }) {
+  const client = useQueryClient();
+  const [openedClass] = useState(cls);
   const [name, setName] = useState(cls?.name ?? ''),
     [order, setOrder] = useState(String(cls?.sortOrder ?? data.classes.length)),
     [busy, setBusy] = useState(false),
@@ -542,6 +563,25 @@ function ClassEditor({
     controls.onBusy(true);
     setErrors({});
     try {
+      if (REDESIGN_ENABLED && openedClass && action === 'save') {
+        const latest = await request<AssetClassesSettingsView>(
+          'GET',
+          '/api/asset-classes/settings',
+        );
+        const row = latest.classes.find((entry) => entry.id === openedClass.id);
+        if (
+          !row ||
+          row.name !== openedClass.name ||
+          row.sortOrder !== openedClass.sortOrder ||
+          row.deletedAt !== openedClass.deletedAt
+        ) {
+          client.setQueryData(assetSettingsQuery().queryKey, latest);
+          setErrors({
+            form: 'Die Anlageklasse wurde inzwischen geändert. Dein Entwurf bleibt erhalten. Schließe den Entwurf und lade den aktuellen Stand.',
+          });
+          return;
+        }
+      }
       const path = '/api/asset-classes' + (cls ? '/' + encodeURIComponent(cls.id) : '');
       await write(
         () =>
