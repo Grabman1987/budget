@@ -1,3 +1,4 @@
+import { redesignEnabled, openPaymentManagement } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import { withShellControls } from './shell-actions';
 import { openDatabase, schema } from '@budget/db';
@@ -57,7 +58,9 @@ async function seed(request: APIRequestContext, origin: string): Promise<Seed> {
   return { accountId: account.id, debitId: payment.id };
 }
 async function hit(target: Locator, minimum: number) {
-  await target.scrollIntoViewIfNeeded();
+  await target.evaluate((element) =>
+    element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }),
+  );
   await expect(target).toBeVisible();
   const r = await target.evaluate((element) => {
     const b = element.getBoundingClientRect();
@@ -207,7 +210,11 @@ async function scene(
   expect(search.has('levers')).toBe(true);
   expect(search.get('levers')).toBe('');
   await expect(
-    page.getByRole('heading', { name: 'Budget-Konten · nächste 35 Tage' }),
+    page.getByRole('heading', {
+      name: (await redesignEnabled(page))
+        ? 'Kontostand Budget-Konten'
+        : 'Budget-Konten · nächste 35 Tage',
+    }),
   ).toBeVisible();
   await expect(page.getByTestId('liq-low')).toHaveText('700,00 €');
   await expect(page.getByTestId('liq-scenario-basis')).not.toContainText(
@@ -230,9 +237,16 @@ async function scene(
     expect(collapsed.height).toBe(900);
     expect(collapsed.documentHeight).toBeLessThanOrEqual(2700);
   } else expect(collapsed.width).toBe(390);
-  const horizons = page.getByRole('group', { name: 'Prognosezeitraum' }).getByRole('button');
-  await expect(horizons).toHaveCount(4);
-  for (const horizon of await horizons.all()) await hit(horizon, minimum);
+  if (await redesignEnabled(page)) {
+    const horizon = page.getByRole('combobox', { name: 'Prognosezeitraum' });
+    await expect(horizon.locator('option')).toHaveCount(4);
+    await expect(horizon).toHaveValue('35d');
+    await hit(horizon, 44);
+  } else {
+    const horizons = page.getByRole('group', { name: 'Prognosezeitraum' }).getByRole('button');
+    await expect(horizons).toHaveCount(4);
+    for (const horizon of await horizons.all()) await hit(horizon, minimum);
+  }
   await photo(page, '.liquidity-report', `forecast-detail-${profile}-${theme}`, info);
   expect(writes).toEqual([]);
   await hit(summary, minimum);
@@ -316,6 +330,7 @@ async function scene(
   await strike.click();
   await expect(page.getByTestId('liq-low')).toHaveText('1.000,00 €');
   await page.goto(`/plan/erwartet/${ids.debitId}?monat=2026-09`);
+  await openPaymentManagement(page);
   await expect(page.getByRole('heading', { name: 'Synthetic debit', exact: true })).toBeVisible();
   const restore = page.getByRole('button', { name: 'Wiederherstellen', exact: true });
   await hit(restore, minimum);

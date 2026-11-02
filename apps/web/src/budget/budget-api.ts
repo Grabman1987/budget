@@ -10,6 +10,7 @@ import { request } from '../api/http';
 import type { ListedBooking, WriteResult } from '../ledger/types';
 import type { CategoryRow, GroupRow, TargetRow } from './api';
 import { BUDGET_KEY } from './use-category-writes';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 /** Shapes and calls of the budget API (`/api/budget/:month`); amounts are integer cents. */
 
@@ -52,6 +53,8 @@ export interface MonthSummary {
 }
 
 export interface BudgetMonthView {
+  /** Revision captured in the same transaction as this exact canonical view. */
+  previewBasis?: string;
   incomeTargets?: IncomeTargets;
   budgetMoney?: ReturnType<typeof budgetAccountMoney>;
   summary: MonthSummary;
@@ -64,7 +67,8 @@ const path = (month: string) => `/api/budget/${month}`;
 export const budgetQuery = (month: string) =>
   queryOptions({
     queryKey: [...BUDGET_KEY, month],
-    queryFn: () => request<BudgetMonthView>('GET', path(month)),
+    queryFn: () =>
+      request<BudgetMonthView>('GET', `${path(month)}${REDESIGN_ENABLED ? '?previewBasis=1' : ''}`),
   });
 
 /** Several months in one call (Plan › Jahr): the same views as `budgetQuery`, keyed by month. */
@@ -74,7 +78,7 @@ export const budgetMonthsQuery = (months: string[]) =>
     queryFn: () =>
       request<{ months: Record<string, BudgetMonthView> }>(
         'GET',
-        `/api/budget/months?months=${months.join(',')}`,
+        `/api/budget/months?months=${months.join(',')}${REDESIGN_ENABLED ? '&previewBasis=1' : ''}`,
       ),
   });
 
@@ -82,10 +86,14 @@ export const assign = (
   month: string,
   items: Array<{ categoryId: string; assignedCents: number }>,
   closeMonth?: string,
+  expectedBasis?: string,
+  expectedCloseBasis?: string,
 ) =>
   request<WriteResult>('PUT', `${path(month)}/assigned`, {
     items,
     ...(closeMonth && { closeMonth }),
+    ...(expectedBasis && { expectedBasis }),
+    ...(expectedCloseBasis && { expectedCloseBasis }),
   });
 export const quickAssign = (month: string, mode: QuickAssignMode, categoryIds: string[]) =>
   request<WriteResult & { changedCount: number; openCount: number; missingCents: number }>(

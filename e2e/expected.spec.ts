@@ -1,3 +1,9 @@
+import {
+  paymentView,
+  paymentKindAll,
+  redesignEnabled,
+  openPaymentManagement,
+} from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import { type APIRequestContext, type Page } from '@playwright/test';
 import { sampleTest as test, expect, SAMPLE_URL } from './sample';
@@ -26,6 +32,8 @@ test('the next due dates are right: Gehalt on the last business day, 30.09.2026'
   page,
 }) => {
   await page.goto('/plan/erwartet');
+  if (await redesignEnabled(page))
+    await page.getByRole('button', { name: 'Fälligkeiten aktualisieren', exact: true }).click();
   const gehalt = page.locator('tr.prow', { hasText: 'Gehalt' }).first();
   await expect(gehalt).toContainText('Mi 30.09.');
   await expect(gehalt).toContainText('+3.812,00 €');
@@ -37,14 +45,14 @@ test('the next due dates are right: Gehalt on the last business day, 30.09.2026'
   await expect(page.locator('tr.prow', { hasText: 'Miete' }).first()).toContainText('Do 01.10.');
 
   // Parts list: monthly equivalent and yearly sum, the foreign-currency amount stays visible.
-  await page.getByRole('button', { name: 'Verträge und Abos' }).click();
+  await paymentView(page, 'contracts');
   await expect(page.locator('tr.prow', { hasText: 'Gehalt' })).toHaveCount(0);
   const assistant = page.locator('tr.prow', { hasText: 'KI-Assistent' });
   await expect(assistant).toContainText('20,00 $ je Zahlung');
   await expect(assistant).toContainText('08.10.2026');
   await expect(page.locator('tr.prow', { hasText: 'Strom' })).toContainText('−105,00 €');
   await expect(page.locator('tr.prow', { hasText: 'Strom' })).toContainText('−1.260 €');
-  await page.getByRole('button', { name: 'Alle', exact: true }).first().click();
+  await paymentKindAll(page);
   await expect(page.locator('tr.prow', { hasText: 'Gehalt' })).toContainText('30.09.2026');
 });
 
@@ -62,9 +70,12 @@ test('a new version from February 2027 changes only the future occurrences; undo
     startDate: '2026-12-28',
   });
   await page.goto('/plan/erwartet');
-  await page.getByRole('button', { name: 'Verträge und Abos' }).click();
-  await page.getByRole('button', { name: 'Alle', exact: true }).first().click();
+  if (await redesignEnabled(page))
+    await page.getByRole('button', { name: 'Fälligkeiten aktualisieren', exact: true }).click();
+  await paymentView(page, 'contracts');
+  await paymentKindAll(page);
   await page.locator('tr.prow', { hasText: name }).getByRole('button').first().click();
+  await openPaymentManagement(page);
   const panel = page.locator('.xp-detail-body');
   await expect(page).toHaveURL(/\/plan\/erwartet\/[^?]+/);
   await expect(panel).toBeVisible();
@@ -105,9 +116,12 @@ test('a booking links to an occurrence and the occurrence can be marked missed',
     startDate: '2027-02-20',
   });
   await page.goto('/plan/erwartet');
-  await page.getByRole('button', { name: 'Alle', exact: true }).first().click();
-  await page.getByRole('button', { name: 'Verträge und Abos' }).click();
+  if (await redesignEnabled(page))
+    await page.getByRole('button', { name: 'Fälligkeiten aktualisieren', exact: true }).click();
+  await paymentKindAll(page);
+  await paymentView(page, 'contracts');
   await page.locator('tr.prow', { hasText: name }).getByRole('button').first().click();
+  await openPaymentManagement(page);
   const panel = page.locator('.xp-detail-body');
   await expect(page).toHaveURL(/\/plan\/erwartet\/[^?]+/);
   const occurrence = panel.locator('.xp-occ li', { hasText: '20.03.2027' });
@@ -125,6 +139,8 @@ test('a booking links to an occurrence and the occurrence can be marked missed',
 test('Plan › Monat: the Einnahmen term opens received against expected', async ({ page }) => {
   // Materialize the seeded recurring occurrences independently of other tests in this file.
   await page.goto('/plan/erwartet');
+  if (await redesignEnabled(page))
+    await page.getByRole('button', { name: 'Fälligkeiten aktualisieren', exact: true }).click();
   await expect(page.locator('tr.prow', { hasText: 'Gehalt' }).first()).toBeVisible();
   await page.goto('/plan/monat');
   await page.locator('.plan-tba').click();
@@ -153,30 +169,48 @@ test('Plan › Monat: the Einnahmen term opens received against expected', async
 test.describe('look', () => {
   test('light: the 90 days and a payment panel', async ({ page }) => {
     await page.goto('/plan/erwartet');
+    if (await redesignEnabled(page))
+      await page.getByRole('button', { name: 'Fälligkeiten aktualisieren', exact: true }).click();
     await expect(page.locator('tr.prow').first()).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     expect(await serious(page)).toEqual([]);
-    await expectScreenshot(page, 'expected-light.png');
+    await expectScreenshot(
+      page,
+      (await redesignEnabled(page)) ? 'expected-v2-light.png' : 'expected-light.png',
+    );
     await page.locator('tr.prow', { hasText: 'Strom' }).getByRole('button').first().click();
     await expect(page).toHaveURL(/\/plan\/erwartet\/[^?]+/);
     await expect(page.getByRole('dialog')).toHaveCount(0);
+    await openPaymentManagement(page);
     await expect(page.locator('.xp-occ li').first()).toBeVisible();
     expect(await serious(page)).toEqual([]);
     // Detail navigation preserves scroll; frame this screenshot independently of row position.
     await page.evaluate(() => window.scrollTo(0, 0));
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
     await expect(page.getByRole('heading', { name: 'Strom', exact: true })).toBeInViewport();
-    await expectScreenshot(page, 'expected-panel-light.png');
+    if ((await redesignEnabled(page)) && page.viewportSize()!.width >= 768)
+      await page.locator('.payment-reference-management > summary').click();
+    await expectScreenshot(
+      page,
+      (await redesignEnabled(page)) ? 'expected-panel-v2-light.png' : 'expected-panel-light.png',
+    );
   });
 
   test.describe('dark', () => {
     test.use({ colorScheme: 'dark' });
     test('the 90 days and the Einnahmen panel', async ({ page }, testInfo) => {
       await page.goto('/plan/erwartet');
+      if (await redesignEnabled(page))
+        await page.getByRole('button', { name: 'Fälligkeiten aktualisieren', exact: true }).click();
       await expect(page.locator('tr.prow').first()).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
       expect(await serious(page)).toEqual([]);
-      await expectScreenshot(page, 'expected-dark.png');
+      await expectScreenshot(
+        page,
+        (await redesignEnabled(page)) ? 'expected-v2-dark.png' : 'expected-dark.png',
+      );
+      if (await redesignEnabled(page))
+        await page.locator('.payments-reference-source > summary').click();
       await page.getByRole('button', { name: /Einnahmen im Detail/ }).click();
       await expect(page).toHaveURL(/\/plan\/erwartet\/einnahmen/);
       await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -186,7 +220,10 @@ test.describe('look', () => {
       await expect(incomeRegion).toContainText(
         /Heute zählt Haushaltseinnahmen nach Buchungsdatum.*„Für nächsten Monat“ zählt im Plan erst im Folgemonat\./,
       );
-      await expectScreenshot(page, 'expected-income-dark.png');
+      await expectScreenshot(
+        page,
+        (await redesignEnabled(page)) ? 'expected-income-v2-dark.png' : 'expected-income-dark.png',
+      );
       if (testInfo.project.name === 'mobile') {
         await expect(
           incomeRegion.getByRole('heading', { name: /^Einnahmen /, level: 2 }),

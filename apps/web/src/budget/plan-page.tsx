@@ -1,5 +1,14 @@
 import { AllocationBar } from '../reports/allocation-bar';
 import './plan-allocation-labels.css';
+import './plan-redesign.css';
+import {
+  PlanMonthLead,
+  PlanRowState,
+  PlanReadUtilities,
+  PlanUnclassifiedReadout,
+  planMonthTerms,
+  planRowState,
+} from './plan-presentation';
 import { IncomeTargetsCard } from './income-targets-card';
 import {
   useAmountPrivacy,
@@ -9,10 +18,10 @@ import {
   Select,
   TextInput,
   cx,
-  type DimensionChainTerm,
 } from '@budget/ui';
-import { cents, coverShortfall, overspentEnvelopes, todayInVienna } from '@budget/domain';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { coverShortfall, overspentEnvelopes, todayInVienna } from '@budget/domain';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ApiError } from '../api/http';
 import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 import { TriangleAlert, ArrowLeftRight, Check, CircleCheck, ChevronDown, Info } from 'lucide-react';
 import {
@@ -26,7 +35,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { expectedQuery, incomeQuery } from '../expected/api';
+import { expectedQuery, incomeQuery, type MonthIncome } from '../expected/api';
 import { PLAN_MONAT } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
@@ -37,7 +46,6 @@ import { monthLabel, shiftMonth } from '../nav/month';
 import { useMonth } from '../shell/use-month';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { AppLink } from '../shell/app-link';
-import { lastDayOfMonth } from '@budget/domain';
 import { setMonthSpan, useIsPhone, useMonthSpan } from './month-span';
 import { MultiTable } from './plan-multi';
 import { ActivityLink } from './activity-link';
@@ -87,8 +95,10 @@ import {
   type PlanRow,
   type PlanView,
 } from './plan-model';
-import { categoriesQuery, useBudgetWrite } from './use-category-writes';
+import { BUDGET_KEY, categoriesQuery, useBudgetWrite } from './use-category-writes';
 import { CategoryPanel, type PanelState } from './category-panel';
+import { PlanPageFrame } from './plan-page-frame';
+import { MonthSwitch } from '../shell/month-switch';
 
 /** `05.10.` of `2026-10-05`. */
 const dayMonth = (day: string) => `${day.slice(8, 10)}.${day.slice(5, 7)}.`;
@@ -151,8 +161,8 @@ export function PlanMonthPage() {
   const income =
     incomeCents !== undefined ? <IncomeButton value={eur(incomeCents)} onOpen={openIncome} /> : '–';
   return (
-    <PageFrame meta={PLAN_MONAT} income={income}>
-      <div className="plan plan-month">
+    <MonthFrame month={month} income={income}>
+      <div className={cx('plan plan-month', REDESIGN_ENABLED && 'plan-month-v2')}>
         {budget.isPending && <LoadingNote what="Envelopes" />}
         {budget.isError && (
           <ErrorNote what="Envelopes" error={budget.error} onRetry={() => void budget.refetch()} />
@@ -165,10 +175,63 @@ export function PlanMonthPage() {
             data={data}
             views={views}
             onIncome={openIncome}
+            monthIncome={receivedIncome.data}
           />
         )}
       </div>
-    </PageFrame>
+    </MonthFrame>
+  );
+}
+
+function MonthFrame({
+  month,
+  income,
+  children,
+}: {
+  month: string;
+  income: ReactNode;
+  children: ReactNode;
+}) {
+  const span = useMonthSpan();
+  if (!REDESIGN_ENABLED)
+    return (
+      <PageFrame meta={PLAN_MONAT} income={income}>
+        {children}
+      </PageFrame>
+    );
+  return (
+    <PlanPageFrame
+      page="monat"
+      title={monthLabel(month)}
+      heading={false}
+      className="plan-month-frame"
+      period={<MonthSwitch heading={monthLabel(month)} />}
+      actions={
+        <>
+          <div className="month-reference-count">
+            <span>Monate</span>
+            <div className="seg" role="group" aria-label="Sichtbare Monate">
+              {([1, 2, 3] as const).map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  aria-pressed={span === count}
+                  onClick={() => setMonthSpan(count)}
+                >
+                  {count}
+                </button>
+              ))}
+            </div>
+          </div>
+          <span className="month-reference-income">Einnahmen {income}</span>
+        </>
+      }
+    >
+      {children}
+      <p className="plan-v2-source">
+        Stand {todayInVienna()} · Monatszuweisung {monthLabel(month)}
+      </p>
+    </PlanPageFrame>
   );
 }
 
@@ -178,6 +241,7 @@ function PlanBody({
   data,
   views,
   onIncome,
+  monthIncome,
 }: {
   month: string;
   /** The visible months, leftmost first (`month` is the first). */
@@ -186,9 +250,33 @@ function PlanBody({
   /** All visible months once loaded. */
   views: BudgetMonthView[] | null;
   onIncome: () => void;
+  monthIncome?: MonthIncome | undefined;
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
+  const qc = useQueryClient();
+  const [previewChanged, setPreviewChanged] = useState(false);
+  const computedAssign = async (items: Array<{ categoryId: string; assignedCents: number }>) => {
+    try {
+      // OFF and intentional absolute edits keep their existing writer. Never fall back
+      // to an unguarded ON preview when an old/offline snapshot lacks its basis.
+      if (REDESIGN_ENABLED && !data.previewBasis) throw new ApiError(409, 'plan_preview_changed');
+      const result = await assign(
+        month,
+        items,
+        undefined,
+        REDESIGN_ENABLED ? data.previewBasis : undefined,
+      );
+      setPreviewChanged(false);
+      return result;
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'plan_preview_changed') {
+        setPreviewChanged(true);
+        await qc.invalidateQueries({ queryKey: BUDGET_KEY });
+      }
+      throw error;
+    }
+  };
   const [categoryForm, setCategoryForm] = useState<PanelState>(null);
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const expected = useQuery(expectedQuery()).data;
@@ -378,6 +466,14 @@ function PlanBody({
       }
     };
     const outside = (event: MouseEvent) => {
+      // S3 puts phone privacy/theme controls in Search. Opening or using that
+      // shell surface must retain the current category and its form/cover source.
+      if (
+        REDESIGN_ENABLED &&
+        event.target instanceof Element &&
+        event.target.closest('.m-head, [role="dialog"]')
+      )
+        return;
       if (
         phone &&
         (phoneSelection ||
@@ -491,7 +587,9 @@ function PlanBody({
     .map((group) => ({ ...group, rows: group.rows.filter((row) => matchingIds.has(row.id)) }))
     .filter((group) => !narrowed || group.rows.length > 0);
   const collapsibleKeys = groups
-    .filter((g) => multi || shownView !== 'group' || g.rows.length !== 1)
+    .filter(
+      (g) => multi || shownView !== 'group' || g.rows.length !== 1 || (REDESIGN_ENABLED && phone),
+    )
     .map((g) => g.key);
   const shownRows = groups.flatMap((g) => g.rows);
   const shownIds = new Set(shownRows.map((r) => r.id));
@@ -561,8 +659,7 @@ function PlanBody({
     if (!list.length) return Promise.resolve(undefined);
     return write(
       () =>
-        assign(
-          month,
+        computedAssign(
           list.map((id) => ({
             categoryId: id,
             assignedCents: byId.get(id)!.assignedCents + sug[id]!,
@@ -623,8 +720,7 @@ function PlanBody({
     const plan = unassignPlan(rows, -tba);
     void write(
       () =>
-        assign(
-          month,
+        computedAssign(
           plan.map(([id, v]) => ({
             categoryId: id,
             assignedCents: byId.get(id)!.assignedCents - v,
@@ -711,6 +807,19 @@ function PlanBody({
       )}
     </section>
   );
+  const topbar = (
+    <PlanTopBar
+      data={data}
+      month={month}
+      unfunded={groupStatus(rows).need}
+      distributeBlock={distributeBlock}
+      onIncome={onIncome}
+      onDistribute={startDistribute}
+      coverControls={filter === 'overspent' ? null : coverControls}
+      phone={phone}
+      monthIncome={monthIncome}
+    />
+  );
   return (
     <div
       onClickCapture={(event) => {
@@ -753,16 +862,14 @@ function PlanBody({
           : undefined
       }
     >
+      {REDESIGN_ENABLED && topbar}
       <div className="plan-main">
-        <PlanTopBar
-          data={data}
-          month={month}
-          unfunded={groupStatus(rows).need}
-          distributeBlock={distributeBlock}
-          onIncome={onIncome}
-          onDistribute={startDistribute}
-          coverControls={filter === 'overspent' ? null : coverControls}
-        />
+        {previewChanged && (
+          <p role="alert">
+            Der Plan hat sich geändert. Vorschau aktualisiert. Bitte prüfen und erneut bestätigen.
+          </p>
+        )}
+        {!REDESIGN_ENABLED && topbar}
         <section className="ptable-wrap card" aria-labelledby="table-title">
           <h2 className="sr-only" id="table-title">
             Envelopes im Monat
@@ -781,28 +888,90 @@ function PlanBody({
                 onChange={(event) => changeFilter(filter, event.target.value)}
               />
             </label>
-            <div className="seg plan-filter-segments" role="group" aria-label="Kategoriefilter">
-              {(
-                [
-                  ['all', 'Alle', counts.all],
-                  ['underfunded', 'Unterfinanziert', counts.underfunded],
-                  ['overspent', 'Überzogen', counts.overspent],
-                  ['available', 'Verfügbar', counts.available],
-                  ['uncategorized', 'Ohne Kategorie', counts.uncategorized],
-                ] as const
-              ).map(([value, label, count]) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={filter === value}
-                  className={cx(value === 'overspent' && (count ?? 0) > 0 && 'has-overspending')}
-                  onClick={() => changeFilter(value)}
-                >
-                  {label} ({count ?? '…'})
-                </button>
-              ))}
-            </div>
+            {REDESIGN_ENABLED ? (
+              <details className="plan-v2-view plan-reference-filters">
+                <summary>
+                  Ansicht <ChevronDown size={14} aria-hidden="true" />
+                </summary>
+                <div className="plan-v2-view-menu">
+                  {' '}
+                  <div
+                    className="seg plan-filter-segments"
+                    role="group"
+                    aria-label="Kategoriefilter"
+                  >
+                    {(
+                      [
+                        ['all', 'Alle', counts.all],
+                        ['underfunded', 'Unterfinanziert', counts.underfunded],
+                        ['overspent', 'Überzogen', counts.overspent],
+                        ['available', 'Verfügbar', counts.available],
+                        ['uncategorized', 'Ohne Kategorie', counts.uncategorized],
+                      ] as const
+                    ).map(([value, label, count]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={filter === value}
+                        className={cx(
+                          value === 'overspent' && (count ?? 0) > 0 && 'has-overspending',
+                        )}
+                        onClick={() => changeFilter(value)}
+                      >
+                        {label} ({count ?? '…'})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </details>
+            ) : (
+              <div className="seg plan-filter-segments" role="group" aria-label="Kategoriefilter">
+                {(
+                  [
+                    ['all', 'Alle', counts.all],
+                    ['underfunded', 'Unterfinanziert', counts.underfunded],
+                    ['overspent', 'Überzogen', counts.overspent],
+                    ['available', 'Verfügbar', counts.available],
+                    ['uncategorized', 'Ohne Kategorie', counts.uncategorized],
+                  ] as const
+                ).map(([value, label, count]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={filter === value}
+                    className={cx(value === 'overspent' && (count ?? 0) > 0 && 'has-overspending')}
+                    onClick={() => changeFilter(value)}
+                  >
+                    {label} ({count ?? '…'})
+                  </button>
+                ))}
+              </div>
+            )}
+            {REDESIGN_ENABLED && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="plan-reference-add"
+                onClick={() => setCategoryForm({ mode: 'group' })}
+              >
+                + Kategoriegruppe
+              </Button>
+            )}
+
             <OptionenMenu
+              readUtilities={
+                REDESIGN_ENABLED ? (
+                  <PlanReadUtilities
+                    summary={s}
+                    month={month}
+                    unfunded={groupStatus(rows).need}
+                    onUnderfunded={() => {
+                      clearSelection();
+                      focusIncomeInspector();
+                    }}
+                  />
+                ) : undefined
+              }
               month={month}
               view={shownView}
               multi={multi}
@@ -993,7 +1162,8 @@ function PlanBody({
                 <tbody>
                   {groups.map((g, index) => {
                     const st = groupStatus(g.rows);
-                    const singleBand = shownView === 'group' && g.rows.length === 1;
+                    const singleBand =
+                      shownView === 'group' && g.rows.length === 1 && !(REDESIGN_ENABLED && phone);
                     const isCollapsed = !singleBand && collapsed.has(g.key);
                     const band = singleBand;
                     const sugSum = g.rows.reduce((a, r) => a + (sug[r.id] ?? 0), 0);
@@ -1074,7 +1244,21 @@ function PlanBody({
                             {eur(st.activity)}
                           </td>
                           <td className="col-num col-avail" data-label="Verfügbar">
-                            {eur(st.available)}
+                            {REDESIGN_ENABLED && phone ? (
+                              <span
+                                className={cx(
+                                  'pill plan-group-available',
+                                  st.available < 0 && 'is-bad',
+                                )}
+                              >
+                                <span className="sr-only">Verfügbar </span>
+                                <span className="plan-group-available-amount">
+                                  {eur(st.available)}
+                                </span>
+                              </span>
+                            ) : (
+                              eur(st.available)
+                            )}
                           </td>
                         </tr>
                       ),
@@ -1274,7 +1458,9 @@ function PlanBody({
             {targetPreviewTotal === 0 && <p>Keine offenen Ziele mit verfügbarem Geld.</p>}
             {targetPreviewError && (
               <p role="alert">
-                Verteilung nicht übernommen. Bitte den aktuellen Stand prüfen und erneut versuchen.
+                {previewChanged
+                  ? 'Der Plan hat sich geändert. Die aktualisierte Vorschau bitte prüfen und erneut bestätigen.'
+                  : 'Verteilung nicht übernommen. Bitte den aktuellen Stand prüfen und erneut versuchen.'}
               </p>
             )}
             <div className="panel-actions">
@@ -1312,6 +1498,18 @@ function PlanBody({
 }
 
 /** Sticky month controls; native disclosures keep the derivation and cover actions nearby. */
+function focusIncomeInspector() {
+  window.requestAnimationFrame(() => {
+    document.querySelector<HTMLDetailsElement>('.inspector-fold')?.setAttribute('open', '');
+    const section = document.querySelector<HTMLDetailsElement>('#inspector-income');
+    document
+      .querySelector<HTMLButtonElement>('.month-overview-head [aria-expanded="false"]')
+      ?.click();
+    section?.setAttribute('open', '');
+    window.requestAnimationFrame(() => section?.querySelector('summary')?.focus());
+  });
+}
+
 function PlanTopBar({
   data,
   month,
@@ -1320,6 +1518,8 @@ function PlanTopBar({
   onIncome,
   onDistribute,
   coverControls,
+  phone,
+  monthIncome,
 }: {
   data: BudgetMonthView;
   month: string;
@@ -1328,8 +1528,22 @@ function PlanTopBar({
   onIncome: () => void;
   onDistribute: () => void;
   coverControls: React.ReactNode;
+  phone: boolean;
+  monthIncome?: MonthIncome | undefined;
 }) {
   const [active, setActive] = useState<string | null>(null);
+  const head = useRef<HTMLElement>(null);
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const element = head.current;
+    if (!REDESIGN_ENABLED || !phone || !element) return;
+    const stickyTop = Number.parseFloat(getComputedStyle(element).top) || 0;
+    const start = element.getBoundingClientRect().top + window.scrollY - stickyTop;
+    const sync = () => setCompact(window.scrollY > start + 1);
+    sync();
+    window.addEventListener('scroll', sync, { passive: true });
+    return () => window.removeEventListener('scroll', sync);
+  }, [phone]);
   const disclosureToggle = (element: HTMLDetailsElement, key: string) => {
     if (element.open) {
       document
@@ -1373,86 +1587,123 @@ function PlanTopBar({
   useAmountPrivacy();
   const s = data.summary;
   const tba = s.toBeAssignedCents;
-  const terms: DimensionChainTerm[] = [
-    { label: 'Übertrag', value: cents(s.carryInCents) },
-    { label: 'Einnahmen', value: cents(s.incomeCents), op: '+', onSelect: onIncome },
-    ...(s.uncoveredCents !== 0
-      ? [{ label: 'Ungedeckt', value: cents(s.uncoveredCents), op: '-' as const }]
-      : []),
-    { label: 'Zugewiesen', value: cents(s.assignedCents), op: '-' },
-    ...(s.heldCents !== 0
-      ? [{ label: 'Gehalten', value: cents(s.heldCents), op: '-' as const }]
-      : []),
-    { label: 'Zu verteilen', value: cents(tba), op: '=' },
-  ];
+  const terms = planMonthTerms(s, onIncome);
+  const tbaControl = (
+    <details
+      className="plan-popover"
+      onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-0')}
+    >
+      <summary
+        aria-controls="plan-chip-panel-0"
+        className={cx('plan-tba', tba > 0 && 'is-positive', tba < 0 && 'is-negative')}
+      >
+        <span className="plan-tba-label">Zu verteilen</span>
+        <strong data-testid="to-be-assigned" aria-live="polite">
+          {eur(tba)}
+        </strong>
+      </summary>
+    </details>
+  );
+  const underfundedControl = (
+    <button
+      type="button"
+      className="plan-chip"
+      title="Summe der fehlenden Zielbeträge"
+      onClick={focusIncomeInspector}
+    >
+      Unterfinanziert {eur(unfunded)}
+    </button>
+  );
+  const pendingControl = (
+    <details
+      className="plan-popover"
+      onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-2')}
+    >
+      <summary
+        aria-controls="plan-chip-panel-2"
+        className="plan-chip"
+        title="Buchungen mit vorgemerktem Status oder mindestens einem Anteil ohne Kategorie. Jede Buchung wird einmal gezählt."
+      >
+        {s.unclassified?.count ?? 0} vorgemerkt / ohne Kategorie
+      </summary>
+    </details>
+  );
+  const distributeControl = (
+    <Button
+      size="sm"
+      disabled={Boolean(distributeBlock)}
+      aria-describedby={distributeBlock ? 'plan-distribute-hint' : undefined}
+      onClick={onDistribute}
+    >
+      Geld verteilen
+    </Button>
+  );
+  const hint = distributeBlock && (
+    <span
+      id="plan-distribute-hint"
+      className={cx('plan-hint', tba < 0 && 'is-negative')}
+      data-testid="distribute-hint"
+    >
+      {distributeBlock}
+    </span>
+  );
   return (
-    <section className="plan-topbar" aria-label="Monat planen">
-      <div className="plan-chip-scroll">
-        <details
-          className="plan-popover"
-          onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-0')}
-        >
-          <summary
-            aria-controls="plan-chip-panel-0"
-            className={cx('plan-tba', tba > 0 && 'is-positive', tba < 0 && 'is-negative')}
-          >
-            <span className="plan-tba-label">Zu verteilen</span>
-            <strong data-testid="to-be-assigned" aria-live="polite">
-              {eur(tba)}
-            </strong>
-          </summary>
-        </details>
-        <button
-          type="button"
-          className="plan-chip"
-          title="Summe der fehlenden Zielbeträge"
-          onClick={() => {
-            // Outside dismissal first restores the month sections when a category is selected.
-            window.requestAnimationFrame(() => {
-              document
-                .querySelector<HTMLDetailsElement>('.inspector-fold')
-                ?.setAttribute('open', '');
-              const section = document.querySelector<HTMLDetailsElement>('#inspector-income');
-              document
-                .querySelector<HTMLButtonElement>('.month-overview-head [aria-expanded="false"]')
-                ?.click();
-              section?.setAttribute('open', '');
-              window.requestAnimationFrame(() => section?.querySelector('summary')?.focus());
-            });
-          }}
-        >
-          Unterfinanziert {eur(unfunded)}
-        </button>
-        <details
-          className="plan-popover"
-          onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-2')}
-        >
-          <summary
-            aria-controls="plan-chip-panel-2"
-            className="plan-chip"
-            title="Buchungen mit vorgemerktem Status oder mindestens einem Anteil ohne Kategorie. Jede Buchung wird einmal gezählt."
-          >
-            {s.unclassified?.count ?? 0} vorgemerkt / ohne Kategorie
-          </summary>
-        </details>
-        <Button
-          size="sm"
-          disabled={Boolean(distributeBlock)}
-          aria-describedby={distributeBlock ? 'plan-distribute-hint' : undefined}
-          onClick={onDistribute}
-        >
-          Geld verteilen
-        </Button>
-        {distributeBlock && (
-          <span
-            id="plan-distribute-hint"
-            className={cx('plan-hint', tba < 0 && 'is-negative')}
-            data-testid="distribute-hint"
-          >
-            {distributeBlock}
-          </span>
-        )}
-      </div>
+    <section
+      ref={head}
+      className={cx(
+        'plan-topbar',
+        REDESIGN_ENABLED && 'plan-topbar-v2',
+        REDESIGN_ENABLED && phone && compact && 'is-compact',
+      )}
+      aria-label={REDESIGN_ENABLED ? 'Monatsbudget' : 'Monat planen'}
+    >
+      {REDESIGN_ENABLED ? (
+        <>
+          <div className="plan-reference-lead-layout">
+            <PlanMonthLead
+              summary={s}
+              data={data}
+              controls={
+                <>
+                  {tbaControl}
+                  {distributeControl}
+                  {hint}
+                </>
+              }
+            />
+            {monthIncome && (
+              <aside className="plan-reference-income" aria-label="Einnahmen im Planmonat">
+                <div>
+                  <strong>Einnahmen · {monthLabel(month)}</strong>
+                  <button type="button" onClick={onIncome}>
+                    Details →
+                  </button>
+                </div>
+                <p>
+                  erhalten <strong>{eur(monthIncome.receivedCents)}</strong> von erwartet{' '}
+                  {eur(monthIncome.expectedCents)}
+                </p>
+                <progress
+                  aria-label="Erhaltene Einnahmen"
+                  max={Math.max(1, monthIncome.expectedCents)}
+                  value={Math.max(0, monthIncome.receivedCents)}
+                />
+                <AppLink to="/plan/erwartet" search={{ monat: month }}>
+                  Zahlungen →
+                </AppLink>
+              </aside>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="plan-chip-scroll">
+          {tbaControl}
+          {underfundedControl}
+          {pendingControl}
+          {distributeControl}
+          {hint}
+        </div>
+      )}
       <div
         className="plan-popover-content"
         id="plan-chip-panel-0"
@@ -1469,22 +1720,7 @@ function PlanTopBar({
         id="plan-chip-panel-2"
         hidden={active !== 'plan-chip-panel-2'}
       >
-        <p>
-          Eingang {eur(s.unclassified?.inflowCents ?? 0)} · Ausgang{' '}
-          {eur(-(s.unclassified?.outflowCents ?? 0))} · Saldo {eur(s.unclassified?.netCents ?? 0)}
-        </p>
-        <AppLink
-          to="/konten/buchungen"
-          search={{ kategorie: 'none', von: `${month}-01`, bis: lastDayOfMonth(month) }}
-        >
-          Ohne Kategorie öffnen
-        </AppLink>
-        <AppLink
-          to="/konten/buchungen"
-          search={{ status: 'pending', von: `${month}-01`, bis: lastDayOfMonth(month) }}
-        >
-          Unbestätigte öffnen
-        </AppLink>
+        <PlanUnclassifiedReadout summary={s} month={month} />
       </div>
     </section>
   );
@@ -1907,6 +2143,8 @@ function EnvelopeRow({
   );
   return (
     <tr
+      data-plan-state={REDESIGN_ENABLED ? planRowState(r).state : undefined}
+      data-plan-class={REDESIGN_ENABLED ? (r.cls ?? undefined) : undefined}
       className={cx(
         'prow',
         band && 'pgroup psingle',
@@ -1996,7 +2234,14 @@ function EnvelopeRow({
           className={cx('spending-status', spending.over && 'neg-alert')}
           title={spending.status}
         >
-          {spending.status}
+          {REDESIGN_ENABLED ? (
+            <>
+              <PlanRowState row={r} />
+              <span className="plan-spending-copy">{spending.status}</span>
+            </>
+          ) : (
+            spending.status
+          )}
         </span>
         <span className={cx('pbar spending-bar', spending.over && 'is-over')} aria-hidden="true">
           <i className="pbar-fill" style={{ width: `${spending.spentShare * 100}%` }} />
