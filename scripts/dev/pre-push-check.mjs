@@ -35,6 +35,7 @@ export function planChecks(paths, { windows = false } = {}) {
       typeof p === 'string' &&
       p &&
       !p.startsWith('node_modules/') &&
+      !p.startsWith('design/') &&
       !(windows && WINDOWS_UNSAFE.test(p)),
   );
   const code = files.filter((p) => CODE.test(p));
