@@ -48,6 +48,7 @@ test('Today dimension links retain month and period, account links, and full-wid
   await expect(page).toHaveURL(/\/\?monat=2026-08&period=month/);
   await page.goto(url);
   await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.getByRole('heading', { name: 'Liquidität', exact: true })).toBeVisible();
   await pageChecks(page);
   await page.screenshot({ path: info.outputPath('today-dimension-dark.png'), fullPage: true });
   await page.getByRole('link', { name: 'Zurück zu Heute' }).click();

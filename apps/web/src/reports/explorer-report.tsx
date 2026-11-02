@@ -57,6 +57,8 @@ import './explorer-report.css';
 import { customChartModel } from './explorer-chart-model-626';
 import { ExplorerChart626, ExplorerViewToggle626 } from './explorer-chart-626';
 import { ExplorerTableInspector626 } from './explorer-table-inspector-626';
+import { TotalTableDisclosure } from './total-table-report';
+import { explorerTemplateVerdictFacts } from './verdict-facts';
 
 const label = <T extends ReadonlyArray<{ id: string; label: string }>>(list: T, id: string) =>
   list.find((x) => x.id === id)?.label ?? id;
@@ -101,19 +103,22 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
   const [templatePeriod, setTemplatePeriod] = useZeitraum('1J');
   const templateRead = useQuery({ ...explorerTemplateQuery, enabled: Boolean(template) });
   const templateCategory = search.kategorien?.[0];
-  const templateModel = useMemo(
-    () =>
-      template && templateRead.data
-        ? explorerTemplate(templateRead.data, {
-            id: template,
-            period: templatePeriod,
-            ...(template === 'heatmap' && search.exakt ? { exactWindow: true } : {}),
-            ...(templateCategory ? { categoryId: templateCategory } : {}),
-            ...(templatePeriod.includes('..') ? { year: Number(templatePeriod.slice(0, 4)) } : {}),
-          })
-        : undefined,
-    [template, templateRead.data, templatePeriod, templateCategory, search.exakt],
-  );
+  const templateModel = useMemo(() => {
+    const year = templateRead.data ? explorerTemplateYears(templateRead.data).at(-1) : undefined;
+    return template && templateRead.data
+      ? explorerTemplate(templateRead.data, {
+          id: template,
+          period: templatePeriod,
+          ...(template === 'heatmap' && search.exakt ? { exactWindow: true } : {}),
+          ...(templateCategory ? { categoryId: templateCategory } : {}),
+          ...(templatePeriod.includes('..')
+            ? { year: Number(templatePeriod.slice(0, 4)) }
+            : template === 'year' && year !== undefined
+              ? { year }
+              : {}),
+        })
+      : undefined;
+  }, [template, templateRead.data, templatePeriod, templateCategory, search.exakt]);
   const [query, setQuery] = useState<ExplorerQuery>(DEFAULT_EXPLORER_QUERY);
   const entryInstance = useId();
   const [observedEntry, setObservedEntry] = useState({ id: search.ansicht, generation: 0 });
@@ -249,9 +254,13 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
   return (
     <PageFrame
       verdict={
-        !template && data && !result.isFetching && !result.isPlaceholderData && !result.isError
-          ? { reportId: report.id, period: `${query.period}:${data.ref}` }
-          : undefined
+        template
+          ? templateModel && templateRead.data && !templateRead.isFetching && !templateRead.isError
+            ? explorerTemplateVerdictFacts(templateModel, templateRead.data)
+            : undefined
+          : data && !result.isFetching && !result.isPlaceholderData && !result.isError
+            ? { reportId: report.id, period: `${query.period}:${data.ref}` }
+            : undefined
       }
       meta={meta}
       title={report.name}
@@ -311,7 +320,10 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
       }
     >
       <div className="kview ov explorer-report">
-        <section className="card ov-card" aria-labelledby="ex-views">
+        <section
+          className={`card ov-card${template ? ' ex-template-controls' : ''}`}
+          aria-labelledby="ex-views"
+        >
           <div className="tbd-head">
             <h2 id="ex-views">Gespeicherte Ansichten</h2>
           </div>
@@ -600,27 +612,29 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
           !templateRead.isError && (
             <>
               {template === 'category' && (
-                <Field label="Kategorie">
-                  {({ id }) => (
-                    <Select
-                      id={id}
-                      value={templateModel.categoryId ?? ''}
-                      onChange={(event) =>
-                        changeTemplateSearch({
-                          kategorien: [event.target.value],
-                          zelle: undefined,
-                          spalte: undefined,
-                        })
-                      }
-                    >
-                      {templateRead.data.categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </Field>
+                <div className="ex-template-controls">
+                  <Field label="Kategorie">
+                    {({ id }) => (
+                      <Select
+                        id={id}
+                        value={templateModel.categoryId ?? ''}
+                        onChange={(event) =>
+                          changeTemplateSearch({
+                            kategorien: [event.target.value],
+                            zelle: undefined,
+                            spalte: undefined,
+                          })
+                        }
+                      >
+                        {templateRead.data.categories.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                </div>
               )}
               <ExplorerTemplates
                 facts={templateRead.data}
@@ -630,6 +644,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                 onSelect={(key, column) => changeTemplateSearch({ zelle: key, spalte: column })}
                 onClose={() => changeTemplateSearch({ zelle: undefined, spalte: undefined })}
               />
+              {template === 'total' && <TotalTableDisclosure meta={meta} />}
             </>
           )}
         {!template &&

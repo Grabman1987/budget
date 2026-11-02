@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import { withShellControls } from './shell-actions';
 import { devices, expect, type Page } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 import { sampleTest, SAMPLE_NOW, SAMPLE_URL } from './sample';
@@ -142,22 +143,32 @@ for (const profile of ['desktop', 'phone'] as const) {
         for (const theme of ['dark', 'light'] as const) {
           if (phone) {
             const menu = page.locator('.m-profile');
-            const summary = menu.locator('summary');
+            const avatar = menu.locator('summary');
+            const hasAvatar = await avatar.isVisible();
+            const summary = hasAvatar
+              ? avatar
+              : page.locator('.m-head').getByRole('button', { name: 'Suchen', exact: true });
             const summaryBox = await summary.boundingBox();
             expect(summaryBox!.width).toBeGreaterThanOrEqual(44);
             expect(summaryBox!.height).toBeGreaterThanOrEqual(44);
-            await summary.tap();
-            await expect(menu).toHaveJSProperty('open', true);
-            const control = menu.getByRole('button', {
-              name: theme === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
-              exact: true,
-            });
-            const controlBox = await control.boundingBox();
-            expect(controlBox!.width).toBeGreaterThanOrEqual(44);
-            expect(controlBox!.height).toBeGreaterThanOrEqual(44);
-            await control.tap();
-            await summary.tap();
-            await expect(menu).toHaveJSProperty('open', false);
+            await withShellControls(
+              page,
+              async ({ kind, container, theme: control }) => {
+                if (kind === 'avatar') await expect(menu).toHaveJSProperty('open', true);
+                else await expect(container!).toBeVisible();
+                await expect(control).toHaveAccessibleName(
+                  theme === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
+                );
+                const controlBox = await control.boundingBox();
+                expect(controlBox!.width).toBeGreaterThanOrEqual(44);
+                expect(controlBox!.height).toBeGreaterThanOrEqual(44);
+                await control.tap();
+              },
+              true,
+            );
+            if (hasAvatar) await expect(menu).toHaveJSProperty('open', false);
+            else
+              await expect(page.getByRole('dialog', { name: 'Suchen', exact: true })).toBeHidden();
           } else {
             const control = page
               .locator('.sidebar-foot')

@@ -31,7 +31,10 @@ for (const id of SAMPLE) {
     await expect(first).toBeVisible({ timeout: 30_000 });
     // One control: the preset segment. The dropdown and the trend checkbox are not on the page.
     await expect(period(page)).toHaveCount(1);
-    await expect(page.getByRole('combobox')).toHaveCount(0);
+    // Canonical Cashflow has its project filter; the category template has its category picker.
+    await expect(page.getByRole('combobox')).toHaveCount(
+      id === 'cashflow' || id === 'kategorien' ? 1 : 0,
+    );
     await expect(page.getByRole('checkbox', { name: 'Trendlinie' })).toHaveCount(0);
     await expect(rangeButton(page)).toBeVisible();
     if (phone(page)) return;

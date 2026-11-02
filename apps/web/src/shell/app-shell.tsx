@@ -14,6 +14,7 @@ import { QueueList } from '../pwa/queue-ui';
 import { useStorageProtection } from '../pwa/storage-protection';
 import { usePrivacyShortcut } from './privacy-button';
 import { OfflineStatus } from './header-status';
+import { REDESIGN_ENABLED } from './redesign-flag';
 
 const APP_NAME = 'Budget';
 
@@ -43,6 +44,7 @@ export function AppShell() {
     <ToastProvider>
       <div
         className={cx('app', collapsed && 'is-collapsed')}
+        data-budget-redesign={REDESIGN_ENABLED ? '1' : undefined}
         style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
       >
         <a

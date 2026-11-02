@@ -3,7 +3,7 @@ import { Button, Segmented } from '@budget/ui';
 import { Download } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PageMeta } from '../nav/pages';
-import type { ReportEntry } from '../nav/reports-catalog';
+import { findReport, type ReportEntry } from '../nav/reports-catalog';
 import { RowsGrid, type GridColumn } from './table-grid';
 import { monthLong, monthShort } from './table-format';
 import { TableReportFrame, useReportTables } from './table-report-frame';
@@ -14,8 +14,29 @@ const DEPTH = [
   { value: 'kategorien', label: 'Kategorien' },
 ] as const;
 
+/** Native disclosure and its reader share one lifetime, so a new closed disclosure never reads. */
+export function TotalTableDisclosure({ meta }: { meta: PageMeta }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="ex-total-history" onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary className="btn btn-ghost" style={{ minHeight: 'var(--touch)' }}>
+        Alle Monate: Nettovermögen und CSV
+      </summary>
+      {open && <TotalTableReport report={findReport('gesamttabelle')!} meta={meta} embedded />}
+    </details>
+  );
+}
+
 /** 1.8 Gesamttabelle: every month since the budget start in one table, with a CSV of the same. */
-export function TotalTableReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function TotalTableReport({
+  report,
+  meta,
+  embedded = false,
+}: {
+  report: ReportEntry;
+  meta: PageMeta;
+  embedded?: boolean;
+}) {
   const query = useReportTables(true);
   return (
     <TableReportFrame
@@ -24,6 +45,7 @@ export function TotalTableReport({ report, meta }: { report: ReportEntry; meta: 
       through="current"
       query={query}
       className="total-report"
+      embedded={embedded}
     >
       {(data) => <TotalBody data={data} />}
     </TableReportFrame>

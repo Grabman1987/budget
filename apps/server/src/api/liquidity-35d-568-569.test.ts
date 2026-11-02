@@ -94,6 +94,62 @@ async function forecast(query: string) {
 }
 
 describe('GET /liquidity 35d (#568/#569)', () => {
+  it('T2 carries the same bounded canonical forecast in Heute without changing the budget window', async () => {
+    await seed();
+    const response = await app.request('/api/liquidity/events', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Synthetic day35 event',
+        date: '2026-10-22',
+        amountCents: -100_000,
+      }),
+    });
+    expect(response.status).toBe(201);
+    const canonical = (await forecast('?horizon=35d&levers=')).report!;
+    const heute = (await readOnly('/api/heute?month=2026-09&period=month')) as {
+      forecast35d?: {
+        asOf: string;
+        horizon: string;
+        levers: string[];
+        available: boolean;
+        report: unknown;
+      };
+      balance: { low: { day: string; cents: number } | null };
+    };
+    expect(heute.forecast35d).toMatchObject({
+      asOf: TODAY,
+      horizon: '35d',
+      levers: [],
+      available: true,
+      report: { low: { day: '2026-10-22', index: 35, cents: -3_500 } },
+    });
+    expect(heute.forecast35d!.report).toEqual({
+      startDay: canonical.startDay,
+      startCents: canonical.startCents,
+      horizon: canonical.horizon,
+      horizonDays: canonical.horizonDays,
+      points: canonical.points,
+      eventMarks: canonical.eventMarks,
+      low: canonical.low,
+      scheduledInflows: canonical.scheduledInflows,
+    });
+    expect(heute.balance.low?.day).not.toBe('2026-10-22');
+  });
+
+  it('T2 keeps the absent-account canonical field unavailable without inventing a zero low', async () => {
+    const heute = (await readOnly('/api/heute?month=2026-09&period=month')) as {
+      forecast35d: unknown;
+    };
+    expect(heute.forecast35d).toEqual({
+      asOf: TODAY,
+      horizon: '35d',
+      levers: [],
+      available: false,
+      report: null,
+    });
+  });
+
   it('returns the literal real-ledger day0..35 path and earliest minimum without writing', async () => {
     await seed();
     const view = await forecast('?horizon=35d&levers=');

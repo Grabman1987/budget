@@ -57,6 +57,15 @@ colors:
   dark-future: "#6fd8d2"
   dark-plus-ink: "#4fe3d0"
   dark-minus-ink: "#ff9d7a"
+redesign:
+  rule: "#d3deec"
+  rule-strong: "#6786ac"
+  warning: "#8a5300"
+  warning-soft: "#fff3d6"
+  dark-rule: "#1f4d7c"
+  dark-rule-strong: "#4987bc"
+  dark-warning: "#ffd37a"
+  dark-warning-soft: "#473d2b"
 typography:
   dimension:
     fontFamily: "Archivo, Segoe UI, system-ui, sans-serif"
@@ -354,6 +363,14 @@ Owner UX Q1 (2026-10-14, #464): control boundaries and meaningful secondary line
 Owner decision 1A (2026-10-14): signed amounts and direction series use `--plus-ink` (teal: light `#0b7285`, dark `#4fe3d0`) and `--minus-ink` (orange: light `#b8380a`, dark `#ff9d7a`). Keep signs, arrows and zero geometry as a second channel; colour never carries direction alone. Legacy `--good-ink` / `--bad-ink` alias these roles. Text reaches 4.5:1 on normal surfaces. Plus means the favourable direction of the shown figure: for spending, "less spent" is plus (teal) and "more spent" is minus (orange). Colour-vision guard: Machado severity 1.0, CIE Delta E 1976 ≥ 25 between plus and minus (measured light 74.08 / 58.92, dark 43.31 / 29.12 for deuteranopia / protanopia; the retired red/green reached 7–18).
 
 Red (`--red`, `--red-soft`, `--on-red`) remains exclusively for act-now states: current overspending, errors and destructive actions. Green `--good`, `--good-hover`, `--good-soft`, `--on-good` and `--on-good-soft` retain available-money and OK-status semantics. Primary blue remains structure/actions; neutral ink remains context. Historical quiet negatives and dashed debt outlines retain the Q2 exception.
+
+### Redesign role adapter (S2, production OFF)
+
+The separate `redesign` frontmatter block feeds `redesign-tokens.css` through the existing generator. It applies only while the existing trusted `data-budget-redesign="1"` marker is present. Its root bridge also supplies TabBar, PanelHost and body-mounted portals; the developer gallery uses the same build constant and marker without adopting the application grid. Root `data-theme`, system fallback and light print remain authoritative. The original colors, scales, primary/data/focus blue, surfaces, signed inks, card/floating shadows and OFF output stay unchanged.
+
+Current approved source: redesign README ETag `1793359769537665`, kit `1793359918618172`, shell `1793358068183923`, with their verified token dependencies (source review 2026-10-31). Draft quiet `line` maps to App `rule`; draft `field` is a strong boundary and maps to `rule-strong`, **never the input background**. Amber `warning` / `warning-soft` is distinct from signed orange and action red.
+
+Five opt-in budget presentation marks consume an already determined state, without deriving thresholds: target met blue/check, open amber/partial pie, overspent red/card, more than target green/up arrow, zero or paused secondary ink/dash. They do not replace RuleStatus or booking statuses. ON booking glyphs are pending secondary-ink circled c, confirmed blue double-check, reconciled secondary-ink lock. Existing status words, native controls, callbacks, permissions, reconciliation locks, audit and Undo stay unchanged. Keep a word or the existing accessible name beside every glyph; never rely on color alone. Owner reference-sheet/area acceptance and actual browser/portal/zoom evidence remain separate gates.
 
 Charts use at most four series with direct labels. Heatmaps use single-hue density with direction markers. This token-only slice leaves the existing signed heatmap fills and chart structure unchanged; their markers, density scale and series-label migration require a separate UI slice.
 

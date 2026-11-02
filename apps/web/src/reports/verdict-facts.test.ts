@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import type { ReportTables } from '@budget/db';
 import type { AssetsDebtsHistory, NetWorthHistory } from '@budget/db';
-import { detectVerdictFacts, reportVerdict } from '@budget/domain';
+import { detectVerdictFacts, reportVerdict, explorerTemplate } from '@budget/domain';
 import type { OnePagerData } from './month-api';
 import type { Heute } from '../heute/api';
 import {
@@ -9,6 +9,7 @@ import {
   heuteVerdictFacts,
   onePagerVerdictFacts,
   tableVerdictFacts,
+  explorerTemplateVerdictFacts,
   wealthHistoryVerdictFacts,
   wholeVerdictFacts,
 } from './verdict-facts';
@@ -33,6 +34,69 @@ const tables: ReportTables = {
     moneyAgeDays: null,
   })),
 };
+it('keeps a template verdict on its selected category and observed window without invented prior facts', () => {
+  const facts = {
+    ...tables,
+    splits: [],
+    categories: [
+      ...tables.categories,
+      { ...tables.categories[0]!, id: 'other', name: 'Andere Kategorie' },
+    ],
+    months: tables.months.map((month) => ({
+      ...month,
+      spending: { ...month.spending, other: 1_000_000 },
+    })),
+  };
+  const model = explorerTemplate(facts, { id: 'category', categoryId: 'need', period: '3M' });
+  const verdict = explorerTemplateVerdictFacts(model, facts);
+  expect(verdict.period).toBe('2025-07..2025-09');
+  expect(verdict.metric).toEqual({
+    label: 'Wohnen',
+    value: 264000,
+    unit: 'money',
+    better: 'lower',
+  });
+  expect(verdict.partial).toBe(false);
+  expect(verdict.comparisons).toBeUndefined();
+  expect(verdict.history).toBeUndefined();
+  expect(verdict.categoryStreaks).toBeUndefined();
+  expect(reportVerdict(verdict).text).not.toMatch(/Vormonat|Rekord|Million/);
+  expect(reportVerdict(verdict, { hidden: true }).text).toContain('••• €');
+  expect(reportVerdict(verdict, { hidden: true }).text).not.toContain('2.640');
+});
+
+it('uses the shown year/window consumption total, flags unfinished scope and distinguishes missing values from observed zero', () => {
+  const facts = { ...tables, splits: [] };
+  const year = explorerTemplateVerdictFacts(
+    explorerTemplate(facts, { id: 'year', year: 2025, period: 'YTD' }),
+    facts,
+  );
+  expect(year.period).toBe('2025-01..2025-12');
+  expect(year.metric?.value).toBe(264000);
+  expect(year.partial).toBe(true);
+  expect(reportVerdict(year).text).toContain('laufend');
+  const current = explorerTemplateVerdictFacts(
+    explorerTemplate(facts, { id: 'total', period: '2025-10..2025-10' }),
+    facts,
+  );
+  expect(current.metric?.value).toBe(0);
+  expect(current.unavailable).toBe(false);
+  expect(current.partial).toBe(true);
+  const missing = explorerTemplateVerdictFacts(
+    explorerTemplate(facts, { id: 'year', year: 2024, period: 'YTD' }),
+    facts,
+  );
+  expect(missing.metric?.value).toBeNull();
+  expect(missing.unavailable).toBe(true);
+  expect(reportVerdict(missing).fact.type).toBe('unavailable');
+  const unknown = explorerTemplateVerdictFacts(
+    explorerTemplate(facts, { id: 'category', categoryId: 'missing', period: '1M' }),
+    facts,
+  );
+  expect(unknown.unavailable).toBe(true);
+  expect(unknown.metric?.value).toBeNull();
+});
+
 const runningOnePager = (expectedIncomeProgress: OnePagerData['expectedIncomeProgress']) =>
   ({
     month: '2026-03',

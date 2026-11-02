@@ -111,6 +111,15 @@ test.describe('phone layout', () => {
     page,
   }, info) => {
     await page.goto('/einstellungen/sicherheit');
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    if (redesign) {
+      await expect(page.locator('.m-profile')).toHaveCount(0);
+      await page
+        .getByRole('navigation', { name: 'Hauptnavigation' })
+        .getByRole('link', { name: 'Heute', exact: true })
+        .click();
+      await expect(page).toHaveURL(/\/$/);
+    }
     const header = page.locator('.m-head');
     const menu = header.locator('.m-profile summary');
     const toggle = header.getByRole('button', { name: 'Beträge verbergen', exact: true });
@@ -138,7 +147,8 @@ test.describe('phone layout', () => {
     expect(themeBox.width).toBeGreaterThanOrEqual(44);
     expect(themeBox.height).toBeGreaterThanOrEqual(44);
     await header.getByRole('link', { name: 'Profil und Einstellungen', exact: true }).click();
-    await expect(page).toHaveURL(/\/einstellungen$/);
-    await expect(header.locator('.m-profile')).not.toHaveAttribute('open');
+    await expect(page).toHaveURL(redesign ? /\/einstellungen\/profil$/ : /\/einstellungen$/);
+    if (redesign) await expect(header.locator('.m-profile')).toHaveCount(0);
+    else await expect(header.locator('.m-profile')).not.toHaveAttribute('open');
   });
 });

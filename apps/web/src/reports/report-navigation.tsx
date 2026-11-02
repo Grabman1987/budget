@@ -2,15 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppLink } from '../shell/app-link';
-import { matchingHubReports } from './report-hub-model';
-import { REPORTS } from '../nav/reports-catalog';
+import { HUB_REPORTS, hubReport, matchingHubReports } from './report-hub-model';
 import './report-navigation.css';
 
 export function adjacentReports(id: string) {
-  const index = REPORTS.findIndex((r) => r.id === id);
+  const current = hubReport(id);
+  const index = HUB_REPORTS.findIndex((r) => r.id === current?.id);
   return {
-    previous: index > 0 ? REPORTS[index - 1] : undefined,
-    next: index >= 0 ? REPORTS[index + 1] : undefined,
+    previous: index > 0 ? HUB_REPORTS[index - 1] : undefined,
+    next: index >= 0 ? HUB_REPORTS[index + 1] : undefined,
   };
 }
 
@@ -20,6 +20,7 @@ export function ReportNavigation({ id }: { id: string }) {
   const [search, setSearch] = useState('');
   const switcher = useRef<HTMLDetailsElement>(null);
   const matches = matchingHubReports(search);
+  const current = hubReport(id);
   const { previous, next } = adjacentReports(id);
   const go = (reportId: string) =>
     void navigate({
@@ -94,7 +95,7 @@ export function ReportNavigation({ id }: { id: string }) {
               <li key={report.id}>
                 <AppLink
                   to={`/reports/${report.id}`}
-                  aria-current={id === report.id ? 'page' : undefined}
+                  aria-current={current?.id === report.id ? 'page' : undefined}
                   search={(prev) => ({
                     zeitraum: prev['zeitraum'],
                     trend: prev['trend'],
@@ -119,7 +120,7 @@ export function ReportNavigation({ id }: { id: string }) {
         disabled={!previous}
         aria-label={previous ? `Vorheriger Bericht: ${previous.name}` : 'Vorheriger Bericht'}
         aria-keyshortcuts="Alt+Shift+ArrowLeft"
-        title={previous ? `${previous.pos} ${previous.name} · Alt+Umschalt+←` : 'Erster Bericht'}
+        title={previous ? `${previous.no} ${previous.name} · Alt+Umschalt+←` : 'Erster Bericht'}
         onClick={() => previous && go(previous.id)}
       >
         <ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" />
@@ -130,7 +131,7 @@ export function ReportNavigation({ id }: { id: string }) {
         disabled={!next}
         aria-label={next ? `Nächster Bericht: ${next.name}` : 'Nächster Bericht'}
         aria-keyshortcuts="Alt+Shift+ArrowRight"
-        title={next ? `${next.pos} ${next.name} · Alt+Umschalt+→` : 'Letzter Bericht'}
+        title={next ? `${next.no} ${next.name} · Alt+Umschalt+→` : 'Letzter Bericht'}
         onClick={() => next && go(next.id)}
       >
         <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />

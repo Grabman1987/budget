@@ -1,3 +1,4 @@
+import { ClosedAccountDisclosure } from './closed-account-disclosure';
 import { Button, CircleNumber, cx, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
@@ -132,6 +133,9 @@ export function OverviewPage() {
         {model && presentation && (
           <>
             <OverviewLead presentation={presentation} asOf={asOf} sourcesByRow={sourcesByRow} />
+            {ordered.accounts && asOf && (
+              <ClosedAccountDisclosure accounts={ordered.accounts} asOf={asOf} />
+            )}
             {presentation.visible.length === 0 ? (
               <EmptyNote>
                 Keine offenen Konten. Lege ein Konto an, um hier Saldo und Prüfstand zu sehen.

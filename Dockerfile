@@ -22,7 +22,7 @@ COPY apps apps
 COPY packages packages
 # The web build reads the self-hosted fonts from the design prototype.
 COPY design/prototype/fonts design/prototype/fonts
-RUN npm run build
+RUN VITE_BUDGET_REDESIGN=0 npm run build
 
 # ---- litestream: pinned release, checksum-verified, one binary per target architecture ----
 FROM node:22-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d AS litestream
@@ -101,7 +101,7 @@ CMD ["node", "server.js"]
 FROM build AS preview-build
 COPY scripts/db-seed.ts scripts/db-seed.ts
 RUN npx tsx scripts/db-seed.ts --file /tmp/preview.sqlite
-RUN VITE_BUDGET_PREVIEW=1 npm run build -w @budget/web
+RUN VITE_BUDGET_PREVIEW=1 VITE_BUDGET_REDESIGN=1 npm run build -w @budget/web
 
 FROM runtime AS preview
 COPY --from=preview-build /tmp/preview.sqlite /app/preview.sqlite

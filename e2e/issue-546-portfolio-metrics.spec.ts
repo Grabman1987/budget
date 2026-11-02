@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, type PortfolioSummary } from '@budget/db';
 import { expect, type Page, type TestInfo } from '@playwright/test';
@@ -6,13 +7,10 @@ import { test } from './isolated-ledger';
 test.use({ ledgerToday: '2026-12-31' });
 
 async function privacy(page: Page, hidden: boolean) {
-  const profile = page.locator('.m-profile summary');
-  const mobile = await profile.isVisible();
-  if (mobile) await profile.click();
-  const toggle = page.getByRole('button', { name: 'Beträge verbergen', exact: true });
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-pressed', String(hidden));
-  if (mobile) await profile.press('Escape');
+  await withShellControls(page, async ({ privacy: toggle }) => {
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', String(hidden));
+  });
 }
 
 async function compactDesktop(page: Page, info: TestInfo, state: string) {
@@ -170,7 +168,13 @@ test('546 metrics share the report period and literal deposit-neutral return, fl
     await expect(flows.getByRole('row').nth(1)).toContainText('+100,00 €');
   }
   await metrics.getByRole('link', { name: 'Portfolio-Auswertung öffnen' }).click();
-  await expect(page).toHaveURL(/\/reports\/prendite\?zeitraum=YTD$/);
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/reports/pallocation' &&
+      url.searchParams.get('darstellung') === 'rendite' &&
+      url.searchParams.get('zeitraum') === 'YTD' &&
+      url.searchParams.size === 2,
+  );
   await expect(page.getByTestId('period-ttwror')).toHaveText('+10 %');
   await expect(page.locator('.performance-metrics dd').nth(0)).toHaveText('+10 %');
   await expect(page.locator('.performance-metrics dd').nth(1)).toHaveText(/^\+20 %\s*actual\/365$/);

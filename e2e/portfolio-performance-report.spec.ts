@@ -100,7 +100,7 @@ test('Renditebericht reads period metrics and lifetime gains with an empty open-
   await page.goto('/reports/prendite?zeitraum=1J');
 
   await expect(
-    page.getByRole('heading', { name: 'Rendite und Kennzahlen', exact: true }),
+    page.getByRole('heading', { name: 'Portfolio-Auswertung', exact: true }),
   ).toBeVisible();
   await expect(page.getByTestId('period-ttwror')).toHaveText('+12,3 %');
   await expect(page.getByText('TTWROR im Zeitraum')).toBeVisible();

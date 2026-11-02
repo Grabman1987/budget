@@ -159,3 +159,16 @@
     color: var(--line);
   }
 }
+/* The phone retains appearance controls through search when its profile is only on Heute. */
+:root:has([data-budget-redesign='1']) .redesign-search-utilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-start: 12px;
+  padding-block-start: 12px;
+  border-top: var(--stroke-hairline) solid var(--rule);
+}
+
+:root:has([data-budget-redesign='1']) .redesign-search-utilities > button {
+  min-height: var(--touch);
+}

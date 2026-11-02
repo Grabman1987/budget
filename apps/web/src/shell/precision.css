@@ -304,6 +304,12 @@ button {
   align-items: center;
   min-height: 44px;
 }
+[data-budget-redesign='1'] #acct-tree-label > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  min-width: var(--touch);
+}
 .acct-head-action {
   display: grid;
   place-items: center;

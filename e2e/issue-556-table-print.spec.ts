@@ -12,7 +12,9 @@ for (const report of reports) {
     await page.goto(`/reports/${report}`);
     const body = page.locator('.report-table-print');
     await expect(body.locator('table.rtable').first()).toBeVisible();
-    if (report === 'jahresansicht') await expect(body.locator('.seg-depth')).toBeVisible();
+    // The fixed year matrix always includes category detail; its old depth switch is superseded.
+    if (report === 'jahresansicht')
+      await expect(body.locator('[data-template-row^="cat:"]').first()).toBeVisible();
     const toggle = body.locator('.section-toggle').first();
     await expect(toggle).toBeVisible();
     const section = toggle.locator('xpath=ancestor::section[1]');
@@ -225,7 +227,8 @@ for (const report of reports) {
     await page.emulateMedia({ media: 'screen' });
     await expect(content).not.toBeVisible();
     await expect(section).toHaveAttribute('data-collapsed', 'true');
-    if (report === 'jahresansicht') await expect(body.locator('.seg-depth')).toBeVisible();
+    if (report === 'jahresansicht')
+      await expect(body.locator('[data-template-row^="cat:"]').first()).toBeVisible();
   });
 }
 

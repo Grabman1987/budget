@@ -121,12 +121,21 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
       });
     }
   }
-  // The historical actual/forecast drawing survives on R07; Heute now has the 35-day card.
-  await page.goto('/reports/finanzcheck?monat=2026-09');
-  const history = page.getByTestId('r07-balance-chart');
-  await expect(history).toBeVisible();
-  await expect(history.locator('path.l-actual')).toHaveCSS('stroke-width', '1.5px');
-  await expect(history.locator('path.l-forecast')).toHaveCSS('stroke-width', '1px');
+  // The retired bookmark now opens Heute; check the generic DS3 ladder on its live charts.
+  // BalanceChart's historical report-mode figures and drawing remain covered in charts.test.tsx.
+  await page.goto('/reports/finanzcheck?monat=2026-09&period=month');
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/' &&
+      url.searchParams.get('monat') === '2026-09' &&
+      url.searchParams.get('period') === 'month',
+  );
+  const wealth = page.getByTestId('heute-wealth-history');
+  const forecast = page.getByTestId('liquidity-chart');
+  await expect(wealth).toBeVisible();
+  await expect(forecast).toBeVisible();
+  await expect(wealth.locator('path.l-actual').first()).toHaveCSS('stroke-width', '1.5px');
+  await expect(forecast.locator('path.l-forecast')).toHaveCSS('stroke-width', '1px');
   await page.goto('/plan/monat?monat=2026-09');
   const marks = page.locator('.pbar-tick');
   await expect(marks.first()).toBeVisible();

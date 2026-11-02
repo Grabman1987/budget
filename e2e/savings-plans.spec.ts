@@ -101,10 +101,24 @@ test('native savings CRUD, future/current history, end, reload and audited undo'
     sourceAccountId: data.source.id,
   });
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
-  await expect(page.getByRole('button', { name: data.security.name, exact: true })).toHaveCount(1); // instrument catalog remains
+  await expect(page.getByRole('button', { name: 'Wiederholen', exact: true })).toBeVisible();
   expect(await list()).toEqual([]);
+  const instrumentsAfterUndo = await request.get(`${MAIN_URL}/api/securities`);
+  expect(instrumentsAfterUndo.ok()).toBe(true);
+  const retained = (await instrumentsAfterUndo.json()).securities as { id: string }[];
+  expect(retained.filter((security) => security.id === data.security.id)).toHaveLength(1);
   await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
   await expect.poll(async () => (await list()).length).toBe(1);
+  const registers = page.getByRole('navigation', { name: 'Portfolio-Register', exact: true });
+  await registers.getByRole('link', { name: 'Positionen', exact: true }).click();
+  // The retained instrument's catalog is on Positions and starts closed.
+  await page.locator('.instrument-catalog > summary').click();
+  await expect(
+    page
+      .locator('.instrument-catalog')
+      .getByRole('button', { name: data.security.name, exact: true }),
+  ).toHaveCount(1);
+  await registers.getByRole('link', { name: 'Sparpläne', exact: true }).click();
   const section = page.getByRole('region', { name: 'Sparpläne', exact: true });
   const row = section
     .getByRole('row')

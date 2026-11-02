@@ -57,26 +57,53 @@ test('report navigation, daily values, keyboard and touch inspection', async ({ 
     .first()
     .click();
   await expect(tooltip).toHaveCount(0);
-  // The report arrows live in the desktop title block; the phone header keeps the plain title.
+  // Merged readers use their real view switch; the report arrows follow the canonical catalog.
   if (info.project.name === 'mobile') return;
-  await page
-    .getByRole('button', { name: 'Nächster Bericht: Rendite und Kennzahlen', exact: true })
-    .click();
-  await expect(page).toHaveURL(/reports\/prendite/);
+  await page.getByRole('button', { name: 'Rendite & Risiko', exact: true }).click();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/reports/pallocation' &&
+      url.searchParams.get('darstellung') === 'rendite' &&
+      url.searchParams.get('zeitraum') === 'YTD',
+  );
   await page
     .getByRole('button', {
-      name: 'Vorheriger Bericht: Einzahlungen und Wert',
+      name: 'Einzahlungen und Wert',
       exact: true,
     })
     .click();
-  await expect(page).toHaveURL(/reports\/peinzahlungen/);
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/reports/pallocation' &&
+      url.searchParams.get('darstellung') === 'einzahlungen' &&
+      url.searchParams.get('zeitraum') === 'YTD',
+  );
+  await page
+    .getByRole('button', { name: 'Nächster Bericht: Kosten, Steuern, Erträge', exact: true })
+    .click();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/reports/psteuern' &&
+      url.searchParams.get('darstellung') === null &&
+      url.searchParams.get('zeitraum') === 'YTD',
+  );
   await page.locator('body').click({ position: { x: 2, y: 2 } });
   await page.keyboard.press('Alt+Shift+ArrowLeft');
-  await expect(page).toHaveURL(/reports\/pallocation/);
-  await page.goto('/reports/onepager');
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/reports/pallocation' &&
+      url.searchParams.get('darstellung') === null &&
+      url.searchParams.get('zeitraum') === 'YTD',
+  );
+  await expect(
+    page.getByRole('button', { name: 'Verteilung über Zeit', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await page.goto('/reports/einnahmen-ausgaben');
   await expect(
     page.getByRole('button', { name: 'Vorheriger Bericht', exact: true }),
   ).toBeDisabled();
+  await page.goto('/reports/jahresreport');
+  await expect(page.getByRole('button', { name: 'Nächster Bericht', exact: true })).toBeDisabled();
 });
 
 test('every rendered chart has shared inspection across reports and main pages', async ({

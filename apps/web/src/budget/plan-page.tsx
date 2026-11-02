@@ -35,6 +35,7 @@ import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel, shiftMonth } from '../nav/month';
 import { useMonth } from '../shell/use-month';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { AppLink } from '../shell/app-link';
 import { lastDayOfMonth } from '@budget/domain';
 import { setMonthSpan, useIsPhone, useMonthSpan } from './month-span';
@@ -136,7 +137,7 @@ export function PlanMonthPage() {
   const data = months.length === 1 ? first.data : batch.data?.months[months[0]!];
   const columns = months.map((m) => (months.length === 1 ? first.data : batch.data?.months[m]));
   const views = columns.every((v) => v) ? columns.map((v) => v!) : null;
-  // The month's income (title block and chain term) opens received against expected.
+  // The detail keeps received/expected progress separate from the budget-month basis.
   const navigate = useNavigate();
   const openIncome = () =>
     void navigate({
@@ -144,11 +145,11 @@ export function PlanMonthPage() {
       search: { monat: month },
       state: { planDetailOpenedInApp: true },
     });
-  const income = receivedIncome.data ? (
-    <IncomeButton value={eur(receivedIncome.data.receivedCents)} onOpen={openIncome} />
-  ) : (
-    '–'
-  );
+  const incomeCents = REDESIGN_ENABLED
+    ? data?.summary.incomeCents
+    : receivedIncome.data?.receivedCents;
+  const income =
+    incomeCents !== undefined ? <IncomeButton value={eur(incomeCents)} onOpen={openIncome} /> : '–';
   return (
     <PageFrame meta={PLAN_MONAT} income={income}>
       <div className="plan plan-month">

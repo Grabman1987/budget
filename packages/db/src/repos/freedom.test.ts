@@ -96,6 +96,24 @@ beforeEach(() => {
 });
 
 describe('current freedom read model shares R16 sources', () => {
+  it('redesign F09 nets one refund in the trailing year without counting investments', () => {
+    spend('2026-09-20', 2_000);
+    const view = freedomView(db, today);
+    expect(view.months).toHaveLength(12);
+    expect(view.months.slice(0, -1).every((month) => month.consumptionCents === 10_000)).toBe(true);
+    expect(view.months.at(-1)).toEqual({ month: '2026-09', consumptionCents: 8_000 });
+    expect(view.annualSpendCents).toBe(118_000);
+    expect(ruleInputs(db, today).freedom).toMatchObject({ annualSpendCents: 118_000 });
+  });
+
+  it('redesign F09 annualises eight available months and excludes future history', () => {
+    const view = freedomView(db, '2026-05-31');
+    expect(view.refMonth).toBe('2026-05');
+    expect(view.months).toHaveLength(8);
+    expect(view.months.every((month) => month.consumptionCents === 10_000)).toBe(true);
+    expect(view.annualSpendCents).toBe(120_000);
+  });
+
   it('prefills saving from the last six closed Zukunft months, excluding today', () => {
     spend('2026-03-20', -600_000, 'future');
     spend('2026-10-01', -900_000, 'future');

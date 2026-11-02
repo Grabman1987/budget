@@ -1,11 +1,16 @@
 import AxeBuilder from '@axe-core/playwright';
 import { inboxItem, insertTracked, openDatabase } from '@budget/db';
 import { expect, test, type Route } from '@playwright/test';
+import type { InboxBooking, InboxPage, InboxStored } from '../apps/web/src/inbox/api';
 import { DB_MAIN, MAIN_URL } from '../playwright.config';
 
 test.setTimeout(120_000);
 
-type InboxFixture = { asOf: string; count: number; entries: Array<{ kind: string }> };
+type InboxFixture = {
+  asOf: string;
+  count: number;
+  entries: Array<{ kind: string }>;
+} & Partial<Pick<InboxPage, 'segment' | 'segments' | 'taskSources' | 'accountReminders'>>;
 
 async function fulfillInboxFixture(route: Route, fixture: InboxFixture) {
   const url = new URL(route.request().url());
@@ -24,6 +29,8 @@ async function fulfillInboxFixture(route: Route, fixture: InboxFixture) {
       entries,
       totalEntries: fixture.entries.length,
       countsByKind,
+      countsByCause: {},
+      readSourceSummaries: [],
       limit,
       offset,
       next: offset + entries.length < fixture.entries.length ? offset + entries.length : null,
@@ -255,9 +262,94 @@ test('a long queue draws in pages of 100 rows and keeps the group count', async 
   await expect(page.getByRole('button', { name: /Weitere anzeigen/ })).toHaveCount(0);
 });
 
-test('legacy inbox panel URLs lead to the existing page', async ({ page }) => {
-  await page.goto('/konten?panel=posteingang');
-  await expect(page).toHaveURL(/\/konten\/pruefen/);
-  await expect(page.getByRole('dialog', { name: 'Posteingang', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
-});
+for (const segment of ['aufgaben', 'umsaetze'] as const) {
+  test(`legacy inbox panel URLs lead to the existing page (${segment})`, async ({ page }) => {
+    // The shared ledger can legitimately auto-open either part; both must render after redirect.
+    const task: InboxStored = {
+      type: 'stored',
+      id: 'legacy-panel-task',
+      kind: 'stale_value',
+      title: 'Synthetische Altlink-Aufgabe',
+      detail: 'Synthetische Quelle erneut prüfen.',
+      refType: 'fx',
+      refId: 'synthetic-legacy-source',
+      urgent: false,
+      createdAt: '2026-09-17T10:00:00.000Z',
+    };
+    const booking: InboxBooking = {
+      type: 'booking',
+      id: 'legacy-panel-booking',
+      bookingId: 'legacy-panel-booking',
+      kind: 'uncategorized',
+      urgent: false,
+      date: '2026-09-17',
+      accountName: 'Synthetisches Altlink-Konto',
+      payeeName: 'Synthetischer Altlink-Umsatz',
+      memo: null,
+      amountCents: -1200,
+      currency: 'EUR',
+      status: 'pending',
+      source: 'manual',
+      missingSplits: 1,
+    };
+    await page.route('**/api/inbox/count', (route) =>
+      route.fulfill({ json: { asOf: '2026-09-17', count: 1 } }),
+    );
+    await page.route(
+      (url) => url.pathname === '/api/inbox',
+      (route) =>
+        fulfillInboxFixture(route, {
+          asOf: '2026-09-17',
+          count: 1,
+          entries: segment === 'aufgaben' ? [task] : [booking],
+          segment,
+          segments:
+            segment === 'aufgaben' ? { umsaetze: 0, aufgaben: 1 } : { umsaetze: 1, aufgaben: 0 },
+          taskSources: {
+            accounts: 0,
+            receipts: 0,
+            plan: 0,
+            payslips: 0,
+            other: segment === 'aufgaben' ? 1 : 0,
+          },
+          accountReminders: [],
+        }),
+    );
+    const initialRequest = page.waitForRequest(
+      (request) => new URL(request.url()).pathname === '/api/inbox',
+    );
+    await page.goto('/konten?panel=posteingang');
+    await expect(page).toHaveURL(
+      (url) => url.pathname === '/konten/pruefen' && url.searchParams.get('von') === '/konten',
+    );
+    await expect(page.getByRole('dialog', { name: 'Posteingang', exact: true })).toHaveCount(0);
+    const initialUrl = new URL((await initialRequest).url());
+    expect(initialUrl.searchParams.get('segment')).toBe('auto');
+    expect(initialUrl.searchParams.get('limit')).toBe('100');
+    expect(initialUrl.searchParams.get('offset')).toBe('0');
+    await expect(
+      page.getByRole('group', { name: 'Teil von Prüfen' }).getByRole('button', {
+        name: segment === 'aufgaben' ? 'Aufgaben · 1' : 'Umsätze · 1',
+        exact: true,
+      }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    if (segment === 'aufgaben') {
+      await expect(
+        page.getByRole('heading', { name: 'Offene Aufgaben · 1', exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('table', { name: 'Alle offenen Aufgaben nach Quelle', exact: true }),
+      ).toBeVisible();
+      await page.getByRole('button', { name: 'Weitere Aufgaben öffnen', exact: true }).click();
+    }
+    await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
+    const row = page.getByTestId('inbox-row').filter({
+      hasText:
+        segment === 'aufgaben' ? 'Synthetische Altlink-Aufgabe' : 'Synthetischer Altlink-Umsatz',
+    });
+    await expect(row).toBeVisible();
+    await expect(row).toContainText(
+      segment === 'aufgaben' ? 'Synthetische Quelle erneut prüfen.' : 'Synthetisches Altlink-Konto',
+    );
+  });
+}

@@ -19,13 +19,13 @@ test('everyday terms keep function routes, data kinds and global actions distinc
     await expect(input).toBeFocused();
     return input;
   };
-  for (const [term, label, path] of [
-    ['Baby', 'Plan · Prognose', '/plan/prognose'],
-    ['Einkommenspause', 'Plan · Prognose', '/plan/prognose'],
-    ['Dispo', 'Vermögen · Schulden', '/vermoegen/schulden'],
-    ['Gebühren', '2.6 Bank- und Zinskosten', '/reports/kosten'],
-    ['Prognosegenauigkeit', '1.11 Prognosegenauigkeit', '/reports/planungstreue'],
-    ['Budgettreue', '2.2 Budgettreue', '/reports/budgettreue'],
+  for (const [term, label, path, view] of [
+    ['Baby', 'Plan · Prognose', '/plan/prognose', ''],
+    ['Einkommenspause', 'Plan · Prognose', '/plan/prognose', ''],
+    ['Dispo', 'Vermögen · Schulden', '/vermoegen/schulden', ''],
+    ['Gebühren', '2.6 Bank- und Zinskosten', '/reports/abos', 'bankkosten'],
+    ['Prognosegenauigkeit', '1.11 Prognosegenauigkeit', '/reports/budgettreue', 'planungstreue'],
+    ['Budgettreue', '2.2 Budgettreue', '/reports/budgettreue', ''],
   ]) {
     const input = await open();
     await input.fill(term!);
@@ -35,9 +35,10 @@ test('everyday terms keep function routes, data kinds and global actions distinc
     await expect(option).toBeVisible();
     expect((await option.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     await option.click();
-    await expect(page).toHaveURL(new RegExp(`${path}$`));
+    await expect.poll(() => new URL(page.url()).pathname).toBe(path);
+    if (view) expect(new URL(page.url()).searchParams.get('darstellung')).toBe(view);
     if (term === 'Prognosegenauigkeit' || term === 'Budgettreue') {
-      await expect(page.getByRole('heading', { name: term, exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Budgettreue', exact: true })).toBeVisible();
     }
   }
   const input = await open();

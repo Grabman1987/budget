@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import {
   again,
+  MIN_TARGET_PX,
   openLedgerFilters,
   applyLedgerFilters,
   balance,
@@ -639,6 +640,13 @@ test('visible growing note, direct split and responsive account note column', as
   await note.fill('Kurz');
   expect((await note.boundingBox())!.height).toBe(initialHeight);
   await note.fill(memo);
+  // Measure controls after the finite phone-sheet transform, using the existing dialog pattern.
+  await panel.evaluate(async (element) => {
+    const finite = element
+      .getAnimations({ subtree: true })
+      .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
+    await Promise.all(finite.map((animation) => animation.finished.catch(() => undefined)));
+  });
   for (const control of [
     note,
     split,
@@ -646,8 +654,8 @@ test('visible growing note, direct split and responsive account note column', as
     panel.getByRole('button', { name: 'Schließen' }),
   ]) {
     const box = (await control.boundingBox())!;
-    expect(box.height).toBeGreaterThanOrEqual(44);
-    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    expect(box.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
   }
   await panel.getByLabel('Betrag', { exact: true }).fill('5');
   await panel.getByLabel('Empfänger').fill(payee);

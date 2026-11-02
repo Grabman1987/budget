@@ -73,48 +73,244 @@ const wealthData = {
     ],
   },
 } as unknown as Pick<Heute, 'stand' | 'netWorth' | 'valuationSources'>;
-it('labels actual history before today and separates payment numbers from the low point', () => {
-  const { container } = render(
-    <BalanceChart
-      chainOpen={false}
-      onToggleChain={() => {}}
-      data={
+it.each([false, true])(
+  'labels actual history before today and separates payment numbers from the low point (report=%s)',
+  (report) => {
+    const { container } = render(
+      <BalanceChart
+        chainOpen={false}
+        onToggleChain={() => {}}
+        report={report}
+        data={
+          {
+            ...dailyData,
+            lead: { freeCents: 10000 },
+            stand: { ...dailyData.stand, today: '2026-10-06', period: 'payday', to: '2026-10-17' },
+            balance: {
+              actual: [
+                { day: '2026-09-22', balanceCents: 50000 },
+                { day: '2026-10-06', balanceCents: 40000 },
+              ],
+              forecast: [
+                { day: '2026-10-06', balanceCents: 40000, variableCents: 0, items: [] },
+                {
+                  day: '2026-10-10',
+                  balanceCents: 10000,
+                  variableCents: 0,
+                  items: [{ cents: -30000, label: 'Geplante Ausgabe' }],
+                },
+                { day: '2026-10-17', balanceCents: 10000, variableCents: 0, items: [] },
+              ],
+              low: { day: '2026-10-10', cents: 10000, index: 1 },
+              salary: null,
+            },
+          } as Heute
+        }
+      />,
+    );
+    expect(screen.getByText('bisher')).toBeTruthy();
+    const actual = screen.getByText('bisher');
+    const today = screen.getByText('heute');
+    expect(Number(actual.getAttribute('x'))).toBeLessThan(Number(today.getAttribute('x')));
+    const marker = container.querySelector('[data-payment-marker] text')!;
+    const low = screen.getByText(/^Tiefpunkt/);
+    expect(
+      Math.abs(Number(marker.getAttribute('y')) - Number(low.getAttribute('y'))),
+    ).toBeGreaterThanOrEqual(20);
+    const chart = screen.getByTestId(report ? 'r07-balance-chart' : 'heute-balance-chart');
+    expect(low.textContent).toContain('Tiefpunkt 100 €');
+    expect(chart.getAttribute('aria-label')).toContain('Ist bis 2026-10-06 400,00 €');
+    expect(chart.getAttribute('aria-label')).toContain('Prognose bis 2026-10-17 100,00 €');
+    expect(chart.querySelectorAll('path.l-actual')).toHaveLength(1);
+    expect(chart.querySelectorAll('path.l-forecast')).toHaveLength(1);
+    const coordinates = ['l-actual', 'l-forecast'].map((kind) => {
+      const path = chart.querySelector(`path.${kind}`)!.getAttribute('d')!;
+      expect(path).toMatch(/^M/);
+      expect(path).not.toMatch(/NaN|Infinity/);
+      const values = (path.match(/-?\d+(?:\.\d+)?(?:e[-+]?\d+)?/gi) ?? []).map(Number);
+      expect(values.length).toBeGreaterThanOrEqual(4);
+      expect(values.every(Number.isFinite)).toBe(true);
+      return values;
+    });
+    expect(coordinates[0]!.slice(-2)).toEqual(coordinates[1]!.slice(0, 2));
+    const inspection = screen.getByRole('group', { name: /^Kontoprognose: Budget-Konten/ });
+    fireEvent.focus(inspection);
+    expect(screen.getByRole('status').textContent).toContain('22.09.2026');
+    expect(screen.getByRole('status').textContent).toContain('Ist500,00 €');
+    fireEvent.keyDown(inspection, { key: 'ArrowRight' });
+    expect(screen.getByRole('status').textContent).toContain('06.10.2026');
+    expect(screen.getByRole('status').textContent).toContain('Ist400,00 €');
+    expect(screen.getByRole('status').textContent).toContain('Prognose400,00 €');
+    fireEvent.keyDown(inspection, { key: 'ArrowRight' });
+    expect(screen.getByRole('status').textContent).toContain('10.10.2026');
+    expect(screen.getByRole('status').textContent).toContain('Prognose100,00 €');
+    expect(screen.getByRole('status').textContent).toContain('Geplante Ausgabe−300,00 €');
+    fireEvent.keyDown(inspection, { key: 'ArrowRight' });
+    expect(screen.getByRole('status').textContent).toContain('17.10.2026');
+    expect(screen.getByRole('status').textContent).toContain('Prognose100,00 €');
+  },
+);
+
+it.each(['month', 'payday'] as const)(
+  'retains the report-mode %s dates, named payments, low and exact segment join',
+  (period) => {
+    const payday = period === 'payday';
+    const to = payday ? '2026-10-17' : '2026-10-02';
+    const balance = {
+      actual: [
+        { day: '2026-09-03', balanceCents: 50000 },
+        { day: '2026-09-17', balanceCents: 40000 },
+      ],
+      forecast: [
+        { day: '2026-09-17', balanceCents: 40000, variableCents: 0, items: [] },
         {
-          ...dailyData,
-          lead: { freeCents: 10000 },
-          stand: { ...dailyData.stand, today: '2026-10-06', period: 'payday', to: '2026-10-17' },
-          balance: {
-            actual: [
-              { day: '2026-09-22', balanceCents: 50000 },
-              { day: '2026-10-06', balanceCents: 40000 },
-            ],
-            forecast: [
-              { day: '2026-10-06', balanceCents: 40000, variableCents: 0, items: [] },
+          day: '2026-09-30',
+          balanceCents: 69900,
+          variableCents: 0,
+          items: [
+            { label: 'Gehalt', cents: 30000 },
+            { label: 'Kontoführung', cents: -100 },
+          ],
+        },
+        {
+          day: '2026-10-01',
+          balanceCents: 39900,
+          variableCents: 0,
+          items: [{ label: 'Miete', cents: -30000 }],
+        },
+        ...(payday
+          ? [
               {
-                day: '2026-10-10',
-                balanceCents: 10000,
+                day: '2026-10-03',
+                balanceCents: 9900,
                 variableCents: 0,
-                items: [{ cents: -30000, label: 'Geplante Ausgabe' }],
+                items: [{ label: 'Kreditrate', cents: -30000 }],
               },
-              { day: '2026-10-17', balanceCents: 10000, variableCents: 0, items: [] },
+            ]
+          : []),
+        { day: to, balanceCents: payday ? 9900 : 39900, variableCents: 0, items: [] },
+      ],
+      low: {
+        day: payday ? '2026-10-03' : '2026-10-01',
+        cents: payday ? 9900 : 39900,
+        index: payday ? 3 : 2,
+      },
+      salary: null,
+    };
+    const { container } = render(
+      <BalanceChart
+        report
+        chainOpen={false}
+        onToggleChain={() => {}}
+        data={
+          {
+            ...dailyData,
+            lead: { freeCents: 10000 },
+            stand: {
+              ...dailyData.stand,
+              month: '2026-09',
+              today: '2026-09-17',
+              from: '2026-09-03',
+              to,
+              period,
+            },
+            balance,
+          } as Heute
+        }
+      />,
+    );
+    expect(container.querySelector('.heute-lead-dimension')?.textContent).toBe(
+      payday ? '28 Tage bis Gehalt 15.10.' : '15 Tage bis 02.10.',
+    );
+    const chart = screen.getByTestId('r07-balance-chart');
+    expect(
+      chart.querySelectorAll('.svg-label')[chart.querySelectorAll('.svg-label').length - 1]
+        ?.textContent,
+    ).toBe(payday ? '17.10.' : '02.10.');
+    const steps = screen.getAllByTestId('forecast-step-label');
+    expect(steps).toHaveLength(payday ? 3 : 2);
+    expect(steps[0]!.textContent).toContain('Gehalt');
+    expect(steps[1]!.textContent).toContain('Miete');
+    if (payday) expect(steps[2]!.textContent).toContain('Kreditrate');
+    const actual = screen.getByText('bisher');
+    const today = screen.getByText('heute');
+    expect(Number(actual.getAttribute('x'))).toBeLessThan(Number(today.getAttribute('x')));
+    const paths = ['l-actual', 'l-forecast'].map((kind) =>
+      (
+        chart
+          .querySelector(`path.${kind}`)!
+          .getAttribute('d')!
+          .match(/-?\d+(?:\.\d+)?/g) ?? []
+      ).map(Number),
+    );
+    expect(paths.flat().every(Number.isFinite)).toBe(true);
+    expect(paths[0]!.at(-2)).toBeCloseTo(paths[1]![0]!, 2);
+    expect(paths[0]!.at(-1)).toBeCloseTo(paths[1]![1]!, 2);
+    const low = screen.getByText(/^Tiefpunkt/);
+    expect(low.textContent).toContain(payday ? '99 €' : '399 €');
+    const group = screen.getByRole('group', { name: /^Kontoprognose:/ });
+    fireEvent.focus(group);
+    fireEvent.keyDown(group, { key: 'ArrowRight' });
+    expect(screen.getByRole('status').textContent).toContain('17.09.2026');
+    expect(screen.getByRole('status').textContent).toContain('Ist400,00 €');
+    expect(screen.getByRole('status').textContent).toContain('Prognose400,00 €');
+    fireEvent.keyDown(group, { key: 'ArrowRight' });
+    expect(screen.getByRole('status').textContent).toContain('30.09.2026');
+    expect(screen.getByRole('status').textContent).toContain('Gehalt+300,00 €');
+    expect(screen.getByRole('status').textContent).toContain('Kontoführung−1,00 €');
+    fireEvent.keyDown(group, { key: 'ArrowRight' });
+    expect(screen.getByRole('status').textContent).toContain('Miete−300,00 €');
+    if (payday) {
+      fireEvent.keyDown(group, { key: 'ArrowRight' });
+      expect(screen.getByRole('status').textContent).toContain('Kreditrate−300,00 €');
+    }
+  },
+);
+
+it.each([false, true])(
+  'keeps empty and out-of-range historical report=%s honest without a today marker',
+  (report) => {
+    const data = {
+      ...dailyData,
+      lead: {
+        needCents: 0,
+        wantCents: 0,
+        openCents: 0,
+        freeCents: 10000,
+        daysToPayday: 0,
+        chain: [],
+        items: { need: [], want: [], open: [] },
+      },
+      stand: { ...dailyData.stand, today: '2026-09-17', period: 'month', to: '2026-09-02' },
+      balance: { actual: [], forecast: [], low: null, salary: null },
+    } as Heute;
+    const view = render(
+      <BalanceChart report={report} data={data} chainOpen={false} onToggleChain={() => {}} />,
+    );
+    expect(screen.getByText('Kein Verlauf im gewählten Zeitraum.')).toBeTruthy();
+    expect(view.container.querySelector('svg')).toBeNull();
+    view.rerender(
+      <BalanceChart
+        report={report}
+        data={{
+          ...data,
+          balance: {
+            ...data.balance,
+            actual: [
+              { day: '2026-08-01', balanceCents: 50000 },
+              { day: '2026-08-31', balanceCents: 40000 },
             ],
-            low: { day: '2026-10-10', cents: 10000, index: 1 },
-            salary: null,
           },
-        } as Heute
-      }
-    />,
-  );
-  expect(screen.getByText('bisher')).toBeTruthy();
-  const actual = screen.getByText('bisher');
-  const today = screen.getByText('heute');
-  expect(Number(actual.getAttribute('x'))).toBeLessThan(Number(today.getAttribute('x')));
-  const marker = container.querySelector('[data-payment-marker] text')!;
-  const low = screen.getByText(/^Tiefpunkt/);
-  expect(
-    Math.abs(Number(marker.getAttribute('y')) - Number(low.getAttribute('y'))),
-  ).toBeGreaterThanOrEqual(20);
-});
+        }}
+        chainOpen={false}
+        onToggleChain={() => {}}
+      />,
+    );
+    expect(view.container.querySelector('svg')).not.toBeNull();
+    expect(view.container.querySelector('.l-today')).toBeNull();
+    expect(screen.queryByText('heute')).toBeNull();
+  },
+);
 
 it('explains which account groups the cash forecast includes and excludes', () => {
   const { container } = render(

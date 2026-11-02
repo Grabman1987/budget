@@ -1,4 +1,4 @@
-import { useAmountPrivacy, ClassSwatch, Button, cx } from '@budget/ui';
+import { useAmountPrivacy, ClassSwatch, Button, cx, maskMoneyText } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { TriangleAlert, Check, CircleCheck, ChevronDown, Plus } from 'lucide-react';
 import { useState } from 'react';
@@ -13,7 +13,9 @@ import { categoriesQuery, useBudgetWrite } from './use-category-writes';
 import type { CategoryRow } from './api';
 import { budgetQuery } from './budget-api';
 import { CategoryIcon } from './category-icon';
-import { goalsQuery, fundGoalRate, type GoalView } from './goals-api';
+import { fundGoalRate, type GoalView } from './goals-api';
+import { goalsProgressReportQuery } from '../pages/goals-progress-report';
+import type { GoalReportRow } from '../pages/goals-progress-model';
 import {
   goalBar,
   goalGroups,
@@ -33,142 +35,193 @@ import { CLASS_TEXT } from './plan-model';
 export function GoalsPage() {
   useAmountPrivacy();
   const [month] = useMonth();
-  const goals = useQuery(goalsQuery(month));
+  const goals = useQuery(goalsProgressReportQuery(month));
   const budget = useQuery(budgetQuery(month));
   const income = budget.data ? eur(budget.data.summary.incomeCents) : '–';
   return (
     <PageFrame meta={PLAN_SPARZIELE} income={income}>
       <div className="plan goals">
-        {goals.isPending && <LoadingNote what="Sparziele" />}
+        {(goals.isPending || goals.isFetching) && <LoadingNote what="Sparziele und Quellen" />}
         {goals.isError && (
           <ErrorNote what="Sparziele" error={goals.error} onRetry={() => void goals.refetch()} />
         )}
-        {goals.data && <GoalsBody key={month} month={month} goals={goals.data.goals} />}
+        {goals.data && (
+          <GoalsBody
+            key={month}
+            month={month}
+            goals={goals.data.goals}
+            rows={goals.data.rows}
+            sourceCategories={goals.data.categories.categories}
+            sourceAccounts={goals.data.accounts}
+            ready={!goals.isFetching && !goals.isError}
+          />
+        )}
       </div>
     </PageFrame>
   );
 }
 
-function GoalsBody({ month, goals }: { month: string; goals: GoalView[] }) {
+function GoalsBody({
+  month,
+  goals,
+  rows,
+  sourceCategories,
+  sourceAccounts,
+  ready,
+}: {
+  month: string;
+  goals: GoalView[];
+  rows: GoalReportRow[];
+  sourceCategories: CategoryRow[];
+  sourceAccounts: { id: string; name: string }[];
+  ready: boolean;
+}) {
   useAmountPrivacy();
   const tree = useQuery(categoriesQuery()).data;
   const categories = tree?.categories ?? [];
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const [panel, setPanel] = useState<GoalPanelState>({ mode: 'closed' });
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set(['completed']));
-  const catById = new Map(categories.map((c) => [c.id, c]));
-  const groups = goalGroups(goals);
+  const catById = new Map(sourceCategories.map((c) => [c.id, c]));
+  // Raw goals remain editor data; only uniquely proven source rows contribute money and actions.
+  const proven = rows.flatMap((row) => (row.progress ? [row.progress] : []));
+  const unknown = rows.filter((row) => !row.progress);
+  const groups = goalGroups(proven);
   const open = panel.mode === 'edit' ? goals.find((g) => g.id === panel.id) : undefined;
 
   return (
     <>
       <div className="ptoolbar goals-toolbar">
-        <span className="goals-summary" data-testid="goals-summary">
-          {goals.length > 0 ? planSummary(goals) : 'Noch keine Sparziele'}
-        </span>
+        {ready && (
+          <span className="goals-summary" data-testid="goals-summary">
+            {goals.length === 0
+              ? 'Noch keine Sparziele'
+              : proven.length
+                ? planSummary(proven)
+                : 'Keine eindeutig belegten Zielstände'}
+            {unknown.length > 0 && ` · ${unknown.length} ungeklärt`}
+          </span>
+        )}
         <span className="spacer" />
         <Button size="sm" onClick={() => setPanel({ mode: 'create' })}>
           <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
           Neues Sparziel
         </Button>
       </div>
-      {goals.length === 0 ? (
-        <EmptyNote
-          action={
-            <Button size="sm" variant="ghost" onClick={() => setPanel({ mode: 'create' })}>
-              Sparziel anlegen
-            </Button>
-          }
-        >
-          Ein Sparziel ordnet einer Kategorie oder einem Konto einen Betrag und ein Datum zu. Die
-          Seite zeigt, wie viel monatlich nötig ist.
-        </EmptyNote>
-      ) : (
-        <section className="ptable-wrap" aria-labelledby="goals-title">
-          <h2 className="sr-only" id="goals-title">
-            Sparziele im Überblick
-          </h2>
-          <table className="ptable">
-            <caption className="sr-only">
-              Sparziele mit Ziel, Gespart, Fehlt, Zieldatum und nötiger Monatsrate
-            </caption>
-            <thead>
-              <tr>
-                <th className="tech col-pos" scope="col">
-                  Pos.
-                </th>
-                <th className="tech col-name" scope="col">
-                  Name
-                </th>
-                <th className="tech col-cat" scope="col">
-                  Kategorie
-                </th>
-                <th className="tech col-num" scope="col">
-                  Ziel
-                </th>
-                <th className="tech col-num" scope="col">
-                  Gespart
-                </th>
-                <th className="tech col-num" scope="col">
-                  Fehlt
-                </th>
-                <th className="tech col-date" scope="col">
-                  Zieldatum
-                </th>
-                <th className="tech col-num" scope="col">
-                  Nötige Rate
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {groups.map((g) => {
-                const isCollapsed = collapsed.has(g.key);
-                return [
-                  <GroupRow
-                    key={g.key}
-                    group={g}
-                    collapsed={isCollapsed}
-                    onToggle={() =>
-                      setCollapsed((c) => {
-                        const next = new Set(c);
-                        if (next.has(g.key)) next.delete(g.key);
-                        else next.add(g.key);
-                        return next;
-                      })
-                    }
-                  />,
-                  ...(isCollapsed
-                    ? []
-                    : g.rows.map((r, i) => (
-                        <GoalRow
-                          key={r.id}
-                          goal={r}
-                          pos={`${g.no}.${i + 1}`}
-                          month={month}
-                          category={r.categoryId ? catById.get(r.categoryId) : undefined}
-                          accountName={accounts.find((a) => a.id === r.accountId)?.name}
-                        />
-                      ))),
-                ];
-              })}
-            </tbody>
-          </table>
-          <div className="plegend" aria-hidden="true">
-            <span>
-              <i className="lg-bar">
-                <i className="lg-fill" />
-              </i>
-              gespart
-            </span>
-            <span>
-              <i className="lg-bar">
-                <i className="lg-tick" style={{ left: '100%' }} />
-              </i>
-              Ziel
-            </span>
-          </div>
-        </section>
-      )}
+      {ready &&
+        (goals.length === 0 ? (
+          <EmptyNote
+            action={
+              <Button size="sm" variant="ghost" onClick={() => setPanel({ mode: 'create' })}>
+                Sparziel anlegen
+              </Button>
+            }
+          >
+            Ein Sparziel ordnet einer Kategorie oder einem Konto einen Betrag und ein Datum zu. Die
+            Seite zeigt, wie viel monatlich nötig ist.
+          </EmptyNote>
+        ) : (
+          <section className="ptable-wrap" aria-labelledby="goals-title">
+            <h2 className="sr-only" id="goals-title">
+              Sparziele im Überblick
+            </h2>
+            <table className="ptable">
+              <caption className="sr-only">
+                Sparziele mit Ziel, Gespart, Fehlt, Zieldatum und nötiger Monatsrate
+              </caption>
+              <thead>
+                <tr>
+                  <th className="tech col-pos" scope="col">
+                    Pos.
+                  </th>
+                  <th className="tech col-name" scope="col">
+                    Name
+                  </th>
+                  <th className="tech col-cat" scope="col">
+                    Kategorie
+                  </th>
+                  <th className="tech col-num" scope="col">
+                    Ziel
+                  </th>
+                  <th className="tech col-num" scope="col">
+                    Gespart
+                  </th>
+                  <th className="tech col-num" scope="col">
+                    Fehlt
+                  </th>
+                  <th className="tech col-date" scope="col">
+                    Zieldatum
+                  </th>
+                  <th className="tech col-num" scope="col">
+                    Nötige Rate
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {groups.map((g) => {
+                  const isCollapsed = collapsed.has(g.key);
+                  return [
+                    <GroupRow
+                      key={g.key}
+                      group={g}
+                      collapsed={isCollapsed}
+                      onToggle={() =>
+                        setCollapsed((c) => {
+                          const next = new Set(c);
+                          if (next.has(g.key)) next.delete(g.key);
+                          else next.add(g.key);
+                          return next;
+                        })
+                      }
+                    />,
+                    ...(isCollapsed
+                      ? []
+                      : g.rows.map((r, i) => (
+                          <GoalRow
+                            key={r.id}
+                            goal={r}
+                            pos={`${g.no}.${i + 1}`}
+                            month={month}
+                            category={r.categoryId ? catById.get(r.categoryId) : undefined}
+                            accountName={sourceAccounts.find((a) => a.id === r.accountId)?.name}
+                          />
+                        ))),
+                  ];
+                })}
+                {unknown.map((row) => (
+                  <tr className="prow grow" key={row.id} data-goal-unknown>
+                    <td className="col-pos">–</td>
+                    <td className="col-name">
+                      <AppLink
+                        className="pname"
+                        to={`/plan/sparziele/${row.id}`}
+                        search={{ monat: month }}
+                        state={{ planPanelDetailOpenedInApp: true }}
+                      >
+                        {maskMoneyText(row.name)}
+                      </AppLink>
+                    </td>
+                    <td colSpan={6}>Fortschritt und Status nicht verfügbar. {row.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="plegend" aria-hidden="true">
+              <span>
+                <i className="lg-bar">
+                  <i className="lg-fill" />
+                </i>
+                gespart
+              </span>
+              <span>
+                <i className="lg-bar">
+                  <i className="lg-tick" style={{ left: '100%' }} />
+                </i>
+                Ziel
+              </span>
+            </div>
+          </section>
+        ))}
       <GoalPanel
         month={month}
         state={panel}

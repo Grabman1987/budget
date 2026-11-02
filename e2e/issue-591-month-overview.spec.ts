@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 import { expect, sampleTest as test } from './sample';
@@ -120,20 +121,18 @@ test('591 no-selection overview preserves cents, canonical target shortfalls and
       path: info.outputPath(`month-overview-public-${theme}.png`),
       fullPage: false,
     });
-    const profile = page.locator('.m-profile summary');
-    if (await profile.isVisible()) await profile.click();
-    const privacy = page.getByRole('button', { name: 'Beträge verbergen', exact: true });
-    await privacy.click();
-    if (await profile.isVisible()) await profile.press('Escape');
+    await withShellControls(page, async ({ privacy }) => {
+      await privacy.click();
+    });
     await expect(inspector.getByTestId('month-statement-availableCents')).toHaveText('••• €');
     await expect(inspector.getByText('••• % vorbereitet', { exact: true })).toBeVisible();
     await expect(inspector.getByTestId('next-month-difference')).toHaveText('fehlt ••• €');
     await expect(
       inspector.getByRole('progressbar', { name: 'Zieldeckung nächster Monat' }),
     ).toHaveCount(0);
-    if (await profile.isVisible()) await profile.click();
-    await privacy.click();
-    if (await profile.isVisible()) await profile.press('Escape');
+    await withShellControls(page, async ({ privacy }) => {
+      await privacy.click();
+    });
     await expect(inspector.getByText('75 % vorbereitet', { exact: true })).toBeVisible();
   }
   await split.locator(':scope > summary').click();

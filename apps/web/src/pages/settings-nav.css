@@ -51,6 +51,12 @@
   background: var(--tint);
   color: var(--ink);
 }
+/* E0's entry and metadata controls exist only in the central redesign ON branch. */
+.settings-nav a[href='/einstellungen/kontakte'],
+.contact-settings .btn {
+  min-height: var(--touch);
+  min-width: var(--touch);
+}
 .settings-nav a[aria-current='page'] {
   color: var(--ink);
   font-weight: 600;

@@ -59,6 +59,28 @@ const summary = async (month: string) => (await call('GET', '/budget/' + month))
 const nextRule = { scope: 'incomeType', targetId: 'income-salary', nextMonth: true };
 
 describe('owner income budget month', () => {
+  it('redesign F05 keeps October cashflow separate from November budget income', async () => {
+    today = '2026-11-01';
+    const result = await salary({
+      date: '2026-10-31',
+      amountCents: 10_000,
+      incomeNextMonth: true,
+      splits: [{ categoryId: 'salary', incomeTypeId: 'income-salary', amountCents: 10_000 }],
+    });
+    expect(result.status).toBe(201);
+    expect((await summary('2026-10')).incomeCents).toBe(0);
+    expect((await summary('2026-11')).incomeCents).toBe(10_000);
+    const cashflow = await call('GET', '/cashflow?period=2026-10..2026-11');
+    expect(cashflow.status).toBe(200);
+    expect(cashflow.body.windowMonths).toEqual(['2026-10', '2026-11']);
+    expect(cashflow.body.months.find((month: any) => month.month === '2026-10')).toMatchObject({
+      incomeCents: 10_000,
+    });
+    expect(cashflow.body.months.find((month: any) => month.month === '2026-11')).toMatchObject({
+      incomeCents: 0,
+    });
+  });
+
   it('keeps booking-date household income separate from next-month budget income and expected income', async () => {
     today = '2026-09-30';
     const result = await salary({

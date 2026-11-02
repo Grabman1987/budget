@@ -10,6 +10,8 @@ import { Link } from '@tanstack/react-router';
 import type { HeutePeriod } from '../heute/api';
 import type { VerdictFacts } from '@budget/domain';
 import { VerdictLine } from '../reports/verdict-line';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { PageMenu } from '../nav/page-menu';
 
 export interface PlaceholderPageProps {
   meta: PageMeta;
@@ -129,23 +131,27 @@ export function PageFrame({
         </SettingsFrame>
       ) : (
         <>
-          {items.length > 0 && (
-            <Registers
-              label={`Register von ${area.label}`}
-              items={items}
-              current={meta.register ?? ''}
-              revealCurrent={revealCurrentRegister}
-              renderLink={(item, props) => (
-                <AppLink
-                  to={item.href ?? '/'}
-                  // The Zeitraum travels along between the Vermögen registers.
-                  search={meta.area === 'vermoegen' ? keepZeitraum : undefined}
-                  {...props}
-                >
-                  {item.label}
-                </AppLink>
-              )}
-            />
+          {REDESIGN_ENABLED && (meta.area === 'plan' || meta.area === 'vermoegen') ? (
+            <PageMenu area={area} current={meta.register ?? ''} />
+          ) : (
+            items.length > 0 && (
+              <Registers
+                label={`Register von ${area.label}`}
+                items={items}
+                current={meta.register ?? ''}
+                revealCurrent={revealCurrentRegister}
+                renderLink={(item, props) => (
+                  <AppLink
+                    to={item.href ?? '/'}
+                    // The Zeitraum travels along between the Vermögen registers.
+                    search={meta.area === 'vermoegen' ? keepZeitraum : undefined}
+                    {...props}
+                  >
+                    {item.label}
+                  </AppLink>
+                )}
+              />
+            )
           )}
           {children}
         </>

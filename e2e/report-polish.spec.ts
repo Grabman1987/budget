@@ -5,7 +5,7 @@ import { inspectReport } from './spending-helpers';
 sampleTest('report heatmap cells keep readable text in both themes', async ({ page }, info) => {
   sampleTest.setTimeout(180_000);
   for (const [path, selector] of [
-    ['/reports/jahresansicht', '.hc2.hc-red, .hc2.hc-green'],
+    ['/reports/jahresansicht', '[data-testid="template-year"] td[data-heat]'],
     [
       '/reports/ausgaben',
       '[data-testid="template-heatmap"] td[data-heat="bad"], [data-testid="template-heatmap"] td[data-heat="good"]',
