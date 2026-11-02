@@ -1,3 +1,4 @@
+import { wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import type { Heute } from '../apps/web/src/heute/api';
@@ -60,7 +61,9 @@ test('each value equals the same figure on Plan, the Plan inspector and Vermöge
   }
 
   await page.goto('/vermoegen/nettovermoegen');
-  await expect(page.getByTestId('nw-figure')).toHaveText(netto);
+  await expect(
+    page.getByTestId((await wealthRedesign(page)) ? 'wealth-net-value' : 'nw-figure'),
+  ).toHaveText(netto);
 });
 
 test('Frei bis Gehalt is the existing lead figure of the API', async ({ page }) => {

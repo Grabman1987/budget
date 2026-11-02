@@ -32,6 +32,7 @@ export function SavingsSection({
   const search = useSearch({ strict: false }) as {
     sparplan?: string;
     zeitraum?: Period;
+    fokus?: string;
   };
   const navigate = useNavigate();
   const [includeEnded, setIncludeEnded] = useState(false);
@@ -45,12 +46,13 @@ export function SavingsSection({
       search: ((prev: Record<string, unknown>) => ({
         ...prev,
         sparplan: sparplan === 'neu' ? sparplan : undefined,
+        fokus: sparplan ? prev['fokus'] : undefined,
         produkt: undefined,
         handel: undefined,
         allokation: undefined,
       })) as never,
     }).then(() => {
-      if (sparplan || !search.sparplan) return;
+      if (sparplan || !search.sparplan || search.fokus === 'investment') return;
       // Closing navigation can remount the route and detach the dialog's native opener.
       requestAnimationFrame(() => {
         if (document.querySelector('dialog[open]')) return;

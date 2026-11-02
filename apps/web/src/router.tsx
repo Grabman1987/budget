@@ -475,6 +475,7 @@ const netWorthRoute = createRoute({
   component: lazyRouteComponent(() => import('./wealth/networth-page'), 'NetWorthPage'),
 });
 const wealthPresentationSearch = (search: Record<string, unknown>) => ({
+  ...(search['fokus'] === 'investment' ? { fokus: 'investment' } : {}),
   anlageart: search['anlageart'] === undefined ? undefined : assetType(search['anlageart']),
   ansicht:
     search['ansicht'] === 'aktivitaeten' || search['ansicht'] === 'analyse'

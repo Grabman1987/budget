@@ -7,6 +7,7 @@ import type { Page, Locator } from '@playwright/test';
 import { inboxItem, insertTracked, openDatabase } from '@budget/db';
 import { sampleTest as test, expect } from './sample';
 import { test as isolatedTest } from './isolated-ledger';
+import { wealthRedesign } from './wealth-navigation';
 import { openPruefenSource } from './pruefen-part';
 
 const on = process.env['A2_EXPECT_REDESIGN'] === '1';
@@ -36,7 +37,12 @@ async function journal(p: Page) {
   ).toBeVisible();
 }
 async function instrument(p: Page) {
-  await css(p, '.instrument-detail[aria-label="ETF Welt"] .instrument-metadata');
+  await css(
+    p,
+    (await wealthRedesign(p))
+      ? '.wealth-instrument-strip'
+      : '.instrument-detail[aria-label="ETF Welt"] .instrument-metadata',
+  );
   await css(p, '.instrument-detail .trade-list tr[data-trade-id]');
   await id(p, 'instrument-value-chart');
 }
@@ -167,14 +173,19 @@ const probes = {
     await expect(detail).toContainText('In diesem Monat gibt es noch keine Kontaktbuchungen.');
     await expect(detail).toContainText('Noch keine ältere oder spätere Kontaktbewegung.');
   },
-  networth: (p: Page) => id(p, 'nw-figure'),
+  networth: async (p: Page) => id(p, (await wealthRedesign(p)) ? 'wealth-net-value' : 'nw-figure'),
   wealthOverview: (p: Page) => id(p, 'wealth-net-value'),
-  portfolio: (p: Page) => id(p, 'portfolio-overview-chart'),
+  portfolio: async (p: Page) =>
+    id(p, (await wealthRedesign(p)) ? 'wealth-net-value' : 'portfolio-overview-chart'),
   positions: async (p: Page) => {
     await id(p, 'portfolio-value');
-    await css(p, '.portfolio-table tbody tr');
+    await css(
+      p,
+      (await wealthRedesign(p)) ? '.wealth-position-table tbody tr' : '.portfolio-table tbody tr',
+    );
   },
-  allocation: (p: Page) => css(p, '.vallo'),
+  allocation: async (p: Page) =>
+    css(p, (await wealthRedesign(p)) ? '.wealth-allocation-table' : '.vallo'),
   savingsList: (p: Page) =>
     expect(
       p

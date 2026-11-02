@@ -87,10 +87,33 @@ function WealthToolbar({
   const accounts = useQuery({ ...accountsQuery(), enabled: !date || valuePicker });
   const asOf = date ?? accounts.data?.asOf;
   const art = useAssetType();
+  const captureSearch = useSearch({ strict: false }) as {
+    fokus?: string;
+    produkt?: string;
+    handel?: string;
+    sparplan?: string;
+  };
+  const capturing =
+    captureSearch.produkt === 'neu' || !!captureSearch.handel || captureSearch.sparplan === 'neu';
   const navigate = useNavigate();
   const menu = useRef<HTMLDetailsElement>(null);
   const toolbar = useRef<HTMLDivElement>(null);
+  const focusInvestment = () =>
+    requestAnimationFrame(() => menu.current?.querySelector('summary')?.focus());
   const [account, setAccount] = useState(false);
+  const wasCapturing = useRef(capturing);
+  const returnToMenu = useRef(capturing && captureSearch.fokus === 'investment');
+  useEffect(() => {
+    if (capturing && captureSearch.fokus === 'investment') returnToMenu.current = true;
+    const closing = wasCapturing.current && !capturing && returnToMenu.current;
+    wasCapturing.current = capturing;
+    if (!closing) return;
+    returnToMenu.current = false;
+    const frame = requestAnimationFrame(() => {
+      if (!document.querySelector('dialog[open]')) menu.current?.querySelector('summary')?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [capturing, captureSearch.fokus]);
   useEffect(() => {
     const element = toolbar.current;
     const toggle = (event: Event) => {
@@ -125,7 +148,12 @@ function WealthToolbar({
   const choice = (children: ReactNode, to: string, search: Record<string, unknown> = {}) => (
     <AppLink
       to={to}
-      search={(prev) => ({ zeitraum: prev['zeitraum'], anlageart: art, ...search })}
+      search={(prev) => ({
+        zeitraum: prev['zeitraum'],
+        anlageart: art,
+        fokus: 'investment',
+        ...search,
+      })}
       onClick={() => {
         if (menu.current) menu.current.open = false;
       }}
@@ -211,9 +239,22 @@ function WealthToolbar({
           </nav>
         </details>
       </div>
-      <AccountFormPanel open={account} onClose={() => setAccount(false)} />
+      <AccountFormPanel
+        open={account}
+        onClose={() => {
+          setAccount(false);
+          focusInvestment();
+        }}
+      />
       {valuePicker && (
-        <WideDialog open onClose={() => setValuePicker(false)} title="Wert aktualisieren">
+        <WideDialog
+          open
+          onClose={() => {
+            setValuePicker(false);
+            focusInvestment();
+          }}
+          title="Wert aktualisieren"
+        >
           <p>Für welches manuell bewertete Konto möchtest du einen Wert eintragen?</p>
           {accounts.isPending && <LoadingNote what="Konten" />}
           {accounts.isError && (

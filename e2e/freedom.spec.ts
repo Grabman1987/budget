@@ -86,7 +86,9 @@ test('live sources, explicit scenario, original design and native drill-down lin
   await expect(page.getByRole('group', { name: 'Zeitraum', exact: true })).toHaveCount(0);
   for (const path of ['/vermoegen/nettovermoegen', '/vermoegen/portfolio']) {
     await page.goto(path);
-    await expect(page.getByRole('group', { name: 'Zeitraum', exact: true })).toBeVisible();
+    if (await wealthRedesign(page))
+      await expect(page.getByRole('combobox', { name: 'Zeitraum', exact: true })).toBeVisible();
+    else await expect(page.getByRole('group', { name: 'Zeitraum', exact: true })).toBeVisible();
   }
 });
 
@@ -255,7 +257,7 @@ ledgerTest(
       await page.getByRole('link', { name: 'Vermögen', exact: true }).click();
       await page
         .getByRole('link', {
-          name: (await wealthRedesign(page)) ? 'Ausgabenbasis und Annahmen öffnen →' : 'Freiheit',
+          name: (await wealthRedesign(page)) ? 'Report →' : 'Freiheit',
           exact: true,
         })
         .click();

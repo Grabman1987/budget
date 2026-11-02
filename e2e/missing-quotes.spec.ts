@@ -1,3 +1,4 @@
+import { gotoWealthAnalysis } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { join } from 'node:path';
@@ -185,7 +186,7 @@ test('a position without market quote is valued at cost and flagged; the first q
   }
   // Once quoted, the position is no longer flagged (the hint only names currently held positions
   // without quote or usable execution price); the history answers without error.
-  await page.goto('/vermoegen/nettovermoegen');
+  await gotoWealthAnalysis(page, '/vermoegen/nettovermoegen');
   await expect(page.getByTestId('nw-figure')).toBeVisible();
   await expect(page.getByTestId('valuation-hint')).toHaveCount(0);
   await expect(page.getByRole('alert')).toHaveCount(0);

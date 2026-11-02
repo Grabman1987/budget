@@ -36,6 +36,13 @@ test('allocation uses one settings editor and returns to the original selection;
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).not.toBeVisible();
   if (on) {
+    const investment = page.locator('.wealth-investment > summary');
+    await investment.click();
+    await page.getByRole('link', { name: 'Sparplan anlegen', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    await expect(investment).toBeFocused();
     await page.locator('summary').getByText('Ausführungen prüfen', { exact: true }).click();
     await expect(page.getByRole('region', { name: 'Fällige Sparplanausführungen' })).toBeVisible();
   }

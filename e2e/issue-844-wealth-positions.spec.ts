@@ -28,4 +28,24 @@ test('positions retain filtered activities, instrument returns and trade capture
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).not.toBeVisible();
+  if (on) {
+    const investment = page.locator('.wealth-investment > summary');
+    await expect(investment).toBeFocused();
+    for (const action of [
+      'Wertpapier anlegen',
+      'Krypto anlegen',
+      'P2P-Konto anlegen',
+      'Wert aktualisieren',
+    ]) {
+      await investment.click();
+      await page
+        .getByRole('navigation', { name: 'Investment hinzufügen' })
+        .getByText(action, { exact: true })
+        .click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('dialog')).not.toBeVisible();
+      await expect(investment).toBeFocused();
+    }
+  }
 });

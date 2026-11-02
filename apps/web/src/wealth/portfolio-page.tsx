@@ -125,6 +125,7 @@ function PortfolioBody({ register }: { register: PortfolioRegister }) {
         ...prev,
         produkt,
         handel,
+        fokus: handel ? prev['fokus'] : undefined,
         allokation: undefined,
         sparplan: undefined,
       })) as never,

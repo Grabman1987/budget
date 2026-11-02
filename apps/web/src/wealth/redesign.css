@@ -851,6 +851,13 @@
   .wealth-redesign .wealth-savings-table thead {
     display: none;
   }
+  .wealth-redesign .wealth-savings-table,
+  .wealth-redesign .wealth-savings-table :is(tbody, tfoot),
+  .wealth-redesign .wealth-debt-accounts table,
+  .wealth-redesign .wealth-debt-accounts table tbody {
+    display: block;
+    width: 100%;
+  }
   .wealth-redesign .wealth-savings-table tbody tr {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -877,6 +884,11 @@
   }
   .wealth-redesign .wealth-savings-table tfoot td {
     padding: 8px 0;
+  }
+  .wealth-redesign .wealth-savings-table tfoot tr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
   .wealth-redesign .wealth-allocation-columns {
     flex-direction: column;
@@ -920,6 +932,7 @@
     align-items: center;
     border-bottom: 1px solid var(--rule);
     padding: 8px 0;
+    gap: 4px 12px;
   }
   .wealth-redesign .wealth-debt-accounts table :is(th, td) {
     height: auto;
@@ -1219,6 +1232,13 @@
   flex: 1;
   margin: 0;
   font-size: var(--fs-meta);
+}
+@media (max-width: 767px) {
+  .wealth-redesign .wealth-debt-terms-prompt {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
 }
 .wealth-redesign .wealth-instrument-v3 {
   padding: 0;

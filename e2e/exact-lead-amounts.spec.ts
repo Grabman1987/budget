@@ -1,3 +1,4 @@
+import { gotoWealthAnalysis } from './wealth-navigation';
 import type { Page } from '@playwright/test';
 import { openDatabase, schema } from '@budget/db';
 import { test as isolatedTest } from './isolated-ledger';
@@ -125,7 +126,7 @@ test('Vermögen shows exact cents at rounding, sign and grouping boundaries', as
   });
   for (const [cents, text] of cases) {
     value = cents;
-    await page.goto('/vermoegen/nettovermoegen');
+    await gotoWealthAnalysis(page, '/vermoegen/nettovermoegen');
     await expect(page.getByTestId('nw-figure')).toHaveText(text);
   }
   await screenshot(page);
