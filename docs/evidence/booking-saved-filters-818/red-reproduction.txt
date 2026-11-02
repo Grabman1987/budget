@@ -1,0 +1,7 @@
+Source: 58776575e8749f7eee68d558103ef88113a0830d (preserved 2af8b792 + main ef765f5f)
+Command: PLAYWRIGHT_BROWSERS_PATH=/workspace/.cache/ms-playwright E2E_PORT=4510 npx playwright test e2e/issue-818-ledger-saved-filters.spec.ts --project=desktop --grep "a real background refresh cannot rebase" --workers=1 --retries=0 --update-snapshots=none
+Result: 3 setup passed; 1 failed (6.5s)
+Assertion: expect((await submitted).status()).toBe(409)
+Expected: 409
+Received: 200
+Cause: write used the refreshed query revision for an older open rename draft, overwriting the concurrent tuple.
