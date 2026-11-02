@@ -1,4 +1,4 @@
-import { wealthAreaNavigation, wealthRedesign } from './wealth-navigation';
+import { gotoWealthAnalysis, wealthAreaNavigation, wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { expectMatchesReference, type Rect, type RegionCheck } from './reference';
@@ -17,7 +17,7 @@ const NET_WORTH_EUROS = 84_730;
 const euros = (text: string) => Number(text.replace(/[^\d−-]/g, '').replace('−', '-'));
 
 async function ready(page: Page, path = PATH) {
-  await page.goto(path);
+  await gotoWealthAnalysis(page, path);
   await expect(page.getByTestId('networth-chart')).toBeVisible({ timeout: 20_000 });
   await page.evaluate(() => document.fonts.ready);
 }
@@ -140,7 +140,10 @@ test('the Zeitraum switch updates the URL, the figures and travels to Portfolio'
 
   await (await wealthAreaNavigation(page)).getByRole('link', { name: 'Portfolio' }).click();
   await expect(page).toHaveURL(/vermoegen\/portfolio\?zeitraum=3M/);
-  await expect(page.getByRole('button', { name: '3M' })).toHaveAttribute('aria-pressed', 'true');
+  if (await wealthRedesign(page))
+    await expect(page.getByRole('combobox', { name: 'Zeitraum', exact: true })).toHaveValue('3M');
+  else
+    await expect(page.getByRole('button', { name: '3M' })).toHaveAttribute('aria-pressed', 'true');
 
   await ready(page, `${PATH}?zeitraum=1J`);
   await expect(page.getByRole('button', { name: '1J' })).toHaveAttribute('aria-pressed', 'true');

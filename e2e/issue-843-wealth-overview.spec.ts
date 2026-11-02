@@ -41,9 +41,10 @@ test('flagged overview separates total wealth, signed basis, chart and retained 
   await page.setViewportSize({ width: 320, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  await page.getByText('Datenbasis und bestehende Auswertungen', { exact: true }).click();
   await page.getByText('Nettovermögen und Verlauf im Detail').click();
   await expect(page.getByTestId('nw-figure')).toBeVisible();
   await page.goBack();
-  await page.getByRole('link', { name: 'Ausgabenbasis und Annahmen öffnen →' }).click();
+  await page.getByRole('link', { name: 'Report →', exact: true }).click();
   await expect(page).toHaveURL(/\/vermoegen\/freiheit/);
 });

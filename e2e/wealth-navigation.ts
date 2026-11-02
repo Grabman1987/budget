@@ -23,6 +23,7 @@ export async function selectPortfolioView(page: Page, label: string) {
   ) {
     const nav = await portfolioNavigation(page);
     await nav.getByRole('link', { name: 'Übersicht', exact: true }).click();
+    await page.getByText('Datenbasis und bestehende Auswertungen', { exact: true }).click();
     await page
       .getByRole('link', {
         name:
@@ -35,6 +36,14 @@ export async function selectPortfolioView(page: Page, label: string) {
     return;
   }
   await (await portfolioNavigation(page)).getByRole('link', { name: label, exact: true }).click();
+  if (
+    (await wealthRedesign(page)) &&
+    label === 'Übersicht' &&
+    (await page.locator('.wealth-toolbar').count())
+  ) {
+    await page.getByText('Datenbasis und bestehende Auswertungen', { exact: true }).click();
+    await page.getByRole('link', { name: 'Bestehende Portfolioanalyse', exact: true }).click();
+  }
 }
 
 export async function showDebtHistory(page: Page) {
@@ -52,4 +61,59 @@ export async function wealthAreaNavigation(page: Page) {
     return menu.getByRole('navigation', { name: 'Ansichten von Vermögen', exact: true });
   }
   return page.getByRole('navigation', { name: 'Register von Vermögen', exact: true });
+}
+
+/** Analysis contracts stay covered at their retained deep link in ON; OFF keeps its original URL. */
+export async function gotoWealthAnalysis(page: Page, path: string) {
+  await page.goto(path);
+  await page.locator('.app').waitFor({ state: 'attached' });
+  if (await wealthRedesign(page)) {
+    const target = new URL(path, page.url());
+    target.searchParams.set('ansicht', 'analyse');
+    await page.goto(target.pathname + target.search + target.hash);
+  }
+}
+
+export async function showAllocationEvidence(page: Page) {
+  if (await wealthRedesign(page)) {
+    const summary = page.getByText('Bewertungsbasis, Zuordnung und Rebalancing-Hinweise', {
+      exact: true,
+    });
+    if ((await summary.locator('..').getAttribute('open')) === null) await summary.click();
+  }
+}
+export async function showSavingsSchedules(page: Page) {
+  if ((await wealthRedesign(page)) && new URL(page.url()).pathname.endsWith('/sparplaene')) {
+    const summary = page.getByText('Zeitpläne, Versionen und beendete Sparpläne', { exact: true });
+    if ((await summary.locator('..').getAttribute('open')) === null) await summary.click();
+  }
+}
+export async function showDebtOverview(page: Page) {
+  if (await wealthRedesign(page)) {
+    const summary = page.getByText('Tilgungsübersicht und weitere Sondertilgungen', {
+      exact: true,
+    });
+    if ((await summary.locator('..').getAttribute('open')) === null) await summary.click();
+  }
+}
+
+export async function startInvestmentCapture(
+  page: Page,
+  name: 'Handel erfassen' | 'Wertpapier anlegen',
+) {
+  if (await wealthRedesign(page)) {
+    await page.locator('.wealth-investment > summary').click();
+    await page
+      .getByRole('navigation', { name: 'Investment hinzufügen' })
+      .getByRole('link', { name, exact: true })
+      .click();
+  } else {
+    await page
+      .getByRole('button', {
+        name: name === 'Wertpapier anlegen' ? 'Instrument anlegen' : name,
+        exact: true,
+      })
+      .first()
+      .click();
+  }
 }

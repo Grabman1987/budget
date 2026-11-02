@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
+import { WideDialog } from '@budget/ui';
+import { ErrorNote, LoadingNote, EmptyNote } from '../ledger/states';
+import { createPortal } from 'react-dom';
+import { accountsQuery } from '../ledger/queries';
+import { useQuery } from '@tanstack/react-query';
+import { standQuery } from './api';
+import { longDay } from '../ledger/format';
 import { Plus } from 'lucide-react';
 import { PageFrame, type PageFrameProps } from '../pages/placeholder-page';
 import { PageMenu } from '../nav/page-menu';
@@ -26,20 +33,59 @@ export function useAssetType() {
 export function WealthFrame({
   page,
   legacy,
+  date,
+  controls,
   children,
   ...props
-}: PageFrameProps & { page: WealthPage; legacy?: boolean }) {
+}: PageFrameProps & {
+  page: WealthPage;
+  legacy?: boolean;
+  date?: string | undefined;
+  controls?: ReactNode;
+}) {
   if (!REDESIGN_ENABLED || legacy) return <PageFrame {...props}>{children}</PageFrame>;
   return (
     <div className="wealth-redesign" data-testid="wealth-redesign">
-      <PageFrame {...props} title="Vermögen" pageNavigation={<WealthToolbar page={page} />}>
-        {children}
-      </PageFrame>
+      <WealthTitle />
+      <WealthToolbar page={page} date={date} controls={controls} />
+      {children}
     </div>
   );
 }
 
-function WealthToolbar({ page }: { page: WealthPage }) {
+function WealthTitle() {
+  const [host, setHost] = useState<Element | null>(null);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setHost(document.querySelector('.topbar-inner')));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  return (
+    <>
+      <h1 className={host ? 'sr-only' : 'wealth-title'}>Vermögen</h1>
+      {host &&
+        createPortal(
+          <span className="wealth-top-title" aria-hidden="true">
+            Vermögen
+          </span>,
+          host,
+        )}
+    </>
+  );
+}
+
+function WealthToolbar({
+  page,
+  date,
+  controls,
+}: {
+  page: WealthPage;
+  date?: string | undefined;
+  controls?: ReactNode;
+}) {
+  const [valuePicker, setValuePicker] = useState(false);
+  const stand = useQuery(standQuery());
+  const accounts = useQuery({ ...accountsQuery(), enabled: !date || valuePicker });
+  const asOf = date ?? accounts.data?.asOf;
   const art = useAssetType();
   const navigate = useNavigate();
   const menu = useRef<HTMLDetailsElement>(null);
@@ -115,9 +161,23 @@ function WealthToolbar({ page }: { page: WealthPage }) {
             </select>
           </label>
         )}
+        <div className="wealth-toolbar-spacer" />
+        {controls}
+        <span className="wealth-stand" role="status">
+          Stand {asOf ? longDay(asOf) : '—'} · Kurse{' '}
+          {stand.data?.priceAt
+            ? new Intl.DateTimeFormat('de-AT', { hour: '2-digit', minute: '2-digit' }).format(
+                new Date(stand.data.priceAt),
+              )
+            : '—'}
+        </span>
         <details className="area-page-menu wealth-investment" ref={menu}>
           <summary>
-            <Plus size={16} aria-hidden="true" /> Investment
+            <Plus size={16} aria-hidden="true" />
+            <span className="wealth-investment-label" aria-hidden="true">
+              Investment
+            </span>
+            <span className="sr-only">Investment</span>
           </summary>
           <nav aria-label="Investment hinzufügen">
             {choice('Wertpapier anlegen', '/vermoegen/portfolio/positionen', {
@@ -139,11 +199,60 @@ function WealthToolbar({ page }: { page: WealthPage }) {
             </button>
             {choice('Handel erfassen', '/vermoegen/portfolio/positionen', { handel: 'neu' })}
             {choice('Sparplan anlegen', '/vermoegen/portfolio/sparplaene', { sparplan: 'neu' })}
-            {choice('Wert aktualisieren', '/konten', {})}
+            <button
+              type="button"
+              onClick={() => {
+                if (menu.current) menu.current.open = false;
+                setValuePicker(true);
+              }}
+            >
+              Wert aktualisieren
+            </button>
           </nav>
         </details>
       </div>
       <AccountFormPanel open={account} onClose={() => setAccount(false)} />
+      {valuePicker && (
+        <WideDialog open onClose={() => setValuePicker(false)} title="Wert aktualisieren">
+          <p>Für welches manuell bewertete Konto möchtest du einen Wert eintragen?</p>
+          {accounts.isPending && <LoadingNote what="Konten" />}
+          {accounts.isError && (
+            <ErrorNote
+              what="Konten"
+              error={accounts.error}
+              onRetry={() => void accounts.refetch()}
+            />
+          )}
+          <ul>
+            {accounts.data?.accounts
+              .filter(
+                (row) =>
+                  !row.closedAt && !row.hasHoldings && ['p2p', 'other_asset'].includes(row.type),
+              )
+              .map((row) => (
+                <li key={row.id}>
+                  <AppLink
+                    to={`/konten/${encodeURIComponent(row.id)}`}
+                    search={{ pruefen: 'value' }}
+                    onClick={() => setValuePicker(false)}
+                  >
+                    {row.name} →
+                  </AppLink>
+                </li>
+              ))}
+          </ul>
+          {accounts.isSuccess &&
+            !accounts.data.accounts.some(
+              (row) =>
+                !row.closedAt && !row.hasHoldings && ['p2p', 'other_asset'].includes(row.type),
+            ) && (
+              <EmptyNote>
+                Keine manuell bewerteten Konten. Wertpapier- und Kryptokurse trägst du direkt im
+                Instrument ein.
+              </EmptyNote>
+            )}
+        </WideDialog>
+      )}
     </>
   );
 }

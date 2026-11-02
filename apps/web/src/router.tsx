@@ -469,12 +469,17 @@ const freedomRoute = createRoute({
 const netWorthRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: VERMOEGEN_NETTO_META.path,
+  validateSearch: (search) =>
+    REDESIGN_ENABLED && search['ansicht'] === 'analyse' ? { ansicht: 'analyse' } : {},
   staticData: { meta: VERMOEGEN_NETTO_META },
   component: lazyRouteComponent(() => import('./wealth/networth-page'), 'NetWorthPage'),
 });
 const wealthPresentationSearch = (search: Record<string, unknown>) => ({
   anlageart: search['anlageart'] === undefined ? undefined : assetType(search['anlageart']),
-  ansicht: search['ansicht'] === 'aktivitaeten' ? 'aktivitaeten' : undefined,
+  ansicht:
+    search['ansicht'] === 'aktivitaeten' || search['ansicht'] === 'analyse'
+      ? search['ansicht']
+      : undefined,
 });
 const portfolioRegisterSearch = (search: Record<string, unknown>) => ({
   ...(REDESIGN_ENABLED ? wealthPresentationSearch(search) : {}),
