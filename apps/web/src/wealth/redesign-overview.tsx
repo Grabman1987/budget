@@ -100,8 +100,10 @@ export function WealthOverview() {
                 className="wealth-action"
                 to="/vermoegen/portfolio/sparplaene"
                 hash="funding-plan-title"
+                aria-label="Nächste Einzahlung vormerken"
+                title="Nächste Einzahlung vormerken"
               >
-                Nächste Einzahlung vormerken
+                Vormerken
               </AppLink>
             ),
           })) ?? [])),
@@ -227,7 +229,7 @@ export function WealthOverview() {
               {(allActions ? actions : actions.slice(0, 4)).map((row) => (
                 <li key={row.id}>
                   <span className="wealth-next-icon">{row.icon}</span>
-                  <span>{row.text}</span>
+                  <span className="wealth-next-text">{row.text}</span>
                   {row.action}
                 </li>
               ))}
