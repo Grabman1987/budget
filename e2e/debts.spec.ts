@@ -1,3 +1,4 @@
+import { showDebtCalculation, showDebtOverview, wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -49,7 +50,7 @@ sampleTest(
   'current debts, literal native payoff, pending inputs, drilldown and prototype geometry',
   async ({ page, request }, info) => {
     await page.goto('/vermoegen/schulden');
-    await page.getByText('Rechenweg', { exact: true }).click();
+    await showDebtCalculation(page);
     await expect(page.getByTestId('debt-total')).toHaveText('12.626,00 €');
     await expect(page.getByLabel('Monatsrate (EUR)', { exact: true })).toHaveValue('');
     await page.getByRole('button', { name: 'Modell berechnen', exact: true }).click();
@@ -124,7 +125,12 @@ sampleTest(
         model: await p.locator(model).boundingBox(),
       };
     };
-    const actual = await geometry(page, '.debts-view > .vnw', '.debt-assumptions'),
+    await showDebtOverview(page);
+    const actual = await geometry(
+        page,
+        (await wealthRedesign(page)) ? '.wealth-debt-lead' : '.debts-view > .vnw',
+        '.debt-assumptions',
+      ),
       original = await geometry(prototype, '.vview > .vnw', '.vview > .vcomp');
     // The owner full-width directive supersedes the prototype's desktop side column (#342).
     // V1 puts the total and real history before the overview and disclosed calculation.
@@ -132,7 +138,9 @@ sampleTest(
     const calculation = (await page.locator('.debt-rechenweg').boundingBox())!;
     const content = (await page.locator('.debt-rechenweg > .vview').boundingBox())!;
     expect(actual.lead!.y + actual.lead!.height).toBeLessThan(leadResult.y);
-    expect(leadResult.y + leadResult.height).toBeLessThan(calculation.y);
+    if (await wealthRedesign(page))
+      expect(leadResult.y).toBeGreaterThanOrEqual(actual.lead!.y + actual.lead!.height);
+    else expect(leadResult.y + leadResult.height).toBeLessThan(calculation.y);
     expect(actual.model!.y).toBeGreaterThanOrEqual(actual.lead!.y + actual.lead!.height - 1);
     expect(Math.abs(calculation.x - actual.lead!.x)).toBeLessThanOrEqual(1);
     expect(Math.abs(calculation.width - actual.lead!.width)).toBeLessThanOrEqual(1);
@@ -159,7 +167,7 @@ sampleTest(
       ).status(),
     ).toBe(403);
     await page.reload();
-    await page.getByText('Rechenweg', { exact: true }).click();
+    await showDebtCalculation(page);
     await expect(page.getByLabel('Monatsrate (EUR)', { exact: true })).toHaveValue('');
     await expect(page.getByRole('region', { name: 'Modellvergleich' })).toHaveCount(0);
     const link = page.locator('.debt-accounts').getByRole('link').first();
@@ -194,7 +202,7 @@ sampleTest(
     await page.goto('/vermoegen/schulden');
     await expect(page.getByText('Schulden konnten nicht geladen werden.')).toBeVisible();
     await page.getByRole('button', { name: 'Erneut versuchen' }).click();
-    await page.getByText('Rechenweg', { exact: true }).click();
+    await showDebtCalculation(page);
     await expect(page.getByTestId('debt-total')).toHaveText('—');
     await expect(page.getByLabel('Nominaler Jahreszins (%)', { exact: true })).toHaveValue('');
     await expect(page.getByLabel('Monatliche Gebühr (USD)', { exact: true })).toHaveValue('');
@@ -219,7 +227,7 @@ test('empty debts and actual native currency scenario need no EUR exchange rate'
     route.fulfill({ json: { asOf: '2026-10-01', accounts: [], totalEurCents: 0 } }),
   );
   await page.goto('/vermoegen/schulden');
-  await page.getByText('Rechenweg', { exact: true }).click();
+  await showDebtCalculation(page);
   await expect(page.getByText('Keine negativen Kontowerte zum Stichtag.')).toBeVisible();
   await page.unroute('**/api/wealth/debts');
   const created = await request.post('/api/accounts', {
@@ -235,7 +243,7 @@ test('empty debts and actual native currency scenario need no EUR exchange rate'
   expect(created.ok()).toBe(true);
   const { account } = await created.json();
   await page.goto(`/vermoegen/schulden?kredit=${account.id}`);
-  await page.getByText('Rechenweg', { exact: true }).click();
+  await showDebtCalculation(page);
   await expect(page.getByLabel('Monatsrate (USD)', { exact: true })).toBeVisible();
   await page.getByLabel('Monatsrate (USD)', { exact: true }).fill('40');
   await page.getByLabel('Monatliche Gebühr (USD)', { exact: true }).fill('0');

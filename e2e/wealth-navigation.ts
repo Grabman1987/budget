@@ -74,6 +74,27 @@ export async function gotoWealthAnalysis(page: Page, path: string) {
   }
 }
 
+/** Follow the retained analysis from the new overview after validating an incoming deep link. */
+export async function showPortfolioAnalysis(page: Page) {
+  if ((await wealthRedesign(page)) && (await page.locator('.wealth-overview').count())) {
+    const summary = page.getByText('Datenbasis und bestehende Auswertungen', { exact: true });
+    if ((await summary.locator('..').getAttribute('open')) === null) await summary.click();
+    await page.getByRole('link', { name: 'Bestehende Portfolioanalyse', exact: true }).click();
+  }
+}
+
+export async function showDebtCalculation(page: Page) {
+  const summary = page.locator('.debt-rechenweg > summary');
+  if ((await summary.locator('..').getAttribute('open')) === null) await summary.click();
+}
+
+export async function showDebtPlanFacts(page: Page) {
+  if (await wealthRedesign(page)) {
+    const summary = page.getByText('Modellannahmen, Zins und Tilgung je Jahr', { exact: true });
+    if ((await summary.locator('..').getAttribute('open')) === null) await summary.click();
+  }
+}
+
 export async function showAllocationEvidence(page: Page) {
   if (await wealthRedesign(page)) {
     const summary = page.getByText('Bewertungsbasis, Zuordnung und Rebalancing-Hinweise', {

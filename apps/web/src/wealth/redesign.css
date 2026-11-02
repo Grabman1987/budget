@@ -1177,6 +1177,9 @@
 }
 .wealth-redesign .debt-plan-history > .wealth-debt-model-details {
   order: 5;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 .wealth-redesign .debts-view > .wealth-debt-history-disclosure {
   order: 6;
@@ -1215,6 +1218,9 @@
 }
 .wealth-redesign .wealth-debt-live-columns {
   width: 100%;
+}
+.wealth-redesign .wealth-debt-unavailable {
+  grid-column: 1 / -1;
 }
 .wealth-redesign .wealth-debt-terms-prompt {
   display: flex;

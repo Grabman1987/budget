@@ -78,7 +78,6 @@ export function DebtsPage() {
         {view && (
           <>
             <DebtLead view={view} loan={loan} />
-            {REDESIGN_ENABLED && <></>}
             {loan && (
               <DebtPlanHistory
                 key={`${loan.id}:${view.asOf}`}
@@ -280,6 +279,18 @@ function DebtLead({ view, loan }: { view: DebtsView; loan?: DebtAccount | undefi
             </div>
           )}
         </div>
+        {view.totalEurCents === null && (
+          <p className="vnote wealth-debt-unavailable">
+            Gesamtschuld unbekannt.{' '}
+            {view.unavailableReason === 'calculation_limit'
+              ? 'Sichere Rechengrenze überschritten. '
+              : ''}
+            {view.accounts
+              .filter((row) => row.owedEurCents === null)
+              .map((row) => `${row.name}: ${unavailable(row)}`)
+              .join(' · ')}
+          </p>
+        )}
       </section>
     );
   const parts = view.totalEurCents === null ? null : eurParts(view.totalEurCents);

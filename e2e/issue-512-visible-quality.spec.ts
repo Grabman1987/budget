@@ -1,3 +1,4 @@
+import { showPortfolioAnalysis, gotoWealthAnalysis, wealthRedesign } from './wealth-navigation';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase } from '@budget/db';
@@ -286,6 +287,7 @@ for (const label of ['configured-profile', 'desktop-layout'] as const) {
         await capture(actual, info, browserName, label, selected, 'report', pointer);
         await actual.getByRole('button', { name: 'Portfolio öffnen', exact: true }).click();
         await expect(actual).toHaveURL(/vermoegen\/portfolio\?zeitraum=1M/);
+        await showPortfolioAnalysis(actual);
         const region = actual.getByRole('region', { name: 'Portfolioentwicklung', exact: true }),
           original = region.getByTestId('portfolio-return');
         await expect(original).not.toContainText('≈');
@@ -322,8 +324,12 @@ for (const label of ['configured-profile', 'desktop-layout'] as const) {
         await region.getByRole('link', { name: 'Reportkatalog Portfolio öffnen' }).click();
         await expect(actual).toHaveURL(/reports\/gruppe\/portfolio/);
         await actual.goBack();
-        await expect(actual).toHaveURL(/vermoegen\/portfolio\?zeitraum=1M/);
+        await expect(actual).toHaveURL(
+          (url) =>
+            url.pathname === '/vermoegen/portfolio' && url.searchParams.get('zeitraum') === '1M',
+        );
         await actual.goBack();
+        if (await wealthRedesign(actual)) await actual.goBack();
         await expect(actual).toHaveURL(
           (url) =>
             url.pathname === '/reports/pallocation' &&
@@ -412,6 +418,15 @@ sampleTest(
     try {
       await actual.clock.setFixedTime(new Date(SAMPLE_NOW));
       await actual.goto('/vermoegen/portfolio');
+      const redesigned = await wealthRedesign(actual);
+      if (redesigned) {
+        const compact = actual.getByTestId('wealth-compact-chart');
+        await expect(compact).toBeVisible();
+        expect(
+          (await compact.boundingBox())!.y + (await compact.boundingBox())!.height,
+        ).toBeLessThan(900);
+        await gotoWealthAnalysis(actual, '/vermoegen/portfolio');
+      }
       await expect(actual.getByTestId('portfolio-gain')).toContainText('€');
       const region = actual.getByRole('region', { name: 'Portfolioentwicklung', exact: true });
       const cue = region.getByRole('status', { name: 'Historische Bewertungsgrundlage' });
@@ -422,6 +437,9 @@ sampleTest(
       const original = region.getByTestId('portfolio-return');
       await expect(original.locator('..')).not.toHaveAttribute('open', '');
       const link = cue.getByRole('link', { name: 'Bewertungsquellen ansehen' });
+      // The compact v3 chart is the default above-the-fold view. The full historical
+      // source cue remains keyboard reachable in the retained, scrollable analysis.
+      if (redesigned) await link.scrollIntoViewIfNeeded();
       const geometry = await actual.evaluate(() => {
         const rect = (el: Element | null) => {
           if (!el) return null;
@@ -484,7 +502,7 @@ sampleTest(
       });
       expect(geometry.viewport).toEqual({ width: 1440, height: 900 });
       expect(geometry.scrollX).toBe(0);
-      expect(geometry.scrollY).toBe(0);
+      if (!redesigned) expect(geometry.scrollY).toBe(0);
       expect(geometry.chart).not.toBeNull();
       expect(geometry.chart!.bottom).toBeLessThan(geometry.viewport.height);
       expect(geometry.link).not.toBeNull();
