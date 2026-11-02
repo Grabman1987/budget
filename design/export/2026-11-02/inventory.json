@@ -1,0 +1,1539 @@
+{
+  "schemaVersion": 1,
+  "sourceArchiveSha256": "9a6fb7923be5ce648f2f5c57d8c498498ca7a16e45b1d7a5071ebb7baaa9dc8b",
+  "entries": [
+    {
+      "source_path": "ASSETS/README.md",
+      "sha256": "5630d929193f8507723f9ed31998d9bc30b132e55235ecbbd9ba4c9c9fd53b87",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Additional asset/source license notes outside bounded PNG pilot; original not admitted"
+    },
+    {
+      "source_path": "ASSETS/budget-192.png",
+      "sha256": "fcfaffb3864ee7c2fd20be7ff3de9d07a5316b7f50dc082032442805ef25feaf",
+      "disposition": "copied-original",
+      "destination": "assets/budget-192.png",
+      "reason": "Inspected anonymous image"
+    },
+    {
+      "source_path": "ASSETS/budget-512.png",
+      "sha256": "b97ee42cda48f41032fed925f46c9ee8ff28b0104f59e529739555d98e475a54",
+      "disposition": "copied-original",
+      "destination": "assets/budget-512.png",
+      "reason": "Inspected anonymous image"
+    },
+    {
+      "source_path": "ASSETS/budget-app-icon.svg",
+      "sha256": "acf3aa0f34d5ca4238ea516f88dcc454f68ff7b8e9cd4776c317d27a0f619a00",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Additional asset/source license notes outside bounded PNG pilot; original not admitted"
+    },
+    {
+      "source_path": "ASSETS/budget-mark.svg",
+      "sha256": "7226cabb4ceafbbf1ac32f8f8ce756e25127ada9fb0ffd9fd485acd5229c2dcd",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Additional asset/source license notes outside bounded PNG pilot; original not admitted"
+    },
+    {
+      "source_path": "ASSETS/budget.svg",
+      "sha256": "09eca4110b2805f056fd6c657f41b5d1ce86debe52ac9b012a8b822b3e6bbbaf",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Additional asset/source license notes outside bounded PNG pilot; original not admitted"
+    },
+    {
+      "source_path": "ASSETS/fonts/archivo-latin.woff2",
+      "sha256": "e3a28eade21a900c7155a247757f4b2834c07bb7ef07ad7efa55cebaac1e8f5e",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Additional asset/source license notes outside bounded PNG pilot; original not admitted"
+    },
+    {
+      "source_path": "ASSETS/fonts/barlow-sc-400.woff2",
+      "sha256": "d03a7a5f6b74534c80699289d4f6495fdb09a7596774a4ede79129d2f8bb67b1",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Additional asset/source license notes outside bounded PNG pilot; original not admitted"
+    },
+    {
+      "source_path": "ASSETS/fonts/barlow-sc-500.woff2",
+      "sha256": "0d7513795eaf8fdab7f340144841bd2d9fac7d9303c03aa6b525a2c908e9b371",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Additional asset/source license notes outside bounded PNG pilot; original not admitted"
+    },
+    {
+      "source_path": "ASSETS/fonts/barlow-sc-600.woff2",
+      "sha256": "f158417e9207b5362f9b71a2fe779ce5bb836ad972f38445c3163af39d2c998d",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Additional asset/source license notes outside bounded PNG pilot; original not admitted"
+    },
+    {
+      "source_path": "ASSETS/status-vorgemerkt.svg",
+      "sha256": "4517f0b9eea49ac03179e1ec63a063172692822f5ed0c42699f8b05018e5f09c",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Additional asset/source license notes outside bounded PNG pilot; original not admitted"
+    },
+    {
+      "source_path": "DARK-MODE.md",
+      "sha256": "a35d5095d7df9f03a13d9b1c2c535cf8c61dabbac21e6a9425a63a8181e0e68d",
+      "disposition": "derived-only",
+      "destination": "token-map.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "DECISIONS.md",
+      "sha256": "a0df400ec7586600a9b2a5e2646bfdd479eca2bdb6f2cd4ed226f353f73cab34",
+      "disposition": "derived-only",
+      "destination": "components.md; ../../../.impeccable/export-2026-11-02-pages.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "DESIGN-SYSTEM.md",
+      "sha256": "ca1f664322315ff2bbf07f25bc1a04e126ac94b9bf63cd9e8e8df8f8d2343598",
+      "disposition": "derived-only",
+      "destination": "token-map.md; components.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "MANIFEST.md",
+      "sha256": "7cd7202d1231cb5830a5857d302ec9b857e3c5e2af8b5b344b727be3e9950d4f",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Private provenance/open-item content; originals remain local; no content copied"
+    },
+    {
+      "source_path": "NAVIGATION.md",
+      "sha256": "48aa793723826398225ebf4797751aeb5769b7262b9e8b5832656f8bc6765024",
+      "disposition": "derived-only",
+      "destination": "../../../.impeccable/export-2026-11-02-pages.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "OPEN-POINTS.md",
+      "sha256": "2f20339af30bb9ef3fe25fc83cd95d9f337ebc193e36244a8707b31cc9c83ac7",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Private provenance/open-item content; originals remain local; no content copied"
+    },
+    {
+      "source_path": "components/blueprint-charts.md",
+      "sha256": "261a9ff530bd256152418e9e6e926674a311188f09eaba799290ca5588456f5e",
+      "disposition": "derived-only",
+      "destination": "components.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "components/buttons.md",
+      "sha256": "217bc90a70935f2afe29ee10243e70a8a71530cabb09791b0084548f4a67ee89",
+      "disposition": "derived-only",
+      "destination": "components.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "components/forms.md",
+      "sha256": "a8bebb23c1fa53b86d85e33f04d547b238e3ba38df71b96e5b6382b953c49494",
+      "disposition": "derived-only",
+      "destination": "components.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "components/status-feedback-navigation.md",
+      "sha256": "6d75c9faa2633ef92ac57c1dc07cc4fd44ecb9f65da646c697b48994461a6ad9",
+      "disposition": "derived-only",
+      "destination": "components.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "pages/einstellungen.md",
+      "sha256": "59935152a4e33a9698eada9dc4e2faf721e502661470e08287980e60ab1893c7",
+      "disposition": "derived-only",
+      "destination": "../../../.impeccable/export-2026-11-02-pages.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "pages/heute.md",
+      "sha256": "62eb212aab299cc551fcc975f3ba446009fb6b2abb567604344754a6b2a27452",
+      "disposition": "derived-only",
+      "destination": "../../../.impeccable/export-2026-11-02-pages.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "pages/konten.md",
+      "sha256": "36770ccbef26f287218bbf840cc2050336f88770ed9bb15d4b9b7abb634dc651",
+      "disposition": "derived-only",
+      "destination": "../../../.impeccable/export-2026-11-02-pages.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "pages/onboarding-und-zustaende.md",
+      "sha256": "259d1b9f0f211aefd23612f88a394f1e9a9c0e444366a8425caa9f99ede517b1",
+      "disposition": "derived-only",
+      "destination": "../../../.impeccable/export-2026-11-02-pages.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "pages/plan.md",
+      "sha256": "f8e90e808b712bd82d70fc30066af43b063c2efaa35017c00dd4ec9b4afadc1b",
+      "disposition": "derived-only",
+      "destination": "../../../.impeccable/export-2026-11-02-pages.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "pages/reports.md",
+      "sha256": "491fa19cf69198cdd59603fa3e8854226bc5c61e0d8d440880bc68a0abeff0ed",
+      "disposition": "derived-only",
+      "destination": "../../../.impeccable/export-2026-11-02-pages.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "pages/vermoegen.md",
+      "sha256": "ca1133b539b343ad3b1703edd8b4897427b8fa38e525258eeff3ce1d0a90782c",
+      "disposition": "derived-only",
+      "destination": "../../../.impeccable/export-2026-11-02-pages.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "prototype/NOTIZEN-einstellungen.md",
+      "sha256": "14b8fa8feca25592db6cc7f838385df0517879b5a289a2a92a4893252fce128b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/README.md",
+      "sha256": "6688c9ae1a8a22a8aba1692a5dbea4e4209ec064e43b8d1e7ea6a800953fb415",
+      "disposition": "derived-only",
+      "destination": "../../../.impeccable/export-2026-11-02-pages.md",
+      "reason": "Generic reconciliation only; original prose retained locally; precedence and conflicts in linked contracts"
+    },
+    {
+      "source_path": "prototype/buchung-v1.html",
+      "sha256": "8677d3c639d70ef1c52f5d6de2f837ac28b4152b77f6219619947d445fb8ffd3",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/einstellungen-v1.html",
+      "sha256": "a40d7873ba0fcfe38ad3c5c7ab706839e82510fa9ea2df2a83e0e1d73861c52e",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/heute-v2.html",
+      "sha256": "3551abe41136c50db83909655c4585eaccc0c40dc32d48070eb9bfedb01619ec",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/konten-alle-buchungen-v1.html",
+      "sha256": "a55e51b3bfb2a5d3d1636c1fce785fa2299525c6ecdf15f8ff3fba13524a3624",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/konten-v1.html",
+      "sha256": "32d4996952146d490300265ee282e0662cae80d7756331a8401adff40ec4e9b1",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/onboarding-v1.html",
+      "sha256": "781c0a6ba015ffe0305a1ce866d5ebe0c11d588a72d02914283144aac0e97d33",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Deferred onboarding #490; original not admitted"
+    },
+    {
+      "source_path": "prototype/plan-jahr-v1.html",
+      "sha256": "0daa99d43b7293eb757969770c5822ed6bc8cb50edee75c5d8636711dcd02d26",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/plan-monat-v1.html",
+      "sha256": "86ab7809cdcb829488faae21cc621f25564e99e3f476c7ae1169035c1ceae673",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Stale alternative or redirect per source README; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/plan-monat-v2.html",
+      "sha256": "d1ea0c85ac90742decb403ef09b7e09093a2f87f78fd94edc739fd561316d0dc",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/plan-prognose-v1.html",
+      "sha256": "9c8c86d59b6a615594dd5358253767f2cf34b692be30af7b12608ee0fd520faf",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/plan-zahlungen-v1.html",
+      "sha256": "d7503769db5f980ac79524e30edd08a30b92774340bdf97c3272b016d1823a1a",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/plan-ziele-v1.html",
+      "sha256": "68aad5c2b480d599d77640e591083580cd1133bd7b92c3518ec9a3f80e0b9bea",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/pruefen-v1.html",
+      "sha256": "7f3554bc9f0826c54c36e542b1c1748d2d74a56f29a1da59567ec74db602ea0b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/rd-canvas.jsx",
+      "sha256": "7af5b5240606438679c8355ad230f6e76e3781b4aa4b108404201b26077a8ce2",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/rd-data.js",
+      "sha256": "52f534a7ab0d5488c9d23f09aeee191d6dcc2da8341bd0dc08cb867b42cd73c8",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/rd-kit.jsx",
+      "sha256": "505783a2b331b664b6532beeda71ca7ee28bd246437cf781e14b9b1450804e10",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/rd-screens.jsx",
+      "sha256": "cbced31eadbf6256bf040376ff28c8600f3c7dbcb9b59cfe8b91be3a5c2ca4ca",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/rd2-canvas.jsx",
+      "sha256": "ede554b79437125a0931215f5a75740835e17e59a8f21dacd65f1e37058556ef",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/rd2-data.js",
+      "sha256": "3591e65dd43bccd51a3a74acfbe07d3e9920776dec74d171919c154b9dd9494b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/rd2-heute.jsx",
+      "sha256": "3d3e949fcb60d20438e73a35bd2e2e1159b23e20f42635768f77fdbd131cdf78",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/rd2-kit.jsx",
+      "sha256": "a6abf5ad76a6606e95ee2a2120dd96e98f2876721ecfaad755bf24c640776506",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/reports-v1-auswertungen.html",
+      "sha256": "cb496c4536670bcd3b3dd3ce6d5a9766d1efbf440049f7c422cfab009807965b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/reports-v1-zeilen-1.html",
+      "sha256": "eed4d27a19ca38043666eb5e8eae45866b487edde9782a958245559866b941c9",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Stale alternative or redirect per source README; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/reports-v1-zeilen-2.html",
+      "sha256": "53fe4ce4834a95ef08d5458facb544871a644f2eeef7d1d26714e86fe27cd7d6",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Stale alternative or redirect per source README; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/reports-v1-zeilen-3.html",
+      "sha256": "9ed16817576643bc489109df3c7db5d1dc526280c32499f2115f51ea1550f57b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Stale alternative or redirect per source README; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/reports-v1.html",
+      "sha256": "4e353f3ffe9930ca24490f4d921309b4b5315e59c160e37d8295b023386e3462",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/richtungen-dunkel-v1.html",
+      "sha256": "fdda4f75aea5706fa2d01eab68ec18fefdc5c58c1fd12f77d7bc7b36e0189ae7",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/richtungen-dunkel.html",
+      "sha256": "38287c1cab3829d28e804431f3242cb529e43036aad223e6e020b02b87b715cb",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/richtungen-v1.html",
+      "sha256": "fe867c04e91056c8f686442cbe7ed8949bba659ff327060b4fb6dddd1657301d",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/richtungen.html",
+      "sha256": "10c40abe08ea0ad1262a2ea52aa4ac6d43acda5667e70ce4fdeaccb06cc9fb9b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-alle.jsx",
+      "sha256": "a1c675e7abf3830926f444d8c34176f404a40d2e66d25f038a7b46a289d33d31",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-buchung.jsx",
+      "sha256": "526688ed17f41ba46474cae28e3c53c2bd0d4c92468f85e7d507b61b459393fe",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-data.js",
+      "sha256": "e535ec90b3a0df63b50570b665e7362e15ac90a67c52830939a422811c4b7266",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-einstellungen.jsx",
+      "sha256": "182552333e1e0465166ff57e59cb5b7fe539dec48d589dfd042d405104c0e3cc",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-freiheit.jsx",
+      "sha256": "63778c9c5039fd240b8764e95c188e663998296eb77ec5d20f562adcfa6b6583",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-heute.jsx",
+      "sha256": "5af459415be47c774dda948556687739c038b9992ee95b79dec7f67d47e1f21d",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-kit.jsx",
+      "sha256": "33521f5b1e3916029c9e7af32dea6381b4d2ae333ddee13ce3cbe7630d16b33b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-konten.jsx",
+      "sha256": "8b9e074a90d102176fc842bfe8e7c6a6bdbd04e043ce58bbc5ce9ae1f3b56de0",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-onboarding.jsx",
+      "sha256": "756bb3d89bf727bcca77e149972f0bb3c3c5084e484287b2fc94025b24bf5731",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Deferred onboarding #490; original not admitted"
+    },
+    {
+      "source_path": "prototype/v2-pf3a.jsx",
+      "sha256": "1439cf8d9b9f6da0734ef07677a6b4495d76ed89592b07eab00d168b22f85ca0",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-pf3b.jsx",
+      "sha256": "504c73507ff29272e9d22205ed50103fb595ad31ec38b124dda6bc9fec9ae855",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-plan.jsx",
+      "sha256": "d56b6ddfe842d73acbae6de90bac0c205d97e36c99513f4ab6bb11caca9d9353",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-plan2-canvas.jsx",
+      "sha256": "e8fd80365a2a9ee5f5acc3190940deed4151b8467460b0be7479cf729abc2a77",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-plan2-core.jsx",
+      "sha256": "a14149f365c62ee69f827b21f9431c15defe1aa4503590ecd11644e9791b681c",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-plan2-desk.jsx",
+      "sha256": "9929d78fd702ef5f150c06071dd3e5bf009b71267847cc939e9381bd6cdec4ed",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-plan2-phone.jsx",
+      "sha256": "e60eff79c9916d070241e1514184abffe63c65fe80552f187496d9b024437fd2",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-planviews.jsx",
+      "sha256": "1d775d559966a615dbe87c3d06e7986551e7e54c5b540f583786fe37f5b484c1",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-planx.jsx",
+      "sha256": "18a53cc4cac1fb7228bcd008c1f7d476576a05eb3870a5fc6caec24161840578",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-portfolio.jsx",
+      "sha256": "bf19948e5deba8d82c12121e0184ffb46464ccb3272d491f0aecf737684c05ba",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-portfolio2.jsx",
+      "sha256": "e61c57a7bc30bc3d94910e3445a8f45abd444be8348198662cf7b45b83eefc76",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-pruefen.jsx",
+      "sha256": "f6b6d40c44280be00fd3f7738c236c5b24ea4835760b444f53400ce1b24f9966",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-reports.jsx",
+      "sha256": "65e6c7ca3f4ea3f518ff274b0111dda3d8aaffe151349335fd04dee5fc870b94",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-reports0.jsx",
+      "sha256": "edb2723c8ad98e2e29c33863ae68c5770425302e48f0b3efe2d6e216de9e2733",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-reports2.jsx",
+      "sha256": "53aa3ed62fb851c1599dc5e3cdc8ec352fdf409e572e565836dbc1d1c2843237",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-reports3.jsx",
+      "sha256": "11808ddb27159a84abe5837eb2ac15bdf169ee506e90c69c67b15ae302ef282b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-reports4.jsx",
+      "sha256": "7f8d5a1cbcf2ae45296c008234b7e263f1df62f5f24026c2359f1a3c56a62f8b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-reports5.jsx",
+      "sha256": "51323624fd815cb980b7a607cc4081f51d81b8d5f2474b2ca99a99b440f0069b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-reports6.jsx",
+      "sha256": "bd034b7b5cd83e416150e5c2a63845532628d2e47cad11b67487b940ac14d5da",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-schulden.jsx",
+      "sha256": "c42ddc98baac2809e556dbd3c25cec650537c1f574cafb1d0eaf26cd91c3351e",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-shell.jsx",
+      "sha256": "6371a4d3f516af9e3c7bebd9892376e1457b7e4c469251a9432758de0a022003",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-sollquoten.jsx",
+      "sha256": "80bf1224fcdf0eb865885c16d0c92af94603abab4ac170d69996a27651769159",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-v3a.jsx",
+      "sha256": "ea438a9f6de24c0e81f333fd962197adb17d0995130d13d9173c8d31930bae45",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-v3b.jsx",
+      "sha256": "d04eaaf3074bdf71c9e2a1dd910423c2a8487df0bc346602235418d9345b0102",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-v3c.jsx",
+      "sha256": "510841c3eb62e82e80201b93c5f8b78e248387904fb91f9006653913e403fedb",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-vermoegen.jsx",
+      "sha256": "08398949bce1ab7b55890d5a4be587e7e9645ed2fcb18efda119c38aacf26da0",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-vm-common.jsx",
+      "sha256": "19034adb174f5d4adbece7674374efd2b304c846460145e93a966014e491a589",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/v2-zustaende.jsx",
+      "sha256": "2ea9b285f07681953fa3935f347914fa5d8748ae3a601e29d22552591628af30",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/vermoegen-freiheit-v1.html",
+      "sha256": "17e646473d8d2b04cce98003fb5ff9c62ecbec68e52aa108c8559def61485057",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Stale alternative or redirect per source README; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/vermoegen-netto-v1.html",
+      "sha256": "df609ae78744a459f40ca3c96a21d46f6e9d47e98a92bcff36c27613b542b6c3",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Stale alternative or redirect per source README; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/vermoegen-portfolio-v1.html",
+      "sha256": "cc91b4fa8c397c89415c68c463b455f2859d05f44b7613d4e77f3892471f972f",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Stale alternative or redirect per source README; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/vermoegen-portfolio-v2.html",
+      "sha256": "9fa9abc3d267e7d967069fa94a3d8f63d232f349fed6dde9dc5ea2b1ec4cea15",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Stale alternative or redirect per source README; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/vermoegen-schulden-v1.html",
+      "sha256": "f16c6816b0051b1cdf0a6c944beadc39a5b7bed4c425c1db07d4a95cc366b518",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Stale alternative or redirect per source README; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/vermoegen-v3-planen.html",
+      "sha256": "88b9b3cebc35b97accbc6647b299f4960fdcaaa9a6b9b6d3c251eea462100d92",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/vermoegen-v3-positionen.html",
+      "sha256": "6673058fc45397cf77f5b3fe63ad15a3a050c6a174172b061771fcac8c1b83ff",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/vermoegen-v3.html",
+      "sha256": "7eecbf3373fa5dc4031984f2c2dcb7e0bdfac92daf0be1699c32f44a398b5469",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "prototype/zustaende-v1.html",
+      "sha256": "eb8001fb94c2cf197317154926b09136be163292a9979bd99601901bd9ea4f7c",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Executable/alternate prototype or source notes not admitted; no runtime/sample data copied; preserve existing repo prototype"
+    },
+    {
+      "source_path": "screens/buchung--01--desktop.png",
+      "sha256": "00f2e9e4bda088d9a619e682891884b67ec5e8fb8bf379f34d0ff70148958aed",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/buchung--02--desktop.png",
+      "sha256": "343f5f8ff8e3b0ec8b4f11f16c04325145775bb0dbcf059f9c52b6b23ebbdbe2",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/buchung--03--desktop.png",
+      "sha256": "0e38e9e2a76fddf95b36e2db0ec57054a636a6950e07343931936e3820f5d051",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/buchung--04--phone.png",
+      "sha256": "c354e94de9e8327e2cb82f0f53fa5b9272acd4a1169bd952b8790b7eda63f182",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/einstellungen--01--desktop.png",
+      "sha256": "421d588825e38355805c03347dfe5840a0b8141c95112fcf7ecfde4bef363943",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/einstellungen--02--desktop.png",
+      "sha256": "9fec230532c8544e18c874ca81575e007c5a7688d4a716dfca03249ea117b279",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/einstellungen--03--desktop.png",
+      "sha256": "d07182bd23f29a66f47adb8ec6c7bcb7fa2cef2ab19535e6992a279f500481a5",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/einstellungen--04--desktop.png",
+      "sha256": "ee46709be9a17a7e2221400b48c16b3b57c148a9025a49176c9b59e02176e25c",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/einstellungen--05--phone-liste.png",
+      "sha256": "9dddcfd7e92ddfd228d10a9ef0fa884fe729f86a63267f647d80ba54674d50f9",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/einstellungen--06--phone-profil.png",
+      "sha256": "7949b8d0b43f691082b1169deff2858b4b72a3b7e9f71de9099f07b4ba0c13d0",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/einstellungen--07--verbindungen-dunkel--desktop.png",
+      "sha256": "9fec230532c8544e18c874ca81575e007c5a7688d4a716dfca03249ea117b279",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/einstellungen--08--verbindungen-zustaende--desktop.png",
+      "sha256": "dd2155442a03aa2c90c770b5d21dc01735350d31f16142a33232b8e69ad45080",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/einstellungen--09--vermoegen--desktop.png",
+      "sha256": "02f3b61f7d76c7fd077aa42d05dd893742778b814165a2ccc02f1a54b0ab3b1a",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/einstellungen--10--sicherheit--desktop.png",
+      "sha256": "ee46709be9a17a7e2221400b48c16b3b57c148a9025a49176c9b59e02176e25c",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/einstellungen--11--kontakte--desktop.png",
+      "sha256": "61897fe18f0fb7e9d7a52fdc2519aac6d776341c0c44a7d5b1f5c3bfa5769591",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/einstellungen--12--daten--desktop.png",
+      "sha256": "8352358e323fc197ac2a68e89ab27203a351c15d770ffa52ce94f9761e6d5658",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/einstellungen--13--warenkorb--desktop.png",
+      "sha256": "3a2ddd83ad1fd534be984460ed5e0dd51ba80f9bda8364ec259fd86d373f083f",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/einstellungen--14--konten--desktop.png",
+      "sha256": "421d588825e38355805c03347dfe5840a0b8141c95112fcf7ecfde4bef363943",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/heute--01--desktop.png",
+      "sha256": "1a08d6cffd193be783c930f1b8a7400fc1672bfa2ac816f9e867cc4fe0dd653a",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Inspected original has personal footer label; retained locally"
+    },
+    {
+      "source_path": "screens/heute--02--desktop.png",
+      "sha256": "d728bccba1bcf29ba03a5854377add485f29facf8d6249659d27b8597a699330",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/heute--03--phone.png",
+      "sha256": "3553f4704c022526fa8b0e7eec444d45d490a6e991392bb602ea8d1aaf37ade2",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/konten-alle-buchungen--01--desktop.png",
+      "sha256": "9020b27015faeb1ef2949eac8b8b8e2afdc9b6bfbe5791bad788b7a777fc4fcf",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/konten-alle-buchungen--02--desktop.png",
+      "sha256": "c0bf8ae0755c7c276811c533c98d8f6e116f05e0804f5fa8b2c3c0ef501ede7b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/konten-alle-buchungen--03--phone.png",
+      "sha256": "8a173e94c6299c1b74feb04c4df1c5e6d7a0da1eef5e7d900f993ca2c2a150d8",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/konten-alle-buchungen--04--phone.png",
+      "sha256": "136ac12dd24bb99510b9eed61a0a735c5ad2f228d9c4a475b3b4c258f183ad5b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/konten-uebersicht--01--desktop.png",
+      "sha256": "e02d03a3aa6419f40dd1c910e4279780223150f786b0d5022e13bdb249c3a3a1",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/konten-uebersicht--02--desktop.png",
+      "sha256": "4332ef917511e6566b31bcd836b8ab2aa10d65d3449d03ac161a5df862998e90",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/konten-uebersicht--03--phone.png",
+      "sha256": "1ad4f8b7246d2e7d9c5736f0027bcbd241d52da620e70b64d21202a0bf1e8813",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/konten-uebersicht--dark--desktop.png",
+      "sha256": "4b77a2c94328aadabb85d3961011df580eb33d01619a0df3b7d75ace35024162",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/konten-uebersicht--dark--phone.png",
+      "sha256": "c5580bae443bd57ee1a28784dd9e61685ead9a95fe46c30ad269c67f1903479b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/onboarding--step1--desktop.png",
+      "sha256": "cc2415f08b871b7f7d2796e64c975f552a99ae82010303354326e2e8c2ec2910",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Deferred onboarding #490; original not admitted"
+    },
+    {
+      "source_path": "screens/onboarding--step1--phone.png",
+      "sha256": "d3ec3dddf5e4a2d3e40cdc3e64c550389b2e679e6b88835f748082fc84f3220e",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Deferred onboarding #490; original not admitted"
+    },
+    {
+      "source_path": "screens/onboarding--step2--desktop.png",
+      "sha256": "59a389be9ada3b54ea090d8e8211972c34c7cdc417cec4e7024f7f96dbea2159",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Deferred onboarding #490; original not admitted"
+    },
+    {
+      "source_path": "screens/onboarding--step2--phone.png",
+      "sha256": "e59314f9d24b9e500b9fa71b4f22f8a3dac6ad56abe2252f43557205983382f0",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Deferred onboarding #490; original not admitted"
+    },
+    {
+      "source_path": "screens/onboarding--step3--desktop.png",
+      "sha256": "3975939811c6ce80c6f34a762500813b8e538dd0dccdd7fa11ec09baf3fe376f",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Deferred onboarding #490; original not admitted"
+    },
+    {
+      "source_path": "screens/onboarding--step3--phone.png",
+      "sha256": "dc7a33b87cac2023e3e5ab376a59ecfba2b9665b963d5297ead07bf0d1cdde4f",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Deferred onboarding #490; original not admitted"
+    },
+    {
+      "source_path": "screens/onboarding--step4--desktop.png",
+      "sha256": "fb198f09eef5d298c537bc7a5239141aee03e681f461a187d77787cefcdec052",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Deferred onboarding #490; original not admitted"
+    },
+    {
+      "source_path": "screens/onboarding--step4--phone.png",
+      "sha256": "2941a104d80230f6ba4f94612e9b036512b52ff8f7c69306007bcf03e68559ca",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Deferred onboarding #490; original not admitted"
+    },
+    {
+      "source_path": "screens/onboarding--step5--desktop.png",
+      "sha256": "a6b0fa657af0e83662759b0c394c1a2dc8721f0a63636858c4e222203af05d43",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Deferred onboarding #490; original not admitted"
+    },
+    {
+      "source_path": "screens/onboarding--step5--phone.png",
+      "sha256": "d2e8f60ca792bf8be856cee059fe221185dd78d65588b48ab0fcd8596392c7b3",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Deferred onboarding #490; original not admitted"
+    },
+    {
+      "source_path": "screens/onboarding--step6--desktop.png",
+      "sha256": "a439107de865fa4241e9d3405685478cff555185219eb264bae7ace25fc3e070",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Deferred onboarding #490; original not admitted"
+    },
+    {
+      "source_path": "screens/onboarding--step6--phone.png",
+      "sha256": "3721828df04bbc79767118d17790f027b1e4723d65a22369a7771caa1a4bd13e",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Deferred onboarding #490; original not admitted"
+    },
+    {
+      "source_path": "screens/plan-jahr--02--desktop.png",
+      "sha256": "746da3e534d5a8d2be31ed8276309e7fd6823f7900d878dcc5c0a4df8c4df28e",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/plan-monat--01--desktop.png",
+      "sha256": "85fbe3c6e9805929224cf19930f1849e101547007e55ccfa76503b53bac3b31a",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/plan-monat--02--phone.png",
+      "sha256": "b639a3bbcf50e3ee0e26568d5fae6c8122e841b1bedbe9a276a6464e3e879c8a",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/plan-monat--03--phone.png",
+      "sha256": "ac8e0f7a31d70e366c1a30a0674ec9d6650ee263d04020b016cd2f00aa37eebc",
+      "disposition": "copied-original",
+      "destination": "../../screens/export-2026-11-02/plan-monat--03--phone.png",
+      "reason": "Inspected anonymous image"
+    },
+    {
+      "source_path": "screens/plan-monat--dark--desktop.png",
+      "sha256": "85fbe3c6e9805929224cf19930f1849e101547007e55ccfa76503b53bac3b31a",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/plan-monat--dark--phone.png",
+      "sha256": "284ee4e7b080c71967bab602054908ff4a4d11c3b81a8dd773fb6e30b35f438f",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/plan-prognose--02--desktop.png",
+      "sha256": "2e006d33765b846c58dec73649cd75dac52738c5d8036b9ab1adcb74e5e813c2",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/plan-zahlungen--02--desktop.png",
+      "sha256": "50e27adaae770c6da72d68ea1abbd76f79041727323b75d11d203cdaa730f7ee",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/plan-zahlungen--03--desktop.png",
+      "sha256": "2daf9829dbff8de81176abb62fb5ba22fa599943886bfee56f830931125bf447",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/plan-ziele--02--desktop.png",
+      "sha256": "be837812400c96b83486c6db2b59653c2dbb20fb299cf23e811315d7b6198ffd",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/plan-ziele--03--desktop.png",
+      "sha256": "670b32f3b280a84ef6dcb05fde2ad326290cbf5734830259cd78163715f1c517",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/pruefen--01--desktop.png",
+      "sha256": "841b3f53372bb172b3f6a78903230e9c16c0a0c78a26e00c2d06837d2f47edfe",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/pruefen--02--desktop.png",
+      "sha256": "110ee03a7d92ecbf11a59f4621e30d7ccf61bab16baab4935866b9f2e0683dc5",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/pruefen--03--phone.png",
+      "sha256": "8b26cf6b10f96641302b21f8b2b912204dcf5a113a4f39ecfa29a8110987018f",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/pruefen--04--phone.png",
+      "sha256": "a0e07b292c339c6287bd1c68432f60c0e6a6cc2fa61535c5d0daa59f56b82b6f",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/pruefen--dark--desktop.png",
+      "sha256": "32d46432fb84fdde748d136a710ac65f504c799bf6c2b7292fa5f02e60842ad6",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/pruefen--dark--phone.png",
+      "sha256": "cd8c2082dacb10638a32672982dd0a53e965be133b64ad24cace4732417fd161",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--00-auswertung-explorer--desktop.png",
+      "sha256": "63a2e907d6a0bd7c0d6c4fd7ac4ad8bf7192f609f1445a852b10ed6ca1316e2b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--00-uebersicht--desktop.png",
+      "sha256": "e6e5cfaa7f2596d66f9fa65124600b10077a118ca48fa69dca7cd6ef257a96fb",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--00-uebersicht--phone.png",
+      "sha256": "961a77d1d9a93b97505c11f4b01bdfe1c949f2d2d692d6c93cea2e3f2ccb1028",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--01-monatsbericht--desktop.png",
+      "sha256": "2e0a0d1a66b2a726bcbcf239256cf95a17781fe21dc8b7880101e3648419a4a5",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "Inspected original has personal footer label; retained locally"
+    },
+    {
+      "source_path": "screens/reports--01-monatsbericht--phone.png",
+      "sha256": "78b2b55d7a97f7e5cc90a38f2fc8e3f15eb86e361173af30c43a671bb0b43253",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--02-jahresbericht--desktop.png",
+      "sha256": "6f991e93c0f892efee18ee8344a88584f9edfeb49c923ddf768923d034904363",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--02-jahresbericht--phone.png",
+      "sha256": "4f28c8b05587b0e5cd20d8c64a8a8f304452054167b4abc316e99ced734a4af7",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--03-zeitraumvergleich--desktop.png",
+      "sha256": "03ba852b274249d089957fe20a78292275097347384a31e5ec4b2c03b6a7bb7a",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--03-zeitraumvergleich--phone.png",
+      "sha256": "ce13bf51a2d277a2d7e839ff80fa8baf9a6ff8556f24a4a415a3d7add20c82fd",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--04-kontakte--desktop.png",
+      "sha256": "2d9e6c6fc3fe55b837a046b44d2da59727c69e376cbad8bb7062ecb35273cd69",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--04-kontakte--phone.png",
+      "sha256": "9d9ac94d1ca3a7df50bdda737316a65b72a2e23dda242d5ff93630415b8ee15f",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--05-auswertung--desktop.png",
+      "sha256": "9a3de520b72c0f20d650d1db6e0ddc7a18f02fccf8bcccafe5f964ab2e1a507d",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--05-auswertung--phone.png",
+      "sha256": "8eaca147c2aa38b9ae6340fda751edab4f7214c7e9e9ccb878624dec0a0b051c",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--06-vermoegensreport--desktop.png",
+      "sha256": "739531083450b789e0baabc8e0dad71a909ae568ca8802606f4c48daa2c5b6d5",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--06-vermoegensreport--phone.png",
+      "sha256": "472a0c88ce111b82f708c127be969cb8179f1060cbd0f236daee1664dcf35853",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--07-depots-im-vergleich--desktop.png",
+      "sha256": "77aa32404b36d585184e61bfc2d961df542dfb7abb5a1577d1226dc22d9619a3",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--07-depots-im-vergleich--phone.png",
+      "sha256": "a0ca21a118b2e11a9c6ad18838be9fd92b3f77d82edd4a24969962ec023b95d5",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--08-kosten-steuern-ertraege--desktop.png",
+      "sha256": "f72cb739f785bc4bd54060235428794f2010cacb2c29423672733cf07242ec82",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--08-kosten-steuern-ertraege--phone.png",
+      "sha256": "7ce30c86ec5a1f9f4b769cb717546dab9cf1cb92bc9ede53df21507027eb1f13",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--09-einnahmen-und-cashflow--desktop.png",
+      "sha256": "92dac6fd532adc6386b447817f11d19e9493e52e655a8468c19fd572bd0cfb2e",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--09-einnahmen-und-cashflow--phone.png",
+      "sha256": "12899da9d3fce84abc3db4872d312b9544105d09a32eb91b871ab24542a3916b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--10-ausgabenanalyse--desktop.png",
+      "sha256": "d1b3792458f48c4ea71d64f466aa1282541552cc2d62d9d49e14d8f24f6152fa",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--10-ausgabenanalyse--phone.png",
+      "sha256": "2a0ff3b205ad41e9a4e0ffb10661dca5f859e64769d53035e1b10854e891707c",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--11-gehalt--desktop.png",
+      "sha256": "ca093c9a7a1422a9eaa74aa1595615bb6def90e6a449880d09dcc6aca0d3bb4b",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--11-gehalt--phone.png",
+      "sha256": "77db00a0adf536f88b4db4ce46d24f77a01993347a58665d9bd0f446dff3b757",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--12-geldfluss--desktop.png",
+      "sha256": "1e3fa6c7155ac23ecacee74c347394b7cb9efa5fc0eaf5342c83696dd2882b95",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--12-geldfluss--phone.png",
+      "sha256": "3964e56226f9e914003b3e0142871efc88d6b8afb79b545924546a15f9e6b0e7",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--13-sparquote-und-geldalter--desktop.png",
+      "sha256": "2d6653df3f979a7fc3bd34a849cdc306b80390770ec70cb14e353e0ae6da6657",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--13-sparquote-und-geldalter--phone.png",
+      "sha256": "ff9dc56bf7534076073f8c6ac90071fdaac4f5dacf72a9503ff6975063aea29c",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--14-budgettreue--desktop.png",
+      "sha256": "e3405108ced74c83f3a6466e4564b690fb00bb1c8e18ed48ed62acfab7069ee7",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--14-budgettreue--phone.png",
+      "sha256": "56cdfe173793b2810c3cb71ebb51b296192ebe764dccf7a60b64f8682e9c966c",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--15-vertraege-und-kosten--desktop.png",
+      "sha256": "1c0369a95d1e0792b05969ab296b7a80cf4cfe40b849483c6fe3e35d776585b1",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--15-vertraege-und-kosten--phone.png",
+      "sha256": "d1f81d04fc03db7d21fe2c789305d90de524ad9104541602e315915fd52a7215",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--16-persoenliche-inflation--desktop.png",
+      "sha256": "a66c1794935a7d7fee51d635bf0bcf5e0b695afffb2503bd12ad7473ab99f57e",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/reports--16-persoenliche-inflation--phone.png",
+      "sha256": "37b580176f56e73d81d027108384cf1e91c862da80c773f4f70618832c151dcb",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/vermoegen-planen--02--desktop.png",
+      "sha256": "fe1a043c7df4c74d9bbe16f3305c95c87a73865859c7a1d6606e025b671bd10a",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/vermoegen-planen--03--desktop.png",
+      "sha256": "59f164e701c76f74efbf044e6024340587c8464ac009f761cbcb7a3684fb8e0d",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/vermoegen-planen--04--desktop.png",
+      "sha256": "b0f0a957fa0e78fc7d3478ee7b6bef615b84b337b64537b596dbd7bbdd47eae2",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/vermoegen-planen--05--phone.png",
+      "sha256": "5627ee95847143c02bf9d4b9cafd88a44a7c1098bac3147dd34a4a22170bab17",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/vermoegen-positionen--02--desktop.png",
+      "sha256": "3e734ab22211c533438e5588d9c34a0925efc21abe02eebc56fea4e49f747e68",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/vermoegen-positionen--03--desktop.png",
+      "sha256": "726179ba946990f8dbad85efa0832509bdc0e2a65a3cf204ad78f2e491b3fabf",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/vermoegen-positionen--04--phone.png",
+      "sha256": "bc547cf4933584b08308bb8a8088bf3111ae95c723c0bfbfab2ca3c228631ea1",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/vermoegen-uebersicht--02--desktop.png",
+      "sha256": "2f494f21889c90c5de12c26c27dd741e50cdfcc5d63aa3da6851ce81a8e8b285",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/vermoegen-uebersicht--03--desktop.png",
+      "sha256": "e85c3db43701dafb023bf8c275e00f6000a3e9a4e916a8457cc08895acebd206",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/vermoegen-uebersicht--04--phone.png",
+      "sha256": "33103dacc567f6f06f9d1375b212026c519a5e0cbeea2cbee956a388502a116e",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/vermoegen-uebersicht--dark--desktop.png",
+      "sha256": "98de6af4ac26eeb8463a339a6ca8130b05447108b8fdb917bb622839b285ac4d",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/vermoegen-uebersicht--dark--phone.png",
+      "sha256": "79fbb62c2b529013f32aceae3cca928ee55a862243cc6c38b9a33c588483dd56",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/zustaende--02--desktop.png",
+      "sha256": "1047c1715c71eae10a616a2ff17b8f44d88f68f8cfd205e0459350b983cb8fdc",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/zustaende--03--desktop.png",
+      "sha256": "261bb32486d5ff1c89e5658b838cab226b01e607531a3b3d13ad94147ef6dbd6",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/zustaende--04--desktop.png",
+      "sha256": "22a0f19c85bf6fb683f997fed20f7cc6f419db439f3a1b8f45f81efc942c1fd9",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/zustaende--05--phone.png",
+      "sha256": "17bb79c2a283f2c8e7a0bfe3a83989e9309e63f9846e3d5f93083fcd8bbb6cd0",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "screens/zustaende--06--phone.png",
+      "sha256": "ebf597167df10dfa93a8180c5e16cf124d25c570e122df57186bbb121b861426",
+      "disposition": "excluded",
+      "destination": "-",
+      "reason": "No individual admission audit in this bounded package; retained locally"
+    },
+    {
+      "source_path": "tokens.css",
+      "sha256": "75137535aac23048493df857b21338748b1cf7b993d9ff3544484f1937ac48a7",
+      "disposition": "copied-original",
+      "destination": "source/tokens.css",
+      "reason": "Inert source token snapshot; conflicts documented in token-map.md"
+    },
+    {
+      "source_path": "tokens.json",
+      "sha256": "4ed4d1d565db6c6a178d280ce654e185d3bbc97d7e16285db64916a2f22bad4b",
+      "disposition": "copied-original",
+      "destination": "source/tokens.json",
+      "reason": "Inert source token snapshot; conflicts documented in token-map.md"
+    }
+  ]
+}
