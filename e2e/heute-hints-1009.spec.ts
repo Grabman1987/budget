@@ -5,6 +5,8 @@ import type { RuleBook } from '../apps/web/src/rules/api';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
 
+const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+
 test('Today keeps payday first, unknown counts explicit and additional steps consistent', async ({
   page,
 }, info) => {
@@ -67,21 +69,29 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
   // #571: Zu verteilen leads; Frei bis Gehalt is the middle Kennzahl in the mode Bis Gehalt.
   const first = page.locator('.heute-kennzahl').first();
   await expect(first.getByRole('heading', { name: 'Zu verteilen', exact: true })).toBeVisible();
-  const payday = page.locator('.heute-kennzahl').nth(1);
+  const payday = redesign
+    ? page.getByRole('region', { name: 'Spielraum bis Gehalt' })
+    : page.locator('.heute-kennzahl').nth(1);
   await expect(payday.getByRole('heading', { name: 'Frei bis Gehalt', exact: true })).toBeVisible();
-  await expect(payday).toContainText('Bis 15.10. · noch 28 Tage');
+  await expect(payday).toContainText(
+    redesign ? 'bis 15.10.2026 · noch 28 Tage' : 'Bis 15.10. · noch 28 Tage',
+  );
   // The next salary stays marked on the forecast and named in the derivation of Frei bis Gehalt.
   await expect(
     page.getByTestId('liquidity-chart').getByTestId('liquidity-mark-gehalt'),
   ).toBeAttached();
-  await payday.getByRole('button', { name: 'Herleitung Frei bis Gehalt' }).click();
+  await payday
+    .getByRole('button', { name: redesign ? 'Herleitung zeigen' : 'Herleitung Frei bis Gehalt' })
+    .click();
   await expect(payday).toContainText('Nächster erwarteter Geldeingang: 30.09. · 3.812,00 €');
   const more = page.getByRole('button', { name: /Mehr zum Monat/ });
   if ((await more.getAttribute('aria-expanded')) === 'false') await more.click();
   await expect(page.getByRole('heading', { name: 'Nächste Schritte' })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Zu tun' })).toContainText('2 unter Prüfen');
   const tasks = page.getByRole('region', { name: 'Zu tun' });
-  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(
+    redesign ? 1 : 0,
+  );
   await expect(tasks.locator('.attention-row').filter({ hasText: 'Regelbefund' })).toHaveCount(1);
   await expect(tasks).toContainText('2 Regelbefunde zum Handeln');
   await tasks.locator('.attention-availability summary').click();

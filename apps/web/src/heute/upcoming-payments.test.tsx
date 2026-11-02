@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { Upcoming } from './upcoming-payments';
@@ -96,4 +96,26 @@ it('hides the whole due block when neither payments nor events are due', () => {
 
   expect(screen.queryByRole('heading', { name: 'Anstehend' })).toBeNull();
   expect(container.childElementCount).toBe(0);
+});
+
+it('compacts only an explicitly requested due list and expands every original dated source link', () => {
+  const events = Array.from({ length: 6 }, (_, index) => ({
+    eventId: `synthetic-${index}`,
+    name: `Termin ${index + 1}`,
+    date: `2026-10-${20 + index}`,
+    amountCents: -12345,
+    categoryId: null,
+  }));
+  render(
+    <Upcoming id="compact-upcoming" title="Fällig 14 Tage" items={[]} events={events} compact />,
+  );
+  expect(screen.getAllByRole('listitem')).toHaveLength(4);
+  const more = screen.getByRole('button', { name: 'Weitere 2 Fälligkeiten' });
+  fireEvent.click(more);
+  expect(screen.getAllByRole('listitem')).toHaveLength(6);
+  expect(screen.getByText('25.10.')).toBeTruthy();
+  expect(screen.getAllByRole('link', { name: /123,45/ })).toHaveLength(6);
+  expect(more.getAttribute('aria-expanded')).toBe('true');
+  fireEvent.click(more);
+  expect(screen.getAllByRole('listitem')).toHaveLength(4);
 });

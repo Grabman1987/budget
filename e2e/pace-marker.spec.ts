@@ -18,6 +18,13 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
     if (url.startsWith('/?')) {
       expect(
         await page.locator('.heute-lead').evaluate((el) => {
+          const redesigned = el.closest('.heute--redesign');
+          if (redesigned)
+            return Boolean(
+              redesigned.querySelector(
+                '.heute-work-main > .heute-pace + .heute-compact-forecast',
+              ) && redesigned.querySelector('.heute-work-aside > .heute-wealth-line'),
+            );
           const overview = el.nextElementSibling;
           return (
             overview?.classList.contains('heute-overview-charts') &&

@@ -3,6 +3,8 @@ import { sampleTest as test, expect as baseExpect } from './sample';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
 
+const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+
 test('actual monthly pace starts on the first phone screen and both folds clear bottom controls', async ({
   page,
 }, info) => {
@@ -19,11 +21,13 @@ test('actual monthly pace starts on the first phone screen and both folds clear 
       await page.goto('/?monat=2026-09&period=month');
       await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
-      for (const selector of [
-        '.heute-kennzahlen',
-        '[data-testid="heute-pace-chart"]',
-        '[data-testid="heute-wealth-history"]',
-      ]) {
+      for (const selector of redesign
+        ? ['.heute-lead', '.heute-attention']
+        : [
+            '.heute-kennzahlen',
+            '[data-testid="heute-pace-chart"]',
+            '[data-testid="heute-wealth-history"]',
+          ]) {
         const box = (await page.locator(selector).boundingBox())!;
         expect(box.y).toBeGreaterThanOrEqual(0);
         expect(box.y + box.height).toBeLessThanOrEqual(900);
@@ -45,7 +49,11 @@ test('actual monthly pace starts on the first phone screen and both folds clear 
         viewport.height,
       );
       const order = await page
-        .locator('.heute-overview-charts > section')
+        .locator(
+          redesign
+            ? '.heute-work-main > section, .heute-work-aside > .heute-wealth-line'
+            : '.heute-overview-charts > section',
+        )
         .evaluateAll((sections) =>
           sections.map((section) => section.getAttribute('aria-labelledby')),
         );

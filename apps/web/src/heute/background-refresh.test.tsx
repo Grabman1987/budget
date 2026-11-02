@@ -378,3 +378,23 @@ it.each(['heute', 'budget'] as const)(
     expect(within(budgetTile()).getByTestId('kennzahl-value').textContent).toBe('1.234,56 €');
   },
 );
+
+it.each(['month', 'payday'] as const)(
+  'ON gives the canonical lead its own primary home in %s and keeps current-day source scope',
+  async (period) => {
+    mount(`/?monat=2026-09&period=${period}`);
+    await screen.findByTestId('heute-wealth-history');
+    await ready();
+    const primary = screen.getByRole('region', { name: 'Spielraum bis Gehalt' });
+    // Empty envelopes give zero free money; the independently seeded cash remains 1234.56.
+    expect(within(primary).getByTestId('heute-lead-value').textContent).toBe('0,00 €');
+    expect(primary.textContent).toContain('kein Kontostand');
+    expect(primary.textContent).toContain('17.09.2026');
+    expect(screen.getAllByTestId('heute-lead-value')).toHaveLength(1);
+    expect(document.querySelector('.heute-priorities .heute-attention')).not.toBeNull();
+    expect(document.querySelector('.heute-work-main .heute-compact-forecast')).not.toBeNull();
+    expect(card().querySelector('.heute-forecast-low')?.getAttribute('data-cents')).toBe('123456');
+    expect(screen.getByRole('region', { name: 'Finanz-Check' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Verfügbar im Budget' })).toBeTruthy();
+  },
+);

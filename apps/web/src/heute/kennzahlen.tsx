@@ -52,7 +52,7 @@ export function Kennzahlen({
   const change = net && !('unavailable' in net.monthChange) ? net.monthChange : null;
   const plan = data?.budgetAnswer;
   const householdMonth = data?.stand.today.slice(0, 7);
-  const payday = scope.period === 'payday';
+  const payday = !REDESIGN_ENABLED && scope.period === 'payday';
   const month =
     !budget.isPending &&
     !budget.isError &&
@@ -68,7 +68,13 @@ export function Kennzahlen({
   const goal = data?.nearestGoal;
   return (
     <div className="heute-answers heute-kennzahlen" data-testid="heute-kennzahlen">
-      {data && data.stand.month && data.stand.month !== householdMonth && (
+      {REDESIGN_ENABLED && (
+        <p className="heute-note">
+          Budget: {monthLabel(scope.month)}
+          {data && ` · Nettovermögen: Stand heute · ${longDay(data.stand.today)}`}
+        </p>
+      )}
+      {!REDESIGN_ENABLED && data && data.stand.month && data.stand.month !== householdMonth && (
         <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>
       )}
       {REDESIGN_ENABLED && month && budget.isFetching && (

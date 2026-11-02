@@ -21,6 +21,8 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('budget-heute-more-phone', '1'));
 });
 
+const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+
 test('three Kennzahlen with the names of the owner decision; Bis Gehalt renames the middle one', async ({
   page,
 }) => {
@@ -34,7 +36,7 @@ test('three Kennzahlen with the names of the owner decision; Bis Gehalt renames 
   await page.getByRole('button', { name: 'Bis Gehalt', exact: true }).click();
   await expect(grid.getByRole('heading', { level: 2 })).toHaveText([
     'Zu verteilen',
-    'Frei bis Gehalt',
+    redesign ? 'Verfügbar im Budget' : 'Frei bis Gehalt',
     'Nettovermögen',
   ]);
   await page.getByRole('button', { name: 'Monat', exact: true }).click();
@@ -114,10 +116,23 @@ test('phone list: the three Kennzahlen (the section "Monat im Blick") end inside
   await page.evaluate(() => document.fonts.ready);
   const tiles = page.getByTestId('heute-kennzahlen').locator('.heute-kennzahl');
   await expect(tiles).toHaveCount(3);
-  const bottoms = await tiles.evaluateAll((els) =>
+  const primary = redesign
+    ? page.locator('.heute-priorities .heute-lead, .heute-priorities .heute-attention')
+    : tiles;
+  const bottoms = await primary.evaluateAll((els) =>
     els.map((e) => e.getBoundingClientRect().bottom),
   );
-  expect(Math.max(...bottoms), 'the last Kennzahl ends below 844 px').toBeLessThanOrEqual(844);
+  expect(Math.max(...bottoms), 'the last primary section ends below 844 px').toBeLessThanOrEqual(
+    844,
+  );
+  if (redesign)
+    for (const tile of await tiles.all()) {
+      await tile.scrollIntoViewIfNeeded();
+      await expect(tile).toBeVisible();
+      const box = (await tile.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(390);
+    }
 });
 
 for (const colorScheme of ['light', 'dark'] as const) {
@@ -135,7 +150,10 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await page.evaluate(() => document.fonts.ready);
       const viewport = page.viewportSize()!;
       const tiles = page.getByTestId('heute-kennzahlen').locator('.heute-kennzahl');
-      for (const box of await tiles.evaluateAll((els) =>
+      const primary = redesign
+        ? page.locator('.heute-priorities .heute-lead, .heute-priorities .heute-attention')
+        : tiles;
+      for (const box of await primary.evaluateAll((els) =>
         els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect),
       )) {
         expect(box.bottom, 'a Kennzahl starts below the first screen').toBeLessThanOrEqual(

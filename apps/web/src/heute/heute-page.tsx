@@ -76,7 +76,7 @@ export function HeutePage() {
       onHeutePeriodChange={setPeriod}
       standDay={data?.stand.today}
     >
-      <div className="heute">
+      <div className={`heute${REDESIGN_ENABLED ? ' heute--redesign' : ''}`}>
         <HeuteBody data={data} read={query} period={period} />
       </div>
     </PageFrame>
@@ -143,21 +143,8 @@ function HeuteBody({
       ? 'keine Vergleichsbasis'
       : `${net.deltaBp >= 0 ? '+' : ''}${pct.format(net.deltaBp / 100)} % zum Vormonatsende`;
 
-  return (
+  const kennzahlen = (
     <>
-      {refreshing && (
-        <p className="heute-note" role="status">
-          Heute-Daten werden aktualisiert · Stand heute {longDay(data!.stand.today)}
-        </p>
-      )}
-      {away && (
-        <p className="heute-month-note" role="note" data-testid="heute-month-note">
-          <span>Ansicht: {monthName(month)} –</span>
-          <Button variant="ghost" size="sm" onClick={() => setMonth(currentMonth())}>
-            Zum aktuellen Monat
-          </Button>
-        </p>
-      )}
       <Kennzahlen
         data={data}
         context={{ month, period }}
@@ -166,6 +153,10 @@ function HeuteBody({
         chainOpen={chainOpen}
         onLeadClick={() => setChainOpen((open) => !open)}
       />
+    </>
+  );
+  const verdict = (
+    <>
       {heuteFacts ? (
         <VerdictLine facts={heuteFacts} />
       ) : (
@@ -173,9 +164,21 @@ function HeuteBody({
           …
         </p>
       )}
+    </>
+  );
+  const lead = (
+    <>
       {data ? (
         <>
           <section className="heute-lead" aria-label="Spielraum bis Gehalt">
+            {REDESIGN_ENABLED && (
+              <PrimaryLead
+                data={data}
+                pending={pending}
+                open={chainOpen}
+                onToggle={() => setChainOpen(!chainOpen)}
+              />
+            )}
             <div className="heute-lead-head">
               <Button
                 variant="ghost"
@@ -206,6 +209,17 @@ function HeuteBody({
                   label="Maßkette: Bedarf plus Wunsch minus offene Rechnungen bis Gehalt"
                   precision="cent"
                 />
+                {REDESIGN_ENABLED && (
+                  <div className="heute-lead-context">
+                    <h3>Ausgabenplan · {monthName(data.stand.month)}</h3>
+                    <p>{`Ausgabenplan: ${eur(data.budgetAnswer.spentCents)} ausgegeben von ${eur(data.budgetAnswer.plannedCents)} · Plan-Rest ${eur(data.budgetAnswer.remainingCents)}. Plan-Rest: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben.`}</p>
+                    <p>
+                      {data.balance.salary
+                        ? `Nächster erwarteter Geldeingang: ${shortDay(data.balance.salary.day)} · ${eur(data.balance.salary.cents)}`
+                        : 'Kein Geldeingang im Prognosezeitraum erwartet.'}
+                    </p>
+                  </div>
+                )}
                 {leadDetail && <LeadDetail data={data} kind={leadDetail} />}
                 <p className="heute-note">
                   Wähle Bedarf, Wunsch oder offen bis Gehalt für die zugehörigen Envelopes und
@@ -221,6 +235,9 @@ function HeuteBody({
           aria-label="Spielraum bis Gehalt"
           aria-busy={pending || undefined}
         >
+          {REDESIGN_ENABLED && (
+            <PrimaryLead data={undefined} pending={pending} open={false} onToggle={() => {}} />
+          )}
           <div className="heute-lead-head">
             <Button variant="ghost" size="sm" disabled>
               Herleitung zeigen
@@ -231,122 +248,131 @@ function HeuteBody({
           </div>
         </section>
       )}
-
-      <div className="heute-overview-charts">
-        {data ? (
-          <>
-            <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">
-              <SectionHead
-                id="heute-pace-title"
-                title={`${monthLabel(data.pace.month)} · Pace`}
-                aside={
-                  data.pace.figures.over ? (
-                    <span className="heute-alert">
-                      <ArrowUp size={16} strokeWidth={1.75} aria-hidden="true" />
-                      {eur(data.pace.figures.deltaCents, { cents: false })} über Plan
-                    </span>
-                  ) : (
-                    <span className="heute-good">
-                      <ArrowDown size={16} strokeWidth={1.75} aria-hidden="true" />
-                      {eur(-data.pace.figures.deltaCents, { cents: false })} unter Plan
-                    </span>
-                  )
-                }
-              />
-              <div className="heute-figures">
-                <PaceFigure
-                  label="Ausgegeben"
-                  value={data.pace.figures.spentCents}
-                  kind="spent"
-                  selected={paceDetail}
-                  setSelected={setPaceDetail}
-                />
-                <PaceFigure
-                  label="Plan bis heute"
-                  value={data.pace.figures.planToDateCents}
-                  kind="plan"
-                  selected={paceDetail}
-                  setSelected={setPaceDetail}
-                />
-                <PaceFigure
-                  label={
-                    data.pace.todayDay < 7
-                      ? 'Prognose Monatsende · vorläufig'
-                      : 'Prognose Monatsende'
-                  }
-                  value={
-                    data.pace.figures.forecastAvailable ? data.pace.figures.forecastEndCents : null
-                  }
-                  kind="forecast"
-                  selected={paceDetail}
-                  setSelected={setPaceDetail}
-                  extra={`von ${eur(data.pace.figures.limitCents, { cents: false })} Limit`}
-                />
-              </div>
-              <HeutePaceChart data={data} />
-              <PaceAccuracyNote summary={data.planningAccuracy} />
-              {paceDetail && (
-                <div className="heute-figure-detail" role="status">
-                  <strong>
-                    {paceDetail === 'spent'
-                      ? 'Ausgegeben'
-                      : paceDetail === 'plan'
-                        ? 'Plan bis heute'
-                        : 'Prognose Monatsende'}
-                  </strong>
-                  <span>
-                    {paceDetail === 'spent'
-                      ? eur(data.pace.figures.spentCents)
-                      : paceDetail === 'plan'
-                        ? eur(data.pace.figures.planToDateCents)
-                        : data.pace.figures.forecastAvailable
-                          ? eur(data.pace.figures.forecastEndCents)
-                          : 'Noch keine verlässliche Prognose'}
+    </>
+  );
+  const pace = (
+    <>
+      {data ? (
+        <>
+          <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">
+            <SectionHead
+              id="heute-pace-title"
+              title={`${monthLabel(data.pace.month)} · Pace`}
+              aside={
+                data.pace.figures.over ? (
+                  <span className="heute-alert">
+                    <ArrowUp size={16} strokeWidth={1.75} aria-hidden="true" />
+                    {eur(data.pace.figures.deltaCents, { cents: false })} über Plan
                   </span>
-                  {paceDetail === 'forecast' && (
-                    <span>Limit: {eur(data.pace.figures.limitCents)}</span>
-                  )}
-                </div>
-              )}
-              <p className="heute-note">
-                {data.pace.todayDay < 7
-                  ? 'Vorläufig: ausgegeben plus offene fixe und wiederkehrende Zahlungen plus verbleibender variabler Plan. Ab dem 7. Tag werden variable Ausgaben hochgerechnet.'
-                  : 'Fixe und wiederkehrende Zahlungen zählen einmal; nur variable Ausgaben werden hochgerechnet.'}
-                {!data.pace.figures.forecastAvailable &&
-                  ' Für eine Prognose braucht es einen positiven Plan.'}
-              </p>
-            </section>
-          </>
-        ) : (
-          <PaceSectionState
-            month={month}
-            pending={pending}
-            failed={read.isError && !pending}
-            error={read.error}
-            onRetry={() => void read.refetch()}
-          />
-        )}
-
-        <CompactForecastCard data={data} read={read} refreshing={refreshing} />
-
-        {data ? (
-          <HeuteWealthLine data={data} />
-        ) : (
-          <section
-            className="heute-wealth-line"
-            aria-labelledby="heute-wealth-title"
-            aria-busy={pending || undefined}
-          >
-            <h2 id="heute-wealth-title">Nettovermögen · 12 Monate</h2>
-            <div className="heute-wealth-chart heute-wealth-state">
-              <SectionReadNote name="Nettovermögen" pending={pending} />
+                ) : (
+                  <span className="heute-good">
+                    <ArrowDown size={16} strokeWidth={1.75} aria-hidden="true" />
+                    {eur(-data.pace.figures.deltaCents, { cents: false })} unter Plan
+                  </span>
+                )
+              }
+            />
+            <div className="heute-figures">
+              <PaceFigure
+                label="Ausgegeben"
+                value={data.pace.figures.spentCents}
+                kind="spent"
+                selected={paceDetail}
+                setSelected={setPaceDetail}
+              />
+              <PaceFigure
+                label="Plan bis heute"
+                value={data.pace.figures.planToDateCents}
+                kind="plan"
+                selected={paceDetail}
+                setSelected={setPaceDetail}
+              />
+              <PaceFigure
+                label={
+                  data.pace.todayDay < 7 ? 'Prognose Monatsende · vorläufig' : 'Prognose Monatsende'
+                }
+                value={
+                  data.pace.figures.forecastAvailable ? data.pace.figures.forecastEndCents : null
+                }
+                kind="forecast"
+                selected={paceDetail}
+                setSelected={setPaceDetail}
+                extra={`von ${eur(data.pace.figures.limitCents, { cents: false })} Limit`}
+              />
             </div>
-            <span className="heute-wealth-comparison-state">
-              Jahresvergleich {pending ? 'wird geladen' : 'nicht verfügbar'}.
-            </span>
+            <HeutePaceChart data={data} />
+            <PaceAccuracyNote summary={data.planningAccuracy} />
+            {paceDetail && (
+              <div className="heute-figure-detail" role="status">
+                <strong>
+                  {paceDetail === 'spent'
+                    ? 'Ausgegeben'
+                    : paceDetail === 'plan'
+                      ? 'Plan bis heute'
+                      : 'Prognose Monatsende'}
+                </strong>
+                <span>
+                  {paceDetail === 'spent'
+                    ? eur(data.pace.figures.spentCents)
+                    : paceDetail === 'plan'
+                      ? eur(data.pace.figures.planToDateCents)
+                      : data.pace.figures.forecastAvailable
+                        ? eur(data.pace.figures.forecastEndCents)
+                        : 'Noch keine verlässliche Prognose'}
+                </span>
+                {paceDetail === 'forecast' && (
+                  <span>Limit: {eur(data.pace.figures.limitCents)}</span>
+                )}
+              </div>
+            )}
+            <p className="heute-note">
+              {data.pace.todayDay < 7
+                ? 'Vorläufig: ausgegeben plus offene fixe und wiederkehrende Zahlungen plus verbleibender variabler Plan. Ab dem 7. Tag werden variable Ausgaben hochgerechnet.'
+                : 'Fixe und wiederkehrende Zahlungen zählen einmal; nur variable Ausgaben werden hochgerechnet.'}
+              {!data.pace.figures.forecastAvailable &&
+                ' Für eine Prognose braucht es einen positiven Plan.'}
+            </p>
           </section>
-        )}
-      </div>
+        </>
+      ) : (
+        <PaceSectionState
+          month={month}
+          pending={pending}
+          failed={read.isError && !pending}
+          error={read.error}
+          onRetry={() => void read.refetch()}
+        />
+      )}
+    </>
+  );
+  const forecast = (
+    <>
+      <CompactForecastCard data={data} read={read} refreshing={refreshing} />
+    </>
+  );
+  const wealth = (
+    <>
+      {data ? (
+        <HeuteWealthLine data={data} />
+      ) : (
+        <section
+          className="heute-wealth-line"
+          aria-labelledby="heute-wealth-title"
+          aria-busy={pending || undefined}
+        >
+          <h2 id="heute-wealth-title">Nettovermögen · 12 Monate</h2>
+          <div className="heute-wealth-chart heute-wealth-state">
+            <SectionReadNote name="Nettovermögen" pending={pending} />
+          </div>
+          <span className="heute-wealth-comparison-state">
+            Jahresvergleich {pending ? 'wird geladen' : 'nicht verfügbar'}.
+          </span>
+        </section>
+      )}
+    </>
+  );
+  const attention = (
+    <>
       <AttentionBar
         data={data}
         pending={pending}
@@ -363,6 +389,10 @@ function HeuteBody({
           )
         }
       />
+    </>
+  );
+  const upcoming = (
+    <>
       {data ? (
         <Upcoming
           items={data.upcoming14}
@@ -371,6 +401,7 @@ function HeuteBody({
             (event) => event.date <= addDays(data.stand.today, 14),
           )}
           title="Fällig 14 Tage"
+          compact={REDESIGN_ENABLED}
           standToday={away ? longDay(data.stand.today) : undefined}
         />
       ) : (
@@ -383,6 +414,10 @@ function HeuteBody({
           <SectionReadNote name="Fällige Zahlungen" pending={pending} />
         </section>
       )}
+    </>
+  );
+  const bookings = (
+    <>
       <section
         className="heute-section"
         aria-labelledby="heute-bookings-title"
@@ -430,6 +465,10 @@ function HeuteBody({
           </ul>
         )}
       </section>
+    </>
+  );
+  const preferences = (
+    <>
       <div className="heute-view-preferences">
         <details>
           <summary>Ansicht anpassen</summary>
@@ -518,7 +557,10 @@ function HeuteBody({
           )}
         </section>
       )}
-
+    </>
+  );
+  const moreMonth = (
+    <>
       <MoreMonth key={phone ? 'phone' : 'desktop'} phone={phone}>
         {data ? (
           <>
@@ -653,6 +695,158 @@ function HeuteBody({
         <FundingNotes data={data} requestMonth={read.data?.stand.today.slice(0, 7)} />
       </MoreMonth>
     </>
+  );
+  return (
+    <>
+      {refreshing && (
+        <p className="heute-note" role="status">
+          Heute-Daten werden aktualisiert · Stand heute {longDay(data!.stand.today)}
+        </p>
+      )}
+      {away && (
+        <p className="heute-month-note" role="note" data-testid="heute-month-note">
+          <span>Ansicht: {monthName(month)} –</span>
+          <Button variant="ghost" size="sm" onClick={() => setMonth(currentMonth())}>
+            Zum aktuellen Monat
+          </Button>
+        </p>
+      )}
+      {REDESIGN_ENABLED ? (
+        <>
+          <div className="heute-priorities">
+            <div>
+              {lead}
+              {verdict}
+            </div>
+            {attention}
+          </div>
+          <div className="heute-work-grid">
+            <div className="heute-work-main">
+              {pace}
+              {forecast}
+            </div>
+            <div className="heute-work-aside">
+              {kennzahlen}
+              {wealth}
+              <FinanceCheck data={data} pending={pending} context={{ month, period }} />
+              {upcoming}
+              {bookings}
+            </div>
+          </div>
+          {preferences}
+          {moreMonth}
+        </>
+      ) : (
+        <>
+          {kennzahlen}
+          {verdict}
+          {lead}
+          <div className="heute-overview-charts">
+            {pace}
+            {forecast}
+            {wealth}
+          </div>
+          {attention}
+          {upcoming}
+          {bookings}
+          {preferences}
+          {moreMonth}
+        </>
+      )}
+    </>
+  );
+}
+
+/** Current-day envelope money; the selected-month Pace and fixed cash forecast keep their scopes. */
+function PrimaryLead({
+  data,
+  pending,
+  open,
+  onToggle,
+}: {
+  data: Heute | undefined;
+  pending: boolean;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  useAmountPrivacy();
+  return (
+    <div className="heute-primary">
+      <h2>Frei bis Gehalt</h2>
+      {data ? (
+        <button
+          className={`heute-primary-value${data.lead.freeCents < 0 ? ' heute-alert' : ''}`}
+          type="button"
+          data-testid="heute-lead-value"
+          aria-expanded={open}
+          aria-controls="heute-lead-chain"
+          aria-describedby={open ? 'heute-lead-chain' : undefined}
+          aria-label={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${open ? 'ausblenden' : 'zeigen'}`}
+          onClick={onToggle}
+        >
+          {eur(data.lead.freeCents)}
+        </button>
+      ) : (
+        <span className="heute-primary-value" aria-busy={pending || undefined}>
+          {pending ? '…' : '–'}
+        </span>
+      )}
+      <p className="heute-note">
+        Envelope-Spielraum für Bedarf und Wunsch nach offenen Rechnungen; kein Kontostand und kein
+        Überziehungsrahmen.
+      </p>
+      {data && (
+        <p className="heute-note">
+          Stand heute · {longDay(data.stand.today)} · bis {longDay(data.stand.payday.day)} · noch{' '}
+          {data.stand.payday.daysToPayday} Tage
+        </p>
+      )}
+    </div>
+  );
+}
+
+function FinanceCheck({
+  data,
+  pending,
+  context,
+}: {
+  data: Heute | undefined;
+  pending: boolean;
+  context: { month: string; period: Heute['stand']['period'] };
+}) {
+  const check = data?.financeCheck;
+  return (
+    <section
+      className="heute-section heute-finance-check"
+      aria-labelledby="heute-check-title"
+      aria-busy={(!data && pending) || undefined}
+    >
+      <SectionHead
+        id="heute-check-title"
+        title="Finanz-Check"
+        aside={
+          <AppLink
+            to="/reports/finanzcheck"
+            search={{
+              monat: data?.stand.month ?? context.month,
+              period: data?.stand.period ?? context.period,
+            }}
+          >
+            Verlauf <ChevronRight size={16} aria-hidden="true" />
+          </AppLink>
+        }
+      />
+      {data && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
+      {check ? (
+        'unavailable' in check ? (
+          <EmptyNote>{check.unavailable.message}</EmptyNote>
+        ) : (
+          <CheckCounts check={check} date={data!.stand.today} />
+        )
+      ) : (
+        <SectionReadNote name="Finanz-Check" pending={pending} />
+      )}
+    </section>
   );
 }
 

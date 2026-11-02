@@ -38,6 +38,8 @@ async function currentForecast(page: Page, month = '2026-09') {
   return { card, chart, report: source.report };
 }
 
+const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+
 test('daily budget uses the live lead and next payday, wraps and explains the formula in both themes', async ({
   page,
 }, info) => {
@@ -264,7 +266,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
     'Verfügbar im Budget',
     'Nettovermögen',
   ]);
-  await expect(page.getByTestId('heute-lead-value')).toHaveCount(0);
+  await expect(page.getByTestId('heute-lead-value')).toHaveCount(redesign ? 1 : 0);
   await expect(page.getByTestId('heute-pace-chart')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('heute-pace-chart')).toBeVisible();
   await expect(page.getByTestId('heute-networth-chart')).toBeVisible({ timeout: 15_000 });
@@ -283,7 +285,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
 
   await expect(page.getByTestId('heute-kennzahlen').getByRole('heading', { level: 2 })).toHaveText([
     'Zu verteilen',
-    'Frei bis Gehalt',
+    redesign ? 'Verfügbar im Budget' : 'Frei bis Gehalt',
     'Nettovermögen',
   ]);
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
@@ -305,15 +307,18 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   await expect(page.getByRole('heading', { name: 'Angepinnte Kategorien' })).toBeVisible();
   expect(writes).toEqual([]);
   await expect(page.getByRole('heading', { name: 'Fällig 14 Tage' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Finanz-Check', exact: true })).toHaveCount(
+    redesign ? 1 : 0,
+  );
   await expect(page.getByRole('region', { name: 'Zu tun' })).toContainText(
     `${badRules.length} ${badRules.length === 1 ? 'Regelbefund' : 'Regelbefunde'} zum Handeln`,
   );
   await expect(page.getByRole('heading', { name: 'Nettovermögen · 12 Monate' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
   const ordered = [
-    'heute-wealth-title',
-    'attention-title',
+    ...(redesign
+      ? ['attention-title', 'heute-wealth-title']
+      : ['heute-wealth-title', 'attention-title']),
     'heute-upcoming-title',
     'heute-bookings-title',
   ];
@@ -638,7 +643,14 @@ test('negative lead uses the action colour and attention precedes the month fold
     expect(attentionBox!.y).toBeLessThan(upcomingBox!.y);
     expect(moreBox!.y).toBeGreaterThan(attentionBox!.y);
     if (info.project.name === 'mobile') {
-      await expect(figure).toHaveCSS('font-size', '22px');
+      await expect(figure).toHaveCSS(
+        'font-size',
+        redesign
+          ? await figure.evaluate((el) =>
+              getComputedStyle(el).getPropertyValue('--fs-dimension').trim(),
+            )
+          : '22px',
+      );
       expect((await page.getByTestId('liquidity-chart').boundingBox())!.height).toBe(220);
     }
   }
