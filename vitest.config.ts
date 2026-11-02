@@ -13,6 +13,6 @@ export default defineConfig({
     passWithNoTests: true,
     // SQLite-backed tests open, migrate and close real files; the Windows CI runner is several
     // times slower at that than Linux and kept hitting the 5 s default.
-    testTimeout: process.platform === 'win32' ? 30_000 : 5_000,
+    testTimeout: process.platform === 'win32' ? 120_000 : 5_000,
   },
 });

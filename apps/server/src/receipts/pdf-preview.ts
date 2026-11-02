@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { open } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { Worker } from 'node:worker_threads';
+import { PDF_TIME_LIMIT_MS } from '../pdf-time-limit';
 import { digest, receiptPath, RECEIPT_LIMIT } from './files';
 
 export type PdfPreviewCode =
@@ -22,7 +23,7 @@ export class PdfPreviewError extends Error {
 }
 
 const OUTPUT_LIMIT = 8 * 1024 * 1024;
-const TIME_LIMIT = 20_000;
+const TIME_LIMIT = PDF_TIME_LIMIT_MS;
 // Process-wide admission, acquired before file I/O. There is deliberately no waiting queue.
 let active = false;
 const aborted = (signal: AbortSignal) => {

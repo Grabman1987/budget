@@ -1,3 +1,4 @@
+import { startInvestmentCapture, wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
 import { join } from 'node:path';
@@ -110,10 +111,20 @@ sampleTest(
         .getByRole('button', { name: 'ETF Welt', exact: true }),
     ).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Aktien Welt', exact: true })).toHaveCount(0);
-    await expect(page.locator('.portfolio-table .kgroup').first()).toContainText('Aktien Welt');
+    if (await wealthRedesign(page)) {
+      await expect(page.locator('.wealth-position-table thead')).toContainText('Einstandskurs');
+      await expect(page.locator('.wealth-position-group').first()).toContainText('Wertpapiere');
+    } else
+      await expect(page.locator('.portfolio-table .kgroup').first()).toContainText('Aktien Welt');
     await page.evaluate(() => document.fonts.ready);
-    await expect(page.locator('.portfolio-view > .vnw')).toBeVisible();
-    const lead = await page.locator('.portfolio-view > .vnw').boundingBox();
+    await expect(
+      page.locator(
+        (await wealthRedesign(page)) ? '.wealth-position-strip' : '.portfolio-view > .vnw',
+      ),
+    ).toBeVisible();
+    const lead = await page
+      .locator((await wealthRedesign(page)) ? '.wealth-position-strip' : '.portfolio-view > .vnw')
+      .boundingBox();
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
       await accessibility(page, '.portfolio-view');
@@ -241,21 +252,28 @@ sampleTest(
     await page.evaluate(() => delete document.documentElement.dataset['portfolioRetryClicked']);
     await page.route('**/api/portfolio/positions{,?*}', async (route) => {
       const original = (await (await route.fetch()).json()) as PortfolioPositionsView;
-      const p = original.classes[0]!.positions[0]!;
-      p.quote = null;
-      p.valueCents = null;
-      p.shareBp = null;
-      p.gainCents = null;
-      p.gainBp = null;
-      p.accounts[0]!.valueStatus = 'missing_price';
-      p.accounts[0]!.valueCents = null;
+      const id = original.classes[0]!.positions[0]!.securityId;
+      for (const p of [
+        original.classes[0]!.positions[0]!,
+        ...(original.positions ?? []).filter((row) => row.securityId === id),
+      ]) {
+        p.quote = null;
+        p.valueCents = null;
+        p.shareBp = null;
+        p.gainCents = null;
+        p.gainBp = null;
+        p.accounts[0]!.valueStatus = 'missing_price';
+        p.accounts[0]!.valueCents = null;
+      }
       original.valueCents = null;
       original.chain = null;
       await route.fulfill({ json: original });
     });
     await page.reload();
     await expect(page.getByTestId('portfolio-value')).toHaveText('Bewertung unvollständig');
-    await expect(page.locator('.portfolio-table')).toContainText('Kurs fehlt');
+    await expect(
+      page.locator((await wealthRedesign(page)) ? '.wealth-position-table' : '.portfolio-table'),
+    ).toContainText('Kurs fehlt');
     // Keep interception active across history refetches; newer mocks take priority.
     let missingBasisId: string | undefined;
     await page.route('**/api/portfolio/positions{,?*}', async (route) => {
@@ -290,9 +308,9 @@ sampleTest(
       await route.fulfill({ json: body });
     });
     await page.reload();
-    await expect(page.locator('.portfolio-view .vnw')).toContainText(
-      'Wechselkurs für Einstand fehlt',
-    );
+    await expect(
+      page.locator((await wealthRedesign(page)) ? '.wealth-positions-v3' : '.portfolio-view .vnw'),
+    ).toContainText('Wechselkurs für Einstand fehlt');
     await page
       .getByRole('region', { name: 'Positionen', exact: true })
       .getByRole('button', { name: 'ETF Welt', exact: true })
@@ -457,7 +475,7 @@ test('pending create and quote requests reject Back until the save finishes', as
     await route.continue();
   });
   await page.goto('/vermoegen/portfolio/positionen');
-  await page.getByRole('button', { name: 'Instrument anlegen', exact: true }).click();
+  await startInvestmentCapture(page, 'Wertpapier anlegen');
   const createPanel = page.getByRole('dialog', { name: 'Instrument anlegen', exact: true });
   await createPanel.getByLabel('Name', { exact: true }).fill(name);
   const createdResponse = page.waitForResponse(

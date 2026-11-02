@@ -65,9 +65,11 @@ export type InstrumentHistoryController = ReturnType<typeof useInstrumentHistory
 export function PriceHistory({
   securityId,
   controller,
+  chartSuffix,
 }: {
   securityId: string;
   controller: InstrumentHistoryController;
+  chartSuffix?: string | undefined;
 }) {
   useAmountPrivacy();
   const [mode, setMode] = useState<'value' | 'price'>('value');
@@ -163,7 +165,8 @@ export function PriceHistory({
           to &&
           ((mode === 'value' && history && !history.unavailable && history.points.length > 0) ||
             (mode === 'price' && query.isSuccess && prices.length > 0)) && (
-            <Drawing
+            <InstrumentHistoryDrawing
+              testIdSuffix={chartSuffix}
               mode={mode}
               width={width}
               prices={prices}
@@ -200,14 +203,18 @@ export function PriceHistory({
   );
 }
 
-function Drawing({
+export function InstrumentHistoryDrawing({
   mode,
   width,
   prices,
   history,
   from,
   to,
+  compact = false,
+  testIdSuffix,
 }: {
+  compact?: boolean;
+  testIdSuffix?: string | undefined;
   mode: 'value' | 'price';
   width: number;
   prices: PriceRow[];
@@ -216,11 +223,11 @@ function Drawing({
   to: string;
 }) {
   useAmountPrivacy();
-  const height = 280,
+  const height = compact ? 210 : 280,
     left = 64,
     right = 16,
     top = 20,
-    bottom = 232;
+    bottom = height - 48;
   const rows =
     mode === 'value'
       ? (history?.points ?? []).map((p) => ({ date: p.date, value: p.valueCents }))
@@ -307,14 +314,14 @@ function Drawing({
     <ChartSvg
       width={width}
       height={height}
-      testId={mode === 'value' ? 'instrument-value-chart' : 'price-history-chart'}
+      testId={`${mode === 'value' ? 'instrument-value-chart' : 'price-history-chart'}${testIdSuffix ?? ''}`}
       label={
         mode === 'value'
           ? 'Täglicher Instrumentwert in EUR und dokumentierter Stichtag-Einstand'
           : `Gespeicherter Kurs je Stück in ${prices[0]?.currency ?? 'Kurswährung'}`
       }
       points={points}
-      table="lazy"
+      table={compact ? false : 'lazy'}
     >
       {mode === 'value' && (
         <text x={left} y={12} className="svg-label">

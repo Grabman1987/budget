@@ -1,3 +1,4 @@
+import { PDF_TIME_LIMIT_MS } from '../pdf-time-limit';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -64,7 +65,7 @@ export async function extractPayslipText(
       void worker.terminate();
       done(result);
     };
-    const timer = setTimeout(() => finish({ error: 'limit' }), 20_000);
+    const timer = setTimeout(() => finish({ error: 'limit' }), PDF_TIME_LIMIT_MS);
     worker.once('message', finish);
     worker.once('error', () => finish({ error: 'pdf' }));
     worker.once('exit', () => finish({ error: 'pdf' }));

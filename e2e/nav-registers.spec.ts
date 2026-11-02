@@ -1,3 +1,4 @@
+import { wealthRedesign, portfolioNavigation } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
 import type { Page } from '@playwright/test';
@@ -133,8 +134,15 @@ test('other area register rows fit or expose their existing scroll fade', async 
       await expect(page.locator('.report-switcher > summary')).toBeVisible();
       continue;
     }
+    if (area === 'Vermögen' && (await wealthRedesign(page))) {
+      const menu = await portfolioNavigation(page);
+      await expect(menu.getByRole('link')).toHaveCount(5);
+      await page.keyboard.press('Escape');
+      continue;
+    }
     const navigation = await areaNavigation(page, area!);
     const overflows = await navigation.evaluate((el) => el.scrollWidth > el.clientWidth);
+
     if (overflows) {
       await expect(row).toHaveAttribute('data-fade-end', 'true');
       expect(await row.evaluate((el) => getComputedStyle(el).maskImage)).toContain(

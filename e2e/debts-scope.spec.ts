@@ -1,3 +1,4 @@
+import { showDebtCalculation, showDebtOverview, wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -83,6 +84,7 @@ test('explains net versus cash debts, links financing and stacks the existing lo
 
   const url = `/vermoegen/schulden?kredit=${loans[1]!.id}`;
   await page.goto(url);
+  await showDebtOverview(page);
   await expect(page.locator('.debt-overview')).toContainText(
     'positivem Nettowert und negativer Kassa',
   );
@@ -102,7 +104,7 @@ test('explains net versus cash debts, links financing and stacks the existing lo
   ).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(url);
-  await page.getByText('Rechenweg', { exact: true }).click();
+  await showDebtCalculation(page);
   await expect(page.getByLabel('Kredit für das Modell')).toHaveValue(loans[1]!.id);
   await expect(page.getByTestId('debt-total')).toHaveText('300,00 €');
   const strategy = page.getByRole('region', { name: 'Tilgungsstrategie', exact: true });
@@ -114,7 +116,8 @@ test('explains net versus cash debts, links financing and stacks the existing lo
   await page.getByRole('button', { name: 'Modell berechnen', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Modellvergleich' })).toBeVisible();
 
-  const lead = (await page.locator('.debts-view > .vnw').boundingBox())!;
+  const leadSelector = (await wealthRedesign(page)) ? '.wealth-debt-lead' : '.debts-view > .vnw';
+  const lead = (await page.locator(leadSelector).boundingBox())!;
   const calculation = (await page.locator('.debt-rechenweg').boundingBox())!;
   const content = (await page.locator('.debt-rechenweg > .vview').boundingBox())!;
   const model = (await page.locator('.debt-assumptions').boundingBox())!;
@@ -166,14 +169,14 @@ test('explains net versus cash debts, links financing and stacks the existing lo
   };
   // Preserve the existing focus behavior against the previous column geometry.
   // The unchanged loan dialog unmounts immediately on cancel; trigger restoration is a separate gap.
-  await page.locator('.debts-view > .vnw').evaluate((el) => {
+  await page.locator(leadSelector).evaluate((el) => {
     (el as HTMLElement).style.gridColumn = '1';
   });
   await page.locator('.debt-assumptions').evaluate((el, project) => {
     (el as HTMLElement).style.gridColumn = project === 'mobile' ? '1 / -1' : '2';
   }, info.project.name);
   const previousFocus = await cancelAndReadFocus();
-  await page.locator('.debts-view > .vnw, .debt-assumptions').evaluateAll((els) => {
+  await page.locator(`${leadSelector}, .debt-assumptions`).evaluateAll((els) => {
     for (const el of els) (el as HTMLElement).style.removeProperty('grid-column');
   });
   expect(await cancelAndReadFocus()).toBe(previousFocus);
@@ -193,7 +196,7 @@ test('explains net versus cash debts, links financing and stacks the existing lo
     '1,00 %',
   );
   await page.reload();
-  await page.getByText('Rechenweg', { exact: true }).click();
+  await showDebtCalculation(page);
   await expect(page.getByLabel('Kredit für das Modell')).toHaveValue(loans[1]!.id);
   await expect(page.locator('.loan-scenarios .aside')).toContainText('Kredit Beta');
 });
