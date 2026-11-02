@@ -1,0 +1,36 @@
+PASS S3 ON 1440px: five areas, native page menus, search utilities, compatible context, Back/reload and profile/account entries
+PASS T6: ON alias/context/title, real13-day R07 history, historical-unavailable/current-500 budget window, focused source, Back and reload
+PASS T2: literal day35 low, response-owned IndexedDB source, offline reload and reconnection
+PASS T3: selected17000 versus positive20000/net-debt-9500, source context, reload and Back focus
+PASS S3 OFF 1440px: five areas, native page menus, search utilities, compatible context, Back/reload and profile/account entries
+PASS 1440px: OFF overrides denied, real ON/OFF upgrade, session and bookmark retained
+PASS S3 ON 390px: five areas, native page menus, search utilities, compatible context, Back/reload and profile/account entries
+PASS T6: ON alias/context/title, real13-day R07 history, historical-unavailable/current-500 budget window, focused source, Back and reload
+PASS T2: literal day35 low, response-owned IndexedDB source, offline reload and reconnection
+PASS T3: selected17000 versus positive20000/net-debt-9500, source context, reload and Back focus
+PASS S3 OFF 390px: five areas, native page menus, search utilities, compatible context, Back/reload and profile/account entries
+PASS 390px: OFF overrides denied, real ON/OFF upgrade, session and bookmark retained
+PASS S3 OFF 320px: five areas, native page menus, search utilities, compatible context, Back/reload and profile/account entries
+PASS S3 ON 320px: five areas, native page menus, search utilities, compatible context, Back/reload and profile/account entries
+PASS gallery chromium off light 1440px
+PASS gallery chromium off dark 1440px
+PASS gallery chromium off light 390px
+PASS gallery chromium off dark 390px
+PASS gallery chromium off light 320px
+PASS gallery chromium off dark 320px
+PASS gallery chromium on light 1440px
+PASS gallery chromium on dark 1440px
+PASS gallery chromium on light 390px
+PASS gallery chromium on dark 390px
+PASS gallery chromium on light 320px
+PASS gallery chromium on dark 320px
+PASS S3 OFF 390px: five areas, native page menus, search utilities, compatible context, Back/reload and profile/account entries
+PASS gallery webkit off light 390px
+PASS gallery webkit off dark 390px
+PASS gallery webkit off light 320px
+PASS gallery webkit off dark 320px
+PASS S3 ON 390px: five areas, native page menus, search utilities, compatible context, Back/reload and profile/account entries
+PASS gallery webkit on light 390px
+PASS gallery webkit on dark 390px
+PASS gallery webkit on light 320px
+PASS gallery webkit on dark 320px
