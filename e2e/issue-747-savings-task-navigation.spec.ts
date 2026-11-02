@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import { openPruefenSource } from './pruefen-part';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -75,7 +76,7 @@ test('Today savings action opens Aufgaben when bank movements are also pending',
     );
   };
   await unchanged();
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   const fold = page.getByRole('button', { name: 'Mehr zum Monat' });
   if ((await fold.getAttribute('aria-expanded')) === 'false') await fold.click();
   const tasks = page.getByRole('region', { name: 'Zu tun', exact: true });

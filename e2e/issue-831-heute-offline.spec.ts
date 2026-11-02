@@ -13,13 +13,11 @@ test('Heute explanation follows existing offline permissions and resumes the sam
       writes.push(request.method() + ' ' + new URL(request.url()).pathname);
   });
   await page.goto('/?monat=2026-08&period=payday');
-  await expect(page.getByTestId('heute-kennzahlen')).toBeVisible();
   await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
   const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   if (redesign) {
     await expect(page.getByTestId('heute-lead-value')).toBeVisible();
-    await page.getByRole('button', { name: 'Herleitung zeigen', exact: true }).click();
-    await page.getByRole('link', { name: 'Alle Rechenschritte und Quellen' }).click();
+    await page.locator('a.hv-lead-value').click();
     await expect(
       page.getByRole('heading', { name: 'Frei bis Gehalt · Herleitung', exact: true }),
     ).toBeVisible();

@@ -1,3 +1,4 @@
+import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { expect as baseExpect, sampleTest as test } from './sample';
 
@@ -7,6 +8,10 @@ import { expect as baseExpect, sampleTest as test } from './sample';
  */
 const expect = baseExpect.configure({ timeout: 20_000 });
 test.describe.configure({ timeout: 90_000 });
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 
 for (const colorScheme of ['light', 'dark'] as const) {
   test.describe(colorScheme, () => {
@@ -21,9 +26,11 @@ for (const colorScheme of ['light', 'dark'] as const) {
       page,
     }, info) => {
       await page.goto('/');
-      const head = page.locator('header.titleblock-heute');
+      const head = page.locator(redesign ? '.hv-head:visible' : 'header.titleblock-heute');
       await expect(
-        head.getByRole('heading', { name: 'September 2026', exact: true }),
+        redesign
+          ? head.locator('.month-name')
+          : head.getByRole('heading', { name: 'September 2026', exact: true }),
       ).toBeVisible();
       const monat = head.getByRole('button', { name: 'Monat', exact: true });
       const payday = head.getByRole('button', { name: 'Bis Gehalt', exact: true });
@@ -31,7 +38,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expect(payday).toBeVisible();
       const stand = head.locator('.tb-field', { hasText: 'Stand' });
       const phone = (page.viewportSize()?.width ?? 1440) < 768;
-      if (!phone) {
+      if (!phone && !redesign) {
         // Desktop: the switch is right of the month, "Stand" sits underneath the switch.
         await expect(stand).toBeVisible();
         const title = await head.locator('.tb-title').boundingBox();
@@ -67,9 +74,18 @@ for (const colorScheme of ['light', 'dark'] as const) {
       page,
     }) => {
       await page.goto('/?period=payday');
-      await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
+      if (redesign) {
+        await expect(page.locator('.hv-number')).toHaveText(['1', '2', '3', '4', '5']);
+        await page.getByRole('link', { name: 'Kennzahlen', exact: true }).click();
+      }
+      if (!redesign)
+        await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
       await expect(page.locator('.heute .circle-no')).toHaveCount(0);
-      for (const name of ['Zu verteilen', 'Frei bis Gehalt', 'Nettovermögen'])
+      for (const name of [
+        'Zu verteilen',
+        redesign ? 'Verfügbar im Budget' : 'Frei bis Gehalt',
+        'Nettovermögen',
+      ])
         await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Monatsergebnis', exact: true })).toHaveCount(
         0,
@@ -83,7 +99,12 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await page.goto('/');
       await page.getByRole('button', { name: 'Vormonat' }).click();
       await expect(page).toHaveURL(/monat=2026-08/);
-      await expect(page.getByRole('heading', { name: 'August 2026', exact: true })).toBeVisible();
+      if (redesign) {
+        await expect(page.locator('.hv-head:visible .month-name')).toHaveText('August 2026');
+        await expect(page.locator('.hv-lead')).toHaveAttribute('data-as-of', '2026-09-17');
+        await page.goto(heuteReviewUrl(true, '/?monat=2026-08&period=month'));
+      } else
+        await expect(page.getByRole('heading', { name: 'August 2026', exact: true })).toBeVisible();
       await expect(page.getByText('August 2026 · Pace')).toBeVisible();
       for (const name of [
         'Letzte Buchungen',

@@ -17,6 +17,40 @@ test('actual monthly pace starts on the first phone screen and both folds clear 
     localStorage.removeItem('budget-heute-more-phone');
     localStorage.removeItem('budget-heute-more-desktop');
   });
+  if (redesign) {
+    for (const colorScheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      for (const width of [390, 320]) {
+        await page.setViewportSize({ width, height: 844 });
+        await page.goto('/?monat=2026-09&period=month');
+        await expect(page.locator('.hv-revisions tbody tr').first()).toBeVisible();
+        const lead = (await page.locator('.hv-lead-value').boundingBox())!;
+        const action = (await page.locator('.hv-revisions a').first().boundingBox())!;
+        expect(lead.y + lead.height).toBeLessThanOrEqual(780);
+        if (width === 390) expect(action.y + action.height).toBeLessThanOrEqual(780);
+        else await page.locator('.hv-revisions a').first().scrollIntoViewIfNeeded();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+          true,
+        );
+        await page.locator('.hv-pace').getByRole('link', { name: 'Pace →' }).click();
+        await expect(page.getByTestId('heute-pace-chart')).toBeVisible();
+        await expect(
+          page.getByRole('link', { name: 'Zurück zu Heute', exact: true }),
+        ).toBeVisible();
+        expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+      }
+      await page.goto('/heute/details/month?monat=2026-09&period=month');
+      const fold = page.getByRole('button', { name: 'Mehr zum Monat', exact: true });
+      await expect(fold).toHaveAttribute('aria-expanded', 'false');
+      await fold.click();
+      await expect(fold).toHaveAttribute('aria-expanded', 'true');
+      await fold.scrollIntoViewIfNeeded();
+      const box = (await fold.boundingBox())!;
+      const tab = (await page.locator('.tabbar').boundingBox())!;
+      expect(box.y + box.height).toBeLessThanOrEqual(tab.y);
+    }
+    return;
+  }
   const configured = page.viewportSize()!;
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });

@@ -1,8 +1,12 @@
+import { openHeuteReview, detectHeuteRedesign } from './heute-visual-fixture';
 import { sampleTest as test, expect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
 import { eur } from '../apps/web/src/ledger/format';
 
-const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 
 test('Pace reduces its lines and shares the plan marker and tooltip, with today on Plan bars', async ({
   page,
@@ -13,7 +17,8 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
   if (info.project.name === 'mobile') await page.setViewportSize({ width: 375, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const url of ['/?monat=2026-09', '/reports/onepager?monat=2026-09']) {
-    await page.goto(url);
+    if (url.startsWith('/?')) await openHeuteReview(page, url);
+    else await page.goto(url);
     await expect(page.getByTestId('pace-header')).toHaveCount(0);
     const chart = page.getByTestId('heute-pace-chart');
     await expect(chart).toBeVisible({ timeout: 30_000 });
@@ -141,11 +146,11 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
         url.searchParams.get('period') === 'month' &&
         url.searchParams.get('darstellung') === 'finanzcheck',
     );
-    await page.goto('/?monat=2026-09&period=month');
+    await openHeuteReview(page, '/?monat=2026-09&period=month');
   }
   await expect(page).toHaveURL(
     (url) =>
-      url.pathname === '/' &&
+      url.pathname === (redesign ? '/heute/details/month' : '/') &&
       url.searchParams.get('monat') === '2026-09' &&
       url.searchParams.get('period') === 'month',
   );

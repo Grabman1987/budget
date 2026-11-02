@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { withShellControls } from './shell-actions';
 import { openDatabase, schema } from '@budget/db';
@@ -184,7 +185,7 @@ async function scene(
     if (request.method() !== 'GET' && new URL(request.url()).pathname.startsWith('/api/'))
       writes.push({ path: new URL(request.url()).pathname, body: request.postDataJSON() });
   });
-  await page.goto('/?monat=2026-08&period=month');
+  await openHeuteReview(page, '/?monat=2026-08&period=month');
   await page.evaluate((value) => {
     document.documentElement.dataset['theme'] = value;
   }, theme);

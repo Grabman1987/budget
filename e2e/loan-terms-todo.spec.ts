@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { expect as baseExpect, type APIRequestContext } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -38,7 +39,7 @@ test('only incomplete open loans prompt once; completing their terms removes the
     interestRateBp: 0,
     installmentCents: 3_000,
   });
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   const row = page.getByRole('region', { name: 'Zu tun', exact: true });
   const prompt = row.getByRole('link', { name: 'Konditionen ergänzen' });
   await expect(page.locator('.heute-answers')).toBeVisible();

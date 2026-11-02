@@ -1,10 +1,14 @@
+import { openHeuteReview, detectHeuteRedesign } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { join } from 'node:path';
 import { test } from './isolated-ledger';
 import { toast } from './ledger-helpers';
 
-const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 
 test('a position without market quote is valued at cost and flagged; the first quote and undo keep working', async ({
   page,
@@ -85,7 +89,7 @@ test('a position without market quote is valued at cost and flagged; the first q
   await page.keyboard.press('Escape');
   await expect(page.getByText('Wechselkurs fehlt', { exact: false })).toHaveCount(0);
 
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
   // This ledger contains only the synthetic holding; an empty due list stays hidden.
@@ -161,7 +165,7 @@ test('a position without market quote is valued at cost and flagged; the first q
   ).toContainText('Wertzuwachs 20,00 €');
   await page.keyboard.press('Escape');
 
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
   await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(
     redesign ? 1 : 0,

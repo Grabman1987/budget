@@ -1,4 +1,4 @@
-import { detectHeuteRedesign } from './heute-visual-fixture';
+import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import { sampleTest as test, expect as baseExpect } from './sample';
 import AxeBuilder from '@axe-core/playwright';
 import type { Heute } from '../apps/web/src/heute/api';
@@ -53,7 +53,7 @@ test('monthly pace and wealth expose exact dates and amounts with honest gaps in
   );
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
-    await page.goto('/?monat=2026-09&period=month');
+    await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=month'));
     const wealth = page.getByTestId('heute-wealth-history');
     const pace = page.getByTestId('heute-pace-chart');
     await expect(wealth).toBeVisible();

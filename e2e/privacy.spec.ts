@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
@@ -98,7 +99,7 @@ test('privacy follows routes and reload, masks money and chart alternatives, pre
   page,
 }, info) => {
   test.setTimeout(120_000);
-  await page.goto('/?monat=2026-09');
+  await openHeuteReview(page, '/?monat=2026-09');
   const header = page.locator(info.project.name === 'mobile' ? '.m-head' : '.topbar');
   const toggle = header.getByRole('button', { name: 'Beträge verbergen', exact: true });
   const menu = header.locator('.m-profile summary');

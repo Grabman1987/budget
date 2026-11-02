@@ -12,7 +12,7 @@ import {
 } from '@budget/ui';
 import { addDays, cents } from '@budget/domain';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useLocation } from '@tanstack/react-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import { TriangleAlert, ArrowDown, ArrowUp, ChevronRight } from 'lucide-react';
 import { PaceAccuracyNote } from '../reports/planning-accuracy-report';
@@ -43,6 +43,7 @@ import { Upcoming } from './upcoming-payments';
 import type { DimensionKind } from './dimension-page';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { InvestmentBasisSummary } from './investment-basis';
+import { HeuteOverview, type HeuteDetail } from './overview';
 import { useElementWidth } from '../charts/use-element-width';
 
 const pct = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 });
@@ -55,7 +56,7 @@ const STATUS: Record<string, string> = {
 export function HeutePage() {
   useAmountPrivacy();
   const [month] = useMonth();
-  const { period, setPeriod } = useBalancePeriod();
+  const { period, setPeriod, paydayAvailable } = useBalancePeriod();
   const query = useQuery(heuteQuery(month, period));
   // Only the selected query's successful response may survive a background refresh.
   // In particular, never turn a previous-key placeholder into current money.
@@ -69,6 +70,16 @@ export function HeutePage() {
     (REDESIGN_ENABLED ? matching && query.failureCount === 0 : !query.isFetching)
       ? query.data
       : undefined;
+  if (REDESIGN_ENABLED)
+    return (
+      <HeuteOverview
+        data={data}
+        read={query}
+        period={period}
+        setPeriod={setPeriod}
+        paydayAvailable={paydayAvailable}
+      />
+    );
   return (
     <PageFrame
       meta={HEUTE}
@@ -87,7 +98,9 @@ function HeuteBody({
   data,
   read,
   period,
+  detail,
 }: {
+  detail?: HeuteDetail;
   data: Heute | undefined;
   read: UseQueryResult<Heute>;
   period: Heute['stand']['period'];
@@ -98,11 +111,12 @@ function HeuteBody({
   const [leadDetail, setLeadDetail] = useState<'need' | 'want' | 'open' | null>(null);
   const [paceDetail, setPaceDetail] = useState<'spent' | 'plan' | 'forecast' | null>(null);
   const navigate = useNavigate();
+  const source = useLocation({ select: (location) => location.href });
   const openNetDetail = (kind: DimensionKind) =>
     void navigate({
       to: '/heute/details/$kind',
       params: { kind },
-      search: { monat: month, period },
+      search: { monat: month, period, ...(REDESIGN_ENABLED ? { von: source } : {}) },
     });
   const [month, , setMonth] = useMonth();
   const away = month !== (data?.stand.today.slice(0, 7) ?? currentMonth());
@@ -362,7 +376,16 @@ function HeuteBody({
   );
   const forecast = (
     <>
-      <CompactForecastCard data={data} read={read} refreshing={refreshing} />
+      <CompactForecastCard
+        data={data}
+        read={read}
+        refreshing={refreshing}
+        returnTo={
+          REDESIGN_ENABLED
+            ? `/heute/details/${detail ?? 'month'}?monat=${month}&period=${period}`
+            : undefined
+        }
+      />
     </>
   );
   const wealth = (
@@ -711,6 +734,56 @@ function HeuteBody({
       </MoreMonth>
     </>
   );
+  if (detail) {
+    switch (detail) {
+      case 'pace':
+        return pace;
+      case 'forecast':
+        return forecast;
+      case 'tasks':
+        return (
+          <>
+            {attention}
+            <FinanceCheck data={data} pending={pending} context={{ month, period }} />
+            <FundingNotes data={data} requestMonth={data?.stand.today.slice(0, 7)} />
+          </>
+        );
+      case 'due':
+        return data &&
+          !data.upcoming14.length &&
+          !data.upcomingEvents.some((event) => event.date <= addDays(data.stand.today, 14)) ? (
+          <EmptyNote>Keine Zahlungen in den nächsten 14 Tagen.</EmptyNote>
+        ) : (
+          upcoming
+        );
+      case 'bookings':
+        return bookings;
+      case 'wealth':
+        return (
+          <>
+            {kennzahlen}
+            {wealth}
+            {moreMonth}
+          </>
+        );
+      case 'metrics':
+        return kennzahlen;
+      case 'pinned':
+        return (
+          <>
+            {!showPinned && (
+              <p className="heute-note">
+                Die angepinnten Kategorien sind ausgeblendet. Unter „Ansicht anpassen“ kannst du sie
+                einblenden.
+              </p>
+            )}
+            {preferences}
+          </>
+        );
+      case 'month':
+        return <HeuteBody data={data} read={read} period={period} />;
+    }
+  }
   return (
     <>
       {refreshing && (
@@ -1184,4 +1257,18 @@ function monthLabel(month: string) {
   return new Intl.DateTimeFormat('de-AT', { month: 'long', year: 'numeric' }).format(
     new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1, 15),
   );
+}
+
+export function HeuteDetailBody({
+  data,
+  read,
+  period,
+  kind,
+}: {
+  data: Heute | undefined;
+  read: UseQueryResult<Heute>;
+  period: Heute['stand']['period'];
+  kind: HeuteDetail;
+}) {
+  return <HeuteBody data={data} read={read} period={period} detail={kind} />;
 }

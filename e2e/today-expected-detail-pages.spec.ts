@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test, SAMPLE_URL } from './sample';
 import type { Page } from '@playwright/test';
@@ -24,11 +25,13 @@ test('Today dimension links retain month and period, account links, and full-wid
   page,
 }, info) => {
   await page.addInitScript(() => localStorage.setItem('budget-heute-more-phone', '1'));
-  await page.goto('/?monat=2026-08&period=month');
+  await openHeuteReview(page, '/?monat=2026-08&period=month');
   await expect(page.locator('.heute-answer')).toHaveCount(3);
   const secondary = await page.getByRole('region', { name: 'Zu tun', exact: true }).boundingBox();
   const main = await page.locator('.heute').boundingBox();
-  expect(secondary && main && Math.abs(secondary.width - main.width) < 2).toBe(true);
+  const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  if (on) expect(secondary && main && secondary.width < main.width).toBe(true);
+  else expect(secondary && main && Math.abs(secondary.width - main.width) < 2).toBe(true);
   const trigger = page
     .getByRole('group', { name: 'Maßkette Nettovermögen' })
     .getByRole('button', { name: /^Liquidität/ });
@@ -41,18 +44,25 @@ test('Today dimension links retain month and period, account links, and full-wid
     page
       .getByRole('region', { name: 'Liquidität' })
       .getByRole('link', { name: 'Girokonto', exact: true }),
-  ).toHaveAttribute('href', '/konten/acc-giro');
+  ).toHaveAttribute(
+    'href',
+    on ? /^\/konten\/acc-giro\?monat=2026-08&period=month&von=/ : '/konten/acc-giro',
+  );
   await pageChecks(page);
   await page.screenshot({ path: info.outputPath('today-dimension-light.png'), fullPage: true });
   await page.goBack();
-  await expect(page).toHaveURL(/\/\?monat=2026-08&period=month/);
+  await expect(page).toHaveURL(
+    on ? /\/heute\/details\/month\?monat=2026-08&period=month/ : /\/\?monat=2026-08&period=month/,
+  );
   await page.goto(url);
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(page.getByRole('heading', { name: 'Liquidität', exact: true })).toBeVisible();
   await pageChecks(page);
   await page.screenshot({ path: info.outputPath('today-dimension-dark.png'), fullPage: true });
   await page.getByRole('link', { name: 'Zurück zu Heute' }).click();
-  await expect(page).toHaveURL(/\/\?monat=2026-08&period=month/);
+  await expect(page).toHaveURL(
+    on ? /\/heute\/details\/month\?monat=2026-08&period=month/ : /\/\?monat=2026-08&period=month/,
+  );
   await pageChecks(page);
   await page.screenshot({ path: info.outputPath('today-secondary-dark.png'), fullPage: true });
   await page.goto('/heute/details/unknown-synthetic-kind?monat=2026-08');

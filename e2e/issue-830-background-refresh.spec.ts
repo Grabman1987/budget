@@ -1,6 +1,6 @@
-import { detectHeuteRedesign } from './heute-visual-fixture';
+import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
-import type { Locator, Page } from '@playwright/test';
+import type { Locator } from '@playwright/test';
 import { MIN_TARGET_PX } from './ledger-helpers';
 import { sampleTest as test, expect } from './sample';
 
@@ -75,79 +75,12 @@ async function readableControl(control: Locator, scroll: boolean) {
     expect(rectsApart(result.box, overlay), result.html).toBe(true);
   expect(result.hits, result.html).toEqual([true, true, true, true, true]);
 }
-async function readableNextWork(page: Page, enlarged: boolean) {
-  const rows = page.locator('.heute-priorities .heute-attention > .attention-row');
-  await expect(rows).toHaveCount(4);
-  for (const row of await rows.all()) {
-    await row.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
-    const layout = await row.evaluate((element) => {
-      const description = element.querySelector(':scope > span')!;
-      const d = description.getBoundingClientRect();
-      const b = element.getBoundingClientRect();
-      const range = document.createRange();
-      range.selectNodeContents(description);
-      return {
-        box: { x: b.x, y: b.y, width: b.width, height: b.height },
-        description: { x: d.x, y: d.y, width: d.width, height: d.height },
-        lines: [...range.getClientRects()].map((r) => ({
-          x: r.x,
-          y: r.y,
-          width: r.width,
-          height: r.height,
-        })),
-      };
-    });
-    for (const line of layout.lines) {
-      expect(line.x).toBeGreaterThanOrEqual(layout.description.x);
-      expect(line.x + line.width).toBeLessThanOrEqual(
-        layout.description.x + layout.description.width,
-      );
-      expect(line.y).toBeGreaterThanOrEqual(layout.description.y);
-      expect(line.y + line.height).toBeLessThanOrEqual(
-        layout.description.y + layout.description.height,
-      );
-    }
-    const actions = row.locator('a:visible, button:visible, summary:visible');
-    for (const action of await actions.all()) {
-      await readableControl(action, true);
-      const box = (await action.boundingBox())!;
-      const description = await row.locator(':scope > span').boundingBox();
-      const rowBox = (await row.boundingBox())!;
-      expect(box.x).toBeGreaterThanOrEqual(rowBox.x);
-      expect(box.x + box.width).toBeLessThanOrEqual(rowBox.x + rowBox.width);
-      expect(box.y).toBeGreaterThanOrEqual(rowBox.y);
-      expect(box.y + box.height).toBeLessThanOrEqual(rowBox.y + rowBox.height);
-      expect(rectsApart(description!, box)).toBe(true);
-      if (enlarged) expect(box.y).toBeGreaterThanOrEqual(description!.y + description!.height);
-    }
-    const actionBoxes = await actions.evaluateAll((elements) =>
-      elements.map((element) => {
-        const b = element.getBoundingClientRect();
-        return { x: b.x, y: b.y, width: b.width, height: b.height };
-      }),
-    );
-    for (let index = 0; index < actionBoxes.length; index++)
-      for (const other of actionBoxes.slice(index + 1))
-        expect(rectsApart(actionBoxes[index]!, other)).toBe(true);
-    if (enlarged) expect(layout.description.width).toBe(layout.box.width);
-  }
-  const boxes = await rows.evaluateAll((elements) =>
-    elements.map((element) => {
-      const b = element.getBoundingClientRect();
-      return { y: b.y, height: b.height };
-    }),
-  );
-  for (let index = 1; index < boxes.length; index++)
-    expect(boxes[index]!.y).toBeGreaterThanOrEqual(boxes[index - 1]!.y + boxes[index - 1]!.height);
-  await page.evaluate(() => window.scrollTo(0, 0));
-}
-
 test('same-context focus refresh preserves money only in the redesign and clears failed reads', async ({
   page,
 }, info) => {
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
-    await page.goto('/?monat=2026-09&period=month');
+    await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=month'));
     const net = page.locator('[data-kennzahl="nettovermoegen"]');
     const budget = page.locator('[data-kennzahl="zu-verteilen"]');
     const low = page.locator('.heute-forecast-low');
@@ -205,129 +138,79 @@ test('same-context focus refresh preserves money only in the redesign and clears
 });
 
 for (const colorScheme of ['light', 'dark'] as const) {
-  test(`H1 hierarchy keeps canonical money, current-day scopes and all homes in ${colorScheme}`, async ({
+  test(`H1 compact hierarchy keeps canonical money, source scopes and all homes in ${colorScheme}`, async ({
     page,
   }, info) => {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
     await page.goto('/?monat=2026-09&period=month');
     await expect(page.locator('[data-budget-redesign="1"]')).toHaveCount(redesign ? 1 : 0);
-    const primary = page.getByRole('region', { name: 'Spielraum bis Gehalt' });
     if (!redesign) {
-      await expect(page.locator('.heute--redesign')).toHaveCount(0);
-      await expect(primary.getByTestId('heute-lead-value')).toHaveCount(0);
+      await expect(page.locator('.heute-screen')).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Zu verteilen', exact: true })).toBeVisible();
       return;
     }
-    const response = await page.request.get('/api/heute?period=month&month=2026-09');
-    const source = await response.json();
+    if (page.viewportSize()!.width < 768) await page.setViewportSize({ width: 390, height: 844 });
+    const source = await (await page.request.get('/api/heute?period=month&month=2026-09')).json();
     expect(source.lead.freeCents).toBe(98_826);
     expect(source.forecast35d.report.low.cents).toBe(19_101);
+    const primary = page.getByRole('region', { name: 'Frei bis Gehalt', exact: true });
     await expect(primary.getByTestId('heute-lead-value')).toHaveText('988,26 €');
-    await expect(primary).toContainText('kein Kontostand und kein Überziehungsrahmen');
-    await expect(primary).toContainText('Stand heute · 17.09.2026');
-    await page.evaluate(() => document.fonts.ready);
+    await expect(primary).toHaveAttribute('data-as-of', '2026-09-17');
     await expect(page.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '19101');
-    const attention = page.locator('.heute-priorities .heute-attention');
-    await expect(attention).toBeVisible();
-    const rows = attention.locator(':scope > .attention-row');
-    await expect(rows).toHaveCount(4);
-    expect(await rows.allTextContents()).toEqual([
+    const tasks = page.locator('.hv-revisions tbody tr');
+    await expect(tasks).toHaveCount(4);
+    expect(await tasks.allTextContents()).toEqual([
       expect.stringContaining('Kategorien überzogen'),
-      expect.stringContaining('Regelbefunde'),
+      expect.stringContaining('Konten zu prüfen'),
       expect.stringContaining('unter Prüfen'),
-      expect.stringContaining('Konten warten'),
+      expect.stringContaining('Regelbefunde'),
     ]);
-    const leadBox = (await primary.boundingBox())!;
-    const workBox = (await attention.boundingBox())!;
-    if (page.viewportSize()!.width === 1440) {
-      expect(workBox.x).toBeGreaterThanOrEqual(leadBox.x + leadBox.width);
-      expect(workBox.y).toBe(leadBox.y);
-    } else {
-      expect(leadBox.y).toBeLessThan(page.viewportSize()!.height);
-      expect(workBox.y).toBeLessThan(page.viewportSize()!.height);
-    }
-    await readableControl(primary.getByTestId('heute-lead-value'), false);
-    const initial = page.viewportSize()!.height >= 844 ? rows : rows.first();
-    for (const action of await initial.locator('a:visible, button:visible').all())
-      await readableControl(action, false);
-    await readableNextWork(page, false);
-    await expect(page.getByRole('region', { name: 'Finanz-Check' })).toBeVisible();
-    await expect(
-      page.getByRole('heading', { name: 'Letzte Buchungen', exact: true }),
-    ).toBeVisible();
-    const due = page.getByRole('region', { name: 'Fällig 14 Tage' });
-    await expect(due.locator('li')).toHaveCount(4);
-    const separated = await due
-      .locator('.heute-account-preview')
-      .first()
-      .evaluate((link) => {
-        const detail = link.parentElement!.querySelector('.heute-upcoming-meta')!;
-        return detail.getBoundingClientRect().top >= link.getBoundingClientRect().bottom;
-      });
-    expect(separated).toBe(true);
-    const expand = due.getByRole('button', { name: /Weitere .* Fälligkeiten/ });
-    await expand.focus();
-    await page.keyboard.press('Space');
-    await expect(due.locator('li')).toHaveCount(8);
-    await due.getByRole('button', { name: 'Weniger Fälligkeiten' }).click();
     await page.evaluate(() => document.fonts.ready);
-    for (const control of await page
-      .locator('.heute--redesign :is(button, a, summary):visible')
-      .all()) {
+    const leadBox = (await primary.boundingBox())!;
+    const first = (await tasks.first().boundingBox())!;
+    expect(leadBox.y).toBeLessThan(first.y);
+    expect(first.y + first.height).toBeLessThanOrEqual(
+      page.viewportSize()!.height - (info.project.name === 'desktop' ? 0 : 64),
+    );
+    await readableControl(page.locator('.hv-lead-value'), true);
+    for (const action of await page.locator('.hv-revisions a').all())
+      await readableControl(action, true);
+    for (const control of await page.locator('.heute-screen :is(a, button):visible').all()) {
       const box = (await control.boundingBox())!;
       expect(box.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
       expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
     }
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
-      ),
-    ).toBe(true);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
       path: info.outputPath(`hierarchy-${colorScheme}.png`),
       fullPage: true,
     });
+    await page.locator('.hv-due').getByRole('link').click();
+    const due = page.getByRole('region', { name: 'Fällig 14 Tage' });
+    await expect(due.locator('li')).toHaveCount(4);
+    const expand = due.getByRole('button', { name: /Weitere .* Fälligkeiten/ });
+    await expand.focus();
+    await page.keyboard.press('Space');
+    await expect(due.locator('li')).toHaveCount(8);
+    await due.getByRole('button', { name: 'Weniger Fälligkeiten' }).click();
+    await page.getByRole('link', { name: 'Zurück zu Heute', exact: true }).click();
+    await page.getByRole('link', { name: 'Mehr zum Monat', exact: true }).click();
     const fold = page.getByRole('button', { name: 'Mehr zum Monat', exact: true });
     const original = await fold.getAttribute('aria-expanded');
     await fold.focus();
     await page.keyboard.press('Space');
-    await expect(fold).toHaveAttribute('aria-expanded', original === 'true' ? 'false' : 'true');
     await page.reload();
     await expect(fold).toHaveAttribute('aria-expanded', original === 'true' ? 'false' : 'true');
-    await page.goto('/?monat=2026-09&period=payday');
-    await expect(primary.getByTestId('heute-lead-value')).toHaveText('988,26 €');
-    await expect(
-      page.getByTestId('heute-kennzahlen').getByRole('heading', { name: 'Verfügbar im Budget' }),
-    ).toBeVisible();
-    await page.keyboard.press('Control+Shift+H');
-    await expect(primary.getByTestId('heute-lead-value')).not.toContainText('988');
-    await expect(primary.getByTestId('heute-lead-value')).not.toHaveAttribute('aria-label', /988/);
-    await page.keyboard.press('Control+Shift+H');
-    await expect(primary.getByTestId('heute-lead-value')).toHaveText('988,26 €');
-    await fold.scrollIntoViewIfNeeded();
-    const foldBox = (await fold.boundingBox())!;
-    const controls = await page
-      .locator('.tabbar:visible, .fab:visible')
-      .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
-    if (controls.length)
-      expect(foldBox.y + foldBox.height).toBeLessThanOrEqual(Math.min(...controls));
     await page.goto('/?monat=2026-08&period=month');
     await expect(primary.getByTestId('heute-lead-value')).toHaveText('988,26 €');
-    await expect(page.getByTestId('heute-month-note')).toContainText('August 2026');
-    await expect(
-      page.getByRole('heading', { name: 'August 2026 · Pace', exact: true }),
-    ).toBeVisible();
-    await expect(primary).toContainText('Stand heute · 17.09.2026');
-    await expect(attention).toContainText('Stand heute · 17.09.2026');
+    await expect(page.locator('.hv-head:visible .month-name')).toHaveText('August 2026');
+    await expect(primary).toHaveAttribute('data-as-of', '2026-09-17');
+    await page.keyboard.press('Control+Shift+H');
+    await expect(primary.getByTestId('heute-lead-value')).not.toContainText('988');
+    await page.keyboard.press('Control+Shift+H');
+    await expect(primary.getByTestId('heute-lead-value')).toHaveText('988,26 €');
     await page.setViewportSize({ width: 320, height: 844 });
-    await page.evaluate(() => window.scrollTo(0, 0));
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
-      ),
-    ).toBe(true);
-    // Programmatic text enlargement of the existing type tokens, not a native device text-setting claim.
     await page.evaluate(() => {
       const root = document.documentElement;
       const style = getComputedStyle(root);
@@ -345,59 +228,13 @@ for (const colorScheme of ['light', 'dark'] as const) {
         if (Number.isFinite(value)) root.style.setProperty(`--fs-${token}`, `${value * 2}px`);
       }
     });
-    await readableControl(primary.getByTestId('heute-lead-value'), true);
-    await expect(primary.getByTestId('heute-lead-value')).toHaveText('988,26 €');
-    await readableNextWork(page, true);
-    for (const row of await due.locator('li').all()) {
-      const separation = await row.evaluate((element) => {
-        const range = document.createRange();
-        range.selectNodeContents(element.querySelector('time')!);
-        const date = range.getBoundingClientRect();
-        const source = element.querySelector('.heute-account-preview')!.getBoundingClientRect();
-        return { dateRight: date.right, sourceLeft: source.left };
-      });
-      expect(separation.dateRight).toBeLessThanOrEqual(separation.sourceLeft);
-    }
-    const wrapped = [
-      page.getByTestId('heute-month-note').getByRole('button', { name: 'Zum aktuellen Monat' }),
-      due.getByRole('button', { name: /Diesen Monat streichen/ }).first(),
-      due.getByRole('button', { name: /Weitere .* Fälligkeiten/ }),
-    ];
-    for (const control of wrapped) {
-      await readableControl(control, true);
-    }
-    const strike = (await wrapped[1]!.boundingBox())!;
-    const expansion = (await wrapped[2]!.boundingBox())!;
-    expect(rectsApart(strike, expansion)).toBe(true);
-    await page.evaluate(() => window.scrollTo(0, 0));
-    const fits = await page.evaluate(
-      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    await readableControl(page.locator('.hv-lead-value'), true);
+    for (const action of await page.locator('.hv-revisions a').all())
+      await readableControl(action, true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
     );
-    if (!fits)
-      console.log(
-        'H1 large-text overflow',
-        await page.evaluate(() =>
-          [...document.querySelectorAll('body *')]
-            .flatMap((element) => {
-              const box = element.getBoundingClientRect();
-              return box.width > 0 && (box.right > innerWidth || box.left < 0)
-                ? [
-                    {
-                      tag: element.tagName,
-                      class: element.className,
-                      text: element.textContent?.slice(0, 70),
-                      x: box.x,
-                      width: box.width,
-                    },
-                  ]
-                : [];
-            })
-            .slice(0, 25),
-        ),
-      );
-    expect(fits).toBe(true);
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-    // Keep the complete page at CSS-pixel output: 3x WebKit exceeds the bitmap limit.
     await page.screenshot({
       path: info.outputPath(`large-text-${colorScheme}.png`),
       fullPage: true,

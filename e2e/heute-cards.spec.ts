@@ -1,4 +1,4 @@
-import { detectHeuteRedesign } from './heute-visual-fixture';
+import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdirSync } from 'node:fs';
 import { sampleTest as test, expect } from './sample';
@@ -15,7 +15,7 @@ test('three Kennzahlen use source cents, fit the phone and link to the current s
   page,
 }, info) => {
   test.setTimeout(60_000);
-  await page.goto('/?monat=2026-08');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-08'));
   const data: Heute = await (await page.request.get('/api/heute?month=2026-08')).json();
   const budget: BudgetMonthView = await (await page.request.get('/api/budget/2026-08')).json();
   const cards = page.locator('.heute-kennzahl');
@@ -69,7 +69,7 @@ test('three Kennzahlen use source cents, fit the phone and link to the current s
   const payday: Heute = await (
     await page.request.get('/api/heute?month=2026-09&period=payday')
   ).json();
-  await page.goto('/?monat=2026-09&period=payday');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=payday'));
   await expect(cards).toHaveCount(3);
   await expect(page.getByTestId('heute-kennzahlen').getByRole('heading', { level: 2 })).toHaveText([
     'Zu verteilen',
@@ -163,14 +163,14 @@ test('explains plan-rest behind the derivation of the negative payday room on ph
       ),
     }),
   );
-  await page.goto('/?monat=2026-09&period=month');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=month'));
   const month = page.locator('.heute-kennzahl').nth(1);
   await expect(month.getByRole('heading', { name: 'Verfügbar im Budget' })).toBeVisible();
   await month.getByRole('button', { name: 'Herleitung Verfügbar im Budget' }).click();
   await expect(month).toContainText(
     'Ausgabenplan: 600,00 € ausgegeben von 1.000,00 € · Plan-Rest 400,00 €',
   );
-  await page.goto('/?monat=2026-09&period=payday');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=payday'));
   const budget = redesign
     ? page.getByRole('region', { name: 'Spielraum bis Gehalt' })
     : page.locator('.heute-kennzahl').nth(1);

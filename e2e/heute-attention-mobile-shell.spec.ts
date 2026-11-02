@@ -1,4 +1,4 @@
-import { detectHeuteRedesign } from './heute-visual-fixture';
+import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect as baseExpect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
@@ -19,7 +19,7 @@ test('Today groups work, preserves its review destinations and distinguishes sel
     if (request.url().includes('/api/') && !['GET', 'HEAD'].includes(request.method()))
       writes.push(`${request.method()} ${new URL(request.url()).pathname}`);
   });
-  await page.goto('/?monat=2026-09');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09'));
   const tasks = page.getByRole('region', { name: 'Zu tun', exact: true });
   await expect(tasks).toBeVisible();
   // Q3 #466 and #511: loan terms share the account-check source row.
@@ -112,7 +112,7 @@ test('Today groups work, preserves its review destinations and distinguishes sel
   await expect(page.getByRole('dialog', { name: /Kontostand prüfen/ })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.goto('/?monat=2026-08&period=month');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-08&period=month'));
   const note = page.getByTestId('heute-month-note');
   await expect(note).toContainText('Ansicht: August 2026');
   await expect(note).not.toContainText('Pace');
@@ -136,7 +136,11 @@ test('Today groups work, preserves its review destinations and distinguishes sel
     expect(box!.width).toBeGreaterThanOrEqual(44);
   }
   await note.getByRole('button', { name: 'Zum aktuellen Monat' }).click();
-  await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible();
+  await expect(
+    redesign
+      ? page.locator('.hv-head:visible .month-name')
+      : page.getByRole('heading', { name: 'September 2026', exact: true }),
+  ).toBeVisible();
   await expect(note).toHaveCount(0);
 });
 
@@ -162,7 +166,9 @@ test('empty tasks and due dates disappear while missing rule inputs remain expli
     actionRules: [],
   };
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: data }));
-  await page.goto(redesign ? '/?monat=2026-09&period=month' : '/?monat=2026-09');
+  await page.goto(
+    heuteReviewUrl(redesign, redesign ? '/?monat=2026-09&period=month' : '/?monat=2026-09'),
+  );
   await expect(page.locator('[data-kennzahl="verfuegbar"]')).toBeVisible();
   const taskBlock = page.getByRole('region', { name: 'Zu tun' });
   await expect(taskBlock.locator('.attention-row')).toHaveCount(0);

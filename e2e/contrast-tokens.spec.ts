@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdirSync } from 'node:fs';
 import { sampleTest as test, expect } from './sample';
@@ -9,7 +10,7 @@ for (const theme of ['light', 'dark'] as const) {
     test.setTimeout(90_000);
     const viewportWidth = page.viewportSize()!.width;
     await page.emulateMedia({ colorScheme: theme });
-    await page.goto('/?monat=2026-09');
+    await openHeuteReview(page, '/?monat=2026-09');
     await expect(page.getByTestId('heute-lead-value')).toBeVisible();
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
     const ratios = await page.evaluate(() => {

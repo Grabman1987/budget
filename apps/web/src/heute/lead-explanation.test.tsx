@@ -36,6 +36,7 @@ it.each(['occurrence', 'payment|2026-09-20'])(
         period: 'payday',
         payday: { day: '2026-09-30' },
       },
+      dailyBudget: { remainingDays: 14, perDayCents: 79 },
       lead: {
         needCents: 1001,
         wantCents: 202,

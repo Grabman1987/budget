@@ -102,7 +102,7 @@ async function projects(p: Page) {
 }
 const probes = {
   heute: (p: Page) =>
-    expect(p.getByRole('region', { name: 'Spielraum bis Gehalt', exact: true })).toBeVisible(),
+    expect(p.getByRole('region', { name: 'Frei bis Gehalt', exact: true })).toBeVisible(),
   dimension: async (p: Page) => {
     await css(p, '.heute-dimension .heute-breakdown a[href="/konten/acc-giro"]');
     await expect(p.locator('#dimension-title')).toHaveText('Liquidität');

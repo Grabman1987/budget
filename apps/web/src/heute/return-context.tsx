@@ -10,7 +10,9 @@ export function heuteReturn(value: unknown): string | undefined {
   const url = new URL(safe, 'https://budget.invalid');
   return url.origin === 'https://budget.invalid' &&
     (url.pathname === '/' ||
-      /^\/heute\/details\/(free|budget|liquid|invested|receivable|debt)$/.test(url.pathname))
+      /^\/heute\/details\/(free|budget|liquid|invested|receivable|debt|pace|forecast|tasks|due|bookings|wealth|month|metrics|pinned)$/.test(
+        url.pathname,
+      ))
     ? url.pathname + url.search + url.hash
     : undefined;
 }

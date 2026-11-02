@@ -18,7 +18,6 @@ test('lead → exact terms → category/payment → return retains viewed month 
   await page.goto('/?monat=2026-08&period=month');
   await expect(page.locator('.app')).toBeVisible();
   const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-  await expect(page.getByTestId('heute-kennzahlen')).toBeVisible();
   if (!redesign) {
     await expect(page.locator('.heute--redesign')).toHaveCount(0);
     await expect(page.getByTestId('heute-lead-value')).toHaveCount(0);
@@ -34,8 +33,7 @@ test('lead → exact terms → category/payment → return retains viewed month 
   expect(source.ok()).toBe(true);
   const data = (await source.json()) as Heute;
   await expect(page.getByTestId('heute-lead-value')).toHaveText(eur(data.lead.freeCents));
-  await page.getByRole('button', { name: 'Herleitung zeigen', exact: true }).click();
-  await page.getByRole('link', { name: 'Alle Rechenschritte und Quellen' }).click();
+  await page.locator('a.hv-lead-value').click();
   await expect(page).toHaveURL(
     (url) =>
       url.pathname === '/heute/details/free' &&
@@ -162,6 +160,9 @@ test('selected-month budget explanation keeps its canonical figure and category 
   page,
 }) => {
   await page.goto('/?monat=2026-08&period=month');
+  await expect(page.locator('.app')).toBeVisible();
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    await page.getByRole('link', { name: 'Kennzahlen', exact: true }).click();
   const tile = page.getByRole('region', { name: 'Verfügbar im Budget', exact: true });
   await expect(tile.locator('[data-kennzahl="verfuegbar"]')).toBeVisible();
   const amount = await tile.locator('[data-kennzahl="verfuegbar"]').innerText();

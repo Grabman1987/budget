@@ -1,4 +1,4 @@
-import { detectHeuteRedesign } from './heute-visual-fixture';
+import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect as baseExpect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
@@ -69,7 +69,7 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
   await page.route('**/api/savings-plans/execution-proposals*', (route) =>
     route.fulfill({ json: { proposals: [] } }),
   );
-  await page.goto('/?monat=2026-09&period=payday');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=payday'));
   // #571: Zu verteilen leads; Frei bis Gehalt is the middle Kennzahl in the mode Bis Gehalt.
   const first = page.locator('.heute-kennzahl').first();
   await expect(first.getByRole('heading', { name: 'Zu verteilen', exact: true })).toBeVisible();

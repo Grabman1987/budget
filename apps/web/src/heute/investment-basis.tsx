@@ -16,6 +16,7 @@ const amount = (basis: Basis) =>
 
 export function InvestmentBasisSummary({ basis, search }: { basis: Basis; search: Context }) {
   useAmountPrivacy();
+  const source = useLocation({ select: (location) => location.href });
   return (
     <section aria-label="Investiert · Anlagebasis" className="heute-note">
       <p>
@@ -23,7 +24,7 @@ export function InvestmentBasisSummary({ basis, search }: { basis: Basis; search
         {' · '}
         <AppLink
           to="/heute/details/invested"
-          search={search}
+          search={REDESIGN_ENABLED ? { ...search, von: source } : search}
           hash="anlagebasis"
           aria-label="Anlagebasis ansehen · Quelle der Anlagebasis"
         >

@@ -1,4 +1,4 @@
-import { detectHeuteRedesign } from './heute-visual-fixture';
+import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
 import { sampleTest as test, expect as baseExpect } from './sample';
@@ -116,7 +116,7 @@ test('initial section placeholders keep above-fold geometry while independent re
     });
     try {
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
-      await page.goto('/?monat=2026-09&period=month');
+      await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=month'));
       await expect(page.locator('[data-kennzahl="zu-verteilen"]')).toBeVisible();
       if (redesign) {
         // Delivered T2/#911 selects the response-owned source, not a second initial read.
@@ -204,7 +204,7 @@ test('the independent forecast reserves its own initial pending plot before its 
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
       aggregateFails = false;
       independentReads = 0;
-      await page.goto('/?monat=2026-09&period=month');
+      await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=month'));
       await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
       if (redesign) {
         // A held unused endpoint cannot delay the successful response-owned path.
@@ -283,7 +283,7 @@ for (const read of ['heute', 'budget', 'liquidity', 'savings'] as const) {
       forceAggregateFailure = false;
       independentReads = 0;
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
-      await page.goto('/?monat=2026-09&period=month');
+      await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=month'));
       const budget = page.locator('[aria-labelledby="kennzahl-zu-verteilen-title"]');
       const forecast = page.getByRole('region', { name: 'Kontoprognose · 35 Tage' });
       const savings = page.getByRole('region', { name: 'Zu tun' });

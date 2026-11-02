@@ -55,6 +55,14 @@ export async function freezeHeuteVisual(page: Page) {
 
 export async function expectHeuteVisualReady(page: Page) {
   const redesign = (await page.locator('[data-budget-redesign="1"]').count()) === 1;
+  if (redesign) {
+    await expect(page.getByTestId('heute-lead-value')).toHaveText('988,26 €');
+    await expect(page.locator('.hv-grid .hv-number')).toHaveText(['1', '2', '3', '4', '5']);
+    await expect(page.getByTestId('liquidity-chart')).toBeVisible();
+    await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    return;
+  }
   // #571: Frei bis Gehalt (the lead figure) is the middle Kennzahl in the mode Bis Gehalt.
   await expect(page.getByTestId('heute-lead-value')).toContainText('988,26');
   await expect(page.getByTestId('heute-kennzahlen').getByRole('heading', { level: 2 })).toHaveText([
@@ -93,4 +101,19 @@ export async function detectHeuteRedesign(browser: Browser): Promise<boolean> {
   } finally {
     await page.close();
   }
+}
+
+/** Complete monthly capabilities moved from the overview into this read-only H2 home. */
+export function heuteReviewUrl(redesign: boolean, url: string): string {
+  if (!redesign) return url;
+  const source = new URL(url, 'https://budget.invalid');
+  return `/heute/details/month${source.search}${source.hash}`;
+}
+
+/** Existing cross-area Heute checks follow the moved complete review through its real entry. */
+export async function openHeuteReview(page: Page, at = '/') {
+  await page.goto(at);
+  await expect(page.locator('.app')).toBeVisible();
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    await page.getByRole('link', { name: 'Mehr zum Monat', exact: true }).click();
 }

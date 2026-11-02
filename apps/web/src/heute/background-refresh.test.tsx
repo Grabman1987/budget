@@ -13,6 +13,7 @@ import { ToastProvider, setAmountsHidden } from '@budget/ui';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createLedgerApi } from '../../../server/src/api';
 import { HeutePage } from './heute-page';
+import { DimensionPage } from './dimension-page';
 import { HEUTE_KEY } from './api';
 import { budgetQuery } from '../budget/budget-api';
 import { liquidityQuery } from '../reports/liquidity-api';
@@ -161,6 +162,11 @@ function mount(at = '/?monat=2026-09&period=month') {
     history: createMemoryHistory({ initialEntries: [at] }),
     routeTree: root.addChildren([
       createRoute({ getParentRoute: () => root, path: '/', component: HeutePage }),
+      createRoute({
+        getParentRoute: () => root,
+        path: '/heute/details/$kind',
+        component: DimensionPage,
+      }),
     ]),
   });
   render(
@@ -179,9 +185,11 @@ function hold(read: Read | Read[]) {
   });
   gate = { read, promise, release };
 }
-const card = () => screen.getByRole('region', { name: 'Kontoprognose · 35 Tage' });
+const card = () => screen.getByRole('region', { name: /Kontoprognose.*35 Tage/ });
 const budgetTile = () =>
-  document.querySelector('[aria-labelledby="kennzahl-zu-verteilen-title"]') as HTMLElement;
+  document.querySelector(
+    flags.REDESIGN_ENABLED ? '.hv-tasks' : '[aria-labelledby="kennzahl-zu-verteilen-title"]',
+  ) as HTMLElement;
 const refresh = (read: Read) =>
   client.invalidateQueries({
     queryKey:
@@ -328,7 +336,7 @@ it.each([
 it('keeps first-load aggregate placeholders until the selected response arrives', async () => {
   hold('heute');
   mount();
-  await screen.findByText('Zu verteilen');
+  await screen.findByRole('link', { name: 'Verteilen →' });
   await waitFor(() =>
     expect(within(budgetTile()).getByTestId('kennzahl-value').textContent).toBe('1.234,56 €'),
   );
@@ -385,16 +393,77 @@ it.each(['month', 'payday'] as const)(
     mount(`/?monat=2026-09&period=${period}`);
     await screen.findByTestId('heute-wealth-history');
     await ready();
-    const primary = screen.getByRole('region', { name: 'Spielraum bis Gehalt' });
+    const primary = screen.getByRole('region', { name: /^Frei bis Gehalt$/ });
     // Empty envelopes give zero free money; the independently seeded cash remains 1234.56.
     expect(within(primary).getByTestId('heute-lead-value').textContent).toBe('0,00 €');
-    expect(primary.textContent).toContain('kein Kontostand');
-    expect(primary.textContent).toContain('17.09.2026');
+    expect(
+      within(primary)
+        .getByRole('link', { name: /Frei verfügbar bis Gehalt/ })
+        .getAttribute('href'),
+    ).toContain('/heute/details/free');
+    expect(primary.getAttribute('data-as-of')).toBe('2026-09-17');
     expect(screen.getAllByTestId('heute-lead-value')).toHaveLength(1);
-    expect(document.querySelector('.heute-priorities .heute-attention')).not.toBeNull();
-    expect(document.querySelector('.heute-work-main .heute-compact-forecast')).not.toBeNull();
+    expect(document.querySelector('.hv-aside .hv-tasks')).not.toBeNull();
+    expect(document.querySelector('.hv-main .hv-forecast')).not.toBeNull();
     expect(card().querySelector('.heute-forecast-low')?.getAttribute('data-cents')).toBe('123456');
-    expect(screen.getByRole('region', { name: 'Finanz-Check' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Verfügbar im Budget' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Finanz-Check · Verlauf →' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Kennzahlen' }).getAttribute('href')).toContain(
+      '/heute/details/metrics',
+    );
   },
 );
+
+it('ON orders the five compact cards and moves full monthly capabilities into returnable detail homes', async () => {
+  mount('/?monat=2026-09&period=month');
+  await screen.findByTestId('heute-wealth-history');
+  await ready();
+  const cards = document.querySelectorAll('.hv-grid .hv-card h2');
+  expect([...cards].map((card) => card.textContent)).toEqual([
+    '1Monat im Blick',
+    '2Kontoprognose · Budget-Konten · 35 Tage',
+    '3Als Nächstes',
+    '4Fällig',
+    '5Letzte Buchungen',
+  ]);
+  expect(document.querySelector('.heute-upcoming')).toBeNull();
+  expect(document.querySelector('.heute-composition')).toBeNull();
+  for (const kind of [
+    'pace',
+    'forecast',
+    'tasks',
+    'due',
+    'bookings',
+    'wealth',
+    'month',
+    'metrics',
+    'pinned',
+  ]) {
+    const link = document.querySelector<HTMLAnchorElement>(`a[href^="/heute/details/${kind}?"]`);
+    expect(link).not.toBeNull();
+    const target = new URL(link!.href);
+    expect(target.searchParams.get('monat')).toBe('2026-09');
+    expect(target.searchParams.get('period')).toBe('month');
+    expect(target.searchParams.get('von')).toBe('/?monat=2026-09&period=month');
+  }
+});
+
+it('ON due drilldown distinguishes an empty source from failure and retries without writing', async () => {
+  mount('/heute/details/due?monat=2026-09&period=month');
+  await screen.findByText('Keine Zahlungen in den nächsten 14 Tagen.');
+  await ready();
+  failed = 'heute';
+  await act(async () => {
+    await refresh('heute');
+  });
+  const error = await screen.findByRole('alert');
+  expect(error.textContent).toContain('Fällig · alle Zahlungen konnten nicht geladen werden.');
+  expect(screen.queryByText('Keine Zahlungen in den nächsten 14 Tagen.')).toBeNull();
+  failed = undefined;
+  await act(async () => {
+    within(error).getByRole('button', { name: 'Erneut versuchen' }).click();
+  });
+  await screen.findByText('Keine Zahlungen in den nächsten 14 Tagen.');
+  expect(screen.getByRole('link', { name: 'Zurück zu Heute' }).getAttribute('href')).toBe(
+    '/?monat=2026-09&period=month',
+  );
+});

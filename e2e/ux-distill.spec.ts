@@ -1,3 +1,4 @@
+import { openHeuteReview, detectHeuteRedesign } from './heute-visual-fixture';
 import { sampleTest as test, expect as baseExpect } from './sample';
 import { test as isolatedTest } from './isolated-ledger';
 import AxeBuilder from '@axe-core/playwright';
@@ -5,7 +6,10 @@ import type { Heute } from '../apps/web/src/heute/api';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
 
-const redesign = process.env['VITE_BUDGET_REDESIGN'] === '1';
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 
 test('UX-2 sample evidence: Heute and Plan', async ({ page }, info) => {
   test.setTimeout(60_000);
@@ -14,7 +18,8 @@ test('UX-2 sample evidence: Heute and Plan', async ({ page }, info) => {
     ['heute', '/?monat=2026-09'],
     ['plan', '/plan/monat?monat=2026-09'],
   ] as const) {
-    await page.goto(path);
+    if (name === 'heute') await openHeuteReview(page, path);
+    else await page.goto(path);
     if (name === 'heute') await expect(page.getByTestId('heute-lead-value')).toBeVisible();
     else await expect(page.locator('.ptable')).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
@@ -30,7 +35,7 @@ test('Heute keeps its device fold choice and the primary order, net worth matche
   page,
 }, info) => {
   test.setTimeout(60_000);
-  await page.goto('/?monat=2026-09');
+  await openHeuteReview(page, '/?monat=2026-09');
   await expect(page.getByRole('heading', { name: 'Frei bis Gehalt', exact: true })).toBeVisible();
   const fold = page.getByRole('button', { name: 'Mehr zum Monat' });
   const initiallyOpen = info.project.name === 'desktop';
@@ -147,7 +152,7 @@ test('Heute has eight warning items once, two first, neutral debts and accessibl
     { ...today.pinned[0]!, id: 'synthetic-over-0', name: 'Testenvelope 1', availableCents: -1000 },
   ];
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: today }));
-  await page.goto(redesign ? '/?monat=2026-09&period=month' : '/?monat=2026-09');
+  await openHeuteReview(page, redesign ? '/?monat=2026-09&period=month' : '/?monat=2026-09');
   // The top-bar chip owns cover actions; Today summarizes the same eight findings once.
   await expect(page.locator('[data-overspent]')).toHaveCount(0);
   const tasks = page.getByRole('region', { name: 'Zu tun', exact: true });

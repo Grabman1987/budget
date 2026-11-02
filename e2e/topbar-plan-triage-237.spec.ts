@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
@@ -69,7 +70,7 @@ test('phone status or Heute action opens real triage cover and undo on an isolat
   const phone = info.project.name === 'mobile';
   const status = page.locator('.m-status').getByRole('link', { name: '1 überzogen' });
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   const chip = phone
     ? status
     : page.locator('.heute-attention').getByRole('link', { name: 'Plan prüfen', exact: true });

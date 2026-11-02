@@ -459,7 +459,21 @@ const heuteDimensionRoute = createRoute({
     if (
       ![
         ...['liquid', 'invested', 'receivable', 'debt'],
-        ...(REDESIGN_ENABLED ? ['free', 'budget'] : []),
+        ...(REDESIGN_ENABLED
+          ? [
+              'free',
+              'budget',
+              'pace',
+              'forecast',
+              'tasks',
+              'due',
+              'bookings',
+              'wealth',
+              'month',
+              'metrics',
+              'pinned',
+            ]
+          : []),
       ].includes(params.kind)
     )
       throw notFound();

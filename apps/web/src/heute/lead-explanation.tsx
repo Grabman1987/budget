@@ -10,6 +10,7 @@ import { eur, longDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel } from '../nav/month';
 import type { Heute, HeutePeriod } from './api';
+import { DailyBudgetLine } from './charts';
 
 export function LeadExplanation({ data }: { data: Heute }) {
   useAmountPrivacy();
@@ -34,16 +35,27 @@ export function LeadExplanation({ data }: { data: Heute }) {
         Die Budgetprojektion bis Gehalt ist unabhängig vom Kontoguthaben und vom Überziehungsrahmen.
         Die Kontoprognose verwendet einen festen Zeitraum von 35 Tagen und keine Stellschrauben.
       </p>
-      <DimensionChain
-        terms={[
-          { label: 'Bedarf', value: cents(data.lead.needCents) },
-          { label: 'Wunsch', value: cents(data.lead.wantCents), op: '+' },
-          { label: 'offen bis Gehalt', value: cents(data.lead.openCents), op: '-' },
-          { label: 'frei verfügbar', value: cents(data.lead.freeCents), op: '=', result: true },
-        ]}
-        precision="cent"
-        label="Bedarf plus Wunsch minus offene Rechnungen bis Gehalt"
-      />
+      <section id="tagesbudget" aria-label="Tagesbudget bis Gehalt">
+        <h3>Tagesbudget bis Gehalt</h3>
+        <DailyBudgetLine data={data} />
+        <p>
+          {data.dailyBudget.perDayCents === null
+            ? 'Ohne positiven Spielraum gibt es kein Tagesbudget.'
+            : `${eur(data.lead.freeCents)} frei bis Gehalt, geteilt durch ${data.dailyBudget.remainingDays} verbleibende Tage einschließlich heute. Die Tagesanzeige ist auf ganze Euro gerundet.`}
+        </p>
+      </section>
+      <div id="rechenweg">
+        <DimensionChain
+          terms={[
+            { label: 'Bedarf', value: cents(data.lead.needCents) },
+            { label: 'Wunsch', value: cents(data.lead.wantCents), op: '+' },
+            { label: 'offen bis Gehalt', value: cents(data.lead.openCents), op: '-' },
+            { label: 'frei verfügbar', value: cents(data.lead.freeCents), op: '=', result: true },
+          ]}
+          precision="cent"
+          label="Bedarf plus Wunsch minus offene Rechnungen bis Gehalt"
+        />
+      </div>
       {(['need', 'want', 'open'] as const).map((kind) => (
         <section key={kind} className="heute-breakdown" aria-label={labels[kind]}>
           <h3>

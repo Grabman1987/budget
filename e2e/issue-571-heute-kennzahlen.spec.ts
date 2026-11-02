@@ -1,4 +1,4 @@
-import { detectHeuteRedesign } from './heute-visual-fixture';
+import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
 import type { Heute } from '../apps/web/src/heute/api';
@@ -82,7 +82,7 @@ test.beforeAll(async ({ browser }) => {
 test('three Kennzahlen with the names of the owner decision; Bis Gehalt renames the middle one', async ({
   page,
 }) => {
-  await page.goto('/?period=month');
+  await page.goto(heuteReviewUrl(redesign, '/?period=month'));
   const grid = page.getByTestId('heute-kennzahlen');
   await expect(grid.getByRole('heading', { level: 2 })).toHaveText([
     'Zu verteilen',
@@ -103,7 +103,7 @@ test('each value equals the same figure on Plan, the Plan inspector and Vermöge
   page,
   isMobile,
 }) => {
-  await page.goto('/?period=month');
+  await page.goto(heuteReviewUrl(redesign, '/?period=month'));
   const zuVerteilen = (await value(page, 'zu-verteilen').textContent())!.trim();
   const verfuegbar = (await value(page, 'verfuegbar').textContent())!.trim();
   const netto = (await value(page, 'nettovermoegen').textContent())!.trim();
@@ -125,7 +125,7 @@ test('Frei bis Gehalt is the existing lead figure of the API', async ({ page }) 
   const response = await page.request.get('/api/heute?period=payday&month=2026-09');
   expect(response.ok()).toBe(true);
   const heute = (await response.json()) as Heute;
-  await page.goto('/?period=payday');
+  await page.goto(heuteReviewUrl(redesign, '/?period=payday'));
   const lead = page.getByTestId('heute-lead-value');
   await expect(lead).toBeVisible();
   const cents = heute.lead.freeCents;
@@ -140,7 +140,7 @@ test('value, bar and one context line of at most 40 characters per Kennzahl', as
   page,
   isMobile,
 }) => {
-  await page.goto('/?period=month');
+  await page.goto(heuteReviewUrl(redesign, '/?period=month'));
   const grid = page.getByTestId('heute-kennzahlen');
   await expect(value(page, 'nettovermoegen')).toBeVisible();
   const tiles = grid.locator('.heute-kennzahl');
@@ -153,7 +153,7 @@ test('value, bar and one context line of at most 40 characters per Kennzahl', as
 });
 
 test('the derivation sits behind the info button', async ({ page }) => {
-  await page.goto('/');
+  await page.goto(heuteReviewUrl(redesign, '/'));
   const info = page.getByRole('button', { name: 'Herleitung Zu verteilen', exact: true });
   await expect(info).toHaveAttribute('aria-expanded', 'false');
   await info.click();
@@ -167,9 +167,23 @@ test('phone list: the three Kennzahlen (the section "Monat im Blick") end inside
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await page.goto(heuteReviewUrl(redesign, '/'));
   await expect(value(page, 'nettovermoegen')).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
+  if (redesign) {
+    await page.goto('/');
+    const lead = page.locator('.hv-lead-value');
+    const first = page.locator('.hv-revisions tbody tr').first();
+    await expect(lead).toBeVisible();
+    await expect(first).toBeVisible();
+    for (const target of [lead, first.getByRole('link')]) {
+      const box = (await target.boundingBox())!;
+      expect(box.y + box.height).toBeLessThanOrEqual(780);
+    }
+    await page.getByRole('link', { name: 'Kennzahlen', exact: true }).click();
+    await expectReadableSupport(page, page.locator('.heute-kennzahl'));
+    return;
+  }
   const tiles = page.getByTestId('heute-kennzahlen').locator('.heute-kennzahl');
   await expect(tiles).toHaveCount(3);
   const primary = redesign
@@ -192,7 +206,31 @@ for (const colorScheme of ['light', 'dark'] as const) {
       page,
       isMobile,
     }, info) => {
-      await page.goto('/');
+      await page.goto(heuteReviewUrl(redesign, '/'));
+      if (redesign) {
+        // The v2 design's phone acceptance frame is explicitly 390×844, also on native WebKit.
+        if (isMobile) await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto('/');
+        await expect(page.locator('.hv-head:visible')).toBeVisible();
+        for (const target of [
+          page.locator('.hv-lead-value'),
+          page.locator('.hv-revisions tbody tr').first().getByRole('link'),
+        ]) {
+          const box = (await target.boundingBox())!;
+          expect(box.y + box.height).toBeLessThanOrEqual(
+            page.viewportSize()!.height - (isMobile ? 64 : 0),
+          );
+          expect(box.height).toBeGreaterThanOrEqual(44);
+          expect(box.width).toBeGreaterThanOrEqual(44);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+          true,
+        );
+        expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+        await page.getByRole('link', { name: 'Kennzahlen', exact: true }).click();
+        await expectReadableSupport(page, page.locator('.heute-kennzahl'));
+        return;
+      }
       const head = page.locator('header.titleblock-heute');
       await expect(head).toBeVisible();
       await expect(value(page, 'nettovermoegen')).toBeVisible();

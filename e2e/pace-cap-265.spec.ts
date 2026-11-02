@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import { expect } from '@playwright/test';
 import type { Heute } from '../apps/web/src/heute/api';
 import { eur } from '../apps/web/src/ledger/format';
@@ -88,7 +89,8 @@ test('Heute and One-Pager show under-plan actuals beside an over-cap forecast', 
   await page.addInitScript(() => localStorage.setItem('budget-heute-more-phone', '1'));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const url of ['/?monat=2026-09', '/reports/onepager?monat=2026-09']) {
-    await page.goto(url);
+    if (url.startsWith('/?')) await openHeuteReview(page, url);
+    else await page.goto(url);
     if (url.startsWith('/?')) {
       await expect(page.getByText('35 € unter Plan', { exact: true })).toBeVisible();
       await expect(

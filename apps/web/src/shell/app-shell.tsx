@@ -14,6 +14,7 @@ import { QueueList } from '../pwa/queue-ui';
 import { useStorageProtection } from '../pwa/storage-protection';
 import { usePrivacyShortcut } from './privacy-button';
 import { OfflineStatus } from './header-status';
+import { HeuteShellHead } from '../heute/overview';
 import { HeuteSourceReturn } from '../heute/return-context';
 import { REDESIGN_ENABLED } from './redesign-flag';
 
@@ -66,6 +67,11 @@ export function AppShell() {
         />
         <div className="main">
           <Topbar
+            leading={
+              REDESIGN_ENABLED && (pathname === '/' || pathname.startsWith('/heute/details/')) ? (
+                <HeuteShellHead />
+              ) : undefined
+            }
             collapsed={collapsed}
             onToggle={() => setCollapsed(!collapsed)}
             onSearchChange={setSearchOpen}

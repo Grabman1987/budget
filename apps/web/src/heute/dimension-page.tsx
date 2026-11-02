@@ -1,7 +1,7 @@
 import { useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useParams } from '@tanstack/react-router';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { fetchAccounts } from '../ledger/api';
 import { LEDGER_KEY } from '../ledger/queries';
 import { eur, longDay } from '../ledger/format';
@@ -17,17 +17,19 @@ import { LeadExplanation, BudgetExplanation } from './lead-explanation';
 import { heuteReturn } from './return-context';
 import { ValuationSourceHint } from '../ledger/valuation-hint';
 import { ClosedAccountDisclosure } from '../ledger/closed-account-disclosure';
+import { HEUTE_DETAILS, detailNames, HeuteHeader, type HeuteDetail } from './overview';
+import { HeuteDetailBody } from './heute-page';
 import { InvestmentBasisDetails } from './investment-basis';
 import './heute.css';
 
 export type NetDimensionKind = 'liquid' | 'invested' | 'receivable' | 'debt';
-export type DimensionKind = NetDimensionKind | 'free' | 'budget';
+export type DimensionKind = NetDimensionKind | 'free' | 'budget' | HeuteDetail;
 
 export function DimensionPage() {
   useAmountPrivacy();
   const { kind } = useParams({ strict: false }) as { kind: DimensionKind };
   const [month] = useMonth();
-  const { period } = useBalancePeriod();
+  const { period, setPeriod, paydayAvailable } = useBalancePeriod();
   const query = useQuery(heuteQuery(month, period));
   const matching =
     !query.isPlaceholderData &&
@@ -46,6 +48,7 @@ export function DimensionPage() {
   const basisHeading = useRef<HTMLHeadingElement>(null);
   const focusedBasis = useRef<string | undefined>(undefined);
   const names = {
+    ...detailNames,
     free: 'Frei bis Gehalt · Herleitung',
     budget: 'Verfügbar im Budget · Herleitung',
     liquid: 'Liquidität',
@@ -89,7 +92,13 @@ export function DimensionPage() {
     : undefined;
   const backUrl = new URL(back ?? '/', 'https://budget.invalid');
   return (
-    <PageFrame meta={HEUTE} heutePeriod={period} standDay={data?.stand.today}>
+    <DimensionFrame
+      period={period}
+      data={data}
+      updatedAt={query.dataUpdatedAt}
+      setPeriod={setPeriod}
+      paydayAvailable={paydayAvailable}
+    >
       <div className={`heute${REDESIGN_ENABLED ? ' heute--redesign heute-explanation' : ''}`}>
         <div className="heute-detail-nav">
           <nav aria-label="Brotkrumen">
@@ -102,11 +111,26 @@ export function DimensionPage() {
             </AppLink>
           </nav>
         </div>
-        {query.isPending && <LoadingNote what={title} />}
-        {query.isError && (
+        {REDESIGN_ENABLED && HEUTE_DETAILS.includes(kind as HeuteDetail) && (
+          <>
+            <h2 ref={heading} tabIndex={-1} className="heute-detail-title">
+              {title}
+            </h2>
+            {query.isFetching && data && (
+              <p role="status">
+                Heute-Daten werden aktualisiert · Stand {longDay(data.stand.today)}
+              </p>
+            )}
+            <HeuteDetailBody data={data} read={query} period={period} kind={kind as HeuteDetail} />
+          </>
+        )}
+        {query.isPending && (!HEUTE_DETAILS.includes(kind as HeuteDetail) || kind === 'pinned') && (
+          <LoadingNote what={title} />
+        )}
+        {query.isError && kind !== 'pace' && kind !== 'month' && (
           <ErrorNote what={title} error={query.error} onRetry={() => void query.refetch()} />
         )}
-        {data && !net && !leadKind && (
+        {data && !net && !leadKind && !HEUTE_DETAILS.includes(kind as HeuteDetail) && (
           <p role="status">
             Bewertung nicht verfügbar.{' '}
             {'unavailable' in data.netWorth && data.netWorth.unavailable.message}
@@ -127,7 +151,7 @@ export function DimensionPage() {
             )}
           </section>
         )}
-        {net && !leadKind && (
+        {net && !leadKind && !HEUTE_DETAILS.includes(kind as HeuteDetail) && (
           <section className="card heute-dimension" aria-labelledby="dimension-title">
             <h2 id="dimension-title" ref={heading} tabIndex={-1}>
               {title}
@@ -144,7 +168,7 @@ export function DimensionPage() {
           />
         )}
       </div>
-    </PageFrame>
+    </DimensionFrame>
   );
 }
 
@@ -212,7 +236,7 @@ function NetWorthDetails({
         </p>
       )}
       {query.isPending && <LoadingNote what="Konten" />}
-      {query.isError && (
+      {query.isError && kind !== 'pace' && kind !== 'month' && (
         <ErrorNote what="Konten" error={query.error} onRetry={() => void query.refetch()} />
       )}
       {query.data &&
@@ -244,5 +268,39 @@ function NetWorthDetails({
         <strong>{kind ? eur(totals[kind]) : ''}</strong>
       </p>
     </div>
+  );
+}
+
+function DimensionFrame({
+  children,
+  data,
+  period,
+  updatedAt,
+  setPeriod,
+  paydayAvailable,
+}: {
+  children: ReactNode;
+  data: Heute | undefined;
+  period: Heute['stand']['period'];
+  updatedAt: number;
+  setPeriod: (value: Heute['stand']['period']) => void;
+  paydayAvailable: boolean;
+}) {
+  return REDESIGN_ENABLED ? (
+    <div className="heute-detail-screen">
+      <HeuteHeader
+        phone
+        data={data}
+        updatedAt={updatedAt}
+        period={period}
+        setPeriod={setPeriod}
+        paydayAvailable={paydayAvailable}
+      />
+      {children}
+    </div>
+  ) : (
+    <PageFrame meta={HEUTE} heutePeriod={period} standDay={data?.stand.today}>
+      {children}
+    </PageFrame>
   );
 }
