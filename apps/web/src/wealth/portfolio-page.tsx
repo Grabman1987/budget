@@ -38,6 +38,8 @@ import {
 } from './portfolio-registers';
 import { useZeitraum } from './zeitraum';
 import { ZeitraumSwitch } from './frame';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { WealthOverview } from './redesign-overview';
 
 export function PortfolioPositionsPage() {
   return <PortfolioPage register="positions" />;
@@ -53,6 +55,11 @@ export function PortfolioMetricsPage() {
 }
 
 export function PortfolioPage({ register = 'overview' }: { register?: PortfolioRegister }) {
+  if (REDESIGN_ENABLED && register === 'overview') return <WealthOverview />;
+  return <PortfolioBody register={register} />;
+}
+
+function PortfolioBody({ register }: { register: PortfolioRegister }) {
   useAmountPrivacy();
   const [period] = useZeitraum();
   const search = useSearch({ strict: false }) as {

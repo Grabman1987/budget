@@ -630,7 +630,14 @@ const redirects = [
   // Legacy import bookmarks lead to the export placeholder; no import action remains in the UI.
   redirectRoute('/einstellungen/import', '/einstellungen/export'),
   redirectRoute('/plan', '/plan/monat'),
-  redirectRoute('/vermoegen', '/vermoegen/nettovermoegen'),
+  REDESIGN_ENABLED
+    ? createRoute({
+        getParentRoute: () => shellRoute,
+        path: '/vermoegen',
+        staticData: { meta: VERMOEGEN_NETTO_META },
+        component: lazyRouteComponent(() => import('./wealth/redesign-overview'), 'WealthOverview'),
+      })
+    : redirectRoute('/vermoegen', '/vermoegen/nettovermoegen'),
 ];
 
 const accountRoute = createRoute({

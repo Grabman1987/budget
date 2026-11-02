@@ -1,0 +1,133 @@
+[data-budget-redesign='1'] .wealth-redesign {
+  min-width: 0;
+}
+.wealth-redesign .wealth-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.wealth-redesign .wealth-toolbar .area-page-menu {
+  margin: 0;
+}
+.wealth-redesign .wealth-art select {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 0 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  font: inherit;
+}
+.wealth-redesign .wealth-investment {
+  margin-left: auto !important;
+}
+.wealth-redesign .wealth-investment summary {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.wealth-redesign .wealth-investment nav {
+  left: auto;
+  right: 0;
+}
+.wealth-redesign .wealth-investment button {
+  min-height: 44px;
+  text-align: left;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  font: inherit;
+}
+.wealth-redesign .wealth-overview {
+  display: grid;
+  gap: 16px;
+}
+.wealth-redesign .wealth-lead {
+  padding: 12px 0;
+}
+.wealth-redesign .wealth-lead h2,
+.wealth-redesign .wealth-sheet h2 {
+  margin: 0 0 8px;
+  font-size: var(--fs-title);
+}
+.wealth-redesign .wealth-figure {
+  font-size: var(--fs-dimension);
+  font-weight: 640;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.wealth-redesign .wealth-overview-work {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.wealth-redesign .wealth-sheet {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sheet);
+  background: var(--surface);
+}
+.wealth-redesign .wealth-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.wealth-redesign .wealth-action-list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.wealth-redesign .wealth-action-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.wealth-redesign .wealth-action-list a,
+.wealth-redesign .wealth-benchmark a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.wealth-redesign .wealth-basis strong {
+  display: block;
+  font-size: var(--fs-figure);
+}
+.wealth-redesign .wealth-benchmark p {
+  margin: 0;
+}
+.wealth-redesign :is(button, summary, select, input, .seg-period label) {
+  min-height: 44px;
+}
+.wealth-redesign :is(button, a, summary, select, input):focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+@media (max-width: 800px) {
+  .wealth-redesign .wealth-overview-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 390px) {
+  .wealth-redesign .wealth-toolbar {
+    gap: 8px;
+  }
+  .wealth-redesign .wealth-investment {
+    margin-left: 0 !important;
+  }
+  .wealth-redesign .wealth-action-list li {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0;
+  }
+}
