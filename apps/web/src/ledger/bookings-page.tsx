@@ -215,19 +215,23 @@ export function BookingsPage() {
               <MoreHorizontal size={20} strokeWidth={1.5} aria-hidden="true" />
             </summary>
             <div className="kregister-menu">
-            <BookingViews search={search} disabled={pending} onOpen={(next) => {
-              if (!pending) void navigate({ to: '/konten/buchungen', search: next as never });
-            }} />
-            <a
-              className="btn btn-ghost"
-              href={filteredBookingsCsvUrl({
-                ...filter,
-                to: filter.to && filter.to < today ? filter.to : today,
-              })}
-              download
-            >
-              Aktuellen Filter als CSV exportieren
-            </a>
+              <BookingViews
+                search={search}
+                disabled={pending}
+                onOpen={(next) => {
+                  if (!pending) void navigate({ to: '/konten/buchungen', search: next as never });
+                }}
+              />
+              <a
+                className="btn btn-ghost"
+                href={filteredBookingsCsvUrl({
+                  ...filter,
+                  to: filter.to && filter.to < today ? filter.to : today,
+                })}
+                download
+              >
+                Aktuellen Filter als CSV exportieren
+              </a>
             </div>
           </details>
         </div>

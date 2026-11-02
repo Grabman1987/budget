@@ -61,3 +61,38 @@ Parent #479 density/contact/evidence acceptance remains separate. The existing
 ten-row account-register test measures after scrolling the first row into view;
 this feature does not reinterpret that as initial-screen parent acceptance or a
 physical-device proof.
+
+## Resumed checkpoint — 2026-11-02
+
+Continuation branch `codex/818-resume-20261102` preserves feature ancestry through
+`2af8b792`, normal-merging main `ef765f5f` as `58776575`. Original proof branches
+are untouched; their workflow-only wrappers were not adopted. Execution: session
+`gpt-6.1-sol`, medium reasoning, isolated shared-Cloud worktree, not a hosted task.
+
+The existing real two-client stale-draft test was run unchanged on `58776575`:
+three setup passes and the exact expected409/actual200 product failure. Draft
+revisions are now pinned to explicit initial read/edit selection; neither
+background nor error refresh rebases them. An explicit close/review/restart uses
+the existing controls. The stale test additionally requires a repeated retry to
+stay409 and preserve the concurrent server tuple.
+
+First functional checks diagnosed the prepared test's `%20` versus current
+router `+` URL encoding assumption and the replacement action's real Axe
+label-content-name mismatch. Exact decoded query comparison and a matching
+accessible name/selector fix these without weakening any financial or safety
+oracle. New screenshots and per-test-file rationale are in
+[the continuation evidence](../evidence/booking-saved-filters-818/README.md).
+
+Observed checks: domain/API/original URL parser16/16; corrected #818 desktop and
+Chromium39013/13 including setup,32.2s, zero retries; existing #581/#594 unchanged
+regressions pass desktop+390 in the first combined run. Production build passed.
+Persistent Chromium screenshots were inspected. Known missing WebKit host
+libraries preclude a local native WebKit claim; prepared CI must supply that
+profile and persistent iPhone-dark evidence. Independent final review, full exact
+required CI, root publication and actual acceptance remain pending. No push, PR,
+merge, deployment or Board write was performed by the builder.
+
+Final local checks passed: workspace typecheck, scoped ESLint, changed-file
+Prettier check, evidence Markdown/JSON formatting, CSS scale and `git diff
+--check`. The builder is freezing this candidate for independent review; no
+additional local full suite or WebKit run is claimed.

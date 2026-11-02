@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-02",
+  "sourceBase": "58776575e8749f7eee68d558103ef88113a0830d",
+  "execution": "session gpt-6.1-sol medium in shared Cloud workspace; synthetic data",
+  "sourceSha256": {
+    "apps/web/src/ledger/booking-views.tsx": "b264314021ffcc2a8059a2d56de82a41307f5976d9c17928846cd0367020c951",
+    "e2e/issue-818-ledger-saved-filters.spec.ts": "65e7a45c0a5e3af059d4e9ed320736c9e607200388094cceb1b93353cd3f743b",
+    "packages/domain/src/ledger/booking-views.ts": "b2d3912767a8f14609ed0adffebee29815afe06932516d52f7d4185fcd175265",
+    "packages/db/src/repos/booking-views.ts": "3e82a889c3428e8c43f828ae23c92cf84ec2263faaae40f1b78b8dc87f4e69d9",
+    "apps/server/src/api/booking-views.ts": "8d3ed4c0be10ea6459f4c4724787150ba8e754b9b2e081af6c93d4667a4ae025"
+  },
+  "captures": {
+    "chromium-mobile-manager-dark.png": "7acb7c215889d9598c215ed4a62ce5cdd01fde2d1a842a3843551dec8f54dce0",
+    "chromium-mobile-dark.png": "aa14d14e112746764b623a696994e6e0989f8ae1feed1b30153ecf903a8679dd",
+    "chromium-desktop-manager-light.png": "e9050b69fa27dc55708a674013eb5ac8230e6843927f6749511cff932cbcaf79",
+    "chromium-desktop-light.png": "29bf8dd0c57cd5b3b66182545fd62607b44f3cc6eeec0a1d9d276ca0b820ee49"
+  },
+  "webkit": "Not run locally: known missing host libraries. Prepared CI and persistent WebKit-iPhone dark evidence remain required."
+}
