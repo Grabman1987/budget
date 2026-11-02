@@ -272,6 +272,9 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Unit tests, shard ${{ matrix.shard }}/2
+        env:
+          # The hosted Windows runner is several times slower at PDF extraction than Linux (#783).
+          BUDGET_PDF_TIME_LIMIT_MS: '90000'
         run: npx vitest run --shard=${{ matrix.shard }}/2
 
   # Required status check: Windows success for full runs; explicit non-Windows/reuse decision otherwise.
