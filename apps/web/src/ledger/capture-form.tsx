@@ -9,6 +9,7 @@ import {
   TextInput,
   type SegmentedOption,
   maskMoneyText,
+  BookingStatusIcon,
 } from '@budget/ui';
 import { manualTransferStatus, todayInVienna, type ManualBankStatus } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -22,6 +23,8 @@ import {
   type MutableRefObject,
 } from 'react';
 import { ApiError } from '../api/http';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import './capture-redesign.css';
 import { budgetQuery } from '../budget/budget-api';
 import {
   fetchBookings,
@@ -620,7 +623,9 @@ export function CaptureForm({
     .join(', ');
   const statusControl = (id?: string, describedBy?: string) =>
     locked && !unlock ? (
-      <span className="status">geprüft</span>
+      <span className="status">
+        {REDESIGN_ENABLED && <BookingStatusIcon status="reconciled" />}geprüft
+      </span>
     ) : (
       <button
         id={id}
@@ -656,7 +661,11 @@ export function CaptureForm({
           set('status', effectiveStatus === 'confirmed' ? 'pending' : 'confirmed');
         }}
       >
-        <Check size={16} strokeWidth={1.75} aria-hidden="true" />
+        {REDESIGN_ENABLED ? (
+          <BookingStatusIcon status={shownStatus} />
+        ) : (
+          <Check size={16} strokeWidth={1.75} aria-hidden="true" />
+        )}
         <span>{shownStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}</span>
       </button>
     );
@@ -720,7 +729,8 @@ export function CaptureForm({
           if (form?.closest('dialog')?.open) amount.focus();
         }
       }}
-      className={`bkform${isTransfer ? '' : ' bk-split-cols'}`}
+      className={`bkform${isTransfer ? '' : ' bk-split-cols'}${REDESIGN_ENABLED ? ' bkform-redesign' : ''}`}
+      data-redesign={REDESIGN_ENABLED ? 'booking-editor' : undefined}
       onSubmit={(e) => {
         e.preventDefault();
         void save(false);

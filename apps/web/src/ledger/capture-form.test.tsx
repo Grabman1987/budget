@@ -7,6 +7,9 @@ import { ToastProvider } from '@budget/ui';
 import { CaptureForm } from './capture-form';
 import * as ledgerApi from './api';
 
+const flags = vi.hoisted(() => ({ REDESIGN_ENABLED: false }));
+vi.mock('../shell/redesign-flag', () => flags);
+
 const create = vi.hoisted(() => vi.fn());
 const patch = vi.hoisted(() => vi.fn());
 vi.mock('../receipts/receipt-section', () => ({ ReceiptSection: () => null }));
@@ -47,6 +50,7 @@ vi.mock('../pwa/queue-store', () => ({
   saveChoices: async () => undefined,
 }));
 beforeEach(() => {
+  flags.REDESIGN_ENABLED = false;
   create.mockReset();
   patch.mockReset();
   patch.mockResolvedValue({ groupId: 'synthetic-patch' });
@@ -162,64 +166,70 @@ it('Ctrl+Enter saves from an open category dropdown without taking its highlight
   fireEvent.keyDown(category, { key: 'Enter', ctrlKey: true });
   await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
 });
-it('bank capture starts pending, has no Budgetmonat, and saves repetition', async () => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  // Retain this explicit bank fixture; the generic query mock returns a cash account.
-  client.setQueryDefaults(['accounts'], { staleTime: Infinity });
-  client.setQueryData(['accounts'], {
-    accounts: [
-      { id: 'wallet', name: 'Giro Muster', type: 'checking', onBudget: true, closedAt: null },
-    ],
-  });
-  const done = vi.fn();
-  render(
-    <QueryClientProvider client={client}>
-      <ToastProvider>
-        <CaptureForm
-          state={{ mode: 'create', accountId: 'wallet' }}
-          onDone={done}
-          dirtyRef={{ current: false }}
-          discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
-          requestClose={vi.fn()}
-        />
-      </ToastProvider>
-    </QueryClientProvider>,
-  );
-  const user = userEvent.setup();
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Vorgemerkt' }).getAttribute('aria-pressed')).toBe(
-      'false',
-    ),
-  );
-  const status = screen.getByRole('button', { name: 'Vorgemerkt' });
-  expect(status.textContent).toBe('Vorgemerkt');
-  expect(status.getAttribute('title')).toBe('Vorgemerkt');
-  await user.click(status);
-  expect(screen.getByRole('button', { name: 'Bestätigt' }).getAttribute('aria-pressed')).toBe(
-    'true',
-  );
-  await user.click(status);
-  expect(status.getAttribute('aria-pressed')).toBe('false');
-  expect(screen.queryByLabelText('Budgetmonat')).toBeNull();
-  expect(document.querySelector('.bk-head .kcleared')).toBeNull();
-  await user.click(screen.getByRole('button', { name: 'Einnahme' }));
-  expect(screen.queryByLabelText('Budgetmonat')).toBeNull();
-  fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
-    target: { value: '12,34' },
-  });
-  await user.click(screen.getByText('Mehr', { exact: true }));
-  await user.selectOptions(screen.getByLabelText('Wiederholen'), 'weekly');
-  await user.click(screen.getByRole('button', { name: 'Speichern' }));
-  await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
-  expect(create.mock.calls[0]![0].input).toMatchObject({
-    amountCents: 1234,
-    accountId: 'wallet',
-    status: 'pending',
-    incomeNextMonth: false,
-    repeat: 'weekly',
-  });
-  expect(done).toHaveBeenCalledTimes(1);
-});
+it.each([false, true])(
+  'bank capture retains pending, repetition and source semantics with redesign %s (#841)',
+  async (enabled) => {
+    flags.REDESIGN_ENABLED = enabled;
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // Retain this explicit bank fixture; the generic query mock returns a cash account.
+    client.setQueryDefaults(['accounts'], { staleTime: Infinity });
+    client.setQueryData(['accounts'], {
+      accounts: [
+        { id: 'wallet', name: 'Giro Muster', type: 'checking', onBudget: true, closedAt: null },
+      ],
+    });
+    const done = vi.fn();
+    render(
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <CaptureForm
+            state={{ mode: 'create', accountId: 'wallet' }}
+            onDone={done}
+            dirtyRef={{ current: false }}
+            discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+            requestClose={vi.fn()}
+          />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Vorgemerkt' }).getAttribute('aria-pressed')).toBe(
+        'false',
+      ),
+    );
+    const status = screen.getByRole('button', { name: 'Vorgemerkt' });
+    expect(status.querySelector('span')!.textContent).toBe('Vorgemerkt');
+    expect(document.querySelector('[data-redesign="booking-editor"]') !== null).toBe(enabled);
+    expect(status.querySelector('.booking-status-pending') !== null).toBe(enabled);
+    expect(status.getAttribute('title')).toBe('Vorgemerkt');
+    await user.click(status);
+    expect(screen.getByRole('button', { name: 'Bestätigt' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    await user.click(status);
+    expect(status.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByLabelText('Budgetmonat')).toBeNull();
+    expect(document.querySelector('.bk-head .kcleared')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Einnahme' }));
+    expect(screen.queryByLabelText('Budgetmonat')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
+      target: { value: '12,34' },
+    });
+    await user.click(screen.getByText('Mehr', { exact: true }));
+    await user.selectOptions(screen.getByLabelText('Wiederholen'), 'weekly');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    expect(create.mock.calls[0]![0].input).toMatchObject({
+      amountCents: 1234,
+      accountId: 'wallet',
+      status: 'pending',
+      incomeNextMonth: false,
+      repeat: 'weekly',
+    });
+    expect(done).toHaveBeenCalledTimes(1);
+  },
+);
 
 it('cash capture is immediately confirmed without a pending toggle', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

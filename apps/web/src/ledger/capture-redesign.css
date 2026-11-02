@@ -1,0 +1,44 @@
+.bkform-redesign .bk-head {
+  background: var(--surface-2);
+  border-bottom-color: var(--rule-strong);
+}
+.bkform-redesign .bk-foot {
+  border-top-color: var(--rule-strong);
+}
+.bkform-redesign .bk-line {
+  border-bottom: 1px solid var(--rule);
+}
+.bkform-redesign .booking-status-icon {
+  flex-shrink: 0;
+}
+.bkform-redesign .bk-status,
+.bkform-redesign .bk-share-toggle,
+.bkform-redesign .bk-close,
+.bkform-redesign .amount-ops button {
+  min-height: 44px;
+  min-width: 44px;
+}
+.bkform-redesign :is(button, summary, input, select, textarea):focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+@media (min-width: 768px) {
+  [data-budget-redesign='1'] dialog.overlay.modal:has(.bkform-redesign.bk-split-cols) {
+    width: min(1040px, calc(100vw - 32px));
+  }
+  .bkform-redesign.bk-split-cols .bk-cols {
+    column-gap: 24px;
+  }
+  .bkform-redesign .bk-col-lines {
+    border-inline-start: 1px solid var(--rule);
+    padding-inline-start: 24px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bkform-redesign *,
+  .bkform-redesign *::before,
+  .bkform-redesign *::after {
+    animation: none;
+    transition: none;
+  }
+}
