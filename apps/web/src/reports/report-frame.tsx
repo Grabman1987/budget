@@ -17,6 +17,7 @@ import { hubReport } from './report-hub-model';
 import { ReportNavigation } from './report-navigation';
 import { VerdictLine } from './verdict-line';
 import './report-frame.css';
+import '../charts/report-heatmap.css';
 
 /** Supplied by the existing reader. The frame never aggregates or infers missing terms. */
 export interface ReportCalculation {

@@ -1,3 +1,5 @@
+import { retainExplorerReaders } from './explorer-controls';
+import { openR8BodyDetails } from './income-spending-controls';
 import { openPaperView, redesignReportsOn } from './report-frame';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
@@ -10,7 +12,9 @@ for (const report of reports) {
     browserName,
   }, info) => {
     test.slow();
+    await retainExplorerReaders(page);
     await page.goto(`/reports/${report}`);
+    if (report === 'sparquote') await openR8BodyDetails(page);
     const body = page.locator('.report-table-print');
     await expect(body.locator('table.rtable').first()).toBeVisible();
     // The fixed year matrix always includes category detail; its old depth switch is superseded.

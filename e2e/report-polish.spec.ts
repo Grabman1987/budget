@@ -1,9 +1,13 @@
+import { retainExplorerReaders } from './explorer-controls';
+import { retainBudgetCostInflationReaders } from './budget-cost-inflation-controls';
+import { redesignReportsOn } from './report-frame';
 import { test as isolatedTest } from './isolated-ledger';
 import { expect, sampleTest } from './sample';
 import { inspectReport } from './spending-helpers';
 
 sampleTest('report heatmap cells keep readable text in both themes', async ({ page }, info) => {
   sampleTest.setTimeout(180_000);
+  await retainExplorerReaders(page);
   for (const [path, selector] of [
     ['/reports/jahresansicht', '[data-testid="template-year"] td[data-heat]'],
     [
@@ -94,6 +98,7 @@ isolatedTest(
       await inspectReport(page, info, `rate-${type}`);
       await form.getByRole('button', { name: 'Abbrechen', exact: true }).click();
     }
+    await retainBudgetCostInflationReaders(page);
     await page.goto('/reports/kosten');
     const lines = page.getByTestId('credit-lines');
     for (const type of ['checking', 'credit_card']) {
@@ -122,8 +127,13 @@ isolatedTest(
       expect(response.ok()).toBe(true);
     }
     await page.goto(`/vermoegen/portfolio/instrument/${security.id}`);
+    const on = await redesignReportsOn(page);
+    if (on)
+      await page
+        .getByText('Zeitraum, gespeicherte Kurse und Bewertungsquellen', { exact: true })
+        .click();
     await page.getByRole('button', { name: 'Kurs', exact: true }).click();
-    const chart = page.getByTestId('price-history-chart');
+    const chart = page.getByTestId(on ? 'price-history-chart-expanded' : 'price-history-chart');
     await expect(chart).toBeVisible();
     for (const [range, count] of [
       ['1M', 2],

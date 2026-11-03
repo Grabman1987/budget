@@ -1,3 +1,4 @@
+import { retainExplorerReaders } from './explorer-controls';
 import { expect, sampleTest as test } from './sample';
 import { inspectReport } from './spending-helpers';
 import { redesignReportsOn } from './report-frame';
@@ -60,6 +61,7 @@ test('secondary report sections follow their main content at full width', async 
     expect(Math.abs(b.width - a.width)).toBeLessThan(2);
     await inspectReport(page, info, item.name);
   }
+  await retainExplorerReaders(page);
   await page.goto('/reports/kategorien?zeitraum=1J');
   await page.getByTestId('template-category').locator('[data-template-column]').first().click();
   const summary = page.getByTestId('template-sources');
