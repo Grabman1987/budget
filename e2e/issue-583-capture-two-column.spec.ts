@@ -17,16 +17,13 @@ import { expect, test, type Locator, type Page, type TestInfo } from '@playwrigh
  */
 
 const desktop = (info: TestInfo) => info.project.name === 'desktop';
-// Read the pinned reference and the declared app inset contract, independently of DOM bounds.
+// Read width/note dimensions from the pinned design; keep the reviewed 48px app inset
+// independent of the product stylesheet so a CSS regression cannot change its own oracle.
 const reference = readFileSync('design/claude-design-20261030/redesign/v2-buchung.jsx', 'utf8');
 const captureLayout = {
   desktopWidth: Number(reference.match(/role="dialog"[^\n]*?width:(\d+)/)![1]),
   noteHeight: Number(reference.match(/const note=[^\n]*?height:(\d+)/)![1]),
-  desktopInset: Number(
-    readFileSync('apps/web/src/ledger/capture-redesign.css', 'utf8').match(
-      /dialog\.overlay\.modal:has\(\.bkform-redesign\)\s*\{[^}]*inset:\s*(\d+)px/,
-    )![1],
-  ),
+  desktopInset: 48,
 };
 
 async function choose(scope: Locator, label: string, search: string, option: RegExp | string) {
