@@ -19,6 +19,18 @@ async function below(first: Locator, second: Locator) {
   expect(b.width).toBeCloseTo(a.width, 0);
 }
 
+async function columns(container: Locator, first: Locator, second: Locator) {
+  const bounds = (await container.boundingBox())!;
+  const a = (await first.boundingBox())!;
+  const b = (await second.boundingBox())!;
+  expect(a.x).toBeCloseTo(bounds.x, 0);
+  expect(a.y).toBeCloseTo(bounds.y, 0);
+  expect(b.y).toBeCloseTo(bounds.y, 0);
+  expect(b.x).toBeGreaterThanOrEqual(a.x + a.width);
+  expect(b.x + b.width).toBeCloseTo(bounds.x + bounds.width, 0);
+  expect(a.width).toBeGreaterThan(b.width);
+}
+
 sampleTest(
   'empty instruments collapse with a count and retain detail and editing paths',
   async ({ page, request }, info) => {
@@ -164,11 +176,12 @@ sampleTest(
     );
     await page.goto('/reports/psteuern');
     expect((await costsLoaded).ok()).toBe(true);
-    await expect(page.locator('.costs-main > section')).toHaveCount(2);
-    await below(
-      page.locator('.costs-main > section').first(),
-      page.locator('.costs-main > section').last(),
-    );
+    const costs = page.locator('.costs-main');
+    const sections = costs.locator(':scope > section');
+    await expect(sections).toHaveCount(2);
+    if ((await wealthRedesign(page)) && page.viewportSize()!.width > 1100)
+      await columns(costs, sections.first(), sections.last());
+    else await below(sections.first(), sections.last());
     await expect(page.locator('.costs-products thead th')).toHaveCount(7);
     await contained(page);
     await page.screenshot({ path: info.outputPath('costs-full-width.png'), fullPage: true });
