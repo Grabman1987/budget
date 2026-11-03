@@ -1,4 +1,4 @@
-import { Segmented } from '@budget/ui';
+import { Segmented, Select } from '@budget/ui';
 import { isReportPeriod } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import type { PageMeta } from '../nav/pages';
@@ -7,12 +7,15 @@ import { DEFAULT_ZEITRAUM } from '../wealth/zeitraum';
 import { AssetsDebtsReport } from './assets-debts-report';
 import { WealthHistoryReport } from './wealth-history-report';
 import { WholePictureReport } from './whole-picture-report';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './report-views.css';
+import './wealth-report-redesign.css';
 
 const WEALTH_VIEWS = [
   { value: 'bilanz', label: 'Vermögen und Schulden' },
   { value: 'verlauf', label: 'Vermögensverlauf' },
   { value: 'gesamt', label: 'Gesamtübersicht' },
+  ...(REDESIGN_ENABLED ? [{ value: 'schulden' as const, label: 'Schulden-Verlauf' }] : []),
 ] as const;
 type WealthView = (typeof WEALTH_VIEWS)[number]['value'];
 
@@ -20,10 +23,9 @@ type WealthView = (typeof WEALTH_VIEWS)[number]['value'];
 export function WealthReportViews({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   const search = useSearch({ strict: false }) as { darstellung?: unknown; zeitraum?: unknown };
   const navigate = useNavigate();
-  const view: WealthView =
-    search.darstellung === 'verlauf' || search.darstellung === 'gesamt'
-      ? search.darstellung
-      : 'bilanz';
+  const view: WealthView = WEALTH_VIEWS.some((option) => option.value === search.darstellung)
+    ? (search.darstellung as WealthView)
+    : 'bilanz';
   const changeView = (next: WealthView) => {
     if (next === view) return;
     // Materialize the active reader's existing fallback only at a real switch, never on mount.
@@ -43,7 +45,22 @@ export function WealthReportViews({ report, meta }: { report: ReportEntry; meta:
       })) as never,
     });
   };
-  const control = (
+  const control = REDESIGN_ENABLED ? (
+    <label className="wealth-report-view-select">
+      <span>Darstellung</span>
+      <Select
+        aria-label="Darstellung des Vermögensreports"
+        value={view}
+        onChange={(event) => changeView(event.target.value as WealthView)}
+      >
+        {WEALTH_VIEWS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </Select>
+    </label>
+  ) : (
     <Segmented
       className="report-view-switch report-wealth-switch"
       label="Ansicht von Vermögen und Schulden"
@@ -56,5 +73,12 @@ export function WealthReportViews({ report, meta }: { report: ReportEntry; meta:
     return <WealthHistoryReport report={report} meta={meta} viewControl={control} />;
   if (view === 'gesamt')
     return <WholePictureReport report={report} meta={meta} viewControl={control} />;
-  return <AssetsDebtsReport report={report} meta={meta} viewControl={control} />;
+  return (
+    <AssetsDebtsReport
+      report={report}
+      meta={meta}
+      viewControl={control}
+      debtOnly={view === 'schulden'}
+    />
+  );
 }
