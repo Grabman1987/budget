@@ -152,6 +152,14 @@ async function scene(
     if (on && !(await filterMenu.evaluate((el) => (el as HTMLDetailsElement).open)))
       await filterMenu.locator('summary').click();
   };
+  const closeFilters = async () => {
+    if (on) {
+      // Close the disclosure before activating controls outside it; its reflow can move a WebKit pointer target.
+      await filterMenu.locator('summary').focus();
+      await page.keyboard.press('Escape');
+      await expect(filterMenu).not.toHaveAttribute('open');
+    }
+  };
   await openFilters();
   const filters = page.getByRole('group', { name: 'Kategoriefilter', exact: true });
   await expect(filters.getByRole('button', { name: 'Alle (3)', exact: true })).toHaveAttribute(
@@ -308,6 +316,7 @@ async function scene(
     'true',
   );
   await filters.getByRole('button', { name: 'Ohne Kategorie (1)', exact: true }).click();
+  await closeFilters();
   const missing = page.getByRole('region', { name: 'Buchungen ohne Kategorie' });
   await expect(
     missing.getByRole('link', { name: 'Synthetic missing classification', exact: true }),
@@ -332,6 +341,7 @@ async function scene(
   await search.fill('');
   await openFilters();
   await filters.getByRole('button', { name: 'Überzogen (1)', exact: true }).click();
+  await closeFilters();
   const before = await budget(page);
   expect(
     before.summary.envelopes.find((row) => row.categoryId === ids.donorId)?.availableCents,

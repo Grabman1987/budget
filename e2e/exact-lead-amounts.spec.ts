@@ -105,6 +105,8 @@ for (const [value, text] of [
       expect(((await response.json()) as AccountList).netWorthEurCents).toBe(value);
       await page.goto('/konten');
       await expect(page.getByText('Closed residual')).toBeHidden();
+      if (await wealthRedesign(page))
+        await page.locator('.overview-actions-menu > summary').click();
       const term = page.getByRole('link', { name: 'Vermögen ansehen', exact: true });
       await expect(term).toBeVisible();
       await term.click();
@@ -112,6 +114,11 @@ for (const [value, text] of [
         page.getByTestId((await wealthRedesign(page)) ? 'wealth-net-value' : 'nw-figure'),
       ).toHaveText(text);
       await page.goto('/einstellungen/konten');
+      if (await wealthRedesign(page))
+        await page
+          .locator('.settings-advanced > summary')
+          .filter({ hasText: 'Geschlossene Konten' })
+          .click();
       await expect(page.getByRole('heading', { name: /Geschlossene Konten/ })).toBeVisible();
       await expect(page.getByText('Closed residual', { exact: true })).toBeVisible();
     },

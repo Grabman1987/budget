@@ -141,7 +141,15 @@ test.describe('Plan › Monat with several months', () => {
     // The title carries the month window; every month head carries its own Zu verteilen.
     await expect(page.getByTestId('tba-2026-09')).toHaveText(/0,00/);
     await expect(page.getByTestId('tba-2026-10')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Sep – Okt 2026' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', {
+        name:
+          (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+            ? 'September 2026'
+            : 'Sep – Okt 2026',
+        exact: true,
+      }),
+    ).toBeVisible();
 
     await page.getByRole('button', { name: 'Nächster Monat' }).click();
     await expect(page).toHaveURL(/monat=2026-10/);
