@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Select } from '@budget/ui';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { PortfolioRecordedCostHistory } from '../reports/portfolio-recorded-cost-history';
 import { PortfolioIncomeDepth } from '../reports/portfolio-income-depth';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { cents } from '@budget/domain';
@@ -45,7 +46,10 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
   const viewId = useId();
   const search = useSearch({ strict: false }) as { darstellung?: string };
   const navigate = useNavigate();
-  const view = REDESIGN_ENABLED && search.darstellung === 'ertraege' ? 'ertraege' : 'gebuehren';
+  const view =
+    REDESIGN_ENABLED && ['ertraege', 'kostenverlauf'].includes(search.darstellung ?? '')
+      ? search.darstellung
+      : 'gebuehren';
   return (
     <PageFrame
       sourceDate={data?.to}
@@ -53,28 +57,45 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
         data && !query.isFetching && !query.isError
           ? {
               label:
-                view === 'ertraege'
-                  ? 'Erhaltene Kapitalerträge brutto in EUR'
-                  : 'Erträge abzüglich Kosten und Steuern',
+                view === 'kostenverlauf'
+                  ? 'Gebuchte Gebühren und TER-Anteil · 12 Monate'
+                  : view === 'ertraege'
+                    ? 'Erhaltene Kapitalerträge brutto in EUR'
+                    : 'Erträge abzüglich Kosten und Steuern',
               terms:
-                view === 'ertraege'
+                view === 'kostenverlauf'
                   ? [
-                      { label: 'Dividenden', value: cents(data.income.dividend.grossCents) },
-                      { op: '+', label: 'Zinsen', value: cents(data.income.interest.grossCents) },
+                      { label: 'Gebuchte Gebühren', value: cents(data.costs.fees.totalCents) },
+                      { op: '+', label: 'TER-Anteil', value: cents(data.costs.terCents) },
                     ]
-                  : [
-                      { label: 'Erträge brutto', value: cents(data.net.grossCents) },
-                      {
-                        op: '-',
-                        label: 'Steuern auf Erträge',
-                        value: cents(data.net.taxOnIncomeCents),
-                      },
-                      { op: '-', label: 'Gebühren und TER', value: cents(data.net.costsCents) },
-                    ],
+                  : view === 'ertraege'
+                    ? [
+                        { label: 'Dividenden', value: cents(data.income.dividend.grossCents) },
+                        { op: '+', label: 'Zinsen', value: cents(data.income.interest.grossCents) },
+                      ]
+                    : [
+                        { label: 'Erträge brutto', value: cents(data.net.grossCents) },
+                        {
+                          op: '-',
+                          label: 'Steuern auf Erträge',
+                          value: cents(data.net.taxOnIncomeCents),
+                        },
+                        { op: '-', label: 'Gebühren und TER', value: cents(data.net.costsCents) },
+                      ],
               result: {
-                label: view === 'ertraege' ? 'Erhaltene Erträge brutto · EUR' : 'Nettoertrag',
+                label:
+                  view === 'kostenverlauf'
+                    ? 'Kosten · 12 Monate'
+                    : view === 'ertraege'
+                      ? 'Erhaltene Erträge brutto · EUR'
+                      : 'Nettoertrag',
                 unit: 'money',
-                value: view === 'ertraege' ? data.income.grossCents : data.net.netCents,
+                value:
+                  view === 'kostenverlauf'
+                    ? data.costs.totalCents
+                    : view === 'ertraege'
+                      ? data.income.grossCents
+                      : data.net.netCents,
               },
             }
           : undefined
@@ -99,6 +120,7 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
             >
               <option value="gebuehren">Gebühren und Steuern</option>
               <option value="ertraege">Erträge</option>
+              <option value="kostenverlauf">Kosten im Verlauf</option>
             </Select>
           </label>
         ) : undefined
@@ -141,7 +163,9 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
         )}
         {data &&
           !query.isError &&
-          (view === 'ertraege' ? (
+          (view === 'kostenverlauf' ? (
+            <PortfolioRecordedCostHistory from={data.from} to={data.to} />
+          ) : view === 'ertraege' ? (
             <PortfolioIncomeDepth from={data.from} to={data.to} />
           ) : (
             <CostsBody data={data} />

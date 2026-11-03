@@ -2,7 +2,7 @@ import { useId } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import type { PortfolioSummary } from '@budget/db';
 import { cents } from '@budget/domain';
-import { DimensionChain, useAmountPrivacy } from '@budget/ui';
+import { DimensionChain, privateAmount, useAmountPrivacy } from '@budget/ui';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { ValuationHint, type ValuationNote } from '../ledger/valuation-hint';
@@ -18,6 +18,11 @@ import {
   historicalBasisReasons,
   PortfolioCalculationDisclosure,
 } from './portfolio-calculation-disclosure-512';
+
+const privateRate = (value: number | null | undefined) =>
+  value == null || !Number.isFinite(value)
+    ? '–'
+    : privateAmount(percentText(value, { sign: true }));
 
 /** Compact report presentation of the existing security-return facts; all sources remain available. */
 export function PortfolioMetricsLead({
@@ -67,11 +72,10 @@ export function PortfolioMetricsLead({
                         ? 'Lädt …'
                         : query.isError
                           ? 'Nicht verfügbar'
-                          : percentText(
+                          : privateRate(
                               index < 2
                                 ? query.data?.portfolio.performance?.ttwror
                                 : query.data?.portfolio.performance?.ttwrorAnnualised,
-                              { sign: true },
                             )}
                     </td>
                   ))}
@@ -86,7 +90,7 @@ export function PortfolioMetricsLead({
                         ? 'Lädt …'
                         : query.isError
                           ? 'Nicht verfügbar'
-                          : percentText(query.data?.portfolio.performance?.xirr, { sign: true })}
+                          : privateRate(query.data?.portfolio.performance?.xirr)}
                     </td>
                   ))}
                 </tr>
@@ -95,8 +99,8 @@ export function PortfolioMetricsLead({
           </div>
           <p className="vnote">
             Wertpapiere ohne Depotkassa · nach Gebühren, vor Steuern. XIRR immer p. a. (actual/365).
-            Gewählter Zeitraum: TTWROR {percentText(performance.ttwror, { sign: true })} · XIRR{' '}
-            {percentText(performance.xirr, { sign: true })} p. a.
+            Gewählter Zeitraum: TTWROR {privateRate(performance.ttwror)} · XIRR{' '}
+            {privateRate(performance.xirr)} p. a.
           </p>
           {comparisons.some((query) => query.isError) && (
             <ErrorNote

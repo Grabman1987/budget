@@ -27,6 +27,9 @@ import {
   percentText,
 } from './portfolio-report-shared';
 import './portfolio-depots-report.css';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { PortfolioDepotComparisonBody } from '../reports/portfolio-depot-comparison-body';
+import { ValuationHint } from '../ledger/valuation-hint';
 import '../reports/wealth-portfolio-redesign.css';
 
 interface DepotsResponse extends WithValuationNotes {
@@ -136,7 +139,21 @@ export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; m
             oder Nullertrag angenommen.
           </p>
         )}
-        {data && !query.isError && data.total && <DepotsBody data={data} period={period} />}
+        {data &&
+          !query.isError &&
+          data.total &&
+          (REDESIGN_ENABLED ? (
+            <>
+              <ValuationHint incomplete={query.data?.incomplete} />
+              <PortfolioDepotComparisonBody data={data} />
+              <details className="depot-comparison-detail">
+                <summary>Depot-Rechnungen, Benchmarks und Kennzahlen</summary>
+                <DepotsBody data={data} period={period} />
+              </details>
+            </>
+          ) : (
+            <DepotsBody data={data} period={period} />
+          ))}
       </div>
     </PageFrame>
   );

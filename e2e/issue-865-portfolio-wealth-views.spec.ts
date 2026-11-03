@@ -3,6 +3,7 @@ import { expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { eur } from '../apps/web/src/ledger/format';
 import { redesignReportsOn } from './report-frame';
+import { withShellControls } from './shell-actions';
 import { sampleTest as test } from './sample';
 
 test('portfolio views retain source scopes, heatmap, class index history and all period parameters', async ({
@@ -73,6 +74,15 @@ test('portfolio views retain source scopes, heatmap, class index history and all
       await expect(page.getByTestId('metrics-period-gain')).toHaveText(
         eur(performance.portfolio.performance.gainCents, { sign: true }),
       );
+      await withShellControls(page, async ({ privacy }) => {
+        await privacy.click();
+      });
+      await expect(
+        page.locator('.performance-window > .rscroll .metrics-lead-table td'),
+      ).toHaveText(Array(8).fill('•••'));
+      await withShellControls(page, async ({ privacy }) => {
+        await privacy.click();
+      });
       await page
         .getByText('Kennzahlen, Zahlungsströme und Bewertungsquellen im Detail', { exact: true })
         .click();

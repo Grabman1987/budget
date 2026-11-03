@@ -36,6 +36,14 @@ test('867 comparison and costs keep canonical totals; income detail has currency
         });
     }
   };
+  await expect(page.getByTestId('depot-summary-value').last()).toHaveText(
+    eur(depots.depots.total.valueCents),
+  );
+  if (info.project.name === 'mobile') {
+    await page.getByRole('button', { name: 'Alle Vergleichswerte als Tabelle' }).click();
+    await expect(page.getByRole('columnheader', { name: 'XIRR p. a.', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Kompakte Depotliste' }).click();
+  }
   await capture('depots');
   await page.goto('/reports/psteuern');
   const costs = await (await page.request.get('/api/portfolio/costs-taxes')).json();
@@ -72,11 +80,29 @@ test('867 comparison and costs keep canonical totals; income detail has currency
     cells.map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(';')).join('\r\n'),
   );
   await page.getByText('Monatswerte als Tabelle · EUR', { exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Erwartet · nächste 12 Monate', exact: true }),
+  ).toBeVisible();
   await capture('ertraege');
   await page.reload();
   await expect(
     page.getByRole('combobox', { name: 'Darstellung von Kosten, Steuern und Erträgen' }),
   ).toHaveValue('ertraege');
+  await page
+    .getByRole('combobox', { name: 'Darstellung von Kosten, Steuern und Erträgen' })
+    .selectOption('kostenverlauf');
+  await expect(page.getByTestId('portfolio-cost-history-EUR')).toBeVisible();
+  await expect(page.getByTestId('report-frame-result')).toHaveText(
+    eur(costs.costs.costs.totalCents),
+  );
+  await page.getByText('Gebuchte Monatskosten als Tabelle · EUR', { exact: true }).click();
+  await expect(page.getByTestId('portfolio-cost-history-table-EUR')).toBeVisible();
+  await page.getByText('Gebuchte Monatskosten als Tabelle · EUR', { exact: true }).click();
+  await capture('kostenverlauf');
+  await page.reload();
+  await expect(
+    page.getByRole('combobox', { name: 'Darstellung von Kosten, Steuern und Erträgen' }),
+  ).toHaveValue('kostenverlauf');
   await page.setViewportSize({ width: 320, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

@@ -11,7 +11,7 @@ import {
   PortfolioCalculationDisclosure,
 } from '../reports/portfolio-calculation-disclosure-512';
 import type { ValuationNote } from '../ledger/valuation-hint';
-import { useId, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { useAmountPrivacy, DimensionChain, Button } from '@budget/ui';
 import { cents, type Period } from '@budget/domain';
 import type { PortfolioSummary } from '@budget/db';
@@ -379,18 +379,26 @@ function PerformanceBody({
           bleiben oben sichtbar.
         </p>
       )}
-      {REDESIGN_ENABLED && presentation !== 'klassen' && (
-        <details className="performance-metrics-retained">
-          <summary>Kennzahlen, Zahlungsströme und Bewertungsquellen im Detail</summary>
-          <PortfolioMetrics />
-        </details>
-      )}
+      {REDESIGN_ENABLED && presentation !== 'klassen' && <RetainedPortfolioMetrics />}
       <div className="performance-links">
         <Button variant="ghost" onClick={onOpenPortfolio}>
           Portfolio öffnen
         </Button>
       </div>
     </>
+  );
+}
+
+function RetainedPortfolioMetrics() {
+  const [open, setOpen] = useState(false);
+  return (
+    <details
+      className="performance-metrics-retained"
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary>Kennzahlen, Zahlungsströme und Bewertungsquellen im Detail</summary>
+      {open && <PortfolioMetrics />}
+    </details>
   );
 }
 
