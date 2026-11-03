@@ -371,7 +371,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
     const dateBox = (await dialog.locator('.kdate').boundingBox())!;
     const repeatBox = (await dialog.getByLabel('Wiederholen').boundingBox())!;
     if (await redesignLoaded(page)) {
-      expect(repeatBox.width).toBe(44);
+      expect(repeatBox.width).toBe(Math.ceil(MIN_TARGET_PX));
       expect(dateBox.width).toBeGreaterThan(repeatBox.width);
     } else expect(dateBox.width / repeatBox.width).toBeCloseTo(2, 0);
     await expect(dialog.getByRole('button', { name: 'Gestern' })).toHaveCount(0);

@@ -34,6 +34,8 @@ type Preview = {
   sharedTargets: number;
   selectedCount: number;
   safeOnly?: boolean;
+  safeSnapshot?: string;
+  invalidated?: boolean;
 };
 const withoutLabel = (suggestion: PreparedBankSuggestion) => {
   const payload: Partial<PreparedBankSuggestion> = { ...suggestion };
@@ -127,12 +129,20 @@ export function BankBulkActions({
   const write = useBudgetWrite();
   const chosen = rows.filter((row) => selected.has(row.id));
   const safe = safeBankRows(rows, prepared).slice(0, 100);
+  const safeSnapshot = JSON.stringify([sourceId, safe.map((row) => [row, prepared(row.id)])]);
+  // Latch a changed context before committing the render with its confirm action.
+  if (!busy && preview?.safeOnly && !preview.invalidated && preview.safeSnapshot !== safeSnapshot)
+    setPreview({ ...preview, invalidated: true });
+  const invalidatePreview = () =>
+    setPreview((current) => current && { ...current, invalidated: true });
   const prepare = (action: 'dismiss' | 'confirm') => setPreview(planBulk(action, chosen, prepared));
   const safeAction = (
     <Button
       className="inbox-safe-action"
       disabled={busy || !safe.length}
-      onClick={() => setPreview({ ...planBulk('confirm', safe, prepared), safeOnly: true })}
+      onClick={() =>
+        setPreview({ ...planBulk('confirm', safe, prepared), safeOnly: true, safeSnapshot })
+      }
     >
       <CheckCheck size={16} aria-hidden="true" />
       Alle sicheren bestätigen ({safe.length})
@@ -208,12 +218,19 @@ export function BankBulkActions({
           )}
           {preview?.safeOnly && (
             <>
+              {preview.invalidated && (
+                <p role="alert">
+                  Die sichere Auswahl ist nicht mehr aktuell. Schließe diese Vorschau, prüfe die
+                  Zeilen erneut und bestätige eine neue Vorschau.
+                </p>
+              )}
               <p>
                 Sicher für diese Sammelaktion sind offene Quellumsätze mit einer bereits
                 vorbereiteten, eindeutig automatisch anwendbaren Regel und abgeschlossener
                 Trefferprüfung. Umbuchungen, mögliche Duplikate, Zusammenführungen und mehrdeutige
-                Treffer bleiben einzeln zu prüfen. Der aktuelle Quellen- und Regelstand wird beim
-                Ausführen erneut geprüft.
+                Treffer bleiben einzeln zu prüfen. Die Vorschau verwendet den aktuell geladenen
+                Quellen-, Regel- und Trefferstand. Ändert sich diese Prüfung, ist eine neue Vorschau
+                erforderlich.
               </p>
               <ul aria-label="Auswirkung der sicheren Vorschläge">
                 {preview.rows.map((row) => {
@@ -255,9 +272,24 @@ export function BankBulkActions({
             Abbrechen
           </Button>
           <Button
-            disabled={busy || !preview?.changed}
+            disabled={busy || !preview?.changed || preview.invalidated}
             onClick={() => {
               if (!preview) return;
+              // Re-evaluate the provider's complete eligibility, including bulkSafe, rather
+              // than trusting the old candidate/selected-rule revisions alone.
+              const currentSnapshot = JSON.stringify([
+                sourceId,
+                safeBankRows(rows, prepared)
+                  .slice(0, 100)
+                  .map((row) => [row, prepared(row.id)]),
+              ]);
+              if (
+                preview.safeOnly &&
+                (preview.invalidated || preview.safeSnapshot !== currentSnapshot)
+              ) {
+                invalidatePreview();
+                return;
+              }
               setBusy(true);
               void write(
                 () =>

@@ -7,6 +7,7 @@ import {
 } from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
+import { readFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
 /**
@@ -16,6 +17,17 @@ import { expect, test, type Locator, type Page, type TestInfo } from '@playwrigh
  */
 
 const desktop = (info: TestInfo) => info.project.name === 'desktop';
+// Read the pinned reference and the declared app inset contract, independently of DOM bounds.
+const reference = readFileSync('design/claude-design-20261030/redesign/v2-buchung.jsx', 'utf8');
+const captureLayout = {
+  desktopWidth: Number(reference.match(/role="dialog"[^\n]*?width:(\d+)/)![1]),
+  noteHeight: Number(reference.match(/const note=[^\n]*?height:(\d+)/)![1]),
+  desktopInset: Number(
+    readFileSync('apps/web/src/ledger/capture-redesign.css', 'utf8').match(
+      /dialog\.overlay\.modal:has\(\.bkform-redesign\)\s*\{[^}]*inset:\s*(\d+)px/,
+    )![1],
+  ),
+};
 
 async function choose(scope: Locator, label: string, search: string, option: RegExp | string) {
   await scope.getByLabel(label, { exact: true }).fill(search);
@@ -92,7 +104,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
     const box = async (locator: Locator) => (await locator.boundingBox())!;
     const dialogBox = await box(dialog);
     const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-    if (redesign) expect(dialogBox.width).toBe(960);
+    if (redesign) expect(dialogBox.width).toBe(captureLayout.desktopWidth);
     else {
       expect(dialogBox.width).toBeGreaterThanOrEqual(940);
       expect(dialogBox.width).toBeLessThanOrEqual(962);
@@ -117,8 +129,8 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       expect(notiz!.x).toBeGreaterThan(kategorie!.x + kategorie!.width);
       expect(betrag!.y).toBeLessThan(empfaenger!.y);
       expect(empfaenger!.y).toBeLessThan(kategorie!.y);
-      expect(notiz!.height).toBe(104);
-      expect(dialogBox.y).toBe(48);
+      expect(notiz!.height).toBe(captureLayout.noteHeight);
+      expect(dialogBox.y).toBe(captureLayout.desktopInset);
     } else {
       // Left column: Betrag, Empfänger, Bezahlt von, Datum, Notiz share one left edge and stack.
       // (the amount input itself starts after its sign, so Empfänger is the reference edge)
