@@ -10,7 +10,16 @@ test.beforeEach(async ({ page }) => {
     (ids) => {
       for (const id of ids) localStorage.setItem(`budget-report-r8-${id}`, '1');
     },
-    ['projects-history', 'projects-side', 'projects-months'],
+    [
+      'projects-history',
+      'projects-side',
+      'projects-months',
+      'payroll-payout',
+      'payroll-history',
+      'payroll-months',
+      'payroll-years',
+      'payroll-special',
+    ],
   );
 });
 

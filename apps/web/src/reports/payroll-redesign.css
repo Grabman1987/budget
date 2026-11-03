@@ -1,0 +1,55 @@
+[data-budget-redesign='1'] .pp-report[data-testid='payroll-report'] {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+[data-budget-redesign='1'] .pp-report[data-testid='payroll-report'] .mr-card {
+  padding: 12px 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+[data-budget-redesign='1'] .pp-report[data-testid='payroll-report'] h2 {
+  font-size: var(--fs-title);
+  margin-block: 0 8px;
+}
+[data-budget-redesign='1'] .pp-report[data-testid='payroll-report'] .r8-body-disclosure > summary {
+  min-height: 44px;
+  padding-block: 8px;
+  align-content: center;
+  border-block: 1px solid var(--rule);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+[data-budget-redesign='1'] .r9-meta {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  margin-block: 8px 0;
+}
+[data-budget-redesign='1'] .pp-report[data-testid='payroll-report'] > .rtools {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0;
+}
+[data-budget-redesign='1'] .pp-report[data-testid='payroll-report'] .pp-slip {
+  padding-block: 12px;
+  border-block-start: 1px solid var(--rule);
+}
+@media print {
+  [data-budget-redesign='1']
+    .pp-report[data-testid='payroll-report']
+    .r8-body-disclosure
+    > summary {
+    display: none;
+  }
+}
+[data-budget-redesign='1'] .pp-report[data-testid='payroll-report'] > .rtools a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+[data-budget-redesign='1'] .pp-report[data-testid='payroll-report'] .pp-history a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
