@@ -1,7 +1,7 @@
 import { inboxFilters } from './ledger-helpers';
 // A2 positive browser bodies, using the real sample ledger and isolated import-detail fixture.
 // Expected patterns: approved 00-bestand rows 1..54; bodies: s3-a2-body-bindings-20261031.md.
-// Run each owned OFF/ON artifact separately with A2_EXPECT_REDESIGN=0/1; this never activates a flag.
+// Read the rendered build flag; optional A2_EXPECT_REDESIGN=0/1 additionally pins the artifact.
 // No spec imports, financial mocks/formulas, shared-ledger setup writes, timeout changes or skipped cases.
 // Existing product rule derivation on reads is retained; no test POST changes SAMPLE state.
 import type { Page, Locator } from '@playwright/test';
@@ -11,7 +11,6 @@ import { test as isolatedTest } from './isolated-ledger';
 import { wealthRedesign } from './wealth-navigation';
 import { openPruefenSource } from './pruefen-part';
 
-const on = process.env['A2_EXPECT_REDESIGN'] === '1';
 const id = (p: Page, name: string) => expect(p.getByTestId(name)).toBeVisible();
 const css = (p: Page, selector: string) => expect(p.locator(selector).first()).toBeVisible();
 async function read<T>(p: Page, path: string): Promise<T> {
@@ -25,8 +24,13 @@ async function disclose(box: Locator) {
 }
 async function flag(p: Page) {
   await expect(p.locator('.app')).toHaveCount(1);
-  if (on) await expect(p.locator('.app')).toHaveAttribute('data-budget-redesign', '1');
-  else await expect(p.locator('.app')).not.toHaveAttribute('data-budget-redesign', '1');
+  const on = (await p.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  const expected = process.env['A2_EXPECT_REDESIGN'];
+  if (expected !== undefined) {
+    expect(['0', '1'], 'A2_EXPECT_REDESIGN must pin an OFF or ON artifact').toContain(expected);
+    expect(on, 'rendered build matches A2_EXPECT_REDESIGN').toBe(expected === '1');
+  }
+  return on;
 }
 async function journal(p: Page) {
   await expect(p.getByLabel('In Buchungen suchen', { exact: true })).toBeVisible();
@@ -157,10 +161,49 @@ const probes = {
     await expect(p.locator('.year-scenario-context')).toContainText('Einnahmen:');
     await expect(p.locator('.year-scenario-context')).toContainText('Konsum:');
   },
-  expected: (p: Page) =>
-    expect(p.locator('tr.prow').filter({ hasText: 'Gehalt' }).first()).toBeVisible(),
-  payment: (p: Page) => css(p, '.xp-big'),
-  goals: (p: Page) => id(p, 'goals-summary'),
+  expected: async (p: Page) => {
+    if ((await flag(p)) && new URL(p.url()).searchParams.get('ansicht') === 'kalender') {
+      await expect(
+        p.getByRole('table', {
+          name: 'Versionierte Vertragsprojektion je Zahlung und Monat',
+          exact: true,
+        }),
+      ).toContainText('Internet');
+    } else {
+      const bookmark = p.url();
+      const view = p.getByRole('combobox', { name: 'Ansicht', exact: true });
+      const changeView = (await flag(p)) && (await view.inputValue()) !== 'all';
+      if (changeView) {
+        await view.selectOption('all');
+        await expect(view).toHaveValue('all');
+      }
+      await expect(p.locator('tr.prow').filter({ hasText: 'Gehalt' }).first()).toBeVisible();
+      if (changeView) {
+        await p.goBack();
+        await expect(p).toHaveURL(bookmark);
+        await expect(view).toHaveValue('next');
+      }
+    }
+  },
+  payment: async (p: Page) => {
+    const management = p.locator('.payment-reference-management');
+    if ((await flag(p)) && p.viewportSize()!.width >= 768) {
+      await expect(management).toBeVisible();
+      await disclose(management);
+    }
+    await css(p, '.xp-big');
+  },
+  goals: async (p: Page) => {
+    if ((await flag(p)) && new URL(p.url()).searchParams.get('ansicht') === 'fortschritt') {
+      await id(p, 'goal-report-summary');
+      await expect(
+        p.getByRole('table', {
+          name: 'Gespeicherte Sparziele und ihre verfügbaren EUR-Monatswerte',
+          exact: true,
+        }),
+      ).toContainText('Weihnachten 2026');
+    } else await id(p, 'goals-summary');
+  },
   goal: async (p: Page) => {
     await expect(p.locator('#goal-detail-title')).toHaveText('Weihnachten 2026');
     await expect(
@@ -394,6 +437,8 @@ const direct = [
 ] as const;
 for (const [row, url, body] of direct)
   test(`A2 sample baseline ${row}: ${url}`, async ({ page }) => {
+    await page.goto(url);
+    const on = await flag(page);
     const desktopIndex = row === 38 && page.viewportSize()!.width >= 768;
     const path = desktopIndex
       ? on
@@ -401,7 +446,6 @@ for (const [row, url, body] of direct)
         : '/einstellungen/konten'
       : new URL(url, 'http://fixture').pathname;
     const expectedBody = desktopIndex ? (on ? 'profile' : 'accountSettings') : body;
-    await page.goto(url);
     await loaded(page, path, expectedBody);
     await reload(page, path, expectedBody);
   });
@@ -460,17 +504,15 @@ const reportAliases = [
   ['vorschau', '/plan/erwartet', '', '', 'expected'],
   ['sparziele', '/plan/sparziele', '', '', 'goals'],
   ['kontakte', '/konten/kontakte', '', '', 'contacts'],
-  [
-    'finanzcheck',
-    on ? '/reports/onepager' : '/',
-    on ? 'darstellung=finanzcheck' : '',
-    '',
-    on ? 'finanzcheck' : 'heute',
-  ],
+  ['finanzcheck', '/', '', '', 'heute'],
 ] as const;
-for (const [slug, path, intent, view, body] of reportAliases)
+for (const [slug, legacyPath, legacyIntent, view, legacyBody] of reportAliases)
   test(`A2 report alias ${slug}`, async ({ page }) => {
     await page.goto('/plan/monat?monat=2026-08');
+    const finanzcheck = (await flag(page)) && slug === 'finanzcheck';
+    const path = finanzcheck ? '/reports/onepager' : legacyPath;
+    const intent = finanzcheck ? 'darstellung=finanzcheck' : legacyIntent;
+    const body = finanzcheck ? 'finanzcheck' : legacyBody;
     await probes.plan(page);
     await page.goto(
       `/reports/${slug}?monat=2026-08&period=month&zeitraum=2026-01..2026-08#details`,
@@ -497,17 +539,15 @@ for (const [slug, path, intent, view, body] of reportAliases)
   });
 const fixedAliases = [
   ['/plan', '/plan/monat', 'plan', 'monat=2026-09'],
-  [
-    '/vermoegen',
-    on ? '/vermoegen' : '/vermoegen/nettovermoegen',
-    on ? 'wealthOverview' : 'networth',
-    '',
-  ],
+  ['/vermoegen', '/vermoegen/nettovermoegen', 'networth', ''],
   ['/einstellungen/import', '/einstellungen/export', 'export', ''],
 ] as const;
-for (const [from, path, body, query] of fixedAliases)
+for (const [from, legacyPath, legacyBody, query] of fixedAliases)
   test(`A2 fixed alias ${from}`, async ({ page }) => {
     await page.goto('/plan/monat?monat=2026-08');
+    const wealth = (await flag(page)) && from === '/vermoegen';
+    const path = wealth ? '/vermoegen' : legacyPath;
+    const body = wealth ? 'wealthOverview' : legacyBody;
     await probes.plan(page);
     await page.goto(`${from}${query ? '?' + query : ''}#details`);
     await loaded(page, path, body);

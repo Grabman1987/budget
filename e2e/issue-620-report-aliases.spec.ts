@@ -45,7 +45,17 @@ for (const [slug, target, view] of landings) {
     await page.goto(
       `/reports/${slug}?monat=2026-08&zeitraum=2026-01..2026-08${todayPeriod}#details`,
     );
-    await expect.poll(() => new URL(page.url()).pathname).toBe(target);
+    await expect(page.locator('.app')).toHaveCount(1);
+    const finanzcheck =
+      slug === 'finanzcheck' &&
+      (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    await expect
+      .poll(() => new URL(page.url()).pathname)
+      .toBe(finanzcheck ? '/reports/onepager' : target);
+    if (finanzcheck) {
+      expect(new URL(page.url()).searchParams.get('darstellung')).toBe('finanzcheck');
+      await expect(page.locator('.finanzcheck-report')).toBeVisible();
+    }
     await expect(page.getByRole('main')).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'Report nicht gefunden', exact: true }),
@@ -72,8 +82,18 @@ test('620 absent Heute period uses the same normalization through the alias and 
 }) => {
   for (const path of ['/', '/reports/finanzcheck']) {
     await page.goto(`${path}?monat=2026-08&zeitraum=2026-01..2026-08#details`);
+    await expect(page.locator('.app')).toHaveCount(1);
+    const finanzcheck =
+      path === '/reports/finanzcheck' &&
+      (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    if (finanzcheck) {
+      await expect(page).toHaveURL((url) => url.pathname === '/reports/onepager');
+      expect(new URL(page.url()).searchParams.get('darstellung')).toBe('finanzcheck');
+      await expect(page.locator('.finanzcheck-report')).toBeVisible();
+    } else {
+      expect(new URL(page.url()).pathname).toBe('/');
+    }
     await expect.poll(() => new URL(page.url()).searchParams.get('period')).toBe('month');
-    expect(new URL(page.url()).pathname).toBe('/');
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('2026-01..2026-08');
     expect(new URL(page.url()).hash).toBe('');
