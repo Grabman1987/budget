@@ -517,7 +517,7 @@
 @media (max-width: 767px) {
   .sheet:has(> .heute-screen),
   .sheet:has(> .heute-detail-screen) {
-    padding: 0 16px calc(var(--tabbar-h) + 88px);
+    padding: 0 16px calc(var(--tabbar-h) + 90px);
   }
   .hv-head-phone {
     display: grid;

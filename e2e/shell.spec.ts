@@ -4,9 +4,63 @@ import { monthLabel, monthOf } from '../apps/web/src/nav/month';
 import { ROUTES } from './routes';
 import { sampleTest } from './sample';
 import { expectHeuteVisualReady, freezeHeuteVisual } from './heute-visual-fixture';
+import {
+  createTestDatabase,
+  ensureDefaultRules,
+  heute,
+  liquidityReportView,
+  refreshOccurrences,
+  matchOccurrences,
+} from '@budget/db';
+import { seedDatabase } from '@budget/fixtures/seed';
 import type { InboxBooking } from '../apps/web/src/inbox/api';
 
 const isPhone = (testInfo: { project: { name: string } }) => testInfo.project.name === 'mobile';
+
+async function areaNavigation(page: Page, area: string) {
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  if (redesign) {
+    const menu = page.locator('.area-page-menu').first();
+    await expect(menu).toBeVisible();
+    if ((await menu.getAttribute('open')) === null) await menu.locator('summary').click();
+  }
+  return page.getByRole('navigation', {
+    name: `${redesign ? 'Ansichten' : 'Register'} von ${area}`,
+    exact: true,
+  });
+}
+
+/** Supply the aggregate forecast that ON reads from /api/heute, using the same synthetic seed. */
+async function freezeShellVisual(page: Page) {
+  await freezeHeuteVisual(page);
+  const { db, close } = createTestDatabase();
+  try {
+    seedDatabase(db);
+    ensureDefaultRules(db);
+    refreshOccurrences(db, '2026-09-17');
+    matchOccurrences(db, '2026-09-17');
+    const body = {
+      ...heute(db, { today: '2026-09-17', period: 'payday' }),
+      forecast35d: {
+        ...liquidityReportView(db, '2026-09-17', { horizon: '35d', levers: [] }),
+        horizon: '35d',
+        levers: [],
+      },
+    };
+    await page.route('**/api/heute?**', async (route) => {
+      await page.evaluate(async () => {
+        await Promise.all([
+          document.fonts.load('600 12px "Barlow Semi Condensed"'),
+          document.fonts.load('400 12px "Barlow Semi Condensed"'),
+        ]);
+        await document.fonts.ready;
+      });
+      await route.fulfill({ json: body });
+    });
+  } finally {
+    close();
+  }
+}
 
 async function fixtureInboxTransactions(page: Page, count: number) {
   const entries: InboxBooking[] = Array.from({ length: count }, (_, index) => ({
@@ -146,7 +200,9 @@ test.describe('routes', () => {
       await expect(nav.locator('[aria-current="page"]'), path).toHaveText(new RegExp(area));
     }
     await page.goto('/konten/buchungen');
-    await expect(page.locator('.registers [aria-current="page"]')).toHaveText('Buchungen');
+    await expect(
+      (await areaNavigation(page, 'Konten')).locator('[aria-current="page"]'),
+    ).toHaveText('Buchungen');
     await page.goto('/reports/geldfluss');
     await expect(page.locator('.registers')).toHaveCount(0);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Geldfluss');
@@ -175,10 +231,7 @@ test.describe('routes', () => {
     const nav = isPhone(testInfo) ? page.locator('.tabbar') : page.locator('.sidebar');
     await nav.getByRole('link', { name: 'Plan', exact: true }).click();
     await expect(page).toHaveURL(/\/plan\/monat$/);
-    await page
-      .getByRole('navigation', { name: 'Register von Plan' })
-      .getByRole('link', { name: 'Jahr' })
-      .click();
+    await (await areaNavigation(page, 'Plan')).getByRole('link', { name: 'Jahr' }).click();
     await expect(page).toHaveURL(/\/plan\/jahr$/);
     await nav.getByRole('link', { name: 'Reports', exact: true }).click();
     await expect(page).toHaveURL(/\/reports$/);
@@ -395,14 +448,16 @@ test.describe('desktop shell', () => {
     if (!sheet || !topbar || !actions || !primary || !search) return;
     // The bar spans the window (background, hairline); its content spans the page column.
     expect(Math.round(topbar.width)).toBe(2000 - 236);
-    // Same right edge as the content column (sheet padding 40 px), same row for search and actions.
-    expect(Math.round(primary.x + primary.width)).toBe(Math.round(sheet.x + sheet.width - 40));
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    const gutter = redesign ? 28 : 40;
+    // Same right edge as the content column, same row for search and actions.
+    expect(Math.round(primary.x + primary.width)).toBe(Math.round(sheet.x + sheet.width - gutter));
     expect(Math.round(search.y + search.height / 2)).toBe(
       Math.round(primary.y + primary.height / 2),
     );
     expect(search.x + search.width).toBeLessThan(actions.x);
     // Full page width: the actions end at the page gutter (40 px), not far from the window edge.
-    expect(Math.round(2000 - (primary.x + primary.width))).toBe(40);
+    expect(Math.round(2000 - (primary.x + primary.width))).toBe(gutter);
   });
 
   test('sidebar collapses to 72 px and the state is remembered', async ({ page }) => {
@@ -440,7 +495,7 @@ test.describe('desktop shell', () => {
     await page.keyboard.press('Enter');
     await expect(page.locator('main')).toBeFocused();
 
-    await page.getByRole('link', { name: 'Konten', exact: true }).focus();
+    await page.locator('.sheetlist').getByRole('link', { name: 'Konten', exact: true }).focus();
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/konten$/);
   });
@@ -483,8 +538,14 @@ test.describe('phone shell', () => {
     expect(Math.round(fab?.height ?? 0)).toBe(58);
     // The header names the area; the month (with its switch) sits in the strip below.
     await expect(page.locator('.m-head .m-title-text')).toHaveText('Heute');
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     await expect(
-      page.getByRole('heading', { name: monthLabel(monthOf(new Date())), exact: true }),
+      redesign
+        ? page
+            .locator('.month-switch')
+            .getByText(monthLabel(monthOf(new Date())), { exact: true })
+            .filter({ visible: true })
+        : page.getByRole('heading', { name: monthLabel(monthOf(new Date())), exact: true }),
     ).toBeVisible();
     await page.goto('/reports/geldfluss');
     await expect(page.locator('.m-head .m-title-text')).toHaveText('Geldfluss');
@@ -516,7 +577,12 @@ test.describe('phone shell', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await fixtureInboxTransactions(page, 4);
     await page.goto('/konten?monat=2026-09');
-    await page.locator('.m-status').getByRole('link', { name: '4 zu prüfen' }).click();
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    await (
+      redesign
+        ? page.locator('.konten-review-count')
+        : page.locator('.m-status').getByRole('link', { name: '4 zu prüfen' })
+    ).click();
     await expect(page).toHaveURL(/\/konten\/pruefen/);
     await expect(page.getByRole('dialog', { name: 'Posteingang' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
@@ -543,7 +609,7 @@ sampleTest.describe('regression baselines of the shell (own screenshots)', () =>
   ] as const) {
     sampleTest(`light ${name}`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
-      if (name === 'heute') await freezeHeuteVisual(page);
+      if (name === 'heute') await freezeShellVisual(page);
       await page.goto(name === 'heute' ? '/?monat=2026-09&period=payday' : path);
       await expect(page.locator('main')).toBeVisible();
       if (name === 'heute') {
@@ -552,20 +618,19 @@ sampleTest.describe('regression baselines of the shell (own screenshots)', () =>
       }
       await page.evaluate(() => document.fonts.ready);
       if (name === 'reports') await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
-      const redesign =
-        name === 'reports' &&
-        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
       await expectScreenshot(page, `shell-${name}${redesign ? '-redesign' : ''}-light.png`);
     });
   }
 
   sampleTest('dark heute', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
-    await freezeHeuteVisual(page);
+    await freezeShellVisual(page);
     await page.goto('/?monat=2026-09&period=payday');
     await expect(page.locator('main')).toBeVisible();
     await expectHeuteVisualReady(page);
     await page.screenshot({ path: test.info().outputPath('heute-viewport-dark.png') });
-    await expectScreenshot(page, 'shell-heute-dark.png');
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    await expectScreenshot(page, `shell-heute${redesign ? '-redesign' : ''}-dark.png`);
   });
 });

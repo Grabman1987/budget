@@ -12,7 +12,7 @@ test.describe('phone layout', () => {
     const problems: string[] = [];
     for (const path of ROUTES) {
       await page.goto(path);
-      await expect(page.locator('.m-head .m-title-text')).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       // A report fills in after its data arrives (a long table can add thousands of pixels):
       // measure once the page height has stopped changing, two samples apart.
       await page.waitForFunction(
@@ -82,6 +82,26 @@ test.describe('phone layout', () => {
       ['/plan/monat', /einnahmen/i],
     ] as const) {
       await page.goto(path);
+      const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      if (redesign) {
+        if (path === '/einstellungen/sicherheit') {
+          const session = page.locator('.settings-session');
+          await expect(session.getByText('Anmeldung', { exact: true })).toBeVisible();
+          await expect(session.getByText('Passkey', { exact: true })).toBeVisible();
+        } else if (path === '/konten') {
+          const source = page.locator('.konten-status-details > summary');
+          await expect(source).toBeVisible();
+          await expect(source).toHaveText(/Stand \d{2}\.\d{2}\.\d{4}/);
+        } else {
+          await page.locator('.plan-popover > summary.plan-tba').click();
+          const income = page.locator('#plan-chip-panel-0 .ct-term').filter({
+            has: page.locator('.ct-label', { hasText: /^Einnahmen$/ }),
+          });
+          await expect(income.locator('.ct-label')).toBeVisible();
+          await expect(income.locator('.ct-val')).toBeVisible();
+        }
+        continue;
+      }
       const field = page.locator('.titleblock .tb-field:visible').first();
       await expect(field.locator('.tb-label'), path).toBeVisible();
       await expect(field.locator('.tb-label'), path).toHaveText(label);
@@ -101,7 +121,10 @@ test.describe('phone layout', () => {
     ] as const) {
       await page.goto(path);
       const h1 = page.locator('.m-head .m-title-text');
-      await expect(h1, path).toHaveText(text);
+      const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      await expect(h1, path).toHaveText(
+        redesign && path === '/einstellungen/sicherheit' ? 'Sicherheit' : text,
+      );
       const clipped = await h1.evaluate((el) => el.scrollWidth > el.clientWidth);
       expect(clipped, path).toBe(false);
     }
@@ -147,7 +170,7 @@ test.describe('phone layout', () => {
     expect(themeBox.width).toBeGreaterThanOrEqual(44);
     expect(themeBox.height).toBeGreaterThanOrEqual(44);
     await header.getByRole('link', { name: 'Profil und Einstellungen', exact: true }).click();
-    await expect(page).toHaveURL(redesign ? /\/einstellungen\/profil$/ : /\/einstellungen$/);
+    await expect(page).toHaveURL(/\/einstellungen$/);
     if (redesign) await expect(header.locator('.m-profile')).toHaveCount(0);
     else await expect(header.locator('.m-profile')).not.toHaveAttribute('open');
   });

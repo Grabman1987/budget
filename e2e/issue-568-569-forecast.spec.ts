@@ -63,6 +63,8 @@ async function hit(target: Locator, minimum: number) {
     element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }),
   );
   await expect(target).toBeVisible();
+  // Native WebKit can apply the scroll on a later frame, especially in the search sheet.
+  await expect(target).toBeInViewport({ ratio: 1 });
   const r = await target.evaluate((element) => {
     const b = element.getBoundingClientRect();
     const owner = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);

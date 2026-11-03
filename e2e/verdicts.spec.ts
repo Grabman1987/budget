@@ -1,5 +1,6 @@
 import { openPaperView, revealReportDetail } from './report-frame';
 import { openHeuteReview } from './heute-visual-fixture';
+import { paymentView, redesignEnabled, goalView } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import { REPORT_GROUPS } from '../apps/web/src/nav/reports-catalog';
 import { sampleTest, expect } from './sample';
@@ -24,12 +25,19 @@ async function retiredArea(page: Page, id: 'vorschau' | 'sparziele' | 'kontakte'
   await expect(page).toHaveURL(
     (url) => url.pathname === path && url.searchParams.get('monat') === '2026-08',
   );
-  // Plan's actual title is the selected calendar month; the body identifies its area.
+  const on = await redesignEnabled(page);
+  if (on && id === 'vorschau') await paymentView(page, 'next');
+  // The payment redesign names the page; other Plan titles keep the selected month.
   await expect(
     page
       .getByRole('heading', {
         level: 1,
-        name: id === 'kontakte' ? /^(Konten|Kontakte)$/ : 'August 2026',
+        name:
+          id === 'kontakte'
+            ? /^(Konten|Kontakte)$/
+            : on && id === 'vorschau'
+              ? 'Zahlungen'
+              : 'August 2026',
         exact: true,
       })
       .first(),
@@ -39,10 +47,15 @@ async function retiredArea(page: Page, id: 'vorschau' | 'sparziele' | 'kontakte'
   let amount: Locator | undefined;
   let expected = '';
   if (id === 'vorschau') {
-    await expect(page.getByRole('button', { name: 'Anstehend', exact: true })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    if (on)
+      await expect(page.getByRole('combobox', { name: 'Ansicht', exact: true })).toHaveValue(
+        'next',
+      );
+    else
+      await expect(page.getByRole('button', { name: 'Anstehend', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
     const today = SAMPLE_NOW.slice(0, 10);
     const response = await page.request.get(
       `/api/expected/occurrences?from=${addDays(today, -31)}&to=${addDays(today, 90)}`,
@@ -88,21 +101,30 @@ async function retiredArea(page: Page, id: 'vorschau' | 'sparziele' | 'kontakte'
     const rows = goalReportRows(source.goals, categories.categories, accounts.accounts);
     const proven = rows.flatMap((row) => (row.progress ? [row.progress] : []));
     const unknown = rows.filter((row) => !row.progress);
-    const summary = page.getByTestId('goals-summary');
+    if (on) await goalView(page, 'Fortschritt');
+    const summary = page.getByTestId(on ? 'goal-report-summary' : 'goals-summary');
     await expect(summary).toBeVisible();
     await expect(summary).toHaveText(
       (!source.goals.length
         ? 'Noch keine Sparziele'
         : proven.length
-          ? `${proven.filter((goal) => goal.status !== 'behind').length} von ${proven.length} im Plan`
+          ? `${proven.filter((goal) => goal.status !== 'behind').length} von ${proven.length} im Plan${on ? ' · geprüfte Ziele' : ''}`
           : 'Keine eindeutig belegten Zielstände') +
         (unknown.length ? ` · ${unknown.length} ungeklärt` : ''),
     );
-    for (const toggle of await page.locator('.goals .grp-toggle[aria-expanded="false"]').all())
+    if (on) await goalView(page, 'Liste');
+    const goalRows = page.locator(on ? '.goals-reference-table tr.prow' : '.goals tr.prow.grow');
+    for (const toggle of await page
+      .locator(
+        on
+          ? '.goals-reference-table .pgroup button[aria-expanded="false"]'
+          : '.goals .grp-toggle[aria-expanded="false"]',
+      )
+      .all())
       await toggle.click();
-    await expect(page.locator('.goals tr.prow.grow')).toHaveCount(rows.length);
+    await expect(goalRows).toHaveCount(rows.length);
     for (const source of rows) {
-      const row = page.locator('.goals tr.prow.grow').filter({
+      const row = goalRows.filter({
         has: page.locator(`a[href^="/plan/sparziele/${encodeURIComponent(source.id)}?"]`),
       });
       await expect(row).toContainText(source.name);
@@ -239,7 +261,7 @@ sampleTest('Fazit: Heute, One-Pager header, reload, month change and privacy', a
   await page.keyboard.press('Control+Shift+h');
   await expect(verdicts.first()).toContainText('•••');
   expect(await verdicts.first().textContent()).not.toMatch(/\d/);
-  await openHeuteReview(page);
+  await openHeuteReview(page, '/');
   // #268: the open month is marked as an interim state ("Zwischenstand bis TT.MM.", booked result so far).
   await expect(page.getByTestId('report-verdict')).toContainText(
     /Zwischenstand bis \d{2}\.\d{2}\.: gebuchtes Monatsergebnis/,

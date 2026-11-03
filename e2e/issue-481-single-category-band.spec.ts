@@ -64,7 +64,11 @@ async function expectCompactBandContents(page: Page, phone: boolean) {
       const height = (items: DOMRect[]) =>
         Math.max(...items.map((box) => box.bottom)) - Math.min(...items.map((box) => box.top));
       const name = child.querySelector('.pname')!.getBoundingClientRect();
-      const status = child.querySelector('.spending-status')!.getBoundingClientRect();
+      const redesigned = row.closest('[data-budget-redesign="1"]') !== null;
+      // ON keeps the exact status for assistive technology and gives the name its track.
+      const status = child
+        .querySelector(redesigned ? '.col-name' : '.spending-status')!
+        .getBoundingClientRect();
       return {
         id: row.id,
         categoryCount: category.length,
@@ -75,7 +79,7 @@ async function expectCompactBandContents(page: Page, phone: boolean) {
         parentBottom: row.getBoundingClientRect().bottom,
         childTop: child.getBoundingClientRect().top,
         nameRight: name.right,
-        statusLeft: status.left,
+        statusLeft: redesigned ? status.right : status.left,
       };
     }),
   );
@@ -210,136 +214,155 @@ async function resetCaptureScroll(page: Page) {
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
 }
 
-sampleTest(
-  'sample ledger: separate group headings, current-baseline reduction and visual/accessibility evidence',
-  async ({ page, browser }, info) => {
-    sampleTest.setTimeout(90_000);
-    await page.goto('/plan/monat?monat=2026-09');
-    const response = await page.request.get('/api/budget/2026-09');
-    expect(response.ok()).toBe(true);
-    const data = (await response.json()) as BudgetMonthView;
-    const visible = data.categories.filter((c: { hiddenAt: string | null }) => !c.hiddenAt);
-    const singles = data.groups.filter(
-      (g: { id: string }) =>
-        visible.filter((c: { groupId: string }) => c.groupId === g.id).length === 1,
-    );
-    const bandGroups = data.groups.filter((g) => visible.some((c) => c.groupId === g.id));
-    const multiple = bandGroups.filter((g) => !singles.includes(g));
-    const table = page.locator('.ptable-zero');
-    await expect(table.locator('.psingle')).toHaveCount(singles.length);
-    await expect(table.locator('.pgroup:not(.psingle)')).toHaveCount(multiple.length);
-    await expect(table.locator('.prow:not(.is-empty)')).toHaveCount(visible.length);
-    await page.evaluate(() => document.fonts.ready);
-    await expectCompactBandContents(page, page.viewportSize()!.width < 768);
-    expect(singles).toHaveLength(11);
-    const oldRows = data.groups.length + visible.length;
-    const newRows = oldRows - singles.length;
-    await expect(table.locator('tbody > tr:not(.pgroup-gap)')).toHaveCount(newRows);
-    const measurements = {
-      groups: data.groups.length,
-      categories: visible.length,
-      singles: singles.length,
-      combinedGroups: singles.length,
-      separateMultiParents: multiple.length,
-      oldRows,
-      newRows,
-      reductionPercent: (100 * (oldRows - newRows)) / oldRows,
-      browserVersion: browser.version(),
-      viewport: page.viewportSize(),
-      physicalTableHeightPx: (await table.boundingBox())!.height,
-    };
-    expect(oldRows).toBe(55);
-    expect(newRows).toBe(44);
-    expect(measurements.reductionPercent).toBe(20);
-    writeFileSync(
-      info.outputPath(`${info.project.name}-rows.json`),
-      JSON.stringify(measurements, null, 2) + '\n',
-    );
-    await info.attach('sample-row-reduction', {
-      body: JSON.stringify(measurements, null, 2),
-      contentType: 'application/json',
-    });
-    for (const group of singles) {
-      const band = page.locator(`[id="grp-${group.id}"]`);
-      await expect(band).toHaveClass(/psingle/);
-      await expect(band.locator('.pname')).toContainText(group.name);
-      await expect(band.locator('.spending-status')).not.toBeEmpty();
-      await expect(band.locator('.spending-bar')).toHaveCount(1);
-      const bounds = await band.evaluate((row) => ({
-        bottom: row.getBoundingClientRect().bottom,
-        barBottom: row.querySelector('.spending-bar')!.getBoundingClientRect().bottom,
-      }));
-      expect(bounds.barBottom).toBeLessThanOrEqual(bounds.bottom);
-      await expect(band.locator('.col-avail .pill')).toHaveCount(1);
-      await expect(
-        band.getByRole('button', { name: `Kategorie in ${group.name} anlegen`, exact: true }),
-      ).toHaveCount(1);
-    }
-    for (const group of multiple) {
-      const band = page.locator(`[id="grp-${group.id}"]`);
-      await expect(band.locator('.grp-toggle')).toHaveAccessibleName(`Gruppe ${group.name}`);
-      const categories = visible.filter((category) => category.groupId === group.id);
-      const summaries = data.summary.envelopes.filter((value) =>
-        categories.some((category) => category.id === value.categoryId),
+for (const captureTheme of ['light', 'dark'] as const)
+  sampleTest(
+    `sample ledger: separate group headings, current-baseline reduction and visual/accessibility evidence (${captureTheme})`,
+    async ({ page, browser }, info) => {
+      sampleTest.setTimeout(90_000);
+      await page.goto('/plan/monat?monat=2026-09');
+      const response = await page.request.get('/api/budget/2026-09');
+      expect(response.ok()).toBe(true);
+      const data = (await response.json()) as BudgetMonthView;
+      const visible = data.categories.filter((c: { hiddenAt: string | null }) => !c.hiddenAt);
+      const singles = data.groups.filter(
+        (g: { id: string }) =>
+          visible.filter((c: { groupId: string }) => c.groupId === g.id).length === 1,
       );
-      const totals = band.locator('.col-num');
-      await expect(totals).toHaveCount(3);
-      const expected = ['assignedCents', 'activityCents', 'availableCents'] as const;
-      for (const [index, key] of expected.entries()) {
-        const value = summaries.reduce((sum, row) => sum + row[key], 0);
-        await expect(totals.nth(index)).toContainText(formatEuro(cents(value)));
-      }
-      await expect(band.locator('.pname')).toHaveCount(0);
-      const firstChild = band.locator('xpath=following-sibling::tr[1]');
-      await expect(firstChild).toHaveClass(/prow/);
-      await expect(firstChild.locator('.pname')).toHaveCount(1);
-      await expect(firstChild.locator('.spending-status')).not.toBeEmpty();
-    }
-    for (const theme of ['light', 'dark']) {
-      await page.evaluate((value) => {
-        document.documentElement.dataset['theme'] = value;
-      }, theme);
-      const parentInk = await expectOnscreenParentInk(page);
-      await info.attach(`parent-ink-${theme}`, {
-        body: JSON.stringify(parentInk),
+      const bandGroups = data.groups.filter((g) => visible.some((c) => c.groupId === g.id));
+      const multiple = bandGroups.filter((g) => !singles.includes(g));
+      const table = page.locator('.ptable-zero');
+      const phoneHeadings =
+        page.viewportSize()!.width < 768 &&
+        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      await expect(table.locator('.psingle')).toHaveCount(phoneHeadings ? 0 : singles.length);
+      await expect(table.locator('.pgroup:not(.psingle)')).toHaveCount(
+        phoneHeadings ? bandGroups.length : multiple.length,
+      );
+      await expect(table.locator('.prow:not(.is-empty)')).toHaveCount(visible.length);
+      await page.evaluate(() => document.fonts.ready);
+      await expectCompactBandContents(page, page.viewportSize()!.width < 768);
+      expect(singles).toHaveLength(11);
+      const oldRows = data.groups.length + visible.length;
+      const newRows = oldRows - (phoneHeadings ? 0 : singles.length);
+      await expect(table.locator('tbody > tr:not(.pgroup-gap)')).toHaveCount(newRows);
+      const measurements = {
+        groups: data.groups.length,
+        categories: visible.length,
+        singles: singles.length,
+        combinedGroups: phoneHeadings ? 0 : singles.length,
+        separateMultiParents: phoneHeadings ? bandGroups.length : multiple.length,
+        oldRows,
+        newRows,
+        reductionPercent: (100 * (oldRows - newRows)) / oldRows,
+        browserVersion: browser.version(),
+        viewport: page.viewportSize(),
+        physicalTableHeightPx: (await table.boundingBox())!.height,
+      };
+      expect(oldRows).toBe(55);
+      expect(newRows).toBe(phoneHeadings ? 55 : 44);
+      expect(measurements.reductionPercent).toBe(phoneHeadings ? 0 : 20);
+      writeFileSync(
+        info.outputPath(`${info.project.name}-rows.json`),
+        JSON.stringify(measurements, null, 2) + '\n',
+      );
+      await info.attach('sample-row-reduction', {
+        body: JSON.stringify(measurements, null, 2),
         contentType: 'application/json',
       });
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-        true,
-      );
-      expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-      if (info.project.name !== 'desktop') {
-        const targets = await table
-          .locator('.psingle button, .psingle .plan-select')
-          .evaluateAll((elements) =>
-            elements
-              .filter((e) => e.getBoundingClientRect().height > 0)
-              .map((e) => ({
-                text: e.textContent,
-                width: e.getBoundingClientRect().width,
-                height: e.getBoundingClientRect().height,
-              })),
+      for (const group of singles) {
+        const heading = page.locator(`[id="grp-${group.id}"]`);
+        const band = phoneHeadings ? heading.locator('xpath=following-sibling::tr[1]') : heading;
+        if (phoneHeadings) {
+          await expect(heading).not.toHaveClass(/prow/);
+          await expect(heading.locator('.grp-title')).toHaveText(group.name);
+          await expect(band.locator('.pname')).toHaveText(
+            visible.find((c) => c.groupId === group.id)!.name,
           );
-        expect(targets.length).toBeGreaterThan(0);
-        expect(targets.filter((t) => t.width < 44 || t.height < 44)).toEqual([]);
-        await enterPhoneSelection(page);
-        await expectPhoneSelectionTargets(page);
-        await exitPhoneSelection(page);
+        } else {
+          await expect(band).toHaveClass(/psingle/);
+          await expect(band.locator('.pname')).toContainText(group.name);
+        }
+        await expect(band.locator('.spending-status')).not.toBeEmpty();
+        await expect(band.locator('.spending-bar')).toHaveCount(1);
+        const bounds = await band.evaluate((row) => ({
+          bottom: row.getBoundingClientRect().bottom,
+          barBottom: row.querySelector('.spending-bar')!.getBoundingClientRect().bottom,
+        }));
+        expect(bounds.barBottom).toBeLessThanOrEqual(bounds.bottom);
+        await expect(band.locator('.col-avail .pill')).toHaveCount(1);
+        await expect(
+          heading.getByRole('button', { name: `Kategorie in ${group.name} anlegen`, exact: true }),
+        ).toHaveCount(1);
       }
-      await resetCaptureScroll(page);
-      await page.screenshot({ path: info.outputPath(`sample-${theme}.png`), fullPage: true });
-      if (
-        (info.project.name === 'desktop' && theme === 'light') ||
-        (info.project.name !== 'desktop' && theme === 'dark')
-      ) {
-        await page.screenshot({
-          path: info.outputPath(`${info.project.name}-${theme}.png`),
-          fullPage: true,
+      for (const group of multiple) {
+        const band = page.locator(`[id="grp-${group.id}"]`);
+        await expect(band.locator('.grp-toggle')).toHaveAccessibleName(`Gruppe ${group.name}`);
+        const categories = visible.filter((category) => category.groupId === group.id);
+        const summaries = data.summary.envelopes.filter((value) =>
+          categories.some((category) => category.id === value.categoryId),
+        );
+        const totals = band.locator('.col-num');
+        await expect(totals).toHaveCount(3);
+        const expected = ['assignedCents', 'activityCents', 'availableCents'] as const;
+        for (const [index, key] of expected.entries()) {
+          const value = summaries.reduce((sum, row) => sum + row[key], 0);
+          await expect(totals.nth(index)).toContainText(formatEuro(cents(value)));
+        }
+        await expect(band.locator('.pname')).toHaveCount(0);
+        const firstChild = band.locator('xpath=following-sibling::tr[1]');
+        await expect(firstChild).toHaveClass(/prow/);
+        await expect(firstChild.locator('.pname')).toHaveCount(1);
+        await expect(firstChild.locator('.spending-status')).not.toBeEmpty();
+      }
+      for (const theme of [captureTheme]) {
+        await page.evaluate((value) => {
+          document.documentElement.dataset['theme'] = value;
+        }, theme);
+        const parentInk = await expectOnscreenParentInk(page);
+        await info.attach(`parent-ink-${theme}`, {
+          body: JSON.stringify(parentInk),
+          contentType: 'application/json',
         });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+          true,
+        );
+        expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+        if (info.project.name !== 'desktop') {
+          const targets = await table
+            .locator(
+              phoneHeadings
+                ? '.prow button, .prow .plan-select'
+                : '.psingle button, .psingle .plan-select',
+            )
+            .evaluateAll((elements) =>
+              elements
+                .filter((e) => e.getBoundingClientRect().height > 0)
+                .map((e) => ({
+                  text: e.textContent,
+                  width: e.getBoundingClientRect().width,
+                  height: e.getBoundingClientRect().height,
+                })),
+            );
+          expect(targets.length).toBeGreaterThan(0);
+          expect(targets.filter((t) => t.width < 44 || t.height < 44)).toEqual([]);
+          await enterPhoneSelection(page);
+          await expectPhoneSelectionTargets(page);
+          await exitPhoneSelection(page);
+        }
+        await resetCaptureScroll(page);
+        await page.screenshot({ path: info.outputPath(`sample-${theme}.png`), fullPage: true });
+        if (
+          (info.project.name === 'desktop' && theme === 'light') ||
+          (info.project.name !== 'desktop' && theme === 'dark')
+        ) {
+          await page.screenshot({
+            path: info.outputPath(`${info.project.name}-${theme}.png`),
+            fullPage: true,
+          });
+        }
       }
-    }
-  },
-);
+    },
+  );
 
 test('band selection, shortcuts, cent writes/undo and transition to two categories', async ({
   page,
@@ -379,29 +402,50 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
     class: 'want',
   });
   await page.goto(`/plan/monat?monat=${month}`);
-  const band = page.locator(`[id="grp-${group.id}"]`);
-  await expect(band).toHaveClass(/psingle/);
+  const heading = page.locator(`[id="grp-${group.id}"]`);
+  const phoneHeadings =
+    page.viewportSize()!.width < 768 &&
+    (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  let band = phoneHeadings ? heading.locator('xpath=following-sibling::tr[1]') : heading;
+  if (phoneHeadings) {
+    await expect(heading).toHaveClass(/pgroup/);
+    await expect(band).not.toHaveClass(/pgroup/);
+  } else await expect(band).toHaveClass(/psingle/);
   const name = band.locator('.pname');
-  await expect(name).toHaveAccessibleName('Musterband · Musterposten');
+  await expect(name).toHaveAccessibleName(
+    phoneHeadings ? 'Musterposten' : 'Musterband · Musterposten',
+  );
   const inspector = page.getByRole('complementary', { name: 'Plan-Inspektor' });
   await name.focus();
   await page.keyboard.press('Enter');
   await expect(inspector.getByRole('heading', { name: 'Musterposten' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(name).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(band.getByRole('button', { name: 'Kategorie in Musterband anlegen' })).toBeFocused();
+  await page.keyboard.press(phoneHeadings ? 'Shift+Tab' : 'Tab');
+  await expect(
+    heading.getByRole('button', { name: 'Kategorie in Musterband anlegen' }),
+  ).toBeFocused();
   await page.keyboard.press('c');
   const dialog = page.getByRole('dialog', { name: 'Kategorie anlegen', exact: true });
   await expect(dialog).toBeVisible();
   await dialog.getByLabel('Name', { exact: true }).fill('cg');
   await expect(page.getByRole('dialog', { name: 'Gruppe anlegen' })).toHaveCount(0);
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    page.once('dialog', async (confirmation) => {
+      expect(confirmation.message()).toBe('Ungespeicherte Änderungen verwerfen?');
+      await confirmation.accept();
+    });
   await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
   await name.focus();
   await page.keyboard.press('g');
   await expect(page.getByRole('dialog', { name: 'Gruppe anlegen' })).toBeVisible();
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Alle einklappen', exact: true }).click();
+  if (phoneHeadings) {
+    await expect(name).toBeHidden();
+    await heading.locator('.grp-toggle').click();
+  }
   await expect(name).toBeVisible();
   if (page.viewportSize()!.width < 768) {
     await enterPhoneSelection(page);
@@ -425,7 +469,14 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
       page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }),
     ).toHaveJSProperty('indeterminate', true);
   }
-  await band.locator('.spending-status').click();
+  // ON gives the category name the former status track; its exact status remains sr-only.
+  await band
+    .locator(
+      (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+        ? '.pname'
+        : '.spending-status',
+    )
+    .click();
   await expect(inspector.getByRole('heading', { name: 'Musterposten' })).toBeVisible();
   const writes: { path: string; body: unknown }[] = [];
   page.on('request', (r) => {
@@ -497,12 +548,15 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(band).toHaveClass(/is-over/);
   await page.keyboard.press('Escape');
-  await band.getByRole('button', { name: 'Kategorie in Musterband anlegen', exact: true }).click();
+  await heading
+    .getByRole('button', { name: 'Kategorie in Musterband anlegen', exact: true })
+    .click();
   await expect(dialog).toBeVisible();
   await expect(dialog.getByLabel('Gruppe', { exact: true })).toHaveValue(group.id);
   await dialog.getByLabel('Name', { exact: true }).fill('Zweiter Musterposten');
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).not.toBeVisible();
+  band = heading;
   await expect(band).toHaveClass(/pgroup/);
   await expect(band).not.toHaveClass(/psingle/);
   await expect(band.locator('.pname')).toHaveCount(0);
@@ -538,7 +592,11 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
     inspector.getByRole('heading', { name: 'Musterposten', exact: true }),
   ).not.toBeVisible();
   for (let index = 0; index < 3; index++) {
-    await totals.nth(index).click();
+    // Phone ON keeps assigned/activity totals as accessible text; only the available pill is painted.
+    if (phoneHeadings && index < 2) {
+      await expect(totals.nth(index)).toHaveCSS('clip-path', 'inset(50%)');
+      expect((await totals.nth(index).boundingBox())!.width).toBe(1);
+    } else await totals.nth(index).click();
     await expect(
       inspector.getByRole('heading', { name: 'Musterposten', exact: true }),
     ).not.toBeVisible();

@@ -58,6 +58,12 @@ test('calendar-year scenario: literal December parity, dated inspection and comp
   // 1000.01 - 3 × 100.01 + 20.03 - 0.01 = 720.00, independently calculated.
   await expect(lead).toHaveText('720,00 €');
   await expect(chart).toHaveAttribute('aria-label', /Dezember 720,00 €/);
+  const events = page.locator('.year-events');
+  const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  if (on) {
+    await expect(events).toHaveAttribute('open');
+    await events.locator(':scope > summary').click();
+  }
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
     await expect(page.locator('.year-events')).not.toHaveAttribute('open');
@@ -123,9 +129,11 @@ test('calendar-year scenario: literal December parity, dated inspection and comp
         (violation) => violation.id,
       ),
     ).toEqual([]);
-    await page.getByRole('checkbox', { name: 'Geplante Gutschrift im Szenario' }).click({
-      trial: true,
-    });
+    await page
+      .getByRole(on ? 'switch' : 'checkbox', { name: 'Geplante Gutschrift im Szenario' })
+      .click({
+        trial: true,
+      });
     await page.getByRole('button', { name: 'Geplante Gutschrift bearbeiten' }).click({
       trial: true,
     });
@@ -142,24 +150,33 @@ test('calendar-year scenario: literal December parity, dated inspection and comp
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('.chart-tooltip[role=status]')).toContainText('Geplante Gutschrift');
   await page.keyboard.press('Escape');
+  const chartData = page.locator('.year-chart-reference-extra');
+  if (on) await chartData.locator(':scope > summary').click();
   await page.locator('.chart-data-table > summary').click();
   const december = page
     .locator('.chart-data-table tbody tr')
     .filter({ hasText: '31.12.2026' })
     .filter({ hasText: 'Monatsende' });
   await expect(december.locator('.chart-data-value')).toHaveText('720,00 €');
+  if (on) await chartData.locator(':scope > summary').click();
   await page.locator('.year-events > summary').click();
+  await expect(
+    page.locator(on ? '.year-event-list .switch' : '.year-event-list .event-check'),
+  ).toHaveCount(3);
   expect(
     await page
-      .locator('.year-event-list .event-check')
+      .locator(on ? '.year-event-list .switch' : '.year-event-list .event-check')
       .evaluateAll((elements) =>
         elements.every((element) => element.getBoundingClientRect().height >= 44),
       ),
   ).toBe(true);
-  await page.getByRole('checkbox', { name: 'Geplante Gutschrift im Szenario' }).uncheck();
+  await page
+    .getByRole(on ? 'switch' : 'checkbox', { name: 'Geplante Gutschrift im Szenario' })
+    .uncheck();
   await expect(lead).toHaveText('699,97 €');
   await expect(chart).toHaveAttribute('aria-label', /Dezember 699,97 €/);
   await expect(december.locator('.chart-data-value')).toHaveText('699,97 €');
+  if (on) await page.locator('.year-reference-context > summary').click();
   await page.getByRole('button', { name: 'Ohne Auswahl' }).click();
   await expect(lead).toHaveText('1.000,01 €');
   await expect(december.locator('.chart-data-value')).toHaveText('1.000,01 €');

@@ -22,8 +22,15 @@ test('phone FAB follows scroll direction, including reduced motion, and clears t
     for (const path of ['/?monat=2026-09', '/konten']) {
       await page.goto(path);
       const fab = page.locator('.fab');
+      const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
       const amount = page
-        .locator(path.startsWith('/?') ? '.heute-booking a:visible' : '.kc-num:visible')
+        .locator(
+          path.startsWith('/?')
+            ? redesign
+              ? '.hv-booking-list b:visible'
+              : '.heute-booking a:visible'
+            : '.kc-num:visible',
+        )
         .last();
       await expect(amount).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
@@ -31,10 +38,15 @@ test('phone FAB follows scroll direction, including reduced motion, and clears t
         await expect(page.locator('.krow .kmini')).toHaveCount(await page.locator('.krow').count());
       }
       await expect(fab).toBeVisible();
-      await expect(page.locator(path.startsWith('/?') ? '.heute' : '.kview')).toBeVisible();
+      await expect(
+        page.locator(path.startsWith('/?') ? (redesign ? '.heute-screen' : '.heute') : '.kview'),
+      ).toBeVisible();
       await scroll(page, 300);
       await expect(fab).toBeHidden();
-      await scroll(page, 220);
+      const reached = await page.evaluate(() => window.scrollY);
+      expect(reached).toBeGreaterThanOrEqual(48);
+      // The compact ON account list can end before 300px; move up from the reached position.
+      await scroll(page, Math.max(0, reached - 80));
       await expect(fab).toBeVisible();
       if (reducedMotion === 'reduce') {
         expect(await fab.evaluate((el) => getComputedStyle(el).transform)).toBe('none');
@@ -92,12 +104,19 @@ test('detail has one name, one return path and keyboard-only focus in both theme
       ['/heute/details/liquid?monat=2026-09', 'Liquidität', '#dimension-title', '/'],
     ] as const) {
       await page.goto(path);
-      const title = page.locator(heading);
+      const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      const phoneAccount =
+        redesign &&
+        info.project.name !== 'desktop' &&
+        ['/konten/acc-giro', '/konten/acc-depot'].includes(path);
+      const title = page.locator(phoneAccount ? '.konten-phone-heading h1' : heading);
       await expect(title).toContainText(name);
       await expect(page.getByRole('heading').filter({ hasText: name })).toHaveCount(1);
-      const returns = page.locator(
-        '.plan-panel-nav a, .plan-detail-nav a, .heute-detail-nav a, .contacts-statement nav a, .kacct > .kback',
-      );
+      const returns = page
+        .locator(
+          '.plan-panel-nav a, .plan-detail-nav a, .heute-detail-nav a, .contacts-statement nav a, .kacct > .kback, .konten-phone-heading > a',
+        )
+        .filter({ visible: true });
       await expect(returns).toHaveCount(1);
       const targets = await returns.evaluateAll((links) =>
         links.map((link) => {
@@ -122,8 +141,19 @@ test('detail has one name, one return path and keyboard-only focus in both theme
         await expect(page.locator('.ktx-account tr[data-booking]').first()).toBeVisible();
         await expect(page.locator('.ktx-account tr[data-booking]')).toHaveCount(100);
         await page.evaluate(() => document.fonts.ready);
-        await page.keyboard.press('Tab');
-        await expect(page.getByTestId('account-review-badge')).toBeFocused();
+        const badge = page.getByTestId('account-review-badge');
+        if (phoneAccount) {
+          for (const next of [
+            page.locator('#global-search-mobile'),
+            page.locator('.konten-review-count'),
+            page.getByRole('link', { name: 'Buchungen ansehen', exact: true }),
+            badge,
+          ]) {
+            await page.keyboard.press('Tab');
+            await expect(next).toBeFocused();
+          }
+        } else await page.keyboard.press('Tab');
+        await expect(badge).toBeFocused();
         await expect(focus).toHaveCSS('outline-width', '2px');
         await expect(focus).toHaveCSS('outline-style', 'solid');
       }
@@ -148,7 +178,7 @@ test('desktop sidebar combines profile/settings and exposes a persistent theme s
   await page.goto('/');
   const footer = page.locator('.sidebar-foot');
   await expect(footer.getByRole('link')).toHaveCount(1);
-  await expect(footer.getByRole('link', { name: 'Profil / Einstellungen' })).toHaveAttribute(
+  await expect(footer.getByTitle('Profil / Einstellungen', { exact: true })).toHaveAttribute(
     'href',
     '/einstellungen/profil',
   );
@@ -163,5 +193,5 @@ test('desktop sidebar combines profile/settings and exposes a persistent theme s
     .getByRole('button', { name: /Seitenleiste/ })
     .click();
   await expect(toggle).toBeVisible();
-  await expect(footer.getByRole('link', { name: 'Profil / Einstellungen' })).toBeVisible();
+  await expect(footer.getByTitle('Profil / Einstellungen', { exact: true })).toBeVisible();
 });

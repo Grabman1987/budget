@@ -242,7 +242,8 @@ test('bank suggestions show actions, reject cleanly and offer learning after con
   );
   await page.goto('/konten/posteingang');
   // Candidate suggestions load only after opening the booking dialog.
-  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  await page.getByRole('button', { name: redesign ? 'Prüfen' : 'Übernehmen', exact: true }).click();
   await expect(page.getByText('Notiz: Shopnotiz')).toBeVisible();
   expect(confirmed).toBe(false);
   await page.getByRole('button', { name: 'Vorschlag ablehnen' }).click();

@@ -191,18 +191,31 @@ for (const theme of ['light', 'dark'] as const) {
         if (width < 768) {
           const groupRow = page.locator(`#grp-${group.id}`);
           await expect(groupRow).toBeVisible();
-          const toggle = await groupRow.locator('.grp-toggle').boundingBox();
-          const available = await groupRow.locator('.plan-group-available').boundingBox();
+          // Measure one layout frame: native WebKit may still apply scroll/compact-header changes.
+          const geometry = await groupRow.evaluate((group) => {
+            const box = (element: Element) => {
+              const rect = element.getBoundingClientRect();
+              return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+            };
+            return {
+              toggle: box(group.querySelector('.grp-toggle')!),
+              available: box(group.querySelector('.plan-group-available')!),
+              assigned: box(group.querySelector('.col-assign')!),
+              group: box(group),
+              row: box(group.nextElementSibling!),
+              rowCategoryId: group.nextElementSibling
+                ?.querySelector('.pname')
+                ?.getAttribute('data-category-id'),
+            };
+          });
+          expect(geometry.rowCategoryId).toBe(category.id);
+          const { toggle, available } = geometry;
           expect(
-            Math.abs(toggle!.y + toggle!.height / 2 - available!.y - available!.height / 2),
+            Math.abs(toggle.y + toggle.height / 2 - available.y - available.height / 2),
           ).toBeLessThanOrEqual(0.5);
-          expect(toggle!.x + toggle!.width).toBeLessThanOrEqual(available!.x);
-          expect((await groupRow.locator('.col-assign').boundingBox())!.width).toBeLessThanOrEqual(
-            1,
-          );
-          expect((await row.boundingBox())!.y).toBeGreaterThanOrEqual(
-            (await groupRow.boundingBox())!.y + (await groupRow.boundingBox())!.height,
-          );
+          expect(toggle.x + toggle.width).toBeLessThanOrEqual(available.x);
+          expect(geometry.assigned.width).toBeLessThanOrEqual(1);
+          expect(geometry.row.y).toBeGreaterThanOrEqual(geometry.group.y + geometry.group.height);
         } else {
           // A real name needs the remaining cell width, rather than the legacy 1:3 status split.
           const name = row.locator('.category-name');

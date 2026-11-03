@@ -75,11 +75,20 @@ async function paintedRoles(page: Page, phone: boolean) {
           rect.top >= 0 && rect.bottom <= innerHeight && rect.left >= 0 && rect.right <= innerWidth,
       };
     });
-    const semantic = [
-      ['.ptable-zero .spending-status:not(.neg-alert)', '--ink-3'],
-      ['.ptable-zero .pill.is-good', '--on-good-soft'],
-      ['.ptable-zero .pill.is-bad', '--red'],
-    ].map(([selector, name]) => {
+    const redesign = document.querySelector('.app')?.getAttribute('data-budget-redesign') === '1';
+    const semantic = (
+      redesign
+        ? [
+            ['.plan-class-lead span', '--ink-2'],
+            [".prow[data-plan-state='met'] .col-avail .pill", '--primary'],
+            [".prow[data-plan-state='overspent'] .col-avail .pill", '--red'],
+          ]
+        : [
+            ['.ptable-zero .spending-status:not(.neg-alert)', '--ink-3'],
+            ['.ptable-zero .pill.is-good', '--on-good-soft'],
+            ['.ptable-zero .pill.is-bad', '--red'],
+          ]
+    ).map(([selector, name]) => {
       const style = getComputedStyle(visible(selector!));
       return {
         selector,
@@ -117,6 +126,10 @@ const THEME_ROLES = {
     semantic: ['rgb(143, 180, 209)', 'rgb(168, 230, 192)', 'rgb(255, 139, 123)'],
   },
 } as const;
+const REDESIGN_SEMANTIC = {
+  light: ['rgb(58, 78, 110)', 'rgb(23, 71, 166)', 'rgb(196, 42, 31)'],
+  dark: ['rgb(185, 208, 227)', 'rgb(208, 244, 255)', 'rgb(255, 139, 123)'],
+} as const;
 
 for (const profile of ['desktop', 'phone'] as const) {
   sampleTest(
@@ -139,6 +152,7 @@ for (const profile of ['desktop', 'phone'] as const) {
         await page.clock.setFixedTime(new Date(SAMPLE_NOW));
         await page.goto('/plan/monat?monat=2026-09');
         await expect(page.locator('.ptable-zero')).toBeVisible();
+        const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
         await page.evaluate(() => document.fonts.ready);
         for (const theme of ['dark', 'light'] as const) {
           if (phone) {
@@ -178,7 +192,10 @@ for (const profile of ['desktop', 'phone'] as const) {
           }
           await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
           expect(await page.evaluate(() => localStorage.getItem('budget-theme'))).toBe(theme);
-          const expected = THEME_ROLES[theme];
+          const expected = {
+            ...THEME_ROLES[theme],
+            semantic: redesign ? REDESIGN_SEMANTIC[theme] : THEME_ROLES[theme].semantic,
+          };
           let beforeCapture = await paintedRoles(page, phone);
           // Require actual inherited text, surfaces and semantic roles before the first capture.
           // The previous universal positive duration left native color transitions pending.

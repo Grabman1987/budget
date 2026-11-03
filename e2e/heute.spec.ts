@@ -428,7 +428,10 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
     expect(target.searchParams.get('von')).toContain('/heute/details/debt');
   }
   await expect(
-    page.locator('.kacct-head').getByRole('heading', { name: 'Kredit', exact: true }),
+    (redesign && page.viewportSize()!.width < 768
+      ? page.getByRole('banner')
+      : page.locator('.kacct-head')
+    ).getByRole('heading', { name: 'Kredit', exact: true }),
   ).toBeVisible();
 });
 
