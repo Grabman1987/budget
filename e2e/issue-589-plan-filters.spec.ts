@@ -128,6 +128,7 @@ async function scene(
   profile: 'desktop' | 'configured',
   theme: 'light' | 'dark',
   info: TestInfo,
+  part: 'controls' | 'workflow',
 ) {
   const clickPlanControl = async (target: Locator) => {
     // Keep mobile controls above the fixed tabbar before normal pointer actionability checks.
@@ -160,104 +161,113 @@ async function scene(
       await expect(filterMenu).not.toHaveAttribute('open');
     }
   };
-  await openFilters();
   const filters = page.getByRole('group', { name: 'Kategoriefilter', exact: true });
-  await expect(filters.getByRole('button', { name: 'Alle (3)', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await expect(
-    filters.getByRole('button', { name: 'Unterfinanziert (1)', exact: true }),
-  ).toBeVisible();
-  await expect(filters.getByRole('button', { name: 'Überzogen (1)', exact: true })).toBeVisible();
-  await expect(filters.getByRole('button', { name: 'Verfügbar (1)', exact: true })).toBeVisible();
-  await expect(
-    filters.getByRole('button', { name: 'Ohne Kategorie (1)', exact: true }),
-  ).toBeVisible();
-  const phoneReadUtilities =
-    (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-  const readOptions = page.locator('.plan-menu-optionen > summary');
-  if (phoneReadUtilities) await clickPlanControl(readOptions);
-  const combined = phoneReadUtilities
-    ? page
-        .getByRole('group', { name: 'Monatsdetails', exact: true })
-        .getByText('2 vorgemerkt / ohne Kategorie', { exact: true })
-    : page.locator('summary[aria-controls="plan-chip-panel-2"]');
-  await expect(combined).toHaveText('2 vorgemerkt / ohne Kategorie');
-  await expect(combined).toHaveAttribute(
-    'title',
-    'Buchungen mit vorgemerktem Status oder mindestens einem Anteil ohne Kategorie. Jede Buchung wird einmal gezählt.',
-  );
-  if (phoneReadUtilities) await clickPlanControl(readOptions);
-  await clickPlanControl(page.locator(`.pname[data-category-id="${ids.recipientId}"]`));
-  await expect(
-    page.getByRole('heading', { name: 'Synthetic Recipient', exact: true }),
-  ).toBeVisible();
-  if (on && (await filterMenu.evaluate((el) => (el as HTMLDetailsElement).open)))
-    await filterMenu.locator('summary').click();
-  const initial = await page.locator('.plan-filterbar').evaluate((element) => ({
-    viewport: { width: innerWidth, height: innerHeight },
-    pointerCoarse: matchMedia('(pointer: coarse)').matches,
-    scrollWidth: document.documentElement.scrollWidth,
-    beforeGrid:
-      element.closest('.plan')!.querySelector('.ptable')!.getBoundingClientRect().top -
-      element.closest('.plan')!.getBoundingClientRect().top,
-    controls: [...element.querySelectorAll('input, .plan-filter-segments button, summary')]
-      .filter((control) => {
-        const closed = control.closest('details:not([open])');
-        return (
-          (!closed || closed.querySelector('summary') === control) &&
-          control.getBoundingClientRect().height > 0
-        );
-      })
-      .map((control) => {
-        const rect = control.getBoundingClientRect();
-        return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right };
-      }),
-  }));
-  expect(initial.controls).toHaveLength(on ? 3 : 7);
-  expect(initial.scrollWidth).toBeLessThanOrEqual(initial.viewport.width);
-  if (profile === 'desktop') {
-    expect(initial.viewport).toEqual({ width: 1440, height: 900 });
-    expect(initial.pointerCoarse).toBe(false);
-    if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
-      // The ON lead exposes the class band above the filters; keep the first
-      // working row on screen. OFF retains its original compact 120px contract.
-      const first = await page.locator('.ptable .prow:has(.pname)').first().boundingBox();
-      expect(first!.y + first!.height).toBeLessThanOrEqual(900);
-    } else expect(initial.beforeGrid).toBeLessThanOrEqual(120);
-    expect(Math.max(...initial.controls.map((rect) => rect.top))).toBeLessThan(
-      Math.min(...initial.controls.map((rect) => rect.bottom)),
-    );
-    await expect(page.getByRole('complementary', { name: 'Plan-Inspektor' })).toBeVisible();
-  } else expect(initial.viewport.width).toBe(390);
-  for (const target of await page
-    .locator(
-      '.plan-filterbar input:visible, .plan-filter-segments button:visible, .plan-filterbar summary:visible',
-    )
-    .all())
-    await hit(target, profile === 'configured' ? 44 : 24);
-  if (on) {
+  if (part === 'controls') {
     await openFilters();
-    for (const control of await filters.getByRole('button').all()) await hit(control, 44);
-    await filterMenu.locator('summary').press('Escape');
-  }
-  const options = page.locator('.plan-menu-optionen > summary');
-  await options.focus();
-  await options.press('Enter');
-  await expect(page.getByRole('group', { name: 'Ansicht', exact: true })).toBeVisible();
-  await options.press('Escape');
-  await expect(options).toBeFocused();
-  const axe = await new AxeBuilder({ page })
-    .include('.plan')
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .analyze();
-  expect(axe.violations).toEqual([]);
-  await page.locator('.plan-filterbar').scrollIntoViewIfNeeded();
-  const image = info.outputPath(`plan-filters-${profile}-${theme}.png`);
-  await page.screenshot({ path: image, fullPage: true, animations: 'disabled' });
-  await info.attach('Plan filter controls', { path: image, contentType: 'image/png' });
+    await expect(filters.getByRole('button', { name: 'Alle (3)', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(
+      filters.getByRole('button', { name: 'Unterfinanziert (1)', exact: true }),
+    ).toBeVisible();
+    await expect(filters.getByRole('button', { name: 'Überzogen (1)', exact: true })).toBeVisible();
+    await expect(filters.getByRole('button', { name: 'Verfügbar (1)', exact: true })).toBeVisible();
+    await expect(
+      filters.getByRole('button', { name: 'Ohne Kategorie (1)', exact: true }),
+    ).toBeVisible();
+    const phoneReadUtilities =
+      (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    const readOptions = page.locator('.plan-menu-optionen > summary');
+    if (phoneReadUtilities) await clickPlanControl(readOptions);
+    const combined = phoneReadUtilities
+      ? page
+          .getByRole('group', { name: 'Monatsdetails', exact: true })
+          .getByText('2 vorgemerkt / ohne Kategorie', { exact: true })
+      : page.locator('summary[aria-controls="plan-chip-panel-2"]');
+    await expect(combined).toHaveText('2 vorgemerkt / ohne Kategorie');
+    await expect(combined).toHaveAttribute(
+      'title',
+      'Buchungen mit vorgemerktem Status oder mindestens einem Anteil ohne Kategorie. Jede Buchung wird einmal gezählt.',
+    );
+    if (phoneReadUtilities) await clickPlanControl(readOptions);
+    await clickPlanControl(page.locator(`.pname[data-category-id="${ids.recipientId}"]`));
+    await expect(
+      page.getByRole('heading', { name: 'Synthetic Recipient', exact: true }),
+    ).toBeVisible();
+    if (on && (await filterMenu.evaluate((el) => (el as HTMLDetailsElement).open)))
+      await filterMenu.locator('summary').click();
+    const initial = await page.locator('.plan-filterbar').evaluate((element) => ({
+      viewport: { width: innerWidth, height: innerHeight },
+      pointerCoarse: matchMedia('(pointer: coarse)').matches,
+      scrollWidth: document.documentElement.scrollWidth,
+      beforeGrid:
+        element.closest('.plan')!.querySelector('.ptable')!.getBoundingClientRect().top -
+        element.closest('.plan')!.getBoundingClientRect().top,
+      controls: [...element.querySelectorAll('input, .plan-filter-segments button, summary')]
+        .filter((control) => {
+          const closed = control.closest('details:not([open])');
+          return (
+            (!closed || closed.querySelector('summary') === control) &&
+            control.getBoundingClientRect().height > 0
+          );
+        })
+        .map((control) => {
+          const rect = control.getBoundingClientRect();
+          return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right };
+        }),
+    }));
+    expect(initial.controls).toHaveLength(on ? 3 : 7);
+    expect(initial.scrollWidth).toBeLessThanOrEqual(initial.viewport.width);
+    if (profile === 'desktop') {
+      expect(initial.viewport).toEqual({ width: 1440, height: 900 });
+      expect(initial.pointerCoarse).toBe(false);
+      if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+        // The ON lead exposes the class band above the filters; keep the first
+        // working row on screen. OFF retains its original compact 120px contract.
+        const first = await page.locator('.ptable .prow:has(.pname)').first().boundingBox();
+        expect(first!.y + first!.height).toBeLessThanOrEqual(900);
+      } else expect(initial.beforeGrid).toBeLessThanOrEqual(120);
+      expect(Math.max(...initial.controls.map((rect) => rect.top))).toBeLessThan(
+        Math.min(...initial.controls.map((rect) => rect.bottom)),
+      );
+      await expect(page.getByRole('complementary', { name: 'Plan-Inspektor' })).toBeVisible();
+    } else expect(initial.viewport.width).toBe(390);
+    for (const target of await page
+      .locator(
+        '.plan-filterbar input:visible, .plan-filter-segments button:visible, .plan-filterbar summary:visible',
+      )
+      .all())
+      await hit(target, profile === 'configured' ? 44 : 24);
+    if (on) {
+      await openFilters();
+      for (const control of await filters.getByRole('button').all()) await hit(control, 44);
+      await filterMenu.locator('summary').press('Escape');
+    }
+    const options = page.locator('.plan-menu-optionen > summary');
+    await options.focus();
+    await options.press('Enter');
+    await expect(page.getByRole('group', { name: 'Ansicht', exact: true })).toBeVisible();
+    await options.press('Escape');
+    await expect(options).toBeFocused();
+    const axe = await new AxeBuilder({ page })
+      .include('.plan')
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze();
+    expect(axe.violations).toEqual([]);
+    await page.locator('.plan-filterbar').scrollIntoViewIfNeeded();
+    const image = info.outputPath(`plan-filters-${profile}-${theme}.png`);
+    await page.screenshot({ path: image, fullPage: true, animations: 'disabled' });
+    await info.attach('Plan filter controls', { path: image, contentType: 'image/png' });
 
+    expect(writes).toEqual([]);
+    const geometry = info.outputPath(`plan-filters-${profile}-${theme}-geometry.json`);
+    await writeFile(geometry, JSON.stringify({ ...initial, profile, theme }, null, 2));
+    await info.attach('Plan filter geometry', { path: geometry, contentType: 'application/json' });
+    return;
+  }
+
+  const options = page.locator('.plan-menu-optionen > summary');
   await page.goto('/plan/monat?monat=2026-10&ansicht=triage');
   await page.evaluate((value) => {
     document.documentElement.dataset['theme'] = value;
@@ -407,7 +417,7 @@ async function scene(
     evidence,
     JSON.stringify(
       {
-        ...initial,
+        viewport: page.viewportSize(),
         profile,
         theme,
         engine: page.context().browser()!.browserType().name(),
@@ -424,44 +434,44 @@ async function scene(
       2,
     ),
   );
-  await info.attach('Plan filter geometry and real cover', {
+  await info.attach('Plan filter real cover and Undo', {
     path: evidence,
     contentType: 'application/json',
   });
 }
 
 for (const profile of ['desktop', 'configured'] as const)
-  for (const theme of ['light', 'dark'] as const) {
-    test(`Plan filters ${profile} ${theme} retain search/history, source links and actual cover Undo`, async ({
-      page,
-      request,
-      browser,
-      isolatedLedger,
-      ledgerToday,
-    }, info) => {
-      const ids = await seed(request, isolatedLedger.origin);
-      if (profile === 'configured') {
-        const inherited = page.viewportSize();
-        expect(inherited).not.toBeNull();
-        await page.setViewportSize({ width: 390, height: inherited!.height });
-        await scene(page, ids, isolatedLedger.databasePath, profile, theme, info);
-        return;
-      }
-      const context = await browser.newContext({
-        baseURL: isolatedLedger.origin,
-        storageState: isolatedLedger.storageState,
-        viewport: { width: 1440, height: 900 },
-        isMobile: false,
-        hasTouch: false,
-        deviceScaleFactor: 1,
-        serviceWorkers: 'block',
-      });
-      try {
-        const desktop = await context.newPage();
-        await desktop.clock.setFixedTime(new Date(`${ledgerToday}T12:00:00+02:00`));
-        await scene(desktop, ids, isolatedLedger.databasePath, profile, theme, info);
-      } finally {
-        await context.close();
-      }
-    });
-  }
+  for (const theme of ['light', 'dark'] as const)
+    for (const part of ['controls', 'workflow'] as const) {
+      test(
+        part === 'controls'
+          ? `Plan filters ${profile} ${theme} retain controls, geometry, keyboard and accessibility`
+          : `Plan filters ${profile} ${theme} retain search/history, source links and actual cover Undo`,
+        async ({ page, request, browser, isolatedLedger, ledgerToday }, info) => {
+          const ids = await seed(request, isolatedLedger.origin);
+          if (profile === 'configured') {
+            const inherited = page.viewportSize();
+            expect(inherited).not.toBeNull();
+            await page.setViewportSize({ width: 390, height: inherited!.height });
+            await scene(page, ids, isolatedLedger.databasePath, profile, theme, info, part);
+            return;
+          }
+          const context = await browser.newContext({
+            baseURL: isolatedLedger.origin,
+            storageState: isolatedLedger.storageState,
+            viewport: { width: 1440, height: 900 },
+            isMobile: false,
+            hasTouch: false,
+            deviceScaleFactor: 1,
+            serviceWorkers: 'block',
+          });
+          try {
+            const desktop = await context.newPage();
+            await desktop.clock.setFixedTime(new Date(`${ledgerToday}T12:00:00+02:00`));
+            await scene(desktop, ids, isolatedLedger.databasePath, profile, theme, info, part);
+          } finally {
+            await context.close();
+          }
+        },
+      );
+    }
