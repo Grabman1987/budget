@@ -1,4 +1,4 @@
-import { selectPortfolioView } from './wealth-navigation';
+import { selectPortfolioView, showAllocationEvidence } from './wealth-navigation';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import type { PortfolioAllocationView } from '@budget/db';
@@ -50,6 +50,7 @@ sampleTest(
 
     await page.goto('/vermoegen/portfolio/positionen');
     await selectPortfolioView(page, 'Allokation');
+    await showAllocationEvidence(page);
     const allocation = page.getByRole('region', { name: 'Aufteilung Soll/Ist', exact: true });
     await allocation.getByText('Wie wird gerechnet?', { exact: true }).click();
     await expect(allocation).toContainText('Datengrundlage am 17.09.2026');
@@ -103,6 +104,7 @@ sampleTest(
 
     legacyDto = true;
     await page.reload();
+    await showAllocationEvidence(page);
     await allocation.getByText('Wie wird gerechnet?', { exact: true }).click();
     await expect(allocation).toContainText('Quelldetails nicht verfügbar.');
     await expect(allocation).toContainText('Datengrundlage am 17.09.2026');
