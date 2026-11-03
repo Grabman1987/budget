@@ -8,6 +8,14 @@ import { SoftAuthenticator } from '../apps/server/src/auth/testing/authenticator
 import { E2E_SETUP_TOKEN } from '../playwright.config';
 import { HEUTE_HEADING } from './routes';
 
+async function expectHeute(page: Page) {
+  await expect(page.locator('.app')).toHaveCount(1);
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  await expect(
+    page.getByRole('heading', { level: 1, name: redesign ? 'Heute' : HEUTE_HEADING, exact: true }),
+  ).toBeVisible();
+}
+
 /**
  * Passkey login end to end on an empty server: the browser's virtual authenticator performs real
  * WebAuthn ceremonies (Chromium DevTools protocol), the server verifies them for real.
@@ -92,7 +100,7 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
     await page.getByLabel('Ich habe die Codes sicher gespeichert').check();
     await next.click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole('heading', { level: 1, name: HEUTE_HEADING })).toBeVisible();
+    await expectHeute(page);
   });
 
   await test.step('the session cookie is HttpOnly, SameSite=Strict, lasts 30 days and never reaches scripts', async () => {
@@ -104,7 +112,7 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
     expect(days).toBeLessThanOrEqual(30);
     expect(await page.evaluate(() => document.cookie)).toBe('');
     await page.reload();
-    await expect(page.getByRole('heading', { level: 1, name: HEUTE_HEADING })).toBeVisible();
+    await expectHeute(page);
   });
 
   await test.step('the setup page is gone for good once a passkey exists', async () => {
@@ -181,7 +189,7 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
 
     await page.getByRole('button', { name: 'Mit Passkey anmelden' }).click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole('heading', { level: 1, name: HEUTE_HEADING })).toBeVisible();
+    await expectHeute(page);
   });
 
   await test.step('capture continuation survives a real passkey login and rejects an external return', async () => {
@@ -237,7 +245,7 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
     await page.goto('/login?weiter=https%3A%2F%2Fexample.invalid%2Ferfassen');
     await page.getByRole('button', { name: 'Mit Passkey anmelden', exact: true }).click();
     await expect(page).toHaveURL(`${origin}/`);
-    await expect(page.getByRole('heading', { level: 1, name: HEUTE_HEADING })).toBeVisible();
+    await expectHeute(page);
   });
 
   await test.step('a recovery code logs in exactly once', async () => {

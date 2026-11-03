@@ -156,7 +156,11 @@ test.describe('UX-3a phone shell', () => {
           Number.parseFloat(getComputedStyle(el).paddingBottom) - (window.innerHeight - fab.top)
         );
       });
-      expect(clearance, path).toBe(16);
+      const wealthOn =
+        path === '/vermoegen/portfolio' &&
+        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      // Wealth reserves 240px at the page end for the phone dock and Undo toast.
+      expect(clearance, path).toBe(wealthOn ? 102 : 16);
       // The FAB is fixed: measure its slot before it hides on the way down (#468).
       const fabTop = await page.locator('.fab').evaluate((el) => el.getBoundingClientRect().top);
       // Reveal after reaching the bottom: the retained padding must also clear a visible FAB.

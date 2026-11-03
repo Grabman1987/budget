@@ -19,7 +19,10 @@ test('web route renders "Budget" without CSP violations', async ({ page }) => {
   page.on('pageerror', (err) => problems.push(err.message));
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: HEUTE_HEADING })).toBeVisible();
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  await expect(
+    page.getByRole('heading', { level: 1, name: redesign ? 'Heute' : HEUTE_HEADING, exact: true }),
+  ).toBeVisible();
   await expect(page).toHaveTitle('Heute · Budget');
 
   await page.goto('/dev/start');

@@ -113,11 +113,9 @@ test('overlay preserves the source URL, history, scroll, focus and month on Esca
   page,
 }, info) => {
   await page.goto('/plan/monat?monat=2026-08');
-  const trigger = page.getByRole('button', {
-    name:
-      info.project.name === 'desktop' ? 'Suchen: Seiten, Reports, Buchungen, Aktionen' : 'Suchen',
-    exact: true,
-  });
+  const trigger = page.locator(
+    info.project.name === 'desktop' ? '#global-search' : '#global-search-mobile',
+  );
   await trigger.focus();
   await page.evaluate(() => window.scrollTo(0, 240));
   const scroll = await page.evaluate(() => scrollY);

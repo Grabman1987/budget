@@ -69,7 +69,21 @@ test('source summaries leave decisions clear and retain grouped, filtered, paged
   });
   await summary.click();
   await expect(page).toHaveURL(/einstellungen\/datenquellen#crypto-source-title/);
-  const source = page.getByRole('region', { name: 'Krypto-Lesequelle', exact: true });
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  const source = page.getByRole('region', {
+    name: redesign ? 'Krypto' : 'Krypto-Lesequelle',
+    exact: true,
+  });
+  if (redesign) {
+    await expect(source.locator('.settings-source-head button[aria-expanded]')).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    await expect(source.locator('.settings-source-details')).toBeVisible();
+    await expect(
+      source.getByRole('heading', { name: 'Krypto-Lesequelle', exact: true }),
+    ).toBeVisible();
+  }
   await source.getByLabel('Bewegungen nach Titel').selectOption('Quellbewegung: Zuordnung fehlt');
   const group = source.getByRole('button', {
     name: /Quellbewegung: Zuordnung fehlt.*101 Aufgaben/,

@@ -10,6 +10,29 @@ import { openPruefenPart, openPruefenSource } from './pruefen-part';
 
 test.describe.configure({ timeout: 120000 });
 
+async function expectIncomeHead(page: Page, budgetAmount: string) {
+  const plan = page.url();
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  const header = page
+    .locator('.titleblock .tb-field')
+    .filter({ hasText: 'Einnahmen' })
+    .locator('.tb-value');
+  if (redesign) {
+    // Plan's head is budget-month cash; schedule progress remains a separate, retained scope.
+    await expect(header).toHaveText(budgetAmount);
+    await expect(page.locator('.xp-note')).toContainText(
+      `Zählt für Zu verteilen: ${budgetAmount} im Planmonat September 2026.`,
+    );
+    await expect(page.getByTestId('income-received')).toHaveText('0,00 €');
+    await page.goto('/plan/erwartet/einnahmen?monat=2026-09');
+  }
+  await expect(header).toHaveText(await page.getByTestId('income-received').innerText());
+  if (redesign) {
+    await expect(page.getByTestId('income-received')).toHaveText('0,00 €');
+    await page.goto(plan);
+  }
+}
+
 async function captureReviewViewport(page: Page, info: TestInfo) {
   const dir = process.env['BUDGET_SPENDING_EVIDENCE'];
 
@@ -86,9 +109,13 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
     ],
   });
   await page.goto('/einstellungen/datenquellen');
-  const source = page.locator('section', {
-    has: page.getByRole('heading', { name: 'Gehaltszettel', exact: true }),
-  });
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  if (redesign)
+    await page
+      .getByRole('region', { name: 'Gehaltszettel', exact: true })
+      .locator('.settings-source-head button[aria-expanded]')
+      .click();
+  const source = page.locator('section[aria-labelledby="payslip-source-title"]');
   await source.getByLabel('Gehaltskonto', { exact: true }).selectOption(account.account.id);
   await source.getByRole('button', { name: 'Lohnart hinzufügen' }).click();
   await source.getByLabel('Lohnart 1', { exact: true }).fill('899');
@@ -97,9 +124,7 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   await expect(source).toContainText('PDF-Passwort hinterlegt');
   await inspectReport(page, info, 'payslip-source');
   await page.goto('/plan/monat/einnahmen?monat=2026-09');
-  await expect(
-    page.locator('.titleblock .tb-field').filter({ hasText: 'Einnahmen' }).locator('.tb-value'),
-  ).toHaveText(await page.getByTestId('income-received').innerText());
+  await expectIncomeHead(page, '2.975,00 €');
   await inspectReport(page, info, '609-income');
   await page.goto('/reports/gehalt?monat=2026-09');
   await expect(
@@ -196,9 +221,7 @@ for (const intakeMethod of ['chooser', 'drop'] as const) {
     });
     expect(config.ok()).toBe(true);
     await page.goto('/plan/monat/einnahmen?monat=2026-09');
-    await expect(
-      page.locator('.titleblock .tb-field').filter({ hasText: 'Einnahmen' }).locator('.tb-value'),
-    ).toHaveText(await page.getByTestId('income-received').innerText());
+    await expectIncomeHead(page, '0,00 €');
     await inspectReport(page, info, '609-income');
     await page.goto('/reports/gehalt?monat=2026-09');
     await expect(

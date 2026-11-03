@@ -13,8 +13,10 @@ sampleTest(
     await page.setViewportSize({ width: 1920, height: 1080 });
     for (const [path, body] of pages) {
       await page.goto(path);
-      await expect(page.locator(body)).toBeVisible();
-      for (const selector of ['main.sheet', body]) {
+      const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      const content = path === '/' && redesign ? '.heute-screen' : body;
+      await expect(page.locator(content)).toBeVisible();
+      for (const selector of ['main.sheet', content]) {
         const box = await page.locator(selector).boundingBox();
         expect(box?.width, `${path} ${selector}`).toBeGreaterThanOrEqual(1500);
       }
@@ -40,7 +42,10 @@ for (const width of [390, 1280, 1440, 1920, 2560]) {
     ]) {
       await page.goto(path);
       await expect(page.locator('main.sheet')).toBeVisible();
-      await expect(page.locator('main h1')).toHaveCount(1);
+      const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      await expect(
+        redesign ? page.getByRole('heading', { level: 1 }) : page.locator('main h1'),
+      ).toHaveCount(1);
       await page.evaluate(() => document.fonts.ready);
       await page.waitForLoadState('networkidle');
       await expect

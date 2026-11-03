@@ -58,7 +58,10 @@ test('Plan and Konten registers fit without swiping and Plan stays active', asyn
       label,
     ]);
   }
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Liquiditätsprognose');
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    redesign ? 'Prognose' : 'Liquiditätsprognose',
+  );
   await page.screenshot({ path: info.outputPath('plan-prognose.png') });
   await page.goto('/konten/pruefen');
   const row = await areaNavigation(page, 'Konten');

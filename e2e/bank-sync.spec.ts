@@ -216,6 +216,12 @@ test('connection cards explain limits and results, scope messages and deep-link 
   const first = page.getByRole('region', { name: 'Bank A', exact: true });
   const second = page.getByRole('region', { name: 'Bank B', exact: true });
   const third = page.getByRole('region', { name: 'Bank C', exact: true });
+  if (await redesignLoaded(page)) {
+    await page
+      .getByRole('region', { name: 'Bank', exact: true })
+      .getByRole('button', { name: 'Prüfen', exact: true })
+      .click();
+  }
   await expect(second.getByRole('button', { name: 'Jetzt abrufen' })).toBeDisabled();
   await expect(second.getByText('Konto B: 4/4')).toBeVisible();
   await expect(second.getByText('Tageslimit erreicht.', { exact: false })).toBeVisible();

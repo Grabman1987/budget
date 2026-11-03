@@ -91,6 +91,7 @@ export function CryptoReadSourceSection({ compact = false }: { compact?: boolean
     return (
       <SettingsSourceCard
         title="Krypto"
+        initiallyOpen={window.location.hash === '#crypto-source-title'}
         icon={Bitcoin}
         status={
           busy || query.data?.running
@@ -130,7 +131,7 @@ export function CryptoReadSourceSection({ compact = false }: { compact?: boolean
       >
         {query.data && (
           <>
-            <h3>Krypto-Lesequelle</h3>
+            <h3 id="crypto-source-title">Krypto-Lesequelle</h3>
             <p>Schlüssel gesetzt: {query.data.configured ? 'ja' : 'nein'}</p>
             <p>
               Letzter Versuch: {stamp(query.data.lastAttempt)}. Ein- und Auszahlungen mit den
