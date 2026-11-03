@@ -1,10 +1,11 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect } from './sample';
 
 test('attention links and the unclassified row are usable at both viewport sizes', async ({
   page,
 }, info) => {
-  await page.goto('/?monat=2026-09');
+  await openHeuteReview(page, '/?monat=2026-09');
   const bar = page.getByRole('region', { name: 'Zu tun' });
   await expect(bar).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('.topbar .overspent-chip')).toHaveCount(0);
@@ -57,7 +58,7 @@ test('attention hides the entire block when Heute has no open items', async ({ p
     body.accountReminders = [];
     await route.fulfill({ response, json: body });
   });
-  await page.goto('/?monat=2026-09');
+  await openHeuteReview(page, '/?monat=2026-09');
   const attention = page.getByRole('region', { name: 'Zu tun' });
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
   await expect(attention).toHaveCount(0);

@@ -1,8 +1,13 @@
+import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect as baseExpect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
 
 const expect = baseExpect.configure({ timeout: 30_000 });
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 
 test('Today groups work, preserves its review destinations and distinguishes selected month from today', async ({
   page,
@@ -14,7 +19,7 @@ test('Today groups work, preserves its review destinations and distinguishes sel
     if (request.url().includes('/api/') && !['GET', 'HEAD'].includes(request.method()))
       writes.push(`${request.method()} ${new URL(request.url()).pathname}`);
   });
-  await page.goto('/?monat=2026-09');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09'));
   const tasks = page.getByRole('region', { name: 'Zu tun', exact: true });
   await expect(tasks).toBeVisible();
   // Q3 #466 and #511: loan terms share the account-check source row.
@@ -48,7 +53,9 @@ test('Today groups work, preserves its review destinations and distinguishes sel
   await expect(page.getByRole('heading', { name: 'Nächste Schritte' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Fällig 14 Tage', exact: true })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: /Danach/ })).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(
+    redesign ? 1 : 0,
+  );
   const remaining = tasks.locator('.attention-remaining');
   const preferences = page.locator('.heute-view-preferences details');
   await expect(remaining).not.toHaveAttribute('open', /.*/);
@@ -94,7 +101,8 @@ test('Today groups work, preserves its review destinations and distinguishes sel
   const box = await tasks.boundingBox();
   const due = await page.locator('#heute-upcoming-title').boundingBox();
   const recent = await page.locator('#heute-bookings-title').boundingBox();
-  expect(box!.y).toBeGreaterThan(wealth!.y);
+  if (redesign) expect(box!.y + box!.height).toBeLessThan(wealth!.y);
+  else expect(box!.y).toBeGreaterThan(wealth!.y);
   expect(box!.y + box!.height).toBeLessThan(due!.y);
   expect(due!.y).toBeLessThan(recent!.y);
   await tasks.getByRole('link', { name: 'Prüfen', exact: true }).click();
@@ -104,7 +112,7 @@ test('Today groups work, preserves its review destinations and distinguishes sel
   await expect(page.getByRole('dialog', { name: /Kontostand prüfen/ })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.goto('/?monat=2026-08&period=month');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-08&period=month'));
   const note = page.getByTestId('heute-month-note');
   await expect(note).toContainText('Ansicht: August 2026');
   await expect(note).not.toContainText('Pace');
@@ -128,7 +136,11 @@ test('Today groups work, preserves its review destinations and distinguishes sel
     expect(box!.width).toBeGreaterThanOrEqual(44);
   }
   await note.getByRole('button', { name: 'Zum aktuellen Monat' }).click();
-  await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible();
+  await expect(
+    redesign
+      ? page.locator('.hv-head:visible .month-name')
+      : page.getByRole('heading', { name: 'September 2026', exact: true }),
+  ).toBeVisible();
   await expect(note).toHaveCount(0);
 });
 
@@ -154,7 +166,9 @@ test('empty tasks and due dates disappear while missing rule inputs remain expli
     actionRules: [],
   };
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: data }));
-  await page.goto('/?monat=2026-09');
+  await page.goto(
+    heuteReviewUrl(redesign, redesign ? '/?monat=2026-09&period=month' : '/?monat=2026-09'),
+  );
   await expect(page.locator('[data-kennzahl="verfuegbar"]')).toBeVisible();
   const taskBlock = page.getByRole('region', { name: 'Zu tun' });
   await expect(taskBlock.locator('.attention-row')).toHaveCount(0);

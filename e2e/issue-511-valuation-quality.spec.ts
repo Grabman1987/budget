@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import { gotoWealthAnalysis } from './wealth-navigation';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
@@ -134,7 +135,7 @@ test('one current quote task and local disclosures follow real manual quote save
     count: 3,
     securityIds: ['cost', 'missing', 'stale'],
   });
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   if (page.viewportSize()!.width === 390)
     await expect(page.getByRole('button', { name: 'Mehr zum Monat', exact: true })).toHaveAttribute(
       'aria-expanded',
@@ -188,7 +189,7 @@ test('one current quote task and local disclosures follow real manual quote save
     securityIds: ['cost', 'missing', 'stale'],
   });
   expect((await (await page.request.get('/api/accounts')).json()).netWorthEurCents).toBe(34000);
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   const current = await currentDetail(page);
   await current.focus();
   await expect(
@@ -267,7 +268,8 @@ async function theme(page: Page, selected: 'light' | 'dark') {
 async function capture(page: Page, info: TestInfo, label: string) {
   for (const selected of ['light', 'dark'] as const) {
     for (const surface of ['accounts', 'today'] as const) {
-      await page.goto(surface === 'accounts' ? '/konten' : '/');
+      if (surface === 'accounts') await page.goto('/konten');
+      else await openHeuteReview(page, '/');
       await theme(page, selected);
       if (surface === 'today') {
         const amountLink = page

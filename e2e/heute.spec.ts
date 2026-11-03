@@ -1,3 +1,4 @@
+import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import { test as isolatedTest } from './isolated-ledger';
 import { sampleTest as test, expect as baseExpect } from './sample';
 import AxeBuilder from '@axe-core/playwright';
@@ -11,10 +12,33 @@ import { eur, shortDay } from '../apps/web/src/ledger/format';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
 
-/** The retired R07 bookmark now opens the independently sourced stand-today card. */
+/** Check the inherited T5 bookmark destination, then retain the separate Heute forecast proof. */
+async function retainedForecastHome(
+  page: Page,
+  requested: { month: string; period?: 'month' | 'payday' },
+) {
+  if (!redesign) return;
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/reports/onepager' &&
+      url.searchParams.get('monat') === requested.month &&
+      url.searchParams.get('darstellung') === 'finanzcheck' &&
+      (!requested.period || url.searchParams.get('period') === requested.period),
+  );
+  await page.goto(
+    heuteReviewUrl(
+      redesign,
+      `/?monat=${requested.month}${requested.period ? `&period=${requested.period}` : ''}`,
+    ),
+  );
+}
+
+/** The current-day card keeps its existing independent source comparison in both modes. */
 async function currentForecast(page: Page, month = '2026-09') {
   await expect(page).toHaveURL(
-    (url) => url.pathname === '/' && url.searchParams.get('monat') === month,
+    (url) =>
+      url.pathname === (redesign ? '/heute/details/month' : '/') &&
+      url.searchParams.get('monat') === month,
   );
   const response = await page.request.get('/api/liquidity?horizon=35d');
   expect(response.ok()).toBe(true);
@@ -38,10 +62,15 @@ async function currentForecast(page: Page, month = '2026-09') {
   return { card, chart, report: source.report };
 }
 
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
+
 test('daily budget uses the live lead and next payday, wraps and explains the formula in both themes', async ({
   page,
 }, info) => {
-  await page.goto('/?monat=2026-09&period=payday');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=payday'));
   const data: Heute = await (await page.request.get('/api/heute?period=payday')).json();
   expect(data.lead.freeCents).toBeGreaterThan(0);
   expect(data.dailyBudget.remainingDays).toBe(data.lead.daysToPayday);
@@ -94,7 +123,7 @@ test.beforeEach(async ({ page }) => {
 test('Heute month forecast ends two days after month end and names payments in the shared tooltip', async ({
   page,
 }) => {
-  await page.goto('/?monat=2026-09&period=month');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=month'));
   const response = await page.request.get('/api/heute?period=month');
   const data = (await response.json()) as Heute;
   expect(data.balance.forecast.at(-1)!.day).toBe('2026-10-02');
@@ -104,6 +133,7 @@ test('Heute month forecast ends two days after month end and names payments in t
   );
   await expect(page.getByTestId('liquidity-chart')).toBeVisible();
   await page.goto('/reports/finanzcheck?monat=2026-09');
+  await retainedForecastHome(page, { month: '2026-09' });
   const current = await currentForecast(page);
   await expect(page.getByRole('button', { name: 'Monat', exact: true })).toHaveAttribute(
     'aria-pressed',
@@ -132,7 +162,7 @@ test('Heute month forecast ends two days after month end and names payments in t
 });
 
 test('Heute payday forecast follows the bracket and last axis label', async ({ page }) => {
-  await page.goto('/?monat=2026-09&period=payday');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=payday'));
   await expect(page.getByTestId('liquidity-chart')).toBeVisible();
   await expect(
     page.getByText(
@@ -141,6 +171,7 @@ test('Heute payday forecast follows the bracket and last axis label', async ({ p
     ),
   ).toBeVisible();
   await page.goto('/reports/finanzcheck?monat=2026-09');
+  await retainedForecastHome(page, { month: '2026-09' });
   await currentForecast(page);
   await expect(page.getByRole('button', { name: 'Bis Gehalt', exact: true })).toHaveAttribute(
     'aria-pressed',
@@ -171,6 +202,7 @@ test('a direct R07 visit falls back to Bis Gehalt without a stored choice', asyn
     );
   });
   await page.goto('/reports/finanzcheck?monat=2026-09');
+  await retainedForecastHome(page, { month: '2026-09' });
   await expect(page.getByRole('button', { name: 'Bis Gehalt', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -193,7 +225,7 @@ test('R07 remembers Heute period and retains its API forecast and low point in e
   page,
 }, info) => {
   for (const period of ['month', 'payday'] as const) {
-    await page.goto(`/?monat=2026-09&period=${period}`);
+    await page.goto(heuteReviewUrl(redesign, `/?monat=2026-09&period=${period}`));
     await expect(page.getByTestId('liquidity-chart')).toBeVisible();
     const data: Heute = await (
       await page.request.get(`/api/heute?month=2026-09&period=${period}`)
@@ -214,6 +246,7 @@ test('R07 remembers Heute period and retains its API forecast and low point in e
       ),
     ).toBe(true);
     await page.goto('/reports/finanzcheck?monat=2026-09');
+    await retainedForecastHome(page, { month: '2026-09' });
     await expect(
       page.getByRole('button', { name: period === 'month' ? 'Monat' : 'Bis Gehalt', exact: true }),
     ).toHaveAttribute('aria-pressed', 'true');
@@ -245,7 +278,8 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
       writes.push(`${request.method()} ${new URL(request.url()).pathname}`);
   });
 
-  await page.goto('/?monat=2026-09&period=month');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=month'));
+  await expect(page.locator('.app')).toBeVisible();
   const response = await page.request.get('/api/heute?period=month&month=2026-09');
   expect(response.ok()).toBe(true);
   const initial: Heute = await response.json();
@@ -255,7 +289,11 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
       ? []
       : initial.financeCheck.actionRules.filter((rule) => rule.status === 'bad');
   expect(badRules.length).toBeGreaterThan(0);
-  await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible({
+  await expect(
+    redesign
+      ? page.locator('.hv-head:visible .month-name')
+      : page.getByRole('heading', { name: 'September 2026', exact: true }),
+  ).toBeVisible({
     timeout: 30_000,
   });
   // #571: Monat shows Zu verteilen / Verfügbar im Budget / Nettovermögen; the lead figure belongs to Bis Gehalt.
@@ -264,7 +302,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
     'Verfügbar im Budget',
     'Nettovermögen',
   ]);
-  await expect(page.getByTestId('heute-lead-value')).toHaveCount(0);
+  await expect(page.getByTestId('heute-lead-value')).toHaveCount(redesign ? 1 : 0);
   await expect(page.getByTestId('heute-pace-chart')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('heute-pace-chart')).toBeVisible();
   await expect(page.getByTestId('heute-networth-chart')).toBeVisible({ timeout: 15_000 });
@@ -283,7 +321,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
 
   await expect(page.getByTestId('heute-kennzahlen').getByRole('heading', { level: 2 })).toHaveText([
     'Zu verteilen',
-    'Frei bis Gehalt',
+    redesign ? 'Verfügbar im Budget' : 'Frei bis Gehalt',
     'Nettovermögen',
   ]);
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
@@ -305,15 +343,18 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   await expect(page.getByRole('heading', { name: 'Angepinnte Kategorien' })).toBeVisible();
   expect(writes).toEqual([]);
   await expect(page.getByRole('heading', { name: 'Fällig 14 Tage' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Finanz-Check', exact: true })).toHaveCount(
+    redesign ? 1 : 0,
+  );
   await expect(page.getByRole('region', { name: 'Zu tun' })).toContainText(
     `${badRules.length} ${badRules.length === 1 ? 'Regelbefund' : 'Regelbefunde'} zum Handeln`,
   );
   await expect(page.getByRole('heading', { name: 'Nettovermögen · 12 Monate' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
   const ordered = [
-    'heute-wealth-title',
-    'attention-title',
+    ...(redesign
+      ? ['attention-title', 'heute-wealth-title']
+      : ['heute-wealth-title', 'attention-title']),
     'heute-upcoming-title',
     'heute-bookings-title',
   ];
@@ -350,12 +391,14 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
     .evaluate((svg) => svg.scrollIntoView({ block: 'center' }));
   for (const [name, account, total] of [
     ['Liquidität', 'Girokonto', '9.356,00 €'],
-    ['Investiert', 'Depot', '88.000,00 €'],
-    ['Schulden', 'Kredit', '−12.626,00 €'],
+    [redesign ? 'Anlagen' : 'Investiert', 'Depot', '88.000,00 €'],
+    [redesign ? 'Schulden (netto)' : 'Schulden', 'Kredit', '−12.626,00 €'],
   ]) {
     const segment = page
       .getByRole('group', { name: 'Maßkette Nettovermögen' })
-      .getByRole('button', { name: new RegExp(`^${name}`) });
+      .getByRole('button', {
+        name: new RegExp(`^${name.replaceAll('(', '\\(').replaceAll(')', '\\)')}`),
+      });
     await segment.locator('.seg-fill').click();
     const panel = page.getByRole('region', { name, exact: true });
     await expect(page).toHaveURL(/\/heute\/details\//);
@@ -365,18 +408,25 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
     });
     await expect(panel).toContainText(total);
     await page.goBack();
-    await expect(page).toHaveURL(/\/\?monat=2026-09/);
+    await expect(page).toHaveURL(
+      redesign ? /\/heute\/details\/month\?monat=2026-09/ : /\/\?monat=2026-09/,
+    );
   }
   await page
     .getByRole('group', { name: 'Maßkette Nettovermögen' })
     .getByRole('button', { name: /^Schulden/ })
     .press('Enter');
   const source = page
-    .getByRole('region', { name: 'Schulden', exact: true })
+    .getByRole('region', { name: redesign ? 'Schulden (netto)' : 'Schulden', exact: true })
     .getByRole('link', { name: 'Kredit', exact: true });
-  const target = await source.getAttribute('href');
+  const target = new URL((await source.getAttribute('href'))!, page.url());
   await source.click();
-  await expect.poll(() => new URL(page.url()).pathname).toBe(target);
+  await expect.poll(() => new URL(page.url()).pathname).toBe(target.pathname);
+  if (redesign) {
+    await expect(page.getByRole('link', { name: 'Zurück zur Heute-Herleitung' })).toBeVisible();
+    expect(new URL(page.url()).searchParams.get('von')).toBe(target.searchParams.get('von'));
+    expect(target.searchParams.get('von')).toContain('/heute/details/debt');
+  }
   await expect(
     page.locator('.kacct-head').getByRole('heading', { name: 'Kredit', exact: true }),
   ).toBeVisible();
@@ -417,7 +467,9 @@ test('a debt account in credit adds to the composition and opens the matching de
       },
     }),
   );
-  await page.goto('/?monat=2026-09');
+  await page.goto(
+    heuteReviewUrl(redesign, redesign ? '/?monat=2026-09&period=month' : '/?monat=2026-09'),
+  );
   const composition = page.getByRole('group', { name: 'Maßkette Nettovermögen' });
   await expect(composition).toBeVisible();
   await expect(composition.locator('.chain-minus')).toHaveCount(0);
@@ -426,28 +478,38 @@ test('a debt account in credit adds to the composition and opens the matching de
     'aria-label',
     /100,00/,
   );
-  const credit = composition.getByRole('button', { name: /^Guthaben auf Schuldkonten/ });
+  const credit = composition.getByRole('button', {
+    name: redesign ? /^Schuldkonten \(netto\)/ : /^Guthaben auf Schuldkonten/,
+  });
   await expect(credit).toHaveAttribute('aria-label', /20,00/);
   await credit.press('Enter');
-  const panel = page.getByRole('region', { name: 'Guthaben auf Schuldkonten', exact: true });
+  const panel = page.getByRole('region', {
+    name: redesign ? 'Guthaben auf Schuldkonten (netto)' : 'Guthaben auf Schuldkonten',
+    exact: true,
+  });
   await expect(panel.getByRole('link', { name: 'Schuldkonto im Guthaben' })).toBeVisible();
   await expect(panel).toContainText('20,00 €');
   await page.goBack();
-  await expect(page).toHaveURL(/\/\?monat=2026-09/);
+  await expect(page).toHaveURL(
+    redesign ? /\/heute\/details\/month\?monat=2026-09/ : /\/\?monat=2026-09/,
+  );
 });
 
 test('a past month has no out-of-range today marker in the balance or pace chart', async ({
   page,
 }) => {
-  await page.goto('/?monat=2026-08&period=month');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-08&period=month'));
   await expect(
-    page.getByRole('heading', { name: 'August 2026', exact: true, level: 1 }),
+    redesign
+      ? page.locator('.hv-head:visible .month-name')
+      : page.getByRole('heading', { name: 'August 2026', exact: true, level: 1 }),
   ).toBeVisible();
   await expect(page.getByTestId('heute-pace-chart')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('liquidity-chart').getByTestId('liquidity-mark-heute')).toHaveText(
     'HEUTE',
   );
   await page.goto('/reports/finanzcheck?monat=2026-08&period=month');
+  await retainedForecastHome(page, { month: '2026-08', period: 'month' });
   const historical: Heute = await (
     await page.request.get('/api/heute?period=month&month=2026-08')
   ).json();
@@ -465,12 +527,12 @@ test('a past month has no out-of-range today marker in the balance or pace chart
   expect(historical.stand.month).toBe('2026-08');
   await expect(page).toHaveURL(
     (url) =>
-      url.pathname === '/' &&
+      url.pathname === (redesign ? '/heute/details/month' : '/') &&
       url.searchParams.get('monat') === '2026-08' &&
       url.searchParams.get('period') === 'month',
   );
   await currentForecast(page, '2026-08');
-  await page.goto('/?monat=2026-08&period=month');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-08&period=month'));
   await expect(page.locator('[data-testid="heute-pace-chart"] .l-today')).toHaveCount(0);
   await expect(page.getByTestId('liquidity-chart').getByTestId('liquidity-mark-heute')).toHaveText(
     'HEUTE',
@@ -515,7 +577,9 @@ test('empty due and next-step blocks disappear while data-list empty states stay
     },
   };
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: empty }));
-  await page.goto('/?monat=2026-09');
+  await page.goto(
+    heuteReviewUrl(redesign, redesign ? '/?monat=2026-09&period=month' : '/?monat=2026-09'),
+  );
   await expect(page.getByRole('heading', { name: 'Angepinnte Kategorien' })).toHaveCount(0);
   await page.getByText('Ansicht anpassen', { exact: true }).click();
   await page.getByRole('checkbox', { name: 'Angepinnte Kategorien anzeigen' }).check();
@@ -561,7 +625,7 @@ test('attention leaves overspending to the top-bar chip and links to the inbox',
       },
     }),
   );
-  await page.goto('/?monat=2026-08');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-08'));
   const attention = page.getByRole('region', { name: 'Zu tun' });
   await expect(attention).not.toContainText('zu decken');
   await expect(page.locator('[data-overspent="test"]')).toHaveCount(0);
@@ -578,7 +642,7 @@ test('source-view links open the corresponding live pages', async ({ page }) => 
     ['Vermögensaufteilung', 'Details', '/vermoegen/nettovermoegen'],
     ['Letzte Buchungen', 'Alle', '/konten/buchungen'],
   ]) {
-    await page.goto('/?monat=2026-09');
+    await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09'));
     if (heading === 'Angepinnte Kategorien') {
       await page.getByText('Ansicht anpassen', { exact: true }).click();
       await page.getByRole('checkbox', { name: 'Angepinnte Kategorien anzeigen' }).check();
@@ -589,9 +653,17 @@ test('source-view links open the corresponding live pages', async ({ page }) => 
       .getByRole('link', { name: link, exact: true })
       .click();
     await expect.poll(() => new URL(page.url()).pathname).toBe(target);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    if (redesign && target === '/vermoegen/nettovermoegen') {
+      await expect(page.getByTestId('wealth-net-value')).toBeVisible();
+      await page.goto(`${target}?ansicht=analyse`);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await expect(page.getByTestId('nw-figure')).toBeVisible();
+    }
   }
-  await page.goto('/?monat=2026-09');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09'));
   await page.getByRole('region', { name: 'Zu tun' }).getByRole('link', { name: 'Handeln' }).click();
   await expect(page).toHaveURL(/\/einstellungen\/regelwerk#rule-result-/);
 });
@@ -612,7 +684,7 @@ test('negative lead uses the action colour and attention precedes the month fold
   );
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme });
-    await page.goto('/?monat=2026-09&period=payday');
+    await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=payday'));
     const figure = page.getByTestId('heute-lead-value');
     await expect(figure).toContainText('−123');
     await expect(figure).toContainText(',45 €');
@@ -638,7 +710,14 @@ test('negative lead uses the action colour and attention precedes the month fold
     expect(attentionBox!.y).toBeLessThan(upcomingBox!.y);
     expect(moreBox!.y).toBeGreaterThan(attentionBox!.y);
     if (info.project.name === 'mobile') {
-      await expect(figure).toHaveCSS('font-size', '22px');
+      await expect(figure).toHaveCSS(
+        'font-size',
+        redesign
+          ? await figure.evaluate((el) =>
+              getComputedStyle(el).getPropertyValue('--fs-dimension').trim(),
+            )
+          : '22px',
+      );
       expect((await page.getByTestId('liquidity-chart').boundingBox())!.height).toBe(220);
     }
   }
@@ -650,15 +729,18 @@ test('a failed Heute request offers a working retry', async ({ page }) => {
   await page.route('**/api/heute?*', (route) =>
     fail ? route.fulfill({ status: 503, json: { error: 'unavailable' } }) : route.continue(),
   );
-  await page.goto('/?monat=2026-09');
-  await expect(page.getByRole('alert')).toContainText('Heute konnten nicht geladen werden.', {
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09'));
+  const alert = redesign
+    ? page.getByRole('region', { name: 'September 2026 · Pace' }).getByRole('alert')
+    : page.getByRole('alert');
+  await expect(alert).toContainText('Heute konnten nicht geladen werden.', {
     timeout: 15_000,
   });
   fail = false;
   const retried = page.waitForResponse(
     (response) => response.url().includes('/api/heute?') && response.ok(),
   );
-  await page.getByRole('button', { name: 'Erneut versuchen' }).click();
+  await alert.getByRole('button', { name: 'Erneut versuchen' }).click();
   await retried;
   await expect(page.getByTestId('heute-lead-value')).toContainText('988');
   await expect(page.getByRole('alert')).toBeHidden();
@@ -675,7 +757,7 @@ test('settled balance reaches the forecast and the composition measures its part
     ['dark', 'no-preference'],
   ] as const) {
     await page.emulateMedia({ reducedMotion, colorScheme });
-    await page.goto('/?monat=2026-09');
+    await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09'));
     await expect(page.getByTestId('heute-networth-chart')).toBeVisible({ timeout: 15_000 });
     await page.evaluate(async () => {
       await document.fonts.ready;
@@ -688,6 +770,7 @@ test('settled balance reaches the forecast and the composition measures its part
     });
     await expect(page.getByTestId('liquidity-chart')).toBeVisible();
     await page.goto('/reports/finanzcheck?monat=2026-09');
+    await retainedForecastHome(page, { month: '2026-09' });
     const current = await currentForecast(page);
     await page.evaluate(async () => {
       await document.fonts.ready;
@@ -744,7 +827,7 @@ test('settled balance reaches the forecast and the composition measures its part
     expect(geometry.low[0]!.bottom).toBeLessThanOrEqual(geometry.low[1]!.top);
     for (const marker of geometry.markers)
       expect(marker.bottom).toBeLessThanOrEqual(geometry.plot.top);
-    await page.goto('/?monat=2026-09');
+    await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09'));
     await expect(page.getByTestId('heute-networth-chart')).toBeVisible({ timeout: 15_000 });
     await page.evaluate(async () => {
       await document.fonts.ready;
@@ -757,7 +840,9 @@ test('settled balance reaches the forecast and the composition measures its part
     });
     const composition = page.getByRole('group', { name: 'Maßkette Nettovermögen' });
     await expect(composition.getByRole('button', { name: /^Liquidität/ })).toBeVisible();
-    await expect(composition.getByRole('button', { name: /^Investiert/ })).toBeVisible();
+    await expect(
+      composition.getByRole('button', { name: redesign ? /^Anlagen/ : /^Investiert/ }),
+    ).toBeVisible();
     await expect(composition.getByRole('button', { name: /^Schulden/ })).toBeVisible();
     await expect(composition.locator('.chain-minus .seg-outline')).toHaveAttribute(
       'stroke-dasharray',
@@ -837,7 +922,7 @@ ledgerTest(
         amountCents: -20_570,
         categoryId: other.id,
       });
-      await page.goto(`/?monat=${month}`);
+      await page.goto(heuteReviewUrl(redesign, `/?monat=${month}`));
       await expect(page.getByTestId('heute-lead-value')).toBeVisible();
       await page.getByRole('button', { name: 'Herleitung zeigen', exact: true }).click();
       await page.getByRole('button', { name: /^Bedarf/ }).click();
@@ -900,7 +985,7 @@ ledgerTest(
         categoryId: null,
         memo: futureMemo,
       });
-      await page.goto(`/?monat=${month}`);
+      await page.goto(heuteReviewUrl(redesign, `/?monat=${month}`));
       const attention = page.getByRole('region', { name: 'Zu tun' });
       await expect(attention).toContainText('ohne Kategorie');
       await attention.getByRole('link', { name: 'Zuordnen' }).click();
@@ -921,7 +1006,7 @@ test('mobile attention remains reachable above the floating capture button in bo
   page,
 }, info) => {
   test.skip(info.project.name !== 'mobile');
-  await page.goto('/');
+  await page.goto(heuteReviewUrl(redesign, '/'));
   const attention = page.locator('.heute-attention');
   await expect(attention).toBeVisible();
   // The FAB is fixed and hides while scrolling down (#468), so measure its slot once at the top.
@@ -982,7 +1067,7 @@ isolatedTest(
       amountCents: -90000,
       splits: [{ categoryId: c.category.id, amountCents: -90000 }],
     });
-    await page.goto('/?monat=2026-10');
+    await page.goto(heuteReviewUrl(redesign, '/?monat=2026-10'));
     for (const theme of ['light', 'dark']) {
       await page.evaluate((t) => (document.documentElement.dataset['theme'] = t), theme);
       await expect(page.getByRole('button', { name: /Prognose Monatsende/ })).toContainText(

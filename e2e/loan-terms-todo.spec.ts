@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import { showDebtCalculation } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect as baseExpect, type APIRequestContext } from '@playwright/test';
@@ -39,7 +40,7 @@ test('only incomplete open loans prompt once; completing their terms removes the
     interestRateBp: 0,
     installmentCents: 3_000,
   });
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   const row = page.getByRole('region', { name: 'Zu tun', exact: true });
   const prompt = row.getByRole('link', { name: 'Konditionen ergänzen' });
   await expect(page.locator('.heute-answers')).toBeVisible();
@@ -74,6 +75,9 @@ test('only incomplete open loans prompt once; completing their terms removes the
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await page.getByRole('link', { name: 'Heute', exact: true }).first().click();
+  await expect(page.locator('.app')).toBeVisible();
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    await page.getByRole('link', { name: 'Mehr zum Monat', exact: true }).click();
   await expect(page.locator('.heute-answers')).toBeVisible();
   await expect(prompt).toHaveCount(0);
 
@@ -108,7 +112,8 @@ test('terms row and Schulden page: no red, no overflow, Axe clean, 44 px targets
   });
   await account(request, origin, { name: 'Karte ohne Konditionen', type: 'credit_card' });
   for (const path of ['/', '/vermoegen/schulden']) {
-    await page.goto(path);
+    if (path === '/') await openHeuteReview(page, path);
+    else await page.goto(path);
     if (path === '/') {
       await expect(page.getByRole('link', { name: 'Konditionen ergänzen' })).toBeVisible();
     } else {

@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -94,7 +95,7 @@ test('Today and Plan explain a real booking-month shift beside October expected 
     receivedCents: 0,
   });
 
-  await page.goto('/?monat=2026-10');
+  await openHeuteReview(page, '/?monat=2026-10');
   const todayCards = page.locator('.heute-answers');
   // #571: the Haushaltseinnahmen explanation sits in the derivation of Zu verteilen.
   await todayCards.getByRole('button', { name: 'Herleitung Zu verteilen' }).click();
@@ -157,7 +158,7 @@ test('Today and Plan explain a real booking-month shift beside October expected 
   await page.getByRole('link', { name: 'Zurück zum Monat' }).click();
   await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-10$/);
 
-  await page.goto('/?monat=2026-10');
+  await openHeuteReview(page, '/?monat=2026-10');
   // The shortcut is registered by the mounted shell: wait for the rendered cards first.
   await todayCards.getByRole('button', { name: 'Herleitung Zu verteilen' }).click();
   await expect(todayCards).toContainText('Haushaltseinnahmen 0,00 €');

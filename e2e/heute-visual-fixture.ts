@@ -8,7 +8,8 @@ import {
   refreshOccurrences,
 } from '@budget/db';
 import { seedDatabase } from '@budget/fixtures/seed';
-import { expect, type Page } from '@playwright/test';
+import { expect, type Browser, type Page } from '@playwright/test';
+import { SAMPLE_URL, STORAGE_STATE_SAMPLE } from '../playwright.config';
 
 /** Only shell visuals use this read model; behavior tests keep the real HTTP API. */
 export async function freezeHeuteVisual(page: Page) {
@@ -53,11 +54,20 @@ export async function freezeHeuteVisual(page: Page) {
 }
 
 export async function expectHeuteVisualReady(page: Page) {
+  const redesign = (await page.locator('[data-budget-redesign="1"]').count()) === 1;
+  if (redesign) {
+    await expect(page.getByTestId('heute-lead-value')).toHaveText('988,26 €');
+    await expect(page.locator('.hv-grid .hv-number')).toHaveText(['1', '2', '3', '4', '5']);
+    await expect(page.getByTestId('liquidity-chart')).toBeVisible();
+    await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    return;
+  }
   // #571: Frei bis Gehalt (the lead figure) is the middle Kennzahl in the mode Bis Gehalt.
   await expect(page.getByTestId('heute-lead-value')).toContainText('988,26');
   await expect(page.getByTestId('heute-kennzahlen').getByRole('heading', { level: 2 })).toHaveText([
     'Zu verteilen',
-    'Frei bis Gehalt',
+    redesign ? 'Verfügbar im Budget' : 'Frei bis Gehalt',
     'Nettovermögen',
   ]);
   const forecast = page.locator('section[aria-labelledby="heute-forecast-title"]');
@@ -79,4 +89,32 @@ export async function expectHeuteVisualReady(page: Page) {
         .map((animation) => animation.finished),
     );
   });
+}
+
+/** Detect the served artifact without changing the behavioral test's page, routes or storage. */
+export async function detectHeuteRedesign(browser: Browser): Promise<boolean> {
+  const page = await browser.newPage({ storageState: STORAGE_STATE_SAMPLE });
+  try {
+    await page.goto(`${SAMPLE_URL}/?monat=2026-09&period=month`);
+    await expect(page.locator('.app')).toBeVisible();
+    return (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  } finally {
+    await page.close();
+  }
+}
+
+/** Complete monthly capabilities moved from the overview into this read-only H2 home. */
+export function heuteReviewUrl(redesign: boolean, url: string): string {
+  if (!redesign) return url;
+  const source = new URL(url, 'https://budget.invalid');
+  return `/heute/details/month${source.search}${source.hash}`;
+}
+
+/** Existing cross-area Heute checks follow the moved complete review through its real entry. */
+export async function openHeuteReview(page: Page, at = '/') {
+  await page.goto(at);
+  await expect(page.locator('.app')).toBeVisible();
+  if (new URL(page.url()).searchParams.has('panel')) return;
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    await page.getByRole('link', { name: 'Mehr zum Monat', exact: true }).click();
 }

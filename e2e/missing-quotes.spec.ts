@@ -1,9 +1,15 @@
+import { openHeuteReview, detectHeuteRedesign } from './heute-visual-fixture';
 import { gotoWealthAnalysis, wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { join } from 'node:path';
 import { test } from './isolated-ledger';
 import { toast } from './ledger-helpers';
+
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 
 test('a position without market quote is valued at cost and flagged; the first quote and undo keep working', async ({
   page,
@@ -84,12 +90,14 @@ test('a position without market quote is valued at cost and flagged; the first q
   await page.keyboard.press('Escape');
   await expect(page.getByText('Wechselkurs fehlt', { exact: false })).toHaveCount(0);
 
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
   // This ledger contains only the synthetic holding; an empty due list stays hidden.
   await expect(page.getByRole('heading', { name: 'Fällig 14 Tage' })).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(
+    redesign ? 1 : 0,
+  );
   await expect(page.getByRole('region', { name: 'Zu tun' })).toContainText(
     'Wertpapier ohne aktuellen Kurs',
   );
@@ -172,9 +180,11 @@ test('a position without market quote is valued at cost and flagged; the first q
   }
   await page.keyboard.press('Escape');
 
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(
+    redesign ? 1 : 0,
+  );
   await expect(page.getByText('1 Wertpapier ohne aktuellen Kurs', { exact: true })).toHaveCount(0);
   await expect(page.locator('.heute-net-worth')).not.toContainText('Bewertung nicht verfügbar');
   await page.evaluate(() => document.fonts.ready);

@@ -1,4 +1,6 @@
 import { maskMoneyText, useAmountPrivacy } from '@budget/ui';
+import { useLocation } from '@tanstack/react-router';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import type { Ref } from 'react';
 import { eur, longDay } from '../ledger/format';
 import { LoadingNote } from '../ledger/states';
@@ -14,6 +16,7 @@ const amount = (basis: Basis) =>
 
 export function InvestmentBasisSummary({ basis, search }: { basis: Basis; search: Context }) {
   useAmountPrivacy();
+  const source = useLocation({ select: (location) => location.href });
   return (
     <section aria-label="Investiert · Anlagebasis" className="heute-note">
       <p>
@@ -21,7 +24,7 @@ export function InvestmentBasisSummary({ basis, search }: { basis: Basis; search
         {' · '}
         <AppLink
           to="/heute/details/invested"
-          search={search}
+          search={REDESIGN_ENABLED ? { ...search, von: source } : search}
           hash="anlagebasis"
           aria-label="Anlagebasis ansehen · Quelle der Anlagebasis"
         >
@@ -49,6 +52,7 @@ export function InvestmentBasisDetails({
   pending: boolean;
 }) {
   useAmountPrivacy();
+  const source = useLocation({ select: (location) => location.href });
   return (
     <section
       id="anlagebasis"
@@ -85,7 +89,10 @@ export function InvestmentBasisDetails({
                 <ul>
                   {basis.accounts.map((account) => (
                     <li key={account.id}>
-                      <AppLink to={`/konten/${encodeURIComponent(account.id)}`} search={search}>
+                      <AppLink
+                        to={`/konten/${encodeURIComponent(account.id)}`}
+                        search={REDESIGN_ENABLED ? { ...search, von: source } : search}
+                      >
                         {account.name}
                       </AppLink>
                       {' · '}
@@ -106,11 +113,17 @@ export function InvestmentBasisDetails({
             </>
           )}
           <p>
-            <AppLink to="/vermoegen/freiheit" search={search}>
+            <AppLink
+              to="/vermoegen/freiheit"
+              search={REDESIGN_ENABLED ? { ...search, von: source } : search}
+            >
               Freiheit vergleichen
             </AppLink>
             {' · '}
-            <AppLink to="/vermoegen/portfolio/allokation" search={search}>
+            <AppLink
+              to="/vermoegen/portfolio/allokation"
+              search={REDESIGN_ENABLED ? { ...search, von: source } : search}
+            >
               Allokation vergleichen
             </AppLink>
           </p>

@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import Database from 'better-sqlite3';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
@@ -233,7 +234,7 @@ for (const [rhythm, date] of [
       page.getByText('Kleine Kartenzahlung Muster', { exact: true }).first(),
     ).toBeVisible();
     await page.screenshot({ path: info.outputPath(`plan-${rhythm}.png`) });
-    await page.goto('/');
+    await openHeuteReview(page, '/');
     const upcoming = page.getByRole('region', { name: 'Fällig 14 Tage' });
     const occurrences = upcoming
       .locator('.heute-upcoming')

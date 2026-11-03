@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { PanelLeft, Plus } from 'lucide-react';
 import { GlobalSearch } from './global-search';
 import { PanelLink } from './panel-link';
@@ -19,8 +20,10 @@ export function Topbar({
   collapsed,
   onToggle,
   onSearchChange,
+  leading,
   title,
 }: {
+  leading?: ReactNode;
   collapsed: boolean;
   onToggle: () => void;
   onSearchChange?: (open: boolean) => void;
@@ -32,6 +35,7 @@ export function Topbar({
   return (
     <header className={title ? 'topbar plan-shell-topbar' : 'topbar'}>
       <div className="topbar-inner">
+        {leading}
         {settings && <h1 className="settings-shell-title">Einstellungen</h1>}
         <button
           type="button"
