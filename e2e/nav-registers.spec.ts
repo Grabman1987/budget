@@ -25,7 +25,14 @@ test('Plan and Konten registers fit without swiping and Plan stays active', asyn
   test.slow();
   await page.goto('/plan/monat');
   await page.evaluate(() => document.fonts.ready);
-  for (const label of ['Monat', 'Jahr', 'Zahlungen', 'Ziele', 'Prognose']) {
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  for (const [label, destination] of [
+    ['Monat', '/plan/monat'],
+    ['Jahr', '/plan/jahr'],
+    ['Zahlungen', '/plan/erwartet'],
+    ['Ziele', '/plan/sparziele'],
+    ['Prognose', '/plan/prognose'],
+  ] as const) {
     const row = await areaNavigation(page, 'Plan');
     await expect(row.getByRole('link')).toHaveText([
       'Monat',
@@ -47,7 +54,10 @@ test('Plan and Konten registers fit without swiping and Plan stays active', asyn
     expect(await row.evaluate((el) => el.scrollLeft)).toBe(0);
     expect(await row.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     await row.getByRole('link', { name: label, exact: true }).click();
-    await expect(page).toHaveURL(/\/plan\//);
+    // The ON menu closes when the new selection commits; wait before reopening it.
+    await expect(page).toHaveURL((url) => url.pathname === destination);
+    if (redesign)
+      await expect(page.getByLabel(`Planansicht wählen: ${label}`, { exact: true })).toBeVisible();
     await expect(
       page
         .locator('.sidebar, .tabbar')
@@ -58,7 +68,6 @@ test('Plan and Konten registers fit without swiping and Plan stays active', asyn
       label,
     ]);
   }
-  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
     redesign ? 'Prognose' : 'Liquiditätsprognose',
   );
