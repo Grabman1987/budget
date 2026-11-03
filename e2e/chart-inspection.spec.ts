@@ -1,3 +1,4 @@
+import { portfolioReportPath, selectWealthReportView } from './wealth-report-controls';
 import { gotoWealthAnalysis, wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect } from './sample';
@@ -60,22 +61,18 @@ test('report navigation, daily values, keyboard and touch inspection', async ({ 
   await expect(tooltip).toHaveCount(0);
   // Merged readers use their real view switch; the report arrows follow the canonical catalog.
   if (info.project.name === 'mobile') return;
-  await page.getByRole('button', { name: 'Rendite & Risiko', exact: true }).click();
+  const reportPath = await portfolioReportPath(page);
+  await selectWealthReportView(page, 'Rendite & Risiko');
   await expect(page).toHaveURL(
     (url) =>
-      url.pathname === '/reports/pallocation' &&
+      url.pathname === reportPath &&
       url.searchParams.get('darstellung') === 'rendite' &&
       url.searchParams.get('zeitraum') === 'YTD',
   );
-  await page
-    .getByRole('button', {
-      name: 'Einzahlungen und Wert',
-      exact: true,
-    })
-    .click();
+  await selectWealthReportView(page, 'Einzahlungen und Wert');
   await expect(page).toHaveURL(
     (url) =>
-      url.pathname === '/reports/pallocation' &&
+      url.pathname === reportPath &&
       url.searchParams.get('darstellung') === 'einzahlungen' &&
       url.searchParams.get('zeitraum') === 'YTD',
   );

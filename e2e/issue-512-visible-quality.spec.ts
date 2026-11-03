@@ -1,3 +1,4 @@
+import { portfolioReportPath } from './wealth-report-controls';
 import { showPortfolioAnalysis, gotoWealthAnalysis, wealthRedesign } from './wealth-navigation';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
@@ -330,9 +331,10 @@ for (const label of ['configured-profile', 'desktop-layout'] as const) {
         );
         await actual.goBack();
         if (await wealthRedesign(actual)) await actual.goBack();
+        const reportPath = await portfolioReportPath(actual);
         await expect(actual).toHaveURL(
           (url) =>
-            url.pathname === '/reports/pallocation' &&
+            url.pathname === reportPath &&
             url.searchParams.get('darstellung') === 'rendite' &&
             url.searchParams.get('zeitraum') === '1M',
         );

@@ -1,3 +1,4 @@
+import { portfolioReportPath, expectWealthReportView } from './wealth-report-controls';
 import { inboxFilters } from './ledger-helpers';
 // A2 positive browser bodies, using the real sample ledger and isolated import-detail fixture.
 // Expected patterns: approved 00-bestand rows 1..54; bodies: s3-a2-body-bindings-20261031.md.
@@ -476,17 +477,25 @@ for (const [slug, path, intent, view, body] of reportAliases)
       `/reports/${slug}?monat=2026-08&period=month&zeitraum=2026-01..2026-08#details`,
     );
     const check = async () => {
-      await loaded(page, path, body);
+      await loaded(
+        page,
+        path === '/reports/pallocation' ? await portfolioReportPath(page) : path,
+        body,
+      );
       const url = new URL(page.url());
       expect(url.searchParams.get('monat')).toBe('2026-08');
       expect(url.searchParams.get('zeitraum')).toBe('2026-01..2026-08');
       expect(url.hash).toBe('#details');
       for (const [key, value] of new URLSearchParams(intent))
         expect(url.searchParams.get(key)).toBe(value);
-      if (view)
-        await expect(
-          page.getByRole('button', { name: view, exact: true, pressed: true }),
-        ).toBeVisible();
+      if (view) {
+        if (['/reports/pallocation', '/reports/vermoegen-schulden'].includes(path))
+          await expectWealthReportView(page, view);
+        else
+          await expect(
+            page.getByRole('button', { name: view, exact: true, pressed: true }),
+          ).toBeVisible();
+      }
     };
     await check();
     await page.reload();

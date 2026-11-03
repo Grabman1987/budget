@@ -108,7 +108,13 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
         `${concrete(from)}?monat=2026-08&period=month&zeitraum=2026-01..2026-08#details`,
       );
       expect(router.state.location.pathname).toBe(
-        offFinanzcheck ? '/' : enabled && from === '/vermoegen' ? '/vermoegen' : concrete(target),
+        offFinanzcheck
+          ? '/'
+          : enabled && from === '/vermoegen'
+            ? '/vermoegen'
+            : enabled && target === '/reports/pallocation'
+              ? '/reports/vermoegen-schulden'
+              : concrete(target),
       );
       expect(router.state.location.hash).toBe('details');
       expect(router.state.matches.at(-1)?.search).toMatchObject({

@@ -213,7 +213,8 @@ export function ReportRoute() {
           reportId,
         ) ||
           (reportId === 'einnahmen-ausgaben' && search.darstellung === 'cashflow') ||
-          (reportId === 'vermoegen-schulden' && search.darstellung === 'verlauf') ||
+          (reportId === 'vermoegen-schulden' &&
+            ['verlauf', 'einzahlungen'].includes(search.darstellung ?? '')) ||
           (reportId === 'pallocation' && search.darstellung === 'einzahlungen'))
       }
     >
