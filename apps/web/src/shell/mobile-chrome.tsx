@@ -20,6 +20,13 @@ import { REDESIGN_ENABLED } from './redesign-flag';
  */
 export function phoneTitle(page: PageMeta | undefined, fallback: string): string {
   if (!page) return fallback;
+  if (REDESIGN_ENABLED && page.area === 'einstellungen' && page.register)
+    return page.register === 'datenquellen'
+      ? 'Verbindungen'
+      : page.register === 'warenkorb'
+        ? 'Warenkorb'
+        : (areaById('einstellungen').registers.find((item) => item.id === page.register)?.label ??
+          page.title);
   if (page.area === 'reports') {
     return page.title === 'Reports' || page.title.startsWith('Reports · ') ? 'Reports' : page.title;
   }
@@ -37,7 +44,13 @@ export function MobileHeader({
   onSearchChange?: (open: boolean) => void;
 }) {
   const identity = useShellIdentity();
-  const pathname = useLocation({ select: (location) => location.pathname });
+  const { pathname, search } = useLocation();
+  const displayedTitle =
+    REDESIGN_ENABLED &&
+    pathname === '/einstellungen/anlageklassen' &&
+    search['ansicht'] === 'stufen'
+      ? 'Zielallokation und Stufen'
+      : title;
   const showProfile = !REDESIGN_ENABLED || pathname === '/';
   const profileMenu = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
@@ -64,9 +77,9 @@ export function MobileHeader({
       <header className="m-head">
         <div className="m-title">
           {asHeading ? (
-            <h1 className="m-title-text">{title}</h1>
+            <h1 className="m-title-text">{displayedTitle}</h1>
           ) : (
-            <p className="m-title-text">{title}</p>
+            <p className="m-title-text">{displayedTitle}</p>
           )}
         </div>
         <GlobalSearch mobile onOpenChange={onSearchChange} />
@@ -83,7 +96,7 @@ export function MobileHeader({
               <ThemeButton variant="side" />
               <AppLink
                 className="btn btn-ghost"
-                to={REDESIGN_ENABLED ? '/einstellungen/profil' : '/einstellungen'}
+                to="/einstellungen"
                 onClick={(event) => event.currentTarget.closest('details')?.removeAttribute('open')}
               >
                 Profil und Einstellungen

@@ -1,3 +1,4 @@
+import { wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
 
@@ -12,7 +13,10 @@ test('instrument pages restore portfolio scroll and use modal forms', async ({ p
   await trigger.click();
   await expect(page).toHaveURL(new RegExp(`/vermoegen/portfolio/instrument/${id}\\?zeitraum=1J$`));
   const url = page.url();
-  await expect(page.getByRole('navigation', { name: 'Brotkrumen' })).toContainText('Portfolio');
+  if (await wealthRedesign(page))
+    await expect(page.getByRole('link', { name: 'Zurück zum Portfolio' })).toBeVisible();
+  else
+    await expect(page.getByRole('navigation', { name: 'Brotkrumen' })).toContainText('Portfolio');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button', { name: 'Stammdaten bearbeiten', exact: true }).click();
   const form = page.getByRole('dialog', { name: 'Stammdaten bearbeiten', exact: true });
@@ -77,8 +81,12 @@ test('savings-plan history restores browser navigation and portfolio scroll', as
 
 test('net worth composition follows the full-width lead', async ({ page }, info) => {
   await page.goto('/vermoegen/nettovermoegen');
-  const lead = await page.locator('.vview .vnw').boundingBox();
-  const composition = await page.locator('.vview .vcomp').boundingBox();
+  const on = await wealthRedesign(page);
+  await expect(page.getByTestId(on ? 'wealth-net-value' : 'nw-figure')).toBeVisible();
+  const lead = await page.locator(on ? '.wealth-lead' : '.vview .vnw').boundingBox();
+  const composition = await page
+    .locator(on ? '.wealth-composition' : '.vview .vcomp')
+    .boundingBox();
   expect(lead && composition && composition.y >= lead.y + lead.height).toBe(true);
   expect(composition!.width).toBeCloseTo(lead!.width, 0);
   await page.screenshot({ path: info.outputPath('networth-sections.png'), fullPage: true });

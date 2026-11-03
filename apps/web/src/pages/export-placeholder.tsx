@@ -5,6 +5,9 @@ import { authErrorMessage, withStepUp } from '../auth/webauthn';
 import { CSV_EXPORT_META } from '../nav/pages';
 import { PageFrame } from './placeholder-page';
 
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { Download, ShieldCheck } from 'lucide-react';
+
 async function downloadCsvZip(): Promise<void> {
   const response = await fetch('/api/export/csv.zip', { credentials: 'same-origin' });
   if (!response.ok) {
@@ -50,6 +53,52 @@ export function ExportPlaceholderPage() {
     }
   };
 
+  if (REDESIGN_ENABLED)
+    return (
+      <PageFrame meta={CSV_EXPORT_META}>
+        <section className="settings-data-v2" aria-labelledby="export-title">
+          <div className="settings-primary-head">
+            <h2 id="export-title">CSV-Export</h2>
+          </div>
+          <div className="settings-surface">
+            <div className="settings-row">
+              <div className="settings-security-copy">
+                <Download size={20} aria-hidden="true" />
+                <div>
+                  <strong>Datenexport als CSV</strong>
+                  <small>Konten, Depots, Buchungen und Quellenverläufe · ZIP-Datei</small>
+                </div>
+              </div>
+              <Button disabled={busy} onClick={() => void download()}>
+                {busy ? 'Export wird erstellt …' : 'ZIP-Export herunterladen'}
+              </Button>
+            </div>
+          </div>
+          <p className="settings-source-stamp">
+            Kontostände und Positionen zum heutigen Stand. Eine frische Passkey-Bestätigung schützt
+            den Download.
+          </p>
+          {error && <p role="alert">{maskMoneyText(error)}</p>}
+          <h3 className="settings-section-title">Verschlüsselte Sicherung</h3>
+          <div className="settings-surface">
+            <div className="settings-row">
+              <div className="settings-security-copy">
+                <ShieldCheck size={20} aria-hidden="true" />
+                <div>
+                  <strong>Vollständige Sicherung</strong>
+                  <small>Der verschlüsselte Backup-Download ist derzeit nicht verfügbar.</small>
+                </div>
+              </div>
+              <span className="settings-source-stamp">Nicht verfügbar</span>
+            </div>
+          </div>
+          <p className="settings-source-stamp">
+            Der CSV-Export ist ein Datenauszug. Er ersetzt keine vollständige verschlüsselte
+            Sicherung zur Wiederherstellung.
+          </p>
+        </section>
+      </PageFrame>
+    );
   return (
     <PageFrame meta={CSV_EXPORT_META}>
       <section className="placeholder" aria-labelledby="export-title">

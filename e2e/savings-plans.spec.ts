@@ -1,3 +1,10 @@
+import {
+  showSavingsSchedules,
+  wealthRedesign,
+  showAllocationEvidence,
+  startInvestmentCapture,
+} from './wealth-navigation';
+import { selectPortfolioView } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
 import { join } from 'node:path';
@@ -78,6 +85,7 @@ test('native savings CRUD, future/current history, end, reload and audited undo'
   test.setTimeout(60000);
   const data = await fixture(request, info);
   await page.goto('/vermoegen/portfolio/sparplaene');
+  await showSavingsSchedules(page);
   const panel = await draft(page, data);
   await panel.getByLabel('Monatliche Rate (CHF)', { exact: true }).fill('0');
   await panel.getByRole('button', { name: 'Sparplan anlegen', exact: true }).click();
@@ -109,8 +117,7 @@ test('native savings CRUD, future/current history, end, reload and audited undo'
   expect(retained.filter((security) => security.id === data.security.id)).toHaveLength(1);
   await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
   await expect.poll(async () => (await list()).length).toBe(1);
-  const registers = page.getByRole('navigation', { name: 'Portfolio-Register', exact: true });
-  await registers.getByRole('link', { name: 'Positionen', exact: true }).click();
+  await selectPortfolioView(page, 'Positionen');
   // The retained instrument's catalog is on Positions and starts closed.
   await page.locator('.instrument-catalog > summary').click();
   await expect(
@@ -118,9 +125,11 @@ test('native savings CRUD, future/current history, end, reload and audited undo'
       .locator('.instrument-catalog')
       .getByRole('button', { name: data.security.name, exact: true }),
   ).toHaveCount(1);
-  await registers.getByRole('link', { name: 'Sparpläne', exact: true }).click();
+  await selectPortfolioView(page, 'Sparpläne');
+  await showSavingsSchedules(page);
   const section = page.getByRole('region', { name: 'Sparpläne', exact: true });
   const row = section
+    .locator('.savings-table')
     .getByRole('row')
     .filter({ has: page.getByRole('button', { name: data.security.name, exact: true }) });
   await row.getByRole('button', { name: data.security.name, exact: true }).click();
@@ -134,6 +143,7 @@ test('native savings CRUD, future/current history, end, reload and audited undo'
   await edit.getByRole('button', { name: 'Änderung speichern', exact: true }).click();
   await expect(edit).toHaveCount(0);
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
+  await showSavingsSchedules(page);
   await expect(row.locator('td').nth(1)).toContainText('100,00');
   await expect(row.locator('td').nth(2)).toContainText('200,00');
   await expect(section).toContainText('CHF');
@@ -144,6 +154,7 @@ test('native savings CRUD, future/current history, end, reload and audited undo'
   await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
   await expect(row.locator('td').nth(2)).toContainText('200,00');
   await page.reload();
+  await showSavingsSchedules(page);
   await row.getByRole('button', { name: data.security.name, exact: true }).click();
   await page.locator('.savings-versions > summary').click();
   await expect(
@@ -161,6 +172,7 @@ test('native savings CRUD, future/current history, end, reload and audited undo'
   await expect(edit).toHaveCount(0);
   expect((await list())[1].validTo).toBe(future);
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
+  await showSavingsSchedules(page);
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect.poll(async () => (await list())[1].validTo).toBeNull();
   await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
@@ -178,6 +190,7 @@ test('dirty close and actual Back while write is held preserve draft after failu
 }, info) => {
   const data = await fixture(request, info);
   await page.goto('/vermoegen/portfolio/sparplaene');
+  await showSavingsSchedules(page);
   const panel = await draft(page, data);
   await page.keyboard.press('Escape');
   await expect(panel).toContainText('Ungespeicherte Angaben verwerfen?');
@@ -233,6 +246,7 @@ test('foreign plan URL and list failure are honest without blocking retry', asyn
   await expect(page.getByRole('alert')).toContainText('Dieser Sparplan ist nicht verfügbar');
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
+  await showSavingsSchedules(page);
   await expect(page.getByRole('button', { name: 'Sparplan anlegen', exact: true })).toBeVisible();
 });
 
@@ -242,6 +256,7 @@ test('successful held write discards pending Back and creates exactly one schedu
 }, info) => {
   const data = await fixture(request, info);
   await page.goto('/vermoegen/portfolio/sparplaene');
+  await showSavingsSchedules(page);
   const panel = await draft(page, data);
   let release!: () => void;
   let sent = 0;
@@ -301,12 +316,18 @@ test('overlapping schedules preserve both rates and missing account makes totals
   });
   await post('/savings-plans', { ...input, amountCents: 20000 });
   await page.goto('/vermoegen/portfolio/sparplaene');
+  await showSavingsSchedules(page);
   const section = page.getByRole('region', { name: 'Sparpläne', exact: true });
   const row = section
+    .locator('.savings-table')
     .getByRole('row')
     .filter({ has: page.getByRole('button', { name: data.security.name, exact: true }) });
   await expect(section).toContainText('Mehrere Versionen gelten gleichzeitig');
-  await expect(section.locator('.aside')).toContainText('CHF: Summe nicht verfügbar');
+  await expect(
+    section.locator(
+      (await wealthRedesign(page)) ? '.wealth-savings-lead .wealth-figure' : '.aside',
+    ),
+  ).toContainText('CHF: Summe nicht verfügbar');
   await expect(row.locator('td').nth(1)).toContainText('Nicht eindeutig');
   await expect(row.locator('td').nth(1)).toContainText('100,00');
   await expect(row.locator('td').nth(1)).toContainText('200,00');
@@ -316,6 +337,7 @@ test('overlapping schedules preserve both rates and missing account makes totals
   await expect(panel.getByRole('region', { name: 'Versionsverlauf' })).toContainText('100,00');
   await expect(panel.getByRole('region', { name: 'Versionsverlauf' })).toContainText('200,00');
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
+  await showSavingsSchedules(page);
   await expect(page).toHaveURL(/\/vermoegen\/portfolio\/sparplaene$/);
   // A deliberately incomplete lookup response verifies honest projection without deleting data.
   await page.route('**/api/accounts', async (route) => {
@@ -325,11 +347,16 @@ test('overlapping schedules preserve both rates and missing account makes totals
     await route.fulfill({ response, json: body });
   });
   await page.reload();
+  await showSavingsSchedules(page);
   await expect(section).toContainText(
     'Währung und vollständige Monatssummen können nicht bestimmt werden',
   );
   await expect(row).toContainText('Nicht verfügbares Konto');
-  await expect(section.locator('.aside')).toContainText('Währung unbekannt: Summe nicht verfügbar');
+  await expect(
+    section.locator(
+      (await wealthRedesign(page)) ? '.wealth-savings-lead .wealth-figure' : '.aside',
+    ),
+  ).toContainText('Währung unbekannt: Summe nicht verfügbar');
 });
 
 test('integrated portfolio pages keep input dialogs exclusive and restore form opener focus', async ({
@@ -350,6 +377,7 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
   expect(response.ok()).toBe(true);
   const plan = (await response.json()).plan;
   await page.goto('/vermoegen/portfolio/allokation');
+  await showAllocationEvidence(page);
   await page.getByRole('button', { name: 'Sollquoten bearbeiten', exact: true }).click();
   await expect(
     page.getByRole('dialog', { name: 'Sollquoten bearbeiten', exact: true }),
@@ -357,11 +385,8 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
   await expect(page.locator('dialog[open]')).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(page.locator('dialog[open]')).toHaveCount(0);
-  await page
-    .getByRole('navigation', { name: 'Portfolio-Register', exact: true })
-    .getByRole('link', { name: 'Positionen', exact: true })
-    .click();
-  await page.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
+  await selectPortfolioView(page, 'Positionen');
+  await startInvestmentCapture(page, 'Handel erfassen');
   await expect(page.getByRole('dialog', { name: 'Handel erfassen', exact: true })).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(1);
   await page.keyboard.press('Escape');
@@ -382,14 +407,11 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
   await expect(instrument).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
+  await showSavingsSchedules(page);
   await expect(page.locator('dialog[open]')).toHaveCount(0);
-  await page
-    .getByRole('navigation', { name: 'Portfolio-Register', exact: true })
-    .getByRole('link', { name: 'Sparpläne', exact: true })
-    .click();
-  const opener = page
-    .getByRole('region', { name: 'Sparpläne', exact: true })
-    .getByRole('button', { name: data.security.name, exact: true });
+  await selectPortfolioView(page, 'Sparpläne');
+  await showSavingsSchedules(page);
+  const opener = page.locator(`[data-savings-plan="${plan.id}"]`);
   await opener.focus();
   await opener.press('Enter');
   await page.locator('.savings-versions > summary').click();
@@ -404,6 +426,7 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
   await expect(editTrigger).toBeFocused();
   expect(await editTrigger.evaluate((el) => el.isConnected)).toBe(true);
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
+  await showSavingsSchedules(page);
   const create = page.getByRole('button', { name: 'Sparplan anlegen', exact: true });
   await create.focus();
   await create.press('Enter');
@@ -422,6 +445,7 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
   await expect(page.getByRole('region', { name: 'Versionsverlauf' })).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
+  await showSavingsSchedules(page);
   await expect(page).toHaveURL(/\/vermoegen\/portfolio\/sparplaene$/);
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await expect(opener).toBeVisible();
@@ -444,6 +468,7 @@ test('schedule details have a URL, version history and separate guarded input di
   expect(response.ok()).toBe(true);
   const plan = (await response.json()).plan;
   await page.goto('/vermoegen/portfolio/sparplaene?zeitraum=3J');
+  await showSavingsSchedules(page);
   await page.locator(`[data-savings-plan="${plan.id}"]`).click();
   await expect(page).toHaveURL(new RegExp(`/sparplan/${plan.id}\\?zeitraum=3J$`));
   const url = page.url();
@@ -467,6 +492,7 @@ test('schedule details have a URL, version history and separate guarded input di
     page.getByRole('button', { name: 'Sparplan bearbeiten', exact: true }),
   ).toBeFocused();
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
+  await showSavingsSchedules(page);
   await expect(page).toHaveURL(/\/vermoegen\/portfolio\/sparplaene\?zeitraum=3J$/);
   await page.goto(url);
   await page.getByRole('button', { name: 'Sparplan beenden', exact: true }).click();
@@ -476,5 +502,6 @@ test('schedule details have a URL, version history and separate guarded input di
   await page.keyboard.press('Escape');
   await form.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
+  await showSavingsSchedules(page);
   await expect(page).toHaveURL(/\/vermoegen\/portfolio\/sparplaene\?zeitraum=3J$/);
 });

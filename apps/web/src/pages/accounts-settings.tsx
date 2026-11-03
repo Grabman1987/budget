@@ -11,16 +11,22 @@ import {
   useAmountPrivacy,
 } from '@budget/ui';
 import { cents, formatDecimal, parseAmount } from '@budget/domain';
-import { useQuery } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ApiError } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { AccountFormPanel, hasRate, percentToBp } from '../ledger/account-form';
 import { groupAccounts } from '../ledger/account-groups';
 import { useOrderedAccounts, useReorder } from '../ledger/account-order';
-import { closeAccount, patchAccount, reopenAccount, type AccountInput } from '../ledger/api';
+import {
+  closeAccount,
+  fetchAccounts,
+  patchAccount,
+  reopenAccount,
+  type AccountInput,
+} from '../ledger/api';
 import { ACCOUNT_TYPE_LABEL, errorText, groupOf, type AccountGroup } from '../ledger/labels';
-import { nativeCurrency } from '../ledger/format';
+import { longDay, nativeCurrency } from '../ledger/format';
 import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { ACCOUNT_TYPES, type AccountRow, type AccountType } from '../ledger/types';
@@ -30,6 +36,11 @@ import { SettingsFormDialog } from './settings-form-dialog';
 import { assetClassesQuery } from '../wealth/portfolio-api';
 import '../ledger/account-order.css';
 import './accounts-settings.css';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsDraftGuard } from './settings-draft-guard';
+import { Plus } from 'lucide-react';
+import { SettingsRowMenu } from './settings-row-menu';
+import { eur } from '../ledger/format';
 
 /** Types that are never Budget-Konten (server rule): the switch is off and locked. */
 const TRACKING_ONLY: ReadonlySet<AccountType> = new Set([
@@ -73,11 +84,73 @@ export function AccountsSettings() {
   const ordered = useOrderedAccounts(query.data?.accounts);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [archiving, setArchiving] = useState<AccountRow | null>(null);
   const accounts = ordered.accounts ?? [];
   const open = accounts.filter((a) => !a.closedAt);
   const closed = accounts.filter((a) => a.closedAt);
   const editing = accounts.find((a) => a.id === editingId) ?? null;
   const groups = groupAccounts(open);
+  if (REDESIGN_ENABLED)
+    return (
+      <section
+        className="accounts-settings settings-accounts-v2"
+        aria-labelledby="accounts-settings-title"
+      >
+        <div className="settings-primary-head">
+          <h2 id="accounts-settings-title">Konten</h2>
+          <Button onClick={() => setCreating(true)}>
+            <Plus size={16} aria-hidden="true" />
+            Konto anlegen
+          </Button>
+        </div>
+        {query.isPending && <LoadingNote what="Konten" />}
+        {query.isError && (
+          <ErrorNote what="Konten" error={query.error} onRetry={() => void query.refetch()} />
+        )}
+        {query.data && accounts.length === 0 && <p role="status">Noch keine Konten angelegt.</p>}
+        {groups.length > 0 && (
+          <div className="settings-surface settings-accounts-table">
+            {groups.map(({ group, accounts: members }) => (
+              <RedesignAccountGroup
+                key={group.id}
+                group={group}
+                accounts={members}
+                onEdit={setEditingId}
+                onArchive={setArchiving}
+                onReorder={(ids) => ordered.save(group.id, ids)}
+              />
+            ))}
+          </div>
+        )}
+        {query.data && (
+          <p className="settings-source-stamp">
+            Kontostände zum {longDay(query.data.asOf)} · Gesamtwert in Euro
+          </p>
+        )}
+        {closed.length > 0 && (
+          <details className="settings-advanced">
+            <summary>Geschlossene Konten · {closed.length}</summary>
+            <ClosedAccounts accounts={closed} onEdit={setEditingId} />
+          </details>
+        )}
+        <details className="settings-advanced">
+          <summary>Konditionen, Kontotypen und Verbindungen</summary>
+          <p>
+            Hier pflegst du Name, Typ, Reihenfolge und Konditionen deiner Konten. Das Gehaltskonto
+            wird bei den <a href="/einstellungen/datenquellen">Verbindungen</a> festgelegt.
+            Kreditkonditionen bleiben die Grundlage für den Schuldenrechner und den Kostenreport.
+            Jede Änderung ist protokolliert und lässt sich rückgängig machen.
+          </p>
+        </details>
+        <AccountEditPanel
+          account={editing}
+          accounts={accounts}
+          onClose={() => setEditingId(null)}
+        />
+        <AccountArchiveDialog account={archiving} onClose={() => setArchiving(null)} />
+        <AccountFormPanel open={creating} onClose={() => setCreating(false)} />
+      </section>
+    );
   return (
     <section className="accounts-settings" aria-labelledby="accounts-settings-title">
       <SectionHead
@@ -100,6 +173,9 @@ export function AccountsSettings() {
       {query.isError && (
         <ErrorNote what="Konten" error={query.error} onRetry={() => void query.refetch()} />
       )}
+      {REDESIGN_ENABLED && query.data && (
+        <p className="settings-read-stamp">Kontostände zum {longDay(query.data.asOf)}</p>
+      )}
       {query.data && accounts.length === 0 && (
         <p className="vnote" role="status">
           Noch keine Konten angelegt.
@@ -118,6 +194,141 @@ export function AccountsSettings() {
       <AccountEditPanel account={editing} accounts={accounts} onClose={() => setEditingId(null)} />
       <AccountFormPanel open={creating} onClose={() => setCreating(false)} />
     </section>
+  );
+}
+
+function RedesignAccountGroup({
+  group,
+  accounts,
+  onEdit,
+  onArchive,
+  onReorder,
+}: {
+  group: AccountGroup;
+  accounts: AccountRow[];
+  onEdit: (id: string) => void;
+  onArchive: (account: AccountRow) => void;
+  onReorder: (ids: string[]) => void;
+}) {
+  const names = new Map(accounts.map((account) => [account.id, account.name]));
+  const reorder = useReorder(
+    accounts.map((account) => account.id),
+    onReorder,
+    (id) => names.get(id) ?? '',
+  );
+  return (
+    <section className="settings-account-group" aria-labelledby={`accounts-group-${group.id}`}>
+      <h3 id={`accounts-group-${group.id}`}>{group.title}</h3>
+      {reorder.status}
+      <ul className="accounts-list">
+        {accounts.map((account) => {
+          const row = reorder.rowProps(account.id);
+          return (
+            <li {...row} key={account.id} className={cx(row.className, 'settings-account-row')}>
+              {reorder.controls(account.id, 'grip')}
+              <div className="settings-account-cell">
+                <button
+                  type="button"
+                  className="settings-account-name"
+                  aria-label={`${account.name} bearbeiten`}
+                  onClick={() => onEdit(account.id)}
+                >
+                  <strong>{account.name}</strong>
+                </button>
+                {account.type === 'loan' && termsSummary(account) && (
+                  <small>{termsSummary(account)}</small>
+                )}
+              </div>
+              <span className="settings-account-type">{ACCOUNT_TYPE_LABEL[account.type]}</span>
+              <span className="settings-account-value">
+                {account.valueEurCents === null ? 'Nicht verfügbar' : eur(account.valueEurCents)}
+              </span>
+              <SettingsRowMenu name={account.name}>
+                <Button variant="ghost" onClick={() => onEdit(account.id)}>
+                  Konto bearbeiten
+                </Button>
+                <Button variant="ghost" onClick={() => onArchive(account)}>
+                  Konto archivieren
+                </Button>
+                <span className="settings-reorder-actions">
+                  Reihenfolge {reorder.controls(account.id, 'steps')}
+                </span>
+              </SettingsRowMenu>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function AccountArchiveDialog({
+  account,
+  onClose,
+}: {
+  account: AccountRow | null;
+  onClose: () => void;
+}) {
+  const write = useBudgetWrite();
+  const [busy, setBusy] = useState(false),
+    [force, setForce] = useState(false),
+    [error, setError] = useState('');
+  const close = async () => {
+    if (!account) return;
+    setBusy(true);
+    setError('');
+    try {
+      const result = await closeAccount(account.id, force);
+      await write(
+        () => Promise.resolve(result),
+        () => `Konto „${account.name}“ geschlossen.`,
+      );
+      setForce(false);
+      onClose();
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.code === 'account_not_empty') {
+        setForce(true);
+        setError(
+          'Das Konto enthält noch einen Saldo oder offene Buchungen. Trotzdem archivieren? Der Verlauf bleibt erhalten.',
+        );
+      } else setError(errorText(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <SettingsFormDialog
+      open={account !== null}
+      onClose={() => {
+        setForce(false);
+        setError('');
+        onClose();
+      }}
+      title="Konto archivieren"
+      beforeClose={() => !busy}
+    >
+      <p>
+        {account?.name} archivieren? Buchungen, Salden und Verlauf bleiben erhalten. Du kannst das
+        Konto wieder öffnen.
+      </p>
+      {error && <p role="alert">{error}</p>}
+      <div className="panel-actions">
+        <Button
+          variant="ghost"
+          disabled={busy}
+          onClick={() => {
+            setForce(false);
+            setError('');
+            onClose();
+          }}
+        >
+          Abbrechen
+        </Button>
+        <Button disabled={busy} onClick={() => void close()}>
+          {force ? 'Trotzdem archivieren' : 'Archivieren'}
+        </Button>
+      </div>
+    </SettingsFormDialog>
   );
 }
 
@@ -246,10 +457,39 @@ function AccountEditPanel({
   onClose: () => void;
 }) {
   useAmountPrivacy();
+  const [formState, setFormState] = useState({ dirty: false, busy: false });
+  const onStatus = useCallback(
+    (dirty: boolean, busy: boolean) =>
+      setFormState((previous) =>
+        previous.dirty === dirty && previous.busy === busy ? previous : { dirty, busy },
+      ),
+    [],
+  );
+  const mayClose = () =>
+    !REDESIGN_ENABLED ||
+    (!formState.busy &&
+      (!formState.dirty || window.confirm('Ungespeicherte Änderungen verwerfen?')));
   return (
-    <SettingsFormDialog open={account !== null} onClose={onClose} title="Konto bearbeiten">
+    <SettingsFormDialog
+      open={account !== null}
+      onClose={onClose}
+      title="Konto bearbeiten"
+      beforeClose={mayClose}
+    >
+      {REDESIGN_ENABLED && account && (
+        <SettingsDraftGuard dirty={formState.dirty} busy={formState.busy} />
+      )}
       {account && (
-        <AccountEditForm key={account.id} account={account} accounts={accounts} onDone={onClose} />
+        <AccountEditForm
+          key={account.id}
+          account={account}
+          accounts={accounts}
+          onDone={onClose}
+          onCancel={() => {
+            if (mayClose()) onClose();
+          }}
+          onStatus={onStatus}
+        />
       )}
     </SettingsFormDialog>
   );
@@ -271,15 +511,22 @@ type Errors = Partial<
 >;
 
 function AccountEditForm({
-  account,
+  account: currentAccount,
   accounts,
   onDone,
+  onCancel,
+  onStatus,
 }: {
   account: AccountRow;
   accounts: AccountRow[];
   onDone: () => void;
+  onCancel: () => void;
+  onStatus: (dirty: boolean, busy: boolean) => void;
 }) {
   useAmountPrivacy();
+  const [source] = useState(currentAccount);
+  const queryClient = useQueryClient();
+  const account = REDESIGN_ENABLED ? source : currentAccount;
   const write = useBudgetWrite();
   const classes = useQuery(assetClassesQuery());
   const [allocationClass, setAllocationClass] = useState(account.allocationAssetClassId ?? '');
@@ -301,6 +548,25 @@ function AccountEditForm({
   const [confirmClose, setConfirmClose] = useState<string>();
   const [busy, setBusy] = useState(false);
   const group = groupOf({ type, onBudget });
+  const dirty =
+    name !== account.name ||
+    type !== account.type ||
+    onBudget !== account.onBudget ||
+    allocationClass !== (account.allocationAssetClassId ?? '') ||
+    referenceAccountId !== (account.referenceAccountId ?? '') ||
+    limit !== moneyText(account.creditLimitCents) ||
+    overdraft !== moneyText(account.overdraftLimitCents) ||
+    fee !== moneyText(account.monthlyFeeCents) ||
+    rate !== rateText(account.interestRateBp) ||
+    kind !== (account.interestKind ?? '') ||
+    installment !== moneyText(account.installmentCents) ||
+    original !== moneyText(account.originalAmountCents) ||
+    termStart !== (account.termStart ?? '') ||
+    termEnd !== (account.termEnd ?? '');
+  useEffect(() => {
+    onStatus(dirty, busy);
+  }, [onStatus, dirty, busy]);
+  const stale = REDESIGN_ENABLED && accountMetadata(account) !== accountMetadata(currentAccount);
 
   const changeType = (next: AccountType) => {
     setType(next);
@@ -374,11 +640,24 @@ function AccountEditForm({
     }
     setBusy(true);
     try {
+      if (REDESIGN_ENABLED) {
+        const list = await fetchAccounts();
+        const latest = list.accounts.find((entry) => entry.id === account.id);
+        if (!latest || accountMetadata(latest) !== accountMetadata(account)) {
+          queryClient.setQueryData(accountsQuery().queryKey, list);
+          setFormError(
+            'Das Konto wurde inzwischen geändert. Dein Entwurf bleibt erhalten. Schließe den Dialog und öffne den aktuellen Stand erneut.',
+          );
+          return;
+        }
+      }
       const result = await write(
         () => patchAccount(account.id, patch),
         () => `Konto „${patch.name ?? account.name}“ gespeichert.`,
       );
       if (result) onDone();
+    } catch (error) {
+      setFormError(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -409,6 +688,12 @@ function AccountEditForm({
 
   return (
     <form className="kform" onSubmit={(e) => void submit(e)} noValidate>
+      {stale && (
+        <p role="alert">
+          Das Konto wurde inzwischen geändert. Bitte den aktuellen Stand erneut öffnen; dein Entwurf
+          bleibt bis dahin erhalten.
+        </p>
+      )}
       <Field label="Name" error={errors.name}>
         {({ id, describedBy, invalid }) => (
           <TextInput
@@ -610,18 +895,27 @@ function AccountEditForm({
         </p>
       )}
       <div className="panel-actions">
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" disabled={busy || stale}>
           {busy ? 'Speichert …' : 'Speichern'}
         </Button>
-        <Button variant="ghost" onClick={onDone} disabled={busy}>
+        <Button variant="ghost" onClick={onCancel} disabled={busy}>
           Abbrechen
         </Button>
-        {!account.closedAt && (
+        {!REDESIGN_ENABLED && !account.closedAt && (
           <Button variant="ghost" onClick={() => void close(false)} disabled={busy}>
             Konto schließen
           </Button>
         )}
       </div>
+      {REDESIGN_ENABLED && (
+        <div className="settings-destructive-actions">
+          {!account.closedAt && (
+            <Button variant="ghost" onClick={() => void close(false)} disabled={busy}>
+              Konto schließen
+            </Button>
+          )}
+        </div>
+      )}
       {confirmClose && (
         <div className="settings-confirm" role="alert">
           <p>{confirmClose}</p>
@@ -641,4 +935,26 @@ function AccountEditForm({
       )}
     </form>
   );
+}
+
+/** Only editable metadata; a new booking/balance must never invalidate an account-name draft. */
+function accountMetadata(account: AccountRow) {
+  return JSON.stringify([
+    account.name,
+    account.type,
+    account.onBudget,
+    account.currency,
+    account.closedAt,
+    account.allocationAssetClassId ?? null,
+    account.referenceAccountId ?? null,
+    account.creditLimitCents,
+    account.overdraftLimitCents,
+    account.monthlyFeeCents,
+    account.interestRateBp,
+    account.interestKind,
+    account.installmentCents,
+    account.originalAmountCents,
+    account.termStart,
+    account.termEnd,
+  ]);
 }

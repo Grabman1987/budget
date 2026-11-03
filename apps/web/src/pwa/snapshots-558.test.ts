@@ -9,6 +9,11 @@ it('persists only the four approved primary response keys', () => {
   expect(snapshotRequest('/api/heute?period=payday&month=2026-09')?.kind).toBe('heute');
   expect(snapshotRequest('/api/accounts')?.kind).toBe('accounts');
   expect(snapshotRequest('/api/budget/2026-09')?.kind).toBe('plan');
+  expect(snapshotRequest('/api/budget/2026-09?previewBasis=1')).toEqual({
+    kind: 'plan',
+    key: '/api/budget/2026-09',
+  });
+  expect(snapshotRequest('/api/budget/2026-09?previewBasis=1&cardRule=concept')).toBeNull();
   expect(snapshotRequest('/api/bookings?to=2026-09-17&limit=50')?.kind).toBe('bookings');
   for (const path of [
     '/api/auth/status',

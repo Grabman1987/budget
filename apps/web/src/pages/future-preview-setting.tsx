@@ -6,6 +6,8 @@ import { request } from '../api/http';
 import { errorText } from '../ledger/labels';
 import { undoGroup } from '../ledger/api';
 import { LEDGER_KEY } from '../ledger/queries';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsDraftGuard } from './settings-draft-guard';
 
 export const displaySettingsQuery = () =>
   queryOptions({
@@ -44,12 +46,17 @@ function FuturePreviewEditor() {
   const qc = useQueryClient();
   const toast = useToast();
   const [draft, setDraft] = useState<string>();
+  const [source, setSource] = useState<number>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const value = draft ?? String(query.data?.futurePreviewDays ?? '');
+  const dirty = draft !== undefined && draft !== String(source);
+  const stale =
+    REDESIGN_ENABLED && source !== undefined && source !== query.data?.futurePreviewDays;
   return (
     <section className="profile-settings" aria-labelledby="preview-title">
       <SectionHead id="preview-title" title="Darstellung · Kontovorschau" />
+      {REDESIGN_ENABLED && <SettingsDraftGuard dirty={dirty} busy={busy} />}
       {query.isError ? (
         <p role="alert">
           {errorText(query.error)}{' '}
@@ -66,13 +73,30 @@ function FuturePreviewEditor() {
             if (!/^\d+$/.test(value) || !validFuturePreviewDays(days))
               return setError('Bitte eine ganze Zahl von 0 bis 365 eintragen.');
             setBusy(true);
-            void request<{ groupId: string }>('PATCH', '/api/display-settings', {
-              futurePreviewDays: days,
-            })
+            void (async () => {
+              if (REDESIGN_ENABLED) {
+                const latest = await request<{
+                  futurePreviewDays: number;
+                  accountReminderDays: number;
+                }>('GET', '/api/display-settings');
+                if (latest.futurePreviewDays !== source) {
+                  qc.setQueryData(displaySettingsQuery().queryKey, latest);
+                  setError(
+                    'Die Kontovorschau wurde inzwischen geändert. Dein Entwurf bleibt erhalten. Lade den aktuellen Stand.',
+                  );
+                  return;
+                }
+              }
+              return request<{ groupId: string }>('PATCH', '/api/display-settings', {
+                futurePreviewDays: days,
+              });
+            })()
               .then((result) => {
+                if (!result) return;
                 void qc.invalidateQueries({ queryKey: displaySettingsQuery().queryKey });
                 void qc.invalidateQueries({ queryKey: LEDGER_KEY });
                 setDraft(undefined);
+                setSource(undefined);
                 setError(undefined);
                 toast.show({
                   message: 'Kontovorschau gespeichert.',
@@ -109,15 +133,29 @@ function FuturePreviewEditor() {
                 aria-invalid={invalid}
                 aria-describedby={describedBy}
                 onChange={(e) => {
+                  setSource((previous) => previous ?? query.data?.futurePreviewDays);
                   setDraft(e.target.value);
                   setError(undefined);
                 }}
               />
             )}
           </Field>
-          <Button type="submit" disabled={busy || !query.data || draft === undefined}>
+          <Button type="submit" disabled={busy || !query.data || draft === undefined || stale}>
             Speichern
           </Button>
+          {REDESIGN_ENABLED && (
+            <Button
+              variant="ghost"
+              disabled={busy || (!dirty && !stale)}
+              onClick={() => {
+                setDraft(undefined);
+                setSource(undefined);
+                setError(undefined);
+              }}
+            >
+              {stale ? 'Aktuellen Stand laden' : 'Verwerfen'}
+            </Button>
+          )}
         </form>
       )}
     </section>

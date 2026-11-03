@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, type TestInfo } from '@playwright/test';
@@ -72,7 +73,7 @@ async function countParity(page: Page, count: number) {
   );
   await page.goto('/konten');
   await expect(page.locator('.kcheck.is-stale')).toHaveCount(count);
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   const source = page
     .getByRole('region', { name: 'Zu tun' })
     .locator('.attention-row')

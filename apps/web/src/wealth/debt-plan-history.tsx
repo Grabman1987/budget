@@ -1,3 +1,5 @@
+import { AppLink } from '../shell/app-link';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import {
   addMonths,
   lastDayOfMonth,
@@ -135,11 +137,13 @@ export function DebtPlanHistory({
     >
       <div className="head">
         <h2 id="debt-plan-history-title">
-          Kreditverlauf und Tilgungsplan: {maskMoneyText(loan.name)}
+          {REDESIGN_ENABLED
+            ? 'Restschuld und Tilgungsplan'
+            : `Kreditverlauf und Tilgungsplan: ${maskMoneyText(loan.name)}`}
         </h2>
         <span className="aside">Ist und Modell getrennt</span>
       </div>
-      {choice}
+      {!REDESIGN_ENABLED && choice}
       {(query.isPending || query.isFetching) && (
         <LoadingNote what="Kreditbasis und Monatsverlauf" />
       )}
@@ -305,153 +309,280 @@ function PlanResult({
         {maskMoneyText(plan.name)} · {plan.currency} · Kontostand {longDay(plan.asOf)}. Erste
         Modellzahlung: {monthLabel(plan.startMonth)}.
       </p>
-      <fieldset className="debt-live-inputs" disabled={!schedule}>
-        <legend className="sr-only">Lokale Sondertilgung für diesen Kredit</legend>
-        <MoneyInput
-          label="Sondertilgung / Monat"
-          value={monthly}
-          onChange={(value) => onDraft({ ...values, monthly: value })}
-          currency={plan.currency}
-          hint="Ab der ersten Modellzahlung jeden Monat zusätzlich."
-        />
-        <MoneyInput
-          label="Einmalige Sondertilgung"
-          value={oneOff}
-          onChange={(value) => onDraft({ ...values, oneOff: value })}
-          currency={plan.currency}
-          hint="0 bedeutet keine Einmalzahlung."
-        />
-        <Field label="Monat der Einmalzahlung" hint="Nur bei einer einmaligen Sondertilgung nötig.">
-          {({ id, describedBy }) => (
-            <TextInput
-              id={id}
-              type="month"
-              min={plan.startMonth}
-              value={oneOffMonth}
-              onChange={(event) => onDraft({ ...values, oneOffMonth: event.target.value })}
-              aria-describedby={describedBy}
+      {REDESIGN_ENABLED ? (
+        <div className="wealth-debt-live-columns">
+          <div className="wealth-debt-chart">
+            {' '}
+            <DebtPlanChart
+              basis={plan}
+              history={basis.history}
+              baseline={schedule}
+              scenario={comparison}
             />
+            <p className="vnote">
+              Durchgezogen: erfasste Monatsendstände. Gestrichelt: Tilgungsmodell, keine Buchungen.
+            </p>
+          </div>
+          <aside className="wealth-sheet wealth-debt-live-card">
+            <h3>Sondertilgung · live</h3>
+            {plan.missing.length > 0 && (
+              <p className="vnote" role="status">
+                Für den Tilgungsplan fehlen Kreditkonditionen:{' '}
+                {plan.missing
+                  .map(
+                    (key) =>
+                      ({ rate: 'Jahreszins', installment: 'Monatsrate', fee: 'monatliche Gebühr' })[
+                        key
+                      ],
+                  )
+                  .join(', ')}
+                . <AppLink to="/einstellungen/konten">Konditionen ergänzen</AppLink>
+              </p>
+            )}
+            {model.error && <p role="status">{model.error}</p>}{' '}
+            <fieldset className="debt-live-inputs" disabled={!schedule}>
+              <legend className="sr-only">Lokale Sondertilgung für diesen Kredit</legend>
+              <MoneyInput
+                label="Sondertilgung / Monat"
+                value={monthly}
+                onChange={(value) => onDraft({ ...values, monthly: value })}
+                currency={plan.currency}
+                hint="Ab der ersten Modellzahlung jeden Monat zusätzlich."
+              />
+              <MoneyInput
+                label="Einmalige Sondertilgung"
+                value={oneOff}
+                onChange={(value) => onDraft({ ...values, oneOff: value })}
+                currency={plan.currency}
+                hint="0 bedeutet keine Einmalzahlung."
+              />
+              <Field
+                label="Monat der Einmalzahlung"
+                hint="Nur bei einer einmaligen Sondertilgung nötig."
+              >
+                {({ id, describedBy }) => (
+                  <TextInput
+                    id={id}
+                    type="month"
+                    min={plan.startMonth}
+                    value={oneOffMonth}
+                    onChange={(event) => onDraft({ ...values, oneOffMonth: event.target.value })}
+                    aria-describedby={describedBy}
+                  />
+                )}
+              </Field>
+            </fieldset>
+            <p className="vnote">Diese Rechnung wird weder gespeichert noch als Zahlung gebucht.</p>
+            {draft.error && (
+              <p className="field-error" role="alert">
+                {draft.error}
+              </p>
+            )}
+            {scenario.error && (
+              <p className="field-error" role="alert">
+                {scenario.error}
+              </p>
+            )}
+            {comparison && schedule && (
+              <div className="debt-live-result" aria-live="polite">
+                <h3>
+                  {schedule.months - comparison.months > 0
+                    ? `${schedule.months - comparison.months} ${schedule.months - comparison.months === 1 ? 'Monat' : 'Monate'} früher schuldenfrei`
+                    : 'Zum gleichen Zeitpunkt schuldenfrei'}
+                </h3>
+                <p>
+                  <strong>
+                    {money(schedule.totalInterestCents - comparison.totalInterestCents)}
+                  </strong>{' '}
+                  Zinsen gespart
+                </p>
+                <p>
+                  {monthLabel(comparison.payoffMonth!)} statt {monthLabel(schedule.payoffMonth!)} ·
+                  Zinsen gesamt: {money(comparison.totalInterestCents)}
+                </p>
+              </div>
+            )}
+            {lateOneOff && (
+              <p className="vnote">
+                Der Einmalmonat liegt nach der Tilgung. Diese Zahlung wirkt im Modell nicht.
+              </p>
+            )}
+          </aside>
+        </div>
+      ) : (
+        <>
+          {' '}
+          <fieldset className="debt-live-inputs" disabled={!schedule}>
+            <legend className="sr-only">Lokale Sondertilgung für diesen Kredit</legend>
+            <MoneyInput
+              label="Sondertilgung / Monat"
+              value={monthly}
+              onChange={(value) => onDraft({ ...values, monthly: value })}
+              currency={plan.currency}
+              hint="Ab der ersten Modellzahlung jeden Monat zusätzlich."
+            />
+            <MoneyInput
+              label="Einmalige Sondertilgung"
+              value={oneOff}
+              onChange={(value) => onDraft({ ...values, oneOff: value })}
+              currency={plan.currency}
+              hint="0 bedeutet keine Einmalzahlung."
+            />
+            <Field
+              label="Monat der Einmalzahlung"
+              hint="Nur bei einer einmaligen Sondertilgung nötig."
+            >
+              {({ id, describedBy }) => (
+                <TextInput
+                  id={id}
+                  type="month"
+                  min={plan.startMonth}
+                  value={oneOffMonth}
+                  onChange={(event) => onDraft({ ...values, oneOffMonth: event.target.value })}
+                  aria-describedby={describedBy}
+                />
+              )}
+            </Field>
+          </fieldset>
+          <p className="vnote">Diese Rechnung wird weder gespeichert noch als Zahlung gebucht.</p>
+          {draft.error && (
+            <p className="field-error" role="alert">
+              {draft.error}
+            </p>
           )}
-        </Field>
-      </fieldset>
-      <p className="vnote">Diese Rechnung wird weder gespeichert noch als Zahlung gebucht.</p>
-      {draft.error && (
-        <p className="field-error" role="alert">
-          {draft.error}
-        </p>
+          {scenario.error && (
+            <p className="field-error" role="alert">
+              {scenario.error}
+            </p>
+          )}
+          {comparison && schedule && (
+            <div className="debt-live-result" aria-live="polite">
+              <h3>
+                {schedule.months - comparison.months > 0
+                  ? `${schedule.months - comparison.months} ${schedule.months - comparison.months === 1 ? 'Monat' : 'Monate'} früher schuldenfrei`
+                  : 'Zum gleichen Zeitpunkt schuldenfrei'}
+              </h3>
+              <p>
+                <strong>
+                  {money(schedule.totalInterestCents - comparison.totalInterestCents)}
+                </strong>{' '}
+                Zinsen gespart
+              </p>
+              <p>
+                {monthLabel(comparison.payoffMonth!)} statt {monthLabel(schedule.payoffMonth!)} ·
+                Zinsen gesamt: {money(comparison.totalInterestCents)}
+              </p>
+            </div>
+          )}
+          {lateOneOff && (
+            <p className="vnote">
+              Der Einmalmonat liegt nach der Tilgung. Diese Zahlung wirkt im Modell nicht.
+            </p>
+          )}
+          <DebtPlanChart
+            basis={plan}
+            history={basis.history}
+            baseline={schedule}
+            scenario={comparison}
+          />
+        </>
       )}
-      {scenario.error && (
-        <p className="field-error" role="alert">
-          {scenario.error}
-        </p>
-      )}
-      {comparison && schedule && (
-        <div className="debt-live-result" aria-live="polite">
-          <h3>
-            {schedule.months - comparison.months > 0
-              ? `${schedule.months - comparison.months} ${schedule.months - comparison.months === 1 ? 'Monat' : 'Monate'} früher schuldenfrei`
-              : 'Zum gleichen Zeitpunkt schuldenfrei'}
-          </h3>
-          <p>
-            <strong>{money(schedule.totalInterestCents - comparison.totalInterestCents)}</strong>{' '}
-            Zinsen gespart
+
+      <ModelDetails>
+        {' '}
+        {basis.historyAvailable && basis.history.length < basis.expected && (
+          <p className="vnote">
+            Nur {basis.history.length} von {basis.expected} möglichen Monatsenden sind erfasst.
+            Fehlende Werte bleiben Lücken.
           </p>
-          <p>
-            {monthLabel(comparison.payoffMonth!)} statt {monthLabel(schedule.payoffMonth!)} · Zinsen
-            gesamt: {money(comparison.totalInterestCents)}
+        )}
+        <p className="vnote">
+          Durchgezogen: erfasste Monatsendstände des ausgewählten Kredits und gesonderter aktueller
+          Kontostand. Gestrichelt: Basis und, wenn aktiv, lokale Sondertilgung zum Monatsende. Die
+          Modellwerte sind keine Buchungen.
+        </p>
+        {plan.missing.length > 0 && (
+          <p role="status">
+            Für den Tilgungsplan fehlen Kreditkonditionen:{' '}
+            {plan.missing
+              .map(
+                (key) =>
+                  ({ rate: 'Jahreszins', installment: 'Monatsrate', fee: 'monatliche Gebühr' })[
+                    key
+                  ],
+              )
+              .join(', ')}
+            .
           </p>
-        </div>
-      )}
-      {lateOneOff && (
-        <p className="vnote">
-          Der Einmalmonat liegt nach der Tilgung. Diese Zahlung wirkt im Modell nicht.
-        </p>
-      )}
-      <DebtPlanChart
-        basis={plan}
-        history={basis.history}
-        baseline={schedule}
-        scenario={comparison}
-      />
-      {basis.historyAvailable && basis.history.length < basis.expected && (
-        <p className="vnote">
-          Nur {basis.history.length} von {basis.expected} möglichen Monatsenden sind erfasst.
-          Fehlende Werte bleiben Lücken.
-        </p>
-      )}
-      <p className="vnote">
-        Durchgezogen: erfasste Monatsendstände des ausgewählten Kredits und gesonderter aktueller
-        Kontostand. Gestrichelt: Basis und, wenn aktiv, lokale Sondertilgung zum Monatsende. Die
-        Modellwerte sind keine Buchungen.
-      </p>
-      {plan.missing.length > 0 && (
-        <p role="status">
-          Für den Tilgungsplan fehlen Kreditkonditionen:{' '}
-          {plan.missing
-            .map(
-              (key) =>
-                ({ rate: 'Jahreszins', installment: 'Monatsrate', fee: 'monatliche Gebühr' })[key],
-            )
-            .join(', ')}
-          .
-        </p>
-      )}
-      {model.error && <p role="status">{model.error}</p>}
-      {schedule && (
-        <p className="vnote">
-          Schuldenfrei:{' '}
-          {schedule.payoffMonth ? monthLabel(schedule.payoffMonth) : 'bereits getilgt'} · Zinsen
-          gesamt: {money(schedule.totalInterestCents)}. Diese Werte stammen aus derselben Rechnung
-          wie die gestrichelte Linie.
-        </p>
-      )}
-      {active && (
-        <div className="debt-live-years">
-          <h3>Zins und Tilgung je Jahr · {comparison ? 'Live-Szenario' : 'Basis'}</h3>
-          <ScrollRegion
-            label="Zins und Tilgung je Jahr, bei Bedarf horizontal verschiebbar"
-            className="debt-live-scroll"
-          >
-            <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
-            <table className="vtable">
-              <caption>
-                {comparison ? 'Live-Szenario' : 'Basis'}: schuldenfrei{' '}
-                {monthLabel(active.payoffMonth!)} · Modellzahlungen in {plan.currency}; keine
-                eingerichteten Zahlungen
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Jahr</th>
-                  <th scope="col">Zinsen</th>
-                  <th scope="col">Gebühren</th>
-                  <th scope="col">Tilgung</th>
-                  <th scope="col">Zahlungen</th>
-                </tr>
-              </thead>
-              <tbody>
-                {active.perYear.map((row) => (
-                  <tr key={row.year}>
-                    <th scope="row">{row.year}</th>
-                    <td>{money(row.interestCents)}</td>
-                    <td>{money(row.feeCents)}</td>
-                    <td>{money(row.principalCents)}</td>
-                    <td>{money(row.paymentCents)}</td>
+        )}
+        {model.error && <p role="status">{model.error}</p>}
+        {schedule && (
+          <p className="vnote">
+            Schuldenfrei:{' '}
+            {schedule.payoffMonth ? monthLabel(schedule.payoffMonth) : 'bereits getilgt'} · Zinsen
+            gesamt: {money(schedule.totalInterestCents)}. Diese Werte stammen aus derselben Rechnung
+            wie die gestrichelte Linie.
+          </p>
+        )}
+        {active && (
+          <div className="debt-live-years">
+            <h3>Zins und Tilgung je Jahr · {comparison ? 'Live-Szenario' : 'Basis'}</h3>
+            <ScrollRegion
+              label="Zins und Tilgung je Jahr, bei Bedarf horizontal verschiebbar"
+              className="debt-live-scroll"
+            >
+              <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
+              <table className="vtable">
+                <caption>
+                  {comparison ? 'Live-Szenario' : 'Basis'}: schuldenfrei{' '}
+                  {monthLabel(active.payoffMonth!)} · Modellzahlungen in {plan.currency}; keine
+                  eingerichteten Zahlungen
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Jahr</th>
+                    <th scope="col">Zinsen</th>
+                    <th scope="col">Gebühren</th>
+                    <th scope="col">Tilgung</th>
+                    <th scope="col">Zahlungen</th>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <th scope="row">Gesamt</th>
-                  <td>{money(active.totalInterestCents)}</td>
-                  <td>{money(active.totalFeeCents)}</td>
-                  <td>{money(plan.balanceCents)}</td>
-                  <td>{money(active.totalPaidCents)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </ScrollRegion>
-        </div>
-      )}
+                </thead>
+                <tbody>
+                  {active.perYear.map((row) => (
+                    <tr key={row.year}>
+                      <th scope="row">{row.year}</th>
+                      <td>{money(row.interestCents)}</td>
+                      <td>{money(row.feeCents)}</td>
+                      <td>{money(row.principalCents)}</td>
+                      <td>{money(row.paymentCents)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th scope="row">Gesamt</th>
+                    <td>{money(active.totalInterestCents)}</td>
+                    <td>{money(active.totalFeeCents)}</td>
+                    <td>{money(plan.balanceCents)}</td>
+                    <td>{money(active.totalPaidCents)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </ScrollRegion>
+          </div>
+        )}
+      </ModelDetails>
     </>
+  );
+}
+
+function ModelDetails({ children }: { children: ReactNode }) {
+  return REDESIGN_ENABLED ? (
+    <details className="wealth-details wealth-debt-model-details">
+      <summary>Modellannahmen, Zins und Tilgung je Jahr</summary>
+      {children}
+    </details>
+  ) : (
+    <>{children}</>
   );
 }

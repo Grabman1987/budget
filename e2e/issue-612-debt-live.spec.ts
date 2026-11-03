@@ -1,3 +1,4 @@
+import { showDebtPlanFacts } from './wealth-navigation';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
@@ -31,6 +32,7 @@ test('local Sondertilgung reproduces V16 without a write', async ({
 
   await page.goto(`/vermoegen/schulden?kredit=${encodeURIComponent(account.id)}`);
   const section = page.locator('.debt-plan-history');
+  await showDebtPlanFacts(page);
   await expect(section.getByText('Schuldenfrei:')).toContainText('Juli 2028');
   await expect(section.getByText('Zinsen gesamt:')).toContainText('161,57 €');
   const oneOff = section.getByLabel(/Einmalige Sondertilgung/);

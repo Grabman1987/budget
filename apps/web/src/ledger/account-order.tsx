@@ -207,42 +207,48 @@ export function useReorder(
   };
 
   /** Grip, ↑ and ↓ of one row. */
-  const controls = (id: string) => {
+  const controls = (id: string, presentation: 'all' | 'grip' | 'steps' = 'all') => {
     const index = ids.indexOf(id);
     const name = labelOf(id);
     const key = (part: Part) => `${scope}:${id}:${part}`;
     return (
       <span className="order-controls">
-        <button
-          type="button"
-          className="icon-btn order-grip"
-          aria-label={`${name} verschieben (ziehen oder Pfeiltasten)`}
-          data-reorder={key('grip')}
-          onPointerDown={(e) => startDrag(id, e)}
-          onKeyDown={(e) => onGripKey(id, e)}
-        >
-          <GripVertical size={16} strokeWidth={1.75} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="icon-btn order-step"
-          aria-label={`${name} nach oben`}
-          data-reorder={key('up')}
-          disabled={index <= 0}
-          onClick={() => step(id, -1, 'up')}
-        >
-          <ArrowUp size={16} strokeWidth={1.75} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="icon-btn order-step"
-          aria-label={`${name} nach unten`}
-          data-reorder={key('down')}
-          disabled={index < 0 || index >= ids.length - 1}
-          onClick={() => step(id, 1, 'down')}
-        >
-          <ArrowDown size={16} strokeWidth={1.75} aria-hidden="true" />
-        </button>
+        {presentation !== 'steps' && (
+          <button
+            type="button"
+            className="icon-btn order-grip"
+            aria-label={`${name} verschieben (ziehen oder Pfeiltasten)`}
+            data-reorder={key('grip')}
+            onPointerDown={(e) => startDrag(id, e)}
+            onKeyDown={(e) => onGripKey(id, e)}
+          >
+            <GripVertical size={16} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+        )}
+        {presentation !== 'grip' && (
+          <>
+            <button
+              type="button"
+              className="icon-btn order-step"
+              aria-label={`${name} nach oben`}
+              data-reorder={key('up')}
+              disabled={index <= 0}
+              onClick={() => step(id, -1, 'up')}
+            >
+              <ArrowUp size={16} strokeWidth={1.75} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="icon-btn order-step"
+              aria-label={`${name} nach unten`}
+              data-reorder={key('down')}
+              disabled={index < 0 || index >= ids.length - 1}
+              onClick={() => step(id, 1, 'down')}
+            >
+              <ArrowDown size={16} strokeWidth={1.75} aria-hidden="true" />
+            </button>
+          </>
+        )}
       </span>
     );
   };

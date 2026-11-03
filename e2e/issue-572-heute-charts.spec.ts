@@ -1,8 +1,13 @@
+import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import { sampleTest as test, expect as baseExpect } from './sample';
 import AxeBuilder from '@axe-core/playwright';
 import type { Heute } from '../apps/web/src/heute/api';
 import { eur } from '../apps/web/src/ledger/format';
 
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 const expect = baseExpect.configure({ timeout: 15_000 });
 
 // Retain the original Heute spec's setup and timeout for this moved acceptance case.
@@ -48,7 +53,7 @@ test('monthly pace and wealth expose exact dates and amounts with honest gaps in
   );
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
-    await page.goto('/?monat=2026-09&period=month');
+    await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=month'));
     const wealth = page.getByTestId('heute-wealth-history');
     const pace = page.getByTestId('heute-pace-chart');
     await expect(wealth).toBeVisible();
@@ -59,11 +64,19 @@ test('monthly pace and wealth expose exact dates and amounts with honest gaps in
     });
     if (info.project.name === 'desktop') {
       expect(page.viewportSize()).toEqual({ width: 1440, height: 900 });
-      for (const item of [page.getByTestId('heute-kennzahlen'), pace, wealth]) {
+      for (const item of redesign
+        ? [page.locator('.heute-lead'), page.locator('.heute-attention')]
+        : [page.getByTestId('heute-kennzahlen'), pace, wealth]) {
         const box = await item.boundingBox();
         expect(box!.y).toBeGreaterThanOrEqual(0);
         expect(box!.y + box!.height).toBeLessThanOrEqual(900);
       }
+    }
+    if (redesign) {
+      await wealth.scrollIntoViewIfNeeded();
+      const box = (await wealth.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
     }
     const wealthGroup = wealth.locator('..');
     await wealthGroup.focus();

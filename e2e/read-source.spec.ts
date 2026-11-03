@@ -1,5 +1,12 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+async function openSourceDetails(page: Page) {
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) !== '1') return;
+  for (const title of ['Bank', 'Krypto']) {
+    const card = page.getByRole('region', { name: title, exact: true });
+    await card.getByRole('button', { name: /^(Prüfen|Verwalten)$/ }).click();
+  }
+}
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/bank-sync', (route) =>
     route.fulfill({
@@ -11,7 +18,7 @@ test.beforeEach(async ({ page }) => {
 test('source status, read-only capture, explicit mapping and responsive themes', async ({
   page,
 }) => {
-  const crypto = page.getByRole('region', { name: 'Krypto-Lesequelle', exact: true });
+  const crypto = page.getByRole('region', { name: /^Krypto(-Lesequelle)?$/ });
   const bank = page.getByRole('region', { name: 'Bank-Sync (PSD2)', exact: true });
   let refreshed = false;
   let refreshes = 0;
@@ -100,6 +107,7 @@ test('source status, read-only capture, explicit mapping and responsive themes',
       });
   });
   await page.goto('/einstellungen/datenquellen');
+  await openSourceDetails(page);
   await expect(page.getByRole('heading', { name: 'Bank-Sync (PSD2)', exact: true })).toBeVisible();
   await expect(page.getByText('Schlüssel gesetzt: ja')).toBeVisible();
   await expect(
@@ -136,7 +144,15 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   await expect(bank.getByText('Abruf fehlgeschlagen', { exact: true })).toBeVisible();
   await expect(crypto.getByText('Abruf abgeschlossen', { exact: true })).toBeVisible();
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Einstellungen', exact: true }),
+    page.getByRole('heading', {
+      level: 1,
+      name:
+        page.viewportSize()!.width < 768 &&
+        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+          ? 'Verbindungen'
+          : 'Einstellungen',
+      exact: true,
+    }),
   ).toHaveCount(1);
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
@@ -149,7 +165,7 @@ test('source status, read-only capture, explicit mapping and responsive themes',
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    await page.getByRole('heading', { name: 'Krypto-Lesequelle', exact: true }).click();
+    await page.getByRole('heading', { name: /^Krypto(-Lesequelle)?$/ }).click();
     await page.evaluate(() => {
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
       window.scrollTo(0, 0);
@@ -181,10 +197,11 @@ test('unconfigured source cannot fetch', async ({ page }) => {
     }),
   );
   await page.goto('/einstellungen/datenquellen');
+  await openSourceDetails(page);
   await expect(page.getByText('Schlüssel gesetzt: nein')).toBeVisible();
   await expect(
     page
-      .getByRole('region', { name: 'Krypto-Lesequelle', exact: true })
+      .getByRole('region', { name: /^Krypto(-Lesequelle)?$/ })
       .getByRole('button', { name: 'Jetzt abrufen' }),
   ).toBeDisabled();
 });
@@ -245,6 +262,7 @@ test('source operations remain readable in data sources without posting', async 
     },
   );
   await page.goto('/einstellungen/datenquellen');
+  await openSourceDetails(page);
   await page
     .getByRole('button', { name: /Quellbewegung: Umbuchung abgleichen.*Einzelpunkte anzeigen/ })
     .click();
@@ -313,6 +331,7 @@ test('invalid movements and categorized failures are readable without raw payloa
     },
   );
   await page.goto('/einstellungen/datenquellen');
+  await openSourceDetails(page);
   await page
     .getByRole('button', { name: /Quellbewegung: Datenformat prüfen.*Einzelpunkte anzeigen/ })
     .click();

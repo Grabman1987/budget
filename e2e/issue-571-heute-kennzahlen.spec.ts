@@ -1,5 +1,7 @@
+import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
+import { wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import type { Heute } from '../apps/web/src/heute/api';
 import { expect as baseExpect, sampleTest as test } from './sample';
 
@@ -16,15 +18,72 @@ const EVIDENCE = 'docs/evidence/issue-571-heute-kennzahlen';
 const value = (page: Page, kennzahl: string) =>
   page.locator(`[data-kennzahl="${kennzahl}"]`).first();
 
+async function expectReadableSupport(page: Page, tiles: Locator) {
+  const viewport = page.viewportSize()!;
+  for (const tile of await tiles.all()) {
+    await tile.evaluate((element) =>
+      element.scrollIntoView({ block: 'center', inline: 'nearest' }),
+    );
+    await expect(tile).toBeVisible();
+    const box = (await tile.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+    const label = tile.getByRole('heading', { level: 2 });
+    const figure = tile.locator('.heute-answer-value').first();
+    const info = tile.locator(':scope > .heute-info');
+    const parts = [];
+    for (const target of [label, figure, info]) {
+      await expect(target).toBeVisible();
+      const part = (await target.boundingBox())!;
+      expect(part.width).toBeGreaterThan(0);
+      expect(part.height).toBeGreaterThan(0);
+      expect(part.x).toBeGreaterThanOrEqual(box.x);
+      expect(part.x + part.width).toBeLessThanOrEqual(box.x + box.width);
+      expect(part.y).toBeGreaterThanOrEqual(box.y);
+      expect(part.y + part.height).toBeLessThanOrEqual(box.y + box.height);
+      expect(part.y).toBeGreaterThanOrEqual(0);
+      expect(part.y + part.height).toBeLessThanOrEqual(viewport.height);
+      parts.push(part);
+    }
+    const controls = await page
+      .locator('.tabbar:visible, .fab:visible, .topbar:visible, .m-head:visible')
+      .evaluateAll((elements) =>
+        elements.map((element) => {
+          const b = element.getBoundingClientRect();
+          return { x: b.x, y: b.y, width: b.width, height: b.height };
+        }),
+      );
+    const separated = (
+      a: { x: number; y: number; width: number; height: number },
+      b: { x: number; y: number; width: number; height: number },
+    ) =>
+      a.x + a.width <= b.x ||
+      b.x + b.width <= a.x ||
+      a.y + a.height <= b.y ||
+      b.y + b.height <= a.y;
+    for (let index = 0; index < parts.length; index++) {
+      for (const control of controls) expect(separated(parts[index]!, control)).toBe(true);
+      for (const other of parts.slice(index + 1))
+        expect(separated(parts[index]!, other)).toBe(true);
+    }
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+}
+
 test.beforeEach(async ({ page }) => {
   // The "Mehr zum Monat" fold is closed on the phone by default.
   await page.addInitScript(() => localStorage.setItem('budget-heute-more-phone', '1'));
 });
 
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
+
 test('three Kennzahlen with the names of the owner decision; Bis Gehalt renames the middle one', async ({
   page,
 }) => {
-  await page.goto('/?period=month');
+  await page.goto(heuteReviewUrl(redesign, '/?period=month'));
   const grid = page.getByTestId('heute-kennzahlen');
   await expect(grid.getByRole('heading', { level: 2 })).toHaveText([
     'Zu verteilen',
@@ -34,7 +93,7 @@ test('three Kennzahlen with the names of the owner decision; Bis Gehalt renames 
   await page.getByRole('button', { name: 'Bis Gehalt', exact: true }).click();
   await expect(grid.getByRole('heading', { level: 2 })).toHaveText([
     'Zu verteilen',
-    'Frei bis Gehalt',
+    redesign ? 'Verfügbar im Budget' : 'Frei bis Gehalt',
     'Nettovermögen',
   ]);
   await page.getByRole('button', { name: 'Monat', exact: true }).click();
@@ -45,7 +104,7 @@ test('each value equals the same figure on Plan, the Plan inspector and Vermöge
   page,
   isMobile,
 }) => {
-  await page.goto('/?period=month');
+  await page.goto(heuteReviewUrl(redesign, '/?period=month'));
   const zuVerteilen = (await value(page, 'zu-verteilen').textContent())!.trim();
   const verfuegbar = (await value(page, 'verfuegbar').textContent())!.trim();
   const netto = (await value(page, 'nettovermoegen').textContent())!.trim();
@@ -60,14 +119,16 @@ test('each value equals the same figure on Plan, the Plan inspector and Vermöge
   }
 
   await page.goto('/vermoegen/nettovermoegen');
-  await expect(page.getByTestId('nw-figure')).toHaveText(netto);
+  await expect(
+    page.getByTestId((await wealthRedesign(page)) ? 'wealth-net-value' : 'nw-figure'),
+  ).toHaveText(netto);
 });
 
 test('Frei bis Gehalt is the existing lead figure of the API', async ({ page }) => {
   const response = await page.request.get('/api/heute?period=payday&month=2026-09');
   expect(response.ok()).toBe(true);
   const heute = (await response.json()) as Heute;
-  await page.goto('/?period=payday');
+  await page.goto(heuteReviewUrl(redesign, '/?period=payday'));
   const lead = page.getByTestId('heute-lead-value');
   await expect(lead).toBeVisible();
   const cents = heute.lead.freeCents;
@@ -82,7 +143,7 @@ test('value, bar and one context line of at most 40 characters per Kennzahl', as
   page,
   isMobile,
 }) => {
-  await page.goto('/?period=month');
+  await page.goto(heuteReviewUrl(redesign, '/?period=month'));
   const grid = page.getByTestId('heute-kennzahlen');
   await expect(value(page, 'nettovermoegen')).toBeVisible();
   const tiles = grid.locator('.heute-kennzahl');
@@ -95,7 +156,7 @@ test('value, bar and one context line of at most 40 characters per Kennzahl', as
 });
 
 test('the derivation sits behind the info button', async ({ page }) => {
-  await page.goto('/');
+  await page.goto(heuteReviewUrl(redesign, '/'));
   const info = page.getByRole('button', { name: 'Herleitung Zu verteilen', exact: true });
   await expect(info).toHaveAttribute('aria-expanded', 'false');
   await info.click();
@@ -109,15 +170,35 @@ test('phone list: the three Kennzahlen (the section "Monat im Blick") end inside
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await page.goto(heuteReviewUrl(redesign, '/'));
   await expect(value(page, 'nettovermoegen')).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
+  if (redesign) {
+    await page.goto('/');
+    const lead = page.locator('.hv-lead-value');
+    const first = page.locator('.hv-revisions tbody tr').first();
+    await expect(lead).toBeVisible();
+    await expect(first).toBeVisible();
+    for (const target of [lead, first.getByRole('link')]) {
+      const box = (await target.boundingBox())!;
+      expect(box.y + box.height).toBeLessThanOrEqual(780);
+    }
+    await page.getByRole('link', { name: 'Kennzahlen', exact: true }).click();
+    await expectReadableSupport(page, page.locator('.heute-kennzahl'));
+    return;
+  }
   const tiles = page.getByTestId('heute-kennzahlen').locator('.heute-kennzahl');
   await expect(tiles).toHaveCount(3);
-  const bottoms = await tiles.evaluateAll((els) =>
+  const primary = redesign
+    ? page.locator('.heute-priorities .heute-lead, .heute-priorities .heute-attention')
+    : tiles;
+  const bottoms = await primary.evaluateAll((els) =>
     els.map((e) => e.getBoundingClientRect().bottom),
   );
-  expect(Math.max(...bottoms), 'the last Kennzahl ends below 844 px').toBeLessThanOrEqual(844);
+  expect(Math.max(...bottoms), 'the last primary section ends below 844 px').toBeLessThanOrEqual(
+    844,
+  );
+  if (redesign) await expectReadableSupport(page, tiles);
 });
 
 for (const colorScheme of ['light', 'dark'] as const) {
@@ -128,14 +209,46 @@ for (const colorScheme of ['light', 'dark'] as const) {
       page,
       isMobile,
     }, info) => {
-      await page.goto('/');
+      await page.goto(heuteReviewUrl(redesign, '/'));
+      if (redesign) {
+        // The v2 design's phone acceptance frame is explicitly 390×844, also on native WebKit.
+        if (isMobile) await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto('/');
+        await expect(page.locator('.hv-head:visible')).toBeVisible();
+        for (const target of [
+          page.locator('.hv-lead-value'),
+          page.locator('.hv-revisions tbody tr').first().getByRole('link'),
+        ]) {
+          const box = (await target.boundingBox())!;
+          expect(box.y + box.height).toBeLessThanOrEqual(
+            page.viewportSize()!.height - (isMobile ? 64 : 0),
+          );
+          expect(box.height).toBeGreaterThanOrEqual(44);
+          expect(box.width).toBeGreaterThanOrEqual(44);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+          true,
+        );
+        expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+        await page.getByRole('link', { name: 'Kennzahlen', exact: true }).click();
+        await expectReadableSupport(page, page.locator('.heute-kennzahl'));
+        return;
+      }
       const head = page.locator('header.titleblock-heute');
       await expect(head).toBeVisible();
       await expect(value(page, 'nettovermoegen')).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
       const viewport = page.viewportSize()!;
       const tiles = page.getByTestId('heute-kennzahlen').locator('.heute-kennzahl');
-      for (const box of await tiles.evaluateAll((els) =>
+      const primary = redesign
+        ? page.locator(
+            viewport.height < 844
+              ? '.heute-priorities .heute-lead, .heute-priorities .heute-attention > .attention-row:first-of-type'
+              : '.heute-priorities .heute-lead, .heute-priorities .heute-attention',
+          )
+        : tiles;
+      await expect(primary).toHaveCount(redesign ? 2 : 3);
+      for (const box of await primary.evaluateAll((els) =>
         els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect),
       )) {
         expect(box.bottom, 'a Kennzahl starts below the first screen').toBeLessThanOrEqual(
@@ -159,6 +272,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
           }
         }
       }
+      if (redesign) await expectReadableSupport(page, tiles);
       const axe = await new AxeBuilder({ page }).analyze();
       expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
       // Evidence (synthetic data): desktop light and phone dark.

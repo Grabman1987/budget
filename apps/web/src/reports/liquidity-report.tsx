@@ -28,6 +28,8 @@ import {
   X,
 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import './liquidity-redesign.css';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { eur, longDay, monthName, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
@@ -51,6 +53,10 @@ import { LiquidityChart } from './liquidity-chart';
 import { expectedQuery, skipOccurrence, type ExpectedPayment } from '../expected/api';
 import './reports-future.css';
 import { salaryDay, upcomingEvents, useLiquiditySelection } from './liquidity-selection';
+import { ForecastRedesign } from './forecast-redesign';
+import { PlanPageFrame } from '../budget/plan-page-frame';
+import type { PageFrameProps } from '../pages/placeholder-page';
+import type { ReactNode } from 'react';
 
 const HORIZON_OPTIONS: ReadonlyArray<{ value: LiquidityHorizon; label: string }> = [
   { value: '35d', label: '35 Tage' },
@@ -93,15 +99,19 @@ const monthLong = (month: string) => `${monthName(`${month}-01`)} ${month.slice(
 
 export function LiquidityReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   useAmountPrivacy();
-  const { horizon, setHorizon, levers, setLevers } = useLiquiditySelection();
+  const { horizon, setHorizon, levers, setLevers } = useLiquiditySelection(
+    REDESIGN_ENABLED ? '35d' : '6m',
+  );
   const [toolsOpen, setToolsOpen] = useState(false);
   const query = useQuery(liquidityQuery(horizon, levers));
   // Never mix cached figures with a failed or loading read of another horizon.
   const view = query.isSuccess ? query.data : undefined;
   return (
-    <PageFrame
+    <ForecastFrame
+      horizon={horizon}
+      onHorizon={setHorizon}
       verdict={
-        view && !query.isFetching && !query.isError
+        !REDESIGN_ENABLED && view && !query.isFetching && !query.isError
           ? {
               reportId: report.id,
               period: `${view.asOf}..${view.report?.verdictEnd ?? view.asOf}`,
@@ -120,7 +130,7 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
       reportDataBasis="Budget-Konten, wiederkehrende Zahlungen, Einkommenspausen und geplante Ereignisse"
       standDay={view?.asOf}
     >
-      <div className="kview rf-report liquidity-report">
+      <div className={`kview rf-report liquidity-report${REDESIGN_ENABLED ? ' liquidity-v2' : ''}`}>
         {query.isPending && <LoadingNote what="Prognose" />}
         {query.isError && (
           <ErrorNote what="Prognose" error={query.error} onRetry={() => void query.refetch()} />
@@ -167,7 +177,45 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
           </>
         )}
       </div>
-    </PageFrame>
+    </ForecastFrame>
+  );
+}
+
+function ForecastFrame({
+  horizon,
+  onHorizon,
+  children,
+  ...props
+}: PageFrameProps & {
+  horizon: LiquidityHorizon;
+  onHorizon: (value: LiquidityHorizon) => void;
+  children: ReactNode;
+}) {
+  if (!REDESIGN_ENABLED) return <PageFrame {...props}>{children}</PageFrame>;
+  return (
+    <PlanPageFrame
+      page="prognose"
+      title="Prognose"
+      className="forecast-reference-page"
+      actions={
+        <>
+          <span className="forecast-reference-scope">Budget-Konten</span>
+          <Select
+            aria-label="Prognosezeitraum"
+            value={horizon}
+            onChange={(event) => onHorizon(event.target.value as LiquidityHorizon)}
+          >
+            {HORIZON_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        </>
+      }
+    >
+      {children}
+    </PlanPageFrame>
   );
 }
 
@@ -234,6 +282,14 @@ function ForecastCard({
         : activeEvents.length > 0
           ? 'Grundplan im gewählten Prognosezeitraum'
           : 'Grundplan ohne aktive geplante Ereignisse';
+  const lowContext =
+    chartPauseCount > 0
+      ? report.eventMarks.length > 0
+        ? 'Tiefpunkt mit Ereignissen und Einkommenspausen'
+        : 'Tiefpunkt mit Einkommenspausen'
+      : report.eventMarks.length > 0
+        ? 'Tiefpunkt mit Ereignissen'
+        : 'Tiefpunkt im Grundplan';
   const verdictInputs = [
     eventCount > 0
       ? `${eventCount} ${eventCount === 1 ? 'geplantem Ereignis' : 'geplanten Ereignissen'}`
@@ -242,6 +298,43 @@ function ForecastCard({
       ? `${verdictPauseCount} ${verdictPauseCount === 1 ? 'Einkommenspause' : 'Einkommenspausen'}`
       : '',
   ].filter(Boolean);
+  if (REDESIGN_ENABLED)
+    return (
+      <ForecastRedesign
+        view={view}
+        report={report}
+        forecastLabel={forecastLabel}
+        salaryDate={salaryDay(report, salaryIds)}
+        horizon={horizon}
+        levers={levers}
+        basis={
+          <>
+            <div
+              className={'rf-verdict is-' + verdict.status}
+              role="status"
+              data-testid="liq-verdict"
+            >
+              <Icon size={20} aria-hidden="true" />
+              <div>
+                <strong>{text}</strong>
+                <small>
+                  6 Monate bis {longDay(report.verdictEnd)} ·{' '}
+                  {verdictInputs.length
+                    ? 'mit ' + verdictInputs.join(' und ')
+                    : 'ohne Ereignisse im Entscheidungszeitraum'}
+                </small>
+              </div>
+            </div>
+            <p data-testid="liq-scenario-basis">
+              {scenarioBasis}
+              {activeLeverNames.length > 0 &&
+                ' Vorschau mit aktiver Stellschraube: ' + activeLeverNames.join(',') + '.'}
+            </p>
+            <p data-testid="liq-low-context">{lowContext}</p>
+          </>
+        }
+      />
+    );
   return (
     <section
       className="card rf-card rf-wide"
@@ -258,6 +351,11 @@ function ForecastCard({
           onChange={onHorizon}
         />
       </div>
+      {REDESIGN_ENABLED && (
+        <p className="forecast-source">
+          Stand {longDay(view.asOf)} · {HORIZON_TITLE[horizon]} · Budget-Konten
+        </p>
+      )}
       <div className={`rf-verdict is-${verdict.status}`} role="status" data-testid="liq-verdict">
         <Icon className="icon" size={20} strokeWidth={1.5} aria-hidden="true" />
         <div>
@@ -280,27 +378,25 @@ function ForecastCard({
       <div className="rf-figs">
         <div>
           <span className="tech" data-testid="liq-low-context">
-            {chartPauseCount > 0
-              ? report.eventMarks.length > 0
-                ? 'Tiefpunkt mit Ereignissen und Einkommenspausen'
-                : 'Tiefpunkt mit Einkommenspausen'
-              : report.eventMarks.length > 0
-                ? 'Tiefpunkt mit Ereignissen'
-                : 'Tiefpunkt im Grundplan'}
+            {lowContext}
           </span>
           <strong className={low && low.cents < 0 ? 'is-alert' : undefined} data-testid="liq-low">
-            {eur(low?.cents ?? 0)}
+            {REDESIGN_ENABLED && !low ? 'nicht verfügbar' : eur(low?.cents ?? 0)}
           </strong>
           <small>{low ? `am ${shortDay(low.day)} · Ziel ≥ 0 € (R07)` : 'keine Prognose'}</small>
         </div>
         <div>
           <span className="tech">Mit {LIQUIDITY_BUFFER_PERCENT} % Puffer</span>
-          <strong data-testid="liq-low-buffer">{eur(lowBuffer?.cents ?? 0)}</strong>
+          <strong data-testid="liq-low-buffer">
+            {REDESIGN_ENABLED && !lowBuffer ? 'nicht verfügbar' : eur(lowBuffer?.cents ?? 0)}
+          </strong>
           <small>variable Ausgaben +{LIQUIDITY_BUFFER_PERCENT} %</small>
         </div>
         <div>
           <span className="tech">Ohne Ereignisse</span>
-          <strong data-testid="liq-low-plain">{eur(lowPlain?.cents ?? 0)}</strong>
+          <strong data-testid="liq-low-plain">
+            {REDESIGN_ENABLED && !lowPlain ? 'nicht verfügbar' : eur(lowPlain?.cents ?? 0)}
+          </strong>
           <small>{lowPlain ? `Tiefpunkt am ${shortDay(lowPlain.day)}` : ''}</small>
         </div>
         <div>

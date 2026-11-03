@@ -1,3 +1,4 @@
+import { gotoWealthAnalysis } from './wealth-navigation';
 import { sampleTest as test, expect } from './sample';
 
 // The sample server is seeded with the synthetic ledger and runs on 17.09.2026 (see the convention
@@ -5,6 +6,6 @@ import { sampleTest as test, expect } from './sample';
 test('the sample server shows the prototype figure for Nettovermögen in Vermögen', async ({
   page,
 }) => {
-  await page.goto('/vermoegen/nettovermoegen');
+  await gotoWealthAnalysis(page, '/vermoegen/nettovermoegen');
   await expect(page.getByTestId('nw-figure')).toHaveText('84.730,00 €');
 });

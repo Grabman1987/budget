@@ -40,7 +40,7 @@ test('groups can be created, renamed and selected; a P2P account keeps its assig
   await page.getByLabel(`Gruppe für ${className}`).selectOption({ label: groupName + ' neu' });
   await expect(page.getByLabel(`Gruppe für ${className}`)).toBeEnabled();
   await page.goto('/einstellungen/konten');
-  const row = page.locator('.accounts-row').filter({ hasText: accountName });
+  const row = page.locator('.accounts-row, .settings-account-row').filter({ hasText: accountName });
   await row.getByRole('button', { name: `${accountName} bearbeiten`, exact: true }).click();
   await dialog.getByLabel('Anlageklasse', { exact: true }).selectOption(cls.id);
   await dialog.getByRole('button', { name: /speichern/i }).click();
@@ -177,8 +177,8 @@ sampleTest(
   'U01/M01-M12: real settings, class sheet, focus, Back, reopen, scroll, themes and rotation',
   async ({ page, isMobile }, info) => {
     await page.goto('/reports');
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     if (isMobile) {
-      const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
       if (redesign) {
         await expect(page.locator('.m-profile')).toHaveCount(0);
         await page
@@ -189,18 +189,19 @@ sampleTest(
       }
       await page.locator('.m-profile summary').click();
       await page.getByRole('link', { name: 'Profil und Einstellungen' }).click();
-      await expect(page).toHaveURL(redesign ? /\/einstellungen\/profil$/ : /\/einstellungen$/);
-      if (redesign) {
+      await expect(page).toHaveURL(/\/einstellungen$/);
+      if (redesign)
         await page
-          .locator('.settings-back')
-          .getByRole('link', { name: 'Einstellungen', exact: true })
+          .locator('.settings-nav-index')
+          .getByRole('link', { name: /^Vermögen/ })
           .click();
-        await expect(page).toHaveURL(/\/einstellungen$/);
-      }
       await page.getByRole('link', { name: 'Anlageklassen', exact: true }).click();
     } else await page.goto('/einstellungen/anlageklassen');
     await expect(
-      page.getByRole('region', { name: 'Klassen und Sollmodell', exact: true }),
+      page.getByRole('region', {
+        name: redesign ? 'Anlageklassen' : 'Klassen und Sollmodell',
+        exact: true,
+      }),
     ).toBeVisible();
     await expect(page.locator('main')).not.toContainText('Noch nicht gebaut');
     await expect(page.getByText('Seitenpanel testen')).toHaveCount(0);

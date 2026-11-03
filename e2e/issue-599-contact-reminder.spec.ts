@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -56,7 +57,7 @@ test('599 Heute shows one overdue contact row and follows settlement and Undo', 
     ],
     unavailableCount: 0,
   });
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   const tasks = page.getByRole('region', { name: 'Zu tun' });
   const row = tasks.locator('.attention-row').filter({ hasText: 'Synthetischer Kontakt' });
   await expect(row).toHaveCount(1);
@@ -99,7 +100,7 @@ test('599 Heute shows one overdue contact row and follows settlement and Undo', 
     ),
   ).toEqual([0, 7000]);
   expect((await read('/heute')).attention.contactReminders.items).toEqual([]);
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
   await expect(page.getByText('Synthetischer Kontakt: 30,00 € seit 01.09.2026 offen')).toHaveCount(
     0,

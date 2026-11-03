@@ -54,6 +54,13 @@ export function PageMenu({ area, current }: { area: AreaDef; current: string }) 
             aria-current={item.id === current ? 'page' : undefined}
             search={(previous) => ({
               ...(isMonth(previous['monat']) ? { monat: previous['monat'] } : {}),
+              ...(area.id === 'vermoegen' &&
+              ['alle', 'wertpapiere', 'krypto', 'p2p'].includes(String(previous['anlageart']))
+                ? { anlageart: previous['anlageart'] }
+                : {}),
+              ...(area.id === 'vermoegen' && previous['ansicht'] === 'aktivitaeten'
+                ? { ansicht: 'aktivitaeten' }
+                : {}),
               ...(area.id === 'vermoegen' && isZeitraum(previous['zeitraum'])
                 ? { zeitraum: previous['zeitraum'] }
                 : {}),

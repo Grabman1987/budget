@@ -1,10 +1,11 @@
-﻿import { Button, useAmountPrivacy } from '@budget/ui';
+import { Button, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate, useParams, useRouter, useSearch } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import type { Period } from '@budget/domain';
 import { VERMOEGEN_PORTFOLIO_META } from '../nav/pages';
-import { PageFrame } from '../pages/placeholder-page';
+import { WealthFrame } from './redesign-frame';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { AppLink } from '../shell/app-link';
 import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
@@ -23,15 +24,25 @@ function PortfolioDetailBack({ title, savings = false }: { title: string; saving
   const fallback = savings ? '/vermoegen/portfolio/sparplaene' : '/vermoegen/portfolio/positionen';
   const router = useRouter();
   const openedInApp = useLocation({ select: (location) => location.state.wealthDetailOpenedInApp });
-  const { zeitraum } = useSearch({ strict: false }) as { zeitraum?: Period };
+  const { zeitraum, anlageart, ansicht } = useSearch({ strict: false }) as {
+    zeitraum?: Period;
+    anlageart?: string;
+    ansicht?: string;
+  };
+  const context = { zeitraum, ...(REDESIGN_ENABLED ? { anlageart, ansicht } : {}) };
   return (
-    <div className="portfolio-detail-nav">
+    <div
+      className={`portfolio-detail-nav${REDESIGN_ENABLED && !savings ? ' wealth-instrument-back' : ''}`}
+    >
       <nav aria-label="Brotkrumen">
-        <AppLink to="/vermoegen/nettovermoegen" search={{ zeitraum }}>
+        <AppLink
+          to={REDESIGN_ENABLED ? '/vermoegen' : '/vermoegen/nettovermoegen'}
+          search={context}
+        >
           Vermögen
         </AppLink>
         {' › '}
-        <AppLink to={fallback} search={{ zeitraum }}>
+        <AppLink to={fallback} search={context}>
           Portfolio
         </AppLink>
         {' › '}
@@ -39,7 +50,8 @@ function PortfolioDetailBack({ title, savings = false }: { title: string; saving
       </nav>
       <AppLink
         to={fallback}
-        search={{ zeitraum }}
+        search={context}
+        aria-label="Zurück zum Portfolio"
         onClick={(event) => {
           if (openedInApp && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
             event.preventDefault();
@@ -47,7 +59,7 @@ function PortfolioDetailBack({ title, savings = false }: { title: string; saving
           }
         }}
       >
-        Zurück zum Portfolio
+        {REDESIGN_ENABLED && !savings ? '‹ Portfolio' : 'Zurück zum Portfolio'}
       </AppLink>
     </div>
   );
@@ -55,10 +67,13 @@ function PortfolioDetailBack({ title, savings = false }: { title: string; saving
 
 export function InstrumentPage() {
   const { id } = useParams({ strict: false }) as { id: string };
-  const { handel, zeitraum } = useSearch({ strict: false }) as {
+  const { handel, zeitraum, anlageart, ansicht } = useSearch({ strict: false }) as {
     handel?: string;
     zeitraum?: Period;
+    anlageart?: string;
+    ansicht?: string;
   };
+  const context = { zeitraum, ...(REDESIGN_ENABLED ? { anlageart, ansicht } : {}) };
   const navigate = useNavigate();
   const router = useRouter();
   const state = useLocation({ select: (location) => location.state });
@@ -75,11 +90,11 @@ export function InstrumentPage() {
         ? {
             to: '/vermoegen/portfolio/instrument/$id',
             params: { id: securityId },
-            search: { zeitraum },
+            search: context,
             state: { wealthDetailOpenedInApp: state.wealthDetailOpenedInApp === true },
             replace: !!handel,
           }
-        : { to: '/vermoegen/portfolio/positionen', search: { zeitraum } },
+        : { to: '/vermoegen/portfolio/positionen', search: context },
     );
   };
   const trade = (target?: string) => {
@@ -91,7 +106,7 @@ export function InstrumentPage() {
     void navigate({
       to: '/vermoegen/portfolio/instrument/$id',
       params: { id },
-      search: { zeitraum, handel: target },
+      search: { ...context, handel: target },
       state: {
         wealthDetailOpenedInApp: state.wealthDetailOpenedInApp === true,
         panelOpenedInApp: !!target,
@@ -101,7 +116,7 @@ export function InstrumentPage() {
   };
   const title = instrument.data?.security.name ?? 'Instrument';
   return (
-    <PageFrame meta={VERMOEGEN_PORTFOLIO_META} title="Portfolio">
+    <WealthFrame meta={VERMOEGEN_PORTFOLIO_META} title="Portfolio" page="positions">
       <div className="portfolio-detail">
         <PortfolioDetailBack title={title} />
         <InstrumentPanel
@@ -122,7 +137,7 @@ export function InstrumentPage() {
         />
       </div>
       <TradePanel id={handel ?? ''} securityId={id} onClose={() => trade()} onSaved={select} />
-    </PageFrame>
+    </WealthFrame>
   );
 }
 
@@ -144,7 +159,7 @@ export function SavingsPlanPage() {
   const name =
     instruments.data?.securities.find((s) => s.id === plan?.securityId)?.name ?? 'Sparplan';
   return (
-    <PageFrame meta={VERMOEGEN_PORTFOLIO_META} title="Portfolio">
+    <WealthFrame meta={VERMOEGEN_PORTFOLIO_META} title="Portfolio" page="savings">
       <div className="portfolio-detail">
         <PortfolioDetailBack title={`Sparplan · ${name}`} savings />
         {[
@@ -238,6 +253,6 @@ export function SavingsPlanPage() {
           }}
         />
       )}
-    </PageFrame>
+    </WealthFrame>
   );
 }

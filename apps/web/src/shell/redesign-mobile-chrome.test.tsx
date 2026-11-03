@@ -77,12 +77,12 @@ function mount(entry: string) {
   return router;
 }
 
-it('ON exposes the phone profile only on Heute and opens the existing profile page', async () => {
+it('ON exposes the phone profile only on Heute and opens the grouped settings index', async () => {
   mount('/');
   const avatar = await screen.findByLabelText('NU · Profil: Profilmenü');
   fireEvent.click(avatar);
   expect(screen.getByRole('link', { name: 'Profil und Einstellungen' }).getAttribute('href')).toBe(
-    '/einstellungen/profil',
+    '/einstellungen',
   );
   expect(screen.getByRole('button', { name: 'Suchen' })).toBeTruthy();
 });

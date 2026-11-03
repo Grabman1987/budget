@@ -21,6 +21,8 @@ import type { AllocationAccountChange } from '@budget/db';
 import { AllocationScopeEditor } from './allocation-scope-editor';
 import { AppLink } from '../shell/app-link';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
+import { SettingsRowMenu } from '../pages/settings-row-menu';
+import { ScrollRegion } from '../reports/spending-shared';
 
 export const bpText = (bp: number) =>
   `${bp < 0 ? '−' : ''}${(Math.abs(bp) / 100).toFixed(2).replace('.', ',')}`;
@@ -161,15 +163,20 @@ function entriesFor(view: PortfolioAllocationView, targets: ManagedTarget[]) {
   );
 }
 export function TargetEditor({
-  view,
-  versions,
+  view: latestView,
+  versions: latestVersions,
   archiveClassId,
+  presentation,
   ...controls
 }: EditorControls & {
   view: PortfolioAllocationView;
   versions: TargetVersion[];
   archiveClassId?: string | undefined;
+  presentation?: 'settings';
 }) {
+  const [opened] = useState({ view: latestView, versions: latestVersions });
+  const view = presentation === 'settings' ? opened.view : latestView;
+  const versions = presentation === 'settings' ? opened.versions : latestVersions;
   const [allocationAccounts, setAllocationAccounts] = useState<AllocationAccountChange[]>([]);
   const [exampleClasses, setExampleClasses] = useState<Record<WealthStageRole, string>>({
     world: '',
@@ -294,6 +301,15 @@ export function TargetEditor({
         nextErrors['limit:' + i] = 'Vermögensstufen müssen aufsteigend sein.';
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
+      if (presentation === 'settings')
+        requestAnimationFrame(() => {
+          const input = document.querySelector<HTMLElement>(
+            '#settings-target-form [aria-invalid="true"]',
+          );
+          for (let parent = input?.parentElement; parent; parent = parent.parentElement)
+            if (parent instanceof HTMLDetailsElement) parent.open = true;
+          input?.focus();
+        });
       const bad = Object.keys(nextErrors).find((k) => /^(\d+:|limit:)/.test(k));
       if (bad)
         setSelected(Number(bad.startsWith('limit:') ? bad.split(':')[1] : bad.split(':')[0]));
@@ -303,6 +319,18 @@ export function TargetEditor({
     setBusy(true);
     controls.onBusy(true);
     try {
+      if (presentation === 'settings') {
+        const latest = await request<{ versions: TargetVersion[] }>(
+          'GET',
+          '/api/asset-classes/targets',
+        );
+        if (JSON.stringify(latest.versions) !== JSON.stringify(versions)) {
+          setErrors({
+            form: 'Die Sollversionen wurden inzwischen geändert. Dein Entwurf bleibt erhalten. Verwirf ihn und lade den aktuellen Stand.',
+          });
+          return;
+        }
+      }
       await write(
         () =>
           request('PUT', '/api/asset-classes/targets', {
@@ -359,9 +387,59 @@ export function TargetEditor({
       }}
     />
   );
+  const versionFields = (
+    <div className={dynamic ? 'stage-version-fields' : undefined}>
+      <Field label="Gültig ab" error={errors['date']}>
+        {({ id, describedBy, invalid }) => (
+          <TextInput
+            id={id}
+            type="date"
+            value={date}
+            aria-invalid={invalid}
+            aria-describedby={describedBy}
+            onChange={(e) => {
+              changed();
+              setDate(e.target.value);
+            }}
+          />
+        )}
+      </Field>
+      <Field label="Bezeichnung (optional)">
+        {({ id }) => (
+          <TextInput
+            id={id}
+            maxLength={80}
+            value={label}
+            onChange={(e) => {
+              changed();
+              setLabel(e.target.value);
+            }}
+          />
+        )}
+      </Field>
+      <Field label="Begründung (optional)">
+        {({ id }) => (
+          <TextInput
+            id={id}
+            maxLength={500}
+            value={reason}
+            onChange={(e) => {
+              changed();
+              setReason(e.target.value);
+            }}
+          />
+        )}
+      </Field>
+    </div>
+  );
   return (
     <form
-      className="kform asset-target-form"
+      id={presentation === 'settings' ? 'settings-target-form' : undefined}
+      className={
+        presentation === 'settings'
+          ? 'kform asset-target-form settings-target-form'
+          : 'kform asset-target-form'
+      }
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
@@ -369,7 +447,7 @@ export function TargetEditor({
       }}
     >
       <fieldset disabled={busy}>
-        {dynamic ? (
+        {dynamic || presentation === 'settings' ? (
           <details className="stage-scope">
             <summary>Konten und Depots auswählen</summary>
             {scope}
@@ -377,7 +455,7 @@ export function TargetEditor({
         ) : (
           scope
         )}
-        <details className="stage-reference" open={!dynamic}>
+        <details className="stage-reference" open={!dynamic && presentation !== 'settings'}>
           <summary>Vorlagen und Erläuterungen</summary>
           <div className="stage-reference-content">
             <h3>2. Sollmodell und Vermögensstufen</h3>
@@ -501,49 +579,14 @@ export function TargetEditor({
             </p>
           </div>
         </details>
-        <div className={dynamic ? 'stage-version-fields' : undefined}>
-          <Field label="Gültig ab" error={errors['date']}>
-            {({ id, describedBy, invalid }) => (
-              <TextInput
-                id={id}
-                type="date"
-                value={date}
-                aria-invalid={invalid}
-                aria-describedby={describedBy}
-                onChange={(e) => {
-                  changed();
-                  setDate(e.target.value);
-                }}
-              />
-            )}
-          </Field>
-          <Field label="Bezeichnung (optional)">
-            {({ id }) => (
-              <TextInput
-                id={id}
-                maxLength={80}
-                value={label}
-                onChange={(e) => {
-                  changed();
-                  setLabel(e.target.value);
-                }}
-              />
-            )}
-          </Field>
-          <Field label="Begründung (optional)">
-            {({ id }) => (
-              <TextInput
-                id={id}
-                maxLength={500}
-                value={reason}
-                onChange={(e) => {
-                  changed();
-                  setReason(e.target.value);
-                }}
-              />
-            )}
-          </Field>
-        </div>
+        {presentation === 'settings' ? (
+          <details className="settings-advanced">
+            <summary>Gültigkeit und Version</summary>
+            {versionFields}
+          </details>
+        ) : (
+          versionFields
+        )}
         <p className="vnote">
           {versions.some((v) => v.validFrom === date)
             ? 'Die Version dieses Datums wird ersetzt.'
@@ -604,7 +647,212 @@ export function TargetEditor({
             </details>
           )}
         </div>
-        {dynamic && (
+        {dynamic && presentation === 'settings' && (
+          <section className="settings-stages" aria-label="Alle Vermögensstufen bearbeiten">
+            <h3 className="settings-section-title">Vermögensstufen</h3>
+            <ScrollRegion className="settings-stage-scroll" label="Vermögensstufen mit Zielquoten">
+              <table className="settings-stage-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Stufe</th>
+                    <th scope="col">ab Invest (€)</th>
+                    {columns.map((c) => (
+                      <th scope="col" key={c.id}>
+                        {c.name} %
+                      </th>
+                    ))}
+                    <th scope="col">Summe</th>
+                    <th scope="col">
+                      <span className="sr-only">Aktionen</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tiers.map((row, index) => (
+                    <tr key={index} aria-label={`Stufe ${index + 1}`} data-stage-index={index}>
+                      <th scope="row">
+                        <strong>{row.label || `Stufe ${index + 1}`}</strong>
+                        <small>{stageStatus(index)}</small>
+                      </th>
+                      <td>
+                        <TextInput
+                          aria-label={`Stufe ${index + 1} · Ab Vermögen (€)`}
+                          aria-invalid={Boolean(errors['limit:' + index])}
+                          aria-describedby={
+                            errors['limit:' + index]
+                              ? `${rowErrorPrefix}-limit:${index}`
+                              : undefined
+                          }
+                          inputMode="decimal"
+                          readOnly={index === 0}
+                          value={index === 0 ? '0,00' : row.limit}
+                          onChange={(event) => patchTier(index, { limit: event.target.value })}
+                        />
+                      </td>
+                      {columns.map((c) => (
+                        <td key={c.id}>
+                          {row.entries[c.id]!.included ? (
+                            <TextInput
+                              aria-label={`Stufe ${index + 1} · ${c.name} · Soll (%)`}
+                              aria-invalid={Boolean(errors[`${index}:${c.id}:share`])}
+                              aria-describedby={
+                                errors[`${index}:${c.id}:share`]
+                                  ? `${rowErrorPrefix}-${index}:${c.id}:share`
+                                  : undefined
+                              }
+                              inputMode="decimal"
+                              value={row.entries[c.id]!.share}
+                              onChange={(event) =>
+                                update(c.id, { share: event.target.value }, index)
+                              }
+                            />
+                          ) : (
+                            <span>Unverwaltet</span>
+                          )}
+                        </td>
+                      ))}
+                      <td>
+                        <strong>{bpText(sums[index]!)} %</strong>
+                      </td>
+                      <td>
+                        <SettingsRowMenu name={`Stufe ${index + 1}`}>
+                          <Field label={`Stufe ${index + 1} · Name (optional)`}>
+                            {({ id }) => (
+                              <TextInput
+                                id={id}
+                                value={row.label ?? ''}
+                                maxLength={80}
+                                onChange={(event) =>
+                                  patchTier(index, { label: event.target.value })
+                                }
+                              />
+                            )}
+                          </Field>
+                          <Field label={`Stufe ${index + 1} · Bedingung (nur Hinweis)`}>
+                            {({ id }) => (
+                              <TextInput
+                                id={id}
+                                value={row.condition ?? ''}
+                                maxLength={240}
+                                onChange={(event) =>
+                                  patchTier(index, { condition: event.target.value })
+                                }
+                              />
+                            )}
+                          </Field>
+                          {columns.map((c) => {
+                            const entry = row.entries[c.id]!;
+                            return (
+                              <div key={c.id}>
+                                <label className="asset-check">
+                                  <input
+                                    type="checkbox"
+                                    checked={entry.included}
+                                    onChange={(event) =>
+                                      update(c.id, { included: event.target.checked }, index)
+                                    }
+                                  />
+                                  {c.name} verwalten
+                                </label>
+                                <Field label={`${c.name} · Band`}>
+                                  {({ id }) => (
+                                    <Select
+                                      id={id}
+                                      value={entry.bandMode}
+                                      onChange={(event) =>
+                                        update(
+                                          c.id,
+                                          { bandMode: event.target.value as Entry['bandMode'] },
+                                          index,
+                                        )
+                                      }
+                                    >
+                                      <option value="standard">Standard</option>
+                                      <option value="custom">Eigenes Band</option>
+                                    </Select>
+                                  )}
+                                </Field>
+                                {entry.bandMode === 'custom' && (
+                                  <Field label={`${c.name} · Band (Prozentpunkte)`}>
+                                    {({ id }) => (
+                                      <TextInput
+                                        id={id}
+                                        aria-invalid={Boolean(errors[`${index}:${c.id}:band`])}
+                                        aria-describedby={
+                                          errors[`${index}:${c.id}:band`]
+                                            ? `${rowErrorPrefix}-${index}:${c.id}:band`
+                                            : undefined
+                                        }
+                                        value={entry.band}
+                                        inputMode="decimal"
+                                        onChange={(event) =>
+                                          update(c.id, { band: event.target.value }, index)
+                                        }
+                                      />
+                                    )}
+                                  </Field>
+                                )}
+                              </div>
+                            );
+                          })}
+                          <label className="asset-check">
+                            <input
+                              type="radio"
+                              name="stage-for-static"
+                              checked={selected === index}
+                              onChange={() => setSelected(index)}
+                            />
+                            Für einfache Sollquoten behalten
+                          </label>
+                          <Button
+                            variant="ghost"
+                            disabled={index === 0 || tiers.length <= 1}
+                            aria-label={`Stufe ${index + 1} entfernen`}
+                            onClick={() => {
+                              changed();
+                              setTiers(tiers.filter((_, i) => i !== index));
+                              setSelected(
+                                selected === index ? 0 : selected > index ? selected - 1 : selected,
+                              );
+                            }}
+                          >
+                            Stufe entfernen
+                          </Button>
+                        </SettingsRowMenu>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </ScrollRegion>
+            {Object.entries(errors)
+              .filter(([key]) => !['form', 'sum', 'date'].includes(key))
+              .map(([key, message]) => (
+                <p role="alert" id={`${rowErrorPrefix}-${key}`} key={key}>
+                  {maskMoneyText(message)}
+                </p>
+              ))}
+            <Button
+              variant="ghost"
+              disabled={tiers.length >= 10}
+              onClick={() => {
+                changed();
+                setSelected(tiers.length);
+                setTiers([
+                  ...tiers,
+                  { limit: '', entries: { ...tiers.at(-1)!.entries }, label: '', condition: '' },
+                ]);
+              }}
+            >
+              Vermögensstufe hinzufügen
+            </Button>
+            <p className="settings-source-stamp">
+              Eine erreichte Stufe bleibt aktiv, bis die Anlagesumme am Monatsende 10 % unter ihren
+              Schwellenwert fällt. Gespeicherter Stand: {longDay(view.asOf)}.
+            </p>
+          </section>
+        )}
+        {dynamic && presentation !== 'settings' && (
           <section className="stage-grid-section" aria-label="Alle Vermögensstufen bearbeiten">
             <div className="stage-grid-tools">
               <p className="vnote">Bedingungen sind nur Hinweise. 10 % Puffer am Monatsende.</p>
@@ -891,7 +1139,121 @@ export function TargetEditor({
             </div>
           </section>
         )}
+        {!dynamic && presentation === 'settings' && (
+          <section className="settings-stages" aria-label="Einfache Sollquoten bearbeiten">
+            <h3 className="settings-section-title">Zielallokation</h3>
+            <ScrollRegion className="settings-stage-scroll" label="Zielallokation">
+              <table className="settings-stage-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Anlageklasse</th>
+                    <th scope="col">Soll (%)</th>
+                    <th scope="col">Band</th>
+                    <th scope="col">± Prozentpunkte</th>
+                    <th scope="col">Verwalten</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {view.classes.map((c) => {
+                    const entry = tier.entries[c.id]!;
+                    return (
+                      <tr key={c.id}>
+                        <th scope="row">{c.name}</th>
+                        <td>
+                          {entry.included ? (
+                            <TextInput
+                              aria-label={`${c.name} · Soll (%)`}
+                              aria-invalid={Boolean(errors[`${selected}:${c.id}:share`])}
+                              aria-describedby={
+                                errors[`${selected}:${c.id}:share`]
+                                  ? `${rowErrorPrefix}-${selected}:${c.id}:share`
+                                  : undefined
+                              }
+                              inputMode="decimal"
+                              value={entry.share}
+                              disabled={!entry.included}
+                              onChange={(event) => update(c.id, { share: event.target.value })}
+                            />
+                          ) : (
+                            <span>Unverwaltet</span>
+                          )}
+                          {errors[`${selected}:${c.id}:share`] && (
+                            <p
+                              className="field-error"
+                              role="alert"
+                              id={`${rowErrorPrefix}-${selected}:${c.id}:share`}
+                            >
+                              {errors[`${selected}:${c.id}:share`]}
+                            </p>
+                          )}
+                        </td>
+                        <td>
+                          {entry.included ? (
+                            <Select
+                              aria-label={`${c.name} · Band`}
+                              value={entry.bandMode}
+                              disabled={!entry.included}
+                              onChange={(event) =>
+                                update(c.id, { bandMode: event.target.value as Entry['bandMode'] })
+                              }
+                            >
+                              <option value="standard">Standard</option>
+                              <option value="custom">Individuell</option>
+                            </Select>
+                          ) : (
+                            <span>—</span>
+                          )}
+                        </td>
+                        <td>
+                          {!entry.included ? (
+                            <span>—</span>
+                          ) : entry.bandMode === 'custom' ? (
+                            <TextInput
+                              aria-label={`${c.name} · Band ± (Prozentpunkte)`}
+                              aria-invalid={Boolean(errors[`${selected}:${c.id}:band`])}
+                              aria-describedby={
+                                errors[`${selected}:${c.id}:band`]
+                                  ? `${rowErrorPrefix}-${selected}:${c.id}:band`
+                                  : undefined
+                              }
+                              inputMode="decimal"
+                              value={entry.band}
+                              disabled={!entry.included}
+                              onChange={(event) => update(c.id, { band: event.target.value })}
+                            />
+                          ) : (
+                            <span>Standard</span>
+                          )}
+                          {errors[`${selected}:${c.id}:band`] && (
+                            <p
+                              className="field-error"
+                              role="alert"
+                              id={`${rowErrorPrefix}-${selected}:${c.id}:band`}
+                            >
+                              {errors[`${selected}:${c.id}:band`]}
+                            </p>
+                          )}
+                        </td>
+                        <td>
+                          <label className="asset-check">
+                            <input
+                              type="checkbox"
+                              checked={entry.included}
+                              onChange={(event) => update(c.id, { included: event.target.checked })}
+                            />
+                            <span className="sr-only">{c.name} im Sollmodell berücksichtigen</span>
+                          </label>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </ScrollRegion>
+          </section>
+        )}
         {!dynamic &&
+          presentation !== 'settings' &&
           view.classes.map((c) => {
             const entry = tier.entries[c.id]!;
             const share = readBp(entry.share);

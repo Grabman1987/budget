@@ -271,3 +271,20 @@
   align-items: center;
   min-height: var(--touch);
 }
+.month-close.month-close-v2 {
+  padding: 0 0 var(--space-xl);
+  gap: var(--space-lg);
+}
+.month-close-v2 .close-inspect-step {
+  display: grid;
+  gap: var(--space-xs);
+  max-width: 100%;
+}
+.month-close-v2 .close-inspect-step small {
+  color: var(--ink-2);
+}
+.month-close-v2 button,
+.month-close-v2 select,
+.month-close-v2 summary {
+  min-height: var(--touch);
+}

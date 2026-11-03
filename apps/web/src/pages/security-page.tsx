@@ -1,6 +1,7 @@
 import {
   Button,
   Field,
+  FormDialog,
   SectionHead,
   TextInput,
   useToast,
@@ -28,6 +29,10 @@ import { PageFrame } from './placeholder-page';
 import { clearDeviceFinancialData } from '../pwa/local-data';
 import { StorageStatus } from '../pwa/storage-status';
 
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsDraftGuard } from './settings-draft-guard';
+import { KeyRound, ShieldCheck, Monitor } from 'lucide-react';
+
 const RECOVERY_CODE_COUNT = 10;
 
 const dateFormat = new Intl.DateTimeFormat('de-AT', { dateStyle: 'medium' });
@@ -42,8 +47,14 @@ export function SecurityPage() {
   const navigate = useNavigate();
   return (
     <PageFrame meta={SECURITY_META}>
-      <StorageStatus />
+      {!REDESIGN_ENABLED && <StorageStatus />}
       <SecurityPanel onLoggedOut={() => void navigate({ to: '/login' })} />
+      {REDESIGN_ENABLED && (
+        <details className="settings-advanced">
+          <summary>Speicher auf diesem Gerät</summary>
+          <StorageStatus />
+        </details>
+      )}
     </PageFrame>
   );
 }
@@ -64,6 +75,7 @@ export function SecurityPanel({ onLoggedOut }: SecurityPanelProps) {
   const [deviceName, setDeviceName] = useState(defaultDeviceName);
   const [confirmId, setConfirmId] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+  const [confirmSessions, setConfirmSessions] = useState(false);
   const [newCodes, setNewCodes] = useState<string[] | undefined>();
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: PASSKEYS_KEY });
@@ -159,6 +171,227 @@ export function SecurityPanel({ onLoggedOut }: SecurityPanelProps) {
     void add();
   };
 
+  if (REDESIGN_ENABLED)
+    return (
+      <div className="settings-security-v2">
+        <div className="settings-primary-head">
+          <h2>Sicherheit</h2>
+        </div>
+        {error && (
+          <p className="field-error" role="alert">
+            {maskMoneyText(error)}
+          </p>
+        )}
+        {list.isPending && <p role="status">Sicherheit wird geladen …</p>}
+        {list.isError && (
+          <p role="alert">
+            {authErrorMessage(list.error)}{' '}
+            <Button variant="ghost" onClick={() => void list.refetch()}>
+              Erneut laden
+            </Button>
+          </p>
+        )}
+        <section aria-labelledby="sec-passkeys" className="settings-security-section">
+          <h3 id="sec-passkeys" className="settings-section-title">
+            Passkeys
+          </h3>
+          <div className="settings-surface">
+            {list.data?.passkeys.map((passkey) => (
+              <div className="settings-row" key={passkey.id}>
+                <div className="settings-security-copy">
+                  <KeyRound size={20} aria-hidden="true" />
+                  <div>
+                    <strong>{passkey.deviceName}</strong>
+                    {passkey.current && <span className="sec-mark tech">dieses Gerät</span>}
+                    <small>
+                      Angelegt {formatDate(passkey.createdAt)} · Zuletzt verwendet{' '}
+                      {passkey.lastUsedAt ? formatDate(passkey.lastUsedAt) : 'noch nie'}
+                    </small>
+                  </div>
+                </div>
+                {confirmId === passkey.id ? (
+                  <div className="settings-row-actions">
+                    <Button variant="ghost" disabled={busy} onClick={() => void revoke(passkey)}>
+                      Endgültig entfernen
+                    </Button>
+                    <Button variant="ghost" disabled={busy} onClick={() => setConfirmId(undefined)}>
+                      Abbrechen
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    disabled={busy}
+                    aria-label={`Passkey ${passkey.deviceName} entfernen`}
+                    onClick={() => {
+                      setError(undefined);
+                      setConfirmId(passkey.id);
+                    }}
+                  >
+                    Entfernen
+                  </Button>
+                )}
+              </div>
+            ))}
+            {list.data?.passkeys.length === 0 && (
+              <p className="settings-empty-row">Keine Passkeys verfügbar.</p>
+            )}
+            <div className="settings-row">
+              <div>
+                <strong>Weiteres Gerät</strong>
+                <small>Mit Passkey auf einem weiteren Gerät anmelden.</small>
+              </div>
+              <Button
+                variant="ghost"
+                disabled={busy}
+                onClick={() => {
+                  setError(undefined);
+                  setAdding(true);
+                }}
+              >
+                Passkey hinzufügen
+              </Button>
+            </div>
+          </div>
+          {adding && (
+            <form className="settings-compact-form" onSubmit={submitAdd} noValidate>
+              <SettingsDraftGuard dirty={deviceName !== defaultDeviceName()} busy={busy} />
+              <Field label="Gerätename">
+                {({ id }) => (
+                  <TextInput
+                    id={id}
+                    value={deviceName}
+                    onChange={(event) => setDeviceName(event.target.value)}
+                    autoComplete="off"
+                    maxLength={60}
+                  />
+                )}
+              </Field>
+              <div className="settings-form-actions">
+                <Button type="submit" disabled={busy}>
+                  Passkey anlegen
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => {
+                    if (
+                      deviceName === defaultDeviceName() ||
+                      window.confirm('Ungespeicherte Änderungen verwerfen?')
+                    )
+                      setAdding(false);
+                  }}
+                >
+                  Abbrechen
+                </Button>
+              </div>
+            </form>
+          )}
+        </section>
+        <section aria-labelledby="sec-recovery" className="settings-security-section">
+          <h3 id="sec-recovery" className="settings-section-title">
+            Wiederherstellungscodes
+          </h3>
+          <div className="settings-surface">
+            <div className="settings-row">
+              <div className="settings-security-copy">
+                <ShieldCheck size={20} aria-hidden="true" />
+                <div>
+                  <strong>Wiederherstellungscodes</strong>
+                  <small>
+                    {list.data
+                      ? `${list.data.recoveryCodesRemaining} von ${RECOVERY_CODE_COUNT} Codes noch gültig.`
+                      : 'Anzahl wird geladen …'}
+                  </small>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                disabled={busy || !list.data}
+                onClick={() => void regenerate()}
+              >
+                Wiederherstellungscodes neu erzeugen
+              </Button>
+            </div>
+          </div>
+          <p className="settings-source-stamp">Die bisherigen Codes werden damit ungültig.</p>
+          {newCodes && (
+            <RecoveryCodesGate
+              codes={newCodes}
+              continueLabel="Fertig"
+              onContinue={() => setNewCodes(undefined)}
+            />
+          )}
+        </section>
+        <section aria-labelledby="sec-session" className="settings-security-section">
+          <h3 id="sec-session" className="settings-section-title">
+            Sitzungen
+          </h3>
+          <div className="settings-surface">
+            <div className="settings-row">
+              <div className="settings-security-copy">
+                <Monitor size={20} aria-hidden="true" />
+                <div>
+                  <strong>Angemeldete Geräte</strong>
+                  <small>
+                    {list.data
+                      ? list.data.otherSessions === 0
+                        ? 'Keine anderen Sitzungen aktiv.'
+                        : `${list.data.otherSessions} weitere ${list.data.otherSessions === 1 ? 'Sitzung aktiv' : 'Sitzungen aktiv'}.`
+                      : 'Sitzungen werden geladen …'}
+                  </small>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                disabled={busy || !list.data}
+                onClick={() => setConfirmSessions(true)}
+              >
+                Alle anderen Sitzungen beenden
+              </Button>
+            </div>
+            <div className="settings-row">
+              <div>
+                <strong>Dieses Gerät</strong>
+                <small>Lokale Finanzdaten werden beim Abmelden entfernt.</small>
+              </div>
+              <Button variant="ghost" disabled={busy} onClick={() => void signOut()}>
+                Abmelden
+              </Button>
+            </div>
+          </div>
+        </section>
+        {list.dataUpdatedAt > 0 && (
+          <p className="settings-source-stamp">
+            Sicherheitsstatus geladen: {new Date(list.dataUpdatedAt).toLocaleString('de-AT')}
+          </p>
+        )}
+        <FormDialog
+          open={confirmSessions}
+          title="Alle anderen Sitzungen beenden?"
+          beforeClose={() => !busy}
+          onClose={() => setConfirmSessions(false)}
+        >
+          <p>
+            Meldet alle anderen Browser und Wiederherstellungs-Anmeldungen ab. Diese Sitzung bleibt.
+          </p>
+          <div className="settings-form-actions">
+            <Button variant="ghost" disabled={busy} onClick={() => setConfirmSessions(false)}>
+              Abbrechen
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={() => {
+                setConfirmSessions(false);
+                void endOthers();
+              }}
+            >
+              Sitzungen beenden
+            </Button>
+          </div>
+        </FormDialog>
+      </div>
+    );
   return (
     <div className="security">
       {error && (

@@ -6,6 +6,18 @@ import { expect, test, type Page } from '@playwright/test';
  * sort, merge with one undo. Desktop and phone share the database; names carry the project.
  */
 
+const redesign = async (page: Page) =>
+  (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+const categoryRow = (page: Page, name: string) =>
+  page.locator('.settings-category-row, .cat-table .krow').filter({ hasText: name });
+async function actions(page: Page, name: string) {
+  if (await redesign(page)) {
+    const summary = page.getByLabel(`Aktionen für ${name}`, { exact: true });
+    if (!(await summary.locator('..').evaluate((node) => (node as HTMLDetailsElement).open)))
+      await summary.click();
+  }
+}
+
 const toast = (page: Page) => page.locator('.toast.is-open');
 const dialog = (page: Page, name: string) => page.getByRole('dialog', { name });
 
@@ -15,6 +27,7 @@ async function newCategory(
   name: string,
   extra?: (d: ReturnType<typeof dialog>) => Promise<void>,
 ) {
+  await actions(page, `Gruppe ${group}`);
   await page.getByRole('button', { name: `Kategorie in ${group} anlegen` }).click();
   const d = dialog(page, 'Kategorie anlegen');
   await expect(page.locator('dialog.panel[open]')).toHaveCount(0);
@@ -45,7 +58,7 @@ test('categories: create, target, hide, sort, merge and undo', async ({ page }, 
   await newCategory(page, group, `Café ${tag}`, async (d) => {
     await d.getByRole('button', { name: 'Wunsch' }).click();
   });
-  const row = page.getByRole('row', { name: new RegExp(`Lebensmittel ${tag}`) });
+  const row = categoryRow(page, `Lebensmittel ${tag}`);
   await expect(row).toContainText('Stufe 2 · Laufend');
   await expect(row).toContainText('Ziel 600,00 € jeden Monat');
   // The emoji is drawn with the monochrome Noto Emoji font, never as colour emoji.
@@ -60,29 +73,35 @@ test('categories: create, target, hide, sort, merge and undo', async ({ page }, 
     await expect(up).toBeHidden();
     await page.getByRole('button', { name: `Café ${tag} verschieben` }).press('ArrowUp');
   } else {
+    await actions(page, `Lebensmittel ${tag}`);
     await expect(
       page.getByRole('button', { name: `Lebensmittel ${tag} nach unten` }),
     ).toBeVisible();
+    if (await redesign(page))
+      await page.getByLabel(`Aktionen für Lebensmittel ${tag}`, { exact: true }).click();
+    await actions(page, `Café ${tag}`);
     await up.click();
   }
   await expect(toast(page)).toContainText('Reihenfolge gespeichert');
-  const names = await page.locator('.cat-table .krow .kname-s').allTextContents();
+  const names = await page
+    .locator('.cat-table .krow .kname-s, .settings-category-name')
+    .allTextContents();
   const at = (n: string) => names.findIndex((x) => x.includes(n));
   expect(at(`Café ${tag}`)).toBeLessThan(at(`Lebensmittel ${tag}`));
 
   // Hide: gone from the list until "Ausgeblendete zeigen".
+  await actions(page, `Café ${tag}`);
   await page.getByRole('button', { name: `Café ${tag} bearbeiten` }).click();
   await dialog(page, 'Kategorie')
     .getByRole('switch', { name: /Ausblenden/ })
     .click();
   await dialog(page, 'Kategorie').getByRole('button', { name: 'Speichern' }).click();
-  await expect(page.getByRole('row', { name: new RegExp(`Café ${tag}`) })).toHaveCount(0);
+  await expect(categoryRow(page, `Café ${tag}`)).toHaveCount(0);
   await page.getByRole('switch', { name: /Ausgeblendete zeigen/ }).click();
-  await expect(page.getByRole('row', { name: new RegExp(`Café ${tag}`) })).toContainText(
-    'ausgeblendet',
-  );
+  await expect(categoryRow(page, `Café ${tag}`)).toContainText('ausgeblendet');
 
   // Merge Café into Lebensmittel, then undo the whole action.
+  await actions(page, `Café ${tag}`);
   await page.getByRole('button', { name: `Café ${tag} bearbeiten` }).click();
   await dialog(page, 'Kategorie').getByRole('button', { name: 'Zusammenführen …' }).click();
   await dialog(page, 'Zusammenführen')
@@ -90,9 +109,9 @@ test('categories: create, target, hide, sort, merge and undo', async ({ page }, 
     .selectOption({ label: `Lebensmittel ${tag}` });
   await dialog(page, 'Zusammenführen').getByRole('button', { name: 'Zusammenführen' }).click();
   await expect(toast(page)).toContainText('zusammengeführt');
-  await expect(page.getByRole('row', { name: new RegExp(`Café ${tag}`) })).toHaveCount(0);
+  await expect(categoryRow(page, `Café ${tag}`)).toHaveCount(0);
   await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
-  await expect(page.getByRole('row', { name: new RegExp(`Café ${tag}`) })).toHaveCount(1);
+  await expect(categoryRow(page, `Café ${tag}`)).toHaveCount(1);
 
   const axe = await new AxeBuilder({ page }).include('main').analyze();
   expect(axe.violations.map((v) => v.id)).toEqual([]);

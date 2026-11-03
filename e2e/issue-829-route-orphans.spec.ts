@@ -7,6 +7,7 @@ import type { Page, Locator } from '@playwright/test';
 import { inboxItem, insertTracked, openDatabase } from '@budget/db';
 import { sampleTest as test, expect } from './sample';
 import { test as isolatedTest } from './isolated-ledger';
+import { wealthRedesign } from './wealth-navigation';
 import { openPruefenSource } from './pruefen-part';
 
 const on = process.env['A2_EXPECT_REDESIGN'] === '1';
@@ -36,7 +37,12 @@ async function journal(p: Page) {
   ).toBeVisible();
 }
 async function instrument(p: Page) {
-  await css(p, '.instrument-detail[aria-label="ETF Welt"] .instrument-metadata');
+  await css(
+    p,
+    (await wealthRedesign(p))
+      ? '.wealth-instrument-strip'
+      : '.instrument-detail[aria-label="ETF Welt"] .instrument-metadata',
+  );
   await css(p, '.instrument-detail .trade-list tr[data-trade-id]');
   await id(p, 'instrument-value-chart');
 }
@@ -70,7 +76,12 @@ async function assignment(p: Page) {
   ).toBeVisible();
   if (data.rules.length)
     await expect(
-      p.getByRole('table', { name: 'Reihenfolge und Status der Zuordnungsregeln', exact: true }),
+      (await p.locator('.app').getAttribute('data-budget-redesign')) === '1'
+        ? p.locator('.settings-assignment-list')
+        : p.getByRole('table', {
+            name: 'Reihenfolge und Status der Zuordnungsregeln',
+            exact: true,
+          }),
     ).toContainText(data.rules[0]!.name);
   else
     await expect(
@@ -92,19 +103,43 @@ async function basket(p: Page) {
       .getByTestId('basket-category-cat-miete')
       .getByLabel(`Zählt mit: ${rent!.name}`, { exact: true }),
   ).toBeVisible();
-  await css(p, '.basket-settings .basket-summary');
+  const redesigned = (await p.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  await css(
+    p,
+    redesigned ? '.settings-basket-v2 [role="status"]' : '.basket-settings .basket-summary',
+  );
 }
 async function projects(p: Page) {
   const data = await read<{ projects: { name: string }[] }>(p, '/api/projects');
   expect(data.projects.length, 'real sample projects').toBeGreaterThan(0);
-  await expect(p.locator('.pp-settings').getByLabel('Projektname', { exact: true })).toBeVisible();
-  await expect(p.locator('.pp-settings .pp-scroll table')).toContainText(data.projects[0]!.name);
+  const redesigned = (await p.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  await expect(p.getByLabel('Projektname', { exact: true })).toBeVisible();
+  await expect(
+    p.locator(
+      redesigned ? '.settings-projects-v2 .settings-surface' : '.pp-settings .pp-scroll table',
+    ),
+  ).toContainText(data.projects[0]!.name);
 }
 const probes = {
-  heute: (p: Page) =>
-    expect(p.getByRole('region', { name: 'Spielraum bis Gehalt', exact: true })).toBeVisible(),
+  heute: async (p: Page) => {
+    const redesigned = (await p.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    await expect(
+      p.getByRole('region', {
+        name: redesigned ? 'Frei bis Gehalt' : 'Spielraum bis Gehalt',
+        exact: true,
+      }),
+    ).toBeVisible();
+  },
   dimension: async (p: Page) => {
-    await css(p, '.heute-dimension .heute-breakdown a[href="/konten/acc-giro"]');
+    const link = p.locator('.heute-dimension .heute-breakdown a[href^="/konten/acc-giro"]').first();
+    await expect(link).toBeVisible();
+    const target = new URL((await link.getAttribute('href'))!, p.url());
+    expect(target.pathname).toBe('/konten/acc-giro');
+    if ((await p.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+      expect(target.searchParams.get('monat')).toBe(new URL(p.url()).searchParams.get('monat'));
+      expect(target.searchParams.get('period')).toBe('month');
+      expect(target.searchParams.get('von')).toMatch(/^\/heute\/details\/liquid\?/);
+    } else expect(target.search).toBe('');
     await expect(p.locator('#dimension-title')).toHaveText('Liquidität');
   },
   capture: (p: Page) =>
@@ -167,13 +202,19 @@ const probes = {
     await expect(detail).toContainText('In diesem Monat gibt es noch keine Kontaktbuchungen.');
     await expect(detail).toContainText('Noch keine ältere oder spätere Kontaktbewegung.');
   },
-  networth: (p: Page) => id(p, 'nw-figure'),
-  portfolio: (p: Page) => id(p, 'portfolio-overview-chart'),
+  networth: async (p: Page) => id(p, (await wealthRedesign(p)) ? 'wealth-net-value' : 'nw-figure'),
+  wealthOverview: (p: Page) => id(p, 'wealth-net-value'),
+  portfolio: async (p: Page) =>
+    id(p, (await wealthRedesign(p)) ? 'wealth-net-value' : 'portfolio-overview-chart'),
   positions: async (p: Page) => {
     await id(p, 'portfolio-value');
-    await css(p, '.portfolio-table tbody tr');
+    await css(
+      p,
+      (await wealthRedesign(p)) ? '.wealth-position-table tbody tr' : '.portfolio-table tbody tr',
+    );
   },
-  allocation: (p: Page) => css(p, '.vallo'),
+  allocation: async (p: Page) =>
+    css(p, (await wealthRedesign(p)) ? '.wealth-allocation-table' : '.vallo'),
   savingsList: (p: Page) =>
     expect(
       p
@@ -208,10 +249,14 @@ const probes = {
   security: (p: Page) =>
     expect(p.getByRole('button', { name: 'Abmelden', exact: true })).toBeVisible(),
   accountSettings: (p: Page) =>
-    expect(p.locator('.accounts-name strong').filter({ hasText: 'Girokonto' })).toBeVisible(),
+    expect(
+      p
+        .locator('.accounts-name strong, .settings-account-name strong')
+        .filter({ hasText: 'Girokonto' }),
+    ).toBeVisible(),
   depotSettings: (p: Page) =>
     expect(p.getByLabel('Einstandskostenmethode', { exact: true })).toBeEnabled(),
-  categories: (p: Page) => css(p, '.cat-table .kname-btn'),
+  categories: (p: Page) => css(p, '.cat-table .kname-btn, .settings-category-name'),
   category: async (p: Page) => {
     await expect(p.locator('#category-detail-title')).toHaveText('Lebensmittel');
     await expect(
@@ -220,17 +265,23 @@ const probes = {
         .getByRole('button', { name: 'Kategorie bearbeiten', exact: true }),
     ).toBeVisible();
   },
-  rules: (p: Page) => css(p, '[data-rule-code="R07"]'),
+  rules: (p: Page) => css(p, '[data-settings-rule-code="R07"], [data-rule-code="R07"]'),
   rule: async (p: Page) => {
     await css(p, '.rw-now[aria-label="Aktueller Stand"] .rw-action');
     await expect(p.locator('.rw-now')).toContainText('Schwelle:');
     await expect(p.locator('.rw nav [aria-current="page"]')).toContainText('R07');
   },
   assignment,
-  dataSources: (p: Page) =>
-    expect(p.locator('.data-sources .bank-connect')).toContainText(
+  dataSources: async (p: Page) => {
+    if ((await p.locator('.app').getAttribute('data-budget-redesign')) === '1')
+      await p
+        .getByRole('region', { name: 'Bank', exact: true })
+        .getByRole('button', { name: 'Prüfen', exact: true })
+        .click();
+    await expect(p.locator('.data-sources .bank-connect')).toContainText(
       'Bank-Sync ist noch nicht eingerichtet.',
-    ),
+    );
+  },
   assetClasses: (p: Page) => css(p, '.asset-class-table tbody tr'),
   basket,
   export: (p: Page) =>
@@ -343,8 +394,12 @@ const direct = [
 for (const [row, url, body] of direct)
   test(`A2 sample baseline ${row}: ${url}`, async ({ page }) => {
     const desktopIndex = row === 38 && page.viewportSize()!.width >= 768;
-    const path = desktopIndex ? '/einstellungen/konten' : new URL(url, 'http://fixture').pathname;
-    const expectedBody = desktopIndex ? 'accountSettings' : body;
+    const path = desktopIndex
+      ? on
+        ? '/einstellungen/profil'
+        : '/einstellungen/konten'
+      : new URL(url, 'http://fixture').pathname;
+    const expectedBody = desktopIndex ? (on ? 'profile' : 'accountSettings') : body;
     await page.goto(url);
     await loaded(page, path, expectedBody);
     await reload(page, path, expectedBody);
@@ -441,7 +496,12 @@ for (const [slug, path, intent, view, body] of reportAliases)
   });
 const fixedAliases = [
   ['/plan', '/plan/monat', 'plan', 'monat=2026-09'],
-  ['/vermoegen', '/vermoegen/nettovermoegen', 'networth', ''],
+  [
+    '/vermoegen',
+    on ? '/vermoegen' : '/vermoegen/nettovermoegen',
+    on ? 'wealthOverview' : 'networth',
+    '',
+  ],
   ['/einstellungen/import', '/einstellungen/export', 'export', ''],
 ] as const;
 for (const [from, path, body, query] of fixedAliases)

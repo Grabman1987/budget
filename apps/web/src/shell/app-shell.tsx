@@ -14,6 +14,8 @@ import { QueueList } from '../pwa/queue-ui';
 import { useStorageProtection } from '../pwa/storage-protection';
 import { usePrivacyShortcut } from './privacy-button';
 import { OfflineStatus } from './header-status';
+import { HeuteShellHead } from '../heute/overview';
+import { HeuteSourceReturn } from '../heute/return-context';
 import { REDESIGN_ENABLED } from './redesign-flag';
 
 const APP_NAME = 'Budget';
@@ -29,6 +31,17 @@ export function AppShell() {
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
   const page = useActivePage();
   const pathname = useLocation({ select: (location) => location.pathname });
+  const analysis = useLocation({ select: (location) => location.search['ansicht'] === 'analyse' });
+  // Migrated Wealth frames own their h1; retained analyses and Freiheit use the phone title.
+  const wealthPageHeading =
+    REDESIGN_ENABLED &&
+    page?.area === 'vermoegen' &&
+    page.register !== 'freiheit' &&
+    pathname !== '/vermoegen/portfolio/kennzahlen' &&
+    !(
+      analysis &&
+      (pathname === '/vermoegen/nettovermoegen' || pathname === '/vermoegen/portfolio')
+    );
   const [searchOpen, setSearchOpen] = useState(false);
   const searching = searchOpen || pathname === '/suche';
   const area = searching ? undefined : page?.area;
@@ -65,18 +78,25 @@ export function AppShell() {
         />
         <div className="main">
           <Topbar
+            leading={
+              REDESIGN_ENABLED && (pathname === '/' || pathname.startsWith('/heute/details/')) ? (
+                <HeuteShellHead />
+              ) : undefined
+            }
+            {...(REDESIGN_ENABLED && area === 'plan' ? { title: 'Plan' } : {})}
             collapsed={collapsed}
             onToggle={() => setCollapsed(!collapsed)}
             onSearchChange={setSearchOpen}
           />
           <MobileHeader
             title={searching ? 'Suchen' : phoneTitle(page, title)}
-            asHeading={!(page && TITLE_ON_MOBILE_AREAS.has(page.area))}
+            asHeading={!(page && TITLE_ON_MOBILE_AREAS.has(page.area)) && !wealthPageHeading}
             onSearchChange={setSearchOpen}
           />
           <OfflineStatus />
           <main className="sheet" id="main" tabIndex={-1} ref={main}>
             {(page?.area === 'heute' || page?.area === 'konten') && <QueueList />}
+            {REDESIGN_ENABLED && <HeuteSourceReturn />}
             <Outlet />
           </main>
         </div>

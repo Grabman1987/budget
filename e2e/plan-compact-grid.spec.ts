@@ -163,15 +163,12 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   await expect(page.locator('.ptable .prow')).toHaveCount(18);
   await expect(page.locator('.plan-add-row')).toHaveCount(0);
   await expect(page.locator('.prow .sw')).toHaveCount(0);
-  await expect(page.locator('.prow .spending-status').first()).toHaveText(
-    'Überzogen um 2,02 € · fehlt 5,00 € bis Ziel',
-  );
-  await expect(page.locator('.prow .spending-status').nth(1)).toHaveText(
-    'Ausgegeben 2,01 € von 5,01 € · fehlt 5,00 € bis Ziel',
-  );
-  await expect(page.locator('.prow .spending-status').nth(2)).toHaveText(
-    'Komplett ausgegeben · fehlt 5,00 € bis Ziel',
-  );
+  const redesigned = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  // ON adds a separate semantic state mark; the exact financial copy stays intact.
+  const spending = page.locator(`.prow ${redesigned ? '.plan-spending-copy' : '.spending-status'}`);
+  await expect(spending.first()).toHaveText('Überzogen um 2,02 € · fehlt 5,00 € bis Ziel');
+  await expect(spending.nth(1)).toHaveText('Ausgegeben 2,01 € von 5,01 € · fehlt 5,00 € bis Ziel');
+  await expect(spending.nth(2)).toHaveText('Komplett ausgegeben · fehlt 5,00 € bis Ziel');
   if (page.viewportSize()!.width < 768) {
     await enterPhoneSelection(page);
     const all = page.getByRole('button', { name: /^Alle Kategorien auswählen · \d+\/\d+$/ });
@@ -240,7 +237,12 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).uncheck();
   }
   await expect(page.getByTestId('to-be-assigned')).toHaveText('1.909,82 €');
+  const phoneReadUtilities =
+    (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  const readOptions = page.locator('.plan-menu-optionen > summary');
+  if (phoneReadUtilities) await readOptions.click();
   await expect(page.getByText('Unterfinanziert 90,00 €', { exact: true })).toBeVisible();
+  if (phoneReadUtilities) await readOptions.click();
   const firstParent = page
     .getByRole('button', { name: 'Gruppe Mustergruppe 1', exact: true })
     .locator('xpath=ancestor::tr');
@@ -254,7 +256,8 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   ] as const) {
     const total = firstParent.locator(`.col-num[data-label="${metric}"]`);
     await expect(total).toHaveCount(1);
-    await expect(total).toHaveText(value);
+    const availableAmount = total.locator('.plan-group-available-amount');
+    await expect((await availableAmount.count()) ? availableAmount : total).toHaveText(value);
   }
   await expect(firstParent.locator('.pname')).toHaveCount(0);
   await expect(firstCategory.locator('.col-assign')).toHaveText(
@@ -297,10 +300,15 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
       contentType: 'application/json',
     });
     await page.screenshot({ path: info.outputPath('plan-compact-fold.png') });
-    expect(dimensions.beforeGrid).toBeLessThanOrEqual(120);
+    if (redesigned) {
+      const first = await page.locator('.ptable .prow').first().boundingBox();
+      expect(first!.y + first!.height).toBeLessThanOrEqual(900);
+    } else expect(dimensions.beforeGrid).toBeLessThanOrEqual(120);
     expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(40);
     expect(Math.max(...dimensions.groups)).toBeLessThanOrEqual(36);
-    expect(dimensions.visible).toBeGreaterThanOrEqual(14);
+    // The compact OFF worksheet retains its original density. The ON canvas exposes
+    // the lead chain; its fold contract is the first-row check above and P1's phone bound.
+    if (!redesigned) expect(dimensions.visible).toBeGreaterThanOrEqual(14);
   }
   const firstGroup = page.getByRole('button', { name: 'Gruppe Mustergruppe 1', exact: true });
   await firstGroup.focus();
@@ -386,6 +394,11 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
       expect(Math.max(...dimensions.groups)).toBeLessThanOrEqual(76);
       expect(Math.max(...dimensions.bandHeights)).toBeLessThanOrEqual(152);
       const bar = page.locator('.plan-topbar');
+      if (redesigned) {
+        // ON exposes the full lead at the top and compacts it at the sticky edge.
+        await page.evaluate(() => window.scrollTo(0, 400));
+        await expect.poll(async () => (await bar.boundingBox())!.height).toBeLessThanOrEqual(56);
+      }
       expect((await bar.boundingBox())!.height).toBeLessThanOrEqual(56);
       await page.locator('.ptoolbar').scrollIntoViewIfNeeded();
       const topbar = (await bar.boundingBox())!;

@@ -8,6 +8,7 @@ export interface RegisterDef {
   id: string;
   label: string;
   to: string;
+  search?: Record<string, string>;
 }
 
 export interface AreaDef {
@@ -53,7 +54,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
     id: 'vermoegen',
     label: 'Vermögen',
     no: '04',
-    to: '/vermoegen/nettovermoegen',
+    to: REDESIGN_ENABLED ? '/vermoegen' : '/vermoegen/nettovermoegen',
     icon: TrendingUp,
     registers: [
       { id: 'nettovermoegen', label: 'Nettovermögen', to: '/vermoegen/nettovermoegen' },
@@ -73,18 +74,36 @@ export const AREAS: ReadonlyArray<AreaDef> = [
   {
     id: 'einstellungen',
     label: 'Einstellungen',
-    to: '/einstellungen/konten',
+    to: REDESIGN_ENABLED ? '/einstellungen/profil' : '/einstellungen/konten',
     registers: [
       { id: 'konten', label: 'Konten', to: '/einstellungen/konten' },
       ...(REDESIGN_ENABLED
         ? [{ id: 'kontakte', label: 'Kontakte', to: '/einstellungen/kontakte' }]
         : []),
       { id: 'projekte', label: 'Projekte', to: '/einstellungen/projekte' },
-      { id: 'warenkorb', label: 'Warenkorb (Teuerung)', to: '/einstellungen/warenkorb' },
+      {
+        id: 'warenkorb',
+        label: REDESIGN_ENABLED ? 'Warenkorb' : 'Warenkorb (Teuerung)',
+        to: '/einstellungen/warenkorb',
+      },
       { id: 'kategorien', label: 'Kategorien', to: '/einstellungen/kategorien' },
       { id: 'regelwerk', label: 'Regelwerk', to: '/einstellungen/regelwerk' },
       { id: 'zuordnung', label: 'Zuordnungsregeln', to: '/einstellungen/zuordnung' },
-      { id: 'datenquellen', label: 'Datenquellen', to: '/einstellungen/datenquellen' },
+      {
+        id: 'datenquellen',
+        label: REDESIGN_ENABLED ? 'Verbindungen' : 'Datenquellen',
+        to: '/einstellungen/datenquellen',
+      },
+      ...(REDESIGN_ENABLED
+        ? [
+            {
+              id: 'zielallokation',
+              label: 'Zielallokation und Stufen',
+              to: '/einstellungen/anlageklassen',
+              search: { ansicht: 'stufen' },
+            },
+          ]
+        : []),
       { id: 'anlageklassen', label: 'Anlageklassen', to: '/einstellungen/anlageklassen' },
       { id: 'export', label: 'CSV-Export', to: '/einstellungen/export' },
       { id: 'sicherheit', label: 'Sicherheit', to: '/einstellungen/sicherheit' },
@@ -111,23 +130,41 @@ export interface SettingsGroup {
 }
 
 /** Register ids of Einstellungen per group, in display order. Every register is in exactly one. */
-const SETTINGS_GROUP_IDS: ReadonlyArray<{ id: string; label: string; registers: string[] }> = [
-  {
-    id: 'daten',
-    label: 'Daten',
-    registers: [
-      'konten',
-      ...(REDESIGN_ENABLED ? ['kontakte'] : []),
-      'kategorien',
-      'warenkorb',
-      'projekte',
-      'anlageklassen',
-      'depots',
-    ],
-  },
-  { id: 'automatik', label: 'Automatik', registers: ['regelwerk', 'zuordnung', 'datenquellen'] },
-  { id: 'system', label: 'System', registers: ['sicherheit', 'export', 'profil'] },
-];
+const SETTINGS_GROUP_IDS: ReadonlyArray<{ id: string; label: string; registers: string[] }> =
+  REDESIGN_ENABLED
+    ? [
+        { id: 'profil', label: 'Profil & Sicherheit', registers: ['profil', 'sicherheit'] },
+        { id: 'konten', label: 'Konten & Depots', registers: ['konten', 'depots', 'kontakte'] },
+        {
+          id: 'regeln',
+          label: 'Kategorien & Regeln',
+          registers: ['kategorien', 'regelwerk', 'zuordnung', 'warenkorb'],
+        },
+        { id: 'verbindungen', label: 'Verbindungen', registers: ['datenquellen'] },
+        { id: 'vermoegen', label: 'Vermögen', registers: ['zielallokation', 'anlageklassen'] },
+        { id: 'daten', label: 'Daten', registers: ['export', 'projekte'] },
+      ]
+    : [
+        {
+          id: 'daten',
+          label: 'Daten',
+          registers: [
+            'konten',
+            ...(REDESIGN_ENABLED ? ['kontakte'] : []),
+            'kategorien',
+            'warenkorb',
+            'projekte',
+            'anlageklassen',
+            'depots',
+          ],
+        },
+        {
+          id: 'automatik',
+          label: 'Automatik',
+          registers: ['regelwerk', 'zuordnung', 'datenquellen'],
+        },
+        { id: 'system', label: 'System', registers: ['sicherheit', 'export', 'profil'] },
+      ];
 
 export const SETTINGS_GROUPS: ReadonlyArray<SettingsGroup> = SETTINGS_GROUP_IDS.map((group) => ({
   id: group.id,
