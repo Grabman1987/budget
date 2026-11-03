@@ -110,6 +110,7 @@ export function IncomeExpenseSummary({
       <div ref={ref} className="r8-overview-chart">
         {width > 0 && (
           <ChartSvg
+            table
             width={width}
             height={height}
             testId="income-expense-chart"

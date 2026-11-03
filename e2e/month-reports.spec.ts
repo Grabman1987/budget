@@ -1,3 +1,4 @@
+import { chooseReportView } from './income-spending-controls';
 import { openPaperView } from './report-frame';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, type TestInfo } from '@playwright/test';
@@ -17,7 +18,13 @@ sampleTest.describe.configure({ timeout: 90_000 });
 // Legacy reader checks explicitly unfold the compact ON income sections.
 sampleTest.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
-    for (const id of ['income-expected', 'income-types', 'income-capital'])
+    for (const id of [
+      'income-expected',
+      'income-types',
+      'income-capital',
+      'flow-definition',
+      'flow-parts',
+    ])
       localStorage.setItem(`budget-report-r8-${id}`, '1');
   });
 });
@@ -274,10 +281,7 @@ sampleTest('Geldfluss: twelve months, running month and empty states', async ({ 
   expect((await month).status()).toBe(200);
   await expect(page.getByText(/Der Monat läuft noch/)).toBeVisible();
   const year = page.waitForResponse(isFlow('2026-09', 'year'));
-  await page
-    .getByRole('group', { name: 'Zeitraum des Geldflusses' })
-    .getByRole('button', { name: '12 Monate' })
-    .click();
+  await chooseReportView(page, 'Zeitraum des Geldflusses', '12 Monate');
   const answer = await year;
   expect(answer.status()).toBe(200);
   expect(((await answer.json()) as { from: string; to: string }).to).toBe('2026-08');

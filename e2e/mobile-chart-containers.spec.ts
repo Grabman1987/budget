@@ -2,6 +2,9 @@ import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect } from './sample';
 
 test.describe('UX-3c phone chart and table containers', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('budget-report-r8-flow-parts', '1'));
+  });
   test.skip(({ isMobile }) => !isMobile, '390 px phone project');
   test.setTimeout(90_000);
 

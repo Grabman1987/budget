@@ -24,6 +24,7 @@ export function SpendingTrend({ data }: { data: SpendingReport }) {
       <div ref={ref}>
         {width > 0 && (
           <ChartSvg
+            table
             testId="spending-period-chart"
             width={width}
             height={180}
