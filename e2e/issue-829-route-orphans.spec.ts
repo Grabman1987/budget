@@ -400,7 +400,11 @@ for (const [row, url, body] of direct)
       ? on
         ? '/einstellungen/profil'
         : '/einstellungen/konten'
-      : new URL(url, 'http://fixture').pathname;
+      : on && [23, 28, 32].includes(row)
+        ? row === 23
+          ? '/vermoegen'
+          : '/reports/vermoegen-schulden'
+        : new URL(url, 'http://fixture').pathname;
     const expectedBody = desktopIndex ? (on ? 'profile' : 'accountSettings') : body;
     await page.goto(url);
     await loaded(page, path, expectedBody);

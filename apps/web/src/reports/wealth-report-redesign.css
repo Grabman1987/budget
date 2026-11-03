@@ -71,3 +71,41 @@
 [data-budget-redesign='1'] .wealth-history-report .wealth-daily-chart {
   min-height: 0;
 }
+
+[data-budget-redesign='1'] .wealth-source-analysis {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+[data-budget-redesign='1'] .wealth-source-analysis > summary {
+  min-height: 44px;
+  padding-block: 12px;
+}
+[data-budget-redesign='1'] .wealth-source-analysis .vview {
+  margin-top: 0;
+}
+[data-budget-redesign='1'] .portfolio-performance-report > .portfolio-registers,
+[data-budget-redesign='1'] .portfolio-performance-report > .portfolio-metrics {
+  grid-column: 1 / -1;
+}
+[data-budget-redesign='1'] .portfolio-performance-report > .portfolio-registers {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  overflow: visible;
+}
+[data-budget-redesign='1'] .portfolio-performance-report > .portfolio-registers a,
+[data-budget-redesign='1'] .wealth-source-analysis .registers a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+@media (max-width: 600px) {
+  [data-budget-redesign='1'] .portfolio-performance-report > .portfolio-registers {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

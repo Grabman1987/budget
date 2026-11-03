@@ -1,4 +1,5 @@
 import { ReportPeriodControl } from './period-quick-select';
+import { WealthSourceAnalysis } from './wealth-source-analysis';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, type ReactNode } from 'react';
@@ -108,6 +109,7 @@ export function WealthHistoryReport({
           <EmptyNote>Noch keine Konten. Lege unter Konten ein Konto an.</EmptyNote>
         )}
         {history && history.rows.length > 0 && <Body history={history} />}
+        {REDESIGN_ENABLED && <WealthSourceAnalysis />}
       </div>
     </PageFrame>
   );

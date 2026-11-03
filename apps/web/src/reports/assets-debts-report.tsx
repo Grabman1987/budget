@@ -19,6 +19,8 @@ import { assetsDebtsHistoryQuery, type AssetsDebtsHistory } from './assets-debts
 import { AssetsDebtsChart, longMonth } from './assets-debts-chart';
 import { assetsDebtsVerdictFacts } from './verdict-facts';
 import './reports-future.css';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { WealthSourceAnalysis } from './wealth-source-analysis';
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
 const percent = new Intl.NumberFormat('de-AT', {
@@ -160,6 +162,7 @@ export function AssetsDebtsReport({
         {history && history.months.length > 0 && (
           <Body history={history} selected={selected} onSelect={select} debtOnly={debtOnly} />
         )}
+        {REDESIGN_ENABLED && !debtOnly && <WealthSourceAnalysis fallbackPeriod="Alles" />}
       </div>
     </PageFrame>
   );

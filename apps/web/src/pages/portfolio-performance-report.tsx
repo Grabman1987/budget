@@ -17,7 +17,7 @@ import { cents, type Period } from '@budget/domain';
 import type { PortfolioSummary } from '@budget/db';
 import { useQuery } from '@tanstack/react-query';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { userText } from '../api/error-text';
 import { ApiError } from '../api/http';
 import { ErrorNote, LoadingNote } from '../ledger/states';
@@ -33,6 +33,7 @@ import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { PortfolioMetrics } from '../wealth/portfolio-metrics';
 import { PortfolioClassHistories } from '../wealth/portfolio-class-histories';
 import { PerformanceComparisons } from './portfolio-performance-comparisons';
+import { PortfolioRegisters } from '../wealth/portfolio-registers';
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
 
@@ -67,6 +68,11 @@ export function PortfolioPerformanceReport({
   const [period, setPeriod] = useZeitraum();
   const query = useQuery(portfolioPerformanceQuery(period));
   const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as { ansicht?: string };
+  const retainedMetrics =
+    REDESIGN_ENABLED &&
+    presentation === 'all' &&
+    ['kennzahlen', 'analyse'].includes(search.ansicht ?? '');
   const perf = query.data?.portfolio.performance;
   const latestClass = query.data?.portfolio.performanceHistory?.classes[0];
 
@@ -169,22 +175,29 @@ export function PortfolioPerformanceReport({
               onRetry={() => void query.refetch()}
             />
           ))}
-        {!query.isError && query.data && (
-          <PerformanceBody
-            presentation={presentation}
-            summary={query.data.portfolio}
-            incomplete={query.data.incomplete}
-            onOpenPortfolio={() =>
-              void navigate({
-                to: '/vermoegen/portfolio',
-                search: ((previous: Record<string, unknown>) => ({
-                  ...previous,
-                  produkt: undefined,
-                })) as never,
-              })
-            }
-          />
-        )}
+        {!query.isError &&
+          query.data &&
+          (retainedMetrics ? (
+            <>
+              <PortfolioRegisters current="metrics" period={period} />
+              <PortfolioMetrics />
+            </>
+          ) : (
+            <PerformanceBody
+              presentation={presentation}
+              summary={query.data.portfolio}
+              incomplete={query.data.incomplete}
+              onOpenPortfolio={() =>
+                void navigate({
+                  to: '/vermoegen/portfolio',
+                  search: ((previous: Record<string, unknown>) => ({
+                    ...previous,
+                    produkt: undefined,
+                  })) as never,
+                })
+              }
+            />
+          ))}
       </div>
     </PageFrame>
   );
@@ -366,7 +379,7 @@ function PerformanceBody({
           bleiben oben sichtbar.
         </p>
       )}
-      {REDESIGN_ENABLED && presentation === 'kennzahlen' && (
+      {REDESIGN_ENABLED && presentation !== 'klassen' && (
         <details className="performance-metrics-retained">
           <summary>Kennzahlen, Zahlungsströme und Bewertungsquellen im Detail</summary>
           <PortfolioMetrics />
