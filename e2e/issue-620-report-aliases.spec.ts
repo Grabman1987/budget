@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { redesignReportsOn } from './report-frame';
 import { expect, sampleTest as test } from './sample';
 
@@ -39,6 +40,26 @@ const landings = [
   ['gesamtuebersicht', '/reports/vermoegen-schulden', 'Gesamtübersicht'],
 ] as const;
 
+async function selectedView(page: Page, target: string, view: string) {
+  if (!view) return;
+  if (
+    (await redesignReportsOn(page)) &&
+    (target === '/reports/einnahmen-ausgaben' || target === '/reports/ausgaben')
+  ) {
+    const label =
+      target === '/reports/ausgaben'
+        ? 'Ansicht der Ausgabenanalyse'
+        : 'Ansicht von Einnahmen und Cashflow';
+    await expect(
+      page.getByRole('combobox', { name: label, exact: true }).locator('option:checked'),
+    ).toHaveText(view);
+  } else {
+    await expect(
+      page.getByRole('button', { name: view, exact: true, pressed: true }),
+    ).toBeVisible();
+  }
+}
+
 for (const [slug, target, view] of landings) {
   test(`620 ${slug} opens ${target} with its supported bookmark state`, async ({ page }) => {
     // An explicit Heute period avoids its existing other-month normalization.
@@ -57,17 +78,11 @@ for (const [slug, target, view] of landings) {
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('2026-01..2026-08');
     expect(new URL(page.url()).hash).toBe('#details');
-    if (view)
-      await expect(
-        page.getByRole('button', { name: view, exact: true, pressed: true }),
-      ).toBeVisible();
+    await selectedView(page, target, view);
     const bookmark = page.url();
     await page.reload();
     await expect(page).toHaveURL(bookmark);
-    if (view)
-      await expect(
-        page.getByRole('button', { name: view, exact: true, pressed: true }),
-      ).toBeVisible();
+    await selectedView(page, target, view);
   });
 }
 

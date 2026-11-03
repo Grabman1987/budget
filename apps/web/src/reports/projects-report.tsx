@@ -1,5 +1,6 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import type { ReactNode } from 'react';
-import { ChartValues } from '@budget/ui';
+import { ChartValues, ChartValue, useAmountPrivacy, maskMoneyText } from '@budget/ui';
 import './month-report.css';
 import { cents } from '@budget/domain';
 import { DimensionChain, Segmented } from '@budget/ui';
@@ -11,6 +12,7 @@ import type { ReportEntry } from '../nav/reports-catalog';
 import { ReportFrame as PageFrame } from './report-frame';
 import { AppLink } from '../shell/app-link';
 import { shortMonth } from './month-frame';
+import { ReportBodyDisclosure } from './report-body-disclosure';
 import { PayrollProjectChart } from './payroll-project-chart';
 import { projectsReportQuery } from './payroll-projects-api';
 import { PERIOD_OPTIONS, ScrollRegion, useReportPeriod } from './spending-shared';
@@ -24,19 +26,39 @@ export function ProjectsReport({
   meta: PageMeta;
   viewControl?: ReactNode;
 }) {
+  useAmountPrivacy();
   const [period, setPeriod] = useReportPeriod();
   const query = useQuery(projectsReportQuery(period));
   const data = query.isSuccess && !query.isFetching ? query.data : undefined;
   const supported = data && data.unsupportedBookingIds.length === 0;
+  const maximum = Math.max(1, ...(data?.projects ?? []).map((p) => Math.abs(p.resultCents)));
   const parts = supported ? eurParts(data.total.resultCents) : undefined;
   return (
     <PageFrame
+      sourceDate={data?.asOf}
+      calculation={
+        supported && data.months.length
+          ? {
+              label: 'Berechnung Projektergebnis',
+              signed: true,
+              terms: [
+                { label: 'Projekteinnahmen', value: cents(data.total.incomeCents) },
+                { op: '-', label: 'Projektkosten', value: cents(data.total.costCents) },
+              ],
+              result: {
+                label: 'Projektergebnis · geschlossene Monate',
+                value: data.total.resultCents,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       verdict={
         data && !query.isError
           ? {
               reportId: report.id,
               period: `${data.months[0]}..${data.months.at(-1)}`,
-              unavailable: !supported,
+              unavailable: !supported || (REDESIGN_ENABLED && data.months.length === 0),
               metric: {
                 label: 'Projektergebnis',
                 value: data.total.resultCents,
@@ -111,131 +133,171 @@ export function ProjectsReport({
                   />
                 </>
               )}
+              {REDESIGN_ENABLED && data.months.length > 0 && (
+                <ul className="r8-project-bars" aria-label="Ergebnis je Projekt">
+                  {data.projects.map((p) => (
+                    <li key={p.id}>
+                      <span>
+                        {maskMoneyText(p.name)}
+                        {p.archivedAt ? ' · archiviert' : ''}
+                      </span>
+                      <ChartValue
+                        label={maskMoneyText(p.name)}
+                        date={`${data.months[0]} · ${data.months.at(-1)}`}
+                        series={[{ name: 'Projektergebnis', value: eur(p.resultCents) }]}
+                      >
+                        <span className="r8-project-track">
+                          <i
+                            style={{
+                              width: `${(Math.abs(p.resultCents) / maximum) * 50}%`,
+                              left: p.resultCents < 0 ? undefined : '50%',
+                              right: p.resultCents < 0 ? '50%' : undefined,
+                            }}
+                          />
+                        </span>
+                      </ChartValue>
+                      <strong>{eur(p.resultCents, { sign: true })}</strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <p className="vnote">
                 Zuordnung über die Buchung. Erstattungen mindern Kosten; Umbuchungen,
                 Kontaktausgleiche und Kapitalerträge zählen nicht zum Projektergebnis.
               </p>
             </section>
-            <section className="mr-card mr-wide">
-              <h2>Nebeneinkünfte im Haushalt</h2>
-              <p>
-                {eur(data.sideIncome.incomeCents)} als eigene Einnahmenart, davon ohne
-                Projektzuordnung {eur(data.unassignedSideIncome.incomeCents)}.
-              </p>
-              <p className="vnote">
-                Diese Einnahmen sind bereits in den Haushaltseinnahmen enthalten. Das
-                Projektergebnis wird nicht nochmals als Einkommen addiert.
-              </p>
-              <AppLink to="/reports/einnahmen">Einnahmen nach Art öffnen</AppLink>
-            </section>
-            <section className="mr-card mr-wide">
-              <div className="pp-project-grid">
-                {data.projects.map((p, i) => (
-                  <article key={p.id} className="pp-project">
-                    <h2>
-                      <span className="tech">{i + 1} · </span>
-                      {p.name}
-                      {p.archivedAt ? ' · archiviert' : ''}
-                    </h2>
-                    <strong>{eur(p.resultCents, { sign: true })}</strong>
-                    <PayrollProjectChart months={data.months} values={p.perMonth} />
-                    <dl>
-                      <div>
-                        <dt>Einnahmen</dt>
-                        <dd>{eur(p.incomeCents)}</dd>
-                      </div>
-                      <div>
-                        <dt>Kosten</dt>
-                        <dd>{eur(p.costCents)}</dd>
-                      </div>
-                      <div>
-                        <dt>Zur Vorperiode</dt>
-                        <dd>
-                          {p.previous === null
-                            ? 'nicht vergleichbar'
-                            : eur(p.resultCents - p.previous, { sign: true })}
-                        </dd>
-                      </div>
-                    </dl>
-                    <details>
-                      <summary>Buchungen ({p.bookingIds.length})</summary>
-                      <ul>
-                        {p.bookingIds.map((id, n) => (
-                          <li key={id}>
-                            <AppLink to="/konten/buchungen" search={{ buchung: id }}>
-                              Buchung {n + 1} öffnen
-                            </AppLink>
-                          </li>
+            <ReportBodyDisclosure id="projects-side" label="Nebeneinkünfte im Haushalt">
+              <section className="mr-card mr-wide">
+                <h2>Nebeneinkünfte im Haushalt</h2>
+                <p>
+                  {eur(data.sideIncome.incomeCents)} als eigene Einnahmenart, davon ohne
+                  Projektzuordnung {eur(data.unassignedSideIncome.incomeCents)}.
+                </p>
+                <p className="vnote">
+                  Diese Einnahmen sind bereits in den Haushaltseinnahmen enthalten. Das
+                  Projektergebnis wird nicht nochmals als Einkommen addiert.
+                </p>
+                <AppLink to="/reports/einnahmen">Einnahmen nach Art öffnen</AppLink>
+              </section>
+            </ReportBodyDisclosure>
+            <ReportBodyDisclosure
+              id="projects-history"
+              label="Projektverläufe und zugeordnete Buchungen"
+            >
+              <section className="mr-card mr-wide">
+                <div className="pp-project-grid">
+                  {data.projects.map((p, i) => (
+                    <article key={p.id} className="pp-project">
+                      <h2>
+                        <span className="tech">{i + 1} · </span>
+                        {REDESIGN_ENABLED ? maskMoneyText(p.name) : p.name}
+                        {p.archivedAt ? ' · archiviert' : ''}
+                      </h2>
+                      <strong>{eur(p.resultCents, { sign: true })}</strong>
+                      <PayrollProjectChart months={data.months} values={p.perMonth} />
+                      <dl>
+                        <div>
+                          <dt>Einnahmen</dt>
+                          <dd>{eur(p.incomeCents)}</dd>
+                        </div>
+                        <div>
+                          <dt>Kosten</dt>
+                          <dd>{eur(p.costCents)}</dd>
+                        </div>
+                        <div>
+                          <dt>Zur Vorperiode</dt>
+                          <dd>
+                            {p.previous === null
+                              ? 'nicht vergleichbar'
+                              : eur(p.resultCents - p.previous, { sign: true })}
+                          </dd>
+                        </div>
+                      </dl>
+                      <details>
+                        <summary>Buchungen ({p.bookingIds.length})</summary>
+                        <ul>
+                          {p.bookingIds.map((id, n) => (
+                            <li key={id}>
+                              <AppLink to="/konten/buchungen" search={{ buchung: id }}>
+                                Buchung {n + 1} öffnen
+                              </AppLink>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    </article>
+                  ))}
+                </div>
+                {data.projects.length === 0 && (
+                  <EmptyNote>
+                    Noch keine Projekte angelegt. Unter Einstellungen ein Projekt anlegen und
+                    Buchungen zuordnen.
+                  </EmptyNote>
+                )}
+              </section>
+            </ReportBodyDisclosure>
+            <ReportBodyDisclosure
+              id="projects-months"
+              label="Monatliche Projektergebnisse als Tabelle"
+            >
+              <section className="mr-card mr-wide">
+                <h2>Je Monat</h2>
+                <ChartValues
+                  label="Monatliche Projektergebnisse"
+                  points={data.months.map((m, i) => ({
+                    x: 50,
+                    date: m,
+                    series: data.projects.map((p) => ({
+                      name: p.name,
+                      value: eur(p.perMonth[i] ?? 0),
+                      color: (p.perMonth[i] ?? 0) < 0 ? 'var(--ink-2)' : 'var(--line)',
+                    })),
+                  }))}
+                >
+                  <ScrollRegion className="pp-scroll" label="Monatliche Projektergebnisse">
+                    <table className="rtable">
+                      <thead>
+                        <tr>
+                          <th>Projekt</th>
+                          {data.months.map((m) => (
+                            <th key={m} className="n">
+                              {shortMonth(m)}
+                            </th>
+                          ))}
+                          <th className="n">Summe</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.projects.map((p) => (
+                          <tr key={p.id}>
+                            <th>{REDESIGN_ENABLED ? maskMoneyText(p.name) : p.name}</th>
+                            {p.perMonth.map((v, i) => (
+                              <td
+                                key={i}
+                                data-chart-point={i}
+                                className={`n ${v > 0 ? 'pp-profit' : v < 0 ? 'pp-loss' : ''}`}
+                              >
+                                {eur(v, { sign: true })}
+                              </td>
+                            ))}
+                            <td className="n">{eur(p.resultCents, { sign: true })}</td>
+                          </tr>
                         ))}
-                      </ul>
-                    </details>
-                  </article>
-                ))}
-              </div>
-              {data.projects.length === 0 && (
-                <EmptyNote>
-                  Noch keine Projekte angelegt. Unter Einstellungen ein Projekt anlegen und
-                  Buchungen zuordnen.
-                </EmptyNote>
-              )}
-            </section>
-            <section className="mr-card mr-wide">
-              <h2>Je Monat</h2>
-              <ChartValues
-                label="Monatliche Projektergebnisse"
-                points={data.months.map((m, i) => ({
-                  x: 50,
-                  date: m,
-                  series: data.projects.map((p) => ({
-                    name: p.name,
-                    value: eur(p.perMonth[i] ?? 0),
-                    color: (p.perMonth[i] ?? 0) < 0 ? 'var(--ink-2)' : 'var(--line)',
-                  })),
-                }))}
-              >
-                <ScrollRegion className="pp-scroll" label="Monatliche Projektergebnisse">
-                  <table className="rtable">
-                    <thead>
-                      <tr>
-                        <th>Projekt</th>
-                        {data.months.map((m) => (
-                          <th key={m} className="n">
-                            {shortMonth(m)}
-                          </th>
-                        ))}
-                        <th className="n">Summe</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.projects.map((p) => (
-                        <tr key={p.id}>
-                          <th>{p.name}</th>
-                          {p.perMonth.map((v, i) => (
-                            <td
-                              key={i}
-                              data-chart-point={i}
-                              className={`n ${v > 0 ? 'pp-profit' : v < 0 ? 'pp-loss' : ''}`}
-                            >
+                        <tr className="is-total">
+                          <th>Zusammen</th>
+                          {data.total.perMonth.map((v, i) => (
+                            <td key={i} className="n">
                               {eur(v, { sign: true })}
                             </td>
                           ))}
-                          <td className="n">{eur(p.resultCents, { sign: true })}</td>
+                          <td className="n">{eur(data.total.resultCents, { sign: true })}</td>
                         </tr>
-                      ))}
-                      <tr className="is-total">
-                        <th>Zusammen</th>
-                        {data.total.perMonth.map((v, i) => (
-                          <td key={i} className="n">
-                            {eur(v, { sign: true })}
-                          </td>
-                        ))}
-                        <td className="n">{eur(data.total.resultCents, { sign: true })}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </ScrollRegion>
-              </ChartValues>
-            </section>
+                      </tbody>
+                    </table>
+                  </ScrollRegion>
+                </ChartValues>
+              </section>
+            </ReportBodyDisclosure>
           </>
         )}
       </div>

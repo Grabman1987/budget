@@ -14,6 +14,13 @@ import { sampleTest } from './sample';
 
 // Every page is inspected in two themes (axe, scroll width, full-page screenshot): give it room.
 sampleTest.describe.configure({ timeout: 90_000 });
+// Legacy reader checks explicitly unfold the compact ON income sections.
+sampleTest.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    for (const id of ['income-expected', 'income-types', 'income-capital'])
+      localStorage.setItem(`budget-report-r8-${id}`, '1');
+  });
+});
 
 const money = (value: number, whole = false) => formatEuro(cents(value), { cents: !whole });
 /** Text with every kind of space collapsed, so de-AT number formatting compares equal. */

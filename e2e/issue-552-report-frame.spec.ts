@@ -31,10 +31,11 @@ for (const id of SAMPLE) {
     await expect(first).toBeVisible({ timeout: 30_000 });
     // One control: the preset segment. The dropdown and the trend checkbox are not on the page.
     await expect(period(page)).toHaveCount(1);
-    // Canonical Cashflow has its project filter; the category template has its category picker.
-    await expect(page.getByRole('combobox')).toHaveCount(
-      id === 'cashflow' || id === 'kategorien' ? 1 : 0,
-    );
+    // Count the retained project/category picker plus the ON native presentation control.
+    const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    const scopes = id === 'cashflow' || id === 'kategorien' ? 1 : 0;
+    const views = on && (id === 'cashflow' || id === 'ausgaben') ? 1 : 0;
+    await expect(page.getByRole('combobox')).toHaveCount(scopes + views);
     await expect(page.getByRole('checkbox', { name: 'Trendlinie' })).toHaveCount(0);
     await expect(rangeButton(page)).toBeVisible();
     if (phone(page)) return;

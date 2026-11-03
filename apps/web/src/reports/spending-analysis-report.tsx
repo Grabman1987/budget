@@ -4,6 +4,8 @@ import {
   DimensionChain,
   maskMoneyText,
   useAmountPrivacy,
+  useIsPhone,
+  useMediaQuery,
 } from '@budget/ui';
 import { cents, type SpendRow, type SpendingPeriod } from '@budget/domain';
 import type { SpendingReport } from '@budget/db';
@@ -21,6 +23,10 @@ import { ReportAnswer } from './report-answer';
 import { useCollapsibleSections } from './month-frame';
 import { PeriodSwitch, periodName, ReportQuery, useReportPeriod } from './spending-shared';
 import './spending-analysis-report.css';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { ReportBodyDisclosure } from './report-body-disclosure';
+import { SpendingTrend } from './spending-trend';
+import './income-spending-redesign.css';
 
 const analysisQuery = (period: SpendingPeriod) =>
   queryOptions({
@@ -30,6 +36,7 @@ const analysisQuery = (period: SpendingPeriod) =>
       request<SpendingReport>('GET', `/api/reports/spending/analysis?period=${period}`),
   });
 const DEFAULT_COLLAPSED = ['sa-moves', 'sa-classes', 'sa-explorer'] as const;
+const PHONE_COLLAPSED = ['sa-main', ...DEFAULT_COLLAPSED] as const;
 
 /** The pilot report reuses the shared report controls and authoritative spending figures. */
 export function SpendingAnalysisReport({
@@ -47,13 +54,34 @@ export function SpendingAnalysisReport({
   const [period, setPeriod] = useReportPeriod();
   const query = useQuery(analysisQuery(period));
   const data = query.data && !query.isFetching ? query.data : undefined;
-  const sections = useCollapsibleSections(report.id, DEFAULT_COLLAPSED);
+  const phone = useIsPhone();
+  const sections = useCollapsibleSections(
+    report.id,
+    REDESIGN_ENABLED && phone ? PHONE_COLLAPSED : DEFAULT_COLLAPSED,
+  );
   return (
     <PageFrame
+      calculation={
+        data && data.months.length && !query.isError
+          ? {
+              label: 'Berechnung Konsum',
+              terms: [
+                { label: 'Bedarf', value: cents(data.needCents) },
+                { op: '+', label: 'Wunsch', value: cents(data.wantCents) },
+              ],
+              result: {
+                label: 'Konsum · ohne Zukunft',
+                value: data.consumptionCents,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       verdict={
         data && !query.isError
           ? {
               reportId: report.id,
+              ...(REDESIGN_ENABLED ? { unavailable: data.months.length === 0 } : {}),
               period: `${data.from}..${data.to}`,
               metric: { label: 'Konsum', value: data.consumptionCents, unit: 'money' },
             }
@@ -197,6 +225,8 @@ function Body({ data }: { data: SpendingReport }) {
   useAmountPrivacy();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [tableOpen, setTableOpen] = useState(false);
+  const [allGroups, setAllGroups] = useState(false);
+  const printing = useMediaQuery('print');
   if (data.months.length === 0)
     return (
       <section className="sr-card sr-wide" aria-labelledby="sa-empty">
@@ -241,6 +271,7 @@ function Body({ data }: { data: SpendingReport }) {
   const date = data.from && data.to ? `${data.from} · ${data.to}` : '';
   return (
     <>
+      {REDESIGN_ENABLED && <SpendingTrend data={data} />}
       <section className="sr-card sr-wide" aria-labelledby="sa-main">
         <div className="sr-head">
           <h2 id="sa-main">01 · Konsum nach Gruppe</h2>
@@ -255,110 +286,129 @@ function Body({ data }: { data: SpendingReport }) {
           <span>Bedarf und Wunsch, netto</span>
           <strong data-testid="sa-consumption">{eur(data.consumptionCents)}</strong>
         </div>
-        <ReportAnswer
-          facts={{
-            totalCents: data.consumptionCents,
-            previousCents: comparison.previousCents,
-            metric: 'expenses',
-            ...(riser ? { biggestRiser: { name: riser.name, changeCents: riser.change! } } : {}),
-          }}
-        />
-        {comparison.previousFrom && comparison.previousTo ? (
-          <p className="sa-comparison">
-            Vorzeitraum: {longDay(comparison.previousFrom)} bis {longDay(comparison.previousTo)} ·
-            jeweils {comparison.days} Tage. Der Strich markiert den Vorzeitraum.
-          </p>
-        ) : (
-          <p className="sa-comparison">
-            Für diesen Zeitraum ist kein vollständig abgedeckter, gleich langer Vorzeitraum
-            verfügbar.
-          </p>
-        )}
+        <ReportBodyDisclosure id="spending-answer" label="Einordnung und Vergleich">
+          <ReportAnswer
+            facts={{
+              totalCents: data.consumptionCents,
+              previousCents: comparison.previousCents,
+              metric: 'expenses',
+              ...(riser ? { biggestRiser: { name: riser.name, changeCents: riser.change! } } : {}),
+            }}
+          />
+          {comparison.previousFrom && comparison.previousTo ? (
+            <p className="sa-comparison">
+              Vorzeitraum: {longDay(comparison.previousFrom)} bis {longDay(comparison.previousTo)} ·
+              jeweils {comparison.days} Tage. Der Strich markiert den Vorzeitraum.
+            </p>
+          ) : (
+            <p className="sa-comparison">
+              Für diesen Zeitraum ist kein vollständig abgedeckter, gleich langer Vorzeitraum
+              verfügbar.
+            </p>
+          )}
+        </ReportBodyDisclosure>
         <div
           role="img"
           aria-label={`Konsum nach Kategoriegruppe: ${eur(data.consumptionCents)}; ${groups.length} Gruppen, einschließlich Erstattungen. Vorzeitraum als Strich.`}
         />
         <ul className="sa-groups" aria-label="Konsum nach Kategoriegruppe">
-          {groups.map((group, index) => {
-            const open = expanded.has(group.id);
-            const detailId = `sa-group-${index}`;
-            return (
-              <li key={group.id} data-group={group.id}>
-                <div className="sa-row sa-group-row">
-                  <button
-                    type="button"
-                    className="sa-group-name"
-                    aria-expanded={open}
-                    aria-controls={detailId}
-                    onClick={() => toggle(group.id)}
-                  >
-                    <ChevronDown size={16} aria-hidden="true" />
-                    <strong>{maskMoneyText(group.name)}</strong>
-                  </button>
-                  <SignedBar
-                    current={group.cents}
-                    previous={group.previous}
-                    minimum={minimum}
-                    maximum={maximum}
-                    label={group.name}
-                    date={date}
-                  />
-                  <AppLink
-                    className="sa-amount"
-                    to="/konten/buchungen"
-                    search={
-                      group.rows[0]?.groupId
-                        ? {
-                            kategoriegruppe: group.rows[0].groupId,
-                            basis: 'category-spending',
-                            von: data.from,
-                            bis: data.to,
-                          }
-                        : drill(group.rows[0]!.id)
-                    }
-                    aria-label={`${maskMoneyText(group.name)} · ${eur(group.cents)} · Buchungen öffnen`}
-                  >
-                    {eur(group.cents)}
-                  </AppLink>
-                  <span className="sa-delta">
-                    {group.previous === null
-                      ? '–'
-                      : eur(checkedSum([group.cents, -group.previous]), { sign: true })}
-                  </span>
-                </div>
-                <ul id={detailId} className="sa-category-rows" hidden={!open}>
-                  {group.rows.map((row) => (
-                    <li key={row.id} className="sa-row" data-category={row.id}>
-                      <span className="sa-category-name">
-                        <ClassSwatch kind={row.class} />
-                        {maskMoneyText(row.name)}
-                      </span>
-                      <SignedBar
-                        current={row.cents}
-                        previous={row.previous}
-                        minimum={minimum}
-                        maximum={maximum}
-                        label={row.name}
-                        date={date}
-                      />
-                      <AppLink
-                        className="sa-amount"
-                        to="/konten/buchungen"
-                        search={drill(row.id)}
-                        aria-label={`${maskMoneyText(row.name)} · ${eur(row.cents)} · Buchungen öffnen`}
-                      >
-                        {eur(row.cents)}
-                      </AppLink>
-                      <span className="sa-delta">
-                        {row.change === null ? '–' : eur(row.change, { sign: true })}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            );
-          })}
+          {(REDESIGN_ENABLED && !allGroups && !printing ? groups.slice(0, 4) : groups).map(
+            (group, index) => {
+              const open = expanded.has(group.id);
+              const detailId = `sa-group-${index}`;
+              return (
+                <li key={group.id} data-group={group.id}>
+                  <div className="sa-row sa-group-row">
+                    <button
+                      type="button"
+                      className="sa-group-name"
+                      aria-expanded={open}
+                      aria-controls={detailId}
+                      onClick={() => toggle(group.id)}
+                    >
+                      <ChevronDown size={16} aria-hidden="true" />
+                      <strong>{maskMoneyText(group.name)}</strong>
+                    </button>
+                    <SignedBar
+                      current={group.cents}
+                      previous={group.previous}
+                      minimum={minimum}
+                      maximum={maximum}
+                      label={group.name}
+                      date={date}
+                    />
+                    <AppLink
+                      className="sa-amount"
+                      to="/konten/buchungen"
+                      search={
+                        group.rows[0]?.groupId
+                          ? {
+                              kategoriegruppe: group.rows[0].groupId,
+                              basis: 'category-spending',
+                              von: data.from,
+                              bis: data.to,
+                            }
+                          : drill(group.rows[0]!.id)
+                      }
+                      aria-label={`${maskMoneyText(group.name)} · ${eur(group.cents)} · Buchungen öffnen`}
+                    >
+                      {eur(group.cents)}
+                    </AppLink>
+                    <span className="sa-delta">
+                      {group.previous === null
+                        ? '–'
+                        : eur(checkedSum([group.cents, -group.previous]), { sign: true })}
+                    </span>
+                  </div>
+                  <ul id={detailId} className="sa-category-rows" hidden={!open}>
+                    {group.rows.map((row) => (
+                      <li key={row.id} className="sa-row" data-category={row.id}>
+                        <span className="sa-category-name">
+                          <ClassSwatch kind={row.class} />
+                          {maskMoneyText(row.name)}
+                        </span>
+                        <SignedBar
+                          current={row.cents}
+                          previous={row.previous}
+                          minimum={minimum}
+                          maximum={maximum}
+                          label={row.name}
+                          date={date}
+                        />
+                        <AppLink
+                          className="sa-amount"
+                          to="/konten/buchungen"
+                          search={drill(row.id)}
+                          aria-label={`${maskMoneyText(row.name)} · ${eur(row.cents)} · Buchungen öffnen`}
+                        >
+                          {eur(row.cents)}
+                        </AppLink>
+                        <span className="sa-delta">
+                          {row.change === null ? '–' : eur(row.change, { sign: true })}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              );
+            },
+          )}
         </ul>
+        {REDESIGN_ENABLED && groups.length > 4 && (
+          <button
+            type="button"
+            className="btn"
+            aria-expanded={allGroups}
+            onClick={() => setAllGroups(!allGroups)}
+          >
+            {allGroups ? 'Nur größte Gruppen zeigen' : `Alle ${groups.length} Gruppen anzeigen`}
+          </button>
+        )}
+        {REDESIGN_ENABLED && !allGroups && groups.length > 4 && (
+          <p className="r8-scope">
+            Größte 4 von {groups.length} Gruppen. Die Summe umfasst alle Gruppen.
+          </p>
+        )}
         <button
           type="button"
           className="btn sa-explorer-link"

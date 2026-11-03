@@ -1,3 +1,4 @@
+import { openSpendingGroups } from './income-spending-controls';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase } from '@budget/db';
@@ -67,6 +68,7 @@ test('554 signed group pilot has exact lead/category/Explorer/drill totals and c
     });
   };
   await page.goto('/reports/ausgaben?zeitraum=1M');
+  await openSpendingGroups(page);
   await expect(page.getByTestId('sa-consumption')).toHaveText('22,45 €');
   await expect(page.getByTestId('report-answer')).toContainText(
     '22,45 € netto ausgegeben, 15,45 € mehr',

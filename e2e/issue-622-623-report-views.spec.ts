@@ -1,3 +1,4 @@
+import { chooseReportView } from './income-spending-controls';
 import { redesignReportsOn } from './report-frame';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
@@ -31,8 +32,14 @@ async function inspect(page: Page, info: TestInfo, label: string) {
     expect(normalizedHeight).toBeLessThanOrEqual(1800);
   }
   if (info.project.name !== 'desktop') {
-    const controls = page.locator('.report-view-switch button:visible');
-    expect(await controls.count()).toBeGreaterThanOrEqual(2);
+    const controls = page.locator(
+      '.report-view-switch button:visible, .report-view-switch select:visible',
+    );
+    expect(await controls.count()).toBeGreaterThanOrEqual(
+      (await redesignReportsOn(page)) && new URL(page.url()).pathname === '/reports/ausgaben'
+        ? 1
+        : 2,
+    );
     for (const control of await controls.all()) {
       const box = (await control.boundingBox())!;
       expect(box.height).toBeGreaterThanOrEqual(44);
@@ -173,9 +180,7 @@ test('622 fixed-period payee cents, refund/detail and filters survive canonical 
     await expect(page.getByTestId('sa-consumption')).toHaveText('295,00 €');
     await expect(page.getByTestId('report-verdict')).toContainText('Konsum');
     await inspect(page, info, `spending-groups-${theme}`);
-    const views = page.getByRole('group', { name: 'Ansicht der Ausgabenanalyse', exact: true });
-    await views.getByRole('button', { name: 'Empfänger', exact: true }).focus();
-    await page.keyboard.press('Enter');
+    await chooseReportView(page, 'Ansicht der Ausgabenanalyse', 'Empfänger');
     await expect(page.getByTestId('payee-total')).toHaveText('295,00 €');
     await expect(
       (await redesignReportsOn(page))
@@ -202,7 +207,7 @@ test('622 fixed-period payee cents, refund/detail and filters survive canonical 
     await expect(page.getByTestId('payee-total')).toContainText('•••');
     await expect(page.getByTestId('payee-total')).not.toContainText('295,00');
     await privacy(page);
-    await views.getByRole('button', { name: 'Gruppen und Kategorien', exact: true }).click();
+    await chooseReportView(page, 'Ansicht der Ausgabenanalyse', 'Gruppen und Kategorien');
     await expect(page.getByTestId('sa-consumption')).toHaveText('295,00 €');
     await page.goBack();
     await expect(page.getByTestId('payee-total')).toHaveText('295,00 €');

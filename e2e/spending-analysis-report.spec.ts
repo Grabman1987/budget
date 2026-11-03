@@ -1,3 +1,4 @@
+import { openSpendingGroups } from './income-spending-controls';
 import { formatEuro, cents } from '@budget/domain';
 import { referenceModel } from '@budget/fixtures';
 import { expect, sampleTest as test } from './sample';
@@ -13,6 +14,7 @@ test('shows the prototype consumption with grouped bars, retained class facts an
   test.setTimeout(120_000);
   const ref = referenceModel();
   await page.goto('/reports/ausgaben?zeitraum=1M');
+  await openSpendingGroups(page);
   const august = Math.round(ref.consumptionOf(34) * 100);
   const lead = page.getByTestId('sa-consumption');
   await expect(lead).toBeVisible({ timeout: 30_000 });
@@ -77,6 +79,7 @@ test('shows the prototype consumption with grouped bars, retained class facts an
 
 test('says honestly that "Alles" has no comparison window', async ({ page }) => {
   await page.goto('/reports/ausgaben?zeitraum=Alles');
+  await openSpendingGroups(page);
   await expect(
     page.getByText(
       'Für diesen Zeitraum ist kein vollständig abgedeckter, gleich langer Vorzeitraum verfügbar.',

@@ -1,3 +1,4 @@
+import { chooseReportView, openIncomeTable } from './income-spending-controls';
 import { redesignReportsOn } from './report-frame';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
@@ -7,6 +8,13 @@ import { readFileSync } from 'node:fs';
 import { test } from './isolated-ledger';
 
 test.use({ ledgerToday: '2026-09-17' });
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('budget-report-income-details', '1');
+    for (const id of ['income-expected', 'income-types', 'income-capital'])
+      localStorage.setItem(`budget-report-r8-${id}`, '1');
+  });
+});
 const period = '2026-08..2026-08';
 const path = '/reports/einnahmen-ausgaben';
 function seed(databasePath: string) {
@@ -51,7 +59,7 @@ function seed(databasePath: string) {
 }
 const overviewNet = (page: Page) =>
   page
-    .locator('.income-expense-report tbody tr')
+    .locator('.income-expense-report .rgrid tbody tr')
     .filter({
       has: page.getByRole('rowheader', { name: 'Netto (Einnahmen − Ausgaben)', exact: true }),
     })
@@ -109,11 +117,18 @@ async function inspect(page: Page, info: TestInfo, label: string) {
       layout.views.bottom <= layout.project.top ||
       layout.project.bottom <= layout.views.top,
   ).toBe(true);
-  expect(layout.labels.slice(0, 3).map((entry) => entry.label)).toEqual([
-    'Einnahmen',
-    'Einnahmen und Ausgaben',
-    'Cashflow',
-  ]);
+  if (on)
+    await expect(
+      controls
+        .getByRole('combobox', { name: 'Ansicht von Einnahmen und Cashflow' })
+        .locator('option'),
+    ).toHaveText(['Einnahmen', 'Einnahmen und Ausgaben', 'Cashflow', 'Projekt-Ergebnisse']);
+  else
+    expect(layout.labels.slice(0, 3).map((entry) => entry.label)).toEqual([
+      'Einnahmen',
+      'Einnahmen und Ausgaben',
+      'Cashflow',
+    ]);
   for (const entry of layout.labels) {
     expect(entry.text.width).toBeGreaterThan(0);
     expect(entry.text.height).toBeGreaterThan(0);
@@ -164,16 +179,14 @@ test('621 fixed August views equal each former report to literal cents without r
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
+    await openIncomeTable(page);
     await expect(overviewNet(page)).toHaveText('2.675,03 €');
     for (const [view, active, figure] of [
       ['Einnahmen', '.income-report', 'income-total'],
       ['Cashflow', '.cashflow-report', 'cf-figure'],
       ['Einnahmen und Ausgaben', '.income-expense-report', ''],
     ] as const) {
-      await page
-        .getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' })
-        .getByRole('button', { name: view, exact: true })
-        .click();
+      await chooseReportView(page, 'Ansicht von Einnahmen und Cashflow', view);
       await expect(page.locator(active)).toBeVisible();
       await expect(
         page.locator('.income-report, .cashflow-report, .income-expense-report'),
@@ -188,6 +201,7 @@ test('621 fixed August views equal each former report to literal cents without r
       await inspect(page, info, `legacy-parity-${view}-${theme}`);
     }
     await page.reload();
+    await openIncomeTable(page);
     await expect(overviewNet(page)).toHaveText('2.675,03 €');
     await expect(
       page.getByRole('link', {
@@ -228,10 +242,8 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
     await privacy(page);
     await expect(page.getByTestId('income-total')).toHaveText('1.000,01 €');
     await inspect(page, info, `project-income-${theme}`);
-    await page
-      .getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' })
-      .getByRole('button', { name: 'Einnahmen und Ausgaben', exact: true })
-      .click();
+    await chooseReportView(page, 'Ansicht von Einnahmen und Cashflow', 'Einnahmen und Ausgaben');
+    await openIncomeTable(page);
     await expect(overviewNet(page)).toHaveText('875,01 €');
     await expect(page.locator('.report-project-note')).toContainText(
       'Zuweisungen, Geldalter, Vermögen und Regelziele sind nicht projektbezogen verfügbar.',
@@ -248,10 +260,7 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
     expect(csv).toContain('875,01');
     expect(csv).not.toContain('2000,02');
     await inspect(page, info, `project-overview-${theme}`);
-    await page
-      .getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' })
-      .getByRole('button', { name: 'Cashflow', exact: true })
-      .click();
+    await chooseReportView(page, 'Ansicht von Einnahmen und Cashflow', 'Cashflow');
     await expect(page.getByTestId('cf-figure')).toHaveText('905,01 €');
     await expect(page.locator('.report-project-note')).toHaveAttribute('data-project-id', 'a');
     await inspect(page, info, `project-cashflow-${theme}`);
@@ -263,7 +272,7 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
   await expect(page.getByTestId('cf-figure')).toHaveText('0,00 €');
   await page.goto(`${path}?monat=2026-08&zeitraum=${period}&darstellung=overview&projekt=a`);
   const household = page
-    .locator('.income-expense-report tbody tr')
+    .locator('.income-expense-report .rgrid tbody tr')
     .filter({ has: page.getByRole('rowheader', { name: 'Einnahmen · Haushalt', exact: true }) })
     .getByRole('link')
     .nth(0);
@@ -283,6 +292,7 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
   await page.getByRole('link', { name: 'Zurück zur Report-Zelle', exact: true }).click();
   await expect(page.getByTestId('income-expense-sources')).toBeVisible();
   await page.getByRole('link', { name: 'Zurück zu Einnahmen und Ausgaben', exact: true }).click();
+  await openIncomeTable(page);
   await expect(overviewNet(page)).toHaveText('875,01 €');
   expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
   await page.goto(`${path}?monat=2026-08&zeitraum=${period}&darstellung=income&projekt=a`);
@@ -323,10 +333,7 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
   await expect(page.getByTestId('income-total')).toHaveCount(0);
   expect(new URL(page.url()).searchParams.get('projekt')).toBe('a');
   await page.unroute('**/api/reports/month/income?*');
-  await page
-    .getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' })
-    .getByRole('button', { name: 'Cashflow', exact: true })
-    .click();
+  await chooseReportView(page, 'Ansicht von Einnahmen und Cashflow', 'Cashflow');
   await expect(page.getByRole('alert')).toBeVisible();
   // A fresh cached 100001-cent result must stay hidden while its deleted scope is reread.
   let releaseIncome!: () => void;
@@ -343,10 +350,7 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
       url.pathname === '/api/reports/month/income' && url.searchParams.get('projectId') === 'a'
     );
   });
-  await page
-    .getByRole('group', { name: 'Ansicht von Einnahmen und Cashflow' })
-    .getByRole('button', { name: 'Einnahmen', exact: true })
-    .click();
+  await chooseReportView(page, 'Ansicht von Einnahmen und Cashflow', 'Einnahmen');
   try {
     await incomeReread;
     await expect(page.getByTestId('income-total')).toHaveCount(0);

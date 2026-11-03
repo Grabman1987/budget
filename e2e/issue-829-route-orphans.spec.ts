@@ -1,3 +1,4 @@
+import { openR8BodyDetails } from './income-spending-controls';
 import { inboxFilters } from './ledger-helpers';
 import { redesignReportsOn, revealComparisonDetail } from './report-frame';
 // A2 positive browser bodies, using the real sample ledger and isolated import-detail fixture.
@@ -293,7 +294,10 @@ const probes = {
   incomeReport: (p: Page) => id(p, 'income-total'),
   incomeExpense: (p: Page) => id(p, 'income-expense-report'),
   cashflow: (p: Page) => id(p, 'cf-figure'),
-  projectReport: (p: Page) => css(p, '[data-testid="projects-report"] .pp-project'),
+  projectReport: async (p: Page) => {
+    await openR8BodyDetails(p);
+    await css(p, '[data-testid="projects-report"] .pp-project');
+  },
   payees: (p: Page) => id(p, 'payee-total'),
   accuracy: (p: Page) =>
     css(p, '[data-testid="planning-accuracy"] section[aria-label="Trefferquote"]'),
@@ -308,7 +312,8 @@ const probes = {
     css(p, '[data-testid="template-category"] table.ex-template-table tbody tr'),
   totalTemplate: (p: Page) =>
     css(p, '[data-testid="template-total"] table.ex-template-table tbody tr'),
-  spending: (p: Page) => id(p, 'sa-consumption'),
+  spending: async (p: Page) =>
+    id(p, (await redesignReportsOn(p)) ? 'spending-period-chart' : 'sa-consumption'),
   flow: (p: Page) => id(p, 'sankey-chart'),
   savingsAge: async (p: Page) => {
     await id(p, 'savings-rate');
@@ -489,10 +494,24 @@ for (const [slug, path, intent, view, body] of reportAliases)
       expect(url.hash).toBe('#details');
       for (const [key, value] of new URLSearchParams(intent))
         expect(url.searchParams.get(key)).toBe(value);
-      if (view)
-        await expect(
-          page.getByRole('button', { name: view, exact: true, pressed: true }),
-        ).toBeVisible();
+      if (view) {
+        if (
+          (await redesignReportsOn(page)) &&
+          (path === '/reports/einnahmen-ausgaben' || path === '/reports/ausgaben')
+        ) {
+          const label =
+            path === '/reports/ausgaben'
+              ? 'Ansicht der Ausgabenanalyse'
+              : 'Ansicht von Einnahmen und Cashflow';
+          await expect(
+            page.getByRole('combobox', { name: label, exact: true }).locator('option:checked'),
+          ).toHaveText(view);
+        } else {
+          await expect(
+            page.getByRole('button', { name: view, exact: true, pressed: true }),
+          ).toBeVisible();
+        }
+      }
     };
     await check();
     await page.reload();
