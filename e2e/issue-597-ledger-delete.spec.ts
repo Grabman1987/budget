@@ -1,7 +1,20 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { openDatabase, schema } from '@budget/db';
 import { test } from './isolated-ledger';
+
+async function setTheme(page: Page, value: 'light' | 'dark') {
+  await page.evaluate(async (selected) => {
+    document.documentElement.dataset['theme'] = selected;
+    // Audit the selected theme after its finite background transitions have finished.
+    await Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+        .map((animation) => animation.finished),
+    );
+  }, value);
+}
 
 test('597 immediate delete, protected explanation, paired bulk preview and exact grouped Undo', async ({
   page,
@@ -106,7 +119,7 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
   ).toHaveCount(0);
   await expect.poll(readRows).toEqual(before);
   for (const theme of ['light', 'dark'] as const) {
-    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    await setTheme(page, theme);
     expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
       [],
     );
@@ -168,7 +181,7 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
     'Synthetic delete linked',
   );
   for (const theme of ['light', 'dark'] as const) {
-    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    await setTheme(page, theme);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
