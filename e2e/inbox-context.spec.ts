@@ -1,3 +1,4 @@
+import { inboxFilters } from './ledger-helpers';
 import { openPruefenSource } from './pruefen-part';
 import AxeBuilder from '@axe-core/playwright';
 import { inboxItem, insertTracked, openDatabase } from '@budget/db';
@@ -47,6 +48,7 @@ test('inbox periods, repeated causes and warning details preserve context and op
   await page.getByRole('link', { name: 'Zurück zur vorherigen Ansicht' }).click();
   await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-09$/);
   await prufen.click();
+  await inboxFilters(page);
   await page.getByLabel('Zeitraum der Aufgaben').selectOption('current');
   await openPruefenSource(page, 'Weitere Aufgaben');
   await expect(page.getByText('4 offen', { exact: true })).toBeVisible();
@@ -80,15 +82,18 @@ test('inbox periods, repeated causes and warning details preserve context and op
   await page.reload();
   await page.getByRole('link', { name: 'Zurück zu Prüfen' }).click();
   await openPruefenSource(page, 'Weitere Aufgaben');
+  await inboxFilters(page);
   await expect(page.getByLabel('Zeitraum der Aufgaben')).toHaveValue('current');
   await expect(group).toHaveAttribute('aria-expanded', 'true');
   await detailLink.click();
   await page.goBack();
   await openPruefenSource(page, 'Weitere Aufgaben');
   await expect(group).toHaveAttribute('aria-expanded', 'true');
+  await inboxFilters(page);
   await page.getByLabel('Zeitraum der Aufgaben').selectOption('historical');
   await expect(page.getByTestId('inbox-row')).toHaveCount(1);
   await expect(page.getByTestId('inbox-row')).toContainText('30.09.2026');
+  await inboxFilters(page);
   await page.getByLabel('Zeitraum der Aufgaben').selectOption('all');
   const response = await page.request.get('/api/inbox');
   expect((await response.json()).entries).toHaveLength(4);
@@ -96,6 +101,7 @@ test('inbox periods, repeated causes and warning details preserve context and op
   await expect(page.locator('.source-inbox-detail')).toBeVisible();
   await page.getByRole('link', { name: 'Zurück zu Prüfen' }).click();
   await openPruefenSource(page, 'Weitere Aufgaben');
+  await inboxFilters(page);
   await expect(page.getByLabel('Zeitraum der Aufgaben')).toHaveValue('historical');
 });
 

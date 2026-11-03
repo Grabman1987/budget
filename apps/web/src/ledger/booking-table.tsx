@@ -9,13 +9,23 @@ import { CategoryCell, FlagCell, PayeeCell, StatusCell, useCategoryClasses } fro
 import { BookingLegend } from './booking-legend';
 import { FlagGlyph } from './flag-picker';
 import { FLAG_LABEL } from './labels';
-import { dayHeading, nativeCurrency, valuedCurrency, shortDay, upcomingDate, eur } from './format';
+import {
+  dayHeading,
+  nativeCurrency,
+  valuedCurrency,
+  shortDay,
+  upcomingDate,
+  eur,
+  monthName,
+} from './format';
 import { ScheduledRegisterRow } from './scheduled-register-row';
 import { upcomingEntries, upcomingSummary, type UpcomingModel } from './upcoming-register';
 import { flashRows, useFlashing } from './flash';
 import { useLedgerWrites } from './mutations';
 import { lookupsQuery } from './queries';
 import type { BookingFlag, BookingSort, ListedBooking } from './types';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import './register-redesign.css';
 
 export interface Selection {
   selected: ReadonlySet<string>;
@@ -84,7 +94,8 @@ export function BookingTable({
   // Retain the projected-row balance marker when Kommend is open. Historical All rows
   // show a balance value only for an explicit single account.
   const runColumn = !all || showRunningBalance || showUpcoming;
-  const columns = (selection ? 1 : 0) + 7 + (runColumn ? 1 : 0);
+  const columns =
+    (selection ? 1 : 0) + 7 + (runColumn ? 1 : 0) + (REDESIGN_ENABLED ? (all ? 2 : 1) : 0);
   const head = (label: string, key?: BookingSort, numeric = false): ReactNode => (
     <th
       className={cx('tech', numeric && 'kc-num', key === 'date' && 'kc-date')}
@@ -115,29 +126,39 @@ export function BookingTable({
 
   const entries = upcoming ? upcomingEntries(upcoming) : [];
   const groups = groupByDay(items);
+  // Same native-currency day sums as the OFF day headings, retained in the ON legend.
+  const dayTotal = (group: (typeof groups)[number]) =>
+    [...new Set(group.items.map((b) => b.currency))]
+      .map((currency) =>
+        nativeCurrency(
+          group.items
+            .filter((b) => b.currency === currency)
+            .reduce((sum, b) => sum + b.amountCents, 0),
+          currency,
+          true,
+        ),
+      )
+      .join(' · ');
   const groupRows = (group: (typeof groups)[number]) => (
     <>
-      {all && (
+      {REDESIGN_ENABLED &&
+        (groups.indexOf(group) === 0 ||
+          groups[groups.indexOf(group) - 1]?.day.slice(0, 7) !== group.day.slice(0, 7)) && (
+          <tr className="kmonth">
+            <th scope="rowgroup" colSpan={columns}>
+              {monthName(group.day)} {group.day.slice(0, 4)}
+            </th>
+          </tr>
+        )}
+      {all && !REDESIGN_ENABLED && (
         <tr className="kday">
           <td colSpan={columns}>
             <span className="tech">{dayHeading(group.day)}</span>
-            <span className="kday-sum">
-              {[...new Set(group.items.map((b) => b.currency))]
-                .map((currency) =>
-                  nativeCurrency(
-                    group.items
-                      .filter((b) => b.currency === currency)
-                      .reduce((sum, b) => sum + b.amountCents, 0),
-                    currency,
-                    true,
-                  ),
-                )
-                .join(' · ')}
-            </span>
+            <span className="kday-sum">{dayTotal(group)}</span>
           </td>
         </tr>
       )}
-      {!all && (
+      {!all && !REDESIGN_ENABLED && (
         <tr className="kaccount-day" data-day={group.day}>
           <th scope="rowgroup" colSpan={columns}>
             <span>{dayHeading(group.day)}</span>
@@ -180,8 +201,48 @@ export function BookingTable({
   );
   return (
     <>
-      <div className="kbooking-tools">
-        <BookingLegend />
+      {REDESIGN_ENABLED && (
+        <div className="redesign-register-toolbar">
+          {upcoming && (
+            <button
+              type="button"
+              className="kupcoming-toggle"
+              aria-expanded={upcoming.open}
+              aria-controls={sectionId}
+              onClick={upcoming.toggle}
+            >
+              <ChevronDown size={16} aria-hidden="true" />
+              <strong>Kommend</strong>
+              <span>{upcomingSummary(upcoming.count, entries[0])}</span>
+            </button>
+          )}
+          <BookingLegend
+            compact
+            context={
+              <>
+                {upcoming && showTodayBalance && (
+                  <p data-testid="register-today">Heute · Saldo {upcoming.balanceLabel}</p>
+                )}
+                {all && (
+                  <details className="register-day-totals">
+                    <summary>Tagessummen</summary>
+                    <dl>
+                      {groups.map((group) => (
+                        <div key={group.day}>
+                          <dt>{dayHeading(group.day)}</dt>
+                          <dd>{dayTotal(group)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </details>
+                )}
+              </>
+            }
+          />
+        </div>
+      )}
+      <div className="kbooking-tools" data-selection-mode={selection?.mode ? '1' : undefined}>
+        {!REDESIGN_ENABLED && <BookingLegend />}
         {selection && (
           // The table head is hidden on the phone, so select-all is offered here as well.
           <label className="kselect-all">
@@ -199,20 +260,24 @@ export function BookingTable({
         className={cx(
           'ktable ktx',
           all ? 'ktx-all' : 'ktx-account',
+          REDESIGN_ENABLED && 'ktx-redesign',
           runColumn && 'has-running-balance',
         )}
       >
         <caption className="sr-only">{caption}</caption>
-        {!all && (
+        {(!all || REDESIGN_ENABLED) && (
           <colgroup>
             {selection && <col className="kcol-select" />}
             <col className="kcol-flag" />
             <col className="kcol-date" />
             <col />
-            <col className="kcol-note" />
+            {all && <col className="kcol-account" />}
+            {!REDESIGN_ENABLED && <col className="kcol-note" />}
             <col className="kcol-category" />
+            {REDESIGN_ENABLED && <col className="kcol-note" />}
+            {REDESIGN_ENABLED && <col className="kcol-money" />}
             <col className="kcol-money" />
-            <col className="kcol-money" />
+            {runColumn && <col className="kcol-money" />}
             <col className="kcol-status" />
           </colgroup>
         )}
@@ -235,13 +300,19 @@ export function BookingTable({
             {head('Datum', 'date')}
             {head('Empfänger', 'payee')}
             {all && head('Konto', 'account')}
-            {!all && (
+            {!all && !REDESIGN_ENABLED && (
               <th className="tech kx-note" scope="col">
                 Notiz
               </th>
             )}
             {head('Kategorie')}
-            {head('Betrag', 'amount', true)}
+            {REDESIGN_ENABLED && (
+              <th className="tech kx-note" scope="col">
+                Notiz
+              </th>
+            )}
+            {head(REDESIGN_ENABLED ? 'Ausgang' : 'Betrag', 'amount', true)}
+            {REDESIGN_ENABLED && head('Eingang', undefined, true)}
             {runColumn && head('Saldo', undefined, true)}
             <th scope="col" className="kc-status">
               <span className="sr-only">Status</span>
@@ -251,20 +322,22 @@ export function BookingTable({
         {upcoming && (
           <>
             <tbody className="kupcoming" id={sectionId}>
-              <tr className="kupcoming-head">
-                <th scope="colgroup" colSpan={columns}>
-                  <button
-                    type="button"
-                    className="kupcoming-toggle"
-                    aria-expanded={upcoming.open}
-                    aria-controls={sectionId}
-                    onClick={upcoming.toggle}
-                  >
-                    <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
-                    {upcomingSummary(upcoming.count, entries[0])}
-                  </button>
-                </th>
-              </tr>
+              {!REDESIGN_ENABLED && (
+                <tr className="kupcoming-head">
+                  <th scope="colgroup" colSpan={columns}>
+                    <button
+                      type="button"
+                      className="kupcoming-toggle"
+                      aria-expanded={upcoming.open}
+                      aria-controls={sectionId}
+                      onClick={upcoming.toggle}
+                    >
+                      <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+                      {upcomingSummary(upcoming.count, entries[0])}
+                    </button>
+                  </th>
+                </tr>
+              )}
               {upcoming.open &&
                 entries.map((entry) =>
                   entry.schedule ? (
@@ -298,7 +371,7 @@ export function BookingTable({
                   ),
                 )}
             </tbody>
-            {showTodayBalance && (
+            {showTodayBalance && !REDESIGN_ENABLED && (
               <tbody className="kregister-today">
                 <tr data-testid="register-today">
                   <td colSpan={columns}>Heute · Saldo {upcoming.balanceLabel}</td>
@@ -377,6 +450,34 @@ function Row({
   const checked = selection?.selected.has(b.id) ?? false;
   const selectionMode = selection?.mode === true;
   const label = `${b.payeeName ?? 'Buchung'} am ${shortDay(b.date)}`;
+  const amountContent = (
+    <>
+      {selectionMode ? (
+        <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
+          {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
+        </span>
+      ) : (
+        <InlineBookingCell
+          booking={b}
+          field="amountCents"
+          onSave={onPatch}
+          onOpen={() => onOpen(b)}
+        >
+          <span
+            className={cx(
+              b.currency !== 'EUR' && 'kfx-money',
+              upcomingToday && (b.amountCents < 0 ? 'kupcoming-negative' : 'kupcoming-positive'),
+            )}
+          >
+            {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
+          </span>
+        </InlineBookingCell>
+      )}
+      {b.categorySpendingCents !== undefined && (
+        <small className="kmeta">Kategorie netto {eur(b.categorySpendingCents)}</small>
+      )}
+    </>
+  );
   return (
     // Individual cell controls handle keyboard access; the rest of the row opens the dialog.
     <tr
@@ -391,6 +492,7 @@ function Row({
         upcomingToday && 'is-upcoming',
       )}
       data-booking={b.id}
+      data-selection-mode={selectionMode ? '1' : undefined}
     >
       {blankCheck && <td className="kc-check kx-check" />}
       {selection && (
@@ -446,15 +548,31 @@ function Row({
               ? upcomingToday
                 ? { noteClassName: 'kx-mobile-note' }
                 : { hideNote: true }
-              : {})}
+              : REDESIGN_ENABLED
+                ? { hideNote: true }
+                : {})}
           />
+          {REDESIGN_ENABLED && !selectionMode && (
+            <Pencil
+              className="icon kbooking-edit-mark"
+              size={14}
+              strokeWidth={1.75}
+              aria-hidden="true"
+            />
+          )}
         </button>
-        {variant === 'account' && !upcomingToday && (
+        {(variant === 'account' || REDESIGN_ENABLED) && !upcomingToday && (
           // Outside the labelled button so the row still reads its category and note; the button
           // covers it on the phone, so a tap anywhere in the cell opens the booking.
           <span className="kaccount-mobile-meta">
             <span>{shortDay(b.date)}</span>
             <span aria-hidden="true"> · </span>
+            {variant === 'all' && (
+              <>
+                <span>{b.accountName}</span>
+                <span aria-hidden="true"> · </span>
+              </>
+            )}
             <CategoryCell booking={b} classes={classes} showClass={false} />
             {b.memo && (
               <>
@@ -465,7 +583,7 @@ function Row({
           </span>
         )}
       </td>
-      {variant === 'account' && (
+      {variant === 'account' && !REDESIGN_ENABLED && (
         <td className="kx-note">
           <span title={b.memo ?? undefined}>{b.memo}</span>
         </td>
@@ -517,32 +635,23 @@ function Row({
           <CategoryCell booking={b} classes={classes} showClass={false} />
         )}
       </td>
-      <td className="kc-num kx-amount">
-        {selectionMode ? (
-          <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
-            {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
-          </span>
-        ) : (
-          <InlineBookingCell
-            booking={b}
-            field="amountCents"
-            onSave={onPatch}
-            onOpen={() => onOpen(b)}
-          >
-            <span
-              className={cx(
-                b.currency !== 'EUR' && 'kfx-money',
-                upcomingToday && (b.amountCents < 0 ? 'kupcoming-negative' : 'kupcoming-positive'),
-              )}
-            >
-              {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
-            </span>
-          </InlineBookingCell>
-        )}
-        {b.categorySpendingCents !== undefined && (
-          <small className="kmeta">Kategorie netto {eur(b.categorySpendingCents)}</small>
-        )}
-      </td>
+      {REDESIGN_ENABLED && (
+        <td className="kx-note">
+          <span title={b.memo ?? undefined}>{b.memo}</span>
+        </td>
+      )}
+      {REDESIGN_ENABLED ? (
+        <>
+          <td className="kc-num kx-amount kx-outgoing">
+            {b.amountCents < 0 ? amountContent : null}
+          </td>
+          <td className="kc-num kx-amount kx-incoming">
+            {b.amountCents >= 0 ? amountContent : null}
+          </td>
+        </>
+      ) : (
+        <td className="kc-num kx-amount">{amountContent}</td>
+      )}
       {runColumn && !(variant === 'account' || upcomingToday || showRunningBalance) && (
         <td className="kc-num kc-run kx-run" />
       )}

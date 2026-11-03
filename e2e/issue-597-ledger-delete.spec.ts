@@ -357,11 +357,19 @@ test('597 cached account month hides retained native and dated EUR movements unt
   expect(partnerPage.total).toBe(2);
   expect(partnerPage.sumCents).toBe(1678);
   expect(partnerPage.sumEurCents).toBe(1678);
+  const accountNavigation = async () => {
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    if (redesign) {
+      const menu = page.locator('.area-page-menu');
+      if (!(await menu.evaluate((element) => (element as HTMLDetailsElement).open)))
+        await menu.locator('summary').click();
+    }
+    return page.getByRole('navigation', {
+      name: redesign ? 'Ansichten von Konten' : 'Register von Konten',
+    });
+  };
   const openAccount = async (id: string) => {
-    await page
-      .getByRole('navigation', { name: 'Register von Konten' })
-      .getByRole('link', { name: 'Übersicht', exact: true })
-      .click();
+    await (await accountNavigation()).getByRole('link', { name: 'Übersicht', exact: true }).click();
     await page.locator(`main a[href="/konten/${id}"]`).first().click();
   };
   const month = page.locator('.kacct-month strong');
@@ -370,10 +378,7 @@ test('597 cached account month hides retained native and dated EUR movements unt
   await openAccount(foreign.id);
   await expect(month).toContainText('USD 1,90');
   await expect(month).toContainText('+1,67 €');
-  await page
-    .getByRole('navigation', { name: 'Register von Konten' })
-    .getByRole('link', { name: 'Buchungen', exact: true })
-    .click();
+  await (await accountNavigation()).getByRole('link', { name: 'Buchungen', exact: true }).click();
   if (info.project.name !== 'desktop')
     await page.getByRole('button', { name: 'Auswählen', exact: true }).click();
   const selected = page.locator(`tr[data-booking="${pair.fromBookingId}"]`);

@@ -105,3 +105,71 @@ button.depot-link {
     margin-right: var(--space-sm);
   }
 }
+
+/* Depot v1 derives its lead and density from the account sheet, with the native depot tabs. */
+.depot-v1 .depot-v1-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+}
+.depot-v1 .depot-name {
+  margin: 0;
+  font-size: var(--fs-headline);
+  line-height: var(--lh-headline);
+}
+.depot-v1-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.depot-v1 .depot-register-jump {
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+.depot-v1 .kfigs {
+  margin-block: 8px;
+}
+.depot-v1 [data-testid='depot-value'] {
+  font-size: var(--fs-dimension);
+  line-height: 1.05;
+}
+.depot-v1 .depot-settlement {
+  margin-block: 0;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+.depot-v1 .depot-tabs {
+  margin-block: 12px;
+}
+.depot-v1 .depot-table {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: var(--fs-table);
+}
+.depot-v1 .depot-table th,
+.depot-v1 .depot-table td {
+  padding: 4px 12px;
+  vertical-align: middle;
+}
+.depot-v1 .depot-table thead th {
+  height: 28px;
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  font-weight: 500;
+  text-transform: uppercase;
+}
+@media (max-width: 767px) {
+  .konten-frame-account .depot-v1 .depot-name {
+    display: none;
+  }
+  .depot-v1 .depot-v1-head {
+    justify-content: flex-end;
+  }
+  .depot-v1 [data-testid='depot-value'] {
+    font-size: var(--fs-dimension);
+  }
+}

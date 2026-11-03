@@ -138,7 +138,8 @@ export function PageFrame({
       ) : (
         <>
           {pageNavigation ??
-            (REDESIGN_ENABLED && (meta.area === 'plan' || meta.area === 'vermoegen') ? (
+            (REDESIGN_ENABLED &&
+            (meta.area === 'plan' || meta.area === 'vermoegen' || meta.area === 'konten') ? (
               <PageMenu area={area} current={meta.register ?? ''} />
             ) : (
               items.length > 0 && (
@@ -160,6 +161,7 @@ export function PageFrame({
                 />
               )
             ))}
+
           {children}
         </>
       )}

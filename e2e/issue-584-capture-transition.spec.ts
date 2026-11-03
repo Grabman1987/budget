@@ -1,3 +1,4 @@
+import { categoryLineControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, schema } from '@budget/db';
 import {
@@ -194,7 +195,7 @@ async function scene(
   await expect(dialog.locator('input.amount-input')).toHaveCount(1);
   await expect(dialog.getByLabel(/^Betrag \d+$/)).toHaveCount(0);
   await picture(page, dialog, 'one-before', info);
-  await dialog.getByRole('button', { name: '+ Weitere Kategorie', exact: true }).click();
+  await (await categoryLineControl(dialog)).click();
   await expect(dialog.locator('input.amount-input')).toHaveCount(3);
   await expect(dialog.getByLabel(/^Betrag \d+$/)).toHaveCount(2);
   await dialog.getByLabel('Betrag 1', { exact: true }).fill('6,00');
@@ -251,11 +252,11 @@ async function scene(
   ]);
 
   const odd = await open('584 Synthetic odd cents');
-  await odd.getByRole('button', { name: '+ Weitere Kategorie', exact: true }).click();
+  await (await categoryLineControl(odd)).click();
   await odd.getByLabel('Betrag 1', { exact: true }).fill('3,34');
   await choose(odd, 'Kategorie 2', ids.categories[1]!.name);
   await odd.getByLabel('Betrag 2', { exact: true }).fill('3,33');
-  await odd.getByRole('button', { name: '+ Weitere Kategorie', exact: true }).click();
+  await (await categoryLineControl(odd)).click();
   await choose(odd, 'Kategorie 3', ids.categories[2]!.name);
   await odd.getByLabel('Betrag 3', { exact: true }).fill('3,33');
   await expect(odd.locator('input.amount-input')).toHaveCount(4);

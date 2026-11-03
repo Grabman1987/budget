@@ -1,7 +1,6 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
-import { test as isolatedTest } from './isolated-ledger';
 import {
+  historyChart,
+  categoryLineControl,
   again,
   balance,
   createAccount,
@@ -11,6 +10,10 @@ import {
   openLedgerFilters,
   applyLedgerFilters,
 } from './ledger-helpers';
+
+import AxeBuilder from '@axe-core/playwright';
+import { expect, test, type Page } from '@playwright/test';
+import { test as isolatedTest } from './isolated-ledger';
 
 /**
  * The ledger end to end on the real server: accounts, bookings with split and transfer, edit in
@@ -46,7 +49,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
 
   await openAccount(page, giro);
   await expect(balance(page)).toHaveText('1.000,00 €');
-  await page.getByTestId('account-chart-toggle').click();
+  await historyChart(page);
   await expect(page.getByTestId('balance-chart')).toBeVisible();
 
   // A plain expense with category.
@@ -71,7 +74,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await panel.getByLabel('Betrag', { exact: true }).fill('30');
   await panel.getByLabel('Empfänger').fill(`Splitmarkt ${tag}`);
-  await panel.getByRole('button', { name: '+ Weitere Kategorie' }).click();
+  await (await categoryLineControl(panel)).click();
   await panel.getByLabel('Kategorie 1').fill('Essen');
   await panel.getByRole('option', { name: /^Essen/ }).click();
   await panel.getByLabel('Betrag 1').fill('20');
@@ -342,7 +345,7 @@ test('ledger pages with data: axe clean in both themes, no sideways scrolling', 
     for (const url of ['/konten', accountUrl, '/konten/buchungen']) {
       await page.goto(url);
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-      await expect(page.locator('main table, main .kview').first()).toBeVisible();
+      await expect(page.locator('main .ktx, main .kview').first()).toBeVisible();
       await page.waitForLoadState('networkidle');
       expect(await violations(), `${scheme} ${url}`).toEqual([]);
       expect(await noSidewaysScroll(), `${scheme} ${url} scrolls sideways`).toBe(true);

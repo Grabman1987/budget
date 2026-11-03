@@ -1,3 +1,4 @@
+import { redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -54,11 +55,15 @@ test('compact account head, fixed desktop table and ten two-line phone bookings'
   await page.goto(`/konten/${account.id}`);
   const rows = page.locator('.ktx-account [data-booking]:not(.is-upcoming)');
   await expect(rows).toHaveCount(20);
-  await expect(page.getByTestId('account-chart-toggle')).toHaveAttribute('aria-expanded', 'false');
+  const redesign = await redesignLoaded(page);
+  await expect(page.getByTestId('account-chart-toggle')).toHaveAttribute(
+    'aria-expanded',
+    redesign ? 'true' : 'false',
+  );
   await expect(page.locator('.kupcoming-toggle')).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('heading', { name: account.name, exact: true })).toHaveCount(1);
   const review = page.getByTestId('account-review-badge');
-  await expect(review).toHaveText('Nie geprüft – jetzt prüfen');
+  await expect(review).toContainText(redesign ? 'fällig' : 'Nie geprüft – jetzt prüfen');
   await expect(page.getByTestId('account-balance')).toHaveText('753,20 €');
   const phone = info.project.name !== 'desktop';
   if (!phone) {
@@ -70,8 +75,9 @@ test('compact account head, fixed desktop table and ten two-line phone bookings'
     await expect(page.locator('.ktx-account')).toHaveCSS('table-layout', 'fixed');
     for (const row of await rows.all()) {
       const box = (await row.boundingBox())!;
-      expect(box.height).toBeGreaterThanOrEqual(36);
-      expect(box.height).toBeLessThanOrEqual(40);
+      expect(box.height).toBeGreaterThanOrEqual(redesign ? 44 : 36);
+      // A 44px target plus the collapsed 1px row separator.
+      expect(box.height).toBeLessThanOrEqual(redesign ? 45 : 40);
     }
   }
   for (const theme of ['light', 'dark']) {
@@ -98,8 +104,13 @@ test('compact account head, fixed desktop table and ten two-line phone bookings'
         expect(box.width).toBeGreaterThanOrEqual(44);
         expect(box.height).toBeGreaterThanOrEqual(44);
       }
-      await expect(page.locator('.kaccount-day')).toHaveCount(5);
-      await expect(page.locator('.kaccount-day').first()).toContainText('Saldo 753,20');
+      if (redesign) {
+        await expect(page.locator('.kmonth')).toHaveText('Oktober 2026');
+        await expect(rows.first().locator('.kx-run')).toContainText('753,20');
+      } else {
+        await expect(page.locator('.kaccount-day')).toHaveCount(5);
+        await expect(page.locator('.kaccount-day').first()).toContainText('Saldo 753,20');
+      }
       await page.screenshot({ path: info.outputPath(`register-${theme}.png`) });
       await page.evaluate(() => window.scrollTo(0, 0));
     }
@@ -206,7 +217,9 @@ test('inline writes keep exact cents, undo and reconciled locks', async ({
     statementBalanceCents: 98766,
   });
   await page.reload();
-  await expect(page.getByTestId('account-review-badge')).toHaveText('Geprüft 17.10.');
+  await expect(page.getByTestId('account-review-badge')).toContainText(
+    (await redesignLoaded(page)) ? 'geprüft' : 'Geprüft 17.10.',
+  );
   await expect(row.getByRole('button', { name: /^Kategorie ändern/ })).toHaveCount(0);
   await expect(row.getByRole('img', { name: 'geprüft', exact: true })).toBeVisible();
   await row.getByRole('button', { name: /^Betrag ändern/ }).click();

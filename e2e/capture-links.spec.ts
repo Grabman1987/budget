@@ -1,3 +1,4 @@
+import { categoryLineControl } from './ledger-helpers';
 import { test as ledgerTest, expect } from '@playwright/test';
 import { MAIN_URL } from '../playwright.config';
 
@@ -28,7 +29,7 @@ ledgerTest(
     await expect(dialog.getByLabel('Bezahlt von', { exact: true })).toHaveValue(account.id);
     await expect(dialog.getByLabel('Kategorie', { exact: true })).toHaveValue('Essen');
     expect(writes).toEqual([]);
-    await dialog.getByRole('button', { name: '+ Weitere Kategorie', exact: true }).click();
+    await (await categoryLineControl(dialog)).click();
     await dialog.getByLabel('Betrag 1', { exact: true }).fill('10');
     await dialog.getByLabel('Betrag 2', { exact: true }).fill('20');
     await dialog.getByRole('button', { name: 'Rest verteilen in Zeile 2' }).click();
