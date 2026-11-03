@@ -6,7 +6,7 @@ import { queryString, request } from '../api/http';
 import { accountsQuery, LEDGER_KEY } from '../ledger/queries';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
-import { recordedComponents } from './portfolio-recorded-components';
+import { recordedComponents, recordedGainResidual } from './portfolio-recorded-components';
 
 /** Existing trade and FX reads; no return, tax, cost-basis or TER method is recreated here. */
 export function PortfolioGainComponents({
@@ -67,8 +67,8 @@ export function PortfolioGainComponents({
       const income = months.reduce((sum, row) => sum + row.incomeCents, 0);
       const fees = months.reduce((sum, row) => sum + row.feesCents, 0);
       const taxes = months.reduce((sum, row) => sum + row.taxesCents, 0);
-      const residual = gainCents - income + fees + taxes;
-      if (![income, fees, taxes, residual].every(Number.isSafeInteger))
+      const residual = recordedGainResidual(gainCents, income, fees, taxes);
+      if (residual === null)
         throw new Error('Die Komponentensumme überschreitet den darstellbaren Bereich.');
       return { income, fees, taxes, residual, months };
     },

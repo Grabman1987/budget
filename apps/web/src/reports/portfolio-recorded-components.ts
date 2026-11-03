@@ -6,6 +6,18 @@ import {
   type ProductTrade,
 } from '@budget/domain';
 
+/** Display-only residual of the canonical gain; unavailable if any input/result exceeds cents. */
+export function recordedGainResidual(
+  gain: number,
+  income: number,
+  fees: number,
+  taxes: number,
+): number | null {
+  if (![gain, income, fees, taxes].every(Number.isSafeInteger)) return null;
+  const residual = Number(BigInt(gain) - BigInt(income) + BigInt(fees) + BigInt(taxes));
+  return Number.isSafeInteger(residual) ? residual : null;
+}
+
 /** Presentation grouping only. Each monthly subset uses the existing booked-amount conventions. */
 export function recordedComponents(trades: readonly ProductTrade[], from: string, to: string) {
   return monthEnds(from, to).map(({ month, date }) => {

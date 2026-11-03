@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import type { ProductTrade } from '@budget/domain';
-import { recordedComponents } from './portfolio-recorded-components';
+import { recordedComponents, recordedGainResidual } from './portfolio-recorded-components';
 
 const trade = (date: string, kind: ProductTrade['kind'], amountCents: number): ProductTrade => ({
   date,
@@ -9,6 +9,14 @@ const trade = (date: string, kind: ProductTrade['kind'], amountCents: number): P
   feeCents: 10,
   taxCents: 20,
   unitsE8: 0,
+});
+
+it('keeps a safe negative-cent residual exact even when its intermediate subtraction is unsafe', () => {
+  expect(
+    recordedGainResidual(-9_007_199_254_740_991, 9_007_199_254_740_990, 9_007_199_254_740_990, 0),
+  ).toBe(-9_007_199_254_740_991);
+  expect(recordedGainResidual(9_007_199_254_740_991, 0, 1, 0)).toBeNull();
+  expect(recordedGainResidual(1, Number.NaN, 0, 0)).toBeNull();
 });
 
 it('keeps all months of a long interval and its exact open/closed boundaries', () => {
