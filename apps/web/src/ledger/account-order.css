@@ -41,3 +41,15 @@
     transition: none;
   }
 }
+
+/* Account settings share the same tablet header constraint as the account register. */
+@media (min-width: 768px) and (max-width: 1100px) {
+  [data-budget-redesign='1']:has(.settings-accounts-v2) .topbar {
+    height: auto;
+    min-height: 64px;
+  }
+  [data-budget-redesign='1']:has(.settings-accounts-v2) .topbar-inner {
+    flex-wrap: wrap;
+    padding-block: 8px;
+  }
+}

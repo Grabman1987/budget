@@ -1,14 +1,30 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
 import { expect, sampleTest as test } from './sample';
+import { showPortfolioAnalysis } from './wealth-navigation';
+import { redesignLoaded } from './ledger-helpers';
 
 async function expectVisibleIconScale(page: Page) {
   if (new URL(page.url()).pathname === '/plan/monat')
     await expect(page.locator('.month-overview-head')).toBeVisible();
   await expect
     .poll(() =>
-      page.evaluate(() =>
-        Array.from(document.querySelectorAll<SVGSVGElement>('svg.lucide'))
+      page.evaluate(() => {
+        const redesign = document.querySelector('.app[data-budget-redesign="1"]') !== null;
+        const redesignScales: Array<[string, number, number]> = [
+          ['.area-page-menu > summary > .lucide-chevron-down', 16, 2],
+          ['.wealth-investment > summary > .lucide-plus', 16, 2],
+          ['.plan-reference-filters > summary > .lucide-chevron-down', 14, 2],
+          ['.year-reference-metric > summary > .lucide-chevron-down', 14, 2],
+          ['.year-reference-period > button > .lucide-chevron-left', 16, 2],
+          ['.year-reference-period > button > .lucide-chevron-right', 16, 2],
+          ['.year-reference-context > summary > .lucide-info', 16, 2],
+          ['.year-chart-reference-extra > summary > .lucide-table-2', 16, 2],
+          ['.wealth-next-icon > .lucide-scale', 17, 2],
+          ['.wealth-freedom > .lucide-flag', 15, 2],
+          ['.hv-net-delta > :is(.lucide-arrow-up, .lucide-arrow-down, .lucide-minus)', 14, 2],
+        ];
+        return Array.from(document.querySelectorAll<SVGSVGElement>('svg.lucide'))
           .filter(
             (icon) =>
               icon.isConnected &&
@@ -20,14 +36,18 @@ async function expectVisibleIconScale(page: Page) {
             const width = Number.parseFloat(style.width);
             const height = Number.parseFloat(style.height);
             const stroke = Number.parseFloat(style.strokeWidth);
-            const expected = width === 16 ? 1.75 : 1.5;
-            return [16, 20, 24].includes(width) && height === width && stroke === expected
+            // Only these new components use the compact/default Lucide scale.
+            // Every unchanged glyph keeps the original exact size/stroke checks in ON too.
+            const adapted = redesign && redesignScales.find(([selector]) => icon.matches(selector));
+            const expectedStroke = adapted ? adapted[2] : width === 16 ? 1.75 : 1.5;
+            const expectedSize = adapted ? width === adapted[1] : [16, 20, 24].includes(width);
+            return expectedSize && height === width && stroke === expectedStroke
               ? []
               : [
                   `${icon.getAttribute('class')}: ${style.width} × ${style.height}, stroke ${style.strokeWidth}`,
                 ];
-          }),
-      ),
+          });
+      }),
     )
     .toEqual([]);
 }
@@ -124,6 +144,7 @@ test('icon sizes, swatches and disclosure carets use their rendered styles', asy
 
   await page.goto('/plan/jahr?monat=2026-09');
   await expectVisibleIconScale(page);
+  if (await redesignLoaded(page)) await page.locator('.year-reference-context > summary').click();
   const infoSummary = page.locator('.year-instructions > summary').first();
   await expect(infoSummary.locator('svg.lucide-info')).toBeVisible();
   expect(await infoSummary.evaluate((el) => getComputedStyle(el, '::before').maskImage)).not.toBe(
@@ -136,6 +157,7 @@ test('icon sizes, swatches and disclosure carets use their rendered styles', asy
   );
 
   await page.goto('/vermoegen/portfolio');
+  await showPortfolioAnalysis(page);
   await page.getByRole('button', { name: 'Rendite %', exact: true }).click();
   await expectVisibleIconScale(page);
   const returnSummary = page.getByTestId('portfolio-return');

@@ -1,7 +1,28 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { openDatabase, schema } from '@budget/db';
 import { test } from './isolated-ledger';
+
+async function setTheme(page: Page, value: 'light' | 'dark') {
+  await page.evaluate((selected) => {
+    document.documentElement.dataset['theme'] = selected;
+    // Flush the new transition state before collecting the audited dialogs' animations.
+    document.getAnimations();
+  }, value);
+  await page.evaluate(async () => {
+    // Audit the open dialogs after their running finite theme transitions finish.
+    await Promise.all(
+      Array.from(document.querySelectorAll('dialog[open]'))
+        .flatMap((dialog) => dialog.getAnimations({ subtree: true }))
+        .filter(
+          (animation) =>
+            animation.playState === 'running' &&
+            animation.effect?.getTiming().iterations !== Infinity,
+        )
+        .map((animation) => animation.finished),
+    );
+  });
+}
 
 test('597 immediate delete, protected explanation, paired bulk preview and exact grouped Undo', async ({
   page,
@@ -106,7 +127,7 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
   ).toHaveCount(0);
   await expect.poll(readRows).toEqual(before);
   for (const theme of ['light', 'dark'] as const) {
-    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    await setTheme(page, theme);
     expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
       [],
     );
@@ -168,7 +189,7 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
     'Synthetic delete linked',
   );
   for (const theme of ['light', 'dark'] as const) {
-    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    await setTheme(page, theme);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
