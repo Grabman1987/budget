@@ -1,10 +1,11 @@
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { BenchmarkChoices } from './portfolio-benchmark-settings';
 import { Term } from '../reports/term';
-import { useAmountPrivacy, ChartValues } from '@budget/ui';
+import { useAmountPrivacy, ChartValues, Segmented } from '@budget/ui';
 import type { PortfolioPerformanceHistory, PortfolioSummary } from '@budget/db';
 import { heatForCell, type BenchmarkGap } from '@budget/domain';
-import type { CSSProperties, ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
+import { PortfolioValueHistory } from '../charts/portfolio-value-history';
 import { eur, shortDay } from '../ledger/format';
 import { percentText, ppText } from './portfolio-report-shared';
 import { PerformanceChart, performanceDecimal as decimal } from './performance-chart';
@@ -28,6 +29,7 @@ export function PerformanceComparisons({
   presentation?: 'all' | 'kennzahlen' | 'klassen';
 }) {
   useAmountPrivacy();
+  const [mode, setMode] = useState<'index' | 'value'>('index');
   const history = summary.performanceHistory;
   if (!history) return null;
   const perf = summary.performance;
@@ -39,6 +41,17 @@ export function PerformanceComparisons({
         <h2 id="performance-benchmark-title">
           Portfolio und <Term>Benchmark</Term>
         </h2>
+        {REDESIGN_ENABLED && presentation === 'all' && (
+          <Segmented
+            label="Portfolioverlauf anzeigen"
+            options={[
+              { value: 'value', label: 'Wert €' },
+              { value: 'index', label: 'Rendite · Index 100' },
+            ]}
+            value={mode}
+            onChange={setMode}
+          />
+        )}
       </div>
       <BenchmarkChoices />
       <dl className="performance-metrics">
@@ -87,18 +100,28 @@ export function PerformanceComparisons({
           Kurslücken: Die betroffene Benchmark-Rendite und Beta sind nicht verfügbar.
         </p>
       )}
-      <PerformanceChart
-        label="Portfolio und Benchmark, indexiert auf 100"
-        rows={history.index}
-        lines={[
-          { name: 'Portfolio', values: history.index.map((p) => p.portfolio) },
-          ...summary.benchmarks.map((b) => ({
-            name: b.name,
-            values: b.index.map((p) => p.benchmark),
-            benchmark: true,
-          })),
-        ]}
-      />
+      {REDESIGN_ENABLED && presentation === 'all' && mode === 'value' ? (
+        <>
+          <p className="vnote">
+            Wertpapiere ohne Depotkassa · tägliche EUR-Bewertung einschließlich Ein- und
+            Auszahlungen. Benchmarks bleiben Kursindizes; sie sind keine EUR-Portfoliowerte.
+          </p>
+          <PortfolioValueHistory rows={history.dailyValues} />
+        </>
+      ) : (
+        <PerformanceChart
+          label="Portfolio und Benchmark, indexiert auf 100"
+          rows={history.index}
+          lines={[
+            { name: 'Portfolio', values: history.index.map((p) => p.portfolio) },
+            ...summary.benchmarks.map((b) => ({
+              name: b.name,
+              values: b.index.map((p) => p.benchmark),
+              benchmark: true,
+            })),
+          ]}
+        />
+      )}
       <details>
         <summary>Verlauf als Tabelle</summary>
         <Scroll label="Indexwerte">

@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import type { PortfolioSummary } from '@budget/db';
 import { cents } from '@budget/domain';
 import { DimensionChain, useAmountPrivacy } from '@budget/ui';
@@ -8,6 +8,8 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import { ValuationHint, type ValuationNote } from '../ledger/valuation-hint';
 import { percentText } from '../pages/portfolio-report-shared';
 import { useZeitraum } from '../wealth/zeitraum';
+import { portfolioPerformanceQuery } from '../wealth/portfolio-api';
+import { PortfolioGainComponents } from './portfolio-gain-components';
 import { Term } from './term';
 import { netWorthHistoryQuery } from './wealth-history-api';
 import { WealthHistoryChart } from './wealth-history-chart';
@@ -29,6 +31,8 @@ export function PortfolioMetricsLead({
   const basisId = useId();
   const sourceId = useId();
   const performance = summary.performance;
+  const periods = ['YTD', '1J', '3J', 'Alles'] as const;
+  const comparisons = useQueries({ queries: periods.map(portfolioPerformanceQuery) });
   return (
     <section className="performance-window" aria-labelledby="metrics-lead-title">
       <h2 id="metrics-lead-title">Rendite · Wertpapiere ohne Depotkassa</h2>
@@ -45,8 +49,11 @@ export function PortfolioMetricsLead({
               <thead>
                 <tr>
                   <th scope="col">Methode</th>
-                  <th scope="col">Im Zeitraum</th>
-                  <th scope="col">p. a.</th>
+                  {['YTD', '1 J', '3 J p. a.', 'Seit Beginn p. a.'].map((label) => (
+                    <th scope="col" key={label}>
+                      {label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -54,19 +61,52 @@ export function PortfolioMetricsLead({
                   <th scope="row">
                     <Term>TTWROR</Term>
                   </th>
-                  <td>{percentText(performance.ttwror, { sign: true })}</td>
-                  <td>{percentText(performance.ttwrorAnnualised, { sign: true })}</td>
+                  {comparisons.map((query, index) => (
+                    <td key={periods[index]}>
+                      {query.isPending
+                        ? 'Lädt …'
+                        : query.isError
+                          ? 'Nicht verfügbar'
+                          : percentText(
+                              index < 2
+                                ? query.data?.portfolio.performance?.ttwror
+                                : query.data?.portfolio.performance?.ttwrorAnnualised,
+                              { sign: true },
+                            )}
+                    </td>
+                  ))}
                 </tr>
                 <tr>
                   <th scope="row">
                     <Term>XIRR</Term> · actual/365
                   </th>
-                  <td>nur annualisiert</td>
-                  <td>{percentText(performance.xirr, { sign: true })}</td>
+                  {comparisons.map((query, index) => (
+                    <td key={periods[index]}>
+                      {query.isPending
+                        ? 'Lädt …'
+                        : query.isError
+                          ? 'Nicht verfügbar'
+                          : percentText(query.data?.portfolio.performance?.xirr, { sign: true })}
+                    </td>
+                  ))}
                 </tr>
               </tbody>
             </table>
           </div>
+          <p className="vnote">
+            Wertpapiere ohne Depotkassa · nach Gebühren, vor Steuern. XIRR immer p. a. (actual/365).
+            Gewählter Zeitraum: TTWROR {percentText(performance.ttwror, { sign: true })} · XIRR{' '}
+            {percentText(performance.xirr, { sign: true })} p. a.
+          </p>
+          {comparisons.some((query) => query.isError) && (
+            <ErrorNote
+              what="Vergleichszeiträume"
+              error={comparisons.find((query) => query.isError)?.error}
+              onRetry={() => {
+                for (const query of comparisons) if (query.isError) void query.refetch();
+              }}
+            />
+          )}
           <HistoricalBasisCue
             reasons={historicalBasisReasons(summary)}
             id={basisId}
@@ -80,6 +120,38 @@ export function PortfolioMetricsLead({
       )}
       <details>
         <summary>Berechnung und Bewertungsquellen</summary>
+        <p className="vnote">
+          Vergleichsspalten verwenden jeweils ihre tatsächlich verfügbare Historie. Ein späterer
+          Beginn verkürzt das beschriftete Fenster; fehlende Renditen bleiben nicht verfügbar.
+        </p>
+        {comparisons.map((query, index) => {
+          const compared = query.isSuccess ? query.data.portfolio : undefined;
+          const window = compared?.performance;
+          return (
+            <details key={periods[index]}>
+              <summary>
+                {periods[index]} ·{' '}
+                {window
+                  ? `${longDay(window.from)} bis ${longDay(window.to)} · ${window.days} Tage`
+                  : 'Keine berechenbare Historie'}
+              </summary>
+              {compared && (
+                <>
+                  <HistoricalBasisCue
+                    reasons={historicalBasisReasons(compared)}
+                    id={`${basisId}-${index}`}
+                    sourceId={`${sourceId}-${index}`}
+                  />
+                  <PortfolioCalculationDisclosure
+                    summary={compared}
+                    incomplete={query.data?.incomplete}
+                    sourceId={`${sourceId}-${index}`}
+                  />
+                </>
+              )}
+            </details>
+          );
+        })}
         <PortfolioCalculationDisclosure
           summary={summary}
           incomplete={incomplete}
@@ -141,20 +213,32 @@ export function PortfolioGainBridge({ summary }: { summary: PortfolioSummary }) 
           <strong className="performance-realized-value" data-testid="metrics-period-gain">
             {eur(performance.gainCents, { sign: true })}
           </strong>
-          <DimensionChain
-            label="Gewinn aus Endwert minus Anfang minus Nettozuflüsse"
-            terms={[
-              { label: 'Endwert', value: cents(performance.endValueCents) },
-              { op: '-', label: 'Anfang', value: cents(performance.startValueCents) },
-              { op: flows < 0 ? '+' : '-', label: 'Nettozuflüsse', value: cents(Math.abs(flows)) },
-              { op: '=', label: 'Gewinn', value: cents(performance.gainCents), result: true },
-            ]}
-            precision="cent"
+          <PortfolioGainComponents
+            from={performance.from}
+            to={performance.to}
+            gainCents={performance.gainCents}
           />
-          <p className="vnote">
-            Wertpapiere ohne Depotkassa · tatsächliche Nettoflüsse nach Steuern. Keine Mischung mit
-            Erträgen und Kosten eines anderen Zeitraums.
-          </p>
+          <details>
+            <summary>Abgleich mit Anfang, Ende und Nettozuflüssen</summary>
+            <DimensionChain
+              label="Gewinn aus Endwert minus Anfang minus Nettozuflüsse"
+              terms={[
+                { label: 'Endwert', value: cents(performance.endValueCents) },
+                { op: '-', label: 'Anfang', value: cents(performance.startValueCents) },
+                {
+                  op: flows < 0 ? '+' : '-',
+                  label: 'Nettozuflüsse',
+                  value: cents(Math.abs(flows)),
+                },
+                { op: '=', label: 'Gewinn', value: cents(performance.gainCents), result: true },
+              ]}
+              precision="cent"
+            />
+            <p className="vnote">
+              Wertpapiere ohne Depotkassa · tatsächliche Nettoflüsse nach Steuern. Keine Mischung
+              mit Erträgen und Kosten eines anderen Zeitraums.
+            </p>
+          </details>
         </>
       ) : (
         <p role="status">Periodengewinn nicht verfügbar.</p>

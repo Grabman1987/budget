@@ -35,15 +35,38 @@ test('portfolio views retain source scopes, heatmap, class index history and all
     await expect(page.locator(selector!)).toBeVisible();
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('YTD');
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
-    if (view === 'rendite')
+    if (view === 'rendite') {
       await expect(page.getByTestId('report-frame-result')).toHaveText(
         eur(performance.portfolio.performance.endValueCents),
       );
+      await page.getByRole('button', { name: 'Wert €', exact: true }).click();
+      await expect(page.getByTestId('portfolio-value-history')).toBeVisible();
+      await page.getByText('Portfoliowerte als Tabelle · EUR', { exact: true }).click();
+      await expect(
+        page
+          .locator('details[open]')
+          .filter({ hasText: 'Portfoliowerte als Tabelle · EUR' })
+          .locator('tbody tr')
+          .first(),
+      ).toContainText(eur(performance.portfolio.performanceHistory.dailyValues[0].valueCents));
+      await expect(
+        page
+          .locator('details[open]')
+          .filter({ hasText: 'Portfoliowerte als Tabelle · EUR' })
+          .locator('tbody tr')
+          .last(),
+      ).toContainText(eur(performance.portfolio.performance.endValueCents));
+      await page.getByRole('button', { name: 'Rendite · Index 100', exact: true }).click();
+    }
     if (view === 'einzahlungen')
       await expect(page.getByTestId('report-frame-result')).toHaveText(
         eur(contributions.portfolio.contributionHistory.endValueCents),
       );
     if (view === 'kennzahlen') {
+      await expect(page.getByTestId('portfolio-gain-components')).toBeVisible();
+      await expect(
+        page.getByRole('columnheader', { name: '3 J p. a.', exact: true }),
+      ).toBeVisible();
       await expect(
         page.getByRole('heading', { name: 'Nettovermögen pro Tag · alle Konten' }),
       ).toBeVisible();

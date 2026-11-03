@@ -148,7 +148,7 @@
   .portfolio-performance-report[data-presentation='kennzahlen']
   > .performance-realized {
   grid-column: 2;
-  grid-row: 1;
+  grid-row: 1 / span 3;
 }
 [data-budget-redesign='1']
   .portfolio-performance-report
@@ -253,6 +253,35 @@
 }
 [data-budget-redesign='1'] .metrics-lead-table th:first-child {
   text-align: left;
+}
+[data-budget-redesign='1'] .metrics-lead-table td {
+  white-space: nowrap;
+}
+[data-budget-redesign='1'] .gain-components {
+  margin-block: 12px;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-table);
+}
+[data-budget-redesign='1'] .gain-components > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  padding-block: 8px;
+}
+[data-budget-redesign='1'] .gain-components dd {
+  margin: 0;
+  font-weight: 600;
+}
+[data-budget-redesign='1'] .gain-component-bar {
+  grid-column: 1 / -1;
+  height: 5px;
+  background: var(--ink-2);
+}
+[data-budget-redesign='1'] .gain-components > div:last-child .gain-component-bar {
+  background: var(--primary);
+}
+[data-budget-redesign='1'] .performance-gain-bridge .performance-realized-value {
+  font-size: var(--fs-title);
 }
 [data-budget-redesign='1'] .portfolio-metrics-daily .rf-chart {
   min-height: 0;
