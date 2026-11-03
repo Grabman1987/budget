@@ -81,6 +81,7 @@ async function hit(control: Locator) {
   await control.scrollIntoViewIfNeeded();
   const geometry = await control.evaluate((element) => {
     const r = element.getBoundingClientRect();
+    const center = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
     return {
       width: r.width,
       height: r.height,
@@ -90,9 +91,8 @@ async function hit(control: Locator) {
       bottom: r.bottom,
       viewportWidth: innerWidth,
       viewportHeight: innerHeight,
-      ownsCenter: element.contains(
-        document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2),
-      ),
+      ownsCenter: element.contains(center),
+      centerElement: center ? `${center.tagName}.${center.getAttribute('class') ?? ''}` : null,
     };
   });
   expect(geometry.width).toBeGreaterThanOrEqual(44);
@@ -101,7 +101,7 @@ async function hit(control: Locator) {
   expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth);
   expect(geometry.top).toBeGreaterThanOrEqual(0);
   expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewportHeight);
-  expect(geometry.ownsCenter).toBe(true);
+  expect(geometry.ownsCenter, JSON.stringify(geometry)).toBe(true);
   return geometry;
 }
 
@@ -269,6 +269,8 @@ for (const profile of ['desktop', 'phone'] as const)
         expect(await balances()).toEqual([50000, -12300]);
         await active.goto(`/konten/${card}`);
         await setTheme(active, selectedTheme);
+        if ((await active.locator('.app').getAttribute('data-budget-redesign')) === '1')
+          await active.getByText('Dokumente und Kontoauszüge', { exact: true }).first().click();
         const opener = active.getByRole('button', { name: 'Abrechnung hochladen', exact: true });
         await hit(opener);
         await opener.click();
@@ -401,6 +403,8 @@ for (const profile of ['desktop', 'phone'] as const)
           );
           await active.goto(`/konten/${unconfiguredCard}`);
           await setTheme(active, selectedTheme);
+          if ((await active.locator('.app').getAttribute('data-budget-redesign')) === '1')
+            await active.getByText('Dokumente und Kontoauszüge', { exact: true }).first().click();
           await active.getByRole('button', { name: 'Abrechnung hochladen', exact: true }).click();
           const unresolvedUpload = active.waitForResponse(
             (response) =>
@@ -620,6 +624,8 @@ test('741 clicked automatic result opens its persisted booking destination', asy
     expect(previous.status()).toBe(201);
     expect((await previous.json()).automation).toBeUndefined();
     await page.goto(`/konten/${card}`);
+    if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+      await page.getByText('Dokumente und Kontoauszüge', { exact: true }).first().click();
     await page.getByRole('button', { name: 'Abrechnung hochladen', exact: true }).click();
     const pdf = await syntheticColumnarPayslipPdf(rows(false), '');
     const uploaded = page.waitForResponse(

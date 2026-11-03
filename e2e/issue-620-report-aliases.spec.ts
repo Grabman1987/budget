@@ -1,3 +1,4 @@
+import { redesignReportsOn } from './report-frame';
 import { expect, sampleTest as test } from './sample';
 
 // Literal owner #487 mapping; these expectations do not read the router's alias table.
@@ -45,7 +46,14 @@ for (const [slug, target, view] of landings) {
     await page.goto(
       `/reports/${slug}?monat=2026-08&zeitraum=2026-01..2026-08${todayPeriod}#details`,
     );
-    await expect.poll(() => new URL(page.url()).pathname).toBe(target);
+    const redesign = await redesignReportsOn(page);
+    const expectedTarget =
+      redesign && ['pallocation', 'peinzahlungen', 'prendite'].includes(slug)
+        ? '/reports/vermoegen-schulden'
+        : redesign && slug === 'finanzcheck'
+          ? '/reports/onepager'
+          : target;
+    await expect.poll(() => new URL(page.url()).pathname).toBe(expectedTarget);
     await expect(page.getByRole('main')).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'Report nicht gefunden', exact: true }),
@@ -53,27 +61,46 @@ for (const [slug, target, view] of landings) {
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('2026-01..2026-08');
     expect(new URL(page.url()).hash).toBe('#details');
-    if (view)
-      await expect(
-        page.getByRole('button', { name: view, exact: true, pressed: true }),
-      ).toBeVisible();
+    if (view) {
+      if (redesign && expectedTarget === '/reports/vermoegen-schulden') {
+        await expect(
+          page
+            .getByRole('combobox', { name: 'Darstellung des Vermögensreports' })
+            .locator('option:checked'),
+        ).toHaveText(view);
+      } else {
+        await expect(
+          page.getByRole('button', { name: view, exact: true, pressed: true }),
+        ).toBeVisible();
+      }
+    }
     const bookmark = page.url();
     await page.reload();
     await expect(page).toHaveURL(bookmark);
-    if (view)
-      await expect(
-        page.getByRole('button', { name: view, exact: true, pressed: true }),
-      ).toBeVisible();
+    if (view) {
+      if (redesign && expectedTarget === '/reports/vermoegen-schulden') {
+        await expect(
+          page
+            .getByRole('combobox', { name: 'Darstellung des Vermögensreports' })
+            .locator('option:checked'),
+        ).toHaveText(view);
+      } else {
+        await expect(
+          page.getByRole('button', { name: view, exact: true, pressed: true }),
+        ).toBeVisible();
+      }
+    }
   });
 }
 
-test('620 absent Heute period uses the same normalization through the alias and the direct target', async ({
-  page,
-}) => {
+test('620 absent period follows the canonical destination normalization', async ({ page }) => {
   for (const path of ['/', '/reports/finanzcheck']) {
     await page.goto(`${path}?monat=2026-08&zeitraum=2026-01..2026-08#details`);
     await expect.poll(() => new URL(page.url()).searchParams.get('period')).toBe('month');
-    expect(new URL(page.url()).pathname).toBe('/');
+    const reportAlias = path === '/reports/finanzcheck' && (await redesignReportsOn(page));
+    expect(new URL(page.url()).pathname).toBe(reportAlias ? '/reports/onepager' : '/');
+    if (reportAlias)
+      expect(new URL(page.url()).searchParams.get('darstellung')).toBe('finanzcheck');
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('2026-01..2026-08');
     expect(new URL(page.url()).hash).toBe('');

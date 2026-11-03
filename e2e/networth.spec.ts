@@ -35,7 +35,12 @@ async function chain(page: Page) {
 
 test('shows the prototype figure and the chain adds up', async ({ page }) => {
   await ready(page);
-  await expect(page.getByRole('heading', { level: 1, name: 'Vermögen' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', {
+      level: 1,
+      name: (await wealthRedesign(page)) ? 'Vermögensreport' : 'Vermögen',
+    }),
+  ).toBeVisible();
   await expect(page.getByTestId('nw-figure')).toHaveText('84.730,00 €');
   const { start, own, market, now, ops } = await chain(page);
   expect(ops).toHaveLength(3);
@@ -62,7 +67,9 @@ test('jetzt equals the net worth from accounts (same function)', async ({ page, 
 
 test('Stand shows the day of the newest prices', async ({ page }) => {
   await ready(page);
-  await expect(page.locator('.titleblock')).toContainText(/17\.09\.(2026)? · Kurse/);
+  await expect(
+    page.locator((await wealthRedesign(page)) ? '.retained-networth-stand' : '.titleblock'),
+  ).toContainText(/17\.09\.(2026)? · Kurse/);
 });
 
 test('"Woraus es besteht": grouped cents and sorted accounts reconcile; composition debt lies below zero', async ({

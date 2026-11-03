@@ -22,20 +22,40 @@ export const toneOf = (index: number, count: number): string => {
  * `design/prototype/reports-zukunft.js` on the chart primitives; the structure is read at the start,
  * at every week or month end and today (linear in between), the line is the daily series.
  */
-export function WealthHistoryChart({ history }: { history: NetWorthHistory }) {
+export function WealthHistoryChart({
+  history,
+  dailyOnly = false,
+  compact = false,
+}: {
+  history: NetWorthHistory;
+  dailyOnly?: boolean;
+  compact?: boolean;
+}) {
   useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   return (
-    <div ref={ref} className="rf-chart rf-chart-lg">
-      {width > 0 && history.points.length > 1 && <Drawing history={history} width={width} />}
+    <div ref={ref} className={`rf-chart rf-chart-lg${dailyOnly ? ' wealth-daily-chart' : ''}`}>
+      {width > 0 && history.points.length > 1 && (
+        <Drawing history={history} width={width} dailyOnly={dailyOnly} compact={compact} />
+      )}
     </div>
   );
 }
 
-function Drawing({ history, width: W }: { history: NetWorthHistory; width: number }) {
+function Drawing({
+  history,
+  width: W,
+  dailyOnly,
+  compact,
+}: {
+  history: NetWorthHistory;
+  width: number;
+  dailyOnly: boolean;
+  compact: boolean;
+}) {
   useAmountPrivacy();
   const narrow = W < 520;
-  const H = narrow ? 280 : 340;
+  const H = compact ? 180 : dailyOnly ? 240 : narrow ? 280 : 340;
   const R = narrow ? 56 : 84;
   const { points, groups, daily } = history;
   const days = daily.map((d) => d.date);
@@ -48,10 +68,14 @@ function Drawing({ history, width: W }: { history: NetWorthHistory; width: numbe
   const down = points.map((p) =>
     groups.reduce((a, g) => a + (p.structure[g.key]?.debtsCents ?? 0), 0),
   );
-  const hi = Math.max(0, ...up, ...daily.map((d) => d.netWorthCents)) / 100;
-  const lo = Math.min(0, ...down) / 100;
+  const hi =
+    (dailyOnly
+      ? Math.max(...daily.map((d) => d.netWorthCents))
+      : Math.max(0, ...up, ...daily.map((d) => d.netWorthCents))) / 100;
+  const lo =
+    (dailyOnly ? Math.min(...daily.map((d) => d.netWorthCents)) : Math.min(0, ...down)) / 100;
   const pad = (hi - lo) * 0.06 || 500;
-  const y0 = lo < 0 ? lo - pad : 0;
+  const y0 = dailyOnly || lo < 0 ? lo - pad : 0;
   const y1 = hi + pad;
   const x = (i: number) => L + (n ? i / n : 0.5) * (W - L - R);
   const y = (v: number) => H - B - ((v - y0) / (y1 - y0)) * (H - B - T);
@@ -89,47 +113,62 @@ function Drawing({ history, width: W }: { history: NetWorthHistory; width: numbe
     <ChartSvg
       width={W}
       height={H}
-      label={summary}
+      label={
+        dailyOnly
+          ? `Nettovermögen pro Tag: ${eur(daily[0]!.netWorthCents)} bis ${eur(lastValue)}.`
+          : summary
+      }
       testId="wealth-history-chart"
-      points={chartPoints(
-        points.map((p) => p.date),
-        (i) => px[i]!,
-        [
-          ...assets.map(({ g, gi }) => ({
-            name: g.label,
-            values: points.map((p) => p.structure[g.key]?.assetsCents ?? 0),
-            color: toneOf(gi, groups.length),
-          })),
-          ...debts.map(({ g }) => ({
-            name: `${g.label} · Schulden`,
-            values: points.map((p) => p.structure[g.key]?.debtsCents ?? 0),
-            color: 'var(--ink-2)',
-          })),
-          {
-            name: 'Nettovermögen',
-            values: points.map((p) => daily[index.get(p.date) ?? 0]!.netWorthCents),
-          },
-        ],
-      )}
+      table={dailyOnly ? 'lazy' : false}
+      points={
+        dailyOnly
+          ? chartPoints(
+              daily.map((day) => day.date),
+              x,
+              [{ name: 'Nettovermögen', values: daily.map((day) => day.netWorthCents) }],
+            )
+          : chartPoints(
+              points.map((p) => p.date),
+              (i) => px[i]!,
+              [
+                ...(dailyOnly ? [] : assets).map(({ g, gi }) => ({
+                  name: g.label,
+                  values: points.map((p) => p.structure[g.key]?.assetsCents ?? 0),
+                  color: toneOf(gi, groups.length),
+                })),
+                ...(dailyOnly ? [] : debts).map(({ g }) => ({
+                  name: `${g.label} · Schulden`,
+                  values: points.map((p) => p.structure[g.key]?.debtsCents ?? 0),
+                  color: 'var(--ink-2)',
+                })),
+                {
+                  name: 'Nettovermögen',
+                  values: points.map((p) => daily[index.get(p.date) ?? 0]!.netWorthCents),
+                },
+              ],
+            )
+      }
     >
       <Graticule x1={L} x2={W - R} lines={grid} />
-      {assets.map(({ g, gi, d }) => (
-        <path
-          key={g.key}
-          d={d}
-          className="rf-area"
-          style={{ fill: toneOf(gi, groups.length) }}
-          data-type={g.key}
-        >
-          <title>{`${g.label}: ${eur(history.rows.find((r) => r.key === g.key)?.nowCents ?? 0)}`}</title>
-        </path>
-      ))}
-      {debts.map(({ g, d }) => (
-        <path key={g.key} d={d} className="rf-area-debt" data-type={g.key}>
-          <title>{`${g.label}: ${eur(history.rows.find((r) => r.key === g.key)?.nowCents ?? 0)}`}</title>
-        </path>
-      ))}
-      <AxisLine x1={L} x2={W - R} y={y(0)} />
+      {!dailyOnly &&
+        assets.map(({ g, gi, d }) => (
+          <path
+            key={g.key}
+            d={d}
+            className="rf-area"
+            style={{ fill: toneOf(gi, groups.length) }}
+            data-type={g.key}
+          >
+            <title>{`${g.label}: ${eur(history.rows.find((r) => r.key === g.key)?.nowCents ?? 0)}`}</title>
+          </path>
+        ))}
+      {!dailyOnly &&
+        debts.map(({ g, d }) => (
+          <path key={g.key} d={d} className="rf-area-debt" data-type={g.key}>
+            <title>{`${g.label}: ${eur(history.rows.find((r) => r.key === g.key)?.nowCents ?? 0)}`}</title>
+          </path>
+        ))}
+      {(!dailyOnly || (y0 <= 0 && y1 >= 0)) && <AxisLine x1={L} x2={W - R} y={y(0)} />}
       <Line kind="actual" points={line} draw={false} className="l-daily rf-nw-halo" />
       <Line kind="actual" points={line} draw className="l-daily rf-nw-line" />
       <g className="fade-in">
