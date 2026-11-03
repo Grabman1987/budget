@@ -6,10 +6,23 @@ import { isMonth } from './month';
 import { isZeitraum } from '../wealth/zeitraum';
 
 /** Existing working pages stay available until their individual migration slices are ready. */
-export function PageMenu({ area, current }: { area: AreaDef; current: string }) {
+export function PageMenu({
+  area,
+  current,
+  iconOnly = false,
+}: {
+  area: AreaDef;
+  current: string;
+  iconOnly?: boolean;
+}) {
   const details = useRef<HTMLDetailsElement>(null);
   const selected = area.registers.find((item) => item.id === current);
-  const label = area.id === 'plan' ? 'Planansicht' : 'Vermögensansicht';
+  const label =
+    area.id === 'plan'
+      ? 'Planansicht'
+      : area.id === 'konten'
+        ? 'Kontenansicht'
+        : 'Vermögensansicht';
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const menu = details.current;
@@ -43,7 +56,11 @@ export function PageMenu({ area, current }: { area: AreaDef; current: string }) 
   return (
     <details className="area-page-menu" ref={details}>
       <summary aria-label={`${label} wählen: ${selected?.label ?? area.label}`}>
-        {selected?.label ?? area.label}
+        {iconOnly ? (
+          <span className="sr-only">{selected?.label ?? area.label}</span>
+        ) : (
+          (selected?.label ?? area.label)
+        )}
         <ChevronDown className="icon" size={16} aria-hidden="true" />
       </summary>
       <nav aria-label={`Ansichten von ${area.label}`}>
@@ -54,6 +71,13 @@ export function PageMenu({ area, current }: { area: AreaDef; current: string }) 
             aria-current={item.id === current ? 'page' : undefined}
             search={(previous) => ({
               ...(isMonth(previous['monat']) ? { monat: previous['monat'] } : {}),
+              ...(area.id === 'vermoegen' &&
+              ['alle', 'wertpapiere', 'krypto', 'p2p'].includes(String(previous['anlageart']))
+                ? { anlageart: previous['anlageart'] }
+                : {}),
+              ...(area.id === 'vermoegen' && previous['ansicht'] === 'aktivitaeten'
+                ? { ansicht: 'aktivitaeten' }
+                : {}),
               ...(area.id === 'vermoegen' && isZeitraum(previous['zeitraum'])
                 ? { zeitraum: previous['zeitraum'] }
                 : {}),

@@ -1,3 +1,4 @@
+import { gotoWealthAnalysis, wealthRedesign } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect } from './sample';
 import { REPORTS } from '../apps/web/src/nav/reports-catalog';
@@ -131,14 +132,24 @@ test('every rendered chart has shared inspection across reports and main pages',
     '/konten',
     '/dev/bauteile',
   ]) {
-    await page.goto(path);
+    if (path === '/vermoegen/nettovermoegen' || path === '/vermoegen/portfolio')
+      await gotoWealthAnalysis(page, path);
+    else await page.goto(path);
     await page.waitForLoadState('networkidle');
-    if (path === '/vermoegen/schulden') await page.getByText('Rechenweg', { exact: true }).click();
+    if (path === '/vermoegen/schulden')
+      await page
+        .getByText(
+          (await wealthRedesign(page)) ? 'Szenarien, Strategien und Konten' : 'Rechenweg',
+          { exact: true },
+        )
+        .click();
     expect(errors, path).toEqual([]);
     if (path === '/dev/bauteile')
       await expect(page.getByRole('alert')).toHaveText('Kategorie ist Pflicht bei Ausgaben.');
     else await expect(page.getByRole('alert')).toHaveCount(0);
-    for (const chart of await page.locator('svg.chart').all()) {
+    // Native wealth disclosures keep additional analysis in the DOM while collapsed.
+    // Only a rendered chart can receive keyboard focus and expose its inspection tooltip.
+    for (const chart of await page.locator('svg.chart:visible').all()) {
       await expect(chart.locator('..')).toHaveAttribute('tabindex', '0');
       await chart.locator('..').focus();
       await expect(page.locator('.chart-tooltip[role="status"]')).toBeVisible();

@@ -107,7 +107,9 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
       const router = await open(
         `${concrete(from)}?monat=2026-08&period=month&zeitraum=2026-01..2026-08#details`,
       );
-      expect(router.state.location.pathname).toBe(offFinanzcheck ? '/' : concrete(target));
+      expect(router.state.location.pathname).toBe(
+        offFinanzcheck ? '/' : enabled && from === '/vermoegen' ? '/vermoegen' : concrete(target),
+      );
       expect(router.state.location.hash).toBe('details');
       expect(router.state.matches.at(-1)?.search).toMatchObject({
         monat: '2026-08',

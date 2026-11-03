@@ -1,3 +1,4 @@
+import { redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
@@ -55,14 +56,13 @@ for (const theme of ['light', 'dark'] as const) {
 
     // Opens on the part with work; counters equal the lists and the pill their sum.
     const group = page.getByRole('group', { name: 'Teil von Prüfen' });
-    await expect(group.getByRole('button', { name: 'Umsätze · 0' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
-    await expect(group.getByRole('button', { name: 'Aufgaben · 2' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    const redesign = await redesignLoaded(page);
+    await expect(
+      group.getByRole('button', { name: redesign ? 'Umsätze 0' : 'Umsätze · 0' }),
+    ).toHaveAttribute('aria-pressed', 'false');
+    await expect(
+      group.getByRole('button', { name: redesign ? 'Aufgaben 2' : 'Aufgaben · 2' }),
+    ).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('inbox-row')).toHaveCount(2);
 
     // Type icons carry accessible names; no revision column, no overspent row.
@@ -75,9 +75,9 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(page.getByText('Gehaltszettel hochladen')).toHaveCount(0);
 
     // Switching to Umsätze shows the empty part, the counters stay.
-    await group.getByRole('button', { name: 'Umsätze · 0' }).click();
+    await group.getByRole('button', { name: redesign ? 'Umsätze 0' : 'Umsätze · 0' }).click();
     await expect(page.getByText('Keine offenen Umsätze.')).toBeVisible();
-    await group.getByRole('button', { name: 'Aufgaben · 2' }).click();
+    await group.getByRole('button', { name: redesign ? 'Aufgaben 2' : 'Aufgaben · 2' }).click();
     await expect(page.getByTestId('inbox-row')).toHaveCount(2);
 
     // No horizontal page scroll, touch targets of at least 44 px on the phone.
@@ -94,7 +94,7 @@ for (const theme of ['light', 'dark'] as const) {
     const axe = await new AxeBuilder({ page }).analyze();
     expect(axe.violations).toEqual([]);
     await page.screenshot({
-      path: `docs/evidence/issue-561-pruefen-segments/pruefen-${info.project.name}-${theme}.png`,
+      path: info.outputPath(`pruefen-${info.project.name}-${theme}.png`),
       fullPage: true,
     });
   });

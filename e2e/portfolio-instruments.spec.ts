@@ -1,3 +1,4 @@
+import { startInvestmentCapture } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { join } from 'node:path';
@@ -60,8 +61,8 @@ test('empty portfolio creates reachable metadata with validation, reload, creati
   await page.unroute('**/api/portfolio/positions{,?*}');
   // Controlled synthetic empty state; concurrent cases own separate instruments on this server.
   // The actual securities API and all writes remain connected throughout.
-  await expect(page.getByRole('button', { name: 'Instrument anlegen', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Instrument anlegen', exact: true }).click();
+  await expect(page.locator('main')).toBeVisible();
+  await startInvestmentCapture(page, 'Wertpapier anlegen');
   const form = page.getByRole('dialog', { name: 'Instrument anlegen', exact: true });
   await form.getByLabel('Name', { exact: true }).fill(name);
   await form.getByLabel('Art', { exact: true }).selectOption('fund');

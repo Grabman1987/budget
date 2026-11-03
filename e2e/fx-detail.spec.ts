@@ -1,9 +1,10 @@
-﻿import AxeBuilder from '@axe-core/playwright';
+import { historyChart, redesignLoaded, toast } from './ledger-helpers';
+
+import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { openDatabase, schema } from '@budget/db';
 import { join } from 'node:path';
 import { test } from './isolated-ledger';
-import { toast } from './ledger-helpers';
 
 test('native detail, dated EUR history and reconciliation undo', async ({
   page,
@@ -62,11 +63,14 @@ test('native detail, dated EUR history and reconciliation undo', async ({
   await page.goto(`/konten/${account.id}`);
   await expect(page.getByTestId('account-balance')).toHaveText('75,68 €');
   await expect(page.locator('.kfigs')).toContainText('1 USD = 0,75 EUR · 02.10.2026');
-  await expect(page.locator('.kfigs')).toContainText('0,92 €');
-  const expense = page.locator('.kx-amount').filter({ hasText: '−0,51 €' });
+  if (await redesignLoaded(page)) {
+    await page.locator('.account-value-details > summary').click();
+    await expect(page.locator('.account-value-details')).toContainText('0,92 €');
+  } else await expect(page.locator('.kfigs')).toContainText('0,92 €');
+  const expense = page.locator('.kx-amount:not(:empty)').filter({ hasText: '−0,51 €' });
   await expect(expense).toContainText('−USD');
   await expect(expense).toContainText('25.09.2026');
-  await page.getByTestId('account-chart-toggle').click();
+  await historyChart(page);
   await expect(page.getByTestId('balance-chart')).toHaveAttribute('aria-label', /USD/);
   await expect(page.getByTestId('balance-chart-eur')).toHaveCount(0);
   await page
@@ -90,9 +94,14 @@ test('native detail, dated EUR history and reconciliation undo', async ({
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await page.screenshot({ path: join(info.outputDir, `fx-detail-${theme}.png`), fullPage: true });
   }
-  await page
-    .getByRole('button', { name: 'Nie geprüft – jetzt prüfen · Kontostand prüfen', exact: true })
-    .click();
+  await (
+    (await redesignLoaded(page))
+      ? page.getByTestId('account-review-badge')
+      : page.getByRole('button', {
+          name: 'Nie geprüft – jetzt prüfen · Kontostand prüfen',
+          exact: true,
+        })
+  ).click();
   const panel = page.getByRole('dialog', {
     name: 'Kontostand prüfen · Synthetic USD',
     exact: true,
@@ -155,18 +164,23 @@ test('missing FX stays explicit while the native check remains available', async
   expect(booking.ok()).toBe(true);
   await page.goto(`/konten/${account.id}`);
   await expect(page.getByTestId('account-balance')).toHaveText('Kurs fehlt');
-  await expect(page.locator('.kx-amount')).toContainText('CHF');
-  await expect(page.locator('.kx-amount')).toContainText('EUR: Kurs fehlt');
-  await page.getByTestId('account-chart-toggle').click();
+  await expect(page.locator('.kx-amount:not(:empty)')).toContainText('CHF');
+  await expect(page.locator('.kx-amount:not(:empty)')).toContainText('EUR: Kurs fehlt');
+  await historyChart(page);
   await page
     .getByRole('group', { name: 'Saldoverlauf Währung' })
     .getByRole('button', { name: 'EUR', exact: true })
     .click();
   await expect(page.getByTestId('balance-chart-eur')).toHaveCount(0);
   await expect(page.getByText('EUR-Bewertung: Kurs fehlt', { exact: true })).toBeVisible();
-  await page
-    .getByRole('button', { name: 'Nie geprüft – jetzt prüfen · Kontostand prüfen', exact: true })
-    .click();
+  await (
+    (await redesignLoaded(page))
+      ? page.getByTestId('account-review-badge')
+      : page.getByRole('button', {
+          name: 'Nie geprüft – jetzt prüfen · Kontostand prüfen',
+          exact: true,
+        })
+  ).click();
   const panel = page.getByRole('dialog', {
     name: 'Kontostand prüfen · Synthetic CHF',
     exact: true,

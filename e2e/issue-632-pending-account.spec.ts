@@ -1,3 +1,4 @@
+import { redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import Database from 'better-sqlite3';
 import { writeFile } from 'node:fs/promises';
@@ -170,7 +171,11 @@ test('pending and confirmed account rows remain distinct, readable and read-only
 
   // The planned occurrence remains #579's separate collapsed row, never a pending booking.
   const upcoming = page.locator('.kupcoming-toggle');
-  await expect(upcoming).toHaveText(`1 kommend · nächste: ${tag} geplant 20.10.`);
+  await expect(upcoming).toHaveText(
+    (await redesignLoaded(page))
+      ? `Kommend1 kommend · nächste: ${tag} geplant 20.10.`
+      : `1 kommend · nächste: ${tag} geplant 20.10.`,
+  );
   await expect(upcoming).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('[data-occurrence]')).toHaveCount(0);
   await upcoming.click();

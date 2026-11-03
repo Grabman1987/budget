@@ -10,3 +10,14 @@
   width: 100%;
   min-height: 44px;
 }
+[data-budget-redesign='1'] .investment-settings {
+  margin-top: 0;
+  padding: 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sheet);
+  background: var(--surface);
+}
+[data-budget-redesign='1'] .investment-settings .btn,
+[data-budget-redesign='1'] .investment-settings label {
+  min-height: var(--touch);
+}

@@ -1,3 +1,4 @@
+import { redesignLoaded } from './ledger-helpers';
 import { openPruefenSource } from './pruefen-part';
 import AxeBuilder from '@axe-core/playwright';
 import type { InboxView } from '../apps/web/src/inbox/api';
@@ -49,11 +50,11 @@ for (const theme of ['light', 'dark'] as const) {
           // The segment control has accessible names with the server counters and exactly one pressed part.
           const group = page.getByRole('group', { name: 'Teil von Prüfen' });
           const umsaetze = group.getByRole('button', {
-            name: `Umsätze · ${counts.umsaetze}`,
+            name: `Umsätze${(await redesignLoaded(page)) ? '' : ' ·'} ${counts.umsaetze}`,
             exact: true,
           });
           const aufgaben = group.getByRole('button', {
-            name: `Aufgaben · ${counts.aufgaben}`,
+            name: `Aufgaben${(await redesignLoaded(page)) ? '' : ' ·'} ${counts.aufgaben}`,
             exact: true,
           });
           await expect(group.getByRole('button')).toHaveCount(2);

@@ -1,3 +1,4 @@
+import { categoryLineControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
@@ -12,8 +13,7 @@ async function openCapture(page: Page) {
 async function addManyLines(dialog: Locator) {
   await dialog.getByLabel('Betrag', { exact: true }).fill('120');
   await dialog.getByLabel('Empfänger', { exact: true }).fill('Musterladen mit mehreren Kategorien');
-  for (let index = 0; index < 5; index++)
-    await dialog.getByRole('button', { name: '+ Weitere Kategorie', exact: true }).click();
+  for (let index = 0; index < 5; index++) await (await categoryLineControl(dialog)).click();
   for (let line = 1; line <= 6; line++) {
     await dialog.getByLabel(`Betrag ${line}`, { exact: true }).fill('20');
     await dialog.getByLabel(`Kategorie ${line}`, { exact: true }).fill('Essen');

@@ -1,0 +1,110 @@
+.app[data-budget-redesign='1'] .sheet:has(> .plan-v2-page) {
+  padding: var(--space-md) calc(var(--space-xl) + var(--space-xs)) var(--space-xl);
+  row-gap: 0;
+}
+.plan-v2-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+}
+.app[data-budget-redesign='1'] .plan-shell-topbar .topbar-inner {
+  padding-inline: calc(var(--space-xl) + var(--space-xs));
+}
+.app[data-budget-redesign='1'] .plan-shell-title {
+  min-height: var(--touch);
+  font-size: var(--fs-headline);
+  font-weight: 650;
+}
+.app[data-budget-redesign='1'] .plan-shell-topbar .global-search-launch {
+  margin-left: auto;
+  width: 200px;
+  flex: 0 0 200px;
+}
+.app[data-budget-redesign='1'] .plan-shell-topbar .topbar-actions {
+  margin-left: 0;
+}
+.plan-v2-page-head,
+.plan-v2-page-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+}
+.plan-v2-page-head > .area-page-menu {
+  margin: 0;
+}
+.plan-v2-page-actions {
+  margin-left: auto;
+}
+.plan-v2-page-actions > .btn {
+  min-height: var(--touch);
+}
+.plan-v2-page .plan-v2-view {
+  position: relative;
+}
+.plan-v2-page .plan-v2-view > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--touch);
+  padding: 0 var(--space-md);
+  list-style: none;
+  border: var(--stroke-hairline) solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  font-weight: 550;
+}
+.plan-v2-page .plan-v2-view > summary::marker,
+.plan-v2-page .plan-v2-view > summary::before,
+.plan-v2-page .plan-v2-view > summary::-webkit-details-marker {
+  display: none;
+  content: none;
+}
+.plan-v2-page .plan-v2-view-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-xs));
+  z-index: 8;
+  display: grid;
+  min-width: 220px;
+  padding: var(--space-sm);
+  border: var(--stroke-hairline) solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.plan-v2-page .plan-v2-view-menu button,
+.plan-v2-page .plan-v2-view-menu input {
+  min-height: var(--touch);
+}
+.plan-v2-page .plan-v2-source {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--fs-meta);
+}
+@media (max-width: 767px) {
+  .app[data-budget-redesign='1'] .sheet:has(> .plan-v2-page) {
+    padding-inline: var(--space-lg);
+    padding-bottom: calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + var(--space-lg));
+  }
+  .plan-v2-page-head {
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+  .plan-v2-page-actions {
+    gap: var(--space-sm);
+  }
+}
+@media (max-width: 767px) {
+  /* Retained report bodies must keep Plan's compact shell head. */
+  .app[data-budget-redesign='1']:has(.plan-v2-page) .m-head {
+    display: flex;
+  }
+  .app[data-budget-redesign='1']:has(.plan-v2-page) .m-title {
+    grid-column: auto;
+  }
+  .app[data-budget-redesign='1']:has(.plan-v2-page) .m-title-text {
+    white-space: nowrap;
+    overflow: hidden;
+    line-height: inherit;
+  }
+}

@@ -1,3 +1,7 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { AllocationV3 } from './allocation-v3';
+import { WealthReadStatus, useAssetType } from './redesign-frame';
+import { matchesAsset } from './redesign-filters';
 import { ChartValue } from '@budget/ui';
 import type { Period, RebalanceProposal } from '@budget/domain';
 import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
@@ -16,6 +20,7 @@ import './allocation.css';
 export function PortfolioAllocation() {
   const query = useQuery(allocationQuery());
   const navigate = useNavigate();
+  const art = useAssetType();
   const select = () =>
     void navigate({
       to: '/einstellungen/anlageklassen',
@@ -46,7 +51,13 @@ export function PortfolioAllocation() {
         actual: row,
       });
   }
-  return (
+  const visibleRows = rows.filter(
+    (row) =>
+      !REDESIGN_ENABLED ||
+      art === 'alle' ||
+      row.assignedSecurities.some((security) => matchesAsset(security.kind, art)),
+  );
+  const legacy = (
     <>
       <section className="valloc" aria-labelledby="allocation-title">
         <div className="head">
@@ -154,11 +165,22 @@ export function PortfolioAllocation() {
                     : 'Keine positive Bewertungsbasis. Ist-Anteile und Rebalancing sind nicht bestimmbar.'}
               </p>
             )}
-            {rows.length === 0 ? (
-              <p className="vnote">Noch keine Anlageklassen erfasst.</p>
+            {REDESIGN_ENABLED && art !== 'alle' && (
+              <p className="vnote">
+                Anlageart filtert die angezeigten Klassen. Ist-Anteile, Ziele und Stufenschwellen
+                behalten das gesamte ausgewählte Netto-Allokationsuniversum einschließlich
+                Verrechnungskassa.
+              </p>
+            )}
+            {visibleRows.length === 0 ? (
+              <p className="vnote">
+                {rows.length === 0
+                  ? 'Noch keine Anlageklassen erfasst.'
+                  : 'Keine Anlageklassen für diese Anlageart.'}
+              </p>
             ) : (
               <ul className="vallo">
-                {rows.map((row) => {
+                {visibleRows.map((row) => {
                   const actual = known ? row.actual : undefined;
                   const breach = !provisional && (actual?.breach ?? false);
                   // Geometry only: target/band/actual arrive from the shared server projection.
@@ -351,6 +373,26 @@ export function PortfolioAllocation() {
         )}
       </section>
     </>
+  );
+  return REDESIGN_ENABLED ? (
+    <>
+      {query.isPending && <LoadingNote what="Aufteilung" />}
+      {query.isError && (
+        <ErrorNote what="Aufteilung" error={query.error} onRetry={() => void query.refetch()} />
+      )}
+      {view && <AllocationV3 view={view} art={art} />}
+      <WealthReadStatus
+        fetching={query.isFetching}
+        paused={query.isPaused}
+        date={view ? longDay(view.asOf) : undefined}
+      />
+      <details className="wealth-details">
+        <summary>Bewertungsbasis, Zuordnung und Rebalancing-Hinweise</summary>
+        {legacy}
+      </details>
+    </>
+  ) : (
+    legacy
   );
 }
 function AllocationEvidence({ view }: { view: PortfolioAllocationView }) {

@@ -7,6 +7,8 @@ import { LiquidityChart } from '../reports/liquidity-chart';
 import { liquidityQuery } from '../reports/liquidity-api';
 import { salaryDay } from '../reports/liquidity-selection';
 import { AppLink } from '../shell/app-link';
+import { HeuteForecastChart } from './compact-forecast-chart';
+import { DetailLink } from './overview';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import type { Heute } from './api';
 
@@ -15,7 +17,11 @@ export function CompactForecastCard({
   data,
   read,
   refreshing = false,
+  overview = false,
+  returnTo,
 }: {
+  overview?: boolean;
+  returnTo?: string | undefined;
   data: Pick<Heute, 'forecast35d'> | undefined;
   /** Parent verified the selected month/period and rejected placeholder/error data. */
   refreshing?: boolean;
@@ -45,22 +51,37 @@ export function CompactForecastCard({
   );
   return (
     <section
-      className="heute-section heute-compact-forecast"
+      className={overview ? 'hv-card hv-forecast' : 'heute-section heute-compact-forecast'}
       aria-labelledby="heute-forecast-title"
       aria-busy={pending || (savedSource && read.isFetching) || undefined}
     >
-      <div className="heute-compact-forecast-head">
-        <h2 id="heute-forecast-title">Kontoprognose · 35 Tage</h2>
-        <AppLink
-          className="btn btn-ghost"
-          to="/plan/prognose"
-          search={{ horizon: '35d', levers: '' }}
-          aria-label="Details zur Kontoprognose für 35 Tage"
-        >
-          Details
-        </AppLink>
+      <div className={overview ? 'hv-card-head' : 'heute-compact-forecast-head'}>
+        <h2 id="heute-forecast-title">
+          {overview && (
+            <span className="hv-number" aria-hidden="true">
+              2
+            </span>
+          )}
+          {overview ? 'Kontoprognose · Budget-Konten · 35 Tage' : 'Kontoprognose · 35 Tage'}
+        </h2>
+        {overview ? (
+          <DetailLink kind="forecast">Prognose →</DetailLink>
+        ) : (
+          <AppLink
+            className="btn btn-ghost"
+            to="/plan/prognose"
+            search={{
+              horizon: '35d',
+              levers: '',
+              ...(REDESIGN_ENABLED && returnTo ? { von: returnTo } : {}),
+            }}
+            aria-label="Details zur Kontoprognose für 35 Tage"
+          >
+            Details
+          </AppLink>
+        )}
       </div>
-      <p className="heute-note">
+      <p className={overview ? 'sr-only' : 'heute-note'}>
         {view ? (
           <>Stand heute · {longDay(view.asOf)}</>
         ) : pending ? (
@@ -72,7 +93,11 @@ export function CompactForecastCard({
         {' · Budget-Konten; Kreditkarten im Budget eingeschlossen, Reservekonten ausgeschlossen.'}
       </p>
       {report ? (
-        <LiquidityChart report={report} salaryDay={salaryDay(report, salaryIds)} compact />
+        overview ? (
+          <HeuteForecastChart report={report} salaryDay={salaryDay(report, salaryIds)} />
+        ) : (
+          <LiquidityChart report={report} salaryDay={salaryDay(report, salaryIds)} compact />
+        )
       ) : (
         <div className="rf-chart heute-forecast-state">
           {pending ? (
@@ -93,7 +118,7 @@ export function CompactForecastCard({
         </div>
       )}
       <p
-        className={report ? 'heute-forecast-low' : 'heute-forecast-low-state'}
+        className={`${report ? 'heute-forecast-low' : 'heute-forecast-low-state'}${overview ? ' sr-only' : ''}`}
         data-day={report?.low?.day}
         data-cents={report?.low?.cents}
         aria-hidden={!report || undefined}

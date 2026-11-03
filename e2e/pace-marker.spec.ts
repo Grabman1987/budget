@@ -1,6 +1,12 @@
+import { openHeuteReview, detectHeuteRedesign } from './heute-visual-fixture';
 import { sampleTest as test, expect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
 import { eur } from '../apps/web/src/ledger/format';
+
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 
 test('Pace reduces its lines and shares the plan marker and tooltip, with today on Plan bars', async ({
   page,
@@ -11,13 +17,21 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
   if (info.project.name === 'mobile') await page.setViewportSize({ width: 375, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const url of ['/?monat=2026-09', '/reports/onepager?monat=2026-09']) {
-    await page.goto(url);
+    if (url.startsWith('/?')) await openHeuteReview(page, url);
+    else await page.goto(url);
     await expect(page.getByTestId('pace-header')).toHaveCount(0);
     const chart = page.getByTestId('heute-pace-chart');
     await expect(chart).toBeVisible({ timeout: 30_000 });
     if (url.startsWith('/?')) {
       expect(
         await page.locator('.heute-lead').evaluate((el) => {
+          const redesigned = el.closest('.heute--redesign');
+          if (redesigned)
+            return Boolean(
+              redesigned.querySelector(
+                '.heute-work-main > .heute-pace + .heute-compact-forecast',
+              ) && redesigned.querySelector('.heute-work-aside > .heute-wealth-line'),
+            );
           const overview = el.nextElementSibling;
           return (
             overview?.classList.contains('heute-overview-charts') &&
@@ -121,12 +135,22 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
       });
     }
   }
-  // The retired bookmark now opens Heute; check the generic DS3 ladder on its live charts.
+  // Verify the canonical bookmark destination before the separate Heute chart-ladder proof.
   // BalanceChart's historical report-mode figures and drawing remain covered in charts.test.tsx.
   await page.goto('/reports/finanzcheck?monat=2026-09&period=month');
+  if (redesign) {
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === '/reports/onepager' &&
+        url.searchParams.get('monat') === '2026-09' &&
+        url.searchParams.get('period') === 'month' &&
+        url.searchParams.get('darstellung') === 'finanzcheck',
+    );
+    await openHeuteReview(page, '/?monat=2026-09&period=month');
+  }
   await expect(page).toHaveURL(
     (url) =>
-      url.pathname === '/' &&
+      url.pathname === (redesign ? '/heute/details/month' : '/') &&
       url.searchParams.get('monat') === '2026-09' &&
       url.searchParams.get('period') === 'month',
   );

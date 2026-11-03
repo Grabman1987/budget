@@ -7,22 +7,28 @@ import {
   planYearMonths,
   planYearRows,
   sumPlanYearRows,
+  mulDivRound,
   type PlanYearAmounts,
   type PlanYearRow,
+  type planYearScenario,
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ChevronDown, ChevronLeft, ChevronRight, Info } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { eur } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { areaById } from '../nav/areas';
 import { monthLabel } from '../nav/month';
 import { AppLink } from '../shell/app-link';
 import { useMonth } from '../shell/use-month';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { validatePlanYearSearch } from './plan-year-search';
 import { budgetMonthsQuery, type BudgetMonthView } from './budget-api';
 import { CategoryIcon } from './category-icon';
 import './plan-year.css';
 import { YearPlanning } from './year-planning';
+import { PlanPageFrame } from './plan-page-frame';
 
 const metrics = [
   ['assignedCents', 'Zugewiesen'],
@@ -47,46 +53,50 @@ export function PlanYearPage() {
   );
   const loaded = views.length === months.length;
   return (
-    <>
-      <TitleBlock
-        compactOnMobile
-        titleOnMobile
-        title={
-          <div className="month-switch">
-            <button
-              className="icon-btn"
-              type="button"
-              aria-label="Vorjahr"
-              disabled={year <= 1900}
-              onClick={() => setMonth(`${year - 1}-${month.slice(5)}`)}
-            >
-              <ChevronLeft aria-hidden="true" size={20} strokeWidth={1.5} />
-            </button>
-            <h1>{year}</h1>
-            <button
-              className="icon-btn"
-              type="button"
-              aria-label="Nächstes Jahr"
-              disabled={year >= 9999}
-              onClick={() => setMonth(`${year + 1}-${month.slice(5)}`)}
-            >
-              <ChevronRight aria-hidden="true" size={20} strokeWidth={1.5} />
-            </button>
-          </div>
-        }
-        fields={[{ label: 'Ansicht', value: 'Jahresplanung', labelOnMobile: true }]}
-      />
-      <Registers
-        label="Register von Plan"
-        current="jahr"
-        items={areaById('plan').registers.map((r) => ({ id: r.id, label: r.label, href: r.to }))}
-        renderLink={(item, props) => (
-          <AppLink to={item.href ?? '/plan/monat'} search={{ monat: month }} {...props}>
-            {item.label}
-          </AppLink>
-        )}
-      />
-      <div className="plan-year">
+    <YearFrame year={year} month={month} onMonth={setMonth}>
+      {!REDESIGN_ENABLED && (
+        <TitleBlock
+          compactOnMobile
+          titleOnMobile
+          title={
+            <div className="month-switch">
+              <button
+                className="icon-btn"
+                type="button"
+                aria-label="Vorjahr"
+                disabled={year <= 1900}
+                onClick={() => setMonth(`${year - 1}-${month.slice(5)}`)}
+              >
+                <ChevronLeft aria-hidden="true" size={20} strokeWidth={1.5} />
+              </button>
+              <h1>{year}</h1>
+              <button
+                className="icon-btn"
+                type="button"
+                aria-label="Nächstes Jahr"
+                disabled={year >= 9999}
+                onClick={() => setMonth(`${year + 1}-${month.slice(5)}`)}
+              >
+                <ChevronRight aria-hidden="true" size={20} strokeWidth={1.5} />
+              </button>
+            </div>
+          }
+          fields={[{ label: 'Ansicht', value: 'Jahresplanung', labelOnMobile: true }]}
+        />
+      )}
+      {!REDESIGN_ENABLED && (
+        <Registers
+          label="Register von Plan"
+          current="jahr"
+          items={areaById('plan').registers.map((r) => ({ id: r.id, label: r.label, href: r.to }))}
+          renderLink={(item, props) => (
+            <AppLink to={item.href ?? '/plan/monat'} search={{ monat: month }} {...props}>
+              {item.label}
+            </AppLink>
+          )}
+        />
+      )}
+      <div className={cx('plan-year', REDESIGN_ENABLED && 'plan-year-v2')}>
         {failed ? (
           <ErrorNote
             what="Jahresplan"
@@ -102,6 +112,22 @@ export function PlanYearPage() {
               year={year}
               selectedMonth={month}
               views={views}
+              overview={
+                REDESIGN_ENABLED
+                  ? (scenario, without) => (
+                      <YearOverview
+                        key={year}
+                        year={year}
+                        selectedMonth={month}
+                        onMonth={setMonth}
+                        months={months}
+                        views={views}
+                        scenario={scenario}
+                        without={without}
+                      />
+                    )
+                  : undefined
+              }
               context={
                 reports.isError ? (
                   <ErrorNote
@@ -135,35 +161,163 @@ export function PlanYearPage() {
                 )
               }
             />
-            <YearOverview
-              key={year}
-              year={year}
-              selectedMonth={month}
-              months={months}
-              views={views}
-            />
+            {!REDESIGN_ENABLED && (
+              <YearOverview
+                key={year}
+                year={year}
+                selectedMonth={month}
+                onMonth={setMonth}
+                months={months}
+                views={views}
+              />
+            )}
           </>
         )}
       </div>
-    </>
+    </YearFrame>
   );
 }
 
-function YearOverview({
+function YearFrame({
+  year,
+  month,
+  onMonth,
+  children,
+}: {
+  year: number;
+  month: string;
+  onMonth: (month: string) => void;
+  children: ReactNode;
+}) {
+  const search = validatePlanYearSearch(useSearch({ strict: false }) as Record<string, unknown>);
+  const navigate = useNavigate();
+  const metric = search.kennzahl ?? 'assignedCents';
+  if (!REDESIGN_ENABLED) return <>{children}</>;
+  return (
+    <PlanPageFrame
+      page="jahr"
+      title={String(year)}
+      period={
+        <div className="year-reference-period">
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Vorjahr"
+            disabled={year <= 1900}
+            onClick={() => onMonth(year - 1 + '-' + month.slice(5))}
+          >
+            <ChevronLeft size={16} aria-hidden="true" />
+          </button>
+          <strong>{year}</strong>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Nächstes Jahr"
+            disabled={year >= 9999}
+            onClick={() => onMonth(year + 1 + '-' + month.slice(5))}
+          >
+            <ChevronRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+      }
+      actions={
+        <details className="plan-v2-view year-reference-metric">
+          <summary>
+            Ansicht: {metrics.find(([key]) => key === metric)![1]}{' '}
+            <ChevronDown size={14} aria-hidden="true" />
+          </summary>
+          <div className="plan-v2-view-menu">
+            <label>
+              <span>Kennzahl</span>
+              <Select
+                aria-label="Kennzahl im Jahresplan"
+                value={metric}
+                onChange={(event) =>
+                  void navigate({
+                    to: '.',
+                    search: ((previous: Record<string, unknown>) => ({
+                      ...previous,
+                      kennzahl: event.target.value,
+                    })) as never,
+                  })
+                }
+              >
+                {metrics.map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label>
+              Monat{' '}
+              <input
+                type="month"
+                value={month}
+                min="1900-01"
+                max="9999-12"
+                onChange={(event) => {
+                  if (/^\d{4}-\d{2}$/.test(event.target.value)) onMonth(event.target.value);
+                }}
+              />
+            </label>
+          </div>
+        </details>
+      }
+    >
+      {children}
+    </PlanPageFrame>
+  );
+}
+
+export function YearOverview({
   year,
   selectedMonth,
   months,
   views,
+  onMonth,
+  scenario,
+  without = false,
 }: {
   year: number;
   selectedMonth: string;
   months: string[];
   views: BudgetMonthView[];
+  onMonth: (month: string) => void;
+  scenario?: ReturnType<typeof planYearScenario> | undefined;
+  without?: boolean;
 }) {
   useAmountPrivacy();
-  const [metric, setMetric] = useState<Metric>('assignedCents');
-  const [phoneMonth, setPhoneMonth] = useState(selectedMonth);
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const search = validatePlanYearSearch(useSearch({ strict: false }) as Record<string, unknown>);
+  const navigate = useNavigate();
+  const [legacyMetric, setLegacyMetric] = useState<Metric>('assignedCents');
+  const metric = REDESIGN_ENABLED ? (search.kennzahl ?? 'assignedCents') : legacyMetric;
+  const setMetric = (next: Metric) =>
+    REDESIGN_ENABLED
+      ? void navigate({
+          to: '.',
+          search: ((previous: Record<string, unknown>) => ({
+            ...previous,
+            kennzahl: next,
+          })) as never,
+        })
+      : setLegacyMetric(next);
+  const [legacyMonth, setLegacyMonth] = useState(selectedMonth);
+  const phoneMonth = REDESIGN_ENABLED ? selectedMonth : legacyMonth;
+  const setPhoneMonth = REDESIGN_ENABLED ? onMonth : setLegacyMonth;
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(
+    () =>
+      new Set(
+        REDESIGN_ENABLED
+          ? (views[0]?.groups
+              .filter((group) =>
+                views[0]!.categories.some((category) => category.groupId === group.id),
+              )
+              .slice(0, 1)
+              .map((group) => group.id) ?? [])
+          : [],
+      ),
+  );
   const isCollapsed = (id: string) => !expanded.has(id);
   const rows = planYearRows(
     year,
@@ -222,6 +376,17 @@ function YearOverview({
       ))}
     </dl>
   );
+  const instructions = (
+    <details className="year-instructions">
+      <summary>
+        <Info aria-hidden="true" size={16} strokeWidth={1.75} /> Kennzahlen der Jahrestabelle
+      </summary>
+      <p className="year-note">
+        Zugewiesen und Aktivität: Summe des Jahres. Verfügbar: Stand im Dezember, inklusive
+        Übertrag. Künftige Monate zeigen den gespeicherten Plan, keine Prognose.
+      </p>
+    </details>
+  );
   return (
     <section className="card year-sheet" aria-labelledby="year-title">
       <div className="year-toolbar">
@@ -249,15 +414,7 @@ function YearOverview({
           ))}
         </div>
       </div>
-      <details className="year-instructions">
-        <summary>
-          <Info aria-hidden="true" size={16} strokeWidth={1.75} /> Kennzahlen der Jahrestabelle
-        </summary>
-        <p className="year-note">
-          Zugewiesen und Aktivität: Summe des Jahres. Verfügbar: Stand im Dezember, inklusive
-          Übertrag. Künftige Monate zeigen den gespeicherten Plan, keine Prognose.
-        </p>
-      </details>
+      {!REDESIGN_ENABLED && instructions}
       {shown.length === 0 ? (
         <p className="year-empty">
           Noch keine Envelopes vorhanden. Kategorien legst du unter Einstellungen an.
@@ -283,12 +440,45 @@ function YearOverview({
                   <th scope="col">Kategorie</th>
                   {months.map((m) => (
                     <th key={m} scope="col">
-                      <abbr title={monthLabel(m)}>{monthLabel(m).split(' ')[0]}</abbr>
+                      <abbr title={monthLabel(m)}>
+                        {REDESIGN_ENABLED
+                          ? monthLabel(m).split(' ')[0]!.slice(0, 3)
+                          : monthLabel(m).split(' ')[0]}
+                      </abbr>
                     </th>
                   ))}
-                  <th scope="col">{metric === 'availableCents' ? 'Stand Dez.' : 'Jahr'}</th>
+                  {REDESIGN_ENABLED && <th scope="col">Ø</th>}
+                  <th scope="col">
+                    {metric === 'availableCents'
+                      ? 'Stand Dez.'
+                      : REDESIGN_ENABLED
+                        ? 'Summe'
+                        : 'Jahr'}
+                  </th>
                 </tr>
               </thead>
+              {REDESIGN_ENABLED && (
+                <tbody>
+                  <tr className="year-income-row">
+                    <th scope="row">Einnahmen</th>
+                    {views.map((view) => (
+                      <td key={view.summary.month}>{yearFormat(view.summary.incomeCents)}</td>
+                    ))}
+                    <td>
+                      {yearFormat(
+                        mulDivRound(
+                          views.reduce((sum, view) => sum + view.summary.incomeCents, 0),
+                          1,
+                          12,
+                        ),
+                      )}
+                    </td>
+                    <td>
+                      {yearFormat(views.reduce((sum, view) => sum + view.summary.incomeCents, 0))}
+                    </td>
+                  </tr>
+                </tbody>
+              )}
               {groups.map((group) => (
                 <tbody key={group.id}>
                   <tr className="year-group">
@@ -329,6 +519,34 @@ function YearOverview({
                   <th scope="row">Alle Envelopes</th>
                   <YearCells row={total} metric={metric} />
                 </tr>
+                {REDESIGN_ENABLED && scenario && (
+                  <>
+                    <tr className="year-events-row">
+                      <th scope="row">Ereignisse</th>
+                      {scenario.months.map((row) => (
+                        <td key={row.month}>{yearFormat(without ? 0 : row.eventCents)}</td>
+                      ))}
+                      <td>
+                        {yearFormat(mulDivRound(without ? 0 : scenario.yearEnd.effectCents, 1, 12))}
+                      </td>
+                      <td>{yearFormat(without ? 0 : scenario.yearEnd.effectCents)}</td>
+                    </tr>
+                    <tr className="year-free-row">
+                      <th scope="row">Frei kumuliert</th>
+                      {scenario.months.map((row) => (
+                        <td key={row.month}>
+                          {yearFormat(without ? row.withoutCents : row.withCents)}
+                        </td>
+                      ))}
+                      <td>–</td>
+                      <td>
+                        {yearFormat(
+                          without ? scenario.yearEnd.withoutCents : scenario.yearEnd.withCents,
+                        )}
+                      </td>
+                    </tr>
+                  </>
+                )}
               </tfoot>
             </table>
           </div>
@@ -394,11 +612,24 @@ function YearOverview({
               ))}
             </details>
           </div>
-          <div className="year-desktop-totals">{totals}</div>
+          {REDESIGN_ENABLED ? (
+            <details className="year-desktop-totals">
+              <summary>Jahreswerte aller Envelopes</summary>
+              {totals}
+            </details>
+          ) : (
+            <div className="year-desktop-totals">{totals}</div>
+          )}
         </>
       )}
+      {REDESIGN_ENABLED && instructions}
     </section>
   );
+}
+
+function yearFormat(value: number) {
+  const text = eur(value);
+  return REDESIGN_ENABLED ? text.replace(/\s*€$/, '') : text;
 }
 
 function Amount({ amount, metric }: { amount: PlanYearAmounts; metric: Metric }) {
@@ -406,8 +637,9 @@ function Amount({ amount, metric }: { amount: PlanYearAmounts; metric: Metric })
   return (
     <span
       className={cx('year-amount', metric === 'availableCents' && amount[metric] < 0 && 'is-over')}
+      title={REDESIGN_ENABLED ? eur(amount[metric]) : undefined}
     >
-      {eur(amount[metric])}
+      {yearFormat(amount[metric])}
     </span>
   );
 }
@@ -421,6 +653,11 @@ function YearCells({ row, metric }: { row: PlanYearRow; metric: Metric }) {
           <Amount amount={amount} metric={metric} />
         </td>
       ))}
+      {REDESIGN_ENABLED && (
+        <td className="year-average">
+          {metric === 'availableCents' ? '–' : yearFormat(mulDivRound(row.year[metric], 1, 12))}
+        </td>
+      )}
       <td className="year-end">
         <Amount amount={row.year} metric={metric} />
       </td>

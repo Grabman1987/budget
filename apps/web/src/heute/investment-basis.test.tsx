@@ -135,7 +135,7 @@ function mount(at = '/?monat=2026-09&period=month') {
 const detail = '/heute/details/invested?monat=2026-09&period=month';
 
 it('ON keeps selected signed Investiert separate from the positive Anlagen/net-debt chain', async () => {
-  mount();
+  mount('/heute/details/wealth?monat=2026-09&period=month');
   const basis = await screen.findByRole('region', { name: 'Investiert · Anlagebasis' });
   expect(basis.textContent).toContain('170,00');
   const chain = await screen.findByTestId('heute-networth-chart');
@@ -146,7 +146,12 @@ it('ON keeps selected signed Investiert separate from the positive Anlagen/net-d
   const source = within(basis).getByRole('link', {
     name: 'Anlagebasis ansehen · Quelle der Anlagebasis',
   });
-  expect(source.getAttribute('href')).toBe(`${detail}#anlagebasis`);
+  const target = new URL(source.getAttribute('href')!, 'https://budget.invalid');
+  expect(target.pathname).toBe('/heute/details/invested');
+  expect(target.searchParams.get('monat')).toBe('2026-09');
+  expect(target.searchParams.get('period')).toBe('month');
+  expect(target.searchParams.get('von')).toBe('/heute/details/wealth?monat=2026-09&period=month');
+  expect(target.hash).toBe('#anlagebasis');
   fireEvent.click(screen.getByRole('button', { name: 'Herleitung Nettovermögen' }));
   const note = document.getElementById('kennzahl-nettovermoegen-note')!;
   expect(note.textContent).toContain('Verbindlichkeiten 100,00');
@@ -258,7 +263,7 @@ it.each([
       ...data,
       investmentBasis: { asOf: day, investedCents: value, accounts: [] },
     });
-    mount();
+    mount('/heute/details/wealth?monat=2026-09&period=month');
     const basis = await screen.findByRole('region', { name: 'Investiert · Anlagebasis' });
     expect(basis.textContent).toContain(text);
   },

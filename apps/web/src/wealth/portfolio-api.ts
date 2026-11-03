@@ -75,3 +75,15 @@ export const instrumentHistoryQuery = (
       );
     },
   });
+
+/** Same read and cache identity as the existing contribution report. */
+export const portfolioContributionsQuery = (period: Period) =>
+  queryOptions({
+    queryKey: [...LEDGER_KEY, 'portfolio-contributions-report', period, 'securities'],
+    retry: false,
+    queryFn: () =>
+      request<{ portfolio: PortfolioSummary } & WithValuationNotes>(
+        'GET',
+        `/api/portfolio?period=${period}&view=securities&history=contributions`,
+      ),
+  });

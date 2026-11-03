@@ -1,0 +1,384 @@
+.sheet:has(> .payments-v2) {
+  padding-block: var(--space-xl);
+  row-gap: var(--space-xl);
+}
+.xp.payments-v2 {
+  padding: 0;
+  min-width: 0;
+}
+.payments-v2 .xp-toolbar {
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.payments-v2 .xp-toolbar button,
+.payments-v2 .xp-toolbar summary {
+  min-height: var(--touch);
+}
+.payments-v2 .payments-preview-report {
+  padding-inline: 0;
+  min-width: 0;
+}
+@media (max-width: 767px) {
+  .payments-v2 .xp-toolbar .seg {
+    max-width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  .payments-v2 .xp-toolbar .seg button {
+    flex-shrink: 0;
+  }
+}
+
+/* The default payment list follows the compact source columns; details keep every action. */
+.payments-reference .plan-v2-page-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.payments-reference .plan-v2-page-actions select {
+  min-height: var(--touch);
+  max-width: 180px;
+}
+.payments-reference .xp > section {
+  min-width: 0;
+  overflow-x: auto;
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.payments-reference .xp-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--fs-table);
+}
+.payments-reference .xp-table th,
+.payments-reference .xp-table td {
+  display: table-cell;
+  padding: 0 var(--space-md);
+  height: 44px;
+  vertical-align: middle;
+  border-bottom: var(--stroke-hairline) solid var(--rule);
+}
+.payments-reference .xp-table thead th {
+  height: 28px;
+  background: var(--surface);
+}
+.payments-reference .xp-table .col-name {
+  width: auto;
+}
+.payments-reference .xp-table .col-interval {
+  width: 150px;
+  color: var(--ink-2);
+}
+.payments-reference .xp-table .col-account {
+  width: 130px;
+  color: var(--ink-2);
+}
+.payments-reference .xp-table .col-num {
+  width: 130px;
+  text-align: right;
+}
+.payments-reference .xp-table .col-due {
+  width: 108px;
+}
+.payments-reference .xp-table .col-state,
+.payments-reference .xp-table .col-action {
+  width: 44px;
+  padding: 0;
+}
+.payments-reference .xp-table .xp-name {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: var(--touch);
+}
+.payments-reference .xp-table .xp-name svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+.payments-reference .xp-table .pgroup td {
+  background: var(--tint);
+}
+.payments-reference .xp-table .grp-toggle {
+  min-height: var(--touch);
+}
+.payments-reference .xp-table .col-due::before,
+.payments-reference .xp-table .col-num::before {
+  content: none;
+}
+.payments-reference .payments-reference-source {
+  font-size: var(--fs-meta);
+}
+.payments-reference .payments-reference-source > summary {
+  min-height: var(--touch);
+  display: flex;
+  align-items: center;
+}
+@media (max-width: 767px) {
+  .payments-reference .plan-v2-page-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .payments-reference .plan-v2-page-actions select {
+    min-width: 0;
+    max-width: 145px;
+  }
+  .payments-reference .xp-table {
+    display: table;
+  }
+  .payments-reference .xp-table thead {
+    display: table-header-group;
+  }
+  .payments-reference .xp-table tbody {
+    display: table-row-group;
+  }
+  .payments-reference .xp-table tr {
+    display: table-row;
+  }
+  .payments-reference .xp-table .col-name {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--surface);
+  }
+  .payments-reference .xp-table .pgroup td {
+    top: 0;
+  }
+  .payments-reference .xp-table .grp-sub {
+    display: inline;
+  }
+}
+.payments-reference .plan-v2-page-actions {
+  flex: 1;
+}
+.payments-reference .plan-v2-page-actions select {
+  width: auto;
+  flex: 0 1 auto;
+}
+.payments-reference .xp > section {
+  overflow: visible;
+}
+.payments-reference .xp-table {
+  min-width: 0;
+}
+@media (max-width: 767px) {
+  .payments-reference .xp-table {
+    display: block;
+  }
+  .payments-reference .xp-table thead {
+    display: none;
+  }
+  .payments-reference .xp-table tbody {
+    display: block;
+  }
+  .payments-reference .xp-table tr.prow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto 44px;
+    grid-template-rows: 44px 32px;
+    gap: 0 var(--space-xs);
+  }
+  .payments-reference .xp-table .prow td {
+    width: auto;
+    height: auto;
+    padding: 0 var(--space-xs);
+    border: 0;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .payments-reference .xp-table .prow .col-name {
+    grid-column: 1 / 3;
+    grid-row: 1;
+    position: static;
+  }
+  .payments-reference .xp-table .prow .col-num {
+    grid-column: 3;
+    grid-row: 1;
+    justify-content: flex-end;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .payments-reference .xp-table .prow .col-action {
+    grid-column: 4;
+    grid-row: 1;
+  }
+  .payments-reference .xp-table .prow .col-interval {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: var(--fs-label);
+  }
+  .payments-reference .xp-table .prow .col-account {
+    grid-column: 2;
+    grid-row: 2;
+    font-size: var(--fs-label);
+  }
+  .payments-reference .xp-table .prow .col-due {
+    grid-column: 3;
+    grid-row: 2;
+    font-size: var(--fs-label);
+    justify-content: flex-end;
+  }
+  .payments-reference .xp-table .prow .col-state {
+    grid-column: 4;
+    grid-row: 2;
+    justify-content: center;
+  }
+  .payments-reference .xp-table tr.pgroup {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--tint);
+  }
+  .payments-reference .xp-table .pgroup .col-name {
+    position: static;
+    grid-column: 1;
+    width: auto;
+  }
+  .payments-reference .xp-table .pgroup .col-num {
+    grid-column: 2;
+    width: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .payments-reference .xp-table .pgroup :is(.col-due, .col-state, .col-action) {
+    display: none;
+  }
+  .payments-reference .xp-table .pgroup td {
+    position: static;
+  }
+  .payments-reference .xp-table .xp-name {
+    gap: var(--space-xs);
+    width: 100%;
+    overflow: hidden;
+  }
+  .payments-reference .xp-table .xp-name strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .payments-reference .xp-table .xp-sub {
+    font-size: var(--fs-label);
+  }
+  .payments-reference .plan-v2-page-actions {
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 767px) {
+  .payments-reference .xp-table .xp-name {
+    justify-content: flex-start;
+    text-align: left;
+  }
+}
+.payments-reference-layout {
+  min-width: 0;
+}
+.payments-reference-layout.has-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--space-lg);
+  align-items: start;
+}
+.payments-reference .xp-table tr.prow.is-selected > td {
+  background: var(--tint);
+}
+.payments-reference-detail {
+  position: sticky;
+  top: 76px;
+  max-height: calc(100dvh - 100px);
+  overflow-y: auto;
+  padding: var(--space-lg);
+  min-width: 0;
+}
+.payments-reference-detail .xp-detail-body {
+  padding: 0;
+  min-width: 0;
+}
+.payments-reference-detail .xp-detail-body > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+.payments-reference-detail .xp-detail-body h2 {
+  margin: 0;
+  font-size: var(--fs-headline);
+}
+.payment-history-preview {
+  position: relative;
+}
+.payment-history-preview h3 {
+  margin: var(--space-md) 0 var(--space-xs);
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-2);
+}
+.payment-history-preview table {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-label);
+}
+.payment-history-preview td {
+  height: 32px;
+  padding: var(--space-xs) 0;
+  text-align: right;
+  border-bottom: var(--stroke-hairline) solid var(--rule);
+}
+.payment-history-preview td:first-child {
+  text-align: left;
+}
+.payment-history-preview .has-deviation {
+  color: var(--warning);
+}
+.payment-history-source {
+  margin: var(--space-sm) 0;
+  font-size: var(--fs-label);
+  color: var(--ink-3);
+}
+.payment-reference-management > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch);
+  font-size: var(--fs-meta);
+  font-weight: 600;
+}
+.payments-reference-detail .panel-actions {
+  flex-wrap: wrap;
+}
+@media (min-width: 768px) and (max-width: 1199px) {
+  .payments-reference-layout.has-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .payments-reference-detail {
+    position: static;
+    max-height: none;
+  }
+}
+.payments-reference-detail .xp-occ > li {
+  grid-template-columns: 84px minmax(0, 1fr);
+  grid-template-areas: 'date amt' 'actual delta' 'state state' 'book book' 'act act';
+}
+.payments-reference-detail .xp-occ-date {
+  white-space: nowrap;
+}
+.payments-reference-detail :is(.xp-occ-amt, .xp-occ-actual, .xp-occ-delta, .xp-occ-book) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.payments-reference-month {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-block: var(--space-sm);
+}
+.payments-reference-month input {
+  min-height: var(--touch);
+}

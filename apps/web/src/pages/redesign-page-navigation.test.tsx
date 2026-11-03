@@ -37,6 +37,10 @@ afterEach(() => {
 function mount(entry: string) {
   const root = createRootRoute({ component: Outlet });
   const paths = [
+    '/konten',
+    '/konten/buchungen',
+    '/konten/pruefen',
+    '/konten/kontakte',
     '/plan/monat',
     '/plan/jahr',
     '/plan/erwartet',
@@ -169,3 +173,26 @@ it('Escape returns focus to the trigger and an outside pointer closes the native
   fireEvent.pointerDown(document.body);
   expect(details.open).toBe(false);
 });
+
+it.each([false, true])(
+  'keeps every Konten destination including contacts in its flag-specific navigation (%s)',
+  async (enabled) => {
+    flag.enabled = enabled;
+    mount('/konten');
+    if (enabled) fireEvent.click(await screen.findByLabelText('Kontenansicht wählen: Übersicht'));
+    const navigation = await screen.findByRole('navigation', {
+      name: enabled ? 'Ansichten von Konten' : 'Register von Konten',
+    });
+    expect(
+      within(navigation)
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href')),
+    ).toEqual(['/konten', '/konten/buchungen', '/konten/pruefen', '/konten/kontakte']);
+    fireEvent.click(within(navigation).getByRole('link', { name: 'Kontakte' }));
+    await waitFor(() =>
+      expect(
+        document.querySelector('a[href="/konten/kontakte"][aria-current="page"]'),
+      ).toBeTruthy(),
+    );
+  },
+);

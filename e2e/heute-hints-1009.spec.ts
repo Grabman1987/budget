@@ -1,9 +1,15 @@
+import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect as baseExpect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
 import type { RuleBook } from '../apps/web/src/rules/api';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
+
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
 
 test('Today keeps payday first, unknown counts explicit and additional steps consistent', async ({
   page,
@@ -63,25 +69,36 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
   await page.route('**/api/savings-plans/execution-proposals*', (route) =>
     route.fulfill({ json: { proposals: [] } }),
   );
-  await page.goto('/?monat=2026-09&period=payday');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=payday'));
   // #571: Zu verteilen leads; Frei bis Gehalt is the middle Kennzahl in the mode Bis Gehalt.
   const first = page.locator('.heute-kennzahl').first();
   await expect(first.getByRole('heading', { name: 'Zu verteilen', exact: true })).toBeVisible();
-  const payday = page.locator('.heute-kennzahl').nth(1);
+  const payday = redesign
+    ? page.getByRole('region', { name: 'Spielraum bis Gehalt' })
+    : page.locator('.heute-kennzahl').nth(1);
   await expect(payday.getByRole('heading', { name: 'Frei bis Gehalt', exact: true })).toBeVisible();
-  await expect(payday).toContainText('Bis 15.10. · noch 28 Tage');
+  await expect(payday).toContainText(
+    redesign ? 'bis 15.10.2026 · noch 28 Tage' : 'Bis 15.10. · noch 28 Tage',
+  );
   // The next salary stays marked on the forecast and named in the derivation of Frei bis Gehalt.
   await expect(
     page.getByTestId('liquidity-chart').getByTestId('liquidity-mark-gehalt'),
   ).toBeAttached();
-  await payday.getByRole('button', { name: 'Herleitung Frei bis Gehalt' }).click();
+  await payday
+    .getByRole('button', {
+      name: redesign ? 'Herleitung zeigen' : 'Herleitung Frei bis Gehalt',
+      exact: true,
+    })
+    .click();
   await expect(payday).toContainText('Nächster erwarteter Geldeingang: 30.09. · 3.812,00 €');
   const more = page.getByRole('button', { name: /Mehr zum Monat/ });
   if ((await more.getAttribute('aria-expanded')) === 'false') await more.click();
   await expect(page.getByRole('heading', { name: 'Nächste Schritte' })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Zu tun' })).toContainText('2 unter Prüfen');
   const tasks = page.getByRole('region', { name: 'Zu tun' });
-  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toHaveCount(
+    redesign ? 1 : 0,
+  );
   await expect(tasks.locator('.attention-row').filter({ hasText: 'Regelbefund' })).toHaveCount(1);
   await expect(tasks).toContainText('2 Regelbefunde zum Handeln');
   await tasks.locator('.attention-availability summary').click();
@@ -133,7 +150,7 @@ test('tiny actual income stays the denominator and offers a completed comparison
 }) => {
   test.setTimeout(120_000);
   await page.clock.setFixedTime(new Date('2026-09-17T10:00:00Z'));
-  await page.route('**/api/budget/2026-09', async (route) => {
+  await page.route(/\/api\/budget\/2026-09(?:\?.*)?$/, async (route) => {
     const response = await route.fetch();
     const data = await response.json();
     data.summary.incomeCents = 1_000;

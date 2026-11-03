@@ -1,3 +1,4 @@
+import { redesignEnabled } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import type { LiquidityReportView } from '@budget/db';
@@ -17,7 +18,7 @@ for (const theme of ['light', 'dark'] as const) {
       const res = await page.request.get('/api/liquidity?horizon=6m');
       expect(res.status()).toBe(200);
       const view = (await res.json()) as LiquidityReportView;
-      await page.goto(PATH);
+      await page.goto(PATH + '?horizon=6m');
       await expect(page.getByTestId('liquidity-chart')).toBeVisible();
       await page.evaluate(async (value) => {
         document.documentElement.dataset['theme'] = value;
@@ -101,10 +102,14 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(items).toHaveCount(expected.length);
       for (const [i, row] of expected.entries()) {
         const item = items.nth(i);
-        await expect(item.locator('.lq-no')).toHaveText(String(i + 1).padStart(2, '0'));
+        if (!(await redesignEnabled(page)))
+          await expect(item.locator('.lq-no')).toHaveText(String(i + 1).padStart(2, '0'));
         await expect(item).toContainText(row.label);
         await expect(item).toContainText(longDay(row.day));
-        await expect(item.locator('strong')).toHaveText(eur(row.cents, { sign: true }));
+        const amount = (await redesignEnabled(page))
+          ? item.locator('td').nth(2)
+          : item.locator('strong');
+        await expect(amount).toHaveText(eur(row.cents, { sign: true }));
       }
       // Dates never run backwards, and every listed row is one of the plotted days.
       const days = expected.map((r) => r.day);

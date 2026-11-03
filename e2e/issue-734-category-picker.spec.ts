@@ -1,3 +1,10 @@
+import {
+  redesignLoaded,
+  accountBankReview,
+  bankPreviewControl,
+  contactShareControl,
+} from './ledger-helpers';
+
 import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import AxeBuilder from '@axe-core/playwright';
@@ -255,8 +262,9 @@ for (const profile of ['configured', 'desktop1440'] as const) {
           expect(actual.viewport).toEqual(expected.viewport);
           expect(actual.dpr).toBe(expected.deviceScaleFactor ?? 1);
           expect(actual.coarse).toBe(expected.hasTouch ?? false);
+          await accountBankReview(page);
           const queue = page.getByRole('region', { name: 'Bankumsätze prüfen', exact: true });
-          await queue.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+          await (await bankPreviewControl(queue)).click();
           const bankSelect = queue.getByRole('combobox', { name: 'Kategorie', exact: true });
           await expect(bankSelect.locator('optgroup')).toHaveCount(2);
           expect(
@@ -324,6 +332,12 @@ for (const profile of ['configured', 'desktop1440'] as const) {
           await page.getByRole('button', { name: 'Buchung erfassen', exact: true }).click();
           const dialog = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
           const field = dialog.getByRole('combobox', { name: 'Kategorie', exact: true });
+          const redesign = await redesignLoaded(page);
+          // Keep a genuinely scrollable draft when testing a clipped anchor in the compact ON form.
+          if (redesign)
+            await dialog
+              .getByLabel('Notiz', { exact: true })
+              .fill('Synthetischer Scrolltest.\n'.repeat(18));
           await field.click();
           const list = dialog.locator('.is-capture-category .combo-list');
           await expect(list.getByRole('option')).toHaveCount(63);
@@ -334,12 +348,16 @@ for (const profile of ['configured', 'desktop1440'] as const) {
           expect(names.at(-2)).toBe('Für Kontakt auslegen → Kontakt Alpha 734');
           expect(names.at(-1)).toBe('Kontakt neu anlegen');
           const initialBounds = await bounded(list);
-          if (!actual.coarse) expect(initialBounds.height).toBeGreaterThan(240);
+          if (!actual.coarse)
+            expect(initialBounds.height).toBeGreaterThan(
+              (await redesignLoaded(page)) ? 3 * 44 : 240,
+            );
           const option = list.getByRole('option').first();
           const optionBox = await option.boundingBox();
           expect(optionBox).not.toBeNull();
           expect(optionBox!.width).toBeGreaterThanOrEqual(44);
-          if (actual.coarse) expect(optionBox!.height).toBeGreaterThanOrEqual(44);
+          if (actual.coarse || (await redesignLoaded(page)))
+            expect(optionBox!.height).toBeGreaterThanOrEqual(44);
           else expect(optionBox!.height).toBeLessThan(44);
           await field.fill('a');
           await expect(field).toHaveAttribute(
@@ -379,6 +397,15 @@ for (const profile of ['configured', 'desktop1440'] as const) {
           for (let i = 0; i < 12; i++) await field.press('ArrowDown');
           expect(await activeVisible(field, list)).toBe(tailId);
           const scroller = dialog.locator('.bk-body');
+          const hideRedesignAnchor = async () =>
+            field.evaluate((anchor) => {
+              const body = anchor.closest('.bk-body')!;
+              body.scrollTop = 0;
+              const clip = body.getBoundingClientRect(),
+                box = anchor.getBoundingClientRect();
+              if (box.bottom > clip.top && box.top < clip.bottom)
+                body.scrollTop = body.scrollHeight;
+            });
           const scrollBefore = await scroller.evaluate((el) => el.scrollTop);
           const draftBeforeResize = await field.inputValue();
           await page.setViewportSize({ width: actual.viewport.width, height: 450 });
@@ -386,12 +413,15 @@ for (const profile of ['configured', 'desktop1440'] as const) {
             .poll(async () => (await bounds(list)).clipBottom - (await bounds(list)).clipTop)
             .toBeLessThan(initialBounds.clipBottom - initialBounds.clipTop);
           expect(await scroller.evaluate((el) => el.scrollTop)).toBe(scrollBefore);
-          if (actual.coarse) {
+          if (actual.coarse || (await redesignLoaded(page))) {
+            // The ON two-column layout also clips the lower category anchor at 450px.
             // Fresh focus can scroll the anchor before resize. Arrange a fully hidden
             // anchor explicitly; a partially visible field may correctly keep its popup.
-            await scroller.evaluate((el) => {
-              el.scrollTop = 0;
-            });
+            if (redesign) await hideRedesignAnchor();
+            else
+              await scroller.evaluate((el) => {
+                el.scrollTop = 0;
+              });
             await expect
               .poll(() =>
                 field.evaluate((el) => {
@@ -417,9 +447,11 @@ for (const profile of ['configured', 'desktop1440'] as const) {
           expect(
             await scroller.evaluate((el) => el.scrollHeight - el.clientHeight),
           ).toBeGreaterThan(0);
-          await scroller.evaluate((el, phone) => {
-            el.scrollTop = phone ? 0 : el.scrollHeight;
-          }, actual.coarse);
+          if (redesign) await hideRedesignAnchor();
+          else
+            await scroller.evaluate((el, phone) => {
+              el.scrollTop = phone ? 0 : el.scrollHeight;
+            }, actual.coarse);
           await expect
             .poll(() =>
               field.evaluate((el) => {
@@ -475,8 +507,9 @@ for (const profile of ['configured', 'desktop1440'] as const) {
           ).toEqual(['Muster für Wege', 'Für Kontakt auslegen → Kontakt Alpha 734']);
           await field.press('Enter');
           await expect(field).toHaveValue('Muster für Wege');
+          if (redesign) await dialog.getByLabel('Notiz', { exact: true }).fill('');
           await dialog.getByLabel('Betrag', { exact: true }).fill('10,00');
-          await dialog.getByRole('button', { name: 'Teilen', exact: true }).click();
+          await (await contactShareControl(dialog)).click();
           await dialog.getByLabel('Kontakt 1.1', { exact: true }).selectOption(contact.id);
           await expect(dialog.getByLabel('Anteil 1.1 (%)')).toHaveValue('50');
           const saved = page.waitForResponse(

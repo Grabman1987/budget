@@ -1,3 +1,4 @@
+import { gotoWealthAnalysis } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { openDatabase, schema } from '@budget/db';
@@ -160,7 +161,7 @@ for (const theme of ['light', 'dark'] as const) {
     ).toContainText('Brutto-Ausführung');
     await page.keyboard.press('Escape');
     await expect.poll(() => overviewFigure(page, 'budget')).toBe('91,55 €');
-    await page.goto('/vermoegen/nettovermoegen');
+    await gotoWealthAnalysis(page, '/vermoegen/nettovermoegen');
     await expect(page.getByTestId('nw-figure')).toContainText('116,23');
     await page.goto('/konten');
     await expect(overviewRow(page, 'Testdepot')).toBeVisible();
@@ -203,7 +204,7 @@ test('without a Verrechnungskonto the depot cash stays with the depot as a Cash 
   );
   // The Investments sum keeps the depot cash: 24,68 - 26,90 = -2,22.
   await expect.poll(() => overviewFigure(page, 'investments')).toBe('−2,22 €');
-  await page.goto('/vermoegen/nettovermoegen');
+  await gotoWealthAnalysis(page, '/vermoegen/nettovermoegen');
   await expect(page.getByTestId('nw-figure')).toContainText('116,23');
   await page.goto('/konten');
   await expect(overviewRow(page, 'Testdepot')).toBeVisible();

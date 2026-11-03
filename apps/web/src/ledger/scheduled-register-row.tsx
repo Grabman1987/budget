@@ -6,6 +6,7 @@ import { bookOccurrence, skipOccurrence, type Occurrence } from '../expected/api
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { AppLink } from '../shell/app-link';
 import { nativeCurrency, upcomingDate } from './format';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 export function ScheduledRegisterRow({
   occurrence: s,
@@ -80,15 +81,31 @@ export function ScheduledRegisterRow({
           </div>
         </div>
       </td>
-      {all ? <td className="kc-acct kx-acct">{s.accountName}</td> : <td className="kx-note" />}
+      {all ? (
+        <td className="kc-acct kx-acct">{s.accountName}</td>
+      ) : !REDESIGN_ENABLED ? (
+        <td className="kx-note" />
+      ) : null}
       <td className="kx-cat">
         {s.categoryName ?? (s.kind === 'inflow' ? 'Zu verteilen' : 'ohne Kategorie')}
       </td>
-      <td className="kc-num kx-amount">
-        <span className={s.amountCents < 0 ? 'kupcoming-negative' : 'kupcoming-positive'}>
-          {nativeCurrency(s.amountCents, s.currency, true)}
-        </span>
+      {REDESIGN_ENABLED && <td className="kx-note" />}
+      <td className={cx('kc-num kx-amount', REDESIGN_ENABLED && 'kx-outgoing')}>
+        {(!REDESIGN_ENABLED || s.amountCents < 0) && (
+          <span className={s.amountCents < 0 ? 'kupcoming-negative' : 'kupcoming-positive'}>
+            {nativeCurrency(s.amountCents, s.currency, true)}
+          </span>
+        )}
       </td>
+      {REDESIGN_ENABLED && (
+        <td className="kc-num kx-amount kx-incoming">
+          {s.amountCents >= 0 && (
+            <span className="kupcoming-positive">
+              {nativeCurrency(s.amountCents, s.currency, true)}
+            </span>
+          )}
+        </td>
+      )}
       {showBalance && (
         <td className="kc-num kc-run kx-run">
           {balance === null ? (all ? 'Saldo offen' : '–') : nativeCurrency(balance, s.currency)}

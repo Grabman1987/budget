@@ -1,3 +1,10 @@
+import {
+  redesignLoaded,
+  captureFlagControl,
+  categoryLineControl,
+  contactShareControl,
+} from './ledger-helpers';
+import { openHeuteReview } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { eur } from '../apps/web/src/ledger/format';
 import type { LiquidityReportView } from '../apps/web/src/reports/liquidity-api';
@@ -70,7 +77,7 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     date: '2026-10-01',
     amountCents: -321,
   });
-  await page.goto('/?panel=buchung');
+  await openHeuteReview(page, '/?panel=buchung');
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
   const amount = dialog.getByLabel('Betrag', { exact: true });
   const date = dialog.getByLabel('Datum', { exact: true });
@@ -194,7 +201,7 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
     data: { name: 'Kategorie Tastatur', groupId: group.id, class: 'need' },
   });
   expect(categoryResponse.ok()).toBe(true);
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   const opener = page
     .getByRole('link', { name: /^(Buchung|Buchung erfassen)$/ })
     .filter({ visible: true });
@@ -211,105 +218,158 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   await dialog.getByLabel('Kategorie', { exact: true }).fill('Kategorie Tastatur');
   await dialog.getByRole('option', { name: /^Kategorie Tastatur/ }).click();
   await amount.fill('12,34');
-  await amount.press('Tab');
-  await expect(dialog.getByLabel('Empfänger', { exact: true })).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(dialog.getByLabel('Bezahlt von')).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Vorgemerkt' })).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(dialog.getByLabel('Datum', { exact: true })).toBeFocused();
-  await page.keyboard.press('Tab');
-  const calendar = dialog.getByLabel('Datum im Kalender');
-  await expect(calendar).toBeFocused();
-  // Native date segments can retain focus within the same input before its next control.
-  for (let step = 0; step < 4; step++) {
+  if (await redesignLoaded(page)) {
+    const targets = [
+      dialog.getByRole('button', { name: 'Vorgemerkt', exact: true }),
+      dialog.getByLabel('Empfänger', { exact: true }),
+      dialog.getByLabel('Datum', { exact: true }),
+      dialog.getByLabel('Datum im Kalender'),
+    ];
+    for (const target of targets) {
+      await page.keyboard.press('Tab');
+      await expect(target).toBeFocused();
+    }
+    const calendar = dialog.getByLabel('Datum im Kalender');
+    for (let step = 0; step < 4; step++) {
+      await page.keyboard.press('Tab');
+      if (!(await calendar.evaluate((node) => document.activeElement === node))) break;
+    }
+    await expect(dialog.getByLabel('Wiederholen')).toBeFocused();
+    for (const target of [
+      dialog.getByLabel('Bezahlt von'),
+      dialog.getByLabel('Kategorie', { exact: true }),
+      ...((page.viewportSize()?.width ?? 1440) < 768
+        ? [dialog.getByLabel('Vorschläge und Verfügbarkeit', { exact: true })]
+        : [
+            dialog
+              .getByRole('group', { name: 'Vorschläge' })
+              .getByRole('button', { name: 'Kategorie Tastatur' }),
+          ]),
+      await categoryLineControl(dialog),
+      dialog.getByLabel('Notiz'),
+      await contactShareControl(dialog),
+      ...((page.viewportSize()?.width ?? 1440) < 768
+        ? []
+        : [dialog.getByRole('button', { name: 'Abbrechen', exact: true })]),
+      dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
+      dialog.getByRole('button', { name: 'Speichern', exact: true }),
+      dialog.getByRole('button', {
+        name: (page.viewportSize()?.width ?? 1440) < 768 ? 'Schließen' : 'Datei anhängen',
+        exact: true,
+      }),
+    ]) {
+      await page.keyboard.press('Tab');
+      await expect(target).toBeFocused();
+    }
+    await page.keyboard.press('Shift+Tab');
+    await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeFocused();
+  } else {
+    await amount.press('Tab');
+    await expect(dialog.getByLabel('Empfänger', { exact: true })).toBeFocused();
     await page.keyboard.press('Tab');
-    if (!(await calendar.evaluate((node) => document.activeElement === node))) break;
-  }
-  await expect(dialog.getByLabel('Wiederholen')).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(dialog.getByLabel('Kategorie', { exact: true })).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Teilen' })).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(
-    dialog
-      .getByRole('group', { name: 'Vorschläge' })
-      .getByRole('button', { name: 'Kategorie Tastatur' }),
-  ).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: '+ Weitere Kategorie' })).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(dialog.getByLabel('Notiz')).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(dialog.locator('.kmore > summary')).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Speichern und neu' })).toBeFocused();
-  const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
-  await page.keyboard.press('Tab');
-  await expect(save).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(
-    dialog.getByRole('button', { name: 'Markierung: keine', exact: true }),
-  ).toBeFocused();
-  await page.keyboard.press('Shift+Tab');
-  await expect(save).toBeFocused();
-  await page.keyboard.press('Tab');
-  for (const name of ['Ausgabe', 'Einnahme', 'Umbuchung', 'Schließen']) {
+    await expect(dialog.getByLabel('Bezahlt von')).toBeFocused();
     await page.keyboard.press('Tab');
-    await expect(dialog.getByRole('button', { name, exact: true })).toBeFocused();
+    await expect(dialog.getByRole('button', { name: 'Vorgemerkt' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(dialog.getByLabel('Datum', { exact: true })).toBeFocused();
+    await page.keyboard.press('Tab');
+    const calendar = dialog.getByLabel('Datum im Kalender');
+    await expect(calendar).toBeFocused();
+    // Native date segments can retain focus within the same input before its next control.
+    for (let step = 0; step < 4; step++) {
+      await page.keyboard.press('Tab');
+      if (!(await calendar.evaluate((node) => document.activeElement === node))) break;
+    }
+    await expect(dialog.getByLabel('Wiederholen')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(dialog.getByLabel('Kategorie', { exact: true })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(await contactShareControl(dialog)).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(
+      dialog
+        .getByRole('group', { name: 'Vorschläge' })
+        .getByRole('button', { name: 'Kategorie Tastatur' }),
+    ).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(await categoryLineControl(dialog)).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(dialog.getByLabel('Notiz')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(dialog.locator('.kmore > summary')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(dialog.getByRole('button', { name: 'Speichern und neu' })).toBeFocused();
+    const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+    await page.keyboard.press('Tab');
+    await expect(save).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(await captureFlagControl(dialog, 'Markierung: keine')).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(save).toBeFocused();
+    await page.keyboard.press('Tab');
+    for (const name of ['Ausgabe', 'Einnahme', 'Umbuchung', 'Schließen']) {
+      await page.keyboard.press('Tab');
+      await expect(dialog.getByRole('button', { name, exact: true })).toBeFocused();
+    }
+    await page.keyboard.press('Tab');
+    await expect(amount).toBeFocused();
+    const motion = await dialog.evaluate((el) =>
+      [el, ...el.querySelectorAll('*')].flatMap((node) => {
+        const style = getComputedStyle(node);
+        return [style.animationDuration, style.transitionDuration]
+          .flatMap((value) => value.split(',').map(parseFloat))
+          .filter((seconds) => seconds > 0.000011);
+      }),
+    );
+    expect(motion).toEqual([]);
+    expect(
+      await dialog.evaluate(
+        (el) => el.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length,
+      ),
+    ).toBe(0);
+    await amount.press('Escape');
+    const ask = dialog.getByRole('alertdialog', { name: 'Eingaben verwerfen?' });
+    await expect(ask).toBeVisible();
+    const keep = ask.getByRole('button', { name: 'Weiter bearbeiten' });
+    await expect(keep).toBeFocused();
+    await keep.press('Shift+Tab');
+    await expect(ask.getByRole('button', { name: 'Verwerfen', exact: true })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(keep).toBeFocused();
+    expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
+    await evidence(page, info, 'booking-discard-focus', dialog);
+    await keep.press('Enter');
+    await expect(ask).toBeHidden();
+    await expect(amount).toBeFocused();
+    await expect(amount).toHaveValue('12,34');
+    await amount.press('Escape');
+    await expect(keep).toBeFocused();
+    await keep.press('Tab');
+    const discard = ask.getByRole('button', { name: 'Verwerfen', exact: true });
+    await expect(discard).toBeFocused();
+    await discard.press('Enter');
+    await expect(dialog).toBeHidden();
+    await expect(opener).toBeFocused();
+    expect((await (await request.get('/api/bookings')).json()).items).toEqual([]);
   }
-  await page.keyboard.press('Tab');
-  await expect(amount).toBeFocused();
-  const motion = await dialog.evaluate((el) =>
-    [el, ...el.querySelectorAll('*')].flatMap((node) => {
-      const style = getComputedStyle(node);
-      return [style.animationDuration, style.transitionDuration]
-        .flatMap((value) => value.split(',').map(parseFloat))
-        .filter((seconds) => seconds > 0.000011);
-    }),
-  );
-  expect(motion).toEqual([]);
-  expect(
-    await dialog.evaluate(
-      (el) => el.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length,
-    ),
-  ).toBe(0);
-  await amount.press('Escape');
-  const ask = dialog.getByRole('alertdialog', { name: 'Eingaben verwerfen?' });
-  await expect(ask).toBeVisible();
-  const keep = ask.getByRole('button', { name: 'Weiter bearbeiten' });
-  await expect(keep).toBeFocused();
-  await keep.press('Shift+Tab');
-  await expect(ask.getByRole('button', { name: 'Verwerfen', exact: true })).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(keep).toBeFocused();
-  expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
-  await evidence(page, info, 'booking-discard-focus', dialog);
-  await keep.press('Enter');
-  await expect(ask).toBeHidden();
-  await expect(amount).toBeFocused();
-  await expect(amount).toHaveValue('12,34');
-  await amount.press('Escape');
-  await expect(keep).toBeFocused();
-  await keep.press('Tab');
-  const discard = ask.getByRole('button', { name: 'Verwerfen', exact: true });
-  await expect(discard).toBeFocused();
-  await discard.press('Enter');
-  await expect(dialog).toBeHidden();
-  await expect(opener).toBeFocused();
-  expect((await (await request.get('/api/bookings')).json()).items).toEqual([]);
 });
 
 sampleTest(
   'dark Heute text and chart status remain readable without colour alone',
   async ({ page }, info) => {
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
-    await page.goto('/');
+    await openHeuteReview(page, '/');
     await expect(page.getByTestId('liquidity-chart')).toBeVisible();
+    const redesign = await redesignLoaded(page);
     await page.goto('/reports/finanzcheck');
-    await expect(page).toHaveURL((url) => url.pathname === '/');
+    await expect(page).toHaveURL((url) =>
+      redesign
+        ? url.pathname === '/reports/onepager' &&
+          url.searchParams.get('darstellung') === 'finanzcheck'
+        : url.pathname === '/',
+    );
+    if (redesign) await openHeuteReview(page, '/');
+    else await page.goto('/');
     const response = await page.request.get('/api/liquidity?horizon=35d');
     expect(response.ok()).toBe(true);
     const forecast = (await response.json()) as LiquidityReportView;
@@ -329,7 +389,7 @@ sampleTest(
       'none',
     );
     await expect(chart.locator('.l-forecast')).toHaveCSS('stroke-dasharray', '7px, 5px');
-    await page.goto('/');
+    await openHeuteReview(page, '/');
     await expect(page.getByTestId('liquidity-chart')).toBeVisible();
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

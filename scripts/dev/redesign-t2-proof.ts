@@ -37,7 +37,7 @@ async function forecastScreenshots(page: Page, state: 'online' | 'offline') {
         document.documentElement.dataset['theme'] = value;
         await document.fonts.ready;
       }, theme);
-      await page.getByRole('region', { name: 'Kontoprognose · 35 Tage', exact: true }).screenshot({
+      await page.getByRole('region', { name: /Kontoprognose.*35 Tage/ }).screenshot({
         path: join(output, `forecast-${page.viewportSize()!.width}-${state}-${theme}.png`),
         animations: 'disabled',
       });
@@ -109,7 +109,7 @@ export async function verifyT2Forecast(page: Page, origin: string, bookmark: str
     expect(source.forecast35d).not.toHaveProperty('report.movements');
     await page.clock.setFixedTime(new Date('2026-09-17T08:30:00+02:00'));
     await page.goto(`${origin}/?monat=2026-09&period=month`);
-    const live = page.getByRole('region', { name: 'Kontoprognose · 35 Tage', exact: true });
+    const live = page.getByRole('region', { name: /Kontoprognose.*35 Tage/ });
     await expect(live.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '-3500');
     await expect(live.locator('.heute-forecast-low')).toHaveAttribute('data-day', '2026-10-22');
     await expect(live.getByTestId('liquidity-lowpoint')).toHaveAttribute('data-cents', '-3500');
@@ -130,7 +130,7 @@ export async function verifyT2Forecast(page: Page, origin: string, bookmark: str
     await page.context().setOffline(true);
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Budget ist offline' })).toBeVisible();
-    const offline = page.getByRole('region', { name: 'Kontoprognose · 35 Tage', exact: true });
+    const offline = page.getByRole('region', { name: /Kontoprognose.*35 Tage/ });
     await expect(offline).toContainText('−35,00');
     await expect(offline).toContainText('22.10.2026');
     await expect(offline).toContainText('17.09.2026');

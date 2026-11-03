@@ -1,9 +1,15 @@
-import { Button, WideDialog } from '@budget/ui';
+import { Button, WideDialog, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { CheckCheck, ListChecks } from 'lucide-react';
+import { KontenMenu } from '../ledger/konten-menu';
+import { useKontenSlot } from '../ledger/konten-frame';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import type { InboxEntry } from './api';
 import type { PreparedBankSuggestion } from './bank-candidate';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { longDay, nativeCurrency } from '../ledger/format';
 
 export function isBankInboxRow(item: InboxEntry) {
   return item.type === 'stored'
@@ -14,7 +20,7 @@ export function isBankInboxRow(item: InboxEntry) {
 type BulkRow = {
   type: 'candidate' | 'booking';
   id: string;
-  suggestion?: Omit<PreparedBankSuggestion, 'label'>;
+  suggestion?: Omit<PreparedBankSuggestion, 'label' | 'bulkSafe'>;
 };
 type Preview = {
   action: 'dismiss' | 'confirm';
@@ -26,12 +32,36 @@ type Preview = {
   keptBookings: number;
   /** Rows whose prepared merge target was already taken by an earlier selected row. */
   sharedTargets: number;
+  selectedCount: number;
+  safeOnly?: boolean;
 };
 const withoutLabel = (suggestion: PreparedBankSuggestion) => {
   const payload: Partial<PreparedBankSuggestion> = { ...suggestion };
   delete payload.label;
-  return payload as Omit<PreparedBankSuggestion, 'label'>;
+  delete payload.bulkSafe;
+  return payload as Omit<PreparedBankSuggestion, 'label' | 'bulkSafe'>;
 };
+
+/** A narrower shortcut; explicit selected-row actions and server eligibility stay unchanged. */
+export function safeBankRows(
+  rows: InboxEntry[],
+  prepared: (id: string) => PreparedBankSuggestion | undefined,
+) {
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    const suggestion = prepared(row.id);
+    const safe =
+      row.type === 'stored' &&
+      row.refType === 'bank-sync-candidate' &&
+      Boolean(row.refId && !seen.has(row.refId)) &&
+      Number.isSafeInteger(row.bankCandidate?.amountCents) &&
+      suggestion?.action === 'rule' &&
+      Boolean(suggestion.candidateRevision) &&
+      suggestion.bulkSafe === true;
+    if (safe && row.type === 'stored' && row.refId) seen.add(row.refId);
+    return safe;
+  });
+}
 
 /** Pure preview: what a bulk action sends and how many selected rows it leaves alone. */
 export function planBulk(
@@ -65,7 +95,15 @@ export function planBulk(
     rows.push({ type, id, ...(found ? { suggestion: withoutLabel(found) } : {}) });
   }
   const changed = action === 'dismiss' ? rows.length : rows.filter((row) => row.suggestion).length;
-  return { action, rows, changed, skipped: chosen.length - changed, keptBookings, sharedTargets };
+  return {
+    action,
+    rows,
+    changed,
+    skipped: chosen.length - changed,
+    keptBookings,
+    sharedTargets,
+    selectedCount: chosen.length,
+  };
 }
 
 export function BankBulkActions({
@@ -81,14 +119,28 @@ export function BankBulkActions({
   prepared: (id: string) => PreparedBankSuggestion | undefined;
   sourceId: string;
 }) {
+  useAmountPrivacy();
+  const safeSlot = useKontenSlot('inbox-safe');
+  const selectionSlot = useKontenSlot('inbox-selection');
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
   const write = useBudgetWrite();
   const chosen = rows.filter((row) => selected.has(row.id));
+  const safe = safeBankRows(rows, prepared).slice(0, 100);
   const prepare = (action: 'dismiss' | 'confirm') => setPreview(planBulk(action, chosen, prepared));
-  if (!rows.length) return null;
-  return (
-    <div className="bank-bulk-actions">
+  const safeAction = (
+    <Button
+      className="inbox-safe-action"
+      disabled={busy || !safe.length}
+      onClick={() => setPreview({ ...planBulk('confirm', safe, prepared), safeOnly: true })}
+    >
+      <CheckCheck size={16} aria-hidden="true" />
+      Alle sicheren bestätigen ({safe.length})
+    </Button>
+  );
+  const selectionControls = (
+    <>
+      {' '}
       <label className="bank-select">
         <input
           type="checkbox"
@@ -109,6 +161,31 @@ export function BankBulkActions({
       <Button disabled={busy || !chosen.length} onClick={() => prepare('confirm')}>
         Auswahl mit vorbereitetem Vorschlag bestätigen
       </Button>
+    </>
+  );
+  const selectionAction = (
+    <KontenMenu
+      className="bank-selection-menu"
+      iconOnly
+      label={`Auswahl (${chosen.length})`}
+      icon={<ListChecks size={16} aria-hidden="true" />}
+    >
+      <div className="bank-selection-controls">{selectionControls}</div>
+      <p>
+        Als sicher zählen nur bereits vorbereitete Quellumsätze. Öffne eine Zeile, um Regel und
+        mögliche Treffer zu prüfen.
+      </p>
+    </KontenMenu>
+  );
+  if (!rows.length) return null;
+  return (
+    <div className="bank-bulk-actions">
+      {REDESIGN_ENABLED && (safeSlot ? createPortal(safeAction, safeSlot) : safeAction)}
+      {REDESIGN_ENABLED
+        ? selectionSlot
+          ? createPortal(selectionAction, selectionSlot)
+          : selectionAction
+        : selectionControls}
       <WideDialog
         open={!!preview}
         title="Bankauswahl prüfen"
@@ -119,7 +196,7 @@ export function BankBulkActions({
       >
         <div className="bank-bulk-preview">
           <p>
-            {chosen.length} ausgewählt · {preview?.changed}{' '}
+            {preview?.selectedCount} ausgewählt · {preview?.changed}{' '}
             {preview?.action === 'dismiss' ? 'nicht übernehmen' : 'bestätigen'} · {preview?.skipped}{' '}
             übersprungen.
           </p>
@@ -128,6 +205,38 @@ export function BankBulkActions({
               Nur bereits vorbereitete Vorschläge werden übernommen. Öffne weitere Zeilen, um ihre
               Vorschläge zu prüfen.
             </p>
+          )}
+          {preview?.safeOnly && (
+            <>
+              <p>
+                Sicher für diese Sammelaktion sind offene Quellumsätze mit einer bereits
+                vorbereiteten, eindeutig automatisch anwendbaren Regel und abgeschlossener
+                Trefferprüfung. Umbuchungen, mögliche Duplikate, Zusammenführungen und mehrdeutige
+                Treffer bleiben einzeln zu prüfen. Der aktuelle Quellen- und Regelstand wird beim
+                Ausführen erneut geprüft.
+              </p>
+              <ul aria-label="Auswirkung der sicheren Vorschläge">
+                {preview.rows.map((row) => {
+                  const entry = rows.find(
+                    (entry) => entry.type === 'stored' && entry.refId === row.id,
+                  );
+                  const candidate = entry?.type === 'stored' ? entry.bankCandidate : undefined;
+                  return (
+                    <li key={row.id}>
+                      {candidate ? (
+                        <>
+                          {maskMoneyText(candidate.payeeName ?? candidate.memo)} ·{' '}
+                          {maskMoneyText(candidate.accountName)} · {longDay(candidate.date)} ·{' '}
+                          {nativeCurrency(candidate.amountCents, candidate.currency)}
+                        </>
+                      ) : (
+                        'Quellendaten nicht mehr verfügbar – bitte neu prüfen.'
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
           )}
           {!!preview?.keptBookings && (
             <p>

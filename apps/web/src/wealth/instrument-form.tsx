@@ -60,6 +60,7 @@ export function InstrumentForm({
   onSelect,
   onBusy,
   effectiveDay,
+  initialKind,
 }: {
   security?: SecurityRecord | undefined;
   onDirty: (dirty: boolean) => void;
@@ -67,9 +68,13 @@ export function InstrumentForm({
   onSelect: (id?: string) => void;
   onBusy: (busy: boolean) => void;
   effectiveDay?: string | undefined;
+  initialKind?: SecurityRecord['kind'] | undefined;
 }) {
   useAmountPrivacy();
-  const [original] = useState(() => draftFor(security, effectiveDay));
+  const [original] = useState(() => ({
+    ...draftFor(security, effectiveDay),
+    ...(!security && initialKind ? { kind: initialKind } : {}),
+  }));
   const [draft, setDraft] = useState(original);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);

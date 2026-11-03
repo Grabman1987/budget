@@ -9,10 +9,21 @@ import {
   TextInput,
   type SegmentedOption,
   maskMoneyText,
+  BookingStatusIcon,
+  useIsPhone,
 } from '@budget/ui';
 import { manualTransferStatus, todayInVienna, type ManualBankStatus } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Check, ChevronDown, Trash2, X } from 'lucide-react';
+import {
+  CalendarDays,
+  Check,
+  ChevronDown,
+  Trash2,
+  X,
+  Repeat2,
+  Plus,
+  MoreHorizontal,
+} from 'lucide-react';
 import {
   useEffect,
   useMemo,
@@ -22,6 +33,8 @@ import {
   type MutableRefObject,
 } from 'react';
 import { ApiError } from '../api/http';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import './capture-redesign.css';
 import { budgetQuery } from '../budget/budget-api';
 import {
   fetchBookings,
@@ -100,7 +113,7 @@ function fields(form: HTMLFormElement): HTMLElement[] {
     (el) =>
       !el.closest('.amount-ops') &&
       !(el as HTMLInputElement).disabled &&
-      (el as HTMLInputElement).type !== 'checkbox' &&
+      !['checkbox', 'file', 'hidden'].includes((el as HTMLInputElement).type) &&
       el.offsetParent !== null,
   );
 }
@@ -153,6 +166,8 @@ export function CaptureForm({
   const formRef = useRef<HTMLFormElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
+  const [receiptActionsHost, setReceiptActionsHost] = useState<HTMLDivElement | null>(null);
+  const [contactHost, setContactHost] = useState<HTMLDivElement | null>(null);
   const accountRequest = useRef(0);
   const accountPayee = useRef('');
 
@@ -199,7 +214,10 @@ export function CaptureForm({
   const [busy, setBusy] = useState(false);
   // Guards save() itself: held or repeated Ctrl+Enter must not send the booking twice.
   const saving = useRef(false);
-  const [moreOpen, setMoreOpen] = useState(Boolean(draft.projectId || draft.flag));
+  const isPhone = useIsPhone();
+  const [moreOpen, setMoreOpen] = useState(
+    !REDESIGN_ENABLED && Boolean(draft.projectId || draft.flag),
+  );
   // The category the last chosen payee's default filled in; only that one is replaced by the next.
   const appliedByPayee = useRef<string | null>(null);
   // The payee "Speichern und neu" carried over: context, so it does not make the form dirty.
@@ -560,6 +578,20 @@ export function CaptureForm({
     (deletion.skipped.length === 0 ||
       (unlock && deletion.skipped.every((item) => item.reason === 'reconciled_locked')));
   const onKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
+    if (
+      REDESIGN_ENABLED &&
+      e.key === 'Escape' &&
+      moreOpen &&
+      !e.defaultPrevented &&
+      e.target instanceof HTMLElement &&
+      e.target.closest('.kmore')
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      setMoreOpen(false);
+      formRef.current?.querySelector<HTMLElement>('.kmore > summary')?.focus();
+      return;
+    }
     if (e.key !== 'Enter' || e.altKey) return;
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
@@ -620,7 +652,9 @@ export function CaptureForm({
     .join(', ');
   const statusControl = (id?: string, describedBy?: string) =>
     locked && !unlock ? (
-      <span className="status">geprüft</span>
+      <span className="status">
+        {REDESIGN_ENABLED && <BookingStatusIcon status="reconciled" />}geprüft
+      </span>
     ) : (
       <button
         id={id}
@@ -656,10 +690,31 @@ export function CaptureForm({
           set('status', effectiveStatus === 'confirmed' ? 'pending' : 'confirmed');
         }}
       >
-        <Check size={16} strokeWidth={1.75} aria-hidden="true" />
+        {REDESIGN_ENABLED ? (
+          <BookingStatusIcon status={shownStatus} />
+        ) : (
+          <Check size={16} strokeWidth={1.75} aria-hidden="true" />
+        )}
         <span>{shownStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}</span>
       </button>
     );
+  const repeatField = (
+    <Field label="Wiederholen">
+      {({ id }) => (
+        <Select
+          id={id}
+          value={draft.repeat ?? ''}
+          onChange={(e) => set('repeat', e.target.value as BookingDraft['repeat'])}
+        >
+          <option value="">Nie</option>
+          <option value="weekly">Wöchentlich</option>
+          <option value="monthly">Monatlich</option>
+          <option value="quarterly">Vierteljährlich</option>
+          <option value="yearly">Jährlich</option>
+        </Select>
+      )}
+    </Field>
+  );
   const dateAndRepeat = (
     <div className="bk-dates" data-enter-skip>
       <div className="bk-date-row">
@@ -670,23 +725,15 @@ export function CaptureForm({
           inputRef={dateRef}
           year={today.slice(0, 4)}
         />
-        {!isTransfer && (
-          <Field label="Wiederholen">
-            {({ id }) => (
-              <Select
-                id={id}
-                value={draft.repeat ?? ''}
-                onChange={(e) => set('repeat', e.target.value as BookingDraft['repeat'])}
-              >
-                <option value="">Nie</option>
-                <option value="weekly">Wöchentlich</option>
-                <option value="monthly">Monatlich</option>
-                <option value="quarterly">Vierteljährlich</option>
-                <option value="yearly">Jährlich</option>
-              </Select>
-            )}
-          </Field>
-        )}
+        {!isTransfer &&
+          (REDESIGN_ENABLED ? (
+            <div className="bk-repeat-native" data-recurring={draft.repeat ? '1' : undefined}>
+              {repeatField}
+              <Repeat2 size={16} strokeWidth={1.75} aria-hidden="true" />
+            </div>
+          ) : (
+            repeatField
+          ))}
       </div>
     </div>
   );
@@ -704,6 +751,110 @@ export function CaptureForm({
       error={splitError ?? errors.category}
       suggestions={chips}
       singleMetadata={singleMetadata}
+      contactHost={REDESIGN_ENABLED ? contactHost : undefined}
+      compact={REDESIGN_ENABLED && isPhone}
+    />
+  );
+
+  const moreFields = (
+    <details className="kmore" open={moreOpen} onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
+      <summary>
+        <span className={REDESIGN_ENABLED ? 'sr-only' : undefined}>
+          Mehr{moreSummary && <span className="bk-more-summary"> · {moreSummary}</span>}
+        </span>
+        <span aria-hidden="true" className="kmore-caret">
+          {' '}
+          {REDESIGN_ENABLED ? (
+            <MoreHorizontal size={16} strokeWidth={1.75} />
+          ) : (
+            <ChevronDown className="disclosure-chevron" size={16} strokeWidth={1.75} />
+          )}
+        </span>
+      </summary>
+      <div className="kform">
+        {REDESIGN_ENABLED && isPhone && !isTransfer && (
+          <FlagPicker title="Markieren" value={draft.flag} onChange={(flag) => set('flag', flag)} />
+        )}
+        {!isTransfer && (
+          <Field label="Markierung">
+            {({ id }) => (
+              <Select
+                id={id}
+                value={draft.flag}
+                onChange={(e) => set('flag', e.target.value as BookingFlag | '')}
+              >
+                <option value="">keine</option>
+                {BOOKING_FLAGS.map((f) => (
+                  <option key={f} value={f}>
+                    {FLAG_LABEL[f]}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        )}
+        {((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0 && (
+          <Field label="Projekt">
+            {({ id }) => (
+              <Select
+                id={id}
+                value={draft.projectId}
+                onChange={(e) => set('projectId', e.target.value)}
+              >
+                <option value="">kein Projekt</option>
+                {(lookups.data?.projects ?? offlineChoices?.projects ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                    {p.archivedAt ? ' · archiviert' : ''}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        )}
+      </div>
+    </details>
+  );
+  const closeControl = (
+    <button
+      type="button"
+      className="icon-btn bk-close"
+      aria-label="Schließen"
+      title="Schließen"
+      onClick={requestClose}
+    >
+      <X size={16} strokeWidth={1.75} aria-hidden="true" />
+    </button>
+  );
+  const kindHeader = (
+    <div className="bk-head">
+      {!REDESIGN_ENABLED && !isTransfer && (
+        <FlagPicker title="Markieren" value={draft.flag} onChange={(flag) => set('flag', flag)} />
+      )}
+      {REDESIGN_ENABLED && <span className="bk-kind-label">Art</span>}
+      {legOfTransfer ? (
+        <span className="bk-kind bk-kind-fixed">Umbuchung</span>
+      ) : (
+        <Segmented
+          label="Art der Buchung"
+          options={editing ? EDIT_KINDS : KINDS}
+          value={draft.kind}
+          onChange={changeKind}
+          stretch
+          className="bk-kind"
+        />
+      )}
+      {!REDESIGN_ENABLED && closeControl}
+    </div>
+  );
+  const amountField = (
+    <AmountInput
+      label="Betrag"
+      showOperators={false}
+      value={draft.amount}
+      onChange={(v) => set('amount', v)}
+      sign={isTransfer ? null : draft.kind === 'income' ? '+' : '−'}
+      error={errors.amount}
     />
   );
 
@@ -720,7 +871,8 @@ export function CaptureForm({
           if (form?.closest('dialog')?.open) amount.focus();
         }
       }}
-      className={`bkform${isTransfer ? '' : ' bk-split-cols'}`}
+      className={`bkform${isTransfer ? '' : ' bk-split-cols'}${REDESIGN_ENABLED ? ' bkform-redesign' : ''}`}
+      data-redesign={REDESIGN_ENABLED ? 'booking-editor' : undefined}
       onSubmit={(e) => {
         e.preventDefault();
         void save(false);
@@ -728,34 +880,26 @@ export function CaptureForm({
       onKeyDown={onKeyDown}
       noValidate
     >
-      <div className="bk-head">
-        {/* Flag first (YNAB), then the kind of booking, then close. */}
-        {!isTransfer && (
-          <FlagPicker title="Markieren" value={draft.flag} onChange={(flag) => set('flag', flag)} />
-        )}
-        {legOfTransfer ? (
-          <span className="bk-kind bk-kind-fixed">Umbuchung</span>
-        ) : (
-          <Segmented
-            label="Art der Buchung"
-            options={editing ? EDIT_KINDS : KINDS}
-            value={draft.kind}
-            onChange={changeKind}
-            stretch
-            className="bk-kind"
-          />
-        )}
-        <button
-          type="button"
-          className="icon-btn bk-close"
-          aria-label="Schließen"
-          title="Schließen"
-          onClick={requestClose}
-        >
-          <X size={16} strokeWidth={1.75} aria-hidden="true" />
-        </button>
-      </div>
+      {REDESIGN_ENABLED && (
+        <div className="bk-editor-titlebar">
+          {isPhone && closeControl}
+          <h2>{editing ? 'Buchung bearbeiten' : 'Buchung erfassen'}</h2>
+          <div className="bk-editor-receipt-actions" ref={setReceiptActionsHost} />
+          {!isTransfer && !isPhone && (
+            <FlagPicker
+              title="Markieren"
+              value={draft.flag}
+              onChange={(flag) => set('flag', flag)}
+            />
+          )}
+          {moreFields}
+          {!isPhone && closeControl}
+          {!editing && <ReceiptSection uploadOnly actionsHost={receiptActionsHost} />}
+        </div>
+      )}
+      {!REDESIGN_ENABLED && kindHeader}
       <div className="bk-body kform">
+        {REDESIGN_ENABLED && kindHeader}
         {editing?.source === 'bank' && editing.status !== 'reconciled' && (
           <BookingAssignmentReview
             id={editing.id}
@@ -783,14 +927,14 @@ export function CaptureForm({
         )}
         <div className="bk-cols">
           <div className="bk-col-head">
-            <AmountInput
-              label="Betrag"
-              showOperators={false}
-              value={draft.amount}
-              onChange={(v) => set('amount', v)}
-              sign={isTransfer ? null : draft.kind === 'income' ? '+' : '−'}
-              error={errors.amount}
-            />
+            {REDESIGN_ENABLED ? (
+              <div className="bk-amount-primary">
+                {amountField}
+                {!isTransfer && statusControl()}
+              </div>
+            ) : (
+              amountField
+            )}
             {!isTransfer && (
               <div className="bk-payee">
                 <Combobox
@@ -822,30 +966,44 @@ export function CaptureForm({
             )}
             <div className="bk-context">
               <div className="bk-context-fields">
+                {REDESIGN_ENABLED && !isTransfer && dateAndRepeat}
                 <div
                   className={isTransfer ? 'kform-pair' : 'bk-account-row'}
                   {...(isTransfer ? {} : { 'data-enter-skip': true })}
                 >
                   <Field
                     label={
-                      isTransfer ? 'Von Konto' : draft.kind === 'expense' ? 'Bezahlt von' : 'Konto'
+                      isTransfer
+                        ? 'Von Konto'
+                        : REDESIGN_ENABLED
+                          ? 'Konto'
+                          : draft.kind === 'expense'
+                            ? 'Bezahlt von'
+                            : 'Konto'
                     }
                     error={errors.account}
                   >
                     {({ id, describedBy, invalid }) => (
-                      <Select
-                        id={id}
-                        value={accountId}
-                        disabled={legOfTransfer}
-                        aria-invalid={invalid}
-                        aria-describedby={describedBy}
-                        onChange={(e) => {
-                          accountRequest.current++;
-                          set('accountId', e.target.value);
-                        }}
-                      >
-                        <AccountOptions accounts={open} />
-                      </Select>
+                      <>
+                        {REDESIGN_ENABLED && !isTransfer && draft.kind === 'expense' && (
+                          <label htmlFor={id} className="sr-only">
+                            Bezahlt von
+                          </label>
+                        )}
+                        <Select
+                          id={id}
+                          value={accountId}
+                          disabled={legOfTransfer}
+                          aria-invalid={invalid}
+                          aria-describedby={describedBy}
+                          onChange={(e) => {
+                            accountRequest.current++;
+                            set('accountId', e.target.value);
+                          }}
+                        >
+                          <AccountOptions accounts={open} />
+                        </Select>
+                      </>
                     )}
                   </Field>
                   {isTransfer ? (
@@ -864,9 +1022,9 @@ export function CaptureForm({
                         </Select>
                       )}
                     </Field>
-                  ) : (
+                  ) : !REDESIGN_ENABLED ? (
                     statusControl()
-                  )}
+                  ) : null}
                 </div>
                 {isTransfer &&
                   (manualPair && cashAccount && bankAccount ? (
@@ -891,7 +1049,7 @@ export function CaptureForm({
                   ) : (
                     statusControl()
                   ))}
-                {dateAndRepeat}
+                {(!REDESIGN_ENABLED || isTransfer) && dateAndRepeat}
               </div>
             </div>
           </div>
@@ -924,58 +1082,10 @@ export function CaptureForm({
                 />
               )}
             </Field>
-            <details
-              className="kmore"
-              open={moreOpen}
-              onToggle={(e) => setMoreOpen(e.currentTarget.open)}
-            >
-              <summary>
-                Mehr{moreSummary && <span className="bk-more-summary"> · {moreSummary}</span>}
-                <span aria-hidden="true" className="kmore-caret">
-                  {' '}
-                  <ChevronDown className="disclosure-chevron" size={16} strokeWidth={1.75} />
-                </span>
-              </summary>
-              <div className="kform">
-                {!isTransfer && (
-                  <Field label="Markierung">
-                    {({ id }) => (
-                      <Select
-                        id={id}
-                        value={draft.flag}
-                        onChange={(e) => set('flag', e.target.value as BookingFlag | '')}
-                      >
-                        <option value="">keine</option>
-                        {BOOKING_FLAGS.map((f) => (
-                          <option key={f} value={f}>
-                            {FLAG_LABEL[f]}
-                          </option>
-                        ))}
-                      </Select>
-                    )}
-                  </Field>
-                )}
-                {((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0 && (
-                  <Field label="Projekt">
-                    {({ id }) => (
-                      <Select
-                        id={id}
-                        value={draft.projectId}
-                        onChange={(e) => set('projectId', e.target.value)}
-                      >
-                        <option value="">kein Projekt</option>
-                        {(lookups.data?.projects ?? offlineChoices?.projects ?? []).map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                            {p.archivedAt ? ' · archiviert' : ''}
-                          </option>
-                        ))}
-                      </Select>
-                    )}
-                  </Field>
-                )}
-              </div>
-            </details>
+            {REDESIGN_ENABLED && !isTransfer && (
+              <div className="bk-contact-host" ref={setContactHost} />
+            )}
+            {!REDESIGN_ENABLED && moreFields}
             {draft.kind === 'income' && (
               <Field label="Einnahmeart">
                 {({ id }) => (
@@ -1002,8 +1112,16 @@ export function CaptureForm({
             {maskMoneyText(errors.form)}
           </p>
         )}
-        {editing && <ReceiptSection bookingId={editing.id} />}
-        <p className="khint" aria-hidden="true">
+        {editing &&
+          (REDESIGN_ENABLED ? (
+            <details className="bk-editor-receipts">
+              <summary>Belege</summary>
+              <ReceiptSection bookingId={editing.id} actionsHost={receiptActionsHost} />
+            </details>
+          ) : (
+            <ReceiptSection bookingId={editing.id} />
+          ))}
+        <p className={REDESIGN_ENABLED ? 'khint sr-only' : 'khint'} aria-hidden="true">
           {CAPTURE_SHORTCUT_HINT}
         </p>
       </div>
@@ -1075,6 +1193,11 @@ export function CaptureForm({
         </p>
       )}
       <div className="bk-foot">
+        {REDESIGN_ENABLED && !editing && (
+          <Button variant="ghost" className="bk-cancel" onClick={requestClose}>
+            Abbrechen
+          </Button>
+        )}
         {editing && (
           <div className="bk-foot-extra">
             <Button variant="ghost" onClick={() => void remove()} disabled={busy}>
@@ -1084,8 +1207,18 @@ export function CaptureForm({
           </div>
         )}
         {!editing && !queued && (
-          <Button variant="ghost" disabled={busy || blocked} onClick={() => void save(true)}>
-            Speichern und neu
+          <Button
+            variant="ghost"
+            className={REDESIGN_ENABLED ? 'bk-save-new' : undefined}
+            disabled={busy || blocked}
+            onClick={() => void save(true)}
+          >
+            {REDESIGN_ENABLED && (
+              <Plus className="bk-save-new-icon" size={16} strokeWidth={1.75} aria-hidden="true" />
+            )}
+            <span className={REDESIGN_ENABLED ? 'bk-save-new-label' : undefined}>
+              Speichern und neu
+            </span>
           </Button>
         )}
         {editing && (

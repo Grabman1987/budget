@@ -10,6 +10,11 @@ import type { BookingCreate } from './api';
 import type { BookingPanelState } from './booking-panel';
 import type { CaptureChoices, QueuedBooking } from '../pwa/queue-store';
 
+// jsdom has no native media query implementation.
+Object.defineProperty(window, 'matchMedia', {
+  configurable: true,
+  value: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
+});
 const calls = vi.hoisted(() => ({
   create: vi.fn(),
   patch: vi.fn(),

@@ -1,3 +1,4 @@
+import { redesignLoaded } from './ledger-helpers';
 import { expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { test } from './isolated-ledger';
@@ -97,15 +98,21 @@ test('checks off-budget accounts, updates manual values with undo and prepares t
     // Cash pages carry the compact badge named after the check date; depot pages keep the plain button.
     const checkedOn: Record<string, string> = { checking: '06.09.', loan: '07.09.' };
     const checked = checkedOn[account.type];
-    const button = page.getByRole('button', {
-      name: checked ? `Geprüft ${checked} · Kontostand prüfen` : 'Kontostand prüfen',
-      exact: true,
-    });
+    const button =
+      (await redesignLoaded(page)) && checked
+        ? page.getByTestId('account-review-badge')
+        : page.getByRole('button', {
+            name: checked ? `Geprüft ${checked} · Kontostand prüfen` : 'Kontostand prüfen',
+            exact: true,
+          });
     await expect(button).toBeVisible();
     if (info.project.name === 'mobile')
       expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     if (account.type === 'brokerage' || account.type === 'crypto') {
+      if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+        await page.locator('.kacct-source > summary').click();
       const status = page.getByRole('group', { name: 'Datenstand', exact: true });
+      await expect(status).toBeVisible();
       await expect(status).toContainText('Kontostand geprüft');
       await expect(status.locator('strong')).toHaveText('Unbekannt');
       await button.click();

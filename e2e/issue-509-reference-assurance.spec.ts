@@ -1,3 +1,4 @@
+import { categoryLineControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
@@ -104,7 +105,7 @@ for (const profile of [
       let panel = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
       await panel.getByLabel('Betrag', { exact: true }).fill('10');
       await panel.getByLabel('Empfänger').fill('Synthetic509 split guard');
-      await panel.getByRole('button', { name: '+ Weitere Kategorie', exact: true }).click();
+      await (await categoryLineControl(panel)).click();
       await panel.getByLabel('Kategorie 1', { exact: true }).fill('Synthetic509 Food');
       await panel.getByRole('option', { name: /^Synthetic509 Food/ }).click();
       await panel.getByLabel('Betrag 1', { exact: true }).fill('6');

@@ -102,6 +102,32 @@ export function PaymentsPreviewReport({ report, meta }: { report: ReportEntry; m
     </PageFrame>
   );
 }
+/** Plan owns the same full calendar body. Opening this read never refreshes occurrences. */
+export function PaymentsCalendar() {
+  useAmountPrivacy();
+  const query = useQuery(paymentsPreviewQuery());
+  return (
+    <div className="kview vview payments-preview-report" aria-label="Jahreskalender Zahlungen">
+      {query.isPending && <LoadingNote what="Zahlungskalender" />}
+      {query.isError && (
+        <ErrorNote
+          what="Zahlungskalender"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
+      )}
+      {query.data && !query.isError && (
+        <>
+          <p>
+            Stand {longDay(query.data.asOf)} · {longDay(query.data.from)} bis{' '}
+            {longDay(query.data.to)} · erwartet und erhalten getrennt
+          </p>
+          <PreviewBody data={query.data} />
+        </>
+      )}
+    </div>
+  );
+}
 function PreviewBody({ data }: { data: PaymentsPreview }) {
   useAmountPrivacy();
   const eur = data.currencies.find((g) => g.currency === 'EUR')!;

@@ -20,6 +20,9 @@ import {
   useRuleWrite,
 } from './use-rule-writes';
 
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsRuleList } from './settings-rule-list';
+
 const onOff = (on: boolean) => (on ? 'an' : 'aus');
 
 /**
@@ -99,9 +102,15 @@ export function RulesPage() {
     const target = document.getElementById(hash);
     if (!target || !(hash === 'rw-pending' || hash.startsWith('rule-result-'))) return;
     focusedFinding.current = hash;
+    if (REDESIGN_ENABLED)
+      for (let parent = target.parentElement; parent; parent = parent.parentElement)
+        if (parent instanceof HTMLDetailsElement) parent.open = true;
     target.focus();
     target.scrollIntoView?.({ block: 'center' });
   }, [book, hash]);
+  const [detailsOpen, setDetailsOpen] = useState(
+    () => window.history.state?.['settingsCheckOpen'] === true,
+  );
   const current = check.data?.stage.stage;
   const active = book?.rules.filter((r) => shown[r.code] ?? r.enabled).length ?? 0;
 
@@ -217,130 +226,151 @@ export function RulesPage() {
     </ul>
   );
 
+  const detailed = (
+    <div className="kview rw">
+      {rules.isPending && <LoadingNote what="Regeln" />}
+      {rules.isError && (
+        <ErrorNote what="Regeln" error={rules.error} onRetry={() => void rules.refetch()} />
+      )}
+      {book && (
+        <>
+          <section className="rw-sec" aria-labelledby="rl-title">
+            <SectionHead
+              id="rl-title"
+              title={`Regeln (${book.rules.length})`}
+              aside={`${active} von ${book.rules.length} aktiv`}
+            />
+            {(
+              [
+                ['violated', 'Verletzt'],
+                ['pending', 'Noch offen'],
+                ['met', 'Eingehalten'],
+              ] as const
+            ).map(([group, title]) => {
+              const rows = grouped(group);
+              if (group === 'pending' && rows.length === 0) return null;
+              return (
+                <section className="rw-group" key={group} aria-labelledby={`rw-${group}`}>
+                  <h3 id={`rw-${group}`} tabIndex={-1}>
+                    {title} ({rows.length})
+                  </h3>
+                  {group === 'pending' && (
+                    <p className="rw-now-sub">Warnungen und Regeln, für die noch Daten fehlen.</p>
+                  )}
+                  {rows.length ? (
+                    list(rows)
+                  ) : (
+                    <p className="rw-now-sub">
+                      {group === 'violated'
+                        ? 'Keine Regel verletzt.'
+                        : 'Noch keine Regel eingehalten.'}
+                    </p>
+                  )}
+                </section>
+              );
+            })}
+            <details className="rw-group rw-disabled">
+              <summary id="rw-disabled-summary">
+                Ausgeschaltet ({grouped('disabled').length})
+              </summary>
+              {list(grouped('disabled'))}
+            </details>
+          </section>
+          <section className="rw-sec" aria-labelledby="stg-title">
+            <SectionHead
+              id="stg-title"
+              title="Stufen"
+              aside={
+                current ? `aktuell Stufe ${current} · automatisch nach Nettovermögen` : undefined
+              }
+            />
+            <p className="rw-sub">
+              Die Regeln aus I Will Teach You to Be Rich, Get Good with Money, Your Money or Your
+              Life und Everyday Millionaires, geordnet nach Vermögensstufe. Der Finanz-Check zeigt
+              die Regeln eurer Stufe und die der nächsten. Haltung: Würde statt Scham, keine Ausgabe
+              gilt als Fehler.
+            </p>
+            <div className="rw-stages">
+              {STAGES.map((st) => (
+                <div
+                  key={st.stage}
+                  className={st.stage === current ? 'rw-stage is-cur' : 'rw-stage'}
+                  aria-current={st.stage === current ? 'step' : undefined}
+                >
+                  <div className="rw-stage-h">
+                    <h3>
+                      <span className="rw-pos">{st.stage}</span> {st.label}
+                    </h3>
+                    <small>
+                      Stufe {st.stage} · {stageRange(st.stage)}
+                    </small>
+                  </div>
+                  <ul className="rw-list">
+                    {book.checklist
+                      .filter((c) => c.stage === st.stage)
+                      .map((c) => (
+                        <li key={c.code}>
+                          <span>
+                            <strong>
+                              <span className="rw-pos">{c.code}</span> {c.name}
+                            </strong>
+                            <small>
+                              {c.source}
+                              {c.ruleCode ? (
+                                ` · ${c.ruleCode}`
+                              ) : (
+                                <>
+                                  {' · '}
+                                  <label className="rw-done">
+                                    <input
+                                      type="checkbox"
+                                      checked={shown[`${c.code}:done`] ?? c.confirmedAt !== null}
+                                      onChange={(e) => confirm(c, e.target.checked)}
+                                    />
+                                    erledigt
+                                  </label>
+                                </>
+                              )}
+                            </small>
+                          </span>
+                          <Switch
+                            label={c.name}
+                            checked={shown[c.code] ?? c.enabled}
+                            onChange={(on) => toggleItem(c, on)}
+                          />
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </section>
+          <BookInputForm />
+        </>
+      )}
+    </div>
+  );
   return (
     <PageFrame meta={EINSTELLUNGEN_REGELWERK}>
-      <div className="kview rw">
-        {rules.isPending && <LoadingNote what="Regeln" />}
-        {rules.isError && (
-          <ErrorNote what="Regeln" error={rules.error} onRetry={() => void rules.refetch()} />
-        )}
-        {book && (
-          <>
-            <section className="rw-sec" aria-labelledby="rl-title">
-              <SectionHead
-                id="rl-title"
-                title={`Regeln (${book.rules.length})`}
-                aside={`${active} von ${book.rules.length} aktiv`}
-              />
-              {(
-                [
-                  ['violated', 'Verletzt'],
-                  ['pending', 'Noch offen'],
-                  ['met', 'Eingehalten'],
-                ] as const
-              ).map(([group, title]) => {
-                const rows = grouped(group);
-                if (group === 'pending' && rows.length === 0) return null;
-                return (
-                  <section className="rw-group" key={group} aria-labelledby={`rw-${group}`}>
-                    <h3 id={`rw-${group}`} tabIndex={-1}>
-                      {title} ({rows.length})
-                    </h3>
-                    {group === 'pending' && (
-                      <p className="rw-now-sub">Warnungen und Regeln, für die noch Daten fehlen.</p>
-                    )}
-                    {rows.length ? (
-                      list(rows)
-                    ) : (
-                      <p className="rw-now-sub">
-                        {group === 'violated'
-                          ? 'Keine Regel verletzt.'
-                          : 'Noch keine Regel eingehalten.'}
-                      </p>
-                    )}
-                  </section>
-                );
-              })}
-              <details className="rw-group rw-disabled">
-                <summary id="rw-disabled-summary">
-                  Ausgeschaltet ({grouped('disabled').length})
-                </summary>
-                {list(grouped('disabled'))}
-              </details>
-            </section>
-            <section className="rw-sec" aria-labelledby="stg-title">
-              <SectionHead
-                id="stg-title"
-                title="Stufen"
-                aside={
-                  current ? `aktuell Stufe ${current} · automatisch nach Nettovermögen` : undefined
-                }
-              />
-              <p className="rw-sub">
-                Die Regeln aus I Will Teach You to Be Rich, Get Good with Money, Your Money or Your
-                Life und Everyday Millionaires, geordnet nach Vermögensstufe. Der Finanz-Check zeigt
-                die Regeln eurer Stufe und die der nächsten. Haltung: Würde statt Scham, keine
-                Ausgabe gilt als Fehler.
-              </p>
-              <div className="rw-stages">
-                {STAGES.map((st) => (
-                  <div
-                    key={st.stage}
-                    className={st.stage === current ? 'rw-stage is-cur' : 'rw-stage'}
-                    aria-current={st.stage === current ? 'step' : undefined}
-                  >
-                    <div className="rw-stage-h">
-                      <h3>
-                        <span className="rw-pos">{st.stage}</span> {st.label}
-                      </h3>
-                      <small>
-                        Stufe {st.stage} · {stageRange(st.stage)}
-                      </small>
-                    </div>
-                    <ul className="rw-list">
-                      {book.checklist
-                        .filter((c) => c.stage === st.stage)
-                        .map((c) => (
-                          <li key={c.code}>
-                            <span>
-                              <strong>
-                                <span className="rw-pos">{c.code}</span> {c.name}
-                              </strong>
-                              <small>
-                                {c.source}
-                                {c.ruleCode ? (
-                                  ` · ${c.ruleCode}`
-                                ) : (
-                                  <>
-                                    {' · '}
-                                    <label className="rw-done">
-                                      <input
-                                        type="checkbox"
-                                        checked={shown[`${c.code}:done`] ?? c.confirmedAt !== null}
-                                        onChange={(e) => confirm(c, e.target.checked)}
-                                      />
-                                      erledigt
-                                    </label>
-                                  </>
-                                )}
-                              </small>
-                            </span>
-                            <Switch
-                              label={c.name}
-                              checked={shown[c.code] ?? c.enabled}
-                              onChange={(on) => toggleItem(c, on)}
-                            />
-                          </li>
-                        ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </section>
-            <BookInputForm />
-          </>
-        )}
-      </div>
+      {REDESIGN_ENABLED ? (
+        <>
+          <SettingsRuleList />
+          <details
+            className="settings-advanced settings-check-details"
+            open={detailsOpen}
+            onToggle={(event) => {
+              const open = event.currentTarget.open;
+              setDetailsOpen(open);
+              window.history.replaceState({ ...window.history.state, settingsCheckOpen: open }, '');
+            }}
+          >
+            <summary>Finanz-Check, Stufen und Buchangaben</summary>
+            {detailed}
+          </details>
+        </>
+      ) : (
+        detailed
+      )}
     </PageFrame>
   );
 }

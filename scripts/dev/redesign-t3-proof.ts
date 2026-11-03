@@ -99,6 +99,7 @@ export async function verifyT3InvestmentBasis(page: Page, origin: string, bookma
     }
     await page.clock.setFixedTime(new Date('2026-09-17T08:30:00+02:00'));
     await page.goto(`${origin}/?monat=2026-09&period=month`);
+    await page.locator('.hv-net-value > a').click();
     const basis = page.getByRole('region', { name: 'Investiert · Anlagebasis', exact: true });
     await expect(basis).toContainText('170,00');
     const more = page.getByRole('button', { name: 'Mehr zum Monat', exact: true });

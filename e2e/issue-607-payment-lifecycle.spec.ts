@@ -1,3 +1,4 @@
+import { openPaymentManagement } from './plan-redesign-controls';
 import { withShellControls } from './shell-actions';
 import { writeFile } from 'node:fs/promises';
 import AxeBuilder from '@axe-core/playwright';
@@ -158,6 +159,7 @@ test('real pause/end and whole Undo preserve assigned cents, identities and hist
     booking: { amountCents: -1334 },
   });
   await page.goto(`/plan/erwartet/${paymentId}`);
+  await openPaymentManagement(page);
   await expect(page.getByRole('button', { name: 'Löschen', exact: true })).toHaveCount(0);
   const pause = await openAction(page, 'pause');
   const pausePosts: string[] = [];
@@ -293,6 +295,7 @@ async function inspect(
   profile: string,
 ) {
   await page.goto(`/plan/erwartet/${id}`);
+  await openPaymentManagement(page);
   await theme(page, value);
   await expect(page.locator('.xp-big')).toContainText('−12,34 €');
   const before = await detail(page, id);

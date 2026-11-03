@@ -1,3 +1,4 @@
+import { bankPreviewControl } from './ledger-helpers';
 import { randomUUID } from 'node:crypto';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
@@ -74,7 +75,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
     staged.close();
   }
   await page.goto('/konten/posteingang');
-  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  await (await bankPreviewControl(page)).click();
   await expect(page.getByRole('button', { name: /Mit Buchung .* zusammenführen/ })).toBeVisible();
   expect((await new AxeBuilder({ page }).include('.kinbox').analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -106,7 +107,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
     splits: [{ categoryId: category.id }, { categoryId: category.id }],
   });
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
-  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  await (await bankPreviewControl(page)).click();
   await expect(page.getByRole('button', { name: /Mit Buchung .* zusammenführen/ })).toBeVisible();
   await page.getByRole('button', { name: /Mit Buchung .* zusammenführen/ }).click();
   await expect(
@@ -171,7 +172,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
     db.close();
   }
   await page.goto('/konten/posteingang');
-  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  await (await bankPreviewControl(page)).click();
   await page.getByRole('button', { name: 'Als Umbuchung verbinden', exact: true }).click();
   await expect(page.getByText('Als Umbuchung verbunden.', { exact: true })).toBeVisible();
   const balanceDb = openDatabase(databasePath);

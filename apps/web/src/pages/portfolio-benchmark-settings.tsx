@@ -4,6 +4,7 @@ import { Button, useAmountPrivacy } from '@budget/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAssetWrite } from './asset-classes-api';
 import { request } from '../api/http';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 interface Selection {
   instruments: { id: string; name: string; isin: string }[];
@@ -80,6 +81,18 @@ export function BenchmarkChoices() {
 
 export function PortfolioBenchmarkSettings() {
   useAmountPrivacy();
+  if (REDESIGN_ENABLED)
+    return (
+      <section className="settings-benchmarks-v2" aria-labelledby="benchmark-settings-title">
+        <h3 className="settings-section-title" id="benchmark-settings-title">
+          Benchmarks für Rendite und Kennzahlen
+        </h3>
+        <BenchmarkChoices />
+        <p className="settings-source-stamp">
+          EUR-Kurse von Index-ETF · Auswahl für alle Portfolio-Reports.
+        </p>
+      </section>
+    );
   return (
     <section className="investment-settings" aria-labelledby="benchmark-settings-title">
       <h2 id="benchmark-settings-title">Benchmarks für Rendite und Kennzahlen</h2>

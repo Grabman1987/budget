@@ -11,12 +11,14 @@ import {
 } from '@budget/ui';
 import { parseAmount, todayInVienna } from '@budget/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { createAccount, undoGroup, type AccountInput } from './api';
 import { ACCOUNT_TYPE_LABEL, errorText } from './labels';
 import { accountsQuery, LEDGER_KEY } from './queries';
 import { ACCOUNT_TYPES, type AccountType } from './types';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsDraftGuard } from '../pages/settings-draft-guard';
 
 /** Types that can never be budget accounts (server rule); the switch is off and locked. */
 const TRACKING_ONLY: ReadonlySet<AccountType> = new Set([
@@ -62,14 +64,49 @@ type Errors = Partial<
  */
 export function AccountFormPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   useAmountPrivacy();
+  const [state, setState] = useState({ dirty: false, busy: false });
+  const onState = useCallback(
+    (dirty: boolean, busy: boolean) =>
+      setState((previous) =>
+        previous.dirty === dirty && previous.busy === busy ? previous : { dirty, busy },
+      ),
+    [],
+  );
+  const close = () => {
+    if (
+      !REDESIGN_ENABLED ||
+      (!state.busy && (!state.dirty || window.confirm('Ungespeicherte Änderungen verwerfen?')))
+    )
+      onClose();
+  };
   return (
-    <SettingsFormDialog open={open} onClose={onClose} title="Konto anlegen">
-      <AccountForm onDone={onClose} />
+    <SettingsFormDialog
+      open={open}
+      onClose={onClose}
+      title="Konto anlegen"
+      {...(REDESIGN_ENABLED
+        ? {
+            beforeClose: () =>
+              !state.busy &&
+              (!state.dirty || window.confirm('Ungespeicherte Änderungen verwerfen?')),
+          }
+        : {})}
+    >
+      {REDESIGN_ENABLED && open && <SettingsDraftGuard dirty={state.dirty} busy={state.busy} />}
+      <AccountForm onDone={onClose} onCancel={close} onState={onState} />
     </SettingsFormDialog>
   );
 }
 
-function AccountForm({ onDone }: { onDone: () => void }) {
+function AccountForm({
+  onDone,
+  onCancel,
+  onState,
+}: {
+  onDone: () => void;
+  onCancel: () => void;
+  onState: (dirty: boolean, busy: boolean) => void;
+}) {
   useAmountPrivacy();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -79,6 +116,7 @@ function AccountForm({ onDone }: { onDone: () => void }) {
   const [onBudget, setOnBudget] = useState(true);
   const [opening, setOpening] = useState('');
   const [openingDate, setOpeningDate] = useState(todayInVienna());
+  const [initialDate] = useState(openingDate);
   const [limit, setLimit] = useState('');
   const [overdraft, setOverdraft] = useState('');
   const [rate, setRate] = useState('');
@@ -103,6 +141,21 @@ function AccountForm({ onDone }: { onDone: () => void }) {
     },
     onError: (error) => setErrors({ form: errorText(error) }),
   });
+  const dirty =
+    name !== '' ||
+    type !== 'checking' ||
+    !onBudget ||
+    opening !== '' ||
+    openingDate !== initialDate ||
+    limit !== '' ||
+    overdraft !== '' ||
+    rate !== '' ||
+    termEnd !== '' ||
+    fee !== '' ||
+    referenceAccountId !== '';
+  useEffect(() => {
+    onState(dirty, mutation.isPending);
+  }, [dirty, mutation.isPending, onState]);
 
   const changeType = (next: AccountType) => {
     setType(next);
@@ -311,7 +364,11 @@ function AccountForm({ onDone }: { onDone: () => void }) {
         <Button type="submit" disabled={mutation.isPending}>
           Konto anlegen
         </Button>
-        <Button variant="ghost" onClick={onDone}>
+        <Button
+          variant="ghost"
+          onClick={onCancel}
+          disabled={REDESIGN_ENABLED && mutation.isPending}
+        >
           Abbrechen
         </Button>
       </div>

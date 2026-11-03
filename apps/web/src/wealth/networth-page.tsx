@@ -1,3 +1,6 @@
+import { useSearch } from '@tanstack/react-router';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { WealthOverview } from './redesign-overview';
 import { ChartValue } from '@budget/ui';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -23,6 +26,14 @@ import { ZeitraumSwitch } from './frame';
 
 /** Vermögen › Nettovermögen: the figure with its Maßkette, the daily course and what it consists of. */
 export function NetWorthPage() {
+  const search = useSearch({ strict: false }) as { ansicht?: string };
+  return REDESIGN_ENABLED && search.ansicht !== 'analyse' ? (
+    <WealthOverview />
+  ) : (
+    <NetWorthAnalysis />
+  );
+}
+function NetWorthAnalysis() {
   useAmountPrivacy();
   const [zeitraum] = useZeitraum();
   const query = useQuery(netWorthQuery(zeitraum));

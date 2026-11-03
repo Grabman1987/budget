@@ -1,5 +1,23 @@
+import { wealthRedesign, portfolioNavigation } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
+import type { Page } from '@playwright/test';
+
+async function areaNavigation(page: Page, area: string) {
+  await expect(page.locator('.app')).toHaveCount(1);
+  await expect(page.locator('.area-page-menu, .registers')).toHaveCount(1);
+  if (
+    (await page.locator('.app').getAttribute('data-budget-redesign')) === '1' &&
+    (await page.locator('.area-page-menu').count()) > 0
+  ) {
+    const menu = page.locator('.area-page-menu');
+    await expect(menu.locator('summary')).toBeVisible();
+    if (!(await menu.evaluate((element) => (element as HTMLDetailsElement).open)))
+      await menu.locator('summary').click();
+    return page.getByRole('navigation', { name: `Ansichten von ${area}` });
+  }
+  return page.getByRole('navigation', { name: `Register von ${area}` });
+}
 
 test('Plan and Konten registers fit without swiping and Plan stays active', async ({
   page,
@@ -8,7 +26,7 @@ test('Plan and Konten registers fit without swiping and Plan stays active', asyn
   await page.goto('/plan/monat');
   await page.evaluate(() => document.fonts.ready);
   for (const label of ['Monat', 'Jahr', 'Zahlungen', 'Ziele', 'Prognose']) {
-    const row = page.getByRole('navigation', { name: 'Register von Plan' });
+    const row = await areaNavigation(page, 'Plan');
     await expect(row.getByRole('link')).toHaveText([
       'Monat',
       'Jahr',
@@ -36,14 +54,14 @@ test('Plan and Konten registers fit without swiping and Plan stays active', asyn
         .getByRole('link', { name: 'Plan', exact: true })
         .filter({ visible: true }),
     ).toHaveAttribute('aria-current', 'page');
-    await expect(
-      page.getByRole('navigation', { name: 'Register von Plan' }).locator('[aria-current="page"]'),
-    ).toHaveText([label]);
+    await expect((await areaNavigation(page, 'Plan')).locator('[aria-current="page"]')).toHaveText([
+      label,
+    ]);
   }
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Liquiditätsprognose');
   await page.screenshot({ path: info.outputPath('plan-prognose.png') });
   await page.goto('/konten/pruefen');
-  const row = page.getByRole('navigation', { name: 'Register von Konten' });
+  const row = await areaNavigation(page, 'Konten');
   await expect(row.getByRole('link')).toHaveText(['Übersicht', 'Buchungen', 'Prüfen', 'Kontakte']);
   for (const tab of await row.getByRole('link').all()) {
     const box = (await tab.boundingBox())!;
@@ -56,7 +74,11 @@ test('Plan and Konten registers fit without swiping and Plan stays active', asyn
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
-    expect((await new AxeBuilder({ page }).include('.registers').analyze()).violations).toEqual([]);
+    const navigation =
+      (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+        ? '.area-page-menu'
+        : '.registers';
+    expect((await new AxeBuilder({ page }).include(navigation).analyze()).violations).toEqual([]);
   }
 });
 
@@ -75,11 +97,9 @@ test('legacy forecast, inbox and panel links retain their search state', async (
     await page.goto(from!);
     await page.waitForURL((url) => url.pathname === to, { waitUntil: 'load' });
     await expect(
-      page
-        .getByRole('navigation', {
-          name: to === '/plan/prognose' ? 'Register von Plan' : 'Register von Konten',
-        })
-        .locator('[aria-current="page"]'),
+      (await areaNavigation(page, to === '/plan/prognose' ? 'Plan' : 'Konten')).locator(
+        '[aria-current="page"]',
+      ),
     ).toHaveText([to === '/plan/prognose' ? 'Prognose' : 'Prüfen']);
     expect(new URL(page.url()).searchParams).toEqual(
       new URL(from!, 'https://budget.invalid').searchParams,
@@ -114,7 +134,15 @@ test('other area register rows fit or expose their existing scroll fade', async 
       await expect(page.locator('.report-switcher > summary')).toBeVisible();
       continue;
     }
-    const overflows = await row.evaluate((el) => el.scrollWidth > el.clientWidth);
+    if (area === 'Vermögen' && (await wealthRedesign(page))) {
+      const menu = await portfolioNavigation(page);
+      await expect(menu.getByRole('link')).toHaveCount(5);
+      await page.keyboard.press('Escape');
+      continue;
+    }
+    const navigation = await areaNavigation(page, area!);
+    const overflows = await navigation.evaluate((el) => el.scrollWidth > el.clientWidth);
+
     if (overflows) {
       await expect(row).toHaveAttribute('data-fade-end', 'true');
       expect(await row.evaluate((el) => getComputedStyle(el).maskImage)).toContain(

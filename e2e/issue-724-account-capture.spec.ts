@@ -1,3 +1,4 @@
+import { redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext } from '@playwright/test';
 import { test as base } from './isolated-ledger';
@@ -93,7 +94,12 @@ for (const profile of ['configured', 'desktop1440'] as const) {
         }, other.id);
         await page.reload();
         await expect(
-          page.getByRole('heading', { level: 2, name: 'Giro Kontext 724', exact: true }),
+          page.getByRole('heading', {
+            level:
+              (await redesignLoaded(page)) && (page.viewportSize()?.width ?? 1440) < 768 ? 1 : 2,
+            name: 'Giro Kontext 724',
+            exact: true,
+          }),
         ).toBeVisible();
         if (entry === 'page')
           await page.getByRole('button', { name: 'Buchung erfassen', exact: true }).click();
@@ -114,6 +120,8 @@ for (const profile of ['configured', 'desktop1440'] as const) {
         await expect(account).toHaveValue(other.id);
         await account.selectOption(viewed.id);
         await dialog.getByLabel('Empfänger', { exact: true }).focus();
+        if (await redesignLoaded(page))
+          await dialog.getByLabel('Empfänger', { exact: true }).press('Escape');
         await dialog.getByLabel('Betrag', { exact: true }).click();
         await expect(account).toHaveValue(viewed.id);
         await dialog.getByRole('button', { name: 'Einnahme', exact: true }).click();

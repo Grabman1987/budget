@@ -1,6 +1,32 @@
 /* Plan › Sparziele. The parts list, bar, group rows and legend come from plan.css (same classes as
    Plan › Monat, scope `.plan`); this file only adds the columns of the goals table and the phone
    layout. No cards, no shadows. */
+.plan.goals.goals-v2 {
+  padding: 0 0 var(--space-xl);
+  gap: var(--space-lg);
+}
+.goals-v2 > .seg {
+  justify-self: start;
+}
+.goals-v2 > .seg button,
+.goals-v2 .goals-toolbar button,
+.goals-v2 .goal-name {
+  min-height: var(--touch);
+}
+.goals-v2 .goals-progress-report {
+  padding: 0;
+  min-width: 0;
+}
+.goals-v2 [data-goal-tone='warn'] .pmeta {
+  color: var(--warning);
+}
+.goals-v2 [data-goal-tone] .pmeta svg {
+  color: currentColor;
+}
+.goals-v2 [data-goal-tone='ok'] .pmeta,
+.goals-v2 [data-goal-tone='done'] .pmeta {
+  color: var(--primary);
+}
 
 .plan.goals .goals-toolbar {
   margin-bottom: -8px;

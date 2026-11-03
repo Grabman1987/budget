@@ -1,3 +1,4 @@
+import { overviewActions, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, reconcileAccount, schema } from '@budget/db';
 import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
@@ -184,9 +185,19 @@ async function scene(
   }, theme);
   const scope = page.locator('.account-overview-577');
   await expect(page.getByTestId('budget-accounts-balance')).toHaveText('120,00 €');
-  await expect(scope.getByRole('link', { name: '4 von 8 Konten geprüft' })).toBeVisible();
+  await expect(
+    scope.getByRole('link', {
+      name: (await redesignLoaded(page)) ? '4 von 8 geprüft' : '4 von 8 Konten geprüft',
+    }),
+  ).toBeVisible();
   await expect(scope.locator('[data-account-id]')).toHaveCount(8);
-  await expect(scope.getByText('Synthetic Closed', { exact: true })).toHaveCount(0);
+  await expect(
+    scope.locator('.overview-accounts').getByText('Synthetic Closed', { exact: true }),
+  ).toHaveCount(0);
+  // T7 retains closed-account history inside a collapsed disclosure in the ON build.
+  await expect(
+    scope.getByRole('link', { name: 'Synthetic Closed', exact: true }),
+  ).not.toBeVisible();
   await expect(scope.locator('.grp-title')).toHaveText([
     'Budget-Konten',
     'Kreditkarten',
@@ -221,7 +232,10 @@ async function scene(
     expect(initial.viewport).toEqual({ width: 1440, height: 900 });
     expect(initial.coarse).toBe(false);
     const checkColumnLeft = await scope
-      .getByRole('columnheader', { name: 'Prüfstand', exact: true })
+      .getByRole('columnheader', {
+        name: (await redesignLoaded(page)) ? 'Prüfung' : 'Prüfstand',
+        exact: true,
+      })
       .evaluate(
         (header) =>
           header.getBoundingClientRect().left + parseFloat(getComputedStyle(header).paddingLeft),
@@ -338,6 +352,7 @@ async function scene(
   await scope.getByRole('button', { name: 'Details zu Synthetic USD' }).click();
 
   // A real audited order write and its actual grouped Undo, never a mocked transport.
+  await overviewActions(page);
   await scope.getByRole('button', { name: 'Reihenfolge ändern', exact: true }).click();
   const order = () =>
     scope.locator('#kg-budget').locator('..').locator('[data-account-id] .kname').allTextContents();

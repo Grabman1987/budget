@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -94,7 +95,7 @@ test('Heute labels envelope reserve separately from a negative account balance',
     covered: false,
   });
 
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   const section = page.locator('section[aria-labelledby="heute-upcoming-title"]');
   await expect(section).toContainText('Testzahlung');
   const paymentRows = section.locator('.heute-upcoming');
