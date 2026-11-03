@@ -14,6 +14,7 @@ test('envelope details have a URL; browser back restores the scrolled list', asy
   await expect(trigger).toHaveAttribute('data-category-id', 'cat-notgroschen');
   await expect(trigger.locator('.category-name')).toHaveText(name);
   await expect(trigger).toHaveAccessibleName(name);
+  await page.evaluate(() => document.fonts.ready);
   await trigger.scrollIntoViewIfNeeded();
   await trigger.click();
   const history = page.getByRole('link', { name: 'Verlauf und Buchungen' });
@@ -62,7 +63,16 @@ test('envelope details have a URL; browser back restores the scrolled list', asy
 
 test('monthly income and legacy category links use detail pages', async ({ page }) => {
   await page.goto('/plan/monat?monat=2026-09');
-  await page.getByRole('button', { name: /Einnahmen im Detail/ }).click();
+  if (
+    page.viewportSize()!.width < 768 &&
+    (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+  ) {
+    await page.locator('.plan-tba').click();
+    await page
+      .getByRole('group', { name: 'Maßkette Zu verteilen', exact: true })
+      .getByRole('button', { name: /^Einnahmen/ })
+      .click();
+  } else await page.getByRole('button', { name: /Einnahmen im Detail/ }).click();
   await expect(page).toHaveURL(/\/plan\/monat\/einnahmen\?monat=2026-09$/);
   await expect(page.getByTestId('income-received')).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);

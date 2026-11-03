@@ -120,6 +120,7 @@ declare module '@tanstack/history' {
       collapsedKeys: string[];
       inspector: { id: string; month: string } | null;
       phoneSelection: boolean;
+      compactHead?: boolean;
     };
   }
 }
@@ -818,6 +819,7 @@ function PlanBody({
       coverControls={filter === 'overspent' ? null : coverControls}
       phone={phone}
       monthIncome={monthIncome}
+      compactOnRestore={REDESIGN_ENABLED && Boolean(restoredPlan?.compactHead)}
     />
   );
   return (
@@ -843,6 +845,12 @@ function PlanBody({
               collapsedKeys: [...collapsed],
               inspector: open,
               phoneSelection,
+              ...(REDESIGN_ENABLED && {
+                compactHead:
+                  event.currentTarget
+                    .querySelector('.plan-topbar-v2')
+                    ?.classList.contains('is-compact') ?? false,
+              }),
             },
           },
           '',
@@ -1331,6 +1339,7 @@ function PlanBody({
         visibleRows={shownRows}
         multi={multi && !open}
         focusSelection={!phoneSelection}
+        restoredSelection={REDESIGN_ENABLED && Boolean(restoredPlan || restored)}
         selected={(open
           ? panelRows.filter((r) => r.id === open.id)
           : orderedRows.filter((r) => selected.has(r.id))
@@ -1520,6 +1529,7 @@ function PlanTopBar({
   coverControls,
   phone,
   monthIncome,
+  compactOnRestore = false,
 }: {
   data: BudgetMonthView;
   month: string;
@@ -1530,17 +1540,21 @@ function PlanTopBar({
   coverControls: React.ReactNode;
   phone: boolean;
   monthIncome?: MonthIncome | undefined;
+  compactOnRestore?: boolean;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const head = useRef<HTMLElement>(null);
-  const [compact, setCompact] = useState(false);
+  const [compact, setCompact] = useState(compactOnRestore && phone);
+  const restoringCompact = useRef(compactOnRestore);
   useEffect(() => {
     const element = head.current;
     if (!REDESIGN_ENABLED || !phone || !element) return;
     const stickyTop = Number.parseFloat(getComputedStyle(element).top) || 0;
     const start = element.getBoundingClientRect().top + window.scrollY - stickyTop;
     const sync = () => setCompact(window.scrollY > start + 1);
-    sync();
+    // Keep the saved header height while the router restores scroll; collapsing afterward moves its anchor.
+    if (!restoringCompact.current) sync();
+    restoringCompact.current = false;
     window.addEventListener('scroll', sync, { passive: true });
     return () => window.removeEventListener('scroll', sync);
   }, [phone]);

@@ -1,3 +1,5 @@
+import { portfolioReportPath, expectWealthReportView } from './wealth-report-controls';
+import { redesignReportsOn } from './report-frame';
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { eur } from '../apps/web/src/ledger/format';
@@ -92,16 +94,20 @@ test('shared ranges, custom URL reload and optional trend', async ({ page }, inf
   await expect(page.getByLabel('Von', { exact: true })).toHaveValue('2026-03');
   await expect(page.getByLabel('Bis', { exact: true })).toHaveValue('2026-05');
   await page.keyboard.press('Escape'); // the popover floats over the head by design
-  await expect(page.getByRole('heading', { level: 1, name: 'Portfolio-Auswertung' })).toBeVisible();
+  const reportPath = await portfolioReportPath(page);
+  await expect(
+    page.getByRole('heading', {
+      level: 1,
+      name: (await redesignReportsOn(page)) ? 'Vermögensreport' : 'Portfolio-Auswertung',
+    }),
+  ).toBeVisible();
   await expect(page).toHaveURL(
     (url) =>
-      url.pathname === '/reports/pallocation' &&
+      url.pathname === reportPath &&
       url.searchParams.get('darstellung') === 'einzahlungen' &&
       url.searchParams.get('zeitraum') === '2026-03..2026-05',
   );
-  await expect(
-    page.getByRole('button', { name: 'Einzahlungen und Wert', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  await expectWealthReportView(page, 'Einzahlungen und Wert');
   await expect(page.getByRole('navigation', { name: 'Weitere Berichte' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Zeitraum wählen' })).toBeVisible();
   const headerFits = await page.locator('.titleblock, .redesign-report-head').evaluate((header) => {

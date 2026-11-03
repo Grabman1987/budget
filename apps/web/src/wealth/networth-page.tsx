@@ -2,6 +2,7 @@ import { useSearch } from '@tanstack/react-router';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { WealthOverview } from './redesign-overview';
 import { ChartValue } from '@budget/ui';
+import type { Period } from '@budget/domain';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp } from 'lucide-react';
@@ -34,8 +35,20 @@ export function NetWorthPage() {
   );
 }
 function NetWorthAnalysis() {
+  return (
+    <PageFrame meta={VERMOEGEN_NETTO_META}>
+      <NetWorthContent />
+    </PageFrame>
+  );
+}
+
+/** Retained source reader, chart, composition and financial chain for the report detail. */
+export function NetWorthContent({
+  fallbackPeriod = 'YTD',
+  inReport = false,
+}: { fallbackPeriod?: Period; inReport?: boolean } = {}) {
   useAmountPrivacy();
-  const [zeitraum] = useZeitraum();
+  const [zeitraum] = useZeitraum(fallbackPeriod);
   const query = useQuery(netWorthQuery(zeitraum));
   const view = query.data;
   const empty =
@@ -47,34 +60,28 @@ function NetWorthAnalysis() {
         view.chain.nowCents === 0);
 
   return (
-    <PageFrame meta={VERMOEGEN_NETTO_META}>
-      <div className="kview vview">
-        {query.isPending && <LoadingNote what="Vermögenswerte" />}
-        {query.isError && (
-          <ErrorNote
-            what="Vermögenswerte"
-            error={query.error}
-            onRetry={() => void query.refetch()}
-          />
-        )}
-        {empty && <EmptyNote>Noch keine Konten. Lege unter Konten ein Konto an.</EmptyNote>}
-        {view && !empty && (
-          <>
-            <ValuationHint incomplete={view.incomplete} />
-            <Course view={view} />
-            {view.assetComposition ? (
-              <AssetComposition point={view.assetComposition} />
-            ) : (
-              <Composition view={view} />
-            )}
-          </>
-        )}
-      </div>
-    </PageFrame>
+    <div className="kview vview">
+      {query.isPending && <LoadingNote what="Vermögenswerte" />}
+      {query.isError && (
+        <ErrorNote what="Vermögenswerte" error={query.error} onRetry={() => void query.refetch()} />
+      )}
+      {empty && <EmptyNote>Noch keine Konten. Lege unter Konten ein Konto an.</EmptyNote>}
+      {view && !empty && (
+        <>
+          <ValuationHint incomplete={view.incomplete} />
+          <Course view={view} showPeriod={!inReport} />
+          {view.assetComposition ? (
+            <AssetComposition point={view.assetComposition} />
+          ) : (
+            <Composition view={view} />
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
-function Course({ view }: { view: NetWorthView }) {
+function Course({ view, showPeriod = true }: { view: NetWorthView; showPeriod?: boolean }) {
   useAmountPrivacy();
   const { chain } = view;
   const [historyMode, setHistoryMode] = useState<'total' | 'composition'>('total');
@@ -98,7 +105,7 @@ function Course({ view }: { view: NetWorthView }) {
         {whole}
         <span className="cents">,{fraction} €</span>
       </div>
-      <ZeitraumSwitch />
+      {showPeriod && <ZeitraumSwitch />}
       {view.assetCompositionHistory && (
         <div className="composition-switch" role="group" aria-label="Verlauf anzeigen">
           <button

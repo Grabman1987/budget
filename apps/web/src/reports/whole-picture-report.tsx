@@ -77,6 +77,16 @@ export function WholePictureVerdict({ row, estimated = false }: { row: Row; esti
   return <VerdictLine facts={facts} testId="whole-verdict" />;
 }
 
+export const wholePictureQuery = (period: Period) =>
+  queryOptions({
+    queryKey: [...LEDGER_KEY, 'whole-picture', period],
+    // Stepping through periods reads each one again (the page is a period navigator).
+    staleTime: 0,
+    retry: false,
+    queryFn: () =>
+      request<Data>('GET', `/api/overview/whole-picture?period=${encodeURIComponent(period)}`),
+  });
+
 export function WholePictureReport({
   report,
   meta,
@@ -88,16 +98,7 @@ export function WholePictureReport({
 }) {
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum('1J');
-  const query = useQuery(
-    queryOptions({
-      queryKey: [...LEDGER_KEY, 'whole-picture', period],
-      // Stepping through periods reads each one again (the page is a period navigator).
-      staleTime: 0,
-      retry: false,
-      queryFn: () =>
-        request<Data>('GET', `/api/overview/whole-picture?period=${encodeURIComponent(period)}`),
-    }),
-  );
+  const query = useQuery(wholePictureQuery(period));
   const data = query.isSuccess ? query.data : undefined;
   const selectionPeriod =
     period === '1J' ? quickReportPeriod('12', data?.today ?? todayInVienna()) : period;
@@ -138,6 +139,26 @@ export function WholePictureReport({
   return (
     <PageFrame
       verdict={verdict}
+      sourceDate={data?.asOf}
+      calculation={
+        data?.rows.length && !query.isFetching && !query.isError
+          ? {
+              label: 'Nettovermögen vom Anfang zum Ende',
+              terms: [
+                { label: 'Anfang', value: cents(data.totals.startCents) },
+                { op: '+', label: 'Einnahmen', value: cents(data.totals.incomeCents) },
+                {
+                  op: '-',
+                  label: 'Ausgaben',
+                  value: cents(data.totals.needCents + data.totals.wantCents),
+                },
+                { op: '+', label: 'Markt', value: cents(data.totals.marketCents), signed: true },
+                { op: '+', label: 'Sonstiges', value: cents(data.totals.otherCents), signed: true },
+              ],
+              result: { label: 'Nettovermögen Ende', unit: 'money', value: data.totals.endCents },
+            }
+          : undefined
+      }
       verdictTestId="whole-verdict"
       meta={meta}
       title={report.name}

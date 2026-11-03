@@ -1,9 +1,11 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { BenchmarkChoices } from './portfolio-benchmark-settings';
 import { Term } from '../reports/term';
-import { useAmountPrivacy, ChartValues } from '@budget/ui';
+import { useAmountPrivacy, ChartValues, Segmented } from '@budget/ui';
 import type { PortfolioPerformanceHistory, PortfolioSummary } from '@budget/db';
 import { heatForCell, type BenchmarkGap } from '@budget/domain';
-import type { CSSProperties, ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
+import { PortfolioValueHistory } from '../charts/portfolio-value-history';
 import { eur, shortDay } from '../ledger/format';
 import { percentText, ppText } from './portfolio-report-shared';
 import { PerformanceChart, performanceDecimal as decimal } from './performance-chart';
@@ -19,68 +21,94 @@ const gapText = (gap: BenchmarkGap | null) =>
         : '';
 const MONTHS = ['Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
-export function PerformanceComparisons({ summary }: { summary: PortfolioSummary }) {
+export function PerformanceComparisons({
+  summary,
+  presentation = 'all',
+}: {
+  summary: PortfolioSummary;
+  presentation?: 'all' | 'kennzahlen' | 'klassen';
+}) {
   useAmountPrivacy();
+  const [mode, setMode] = useState<'index' | 'value'>('index');
   const history = summary.performanceHistory;
   if (!history) return null;
   const perf = summary.performance;
   const groups = groupPerformanceClasses(history.classes);
   const heatMax = Math.max(1e-9, ...history.months.map((m) => Math.abs(m.rate ?? 0)));
-  return (
-    <>
-      <section aria-labelledby="performance-benchmark-title">
-        <div className="tbd-head">
-          <h2 id="performance-benchmark-title">
-            Portfolio und <Term>Benchmark</Term>
-          </h2>
-        </div>
-        <BenchmarkChoices />
-        <dl className="performance-metrics">
-          {summary.benchmarks.map((b) => (
-            <div key={b.id} className="performance-metric">
-              <dt>{b.name}</dt>
-              <dd data-testid="benchmark-return">{rateText(b.benchmarkReturn)}</dd>
-              <dt>
-                Differenz <Term>TTWROR</Term> · <Term>Beta</Term>
-              </dt>
-              <dd>
-                {ppText(
-                  b.benchmarkReturn === null || !perf || perf.ttwror === null
-                    ? null
-                    : perf.ttwror - b.benchmarkReturn,
-                )}{' '}
-                · {decimal(b.beta)}
-              </dd>
-            </div>
-          ))}
-          <div className="performance-metric">
+  const benchmark = (
+    <section aria-labelledby="performance-benchmark-title">
+      <div className="tbd-head">
+        <h2 id="performance-benchmark-title">
+          Portfolio und <Term>Benchmark</Term>
+        </h2>
+        {REDESIGN_ENABLED && presentation === 'all' && (
+          <Segmented
+            label="Portfolioverlauf anzeigen"
+            options={[
+              { value: 'value', label: 'Wert €' },
+              { value: 'index', label: 'Rendite · Index 100' },
+            ]}
+            value={mode}
+            onChange={setMode}
+          />
+        )}
+      </div>
+      <BenchmarkChoices />
+      <dl className="performance-metrics">
+        {summary.benchmarks.map((b) => (
+          <div key={b.id} className="performance-metric">
+            <dt>{b.name}</dt>
+            <dd data-testid="benchmark-return">{rateText(b.benchmarkReturn)}</dd>
             <dt>
-              <Term>Volatilität</Term> p. a.
-            </dt>
-            <dd>{percentText(perf?.volatility)}</dd>
-          </div>
-          <div className="performance-metric">
-            <dt>
-              <Term>Max. Rückgang</Term>
-            </dt>
-            <dd>{rateText(perf?.maxDrawdown)}</dd>
-          </div>
-          <div className="performance-metric">
-            <dt>
-              <Term>Sharpe</Term> · sicherer Zins 2,5 %
+              Differenz <Term>TTWROR</Term> · <Term>Beta</Term>
             </dt>
             <dd>
-              {perf && perf.volatility !== null && perf.volatility >= 0.005
-                ? decimal(perf.sharpe)
-                : '–'}
+              {ppText(
+                b.benchmarkReturn === null || !perf || perf.ttwror === null
+                  ? null
+                  : perf.ttwror - b.benchmarkReturn,
+              )}{' '}
+              · {decimal(b.beta)}
             </dd>
           </div>
-        </dl>
-        {summary.benchmarks.some((b) => b.benchmarkReturn === null) && (
-          <p role="status" className="vnote">
-            Kurslücken: Die betroffene Benchmark-Rendite und Beta sind nicht verfügbar.
+        ))}
+        <div className="performance-metric">
+          <dt>
+            <Term>Volatilität</Term> p. a.
+          </dt>
+          <dd>{percentText(perf?.volatility)}</dd>
+        </div>
+        <div className="performance-metric">
+          <dt>
+            <Term>Max. Rückgang</Term>
+          </dt>
+          <dd>{rateText(perf?.maxDrawdown)}</dd>
+        </div>
+        <div className="performance-metric">
+          <dt>
+            <Term>Sharpe</Term> · sicherer Zins 2,5 %
+          </dt>
+          <dd>
+            {perf && perf.volatility !== null && perf.volatility >= 0.005
+              ? decimal(perf.sharpe)
+              : '–'}
+          </dd>
+        </div>
+      </dl>
+      {summary.benchmarks.some((b) => b.benchmarkReturn === null) && (
+        <p role="status" className="vnote">
+          Kurslücken: Die betroffene Benchmark-Rendite und Beta sind nicht verfügbar.
+        </p>
+      )}
+      {REDESIGN_ENABLED && presentation === 'all' && mode === 'value' ? (
+        <>
+          <p className="vnote">
+            Wertpapiere ohne Depotkassa · tägliche EUR-Bewertung einschließlich Ein- und
+            Auszahlungen. Benchmarks bleiben Kursindizes; sie sind keine EUR-Portfoliowerte.
           </p>
-        )}
+          <PortfolioValueHistory rows={history.dailyValues} />
+        </>
+      ) : (
         <PerformanceChart
           label="Portfolio und Benchmark, indexiert auf 100"
           rows={history.index}
@@ -93,194 +121,208 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
             })),
           ]}
         />
-        <details>
-          <summary>Verlauf als Tabelle</summary>
-          <Scroll label="Indexwerte">
-            <table className="prep-table">
-              <caption>Indexwerte · Start = 100</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Datum</th>
-                  <th scope="col">Portfolio</th>
+      )}
+      <details>
+        <summary>Verlauf als Tabelle</summary>
+        <Scroll label="Indexwerte">
+          <table className="prep-table">
+            <caption>Indexwerte · Start = 100</caption>
+            <thead>
+              <tr>
+                <th scope="col">Datum</th>
+                <th scope="col">Portfolio</th>
+                {summary.benchmarks.map((b) => (
+                  <th scope="col" key={b.id}>
+                    {b.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {history.index.map((p, i) => (
+                <tr key={p.date}>
+                  <th scope="row">{shortDay(p.date)}</th>
+                  <td>{decimal(p.portfolio)}</td>
                   {summary.benchmarks.map((b) => (
-                    <th scope="col" key={b.id}>
-                      {b.name}
-                    </th>
+                    <td key={b.id}>{decimal(b.index[i]?.benchmark)}</td>
                   ))}
                 </tr>
-              </thead>
-              <tbody>
-                {history.index.map((p, i) => (
-                  <tr key={p.date}>
-                    <th scope="row">{shortDay(p.date)}</th>
-                    <td>{decimal(p.portfolio)}</td>
-                    {summary.benchmarks.map((b) => (
-                      <td key={b.id}>{decimal(b.index[i]?.benchmark)}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Scroll>
-        </details>
-        <p className="vnote">
-          Gleicher Zeitraum, Start = 100. EUR-Schlusskurse von Index-ETF, ohne zusätzliche
-          Ausschüttungen. Am Wochenende zählt der gespeicherte Freitagskurs; Kurslücken bleiben
-          sichtbar.
-        </p>
-      </section>
-      <section aria-labelledby="performance-classes-title">
-        <div className="tbd-head">
-          <h2 id="performance-classes-title">Anlageklassen nebeneinander</h2>
-        </div>
-        <PerformanceChart
-          label="Anlageklassen indexiert auf 100"
-          rows={history.index}
-          lines={history.classes.map((c) => ({
-            name: c.name,
-            values: c.index.map((p) => p.portfolio),
-          }))}
+              ))}
+            </tbody>
+          </table>
+        </Scroll>
+      </details>
+      <p className="vnote">
+        Gleicher Zeitraum, Start = 100. EUR-Schlusskurse von Index-ETF, ohne zusätzliche
+        Ausschüttungen. Am Wochenende zählt der gespeicherte Freitagskurs; Kurslücken bleiben
+        sichtbar.
+      </p>
+    </section>
+  );
+  const classes = (
+    <section aria-labelledby="performance-classes-title">
+      <div className="tbd-head">
+        <h2 id="performance-classes-title">Anlageklassen nebeneinander</h2>
+      </div>
+      <PerformanceChart
+        label="Anlageklassen indexiert auf 100"
+        rows={history.index}
+        lines={history.classes.map((c) => ({
+          name: c.name,
+          values: c.index.map((p) => p.portfolio),
+        }))}
+      />
+      <h3>Aktuell gehaltene Anlageklassen</h3>
+      <p className="vnote">
+        Bestand am {shortDay(summary.asOf)}; Kennzahlen im gewählten Zeitraum.
+      </p>
+      {groups.current.length > 0 ? (
+        <ClassMetrics
+          classes={groups.current}
+          benchmarks={summary.benchmarks}
+          caption="Aktuell gehaltene Klassen · Kennzahlen im gewählten Zeitraum"
         />
-        <h3>Aktuell gehaltene Anlageklassen</h3>
-        <p className="vnote">
-          Bestand am {shortDay(summary.asOf)}; Kennzahlen im gewählten Zeitraum.
-        </p>
-        {groups.current.length > 0 ? (
+      ) : (
+        <p className="vnote">Keine aktuell gehaltenen Anlageklassen.</p>
+      )}
+      {groups.historical.length > 0 && (
+        <details>
+          <summary>Historische und leere Anlageklassen ({groups.historical.length})</summary>
+          <p className="vnote">
+            Am angegebenen Bestandsdatum ohne Bestand: verkaufte, früher zugeordnete oder noch
+            ungenutzte Klassen. Historische Werte bleiben erhalten.
+          </p>
           <ClassMetrics
-            classes={groups.current}
+            classes={groups.historical}
             benchmarks={summary.benchmarks}
-            caption="Aktuell gehaltene Klassen · Kennzahlen im gewählten Zeitraum"
+            caption="Historische und leere Klassen · Kennzahlen im gewählten Zeitraum"
           />
-        ) : (
-          <p className="vnote">Keine aktuell gehaltenen Anlageklassen.</p>
+        </details>
+      )}
+      <p className="vnote">
+        Zuordnung jeweils am Bewertungsdatum aus Einstellungen › Anlageklassen, einschließlich
+        verkaufter Positionen. „Wert am Ende“ bezieht sich auf den gewählten Zeitraum, nicht auf den
+        heutigen Bestand. Ohne eingesetztes Kapital bleibt die Rendite nicht verfügbar. Sharpe unter
+        0,5 % Volatilität wird ausgelassen.
+      </p>
+    </section>
+  );
+  const heatmap = (
+    <section aria-labelledby="performance-heatmap-title">
+      <div className="tbd-head">
+        <h2 id="performance-heatmap-title">Monatsrenditen, Monat × Jahr</h2>
+      </div>
+      <ChartValues
+        label="Monatsrenditen"
+        points={history.years.flatMap((year) =>
+          MONTHS.map((_, i) => {
+            const month = `${year.year}-${String(i + 1).padStart(2, '0')}`;
+            const cell = history.months.find((m) => m.month === month);
+            return {
+              x: 50,
+              date: month,
+              series: [
+                {
+                  name: 'Portfolio',
+                  value: percentText(cell?.rate, { digits: 2 }),
+                  color: (cell?.rate ?? 0) < 0 ? 'var(--red)' : 'var(--line)',
+                },
+              ],
+            };
+          }),
         )}
-        {groups.historical.length > 0 && (
-          <details>
-            <summary>Historische und leere Anlageklassen ({groups.historical.length})</summary>
-            <p className="vnote">
-              Am angegebenen Bestandsdatum ohne Bestand: verkaufte, früher zugeordnete oder noch
-              ungenutzte Klassen. Historische Werte bleiben erhalten.
-            </p>
-            <ClassMetrics
-              classes={groups.historical}
-              benchmarks={summary.benchmarks}
-              caption="Historische und leere Klassen · Kennzahlen im gewählten Zeitraum"
-            />
-          </details>
-        )}
-        <p className="vnote">
-          Zuordnung jeweils am Bewertungsdatum aus Einstellungen › Anlageklassen, einschließlich
-          verkaufter Positionen. „Wert am Ende“ bezieht sich auf den gewählten Zeitraum, nicht auf
-          den heutigen Bestand. Ohne eingesetztes Kapital bleibt die Rendite nicht verfügbar. Sharpe
-          unter 0,5 % Volatilität wird ausgelassen.
-        </p>
-      </section>
-      <section aria-labelledby="performance-heatmap-title">
-        <div className="tbd-head">
-          <h2 id="performance-heatmap-title">Monatsrenditen, Monat × Jahr</h2>
-        </div>
-        <ChartValues
-          label="Monatsrenditen"
-          points={history.years.flatMap((year) =>
-            MONTHS.map((_, i) => {
-              const month = `${year.year}-${String(i + 1).padStart(2, '0')}`;
-              const cell = history.months.find((m) => m.month === month);
-              return {
-                x: 50,
-                date: month,
-                series: [
-                  {
-                    name: 'Portfolio',
-                    value: percentText(cell?.rate, { digits: 2 }),
-                    color: (cell?.rate ?? 0) < 0 ? 'var(--red)' : 'var(--line)',
-                  },
-                ],
-              };
-            }),
-          )}
-        >
-          <Scroll label="Monatsrenditen">
-            <table className="prep-table performance-heatmap">
-              <caption>Portfolio-TTWROR in Prozent · * Teilmonat oder Teiljahr</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Jahr</th>
-                  {MONTHS.map((m) => (
-                    <th scope="col" key={m}>
-                      {m}
-                    </th>
-                  ))}
-                  <th scope="col">Jahr</th>
+      >
+        <Scroll label="Monatsrenditen">
+          <table className="prep-table performance-heatmap">
+            <caption>Portfolio-TTWROR in Prozent · * Teilmonat oder Teiljahr</caption>
+            <thead>
+              <tr>
+                <th scope="col">Jahr</th>
+                {MONTHS.map((m) => (
+                  <th scope="col" key={m}>
+                    {m}
+                  </th>
+                ))}
+                <th scope="col">Jahr</th>
+                {summary.benchmarks.map((b) => (
+                  <th scope="col" key={b.id}>
+                    {b.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {history.years.map((year, yearIndex) => (
+                <tr key={year.year}>
+                  <th scope="row">{year.year}</th>
+                  {MONTHS.map((_, i) => {
+                    const month = `${year.year}-${String(i + 1).padStart(2, '0')}`;
+                    const cell = history.months.find((m) => m.month === month);
+                    const heat = heatForCell(cell?.rate ?? null, { mean: 0, dev: heatMax }, 'high');
+                    return (
+                      <td
+                        key={month}
+                        data-chart-point={yearIndex * 12 + i}
+                        style={heat ? ({ '--h': heat.strength } as CSSProperties) : undefined}
+                        className={
+                          heat
+                            ? `n ${heat.tone === 'good' ? 'return-positive' : 'return-negative'}`
+                            : 'n'
+                        }
+                        title={
+                          cell
+                            ? `${shortDay(cell.from)} bis ${shortDay(cell.to)}`
+                            : 'Außerhalb des Zeitraums'
+                        }
+                      >
+                        {cell
+                          ? cell.rate === null
+                            ? 'Nicht verfügbar'
+                            : `${rateText(cell.rate)}${cell.partial ? ' *' : ''}`
+                          : '–'}
+                      </td>
+                    );
+                  })}
+                  <td className="n">
+                    <strong>
+                      {rateText(year.rate)}
+                      {year.partial ? ' *' : ''}
+                    </strong>
+                  </td>
                   {summary.benchmarks.map((b) => (
-                    <th scope="col" key={b.id}>
-                      {b.name}
-                    </th>
+                    <td className="n" key={b.id}>
+                      {rateText(b.years.find((y) => y.year === year.year)?.benchmarkRate)}
+                    </td>
                   ))}
                 </tr>
-              </thead>
-              <tbody>
-                {history.years.map((year, yearIndex) => (
-                  <tr key={year.year}>
-                    <th scope="row">{year.year}</th>
-                    {MONTHS.map((_, i) => {
-                      const month = `${year.year}-${String(i + 1).padStart(2, '0')}`;
-                      const cell = history.months.find((m) => m.month === month);
-                      const heat = heatForCell(
-                        cell?.rate ?? null,
-                        { mean: 0, dev: heatMax },
-                        'high',
-                      );
-                      return (
-                        <td
-                          key={month}
-                          data-chart-point={yearIndex * 12 + i}
-                          style={heat ? ({ '--h': heat.strength } as CSSProperties) : undefined}
-                          className={
-                            heat
-                              ? `n ${heat.tone === 'good' ? 'return-positive' : 'return-negative'}`
-                              : 'n'
-                          }
-                          title={
-                            cell
-                              ? `${shortDay(cell.from)} bis ${shortDay(cell.to)}`
-                              : 'Außerhalb des Zeitraums'
-                          }
-                        >
-                          {cell
-                            ? cell.rate === null
-                              ? 'Nicht verfügbar'
-                              : `${rateText(cell.rate)}${cell.partial ? ' *' : ''}`
-                            : '–'}
-                        </td>
-                      );
-                    })}
-                    <td className="n">
-                      <strong>
-                        {rateText(year.rate)}
-                        {year.partial ? ' *' : ''}
-                      </strong>
-                    </td>
-                    {summary.benchmarks.map((b) => (
-                      <td className="n" key={b.id}>
-                        {rateText(b.years.find((y) => y.year === year.year)?.benchmarkRate)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Scroll>
-        </ChartValues>
-        <p className="vnote">
-          Grün mit + = Gewinn, Rot mit − = Verlust. Jahreswerte verketten die angezeigten
-          Monatsrenditen. „–“ = außerhalb des Zeitraums; „Nicht verfügbar“ = ohne bewertbares
-          Kapital. * kennzeichnet den tatsächlichen Teilzeitraum.
-        </p>
-        <details>
-          <summary>Monatsrenditen als einfache Tabelle</summary>
-          <MonthlyTable history={history} benchmarks={summary.benchmarks} />
+              ))}
+            </tbody>
+          </table>
+        </Scroll>
+      </ChartValues>
+      <p className="vnote">
+        {REDESIGN_ENABLED ? 'Blau' : 'Grün'} mit + = Gewinn, Rot mit − = Verlust. Jahreswerte
+        verketten die angezeigten Monatsrenditen. „–“ = außerhalb des Zeitraums; „Nicht verfügbar“ =
+        ohne bewertbares Kapital. * kennzeichnet den tatsächlichen Teilzeitraum.
+      </p>
+      <details>
+        <summary>Monatsrenditen als einfache Tabelle</summary>
+        <MonthlyTable history={history} benchmarks={summary.benchmarks} />
+      </details>
+    </section>
+  );
+  return (
+    <>
+      {presentation === 'kennzahlen' ? (
+        <details className="performance-benchmark-detail">
+          <summary>Benchmarks, Risiko und Indexverlauf</summary>
+          {benchmark}
         </details>
-      </section>
+      ) : presentation === 'all' ? (
+        benchmark
+      ) : null}
+      {presentation !== 'kennzahlen' && classes}
+      {presentation !== 'klassen' && heatmap}
     </>
   );
 }

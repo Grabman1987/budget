@@ -71,7 +71,9 @@ test('five portfolio registers preserve period across navigation and reload', as
     await expect(nav.getByRole('link')).toHaveCount(5);
     await selectPortfolioView(page, label);
     nav = await portfolioNavigation(page);
-    expect(new URL(page.url()).pathname).toBe(path);
+    expect(new URL(page.url()).pathname).toBe(
+      (await wealthRedesign(page)) && label === 'Kennzahlen' ? '/reports/vermoegen-schulden' : path,
+    );
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('3J');
     await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute(
       'aria-current',

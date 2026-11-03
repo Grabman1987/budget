@@ -1,3 +1,9 @@
+import { useId } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
+import { Select } from '@budget/ui';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { PortfolioRecordedCostHistory } from '../reports/portfolio-recorded-cost-history';
+import { PortfolioIncomeDepth } from '../reports/portfolio-income-depth';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { cents } from '@budget/domain';
 import type { CostsTaxesReport } from '@budget/db';
@@ -20,6 +26,7 @@ import {
   percentText,
 } from './portfolio-report-shared';
 import './portfolio-costs-report.css';
+import '../reports/wealth-portfolio-redesign.css';
 import { BookRuleMetric } from '../rules/book-rule-metric';
 
 interface CostsResponse extends WithValuationNotes {
@@ -36,8 +43,88 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
   useAmountPrivacy();
   const query = useQuery(costsQuery);
   const data = query.data?.costs;
+  const viewId = useId();
+  const search = useSearch({ strict: false }) as { darstellung?: string };
+  const navigate = useNavigate();
+  const view =
+    REDESIGN_ENABLED && ['ertraege', 'kostenverlauf'].includes(search.darstellung ?? '')
+      ? search.darstellung
+      : 'gebuehren';
   return (
     <PageFrame
+      sourceDate={data?.to}
+      calculation={
+        data && !query.isFetching && !query.isError
+          ? {
+              label:
+                view === 'kostenverlauf'
+                  ? 'Gebuchte Gebühren und TER-Anteil · 12 Monate'
+                  : view === 'ertraege'
+                    ? 'Erhaltene Kapitalerträge brutto in EUR'
+                    : 'Erträge abzüglich Kosten und Steuern',
+              terms:
+                view === 'kostenverlauf'
+                  ? [
+                      { label: 'Gebuchte Gebühren', value: cents(data.costs.fees.totalCents) },
+                      { op: '+', label: 'TER-Anteil', value: cents(data.costs.terCents) },
+                    ]
+                  : view === 'ertraege'
+                    ? [
+                        { label: 'Dividenden', value: cents(data.income.dividend.grossCents) },
+                        { op: '+', label: 'Zinsen', value: cents(data.income.interest.grossCents) },
+                      ]
+                    : [
+                        { label: 'Erträge brutto', value: cents(data.net.grossCents) },
+                        {
+                          op: '-',
+                          label: 'Steuern auf Erträge',
+                          value: cents(data.net.taxOnIncomeCents),
+                        },
+                        { op: '-', label: 'Gebühren und TER', value: cents(data.net.costsCents) },
+                      ],
+              result: {
+                label:
+                  view === 'kostenverlauf'
+                    ? 'Kosten · 12 Monate'
+                    : view === 'ertraege'
+                      ? 'Erhaltene Erträge brutto · EUR'
+                      : 'Nettoertrag',
+                unit: 'money',
+                value:
+                  view === 'kostenverlauf'
+                    ? data.costs.totalCents
+                    : view === 'ertraege'
+                      ? data.income.grossCents
+                      : data.net.netCents,
+              },
+            }
+          : undefined
+      }
+      reportControls={
+        REDESIGN_ENABLED ? (
+          <label className="wealth-report-view-select" htmlFor={viewId}>
+            <span>Darstellung</span>
+            <Select
+              id={viewId}
+              aria-label="Darstellung von Kosten, Steuern und Erträgen"
+              value={view}
+              onChange={(event) =>
+                void navigate({
+                  to: '.',
+                  search: ((previous: Record<string, unknown>) => ({
+                    ...previous,
+                    darstellung: event.target.value,
+                  })) as never,
+                })
+              }
+            >
+              <option value="gebuehren">Gebühren und Steuern</option>
+              <option value="ertraege">Erträge</option>
+              <option value="kostenverlauf">Kosten im Verlauf</option>
+            </Select>
+          </label>
+        ) : undefined
+      }
       verdict={
         data && !query.isFetching && !query.isError
           ? {
@@ -74,7 +161,15 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
             onRetry={() => void query.refetch()}
           />
         )}
-        {data && !query.isError && <CostsBody data={data} />}
+        {data &&
+          !query.isError &&
+          (view === 'kostenverlauf' ? (
+            <PortfolioRecordedCostHistory from={data.from} to={data.to} />
+          ) : view === 'ertraege' ? (
+            <PortfolioIncomeDepth from={data.from} to={data.to} />
+          ) : (
+            <CostsBody data={data} />
+          ))}
       </div>
     </PageFrame>
   );

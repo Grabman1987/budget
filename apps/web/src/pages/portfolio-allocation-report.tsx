@@ -1,3 +1,4 @@
+import { cents } from '@budget/domain';
 import { chartPoints, chartPercent } from '../charts/tooltip-data';
 import { Fragment, type ReactNode } from 'react';
 import { useAmountPrivacy, ChartSvg, Graticule, LineLegend, type GraticuleLine } from '@budget/ui';
@@ -22,6 +23,7 @@ import {
   percentText,
 } from './portfolio-report-shared';
 import './portfolio-allocation-report.css';
+import '../reports/wealth-portfolio-redesign.css';
 import { BookRuleMetric } from '../rules/book-rule-metric';
 import { AppLink } from '../shell/app-link';
 
@@ -53,6 +55,24 @@ export function PortfolioAllocationReport({
   const data = query.data?.allocation;
   return (
     <PageFrame
+      sourceDate={data?.asOf}
+      calculation={
+        data && !query.isFetching && !query.isError
+          ? {
+              label: 'Positive klassifizierte Anlagewerte',
+              terms: data.compositionGroups.map((group, index) => ({
+                ...(index ? { op: '+' as const } : {}),
+                label: group.name,
+                value: cents(group.valueCents),
+              })),
+              result: {
+                label: 'Klassifizierter Anlagewert · positive Positionen',
+                unit: 'money',
+                value: data.classifiedCents,
+              },
+            }
+          : undefined
+      }
       verdict={
         data && !query.isFetching && !query.isError
           ? {

@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import { expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import {
@@ -99,7 +100,7 @@ test('Budgettreue shows observed forecasts, sorted category misses and booking d
   });
   await page.getByRole('link', { name: 'Synthetic food' }).click();
   await expect(page).toHaveURL(/\/konten\/buchungen.*kategorie=accuracy-food/);
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   const more = page.getByRole('button', { name: 'Mehr zum Monat' });
   if ((await more.getAttribute('aria-expanded')) === 'false') await more.click();
   await expect(

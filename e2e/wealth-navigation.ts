@@ -56,6 +56,8 @@ export async function showDebtHistory(page: Page) {
 
 export async function wealthAreaNavigation(page: Page) {
   if (await wealthRedesign(page)) {
+    if (await page.locator('.wealth-source-analysis').count())
+      return page.getByRole('navigation', { name: 'Ansichten von Vermögen', exact: true });
     const menu = page.locator('main .area-page-menu').first();
     if ((await menu.getAttribute('open')) === null) await menu.locator('summary').click();
     return menu.getByRole('navigation', { name: 'Ansichten von Vermögen', exact: true });

@@ -22,10 +22,18 @@ test('attention links and the unclassified row are usable at both viewport sizes
   await expect(
     page.getByRole('group', { name: 'Ansicht', exact: true }).locator('[aria-pressed="true"]'),
   ).toHaveCount(0);
-  await page.locator('.plan-menu summary', { hasText: 'Optionen' }).click();
-  await expect(
-    page.locator('.plan-topbar summary').filter({ hasText: 'ohne Kategorie' }),
-  ).toBeVisible();
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+    const details = page.getByRole('group', { name: 'Monatsdetails', exact: true });
+    await expect(details).toContainText(/\d+ vorgemerkt \/ ohne Kategorie/);
+    await expect(
+      details.getByRole('link', { name: 'Ohne Kategorie öffnen', exact: true }),
+    ).toBeVisible();
+  } else {
+    await page.locator('.plan-menu summary', { hasText: 'Optionen' }).click();
+    await expect(
+      page.locator('.plan-topbar summary').filter({ hasText: 'ohne Kategorie' }),
+    ).toBeVisible();
+  }
   await page.screenshot({ path: info.outputPath('plan-unclassified.png') });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(

@@ -1,7 +1,21 @@
+import { paymentView, openPaymentManagement, redesignEnabled } from './plan-redesign-controls';
 import { openHeuteReview } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test, SAMPLE_URL } from './sample';
 import type { Page } from '@playwright/test';
+
+async function expectExpectedList(page: Page, kind: 'inflow' | 'outflow') {
+  if (await redesignEnabled(page))
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === '/plan/erwartet' &&
+        url.searchParams.get('monat') === '2026-08' &&
+        url.searchParams.get('ansicht') === 'all' &&
+        url.searchParams.get('art') === kind &&
+        url.searchParams.get('tage') === '35',
+    );
+  else await expect(page).toHaveURL(/\/plan\/erwartet\?monat=2026-08$/);
+}
 
 async function pageChecks(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
@@ -30,7 +44,8 @@ test('Today dimension links retain month and period, account links, and full-wid
   const secondary = await page.getByRole('region', { name: 'Zu tun', exact: true }).boundingBox();
   const main = await page.locator('.heute').boundingBox();
   const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-  if (on) expect(secondary && main && secondary.width < main.width).toBe(true);
+  if (on && page.viewportSize()!.width >= 1180)
+    expect(secondary && main && secondary.width < main.width).toBe(true);
   else expect(secondary && main && Math.abs(secondary.width - main.width) < 2).toBe(true);
   const trigger = page
     .getByRole('group', { name: 'Maßkette Nettovermögen' })
@@ -73,8 +88,12 @@ test('Expected income reuses the income body and restores list filters through e
   page,
 }, info) => {
   await page.goto('/plan/erwartet?monat=2026-08');
-  await page.getByRole('button', { name: 'Alle', exact: true }).first().click();
-  await page.getByRole('button', { name: 'Einnahmen', exact: true }).click();
+  await paymentView(page, 'all');
+  if (await redesignEnabled(page))
+    await page.getByRole('combobox', { name: 'Einnahmen oder Ausgaben' }).selectOption('inflow');
+  else await page.getByRole('button', { name: 'Einnahmen', exact: true }).click();
+  if (await redesignEnabled(page))
+    await page.locator('.payments-reference-source > summary').click();
   await page.getByRole('button', { name: /Einnahmen im Detail/ }).click();
   await expect(page).toHaveURL(/\/plan\/erwartet\/einnahmen\?monat=2026-08&ansicht=all&art=inflow/);
   const url = page.url();
@@ -83,18 +102,28 @@ test('Expected income reuses the income body and restores list filters through e
   await pageChecks(page);
   await page.screenshot({ path: info.outputPath('expected-income-light.png'), fullPage: true });
   await page.goBack();
-  await expect(page.getByRole('button', { name: 'Einnahmen', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  if (await redesignEnabled(page))
+    await expect(page.getByRole('combobox', { name: 'Einnahmen oder Ausgaben' })).toHaveValue(
+      'inflow',
+    );
+  else
+    await expect(page.getByRole('button', { name: 'Einnahmen', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   await expect(page.locator('.xp-contracts')).toBeVisible();
   await page.goto(url);
   await page.getByRole('link', { name: 'Zurück zu Erwartet' }).click();
-  await expect(page).toHaveURL(/\/plan\/erwartet\?monat=2026-08$/);
-  await expect(page.getByRole('button', { name: 'Einnahmen', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expectExpectedList(page, 'inflow');
+  if (await redesignEnabled(page))
+    await expect(page.getByRole('combobox', { name: 'Einnahmen oder Ausgaben' })).toHaveValue(
+      'inflow',
+    );
+  else
+    await expect(page.getByRole('button', { name: 'Einnahmen', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   await expect(page.locator('.xp-contracts')).toBeVisible();
   const create = page.getByRole('button', { name: 'Wiederkehrende Zahlung', exact: true });
   await create.click();
@@ -136,6 +165,7 @@ test('payment details preserve single-occurrence skip, restore, undo and form ca
   });
   expect(refresh.ok()).toBe(true);
   await page.goto(`/plan/erwartet/${payment.id}?monat=2026-08&ansicht=all&art=outflow`);
+  await openPaymentManagement(page);
   const detail = page.locator('.xp-detail-body');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(detail.locator('input, select')).toHaveCount(0);
@@ -166,29 +196,44 @@ test('payment details preserve single-occurrence skip, restore, undo and form ca
     .click();
   await expect(page.locator('#payment-title')).toHaveText(name);
   await page.reload();
+  await openPaymentManagement(page);
   await expect(occurrence).toContainText('erwartet');
   await pageChecks(page);
   await page.screenshot({ path: info.outputPath('expected-payment-light.png'), fullPage: true });
   await page.emulateMedia({ colorScheme: 'dark' });
   await pageChecks(page);
   await page.screenshot({ path: info.outputPath('expected-payment-dark.png'), fullPage: true });
-  await page.getByRole('link', { name: 'Zurück zu Erwartet' }).click();
-  await expect(page.getByRole('button', { name: 'Ausgaben', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  if ((await redesignEnabled(page)) && page.viewportSize()!.width >= 768)
+    await page.getByRole('button', { name: 'Zahlungsdetail schließen', exact: true }).click();
+  else await page.getByRole('link', { name: 'Zurück zu Erwartet' }).click();
+  await expectExpectedList(page, 'outflow');
+  if (await redesignEnabled(page))
+    await expect(page.getByRole('combobox', { name: 'Einnahmen oder Ausgaben' })).toHaveValue(
+      'outflow',
+    );
+  else
+    await expect(page.getByRole('button', { name: 'Ausgaben', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   await expect(page.locator('.xp-contracts')).toBeVisible();
   await page.locator('tr.prow', { hasText: name }).getByRole('button').first().click();
+  await openPaymentManagement(page);
   await page.getByRole('button', { name: 'Löschen', exact: true }).click();
   await page
     .getByRole('dialog', { name: 'Zahlung löschen' })
     .getByRole('button', { name: 'Löschen bestätigen' })
     .click();
-  await expect(page).toHaveURL(/\/plan\/erwartet\?monat=2026-08$/);
-  await expect(page.getByRole('button', { name: 'Ausgaben', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expectExpectedList(page, 'outflow');
+  if (await redesignEnabled(page))
+    await expect(page.getByRole('combobox', { name: 'Einnahmen oder Ausgaben' })).toHaveValue(
+      'outflow',
+    );
+  else
+    await expect(page.getByRole('button', { name: 'Ausgaben', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(page.locator('tr.prow', { hasText: name })).toBeVisible();
 });

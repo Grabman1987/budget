@@ -89,16 +89,18 @@ test('the old controls are gone; both menus are keyboard operable and named', as
 test('"Alle einklappen" and the month span work from "Optionen ▾"', async ({ page, isMobile }) => {
   await page.goto('/plan/monat?monat=2026-09');
   const optionen = menuSummary(page, 'Optionen');
+  const phoneHeadings =
+    isMobile && (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   const multiBands = page.locator('tr.pgroup:not(.psingle)');
   const bands = page.locator('tr.psingle:not(.pmulti)');
   const children = page.locator('tr.prow:not(.psingle):not(.is-empty)');
   const categoryRows = page.locator('tr.prow:not(.is-empty)');
   await expect(multiBands.first()).toBeVisible();
-  await expect(multiBands).toHaveCount(8);
-  await expect(bands).toHaveCount(11);
+  await expect(multiBands).toHaveCount(phoneHeadings ? 19 : 8);
+  await expect(bands).toHaveCount(phoneHeadings ? 0 : 11);
   await expect(categoryRows).toHaveCount(36);
   const childCount = await children.count();
-  expect(childCount).toBe(25);
+  expect(childCount).toBe(phoneHeadings ? 36 : 25);
   const firstChild = multiBands.first().locator('xpath=following-sibling::tr[1]');
   await expect(firstChild).toHaveClass(/prow/);
   await expect(firstChild).toBeVisible();
@@ -107,14 +109,16 @@ test('"Alle einklappen" and the month span work from "Optionen ▾"', async ({ p
     .getByRole('button', { name: 'Alle einklappen', exact: true })
     .click();
   await expect(page.locator('tr.pgroup:not(.psingle):not(.is-collapsed)')).toHaveCount(0);
-  await expect(page.locator('tr.pgroup:not(.psingle).is-collapsed')).toHaveCount(8);
-  await expect(multiBands).toHaveCount(8);
+  await expect(page.locator('tr.pgroup:not(.psingle).is-collapsed')).toHaveCount(
+    phoneHeadings ? 19 : 8,
+  );
+  await expect(multiBands).toHaveCount(phoneHeadings ? 19 : 8);
   await expect(children).toHaveCount(0);
   await expect(multiBands.first().locator('xpath=following-sibling::tr[1]')).not.toHaveClass(
     /prow/,
   );
-  await expect(bands).toHaveCount(11);
-  await expect(categoryRows).toHaveCount(11);
+  await expect(bands).toHaveCount(phoneHeadings ? 0 : 11);
+  await expect(categoryRows).toHaveCount(phoneHeadings ? 0 : 11);
   for (const band of await bands.all()) {
     await expect(band).toBeVisible();
     await expect(band).not.toHaveClass(/is-collapsed/);
@@ -124,7 +128,7 @@ test('"Alle einklappen" and the month span work from "Optionen ▾"', async ({ p
     .getByRole('button', { name: 'Alle ausklappen', exact: true })
     .click();
   await expect(page.locator('tr.pgroup:not(.psingle).is-collapsed')).toHaveCount(0);
-  await expect(multiBands).toHaveCount(8);
+  await expect(multiBands).toHaveCount(phoneHeadings ? 19 : 8);
   await expect(children).toHaveCount(childCount);
   await expect(firstChild).toHaveClass(/prow/);
   await expect(firstChild).toBeVisible();

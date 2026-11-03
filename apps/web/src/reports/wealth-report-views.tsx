@@ -1,4 +1,4 @@
-import { Segmented } from '@budget/ui';
+import { Segmented, Select } from '@budget/ui';
 import { isReportPeriod } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import type { PageMeta } from '../nav/pages';
@@ -6,13 +6,31 @@ import type { ReportEntry } from '../nav/reports-catalog';
 import { DEFAULT_ZEITRAUM } from '../wealth/zeitraum';
 import { AssetsDebtsReport } from './assets-debts-report';
 import { WealthHistoryReport } from './wealth-history-report';
+import { findReport } from '../nav/reports-catalog';
+import { PortfolioAllocationReport } from '../pages/portfolio-allocation-report';
+import { PortfolioContributionsReport } from '../pages/portfolio-contributions-report';
+import { PortfolioPerformanceReport } from '../pages/portfolio-performance-report';
+import { FreedomReport } from './freedom-report';
 import { WholePictureReport } from './whole-picture-report';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './report-views.css';
+import './wealth-report-redesign.css';
 
 const WEALTH_VIEWS = [
   { value: 'bilanz', label: 'Vermögen und Schulden' },
   { value: 'verlauf', label: 'Vermögensverlauf' },
   { value: 'gesamt', label: 'Gesamtübersicht' },
+  ...(REDESIGN_ENABLED
+    ? [
+        { value: 'schulden' as const, label: 'Schulden-Verlauf' },
+        { value: 'freiheit' as const, label: 'Finanzielle Freiheit' },
+        { value: 'verteilung' as const, label: 'Verteilung über Zeit' },
+        { value: 'einzahlungen' as const, label: 'Einzahlungen und Wert' },
+        { value: 'rendite' as const, label: 'Rendite & Risiko' },
+        { value: 'kennzahlen' as const, label: 'Kennzahlen' },
+        { value: 'klassen' as const, label: 'Anlageklassen im Verlauf' },
+      ]
+    : []),
 ] as const;
 type WealthView = (typeof WEALTH_VIEWS)[number]['value'];
 
@@ -20,20 +38,19 @@ type WealthView = (typeof WEALTH_VIEWS)[number]['value'];
 export function WealthReportViews({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   const search = useSearch({ strict: false }) as { darstellung?: unknown; zeitraum?: unknown };
   const navigate = useNavigate();
-  const view: WealthView =
-    search.darstellung === 'verlauf' || search.darstellung === 'gesamt'
-      ? search.darstellung
-      : 'bilanz';
+  const view: WealthView = WEALTH_VIEWS.some((option) => option.value === search.darstellung)
+    ? (search.darstellung as WealthView)
+    : 'bilanz';
   const changeView = (next: WealthView) => {
     if (next === view) return;
     // Materialize the active reader's existing fallback only at a real switch, never on mount.
     const period = isReportPeriod(search.zeitraum)
       ? search.zeitraum
-      : view === 'verlauf'
-        ? DEFAULT_ZEITRAUM
+      : view === 'bilanz'
+        ? 'Alles'
         : view === 'gesamt'
           ? '1J'
-          : 'Alles';
+          : DEFAULT_ZEITRAUM;
     void navigate({
       to: '.',
       search: ((previous: Record<string, unknown>) => ({
@@ -43,7 +60,22 @@ export function WealthReportViews({ report, meta }: { report: ReportEntry; meta:
       })) as never,
     });
   };
-  const control = (
+  const control = REDESIGN_ENABLED ? (
+    <label className="wealth-report-view-select">
+      <span>Darstellung</span>
+      <Select
+        aria-label="Darstellung des Vermögensreports"
+        value={view}
+        onChange={(event) => changeView(event.target.value as WealthView)}
+      >
+        {WEALTH_VIEWS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </Select>
+    </label>
+  ) : (
     <Segmented
       className="report-view-switch report-wealth-switch"
       label="Ansicht von Vermögen und Schulden"
@@ -52,9 +84,44 @@ export function WealthReportViews({ report, meta }: { report: ReportEntry; meta:
       onChange={changeView}
     />
   );
+  const portfolioReport = (id: string) => ({ ...findReport(id)!, name: report.name });
+  if (view === 'verteilung')
+    return (
+      <PortfolioAllocationReport
+        report={portfolioReport('pallocation')}
+        meta={meta}
+        viewControl={control}
+      />
+    );
+  if (view === 'einzahlungen')
+    return (
+      <PortfolioContributionsReport
+        report={portfolioReport('peinzahlungen')}
+        meta={meta}
+        viewControl={control}
+      />
+    );
+  if (view === 'rendite' || view === 'kennzahlen' || view === 'klassen')
+    return (
+      <PortfolioPerformanceReport
+        report={portfolioReport('prendite')}
+        meta={meta}
+        viewControl={control}
+        presentation={view === 'rendite' ? 'all' : view}
+      />
+    );
+  if (view === 'freiheit')
+    return <FreedomReport report={report} meta={meta} viewControl={control} />;
   if (view === 'verlauf')
     return <WealthHistoryReport report={report} meta={meta} viewControl={control} />;
   if (view === 'gesamt')
     return <WholePictureReport report={report} meta={meta} viewControl={control} />;
-  return <AssetsDebtsReport report={report} meta={meta} viewControl={control} />;
+  return (
+    <AssetsDebtsReport
+      report={report}
+      meta={meta}
+      viewControl={control}
+      debtOnly={view === 'schulden'}
+    />
+  );
 }

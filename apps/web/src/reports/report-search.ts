@@ -44,7 +44,18 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
     'planungstreue',
     'vertraege',
     'bankkosten',
-    ...(REDESIGN_ENABLED ? ['finanzcheck'] : []),
+    ...(REDESIGN_ENABLED
+      ? [
+          'finanzcheck',
+          'schulden',
+          'freiheit',
+          'kennzahlen',
+          'klassen',
+          'ertraege',
+          'gebuehren',
+          'kostenverlauf',
+        ]
+      : []),
   ].includes(search['darstellung'] as string)
     ? (search['darstellung'] as
         | 'income'
@@ -63,7 +74,14 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
         | 'planungstreue'
         | 'vertraege'
         | 'bankkosten'
-        | 'finanzcheck')
+        | 'finanzcheck'
+        | 'schulden'
+        | 'freiheit'
+        | 'kennzahlen'
+        | 'klassen'
+        | 'ertraege'
+        | 'gebuehren'
+        | 'kostenverlauf')
     : undefined,
   vorlage: isExplorerTemplate(search['vorlage']) ? search['vorlage'] : undefined,
   exakt: search['exakt'] === true || search['exakt'] === 'true' ? true : undefined,
