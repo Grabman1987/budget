@@ -4,16 +4,24 @@ import { openDatabase, schema } from '@budget/db';
 import { test } from './isolated-ledger';
 
 async function setTheme(page: Page, value: 'light' | 'dark') {
-  await page.evaluate(async (selected) => {
+  await page.evaluate((selected) => {
     document.documentElement.dataset['theme'] = selected;
-    // Audit the selected theme after its finite background transitions have finished.
+    // Flush the new transition state before collecting the audited dialogs' animations.
+    document.getAnimations();
+  }, value);
+  await page.evaluate(async () => {
+    // Audit the open dialogs after their running finite theme transitions finish.
     await Promise.all(
-      document
-        .getAnimations()
-        .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+      Array.from(document.querySelectorAll('dialog[open]'))
+        .flatMap((dialog) => dialog.getAnimations({ subtree: true }))
+        .filter(
+          (animation) =>
+            animation.playState === 'running' &&
+            animation.effect?.getTiming().iterations !== Infinity,
+        )
         .map((animation) => animation.finished),
     );
-  }, value);
+  });
 }
 
 test('597 immediate delete, protected explanation, paired bulk preview and exact grouped Undo', async ({

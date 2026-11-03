@@ -22,6 +22,7 @@ async function expectVisibleIconScale(page: Page) {
           ['.year-chart-reference-extra > summary > .lucide-table-2', 16, 2],
           ['.wealth-next-icon > .lucide-scale', 17, 2],
           ['.wealth-freedom > .lucide-flag', 15, 2],
+          ['.hv-net-delta > :is(.lucide-arrow-up, .lucide-arrow-down, .lucide-minus)', 14, 2],
         ];
         return Array.from(document.querySelectorAll<SVGSVGElement>('svg.lucide'))
           .filter(
