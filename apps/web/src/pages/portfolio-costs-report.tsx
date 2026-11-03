@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Select } from '@budget/ui';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
@@ -41,6 +42,7 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
   useAmountPrivacy();
   const query = useQuery(costsQuery);
   const data = query.data?.costs;
+  const viewId = useId();
   const search = useSearch({ strict: false }) as { darstellung?: string };
   const navigate = useNavigate();
   const view = REDESIGN_ENABLED && search.darstellung === 'ertraege' ? 'ertraege' : 'gebuehren';
@@ -79,9 +81,10 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
       }
       reportControls={
         REDESIGN_ENABLED ? (
-          <label className="wealth-report-view-select">
+          <label className="wealth-report-view-select" htmlFor={viewId}>
             <span>Darstellung</span>
             <Select
+              id={viewId}
               aria-label="Darstellung von Kosten, Steuern und Erträgen"
               value={view}
               onChange={(event) =>
