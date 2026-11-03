@@ -33,12 +33,10 @@ async function inspect(page: Page, info: TestInfo, label: string) {
   }
   if (info.project.name !== 'desktop') {
     const controls = page.locator(
-      '.report-view-switch button:visible, .report-view-switch select:visible',
+      '.report-view-switch button:visible, .report-view-switch select:visible, .wealth-report-view-select select:visible',
     );
     expect(await controls.count()).toBeGreaterThanOrEqual(
-      (await redesignReportsOn(page)) && new URL(page.url()).pathname === '/reports/ausgaben'
-        ? 1
-        : 2,
+      (await controls.filter({ has: page.locator('option') }).count()) ? 1 : 2,
     );
     for (const control of await controls.all()) {
       const box = (await control.boundingBox())!;
@@ -274,10 +272,16 @@ for (const theme of ['light', 'dark']) {
       ['Vermögensverlauf', '.wealth-history-report', 'wh-figure'],
       ['Gesamtübersicht', '.whole-picture', ''],
     ] as const) {
-      await page
-        .getByRole('group', { name: 'Ansicht von Vermögen und Schulden', exact: true })
-        .getByRole('button', { name, exact: true })
-        .click();
+      if (await redesignReportsOn(page)) {
+        await page
+          .getByRole('combobox', { name: 'Darstellung des Vermögensreports' })
+          .selectOption({ label: name });
+      } else {
+        await page
+          .getByRole('group', { name: 'Ansicht von Vermögen und Schulden', exact: true })
+          .getByRole('button', { name, exact: true })
+          .click();
+      }
       await expect(page.locator(body)).toBeVisible();
       await expect(
         page.locator('.assets-debts-report, .wealth-history-report, .whole-picture'),
@@ -290,7 +294,7 @@ for (const theme of ['light', 'dark']) {
       await expect(page.locator(body)).toContainText('≈');
       expect(new URL(page.url()).searchParams.get('zeitraum')).toBe(period);
       expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
-      if (info.project.name !== 'desktop') {
+      if (info.project.name !== 'desktop' && !(await redesignReportsOn(page))) {
         const labels = await page
           .getByRole('group', { name: 'Ansicht von Vermögen und Schulden', exact: true })
           .getByRole('button')

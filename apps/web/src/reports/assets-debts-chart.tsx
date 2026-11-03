@@ -36,10 +36,12 @@ export function AssetsDebtsChart({
   history,
   selected,
   onSelect,
+  debtOnly = false,
 }: {
   history: AssetsDebtsHistory;
   selected: string;
   onSelect: (month: string) => void;
+  debtOnly?: boolean;
 }) {
   useAmountPrivacy();
   // Temporary zero measurements must not unmount the native table disclosure.
@@ -47,7 +49,13 @@ export function AssetsDebtsChart({
   return (
     <div ref={ref} className="rf-chart rf-chart-lg">
       {width > 0 && history.months.length > 0 && (
-        <Drawing history={history} width={width} selected={selected} onSelect={onSelect} />
+        <Drawing
+          history={history}
+          width={width}
+          selected={selected}
+          onSelect={onSelect}
+          debtOnly={debtOnly}
+        />
       )}
     </div>
   );
@@ -58,11 +66,13 @@ function Drawing({
   width: W,
   selected,
   onSelect,
+  debtOnly,
 }: {
   history: AssetsDebtsHistory;
   width: number;
   selected: string;
   onSelect: (month: string) => void;
+  debtOnly: boolean;
 }) {
   useAmountPrivacy();
   const { months } = history;
@@ -73,11 +83,11 @@ function Drawing({
   const x = (i: number) => L + slot * (i + 0.5);
   const bw = Math.max(2, Math.min(28, slot * 0.34));
 
-  const up = months.map((m) => m.assetsCents / 100);
+  const up = months.map((m) => (debtOnly ? 0 : m.assetsCents / 100));
   const down = months.map((m) => m.debtsCents / 100);
-  const net = months.map((m) => m.netCents / 100);
+  const net = months.map((m) => (debtOnly ? -m.debtsCents : m.netCents) / 100);
   const hi = Math.max(0, ...up, ...net);
-  const lo = Math.min(0, ...down, ...net);
+  const lo = debtOnly ? 0 : Math.min(0, ...down, ...net);
   const pad = (hi - lo) * 0.06 || 500;
   const y0 = lo < 0 ? lo - pad : 0;
   const y1 = hi + pad;
@@ -112,27 +122,37 @@ function Drawing({
     <ChartSvg
       width={W}
       height={H}
-      label={summary}
+      label={
+        debtOnly
+          ? `Restschuld je Monatsende, ${longMonth(first.month)} bis ${longMonth(end.month)}. Schulden werden als positive Beträge gezeigt.`
+          : summary
+      }
       testId="assets-debts-chart"
       table
       points={chartPoints(
         months.map((m) => m.month),
         x,
-        [
-          {
-            name: 'Vermögenswerte',
-            negativeColor: 'var(--ink-2)',
-            values: months.map((m) => m.assetsCents),
-            color: 'var(--line)',
-          },
-          {
-            name: 'Schulden',
-            negativeColor: 'var(--ink-2)',
-            values: months.map((m) => m.debtsCents),
-            color: 'var(--ink-2)',
-          },
-          { name: 'Nettovermögen', values: months.map((m) => m.netCents), color: 'var(--line)' },
-        ],
+        debtOnly
+          ? [{ name: 'Restschuld', values: months.map((m) => -m.debtsCents), color: 'var(--line)' }]
+          : [
+              {
+                name: 'Vermögenswerte',
+                negativeColor: 'var(--ink-2)',
+                values: months.map((m) => m.assetsCents),
+                color: 'var(--line)',
+              },
+              {
+                name: 'Schulden',
+                negativeColor: 'var(--ink-2)',
+                values: months.map((m) => m.debtsCents),
+                color: 'var(--ink-2)',
+              },
+              {
+                name: 'Nettovermögen',
+                values: months.map((m) => m.netCents),
+                color: 'var(--line)',
+              },
+            ],
       )}
     >
       {picked >= 0 && (
@@ -147,8 +167,12 @@ function Drawing({
       )}
       <Graticule x1={L} x2={W - R} lines={grid} />
       <AxisLine x1={L} x2={W - R} y={y(0)} />
-      <BarsAroundZero bars={assetBars} y={y} barWidth={bw} tone="ink" negativeTone="ink" />
-      <BarsAroundZero bars={debtBars} y={y} barWidth={bw} tone="pale" negativeTone="outline" />
+      {!debtOnly && (
+        <BarsAroundZero bars={assetBars} y={y} barWidth={bw} tone="ink" negativeTone="ink" />
+      )}
+      {!debtOnly && (
+        <BarsAroundZero bars={debtBars} y={y} barWidth={bw} tone="pale" negativeTone="outline" />
+      )}
       <Line kind="actual" points={line} draw={false} className="rf-nw-halo" />
       <Line kind="actual" points={line} draw className="rf-nw-line" />
       {months.map((m, i) => (
@@ -159,7 +183,7 @@ function Drawing({
           r={narrow || n > 24 ? 2 : 3}
           className="dot-actual"
         >
-          <title>{`Nettovermögen ${longMonth(m.month)}: ${eur(m.netCents)}`}</title>
+          <title>{`${debtOnly ? 'Restschuld' : 'Nettovermögen'} ${longMonth(m.month)}: ${eur(debtOnly ? -m.debtsCents : m.netCents)}`}</title>
         </circle>
       ))}
       <g className="fade-in">

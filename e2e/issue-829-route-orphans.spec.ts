@@ -1,4 +1,5 @@
 import { openR8BodyDetails } from './income-spending-controls';
+import { portfolioReportPath, expectWealthReportView } from './wealth-report-controls';
 import { inboxFilters } from './ledger-helpers';
 import { redesignReportsOn, revealComparisonDetail } from './report-frame';
 // A2 positive browser bodies, using the real sample ledger and isolated import-detail fixture.
@@ -410,7 +411,11 @@ for (const [row, url, body] of direct)
       ? on
         ? '/einstellungen/profil'
         : '/einstellungen/konten'
-      : new URL(url, 'http://fixture').pathname;
+      : on && [23, 28, 32].includes(row)
+        ? row === 23
+          ? '/vermoegen'
+          : '/reports/vermoegen-schulden'
+        : new URL(url, 'http://fixture').pathname;
     const expectedBody = desktopIndex ? (on ? 'profile' : 'accountSettings') : body;
     await page.goto(url);
     await loaded(page, path, expectedBody);
@@ -487,7 +492,11 @@ for (const [slug, path, intent, view, body] of reportAliases)
       `/reports/${slug}?monat=2026-08&period=month&zeitraum=2026-01..2026-08#details`,
     );
     const check = async () => {
-      await loaded(page, path, body);
+      await loaded(
+        page,
+        path === '/reports/pallocation' ? await portfolioReportPath(page) : path,
+        body,
+      );
       const url = new URL(page.url());
       expect(url.searchParams.get('monat')).toBe('2026-08');
       expect(url.searchParams.get('zeitraum')).toBe('2026-01..2026-08');
@@ -506,6 +515,8 @@ for (const [slug, path, intent, view, body] of reportAliases)
           await expect(
             page.getByRole('combobox', { name: label, exact: true }).locator('option:checked'),
           ).toHaveText(view);
+        } else if (['/reports/pallocation', '/reports/vermoegen-schulden'].includes(path)) {
+          await expectWealthReportView(page, view);
         } else {
           await expect(
             page.getByRole('button', { name: view, exact: true, pressed: true }),

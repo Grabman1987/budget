@@ -1,4 +1,5 @@
 import { ReportPeriodControl } from './period-quick-select';
+import { WealthSourceAnalysis } from './wealth-source-analysis';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, type ReactNode } from 'react';
@@ -16,6 +17,8 @@ import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import { netWorthHistoryQuery, type NetWorthHistory } from './wealth-history-api';
 import { toneOf, WealthHistoryChart } from './wealth-history-chart';
 import { wealthHistoryVerdictFacts } from './verdict-facts';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { WealthMonthlyBridge } from './wealth-monthly-bridge';
 import './reports-future.css';
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
@@ -51,6 +54,16 @@ export function WealthHistoryReport({
   return (
     <PageFrame
       verdict={verdict}
+      sourceDate={history?.to}
+      calculation={
+        history && !query.isFetching && !query.isError && history.rows.length
+          ? {
+              label: 'Nettovermögen im Zeitraum',
+              terms: chainTerms(history.chain, history.from),
+              result: { label: 'Nettovermögen', unit: 'money', value: history.chain.nowCents },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
@@ -96,6 +109,7 @@ export function WealthHistoryReport({
           <EmptyNote>Noch keine Konten. Lege unter Konten ein Konto an.</EmptyNote>
         )}
         {history && history.rows.length > 0 && <Body history={history} />}
+        {REDESIGN_ENABLED && <WealthSourceAnalysis />}
       </div>
     </PageFrame>
   );
@@ -130,19 +144,20 @@ function Body({ history }: { history: NetWorthHistory }) {
           terms={chainTerms(chain, history.from)}
           label="Maßkette Nettovermögen im Zeitraum"
         />
-        <WealthHistoryChart history={history} />
+        <WealthHistoryChart history={history} dailyOnly={REDESIGN_ENABLED} />
         <ul className="rf-legend" aria-label="Legende">
-          {assetGroups.map((g) => (
-            <li key={g.key}>
-              <i
-                className="rf-sq"
-                style={{ background: toneOf(groups.indexOf(g), groups.length) }}
-                aria-hidden="true"
-              />
-              {g.label}
-            </li>
-          ))}
-          {groups.some((g) => g.liability) && (
+          {!REDESIGN_ENABLED &&
+            assetGroups.map((g) => (
+              <li key={g.key}>
+                <i
+                  className="rf-sq"
+                  style={{ background: toneOf(groups.indexOf(g), groups.length) }}
+                  aria-hidden="true"
+                />
+                {g.label}
+              </li>
+            ))}
+          {!REDESIGN_ENABLED && groups.some((g) => g.liability) && (
             <li>
               <i className="rf-sq rf-sq-debt" aria-hidden="true" />
               Schulden, gestrichelt unter Null
@@ -157,11 +172,19 @@ function Body({ history }: { history: NetWorthHistory }) {
         </ul>
         <p className="vnote">
           Gespart = Einnahmen minus Konsum plus reguläre Tilgung. Markt = Kursveränderung der
-          Anlagen. Die Flächen zeigen den Stand zum Beginn und zu jedem{' '}
-          {history.unit === 'week' ? 'Wochen' : 'Monats'}ende, die Linie das tägliche Nettovermögen;
-          dieselbe Reihe wie unter Vermögen.
+          Anlagen.{' '}
+          {!REDESIGN_ENABLED && (
+            <>
+              Die Flächen zeigen den Stand zum Beginn und zu jedem{' '}
+              {history.unit === 'week' ? 'Wochen' : 'Monats'}ende, die Linie das tägliche
+              Nettovermögen; dieselbe Reihe wie unter Vermögen.
+            </>
+          )}
+          {REDESIGN_ENABLED &&
+            'Die Linie zeigt das tägliche Nettovermögen. Die Kontotypen bleiben in der Struktur vollständig aufgeschlüsselt.'}
         </p>
       </section>
+      {REDESIGN_ENABLED && <WealthMonthlyBridge period={history.period} />}
       <section className="card rf-card rf-wide" aria-labelledby="wh-structure">
         <div className="tbd-head">
           <h2 id="wh-structure">Struktur</h2>

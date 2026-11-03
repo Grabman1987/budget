@@ -499,10 +499,31 @@ const heuteDimensionRoute = createRoute({
   staticData: { meta: { ...HEUTE, title: 'Herleitung' } },
   component: lazyRouteComponent(() => import('./heute/dimension-page'), 'DimensionPage'),
 });
+const legacyWealthReport = (
+  location: { searchStr: string; hash: string },
+  view: string,
+  defaults: Record<string, string> = {},
+) => {
+  const target = new URL(
+    `/reports/vermoegen-schulden${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+    'https://budget.invalid',
+  );
+  target.searchParams.set('darstellung', view);
+  for (const [key, value] of Object.entries(defaults))
+    if (
+      !target.searchParams.has(key) ||
+      (key === 'zeitraum' && !isZeitraum(target.searchParams.get(key)))
+    )
+      target.searchParams.set(key, value);
+  throw redirect({ href: `${target.pathname}${target.search}${target.hash}`, replace: true });
+};
 const freedomRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: VERMOEGEN_FREIHEIT_META.path,
   staticData: { meta: VERMOEGEN_FREIHEIT_META },
+  beforeLoad: ({ location }) => {
+    if (REDESIGN_ENABLED) legacyWealthReport(location, 'freiheit');
+  },
   component: lazyRouteComponent(() => import('./wealth/freedom-page'), 'FreedomPage'),
 });
 
@@ -512,6 +533,14 @@ const netWorthRoute = createRoute({
   validateSearch: (search) =>
     REDESIGN_ENABLED && search['ansicht'] === 'analyse' ? { ansicht: 'analyse' } : {},
   staticData: { meta: VERMOEGEN_NETTO_META },
+  beforeLoad: ({ location, search }) => {
+    if (!REDESIGN_ENABLED) return;
+    if (search.ansicht === 'analyse') legacyWealthReport(location, 'bilanz', { zeitraum: 'YTD' });
+    throw redirect({
+      href: `/vermoegen${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+      replace: true,
+    });
+  },
   component: lazyRouteComponent(() => import('./wealth/networth-page'), 'NetWorthPage'),
 });
 const wealthPresentationSearch = (search: Record<string, unknown>) => ({
@@ -604,7 +633,12 @@ const portfolioMetricsRoute = createRoute({
   path: '/vermoegen/portfolio/kennzahlen',
   staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Kennzahlen' } },
   validateSearch: portfolioRegisterSearch,
-  beforeLoad: portfolioLegacyRedirect,
+  beforeLoad: (context) => {
+    portfolioLegacyRedirect(context);
+    // URL-driven writers still use the existing portfolio path and dialogs.
+    if (REDESIGN_ENABLED && !context.search.produkt && !context.search.handel)
+      legacyWealthReport(context.location, 'rendite', { ansicht: 'kennzahlen' });
+  },
   component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioMetricsPage'),
 });
 const instrumentRoute = createRoute({
@@ -685,8 +719,16 @@ const redirects = [
   redirectRoute('/reports/gesamtuebersicht', '/reports/vermoegen-schulden', {
     darstellung: 'gesamt',
   }),
-  redirectRoute('/reports/peinzahlungen', '/reports/pallocation', { darstellung: 'einzahlungen' }),
-  redirectRoute('/reports/prendite', '/reports/pallocation', { darstellung: 'rendite' }),
+  redirectRoute(
+    '/reports/peinzahlungen',
+    REDESIGN_ENABLED ? '/reports/vermoegen-schulden' : '/reports/pallocation',
+    { darstellung: 'einzahlungen' },
+  ),
+  redirectRoute(
+    '/reports/prendite',
+    REDESIGN_ENABLED ? '/reports/vermoegen-schulden' : '/reports/pallocation',
+    { darstellung: 'rendite' },
+  ),
   redirectRoute('/reports/jahresansicht', '/reports/explorer', { vorlage: 'year' }, 'YTD'),
   redirectRoute('/reports/kategorien', '/reports/explorer', { vorlage: 'category' }, 'YTD'),
   redirectRoute('/reports/gesamttabelle', '/reports/explorer', { vorlage: 'total' }, 'Alles'),
@@ -791,6 +833,19 @@ const reportRoute = createRoute({
         hash: location.hash,
         replace: true,
       });
+    if (!REDESIGN_ENABLED || params.reportId !== 'pallocation') return;
+    const target = new URL(
+      `/reports/vermoegen-schulden${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+      'https://budget.invalid',
+    );
+    const intendedView = target.searchParams.get('darstellung');
+    if (
+      !['verteilung', 'einzahlungen', 'rendite', 'kennzahlen', 'klassen'].includes(
+        intendedView ?? '',
+      )
+    )
+      target.searchParams.set('darstellung', 'verteilung');
+    throw redirect({ href: `${target.pathname}${target.search}${target.hash}`, replace: true });
   },
   staticData: { meta: { ...REPORTS_CATALOG, title: 'Report', register: 'katalog' } },
   loaderDeps: ({ search }) => ({

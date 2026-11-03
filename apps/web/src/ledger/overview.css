@@ -748,3 +748,18 @@
     height: 44px;
   }
 }
+
+/* The tablet content column is narrower than the desktop lead's two fixed 240px tracks. */
+@media (min-width: 768px) and (max-width: 1100px) {
+  .account-overview-redesign .overview-lead {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: 'label label' 'value links';
+    column-gap: 16px;
+  }
+  .account-overview-redesign .overview-lead-links {
+    min-width: 0;
+  }
+  .account-overview-redesign .overview-lead-links > a:first-child {
+    width: 100%;
+  }
+}

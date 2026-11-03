@@ -215,3 +215,22 @@
     box-shadow: none;
   }
 }
+
+/* Keep every header action reachable when the sidebar leaves a tablet-sized column. */
+@media (min-width: 768px) and (max-width: 1100px) {
+  [data-budget-redesign='1']:has(.konten-frame) .topbar {
+    height: auto;
+    min-height: 64px;
+  }
+  [data-budget-redesign='1']:has(.konten-frame) .topbar-inner {
+    flex-wrap: wrap;
+    padding-block: 8px;
+  }
+  [data-budget-redesign='1']:has(.konten-frame) .topbar .global-search-launch {
+    flex: 0 0 44px;
+    min-width: 44px;
+  }
+  [data-budget-redesign='1']:has(.konten-frame) .global-search-launch::after {
+    display: none;
+  }
+}

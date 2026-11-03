@@ -108,7 +108,13 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
         `${concrete(from)}?monat=2026-08&period=month&zeitraum=2026-01..2026-08#details`,
       );
       expect(router.state.location.pathname).toBe(
-        offFinanzcheck ? '/' : enabled && from === '/vermoegen' ? '/vermoegen' : concrete(target),
+        offFinanzcheck
+          ? '/'
+          : enabled && from === '/vermoegen'
+            ? '/vermoegen'
+            : enabled && target === '/reports/pallocation'
+              ? '/reports/vermoegen-schulden'
+              : concrete(target),
       );
       expect(router.state.location.hash).toBe('details');
       expect(router.state.matches.at(-1)?.search).toMatchObject({
@@ -130,6 +136,37 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
       const router = await open(`/reports/${id}?monat=2026-09`);
       expect(router.state.location.pathname).toBe(target);
     }
+  });
+
+  it.each([
+    ['/vermoegen/freiheit', '/reports/vermoegen-schulden', 'freiheit'],
+    ['/vermoegen/portfolio/kennzahlen', '/reports/vermoegen-schulden', 'rendite'],
+    ['/vermoegen/nettovermoegen', '/vermoegen', undefined],
+  ])(
+    'retains wealth alias intent and every incoming context field: %s',
+    async (from, target, view) => {
+      const router = await open(`${from}?zeitraum=3J&monat=2026-08&fokus=investment#details`);
+      expect(router.state.location.pathname).toBe(enabled ? target : from);
+      expect(router.state.location.hash).toBe('details');
+      expect(
+        new URL(router.state.location.href, 'https://budget.invalid').searchParams.get('fokus'),
+      ).toBe('investment');
+      expect(router.state.matches.at(-1)?.search).toMatchObject({
+        zeitraum: '3J',
+        monat: '2026-08',
+        ...(enabled && view ? { darstellung: view } : {}),
+      });
+    },
+  );
+  it.each([
+    ['produkt=neu', '/vermoegen/portfolio/kennzahlen'],
+    ['handel=neu', '/vermoegen/portfolio/kennzahlen'],
+    ['sparplan=neu', '/vermoegen/portfolio/sparplaene'],
+  ])('keeps the existing writer ahead of report dispatch: %s', async (query, target) => {
+    const router = await open(`/vermoegen/portfolio/kennzahlen?${query}&zeitraum=3J`);
+    expect(router.state.location.pathname).toBe(target);
+    expect(router.state.matches.at(-1)?.search).toMatchObject({ zeitraum: '3J' });
+    expect(router.state.location.searchStr).toContain(query);
   });
 });
 
