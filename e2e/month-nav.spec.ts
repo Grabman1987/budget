@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import { addMonths } from '@budget/domain';
 import AxeBuilder from '@axe-core/playwright';
 import { test as mainTest, type APIRequestContext, type Page } from '@playwright/test';
@@ -24,7 +25,7 @@ test.describe('Heute month switch', () => {
   test('payday is disabled outside this month and falls back after navigation and reload', async ({
     page,
   }, info) => {
-    await page.goto('/?monat=2026-09&period=payday');
+    await openHeuteReview(page, '/?monat=2026-09&period=payday');
     const payday = page.getByRole('button', { name: 'Bis Gehalt', exact: true });
     const month = page.getByRole('button', { name: 'Monat', exact: true });
     await expect(payday).toBeEnabled();
@@ -50,7 +51,7 @@ test.describe('Heute month switch', () => {
     await page.getByRole('button', { name: 'Nächster Monat' }).click();
     await expect(payday).toBeEnabled();
     await expect(month).toHaveAttribute('aria-pressed', 'true');
-    await page.goto('/?monat=2026-10&period=payday');
+    await openHeuteReview(page, '/?monat=2026-10&period=payday');
     await expect(payday).toBeDisabled();
     await expect(month).toHaveAttribute('aria-pressed', 'true');
     await expect(page).toHaveURL(/period=month/);
@@ -60,15 +61,19 @@ test.describe('Heute month switch', () => {
     test.slow();
     // Pace lives in the "Mehr zum Monat" fold, closed on the phone by default (UX-2).
     await page.addInitScript(() => localStorage.setItem('budget-heute-more-phone', '1'));
-    await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible();
+    await openHeuteReview(page, '/');
+    await expect(
+      page.locator('h1, .hv-head:visible .month-name').filter({ hasText: 'September 2026' }),
+    ).toBeVisible();
     // The current month needs no way back and no note about anchored figures.
     await expect(page.getByRole('button', { name: 'Zum aktuellen Monat' })).toHaveCount(0);
     await expect(page.getByTestId('heute-month-note')).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Vormonat' }).click();
     await expect(page).toHaveURL(/monat=2026-08/);
-    await expect(page.getByRole('heading', { name: 'August 2026', exact: true })).toBeVisible();
+    await expect(
+      page.locator('h1, .hv-head:visible .month-name').filter({ hasText: 'August 2026' }),
+    ).toBeVisible();
     // Bis Gehalt stays anchored to today and says so.
     await expect(page.getByTestId('heute-anchor')).toContainText('Stand heute · 17.09.2026', SLOW);
     await expect(page.getByTestId('heute-month-note')).toContainText('Ansicht: August 2026', SLOW);
@@ -85,7 +90,9 @@ test.describe('Heute month switch', () => {
 
     await page.getByRole('button', { name: 'Nächster Monat' }).click();
     await page.getByRole('button', { name: 'Zum aktuellen Monat' }).first().click();
-    await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible();
+    await expect(
+      page.locator('h1, .hv-head:visible .month-name').filter({ hasText: 'September 2026' }),
+    ).toBeVisible();
     await expect(page.getByTestId('heute-anchor')).toHaveCount(0);
   });
 
@@ -100,7 +107,7 @@ test.describe('Heute month switch', () => {
     await page.keyboard.press('ArrowLeft');
     await expect(page).toHaveURL(/monat=2026-09/);
     // The search field keeps the arrow keys for its caret.
-    await page.goto('/?monat=2026-09');
+    await openHeuteReview(page, '/?monat=2026-09');
     await page.locator('#global-search').click();
     // Wait for the dialog's field before typing.
     await expect(page.getByRole('dialog', { name: 'Suchen', exact: true })).toBeVisible();
@@ -161,7 +168,9 @@ test.describe('Plan › Monat with several months', () => {
     test.skip(info.project.name !== 'mobile', 'desktop shows the choice');
     await withSpan(3)(page);
     await page.goto('/plan/monat?monat=2026-09');
-    await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible();
+    await expect(
+      page.locator('h1, .hv-head:visible .month-name').filter({ hasText: 'September 2026' }),
+    ).toBeVisible();
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
     // Open the menu first: a closed menu would hide the group and make the count trivially 0.
     await page.locator('.plan-menu summary', { hasText: 'Optionen' }).click();
@@ -178,7 +187,7 @@ test.describe('axe on the new views', () => {
         page,
       }, info) => {
         test.slow();
-        await page.goto('/?monat=2026-08');
+        await openHeuteReview(page, '/?monat=2026-08');
         await expect(page.getByTestId('heute-anchor')).toBeVisible({ timeout: 20_000 });
         const heute = await new AxeBuilder({ page }).include('main').analyze();
         expect(heute.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);

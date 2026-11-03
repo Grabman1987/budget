@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { accounts, openDatabase } from '@budget/db';
 import { expect } from '@playwright/test';
@@ -69,7 +70,7 @@ test('Heute explains sidebar, forecast and net-worth account scopes', async ({
   expect(heute.lead.freeCents).toBe(0);
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   const chart = page.getByTestId('liquidity-chart');
   await expect(chart).toBeVisible();
   await expect(chart).toHaveAttribute('aria-label', /Saldo der Budget-Konten/);
@@ -129,22 +130,31 @@ test('Heute explains sidebar, forecast and net-worth account scopes', async ({
     });
   }
 
-  const privacy =
-    info.project.name === 'mobile'
-      ? page.locator('.m-head .m-profile').getByRole('button', {
-          name: 'Beträge verbergen',
-          exact: true,
-        })
-      : page.getByRole('button', { name: 'Beträge verbergen', exact: true });
-  if (info.project.name === 'mobile') await page.locator('.m-head .m-profile summary').click();
-  await privacy.click();
-  await expect(privacy).toHaveAttribute('aria-pressed', 'true');
-  await expect(chart).toHaveAttribute('aria-label', /••• €/);
-  if (info.project.name === 'desktop') {
-    await expect(page.locator('#acct-tree-budget .acct-amount').first()).toContainText('•••');
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  if (redesign && info.project.name !== 'desktop') {
+    // The expanded Heute home is a detail page; its global privacy shortcut preserves the source.
+    await page.keyboard.press('Control+Shift+H');
+    await expect(chart).toHaveAttribute('aria-label', /••• €/);
+    await page.keyboard.press('Control+Shift+H');
+    await expect(chart).not.toHaveAttribute('aria-label', /••• €/);
+  } else {
+    const privacy =
+      info.project.name === 'mobile'
+        ? page.locator('.m-head .m-profile').getByRole('button', {
+            name: 'Beträge verbergen',
+            exact: true,
+          })
+        : page.getByRole('button', { name: 'Beträge verbergen', exact: true });
+    if (info.project.name === 'mobile') await page.locator('.m-head .m-profile summary').click();
+    await privacy.click();
+    await expect(privacy).toHaveAttribute('aria-pressed', 'true');
+    await expect(chart).toHaveAttribute('aria-label', /••• €/);
+    if (info.project.name === 'desktop') {
+      await expect(page.locator('#acct-tree-budget .acct-amount').first()).toContainText('•••');
+    }
+    await privacy.click();
+    await expect(privacy).toHaveAttribute('aria-pressed', 'false');
   }
-  await privacy.click();
-  await expect(privacy).toHaveAttribute('aria-pressed', 'false');
 
   const moreMonth = page.getByRole('button', { name: 'Mehr zum Monat', exact: true });
   if ((await moreMonth.getAttribute('aria-expanded')) === 'false') await moreMonth.click();

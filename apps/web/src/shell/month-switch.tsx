@@ -34,7 +34,13 @@ export function useMonthKeys(shift: (delta: number) => void, enabled = true) {
  * pages), arrow keys, and a way back to the current month once the view moved away from it.
  * `heading` replaces the month name (several months show their range).
  */
-export function MonthSwitch({ heading }: { heading: ReactNode }) {
+export function MonthSwitch({
+  heading,
+  headingAs = 'h1',
+}: {
+  heading: ReactNode;
+  headingAs?: 'h1' | 'span';
+}) {
   const [month, shift, setMonth] = useMonth();
   useMonthKeys(shift);
   const current = currentMonth();
@@ -43,7 +49,7 @@ export function MonthSwitch({ heading }: { heading: ReactNode }) {
       <button type="button" className="icon-btn" aria-label="Vormonat" onClick={() => shift(-1)}>
         <ChevronLeft size={20} strokeWidth={1.5} aria-hidden="true" />
       </button>
-      <h1>{heading}</h1>
+      {headingAs === 'h1' ? <h1>{heading}</h1> : <span className="month-name">{heading}</span>}
       <button
         type="button"
         className="icon-btn"

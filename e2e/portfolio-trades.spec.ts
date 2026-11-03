@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import { wealthRedesign } from './wealth-navigation';
 import { openPruefenSource } from './pruefen-part';
 import AxeBuilder from '@axe-core/playwright';
@@ -123,7 +124,7 @@ test('monthly savings proposals require actual execution confirmation and suppor
   ).plan;
   expect(await sourceTrades(request, security.id)).toHaveLength(0);
   expect(await balance(request, account.id)).toBe(200000);
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   const fold = page.getByRole('button', { name: 'Mehr zum Monat' });
   if ((await fold.getAttribute('aria-expanded')) === 'false') await fold.click();
   const tasks = page.getByRole('region', { name: 'Zu tun', exact: true });

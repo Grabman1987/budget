@@ -15,6 +15,7 @@ import {
   type LiquidityHorizon,
 } from '@budget/domain';
 import type { HeutePeriod } from './heute/api';
+import { heuteReturn } from './heute/return-context';
 import { AUTH_STATUS_KEY, authStatusQuery, queryClient } from './auth/status-query';
 import { REDESIGN_ENABLED } from './shell/redesign-flag';
 import { clearDeviceFinancialData } from './pwa/local-data';
@@ -78,6 +79,7 @@ const rootRoute = createRootRoute({
   validateSearch: (
     search: Record<string, unknown>,
   ): {
+    von?: string | undefined;
     panel?: PanelId | undefined;
     monat?: string | undefined;
     period?: HeutePeriod | undefined;
@@ -86,6 +88,7 @@ const rootRoute = createRootRoute({
     klasse?: string | undefined;
     instrument?: string | undefined;
   } => ({
+    ...(REDESIGN_ENABLED && heuteReturn(search['von']) ? { von: heuteReturn(search['von']) } : {}),
     panel: isPanelId(search['panel']) ? search['panel'] : undefined,
     klasse:
       typeof search['klasse'] === 'string' && search['klasse'].length <= 64
@@ -466,7 +469,27 @@ const heuteDimensionRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/heute/details/$kind',
   beforeLoad: ({ params }) => {
-    if (!['liquid', 'invested', 'receivable', 'debt'].includes(params.kind)) throw notFound();
+    if (
+      ![
+        ...['liquid', 'invested', 'receivable', 'debt'],
+        ...(REDESIGN_ENABLED
+          ? [
+              'free',
+              'budget',
+              'pace',
+              'forecast',
+              'tasks',
+              'due',
+              'bookings',
+              'wealth',
+              'month',
+              'metrics',
+              'pinned',
+            ]
+          : []),
+      ].includes(params.kind)
+    )
+      throw notFound();
   },
   staticData: { meta: { ...HEUTE, title: 'Herleitung' } },
   component: lazyRouteComponent(() => import('./heute/dimension-page'), 'DimensionPage'),
