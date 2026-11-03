@@ -164,14 +164,19 @@ test.describe('UX-3a phone shell', () => {
       // The FAB is fixed: measure its slot before it hides on the way down (#468).
       const fabTop = await page.locator('.fab').evaluate((el) => el.getBoundingClientRect().top);
       // Reveal after reaching the bottom: the retained padding must also clear a visible FAB.
-      // Two separate steps, so WebKit cannot merge both programmatic scrolls into one event.
+      // Native scroll events can arrive after animation frames; acknowledge the down event
+      // before reversing, so WebKit cannot merge both moves into a single downward event.
       await page.evaluate(async () => {
-        window.scrollTo(0, document.documentElement.scrollHeight);
-        await new Promise(requestAnimationFrame);
-        await new Promise(requestAnimationFrame);
+        const bottom = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        if (window.scrollY === bottom) return;
+        const scrolled = new Promise<void>((resolve) =>
+          window.addEventListener('scroll', () => resolve(), { once: true }),
+        );
+        window.scrollTo(0, bottom);
+        await scrolled;
       });
       await page.evaluate(() => window.scrollBy(0, -60));
-      await expect(page.locator('.fab')).toBeVisible();
+      await expect(page.locator('.fab'), path).toBeVisible();
       await expect
         .poll(
           async () =>
