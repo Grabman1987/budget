@@ -44,6 +44,12 @@ test('portfolio views retain source scopes, heatmap, class index history and all
         eur(contributions.portfolio.contributionHistory.endValueCents),
       );
     if (view === 'kennzahlen') {
+      await expect(
+        page.getByRole('heading', { name: 'Nettovermögen pro Tag · alle Konten' }),
+      ).toBeVisible();
+      await expect(page.getByTestId('metrics-period-gain')).toHaveText(
+        eur(performance.portfolio.performance.gainCents, { sign: true }),
+      );
       await page
         .getByText('Kennzahlen, Zahlungsströme und Bewertungsquellen im Detail', { exact: true })
         .click();

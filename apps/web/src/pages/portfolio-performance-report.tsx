@@ -1,3 +1,8 @@
+import {
+  PortfolioMetricsLead,
+  PortfolioMetricsDaily,
+  PortfolioGainBridge,
+} from '../reports/portfolio-metrics-report-body';
 import { ReportPeriodControl } from '../reports/period-quick-select';
 import { Term } from '../reports/term';
 import {
@@ -224,83 +229,102 @@ function PerformanceBody({
 
   return (
     <>
-      <section
-        className="vnw vnw-wide performance-window"
-        aria-labelledby="performance-window-title"
-      >
-        <div className="tbd-head">
-          <h2 id="performance-window-title">
-            Wertpapiere ·{' '}
-            {performance ? periodText(summary.period, performance.from) : 'ohne Historie'}
-          </h2>
-          <span className="tbd-state">Ansicht ohne Depotkassa</span>
-        </div>
-        {performance ? (
-          <>
-            <div className="performance-primary">
-              <span className="tech">
-                <Term>TTWROR</Term> im Zeitraum · {performance.days} Tage · {performance.monthCount}{' '}
-                bewertete Monate
-              </span>
-              <strong
-                data-testid="period-ttwror"
-                aria-describedby={basisReasons.length ? basisId : undefined}
-              >
-                {percent(performance.ttwror)}
-              </strong>
+      {REDESIGN_ENABLED && presentation === 'kennzahlen' ? (
+        <PortfolioMetricsLead summary={summary} incomplete={incomplete} />
+      ) : (
+        <>
+          {' '}
+          <section
+            className="vnw vnw-wide performance-window"
+            aria-labelledby="performance-window-title"
+          >
+            <div className="tbd-head">
+              <h2 id="performance-window-title">
+                Wertpapiere ·{' '}
+                {performance ? periodText(summary.period, performance.from) : 'ohne Historie'}
+              </h2>
+              <span className="tbd-state">Ansicht ohne Depotkassa</span>
             </div>
-            <HistoricalBasisCue reasons={basisReasons} id={basisId} sourceId={sourceId} />
-            <p className="vnote">
-              TTWROR und XIRR nach Portfolio Performance: Wertpapiere ohne Depotkassa, nach Gebühren
-              und vor Steuern. TTWROR zählt Zuflüsse am Tagesanfang und Abflüsse am Tagesende.
-              Periodengewinn und Nettozuflüsse verwenden die tatsächlichen Beträge nach Steuern.
-            </p>
-            <DimensionChain
-              terms={[
-                { label: 'Anfang', value: cents(performance.startValueCents) },
-                periodAmount('Nettozuflüsse', performance.contributionsCents),
-                periodAmount('Periodengewinn', performance.gainCents),
-                { label: 'Ende', value: cents(performance.endValueCents), op: '=', result: true },
-              ]}
-              label="Maßkette Portfolioleistung im gewählten Zeitraum"
+            {performance ? (
+              <>
+                <div className="performance-primary">
+                  <span className="tech">
+                    <Term>TTWROR</Term> im Zeitraum · {performance.days} Tage ·{' '}
+                    {performance.monthCount} bewertete Monate
+                  </span>
+                  <strong
+                    data-testid="period-ttwror"
+                    aria-describedby={basisReasons.length ? basisId : undefined}
+                  >
+                    {percent(performance.ttwror)}
+                  </strong>
+                </div>
+                <HistoricalBasisCue reasons={basisReasons} id={basisId} sourceId={sourceId} />
+                <p className="vnote">
+                  TTWROR und XIRR nach Portfolio Performance: Wertpapiere ohne Depotkassa, nach
+                  Gebühren und vor Steuern. TTWROR zählt Zuflüsse am Tagesanfang und Abflüsse am
+                  Tagesende. Periodengewinn und Nettozuflüsse verwenden die tatsächlichen Beträge
+                  nach Steuern.
+                </p>
+                <DimensionChain
+                  terms={[
+                    { label: 'Anfang', value: cents(performance.startValueCents) },
+                    periodAmount('Nettozuflüsse', performance.contributionsCents),
+                    periodAmount('Periodengewinn', performance.gainCents),
+                    {
+                      label: 'Ende',
+                      value: cents(performance.endValueCents),
+                      op: '=',
+                      result: true,
+                    },
+                  ]}
+                  label="Maßkette Portfolioleistung im gewählten Zeitraum"
+                />
+                <dl className="performance-metrics" aria-label="Kennzahlen des gewählten Zeitraums">
+                  <Metric
+                    label={
+                      <>
+                        <Term>TTWROR</Term> annualisiert
+                      </>
+                    }
+                    value={percent(performance.ttwrorAnnualised)}
+                    note={
+                      performance.ttwrorAnnualised === null
+                        ? 'für diesen Zeitraum nicht verfügbar'
+                        : ''
+                    }
+                  />
+                  <Metric
+                    label={
+                      <>
+                        <Term>XIRR</Term> annualisiert
+                      </>
+                    }
+                    value={percent(performance.xirr)}
+                    note={
+                      performance.xirr === null
+                        ? 'für diesen Zeitraum nicht verfügbar'
+                        : 'actual/365'
+                    }
+                  />
+                </dl>
+              </>
+            ) : (
+              <p className="performance-empty" role="status">
+                Für das Portfolio liegt keine Renditehistorie vor. Eine Rendite wird nicht als null
+                angenommen.
+              </p>
+            )}
+            <PortfolioCalculationDisclosure
+              summary={summary}
+              incomplete={incomplete}
+              sourceId={sourceId}
             />
-            <dl className="performance-metrics" aria-label="Kennzahlen des gewählten Zeitraums">
-              <Metric
-                label={
-                  <>
-                    <Term>TTWROR</Term> annualisiert
-                  </>
-                }
-                value={percent(performance.ttwrorAnnualised)}
-                note={
-                  performance.ttwrorAnnualised === null ? 'für diesen Zeitraum nicht verfügbar' : ''
-                }
-              />
-              <Metric
-                label={
-                  <>
-                    <Term>XIRR</Term> annualisiert
-                  </>
-                }
-                value={percent(performance.xirr)}
-                note={
-                  performance.xirr === null ? 'für diesen Zeitraum nicht verfügbar' : 'actual/365'
-                }
-              />
-            </dl>
-          </>
-        ) : (
-          <p className="performance-empty" role="status">
-            Für das Portfolio liegt keine Renditehistorie vor. Eine Rendite wird nicht als null
-            angenommen.
-          </p>
-        )}
-        <PortfolioCalculationDisclosure
-          summary={summary}
-          incomplete={incomplete}
-          sourceId={sourceId}
-        />
-      </section>
+          </section>
+        </>
+      )}
+      {REDESIGN_ENABLED && presentation === 'kennzahlen' && <PortfolioMetricsDaily />}
+
       <PerformanceComparisons
         summary={summary}
         presentation={REDESIGN_ENABLED ? presentation : 'all'}
@@ -311,24 +335,31 @@ function PerformanceBody({
           <PortfolioClassHistories history={summary.performanceHistory} />
         </details>
       )}
-      <section className="performance-realized" aria-labelledby="realized-gain-title">
-        <div className="tbd-head">
-          <h2 id="realized-gain-title">Realisierte Gewinne</h2>
-          <span className="tbd-state">Gesamte gespeicherte Historie</span>
-        </div>
-        <p className="performance-realized-value" data-testid="realized-gain">
-          {eur(summary.realizedGainCents, { sign: true })}
-        </p>
-        <p className="performance-incomplete" role="status">
-          {summary.realizedGainComplete
-            ? 'Ergebnis aus den dokumentierten Verkäufen; die Kostenbasis ist vollständig belegt.'
-            : 'Bekannter dokumentierter Teilbetrag; die historische Einstandsbasis ist nicht vollständig belegt.'}
-        </p>
-        <p className="vnote">
-          Der Betrag umfasst die gesamte gespeicherte Historie, unabhängig davon, ob heute noch
-          Stücke gehalten werden. Er ist nicht die Rendite des gewählten Zeitraums.
-        </p>
-      </section>
+      {REDESIGN_ENABLED && presentation === 'kennzahlen' ? (
+        <PortfolioGainBridge summary={summary} />
+      ) : (
+        <>
+          {' '}
+          <section className="performance-realized" aria-labelledby="realized-gain-title">
+            <div className="tbd-head">
+              <h2 id="realized-gain-title">Realisierte Gewinne</h2>
+              <span className="tbd-state">Gesamte gespeicherte Historie</span>
+            </div>
+            <p className="performance-realized-value" data-testid="realized-gain">
+              {eur(summary.realizedGainCents, { sign: true })}
+            </p>
+            <p className="performance-incomplete" role="status">
+              {summary.realizedGainComplete
+                ? 'Ergebnis aus den dokumentierten Verkäufen; die Kostenbasis ist vollständig belegt.'
+                : 'Bekannter dokumentierter Teilbetrag; die historische Einstandsbasis ist nicht vollständig belegt.'}
+            </p>
+            <p className="vnote">
+              Der Betrag umfasst die gesamte gespeicherte Historie, unabhängig davon, ob heute noch
+              Stücke gehalten werden. Er ist nicht die Rendite des gewählten Zeitraums.
+            </p>
+          </section>
+        </>
+      )}
       {summary.positions.length === 0 && performance && (
         <p className="performance-empty" role="status">
           Zum aktuellen Stand sind keine Wertpapierpositionen offen. Dokumentierte Verkaufsdaten

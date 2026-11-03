@@ -25,16 +25,18 @@ export const toneOf = (index: number, count: number): string => {
 export function WealthHistoryChart({
   history,
   dailyOnly = false,
+  compact = false,
 }: {
   history: NetWorthHistory;
   dailyOnly?: boolean;
+  compact?: boolean;
 }) {
   useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   return (
     <div ref={ref} className={`rf-chart rf-chart-lg${dailyOnly ? ' wealth-daily-chart' : ''}`}>
       {width > 0 && history.points.length > 1 && (
-        <Drawing history={history} width={width} dailyOnly={dailyOnly} />
+        <Drawing history={history} width={width} dailyOnly={dailyOnly} compact={compact} />
       )}
     </div>
   );
@@ -44,14 +46,16 @@ function Drawing({
   history,
   width: W,
   dailyOnly,
+  compact,
 }: {
   history: NetWorthHistory;
   width: number;
   dailyOnly: boolean;
+  compact: boolean;
 }) {
   useAmountPrivacy();
   const narrow = W < 520;
-  const H = dailyOnly ? 240 : narrow ? 280 : 340;
+  const H = compact ? 180 : dailyOnly ? 240 : narrow ? 280 : 340;
   const R = narrow ? 56 : 84;
   const { points, groups, daily } = history;
   const days = daily.map((d) => d.date);
