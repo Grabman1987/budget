@@ -68,6 +68,10 @@ async function selectedView(page: Page, target: string, view: string) {
           ? 'Budgettreue'
           : view,
     );
+  } else if ((await redesignReportsOn(page)) && target === '/reports/explorer') {
+    await expect(
+      page.getByRole('combobox', { name: 'Darstellung der Auswertung' }).locator('option:checked'),
+    ).toHaveText(view);
   } else if ((await redesignReportsOn(page)) && target === '/reports/vermoegen-schulden') {
     await expect(
       page

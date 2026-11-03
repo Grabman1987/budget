@@ -1,3 +1,4 @@
+import { openCustomExplorer } from './explorer-controls';
 import { cents, formatEuro, type ExplorerResult } from '@budget/domain';
 import { expect as baseExpect, sampleTest as test } from './sample';
 import { inspectReport } from './overview-report';
@@ -17,7 +18,7 @@ test('Explorer pivots the booking splits and drills down to the bookings', async
   page,
 }, info) => {
   const first = page.waitForResponse(isExplorer);
-  await page.goto('/reports/explorer');
+  await openCustomExplorer(page);
   const { result } = (await (await first).json()) as { result: ExplorerResult };
   expect(result.query).toMatchObject({
     dim: 'kategorie',
@@ -42,7 +43,7 @@ test('Explorer pivots the booking splits and drills down to the bookings', async
 
   // Income types: Kapitalerträge stand apart, the class filter does not apply.
   const income = page.waitForResponse((r) => isExplorer(r) && r.url().includes('dim=einnahme'));
-  await page.getByLabel('Zeilen').selectOption('einnahme');
+  await page.getByLabel('Zeilen', { exact: true }).selectOption('einnahme');
   const incomeResult = ((await (await income).json()) as { result: ExplorerResult }).result;
   expect(incomeResult.rows.map((r) => r.label)).toContain('Kapitalerträge');
   await expect(page.getByLabel('Klasse')).toBeDisabled();
@@ -60,12 +61,12 @@ test('Explorer pivots the booking splits and drills down to the bookings', async
 
 test('Explorer saves, restores and deletes a view in this browser', async ({ page }, info) => {
   const viewName = `Mein Schnitt ${info.project.name}-${info.retry}`;
-  await page.goto('/reports/explorer');
+  await openCustomExplorer(page);
   await expect(page.getByTestId('ex-table')).toBeVisible();
   await page.getByLabel('Spalten').selectOption('jahr');
   await page.getByLabel('Kennzahl').selectOption('avg');
   await page.getByLabel('Ansicht speichern').fill(viewName);
-  await page.getByRole('button', { name: 'Speichern' }).click();
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   const chip = page.getByRole('button', { name: viewName, exact: true });
   await expect(chip).toHaveAttribute('aria-pressed', 'true');
 
@@ -87,7 +88,7 @@ test('Explorer saves, restores and deletes a view in this browser', async ({ pag
 });
 
 test('Explorer asks for a name before it saves', async ({ page }) => {
-  await page.goto('/reports/explorer');
-  await page.getByRole('button', { name: 'Speichern' }).click();
+  await openCustomExplorer(page);
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByText('Bitte einen Namen für die Ansicht eingeben.')).toBeVisible();
 });

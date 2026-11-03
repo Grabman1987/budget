@@ -1,3 +1,4 @@
+import { retainExplorerReaders } from './explorer-controls';
 import { openR8BodyDetails } from './income-spending-controls';
 import { portfolioReportPath, expectWealthReportView } from './wealth-report-controls';
 import { inboxFilters } from './ledger-helpers';
@@ -13,6 +14,10 @@ import { sampleTest as test, expect } from './sample';
 import { test as isolatedTest } from './isolated-ledger';
 import { wealthRedesign } from './wealth-navigation';
 import { openPruefenSource } from './pruefen-part';
+
+test.beforeEach(async ({ page }) => {
+  await retainExplorerReaders(page);
+});
 
 const id = (p: Page, name: string) => expect(p.getByTestId(name)).toBeVisible();
 const css = (p: Page, selector: string) => expect(p.locator(selector).first()).toBeVisible();
@@ -379,7 +384,8 @@ const probes = {
     expect(p.getByTestId('depot-total').getByTestId('depot-value')).toBeVisible(),
   portfolioReport: (p: Page) => id(p, 'sunburst-classes'),
   costs: (p: Page) => id(p, 'costs-net'),
-  explorer: (p: Page) => css(p, '[data-testid="ex-table"] tbody tr'),
+  explorer: (p: Page) =>
+    css(p, '[data-testid="ex-table"] tbody tr, [data-testid="template-heatmap"]'),
   compare: async (p: Page) => {
     await revealComparisonDetail(p);
     await id(p, 'vg-consumption');
@@ -580,6 +586,12 @@ for (const [slug, legacyPath, legacyIntent, view, legacyBody] of reportAliases)
                 ? 'Budgettreue'
                 : view,
           );
+        } else if ((await redesignReportsOn(page)) && path === '/reports/explorer') {
+          await expect(
+            page
+              .getByRole('combobox', { name: 'Darstellung der Auswertung' })
+              .locator('option:checked'),
+          ).toHaveText(view);
         } else if (['/reports/pallocation', '/reports/vermoegen-schulden'].includes(path)) {
           await expectWealthReportView(page, view);
         } else {
