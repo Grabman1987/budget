@@ -1,3 +1,4 @@
+import { redesignReportsOn } from './report-frame';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { changeFreedomGoal, openDatabase, saveProfile } from '@budget/db';
@@ -33,6 +34,12 @@ function seed(path: string, saved = false) {
 const goal = async (page: Page) =>
   (await (await page.request.get('/api/wealth/freedom/goal')).json()) as FreedomGoalState;
 
+async function openFreedom(page: Page) {
+  await page.goto('/vermoegen/freiheit');
+  if (await redesignReportsOn(page))
+    await page.goto('/reports/vermoegen-schulden?darstellung=freiheit');
+}
+
 test('stored year and age survive reload, audited undo/redo and a real second-context conflict', async ({
   page,
   browser,
@@ -41,7 +48,7 @@ test('stored year and age survive reload, audited undo/redo and a real second-co
 }) => {
   test.setTimeout(90_000); // One bounded scenario covers save/reload/age/undo/redo/conflict/clear.
   seed(isolatedLedger.databasePath);
-  await page.goto('/vermoegen/freiheit');
+  await openFreedom(page);
   await page.getByLabel('Rendite nach Inflation', { exact: true }).selectOption('0');
   const year = page.getByLabel('Zieljahr', { exact: true });
   await year.fill('2025');
@@ -76,7 +83,7 @@ test('stored year and age survive reload, audited undo/redo and a real second-co
   try {
     const other = await second.newPage();
     await other.clock.setFixedTime(new Date('2024-02-01T12:00:00+01:00'));
-    await other.goto('/vermoegen/freiheit');
+    await openFreedom(other);
     await other.getByLabel('Zieljahr', { exact: true }).fill('2028');
     await other.getByRole('button', { name: 'Ziel speichern', exact: true }).click();
     await expect(other.getByText('Nötige Sparrate für 2028', { exact: true })).toBeVisible();
@@ -103,7 +110,7 @@ test('stored year and age survive reload, audited undo/redo and a real second-co
 });
 
 async function inspect(page: Page, info: TestInfo, label: string) {
-  await page.goto('/vermoegen/freiheit');
+  await openFreedom(page);
   await expect(page.getByLabel('Zieljahr', { exact: true })).toHaveValue('2025');
   await page.getByLabel('Rendite nach Inflation', { exact: true }).selectOption('0');
   await page.getByLabel('Sparrate pro Monat', { exact: true }).fill('100');

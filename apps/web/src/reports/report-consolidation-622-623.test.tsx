@@ -47,6 +47,11 @@ vi.mock('./spending-analysis-report', () => ({
     </div>
   ),
 }));
+vi.mock('./freedom-report', () => ({
+  FreedomReport: ({ viewControl }: { viewControl: ReactNode }) => (
+    <div data-testid="freedom-body">{viewControl}</div>
+  ),
+}));
 vi.mock('./assets-debts-report', () => ({
   AssetsDebtsReport: ({ viewControl }: { viewControl: ReactNode }) => (
     <div data-testid="balance-body">{viewControl}</div>

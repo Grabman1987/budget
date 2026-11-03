@@ -6,6 +6,7 @@ import type { ReportEntry } from '../nav/reports-catalog';
 import { DEFAULT_ZEITRAUM } from '../wealth/zeitraum';
 import { AssetsDebtsReport } from './assets-debts-report';
 import { WealthHistoryReport } from './wealth-history-report';
+import { FreedomReport } from './freedom-report';
 import { WholePictureReport } from './whole-picture-report';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './report-views.css';
@@ -15,7 +16,12 @@ const WEALTH_VIEWS = [
   { value: 'bilanz', label: 'Vermögen und Schulden' },
   { value: 'verlauf', label: 'Vermögensverlauf' },
   { value: 'gesamt', label: 'Gesamtübersicht' },
-  ...(REDESIGN_ENABLED ? [{ value: 'schulden' as const, label: 'Schulden-Verlauf' }] : []),
+  ...(REDESIGN_ENABLED
+    ? [
+        { value: 'schulden' as const, label: 'Schulden-Verlauf' },
+        { value: 'freiheit' as const, label: 'Finanzielle Freiheit' },
+      ]
+    : []),
 ] as const;
 type WealthView = (typeof WEALTH_VIEWS)[number]['value'];
 
@@ -69,6 +75,8 @@ export function WealthReportViews({ report, meta }: { report: ReportEntry; meta:
       onChange={changeView}
     />
   );
+  if (view === 'freiheit')
+    return <FreedomReport report={report} meta={meta} viewControl={control} />;
   if (view === 'verlauf')
     return <WealthHistoryReport report={report} meta={meta} viewControl={control} />;
   if (view === 'gesamt')
