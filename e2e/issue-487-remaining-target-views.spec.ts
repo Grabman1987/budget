@@ -1,3 +1,4 @@
+import { selectWealthReportView, expectWealthReportView } from './wealth-report-controls';
 import { redesignReportsOn, revealReportDetail } from './report-frame';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
@@ -14,7 +15,7 @@ async function portfolioTitleVisible(page: Page, info: TestInfo) {
       : page.locator('.m-title-text');
   await expect(title).toBeVisible();
   await title.scrollIntoViewIfNeeded();
-  await expect(title).toHaveText('Portfolio-Auswertung');
+  await expect(title).toHaveText(on ? 'Vermögensreport' : 'Portfolio-Auswertung');
   const geometry = await title.evaluate((element) => {
     const range = document.createRange();
     range.selectNodeContents(element);
@@ -315,18 +316,19 @@ for (const [view, legacy, bodySelector] of [
       await expect(body).toHaveText(content, { useInnerText: true });
       await revealReportDetail(page);
       await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
-      await expect(page).toHaveTitle(/Portfolio-Auswertung/);
+      await expect(page).toHaveTitle(
+        (await redesignReportsOn(page)) ? /Vermögensreport/ : /Portfolio-Auswertung/,
+      );
       await portfolioTitleVisible(page, info);
       if (view === 'einzahlungen') await monthlyTableReachable(page, info);
       if (info.project.name !== 'desktop')
-        await expect(page.locator('.m-title-text')).toHaveText('Portfolio-Auswertung');
+        await expect(page.locator('.m-title-text')).toHaveText(
+          (await redesignReportsOn(page)) ? 'Vermögensreport' : 'Portfolio-Auswertung',
+        );
       if (view === 'einzahlungen')
         await expect(page.getByTestId('report-trend-line')).not.toHaveCount(0);
-      await expect(
-        page
-          .getByRole('group', { name: 'Ansicht der Portfolio-Auswertung' })
-          .getByRole('button', { pressed: true }),
-      ).toHaveText(
+      await expectWealthReportView(
+        page,
         view === 'rendite'
           ? 'Rendite & Risiko'
           : view === 'verteilung'
@@ -414,7 +416,7 @@ test('487 Portfolio switching preserves literal performance and contribution amo
   const verdict = await page.getByTestId('report-verdict').innerText();
   await privacy(page, true);
   await noClearMoney(page, /300[,.]03|1[.\s]?500[,.]06|6[,.]91/);
-  await page.getByRole('button', { name: 'Einzahlungen und Wert', exact: true }).click();
+  await selectWealthReportView(page, 'Einzahlungen und Wert');
   await expect(page.getByTestId('contributions-end-value')).toHaveText('••• €');
   await noClearMoney(page, /300[,.]03|1[.\s]?500[,.]06/);
   await privacy(page, false);

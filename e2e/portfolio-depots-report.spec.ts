@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import { redesignReportsOn } from './report-frame';
 import { expect, type Page, type TestInfo } from '@playwright/test';
 import { cents, formatEuro } from '@budget/domain';
 import { mkdirSync } from 'node:fs';
@@ -52,6 +53,12 @@ sampleTest(
     expect(depots.depots.length).toBeGreaterThanOrEqual(3);
     expect(depots.depots.reduce((sum, d) => sum + d.shareBp, 0)).toBe(10_000);
 
+    if (await redesignReportsOn(page)) {
+      await expect(page.getByTestId('depot-summary-value').last()).toHaveText(
+        formatEuro(cents(depots.total!.valueCents)),
+      );
+      await page.getByText('Depot-Rechnungen, Benchmarks und Kennzahlen', { exact: true }).click();
+    }
     // One drawing per depot plus the total, with the value from the read model.
     await expect(page.getByTestId('depot')).toHaveCount(depots.depots.length);
     await expect(page.getByTestId('depot-value').last()).toHaveText(

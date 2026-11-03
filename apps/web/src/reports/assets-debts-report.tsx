@@ -1,6 +1,6 @@
 import { ReportPeriodControl } from './period-quick-select';
 import { useAmountPrivacy } from '@budget/ui';
-import { MINUS } from '@budget/domain';
+import { cents, MINUS } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, type ReactNode } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
@@ -19,6 +19,8 @@ import { assetsDebtsHistoryQuery, type AssetsDebtsHistory } from './assets-debts
 import { AssetsDebtsChart, longMonth } from './assets-debts-chart';
 import { assetsDebtsVerdictFacts } from './verdict-facts';
 import './reports-future.css';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { WealthSourceAnalysis } from './wealth-source-analysis';
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
 const percent = new Intl.NumberFormat('de-AT', {
@@ -60,10 +62,12 @@ export function AssetsDebtsReport({
   report,
   meta,
   viewControl,
+  debtOnly = false,
 }: {
   report: ReportEntry;
   meta: PageMeta;
   viewControl?: ReactNode;
+  debtOnly?: boolean;
 }) {
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum('Alles');
@@ -79,7 +83,36 @@ export function AssetsDebtsReport({
   );
   return (
     <PageFrame
-      verdict={verdict}
+      verdict={debtOnly ? undefined : verdict}
+      sourceDate={history?.to}
+      calculation={
+        history?.months.length && !query.isFetching && !query.isError
+          ? {
+              label: debtOnly ? 'Restschuld nach Konto' : 'Vermögen abzüglich Schulden',
+              terms: debtOnly
+                ? history.months.at(-1)!.debts.map((account, index) => ({
+                    ...(index ? { op: '+' as const } : {}),
+                    label: account.name,
+                    value: cents(-account.valueCents),
+                  }))
+                : [
+                    { label: 'Vermögenswerte', value: cents(history.months.at(-1)!.assetsCents) },
+                    {
+                      op: '-',
+                      label: 'Schulden',
+                      value: cents(-history.months.at(-1)!.debtsCents),
+                    },
+                  ],
+              result: {
+                label: debtOnly ? 'Restschuld' : 'Nettovermögen',
+                unit: 'money',
+                value: debtOnly
+                  ? -history.months.at(-1)!.debtsCents
+                  : history.months.at(-1)!.netCents,
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
@@ -127,8 +160,9 @@ export function AssetsDebtsReport({
           <EmptyNote>Noch keine Konten. Lege unter Konten ein Konto an.</EmptyNote>
         )}
         {history && history.months.length > 0 && (
-          <Body history={history} selected={selected} onSelect={select} />
+          <Body history={history} selected={selected} onSelect={select} debtOnly={debtOnly} />
         )}
+        {REDESIGN_ENABLED && !debtOnly && <WealthSourceAnalysis fallbackPeriod="Alles" />}
       </div>
     </PageFrame>
   );
@@ -138,15 +172,17 @@ function Body({
   history,
   selected,
   onSelect,
+  debtOnly,
 }: {
   history: AssetsDebtsHistory;
   selected: string;
   onSelect: (month: string) => void;
+  debtOnly: boolean;
 }) {
   useAmountPrivacy();
   const { months, change } = history;
   const end = months[months.length - 1]!;
-  const { whole, fraction } = eurParts(end.netCents);
+  const { whole, fraction } = eurParts(debtOnly ? -end.debtsCents : end.netCents);
   const rising = change.deltaCents >= 0;
   const Arrow = rising ? ArrowUp : ArrowDown;
   const rate = signedPercent(change.deltaRate);
@@ -156,8 +192,10 @@ function Body({
     <>
       <section className="card rf-card rf-wide" aria-labelledby="ad-title">
         <div className="tbd-head">
-          <h2 id="ad-title">Nettovermögen · {text}</h2>
-          <span className="tbd-state">
+          <h2 id="ad-title">
+            {debtOnly ? 'Schulden-Verlauf' : 'Nettovermögen'} · {text}
+          </h2>
+          <span className="tbd-state" hidden={debtOnly}>
             <span className={rising ? 'ok' : 'ink'} data-testid="ad-state">
               <Arrow className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
               {eur(change.deltaCents, { sign: true })}
@@ -167,43 +205,59 @@ function Body({
         </div>
         <div className="rf-figs" data-testid="ad-figures">
           <div>
-            <span className="tech">Nettovermögen, {longDay(end.date)}</span>
+            <span className="tech">
+              {debtOnly ? 'Restschuld' : 'Nettovermögen'}, {longDay(end.date)}
+            </span>
             <strong data-testid="ad-net">
               {whole}
               <span className="cents">,{fraction} €</span>
             </strong>
           </div>
-          <div>
-            <span className="tech">Vermögenswerte</span>
-            <strong data-testid="ad-assets">{eur(end.assetsCents)}</strong>
-          </div>
-          <div>
-            <span className="tech">Schulden</span>
-            <strong data-testid="ad-debts">{eur(end.debtsCents)}</strong>
-          </div>
-          <div>
-            <span className="tech">Veränderung im Zeitraum</span>
-            <strong data-testid="ad-change">{eur(change.deltaCents, { sign: true })}</strong>
-            <small data-testid="ad-change-rate">
-              {rate ?? 'Prozent nicht berechenbar (Start bei 0)'}, seit {longDay(history.from)}
-            </small>
-          </div>
+          {!debtOnly && (
+            <>
+              {' '}
+              <div>
+                <span className="tech">Vermögenswerte</span>
+                <strong data-testid="ad-assets">{eur(end.assetsCents)}</strong>
+              </div>
+              <div>
+                <span className="tech">Schulden</span>
+                <strong data-testid="ad-debts">{eur(end.debtsCents)}</strong>
+              </div>
+              <div>
+                <span className="tech">
+                  {debtOnly ? 'Veränderung Nettovermögen' : 'Veränderung im Zeitraum'}
+                </span>
+                <strong data-testid="ad-change">{eur(change.deltaCents, { sign: true })}</strong>
+                <small data-testid="ad-change-rate">
+                  {rate ?? 'Prozent nicht berechenbar (Start bei 0)'}, seit {longDay(history.from)}
+                </small>
+              </div>
+            </>
+          )}
         </div>
-        <AssetsDebtsChart history={history} selected={selected} onSelect={onSelect} />
+        <AssetsDebtsChart
+          history={history}
+          selected={selected}
+          onSelect={onSelect}
+          debtOnly={debtOnly}
+        />
         <ul className="rf-legend" aria-label="Legende">
-          <li>
-            <i className="rf-sq rf-sq-ink" aria-hidden="true" />
-            Vermögenswerte
-          </li>
+          {!debtOnly && (
+            <li>
+              <i className="rf-sq rf-sq-ink" aria-hidden="true" />
+              Vermögenswerte
+            </li>
+          )}
           <li>
             <i className="rf-sq rf-sq-pale" aria-hidden="true" />
-            Schulden, unter Null
+            {debtOnly ? 'Restschuld als Betrag' : 'Schulden, unter Null'}
           </li>
           <li>
             <svg viewBox="0 0 26 8" aria-hidden="true">
               <path className="l-actual" d="M0 4h26" />
             </svg>
-            Nettovermögen
+            {debtOnly ? 'Restschuld' : 'Nettovermögen'}
           </li>
           {anyEstimated && (
             <li>
@@ -220,6 +274,33 @@ function Body({
         </p>
       </section>
 
+      {debtOnly && <DebtComparison history={history} />}
+      {debtOnly ? (
+        <details className="rf-wide wealth-debt-detail">
+          <summary>Alle Monatsenden und Quellkonten</summary>
+          <MonthDetails history={history} selected={selected} onSelect={onSelect} />
+        </details>
+      ) : (
+        <MonthDetails history={history} selected={selected} onSelect={onSelect} />
+      )}
+    </>
+  );
+}
+
+function MonthDetails({
+  history,
+  selected,
+  onSelect,
+}: {
+  history: AssetsDebtsHistory;
+  selected: string;
+  onSelect: (month: string) => void;
+}) {
+  useAmountPrivacy();
+  const { months } = history;
+  return (
+    <>
+      {' '}
       <section className="card rf-card rf-wide" aria-labelledby="ad-months">
         <div className="tbd-head">
           <h2 id="ad-months">Monatsenden</h2>
@@ -286,7 +367,6 @@ function Body({
           </table>
         </div>
       </section>
-
       <Breakdown history={history} month={selected} />
     </>
   );
@@ -370,6 +450,76 @@ function Breakdown({ history, month }: { history: AssetsDebtsHistory; month: str
               <td className="n" data-testid="ad-g-net">
                 {eur(m.netCents)}
               </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+/** Compare actual stored month-end liabilities; never infer interest or a payoff forecast. */
+function DebtComparison({ history }: { history: AssetsDebtsHistory }) {
+  useAmountPrivacy();
+  const first = history.months[0]!;
+  const last = history.months.at(-1)!;
+  const accounts = new Map(
+    history.months.flatMap((month) =>
+      month.debts.map((account) => [account.accountId, account] as const),
+    ),
+  );
+  return (
+    <section className="card rf-card rf-wide" aria-labelledby="debt-comparison-title">
+      <h2 id="debt-comparison-title">Schulden nach Konto</h2>
+      <p className="vnote">
+        Tatsächliche Monatsendstände: {longDay(first.date)} bis {longDay(last.date)}. Beträge zeigen
+        die Restschuld; getilgte Konten bleiben enthalten. Gezahlte Zinsen werden aus diesen Salden
+        nicht abgeleitet.
+      </p>
+      <div
+        className="rf-scroll"
+        role="region"
+        aria-label="Schuldenvergleich nach Konto"
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users scroll all columns.
+        tabIndex={0}
+      >
+        <table className="rf-table" data-testid="debt-account-comparison">
+          <thead>
+            <tr>
+              <th scope="col">Konto</th>
+              <th scope="col" className="n">
+                {longDay(first.date)}
+              </th>
+              <th scope="col" className="n">
+                {longDay(last.date)}
+              </th>
+              <th scope="col" className="n">
+                Veränderung
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...accounts.values()].map((account) => {
+              const start = -(
+                first.debts.find((row) => row.accountId === account.accountId)?.valueCents ?? 0
+              );
+              const end = -(
+                last.debts.find((row) => row.accountId === account.accountId)?.valueCents ?? 0
+              );
+              return (
+                <tr key={account.accountId}>
+                  <th scope="row">{account.name}</th>
+                  <td className="n">{eur(start)}</td>
+                  <td className="n">{eur(end)}</td>
+                  <td className="n">{eur(end - start, { sign: true })}</td>
+                </tr>
+              );
+            })}
+            <tr className="is-total">
+              <th scope="row">Restschuld gesamt</th>
+              <td className="n">{eur(-first.debtsCents)}</td>
+              <td className="n">{eur(-last.debtsCents)}</td>
+              <td className="n">{eur(first.debtsCents - last.debtsCents, { sign: true })}</td>
             </tr>
           </tbody>
         </table>

@@ -246,7 +246,10 @@ ledgerTest(
         })
         .click();
       if (await wealthRedesign(page))
-        await page.getByText('Kategorien & Regeln', { exact: true }).click();
+        await page
+          .getByRole('navigation', { name: 'Einstellungen', exact: true })
+          .getByText('Kategorien & Regeln', { exact: true })
+          .click();
       await page.getByRole('link', { name: 'Regelwerk', exact: true }).click();
       await page.getByRole('link', { name: 'Einstellen R16 Freiheitszahl' }).click();
       await page.getByRole('link', { name: 'Schwellen bearbeiten', exact: true }).click();
