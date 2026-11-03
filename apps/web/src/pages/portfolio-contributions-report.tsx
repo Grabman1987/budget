@@ -20,6 +20,7 @@ import { ReportFrame as PageFrame } from '../reports/report-frame';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import './portfolio-contributions-report.css';
+import '../reports/wealth-portfolio-redesign.css';
 
 interface ContributionsPortfolio extends PortfolioSummary {
   contributionHistory?: ContributionHistory | null;
@@ -58,6 +59,29 @@ export function PortfolioContributionsReport({
 
   return (
     <PageFrame
+      sourceDate={history?.to}
+      calculation={
+        history && !query.isFetching && !query.isError
+          ? {
+              label: 'Einzahlungen und Wert, Wertpapiere ohne Depotkassa',
+              terms: [
+                { label: 'Wert am Anfang', value: cents(history.startValueCents) },
+                {
+                  op: '+',
+                  label: 'Nettozuflüsse / Entnahmen',
+                  value: cents(history.contributionsCents),
+                  signed: true,
+                },
+                { op: '+', label: 'Wertänderung', value: cents(history.gainCents), signed: true },
+              ],
+              result: {
+                label: 'Wert am Ende · ohne Depotkassa',
+                unit: 'money',
+                value: history.endValueCents,
+              },
+            }
+          : undefined
+      }
       verdict={
         history && !query.isFetching && !query.isError
           ? {

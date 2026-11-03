@@ -6,6 +6,10 @@ import type { ReportEntry } from '../nav/reports-catalog';
 import { DEFAULT_ZEITRAUM } from '../wealth/zeitraum';
 import { AssetsDebtsReport } from './assets-debts-report';
 import { WealthHistoryReport } from './wealth-history-report';
+import { findReport } from '../nav/reports-catalog';
+import { PortfolioAllocationReport } from '../pages/portfolio-allocation-report';
+import { PortfolioContributionsReport } from '../pages/portfolio-contributions-report';
+import { PortfolioPerformanceReport } from '../pages/portfolio-performance-report';
 import { FreedomReport } from './freedom-report';
 import { WholePictureReport } from './whole-picture-report';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
@@ -20,6 +24,11 @@ const WEALTH_VIEWS = [
     ? [
         { value: 'schulden' as const, label: 'Schulden-Verlauf' },
         { value: 'freiheit' as const, label: 'Finanzielle Freiheit' },
+        { value: 'verteilung' as const, label: 'Verteilung über Zeit' },
+        { value: 'einzahlungen' as const, label: 'Einzahlungen und Wert' },
+        { value: 'rendite' as const, label: 'Rendite & Risiko' },
+        { value: 'kennzahlen' as const, label: 'Kennzahlen' },
+        { value: 'klassen' as const, label: 'Anlageklassen im Verlauf' },
       ]
     : []),
 ] as const;
@@ -37,11 +46,11 @@ export function WealthReportViews({ report, meta }: { report: ReportEntry; meta:
     // Materialize the active reader's existing fallback only at a real switch, never on mount.
     const period = isReportPeriod(search.zeitraum)
       ? search.zeitraum
-      : view === 'verlauf'
-        ? DEFAULT_ZEITRAUM
+      : view === 'bilanz'
+        ? 'Alles'
         : view === 'gesamt'
           ? '1J'
-          : 'Alles';
+          : DEFAULT_ZEITRAUM;
     void navigate({
       to: '.',
       search: ((previous: Record<string, unknown>) => ({
@@ -75,6 +84,32 @@ export function WealthReportViews({ report, meta }: { report: ReportEntry; meta:
       onChange={changeView}
     />
   );
+  const portfolioReport = (id: string) => ({ ...findReport(id)!, name: report.name });
+  if (view === 'verteilung')
+    return (
+      <PortfolioAllocationReport
+        report={portfolioReport('pallocation')}
+        meta={meta}
+        viewControl={control}
+      />
+    );
+  if (view === 'einzahlungen')
+    return (
+      <PortfolioContributionsReport
+        report={portfolioReport('peinzahlungen')}
+        meta={meta}
+        viewControl={control}
+      />
+    );
+  if (view === 'rendite' || view === 'kennzahlen' || view === 'klassen')
+    return (
+      <PortfolioPerformanceReport
+        report={portfolioReport('prendite')}
+        meta={meta}
+        viewControl={control}
+        presentation={view === 'rendite' ? 'all' : view}
+      />
+    );
   if (view === 'freiheit')
     return <FreedomReport report={report} meta={meta} viewControl={control} />;
   if (view === 'verlauf')

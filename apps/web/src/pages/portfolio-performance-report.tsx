@@ -23,6 +23,10 @@ import { ReportFrame as PageFrame } from '../reports/report-frame';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import './portfolio-performance-report.css';
+import '../reports/wealth-portfolio-redesign.css';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { PortfolioMetrics } from '../wealth/portfolio-metrics';
+import { PortfolioClassHistories } from '../wealth/portfolio-class-histories';
 import { PerformanceComparisons } from './portfolio-performance-comparisons';
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
@@ -47,18 +51,40 @@ export function PortfolioPerformanceReport({
   report,
   meta,
   viewControl,
+  presentation = 'all',
 }: {
   report: ReportEntry;
   meta: PageMeta;
   viewControl?: ReactNode;
+  presentation?: 'all' | 'kennzahlen' | 'klassen';
 }) {
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
   const query = useQuery(portfolioPerformanceQuery(period));
   const navigate = useNavigate();
+  const perf = query.data?.portfolio.performance;
+  const latestClass = query.data?.portfolio.performanceHistory?.classes[0];
 
   return (
     <PageFrame
+      sourceDate={perf?.to}
+      calculation={
+        perf && !query.isFetching && !query.isError && presentation === 'all'
+          ? {
+              label: 'Wertpapiere ohne Depotkassa im Zeitraum',
+              terms: [
+                { label: 'Anfang', value: cents(perf.startValueCents) },
+                periodAmount('Nettozuflüsse', perf.contributionsCents),
+                periodAmount('Periodengewinn', perf.gainCents),
+              ],
+              result: {
+                label: 'Wert am Ende · Wertpapiere ohne Depotkassa',
+                unit: 'money',
+                value: perf.endValueCents,
+              },
+            }
+          : undefined
+      }
       verdict={
         query.data && !query.isFetching && !query.isError
           ? {
@@ -66,9 +92,26 @@ export function PortfolioPerformanceReport({
               period: `${query.data.portfolio.performance?.from}..${query.data.portfolio.performance?.to}`,
               estimated: Boolean(query.data.incomplete?.length),
               metric: {
-                label: 'Periodenergebnis',
-                value: query.data.portfolio.performance?.gainCents ?? null,
-                unit: 'money',
+                label:
+                  presentation === 'kennzahlen'
+                    ? 'TTWROR p. a. · Wertpapiere ohne Depotkassa'
+                    : presentation === 'klassen'
+                      ? `Index · ${latestClass?.name ?? 'Anlageklasse'} · Start = 100`
+                      : 'Periodenergebnis',
+                value:
+                  presentation === 'kennzahlen'
+                    ? perf?.ttwrorAnnualised == null
+                      ? null
+                      : perf.ttwrorAnnualised * 10000
+                    : presentation === 'klassen'
+                      ? (latestClass?.index.at(-1)?.portfolio ?? null)
+                      : (perf?.gainCents ?? null),
+                unit:
+                  presentation === 'kennzahlen'
+                    ? 'percent'
+                    : presentation === 'klassen'
+                      ? 'count'
+                      : 'money',
                 better: 'higher',
               },
             }
@@ -91,7 +134,7 @@ export function PortfolioPerformanceReport({
         { label: 'Zeitraum', value: <PeriodControl period={period} onChange={setPeriod} /> },
       ]}
     >
-      <div className="kview vview portfolio-performance-report">
+      <div className="kview vview portfolio-performance-report" data-presentation={presentation}>
         {query.isPending && <LoadingNote what="Portfolioauswertung" />}
         {query.isError &&
           (query.error instanceof ApiError && query.error.code === 'valuation_unavailable' ? (
@@ -123,6 +166,7 @@ export function PortfolioPerformanceReport({
           ))}
         {!query.isError && query.data && (
           <PerformanceBody
+            presentation={presentation}
             summary={query.data.portfolio}
             incomplete={query.data.incomplete}
             onOpenPortfolio={() =>
@@ -163,10 +207,12 @@ function PeriodControl({
 
 function PerformanceBody({
   summary,
+  presentation,
   incomplete,
   onOpenPortfolio,
 }: {
   summary: PortfolioSummary;
+  presentation: 'all' | 'kennzahlen' | 'klassen';
   incomplete?: ValuationNote[] | undefined;
   onOpenPortfolio: () => void;
 }) {
@@ -255,7 +301,16 @@ function PerformanceBody({
           sourceId={sourceId}
         />
       </section>
-      <PerformanceComparisons summary={summary} />
+      <PerformanceComparisons
+        summary={summary}
+        presentation={REDESIGN_ENABLED ? presentation : 'all'}
+      />
+      {REDESIGN_ENABLED && presentation === 'klassen' && summary.performanceHistory && (
+        <details className="performance-class-history">
+          <summary>Monatliche Klassenverläufe und Werte</summary>
+          <PortfolioClassHistories history={summary.performanceHistory} />
+        </details>
+      )}
       <section className="performance-realized" aria-labelledby="realized-gain-title">
         <div className="tbd-head">
           <h2 id="realized-gain-title">Realisierte Gewinne</h2>
@@ -279,6 +334,12 @@ function PerformanceBody({
           Zum aktuellen Stand sind keine Wertpapierpositionen offen. Dokumentierte Verkaufsdaten
           bleiben oben sichtbar.
         </p>
+      )}
+      {REDESIGN_ENABLED && presentation === 'kennzahlen' && (
+        <details className="performance-metrics-retained">
+          <summary>Kennzahlen, Zahlungsströme und Bewertungsquellen im Detail</summary>
+          <PortfolioMetrics />
+        </details>
       )}
       <div className="performance-links">
         <Button variant="ghost" onClick={onOpenPortfolio}>
