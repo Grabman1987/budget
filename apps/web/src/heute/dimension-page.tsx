@@ -120,7 +120,7 @@ export function DimensionPage() {
             <h2 ref={heading} tabIndex={-1} className="heute-detail-title">
               {title}
             </h2>
-            {query.isFetching && data && (
+            {query.isFetching && data && kind !== 'month' && (
               <p role="status">
                 Heute-Daten werden aktualisiert · Stand {longDay(data.stand.today)}
               </p>

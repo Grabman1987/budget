@@ -276,6 +276,33 @@ it.each([true, false])(
   },
 );
 
+it('ON full month announces a retained-source refresh once and removes it after failure', async () => {
+  mount('/heute/details/month?monat=2026-09&period=month');
+  await screen.findByTestId('heute-wealth-history');
+  await ready();
+  const previous = net()?.textContent;
+  hold('heute');
+  let pending!: Promise<void>;
+  act(() => {
+    pending = refresh('heute');
+  });
+  await waitFor(() =>
+    expect(screen.getAllByText(/Heute-Daten werden aktualisiert/)).toHaveLength(1),
+  );
+  expect(screen.getByText(/Heute-Daten werden aktualisiert/).getAttribute('role')).toBe('status');
+  expect(net()?.textContent).toBe(previous);
+  failed = 'heute';
+  failureStatus = 403;
+  act(() => gate!.release());
+  await act(async () => {
+    await pending;
+  });
+  await ready();
+  expect(screen.queryByText(/Heute-Daten werden aktualisiert/)).toBeNull();
+  expect(net()).toBeNull();
+  expect(screen.getAllByRole('alert')).toHaveLength(1);
+});
+
 it.each([503, 403])('clears retained aggregate money after a %s response', async (status) => {
   mount();
   await screen.findByTestId('heute-wealth-history');

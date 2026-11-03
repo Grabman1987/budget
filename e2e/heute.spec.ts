@@ -653,7 +653,15 @@ test('source-view links open the corresponding live pages', async ({ page }) => 
       .getByRole('link', { name: link, exact: true })
       .click();
     await expect.poll(() => new URL(page.url()).pathname).toBe(target);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    if (redesign && target === '/vermoegen/nettovermoegen') {
+      await expect(page.getByTestId('wealth-net-value')).toBeVisible();
+      await page.goto(`${target}?ansicht=analyse`);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await expect(page.getByTestId('nw-figure')).toBeVisible();
+    }
   }
   await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09'));
   await page.getByRole('region', { name: 'Zu tun' }).getByRole('link', { name: 'Handeln' }).click();

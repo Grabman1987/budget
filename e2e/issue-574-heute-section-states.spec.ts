@@ -264,7 +264,7 @@ for (const read of ['heute', 'budget', 'liquidity', 'savings'] as const) {
       read === 'heute'
         ? '**/api/heute?*'
         : read === 'budget'
-          ? '**/api/budget/2026-09'
+          ? /\/api\/budget\/2026-09(?:\?.*)?$/
           : read === 'liquidity'
             ? '**/api/liquidity?*'
             : '**/api/savings-plans/execution-proposals';

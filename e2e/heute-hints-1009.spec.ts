@@ -150,7 +150,7 @@ test('tiny actual income stays the denominator and offers a completed comparison
 }) => {
   test.setTimeout(120_000);
   await page.clock.setFixedTime(new Date('2026-09-17T10:00:00Z'));
-  await page.route('**/api/budget/2026-09', async (route) => {
+  await page.route(/\/api\/budget\/2026-09(?:\?.*)?$/, async (route) => {
     const response = await route.fetch();
     const data = await response.json();
     data.summary.incomeCents = 1_000;

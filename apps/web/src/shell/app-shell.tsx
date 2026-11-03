@@ -31,6 +31,17 @@ export function AppShell() {
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
   const page = useActivePage();
   const pathname = useLocation({ select: (location) => location.pathname });
+  const analysis = useLocation({ select: (location) => location.search['ansicht'] === 'analyse' });
+  // Migrated Wealth frames own their h1; retained analyses and Freiheit use the phone title.
+  const wealthPageHeading =
+    REDESIGN_ENABLED &&
+    page?.area === 'vermoegen' &&
+    page.register !== 'freiheit' &&
+    pathname !== '/vermoegen/portfolio/kennzahlen' &&
+    !(
+      analysis &&
+      (pathname === '/vermoegen/nettovermoegen' || pathname === '/vermoegen/portfolio')
+    );
   const [searchOpen, setSearchOpen] = useState(false);
   const searching = searchOpen || pathname === '/suche';
   const area = searching ? undefined : page?.area;
@@ -79,7 +90,7 @@ export function AppShell() {
           />
           <MobileHeader
             title={searching ? 'Suchen' : phoneTitle(page, title)}
-            asHeading={!(page && TITLE_ON_MOBILE_AREAS.has(page.area))}
+            asHeading={!(page && TITLE_ON_MOBILE_AREAS.has(page.area)) && !wealthPageHeading}
             onSearchChange={setSearchOpen}
           />
           <OfflineStatus />
