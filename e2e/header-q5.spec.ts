@@ -14,6 +14,7 @@ test('one review pill on desktop; three phone header items and linked status bel
 }, info) => {
   test.setTimeout(90_000);
   await page.goto('/reports');
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   const count = (
     (await (await page.request.get('/api/budget/2026-09')).json()) as BudgetMonthView
   ).summary.envelopes.filter((e) => e.availableCents < 0).length;
@@ -21,7 +22,8 @@ test('one review pill on desktop; three phone header items and linked status bel
     const header = page.locator('.m-head');
     await expect(
       header.locator(':scope > .m-title, :scope > button, :scope > details'),
-    ).toHaveCount(3);
+    ).toHaveCount(redesign ? 2 : 3);
+    if (redesign) await expect(header.locator('.m-profile')).toHaveCount(0);
     await expect(header.locator(':scope > a, .count, .overspent-chip')).toHaveCount(0);
     const status = page.getByRole('navigation', { name: 'Offene Aufgaben' });
     await expect(status).toHaveText(`4 zu prüfen·${count} überzogen`);
@@ -44,6 +46,7 @@ test('one review pill on desktop; three phone header items and linked status bel
     await header.locator('.review-pill').click();
   }
   await expect(page).toHaveURL(/\/konten\/pruefen/);
+  if (redesign && isMobile) await page.locator('.konten-status-details > summary').click();
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
@@ -68,14 +71,14 @@ test('one review pill on desktop; three phone header items and linked status bel
 
 test('zero open items has no number or phone status line', async ({ page, isMobile }) => {
   await page.route('**/api/inbox/count', (route) => route.fulfill({ json: { count: 0 } }));
-  await page.route('**/api/budget/2026-09', async (route) => {
+  await page.route(/\/api\/budget\/2026-09(?:\?|$)/, async (route) => {
     const response = await route.fetch();
     const body: BudgetMonthView = await response.json();
     body.summary.envelopes = body.summary.envelopes.map((e) => ({ ...e, availableCents: 0 }));
     await route.fulfill({ response, json: body });
   });
   const loaded = page.waitForResponse('**/api/inbox/count');
-  const budget = page.waitForResponse('**/api/budget/2026-09');
+  const budget = page.waitForResponse(/\/api\/budget\/2026-09(?:\?|$)/);
   await page.goto('/reports');
   await loaded;
   await budget;

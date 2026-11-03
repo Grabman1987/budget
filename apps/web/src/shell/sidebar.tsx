@@ -120,7 +120,7 @@ export function Sidebar({
             </strong>{' '}
             <span>
               {REDESIGN_ENABLED
-                ? 'Einstellungen › Profil'
+                ? `Einstellungen › Profil · ${authMethod}`
                 : named
                   ? 'Profil / Einstellungen'
                   : authMethod}

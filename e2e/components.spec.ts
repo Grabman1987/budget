@@ -162,7 +162,10 @@ test.describe('design system page /dev/bauteile', () => {
   for (const scheme of ['light', 'dark'] as const) {
     test(`regression baseline (own screenshot): ${scheme}`, async ({ page }) => {
       await open(page, scheme);
-      await expectScreenshot(page, `bauteile-${scheme}.png`, { fullPage: true });
+      const redesign = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
+      await expectScreenshot(page, `bauteile${redesign ? '-redesign' : ''}-${scheme}.png`, {
+        fullPage: true,
+      });
     });
   }
 });

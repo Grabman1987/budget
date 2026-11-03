@@ -156,18 +156,27 @@ test.describe('UX-3a phone shell', () => {
           Number.parseFloat(getComputedStyle(el).paddingBottom) - (window.innerHeight - fab.top)
         );
       });
-      expect(clearance, path).toBe(16);
+      const wealthOn =
+        path === '/vermoegen/portfolio' &&
+        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      // Wealth reserves 240px at the page end for the phone dock and Undo toast.
+      expect(clearance, path).toBe(wealthOn ? 102 : 16);
       // The FAB is fixed: measure its slot before it hides on the way down (#468).
       const fabTop = await page.locator('.fab').evaluate((el) => el.getBoundingClientRect().top);
       // Reveal after reaching the bottom: the retained padding must also clear a visible FAB.
-      // Two separate steps, so WebKit cannot merge both programmatic scrolls into one event.
+      // Native scroll events can arrive after animation frames; acknowledge the down event
+      // before reversing, so WebKit cannot merge both moves into a single downward event.
       await page.evaluate(async () => {
-        window.scrollTo(0, document.documentElement.scrollHeight);
-        await new Promise(requestAnimationFrame);
-        await new Promise(requestAnimationFrame);
+        const bottom = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        if (window.scrollY === bottom) return;
+        const scrolled = new Promise<void>((resolve) =>
+          window.addEventListener('scroll', () => resolve(), { once: true }),
+        );
+        window.scrollTo(0, bottom);
+        await scrolled;
       });
       await page.evaluate(() => window.scrollBy(0, -60));
-      await expect(page.locator('.fab')).toBeVisible();
+      await expect(page.locator('.fab'), path).toBeVisible();
       await expect
         .poll(
           async () =>

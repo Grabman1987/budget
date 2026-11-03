@@ -100,14 +100,11 @@ test('privacy follows routes and reload, masks money and chart alternatives, pre
 }, info) => {
   test.setTimeout(120_000);
   await openHeuteReview(page, '/?monat=2026-09');
-  const header = page.locator(info.project.name === 'mobile' ? '.m-head' : '.topbar');
-  const toggle = header.getByRole('button', { name: 'Beträge verbergen', exact: true });
-  const menu = header.locator('.m-profile summary');
   await expect(page.getByTestId('heute-lead-value')).toContainText('988', { timeout: 20_000 });
-  if (info.project.name === 'mobile') await menu.click();
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-  if (info.project.name === 'mobile') await menu.press('Escape');
+  await withShellControls(page, async ({ privacy }) => {
+    await privacy.click();
+    await expect(privacy).toHaveAttribute('aria-pressed', 'true');
+  });
   for (const path of [
     '/?monat=2026-09',
     '/plan/monat?monat=2026-09',

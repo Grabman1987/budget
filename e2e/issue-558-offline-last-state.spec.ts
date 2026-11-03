@@ -216,6 +216,8 @@ test('four exact successful reads survive offline reload, stay read-only and wip
       await page.screenshot({
         path: `test-results/offline-558-${info.project.name}-${name}-${scheme}.png`,
         fullPage: true,
+        // Keep the complete long read-only view within WebKit's device-pixel image limit.
+        scale: 'css',
       });
     }
   }

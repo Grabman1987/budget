@@ -197,18 +197,16 @@ export async function verifyPhoneTextReflow(page: Page, origin: string, output: 
         await lastControl.focus();
         await expect(lastControl).toBeFocused();
         await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
-        // Deliberate downward travel hides the FAB; a one-pixel upward scroll reveals it again.
-        await page.evaluate(
-          () =>
-            new Promise<void>((done) =>
-              requestAnimationFrame(() => requestAnimationFrame(() => done())),
-            ),
-        );
+        // Focus can already have scrolled to the bottom. Observe the resulting hidden state
+        // before reversing: WebKit may deliver that native scroll after animation frames.
+        await expect(page.locator('.fab')).toBeHidden();
         await page.evaluate(() => scrollBy(0, -1));
         await expect(page.locator('.fab')).toBeVisible();
         const last = await rect(lastControl);
         const fab = await rect(page.locator('.fab'));
-        expect(last.y + last.height).toBeLessThanOrEqual(fab.y + 0.5);
+        expect(last.y + last.height, 'S3 last control clears visible FAB').toBeLessThanOrEqual(
+          fab.y + 0.5,
+        );
         results.push({
           width,
           theme,

@@ -46,14 +46,20 @@ for (const [slug, target, view] of landings) {
     await page.goto(
       `/reports/${slug}?monat=2026-08&zeitraum=2026-01..2026-08${todayPeriod}#details`,
     );
+    await expect(page.locator('.app')).toHaveCount(1);
     const redesign = await redesignReportsOn(page);
+    const finanzcheck = slug === 'finanzcheck' && redesign;
     const expectedTarget =
       redesign && ['pallocation', 'peinzahlungen', 'prendite'].includes(slug)
         ? '/reports/vermoegen-schulden'
-        : redesign && slug === 'finanzcheck'
+        : finanzcheck
           ? '/reports/onepager'
           : target;
     await expect.poll(() => new URL(page.url()).pathname).toBe(expectedTarget);
+    if (finanzcheck) {
+      expect(new URL(page.url()).searchParams.get('darstellung')).toBe('finanzcheck');
+      await expect(page.locator('.finanzcheck-report')).toBeVisible();
+    }
     await expect(page.getByRole('main')).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'Report nicht gefunden', exact: true }),
@@ -96,6 +102,17 @@ for (const [slug, target, view] of landings) {
 test('620 absent period follows the canonical destination normalization', async ({ page }) => {
   for (const path of ['/', '/reports/finanzcheck']) {
     await page.goto(`${path}?monat=2026-08&zeitraum=2026-01..2026-08#details`);
+    await expect(page.locator('.app')).toHaveCount(1);
+    const finanzcheck =
+      path === '/reports/finanzcheck' &&
+      (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    if (finanzcheck) {
+      await expect(page).toHaveURL((url) => url.pathname === '/reports/onepager');
+      expect(new URL(page.url()).searchParams.get('darstellung')).toBe('finanzcheck');
+      await expect(page.locator('.finanzcheck-report')).toBeVisible();
+    } else {
+      expect(new URL(page.url()).pathname).toBe('/');
+    }
     await expect.poll(() => new URL(page.url()).searchParams.get('period')).toBe('month');
     const reportAlias = path === '/reports/finanzcheck' && (await redesignReportsOn(page));
     expect(new URL(page.url()).pathname).toBe(reportAlias ? '/reports/onepager' : '/');

@@ -134,7 +134,10 @@ sampleTest(
       await route.fulfill({ json: { ...(await response.json()), viaRecovery } });
     });
     await page.goto(`/konten/${target.id}`);
-    const source = page.locator('details.kacct-source > summary');
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    const source = page.locator(
+      redesign ? 'details.account-value-details > summary' : 'details.kacct-source > summary',
+    );
     await expect(source).toBeVisible();
     await source.click();
     const status = page.getByRole('group', { name: 'Datenstand', exact: true });
@@ -151,9 +154,11 @@ sampleTest(
     await expect(status).toContainText('Manuelle Prüfung');
     await expect(status).toContainText('Technischer Abruf: 17.09.2026');
     await expect(status).toContainText('Bankstand vom: 16.09.2026');
-    await expect(page.locator('.titleblock')).toContainText('Abruf gespeichert');
-    await expect(page.locator('.titleblock')).toContainText('16.09.2026');
-    await expect(page.locator('.titleblock')).not.toContainText('nicht eingerichtet');
+    if (redesign) await page.locator('.konten-status-details > summary').click();
+    const headerStatus = page.locator(redesign ? '.konten-status-details' : '.titleblock');
+    await expect(headerStatus).toContainText('Abruf gespeichert');
+    await expect(headerStatus).toContainText('16.09.2026');
+    await expect(headerStatus).not.toContainText('nicht eingerichtet');
     if (info.project.name === 'desktop') {
       await expect(page.locator('.profile-text')).toContainText('Wiederherstellungscode');
       await expect(page.locator('.profile-text')).not.toContainText('dieses Gerät');
@@ -170,8 +175,10 @@ sampleTest(
       await route.fulfill({ json: { ...(await response.json()), viaRecovery: true } });
     });
     await page.goto('/einstellungen/profil');
-    await expect(page.locator('.titleblock')).toContainText('Wiederherstellungscode');
-    await expect(page.locator('.titleblock')).not.toContainText('Passkey');
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    const session = page.locator(redesign ? '.settings-session' : '.titleblock');
+    await expect(session).toContainText('Wiederherstellungscode');
+    await expect(session).not.toContainText('Passkey');
     await review(page, 'profile-recovery', info.project.name);
   },
 );

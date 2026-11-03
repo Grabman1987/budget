@@ -1,6 +1,6 @@
 import { Button, SourceStamp, StatusMark } from '@budget/ui';
 import type { LucideIcon } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 
 export function sourceDate(value: string | null | undefined) {
   if (value === undefined) return 'Nicht verfügbar';
@@ -38,6 +38,7 @@ export function SettingsSourceCard({
   initiallyOpen?: boolean;
 }) {
   const [open, setOpen] = useState(initiallyOpen);
+  const bodyId = useId();
   return (
     <section className="settings-source-card settings-surface" aria-label={title}>
       <div className="settings-source-head">
@@ -69,7 +70,12 @@ export function SettingsSourceCard({
           ) : (
             action
           )}
-          <Button variant="ghost" aria-expanded={open} onClick={() => setOpen(!open)}>
+          <Button
+            variant="ghost"
+            aria-expanded={open}
+            aria-controls={bodyId}
+            onClick={() => setOpen(!open)}
+          >
             {attention ? 'Prüfen' : 'Verwalten'}
           </Button>
         </div>
@@ -79,14 +85,16 @@ export function SettingsSourceCard({
           {title} konnte nicht aktualisiert werden. Ein vorhandener Stand kann veraltet sein.
         </p>
       )}
-      <details
+      {/* Keep edits mounted; native details leaves hidden selects noninteractive in WebKit. */}
+      <div
+        id={bodyId}
         className="settings-source-details"
-        open={open}
-        onToggle={(event) => setOpen(event.currentTarget.open)}
+        role="group"
+        aria-label={`${title}: Einrichtung und Details`}
+        hidden={!open}
       >
-        <summary>{title}: Einrichtung und Details</summary>
         <div>{children}</div>
-      </details>
+      </div>
     </section>
   );
 }

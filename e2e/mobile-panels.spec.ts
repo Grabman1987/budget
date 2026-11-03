@@ -517,30 +517,45 @@ test.describe('behaviour', () => {
     }
     await page.locator('.m-profile summary').tap();
     await page.getByRole('link', { name: 'Profil und Einstellungen' }).tap();
-    await expect(page).toHaveURL(redesign ? /\/einstellungen\/profil$/ : /\/einstellungen$/);
+    await expect(page).toHaveURL(/\/einstellungen$/);
     if (redesign) {
       await page
-        .locator('.settings-back')
-        .getByRole('link', { name: 'Einstellungen', exact: true })
+        .getByRole('navigation', { name: 'Einstellungen', exact: true })
+        .getByRole('link', { name: /^Vermögen / })
         .tap();
-      await expect(page).toHaveURL(/\/einstellungen$/);
+      await expect(page).toHaveURL(
+        (url) =>
+          url.pathname === '/einstellungen' && url.searchParams.get('gruppe') === 'vermoegen',
+      );
       await page.getByRole('link', { name: 'Anlageklassen', exact: true }).tap();
     } else await page.goto('/einstellungen/anlageklassen');
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     // The shared primitive on this page: the capture sheet opens, closes, reopens, Back closes.
     const s = SCENARIOS[0] as Scenario;
-    await page.getByRole('link', { name: 'Buchung erfassen' }).tap();
+    const openCapture = async () => {
+      if (redesign) {
+        await page.locator('#global-search-mobile').tap();
+        await page.getByRole('combobox', { name: 'Suchen', exact: true }).fill('Neue Buchung');
+        await page.getByRole('option', { name: /Neue Buchung/ }).tap();
+      } else await page.getByRole('link', { name: 'Buchung erfassen' }).tap();
+    };
+    await openCapture();
     await expect(dialogOf(page, s)).toBeVisible();
     await settle(page);
     expectVisibleAndInside(await geometry(page), s);
     await dialogOf(page, s).getByRole('button', { name: 'Schließen' }).first().tap();
     await expectNoModal(page);
-    await page.getByRole('link', { name: 'Buchung erfassen' }).tap();
+    await openCapture();
     await expect(dialogOf(page, s)).toBeVisible();
     await page.goBack();
     await expectNoModal(page);
     await page.goBack();
-    await expect(page).toHaveURL(/\/einstellungen$/);
+    await expect(page).toHaveURL(
+      redesign
+        ? (url) =>
+            url.pathname === '/einstellungen' && url.searchParams.get('gruppe') === 'vermoegen'
+        : /\/einstellungen$/,
+    );
     await expectNoModal(page);
     await page.goForward();
     await expect(page).toHaveURL(/anlageklassen/);

@@ -42,7 +42,7 @@ test('S3 ordinary filtering replaces history and an entity push restores filter,
     .click();
   await expect(page).toHaveURL(/\/konten\/acc-giro$/);
   await expect(
-    page.getByRole('main').getByRole('heading', { name: 'Girokonto', exact: true }),
+    page.getByRole('heading', { name: 'Girokonto', exact: true }).filter({ visible: true }),
   ).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(source);

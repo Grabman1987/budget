@@ -8,7 +8,7 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
       // The seeded month is fully assigned. Exercise the positive hero/button with a synthetic
       // read-only response; no booking or shared sample-server state is changed.
-      await page.route('**/api/budget/2026-09', async (route) => {
+      await page.route(/\/api\/budget\/2026-09(?:\?|$)/, async (route) => {
         const response = await route.fetch();
         const body = (await response.json()) as BudgetMonthView;
         body.summary.toBeAssignedCents = 10_000;
@@ -24,14 +24,15 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.goto('/plan/monat?monat=2026-09');
       await expect(page.locator('.plan .plan-topbar')).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
+      const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
       // #587: Zu verteilen is the lead figure of the Plan head: T2 display (28/32, phone 24/28).
       await expect(page.getByTestId('to-be-assigned')).toHaveCSS(
         'font-size',
-        isMobile ? '24px' : '28px',
+        redesign ? (isMobile ? '22px' : '56px') : isMobile ? '24px' : '28px',
       );
       await expect(page.getByTestId('to-be-assigned')).toHaveCSS(
         'line-height',
-        isMobile ? '28px' : '32px',
+        redesign ? (isMobile ? '26px' : '56px') : isMobile ? '28px' : '32px',
       );
       await expect(page.locator('.plan-topbar .plan-chip-scroll > .btn')).toHaveCSS(
         'border-top-left-radius',
