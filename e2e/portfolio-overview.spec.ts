@@ -151,6 +151,11 @@ test('portfolio reports remove Dietz figures while retaining PP TTWROR and XIRR'
 }) => {
   for (const route of ['/reports/prendite', '/reports/pdepots']) {
     await page.goto(route);
+    if (
+      route.endsWith('pdepots') &&
+      (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+    )
+      await page.getByText('Depot-Rechnungen, Benchmarks und Kennzahlen', { exact: true }).click();
     await expect(page.getByRole('button', { name: 'TTWROR', exact: true }).first()).toBeVisible();
     await expect(page.locator('main')).not.toContainText(/Modified Dietz|Geldgewichtet/);
     if (route.endsWith('prendite'))
