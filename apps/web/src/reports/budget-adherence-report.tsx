@@ -14,7 +14,7 @@ import { monthLabel } from '../nav/month';
 import type { PageMeta } from '../nav/pages';
 import { Term } from './term';
 import type { ReportEntry } from '../nav/reports-catalog';
-import { PageFrame } from '../pages/placeholder-page';
+import { ReportFrame as PageFrame } from './report-frame';
 import { AppLink } from '../shell/app-link';
 import { useMonth } from '../shell/use-month';
 import { bpText, monthShort, ReportQuery, ScrollRegion } from './spending-shared';

@@ -19,7 +19,7 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import { eur, longDay } from '../ledger/format';
 import { periodText } from '../wealth/networth-model';
 import { portfolioPerformanceQuery } from '../wealth/portfolio-api';
-import { PageFrame } from './placeholder-page';
+import { ReportFrame as PageFrame } from '../reports/report-frame';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import './portfolio-performance-report.css';

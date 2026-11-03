@@ -23,7 +23,7 @@ import { useElementWidth } from '../charts/use-element-width';
 import { AppLink } from '../shell/app-link';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
-import { PageFrame } from './placeholder-page';
+import { ReportFrame as PageFrame } from '../reports/report-frame';
 import './payments-preview-report.css';
 
 /** Expected edits/versions/undo use useBudgetWrite, invalidating EXPECTED_KEY and LEDGER_KEY.

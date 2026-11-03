@@ -16,7 +16,7 @@ import { type WithValuationNotes } from '../ledger/valuation-hint';
 import { longDay, eur } from '../ledger/format';
 import { periodText } from '../wealth/networth-model';
 import { LEDGER_KEY } from '../ledger/queries';
-import { PageFrame } from './placeholder-page';
+import { ReportFrame as PageFrame } from '../reports/report-frame';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import './portfolio-contributions-report.css';

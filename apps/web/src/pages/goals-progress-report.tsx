@@ -19,7 +19,7 @@ import type { ReportEntry } from '../nav/reports-catalog';
 import { AppLink } from '../shell/app-link';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { goalReportRows, type GoalReportRow } from './goals-progress-model';
-import { PageFrame } from './placeholder-page';
+import { ReportFrame as PageFrame } from '../reports/report-frame';
 import './goals-progress-report.css';
 
 const MONEY_FIELDS = [

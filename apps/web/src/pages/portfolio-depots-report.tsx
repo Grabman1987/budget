@@ -17,7 +17,7 @@ import type { Period } from '@budget/domain';
 import type { PageMeta } from '../nav/pages';
 import { Term } from '../reports/term';
 import type { ReportEntry } from '../nav/reports-catalog';
-import { PageFrame } from './placeholder-page';
+import { ReportFrame as PageFrame } from '../reports/report-frame';
 import {
   DecisionLink,
   ReportUnavailable,

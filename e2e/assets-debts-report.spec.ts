@@ -157,9 +157,11 @@ test('the mapped wealth report remains available from the retained wealth group 
   page,
 }) => {
   await page.goto('/reports/gruppe/zukunft');
-  const report = page
-    .locator('.report-hub-list')
-    .getByRole('link', { name: /Vermögen und Schulden/ });
+  const report = page.locator('.report-hub-list > li > a[href="/reports/vermoegen-schulden"]');
   await expect(report).toBeVisible();
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  await expect(report.locator('strong')).toHaveText(
+    redesign ? 'Vermögensreport' : 'Vermögen und Schulden',
+  );
   await expect(report).toHaveAttribute('href', '/reports/vermoegen-schulden');
 });

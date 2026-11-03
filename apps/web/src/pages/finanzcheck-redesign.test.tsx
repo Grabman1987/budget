@@ -205,7 +205,7 @@ it.each([
   mount(
     `/reports/onepager?monat=2026-08&period=month${presentation ? `&darstellung=${presentation}` : ''}`,
   );
-  await screen.findByRole('heading', { name: 'Monats-One-Pager' });
+  await screen.findByRole('heading', { name: enabled ? 'Monatsbericht' : 'Monats-One-Pager' });
   await screen.findByRole('article', { name: 'Monats-One-Pager August 2026' });
   expect(screen.queryByRole('heading', { name: 'Finanz-Check-Verlauf' })).toBeNull();
   expect(screen.queryByRole('link', { name: /R07/ })).toBeNull();

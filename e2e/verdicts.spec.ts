@@ -1,3 +1,4 @@
+import { revealReportDetail } from './report-frame';
 import AxeBuilder from '@axe-core/playwright';
 import { REPORT_GROUPS } from '../apps/web/src/nav/reports-catalog';
 import { sampleTest, expect } from './sample';
@@ -191,6 +192,7 @@ for (const group of REPORT_GROUPS) {
         ).toEqual([]);
         continue;
       }
+      await revealReportDetail(page);
       const verdict = page
         .getByTestId(report.id === 'gesamtuebersicht' ? 'whole-verdict' : 'report-verdict')
         .first();
@@ -200,7 +202,9 @@ for (const group of REPORT_GROUPS) {
       expect(text, report.id).not.toMatch(/undefined|NaN|\{\w+\}/);
       const title = (await page.locator('.titleblock').isVisible())
         ? page.locator('.titleblock')
-        : page.getByRole('banner');
+        : (await page.locator('.redesign-report-head').isVisible())
+          ? page.locator('.redesign-report-head')
+          : page.getByRole('banner');
       expect((await verdict.boundingBox())!.y).toBeGreaterThan((await title.boundingBox())!.y);
     }
     for (const theme of ['light', 'dark']) {

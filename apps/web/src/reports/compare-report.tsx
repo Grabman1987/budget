@@ -9,11 +9,12 @@ import {
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { eur } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
-import { PageFrame } from '../pages/placeholder-page';
+import { ReportFrame as PageFrame } from './report-frame';
 import { periodComparisonQuery } from './overview-api';
 import { bpText, monthLong, monthShortYear } from './overview-format';
 import './overview-reports.css';
@@ -36,12 +37,55 @@ export function CompareReport({ report, meta }: { report: ReportEntry; meta: Pag
   const query = useQuery(periodComparisonQuery(mode));
   const data = query.data;
   const comparison = data?.comparison;
+  const comparisonControl = REDESIGN_ENABLED ? (
+    <label>
+      <span className="sr-only">Vergleich</span>
+      <select value={mode} onChange={(event) => setMode(event.target.value as CompareMode)}>
+        {MODE_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  ) : (
+    <Segmented label="Vergleich" options={MODE_OPTIONS} value={mode} onChange={setMode} />
+  );
   return (
     <PageFrame
+      sourceReportId={report.id}
+      sourceDate={data?.today}
+      {...(REDESIGN_ENABLED
+        ? { extraFields: [{ label: 'Vergleich', value: comparisonControl }] }
+        : {})}
+      calculation={
+        comparison && comparison.current.length > 0 && !query.isFetching && !query.isError
+          ? {
+              label: 'Berechnung Zeitraumvergleich',
+              terms: [
+                { label: 'Konsum vorher', value: cents(comparison.chain.previousCents) },
+                { op: '+', label: 'mehr', value: cents(comparison.chain.moreCents) },
+                { op: '-', label: 'weniger', value: cents(comparison.chain.lessCents) },
+                {
+                  op: '=',
+                  label: 'Konsum jetzt',
+                  value: cents(comparison.chain.currentCents),
+                  result: true,
+                },
+              ],
+              result: {
+                label: 'Konsum jetzt',
+                value: comparison.chain.currentCents,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       verdict={
         data && comparison && !query.isFetching && !query.isError
           ? {
               reportId: report.id,
+              unavailable: REDESIGN_ENABLED && comparison.current.length === 0,
               period: `${comparison.current[0]}..${comparison.current.at(-1)}`,
               metric: {
                 label: 'Konsum',
@@ -88,12 +132,7 @@ export function CompareReport({ report, meta }: { report: ReportEntry; meta: Pag
                     ? 'Zeitraumvergleich'
                     : `${periodName(comparison.current)} gegen ${periodName(comparison.previous)}`}
                 </h2>
-                <Segmented
-                  label="Vergleich"
-                  options={MODE_OPTIONS}
-                  value={mode}
-                  onChange={setMode}
-                />
+                {!REDESIGN_ENABLED && comparisonControl}
               </div>
               {data.firstMonth === null ? (
                 <p className="ov-empty" role="status">

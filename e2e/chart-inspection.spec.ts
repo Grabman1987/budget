@@ -79,12 +79,18 @@ test('report navigation, daily values, keyboard and touch inspection', async ({ 
       url.searchParams.get('darstellung') === 'einzahlungen' &&
       url.searchParams.get('zeitraum') === 'YTD',
   );
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   await page
-    .getByRole('button', { name: 'Nächster Bericht: Kosten, Steuern, Erträge', exact: true })
+    .getByRole('button', {
+      name: redesign
+        ? 'Nächster Bericht: Depots im Vergleich'
+        : 'Nächster Bericht: Kosten, Steuern, Erträge',
+      exact: true,
+    })
     .click();
   await expect(page).toHaveURL(
     (url) =>
-      url.pathname === '/reports/psteuern' &&
+      url.pathname === (redesign ? '/reports/pdepots' : '/reports/psteuern') &&
       url.searchParams.get('darstellung') === null &&
       url.searchParams.get('zeitraum') === 'YTD',
   );
@@ -92,18 +98,20 @@ test('report navigation, daily values, keyboard and touch inspection', async ({ 
   await page.keyboard.press('Alt+Shift+ArrowLeft');
   await expect(page).toHaveURL(
     (url) =>
-      url.pathname === '/reports/pallocation' &&
+      url.pathname === (redesign ? '/reports/vermoegen-schulden' : '/reports/pallocation') &&
       url.searchParams.get('darstellung') === null &&
       url.searchParams.get('zeitraum') === 'YTD',
   );
-  await expect(
-    page.getByRole('button', { name: 'Verteilung über Zeit', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
-  await page.goto('/reports/einnahmen-ausgaben');
+  if (redesign) await expect(page.getByTestId('ad-net')).toBeVisible();
+  else
+    await expect(
+      page.getByRole('button', { name: 'Verteilung über Zeit', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true');
+  await page.goto(redesign ? '/reports/onepager' : '/reports/einnahmen-ausgaben');
   await expect(
     page.getByRole('button', { name: 'Vorheriger Bericht', exact: true }),
   ).toBeDisabled();
-  await page.goto('/reports/jahresreport');
+  await page.goto(redesign ? '/reports/inflation' : '/reports/jahresreport');
   await expect(page.getByRole('button', { name: 'Nächster Bericht', exact: true })).toBeDisabled();
 });
 

@@ -35,7 +35,7 @@ import { eur, longDay, monthName, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { PLAN_PROGNOSE, type PageMeta } from '../nav/pages';
 import { LIQUIDITY_FORECAST, type ReportEntry } from '../nav/reports-catalog';
-import { PageFrame } from '../pages/placeholder-page';
+import { ReportFrame as PageFrame } from './report-frame';
 import { AppLink } from '../shell/app-link';
 import {
   createPlannedEvent,

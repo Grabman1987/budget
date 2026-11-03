@@ -1,3 +1,4 @@
+import { redesignReportsOn } from './report-frame';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, INCOME_TYPES, openDatabase } from '@budget/db';
@@ -61,6 +62,7 @@ async function inspect(page: Page, info: TestInfo, label: string) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const controls = page.getByRole('region', { name: 'Ansicht und Projekt', exact: true });
   await expect(controls).toBeVisible();
+  const on = await redesignReportsOn(page);
   const layout = await controls.evaluate((element) => {
     const rect = (node: Element) => {
       const box = node.getBoundingClientRect();
@@ -72,7 +74,7 @@ async function inspect(page: Page, info: TestInfo, label: string) {
         height: box.height,
       };
     };
-    const header = document.querySelector('.titleblock-report')!;
+    const header = document.querySelector('.titleblock-report, .redesign-report-head')!;
     return {
       header: rect(header),
       controls: rect(element),
@@ -97,7 +99,10 @@ async function inspect(page: Page, info: TestInfo, label: string) {
       }),
     };
   });
-  expect(layout.controls.top).toBeGreaterThanOrEqual(layout.header.bottom);
+  if (on) {
+    expect(layout.controls.top).toBeGreaterThanOrEqual(layout.header.top);
+    expect(layout.controls.bottom).toBeLessThanOrEqual(layout.header.bottom);
+  } else expect(layout.controls.top).toBeGreaterThanOrEqual(layout.header.bottom);
   expect(
     layout.views.right <= layout.project.left ||
       layout.project.right <= layout.views.left ||
@@ -126,7 +131,7 @@ async function inspect(page: Page, info: TestInfo, label: string) {
       );
     }
   }
-  if (info.project.name === 'desktop') expect(layout.header.height).toBe(64);
+  if (info.project.name === 'desktop' && !on) expect(layout.header.height).toBe(64);
   if (info.project.name !== 'desktop') {
     for (const control of await page
       .locator('.report-income-controls button:visible, .report-income-controls select:visible')

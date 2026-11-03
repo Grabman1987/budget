@@ -27,7 +27,7 @@ import { eur, longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
-import { PageFrame } from '../pages/placeholder-page';
+import { ReportFrame as PageFrame } from './report-frame';
 import { stageRange, thresholdText } from '../rules/rules-model';
 import { finanzcheckVerlaufQuery, type FinanzcheckVerlauf } from './finanzcheck-api';
 import { useRuleDerivation } from './overview-api';
@@ -117,6 +117,7 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
   }, [data, location.hash, navigationKey]);
   return (
     <PageFrame
+      sourceReportId={report.id}
       verdict={
         data && !query.isFetching && !query.isError
           ? {
@@ -460,7 +461,7 @@ function Body({
                             hash={`rule-result-${t.code}`}
                             aria-label={`${t.code} ${t.name} im Regelwerk`}
                           >
-                            <span className="ov-pos">{t.code}</span>
+                            <span className="ov-pos">{t.code}</span>{' '}
                             <span className="ov-name">{t.name}</span>
                           </AppLink>
                         ) : (

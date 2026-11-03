@@ -244,17 +244,23 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
   const mobile = info.project.name !== 'desktop';
   await page.goto('/plan/monat?monat=2026-08');
   let input = await openSearch(page, mobile);
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  const reportLabel = redesign ? '9 Einnahmen und Cashflow' : '1.10 Einnahmen und Cashflow';
   await input.fill('1.10 ein');
-  await expect(page.getByRole('option', { name: /1.10 Einnahmen und Cashflow/ })).toBeVisible();
+  await expect(page.getByRole('option', { name: new RegExp(reportLabel) })).toBeVisible();
   await input.press('Enter');
-  await expect(page).toHaveURL(/\/reports\/einnahmen-ausgaben$/);
+  await expect(page).toHaveURL(
+    redesign ? /\/reports\/einnahmen-ausgaben\?monat=2026-08$/ : /\/reports\/einnahmen-ausgaben$/,
+  );
   input = await openSearch(page, mobile);
   await expect(
     page.getByRole('group', { name: 'Zuletzt verwendet' }).getByRole('option').first(),
-  ).toContainText('1.10 Einnahmen und Cashflow');
+  ).toContainText(reportLabel);
   await input.fill('vrmgn prtf');
   await input.press('Enter');
-  await expect(page).toHaveURL(/\/vermoegen\/portfolio$/);
+  await expect(page).toHaveURL(
+    redesign ? /\/vermoegen\/portfolio\?monat=2026-08$/ : /\/vermoegen\/portfolio$/,
+  );
   for (const [label, panel] of [
     ['Neue Buchung', 'buchung'],
     ['Prüfen öffnen', 'posteingang'],

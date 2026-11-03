@@ -152,7 +152,10 @@ test.describe('routes', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Geldfluss');
     const reports = page.getByRole('navigation', { name: 'Weitere Berichte' });
     await reports.locator('summary').click();
-    await expect(reports.locator('[aria-current="page"]')).toHaveText('4. Geldfluss');
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    await expect(reports.locator('[aria-current="page"]')).toHaveText(
+      redesign ? '12. Geldfluss' : '4. Geldfluss',
+    );
     await expect(reports.locator('[aria-current="page"]')).toHaveAttribute(
       'href',
       '/reports/geldfluss',
@@ -190,9 +193,14 @@ test.describe('routes', () => {
   }, info) => {
     await page.goto('/reports');
     await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     await expect(
       page.getByRole('group', { name: 'Berichtsgruppen' }).getByRole('button'),
-    ).toHaveText(['Alle', 'Einnahmen/Ausgaben', 'Vermögen', 'Portfolio', 'Berichte']);
+    ).toHaveText(
+      redesign
+        ? ['Alle', 'Berichte', 'Auswertungen', 'Portfolio', 'Einnahmen und Ausgaben']
+        : ['Alle', 'Einnahmen/Ausgaben', 'Vermögen', 'Portfolio', 'Berichte'],
+    );
     await expect(page.locator('.report-hub-number')).toHaveText([
       '1',
       '2',
@@ -214,7 +222,9 @@ test.describe('routes', () => {
     // The catalog keeps the question; chart implementation and period controls belong to reports.
     const first = page.locator('.report-hub-list > li > a').first();
     await expect(first.locator('.report-hub-question')).toHaveText(
-      'Woher kommt das Geld, und was bleibt nach den Ausgaben?',
+      redesign
+        ? 'Wie lief der Monat, auf einem Blatt?'
+        : 'Woher kommt das Geld, und was bleibt nach den Ausgaben?',
     );
     await expect(page.locator('.rcat-form, .rcat-ctl')).toHaveCount(0);
     await expect(
@@ -242,7 +252,9 @@ test.describe('routes', () => {
       );
       await page.screenshot({ path: info.outputPath(`catalog-${theme}.png`), fullPage: true });
     }
-    await page.locator('.report-hub-list > li').nth(3).locator('.report-hub-question').click();
+    await page
+      .locator('.report-hub-list > li > a[href="/reports/geldfluss"] .report-hub-question')
+      .click();
     await expect(page).toHaveURL(/\/reports\/geldfluss$/);
   });
 });
@@ -539,7 +551,11 @@ sampleTest.describe('regression baselines of the shell (own screenshots)', () =>
         await page.screenshot({ path: test.info().outputPath('heute-viewport-light.png') });
       }
       await page.evaluate(() => document.fonts.ready);
-      await expectScreenshot(page, `shell-${name}-light.png`);
+      if (name === 'reports') await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
+      const redesign =
+        name === 'reports' &&
+        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      await expectScreenshot(page, `shell-${name}${redesign ? '-redesign' : ''}-light.png`);
     });
   }
 

@@ -124,7 +124,7 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
   it('retains each current hub identity and each planned identity’s current working destination', async () => {
     const { HUB_REPORTS } = await import('../reports/report-hub-model');
     expect(HUB_REPORTS.map((report) => report.id).toSorted()).toEqual(
-      currentHub16.map((row) => row[0]).toSorted(),
+      (enabled ? plannedStable16 : currentHub16).map((row) => row[0]).toSorted(),
     );
     for (const [id, target] of plannedStable16) {
       const router = await open(`/reports/${id}?monat=2026-09`);

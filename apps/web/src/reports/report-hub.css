@@ -189,3 +189,92 @@
     min-height: 44px;
   }
 }
+
+/* R1: layout and target changes are isolated to the trusted redesign root. */
+[data-budget-redesign='1'] .report-hub-v2 {
+  gap: var(--space-md);
+}
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 40px;
+}
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-section {
+  min-width: 0;
+  grid-column: 1;
+}
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-section-income {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+}
+[data-budget-redesign='1'] .report-hub-v2 h3 {
+  margin: 0;
+  padding-block: 8px;
+  font-size: var(--fs-table);
+  color: var(--ink-2);
+}
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-list > li > a {
+  grid-template-columns: 2ch minmax(0, 1fr) 16px;
+  min-height: 52px;
+  gap: 4px 12px;
+  padding-block: 8px;
+}
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-question {
+  grid-column: 2;
+  grid-row: 2;
+}
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-group {
+  display: none;
+}
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-list > li > a > svg {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-groups button {
+  min-height: 44px;
+}
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-aliases,
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-moved {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 12px;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  padding-inline: 8px;
+}
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-aliases a,
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-moved a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1100px) {
+  [data-budget-redesign='1'] .report-hub-v2 .report-hub-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  [data-budget-redesign='1'] .report-hub-v2 .report-hub-section-income {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+[data-budget-redesign='1'] .report-catalog-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+}
+[data-budget-redesign='1'] .report-catalog-head h1 {
+  margin: 0;
+  font-size: var(--fs-display);
+}
+[data-budget-redesign='1'] .report-catalog-head p {
+  margin: 0;
+  color: var(--ink-2);
+}
+@media (max-width: 767px) {
+  [data-budget-redesign='1'] .report-catalog-head {
+    display: none;
+  }
+}

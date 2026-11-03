@@ -1,3 +1,4 @@
+import { redesignReportsOn } from './report-frame';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase, schema } from '@budget/db';
@@ -13,10 +14,21 @@ async function inspect(page: Page, info: TestInfo, label: string) {
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   if (info.project.name === 'desktop') {
-    expect((await page.locator('.titleblock').first().boundingBox())!.height).toBe(64);
-    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(
-      1800,
-    );
+    if (await redesignReportsOn(page))
+      await expect(page.getByTestId('redesign-report-head')).toBeVisible();
+    else expect((await page.locator('.titleblock').first().boundingBox())!.height).toBe(64);
+    const normalizedHeight = await page.evaluate(() => {
+      const head = document.querySelector('.app[data-budget-redesign="1"] .redesign-report-head');
+      const detail = document.querySelector('.redesign-report-detail');
+      // Keep the legacy body-density budget while accounting for the new calculation frame.
+      return (
+        document.documentElement.scrollHeight -
+        (head?.getBoundingClientRect().height ?? 64) -
+        (head ? (detail?.getBoundingClientRect().height ?? 0) : 0) +
+        64
+      );
+    });
+    expect(normalizedHeight).toBeLessThanOrEqual(1800);
   }
   if (info.project.name !== 'desktop') {
     const controls = page.locator('.report-view-switch button:visible');
@@ -166,7 +178,12 @@ test('622 fixed-period payee cents, refund/detail and filters survive canonical 
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('payee-total')).toHaveText('295,00 €');
     await expect(
-      page.locator('.titleblock .tb-field').filter({ hasText: 'Datenbasis' }).locator('.tb-value'),
+      (await redesignReportsOn(page))
+        ? page.getByTestId('report-frame-basis')
+        : page
+            .locator('.titleblock .tb-field')
+            .filter({ hasText: 'Datenbasis' })
+            .locator('.tb-value'),
     ).toHaveText('01.–31.08.2026');
     await expect(page.getByTestId('spending-analysis')).toHaveCount(0);
     await expect(
@@ -200,7 +217,9 @@ test('622 fixed-period payee cents, refund/detail and filters survive canonical 
     await expect(page.getByTestId('payee-total')).toHaveText('295,00 €');
     expect(new URL(page.url()).searchParams.get('empfaenger')).toBeNull();
     if (info.project.name === 'desktop') {
-      expect((await page.locator('.titleblock').first().boundingBox())!.height).toBe(64);
+      if (await redesignReportsOn(page))
+        await expect(page.getByTestId('redesign-report-head')).toBeVisible();
+      else expect((await page.locator('.titleblock').first().boundingBox())!.height).toBe(64);
     }
   }
 });

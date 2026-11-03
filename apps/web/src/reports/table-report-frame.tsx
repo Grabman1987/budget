@@ -3,7 +3,7 @@ import { useMemo, type ReactNode } from 'react';
 import { ErrorNote, LoadingNote, EmptyNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
-import { PageFrame } from '../pages/placeholder-page';
+import { ReportFrame as PageFrame } from './report-frame';
 import { useCollapsibleSections } from './month-frame';
 import { monthShort } from './table-format';
 import { reportTablesQuery, type ReportTables } from './table-reports-api';
@@ -107,6 +107,8 @@ export function TableReportFrame<T extends FrameFacts = ReportTables>({
     );
   return (
     <PageFrame
+      sourceReportId={report.id}
+      sourceDate={tables?.asOf}
       verdict={verdict}
       reportControls={reportControls}
       meta={meta}

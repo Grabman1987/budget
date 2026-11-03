@@ -27,6 +27,7 @@ import { validateInboxSearch } from './inbox/navigation';
 import { accountsQuery } from './ledger/queries';
 import { captureContinuation, validateCaptureSearch } from './ledger/capture-link';
 import { findReport } from './nav/reports-catalog';
+import { hubReport } from './reports/report-hub-model';
 import {
   ACCOUNT_PAGE,
   CSV_EXPORT_META,
@@ -786,7 +787,8 @@ const reportRoute = createRoute({
     const report = findReport(
       params.reportId === 'onepager' && deps.finanzcheck ? 'finanzcheck' : params.reportId,
     );
-    return report ? { title: report.name } : {};
+    const canonical = report && REDESIGN_ENABLED ? hubReport(report.id) : undefined;
+    return report ? { title: canonical?.id === report.id ? canonical.name : report.name } : {};
   },
   component: lazyRouteComponent(reportsPages, 'ReportRoute'),
 });

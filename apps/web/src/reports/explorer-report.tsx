@@ -42,7 +42,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
-import { PageFrame } from '../pages/placeholder-page';
+import { ReportFrame as PageFrame } from './report-frame';
 import { AppLink } from '../shell/app-link';
 import { sameQuery } from './explorer-views';
 import { explorerTemplateQuery } from './explorer-template-api';

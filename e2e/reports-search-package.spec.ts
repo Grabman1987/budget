@@ -12,6 +12,7 @@ test('everyday terms keep function routes, data kinds and global actions distinc
   await expect(
     page.getByRole('searchbox', { name: 'Berichte nach Name oder Frage suchen' }),
   ).toBeVisible();
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   const open = async () => {
     if (mobile) await page.getByRole('button', { name: 'Suchen', exact: true }).click();
     else await page.keyboard.press('Control+k');
@@ -25,7 +26,7 @@ test('everyday terms keep function routes, data kinds and global actions distinc
     ['Dispo', 'Vermögen · Schulden', '/vermoegen/schulden', ''],
     ['Gebühren', '2.6 Bank- und Zinskosten', '/reports/abos', 'bankkosten'],
     ['Prognosegenauigkeit', '1.11 Prognosegenauigkeit', '/reports/budgettreue', 'planungstreue'],
-    ['Budgettreue', '2.2 Budgettreue', '/reports/budgettreue', ''],
+    ['Budgettreue', redesign ? '14 Budgettreue' : '2.2 Budgettreue', '/reports/budgettreue', ''],
   ]) {
     const input = await open();
     await input.fill(term!);

@@ -34,7 +34,11 @@ const response = {
     },
   },
 };
-vi.mock('@tanstack/react-router', () => ({ useSearch: () => ({}), useNavigate: () => vi.fn() }));
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useSearch: () => ({}),
+  useNavigate: () => vi.fn(),
+}));
 vi.mock('@tanstack/react-query', () => ({
   queryOptions: (v: unknown) => v,
   useQuery: () => ({ data: response }),
