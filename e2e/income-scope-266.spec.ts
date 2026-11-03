@@ -153,7 +153,13 @@ test('Today and Plan explain a real booking-month shift beside October expected 
 
   await page.getByRole('link', { name: 'Zurück zum Monat' }).click();
   await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-10$/);
-  await page.getByRole('button', { name: /Einnahmen im Detail/ }).click();
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1' && isMobile) {
+    await page.locator('.plan-tba').click();
+    await page
+      .getByRole('group', { name: 'Maßkette Zu verteilen', exact: true })
+      .getByRole('button', { name: /^Einnahmen/ })
+      .click();
+  } else await page.getByRole('button', { name: /Einnahmen im Detail/ }).click();
   await expect(page).toHaveURL(/\/plan\/monat\/einnahmen\?monat=2026-10$/);
   await page.getByRole('link', { name: 'Zurück zum Monat' }).click();
   await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-10$/);

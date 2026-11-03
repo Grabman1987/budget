@@ -83,11 +83,14 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   await expect(page.getByTestId('inbox-overspent-summary')).toHaveCount(0);
   await expect(page.getByText('Kategorien überzogen')).toHaveCount(0);
   await expect(page.getByTestId('inbox-row').filter({ hasText: 'ist überzogen' })).toHaveCount(0);
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   await expect(
-    page.locator(phone ? '.m-status' : '.topbar').getByRole('link', {
-      name: phone ? `${badge.count} zu prüfen` : `Prüfen, ${badge.count} offen`,
+    page.locator(phone ? (redesign ? '.m-head' : '.m-status') : '.topbar').getByRole('link', {
+      name: phone && !redesign ? `${badge.count} zu prüfen` : `Prüfen, ${badge.count} offen`,
     }),
-  ).toHaveText(phone ? `${badge.count} zu prüfen` : `Prüfen · ${badge.count}`);
+  ).toHaveText(
+    phone ? (redesign ? `${badge.count}` : `${badge.count} zu prüfen`) : `Prüfen · ${badge.count}`,
+  );
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
     const axe = await new AxeBuilder({ page }).analyze();
@@ -119,7 +122,7 @@ test('phone status or Heute action opens triage with the missing amount and perf
   page,
 }) => {
   test.setTimeout(120_000);
-  await page.route('**/api/budget/2026-09', async (route) => {
+  await page.route(/\/api\/budget\/2026-09(?:\?.*)?$/, async (route) => {
     const response = await route.fetch();
     const body: BudgetMonthView = await response.json();
     body.summary.toBeAssignedCents = 0;
@@ -144,6 +147,8 @@ test('phone status or Heute action opens triage with the missing amount and perf
   const destination = new URL(page.url());
   expect(destination.searchParams.get('monat')).toBe('2026-09');
   expect(destination.searchParams.get('ansicht')).toBe('triage');
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    await page.locator('.plan-tba').click();
   await expect(page.locator('.cover-missing')).toContainText('Es fehlen');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(coverPosts).toBe(0);

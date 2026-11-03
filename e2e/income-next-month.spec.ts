@@ -30,6 +30,8 @@ test('new captures use booking month and existing stored values survive dialog e
   });
   await post('/payees', { name: 'Zahler A' });
   await page.goto('/einstellungen/zuordnung');
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    await page.getByText('Empfänger bereinigen und Planmonat zuordnen', { exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Budgetmonat für Einnahmen' })).toBeVisible();
   await page.getByLabel('Quelle', { exact: true }).selectOption('income-salary');
   await page.getByRole('button', { name: 'Regel speichern' }).click();

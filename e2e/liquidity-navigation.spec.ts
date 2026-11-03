@@ -1,3 +1,5 @@
+import { openHeuteReview } from './heute-visual-fixture';
+import { forecastHorizon, redesignEnabled } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -35,12 +37,13 @@ test('Plan reaches liquidity and a payment keeps its account, due date and chose
     amountCents: -10_001,
   });
   await page.goto('/plan/monat');
+  if (await redesignEnabled(page)) await page.locator('main .area-page-menu > summary').click();
   await page.getByRole('link', { name: 'Prognose', exact: true }).click();
   await expect(page).toHaveURL(/plan\/prognose/);
-  await page.getByRole('button', { name: '90 Tage', exact: true }).click();
+  await forecastHorizon(page, '90d', '90 Tage');
   await expect(page.getByTestId('liq-verdict').locator('strong')).toContainText('18.09.2026');
   await expect(page.getByTestId('liq-verdict').locator('strong')).toContainText('20.08.2026');
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   await page
     .getByRole('link', { name: /Synthetic payment account.*Kontovorschau/ })
     .first()
@@ -50,10 +53,12 @@ test('Plan reaches liquidity and a payment keeps its account, due date and chose
   await expect(page.getByTestId('account-preview-coverage')).toContainText('Teilprognose');
   await expect(page.getByTestId('account-preview-coverage')).toContainText('1 geplantes Ereignis');
   await expect(page.getByTestId('account-preview-range')).toContainText('16.06.2026');
+  if (await redesignEnabled(page)) await page.locator('.account-chart-options > summary').click();
   await expect(page.getByRole('combobox', { name: 'Kontovorschau Zeitraum' })).toHaveValue('90d');
   await page.reload();
   await expect(page.getByTestId('account-payment-context')).toContainText('20.03.2026');
   await expect(page.getByTestId('account-preview-range')).toContainText('16.06.2026');
+  if (await redesignEnabled(page)) await page.locator('.account-chart-options > summary').click();
   const target = page.getByRole('combobox', { name: 'Kontovorschau Zeitraum' });
   expect((await target.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   for (const theme of ['light', 'dark']) {
@@ -71,5 +76,5 @@ test('Plan reaches liquidity and a payment keeps its account, due date and chose
     await page.screenshot({ path: info.outputPath(`account-${theme}.png`), fullPage: true });
   }
   await page.goBack();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL((await redesignEnabled(page)) ? /\/heute\/details\/month/ : /\/$/);
 });

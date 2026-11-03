@@ -327,7 +327,13 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   await expect(categoryDialog).toBeVisible();
   await categoryDialog.getByLabel('Name', { exact: true }).fill('cg');
   await expect(page.getByRole('dialog', { name: 'Gruppe anlegen' })).toHaveCount(0);
+  if (redesigned)
+    page.once('dialog', async (confirmation) => {
+      expect(confirmation.message()).toBe('Ungespeicherte Änderungen verwerfen?');
+      await confirmation.accept();
+    });
   await categoryDialog.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await expect(categoryDialog).toBeHidden();
   await page.locator('body').click({ position: { x: 2, y: 2 } });
   await page.keyboard.press('g');
   await expect(page.getByRole('dialog', { name: 'Gruppe anlegen' })).toBeVisible();

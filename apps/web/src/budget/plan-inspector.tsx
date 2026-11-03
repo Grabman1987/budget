@@ -50,6 +50,7 @@ export function PlanInspector({
   visibleRows,
   multi = false,
   focusSelection = true,
+  restoredSelection = false,
 }: {
   month: string;
   rows: PlanRow[];
@@ -68,16 +69,22 @@ export function PlanInspector({
   visibleRows: PlanRow[];
   multi?: boolean;
   focusSelection?: boolean;
+  restoredSelection?: boolean;
 }) {
   useAmountPrivacy();
   const heading = useRef<HTMLHeadingElement>(null);
   const selectionKey = selected.map((r) => r.id).join(':');
+  const restoringSelection = useRef(restoredSelection);
   useEffect(() => {
-    if (!focusSelection || !selectionKey || !window.matchMedia('(max-width: 1179px)').matches)
-      return;
+    if (!focusSelection || !selectionKey) return;
+    const restoring = restoringSelection.current;
+    restoringSelection.current = false;
+    if (!window.matchMedia('(max-width: 1179px)').matches) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     heading.current?.focus({ preventScroll: true });
-    heading.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    // Browser Back restores the exact list offset; focusing a retained selection must not move it.
+    if (!restoring)
+      heading.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
   }, [selectionKey, focusSelection]);
   const automatic = (
     <PlanAutomatic

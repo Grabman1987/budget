@@ -1,3 +1,5 @@
+import { openHeuteReview } from './heute-visual-fixture';
+import { redesignEnabled, openPaymentManagement } from './plan-redesign-controls';
 import { expect as baseExpect, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
 
@@ -54,6 +56,8 @@ test('a single salary is struck from the forecast, Heute and Plan, and comes bac
 
   // Liquiditätsprognose: strike the October salary, the movement and the income vanish.
   await page.goto('/reports/liquiditaet');
+  const on = await redesignEnabled(page);
+  if (on) await page.getByRole('combobox', { name: 'Prognosezeitraum' }).selectOption('6m');
   await page.locator('details.rf-tools > summary').click();
   const strike = page.getByRole('button', {
     name: `Diesen Monat streichen: ${name}, 15.10.`,
@@ -80,9 +84,10 @@ test('a single salary is struck from the forecast, Heute and Plan, and comes bac
     .locator('tr.prow')
     .filter({ hasText: name })
     .first()
-    .getByRole('button', { name })
+    .getByRole('button', { name, exact: on })
     .click();
   await expect(page).toHaveURL(new RegExp('/plan/erwartet/[^?]+'));
+  await openPaymentManagement(page);
   const panel = page.locator('.xp-detail-body');
   const october = panel.locator('.xp-occ > li').filter({ hasText: '15.10.2026' });
   await expect(october).toContainText('erwartet');
@@ -96,7 +101,7 @@ test('a single salary is struck from the forecast, Heute and Plan, and comes bac
   expect(await octoberIncome(page)).toBe(withSalary);
 
   // Heute: the upcoming salary offers the same action and drops out of the list.
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   // The list "Danach" sits in "Mehr zum Monat", open on desktop and folded on the phone.
   const more = page.getByRole('button', { name: 'Mehr zum Monat' });
   await expect(more).toBeVisible();

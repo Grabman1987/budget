@@ -178,7 +178,7 @@
 .plan-month-v2 .plan-filterbar summary,
 .plan-month-v2 .plan-filterbar .input,
 .plan-month-v2 .ptoolbar .btn,
-.plan-month-v2 .plan-menu > summary,
+.plan.plan-month-v2 .plan-menu > summary,
 .plan-month-v2 .plan-menu-panel button,
 .plan-month-v2 .plan-menu-panel a {
   min-height: var(--touch);
@@ -261,7 +261,7 @@
   .plan-month-v2 .plan-filterbar {
     padding-block: var(--space-xs);
   }
-  .plan-month-v2 .ptable-zero thead th {
+  .plan.plan-month-v2 .ptable-zero thead th {
     padding-block: var(--space-xs);
   }
   .plan-month-v2 .plan-filterbar .plan-category-search {
@@ -418,12 +418,15 @@
   align-items: end;
   gap: var(--space-md);
 }
-.plan-month-frame .plan-lead-controls .plan-tba {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0;
-  padding: 0;
+/* Detail routes also load the legacy stylesheet; keep the ON geometry independent of load order. */
+@media (min-width: 768px) {
+  .plan-month-frame .plan.plan-month-v2 .plan-lead-controls summary.plan-tba {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    padding: 0;
+  }
 }
 .plan-month-frame .plan-popover summary.plan-tba::before {
   display: none;
@@ -522,5 +525,26 @@
 @media (max-width: 767px) {
   .plan-month-frame .plan-month-v2 .plan-grid > .plan-topbar-v2.is-compact {
     padding-block: var(--space-xs);
+  }
+}
+
+/* Retain every month action when the desktop shell leaves a narrow content column. */
+@media (min-width: 768px) and (max-width: 1179px) {
+  .plan-month-frame .plan-v2-page-head {
+    flex-wrap: wrap;
+  }
+  .plan-month-frame .plan-month-lead {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .plan-month-frame .plan-lead-controls > .plan-popover {
+    flex-basis: 100%;
+  }
+  .plan-month-frame .plan-v2-page-actions {
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
+  .app[data-budget-redesign='1'] .plan-shell-topbar .global-search-launch {
+    flex: 0 1 200px;
+    min-width: var(--touch);
   }
 }
