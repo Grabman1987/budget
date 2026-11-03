@@ -8,6 +8,8 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   page,
   isolatedLedger,
 }, info) => {
+  // The five-step close under WebKit iPhone emulation sits at the 30 s limit on the hosted runner.
+  test.slow(info.project.name === 'webkit-iphone', 'WebKit iPhone emulation needs about 3x');
   const screenshot = async (name: string) => {
     const toastAction = page.locator('.toast.is-open button');
     if (await toastAction.isVisible()) await toastAction.press('Escape');
