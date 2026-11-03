@@ -206,6 +206,12 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   });
   expect(categoryResponse.ok()).toBe(true);
   await openHeuteReview(page, '/');
+  if (await redesignLoaded(page)) {
+    // Finish the month-detail navigation before taking a keyboard opener from its shell.
+    await expect(page).toHaveURL((url) => url.pathname === '/heute/details/month');
+    await expect(page.getByTestId('heute-lead-value')).toBeVisible();
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  }
   const opener = page
     .getByRole('link', { name: /^(Buchung|Buchung erfassen)$/ })
     .filter({ visible: true });

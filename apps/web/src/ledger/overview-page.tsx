@@ -408,7 +408,7 @@ function OverviewGroup({
   return (
     <>
       <tr className="kgroup overview-group" id={`kg-${group.group.id}`}>
-        <th scope="rowgroup" colSpan={3}>
+        <th scope="rowgroup" colSpan={3} style={REDESIGN_ENABLED ? { height: 'auto' } : undefined}>
           {REDESIGN_ENABLED ? (
             <button
               type="button"

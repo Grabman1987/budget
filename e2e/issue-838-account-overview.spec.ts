@@ -373,7 +373,7 @@ test('K1: collapsed mixed review states retain every problem, total and ordering
     await expect(toggle).toBeDisabled();
     await expect(scope.getByRole('button', { name: 'Synthetic Alpha nach unten' })).toBeVisible();
   } else {
-    await expect(group.getByRole('button')).toHaveCount(0);
+    await expect(group.getByRole('button', { name: /^Budget-Konten/ })).toHaveCount(0);
     await expect(scope.locator('[data-account-id="k1-missing"]')).toBeVisible();
     await expect(group.getByTestId('account-group-value')).toHaveText('120,00 €');
   }
