@@ -100,7 +100,10 @@ test('explains net versus cash debts, links financing and stacks the existing lo
   await link.click();
   await expect(page).toHaveURL(/\/plan\/prognose$/);
   await expect(
-    page.getByRole('heading', { name: 'Liquiditätsprognose', exact: true }),
+    page.getByRole('heading', {
+      name: (await wealthRedesign(page)) ? 'Prognose' : 'Liquiditätsprognose',
+      exact: true,
+    }),
   ).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(url);

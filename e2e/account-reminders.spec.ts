@@ -1,5 +1,6 @@
 import { openHeuteReview } from './heute-visual-fixture';
 import { openPruefenSource } from './pruefen-part';
+import { redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdirSync } from 'node:fs';
 import { sampleTest as test, expect, SAMPLE_URL } from './sample';
@@ -153,6 +154,8 @@ test('Today and inbox reminders open existing dialogs and include one-off plans 
     await expect(page.getByRole('dialog', { name: 'Ereignis bearbeiten' })).toBeVisible();
     await page.keyboard.press('Escape');
     await page.goto('/einstellungen/profil');
+    if (await redesignLoaded(page))
+      await page.getByText('Darstellung & Datenschutz', { exact: true }).click();
     const setting = page.getByRole('region', { name: 'Kontoprüfung · Erinnerung' });
     await expect(setting).toContainText('14 Tagen');
     await expect(setting).toContainText('Kalendermonat');

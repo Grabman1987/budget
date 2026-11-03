@@ -1,6 +1,7 @@
 import { openDatabase, schema } from '@budget/db';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
+import { redesignLoaded } from './ledger-helpers';
 
 test('Heute names only currently held securities without quotes or execution prices', async ({
   page,
@@ -81,9 +82,14 @@ test('Heute names only currently held securities without quotes or execution pri
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
-    const section = page.getByRole('heading', { name: 'Nettovermögen · 12 Monate' }).locator('..');
+    const redesign = await redesignLoaded(page);
+    const section = redesign
+      ? page.getByRole('region', { name: 'Nettovermögen', exact: true })
+      : page.getByRole('heading', { name: 'Nettovermögen · 12 Monate' }).locator('..');
     const marker = section.getByRole('button', {
-      name: 'Bewertungsgrundlage · Verlauf Nettovermögen · aktueller Stand',
+      name: redesign
+        ? 'Bewertungsgrundlage · Nettovermögen'
+        : 'Bewertungsgrundlage · Verlauf Nettovermögen · aktueller Stand',
       exact: true,
     });
     await expect(marker).toHaveText('≈');
@@ -98,6 +104,7 @@ test('Heute names only currently held securities without quotes or execution pri
     await expect(source).toContainText('Brutto-Ausführung vom 03.01.2026');
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('valuation-hint')).toHaveCount(0);
+    if (redesign) await page.getByRole('link', { name: 'Mehr zum Monat', exact: true }).click();
     await expect(page.getByText('1 Wertpapier ohne aktuellen Kurs', { exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Kurse prüfen', exact: true })).toHaveCount(1);
     const response = await page.request.get('/api/heute');
@@ -123,7 +130,10 @@ test('Heute names only currently held securities without quotes or execution pri
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    await section.screenshot({
+    const evidence = redesign
+      ? page.getByRole('heading', { name: 'Nettovermögen · 12 Monate' }).locator('..')
+      : section;
+    await evidence.screenshot({
       path: info.outputPath(`valuation-hint-${theme}.png`),
       animations: 'disabled',
     });

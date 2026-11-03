@@ -1,7 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { openDatabase, schema } from '@budget/db';
-import { mkdirSync } from 'node:fs';
 import { test } from './isolated-ledger';
 
 test.setTimeout(180_000);
@@ -143,14 +142,13 @@ for (const theme of ['light', 'dark'] as const) {
           );
         expect(undersized).toEqual([]);
       }
-      mkdirSync('docs/evidence/depot-template', { recursive: true });
       await page.evaluate(() => {
         if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
         window.scrollTo(0, 0);
       });
       await page.waitForFunction(() => window.scrollY === 0);
       await page.screenshot({
-        path: `docs/evidence/depot-template/${info.project.name}-${theme}-${query}.png`,
+        path: info.outputPath(`${theme}-${query}.png`),
         fullPage: true,
         animations: 'disabled',
       });
@@ -183,7 +181,7 @@ test('depot trade row reuses the editor, browser back and settlement navigation'
   await page.goto('/konten/buchungen');
   await expect(page.locator(`[data-booking="${trade.bookingId}"] .kcat.is-none`)).toHaveCount(0);
   await expect(page.locator(`[data-booking="${trade.bookingId}"]`)).toContainText('Trade');
-  await expect(page.locator(`[data-booking="${ordinary.id}"] .kcat.is-none`)).toContainText(
+  await expect(page.locator(`[data-booking="${ordinary.id}"] .kcat.is-none:visible`)).toContainText(
     'ohne Kategorie',
   );
 });
@@ -228,7 +226,9 @@ test('crypto without settlement marks missing quotes per row and incomplete depo
   await expect(page.locator('.depot-table tbody tr')).toContainText('Kurs fehlt');
   await expect(page.locator('.depot-table tbody tr')).not.toContainText('0,00');
   await expect(page.getByTestId('depot-settlement')).toHaveCount(0);
-  await expect(page.getByTestId('depot-cash')).toHaveCount(0);
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    await expect(page.getByTestId('depot-cash')).toHaveText('Bargeld im Depotkonto: 0,00 €');
+  else await expect(page.getByTestId('depot-cash')).toHaveCount(0);
   await page.getByRole('link', { name: 'Verrechnung', exact: true }).click();
   await expect(page.getByText('Kein separates Verrechnungskonto verknüpft.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Buchungen', exact: true })).toBeVisible();
