@@ -96,11 +96,13 @@ for (const [slug, target, view] of landings) {
     const redesign = await redesignReportsOn(page);
     const finanzcheck = slug === 'finanzcheck' && redesign;
     const expectedTarget =
-      redesign && ['pallocation', 'peinzahlungen', 'prendite'].includes(slug)
-        ? '/reports/vermoegen-schulden'
-        : finanzcheck
-          ? '/reports/onepager'
-          : target;
+      redesign && slug === 'kontakte'
+        ? '/reports/kontakte'
+        : redesign && ['pallocation', 'peinzahlungen', 'prendite'].includes(slug)
+          ? '/reports/vermoegen-schulden'
+          : finanzcheck
+            ? '/reports/onepager'
+            : target;
     await expect.poll(() => new URL(page.url()).pathname).toBe(expectedTarget);
     if (finanzcheck) {
       expect(new URL(page.url()).searchParams.get('darstellung')).toBe('finanzcheck');

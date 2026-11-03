@@ -384,6 +384,10 @@ const probes = {
     expect(p.getByTestId('depot-total').getByTestId('depot-value')).toBeVisible(),
   portfolioReport: (p: Page) => id(p, 'sunburst-classes'),
   costs: (p: Page) => id(p, 'costs-net'),
+  contactReport: async (p: Page) => {
+    await css(p, '.r4-contact-list');
+    await expect(p.getByTestId('report-frame-basis')).toContainText('Gesamte Historie');
+  },
   explorer: (p: Page) =>
     css(p, '[data-testid="ex-table"] tbody tr, [data-testid="template-heatmap"]'),
   compare: async (p: Page) => {
@@ -540,9 +544,17 @@ for (const [slug, legacyPath, legacyIntent, view, legacyBody] of reportAliases)
   test(`A2 report alias ${slug}`, async ({ page }) => {
     await page.goto('/plan/monat?monat=2026-08');
     const finanzcheck = (await flag(page)) && slug === 'finanzcheck';
-    const path = finanzcheck ? '/reports/onepager' : legacyPath;
+    const path = finanzcheck
+      ? '/reports/onepager'
+      : (await flag(page)) && slug === 'kontakte'
+        ? '/reports/kontakte'
+        : legacyPath;
     const intent = finanzcheck ? 'darstellung=finanzcheck' : legacyIntent;
-    const body = finanzcheck ? 'finanzcheck' : legacyBody;
+    const body = finanzcheck
+      ? 'finanzcheck'
+      : (await flag(page)) && slug === 'kontakte'
+        ? 'contactReport'
+        : legacyBody;
     await probes.plan(page);
     await page.goto(
       `/reports/${slug}?monat=2026-08&period=month&zeitraum=2026-01..2026-08#details`,

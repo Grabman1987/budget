@@ -1,3 +1,5 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { ContactReportRedesign } from './contact-report-redesign';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { cents } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
@@ -37,8 +39,9 @@ export function ContactReportPage() {
   useAmountPrivacy();
   const overview = useQuery(contactOverviewQuery());
   const baseView = overview.isSuccess ? overview.data : undefined;
-  const search = useSearch({ strict: false }) as { kontakt?: string };
-  const [history, setHistory] = useState(false);
+  const search = useSearch({ strict: false }) as { kontakt?: string; verlauf?: number };
+  const [legacyHistory, setHistory] = useState(false);
+  const history = REDESIGN_ENABLED ? search.verlauf === 1 : legacyHistory;
   const visible =
     baseView?.contacts.filter((contact) => history || contact.balanceCents !== 0) ?? [];
   const selected = search.kontakt ?? visible[0]?.id ?? '';
@@ -68,6 +71,20 @@ export function ContactReportPage() {
     if (personId && search.kontakt) heading.current?.focus();
   }, [personId, search.kontakt]);
   const parts = view ? eurParts(view.totals.balanceCents) : undefined;
+  if (REDESIGN_ENABLED)
+    return (
+      <ContactReportRedesign
+        overview={overview}
+        statement={statement}
+        view={view}
+        selected={selected}
+        person={person}
+        history={history}
+        heading={heading}
+        unsupported={unsupportedDetail}
+        detailError={detailError}
+      />
+    );
   return (
     <PageFrame
       verdict={
@@ -106,7 +123,7 @@ export function ContactReportPage() {
         {overview.isPending && <LoadingNote what="Kontaktabrechnung" />}
         {(overview.isError || unsupportedDetail) && (
           <>
-            <ReportError
+            <ContactReportError
               what="Kontaktabrechnung"
               error={unsupportedDetail ? detailError : overview.error}
               retry={() => {
@@ -184,7 +201,7 @@ export function ContactReportPage() {
               <>
                 {statement.isPending && <LoadingNote what="Kontoblatt" />}
                 {statement.isError && (
-                  <ReportError
+                  <ContactReportError
                     what="Kontoblatt"
                     error={statement.error}
                     retry={() => void statement.refetch()}
@@ -240,7 +257,15 @@ export function ContactReportPage() {
     </PageFrame>
   );
 }
-function ReportError({ what, error, retry }: { what: string; error: unknown; retry: () => void }) {
+export function ContactReportError({
+  what,
+  error,
+  retry,
+}: {
+  what: string;
+  error: unknown;
+  retry: () => void;
+}) {
   useAmountPrivacy();
   const unsupported = error instanceof ApiError && error.status === 422;
   return (

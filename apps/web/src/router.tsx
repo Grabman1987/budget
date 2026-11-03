@@ -742,7 +742,7 @@ const redirects = [
     '/plan/sparziele',
     REDESIGN_ENABLED ? { ansicht: 'fortschritt' } : {},
   ),
-  redirectRoute('/reports/kontakte', '/konten/kontakte'),
+  ...(!REDESIGN_ENABLED ? [redirectRoute('/reports/kontakte', '/konten/kontakte')] : []),
   redirectRoute(
     '/reports/finanzcheck',
     REDESIGN_ENABLED ? '/reports/onepager' : '/',
