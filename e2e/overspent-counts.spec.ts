@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import { expect as baseExpect, sampleTest as test } from './sample';
 import AxeBuilder from '@axe-core/playwright';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
@@ -40,7 +41,7 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   // The header pill (Umsätze + Aufgaben) excludes the overspent categories the full queue derives.
   expect(badge.count).toBe(inbox.count - count);
 
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   const phone = (page.viewportSize()?.width ?? Infinity) <= 767;
   const link = phone
     ? page.locator('.m-status').getByRole('link', { name: `${count} überzogen` })
@@ -107,7 +108,7 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
     await route.fulfill({ status: 409, json: { error: 'Unexpected summary write' } });
   });
   // The overspent count's entry point is Heute / the phone status line now: opens triage, no write.
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   await link.click();
   await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-09&ansicht=triage/);
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -126,7 +127,7 @@ test('phone status or Heute action opens triage with the missing amount and perf
     delete body.budgetMoney;
     await route.fulfill({ response, json: body });
   });
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   const chip =
     (page.viewportSize()?.width ?? Infinity) <= 767
       ? page.locator('.m-status').getByRole('link', { name: /\d+ überzogen/ })

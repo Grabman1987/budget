@@ -1,7 +1,10 @@
 import { useAmountPrivacy, Button, Field, TextInput, TitleBlock } from '@budget/ui';
 import { todayInVienna, type CloseWork } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from '@tanstack/react-router';
+import { useBlocker, useParams } from '@tanstack/react-router';
+import { ApiError } from '../api/http';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsFormDialog } from '../pages/settings-form-dialog';
 import { useRef, useState } from 'react';
 import { Check } from 'lucide-react';
 import { budgetQuery, assign } from '../budget/budget-api';
@@ -19,6 +22,7 @@ import { monthLabel } from '../nav/month';
 import { AppLink } from '../shell/app-link';
 import {
   monthCloseQuery,
+  nextPlanBasis,
   saveMonthClose,
   confirmUnchangedCloseAccounts,
   reconcileCloseAccount,
@@ -110,6 +114,12 @@ function CloseFlow({
   const bulkSubmitting = useRef(false);
   const [bulkFailed, setBulkFailed] = useState(false);
   const [dirtyPlan, setDirtyPlan] = useState(false);
+  const [planConflict, setPlanConflict] = useState(false);
+  const blocker = useBlocker({
+    shouldBlockFn: () => REDESIGN_ENABLED && (dirtyPlan || busy),
+    withResolver: true,
+    enableBeforeUnload: () => REDESIGN_ENABLED && (dirtyPlan || busy),
+  });
   const [selected, setSelected] = useState<string | null>(null);
   const [deferring, setDeferring] = useState<CloseWork[] | null>(null);
   // Explicit inspection stays put while a child editor or Plan draft is active.
@@ -181,8 +191,28 @@ function CloseFlow({
     setBusy(false);
   };
   return (
-    <div className="month-close">
+    <div className={`month-close${REDESIGN_ENABLED ? ' month-close-v2' : ''}`}>
       <p>Zuerst den Monat prüfen, dann den nächsten planen. Dein Fortschritt bleibt gespeichert.</p>
+      {REDESIGN_ENABLED && (
+        <label className="close-inspect-step">
+          Schritt nur ansehen
+          <select
+            value={step}
+            disabled={busy || dirtyPlan || !fresh}
+            onChange={(event) => setChosenStep(Number(event.target.value))}
+          >
+            {data.steps.map((item) => (
+              <option key={item.step} value={item.step}>
+                {item.step}. {item.title}
+              </option>
+            ))}
+          </select>
+          <small>
+            Die Schaltflächen darunter merken den gewählten Schritt. Ansehen allein speichert
+            nichts.
+          </small>
+        </label>
+      )}
       <CloseStepper
         steps={data.steps}
         current={step}
@@ -466,22 +496,49 @@ function CloseFlow({
           </>
         )}
         {step === 4 && (
-          <NextMonthPlan
-            data={data.nextPlan}
-            onDirtyChange={(dirty) => {
-              if (dirty) setChosenStep(4);
-              setDirtyPlan(dirty);
-            }}
-            onApply={async (items) => {
-              setBusy(true);
-              const result = await write(
-                () => assign(data.nextPlan.month, items, data.month),
-                () => 'Plan übernommen. Alle Zuweisungen gemeinsam rückgängig machen.',
-              );
-              setBusy(false);
-              return Boolean(result);
-            }}
-          />
+          <>
+            {planConflict && (
+              <p role="alert">
+                Der Monatsplan hat sich geändert. Dein Entwurf bleibt erhalten. Bitte den aktuellen
+                Stand prüfen und erneut bestätigen.
+              </p>
+            )}
+            <NextMonthPlan
+              data={data.nextPlan}
+              onDirtyChange={(dirty) => {
+                if (dirty) setChosenStep(4);
+                setDirtyPlan(dirty);
+              }}
+              onApply={async (items) => {
+                if (busy || !fresh) return false;
+                setBusy(true);
+                const result = await write(
+                  async () => {
+                    try {
+                      const saved = await assign(
+                        data.nextPlan.month,
+                        items,
+                        data.month,
+                        undefined,
+                        REDESIGN_ENABLED ? await nextPlanBasis(data) : undefined,
+                      );
+                      setPlanConflict(false);
+                      return saved;
+                    } catch (error) {
+                      if (error instanceof ApiError && error.code === 'close_plan_changed') {
+                        setPlanConflict(true);
+                        onReload();
+                      }
+                      throw error;
+                    }
+                  },
+                  () => 'Plan übernommen. Alle Zuweisungen gemeinsam rückgängig machen.',
+                );
+                setBusy(false);
+                return Boolean(result);
+              }}
+            />
+          </>
         )}
         {step === 4 && dirtyPlan && (
           <p>Übernimm oder verwirf den Entwurf vor dem nächsten Schritt.</p>
@@ -534,6 +591,26 @@ function CloseFlow({
             </Button>
           )}
         </div>
+      )}
+      {REDESIGN_ENABLED && (
+        <SettingsFormDialog
+          open={blocker.status === 'blocked'}
+          onClose={() => blocker.reset?.()}
+          title="Entwurf behalten?"
+        >
+          <p>
+            Der nächste Monatsplan ist noch nicht übernommen. Bleibe hier oder verwirf den Entwurf
+            ausdrücklich.
+          </p>
+          <div className="close-actions">
+            <Button variant="ghost" onClick={() => blocker.reset?.()}>
+              Hier bleiben
+            </Button>
+            <Button disabled={busy} onClick={() => blocker.proceed?.()}>
+              Entwurf verwerfen und verlassen
+            </Button>
+          </div>
+        </SettingsFormDialog>
       )}
     </div>
   );

@@ -1,10 +1,12 @@
-import { useLinkProps } from '@tanstack/react-router';
+import { useLinkProps, useLocation } from '@tanstack/react-router';
 import type { AnchorHTMLAttributes } from 'react';
 
 // The typed link hook only accepts literal route paths; nav tables carry plain strings.
 const useLooseLinkProps = useLinkProps as unknown as (
   options: Record<string, unknown>,
 ) => AnchorHTMLAttributes<HTMLAnchorElement>;
+
+import { REDESIGN_ENABLED } from './redesign-flag';
 
 type SearchParams = Record<string, unknown>;
 
@@ -20,7 +22,27 @@ type Props = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {
 };
 
 /** Router link for paths that come from data tables (nav config), where literal types are lost. */
-export function AppLink({ to, search, state, ...rest }: Props) {
+export function AppLink(props: Props) {
+  return REDESIGN_ENABLED && props.to === '/einstellungen/warenkorb' ? (
+    <BasketSourceLink {...props} />
+  ) : (
+    <RouterLink {...props} />
+  );
+}
+
+/** Only the basket entry needs source context; other links retain their existing hook contract. */
+function BasketSourceLink({ search, ...props }: Props) {
+  const location = useLocation();
+  const sourceSearch = !location.pathname.startsWith('/einstellungen')
+    ? (previous: SearchParams) => ({
+        ...(typeof search === 'function' ? search(previous) : search),
+        von: location.href,
+      })
+    : search;
+  return <RouterLink {...props} search={sourceSearch} />;
+}
+
+function RouterLink({ to, search, state, ...rest }: Props) {
   const controlled = Object.hasOwn(rest, 'aria-current');
   const props = useLooseLinkProps({
     ...rest,

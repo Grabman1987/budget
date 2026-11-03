@@ -158,10 +158,14 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
 
   await test.step('sign out from Einstellungen › Sicherheit, then log in again with the passkey', async () => {
     await page.goto('/einstellungen/sicherheit');
-    await expect(page.getByRole('heading', { level: 1, name: 'Einstellungen' })).toBeVisible();
+    const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    const phone = testInfo.project.name === 'auth-mobile';
+    await expect(
+      page.getByRole('heading', { level: 1, name: on && phone ? 'Sicherheit' : 'Einstellungen' }),
+    ).toBeVisible();
     // Desktop: the settings rail marks the page; phone: the back bar names it.
     if (testInfo.project.name === 'auth-mobile')
-      await expect(page.locator('.settings-here')).toHaveText('Sicherheit');
+      await expect(page.locator(on ? '.m-title-text' : '.settings-here')).toHaveText('Sicherheit');
     else
       await expect(page.getByRole('link', { name: 'Sicherheit' })).toHaveAttribute(
         'aria-current',
@@ -298,6 +302,11 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
     await page.goto('/einstellungen/sicherheit');
     await expect(page.getByText(/weitere Sitzung/)).toBeVisible();
     await page.getByRole('button', { name: 'Alle anderen Sitzungen beenden' }).click();
+    if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+      await page
+        .getByRole('dialog', { name: 'Alle anderen Sitzungen beenden?' })
+        .getByRole('button', { name: 'Sitzungen beenden', exact: true })
+        .click();
     await expect(page.getByText(/andere Sitzung(en)? beendet/)).toBeVisible();
     await expect(page.getByText('Keine anderen Sitzungen aktiv.')).toBeVisible();
     const status = (await (await otherPage.request.get('/api/auth/status')).json()) as {

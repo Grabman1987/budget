@@ -6,8 +6,8 @@ test('category detail preserves list context, supports direct links and returns 
 }, info) => {
   await page.goto('/einstellungen/kategorien');
   await page.getByRole('switch', { name: /Ausgeblendete zeigen/ }).click();
-  const trigger = page.locator('.cat-table .kname-btn').last();
-  const name = (await trigger.innerText()).trim();
+  const trigger = page.locator('.cat-table .kname-btn, .settings-category-name').last();
+  const name = (await trigger.locator('strong, .kname-s').innerText()).trim();
   await trigger.scrollIntoViewIfNeeded();
   const scroll = await page.evaluate(() => window.scrollY);
   await trigger.click();
@@ -27,7 +27,10 @@ test('category detail preserves list context, supports direct links and returns 
     'true',
   );
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeCloseTo(scroll, 0);
-  await page.locator('.cat-table .kname-btn').filter({ hasText: name }).click();
+  await page
+    .locator('.cat-table .kname-btn, .settings-category-name')
+    .filter({ hasText: name })
+    .click();
   await page.goBack();
   await expect(page).toHaveURL(/\/einstellungen\/kategorien\?/);
   await page.goto(url);
@@ -60,12 +63,23 @@ test('Plan and report open one goal history page and retain month and return rou
   await expect(page).toHaveURL(/\/plan\/sparziele\?monat=2026-08$/);
   await page.goto(url);
   await expect(edit).toBeVisible();
-  await page.getByRole('link', { name: 'Zurück zu Sparzielen' }).click();
+  await page
+    .getByRole('link', {
+      name:
+        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+          ? 'Zurück zu Zielen'
+          : 'Zurück zu Sparzielen',
+    })
+    .click();
   await expect(page).toHaveURL(/\/plan\/sparziele\?monat=2026-08$/);
   await page.goto('/reports/sparziele?monat=2026-09');
-  await expect(page).toHaveURL(/\/plan\/sparziele\?monat=2026-09$/);
+  const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  const reportReturn = on
+    ? /\/plan\/sparziele\?monat=2026-09&ansicht=fortschritt$/
+    : /\/plan\/sparziele\?monat=2026-09$/;
+  await expect(page).toHaveURL(reportReturn);
   await page
-    .locator('.goals')
+    .locator(on ? '.goals-report-list' : '.goals')
     .getByRole('link', { name: 'Urlaub Sommer 2027', exact: true })
     .click();
   await expect(page).toHaveURL(/\/plan\/sparziele\/[^?]+\?monat=2026-09/);
@@ -73,8 +87,15 @@ test('Plan and report open one goal history page and retain month and return rou
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
   await page.screenshot({ path: info.outputPath('goal-detail.png'), fullPage: true });
-  await page.getByRole('link', { name: 'Zurück zu Sparzielen' }).click();
-  await expect(page).toHaveURL(/\/plan\/sparziele\?monat=2026-09$/);
+  await page
+    .getByRole('link', {
+      name:
+        (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+          ? 'Zurück zu Zielen'
+          : 'Zurück zu Sparzielen',
+    })
+    .click();
+  await expect(page).toHaveURL(reportReturn);
   await page.goto('/plan/sparziele/unknown-synthetic-goal?monat=2026-08');
   await expect(page.getByText('Dieses Sparziel ist nicht vorhanden.')).toBeVisible();
 });

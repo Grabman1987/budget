@@ -16,6 +16,8 @@ import { accountsQuery, lookupsQuery, payeesQuery } from '../ledger/queries';
 import { AccountOptions } from '../ledger/account-options';
 import { errorText } from '../ledger/labels';
 import '../assignment/assignment.css';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsDraftGuard } from '../pages/settings-draft-guard';
 
 type ConditionDraft = {
   type: AssignmentCondition['type'];
@@ -112,6 +114,19 @@ export function AssignmentEditor({
     });
     setPreview(null);
   };
+  const dirty =
+    name !== seed.name ||
+    mode !== seed.match.mode ||
+    enabled !== seed.enabled ||
+    automatic !== seed.automatic ||
+    JSON.stringify(conditions) !== JSON.stringify(seed.match.conditions.map(conditionDraft)) ||
+    JSON.stringify(actions) !== JSON.stringify(seed.actions);
+  const beforeClose = () =>
+    !REDESIGN_ENABLED ||
+    (!busy && (!dirty || window.confirm('Ungespeicherte Änderungen verwerfen?')));
+  const cancel = () => {
+    if (beforeClose()) onClose();
+  };
   const draft = (): AssignmentRuleInput =>
     assignmentRuleSchema.parse({
       name,
@@ -172,25 +187,59 @@ export function AssignmentEditor({
       return;
     }
     setBusy(true);
-    const result = await write(
-      () =>
-        request<{ groupId: string }>(
-          id ? 'PUT' : 'POST',
-          '/api/assignment-rules' + (id ? '/' + encodeURIComponent(id) : ''),
-          input,
-        ),
-      () => 'Zuordnungsregel gespeichert.',
-    );
-    setBusy(false);
-    if (result) onClose();
+    try {
+      if (REDESIGN_ENABLED && id) {
+        const latest = await request<{ rules: (AssignmentRuleInput & { id: string })[] }>(
+          'GET',
+          '/api/assignment-rules',
+        );
+        const current = latest.rules.find((rule) => rule.id === id);
+        const basis = (rule: AssignmentRuleInput) => ({
+          name: rule.name,
+          enabled: rule.enabled,
+          automatic: rule.automatic,
+          match: rule.match,
+          actions: rule.actions,
+        });
+        const stable = (value: unknown) =>
+          JSON.stringify(value, (_key, item: unknown) =>
+            item && typeof item === 'object' && !Array.isArray(item)
+              ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)))
+              : item,
+          );
+        if (!current || stable(basis(current)) !== stable(basis(seed))) {
+          setError(
+            'Die Regel wurde inzwischen geändert. Dein Entwurf bleibt erhalten. Schließe den Entwurf und lade die Regeln erneut.',
+          );
+          return;
+        }
+      }
+      const result = await write(
+        () =>
+          request<{ groupId: string }>(
+            id ? 'PUT' : 'POST',
+            '/api/assignment-rules' + (id ? '/' + encodeURIComponent(id) : ''),
+            input,
+          ),
+        () => 'Zuordnungsregel gespeichert.',
+      );
+      if (result) onClose();
+    } catch (caught) {
+      fail(caught);
+    } finally {
+      setBusy(false);
+    }
   };
+
   const categories = lookups.data?.categories.filter((c) => c.kind !== 'card_payment') ?? [];
   return (
     <FormDialog
       open
       onClose={onClose}
+      beforeClose={beforeClose}
       title={id ? 'Zuordnungsregel bearbeiten' : 'Zuordnungsregel erstellen'}
     >
+      {REDESIGN_ENABLED && <SettingsDraftGuard dirty={dirty} busy={busy} />}
       <form
         className="assignment-editor"
         onSubmit={(e) => {
@@ -200,7 +249,7 @@ export function AssignmentEditor({
       >
         <div className="assignment-editor-head">
           <h3>{id ? 'Regel bearbeiten' : 'Regel erstellen'}</h3>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={cancel}>
             Schließen
           </Button>
         </div>
@@ -630,7 +679,7 @@ export function AssignmentEditor({
           <Button disabled={busy} type="submit">
             Regel speichern
           </Button>
-          <Button variant="ghost" disabled={busy} onClick={onClose}>
+          <Button variant="ghost" disabled={busy} onClick={cancel}>
             Abbrechen
           </Button>
         </div>

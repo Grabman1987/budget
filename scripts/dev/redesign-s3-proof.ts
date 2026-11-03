@@ -79,7 +79,7 @@ async function search(page: Page, phone: boolean) {
 export async function verifyPhoneTextReflow(page: Page, origin: string, output: string) {
   const returnUrl = page.url();
   await page.goto(`${origin}/?monat=2026-09&period=month`);
-  const period = page.locator('.titleblock-heute .seg');
+  const period = page.locator(':is(.titleblock-heute, .hv-head-phone) .seg');
   await expect(period).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   const original = await page.evaluate(() => {
@@ -119,7 +119,9 @@ export async function verifyPhoneTextReflow(page: Page, origin: string, output: 
         await expect(page.locator('.fab')).toBeVisible();
         const geometry = await page.evaluate(() => {
           const controls = [
-            ...document.querySelectorAll('.titleblock-heute .seg button, .tabbar a'),
+            ...document.querySelectorAll(
+              ':is(.titleblock-heute, .hv-head-phone) .seg button, .tabbar a',
+            ),
           ].map((element) => {
             const bounds = element.getBoundingClientRect().toJSON();
             const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
@@ -140,7 +142,7 @@ export async function verifyPhoneTextReflow(page: Page, origin: string, output: 
           });
           return {
             period: document
-              .querySelector('.titleblock-heute .seg')!
+              .querySelector(':is(.titleblock-heute, .hv-head-phone) .seg')!
               .getBoundingClientRect()
               .toJSON(),
             tabs: document.querySelector('.tabbar')!.getBoundingClientRect().toJSON(),
@@ -166,7 +168,7 @@ export async function verifyPhoneTextReflow(page: Page, origin: string, output: 
           }
         }
         for (const control of await page
-          .locator('.titleblock-heute .seg button:not(:disabled), .tabbar a')
+          .locator(':is(.titleblock-heute, .hv-head-phone) .seg button:not(:disabled), .tabbar a')
           .all()) {
           await control.focus();
           await expect(control).toBeFocused();
@@ -178,8 +180,12 @@ export async function verifyPhoneTextReflow(page: Page, origin: string, output: 
           if (index + 1 < (await tabs.count())) await page.keyboard.press('Tab');
         }
         expect(
-          (await new AxeBuilder({ page }).include('.titleblock-heute').include('.tabbar').analyze())
-            .violations,
+          (
+            await new AxeBuilder({ page })
+              .include(':is(.titleblock-heute, .hv-head-phone)')
+              .include('.tabbar')
+              .analyze()
+          ).violations,
         ).toEqual([]);
         await page.evaluate(() => scrollTo(0, 0));
         await screenshot(page, join(output, `shell-text-${width}-${theme}-${scale}x.png`));
@@ -412,15 +418,16 @@ export async function verifyRedesignShell(
 
   await page.goto(`${origin}/vermoegen/portfolio?zeitraum=1J`);
   if (enabled) {
-    const wealth = page.getByLabel('Vermögensansicht wählen: Portfolio', { exact: true });
+    const wealth = page.getByLabel('Vermögensansicht wählen: Übersicht', { exact: true });
     await target(wealth, 'WealthMenu');
     await wealth.click();
     const views = page.getByRole('navigation', { name: 'Ansichten von Vermögen', exact: true });
     expect(await views.getByRole('link').allTextContents()).toEqual([
-      'Nettovermögen',
-      'Portfolio',
+      'Übersicht',
+      'Positionen',
+      'Sparpläne',
+      'Allokation',
       'Schulden',
-      'Freiheit',
     ]);
     await views.getByRole('link', { name: 'Schulden', exact: true }).click();
     await expect(page).toHaveURL(`${origin}/vermoegen/schulden?zeitraum=1J`);
@@ -439,11 +446,9 @@ export async function verifyRedesignShell(
     await avatar.click();
     const profile = page.getByRole('link', { name: 'Profil und Einstellungen', exact: true });
     await profile.click();
-    await expect(page).toHaveURL(
-      `${origin}${enabled ? '/einstellungen/profil' : '/einstellungen'}`,
-    );
+    await expect(page).toHaveURL(`${origin}/einstellungen`);
     if (enabled)
-      await expect(page.getByRole('heading', { name: 'Profil', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Einstellungen', exact: true })).toBeVisible();
   } else if (enabled) {
     const accounts = page.locator('#acct-tree-label > a');
     await target(accounts, 'AccountTree');

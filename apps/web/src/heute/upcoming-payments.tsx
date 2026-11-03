@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { PlannedEventOccurrence } from '@budget/domain';
 import { Button, useAmountPrivacy, SectionHead } from '@budget/ui';
 import { ChevronRight, CircleCheck, Clock } from 'lucide-react';
@@ -14,22 +15,25 @@ export function Upcoming({
   id,
   title,
   standToday,
+  compact = false,
 }: {
   items: HeuteOccurrence[];
   events?: PlannedEventOccurrence[];
   id: string;
   title: string;
   standToday?: string | undefined;
+  compact?: boolean;
 }) {
   useAmountPrivacy();
   const selection = readLiquiditySelection();
+  const [expanded, setExpanded] = useState(false);
   const upcoming = [
     ...items.map((item) => ({ date: item.dueDate, item })),
     ...events.map((event) => ({ date: event.date, event })),
   ].sort((a, b) => a.date.localeCompare(b.date));
   if (upcoming.length === 0) return null;
   return (
-    <section className="heute-section" aria-labelledby={id}>
+    <section className={`heute-section${compact ? ' heute-due-compact' : ''}`} aria-labelledby={id}>
       <SectionHead
         id={id}
         title={title}
@@ -46,7 +50,7 @@ export function Upcoming({
           und Überziehungsrahmen werden nicht geprüft.
         </p>
         <ul className="heute-list">
-          {upcoming.map((row) => {
+          {(compact && !expanded ? upcoming.slice(0, 4) : upcoming).map((row) => {
             if ('event' in row) {
               const event = row.event;
               return (
@@ -70,6 +74,10 @@ export function Upcoming({
               );
             }
             const item = row.item;
+            const sourceDetail =
+              [!item.accountId ? item.accountName : null, item.contactName, item.categoryName]
+                .filter(Boolean)
+                .join(' · ') || 'Ohne weitere Angabe';
             return (
               <li className="heute-upcoming" key={`${item.paymentId}-${item.dueDate}`}>
                 <time dateTime={item.dueDate}>{shortDay(item.dueDate)}</time>
@@ -90,13 +98,11 @@ export function Upcoming({
                         {item.accountName} · Kontovorschau
                       </AppLink>
                     )}
-                    {[
-                      !item.accountId ? item.accountName : null,
-                      item.contactName,
-                      item.categoryName,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ') || 'Ohne weitere Angabe'}
+                    {compact ? (
+                      <span className="heute-upcoming-meta">{sourceDetail}</span>
+                    ) : (
+                      sourceDetail
+                    )}
                   </span>
                 </div>
                 <div className="heute-amount-status">
@@ -130,6 +136,11 @@ export function Upcoming({
             );
           })}
         </ul>
+        {compact && upcoming.length > 4 && (
+          <Button variant="ghost" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+            {expanded ? 'Weniger Fälligkeiten' : `Weitere ${upcoming.length - 4} Fälligkeiten`}
+          </Button>
+        )}
       </>
     </section>
   );

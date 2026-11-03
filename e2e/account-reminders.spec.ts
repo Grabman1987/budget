@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import { openPruefenSource } from './pruefen-part';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdirSync } from 'node:fs';
@@ -72,7 +73,7 @@ test('Today and inbox reminders open existing dialogs and include one-off plans 
       date: '2026-10-02',
       amountCents: -999,
     });
-    await page.goto('/?monat=2026-09');
+    await openHeuteReview(page, '/?monat=2026-09');
     const row = page.locator('.account-reminder').filter({ hasText: checking.account.name });
     await expect(page.getByRole('region', { name: 'Zu tun' })).toContainText(
       'Konten warten auf Prüfung',
@@ -80,6 +81,8 @@ test('Today and inbox reminders open existing dialogs and include one-off plans 
     const upcoming = page
       .locator('section')
       .filter({ has: page.getByRole('heading', { name: 'Fällig 14 Tage', exact: true }) });
+    const expandDue = upcoming.getByRole('button', { name: /Weitere .* Fälligkeiten/ });
+    if (await expandDue.count()) await expandDue.click();
     await expect(upcoming).toContainText(event.event.name);
     await expect(upcoming).toContainText('01.10.');
     await expect(upcoming).toContainText('−123,45');
@@ -138,7 +141,9 @@ test('Today and inbox reminders open existing dialogs and include one-off plans 
     ).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    await page.goto('/?monat=2026-09');
+    await openHeuteReview(page, '/?monat=2026-09');
+    const moreDue = page.getByRole('button', { name: /Weitere .* Fälligkeiten/ });
+    if (await moreDue.count()) await moreDue.click();
     await page
       .locator('.heute-upcoming')
       .filter({ hasText: event.event.name })

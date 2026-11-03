@@ -10,6 +10,7 @@ import { RuleStatusContent } from './rule-status-content';
 import { rulesQuery, RULES_KEY } from './use-rule-writes';
 import { evaluateRules } from './api';
 import { RULE_FIELDS } from './rules-model';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 export function RuleStatusPage() {
   const { code } = useParams({ strict: false }) as { code: string };
@@ -44,6 +45,11 @@ export function RuleStatusPage() {
   return (
     <PageFrame meta={EINSTELLUNGEN_REGELWERK} title={title}>
       <div className="kview rw">
+        {REDESIGN_ENABLED && (
+          <div className="settings-primary-head">
+            <h2>{title}</h2>
+          </div>
+        )}
         <nav aria-label="Brotkrumen">
           <AppLink to="/einstellungen">Einstellungen</AppLink>
           {' › '}

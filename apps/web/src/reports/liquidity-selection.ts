@@ -12,7 +12,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 type Selection = { horizon: LiquidityHorizon; levers: LiquidityLeverId[] };
 const KEY = 'budget-liquidity-selection';
 
-export function readLiquiditySelection(): Selection {
+export function readLiquiditySelection(initialHorizon: LiquidityHorizon = '6m'): Selection {
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Selection | null;
     if (stored && LIQUIDITY_HORIZONS.includes(stored.horizon))
@@ -25,7 +25,7 @@ export function readLiquiditySelection(): Selection {
   } catch {
     /* Storage can be unavailable. */
   }
-  return { horizon: '6m', levers: [] };
+  return { horizon: initialHorizon, levers: [] };
 }
 
 /** Explicit URL state wins over the previous local preference, including an empty lever set. */
@@ -43,8 +43,8 @@ export function validateLiquiditySearch(search: Record<string, unknown>) {
   };
 }
 
-export function useLiquiditySelection() {
-  const [fallback] = useState(readLiquiditySelection);
+export function useLiquiditySelection(initialHorizon: LiquidityHorizon = '6m') {
+  const [fallback] = useState(() => readLiquiditySelection(initialHorizon));
   const search = useSearch({ strict: false }) as ReturnType<typeof validateLiquiditySearch>;
   const navigate = useNavigate();
   const selection: Selection = {

@@ -1,3 +1,4 @@
+import { showPortfolioAnalysis } from './wealth-navigation';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase } from '@budget/db';
@@ -230,6 +231,7 @@ for (const label of ['configured-profile', 'desktop-layout'] as const) {
         await capture(actual, info, label, selected, 'report');
         await actual.getByRole('button', { name: 'Portfolio öffnen', exact: true }).click();
         await expect(actual).toHaveURL(/vermoegen\/portfolio\?zeitraum=1M/);
+        await showPortfolioAnalysis(actual);
         const overview = actual.getByRole('region', { name: 'Portfolioentwicklung', exact: true });
         await overview.getByTestId('portfolio-return').click();
         const sourceToggle = overview.getByText('Historische Bewertungsquellen', { exact: true });

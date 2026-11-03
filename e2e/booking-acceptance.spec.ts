@@ -1,3 +1,4 @@
+import { openHeuteReview } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { eur } from '../apps/web/src/ledger/format';
 import type { LiquidityReportView } from '../apps/web/src/reports/liquidity-api';
@@ -70,7 +71,7 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     date: '2026-10-01',
     amountCents: -321,
   });
-  await page.goto('/?panel=buchung');
+  await openHeuteReview(page, '/?panel=buchung');
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
   const amount = dialog.getByLabel('Betrag', { exact: true });
   const date = dialog.getByLabel('Datum', { exact: true });
@@ -194,7 +195,7 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
     data: { name: 'Kategorie Tastatur', groupId: group.id, class: 'need' },
   });
   expect(categoryResponse.ok()).toBe(true);
-  await page.goto('/');
+  await openHeuteReview(page, '/');
   const opener = page
     .getByRole('link', { name: /^(Buchung|Buchung erfassen)$/ })
     .filter({ visible: true });
@@ -306,10 +307,12 @@ sampleTest(
   'dark Heute text and chart status remain readable without colour alone',
   async ({ page }, info) => {
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
-    await page.goto('/');
+    await openHeuteReview(page, '/');
     await expect(page.getByTestId('liquidity-chart')).toBeVisible();
+    const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     await page.goto('/reports/finanzcheck');
-    await expect(page).toHaveURL((url) => url.pathname === '/');
+    await expect(page).toHaveURL((url) => url.pathname === (on ? '/reports/onepager' : '/'));
+    if (on) await openHeuteReview(page, '/');
     const response = await page.request.get('/api/liquidity?horizon=35d');
     expect(response.ok()).toBe(true);
     const forecast = (await response.json()) as LiquidityReportView;
@@ -329,7 +332,7 @@ sampleTest(
       'none',
     );
     await expect(chart.locator('.l-forecast')).toHaveCSS('stroke-dasharray', '7px, 5px');
-    await page.goto('/');
+    await openHeuteReview(page, '/');
     await expect(page.getByTestId('liquidity-chart')).toBeVisible();
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

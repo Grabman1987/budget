@@ -1,3 +1,4 @@
+import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdirSync } from 'node:fs';
 import { sampleTest as test, expect } from './sample';
@@ -5,11 +6,16 @@ import type { Heute } from '../apps/web/src/heute/api';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 import { eur } from '../apps/web/src/ledger/format';
 
+let redesign = false;
+test.beforeAll(async ({ browser }) => {
+  redesign = await detectHeuteRedesign(browser);
+});
+
 test('three Kennzahlen use source cents, fit the phone and link to the current source views', async ({
   page,
 }, info) => {
   test.setTimeout(60_000);
-  await page.goto('/?monat=2026-08');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-08'));
   const data: Heute = await (await page.request.get('/api/heute?month=2026-08')).json();
   const budget: BudgetMonthView = await (await page.request.get('/api/budget/2026-08')).json();
   const cards = page.locator('.heute-kennzahl');
@@ -20,7 +26,7 @@ test('three Kennzahlen use source cents, fit the phone and link to the current s
     'Nettovermögen',
   ]);
   // The lead figure belongs to Bis Gehalt, which only exists in the current month.
-  await expect(page.getByTestId('heute-lead-value')).toHaveCount(0);
+  await expect(page.getByTestId('heute-lead-value')).toHaveCount(redesign ? 1 : 0);
   if ('unavailable' in data.netWorth) throw new Error('Synthetic valuation unavailable');
   await expect(cards.nth(2).locator('.heute-answer-value')).toHaveText(
     eur(data.netWorth.totalCents),
@@ -63,15 +69,17 @@ test('three Kennzahlen use source cents, fit the phone and link to the current s
   const payday: Heute = await (
     await page.request.get('/api/heute?month=2026-09&period=payday')
   ).json();
-  await page.goto('/?monat=2026-09&period=payday');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=payday'));
   await expect(cards).toHaveCount(3);
   await expect(page.getByTestId('heute-kennzahlen').getByRole('heading', { level: 2 })).toHaveText([
     'Zu verteilen',
-    'Frei bis Gehalt',
+    redesign ? 'Verfügbar im Budget' : 'Frei bis Gehalt',
     'Nettovermögen',
   ]);
   await expect(page.getByTestId('heute-lead-value')).toHaveCount(1);
-  await expect(cards.nth(1).locator('.heute-answer-value')).toHaveText(eur(payday.lead.freeCents));
+  await expect(
+    redesign ? page.getByTestId('heute-lead-value') : cards.nth(1).locator('.heute-answer-value'),
+  ).toHaveText(eur(payday.lead.freeCents));
   await expect(cards.nth(1).locator('.heute-answer-bar')).toHaveAttribute(
     'aria-label',
     new RegExp(`Tag ${payday.budgetAnswer.day} von ${payday.budgetAnswer.daysInMonth}$`),
@@ -93,6 +101,11 @@ test('three Kennzahlen use source cents, fit the phone and link to the current s
       for (const box of boxes) expect(box.height).toBeLessThanOrEqual(120);
       expect(boxes[1]!.y).toBeGreaterThanOrEqual(boxes[0]!.y + boxes[0]!.height);
       expect(boxes[2]!.y).toBeGreaterThanOrEqual(boxes[1]!.y + boxes[1]!.height);
+    } else if (redesign) {
+      for (let index = 1; index < boxes.length; index++)
+        expect(boxes[index]!.y).toBeGreaterThanOrEqual(
+          boxes[index - 1]!.y + boxes[index - 1]!.height,
+        );
     } else expect(boxes.map((box) => box.y)).toEqual([boxes[0]!.y, boxes[0]!.y, boxes[0]!.y]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
@@ -150,26 +163,30 @@ test('explains plan-rest behind the derivation of the negative payday room on ph
       ),
     }),
   );
-  await page.goto('/?monat=2026-09&period=month');
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=month'));
   const month = page.locator('.heute-kennzahl').nth(1);
   await expect(month.getByRole('heading', { name: 'Verfügbar im Budget' })).toBeVisible();
   await month.getByRole('button', { name: 'Herleitung Verfügbar im Budget' }).click();
   await expect(month).toContainText(
     'Ausgabenplan: 600,00 € ausgegeben von 1.000,00 € · Plan-Rest 400,00 €',
   );
-  await page.goto('/?monat=2026-09&period=payday');
-  const budget = page.locator('.heute-kennzahl').nth(1);
+  await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=payday'));
+  const budget = redesign
+    ? page.getByRole('region', { name: 'Spielraum bis Gehalt' })
+    : page.locator('.heute-kennzahl').nth(1);
   await expect(budget.getByRole('heading', { name: 'Frei bis Gehalt' })).toBeVisible();
   await expect(page.getByTestId('heute-lead-value')).toHaveText('−100,00 €');
-  const derivation = budget.getByRole('button', { name: 'Herleitung Frei bis Gehalt' });
+  const derivation = budget.getByRole('button', {
+    name: redesign ? /^Herleitung (zeigen|ausblenden)$/ : 'Herleitung Frei bis Gehalt',
+  });
   await expect(derivation).toHaveAttribute('aria-expanded', 'false');
   await derivation.click();
   await expect(derivation).toHaveAttribute('aria-expanded', 'true');
-  const note = page.locator('#kennzahl-frei-bis-gehalt-note');
+  const note = page.locator(redesign ? '#heute-lead-chain' : '#kennzahl-frei-bis-gehalt-note');
   await expect(note).toBeVisible();
   await expect(page.getByTestId('heute-lead-value')).toHaveAttribute(
     'aria-describedby',
-    'kennzahl-frei-bis-gehalt-note',
+    redesign ? 'heute-lead-chain' : 'kennzahl-frei-bis-gehalt-note',
   );
   await expect(note).toContainText('Ausgabenplan: 600,00 € ausgegeben von 1.000,00 €');
   await expect(note).toContainText(
@@ -177,7 +194,7 @@ test('explains plan-rest behind the derivation of the negative payday room on ph
   );
   await expect(note).toContainText('Plan-Rest 400,00 €');
   await expect(note).toContainText('kein Kontoguthaben');
-  await page.getByTestId('heute-lead-value').click();
+  if (!redesign) await page.getByTestId('heute-lead-value').click();
   await expect(page.locator('#heute-lead-chain')).toContainText('offen bis Gehalt');
   await expect(page.locator('#heute-lead-chain')).toContainText('−100');
   await expect(page.locator('#heute-lead-chain')).toBeVisible();

@@ -1,0 +1,199 @@
+.goals-reference .goals-total {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-xl);
+  min-height: 64px;
+}
+.goals-reference .goals-total-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-weight: 600;
+}
+.goals-reference .goals-total strong {
+  display: block;
+  font-size: var(--fs-dimension);
+  font-weight: 640;
+  line-height: 1.08;
+}
+.goals-reference .goals-total > span {
+  padding-bottom: var(--space-xs);
+  font-size: var(--fs-table);
+  color: var(--ink-2);
+}
+.goals-reference-scroll {
+  position: relative;
+  overflow-x: auto;
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.goals-reference-table {
+  width: 100%;
+  min-width: 1100px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--fs-table);
+}
+.goals-reference-table th,
+.goals-reference-table td {
+  height: 44px;
+  padding: 0 var(--space-md);
+  border-bottom: var(--stroke-hairline) solid var(--rule);
+  vertical-align: middle;
+  text-align: left;
+}
+.goals-reference-table thead th {
+  height: 28px;
+  color: var(--ink-3);
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+.goals-reference-table :is(th, td):nth-child(1) {
+  width: 18%;
+}
+.goals-reference-table :is(th, td):nth-child(2) {
+  width: 11%;
+}
+.goals-reference-table :is(th, td):nth-child(3) {
+  width: 10%;
+  text-align: right;
+}
+.goals-reference-table :is(th, td):nth-child(4) {
+  width: 10%;
+  text-align: right;
+}
+.goals-reference-table :is(th, td):nth-child(5) {
+  width: 10%;
+  text-align: right;
+}
+.goals-reference-table :is(th, td):nth-child(6) {
+  width: 15%;
+}
+.goals-reference-table :is(th, td):nth-child(7) {
+  width: 14%;
+}
+.goals-reference-table :is(th, td):nth-child(8) {
+  width: 12%;
+  padding-left: 0;
+}
+.goals-reference-table .pgroup th {
+  width: auto;
+  background: var(--tint);
+}
+.goals-reference-table .pgroup button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: var(--touch);
+  font-weight: 600;
+}
+.goals-reference-table .pgroup button span {
+  color: var(--ink-3);
+  font-family: var(--font-tech);
+}
+.goals-reference-table .is-collapsed {
+  transform: rotate(-90deg);
+}
+.goals-reference-table .goal-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--touch);
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+.goals-reference-table .goal-name:hover {
+  text-decoration: underline;
+}
+.goals-reference-table .goal-name svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+.goals-reference-table .col-cat {
+  color: var(--ink-2);
+}
+.goals-reference-table .col-rate {
+  white-space: nowrap;
+}
+.goals-reference-table .goal-conflict {
+  display: inline-flex;
+  margin-left: var(--space-xs);
+  color: var(--warning);
+}
+.goals-reference-table .goal-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--fs-label);
+}
+.goals-reference-table .goal-progress > span:last-child {
+  min-width: 36px;
+  text-align: right;
+  white-space: nowrap;
+}
+.goals-reference-table .goal-progress-track {
+  display: block;
+  flex: 1;
+  height: 10px;
+  border: var(--stroke-hairline) solid var(--primary);
+}
+.goals-reference-table .goal-progress-track i {
+  display: block;
+  height: 100%;
+  background: color-mix(in srgb, var(--primary) 55%, transparent);
+}
+.goals-reference-table [data-goal-tone='warn'] .goal-progress-track {
+  border-color: var(--warning);
+}
+.goals-reference-table [data-goal-tone='warn'] .goal-progress-track i {
+  background: color-mix(in srgb, var(--warning) 55%, transparent);
+}
+.goals-reference-table .goal-status-pill {
+  display: inline-flex;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  white-space: nowrap;
+  font-size: var(--fs-label);
+  font-weight: 600;
+}
+.goals-reference-table .goal-status-pill .budget-state {
+  font-size: inherit;
+}
+.goals-reference-table [data-goal-tone='warn'] .goal-status-pill {
+  background: var(--warning-soft);
+}
+.goals-reference-table .col-action .btn {
+  min-height: var(--touch);
+  padding-inline: var(--space-sm);
+  white-space: nowrap;
+  font-size: var(--fs-label);
+}
+@media (max-width: 767px) {
+  .goals-reference .goals-total {
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+  .goals-reference .goals-total > span {
+    width: 100%;
+  }
+  .goals-reference-table .col-name {
+    position: sticky;
+    left: 0;
+    background: var(--surface);
+    z-index: 1;
+  }
+  .goals-reference .plan-v2-page-head {
+    align-items: flex-start;
+  }
+  .goals-reference .plan-v2-page-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
