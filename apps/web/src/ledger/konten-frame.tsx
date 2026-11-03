@@ -81,7 +81,7 @@ function RedesignKontenFrame({
     <div className={`konten-phone-heading${view === 'account' ? ' is-account' : ''}`}>
       {view === 'account' && (
         <AppLink to="/konten" className="icon-btn" aria-label="Zur Kontenübersicht">
-          <ChevronLeft size={20} aria-hidden="true" />
+          <ChevronLeft size={20} strokeWidth={1.5} aria-hidden="true" />
         </AppLink>
       )}
       <h1 ref={phoneHeading} tabIndex={-1}>
@@ -121,7 +121,7 @@ function RedesignKontenFrame({
       {children}
       <details className="konten-status-details">
         <summary>
-          <Info size={16} aria-hidden="true" />
+          <Info size={16} strokeWidth={1.75} aria-hidden="true" />
           {sourceDay ? `Stand ${longDay(sourceDay)}` : 'Status und Datenstand'}
         </summary>
         <MobileStatusLine />

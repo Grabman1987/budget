@@ -130,14 +130,14 @@ export function ReceiptSection({
       <Button variant="ghost" disabled={busy} onClick={() => picker.current?.click()}>
         {actionsHost &&
           (busy ? (
-            <Loader2 className="spin" size={16} aria-hidden="true" />
+            <Loader2 className="spin" size={16} strokeWidth={1.75} aria-hidden="true" />
           ) : (
-            <Paperclip size={16} aria-hidden="true" />
+            <Paperclip size={16} strokeWidth={1.75} aria-hidden="true" />
           ))}
         <span>Datei anhängen</span>
       </Button>
       <Button variant="ghost" disabled={busy} onClick={() => camera.current?.click()}>
-        {actionsHost && <Camera size={16} aria-hidden="true" />}
+        {actionsHost && <Camera size={16} strokeWidth={1.75} aria-hidden="true" />}
         <span>Foto aufnehmen</span>
       </Button>
     </div>

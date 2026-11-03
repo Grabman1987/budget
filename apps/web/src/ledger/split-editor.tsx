@@ -160,7 +160,7 @@ export function SplitEditor({
     >
       {contactHost ? (
         <>
-          <Plus size={14} aria-hidden="true" />
+          <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
           <span className={compact && !multiple ? 'sr-only' : undefined}>Kategorie hinzufügen</span>
         </>
       ) : (
@@ -278,7 +278,11 @@ export function SplitEditor({
                       change(line.key, { shares: line.shares.filter((s) => s.key !== share.key) })
                     }
                   >
-                    {contactHost ? <X size={16} aria-hidden="true" /> : 'Entfernen'}
+                    {contactHost ? (
+                      <X size={16} strokeWidth={1.75} aria-hidden="true" />
+                    ) : (
+                      'Entfernen'
+                    )}
                   </Button>
                 </div>
               );
@@ -395,7 +399,7 @@ export function SplitEditor({
                     <KontenMenu
                       className="bk-category-context"
                       label="Vorschläge und Verfügbarkeit"
-                      icon={<Info size={16} aria-hidden="true" />}
+                      icon={<Info size={16} strokeWidth={1.75} aria-hidden="true" />}
                       iconOnly
                     >
                       {categoryHints}
@@ -466,7 +470,7 @@ export function SplitEditor({
                           })
                         }
                       >
-                        <Plus size={14} aria-hidden="true" />
+                        <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
                         Kontakt hinzufügen
                       </Button>
                     )}
@@ -497,7 +501,11 @@ export function SplitEditor({
                   aria-label={`Zeile ${n} entfernen`}
                   onClick={() => update(lines.filter((s) => s.key !== line.key))}
                 >
-                  {contactHost ? <X size={16} aria-hidden="true" /> : 'Entfernen'}
+                  {contactHost ? (
+                    <X size={16} strokeWidth={1.75} aria-hidden="true" />
+                  ) : (
+                    'Entfernen'
+                  )}
                 </Button>
               </div>
             )}

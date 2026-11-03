@@ -32,7 +32,7 @@ async function expectVisibleIconScale(page: Page) {
     .toEqual([]);
 }
 
-async function expectStatusContentInsideButton(status: Locator) {
+async function expectStatusContentInsideButton(status: Locator, redesigned: boolean) {
   const bounds = await status.evaluate((button) => {
     const icon = button.querySelector('svg');
     const label = button.querySelector('span');
@@ -47,12 +47,16 @@ async function expectStatusContentInsideButton(status: Locator) {
       button: rect(button),
       icon: rect(icon),
       label: rect(label),
+      labelDisplay: getComputedStyle(label).display,
       dialog: rect(dialog),
       viewportWidth: document.documentElement.clientWidth,
     };
   });
 
-  for (const content of [bounds.icon, bounds.label]) {
+  expect(bounds.icon.right - bounds.icon.left).toBe(16);
+  if (redesigned) expect(bounds.labelDisplay).toBe('none');
+  else expect(bounds.labelDisplay).not.toBe('none');
+  for (const content of redesigned ? [bounds.icon] : [bounds.icon, bounds.label]) {
     expect(content.left).toBeGreaterThanOrEqual(bounds.button.left);
     expect(content.top).toBeGreaterThanOrEqual(bounds.button.top);
     expect(content.right).toBeLessThanOrEqual(bounds.button.right);
@@ -172,12 +176,13 @@ test('labelled booking status and capture caret remain usable on phone and deskt
   await page.goto('/?panel=buchung');
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await expect(dialog).toBeVisible();
+  const redesigned = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
   await expectVisibleIconScale(page);
   const status = dialog.locator('button.bk-status');
   await expect(status).toHaveAccessibleName('Vorgemerkt');
   await expect(status).toHaveText('Vorgemerkt');
   await expect(status).toHaveAttribute('aria-pressed', 'false');
-  await expectStatusContentInsideButton(status);
+  await expectStatusContentInsideButton(status, redesigned);
   if (isMobile) {
     const bounds = await status.boundingBox();
     expect(bounds!.height).toBeGreaterThanOrEqual(44);
@@ -187,15 +192,14 @@ test('labelled booking status and capture caret remain usable on phone and deskt
   await expect(status).toHaveAccessibleName('Bestätigt');
   await expect(status).toHaveText('Bestätigt');
   await expect(status).toHaveAttribute('aria-pressed', 'true');
-  await expectStatusContentInsideButton(status);
+  await expectStatusContentInsideButton(status, redesigned);
   await status.click();
   await expect(status).toHaveAccessibleName('Vorgemerkt');
   await expect(status).toHaveText('Vorgemerkt');
   await expect(status).toHaveAttribute('aria-pressed', 'false');
-  await expectStatusContentInsideButton(status);
+  await expectStatusContentInsideButton(status, redesigned);
 
   const more = dialog.locator('details.kmore');
-  const redesigned = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
   const caret = more.locator(redesigned ? '.lucide-ellipsis' : '.disclosure-chevron');
   if (redesigned) await expect(caret).toBeVisible();
   else expect(await caret.evaluate((el) => getComputedStyle(el).transform)).not.toBe('none');

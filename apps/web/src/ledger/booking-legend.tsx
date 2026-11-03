@@ -45,7 +45,7 @@ export function BookingLegend({
       <KontenMenu
         className="kbooking-legend"
         label="Status und Markierungen"
-        icon={<Info size={16} aria-hidden="true" />}
+        icon={<Info size={16} strokeWidth={1.75} aria-hidden="true" />}
         iconOnly
       >
         {body}
