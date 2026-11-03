@@ -1,3 +1,4 @@
+import { redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -70,10 +71,12 @@ test('account forms cancel in their context; reconciliation writes only on confi
   page.on('request', (req) => {
     if (req.method() === 'POST' && req.url().includes('/reconcile')) writes++;
   });
-  const opener = page.getByRole('button', {
-    name: 'Nie geprüft – jetzt prüfen · Kontostand prüfen',
-    exact: true,
-  });
+  const opener = (await redesignLoaded(page))
+    ? page.getByTestId('account-review-badge')
+    : page.getByRole('button', {
+        name: 'Nie geprüft – jetzt prüfen · Kontostand prüfen',
+        exact: true,
+      });
   await expect(opener).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await opener.click();

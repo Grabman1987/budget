@@ -1,0 +1,101 @@
+.bookings-redesign.kview {
+  gap: 16px;
+}
+.bookings-redesign .bookings-redesign-heading {
+  margin-inline-end: auto;
+}
+.bookings-redesign-heading h2 {
+  margin: 0;
+  font-size: var(--fs-headline);
+  line-height: var(--lh-headline);
+}
+.bookings-redesign .kbar {
+  flex-wrap: wrap;
+}
+.bookings-redesign .kfilter {
+  gap: 12px 16px;
+}
+.bookings-redesign .kfilter :is(input, select, button),
+.bookings-redesign :is(.ksort, .kcat-btn, .kname-btn, .kinline-btn, .kstatus-btn, .kflagbtn),
+.bookings-redesign .kregister-actions > summary,
+.bookings-redesign .kstatus-chips .btn {
+  min-height: 44px;
+}
+.bookings-redesign .ktx-all thead th {
+  color: var(--ink-2);
+  border-bottom-color: var(--rule-strong);
+}
+.bookings-redesign .kday td {
+  background: var(--surface-2);
+}
+.bookings-redesign .ktx-all tr[data-booking] > td {
+  border-bottom-color: var(--rule);
+}
+.bookings-redesign .kbooking-edit-mark {
+  margin-inline-start: 6px;
+  color: var(--ink-2);
+  flex-shrink: 0;
+}
+.bookings-redesign :is(button, a, summary):focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+@media (max-width: 767px) {
+  .bookings-redesign .kbooking-edit-mark {
+    display: none;
+  }
+}
+
+.bookings-redesign.kview {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+.bookings-redesign > * {
+  min-width: 0;
+}
+
+[data-budget-redesign='1'] .sheet:has(> .bookings-redesign) {
+  row-gap: 12px;
+}
+[data-budget-redesign='1'] .sheet:has(> .bookings-redesign) > .area-page-menu {
+  margin-block: 0;
+}
+
+.bookings-redesign .ktx-all .kschedule-actions .btn {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.konten-frame-bookings .konten-view-bar {
+  min-height: 44px;
+}
+.konten-frame-bookings .kbookings-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-inline-start: auto;
+  min-width: 0;
+}
+.konten-frame-bookings .bookings-redesign-heading {
+  display: none;
+}
+.konten-frame-bookings .kbookings-bar .btn {
+  min-height: 44px;
+  min-width: 44px;
+}
+.konten-frame-bookings .kbookings-bar .btn:has(.sr-only) {
+  width: 44px;
+  padding-inline: 0;
+}
+.konten-frame-bookings .bookings-redesign {
+  gap: 10px;
+}
+.konten-frame-bookings .kfilter,
+.konten-frame-bookings .kstatus-chips {
+  gap: 6px;
+}
+.konten-frame-bookings .ksum {
+  margin-block: 6px;
+  font-size: var(--fs-meta);
+}

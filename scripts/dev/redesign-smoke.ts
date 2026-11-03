@@ -8,6 +8,7 @@ import { join, resolve, sep } from 'node:path';
 import { chromium, devices, expect, request, webkit, type Page } from '@playwright/test';
 import { bootstrapPasskey } from '../../e2e/bootstrap';
 import { E2E_SETUP_TOKEN } from '../../e2e/setup-token';
+import { inboxFilters } from '../../e2e/ledger-helpers';
 import { verifyRedesignGallery, verifyRedesignGalleryPhone } from './redesign-s2-proof';
 import { verifyRedesignShell } from './redesign-s3-proof';
 import { verifyT2Forecast } from './redesign-t2-proof';
@@ -82,7 +83,9 @@ async function expectBody(page: Page, origin: string, enabled: boolean) {
   await expect(
     page.getByRole('heading', { name: 'Offene Entscheidungen', exact: true }),
   ).toBeVisible();
+  await inboxFilters(page);
   await expect(page.getByRole('combobox', { name: 'Zeitraum der Aufgaben' })).toHaveValue('all');
+  if (enabled) await page.locator('.konten-inbox-filters-slot .konten-menu > summary').click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
   await expect(page).toHaveTitle(/ · Budget$/);
   const preview = page.getByRole('complementary', { name: 'Vorschauumgebung' });

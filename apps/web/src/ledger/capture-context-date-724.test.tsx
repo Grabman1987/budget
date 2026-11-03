@@ -9,6 +9,11 @@ import * as ledgerApi from './api';
 import type { BookingPanelState } from './booking-panel';
 import type { BookingPage } from './types';
 
+// jsdom has no native media query implementation.
+Object.defineProperty(window, 'matchMedia', {
+  configurable: true,
+  value: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
+});
 const writes = vi.hoisted(() => ({ create: vi.fn(), patch: vi.fn() }));
 vi.mock('../receipts/receipt-section', () => ({ ReceiptSection: () => null }));
 vi.mock('./mutations', () => ({

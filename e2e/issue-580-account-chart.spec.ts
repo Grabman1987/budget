@@ -1,3 +1,4 @@
+import { chartOptions, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -30,27 +31,32 @@ test('account history chart is collapsed by default, compact and remembered', as
     payeeName: 'Laden Muster',
   });
   await page.goto(`/konten/${account.id}`);
+  const redesign = await redesignLoaded(page);
   const toggle = page.getByTestId('account-chart-toggle');
   const chart = page.getByTestId('balance-chart');
 
-  // First visit: collapsed, no chart, no time control, the first booking is reachable.
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(chart).toHaveCount(0);
-  await expect(page.locator('#account-chart-body')).toBeHidden();
-  await expect(page.getByRole('group', { name: 'Saldoverlauf Zeitraum' })).toHaveCount(0);
+  // ON opens the reference chart; OFF keeps its original collapsed first visit.
+  await expect(toggle).toHaveAttribute('aria-expanded', redesign ? 'true' : 'false');
+  if (!redesign) {
+    await expect(chart).toHaveCount(0);
+    await expect(page.locator('#account-chart-body')).toBeHidden();
+    await expect(page.getByRole('group', { name: 'Saldoverlauf Zeitraum' })).toHaveCount(0);
+    await toggle.click();
+  }
   await expect(page.locator(`[data-booking="${id}"]`)).toBeVisible();
   expect((await toggle.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-
-  // Open: at most 140 px, one time control with exactly 3M / 12M / Alles, chip, Heute marker.
-  await toggle.click();
+  await chartOptions(page);
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect(chart).toBeVisible();
   expect((await chart.boundingBox())!.height).toBeLessThanOrEqual(140);
   const control = page.getByRole('group', { name: 'Saldoverlauf Zeitraum' });
   await expect(control).toHaveCount(1);
-  await expect(control.getByRole('button')).toHaveText(['3M', '12M', 'Alles']);
-  await expect(page.getByTestId('account-chart-chip')).toHaveText(/^Prognose \d+ Tage$/);
+  await expect(control.getByRole('button')).toHaveText(
+    redesign ? ['30T', '3M', '12M', 'Alles'] : ['3M', '12M', 'Alles'],
+  );
+  if (!redesign)
+    await expect(page.getByTestId('account-chart-chip')).toHaveText(/^Prognose \d+ Tage$/);
   await expect(chart.locator('.l-forecast')).toBeAttached();
   await expect(page.getByTestId('balance-chart-today')).toBeVisible();
   for (const button of await control.getByRole('button').all()) {
@@ -58,6 +64,7 @@ test('account history chart is collapsed by default, compact and remembered', as
     await button.click();
     await expect(chart).toBeVisible();
   }
+  if (redesign) await page.locator('.account-chart-options > summary').click();
   await chart.getByRole('slider').focus();
   await chart.getByRole('slider').press('Home');
   await expect(chart.locator('.kchart-tooltip')).toBeVisible();

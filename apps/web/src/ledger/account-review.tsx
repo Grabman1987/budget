@@ -1,4 +1,4 @@
-import { Button } from '@budget/ui';
+import { Button, useIsPhone } from '@budget/ui';
 import { lastDayOfMonth, monthOf } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { CircleCheck } from 'lucide-react';
@@ -10,15 +10,19 @@ import { ReconcilePanel } from './reconcile-panel';
 import { useRegisterToday } from './upcoming-register';
 import type { AccountRow } from './types';
 import { shortDay } from './format';
+import { AccountCheckMark, accountCheckPresentation } from './account-check-mark';
 
 /** Shared owner-check actions and dialogs for cash, manual-value and depot headers. */
 export function AccountReview({
   account,
   compact = false,
+  badgeOnPhone = false,
 }: {
   account: AccountRow;
   compact?: boolean;
+  badgeOnPhone?: boolean;
 }) {
+  const phone = useIsPhone();
   const search = useSearch({ strict: false }) as { pruefen?: 'reconcile' | 'value' };
   const navigate = useNavigate();
   const month = monthOf(useRegisterToday());
@@ -28,6 +32,7 @@ export function AccountReview({
   const badgeLabel = account.lastReconciledOn
     ? `Geprüft ${shortDay(account.lastReconciledOn)}`
     : 'Nie geprüft – jetzt prüfen';
+  const state = accountCheckPresentation(account);
   const closeCheck = () => {
     setChecking(false);
     setUpdatingValue(false);
@@ -39,13 +44,32 @@ export function AccountReview({
       {canReconcile(account) && (
         <Button
           variant="ghost"
-          className={compact ? 'kacct-review-badge' : undefined}
-          aria-label={compact ? `${badgeLabel} · Kontostand prüfen` : undefined}
-          data-testid={compact ? 'account-review-badge' : undefined}
+          className={
+            badgeOnPhone ? 'account-review-reference' : compact ? 'kacct-review-badge' : undefined
+          }
+          aria-label={
+            badgeOnPhone && phone
+              ? `${state.label}${state.age} · Kontostand prüfen`
+              : compact
+                ? `${badgeLabel} · Kontostand prüfen`
+                : undefined
+          }
+          data-testid={compact || badgeOnPhone ? 'account-review-badge' : undefined}
           onClick={() => setChecking(true)}
         >
           <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
-          {compact ? badgeLabel : 'Kontostand prüfen'}
+          {badgeOnPhone ? (
+            <>
+              <span className="account-review-button-label">Kontostand prüfen</span>
+              <span className="account-review-button-state">
+                <AccountCheckMark account={account} />
+              </span>
+            </>
+          ) : compact ? (
+            badgeLabel
+          ) : (
+            'Kontostand prüfen'
+          )}
         </Button>
       )}
       {manual && !account.closedAt && (

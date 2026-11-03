@@ -1,3 +1,5 @@
+import { redesignLoaded, inboxFilters, bankSelection } from './ledger-helpers';
+
 import { randomUUID } from 'node:crypto';
 import { createBooking, openDatabase, schema } from '@budget/db';
 import AxeBuilder from '@axe-core/playwright';
@@ -137,13 +139,29 @@ test('65 compact bank rows, prepared bulk confirmation, one undo, date controls 
     'href',
     '/konten/' + account.id,
   );
+  await bankSelection(page);
   await page.getByLabel('Alle auswählen', { exact: true }).check();
-  for (const row of await page.locator('.bank-inbox-row').filter({ hasText: 'Shop A ·' }).all()) {
-    await row.locator('summary').click();
+  const redesign = await redesignLoaded(page);
+  if (redesign) await page.keyboard.press('Escape');
+  for (const row of await page
+    .locator('.bank-inbox-row')
+    .filter({ hasText: redesign ? 'Shop A' : 'Shop A ·' })
+    .all()) {
+    if (redesign) {
+      await row.getByRole('button', { name: 'Prüfen', exact: true }).click();
+      const review = page.getByRole('dialog', { name: 'Buchung prüfen', exact: true });
+      await expect(
+        review.getByRole('button', { name: 'Vorschlag übernehmen', exact: true }),
+      ).toBeVisible();
+      await review.getByRole('button', { name: 'Schließen', exact: true }).click();
+      await expect(review).toBeHidden();
+    } else await row.locator('summary').click();
   }
-  await expect(page.getByRole('button', { name: 'Vorschlag übernehmen', exact: true })).toHaveCount(
-    5,
-  );
+  if (!redesign)
+    await expect(
+      page.getByRole('button', { name: 'Vorschlag übernehmen', exact: true }),
+    ).toHaveCount(5);
+  await bankSelection(page);
   // "Nicht übernehmen" never removes booked rows: they are listed as kept, not sent.
   await page.getByRole('button', { name: 'Auswahl nicht übernehmen', exact: true }).click();
   const dismissPreview = page.getByRole('dialog', { name: 'Bankauswahl prüfen' });
@@ -153,6 +171,7 @@ test('65 compact bank rows, prepared bulk confirmation, one undo, date controls 
   await expect(dismissPreview).toContainText('5 bereits gebuchte Zeilen bleiben unverändert');
   await dismissPreview.getByRole('button', { name: 'Abbrechen' }).click();
   expect(bulkCalls).toHaveLength(0);
+  await bankSelection(page);
   await page
     .getByRole('button', { name: 'Auswahl mit vorbereitetem Vorschlag bestätigen', exact: true })
     .click();
@@ -174,11 +193,20 @@ test('65 compact bank rows, prepared bulk confirmation, one undo, date controls 
     expect(booking.status).toBe('pending');
     expect(booking.splits[0].categoryId).toBeNull();
   }
+  if (redesign && (page.viewportSize()?.width ?? 1440) < 768) await inboxFilters(page);
   await page.getByLabel('Datumssortierung').selectOption('oldest');
   await expect(page.locator('.bank-inbox-row').first()).toContainText('Shop B');
+  await inboxFilters(page);
   await page.getByLabel('Ab Datum', { exact: true }).fill('2026-10-02');
   await expect(page.locator('.bank-inbox-row')).toHaveCount(5);
-  await page.locator('.bank-inbox-row').first().locator('summary').click();
+  if (redesign) {
+    await page.keyboard.press('Escape');
+    await page
+      .locator('.bank-inbox-row')
+      .first()
+      .getByRole('button', { name: 'Prüfen', exact: true })
+      .click();
+  } else await page.locator('.bank-inbox-row').first().locator('summary').click();
   await expect(
     page.getByRole('button', { name: 'Vorschlag übernehmen', exact: true }),
   ).toBeVisible();

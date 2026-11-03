@@ -9,6 +9,7 @@ import { LEDGER_KEY, lookupsQuery, payeesQuery } from '../ledger/queries';
 import { candidateAssignmentQuery } from '../assignment/api';
 import { AssignmentSummary } from '../assignment/review';
 import { ErrorNote, LoadingNote } from '../ledger/states';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import '../pages/data-sources.css';
 import '../assignment/assignment.css';
 
@@ -22,7 +23,7 @@ type Match = {
 const NO_MATCHES: Match[] = [];
 export type PreparedBankSuggestion = (
   { action: 'rule'; ruleId: string; revision: string } | { action: 'merge'; bookingId: string }
-) & { candidateRevision?: string; label: string };
+) & { candidateRevision?: string; label: string; bulkSafe?: boolean };
 type PreparedCallback = (suggestion: PreparedBankSuggestion | undefined) => void;
 
 export function BankReview({
@@ -33,6 +34,40 @@ export function BankReview({
   suggestion?: PreparedBankSuggestion | undefined;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [visited, setVisited] = useState(false);
+  if (REDESIGN_ENABLED)
+    return (
+      <>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setVisited(true);
+            setExpanded(true);
+          }}
+        >
+          Prüfen
+        </Button>
+        {visited && (
+          <FormDialog open={expanded} onClose={() => setExpanded(false)} title="Buchung prüfen">
+            <div className="bkform bank-booked-review-dialog">
+              <div className="bk-head">
+                <strong className="bk-kind">Buchung prüfen</strong>
+                <button
+                  type="button"
+                  className="icon-btn bk-close"
+                  aria-label="Schließen"
+                  onClick={() => setExpanded(false)}
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              </div>
+              <div className="bk-body kform">{children}</div>
+            </div>
+          </FormDialog>
+        )}
+      </>
+    );
   return (
     <details className="bank-review" onToggle={(event) => setExpanded(event.currentTarget.open)}>
       <summary>{suggestion?.label ?? 'Vorschläge beim Öffnen prüfen'}</summary>
@@ -47,12 +82,14 @@ export function BankCandidate({
   onPrepared,
   description,
   disabled,
+  triggerLabel,
 }: {
   id: string;
   onConfirmed?: ((id: string) => void) | undefined;
   onPrepared?: PreparedCallback | undefined;
   description?: string | undefined;
   disabled?: boolean | undefined;
+  triggerLabel?: string | undefined;
 }) {
   useAmountPrivacy();
   const [open, setOpen] = useState(false);
@@ -66,13 +103,14 @@ export function BankCandidate({
     <>
       <Button
         size="sm"
+        {...(triggerLabel ? { variant: 'ghost' as const } : {})}
         disabled={disabled}
         onClick={() => {
           setVisited(true);
           setOpen(true);
         }}
       >
-        Übernehmen
+        {triggerLabel ?? 'Übernehmen'}
       </Button>
       {visited && (
         <FormDialog
@@ -163,6 +201,19 @@ function BankCandidateForm({
   const recipient = payeeId ?? review.data?.cleanup.payeeId ?? '';
   const mergeRows = [...(matches.data?.merge ?? []), ...(matches.data?.link ?? [])];
   const merge = mergeRows.find((row) => row.id === mergeId) ?? mergeRows[0];
+  const bulkSafe = Boolean(
+    review.isSuccess &&
+    review.fetchStatus === 'idle' &&
+    !review.data.existingTransfer &&
+    matches.isSuccess &&
+    matches.fetchStatus === 'idle' &&
+    rule?.automatic &&
+    review.data?.suggestions.filter((row) => row.automatic && !row.unavailable).length === 1 &&
+    mergeRows.length === 0 &&
+    Array.isArray(matches.data?.merge) &&
+    Array.isArray(matches.data?.transfers) &&
+    matches.data.transfers.length === 0,
+  );
   useEffect(() => {
     const candidateRevision = review.data?.candidateRevision;
     onPrepared(
@@ -187,6 +238,9 @@ function BankCandidateForm({
                 revision: rule.revision,
                 candidateRevision,
                 label: rule.name,
+                // Presentation-only eligibility for the stricter redesign shortcut. Existing
+                // individual/selected actions keep their current checks and payloads.
+                ...(REDESIGN_ENABLED ? { bulkSafe } : {}),
               }
             : undefined,
     );
@@ -201,6 +255,7 @@ function BankCandidateForm({
     rule,
     categoryId,
     payeeId,
+    bulkSafe,
   ]);
   return (
     <form className="bkform bank-candidate-dialog" onSubmit={(event) => event.preventDefault()}>

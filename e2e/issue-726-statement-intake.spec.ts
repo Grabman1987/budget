@@ -1,3 +1,4 @@
+import { accountDocuments } from './ledger-helpers';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, schema } from '@budget/db';
@@ -78,6 +79,7 @@ for (const profile of ['desktop-layout', 'configured-profile'] as const)
       for (const selected of ['light', 'dark'] as const) {
         await active.goto(`/konten/${id}`);
         await theme(active, selected);
+        await accountDocuments(active);
         const launch = active.getByRole('button', { name: 'Abrechnung hochladen', exact: true });
         await expect(launch).toBeVisible();
         await launch.focus();
@@ -344,6 +346,7 @@ for (const profile of ['desktop-layout', 'configured-profile'] as const)
           localStorage.setItem('budget-amounts-hidden', '1');
         });
         await active.reload();
+        await accountDocuments(active);
         await launch.click();
         const history = active.locator('.statement-history-726');
         await history.locator('summary').click();
@@ -351,6 +354,7 @@ for (const profile of ['desktop-layout', 'configured-profile'] as const)
         await expect(history).toContainText('•••');
         await active.evaluate(() => localStorage.removeItem('budget-amounts-hidden'));
         await active.reload();
+        await accountDocuments(active);
         expect(snapshot()).toEqual(before);
       }
     } finally {

@@ -1,3 +1,6 @@
+import { openPruefenPart, openPruefenSource } from './pruefen-part';
+import { bankDismissControl, accountBankReview, bankPreviewControl } from './ledger-helpers';
+
 import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import AxeBuilder from '@axe-core/playwright';
@@ -118,11 +121,7 @@ test('bank candidates precede reminders and remain isolated review work in the a
     await page.goto('/konten/pruefen?von=%2F');
     const globalCandidate = page.getByTestId('inbox-row').filter({ hasText: 'Bankkandidat A 724' });
     await expect(globalCandidate).toBeVisible();
-    await page
-      .getByRole('group', { name: 'Teil von Prüfen' })
-      .getByRole('button', { name: /^Aufgaben · \d+$/ })
-      .click();
-    await page.getByRole('button', { name: 'Konten prüfen öffnen', exact: true }).click();
+    await openPruefenSource(page, 'Konten prüfen');
     const reminder = page.getByRole('heading', { name: 'Konten prüfen', exact: true });
     await expect(reminder).toBeVisible();
     await expect(page.locator('.account-reminders')).toContainText('Gleiches Konto');
@@ -130,10 +129,7 @@ test('bank candidates precede reminders and remain isolated review work in the a
       page.locator(`.account-reminder a[href="/konten/${first.id}?pruefen=reconcile"]`),
     ).toBeVisible();
     // Return to the unchanged movement workflow before its financial/Undo assertions.
-    await page
-      .getByRole('group', { name: 'Teil von Prüfen' })
-      .getByRole('button', { name: /^Umsätze · \d+$/ })
-      .click();
+    await openPruefenPart(page, 'Umsätze');
     await expect(globalCandidate).toBeVisible();
     const proof: object[] = [];
     const desktop = await browser.newContext({
@@ -162,9 +158,12 @@ test('bank candidates precede reminders and remain isolated review work in the a
         await view.goto(
           `/konten/${first.id}?bankSource=${candidateB}&aufgaben=historical&teil=aufgaben`,
         );
+        await accountBankReview(view);
         const queue = view.getByRole('region', { name: 'Bankumsätze prüfen', exact: true });
         const row = queue.getByTestId('inbox-row');
-        const heading = view.getByRole('heading', { name: 'Gleiches Konto 724', exact: true });
+        const heading = view
+          .getByRole('heading', { name: 'Gleiches Konto 724', exact: true })
+          .last();
         await expect(heading).toBeVisible();
         const balance = view.getByTestId('account-balance');
         await expect(balance).toContainText('992,23');
@@ -189,15 +188,13 @@ test('bank candidates precede reminders and remain isolated review work in the a
         await expect(queue).not.toContainText('Bankkandidat B 724');
         await expect(queue).not.toContainText('Manuelle offene Buchung 724');
         await expect(queue.getByRole('checkbox')).toHaveCount(0);
-        await expect(
-          queue.getByRole('button', { name: 'Nicht übernehmen', exact: true }),
-        ).toBeVisible();
+        await expect(await bankDismissControl(queue)).toBeVisible();
         for (const theme of ['light', 'dark'] as const) {
           await view.evaluate((value) => {
             document.documentElement.dataset.theme = value;
           }, theme);
           await row.scrollIntoViewIfNeeded();
-          const action = queue.getByRole('button', { name: 'Nicht übernehmen', exact: true });
+          const action = await bankDismissControl(queue);
           const rect = await action.boundingBox();
           expect(rect).not.toBeNull();
           expect(rect!.width).toBeGreaterThanOrEqual(44);
@@ -224,6 +221,7 @@ test('bank candidates precede reminders and remain isolated review work in the a
           expect(state()).toEqual(before);
         }
         await view.goto(`/konten/${second.id}`);
+        await accountBankReview(view);
         const otherQueue = view.getByRole('region', { name: 'Bankumsätze prüfen', exact: true });
         await expect(otherQueue.getByTestId('inbox-row')).toHaveCount(1);
         await expect(otherQueue).toContainText('Bankkandidat B 724');
@@ -233,6 +231,7 @@ test('bank candidates precede reminders and remain isolated review work in the a
       await desktop.close();
     }
     await page.goto(`/konten/${depot.id}`);
+    await accountBankReview(page);
     const depotQueue = page.getByRole('region', { name: 'Bankumsätze prüfen', exact: true });
     await expect(depotQueue.getByTestId('inbox-row')).toHaveCount(1);
     await expect(depotQueue).toContainText('Bankkandidat Depot 724');
@@ -267,8 +266,9 @@ test('bank candidates precede reminders and remain isolated review work in the a
     })) as { id: string; groupId: string };
     expect(await balances(request)).toEqual([98022, 100000]);
     await page.goto(`/konten/${first.id}`);
+    await accountBankReview(page);
     const queue = page.getByRole('region', { name: 'Bankumsätze prüfen', exact: true });
-    await queue.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+    await (await bankPreviewControl(queue)).click();
     const confirmed = page.waitForResponse(
       (response) =>
         response.request().method() === 'POST' &&
@@ -300,6 +300,7 @@ test('bank candidates precede reminders and remain isolated review work in the a
     });
     expect(undoManual.status()).toBe(200);
     await page.reload();
+    await accountBankReview(page);
     await expect(queue.getByTestId('inbox-row')).toHaveCount(1);
     expect(await balances(request)).toEqual([99223, 100000]);
     const dismissed = page.waitForResponse(
@@ -307,7 +308,7 @@ test('bank candidates precede reminders and remain isolated review work in the a
         response.request().method() === 'POST' &&
         new URL(response.url()).pathname === `/api/inbox/${candidateA}/resolve`,
     );
-    await queue.getByRole('button', { name: 'Nicht übernehmen', exact: true }).click();
+    await (await bankDismissControl(queue)).click();
     const dismissal = await dismissed;
     expect(dismissal.status()).toBe(200);
     const result = (await dismissal.json()) as { groupId: string };
@@ -319,6 +320,7 @@ test('bank candidates precede reminders and remain isolated review work in the a
     });
     expect(restored.status()).toBe(200);
     await page.reload();
+    await accountBankReview(page);
     await expect(queue.getByTestId('inbox-row')).toHaveCount(1);
     expect(await balances(request)).toEqual([99223, 100000]);
     const bookings = await request.get(origin + `/api/bookings?accountId=${first.id}`);

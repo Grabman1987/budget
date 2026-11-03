@@ -1,7 +1,14 @@
+import {
+  historyChart,
+  redesignLoaded,
+  captureFlagControl,
+  categoryLineControl,
+  pickCategory,
+} from './ledger-helpers';
+
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
-import { pickCategory } from './ledger-helpers';
 
 test('booking cells, cash capture, repetition and account preview on desktop and phone', async ({
   page,
@@ -104,8 +111,8 @@ test('booking cells, cash capture, repetition and account preview on desktop and
     rhythm: 'weekly',
     startDate: '2026-10-09',
   });
-  await expect(page.getByTestId('balance-chart')).toHaveCount(0);
-  await page.getByTestId('account-chart-toggle').click();
+  if (!(await redesignLoaded(page))) await expect(page.getByTestId('balance-chart')).toHaveCount(0);
+  await historyChart(page);
   const chart = page.getByTestId('balance-chart').first();
   await expect(chart.locator('.l-forecast')).toBeVisible();
   await expect(chart.getByText(/Dispolimit/)).toBeVisible();
@@ -121,7 +128,9 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   }
   await expect(
     page.getByRole('group', { name: 'Saldoverlauf Zeitraum' }).getByRole('button'),
-  ).toHaveText(['3M', '12M', 'Alles']);
+  ).toHaveText(
+    (await redesignLoaded(page)) ? ['30T', '3M', '12M', 'Alles'] : ['3M', '12M', 'Alles'],
+  );
   await expect(page.getByLabel('Zeitraum-Schnellauswahl')).toHaveCount(0);
   await expect(chart.locator('.l-forecast')).toBeVisible();
   for (const theme of ['light', 'dark']) {
@@ -149,7 +158,9 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   );
   await expect(panel.getByRole('button', { name: 'Bestätigt', exact: true })).toBeDisabled();
   await panel.evaluate((d) => d.getAnimations().forEach((a) => a.finish()));
-  const accountBox = await panel.getByLabel('Bezahlt von', { exact: true }).boundingBox();
+  const accountBox = await panel
+    .getByLabel((await redesignLoaded(page)) ? 'Betrag' : 'Bezahlt von', { exact: true })
+    .boundingBox();
   const statusBox = await panel
     .getByRole('button', { name: 'Bestätigt', exact: true })
     .boundingBox();
@@ -157,7 +168,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   expect(statusBox!.x).toBeGreaterThan(accountBox!.x + accountBox!.width);
   expect(
     Math.abs(statusBox!.y + statusBox!.height - accountBox!.y - accountBox!.height),
-  ).toBeLessThan(2);
+  ).toBeLessThan((await redesignLoaded(page)) ? 12 : 2);
   await panel.getByLabel('Betrag', { exact: true }).fill('2,03');
   await panel.getByLabel('Empfänger', { exact: true }).fill('Kiosk Muster');
   await pickCategory(panel, category.name);
@@ -238,7 +249,7 @@ test('single payee suggestion selects its recent account and leaves account cont
   await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(recent.id);
   await panel.locator('.kmore > summary').scrollIntoViewIfNeeded();
   await expect(panel.locator('.kmore > summary')).toBeInViewport({ ratio: 1 });
-  await expect(panel.getByTitle('Markieren')).toBeVisible();
+  await expect(await captureFlagControl(panel, 'Markierung: keine')).toBeVisible();
   await expect(panel.getByTitle('Schließen')).toBeVisible();
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => {
@@ -248,16 +259,20 @@ test('single payee suggestion selects its recent account and leaves account cont
   }
   await panel.getByLabel('Empfänger', { exact: true }).fill('Laden');
   await expect(list).toBeVisible();
-  const listBox = await list.boundingBox();
-  const accountBox = await panel.getByLabel('Bezahlt von', { exact: true }).boundingBox();
-  expect(listBox!.y + listBox!.height).toBeLessThanOrEqual(accountBox!.y);
+  const listBox = (await list.boundingBox())!;
+  const accountBox = (await panel.getByLabel('Bezahlt von', { exact: true }).boundingBox())!;
+  if (await redesignLoaded(page)) {
+    expect(
+      listBox.y + listBox.height <= accountBox.y || listBox.x + listBox.width <= accountBox.x,
+    ).toBe(true);
+  } else expect(listBox.y + listBox.height).toBeLessThanOrEqual(accountBox.y);
   await panel.getByLabel('Bezahlt von', { exact: true }).click();
   await expect(panel.getByLabel('Bezahlt von', { exact: true })).toBeFocused();
   await panel.getByLabel('Bezahlt von', { exact: true }).press('Escape');
   await panel.getByLabel('Bezahlt von', { exact: true }).selectOption(first.id);
   await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(first.id);
   await expect(panel.getByLabel('Notiz')).toBeVisible();
-  await expect(panel.getByRole('button', { name: '+ Weitere Kategorie' })).toBeVisible();
+  await expect(await categoryLineControl(panel)).toBeVisible();
   await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
   await panel.getByLabel('Betrag', { exact: true }).fill('12,50+3');
   await panel.getByLabel('Betrag', { exact: true }).press('Enter');

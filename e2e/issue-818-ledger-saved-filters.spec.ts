@@ -292,6 +292,15 @@ test('explicit replace and rename preserve identity, and deleting a view has pre
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
+    // A focused toast consumes Escape without closing its containing dialog. Pointer focus
+    // after Undo differs across engines, so exercise each keyboard layer explicitly.
+    const redo = manager.getByRole('button', { name: 'Wiederholen', exact: true });
+    await expect(redo).toBeVisible();
+    await redo.focus();
+    await page.keyboard.press('Escape');
+    await expect(redo).toBeHidden();
+    await expect(manager).toBeVisible();
+    await manager.getByRole('button', { name: renamed, exact: true }).focus();
     await page.keyboard.press('Escape');
     await expect(manager).toBeHidden();
   }
