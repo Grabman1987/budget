@@ -1,3 +1,4 @@
+import { cents } from '@budget/domain';
 import { BenchmarkChoices } from './portfolio-benchmark-settings';
 import { PerformanceChart } from './performance-chart';
 import type { PortfolioBenchmarkSeries } from '@budget/db';
@@ -26,6 +27,7 @@ import {
   percentText,
 } from './portfolio-report-shared';
 import './portfolio-depots-report.css';
+import '../reports/wealth-portfolio-redesign.css';
 
 interface DepotsResponse extends WithValuationNotes {
   depots: DepotComparison;
@@ -50,6 +52,34 @@ export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; m
   const data = query.data?.depots;
   return (
     <PageFrame
+      sourceDate={data?.window?.to}
+      calculation={
+        data?.total?.performance && !query.isFetching && !query.isError
+          ? {
+              label: 'Anlagen im gemeinsamen Vergleichszeitraum',
+              terms: [
+                { label: 'Anfang', value: cents(data.total.performance.startValueCents) },
+                {
+                  op: '+',
+                  label: 'Nettozuflüsse',
+                  value: cents(data.total.performance.contributionsCents),
+                  signed: true,
+                },
+                {
+                  op: '+',
+                  label: 'Gewinn',
+                  value: cents(data.total.performance.gainCents),
+                  signed: true,
+                },
+              ],
+              result: {
+                label: 'Anlagewert am Ende · gleicher Zeitraum',
+                unit: 'money',
+                value: data.total.performance.endValueCents,
+              },
+            }
+          : undefined
+      }
       verdict={
         data && !query.isFetching && !query.isError
           ? {

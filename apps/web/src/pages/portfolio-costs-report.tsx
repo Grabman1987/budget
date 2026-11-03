@@ -1,3 +1,7 @@
+import { useNavigate, useSearch } from '@tanstack/react-router';
+import { Select } from '@budget/ui';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { PortfolioIncomeDepth } from '../reports/portfolio-income-depth';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { cents } from '@budget/domain';
 import type { CostsTaxesReport } from '@budget/db';
@@ -20,6 +24,7 @@ import {
   percentText,
 } from './portfolio-report-shared';
 import './portfolio-costs-report.css';
+import '../reports/wealth-portfolio-redesign.css';
 import { BookRuleMetric } from '../rules/book-rule-metric';
 
 interface CostsResponse extends WithValuationNotes {
@@ -36,8 +41,65 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
   useAmountPrivacy();
   const query = useQuery(costsQuery);
   const data = query.data?.costs;
+  const search = useSearch({ strict: false }) as { darstellung?: string };
+  const navigate = useNavigate();
+  const view = REDESIGN_ENABLED && search.darstellung === 'ertraege' ? 'ertraege' : 'gebuehren';
   return (
     <PageFrame
+      sourceDate={data?.to}
+      calculation={
+        data && !query.isFetching && !query.isError
+          ? {
+              label:
+                view === 'ertraege'
+                  ? 'Erhaltene Kapitalerträge brutto in EUR'
+                  : 'Erträge abzüglich Kosten und Steuern',
+              terms:
+                view === 'ertraege'
+                  ? [
+                      { label: 'Dividenden', value: cents(data.income.dividend.grossCents) },
+                      { op: '+', label: 'Zinsen', value: cents(data.income.interest.grossCents) },
+                    ]
+                  : [
+                      { label: 'Erträge brutto', value: cents(data.net.grossCents) },
+                      {
+                        op: '-',
+                        label: 'Steuern auf Erträge',
+                        value: cents(data.net.taxOnIncomeCents),
+                      },
+                      { op: '-', label: 'Gebühren und TER', value: cents(data.net.costsCents) },
+                    ],
+              result: {
+                label: view === 'ertraege' ? 'Erhaltene Erträge brutto · EUR' : 'Nettoertrag',
+                unit: 'money',
+                value: view === 'ertraege' ? data.income.grossCents : data.net.netCents,
+              },
+            }
+          : undefined
+      }
+      reportControls={
+        REDESIGN_ENABLED ? (
+          <label className="wealth-report-view-select">
+            <span>Darstellung</span>
+            <Select
+              aria-label="Darstellung von Kosten, Steuern und Erträgen"
+              value={view}
+              onChange={(event) =>
+                void navigate({
+                  to: '.',
+                  search: ((previous: Record<string, unknown>) => ({
+                    ...previous,
+                    darstellung: event.target.value,
+                  })) as never,
+                })
+              }
+            >
+              <option value="gebuehren">Gebühren und Steuern</option>
+              <option value="ertraege">Erträge</option>
+            </Select>
+          </label>
+        ) : undefined
+      }
       verdict={
         data && !query.isFetching && !query.isError
           ? {
@@ -74,7 +136,13 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
             onRetry={() => void query.refetch()}
           />
         )}
-        {data && !query.isError && <CostsBody data={data} />}
+        {data &&
+          !query.isError &&
+          (view === 'ertraege' ? (
+            <PortfolioIncomeDepth from={data.from} to={data.to} />
+          ) : (
+            <CostsBody data={data} />
+          ))}
       </div>
     </PageFrame>
   );
