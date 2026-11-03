@@ -1,3 +1,9 @@
+import { useIsPhone } from '@budget/ui';
+import { useElementWidth } from '../charts/use-element-width';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { ReportBodyDisclosure } from './report-body-disclosure';
+import { bankCostsCalculation } from './budget-cost-inflation-presentation';
+import './budget-cost-inflation-redesign.css';
 import type { ReactNode } from 'react';
 import {
   AxisLine,
@@ -41,6 +47,7 @@ export function BankCostsReportPage({
   return (
     <PageFrame
       reportControls={viewControl}
+      calculation={data && !query.isError ? bankCostsCalculation(data) : undefined}
       verdict={
         data && !query.isError
           ? {
@@ -65,7 +72,10 @@ export function BankCostsReportPage({
       }
       reportStand={{ label: 'Konditionen am', value: data?.asOf ? longDay(data.asOf) : 'heute' }}
     >
-      <div className="kview sr bank-costs-report" data-testid="bank-costs-report">
+      <div
+        className="kview sr bank-costs-report r11-body r11-costs"
+        data-testid="bank-costs-report"
+      >
         <ReportQuery query={query} what="Bank- und Zinskosten">
           {(d) => <Body data={d} />}
         </ReportQuery>
@@ -88,14 +98,18 @@ function Body({ data }: { data: BankCostsReport }) {
     return (
       <>
         <p role="status">Noch keine geschlossenen Monate mit Daten.</p>
-        <CreditLinesTable lines={data.creditLines} />
+        <ReportBodyDisclosure id="costs-credit" label="Kredit- und Dispolinien · Originalwährungen">
+          <CreditLinesTable lines={data.creditLines} />
+        </ReportBodyDisclosure>
       </>
     );
   return (
     <>
       <section className="sr-card sr-wide" aria-labelledby="bc-main">
         <div className="sr-head">
-          <h2 id="bc-main">Was kostet uns das Geld selbst?</h2>
+          <h2 id="bc-main">
+            {REDESIGN_ENABLED ? 'Kosten je Monat' : 'Was kostet uns das Geld selbst?'}
+          </h2>
           <span
             className={`sr-state ${data.changeCents !== null && data.changeCents <= 0 ? 'is-good' : ''}`}
           >
@@ -104,10 +118,12 @@ function Body({ data }: { data: BankCostsReport }) {
               : `${eur(data.changeCents, { sign: true })} gegenüber zwölf Monaten davor`}
           </span>
         </div>
-        <div className="sr-fig">
-          <span>Erfasste Bank- und Zinskosten · letzte {data.months.length} Monate</span>
-          <strong data-testid="bc-total">{eur(data.totalCents)}</strong>
-        </div>
+        {!REDESIGN_ENABLED && (
+          <div className="sr-fig r11-cost-total">
+            <span>Erfasste Bank- und Zinskosten · letzte {data.months.length} Monate</span>
+            <strong data-testid="bc-total">{eur(data.totalCents)}</strong>
+          </div>
+        )}
         <p className="sr-note" data-testid="bc-components">
           Gebucht: {eur(bookedCostCents)} · aus Konditionen geschätzt: {eur(estimatedInterestCents)}
         </p>
@@ -117,31 +133,46 @@ function Body({ data }: { data: BankCostsReport }) {
           {longDay(data.asOf)}: {unknownRateLineCount}. Geschätzte Zinszeiträume ohne EUR-Kurs in
           den letzten zwölf Monaten: {data.modeledInterestMissingFxPeriods}.
         </p>
-        <p className="sr-note">
-          Darlehenszinsen werden nur mit den vorhandenen Modellangaben und EUR-Kursen geschätzt;
-          Kreditkarten- und Dispozinsen erscheinen nur, wenn sie gebucht wurden. TER und Spreads
-          bleiben ausgeschlossen.
-        </p>
-        <p className="sr-note">
-          Ø {eur(Math.round(data.totalCents / data.months.length))} je Monat ·{' '}
-          {biggest
-            ? `Größte Kostenquelle: ${biggest.name} · ${eur(biggest.cents)}${biggest.derived ? ' (teilweise aus Kreditkonditionen geschätzt)' : ''}`
-            : 'Keine erfassten Kosten im Zeitraum.'}
-        </p>
-        <DimensionChain
-          label="Maßkette erfasste Bank- und Zinskosten"
-          precision="cent"
-          terms={[
-            { label: 'Haben- und Dividenden-Erträge', value: cents(data.earningsCents) },
-            {
-              label: 'Erfasste Kosten (gebucht + geschätzt)',
-              op: '-',
-              value: cents(data.totalCents),
-            },
-            { label: 'Erträge − Kosten', op: '=', value: cents(data.netCents), result: true },
-          ]}
-        />
-        <CostChart data={data} />
+        {REDESIGN_ENABLED && <CostChart data={data} />}
+        <ReportBodyDisclosure id="costs-model" label="Modell und größte Kostenquelle">
+          <p className="sr-note">
+            Darlehenszinsen werden nur mit den vorhandenen Modellangaben und EUR-Kursen geschätzt;
+            Kreditkarten- und Dispozinsen erscheinen nur, wenn sie gebucht wurden. TER und Spreads
+            bleiben ausgeschlossen.
+          </p>
+          <p className="sr-note">
+            Ø {eur(Math.round(data.totalCents / data.months.length))} je Monat ·{' '}
+            {biggest
+              ? `Größte Kostenquelle: ${biggest.name} · ${eur(biggest.cents)}${biggest.derived ? ' (teilweise aus Kreditkonditionen geschätzt)' : ''}`
+              : 'Keine erfassten Kosten im Zeitraum.'}
+          </p>
+        </ReportBodyDisclosure>
+        <ReportBodyDisclosure
+          id="costs-calculation"
+          label="Erträge und Kosten · vollständige Berechnung"
+        >
+          {' '}
+          {REDESIGN_ENABLED && (
+            <div className="sr-fig r11-cost-total">
+              <span>Erfasste Bank- und Zinskosten · letzte {data.months.length} Monate</span>
+              <strong data-testid="bc-total">{eur(data.totalCents)}</strong>
+            </div>
+          )}
+          <DimensionChain
+            label="Maßkette erfasste Bank- und Zinskosten"
+            precision="cent"
+            terms={[
+              { label: 'Haben- und Dividenden-Erträge', value: cents(data.earningsCents) },
+              {
+                label: 'Erfasste Kosten (gebucht + geschätzt)',
+                op: '-',
+                value: cents(data.totalCents),
+              },
+              { label: 'Erträge − Kosten', op: '=', value: cents(data.netCents), result: true },
+            ]}
+          />
+        </ReportBodyDisclosure>
+        {!REDESIGN_ENABLED && <CostChart data={data} />}
         <ul className="sr-leg">
           {data.rows.map((r, i) => (
             <li key={r.key}>
@@ -159,137 +190,147 @@ function Body({ data }: { data: BankCostsReport }) {
             { kind: 'actual', label: 'Haben- und Dividenden-Erträge (kein Haushaltseinkommen)' },
           ]}
         />
-        <p className="sr-note">
-          Kreditkosten der Bankgebühren-Gruppe gelten als gebuchter Zinsanteil; ohne separate
-          Buchung schätzen gespeicherte Konditionen die monatlichen Zinsen, mit Zinsänderungen.
-          Tilgung bleibt draußen. Bankgebühren, Trade- und Fremdwährungsgebühren verwenden
-          gespeicherte Quellen; Sollzinsen/Dispo entsprechend benannte Kategorien. Erträge bleiben
-          separat; Trade-Erträge nach gespeicherten Steuern, vor separat gezählten Gebühren. Spreads
-          und TER sind nicht gebucht.
-          {data.skippedForeignBookings
-            ? ` ${data.skippedForeignBookings} Buchungen ohne Wechselkurs fehlen.`
-            : ''}
-          {data.skippedForeignTrades
-            ? ` ${data.skippedForeignTrades} Trades ohne Wechselkurs fehlen.`
-            : ''}
-        </p>
+        <ReportBodyDisclosure id="costs-source" label="Quellen und Abgrenzung">
+          <p className="sr-note">
+            Kreditkosten der Bankgebühren-Gruppe gelten als gebuchter Zinsanteil; ohne separate
+            Buchung schätzen gespeicherte Konditionen die monatlichen Zinsen, mit Zinsänderungen.
+            Tilgung bleibt draußen. Bankgebühren, Trade- und Fremdwährungsgebühren verwenden
+            gespeicherte Quellen; Sollzinsen/Dispo entsprechend benannte Kategorien. Erträge bleiben
+            separat; Trade-Erträge nach gespeicherten Steuern, vor separat gezählten Gebühren.
+            Spreads und TER sind nicht gebucht.
+            {data.skippedForeignBookings
+              ? ` ${data.skippedForeignBookings} Buchungen ohne Wechselkurs fehlen.`
+              : ''}
+            {data.skippedForeignTrades
+              ? ` ${data.skippedForeignTrades} Trades ohne Wechselkurs fehlen.`
+              : ''}
+          </p>
+        </ReportBodyDisclosure>
       </section>
-      <CreditLinesTable lines={data.creditLines} />
-      <section className="sr-card sr-wide" aria-labelledby="bc-kinds">
-        <div className="sr-head">
-          <h2 id="bc-kinds">Kosten nach Art</h2>
-        </div>
-        <ScrollRegion label="Tabelle der Kostenarten">
-          <table className="sr-table" data-testid="cost-kinds">
-            <thead>
-              <tr>
-                <th scope="col">Posten</th>
-                <th scope="col">12 Monate</th>
-                <th scope="col">12 Monate davor</th>
-                <th scope="col">Veränderung</th>
-                <th scope="col">Anteil</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((r) => (
-                <tr key={r.key}>
-                  <th scope="row">{r.name}</th>
-                  <td>{eur(r.cents)}</td>
-                  <td>{r.previousCents === null ? '–' : eur(r.previousCents)}</td>
-                  <td>{bpText(r.changeBp, { sign: true })}</td>
-                  <td>{bpText(r.shareBp)}</td>
+      <ReportBodyDisclosure id="costs-credit" label="Kredit- und Dispolinien · Originalwährungen">
+        <CreditLinesTable lines={data.creditLines} />
+      </ReportBodyDisclosure>
+      <ReportBodyDisclosure id="costs-kinds" label="Kosten nach Art">
+        <section className="sr-card sr-wide" aria-labelledby="bc-kinds">
+          <div className="sr-head">
+            <h2 id="bc-kinds">Kosten nach Art</h2>
+          </div>
+          <ScrollRegion label="Tabelle der Kostenarten">
+            <table className="sr-table" data-testid="cost-kinds">
+              <thead>
+                <tr>
+                  <th scope="col">Posten</th>
+                  <th scope="col">12 Monate</th>
+                  <th scope="col">12 Monate davor</th>
+                  <th scope="col">Veränderung</th>
+                  <th scope="col">Anteil</th>
                 </tr>
-              ))}
-              <tr className="is-total">
-                <th scope="row">Kosten</th>
-                <td>{eur(data.totalCents)}</td>
-                <td>{data.previousTotalCents === null ? '–' : eur(data.previousTotalCents)}</td>
-                <td colSpan={2} />
-              </tr>
-              <tr>
-                <th scope="row">Haben- und Dividenden-Erträge</th>
-                <td>{eur(data.earningsCents)}</td>
-                <td>
-                  {data.previousEarningsCents === null ? '–' : eur(data.previousEarningsCents)}
-                </td>
-                <td colSpan={2}>Kein Haushaltseinkommen</td>
-              </tr>
-            </tbody>
-          </table>
-        </ScrollRegion>
-      </section>
-      <section className="sr-card sr-wide" aria-labelledby="bc-sources">
-        <div className="sr-head">
-          <h2 id="bc-sources">Je Kostenquelle · 12 Monate</h2>
-        </div>
-        <ScrollRegion label="Kosten je Quelle">
-          <table className="sr-table" data-testid="cost-sources">
-            <thead>
-              <tr>
-                <th scope="col">Quelle</th>
-                <th scope="col">Art</th>
-                <th scope="col">Kosten</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.sources.map((s) => (
-                <tr key={s.id}>
-                  <th scope="row">
-                    {s.name}
-                    {s.derived && <small>aus Kreditkonditionen geschätzt</small>}
-                  </th>
-                  <td>{data.partLabels[s.kind]}</td>
-                  <td>{eur(s.cents)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </ScrollRegion>
-        <p className="sr-note">
-          <AppLink to="/einstellungen/konten">Kreditkonditionen pflegen</AppLink> ·{' '}
-          <AppLink to="/vermoegen/schulden">Schuldenrechner öffnen</AppLink>
-        </p>
-      </section>
-      <section className="sr-card sr-wide" aria-labelledby="bc-years">
-        <div className="sr-head">
-          <h2 id="bc-years">Je Kalenderjahr</h2>
-        </div>
-        <ScrollRegion label="Jährliche Kosten und Erträge">
-          <table className="sr-table">
-            <thead>
-              <tr>
-                <th scope="col">Jahr</th>
+              </thead>
+              <tbody>
                 {data.rows.map((r) => (
-                  <th key={r.key} scope="col">
-                    {r.name}
-                  </th>
+                  <tr key={r.key}>
+                    <th scope="row">{r.name}</th>
+                    <td>{eur(r.cents)}</td>
+                    <td>{r.previousCents === null ? '–' : eur(r.previousCents)}</td>
+                    <td>{bpText(r.changeBp, { sign: true })}</td>
+                    <td>{bpText(r.shareBp)}</td>
+                  </tr>
                 ))}
-                <th scope="col">Kosten</th>
-                <th scope="col">Erträge separat</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.years.map((y) => (
-                <tr key={y.year}>
-                  <th scope="row">
-                    {y.year}
-                    {y.partial && (
-                      <small>
-                        {monthShort(y.from)} bis {monthShort(y.to)}
-                      </small>
-                    )}
-                  </th>
-                  {y.partCents.map((v, i) => (
-                    <td key={data.rows[i]?.key}>{v ? eur(v) : '·'}</td>
-                  ))}
-                  <td>{eur(y.totalCents)}</td>
-                  <td>{eur(y.earningsCents)}</td>
+                <tr className="is-total">
+                  <th scope="row">Kosten</th>
+                  <td>{eur(data.totalCents)}</td>
+                  <td>{data.previousTotalCents === null ? '–' : eur(data.previousTotalCents)}</td>
+                  <td colSpan={2} />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </ScrollRegion>
-      </section>
+                <tr>
+                  <th scope="row">Haben- und Dividenden-Erträge</th>
+                  <td>{eur(data.earningsCents)}</td>
+                  <td>
+                    {data.previousEarningsCents === null ? '–' : eur(data.previousEarningsCents)}
+                  </td>
+                  <td colSpan={2}>Kein Haushaltseinkommen</td>
+                </tr>
+              </tbody>
+            </table>
+          </ScrollRegion>
+        </section>
+      </ReportBodyDisclosure>
+      <ReportBodyDisclosure id="costs-sources" label="Kosten nach Quelle">
+        <section className="sr-card sr-wide" aria-labelledby="bc-sources">
+          <div className="sr-head">
+            <h2 id="bc-sources">Je Kostenquelle · 12 Monate</h2>
+          </div>
+          <ScrollRegion label="Kosten je Quelle">
+            <table className="sr-table" data-testid="cost-sources">
+              <thead>
+                <tr>
+                  <th scope="col">Quelle</th>
+                  <th scope="col">Art</th>
+                  <th scope="col">Kosten</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.sources.map((s) => (
+                  <tr key={s.id}>
+                    <th scope="row">
+                      {s.name}
+                      {s.derived && <small>aus Kreditkonditionen geschätzt</small>}
+                    </th>
+                    <td>{data.partLabels[s.kind]}</td>
+                    <td>{eur(s.cents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </ScrollRegion>
+          <p className="sr-note">
+            <AppLink to="/einstellungen/konten">Kreditkonditionen pflegen</AppLink> ·{' '}
+            <AppLink to="/vermoegen/schulden">Schuldenrechner öffnen</AppLink>
+          </p>
+        </section>
+      </ReportBodyDisclosure>
+      <ReportBodyDisclosure id="costs-years" label="Kosten je Kalenderjahr">
+        <section className="sr-card sr-wide" aria-labelledby="bc-years">
+          <div className="sr-head">
+            <h2 id="bc-years">Je Kalenderjahr</h2>
+          </div>
+          <ScrollRegion label="Jährliche Kosten und Erträge">
+            <table className="sr-table">
+              <thead>
+                <tr>
+                  <th scope="col">Jahr</th>
+                  {data.rows.map((r) => (
+                    <th key={r.key} scope="col">
+                      {r.name}
+                    </th>
+                  ))}
+                  <th scope="col">Kosten</th>
+                  <th scope="col">Erträge separat</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.years.map((y) => (
+                  <tr key={y.year}>
+                    <th scope="row">
+                      {y.year}
+                      {y.partial && (
+                        <small>
+                          {monthShort(y.from)} bis {monthShort(y.to)}
+                        </small>
+                      )}
+                    </th>
+                    {y.partCents.map((v, i) => (
+                      <td key={data.rows[i]?.key}>{v ? eur(v) : '·'}</td>
+                    ))}
+                    <td>{eur(y.totalCents)}</td>
+                    <td>{eur(y.earningsCents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </ScrollRegion>
+        </section>
+      </ReportBodyDisclosure>
     </>
   );
 }
@@ -359,6 +400,33 @@ export function CreditLinesTable({ lines }: { lines: CreditLineRow[] }) {
 }
 
 function CostChart({ data }: { data: BankCostsReport }) {
+  return REDESIGN_ENABLED ? <ResponsiveCostChart data={data} /> : <CostPlot data={data} />;
+}
+function ResponsiveCostChart({ data }: { data: BankCostsReport }) {
+  const [ref, measured] = useElementWidth<HTMLDivElement>();
+  const phone = useIsPhone();
+  return (
+    <div ref={ref}>
+      <CostPlot
+        data={data}
+        width={Math.max(240, measured || 320)}
+        height={phone ? 208 : 240}
+        phone={phone}
+      />
+    </div>
+  );
+}
+function CostPlot({
+  data,
+  width: plotWidth = 760,
+  height = 270,
+  phone = false,
+}: {
+  data: BankCostsReport;
+  width?: number;
+  height?: number;
+  phone?: boolean;
+}) {
   const points = data.monthly;
   const hi = Math.max(
     100,
@@ -382,13 +450,16 @@ function CostChart({ data }: { data: BankCostsReport }) {
       ),
     ),
   );
-  const x = (i: number) => 68 + ((i + 0.5) * 660) / Math.max(1, points.length);
-  const y = (v: number) => 226 - ((v - lo) / (hi - lo)) * 200;
-  const width = (660 / Math.max(1, points.length)) * 0.6;
+  const left = phone ? 52 : 68;
+  const span = plotWidth - left - 32;
+  const x = (i: number) => left + ((i + 0.5) * span) / Math.max(1, points.length);
+  const y = (v: number) => height - 44 - ((v - lo) / (hi - lo)) * (height - 70);
+  const width = (span / Math.max(1, points.length)) * 0.6;
   return (
     <ChartSvg
-      width={760}
-      height={270}
+      table={REDESIGN_ENABLED}
+      width={plotWidth}
+      height={height}
       label="Monatliche Kosten gestapelt nach Art; Erträge als eigene Linie"
       testId="bank-costs-chart"
       points={chartPoints(
@@ -409,14 +480,14 @@ function CostChart({ data }: { data: BankCostsReport }) {
       )}
     >
       <Graticule
-        x1={68}
-        x2={730}
+        x1={left}
+        x2={plotWidth - 30}
         lines={[lo, hi / 2, hi].map((v) => ({
           y: y(v),
           label: eur(Math.round(v), { cents: false }),
         }))}
       />
-      <AxisLine x1={68} x2={730} y={y(0)} />
+      <AxisLine x1={left} x2={plotWidth - 30} y={y(0)} />
       {points.map((p, i) => {
         let positive = 0;
         let negative = 0;
@@ -442,7 +513,14 @@ function CostChart({ data }: { data: BankCostsReport }) {
         );
       })}
       <Line kind="actual" points={points.map((p, i) => [x(i), y(p.earningsCents)])} />
-      <XTicks y={256} ticks={points.map((p, i) => ({ x: x(i), label: monthShort(p.month) }))} />
+      <XTicks
+        y={height - 14}
+        ticks={points.flatMap((p, i) =>
+          !phone || i === 0 || i === points.length - 1 || i % Math.ceil(points.length / 3) === 0
+            ? [{ x: x(i), label: monthShort(p.month) }]
+            : [],
+        )}
+      />
     </ChartSvg>
   );
 }

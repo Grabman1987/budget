@@ -3,7 +3,12 @@ import { useState, useRef, useLayoutEffect, type ReactNode } from 'react';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 /** Presentation preferences only; print exposes the complete existing reader and restores the screen. */
-export function ReportBodyDisclosure({
+export function ReportBodyDisclosure(props: Parameters<typeof RedesignReportBodyDisclosure>[0]) {
+  if (!REDESIGN_ENABLED) return <>{props.children}</>;
+  return <RedesignReportBodyDisclosure {...props} />;
+}
+
+function RedesignReportBodyDisclosure({
   id,
   label,
   children,
@@ -30,7 +35,6 @@ export function ReportBodyDisclosure({
   useLayoutEffect(() => {
     if (REDESIGN_ENABLED && reveal && ref.current) ref.current.open = true;
   }, [reveal]);
-  if (!REDESIGN_ENABLED) return <>{children}</>;
   return (
     <details
       ref={ref}

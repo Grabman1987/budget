@@ -1,0 +1,225 @@
+[data-budget-redesign='1'] .r11-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+[data-budget-redesign='1'] .r11-body .sr-card {
+  min-width: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+[data-budget-redesign='1'] .r11-body h2 {
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
+  margin-block: 0 12px;
+}
+[data-budget-redesign='1'] .r11-body .r8-body-disclosure > summary {
+  min-height: 44px;
+  align-content: center;
+  padding-block: 8px;
+  border-block: 1px solid var(--rule);
+  cursor: pointer;
+  color: var(--ink-2);
+}
+[data-budget-redesign='1'] .r11-bullets {
+  display: grid;
+  gap: 12px;
+}
+[data-budget-redesign='1'] .r11-bullet {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--fs-table);
+}
+[data-budget-redesign='1'] .r11-bullet-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+[data-budget-redesign='1'] .r11-bullet-value small {
+  color: var(--ink-2);
+}
+[data-budget-redesign='1'] .r11-bullet-track {
+  display: block;
+  position: relative;
+  height: 22px;
+  background: linear-gradient(
+    transparent 4px,
+    var(--surface-2) 4px,
+    var(--surface-2) 18px,
+    transparent 18px
+  );
+}
+[data-budget-redesign='1'] .r11-bullet-track > i {
+  display: block;
+  position: absolute;
+  top: 7px;
+  height: 8px;
+  background: var(--primary);
+}
+[data-budget-redesign='1'] .r11-bullet-track > b {
+  position: absolute;
+  top: 1px;
+  height: 20px;
+  border-inline-start: 1px solid var(--ink);
+}
+[data-budget-redesign='1'] .r11-current-deficit {
+  color: var(--red);
+  font-size: var(--fs-table);
+}
+[data-budget-redesign='1'] .r11-budget[data-current='0'] .sr-bl .is-action {
+  color: var(--ink-2);
+  background: none;
+}
+[data-budget-redesign='1'] .r11-chart-table > summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+}
+[data-budget-redesign='1'] .r11-chart-table {
+  margin-block-start: 12px;
+  overflow-x: auto;
+}
+[data-budget-redesign='1'] .r11-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-table);
+}
+[data-budget-redesign='1'] .r11-table :is(th, td) {
+  padding: 8px;
+  border-block-end: 1px solid var(--rule);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+[data-budget-redesign='1'] .r11-table :is(th, td):first-child {
+  text-align: left;
+}
+[data-budget-redesign='1'] .r11-table small {
+  display: block;
+  color: var(--ink-2);
+  font-weight: normal;
+}
+[data-budget-redesign='1'] .r11-share {
+  display: block;
+  width: 120px;
+  max-width: 100%;
+  height: 12px;
+  background: var(--surface-2);
+}
+[data-budget-redesign='1'] .r11-share > i {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+[data-budget-redesign='1'] .r11-contract-phone {
+  display: none;
+}
+[data-budget-redesign='1'] .r11-source-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+[data-budget-redesign='1'] .r11-inflation-chart {
+  min-width: 0;
+}
+[data-budget-redesign='1'] .r11-inflation-chart .sr-chart {
+  min-width: 0;
+  overflow: visible;
+}
+[data-budget-redesign='1'] .r11-inflation-chart svg {
+  min-width: 0;
+}
+@media (max-width: 767px) {
+  [data-budget-redesign='1'] .r11-bullet {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  [data-budget-redesign='1'] .r11-bullet-value {
+    text-align: left;
+  }
+  [data-budget-redesign='1'] .r11-contract-desktop {
+    display: none;
+  }
+  [data-budget-redesign='1'] .r11-contract-phone {
+    display: grid;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  [data-budget-redesign='1'] .r11-contract-phone li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 52px;
+    padding-block: 8px;
+    border-block-end: 1px solid var(--rule);
+    font-size: var(--fs-table);
+  }
+  [data-budget-redesign='1'] .r11-contract-phone li > span:last-child {
+    text-align: right;
+  }
+  [data-budget-redesign='1'] .r11-contract-phone small {
+    display: block;
+    color: var(--ink-2);
+    font-size: var(--fs-meta);
+  }
+}
+@media print {
+  [data-budget-redesign='1'] .r11-body .r8-body-disclosure > summary {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  [data-budget-redesign='1'] .r11-inflation-contrib {
+    display: none;
+  }
+}
+
+[data-budget-redesign='1'] .r11-contracts .sr-status {
+  white-space: normal;
+  max-width: 100%;
+}
+[data-budget-redesign='1'] .r11-contract-phone li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+[data-budget-redesign='1'] .r11-body .sr-hints strong {
+  overflow-wrap: anywhere;
+}
+[data-budget-redesign='1'] .r11-body .sr-note {
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
+}
+[data-budget-redesign='1'] .r11-costs .sr-state.is-good {
+  color: var(--ink-2);
+}
+
+[data-budget-redesign='1'] .r11-accuracy .accuracy-bars > .chart-interactive {
+  flex: 1 1 0;
+  min-width: 44px;
+}
+[data-budget-redesign='1'] .r11-accuracy .accuracy-bar-column {
+  min-width: 44px;
+}
+@media (max-width: 767px) {
+  [data-budget-redesign='1'] .r11-accuracy .accuracy-bars {
+    gap: 8px;
+  }
+  [data-budget-redesign='1'] .r11-accuracy .accuracy-bar-track {
+    height: 136px;
+  }
+  [data-budget-redesign='1'] .r11-accuracy .accuracy-bar-column > :is(span, strong) {
+    font-size: var(--fs-meta);
+  }
+}
+@media (max-width: 767px) {
+  [data-budget-redesign='1'] .r11-accuracy .accuracy-bar-column > strong {
+    font-size: var(--fs-chart-label);
+    white-space: nowrap;
+  }
+}

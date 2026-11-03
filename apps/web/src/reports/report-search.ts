@@ -34,6 +34,18 @@ export function normalizeHistoryPeriod(search: Record<string, unknown>): boolean
 }
 
 export const validateReportSearch = (search: Record<string, unknown>) => ({
+  ...(REDESIGN_ENABLED
+    ? {
+        inflationsansicht:
+          search['inflationsansicht'] === 'basket' || search['inflationsansicht'] === 'explorer'
+            ? (search['inflationsansicht'] as 'basket' | 'explorer')
+            : undefined,
+        warenkorb:
+          search['warenkorb'] === 'base' || search['warenkorb'] === 'year'
+            ? (search['warenkorb'] as 'base' | 'year')
+            : undefined,
+      }
+    : {}),
   ansicht: id(search['ansicht']),
   empfaenger: id(search['empfaenger']),
   projekt: id(search['projekt']),

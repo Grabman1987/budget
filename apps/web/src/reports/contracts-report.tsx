@@ -1,3 +1,8 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { ReportBodyDisclosure } from './report-body-disclosure';
+import { contractsCalculation } from './budget-cost-inflation-presentation';
+import { ContractsSummary } from './contracts-summary';
+import './budget-cost-inflation-redesign.css';
 import type { ReactNode } from 'react';
 import { chartPoints } from '../charts/tooltip-data';
 import {
@@ -60,6 +65,7 @@ export function ContractsReportPage({
   return (
     <PageFrame
       reportControls={viewControl}
+      calculation={data && !query.isError ? contractsCalculation(data) : undefined}
       verdict={
         data && !query.isError
           ? {
@@ -85,7 +91,7 @@ export function ContractsReportPage({
         value: data ? `${longDay(data.asOf)} · heute` : 'heute',
       }}
     >
-      <div className="kview sr" data-testid="contracts-report">
+      <div className="kview sr r11-body r11-contracts" data-testid="contracts-report">
         <ReportQuery query={query} what="Verträge und Abos">
           {(result) => <Body data={result} />}
         </ReportQuery>
@@ -120,279 +126,290 @@ function Body({ data }: { data: ContractsReport }) {
   const raiseTotal = raises.reduce((a, i) => a + (i.recentIncrease?.yearlyEffectCents ?? 0), 0);
   return (
     <>
-      <section className="sr-card" aria-labelledby="co-main">
-        <div className="sr-head">
-          <h2 id="co-main">Gebunden je Monat</h2>
-          {quote !== null && r10 ? (
-            <span className={`sr-status ${ok ? 'is-ok' : 'is-action'}`}>
-              {ok ? (
-                <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
-              ) : (
-                <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
-              )}
-              Fixkostenquote {bpText(quote)} · Ziel ≤ {bpText(r10.maxBp, { digits: 0 })} (R10)
-            </span>
-          ) : (
-            <span className="sr-state">Fixkostenquote ohne Einkommensbasis nicht berechenbar</span>
-          )}
-        </div>
-        <div className="sr-fig">
-          <span>Fixkosten plus periodische Zahlungen ÷ 12</span>
-          <strong data-testid="co-bound">{eur(data.boundMonthlyCents)}</strong>
-        </div>
-        <DimensionChain
-          label="Maßkette Verträge"
-          precision="cent"
-          terms={[
-            { label: 'Verträge je Monat', value: cents(data.fixedMonthlyCents) },
-            {
-              label: 'Periodische ÷ 12',
-              op: '+',
-              value: cents(data.boundMonthlyCents - data.fixedMonthlyCents),
-            },
-            { label: 'Gebunden', op: '=', value: cents(data.boundMonthlyCents), result: true },
-          ]}
-        />
-        {data.unconvertedCount > 0 && (
-          <p className="sr-note" role="status">
-            {data.unconvertedCount} Vertrag in Fremdwährung hat keinen gespeicherten Kurs und fehlt
-            in den Summen.
-          </p>
-        )}
-        <CostChart data={data} />
-        <LineLegend items={[{ kind: 'actual', label: 'Verträge je Monat' }]} />
-        <p className="sr-note">
-          Dreiecke markieren eine Preisänderung oder einen neuen Vertrag; die Einträge stehen unten
-          in der Vertragsliste.
-          {data.seriesPartial ? ' Monate ohne Wechselkurs lassen die Fremdwährung aus.' : ''}
-        </p>
-      </section>
-
-      <section className="sr-card" aria-labelledby="co-raise">
-        <div className="sr-head">
-          <h2 id="co-raise">Preis prüfen</h2>
-          {raises.length > 0 && raiseTotal > 0 && (
-            <span className="sr-state">
-              +{eur(raiseTotal, { cents: false })} im Jahr durch Erhöhungen
-            </span>
-          )}
-        </div>
-        {raises.length === 0 ? (
-          <p className="sr-empty" role="status">
-            In den letzten zwölf Monaten hat kein Vertrag seinen Preis erhöht.
-          </p>
-        ) : (
-          <ul className="sr-hints">
-            {raises.map((i) => (
-              <li key={i.id}>
-                <strong>{i.name}</strong>
-                <span>
-                  {bpText(i.recentIncrease?.changeBp ?? null, { sign: true })} seit{' '}
-                  {monthShort((i.recentIncrease?.from ?? '').slice(0, 7))}: Tarif vergleichen oder
-                  verhandeln
-                </span>
-                {i.recentIncrease?.yearlyEffectCents ? (
-                  <span className="sr-hint-val">
-                    {eur(i.recentIncrease.yearlyEffectCents, { cents: false, sign: true })}
-                    <small>im Jahr</small>
-                  </span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="sr-note">
-          Vorschläge entstehen aus den gespeicherten Preisversionen der wiederkehrenden Zahlungen.
-          Bindung und Kündigungsfrist sind im Hauptbuch noch nicht erfasst; ohne diese Angaben nennt
-          der Report keine Kündigungstermine.
-        </p>
-      </section>
-
-      <section className="sr-card sr-wide" aria-labelledby="co-list">
-        <div className="sr-head">
-          <h2 id="co-list">Alle Verträge und Abos</h2>
-          <span className="sr-state">
-            {data.items.length} Positionen · {eur(data.yearlyCents, { cents: false })} im Jahr
-          </span>
-        </div>
-        <ScrollRegion label="Alle Verträge, bei Bedarf horizontal verschiebbar">
-          <table className="sr-table sr-parts" data-testid="contracts-table">
-            <caption className="sr-only">
-              Verträge nach Gruppe mit Preis je Monat und Jahr, Beginn, Ende und letzter
-              Preisänderung
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Pos</th>
-                <th scope="col">Vertrag</th>
-                <th scope="col" className="n">
-                  je Monat
-                </th>
-                <th scope="col" className="n">
-                  je Jahr
-                </th>
-                <th scope="col">seit</th>
-                <th scope="col">Letzte Preisänderung</th>
-              </tr>
-            </thead>
-            {data.groups.map((group, gi) => {
-              const rows = data.items.filter((i) => i.groupName === group);
-              const monthly = rows.reduce((a, i) => a + (i.monthlyCents ?? 0), 0);
-              const yearly = rows.reduce((a, i) => a + (i.yearlyCents ?? 0), 0);
-              return (
-                <tbody key={group}>
-                  <tr className="sr-grp">
-                    <td>{gi + 1}</td>
-                    <th scope="rowgroup">{group}</th>
-                    <td className="n">
-                      <strong>{eur(monthly)}</strong>
-                    </td>
-                    <td className="n">{eur(yearly, { cents: false })}</td>
-                    <td colSpan={2} />
-                  </tr>
-                  {rows.map((i, n) => {
-                    const change = [...i.changes].reverse().find((c) => c.previousCents !== null);
-                    return (
-                      <tr key={i.id}>
-                        <td>
-                          {gi + 1}.{n + 1}
-                        </td>
-                        <th scope="row">
-                          <span className="sr-name">
-                            {i.class ? <ClassSwatch kind={i.class} /> : null}
-                            <span>{i.name}</span>
-                          </span>
-                          <small>
-                            {i.rhythm === 'weekly'
-                              ? rhythmText('weekly', i.intervalWeeks)
-                              : RHYTHM[i.rhythm]}
-                            {data.derivedContracts.includes(i.id)
-                              ? ' ? aus Buchungen abgeleitet'
-                              : ''}
-                            {i.binding === 'periodic' ? ' · periodisch, als Zwölftel' : ''}
-                          </small>
-                        </th>
-                        <td className="n">
-                          {i.currency !== 'EUR' ? (
-                            <>
-                              {nativeCurrency(i.nativeCents, i.currency)}
-                              <small>
-                                {i.monthlyCents === null ? 'Kurs fehlt' : eur(i.monthlyCents)}
-                              </small>
-                            </>
-                          ) : i.monthlyCents === null ? (
-                            '–'
-                          ) : (
-                            eur(i.monthlyCents)
-                          )}
-                        </td>
-                        <td className="n">
-                          {i.yearlyCents === null ? '–' : eur(i.yearlyCents, { cents: false })}
-                        </td>
-                        <td>{i.since ? monthShort(i.since.slice(0, 7)) : '–'}</td>
-                        <td>
-                          {change ? (
-                            <>
-                              {monthShort(change.from.slice(0, 7))}
-                              <small>
-                                {nativeCurrency(change.previousCents ?? 0, change.currency)} →{' '}
-                                {nativeCurrency(change.amountCents, change.currency)}
-                                {change.changeBp !== null
-                                  ? ` (${bpText(change.changeBp, { sign: true })})`
-                                  : ''}
-                              </small>
-                            </>
-                          ) : (
-                            <span className="muted">–</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              );
-            })}
-          </table>
-        </ScrollRegion>
-        <p className="sr-note">
-          Fixe Verträge zählen je Monat, periodische Zahlungen als Zwölftel; dieselbe Auswahl wie
-          die Fixkostenquote (R10), ohne befristete Einmalzahlungen. Beträge in Fremdwährung stehen
-          mit dem Originalbetrag und werden mit dem zuletzt gespeicherten Referenzkurs umgerechnet.{' '}
-          <AppLink to="/plan/erwartet">Wiederkehrende Zahlungen pflegen</AppLink>
-        </p>
-      </section>
-
-      {data.foreign.length > 0 && (
-        <section className="sr-card sr-wide" aria-labelledby="co-fx">
+      {REDESIGN_ENABLED && <ContractsSummary data={data} />}
+      <ReportBodyDisclosure id="contracts-history" label="Monatsbindung und Preisverlauf">
+        <section className="sr-card" aria-labelledby="co-main">
           <div className="sr-head">
-            <h2 id="co-fx">Fremdwährung</h2>
-            {data.foreignFrom && data.foreignTo && (
+            <h2 id="co-main">Gebunden je Monat</h2>
+            {quote !== null && r10 ? (
+              <span className={`sr-status ${ok ? 'is-ok' : 'is-action'}`}>
+                {ok ? (
+                  <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
+                ) : (
+                  <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
+                )}
+                Fixkostenquote {bpText(quote)} · Ziel ≤ {bpText(r10.maxBp, { digits: 0 })} (R10)
+              </span>
+            ) : (
               <span className="sr-state">
-                {longDay(data.foreignFrom)} bis {longDay(data.foreignTo)}
+                Fixkostenquote ohne Einkommensbasis nicht berechenbar
               </span>
             )}
           </div>
-          <ScrollRegion label="Verträge in Fremdwährung, bei Bedarf horizontal verschiebbar">
-            <table className="sr-table" data-testid="foreign-table">
+          <div className="sr-fig">
+            <span>Fixkosten plus periodische Zahlungen ÷ 12</span>
+            <strong data-testid="co-bound">{eur(data.boundMonthlyCents)}</strong>
+          </div>
+          <DimensionChain
+            label="Maßkette Verträge"
+            precision="cent"
+            terms={[
+              { label: 'Verträge je Monat', value: cents(data.fixedMonthlyCents) },
+              {
+                label: 'Periodische ÷ 12',
+                op: '+',
+                value: cents(data.boundMonthlyCents - data.fixedMonthlyCents),
+              },
+              { label: 'Gebunden', op: '=', value: cents(data.boundMonthlyCents), result: true },
+            ]}
+          />
+          {data.unconvertedCount > 0 && (
+            <p className="sr-note" role="status">
+              {data.unconvertedCount} Vertrag in Fremdwährung hat keinen gespeicherten Kurs und
+              fehlt in den Summen.
+            </p>
+          )}
+          <CostChart data={data} />
+          <LineLegend items={[{ kind: 'actual', label: 'Verträge je Monat' }]} />
+          <p className="sr-note">
+            Dreiecke markieren eine Preisänderung oder einen neuen Vertrag; die Einträge stehen
+            unten in der Vertragsliste.
+            {data.seriesPartial ? ' Monate ohne Wechselkurs lassen die Fremdwährung aus.' : ''}
+          </p>
+        </section>
+      </ReportBodyDisclosure>
+
+      <ReportBodyDisclosure id="contracts-increases" label="Preisänderungen prüfen">
+        <section className="sr-card" aria-labelledby="co-raise">
+          <div className="sr-head">
+            <h2 id="co-raise">Preis prüfen</h2>
+            {raises.length > 0 && raiseTotal > 0 && (
+              <span className="sr-state">
+                +{eur(raiseTotal, { cents: false })} im Jahr durch Erhöhungen
+              </span>
+            )}
+          </div>
+          {raises.length === 0 ? (
+            <p className="sr-empty" role="status">
+              In den letzten zwölf Monaten hat kein Vertrag seinen Preis erhöht.
+            </p>
+          ) : (
+            <ul className="sr-hints">
+              {raises.map((i) => (
+                <li key={i.id}>
+                  <strong>{i.name}</strong>
+                  <span>
+                    {bpText(i.recentIncrease?.changeBp ?? null, { sign: true })} seit{' '}
+                    {monthShort((i.recentIncrease?.from ?? '').slice(0, 7))}: Tarif vergleichen oder
+                    verhandeln
+                  </span>
+                  {i.recentIncrease?.yearlyEffectCents ? (
+                    <span className="sr-hint-val">
+                      {eur(i.recentIncrease.yearlyEffectCents, { cents: false, sign: true })}
+                      <small>im Jahr</small>
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="sr-note">
+            Vorschläge entstehen aus den gespeicherten Preisversionen der wiederkehrenden Zahlungen.
+            Bindung und Kündigungsfrist sind im Hauptbuch noch nicht erfasst; ohne diese Angaben
+            nennt der Report keine Kündigungstermine.
+          </p>
+        </section>
+      </ReportBodyDisclosure>
+
+      <ReportBodyDisclosure id="contracts-list" label="Verträge und Preisgeschichte im Detail">
+        <section className="sr-card sr-wide" aria-labelledby="co-list">
+          <div className="sr-head">
+            <h2 id="co-list">Alle Verträge und Abos</h2>
+            <span className="sr-state">
+              {data.items.length} Positionen · {eur(data.yearlyCents, { cents: false })} im Jahr
+            </span>
+          </div>
+          <ScrollRegion label="Alle Verträge, bei Bedarf horizontal verschiebbar">
+            <table className="sr-table sr-parts" data-testid="contracts-table">
               <caption className="sr-only">
-                Preis in Originalwährung, Wert in Euro, bezahlte Euro und Durchschnittskurs
+                Verträge nach Gruppe mit Preis je Monat und Jahr, Beginn, Ende und letzter
+                Preisänderung
               </caption>
               <thead>
                 <tr>
-                  <th scope="col">Abo</th>
+                  <th scope="col">Pos</th>
+                  <th scope="col">Vertrag</th>
                   <th scope="col" className="n">
-                    Preis
+                    je Monat
                   </th>
                   <th scope="col" className="n">
-                    in EUR heute
+                    je Jahr
                   </th>
-                  <th scope="col" className="n">
-                    12 Monate bezahlt
-                  </th>
-                  <th scope="col" className="n">
-                    Ø Kurs
-                  </th>
-                  <th scope="col" className="n">
-                    Bankgebühr
-                  </th>
+                  <th scope="col">seit</th>
+                  <th scope="col">Letzte Preisänderung</th>
                 </tr>
               </thead>
-              <tbody>
-                {data.foreign.map((f) => (
-                  <tr key={f.id}>
-                    <th scope="row">{f.name}</th>
-                    <td className="n">{nativeCurrency(f.nativeCents, f.currency)}</td>
-                    <td className="n">
-                      {f.eurCents === null ? 'Kurs fehlt' : eur(f.eurCents)}
-                      <small>{rateText(f.rateMicro, f.currency)}</small>
-                    </td>
-                    <td className="n">
-                      {f.paymentCount ? eur(f.paidEurCents) : '–'}
-                      {f.paymentCount ? (
-                        <small>
-                          {nativeCurrency(f.paidNativeCents, f.currency)} · {f.paymentCount}{' '}
-                          Zahlungen
-                        </small>
-                      ) : null}
-                    </td>
-                    <td className="n">{rateText(f.averageRateMicro, f.currency)}</td>
-                    <td className="n">{f.paymentCount ? eur(f.feeCents) : '–'}</td>
-                  </tr>
-                ))}
-              </tbody>
+              {data.groups.map((group, gi) => {
+                const rows = data.items.filter((i) => i.groupName === group);
+                const monthly = rows.reduce((a, i) => a + (i.monthlyCents ?? 0), 0);
+                const yearly = rows.reduce((a, i) => a + (i.yearlyCents ?? 0), 0);
+                return (
+                  <tbody key={group}>
+                    <tr className="sr-grp">
+                      <td>{gi + 1}</td>
+                      <th scope="rowgroup">{group}</th>
+                      <td className="n">
+                        <strong>{eur(monthly)}</strong>
+                      </td>
+                      <td className="n">{eur(yearly, { cents: false })}</td>
+                      <td colSpan={2} />
+                    </tr>
+                    {rows.map((i, n) => {
+                      const change = [...i.changes].reverse().find((c) => c.previousCents !== null);
+                      return (
+                        <tr key={i.id}>
+                          <td>
+                            {gi + 1}.{n + 1}
+                          </td>
+                          <th scope="row">
+                            <span className="sr-name">
+                              {i.class ? <ClassSwatch kind={i.class} /> : null}
+                              <span>{i.name}</span>
+                            </span>
+                            <small>
+                              {i.rhythm === 'weekly'
+                                ? rhythmText('weekly', i.intervalWeeks)
+                                : RHYTHM[i.rhythm]}
+                              {data.derivedContracts.includes(i.id)
+                                ? ' ? aus Buchungen abgeleitet'
+                                : ''}
+                              {i.binding === 'periodic' ? ' · periodisch, als Zwölftel' : ''}
+                            </small>
+                          </th>
+                          <td className="n">
+                            {i.currency !== 'EUR' ? (
+                              <>
+                                {nativeCurrency(i.nativeCents, i.currency)}
+                                <small>
+                                  {i.monthlyCents === null ? 'Kurs fehlt' : eur(i.monthlyCents)}
+                                </small>
+                              </>
+                            ) : i.monthlyCents === null ? (
+                              '–'
+                            ) : (
+                              eur(i.monthlyCents)
+                            )}
+                          </td>
+                          <td className="n">
+                            {i.yearlyCents === null ? '–' : eur(i.yearlyCents, { cents: false })}
+                          </td>
+                          <td>{i.since ? monthShort(i.since.slice(0, 7)) : '–'}</td>
+                          <td>
+                            {change ? (
+                              <>
+                                {monthShort(change.from.slice(0, 7))}
+                                <small>
+                                  {nativeCurrency(change.previousCents ?? 0, change.currency)} →{' '}
+                                  {nativeCurrency(change.amountCents, change.currency)}
+                                  {change.changeBp !== null
+                                    ? ` (${bpText(change.changeBp, { sign: true })})`
+                                    : ''}
+                                </small>
+                              </>
+                            ) : (
+                              <span className="muted">–</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                );
+              })}
             </table>
           </ScrollRegion>
           <p className="sr-note">
-            So rechnet die App: Jede Buchung behält Originalbetrag und Währung. In Euro umgerechnet
-            wird mit dem EZB-Referenzkurs des Buchungstags; weicht die Bank ab, gilt der Bankbetrag
-            und die Differenz läuft als Fremdwährungsgebühr in 2.6. Die Spalte „in EUR heute“
-            rechnet den Vertragspreis mit dem letzten gespeicherten Kurs; ein schwächerer Euro
-            verteuert das Abo, ohne dass sich der Preis ändert.
-            {data.foreign.some((f) => f.skippedSplitPayments > 0)
-              ? ' Aufgeteilte Zahlungen sind keinem Vertrag zugeordnet und fehlen hier.'
-              : ''}
+            Fixe Verträge zählen je Monat, periodische Zahlungen als Zwölftel; dieselbe Auswahl wie
+            die Fixkostenquote (R10), ohne befristete Einmalzahlungen. Beträge in Fremdwährung
+            stehen mit dem Originalbetrag und werden mit dem zuletzt gespeicherten Referenzkurs
+            umgerechnet. <AppLink to="/plan/erwartet">Wiederkehrende Zahlungen pflegen</AppLink>
           </p>
         </section>
+      </ReportBodyDisclosure>
+
+      {data.foreign.length > 0 && (
+        <ReportBodyDisclosure id="contracts-fx" label="Fremdwährungen · Kurse und Zahlungen">
+          <section className="sr-card sr-wide" aria-labelledby="co-fx">
+            <div className="sr-head">
+              <h2 id="co-fx">Fremdwährung</h2>
+              {data.foreignFrom && data.foreignTo && (
+                <span className="sr-state">
+                  {longDay(data.foreignFrom)} bis {longDay(data.foreignTo)}
+                </span>
+              )}
+            </div>
+            <ScrollRegion label="Verträge in Fremdwährung, bei Bedarf horizontal verschiebbar">
+              <table className="sr-table" data-testid="foreign-table">
+                <caption className="sr-only">
+                  Preis in Originalwährung, Wert in Euro, bezahlte Euro und Durchschnittskurs
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Abo</th>
+                    <th scope="col" className="n">
+                      Preis
+                    </th>
+                    <th scope="col" className="n">
+                      in EUR heute
+                    </th>
+                    <th scope="col" className="n">
+                      12 Monate bezahlt
+                    </th>
+                    <th scope="col" className="n">
+                      Ø Kurs
+                    </th>
+                    <th scope="col" className="n">
+                      Bankgebühr
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.foreign.map((f) => (
+                    <tr key={f.id}>
+                      <th scope="row">{f.name}</th>
+                      <td className="n">{nativeCurrency(f.nativeCents, f.currency)}</td>
+                      <td className="n">
+                        {f.eurCents === null ? 'Kurs fehlt' : eur(f.eurCents)}
+                        <small>{rateText(f.rateMicro, f.currency)}</small>
+                      </td>
+                      <td className="n">
+                        {f.paymentCount ? eur(f.paidEurCents) : '–'}
+                        {f.paymentCount ? (
+                          <small>
+                            {nativeCurrency(f.paidNativeCents, f.currency)} · {f.paymentCount}{' '}
+                            Zahlungen
+                          </small>
+                        ) : null}
+                      </td>
+                      <td className="n">{rateText(f.averageRateMicro, f.currency)}</td>
+                      <td className="n">{f.paymentCount ? eur(f.feeCents) : '–'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </ScrollRegion>
+            <p className="sr-note">
+              So rechnet die App: Jede Buchung behält Originalbetrag und Währung. In Euro
+              umgerechnet wird mit dem EZB-Referenzkurs des Buchungstags; weicht die Bank ab, gilt
+              der Bankbetrag und die Differenz läuft als Fremdwährungsgebühr in 2.6. Die Spalte „in
+              EUR heute“ rechnet den Vertragspreis mit dem letzten gespeicherten Kurs; ein
+              schwächerer Euro verteuert das Abo, ohne dass sich der Preis ändert.
+              {data.foreign.some((f) => f.skippedSplitPayments > 0)
+                ? ' Aufgeteilte Zahlungen sind keinem Vertrag zugeordnet und fehlen hier.'
+                : ''}
+            </p>
+          </section>
+        </ReportBodyDisclosure>
       )}
     </>
   );
@@ -434,6 +451,7 @@ function CostChart({ data }: { data: ContractsReport }) {
   return (
     <ScrollRegion label="Diagramm, bei Bedarf horizontal verschiebbar" className="sr-chart">
       <ChartSvg
+        table={REDESIGN_ENABLED}
         width={W}
         height={H}
         label={`Verträge je Monat seit ${monthShort(points[0]!.month)}: von ${eur(values[0]!, { cents: false })} auf ${eur(last.fixedMonthlyCents, { cents: false })}. ${data.markers.length} Monate mit Preisänderung oder neuem Vertrag.`}

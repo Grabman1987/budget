@@ -282,13 +282,15 @@ const probes = {
     id(p, (await redesignReportsOn(p)) ? 'r5-month-saved' : 'onepager-saved'), // The real monthly reader in either presentation, never the unrelated rg-all table.
   // The hub opens the current (September) month, whose sample payslip is intentionally absent.
   // Its loaded historical payment rows still prove the real report; August's primary body is checked below.
-  payroll: (p: Page) =>
-    expect(
+  payroll: async (p: Page) => {
+    await openR8BodyDetails(p);
+    await expect(
       p
         .getByRole('region', { name: 'Auszahlungen nach Kalenderjahr', exact: true })
         .locator('tbody tr')
         .first(),
-    ).toBeVisible(),
+    ).toBeVisible();
+  },
   payrollHistory,
   sources: (p: Page) => css(p, '[data-testid="income-expense-sources"] .report-source-link'),
   settingsIndex: (p: Page) => css(p, '.settings-nav-index .settings-item-label'),
@@ -343,9 +345,12 @@ const probes = {
     await css(p, '[data-testid="projects-report"] .pp-project');
   },
   payees: (p: Page) => id(p, 'payee-total'),
-  accuracy: (p: Page) =>
-    css(p, '[data-testid="planning-accuracy"] section[aria-label="Trefferquote"]'),
-  bankCosts: (p: Page) => id(p, 'bc-total'),
+  accuracy: async (p: Page) =>
+    (await redesignReportsOn(p))
+      ? css(p, '#accuracy-months')
+      : css(p, '[data-testid="planning-accuracy"] section[aria-label="Trefferquote"]'),
+  bankCosts: async (p: Page) =>
+    (await redesignReportsOn(p)) ? css(p, '[data-testid="bank-costs-chart"]') : id(p, 'bc-total'),
   wealthHistory: (p: Page) => id(p, 'wh-figure'),
   whole: (p: Page) => css(p, '[data-testid="whole-table"] tbody tr'),
   contributions: (p: Page) => id(p, 'contributions-end-value'),
@@ -363,9 +368,12 @@ const probes = {
     await id(p, 'savings-rate');
     await id(p, 'money-age');
   },
-  adherence: (p: Page) => id(p, 'ba-over'),
-  contracts: (p: Page) => id(p, 'co-bound'),
-  inflation: (p: Page) => id(p, 'pi-rate'),
+  adherence: async (p: Page) =>
+    (await redesignReportsOn(p)) ? css(p, '.r11-budget-total') : id(p, 'ba-over'),
+  contracts: async (p: Page) =>
+    (await redesignReportsOn(p)) ? css(p, '.r11-contract-summary') : id(p, 'co-bound'),
+  inflation: async (p: Page) =>
+    (await redesignReportsOn(p)) ? css(p, '[data-testid="inflation-chart"]') : id(p, 'pi-rate'),
   assetsDebts: (p: Page) => id(p, 'ad-net'),
   depots: (p: Page) =>
     expect(p.getByTestId('depot-total').getByTestId('depot-value')).toBeVisible(),
@@ -548,15 +556,30 @@ for (const [slug, legacyPath, legacyIntent, view, legacyBody] of reportAliases)
       if (view) {
         if (
           (await redesignReportsOn(page)) &&
-          (path === '/reports/einnahmen-ausgaben' || path === '/reports/ausgaben')
+          [
+            '/reports/einnahmen-ausgaben',
+            '/reports/ausgaben',
+            '/reports/budgettreue',
+            '/reports/abos',
+          ].includes(path)
         ) {
           const label =
-            path === '/reports/ausgaben'
-              ? 'Ansicht der Ausgabenanalyse'
-              : 'Ansicht von Einnahmen und Cashflow';
+            path === '/reports/budgettreue'
+              ? 'Ansicht der Budgettreue'
+              : path === '/reports/abos'
+                ? 'Ansicht von Verträgen und Kosten'
+                : path === '/reports/ausgaben'
+                  ? 'Ansicht der Ausgabenanalyse'
+                  : 'Ansicht von Einnahmen und Cashflow';
           await expect(
             page.getByRole('combobox', { name: label, exact: true }).locator('option:checked'),
-          ).toHaveText(view);
+          ).toHaveText(
+            view === 'Planungstreue'
+              ? 'Prognosegenauigkeit'
+              : view === 'Plan und Ist'
+                ? 'Budgettreue'
+                : view,
+          );
         } else if (['/reports/pallocation', '/reports/vermoegen-schulden'].includes(path)) {
           await expectWealthReportView(page, view);
         } else {

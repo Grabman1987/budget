@@ -1,3 +1,7 @@
+import {
+  retainBudgetCostInflationReaders,
+  chooseBudgetCostInflationView,
+} from './budget-cost-inflation-controls';
 import { revealReportDetail } from './report-frame';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
@@ -153,7 +157,7 @@ test('Budgettreue retains exact plan and stored forecast bodies, quality, month 
     /\/reports\/budgettreue\?/,
   );
   await inspect(page, info, 'planning');
-  await page.getByRole('button', { name: 'Plan und Ist', exact: true }).click();
+  await chooseBudgetCostInflationView(page, 'Ansicht der Budgettreue', 'budget', 'Plan und Ist');
   await expect(page.getByTestId('budget-adherence')).toHaveText(budget, { useInnerText: true });
   const query = new URL(page.url()).searchParams;
   for (const [key, value] of Object.entries({
@@ -183,7 +187,12 @@ test('Budgettreue retains exact plan and stored forecast bodies, quality, month 
   const budgetVerdict = await page.getByTestId('report-verdict').innerText();
   await privacy(page, true);
   await masked(page, 'budget-adherence', /300[,.]01/, budgetVerdict);
-  await page.getByRole('button', { name: 'Planungstreue', exact: true }).click();
+  await chooseBudgetCostInflationView(
+    page,
+    'Ansicht der Budgettreue',
+    'planungstreue',
+    'Planungstreue',
+  );
   await masked(page, 'planning-accuracy', /300[,.]0[01]/, verdict);
   await privacy(page, false);
   await expect(page.getByTestId('planning-accuracy')).toHaveText(forecast, { useInnerText: true });
@@ -191,7 +200,7 @@ test('Budgettreue retains exact plan and stored forecast bodies, quality, month 
   await expect(page.getByTestId('planning-accuracy')).toContainText('300,00 €');
   await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
-  await page.getByRole('button', { name: 'Plan und Ist', exact: true }).click();
+  await chooseBudgetCostInflationView(page, 'Ansicht der Budgettreue', 'budget', 'Plan und Ist');
   await expect(page.getByTestId('budget-adherence')).toHaveText(budget, { useInnerText: true });
   await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toHaveText(budgetVerdict, {
@@ -253,7 +262,12 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
   await inspect(page, info, 'bank-costs');
   await page.reload();
   await expect(page.getByTestId('bank-costs-report')).toHaveText(bankBody, { useInnerText: true });
-  await page.getByRole('button', { name: 'Verträge', exact: true }).click();
+  await chooseBudgetCostInflationView(
+    page,
+    'Ansicht von Verträgen und Kosten',
+    'vertraege',
+    'Verträge',
+  );
   await expect(page.getByTestId('contracts-report')).toHaveText(contractBody, {
     useInnerText: true,
   });
@@ -277,10 +291,20 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
   await privacy(page, true);
   await expect(page.getByTestId('bc-total')).toHaveText('••• €');
   await masked(page, 'bank-costs-report', /6[,.]91/, verdict);
-  await page.getByRole('button', { name: 'Verträge', exact: true }).click();
+  await chooseBudgetCostInflationView(
+    page,
+    'Ansicht von Verträgen und Kosten',
+    'vertraege',
+    'Verträge',
+  );
   // This fixture has no contracts; only the bank reader's known money is asserted for privacy.
   await expect(page.getByTestId('contracts-report')).toContainText('Noch keine Verträge');
-  await page.getByRole('button', { name: 'Bank- und Zinskosten', exact: true }).click();
+  await chooseBudgetCostInflationView(
+    page,
+    'Ansicht von Verträgen und Kosten',
+    'bankkosten',
+    'Bank- und Zinskosten',
+  );
   await expect(page.getByTestId('bc-total')).toHaveText('••• €');
   await masked(page, 'bank-costs-report', /6[,.]91/, verdict);
   await privacy(page, false);
@@ -289,3 +313,5 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
   await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
 });
+
+test.beforeEach(async ({ page }) => retainBudgetCostInflationReaders(page));
