@@ -280,3 +280,10 @@
   text-align: end;
   font-family: var(--font-tech);
 }
+
+@media (max-width: 767px) {
+  /* Native scrolling must account for the fixed phone navigation and capture action. */
+  .account-detail-redesign .account-documents-redesign :is(button, a, input) {
+    scroll-margin-block: 64px calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 16px);
+  }
+}
