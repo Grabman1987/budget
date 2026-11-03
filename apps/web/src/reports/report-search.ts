@@ -1,4 +1,4 @@
-import { isMonth } from '../nav/month';
+import { isMonth, monthOf } from '../nav/month';
 import { isExplorerTemplate } from '@budget/domain';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
@@ -16,6 +16,22 @@ const ids = (value: unknown) =>
   Array.isArray(value) && value.length <= 500
     ? value.filter((value): value is string => id(value) !== undefined)
     : undefined;
+
+/** Retain the original monthly section bookmarks when the default summary is active. */
+export function isPaperPresentation(view: unknown, hash: string): boolean {
+  return REDESIGN_ENABLED && (view === 'druckblatt' || /^ps-[a-g]$/.test(hash));
+}
+
+/** Same historical-month period as the existing reader, before it can replace a heading hash. */
+export function normalizeHistoryPeriod(search: Record<string, unknown>): boolean {
+  return (
+    REDESIGN_ENABLED &&
+    search['darstellung'] === 'finanzcheck' &&
+    isMonth(search['monat']) &&
+    search['monat'] !== monthOf(new Date()) &&
+    search['period'] !== 'month'
+  );
+}
 
 export const validateReportSearch = (search: Record<string, unknown>) => ({
   ansicht: id(search['ansicht']),
@@ -44,7 +60,7 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
     'planungstreue',
     'vertraege',
     'bankkosten',
-    ...(REDESIGN_ENABLED ? ['finanzcheck'] : []),
+    ...(REDESIGN_ENABLED ? ['finanzcheck', 'druckblatt'] : []),
   ].includes(search['darstellung'] as string)
     ? (search['darstellung'] as
         | 'income'
@@ -63,7 +79,8 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
         | 'planungstreue'
         | 'vertraege'
         | 'bankkosten'
-        | 'finanzcheck')
+        | 'finanzcheck'
+        | 'druckblatt')
     : undefined,
   vorlage: isExplorerTemplate(search['vorlage']) ? search['vorlage'] : undefined,
   exakt: search['exakt'] === true || search['exakt'] === 'true' ? true : undefined,

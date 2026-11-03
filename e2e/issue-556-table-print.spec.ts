@@ -1,3 +1,4 @@
+import { openPaperView, redesignReportsOn } from './report-frame';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
 
@@ -65,8 +66,11 @@ for (const report of reports) {
           requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
         ),
     );
-    // The first document h1 is the hidden mobile shell title, not the printed report.
-    await expect(page.locator('.titleblock .report-heading h1')).toBeVisible();
+    // Inspect the actual printed identity in the rendered build.
+    const printedHeading = (await redesignReportsOn(page))
+      ? '.redesign-report-title h1'
+      : '.titleblock .report-heading h1';
+    await expect(page.locator(printedHeading)).toBeVisible();
     const expectedPalette = await page.evaluate(() => {
       const root = getComputedStyle(document.documentElement);
       const rgb = (token: string) => {
@@ -81,19 +85,24 @@ for (const report of reports) {
     });
     await expect
       .poll(() =>
-        page.evaluate(() => ({
-          paper: getComputedStyle(document.body).backgroundColor,
-          body: getComputedStyle(document.body).color,
-          heading: getComputedStyle(document.querySelector('.titleblock .report-heading h1')!)
-            .color,
-        })),
+        page.evaluate(
+          (heading) => ({
+            paper: getComputedStyle(document.body).backgroundColor,
+            body: getComputedStyle(document.body).color,
+            heading: getComputedStyle(document.querySelector(heading)!).color,
+          }),
+          printedHeading,
+        ),
       )
       .toEqual(expectedPalette);
-    const printInk = await page.evaluate(() => ({
-      token: getComputedStyle(document.documentElement).getPropertyValue('--ink'),
-      body: getComputedStyle(document.body).color,
-      heading: getComputedStyle(document.querySelector('.titleblock .report-heading h1')!).color,
-    }));
+    const printInk = await page.evaluate(
+      (heading) => ({
+        token: getComputedStyle(document.documentElement).getPropertyValue('--ink'),
+        body: getComputedStyle(document.body).color,
+        heading: getComputedStyle(document.querySelector(heading)!).color,
+      }),
+      printedHeading,
+    );
     // Cells can legitimately use muted/percentage/delta roles. Strict Axe covers
     // all visible printed values instead of assuming a generic first td uses --ink.
     expect(
@@ -242,6 +251,7 @@ test('the specialized One-Pager and Jahresreport keep their portrait page contra
     ['/reports/jahresreport', '.ov-sheet'],
   ]) {
     await page.goto(path!);
+    await openPaperView(page);
     await expect(page.locator(sheet!).first()).toBeVisible();
     await expect(page.locator('.report-table-print')).toHaveCount(0);
     await page.emulateMedia({ media: 'print' });

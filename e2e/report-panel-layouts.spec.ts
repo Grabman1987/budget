@@ -1,5 +1,6 @@
 import { expect, sampleTest as test } from './sample';
 import { inspectReport } from './spending-helpers';
+import { redesignReportsOn } from './report-frame';
 
 test('secondary report sections follow their main content at full width', async ({
   page,
@@ -27,6 +28,10 @@ test('secondary report sections follow their main content at full width', async 
   ];
   for (const item of cases) {
     await page.goto(item.path);
+    if (item.name === 'overview-inline' && (await redesignReportsOn(page))) {
+      item.main = '[aria-labelledby="r07-title"]';
+      item.secondary = '[aria-labelledby="fc-stage"]';
+    }
     if (item.name === 'future-inline') await page.locator('details.rf-tools > summary').click();
     const main = page.locator(item.main);
     const secondary = page.locator(item.secondary);

@@ -1,4 +1,5 @@
 import { inboxFilters } from './ledger-helpers';
+import { redesignReportsOn, revealComparisonDetail } from './report-frame';
 // A2 positive browser bodies, using the real sample ledger and isolated import-detail fixture.
 // Expected patterns: approved 00-bestand rows 1..54; bodies: s3-a2-body-bindings-20261031.md.
 // Run each owned OFF/ON artifact separately with A2_EXPECT_REDESIGN=0/1; this never activates a flag.
@@ -232,7 +233,8 @@ const probes = {
   freedom: (p: Page) => id(p, 'freedom-chart'),
   hub: (p: Page) => expect(p.locator('.report-hub-list > li')).toHaveCount(16),
   reportGroup: (p: Page) => css(p, '.report-hub-list a[href="/reports/einnahmen-ausgaben"]'),
-  onepager: (p: Page) => id(p, 'onepager-saved'), // Actual OnePagerSheet, not the unrelated rg-all table.
+  onepager: async (p: Page) =>
+    id(p, (await redesignReportsOn(p)) ? 'r5-month-saved' : 'onepager-saved'), // The real monthly reader in either presentation, never the unrelated rg-all table.
   // The hub opens the current (September) month, whose sample payslip is intentionally absent.
   // Its loaded historical payment rows still prove the real report; August's primary body is checked below.
   payroll: (p: Page) =>
@@ -321,8 +323,12 @@ const probes = {
   portfolioReport: (p: Page) => id(p, 'sunburst-classes'),
   costs: (p: Page) => id(p, 'costs-net'),
   explorer: (p: Page) => css(p, '[data-testid="ex-table"] tbody tr'),
-  compare: (p: Page) => id(p, 'vg-consumption'),
-  yearReport: (p: Page) => id(p, 'yr-income'),
+  compare: async (p: Page) => {
+    await revealComparisonDetail(p);
+    await id(p, 'vg-consumption');
+  },
+  yearReport: async (p: Page) =>
+    id(p, (await redesignReportsOn(p)) ? 'r5-year-income' : 'yr-income'),
   finanzcheck: (p: Page) => css(p, '.finanzcheck-report .fc-table tr[data-rule="R07"] .ov-cell'),
 };
 type Body = keyof typeof probes;

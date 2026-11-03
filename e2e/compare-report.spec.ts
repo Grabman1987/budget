@@ -1,4 +1,4 @@
-import { redesignReportsOn } from './report-frame';
+import { redesignReportsOn, revealComparisonDetail } from './report-frame';
 import { cents, formatEuro } from '@budget/domain';
 import { expect as baseExpect, sampleTest as test } from './sample';
 import { inspectReport } from './overview-report';
@@ -30,6 +30,7 @@ test('Zeitraumvergleich shows the figures of the endpoint and switches the mode'
   expect(comparison.current).toEqual(['2026-08']);
   expect(comparison.previous).toEqual(['2025-08']);
 
+  await revealComparisonDetail(page);
   await expect(page.getByRole('heading', { name: 'August 2026 gegen August 2025' })).toBeVisible();
   await expect(page.getByTestId('vg-consumption')).toHaveText(
     whole(comparison.currentTotals.consumptionCents),
@@ -41,6 +42,13 @@ test('Zeitraumvergleich shows the figures of the endpoint and switches the mode'
   await expect(page.getByTestId('vg-capital')).toHaveText(
     whole(comparison.currentTotals.capitalCents),
   );
+  if ((await redesignReportsOn(page)) && comparison.rows.length > 4)
+    await page
+      .getByRole('button', {
+        name: `Alle ${comparison.rows.length} Kategorien anzeigen`,
+        exact: true,
+      })
+      .click();
   await expect(page.locator('.dv li')).toHaveCount(comparison.rows.length);
   const moreBar = page.locator('.dv-track i.is-more').first();
   await expect(moreBar).toBeVisible();
@@ -72,6 +80,7 @@ test('Zeitraumvergleich shows the figures of the endpoint and switches the mode'
       page.getByRole('button', { name: 'Jahr bis heute gegen Vorjahr' }),
     ).toHaveAttribute('aria-pressed', 'true');
   }
+  await revealComparisonDetail(page);
   await expect(
     page.getByRole('heading', { name: 'Jän 26 bis Aug 26 gegen Jän 25 bis Aug 25' }),
   ).toBeVisible();

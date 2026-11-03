@@ -63,7 +63,11 @@ import type { PageTitleData } from './shell/page-meta';
 import { isMonth } from './nav/month';
 import { isZeitraum } from './wealth/zeitraum';
 import { isPanelId, type PanelId } from './shell/panels';
-import { FINANZCHECK_HEADING_HASHES, validateReportSearch } from './reports/report-search';
+import {
+  FINANZCHECK_HEADING_HASHES,
+  validateReportSearch,
+  normalizeHistoryPeriod,
+} from './reports/report-search';
 import { validateLiquiditySearch } from './reports/liquidity-selection';
 
 // Route-level code splitting: everything except the shell and the generic placeholder page is
@@ -779,6 +783,15 @@ const reportRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/reports/$reportId',
   validateSearch: validateReportSearch,
+  beforeLoad: ({ params, search, location }) => {
+    if (params.reportId === 'onepager' && normalizeHistoryPeriod(search))
+      throw redirect({
+        to: '/reports/onepager',
+        search: { ...search, period: 'month' },
+        hash: location.hash,
+        replace: true,
+      });
+  },
   staticData: { meta: { ...REPORTS_CATALOG, title: 'Report', register: 'katalog' } },
   loaderDeps: ({ search }) => ({
     finanzcheck: REDESIGN_ENABLED && search.darstellung === 'finanzcheck',

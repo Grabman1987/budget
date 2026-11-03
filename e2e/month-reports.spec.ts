@@ -1,3 +1,4 @@
+import { openPaperView } from './report-frame';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, type TestInfo } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -310,6 +311,7 @@ sampleTest('Monats-One-Pager: the sheet shows the figures of the API', async ({ 
     check: { ok: number; total: number };
     netWorth: { cents: number };
   };
+  await openPaperView(page);
   const sheet = page.getByRole('article', { name: 'Monats-One-Pager August 2026' });
   await expect(sheet).toBeVisible();
   expect(flat(await page.getByTestId('onepager-saved').textContent())).toBe(
@@ -343,6 +345,7 @@ sampleTest(
     const loaded = page.waitForResponse(isOnePager('2026-09'));
     await page.goto('/reports/onepager');
     expect((await loaded).status()).toBe(200);
+    await openPaperView(page);
     await expect(page.locator('.ps-head small')).toHaveText('laufend');
     // A rate of a month that has just begun is meaningless: it waits for the month end.
     await expect(page.getByTestId('onepager-rate')).toHaveText('Sparquote nach Monatsende');
@@ -379,6 +382,7 @@ sampleTest(
     const loaded = page.waitForResponse(isOnePager('2026-08'));
     await page.goto('/reports/onepager?monat=2026-08');
     await loaded;
+    await openPaperView(page);
     await expect(page.getByRole('article', { name: /Monats-One-Pager/ })).toBeVisible({
       timeout: 20_000,
     });
@@ -430,6 +434,7 @@ sampleTest(
       'Wertpapierkurs fehlt',
     );
     await expect(page.getByTestId('onepager-networth')).toHaveCount(0);
+    await openPaperView(page);
     await expect(page.getByTestId('onepager-saved')).toBeVisible();
     await page.unroute('**/api/reports/month/onepager*');
 

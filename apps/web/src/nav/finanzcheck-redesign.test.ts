@@ -81,3 +81,21 @@ it.each([
     expect(restoration({ location: router.state.location })).toBe(expected);
   },
 );
+
+it('ON normalizes a historical finance period before rendering and retains the bookmarked heading', async () => {
+  const router = createRouter({
+    routeTree: appRouter.routeTree,
+    history: createMemoryHistory({
+      initialEntries: ['/reports/finanzcheck?monat=2000-01#fc-matrix'],
+    }),
+  });
+  await router.load();
+  expect(router.state.location.pathname).toBe('/reports/onepager');
+  expect(router.state.location.hash).toBe('fc-matrix');
+  expect(router.state.location.search.period).toBe('month');
+  expect(router.state.matches.at(-1)?.search).toMatchObject({
+    darstellung: 'finanzcheck',
+    monat: '2000-01',
+    period: 'month',
+  });
+});

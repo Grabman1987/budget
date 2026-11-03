@@ -1,3 +1,4 @@
+import { redesignReportsOn } from './report-frame';
 import { expect, sampleTest as test } from './sample';
 
 // Literal owner #487 mapping; these expectations do not read the router's alias table.
@@ -45,7 +46,10 @@ for (const [slug, target, view] of landings) {
     await page.goto(
       `/reports/${slug}?monat=2026-08&zeitraum=2026-01..2026-08${todayPeriod}#details`,
     );
-    await expect.poll(() => new URL(page.url()).pathname).toBe(target);
+    const on = await redesignReportsOn(page);
+    await expect
+      .poll(() => new URL(page.url()).pathname)
+      .toBe(on && slug === 'finanzcheck' ? '/reports/onepager' : target);
     await expect(page.getByRole('main')).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'Report nicht gefunden', exact: true }),
@@ -73,10 +77,11 @@ test('620 absent Heute period uses the same normalization through the alias and 
   for (const path of ['/', '/reports/finanzcheck']) {
     await page.goto(`${path}?monat=2026-08&zeitraum=2026-01..2026-08#details`);
     await expect.poll(() => new URL(page.url()).searchParams.get('period')).toBe('month');
-    expect(new URL(page.url()).pathname).toBe('/');
+    const history = path === '/reports/finanzcheck' && (await redesignReportsOn(page));
+    expect(new URL(page.url()).pathname).toBe(history ? '/reports/onepager' : '/');
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('2026-01..2026-08');
-    expect(new URL(page.url()).hash).toBe('');
+    expect(new URL(page.url()).hash).toBe(history ? '#details' : '');
   }
 });
 

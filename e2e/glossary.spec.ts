@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import { openPaperView } from './report-frame';
 import { sampleTest as test, expect } from './sample';
 
 test('report terms explain returns with keyboard and touch without leaving the report', async ({
@@ -52,6 +53,7 @@ test('report terms explain returns with keyboard and touch without leaving the r
   await expect(explanation).toContainText('Zeitpunkte');
   await page.keyboard.press('Escape');
   await page.goto('/reports/onepager?monat=2026-08');
+  await openPaperView(page);
   const printedTerm = page.getByRole('button', { name: 'Bedarf', exact: true });
   await expect(printedTerm).toBeVisible({ timeout: 60_000 });
   await printedTerm.click();

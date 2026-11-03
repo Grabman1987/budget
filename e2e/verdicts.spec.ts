@@ -1,4 +1,5 @@
-import { revealReportDetail } from './report-frame';
+import { openPaperView, revealReportDetail } from './report-frame';
+import { openHeuteReview } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { REPORT_GROUPS } from '../apps/web/src/nav/reports-catalog';
 import { sampleTest, expect } from './sample';
@@ -225,6 +226,8 @@ for (const group of REPORT_GROUPS) {
 }
 sampleTest('Fazit: Heute, One-Pager header, reload, month change and privacy', async ({ page }) => {
   await page.goto('/reports/onepager?monat=2026-08');
+  await openPaperView(page);
+  await revealReportDetail(page);
   const verdicts = page.getByTestId('report-verdict');
   await expect(verdicts).toHaveCount(2, { timeout: 45_000 });
   const text = await verdicts.first().textContent();
@@ -236,7 +239,7 @@ sampleTest('Fazit: Heute, One-Pager header, reload, month change and privacy', a
   await page.keyboard.press('Control+Shift+h');
   await expect(verdicts.first()).toContainText('•••');
   expect(await verdicts.first().textContent()).not.toMatch(/\d/);
-  await page.goto('/');
+  await openHeuteReview(page);
   // #268: the open month is marked as an interim state ("Zwischenstand bis TT.MM.", booked result so far).
   await expect(page.getByTestId('report-verdict')).toContainText(
     /Zwischenstand bis \d{2}\.\d{2}\.: gebuchtes Monatsergebnis/,
@@ -247,6 +250,7 @@ sampleTest('Fazit: Heute, One-Pager header, reload, month change and privacy', a
 
 sampleTest('Fazit: One-Pager prints only the sheet verdict', async ({ page }) => {
   await page.goto('/reports/onepager?monat=2026-08');
+  await openPaperView(page);
   await expect(page.getByTestId('report-verdict')).toHaveCount(2, { timeout: 45_000 });
   await page.emulateMedia({ media: 'print' });
   await expect(page.getByTestId('report-verdict').first()).toBeHidden();

@@ -24,6 +24,7 @@ export interface ReportCalculation {
   terms: readonly DimensionChainTerm[];
   result: VerdictMetric;
   precision?: 'cent' | 'euro';
+  signed?: boolean;
 }
 export interface ReportFrameProps extends PageFrameProps {
   calculation?: ReportCalculation | undefined;
@@ -31,9 +32,9 @@ export interface ReportFrameProps extends PageFrameProps {
   sourceReportId?: string | undefined;
 }
 
-function metricText(metric: VerdictMetric | undefined): string {
+function metricText(metric: VerdictMetric | undefined, signed = false): string {
   if (metric?.value === null || metric?.value === undefined) return '—';
-  if (metric.unit === 'money') return eur(metric.value);
+  if (metric.unit === 'money') return eur(metric.value, { sign: signed });
   if (metric.unit === 'percent') return privateAmount(formatPercent(metric.value));
   return privateAmount(
     `${new Intl.NumberFormat('de-AT').format(metric.value)}${metric.unit === 'points' ? ' Punkte' : ''}`,
@@ -108,7 +109,7 @@ function RedesignReportFrame({
             </div>
           )}
           <strong className="redesign-report-result" data-testid="report-frame-result">
-            {metricText(result)}
+            {metricText(result, calculation?.signed)}
           </strong>
           {result && (
             <span className="redesign-report-result-label">{maskMoneyText(result.label)}</span>
@@ -155,7 +156,7 @@ function RedesignReportFrame({
               ))}
               <div>
                 <dt>{maskMoneyText(calculation.result.label)}</dt>
-                <dd>{metricText(calculation.result)}</dd>
+                <dd>{metricText(calculation.result, calculation.signed)}</dd>
               </div>
             </dl>
           )}

@@ -1,4 +1,5 @@
 import { sampleTest, expect } from './sample';
+import { openPaperView } from './report-frame';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 
 for (const scheme of ['light', 'dark'] as const) {
@@ -42,11 +43,6 @@ for (const scheme of ['light', 'dark'] as const) {
       );
       await page.screenshot({ path: info.outputPath(`plan-${scheme}.png`), fullPage: true });
 
-      await page.goto('/reports/onepager?monat=2026-09');
-      await expect(page.locator('.ps-tb-cell .tech').first()).toBeVisible();
-      await expect(page.locator('.ps-tb-cell .tech').first()).toHaveCSS('font-size', '12px');
-      await page.screenshot({ path: info.outputPath(`onepager-${scheme}.png`), fullPage: true });
-
       await page.goto('/dev/bauteile');
       await expect(page.getByTestId('chart-lines')).toBeVisible();
       await expect(page.locator('.svg-label-strong').first()).toHaveCSS('font-size', '14px');
@@ -55,6 +51,17 @@ for (const scheme of ['light', 'dark'] as const) {
         'font-size',
         isMobile ? '16px' : '15px',
       );
+    },
+  );
+  sampleTest(
+    `monthly report detail preserves the design scale in ${scheme}`,
+    async ({ page }, info) => {
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+      await page.goto('/reports/onepager?monat=2026-09');
+      await openPaperView(page);
+      await expect(page.locator('.ps-tb-cell .tech').first()).toBeVisible();
+      await expect(page.locator('.ps-tb-cell .tech').first()).toHaveCSS('font-size', '12px');
+      await page.screenshot({ path: info.outputPath(`onepager-${scheme}.png`), fullPage: true });
     },
   );
 }
