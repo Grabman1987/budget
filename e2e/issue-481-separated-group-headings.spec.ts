@@ -82,14 +82,21 @@ for (const profile of ['configured', 'desktop', 'phone-tall'] as const) {
           }, theme);
           await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
           const table = page.locator('.ptable-zero');
+          const phoneHeadings =
+            page.viewportSize()!.width < 768 &&
+            (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
           await expect(table.locator('.pname')).toHaveCount(36);
           const before = await readBudget(page, '2026-09');
           expect(before.groups).toHaveLength(19);
           expect(before.categories.filter((category) => !category.hiddenAt)).toHaveLength(36);
           await expect(table.locator('tbody > .prow:not(.is-empty)')).toHaveCount(36);
-          await expect(table.locator('tbody > .psingle')).toHaveCount(11);
-          await expect(table.locator('tbody > .pgroup:not(.psingle)')).toHaveCount(8);
-          await expect(table.locator('tbody > tr:not(.pgroup-gap):not(.is-empty)')).toHaveCount(44);
+          await expect(table.locator('tbody > .psingle')).toHaveCount(phoneHeadings ? 0 : 11);
+          await expect(table.locator('tbody > .pgroup:not(.psingle)')).toHaveCount(
+            phoneHeadings ? 19 : 8,
+          );
+          await expect(table.locator('tbody > tr:not(.pgroup-gap):not(.is-empty)')).toHaveCount(
+            phoneHeadings ? 55 : 44,
+          );
           await expect(table.locator('tbody > .pgroup-gap')).toHaveCount(18);
           expect(((55 - 44) * 100) / 55).toBe(20);
           await expect(table.locator('.pmulti')).toHaveCount(0);
@@ -133,10 +140,13 @@ for (const profile of ['configured', 'desktop', 'phone-tall'] as const) {
               header.locator('xpath=following-sibling::tr[1]').locator('.pname'),
             ).toHaveAttribute('data-category-id', `cat-${ids[0]}`);
           }
-          for (const id of singleCategoryIds)
-            await expect(nameButton(page, `cat-${id}`).locator('xpath=ancestor::tr')).toHaveClass(
-              /psingle/,
-            );
+          for (const id of singleCategoryIds) {
+            const row = nameButton(page, `cat-${id}`).locator('xpath=ancestor::tr');
+            if (phoneHeadings) {
+              await expect(row).not.toHaveClass(/pgroup/);
+              await expect(row.locator('xpath=preceding-sibling::tr[1]')).toHaveClass(/pgroup/);
+            } else await expect(row).toHaveClass(/psingle/);
+          }
           await page.evaluate(() => document.fonts.ready);
           const geometry = await table.evaluate((element) => {
             const box = (node: Element) => {
@@ -197,8 +207,8 @@ for (const profile of ['configured', 'desktop', 'phone-tall'] as const) {
           // Pinned native WebKit can report zero here; this is not physical-touch proof.
           expect(geometry.rawTouchPoints).toBeGreaterThanOrEqual(0);
           expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport.width);
-          expect(geometry.parents).toHaveLength(8);
-          expect(geometry.categories).toHaveLength(25);
+          expect(geometry.parents).toHaveLength(phoneHeadings ? 19 : 8);
+          expect(geometry.categories).toHaveLength(phoneHeadings ? 36 : 25);
           const phone = geometry.viewport.width < 768;
           for (const parent of geometry.parents) {
             expect(parent.height, parent.id).toBeGreaterThan(0);
@@ -224,7 +234,9 @@ for (const profile of ['configured', 'desktop', 'phone-tall'] as const) {
           await expect(toggle).toBeFocused();
           await expect(toggle).toHaveAttribute('aria-expanded', 'false');
           await expect(table.locator('.pname')).toHaveCount(32);
-          await expect(table.locator('tbody > .pgroup:not(.psingle)')).toHaveCount(8);
+          await expect(table.locator('tbody > .pgroup:not(.psingle)')).toHaveCount(
+            phoneHeadings ? 19 : 8,
+          );
           await page.keyboard.press('Enter');
           await expect(toggle).toBeFocused();
           await expect(table.locator('.pname')).toHaveCount(36);
@@ -328,7 +340,12 @@ test('real parent literals, independent first category, assignment and undo surv
   await expect(parent.locator('.pname, .col-assign button, .col-avail button')).toHaveCount(0);
   await expect(parent.locator('.col-assign')).toHaveText('45,09 €');
   await expect(parent.locator('.col-act')).toHaveText('−14,05 €');
-  await expect(parent.locator('.col-avail')).toHaveText('31,04 €');
+  await expect(parent.locator('.col-avail')).toHaveText(
+    page.viewportSize()!.width < 768 &&
+      (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+      ? 'Verfügbar 31,04 €'
+      : '31,04 €',
+  );
   await expect(first.locator('.col-assign')).toContainText('5,01');
   await expect(first.locator('.col-act')).toHaveText('−7,03 €');
   await expect(first.locator('.col-avail')).toContainText('−2,02');
