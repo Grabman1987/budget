@@ -1,5 +1,5 @@
 import { openHeuteReview } from './heute-visual-fixture';
-import { wealthRedesign } from './wealth-navigation';
+import { startInvestmentCapture, wealthRedesign } from './wealth-navigation';
 import { openPruefenSource } from './pruefen-part';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
@@ -75,6 +75,8 @@ test('remaining kinds, source edits and deletion use the same holdings and cash'
   const dividend = (await sourceTrades(request, security.id)).find(
     (t: { kind: string }) => t.kind === 'dividend',
   );
+  if (await wealthRedesign(page))
+    await page.getByRole('button', { name: /^Alle anzeigen \(\d+\)$/ }).click();
   await page
     .locator(`[data-trade-id="${dividend.id}"]`)
     .getByRole('button', { name: /bearbeiten/ })
@@ -293,10 +295,7 @@ test('manual buy, partial sell, source edit and group undo refresh holdings and 
 }, info) => {
   const { name, account, security } = await fixture(request, info, 'A');
   await page.goto('/vermoegen/portfolio/positionen?zeitraum=3J');
-  await page
-    .locator('.instrument-actions')
-    .getByRole('button', { name: 'Handel erfassen', exact: true })
-    .click();
+  await startInvestmentCapture(page, 'Handel erfassen');
   let form = page.getByRole('dialog', { name: 'Handel erfassen', exact: true });
   await expect(page).toHaveURL(/handel=neu/);
   await form.getByLabel('Instrument', { exact: true }).selectOption(security.id);
@@ -404,6 +403,7 @@ test('manual buy, partial sell, source edit and group undo refresh holdings and 
     unitsE8: 600000000,
     costCents: 60600,
   });
+  if (await wealthRedesign(page)) await page.getByText('Bestand je Konto', { exact: true }).click();
   await detail
     .locator('.instrument-accounts')
     .getByRole('link', { name: account.name, exact: true })

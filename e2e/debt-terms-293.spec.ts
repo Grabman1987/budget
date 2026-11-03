@@ -125,7 +125,14 @@ test('shows stored debt terms, unknown freshness, type-specific limits and edit 
   await page.getByRole('button', { name: 'Kredit ohne Gebührenangabe bearbeiten' }).click();
   await expect(page.getByLabel('Monatliche Gebühr')).toHaveValue('');
   await page.getByLabel('Monatliche Gebühr').fill('0');
+  const saved = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `/api/accounts/${unknownFeeLoan.id}` &&
+      response.request().method() === 'PATCH' &&
+      response.ok(),
+  );
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await saved;
   const accountResponse = await request.get(`${origin}/api/accounts`);
   expect(accountResponse.ok()).toBe(true);
   const accountView = await accountResponse.json();

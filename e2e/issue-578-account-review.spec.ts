@@ -1,5 +1,6 @@
 import { openHeuteReview } from './heute-visual-fixture';
 import { withShellControls } from './shell-actions';
+import { redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, type TestInfo } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -233,6 +234,8 @@ async function inspect(page: Page, info: TestInfo, label: string) {
       animations: 'disabled',
     });
     await page.goto('/einstellungen/profil');
+    if (await redesignLoaded(page))
+      await page.getByText('Darstellung & Datenschutz', { exact: true }).click();
     const setting = page.getByRole('region', { name: 'Kontoprüfung · Erinnerung' });
     await expect(setting).toContainText('nach 14 Tagen');
     await expect(setting).toContainText('nach einem Kalendermonat');

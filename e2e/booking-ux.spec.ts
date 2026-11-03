@@ -184,6 +184,8 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   expect(captured).toMatchObject({ accountId: account.id, amountCents: -203, status: 'confirmed' });
   expect((await (await request.get('/api/expected')).json()).payments).toHaveLength(2);
   await page.goto('/einstellungen/profil');
+  if (await redesignLoaded(page))
+    await page.getByText('Darstellung & Datenschutz', { exact: true }).click();
   const setting = page.getByRole('region', { name: 'Darstellung · Kontovorschau' });
   await expect(setting.getByLabel('Zukunftsvorschau (Tage)')).toHaveValue('35');
   await setting.getByLabel('Zukunftsvorschau (Tage)').fill('366');

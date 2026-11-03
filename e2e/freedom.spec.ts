@@ -237,7 +237,16 @@ ledgerTest(
       );
       expect(restored.months.map((m) => m.month)).toEqual(before.months.map((m) => m.month));
       // Keep the cached Freedom query alive through native navigation; MAIN is isolated.
-      await page.getByRole('link', { name: 'Profil / Einstellungen Passkey', exact: true }).click();
+      await page
+        .getByRole('link', {
+          name: (await wealthRedesign(page))
+            ? 'Profil Einstellungen › Profil'
+            : 'Profil / Einstellungen Passkey',
+          exact: true,
+        })
+        .click();
+      if (await wealthRedesign(page))
+        await page.getByText('Kategorien & Regeln', { exact: true }).click();
       await page.getByRole('link', { name: 'Regelwerk', exact: true }).click();
       await page.getByRole('link', { name: 'Einstellen R16 Freiheitszahl' }).click();
       await page.getByRole('link', { name: 'Schwellen bearbeiten', exact: true }).click();
