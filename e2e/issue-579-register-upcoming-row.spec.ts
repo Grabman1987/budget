@@ -1,7 +1,8 @@
+import { redesignLoaded, pickCategory } from './ledger-helpers';
+
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
-import { pickCategory } from './ledger-helpers';
 
 test.use({ ledgerToday: '2026-10-13' });
 
@@ -65,7 +66,11 @@ test('collapses "Kommend" to one row with hover-only actions and a full, keyboar
   const touch = info.project.name !== 'desktop';
 
   // Collapsed by default: one line, and the history starts inside the first viewport.
-  await expect(toggle).toHaveText('19 kommend · nächste: Wöchentlich Muster 19.10.');
+  await expect(toggle).toHaveText(
+    (await redesignLoaded(page))
+      ? 'Kommend19 kommend · nächste: Wöchentlich Muster 19.10.'
+      : '19 kommend · nächste: Wöchentlich Muster 19.10.',
+  );
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('.kupcoming [data-booking], .kupcoming [data-occurrence]')).toHaveCount(
     0,

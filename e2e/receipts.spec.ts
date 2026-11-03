@@ -1,4 +1,5 @@
-﻿import AxeBuilder from '@axe-core/playwright';
+import { redesignLoaded } from './ledger-helpers';
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { PDF, PNG } from '../apps/server/src/receipts/testing';
 import { MAIN_URL } from '../playwright.config';
@@ -55,16 +56,19 @@ test('capture receipt first, link, attach PDF, remove and undo', async ({
     .getByRole('button', { name: 'Zuordnen' })
     .click();
   const editor = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+  const redesign = await redesignLoaded(page);
+  if (redesign) await editor.locator('.bk-editor-receipts > summary').click();
   const receipts = editor.getByRole('region', { name: 'Beleg', exact: true });
+  const receiptInputs = redesign ? editor : receipts;
   const photo = receipts.getByTestId('receipt-row').filter({ hasText: filename });
   await expect(photo).toBeVisible();
   await photo.scrollIntoViewIfNeeded();
   await expect(photo.locator('img')).toHaveJSProperty('naturalWidth', 1);
-  await expect(receipts.getByLabel('Beleg fotografieren')).toHaveAttribute(
+  await expect(receiptInputs.getByLabel('Beleg fotografieren')).toHaveAttribute(
     'capture',
     'environment',
   );
-  await receipts
+  await receiptInputs
     .getByLabel('Belegdatei auswählen')
     .setInputFiles({ name: pdfname, mimeType: 'application/pdf', buffer: PDF });
   const pdf = receipts.getByTestId('receipt-row').filter({ hasText: pdfname });

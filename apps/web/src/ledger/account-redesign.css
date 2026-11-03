@@ -1,0 +1,282 @@
+.account-detail-redesign {
+  min-width: 0;
+}
+.account-detail-redesign .kacct-head,
+.account-detail-redesign .kacct-actions {
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.account-detail-redesign .kacct-kpis {
+  align-items: baseline;
+  gap: 12px 32px;
+}
+.account-detail-redesign .kacct-saldo strong,
+.account-detail-redesign .depot [data-testid='depot-value'] {
+  font-size: var(--fs-dimension);
+  line-height: var(--lh-dimension);
+  font-weight: 640;
+}
+.account-detail-redesign .kacct-source[open] {
+  flex-basis: 100%;
+}
+.account-detail-redesign .kchart {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  background: var(--surface);
+}
+.account-detail-redesign .kchart-head {
+  flex-wrap: wrap;
+}
+.account-detail-redesign .kchart-toggle,
+.account-detail-redesign .kchart-head .seg button,
+.account-detail-redesign .btn,
+.account-detail-redesign .kback,
+.account-detail-redesign summary {
+  min-height: 44px;
+  min-width: 44px;
+}
+.account-detail-redesign .kback,
+.account-detail-redesign .btn {
+  display: inline-flex;
+  align-items: center;
+}
+.account-detail-redesign .account-documents-redesign {
+  margin-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+.account-detail-redesign summary {
+  cursor: pointer;
+  padding-block: 8px;
+}
+.account-detail-redesign :is(a, button, summary):focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.account-detail-redesign [id^='account-register-'] {
+  scroll-margin-block: 80px;
+}
+@media (max-width: 767px) {
+  .account-detail-redesign .kacct-kpis {
+    gap: 8px 16px;
+  }
+  .account-detail-redesign .kacct-saldo {
+    flex-basis: 100%;
+  }
+  .account-detail-redesign .kchart {
+    padding: 8px;
+  }
+  .account-detail-redesign .kacct-actions .btn {
+    height: auto;
+    white-space: normal;
+  }
+}
+
+.account-detail-redesign > .kmeta {
+  display: inline;
+  margin-inline-start: 16px;
+}
+.account-detail-redesign .kback {
+  margin-bottom: 8px;
+}
+@media (min-width: 1101px) {
+  [data-budget-redesign='1'] .sheet:has(> .account-detail-redesign) {
+    row-gap: 24px;
+  }
+}
+
+[data-budget-redesign='1'] .sheet:has(> .account-detail-redesign) > .area-page-menu {
+  margin-block: 0;
+}
+
+.account-detail-redesign .ktx-account .kschedule-actions .btn {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.account-detail-redesign.kacct {
+  position: relative;
+}
+.account-detail-redesign > .kback {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: -8px;
+  width: 36px;
+  margin: 0;
+}
+.account-detail-redesign .kacct-head {
+  min-height: 44px;
+  margin-inline-start: 30px;
+  align-items: center;
+}
+.account-detail-redesign .kacct-head > div:first-child {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.account-detail-redesign .kacct-head h2 {
+  font-size: var(--fs-headline);
+  margin: 0;
+}
+.account-detail-redesign .kacct-head > div > .kmeta {
+  display: none;
+}
+.account-detail-redesign .kacct-actions {
+  gap: 8px;
+}
+.account-detail-redesign .account-review-button-state {
+  display: none;
+}
+.account-detail-redesign .kacct-actions > .btn:has(.sr-only) {
+  padding-inline: 0;
+  width: 44px;
+  flex-shrink: 0;
+}
+.account-detail-redesign .kacct-kpis {
+  margin-block: 8px 28px;
+}
+.account-detail-redesign .kacct-saldo strong {
+  font-size: var(--fs-dimension);
+  line-height: 1.05;
+}
+.account-detail-redesign .kacct-saldo > .kmeta {
+  margin-block: 6px 0;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+.account-detail-redesign .kchart {
+  margin-block: 0 10px;
+  padding: 0 14px 8px;
+}
+.account-detail-redesign .kchart-head {
+  min-height: 44px;
+  margin: 0;
+}
+.account-detail-redesign .kchart-toggle {
+  font-size: var(--fs-meta);
+  font-weight: 650;
+}
+.account-detail-redesign .account-chart-options {
+  position: relative;
+  margin-inline-start: auto;
+  z-index: 12;
+}
+.account-detail-redesign .account-chart-options > summary {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  list-style: none;
+}
+.account-detail-redesign .account-chart-options > summary::-webkit-details-marker {
+  display: none;
+}
+.account-detail-redesign .account-chart-options > summary::before {
+  display: none;
+}
+.account-detail-redesign .account-chart-options > div {
+  position: absolute;
+  inset-inline-end: 0;
+  width: min(420px, calc(100vw - 60px));
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 12px;
+}
+.account-detail-redesign .account-chart-options .seg {
+  margin-inline-start: 0;
+}
+.account-detail-redesign .kacct-register > .kh {
+  margin: 0;
+}
+.account-detail-redesign .kacct-register > .kh > h2 {
+  font-size: var(--fs-meta);
+}
+.account-detail-redesign
+  :is(.account-value-details, .account-bank-queue, .account-documents-redesign) {
+  border: 0;
+  margin-block: 0;
+  font-size: var(--fs-meta);
+}
+.account-detail-redesign
+  :is(.account-value-details, .account-bank-queue, .account-documents-redesign)
+  > summary {
+  min-height: 44px;
+  color: var(--ink-2);
+}
+@media (max-width: 767px) {
+  .account-detail-redesign > .kback,
+  .account-detail-redesign .kacct-head h2 {
+    display: none;
+  }
+  .account-detail-redesign .kacct-head {
+    margin-inline-start: 0;
+    gap: 4px;
+  }
+  .account-detail-redesign .kacct-head > div:first-child {
+    display: none;
+  }
+  .account-detail-redesign .kacct-actions {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+  .account-detail-redesign .kacct-actions > .account-review-reference {
+    order: -1;
+    margin-inline-end: auto;
+    padding-inline: 0;
+    border: 0;
+    background: none;
+  }
+  .account-detail-redesign .account-review-reference > svg,
+  .account-detail-redesign .account-review-button-label {
+    display: none;
+  }
+  .account-detail-redesign .account-review-button-state {
+    display: inline-flex;
+  }
+  .account-detail-redesign .kacct-kpis {
+    margin-block: 0 14px;
+  }
+  .account-detail-redesign .kchart {
+    border: 0;
+    background: transparent;
+    padding-inline: 0;
+  }
+  .account-detail-redesign .kchart .legend {
+    gap: 6px 12px;
+    font-size: var(--fs-meta);
+  }
+}
+.account-detail-redesign .account-chart-options > .konten-menu-content {
+  max-height: min(680px, calc(100dvh - 160px));
+  overflow: auto;
+}
+.account-chart-table summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.account-chart-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-meta);
+}
+.account-chart-table caption {
+  text-align: start;
+  padding-block: 6px;
+}
+.account-chart-table th,
+.account-chart-table td {
+  padding: 6px 4px;
+  border-block-end: 1px solid var(--rule);
+  text-align: start;
+}
+.account-chart-table td:last-child {
+  text-align: end;
+  font-family: var(--font-tech);
+}

@@ -1,6 +1,7 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import {
+  redesignLoaded,
+  captureFlagControl,
+  categoryLineControl,
   again,
   MIN_TARGET_PX,
   openLedgerFilters,
@@ -12,6 +13,9 @@ import {
   toast,
   visit,
 } from './ledger-helpers';
+
+import AxeBuilder from '@axe-core/playwright';
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
 /**
  * "+ Buchung" end to end: the capture panel opens by shortcut (desktop) or button (phone), takes
@@ -246,7 +250,7 @@ test('the capture panel is axe clean in both themes and never scrolls sideways',
     await panel.getByRole('button', { name: 'Ausgabe' }).click();
     await panel.getByLabel('Betrag', { exact: true }).fill('30');
     await panel.locator('.kmore > summary').click();
-    await panel.getByRole('button', { name: '+ Weitere Kategorie' }).click();
+    await (await categoryLineControl(panel)).click();
     const second = panel.getByRole('group', { name: 'Zeile 2', exact: true });
     await second.getByLabel('Kategorie 2').fill('Anna Muster');
     await second.getByRole('option', { name: /Anna Muster/ }).click();
@@ -279,7 +283,7 @@ test('a split with a contact share: the chain shows what is left, saving waits u
   await panel.getByLabel('Betrag', { exact: true }).fill('50');
   await panel.getByLabel('Empfänger').fill(`Restaurant ${tag}`);
   await panel.locator('.kmore > summary').click();
-  await panel.getByRole('button', { name: '+ Weitere Kategorie' }).click();
+  await (await categoryLineControl(panel)).click();
   const chain = panel.locator('.bk-lines > .kdiff');
   const save = panel.getByRole('button', { name: 'Speichern', exact: true });
 
@@ -322,7 +326,7 @@ test('a transfer line in a split moves money to the other account', async ({ pag
   await panel.getByLabel('Betrag', { exact: true }).fill('60');
   await panel.getByLabel('Empfänger').fill(`Bank ${tag}`);
   await panel.locator('.kmore > summary').click();
-  await panel.getByRole('button', { name: '+ Weitere Kategorie' }).click();
+  await (await categoryLineControl(panel)).click();
   const line1 = panel.getByRole('group', { name: 'Zeile 1', exact: true });
   const line2 = panel.getByRole('group', { name: 'Zeile 2', exact: true });
   await line1.getByLabel('Kategorie 1').fill(`Cap E ${tag}`);
@@ -410,7 +414,7 @@ test('the dialog is a centred card on the desktop and a sheet on the phone with 
     expect(box!.width).toBeGreaterThanOrEqual(viewport.width - 1);
     expect(box!.y + box!.height).toBeGreaterThanOrEqual(viewport.height - 1);
   } else {
-    // #583: centred wide two-column card of 960 px, with a gap to every edge.
+    // The redesigned two-column card is wider; both builds keep a gap to every edge.
     expect(Math.round(box!.width)).toBe(960);
     expect(Math.abs(box!.x + box!.width / 2 - viewport.width / 2)).toBeLessThan(2);
     expect(box!.y).toBeGreaterThan(8);
@@ -427,7 +431,11 @@ test('the dialog is a centred card on the desktop and a sheet on the phone with 
         .filter((t) => names.includes(t)),
     wanted,
   );
-  expect(order).toEqual(wanted);
+  expect(order).toEqual(
+    (await redesignLoaded(page))
+      ? ['Betrag', 'Empfänger', 'Datum', 'Bezahlt von', 'Kategorie', 'Notiz']
+      : wanted,
+  );
   // The footer stays in view with the Speichern button.
   await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
 });
@@ -442,8 +450,11 @@ test('the flag: popover with six colours and keys, first column of the table', a
 
   const panel = await openCapture(page, testInfo);
   // The flag button comes first in the head, before the kind of booking.
-  const head = panel.locator('.bk-head');
-  await expect(head.getByRole('button').first()).toHaveAccessibleName('Markierung: keine');
+  const redesign = await redesignLoaded(page);
+  const head = redesign ? panel : panel.locator('.bk-head');
+  if (!redesign)
+    await expect(head.getByRole('button').first()).toHaveAccessibleName('Markierung: keine');
+  await captureFlagControl(panel, /^Markierung/);
   await head.getByRole('button', { name: /^Markierung/ }).click();
   const menu = panel.getByRole('menu', { name: 'Markierung wählen' });
   await expect(menu.getByRole('menuitemradio')).toHaveText([
@@ -498,9 +509,9 @@ test('the flag: popover with six colours and keys, first column of the table', a
   // Opened again: the flag is kept; "keine" (key 0) removes it.
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
-  await edit.getByRole('button', { name: 'Markierung: Gelb' }).click();
+  await (await captureFlagControl(edit, 'Markierung: Gelb')).click();
   await page.keyboard.press('0');
-  await expect(edit.getByRole('button', { name: 'Markierung: keine' })).toBeVisible();
+  await expect(await captureFlagControl(edit, 'Markierung: keine')).toBeVisible();
   await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(edit).toBeHidden();
   await expect(row.locator('.kflag-glyph.is-none')).toHaveCount(1);
@@ -624,13 +635,14 @@ test('visible growing note, direct split and responsive account note column', as
   const tag = testInfo.project.name;
   const account = `Notiz Muster ${tag}${again(testInfo)}`;
   const payee = `Notizladen Muster ${tag}${again(testInfo)}`;
-  const memo =
-    'Synthetische Notiz mit langem Inhalt zur Darstellung im Register.\nZweite Zeile zur Prüfung des wachsenden Feldes.\nDritte Zeile.';
   await createAccount(page, account, 'Giro', '100');
   await openAccount(page, account);
   let panel = await openCapture(page, testInfo);
+  const memo =
+    ((await redesignLoaded(page)) ? 'Zusätzliche synthetische Zeile.\n'.repeat(8) : '') +
+    'Synthetische Notiz mit langem Inhalt zur Darstellung im Register.\nZweite Zeile zur Prüfung des wachsenden Feldes.\nDritte Zeile.';
   const note = panel.getByLabel('Notiz', { exact: true });
-  const split = panel.getByRole('button', { name: '+ Weitere Kategorie', exact: true });
+  const split = await categoryLineControl(panel);
   await expect(panel.locator('.kmore')).not.toHaveAttribute('open', '');
   await expect(note).toBeVisible();
   await expect(split).toBeVisible();
@@ -660,7 +672,7 @@ test('visible growing note, direct split and responsive account note column', as
   await panel.getByLabel('Betrag', { exact: true }).fill('5');
   await panel.getByLabel('Empfänger').fill(payee);
   await pickCategory(panel, `Cap A ${tag}`);
-  await page.screenshot({ path: `docs/evidence/capture-note-split/dialog-${tag}.png` });
+  await page.screenshot({ path: testInfo.outputPath(`dialog-${tag}.png`) });
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(panel).toBeHidden({ timeout: 30_000 });
   const row = page.getByRole('row', { name: new RegExp(payee) });
@@ -684,7 +696,7 @@ test('visible growing note, direct split and responsive account note column', as
     ),
   ).toBe(true);
   await row.scrollIntoViewIfNeeded();
-  await page.screenshot({ path: `docs/evidence/capture-note-split/register-${tag}.png` });
+  await page.screenshot({ path: testInfo.outputPath(`register-${tag}.png`) });
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   await expect(
     page.getByRole('dialog', { name: 'Buchung bearbeiten' }).getByLabel('Notiz'),
@@ -694,7 +706,7 @@ test('visible growing note, direct split and responsive account note column', as
     .getByRole('button', { name: 'Schließen' })
     .click();
   panel = await openCapture(page, testInfo);
-  await panel.getByRole('button', { name: '+ Weitere Kategorie', exact: true }).click();
+  await (await categoryLineControl(panel)).click();
   await expect(panel.getByRole('group', { name: 'Zeile 1', exact: true })).toBeVisible();
   await expect(panel.getByRole('group', { name: 'Zeile 2', exact: true })).toBeVisible();
   await expect(panel.locator('.kmore')).not.toHaveAttribute('open', '');

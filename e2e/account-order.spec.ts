@@ -1,7 +1,8 @@
+import { overviewActions, toast, openLedgerFilters } from './ledger-helpers';
+
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
-import { toast, openLedgerFilters } from './ledger-helpers';
 
 /**
  * The owner's account order: edit mode in the sidebar (desktop) and in Konten › Übersicht (also
@@ -68,6 +69,8 @@ test('Konten › Übersicht: reorder by buttons and drag, undo, persistence, sel
   await expect(page.getByTestId('budget-accounts-balance')).toBeVisible();
   expect(await tableOrder(page, tag)).toEqual(NAMES);
 
+  await overviewActions(page);
+
   await page.getByRole('button', { name: 'Reihenfolge ändern', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Fertig' })).toHaveAttribute(
     'aria-pressed',
@@ -120,6 +123,7 @@ test('Konten › Übersicht: reorder by buttons and drag, undo, persistence, sel
   }
 
   await page.getByRole('button', { name: 'Fertig' }).click();
+  await overviewActions(page);
   await expect(page.getByRole('button', { name: 'Reihenfolge ändern', exact: true })).toBeVisible();
 
   // Persisted, and the same order in the account select.
@@ -231,6 +235,7 @@ test('phone: a touch drag on the grip reorders and does not scroll', async ({
   const tag = `P${info.project.name}${info.retry}${info.repeatEachIndex}`;
   await seed(request, isolatedLedger.origin, tag);
   await page.goto('/konten');
+  await overviewActions(page);
   await page.getByRole('button', { name: 'Reihenfolge ändern', exact: true }).click();
   const grip = page.getByRole('button', { name: new RegExp(`^Bravo ${tag} verschieben`) });
   await grip.scrollIntoViewIfNeeded();

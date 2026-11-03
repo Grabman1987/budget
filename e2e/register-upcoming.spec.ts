@@ -1,8 +1,9 @@
+import { redesignLoaded, registerContext, MIN_TARGET_PX, pickCategory } from './ledger-helpers';
+
 import AxeBuilder from '@axe-core/playwright';
 import Database from 'better-sqlite3';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
-import { pickCategory } from './ledger-helpers';
 
 test.use({ ledgerToday: '2026-10-13' });
 
@@ -56,8 +57,12 @@ test('separates future captures and next weekly occurrence, projects cents and u
   for (const url of [`/konten/${account.id}`, '/konten/buchungen']) {
     await page.goto(url);
     const section = page.locator('.kupcoming');
-    const summary = section.locator('.kupcoming-toggle');
-    await expect(summary).toHaveText('2 kommend · nächste: Wöchentlich Muster 19.10.');
+    const summary = page.locator('.kupcoming-toggle');
+    await expect(summary).toHaveText(
+      (await redesignLoaded(page))
+        ? 'Kommend2 kommend · nächste: Wöchentlich Muster 19.10.'
+        : '2 kommend · nächste: Wöchentlich Muster 19.10.',
+    );
     // One table: the section shares header and columns with the history below.
     await expect(page.locator('.ktable')).toHaveCount(1);
     await expect(page.locator('.ktable thead')).toHaveCount(1);
@@ -73,7 +78,9 @@ test('separates future captures and next weekly occurrence, projects cents and u
     await expect(booked.locator('.kx-date')).toContainText('27.10. · in 14 Tagen');
     await expect(booked.getByRole('img', { name: 'Kommende Buchung' })).toBeVisible();
     await expect(scheduled.getByRole('img', { name: 'Nächste Wiederholung' })).toBeVisible();
+    await registerContext(page);
     await expect(page.getByTestId('register-today')).toContainText('Heute · Saldo 997,97');
+    await registerContext(page, false);
     await expect(page.locator(`[data-booking="${past.id}"]`)).toBeVisible();
     if (!url.endsWith('/buchungen')) {
       await expect(page.getByTestId('account-balance')).toContainText('997,97');
@@ -90,7 +97,7 @@ test('separates future captures and next weekly occurrence, projects cents and u
         '.kx-date',
         '.kx-payee',
         '.kx-cat',
-        '.kx-amount',
+        (await redesignLoaded(page)) ? '.kx-outgoing' : '.kx-amount',
         '.kx-run',
         '.kx-status',
       ]) {
@@ -106,7 +113,9 @@ test('separates future captures and next weekly occurrence, projects cents and u
       await scheduled.hover();
       const actions = await scheduled.getByRole('button', { name: 'Jetzt buchen' }).boundingBox();
       const skip = await scheduled.getByRole('button', { name: 'Überspringen' }).boundingBox();
-      expect(actions!.height).toBeLessThanOrEqual(34);
+      const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+      if (redesign) expect(actions!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+      expect(actions!.height).toBeLessThanOrEqual(redesign ? 44 : 34);
       expect(Math.abs(actions!.y - skip!.y)).toBeLessThan(2);
     }
     if (info.project.name === 'mobile') {
@@ -145,10 +154,13 @@ test('separates future captures and next weekly occurrence, projects cents and u
   await futureRow.getByLabel('Datum bearbeiten', { exact: true }).press('Enter');
   await expect(futureRow).toHaveCount(0);
   await expect(page.locator(`[data-booking="${future.id}"]`)).toBeVisible();
+  await registerContext(page);
   await expect(page.getByTestId('register-today')).toContainText('985,63');
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(futureRow).toBeVisible();
+  await registerContext(page);
   await expect(page.getByTestId('register-today')).toContainText('997,97');
+  await registerContext(page, false);
   const scheduled = page.locator('.kupcoming [data-occurrence]');
   // Hover-only (desktop) or behind ⋯ (touch): reveal the actions the way a user does, then press.
   const press = async (name: string) => {
@@ -171,11 +183,14 @@ test('separates future captures and next weekly occurrence, projects cents and u
   const result = await savedResponse.json();
   await expect(page.locator(`[data-booking="${result.bookingId}"]`)).toBeVisible();
   await expect(scheduled).not.toHaveAttribute('data-occurrence', originalId!);
+  await registerContext(page);
   await expect(page.getByTestId('register-today')).toContainText('995,94');
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(page.locator(`[data-booking="${result.bookingId}"]`)).toHaveCount(0);
   await expect(scheduled).toHaveAttribute('data-occurrence', originalId!);
+  await registerContext(page);
   await expect(page.getByTestId('register-today')).toContainText('997,97');
+  await registerContext(page, false);
   await scheduled.getByRole('link', { name: 'Wöchentlich Muster' }).click();
   await expect(page).toHaveURL(/\/plan\/erwartet\/[^?]+/);
   await expect(
@@ -220,8 +235,12 @@ test('loads every future capture beyond the preview and first cursor page', asyn
   }
   await page.goto(`/konten/${account.id}`);
   const section = page.locator('.kupcoming');
-  const toggle = section.locator('.kupcoming-toggle');
-  await expect(toggle).toHaveText('201 kommend · nächste: Buchung 01.12.');
+  const toggle = page.locator('.kupcoming-toggle');
+  await expect(toggle).toHaveText(
+    (await redesignLoaded(page))
+      ? 'Kommend201 kommend · nächste: Buchung 01.12.'
+      : '201 kommend · nächste: Buchung 01.12.',
+  );
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await expect(section.locator('[data-booking]')).toHaveCount(0);
   await toggle.click();

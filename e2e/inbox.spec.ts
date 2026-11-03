@@ -1,3 +1,4 @@
+import { redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { inboxItem, insertTracked, openDatabase } from '@budget/db';
 import { expect, test, type Route } from '@playwright/test';
@@ -89,13 +90,18 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
   );
   await page.goto('/konten/posteingang');
   const count = (await (await countResponse).json()).count;
+  const redesign = await redesignLoaded(page);
   const inboxTrigger = page
-    .locator(info.project.name === 'mobile' ? '.m-status' : '.topbar')
+    .locator(info.project.name === 'mobile' ? (redesign ? '.m-head' : '.m-status') : '.topbar')
     .getByRole('link', {
-      name: info.project.name === 'mobile' ? /\d+ zu prüfen/ : /Prüfen, \d+ offen/,
+      name: info.project.name === 'mobile' && !redesign ? /\d+ zu prüfen/ : /Prüfen, \d+ offen/,
     });
   await expect(inboxTrigger).toHaveText(
-    info.project.name === 'mobile' ? `${count} zu prüfen` : `Prüfen · ${count}`,
+    info.project.name === 'mobile'
+      ? redesign
+        ? String(count)
+        : `${count} zu prüfen`
+      : `Prüfen · ${count}`,
   );
   const row = page.getByTestId('inbox-row').filter({ hasText: tag }).filter({ hasText: '12,00' });
   await expect(row).toContainText('vorgemerkt');
@@ -104,7 +110,7 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
   await expect(row).toBeVisible(); // Confirmation alone does not categorize.
   await inboxTrigger.focus();
   await page.keyboard.press('Enter');
-  const panel = page.locator('.kinbox');
+  const panel = page.locator(redesign ? '.konten-frame-inbox' : '.kinbox');
   await expect(panel).toBeVisible();
   await panel
     .getByTestId('inbox-row')
@@ -152,12 +158,17 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
     });
   }
   // Since #561 the page opens on "Umsätze"; the stored warning belongs to "Aufgaben".
-  const aufgaben = page
-    .getByRole('group', { name: 'Teil von Prüfen' })
-    .getByRole('button', { name: /^Aufgaben · \d+$/ });
+  const aufgaben = page.getByRole('group', { name: 'Teil von Prüfen' }).getByRole('button', {
+    name: (await redesignLoaded(page)) ? /^Aufgaben \d+$/ : /^Aufgaben · \d+$/,
+  });
   await aufgaben.click();
   await expect(aufgaben).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'Weitere Aufgaben öffnen', exact: true }).click();
+  await page
+    .getByRole('button', {
+      name: (await redesignLoaded(page)) ? 'Prüfen · Weitere Aufgaben' : 'Weitere Aufgaben öffnen',
+      exact: true,
+    })
+    .click();
   const resolve = warning.getByRole('button', { name: 'Als erledigt markieren' });
   await expect(resolve).toHaveClass(/btn-ghost/);
   await expect(resolve).not.toHaveClass(/btn-alert/);
@@ -191,7 +202,11 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
   try {
     await page.goto('/konten');
     await expect(inboxTrigger).toHaveText(
-      info.project.name === 'mobile' ? /^[1-9]\d* zu prüfen$/ : /^Prüfen · [1-9]\d*$/,
+      info.project.name === 'mobile'
+        ? redesign
+          ? /^[1-9]\d*$/
+          : /^[1-9]\d* zu prüfen$/
+        : /^Prüfen · [1-9]\d*$/,
     );
     await inboxTrigger.click();
     await expect(page).toHaveURL(/\/konten\/pruefen/);
@@ -217,7 +232,11 @@ test('empty and failed inbox count never present a fabricated nine', async ({ pa
     (route) => fulfillInboxFixture(route, { asOf: '2026-09-17', count: 0, entries: [] }),
   );
   await page.goto('/konten/posteingang');
-  await expect(page.getByText('Prüfen leer.', { exact: false })).toBeVisible();
+  await expect(
+    page.getByText((await redesignLoaded(page)) ? 'Alles geprüft' : 'Prüfen leer.', {
+      exact: await redesignLoaded(page),
+    }),
+  ).toBeVisible();
   if (isMobile)
     await expect(page.locator('.m-status').getByRole('link', { name: /zu prüfen/ })).toHaveCount(0);
   else await expect(page.locator('.review-pill')).toHaveText('Prüfen');
@@ -229,7 +248,10 @@ test('empty and failed inbox count never present a fabricated nine', async ({ pa
   await expect(
     page
       .getByRole('link', {
-        name: isMobile ? 'Prüfen: Anzahl nicht verfügbar' : 'Prüfen, Anzahl noch nicht verfügbar',
+        name:
+          isMobile && !(await redesignLoaded(page))
+            ? 'Prüfen: Anzahl nicht verfügbar'
+            : 'Prüfen, Anzahl noch nicht verfügbar',
       })
       .filter({ visible: true }),
   ).toBeVisible();
@@ -329,7 +351,14 @@ for (const segment of ['aufgaben', 'umsaetze'] as const) {
     expect(initialUrl.searchParams.get('offset')).toBe('0');
     await expect(
       page.getByRole('group', { name: 'Teil von Prüfen' }).getByRole('button', {
-        name: segment === 'aufgaben' ? 'Aufgaben · 1' : 'Umsätze · 1',
+        name:
+          segment === 'aufgaben'
+            ? (await redesignLoaded(page))
+              ? 'Aufgaben 1'
+              : 'Aufgaben · 1'
+            : (await redesignLoaded(page))
+              ? 'Umsätze 1'
+              : 'Umsätze · 1',
         exact: true,
       }),
     ).toHaveAttribute('aria-pressed', 'true');
@@ -340,7 +369,14 @@ for (const segment of ['aufgaben', 'umsaetze'] as const) {
       await expect(
         page.getByRole('table', { name: 'Alle offenen Aufgaben nach Quelle', exact: true }),
       ).toBeVisible();
-      await page.getByRole('button', { name: 'Weitere Aufgaben öffnen', exact: true }).click();
+      await page
+        .getByRole('button', {
+          name: (await redesignLoaded(page))
+            ? 'Prüfen · Weitere Aufgaben'
+            : 'Weitere Aufgaben öffnen',
+          exact: true,
+        })
+        .click();
     }
     await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
     const row = page.getByTestId('inbox-row').filter({

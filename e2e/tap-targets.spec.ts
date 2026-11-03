@@ -1,3 +1,4 @@
+import { captureFlagControl } from './ledger-helpers';
 import type { Locator } from '@playwright/test';
 import { sampleTest as test, expect } from './sample';
 
@@ -91,7 +92,7 @@ test.describe('UX-3b touch controls', () => {
         await segment.evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
       ).toBeGreaterThanOrEqual(13);
     }
-    const flag = dialog.getByRole('button', { name: 'Markierung: keine', exact: true });
+    const flag = await captureFlagControl(dialog, 'Markierung: keine');
     expect(await flag.evaluate((el) => getComputedStyle(el, '::after').content)).toContain(
       'Markierung',
     );

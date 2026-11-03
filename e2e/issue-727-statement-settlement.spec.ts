@@ -1,3 +1,4 @@
+import { accountDocuments } from './ledger-helpers';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import {
@@ -230,6 +231,7 @@ for (const profile of ['desktop', 'phone'] as const)
         );
         await active.goto(`/konten/${card}`);
         await theme(active, selected === 'dark');
+        await accountDocuments(active);
         await active.getByRole('button', { name: 'Abrechnung hochladen', exact: true }).click();
         await active.locator('.statement-history-726 > summary').click();
         await active.getByRole('button', { name: /SYNTHETIC-727/ }).click();

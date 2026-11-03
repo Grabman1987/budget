@@ -2,10 +2,23 @@ import { ClosedAccountDisclosure } from './closed-account-disclosure';
 import { Button, CircleNumber, cx, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { TriangleAlert, Check, ChevronDown, ChevronUp, Pencil, Plus } from 'lucide-react';
+import {
+  TriangleAlert,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Pencil,
+  Plus,
+  MoreHorizontal,
+  GripVertical,
+} from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 import { KONTEN_META } from '../nav/pages';
-import { PageFrame } from '../pages/placeholder-page';
+import { AppLink } from '../shell/app-link';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { KontenFrame } from './konten-frame';
+import { AccountCheckMark } from './account-check-mark';
+import { KontenMenu } from './konten-menu';
 import { AccountFormPanel } from './account-form';
 import { useOrderedAccounts, useReorder } from './account-order';
 import { BankBalance } from './bank-balance';
@@ -102,38 +115,72 @@ export function OverviewPage() {
     ...seriesBatchQuery(WINDOW_DAYS, { ...(asOf ? { asOf } : {}), quality: true }),
     enabled: Boolean(asOf && presentation?.visible.length),
   });
-  return (
-    <PageFrame meta={KONTEN_META}>
-      <div className="kview account-overview-577">
-        <div className="overview-actions">
-          {presentation && presentation.visible.length > 0 && (
-            <Button
-              size="sm"
-              variant="ghost"
-              aria-pressed={ordering}
-              onClick={() => setOrdering(!ordering)}
-            >
-              {ordering ? (
-                <Check size={16} strokeWidth={1.75} aria-hidden="true" />
-              ) : (
-                <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
-              )}
-              {ordering ? 'Fertig' : 'Reihenfolge ändern'}
-            </Button>
+  const actions = (
+    <div className="overview-actions">
+      {REDESIGN_ENABLED && (
+        <AppLink className="btn btn-ghost overview-bookings-link" to="/konten/buchungen">
+          Alle Buchungen
+        </AppLink>
+      )}
+      {presentation && presentation.visible.length > 0 && (
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-pressed={ordering}
+          onClick={() => setOrdering(!ordering)}
+        >
+          {ordering ? (
+            <Check size={16} strokeWidth={1.75} aria-hidden="true" />
+          ) : (
+            <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
           )}
-          <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
-            Konto anlegen
-          </Button>
-        </div>
+          {ordering ? 'Fertig' : 'Reihenfolge ändern'}
+        </Button>
+      )}
+      <Button size="sm" onClick={() => setCreating(true)}>
+        <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
+        Konto anlegen
+      </Button>
+      {REDESIGN_ENABLED && <Link to="/vermoegen/nettovermoegen">Vermögen ansehen</Link>}
+      {REDESIGN_ENABLED && asOf && <span className="kmeta">Stand {longDay(asOf)}</span>}
+    </div>
+  );
+  return (
+    <KontenFrame meta={KONTEN_META} view="overview" sourceDay={asOf}>
+      <div
+        className={cx(
+          'kview account-overview-577',
+          REDESIGN_ENABLED && 'account-overview-redesign',
+        )}
+        data-redesign={REDESIGN_ENABLED ? 'account-overview' : undefined}
+      >
+        {REDESIGN_ENABLED && !ordering ? (
+          <KontenMenu
+            className="overview-actions-menu"
+            label="Kontenaktionen"
+            icon={<MoreHorizontal size={20} aria-hidden="true" />}
+            iconOnly
+          >
+            {actions}
+          </KontenMenu>
+        ) : (
+          actions
+        )}
         {accounts.isPending && <LoadingNote what="Konten" />}
         {accounts.isError && (
           <ErrorNote what="Konten" error={accounts.error} onRetry={() => void accounts.refetch()} />
         )}
+        {REDESIGN_ENABLED && positions.isError && (
+          <ErrorNote
+            what="Depotwerte"
+            error={positions.error}
+            onRetry={() => void positions.refetch()}
+          />
+        )}
         {model && presentation && (
           <>
             <OverviewLead presentation={presentation} asOf={asOf} sourcesByRow={sourcesByRow} />
-            {ordered.accounts && asOf && (
+            {!REDESIGN_ENABLED && ordered.accounts && asOf && (
               <ClosedAccountDisclosure accounts={ordered.accounts} asOf={asOf} />
             )}
             {presentation.visible.length === 0 ? (
@@ -158,24 +205,32 @@ export function OverviewPage() {
                       Offene Konten mit Prüfstand, Verlauf der letzten 30 Tage und EUR-Wert
                     </caption>
                     <colgroup>
+                      {REDESIGN_ENABLED && <col className="overview-col-details" />}
                       <col />
                       <col className="overview-col-check" />
                       <col className="overview-col-line" />
                       <col className="overview-col-value" />
-                      <col className="overview-col-details" />
+                      {!REDESIGN_ENABLED && <col className="overview-col-details" />}
                       {ordering && <col className="overview-col-order" />}
                     </colgroup>
                     <thead>
                       <tr>
+                        {REDESIGN_ENABLED && (
+                          <th scope="col">
+                            <span className="sr-only">Details</span>
+                          </th>
+                        )}
                         <th scope="col">Konto</th>
-                        <th scope="col">Prüfstand</th>
+                        <th scope="col">{REDESIGN_ENABLED ? 'Prüfung' : 'Prüfstand'}</th>
                         <th scope="col">30 Tage</th>
                         <th scope="col" className="overview-row-value">
-                          Wert in EUR
+                          {REDESIGN_ENABLED ? 'Saldo' : 'Wert in EUR'}
                         </th>
-                        <th scope="col">
-                          <span className="sr-only">Details</span>
-                        </th>
+                        {!REDESIGN_ENABLED && (
+                          <th scope="col">
+                            <span className="sr-only">Details</span>
+                          </th>
+                        )}
                         {ordering && (
                           <th scope="col">
                             <span className="sr-only">Reihenfolge</span>
@@ -203,11 +258,14 @@ export function OverviewPage() {
                 </section>
               </>
             )}
+            {REDESIGN_ENABLED && ordered.accounts && asOf && (
+              <ClosedAccountDisclosure accounts={ordered.accounts} asOf={asOf} />
+            )}
           </>
         )}
       </div>
       <AccountFormPanel open={creating} onClose={() => setCreating(false)} />
-    </PageFrame>
+    </KontenFrame>
   );
 }
 
@@ -259,10 +317,18 @@ function OverviewLead({
       </div>
       <div className="overview-lead-links">
         <Link to="/konten/pruefen">
-          {presentation.checked} von {presentation.visible.length} Konten geprüft
+          {presentation.checked} von {presentation.visible.length}
+          {REDESIGN_ENABLED ? ' geprüft' : ' Konten geprüft'}
+          {REDESIGN_ENABLED && presentation.visible.length > 0 && (
+            <span className="overview-review-track" aria-hidden="true">
+              {presentation.visible.map((account) => (
+                <span key={account.id} data-review-state={accountCheck(account).state} />
+              ))}
+            </span>
+          )}
         </Link>
-        <Link to="/vermoegen/nettovermoegen">Vermögen ansehen</Link>
-        {asOf && <span>Stand {longDay(asOf)}</span>}
+        {!REDESIGN_ENABLED && <Link to="/vermoegen/nettovermoegen">Vermögen ansehen</Link>}
+        {!REDESIGN_ENABLED && asOf && <span>Stand {longDay(asOf)}</span>}
       </div>
       {presentation.reviewUnavailable > 0 && (
         <p role="status">
@@ -309,6 +375,17 @@ function OverviewGroup({
   ordering: boolean;
   onReorder: (ids: string[]) => void;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const hidden = REDESIGN_ENABLED && collapsed && !ordering;
+  const due = group.accounts.filter((a) => a.reviewStatus?.state === 'due').length;
+  const unchecked = group.accounts.filter((a) => a.reviewStatus?.state !== 'checked').length;
+  const policies = new Set(group.accounts.map((a) => a.reviewStatus?.policy));
+  const policy =
+    policies.size === 1 && policies.has('14-days')
+      ? 'alle 14 Tage'
+      : policies.size === 1 && policies.has('calendar-month')
+        ? 'monatlich'
+        : 'je Konto';
   const names = new Map(group.accounts.map((a) => [a.id, maskMoneyText(a.name)]));
   const reorder = useReorder(
     group.accounts.map((a) => a.id),
@@ -319,10 +396,34 @@ function OverviewGroup({
     <>
       <tr className="kgroup overview-group" id={`kg-${group.group.id}`}>
         <th scope="rowgroup" colSpan={3}>
-          <CircleNumber n={index} size="sm" />
-          <span className="grp-title">{group.group.title}</span>
+          {REDESIGN_ENABLED ? (
+            <button
+              type="button"
+              className="overview-group-toggle"
+              aria-expanded={!hidden}
+              disabled={ordering}
+              onClick={() => setCollapsed(!collapsed)}
+            >
+              {hidden ? (
+                <ChevronUp size={16} aria-hidden="true" />
+              ) : (
+                <ChevronDown size={16} aria-hidden="true" />
+              )}
+              <span className="grp-title">{group.group.title}</span>{' '}
+              <span className="overview-group-review">
+                <span className="overview-group-policy">Prüfung {policy}</span>
+                {due > 0 ? ` · ${due} fällig` : unchecked > 0 ? ` · ${unchecked} offen` : ''}
+              </span>
+            </button>
+          ) : (
+            <>
+              <CircleNumber n={index} size="sm" />
+              <span className="grp-title">{group.group.title}</span>
+            </>
+          )}
           {ordering && reorder.status}
         </th>
+        {REDESIGN_ENABLED && <td />}
         <td className="kc-num overview-row-value">
           <span className="overview-group-amount" data-testid="account-group-value">
             {group.sumCents === null ? '–' : `${group.sumApprox ? '≈ ' : ''}${eur(group.sumCents)}`}
@@ -332,26 +433,27 @@ function OverviewGroup({
             label={group.group.title}
           />
         </td>
-        <td />
+        {!REDESIGN_ENABLED && <td />}
         {ordering && <td />}
       </tr>
-      {group.accounts.map((a) => (
-        <OverviewAccount
-          key={a.id}
-          account={a}
-          value={values?.get(a.id)}
-          useTreeValues={values !== undefined}
-          loading={loading}
-          sources={sourcesByRow.get(a.id)}
-          related={related.get(a.id) ?? []}
-          points={series?.series[a.id]?.points ?? []}
-          quality={series?.quality?.[a.id]}
-          seriesLoading={seriesLoading}
-          ordering={ordering}
-          rowProps={reorder.rowProps(a.id)}
-          controls={reorder.controls(a.id)}
-        />
-      ))}
+      {!hidden &&
+        group.accounts.map((a) => (
+          <OverviewAccount
+            key={a.id}
+            account={a}
+            value={values?.get(a.id)}
+            useTreeValues={values !== undefined}
+            loading={loading}
+            sources={sourcesByRow.get(a.id)}
+            related={related.get(a.id) ?? []}
+            points={series?.series[a.id]?.points ?? []}
+            quality={series?.quality?.[a.id]}
+            seriesLoading={seriesLoading}
+            ordering={ordering}
+            rowProps={reorder.rowProps(a.id)}
+            controls={reorder.controls(a.id)}
+          />
+        ))}
     </>
   );
 }
@@ -394,6 +496,26 @@ function OverviewAccount({
       ? seriesChange(points)
       : null;
   const util = utilisation(a);
+  const detailControl = (
+    <td className="overview-row-details">
+      <Button
+        size="sm"
+        variant="ghost"
+        aria-controls={detailId}
+        aria-expanded={expanded}
+        aria-label={`Details zu ${name}`}
+        onClick={() => setExpanded(!expanded)}
+      >
+        {expanded ? (
+          <ChevronUp size={16} aria-hidden="true" />
+        ) : REDESIGN_ENABLED ? (
+          <GripVertical size={16} aria-hidden="true" />
+        ) : (
+          <ChevronDown size={16} aria-hidden="true" />
+        )}
+      </Button>
+    </td>
+  );
   return (
     <>
       <tr
@@ -401,6 +523,7 @@ function OverviewAccount({
         className={cx(rowProps.className, 'krow', 'overview-account-row')}
         data-account-id={a.id}
       >
+        {REDESIGN_ENABLED && detailControl}
         <th scope="row" colSpan={2} className="overview-row-name">
           <Link
             className="overview-account-link"
@@ -424,8 +547,14 @@ function OverviewAccount({
               data-review-state={check.state}
               className={cx('kcheck', 'overview-check', check.stale && 'is-due is-stale')}
             >
-              {check.stale && <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />}
-              {CHECK_LABEL[check.state] ?? CHECK_LABEL['unavailable']}
+              {!REDESIGN_ENABLED && check.stale && (
+                <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
+              )}
+              {REDESIGN_ENABLED ? (
+                <AccountCheckMark account={a} />
+              ) : (
+                (CHECK_LABEL[check.state] ?? CHECK_LABEL['unavailable'])
+              )}
             </span>
           </Link>
         </th>
@@ -452,22 +581,7 @@ function OverviewAccount({
               : `${shown?.approx ? '≈ ' : ''}${eur(value)}`}
           </span>
         </td>
-        <td className="overview-row-details">
-          <Button
-            size="sm"
-            variant="ghost"
-            aria-controls={detailId}
-            aria-expanded={expanded}
-            aria-label={`Details zu ${name}`}
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded ? (
-              <ChevronUp size={16} strokeWidth={1.75} aria-hidden="true" />
-            ) : (
-              <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
-            )}
-          </Button>
-        </td>
+        {!REDESIGN_ENABLED && detailControl}
         {ordering && <td className="overview-row-order">{controls}</td>}
       </tr>
       {expanded && (

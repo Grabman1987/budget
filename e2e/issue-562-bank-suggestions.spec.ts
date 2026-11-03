@@ -1,3 +1,4 @@
+import { redesignLoaded, bankPreviewControl } from './ledger-helpers';
 import { randomUUID } from 'node:crypto';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase, schema } from '@budget/db';
@@ -138,9 +139,10 @@ test('three prepared bank rows are explicitly reviewed with progress and individ
   await expect(page.getByTestId('inbox-row').filter({ hasText: 'Rule 562' })).toContainText(
     'Regel: Synthetic rule 562',
   );
-  await expect(page.getByTestId('inbox-row').filter({ hasText: 'Category 562' })).toContainText(
-    'Kategorie prüfen',
-  );
+  const categoryRow = page.getByTestId('inbox-row').filter({ hasText: 'Category 562' });
+  if (await redesignLoaded(page)) {
+    await expect(categoryRow.getByTitle(/^Kategorie prüfen(?: · .*)?$/)).toHaveText('Unbekannt');
+  } else await expect(categoryRow).toContainText('Kategorie prüfen');
   expect(writes).toEqual([]);
   expect(
     reads.some(
@@ -172,7 +174,7 @@ test('three prepared bank rows are explicitly reviewed with progress and individ
     });
   }
   const mergeRow = page.getByTestId('inbox-row').filter({ hasText: 'Merge 562' });
-  await mergeRow.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  await (await bankPreviewControl(mergeRow)).click();
   await expect(page.getByRole('dialog', { name: 'Buchung übernehmen' })).toBeVisible();
   expect(writes).toEqual([]);
   await page
@@ -189,7 +191,7 @@ test('three prepared bank rows are explicitly reviewed with progress and individ
   ] as const) {
     const row = page.getByTestId('inbox-row').filter({ hasText: memo });
     const accept = async () => {
-      await row.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+      await (await bankPreviewControl(row)).click();
       const dialog = page.getByRole('dialog', { name: 'Buchung übernehmen' });
       if (memo === 'Merge 562')
         await dialog.getByRole('button', { name: /Mit Buchung .* zusammenführen/ }).click();
@@ -251,9 +253,13 @@ test('three prepared bank rows are explicitly reviewed with progress and individ
   }
   await page.reload();
   const ambiguousRow = page.getByTestId('inbox-row').filter({ hasText: 'Ambiguous 562' });
-  await expect(ambiguousRow).toContainText('Vorschlag prüfen · mehrere mögliche Buchungen');
+  if (await redesignLoaded(page))
+    await expect(
+      ambiguousRow.getByTitle('Vorschlag prüfen · mehrere mögliche Buchungen', { exact: true }),
+    ).toHaveText('Unbekannt');
+  else await expect(ambiguousRow).toContainText('Vorschlag prüfen · mehrere mögliche Buchungen');
   const writesBeforeAmbiguous = writes.length;
-  await ambiguousRow.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  await (await bankPreviewControl(ambiguousRow)).click();
   await expect(page.getByRole('dialog', { name: 'Buchung übernehmen' })).toBeVisible();
   expect(writes).toHaveLength(writesBeforeAmbiguous);
   await page

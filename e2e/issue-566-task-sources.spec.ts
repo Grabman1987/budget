@@ -1,3 +1,4 @@
+import { redesignLoaded } from './ledger-helpers';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { accounts, createBooking, openDatabase, schema, stagePayslip } from '@budget/db';
@@ -207,7 +208,8 @@ for (const [profile, desired, viewport] of [
       expect((await pill.json()).count).toBe(6);
       const sources = page.getByRole('table', { name: 'Alle offenen Aufgaben nach Quelle' });
       await expect(sources.getByRole('row')).toHaveCount(6);
-      await singleLineText(sources.getByRole('columnheader', { name: 'Offen', exact: true }));
+      if (!(await redesignLoaded(page)))
+        await singleLineText(sources.getByRole('columnheader', { name: 'Offen', exact: true }));
       for (const label of [
         'Konten prüfen',
         'Plan',
@@ -215,7 +217,12 @@ for (const [profile, desired, viewport] of [
         'Gehaltszettel',
         'Weitere Aufgaben',
       ]) {
-        const action = sources.getByRole('button', { name: `${label} öffnen`, exact: true });
+        const action = sources.getByRole('button', {
+          name: (await redesignLoaded(page))
+            ? `${label === 'Belege ohne Buchung' ? 'Zuordnen' : 'Prüfen'} · ${label}`
+            : `${label} öffnen`,
+          exact: true,
+        });
         await hit(action);
         await singleLineText(action);
       }
@@ -223,28 +230,62 @@ for (const [profile, desired, viewport] of [
       expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
       // Use an ordinary non-action heading click to clear focused skip-link UI, then capture
       // from the document top so fixed navigation is represented in its normal position.
-      await page.getByRole('heading', { name: 'Offene Aufgaben · 5', exact: true }).click();
+      if (await redesignLoaded(page))
+        await page.getByRole('heading', { name: 'Konten', exact: true }).click();
+      else await page.getByRole('heading', { name: 'Offene Aufgaben · 5', exact: true }).click();
       await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
       await page.screenshot({
         path: info.outputPath(`task-sources-${profile}-${desired}.png`),
         fullPage: true,
       });
-      await sources.getByRole('button', { name: 'Plan öffnen', exact: true }).click();
+      await sources
+        .getByRole('button', {
+          name: (await redesignLoaded(page)) ? 'Prüfen · Plan' : 'Plan öffnen',
+          exact: true,
+        })
+        .click();
       await expect(page.getByText('Synthetic Plan 566', { exact: true })).toBeVisible();
-      await sources.getByRole('button', { name: 'Weitere Aufgaben öffnen', exact: true }).click();
+      await sources
+        .getByRole('button', {
+          name: (await redesignLoaded(page))
+            ? 'Prüfen · Weitere Aufgaben'
+            : 'Weitere Aufgaben öffnen',
+          exact: true,
+        })
+        .click();
       await expect(page.getByText('Synthetic unknown 566', { exact: true })).toBeVisible();
       await sources
-        .getByRole('button', { name: 'Belege ohne Buchung öffnen', exact: true })
+        .getByRole('button', {
+          name: (await redesignLoaded(page))
+            ? 'Zuordnen · Belege ohne Buchung'
+            : 'Belege ohne Buchung öffnen',
+          exact: true,
+        })
         .click();
       await expect(page.getByText('synthetic-566.pdf', { exact: false })).toBeVisible();
-      await sources.getByRole('button', { name: 'Gehaltszettel öffnen', exact: true }).click();
+      await sources
+        .getByRole('button', {
+          name: (await redesignLoaded(page)) ? 'Prüfen · Gehaltszettel' : 'Gehaltszettel öffnen',
+          exact: true,
+        })
+        .click();
       await expect(page.getByRole('link', { name: 'Gehaltsreport', exact: true })).toHaveAttribute(
         'href',
         '/reports/gehalt',
       );
-      await sources.getByRole('button', { name: 'Konten prüfen öffnen', exact: true }).click();
+      await sources
+        .getByRole('button', {
+          name: (await redesignLoaded(page)) ? 'Prüfen · Konten prüfen' : 'Konten prüfen öffnen',
+          exact: true,
+        })
+        .click();
       await singleLineText(
-        sources.getByRole('button', { name: 'Konten prüfen schließen', exact: true }),
+        sources.getByRole('button', {
+          name: (await redesignLoaded(page))
+            ? 'Schließen · Konten prüfen'
+            : 'Konten prüfen schließen',
+          exact: true,
+        }),
       );
       const reminder = page.getByRole('link', { name: 'Kontostand prüfen', exact: true });
       await hit(reminder);
