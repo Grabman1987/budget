@@ -53,7 +53,7 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  const tag = `${info.project.name}${info.retry ? `-${info.retry}` : ''}`;
+  const tag = `${info.project.name}${info.retry ? `-${info.retry}` : ''}${info.repeatEachIndex ? `-repeat-${info.repeatEachIndex}` : ''}`;
   const { account } = await post('/accounts', {
     name: `Dialog Muster ${tag}`,
     type: 'checking',
@@ -261,7 +261,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       expect(response.ok(), await response.text()).toBe(true);
       return response.json();
     };
-    const tag = `${info.project.name}-${scenario}-${info.retry}`;
+    const tag = `${info.project.name}-${scenario}-${info.retry}${info.repeatEachIndex ? `-repeat-${info.repeatEachIndex}` : ''}`;
     const { account } = await post('/accounts', {
       name: `Zeilenkonto Muster ${tag}`,
       type: 'checking',
