@@ -333,6 +333,7 @@ for (const profile of ['configured', 'desktop1440'] as const) {
           const dialog = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
           const field = dialog.getByRole('combobox', { name: 'Kategorie', exact: true });
           const redesign = await redesignLoaded(page);
+          await page.evaluate(() => document.fonts.ready);
           // Keep a genuinely scrollable draft when testing a clipped anchor in the compact ON form.
           if (redesign)
             await dialog
@@ -423,13 +424,16 @@ for (const profile of ['configured', 'desktop1440'] as const) {
                 el.scrollTop = 0;
               });
             await expect
-              .poll(() =>
-                field.evaluate((el) => {
+              .poll(async () => {
+                // WebKit may finish focused-input scrolling after viewport resize.
+                // Reapply the scroll fixture; keep the strict fully-clipped anchor oracle.
+                if (redesign) await hideRedesignAnchor();
+                return field.evaluate((el) => {
                   const clip = el.closest('.bk-body')!.getBoundingClientRect(),
                     box = el.getBoundingClientRect();
                   return box.bottom <= clip.top || box.top >= clip.bottom;
-                }),
-              )
+                });
+              })
               .toBe(true);
             await expect(list).toBeHidden();
             await expect(field).toHaveAttribute('aria-expanded', 'false');
@@ -453,13 +457,14 @@ for (const profile of ['configured', 'desktop1440'] as const) {
               el.scrollTop = phone ? 0 : el.scrollHeight;
             }, actual.coarse);
           await expect
-            .poll(() =>
-              field.evaluate((el) => {
+            .poll(async () => {
+              if (redesign) await hideRedesignAnchor();
+              return field.evaluate((el) => {
                 const clip = el.closest('.bk-body')!.getBoundingClientRect(),
                   box = el.getBoundingClientRect();
                 return box.bottom <= clip.top || box.top >= clip.bottom;
-              }),
-            )
+              });
+            })
             .toBe(true);
           await expect(list).toBeHidden();
           await expect(field).toHaveAttribute('aria-expanded', 'false');

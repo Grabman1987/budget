@@ -380,8 +380,10 @@ const probes = {
   inflation: async (p: Page) =>
     (await redesignReportsOn(p)) ? css(p, '[data-testid="inflation-chart"]') : id(p, 'pi-rate'),
   assetsDebts: (p: Page) => id(p, 'ad-net'),
-  depots: (p: Page) =>
-    expect(p.getByTestId('depot-total').getByTestId('depot-value')).toBeVisible(),
+  depots: async (p: Page) => {
+    if (await wealthRedesign(p)) await disclose(p.locator('.depot-comparison-detail'));
+    await expect(p.getByTestId('depot-total').getByTestId('depot-value')).toBeVisible();
+  },
   portfolioReport: (p: Page) => id(p, 'sunburst-classes'),
   costs: (p: Page) => id(p, 'costs-net'),
   contactReport: async (p: Page) => {
@@ -642,7 +644,7 @@ for (const [from, legacyPath, legacyBody, query] of fixedAliases)
     await loaded(page, '/plan/monat', 'plan');
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
   });
-// Both literal sets retain current capabilities; this does not migrate Kontakte or pallocation.
+// Literal legacy entries keep their readers through the accepted canonical destinations.
 const currentHub = [
   ['einnahmen-ausgaben', 'incomeExpense'],
   ['ausgaben', 'spending'],
@@ -666,8 +668,13 @@ for (const [name, body] of currentHub)
     await page.goto('/reports');
     await probes.hub(page);
     await page.locator(`.report-hub-list a[href="/reports/${name}"]`).click();
-    await loaded(page, `/reports/${name}`, body);
-    await reload(page, `/reports/${name}`, body);
+    const path = name === 'pallocation' ? await portfolioReportPath(page) : `/reports/${name}`;
+    await loaded(page, path, body);
+    if (name === 'pallocation' && (await wealthRedesign(page)))
+      await expectWealthReportView(page, 'Verteilung über Zeit');
+    await reload(page, path, body);
+    if (name === 'pallocation' && (await wealthRedesign(page)))
+      await expectWealthReportView(page, 'Verteilung über Zeit');
   });
 function seedImports(databasePath: string) {
   const opened = openDatabase(databasePath);
