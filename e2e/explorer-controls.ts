@@ -1,11 +1,17 @@
 import { expect, type Page } from '@playwright/test';
 import { redesignReportsOn } from './report-frame';
 
+/** Financial/source checks use the retained full table, including on the phone. */
+export async function retainExplorerTable(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem('budget.report-explorer.full-table', '1');
+  });
+}
 /** Existing financial tests exercise the complete editor/table in either presentation. */
 export async function retainExplorerReaders(page: Page) {
+  await retainExplorerTable(page);
   await page.addInitScript(() => {
     localStorage.setItem('budget-report-r8-explorer-editor', '1');
-    localStorage.setItem('budget.report-explorer.full-table', '1');
   });
 }
 export async function openCustomExplorer(page: Page) {
