@@ -1,5 +1,7 @@
 import {
   redesignLoaded,
+  bankPreviewControl,
+  toast,
   captureFlagControl,
   categoryLineControl,
   contactShareControl,
@@ -9,6 +11,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { eur } from '../apps/web/src/ledger/format';
 import type { LiquidityReportView } from '../apps/web/src/reports/liquidity-api';
 import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
+import { openDatabase, schema } from '@budget/db';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { test } from './isolated-ledger';
@@ -319,45 +323,45 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
     }
     await page.keyboard.press('Tab');
     await expect(amount).toBeFocused();
-    const motion = await dialog.evaluate((el) =>
-      [el, ...el.querySelectorAll('*')].flatMap((node) => {
-        const style = getComputedStyle(node);
-        return [style.animationDuration, style.transitionDuration]
-          .flatMap((value) => value.split(',').map(parseFloat))
-          .filter((seconds) => seconds > 0.000011);
-      }),
-    );
-    expect(motion).toEqual([]);
-    expect(
-      await dialog.evaluate(
-        (el) => el.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length,
-      ),
-    ).toBe(0);
-    await amount.press('Escape');
-    const ask = dialog.getByRole('alertdialog', { name: 'Eingaben verwerfen?' });
-    await expect(ask).toBeVisible();
-    const keep = ask.getByRole('button', { name: 'Weiter bearbeiten' });
-    await expect(keep).toBeFocused();
-    await keep.press('Shift+Tab');
-    await expect(ask.getByRole('button', { name: 'Verwerfen', exact: true })).toBeFocused();
-    await page.keyboard.press('Tab');
-    await expect(keep).toBeFocused();
-    expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
-    await evidence(page, info, 'booking-discard-focus', dialog);
-    await keep.press('Enter');
-    await expect(ask).toBeHidden();
-    await expect(amount).toBeFocused();
-    await expect(amount).toHaveValue('12,34');
-    await amount.press('Escape');
-    await expect(keep).toBeFocused();
-    await keep.press('Tab');
-    const discard = ask.getByRole('button', { name: 'Verwerfen', exact: true });
-    await expect(discard).toBeFocused();
-    await discard.press('Enter');
-    await expect(dialog).toBeHidden();
-    await expect(opener).toBeFocused();
-    expect((await (await request.get('/api/bookings')).json()).items).toEqual([]);
   }
+  const motion = await dialog.evaluate((el) =>
+    [el, ...el.querySelectorAll('*')].flatMap((node) => {
+      const style = getComputedStyle(node);
+      return [style.animationDuration, style.transitionDuration]
+        .flatMap((value) => value.split(',').map(parseFloat))
+        .filter((seconds) => seconds > 0.000011);
+    }),
+  );
+  expect(motion).toEqual([]);
+  expect(
+    await dialog.evaluate(
+      (el) => el.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length,
+    ),
+  ).toBe(0);
+  await amount.press('Escape');
+  const ask = dialog.getByRole('alertdialog', { name: 'Eingaben verwerfen?' });
+  await expect(ask).toBeVisible();
+  const keep = ask.getByRole('button', { name: 'Weiter bearbeiten' });
+  await expect(keep).toBeFocused();
+  await keep.press('Shift+Tab');
+  await expect(ask.getByRole('button', { name: 'Verwerfen', exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(keep).toBeFocused();
+  expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
+  await evidence(page, info, 'booking-discard-focus', dialog);
+  await keep.press('Enter');
+  await expect(ask).toBeHidden();
+  await expect(amount).toBeFocused();
+  await expect(amount).toHaveValue('12,34');
+  await amount.press('Escape');
+  await expect(keep).toBeFocused();
+  await keep.press('Tab');
+  const discard = ask.getByRole('button', { name: 'Verwerfen', exact: true });
+  await expect(discard).toBeFocused();
+  await discard.press('Enter');
+  await expect(dialog).toBeHidden();
+  await expect(opener).toBeFocused();
+  expect((await (await request.get('/api/bookings')).json()).items).toEqual([]);
 });
 
 sampleTest(
@@ -404,3 +408,181 @@ sampleTest(
     await evidence(page, info, 'heute-dark', page.locator('main'));
   },
 );
+
+test.describe('safe bank preview recovery', () => {
+  test.use({ bankingConfigured: true });
+  test('an additional eligible rule invalidates an open preview despite unchanged selected revisions', async ({
+    page,
+    request,
+    isolatedLedger,
+  }) => {
+    const { origin, databasePath } = isolatedLedger;
+    const post = async (path: string, data: unknown) => {
+      const response = await request.post(origin + '/api' + path, { headers: { origin }, data });
+      expect(response.ok(), await response.text()).toBe(true);
+      return response.json();
+    };
+    const { account } = await post('/accounts', {
+      name: 'Synthetic stale preview account',
+      type: 'checking',
+      openingDate: '2026-10-01',
+      openingBalanceCents: 10000,
+    });
+    const { group } = await post('/categories/groups', { name: 'Synthetic stale preview group' });
+    const { category } = await post('/categories', {
+      name: 'Synthetic stale preview category',
+      class: 'need',
+      groupId: group.id,
+    });
+    const ruleInput = {
+      enabled: true,
+      automatic: true,
+      match: { mode: 'all', conditions: [{ type: 'contains', text: 'Synthetic stale preview' }] },
+      actions: { categoryId: category.id },
+    };
+    await post('/assignment-rules', { ...ruleInput, name: 'Synthetic first automatic rule' });
+    const sourceId = randomUUID(),
+      consentId = randomUUID(),
+      id = randomUUID();
+    const opened = openDatabase(databasePath);
+    try {
+      opened.db
+        .insert(schema.bankSyncConsent)
+        .values({
+          id: consentId,
+          initiator: 'synthetic',
+          stateHash: randomUUID(),
+          label: 'Synthetic preview source',
+          expiresAt: '2027-01-01T00:00:00Z',
+          nextRunAt: '2027-01-01T00:00:00Z',
+        })
+        .run();
+      opened.db
+        .insert(schema.bankSyncAccount)
+        .values({
+          id: sourceId,
+          consentId,
+          secret: 'synthetic-unused',
+          label: 'Synthetic preview source account',
+          currency: 'EUR',
+          accountId: account.id,
+        })
+        .run();
+      opened.db
+        .insert(schema.bankSyncCandidate)
+        .values({
+          id,
+          sourceId,
+          accountId: account.id,
+          dedupeKey: id,
+          date: '2026-10-09',
+          amountCents: -1201,
+          currency: 'EUR',
+          memo: 'Synthetic stale preview',
+        })
+        .run();
+      opened.db
+        .insert(schema.inboxItem)
+        .values({
+          id,
+          kind: 'import',
+          title: 'Bankumsatz prüfen',
+          refType: 'bank-sync-candidate',
+          refId: id,
+          createdAt: '2026-10-09T12:00:00Z',
+        })
+        .run();
+    } finally {
+      opened.close();
+    }
+    const readCandidate = async () => {
+      const response = await request.get(origin + '/api/assignment-rules/candidates/' + id);
+      expect(response.ok()).toBe(true);
+      return response.json();
+    };
+    await page.goto(`/konten/pruefen?bankSource=${sourceId}`);
+    const row = page.locator('.bank-inbox-row').filter({ hasText: 'Synthetic stale preview' });
+    await (await bankPreviewControl(row)).click();
+    const candidate = page.getByRole('dialog', { name: 'Buchung übernehmen' });
+    await expect(
+      candidate.getByText('Synthetic first automatic rule', { exact: true }),
+    ).toBeVisible();
+    await candidate.getByRole('button', { name: 'Schließen', exact: true }).click();
+    const shortcut = page.getByRole('button', { name: /Alle sicheren bestätigen/ });
+    const writes: string[] = [];
+    page.on('request', (req) => {
+      const path = new URL(req.url()).pathname;
+      if (req.method() === 'POST' && ['/api/bank-sync/inbox/bulk', '/api/undo'].includes(path))
+        writes.push(path);
+    });
+    if (!(await redesignLoaded(page))) {
+      await expect(shortcut).toHaveCount(0);
+      expect((await (await request.get(origin + '/api/bookings')).json()).items).toEqual([]);
+      expect(writes).toEqual([]);
+      return;
+    }
+    await expect(shortcut).toHaveText('Alle sicheren bestätigen (1)');
+    await shortcut.click();
+    const preview = page.getByRole('dialog', { name: 'Bankauswahl prüfen' });
+    await expect(preview).toContainText('1 ausgewählt · 1 bestätigen · 0 übersprungen');
+    const before = await readCandidate();
+    await post('/assignment-rules', { ...ruleInput, name: 'Synthetic second automatic rule' });
+    const after = await readCandidate();
+    expect(after.candidateRevision).toBe(before.candidateRevision);
+    expect(
+      after.suggestions.find((rule: { id: string }) => rule.id === before.suggestions[0].id)
+        .revision,
+    ).toBe(before.suggestions[0].revision);
+    expect(
+      after.suggestions.filter(
+        (rule: { automatic: boolean; unavailable: boolean }) => rule.automatic && !rule.unavailable,
+      ),
+    ).toHaveLength(2);
+    const execute = preview.getByRole('button', { name: 'Auswahl jetzt ausführen' });
+    // The normal provider refresh sees both rules although neither stored revision changed.
+    const ambiguousRefresh = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/api/assignment-rules/candidates/' + id &&
+        response.status() === 200,
+    );
+    await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+    await ambiguousRefresh;
+    await expect(shortcut).toHaveText('Alle sicheren bestätigen (0)');
+    await expect(preview.getByRole('alert')).toContainText('nicht mehr aktuell');
+    await expect(execute).toBeDisabled();
+    expect(writes).toEqual([]);
+    expect((await (await request.get(origin + '/api/bookings')).json()).items).toEqual([]);
+    // Restoring eligibility cannot silently re-authorize the old confirmation.
+    const rules = await (await request.get(origin + '/api/assignment-rules')).json();
+    const second = rules.rules.find(
+      (rule: { name: string }) => rule.name === 'Synthetic second automatic rule',
+    );
+    const removed = await request.delete(origin + '/api/assignment-rules/' + second.id, {
+      headers: { origin },
+    });
+    expect(removed.ok()).toBe(true);
+    const refreshed = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/api/assignment-rules/candidates/' + id &&
+        response.status() === 200,
+    );
+    await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+    await refreshed;
+    await expect(shortcut).toHaveText('Alle sicheren bestätigen (1)');
+    await expect(execute).toBeDisabled();
+    await preview.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+    await shortcut.click();
+    await expect(execute).toBeEnabled();
+    await execute.click();
+    await expect(row).toHaveCount(0);
+    await expect(toast(page)).toContainText('1 Bankzeilen bestätigt');
+    await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
+    await expect(row).toBeVisible();
+    expect(writes).toEqual(['/api/bank-sync/inbox/bulk', '/api/undo']);
+    expect((await (await request.get(origin + '/api/bookings')).json()).items).toEqual([]);
+    const accounts = await (await request.get(origin + '/api/accounts')).json();
+    expect(
+      accounts.accounts.find((row: { id: string }) => row.id === account.id).balanceCents,
+    ).toBe(10000);
+  });
+});

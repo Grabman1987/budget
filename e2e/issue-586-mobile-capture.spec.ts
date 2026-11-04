@@ -1,5 +1,12 @@
-import { categoryLineControl } from './ledger-helpers';
+import { categoryLineControl, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
+import { readFileSync } from 'node:fs';
+
+const referenceWidth = Number(
+  readFileSync('design/claude-design-20261030/redesign/v2-buchung.jsx', 'utf8').match(
+    /role="dialog"[^\n]*?width:(\d+)/,
+  )![1],
+);
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 async function openCapture(page: Page) {
@@ -124,7 +131,9 @@ test('desktop card stays bounded and phone save follows keyboard-sized visual vi
   const dialog = await openCapture(page);
   if (page.viewportSize()!.width !== 390) {
     const bounds = (await dialog.boundingBox())!;
-    expect(bounds.width).toBe(960);
+    if (await redesignLoaded(page))
+      expect(Math.abs(bounds.width - referenceWidth)).toBeLessThanOrEqual(0.1);
+    else expect(bounds.width).toBe(960);
     expect(bounds.y).toBeGreaterThan(0);
     await saveWithin(dialog, 0, page.viewportSize()!.height);
     return;

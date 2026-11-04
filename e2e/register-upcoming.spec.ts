@@ -115,7 +115,7 @@ test('separates future captures and next weekly occurrence, projects cents and u
       const skip = await scheduled.getByRole('button', { name: 'Überspringen' }).boundingBox();
       const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
       if (redesign) expect(actions!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-      expect(actions!.height).toBeLessThanOrEqual(redesign ? 44 : 34);
+      expect(actions!.height).toBeLessThanOrEqual(redesign ? Math.ceil(MIN_TARGET_PX) + 0.1 : 34);
       expect(Math.abs(actions!.y - skip!.y)).toBeLessThan(2);
     }
     if (info.project.name === 'mobile') {
