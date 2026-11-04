@@ -84,7 +84,8 @@ for (const profile of ['desktop-layout', 'configured-profile'] as const)
         await expect(launch).toBeVisible();
         await launch.focus();
         await active.keyboard.press('Enter');
-        const dialog = active.getByRole('dialog');
+        // The statement title changes after import; mounted shell dialogs are separate workflows.
+        const dialog = active.getByRole('dialog', { name: /^Abrechnung (hochladen|prüfen)$/ });
         await expect(dialog).toBeVisible();
         const bytes = await syntheticColumnarPayslipPdf(
           [
