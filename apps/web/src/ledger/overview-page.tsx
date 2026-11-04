@@ -377,8 +377,21 @@ function OverviewGroup({
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const hidden = REDESIGN_ENABLED && collapsed && !ordering;
-  const due = group.accounts.filter((a) => a.reviewStatus?.state === 'due').length;
-  const unchecked = group.accounts.filter((a) => a.reviewStatus?.state !== 'checked').length;
+  const reviewCounts = new Map<string, number>();
+  for (const account of group.accounts) {
+    const state = accountCheck(account).state;
+    reviewCounts.set(state, (reviewCounts.get(state) ?? 0) + 1);
+  }
+  const reviewSummary = [
+    ['due', 'fällig'],
+    ['unreviewed', 'offen'],
+    ['inactive', 'noch nie'],
+    ['unsupported', 'Prüfung nicht unterstützt'],
+    ['unavailable', 'Prüfstatus nicht verfügbar'],
+  ]
+    .filter(([state]) => reviewCounts.has(state!))
+    .map(([state, label]) => `${reviewCounts.get(state!)} ${label}`)
+    .join(' · ');
   const policies = new Set(group.accounts.map((a) => a.reviewStatus?.policy));
   const policy =
     policies.size === 1 && policies.has('14-days')
@@ -395,7 +408,7 @@ function OverviewGroup({
   return (
     <>
       <tr className="kgroup overview-group" id={`kg-${group.group.id}`}>
-        <th scope="rowgroup" colSpan={3}>
+        <th scope="rowgroup" colSpan={3} style={REDESIGN_ENABLED ? { height: 'auto' } : undefined}>
           {REDESIGN_ENABLED ? (
             <button
               type="button"
@@ -412,7 +425,7 @@ function OverviewGroup({
               <span className="grp-title">{group.group.title}</span>{' '}
               <span className="overview-group-review">
                 <span className="overview-group-policy">Prüfung {policy}</span>
-                {due > 0 ? ` · ${due} fällig` : unchecked > 0 ? ` · ${unchecked} offen` : ''}
+                {reviewSummary && ` · ${reviewSummary}`}
               </span>
             </button>
           ) : (
