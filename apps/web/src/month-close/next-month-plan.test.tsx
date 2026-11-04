@@ -21,6 +21,7 @@ import { createLedgerApi } from '../../../server/src/api';
 import type { MonthCloseView } from './api';
 import { NextMonthPlan } from './next-month-plan';
 import { cents } from '@budget/domain';
+import { useState } from 'react';
 
 afterEach(cleanup);
 async function getPlan(opened: ReturnType<typeof createTestDatabase>) {
@@ -212,6 +213,47 @@ it('history buttons only prepare a draft and do not treat missing history as zer
     expect((screen.getByLabelText('Plan für Miete') as HTMLInputElement).value).toBe('100,00');
     expect((screen.getByLabelText('Plan für Essen') as HTMLInputElement).value).toBe('250,00');
     expect(applied).toBe(false);
+  } finally {
+    opened.close();
+  }
+});
+
+it('holds every apply action until the refreshed basis is ready, preserving the exact draft cents', async () => {
+  const opened = createTestDatabase();
+  try {
+    seedBasics(opened.db);
+    const data = await getPlan(opened);
+    let applied: unknown;
+    function RefreshingPlan() {
+      const [disabled, setDisabled] = useState(true);
+      return (
+        <>
+          <button onClick={() => setDisabled(false)}>Synthetic basis ready</button>
+          <NextMonthPlan
+            data={data}
+            disabled={disabled}
+            onApply={async (items) => {
+              applied = items;
+              return true;
+            }}
+          />
+        </>
+      );
+    }
+    await renderPlan(<RefreshingPlan />);
+    const user = userEvent.setup();
+    await user.clear(screen.getByLabelText('Plan für Miete'));
+    await user.type(screen.getByLabelText('Plan für Miete'), '50,01');
+    for (const action of screen.getAllByRole('button', { name: /^Plan übernehmen/ }))
+      expect((action as HTMLButtonElement).disabled).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Plan übernehmen · alle' }));
+    expect(applied).toBeUndefined();
+    await user.click(screen.getByRole('button', { name: 'Synthetic basis ready' }));
+    expect((screen.getByLabelText('Plan für Miete') as HTMLInputElement).value).toBe('50,01');
+    const apply = screen.getByRole('button', { name: 'Plan übernehmen · alle' });
+    expect((apply as HTMLButtonElement).disabled).toBe(false);
+    await user.click(apply);
+    expect(applied).toEqual([{ categoryId: 'miete', assignedCents: 5001 }]);
   } finally {
     opened.close();
   }

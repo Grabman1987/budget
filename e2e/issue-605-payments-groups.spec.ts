@@ -35,6 +35,8 @@ async function open(page: Page, query = '') {
   if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
     await page.getByRole('button', { name: 'Fälligkeiten aktualisieren', exact: true }).click();
   await expect(page.locator('tr.prow').first()).toBeVisible({ timeout: 30_000 });
+  // The sample contains USD rows; their EUR equivalents arrive after the occurrence rows.
+  await expect(page.locator('table.xp-next .col-num .xp-sub').first()).toBeVisible();
 }
 
 interface Shown {
@@ -154,12 +156,14 @@ test('the 35-day list ends on 22.10.; 90 days extends it without changing the fi
     await expectPaymentHorizon(page, '90 Tage');
     await page.goBack();
     await expectPaymentHorizon(page, '35 Tage');
-    expect(await rowsOf(page)).toEqual(short);
+    // Back restores the URL before both the occurrence rows and EUR conversions have loaded.
+    await expect.poll(() => rowsOf(page)).toEqual(short);
     await page.goForward();
     await expectPaymentHorizon(page, '90 Tage');
   }
 
   await paymentHorizon(page, '35 Tage');
+  await expectPaymentHorizon(page, '35 Tage');
   expect(await rowsOf(page)).toEqual(short);
 });
 

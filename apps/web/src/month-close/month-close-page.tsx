@@ -505,6 +505,7 @@ function CloseFlow({
             )}
             <NextMonthPlan
               data={data.nextPlan}
+              disabled={REDESIGN_ENABLED && (busy || !fresh)}
               onDirtyChange={(dirty) => {
                 if (dirty) setChosenStep(4);
                 setDirtyPlan(dirty);
