@@ -52,6 +52,96 @@ async function openNew(page: Page, accountId: string) {
   return dialog;
 }
 
+test('save button stays readable through theme and availability changes', async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  const { account } = await api(request, baseURL)('/accounts', {
+    name: 'Synthetic contrast account',
+    type: 'checking',
+    openingDate: '2026-01-01',
+    openingBalanceCents: 100000,
+  });
+  const dialog = await openNew(page, account.id);
+  const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+  await dialog.getByLabel('Betrag', { exact: true }).fill('12');
+  await choose(dialog, 'Kategorie', 'Essen', /^Essen/);
+  await expect(save).toBeEnabled();
+  const redesign = await redesignLoaded(page);
+  if (process.env['A2_EXPECT_REDESIGN'] !== undefined)
+    expect(redesign).toBe(process.env['A2_EXPECT_REDESIGN'] === '1');
+  // OFF retains its existing palette and transitions; its settled colours remain covered below
+  // and by the existing Axe checks. ON must also stay readable in every intermediate frame.
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    await page.emulateMedia({ reducedMotion: motion });
+    for (const state of ['enabled', 'hover', 'focus', 'disabled'] as const) {
+      if (state === 'hover') await save.hover();
+      if (state === 'focus') {
+        await dialog.getByLabel('Betrag', { exact: true }).hover();
+        await save.focus();
+      }
+      if (state === 'disabled') {
+        await (await categoryLineControl(dialog)).click();
+        await expect(save).toBeDisabled();
+      }
+      for (const theme of ['light', 'dark', 'light'] as const) {
+        const ratios = await save.evaluate(
+          async (button, { theme, redesign }) => {
+            document.documentElement.dataset['theme'] = theme;
+            const rgb = (value: string) =>
+              value
+                .match(/[\d.]+/g)!
+                .slice(0, 3)
+                .map(Number);
+            const luminance = (channels: number[]) =>
+              channels.reduce((sum, channel, index) => {
+                const c = channel / 255;
+                return (
+                  sum +
+                  [0.2126, 0.7152, 0.0722][index]! *
+                    (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+                );
+              }, 0);
+            const ratio = () => {
+              const style = getComputedStyle(button);
+              const backdrop = rgb(getComputedStyle(button.parentElement!).backgroundColor);
+              const opacity = Number(style.opacity);
+              const painted = (value: string) =>
+                rgb(value).map((channel, i) => channel * opacity + backdrop[i]! * (1 - opacity));
+              const fg = luminance(painted(style.color));
+              const bg = luminance(painted(style.backgroundColor));
+              return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+            };
+            // Sample immediately and over several painted frames, without waiting for transitions.
+            if (redesign) {
+              const samples = [ratio()];
+              for (let frame = 0; frame < 8; frame++) {
+                await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+                samples.push(ratio());
+              }
+              return samples;
+            }
+            const finite = button
+              .getAnimations()
+              .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
+            await Promise.all(finite.map((animation) => animation.finished.catch(() => undefined)));
+            return [ratio()];
+          },
+          { theme, redesign },
+        );
+        // Disabled legacy controls keep their existing opacity; ON explicitly retains AA there.
+        if (redesign || state !== 'disabled')
+          for (const ratio of ratios)
+            expect(ratio, `${motion}/${state}/${theme}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+    // Restore the valid single-line draft for the next motion preference.
+    await dialog.getByRole('button', { name: 'Zeile 2 entfernen', exact: true }).click();
+    await expect(save).toBeEnabled();
+  }
+});
+
 for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as const) {
   test(`two columns, no scrolling for up to two lines: ${scenario}`, async ({
     page,
