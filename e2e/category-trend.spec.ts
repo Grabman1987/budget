@@ -1,4 +1,5 @@
 import { withShellControls } from './shell-actions';
+import { retainExplorerTable } from './explorer-controls';
 import { cents, formatEuro, lastDayOfMonth } from '@budget/domain';
 import type { Page } from '@playwright/test';
 import type { ReportTables } from '../apps/web/src/reports/table-reports-api';
@@ -6,6 +7,7 @@ import { sampleTest as test, expect } from './sample';
 import { inspectReport } from './spending-helpers';
 
 test.describe.configure({ timeout: 120_000 });
+test.beforeEach(async ({ page }) => retainExplorerTable(page));
 
 async function openExpenseHeatmap(page: Page) {
   const toggle = page.locator('section[aria-labelledby="sa-explorer"] .section-toggle');
