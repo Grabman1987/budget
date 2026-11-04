@@ -22,7 +22,7 @@ COPY apps apps
 COPY packages packages
 # The web build reads the self-hosted fonts from the design prototype.
 COPY design/prototype/fonts design/prototype/fonts
-RUN VITE_BUDGET_REDESIGN=1 npm run build
+RUN VITE_BUDGET_REDESIGN=0 npm run build
 
 # ---- litestream: pinned release, checksum-verified, one binary per target architecture ----
 FROM node:22-bookworm-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da AS litestream
