@@ -1,0 +1,9 @@
+/* Heat cells retain the semantic heat palette at the actual returned intensity. */
+.app[data-budget-redesign='1'] .redesign-report-frame .performance-heatmap .return-positive {
+  background: color-mix(in srgb, var(--heat-green) calc(var(--h) * var(--heat-max)), var(--ground));
+  color: var(--ink);
+}
+.app[data-budget-redesign='1'] .redesign-report-frame .performance-heatmap .return-negative {
+  background: color-mix(in srgb, var(--heat-red) calc(var(--h) * var(--heat-max)), var(--ground));
+  color: var(--ink);
+}

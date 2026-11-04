@@ -1,6 +1,10 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { ReportBodyDisclosure } from './report-body-disclosure';
+import { payrollCalculation } from './payroll-presentation';
+import './payroll-redesign.css';
 import { ScrollRegion } from './spending-shared';
-import { cents } from '@budget/domain';
-import { Button, DimensionChain } from '@budget/ui';
+import { cents, payrollTotals } from '@budget/domain';
+import { Button, DimensionChain, useIsPhone, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useRouter, useSearch } from '@tanstack/react-router';
@@ -37,6 +41,8 @@ export function PayrollReport({
   meta: PageMeta;
   history?: boolean;
 }) {
+  useAmountPrivacy();
+  const phone = useIsPhone();
   const { month, shift, current } = useReportMonth();
   const query = useQuery(payrollQuery(month));
   const data = query.isSuccess && !query.isFetching ? query.data : undefined;
@@ -84,6 +90,14 @@ export function PayrollReport({
       ? data.captured.filter((p) => p.id === zettel)
       : data.slips
     : [];
+  const headlineTotal =
+    history && zettel && detailSlips.length ? payrollTotals(detailSlips) : data?.month;
+  const headlineAvailable =
+    !!data && (history && zettel ? detailSlips.length > 0 : data.slips.length > 0);
+  const recent = data?.timeline.slice(-24) ?? [];
+  const historySlips = REDESIGN_ENABLED
+    ? [...(data?.captured ?? [])].sort((a, b) => b.month.localeCompare(a.month))
+    : (data?.captured ?? []);
   const salaryPosition = (position: number) =>
     position <= 12
       ? shortMonth(`${month.slice(0, 4)}-${String(position).padStart(2, '0')}`)
@@ -153,10 +167,21 @@ export function PayrollReport({
   );
   return (
     <MonthReportFrame
+      calculation={
+        headlineAvailable && headlineTotal
+          ? payrollCalculation(
+              headlineTotal,
+              history && zettel && detailSlips[0]
+                ? `Auszahlung ${shortMonth(detailSlips[0].month)} · ausgewählter Zettel`
+                : undefined,
+            )
+          : undefined
+      }
       verdict={
         data && !query.isError
           ? {
               reportId: report.id,
+              ...(REDESIGN_ENABLED ? { unavailable: !headlineAvailable } : {}),
               period: month,
               metric: { label: 'Erfasstes Nettogehalt', value: data.month.netCents, unit: 'money' },
             }
@@ -181,6 +206,16 @@ export function PayrollReport({
         )}
         {!history && (
           <div className="rtools">
+            {REDESIGN_ENABLED && (
+              <Button disabled={!data} onClick={(event) => open('neu', event.currentTarget)}>
+                Gehaltszettel hinzufügen
+              </Button>
+            )}
+            {REDESIGN_ENABLED && (
+              <AppLink to="/plan/monat/einnahmen" search={{ monat: month }}>
+                PDF im Plan hinzufügen
+              </AppLink>
+            )}
             <AppLink
               className="pp-history-link"
               to="/reports/gehalt/historie"
@@ -190,6 +225,9 @@ export function PayrollReport({
               Gehaltszettel-Historie
             </AppLink>
           </div>
+        )}
+        {REDESIGN_ENABLED && data && !history && data.slips.length === 0 && (
+          <EmptyNote>Für diesen Monat ist noch kein Gehaltszettel erfasst.</EmptyNote>
         )}
         {query.isFetching && <LoadingNote what="Gehaltsreport" />}
         {query.isError && (
@@ -213,7 +251,7 @@ export function PayrollReport({
                   <EmptyNote>Noch keine Gehaltszettel erfasst.</EmptyNote>
                 )}
                 <ul className="pp-history">
-                  {data.captured.map((p) => (
+                  {historySlips.map((p) => (
                     <li key={p.id}>
                       <AppLink
                         className="pp-history-link"
@@ -233,251 +271,310 @@ export function PayrollReport({
             </>
           ) : (
             <>
-              <section className="mr-card">
-                <div className="tbd-head">
-                  <h2>Auszahlung {shortMonth(month)}</h2>
-                  <Button size="sm" onClick={(event) => open('neu', event.currentTarget)}>
-                    Gehaltszettel hinzufügen
-                  </Button>
-                </div>
-                {data.slips.length === 0 ? (
-                  <EmptyNote>Für diesen Monat ist noch kein Gehaltszettel erfasst.</EmptyNote>
-                ) : (
-                  <>
-                    <div className="tbd-fig">
-                      {parts?.whole}
-                      <small>,{parts?.fraction} €</small>
-                    </div>
-                    <DimensionChain
-                      precision="cent"
-                      label="Brutto zu Netto"
-                      terms={[
-                        { label: 'Brutto inkl. Zusätze', value: cents(data.month.grossCents) },
-                        {
-                          op: data.month.svCents < 0 ? '+' : '-',
-                          label: data.month.svCents < 0 ? 'SV-Erstattung (Aufrollung)' : 'SV-DN',
-                          value: cents(Math.abs(data.month.svCents)),
-                        },
-                        { op: '-', label: 'Lohnsteuer', value: cents(data.month.taxChargeCents) },
-                        ...(data.month.taxRefundCents > 0
-                          ? [
-                              {
-                                op: '+' as const,
-                                label: 'Lohnsteuer-Erstattung (Aufrollung)',
-                                value: cents(data.month.taxRefundCents),
-                              },
-                            ]
-                          : []),
-                        { op: '-', label: 'Sonstige Abzüge', value: cents(data.month.otherCents) },
-                        {
-                          op: '+',
-                          label: 'Steuerfreie Erstattungen',
-                          value: cents(data.month.reimbursementsCents),
-                        },
-                        {
-                          op: '=',
-                          label: 'Auszahlung',
-                          value: cents(data.month.netCents),
-                          result: true,
-                        },
-                      ]}
+              {REDESIGN_ENABLED && (
+                <section
+                  className="mr-card mr-wide r9-salary-trend"
+                  aria-labelledby="r9-salary-title"
+                >
+                  <div className="tbd-head">
+                    <h2 id="r9-salary-title">
+                      {recent.length
+                        ? `Netto der letzten ${recent.length} Monate`
+                        : 'Netto im Verlauf'}
+                    </h2>
+                  </div>
+                  {recent.some((row) => row.recorded) ? (
+                    <PayrollProjectChart
+                      focusSalary
+                      table
+                      height={phone ? 176 : 240}
+                      months={recent.map((r) => r.month)}
+                      values={recent.map((r) => (r.recorded ? r.salaryNetCents : null))}
+                      gross={recent.map((r) => (r.recorded ? r.grossCents : null))}
                     />
-                    {data.month.grossCents > 0 &&
-                      data.month.svCents >= 0 &&
-                      data.month.taxRefundCents === 0 &&
-                      data.month.salaryNetCents >= 0 && (
-                        <div
-                          className="pp-ratio"
-                          role="img"
-                          aria-label={`Abzugsquote ${pct(data.month.deductionRatio)}`}
-                        >
-                          {[
-                            data.month.salaryNetCents,
-                            data.month.svCents,
-                            data.month.taxCents,
-                            data.month.otherCents,
-                          ].map((v, i) => (
-                            <span key={i} className={`pp-ink-${i}`} style={{ flex: v || 0.001 }} />
+                  ) : (
+                    <EmptyNote>Noch keine laufenden Gehälter erfasst.</EmptyNote>
+                  )}
+                  <p className="r9-meta">
+                    Laufendes Nettogehalt ohne steuerfreie Erstattungen · fehlende Zettel bleiben
+                    Lücken.
+                  </p>
+                </section>
+              )}
+              <ReportBodyDisclosure id="payroll-payout" label="Abzüge und Auszahlung im Detail">
+                <section className="mr-card">
+                  <div className="tbd-head">
+                    <h2>Auszahlung {shortMonth(month)}</h2>
+                    {!REDESIGN_ENABLED && (
+                      <Button size="sm" onClick={(event) => open('neu', event.currentTarget)}>
+                        Gehaltszettel hinzufügen
+                      </Button>
+                    )}
+                  </div>
+                  {data.slips.length === 0 ? (
+                    !REDESIGN_ENABLED && (
+                      <EmptyNote>Für diesen Monat ist noch kein Gehaltszettel erfasst.</EmptyNote>
+                    )
+                  ) : (
+                    <>
+                      <div className="tbd-fig">
+                        {parts?.whole}
+                        <small>,{parts?.fraction} €</small>
+                      </div>
+                      <DimensionChain
+                        precision="cent"
+                        label="Brutto zu Netto"
+                        terms={[
+                          { label: 'Brutto inkl. Zusätze', value: cents(data.month.grossCents) },
+                          {
+                            op: data.month.svCents < 0 ? '+' : '-',
+                            label: data.month.svCents < 0 ? 'SV-Erstattung (Aufrollung)' : 'SV-DN',
+                            value: cents(Math.abs(data.month.svCents)),
+                          },
+                          { op: '-', label: 'Lohnsteuer', value: cents(data.month.taxChargeCents) },
+                          ...(data.month.taxRefundCents > 0
+                            ? [
+                                {
+                                  op: '+' as const,
+                                  label: 'Lohnsteuer-Erstattung (Aufrollung)',
+                                  value: cents(data.month.taxRefundCents),
+                                },
+                              ]
+                            : []),
+                          {
+                            op: '-',
+                            label: 'Sonstige Abzüge',
+                            value: cents(data.month.otherCents),
+                          },
+                          {
+                            op: '+',
+                            label: 'Steuerfreie Erstattungen',
+                            value: cents(data.month.reimbursementsCents),
+                          },
+                          {
+                            op: '=',
+                            label: 'Auszahlung',
+                            value: cents(data.month.netCents),
+                            result: true,
+                          },
+                        ]}
+                      />
+                      {data.month.grossCents > 0 &&
+                        data.month.svCents >= 0 &&
+                        data.month.taxRefundCents === 0 &&
+                        data.month.salaryNetCents >= 0 && (
+                          <div
+                            className="pp-ratio"
+                            role="img"
+                            aria-label={`Abzugsquote ${pct(data.month.deductionRatio)}`}
+                          >
+                            {[
+                              data.month.salaryNetCents,
+                              data.month.svCents,
+                              data.month.taxCents,
+                              data.month.otherCents,
+                            ].map((v, i) => (
+                              <span
+                                key={i}
+                                className={`pp-ink-${i}`}
+                                style={{ flex: v || 0.001 }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      <p className="vnote">
+                        Abzugsquote {pct(data.month.deductionRatio)} · SV {pct(data.month.svRatio)}{' '}
+                        · Lohnsteuer {pct(data.month.taxRatio)} · sonstige Abzüge{' '}
+                        {pct(data.month.otherRatio)}
+                      </p>
+                      <p className="vnote">
+                        Quoten auf Brutto ohne steuerfreie Erstattungen. Aufrollungen zählen mit
+                        Vorzeichen; bei Brutto null ist die Quote nicht verfügbar. Das Anteilsband
+                        entfällt bei negativen Abzügen oder einer Lohnsteuer-Erstattung.
+                      </p>
+                    </>
+                  )}
+                </section>
+              </ReportBodyDisclosure>
+              <ReportBodyDisclosure
+                id="payroll-history"
+                label="Brutto und Netto · gesamter Verlauf"
+              >
+                <section className="mr-card mr-wide">
+                  <div className="tbd-head">
+                    <h2>Verlauf · laufendes Gehalt</h2>
+                  </div>
+                  <PayrollProjectChart
+                    table={REDESIGN_ENABLED}
+                    months={data.timeline.map((r) => r.month)}
+                    values={data.timeline.map((r) => (r.recorded ? r.salaryNetCents : null))}
+                    gross={data.timeline.map((r) => (r.recorded ? r.grossCents : null))}
+                  />
+                  <p className="vnote">
+                    Tusche: Nettogehalt ohne steuerfreie Erstattungen · blasse Tusche: Brutto inkl.
+                    Zusätze. Fehlende Zettel bleiben Lücken.
+                  </p>
+                </section>
+              </ReportBodyDisclosure>
+              <ReportBodyDisclosure id="payroll-months" label="Auszahlung je Monat und Jahr">
+                <section className="mr-card mr-wide">
+                  <h2>Auszahlung je Monat und Jahr</h2>
+                  <ScrollRegion className="pp-scroll" label="Auszahlungen nach Kalenderjahr">
+                    <table className="rtable">
+                      <thead>
+                        <tr>
+                          <th>Monat</th>
+                          {data.years.map((y) => (
+                            <th key={y.year} className="n">
+                              {y.year}
+                            </th>
                           ))}
-                        </div>
-                      )}
-                    <p className="vnote">
-                      Abzugsquote {pct(data.month.deductionRatio)} · SV {pct(data.month.svRatio)} ·
-                      Lohnsteuer {pct(data.month.taxRatio)} · sonstige Abzüge{' '}
-                      {pct(data.month.otherRatio)}
-                    </p>
-                    <p className="vnote">
-                      Quoten auf Brutto ohne steuerfreie Erstattungen. Aufrollungen zählen mit
-                      Vorzeichen; bei Brutto null ist die Quote nicht verfügbar. Das Anteilsband
-                      entfällt bei negativen Abzügen oder einer Lohnsteuer-Erstattung.
-                    </p>
-                  </>
-                )}
-              </section>
-              <section className="mr-card mr-wide">
-                <div className="tbd-head">
-                  <h2>Verlauf · laufendes Gehalt</h2>
-                </div>
-                <PayrollProjectChart
-                  months={data.timeline.map((r) => r.month)}
-                  values={data.timeline.map((r) => (r.recorded ? r.salaryNetCents : null))}
-                  gross={data.timeline.map((r) => (r.recorded ? r.grossCents : null))}
-                />
-                <p className="vnote">
-                  Tusche: Nettogehalt ohne steuerfreie Erstattungen · blasse Tusche: Brutto inkl.
-                  Zusätze. Fehlende Zettel bleiben Lücken.
-                </p>
-              </section>
-              <section className="mr-card mr-wide">
-                <h2>Auszahlung je Monat und Jahr</h2>
-                <ScrollRegion className="pp-scroll" label="Auszahlungen nach Kalenderjahr">
-                  <table className="rtable">
-                    <thead>
-                      <tr>
-                        <th>Monat</th>
-                        {data.years.map((y) => (
-                          <th key={y.year} className="n">
-                            {y.year}
-                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.monthlyPayouts.map((r) => (
+                          <tr key={r.month}>
+                            <th>{shortMonth(`2000-${r.month}`).split(' ')[0]}</th>
+                            {r.years.map((y) => (
+                              <td key={y.year} className="n">
+                                {y.netCents === null ? '–' : eur(y.netCents)}
+                              </td>
+                            ))}
+                          </tr>
                         ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.monthlyPayouts.map((r) => (
-                        <tr key={r.month}>
-                          <th>{shortMonth(`2000-${r.month}`).split(' ')[0]}</th>
-                          {r.years.map((y) => (
+                        <tr className="is-total">
+                          <th>Summe erfasst</th>
+                          {data.years.map((y) => (
                             <td key={y.year} className="n">
-                              {y.netCents === null ? '–' : eur(y.netCents)}
+                              {eur(y.netCents)}
                             </td>
                           ))}
                         </tr>
-                      ))}
-                      <tr className="is-total">
-                        <th>Summe erfasst</th>
+                      </tbody>
+                    </table>
+                  </ScrollRegion>
+                </section>
+              </ReportBodyDisclosure>
+              <ReportBodyDisclosure
+                id="payroll-years"
+                label="Jahresgehälter und Vorjahresvergleich"
+              >
+                <section className="mr-card mr-wide">
+                  <h2>Jahresgehälter</h2>
+                  <ScrollRegion className="pp-scroll" label="Jahresgehälter und Vorjahresvergleich">
+                    <table className="rtable">
+                      <thead>
+                        <tr>
+                          <th>Jahr / erfasste Monate</th>
+                          <th className="n">Brutto</th>
+                          <th className="n">Sonderzahlungen</th>
+                          <th className="n">SV-DN</th>
+                          <th className="n">Lohnsteuer</th>
+                          <th className="n">Sonstige Abzüge</th>
+                          <th className="n">Steuerfreie Erstattungen</th>
+                          <th className="n">Auszahlung</th>
+                          <th className="n">Abzugsquote</th>
+                          <th className="n">Zuwachs / gleiche Monate</th>
+                        </tr>
+                      </thead>
+                      <tbody>
                         {data.years.map((y) => (
-                          <td key={y.year} className="n">
-                            {eur(y.netCents)}
-                          </td>
-                        ))}
-                      </tr>
-                    </tbody>
-                  </table>
-                </ScrollRegion>
-              </section>
-              <section className="mr-card mr-wide">
-                <h2>Jahresgehälter</h2>
-                <ScrollRegion className="pp-scroll" label="Jahresgehälter und Vorjahresvergleich">
-                  <table className="rtable">
-                    <thead>
-                      <tr>
-                        <th>Jahr / erfasste Monate</th>
-                        <th className="n">Brutto</th>
-                        <th className="n">Sonderzahlungen</th>
-                        <th className="n">SV-DN</th>
-                        <th className="n">Lohnsteuer</th>
-                        <th className="n">Sonstige Abzüge</th>
-                        <th className="n">Steuerfreie Erstattungen</th>
-                        <th className="n">Auszahlung</th>
-                        <th className="n">Abzugsquote</th>
-                        <th className="n">Zuwachs / gleiche Monate</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.years.map((y) => (
-                        <tr key={y.year}>
-                          <th>
-                            {y.year} · {y.months}/12
-                          </th>
-                          {[
-                            y.grossCents,
-                            y.specialGrossCents,
-                            y.svCents,
-                            y.taxCents,
-                            y.otherCents,
-                            y.reimbursementsCents,
-                            y.netCents,
-                          ].map((v, i) => (
-                            <td className="n" key={i}>
-                              {eur(v)}
-                            </td>
-                          ))}
-                          <td className="n">{pct(y.deductionRatio)}</td>
-                          <td className="n">
-                            {y.changeCents === null
-                              ? 'nicht vergleichbar'
-                              : `${eur(y.changeCents, { sign: true })} · ${pct(y.changeRatio)}`}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </ScrollRegion>
-                <p className="vnote">
-                  Keine Hochrechnung. Bruttovergleich ohne steuerfreie Erstattungen und nur bei
-                  erfassten gleichen Monaten und Zahlungsarten im Vorjahr.
-                </p>
-              </section>
-              <section className="mr-card mr-wide">
-                <h2>14 Gehälter · {month.slice(0, 4)}</h2>
-                <ScrollRegion className="pp-scroll" label="Vierzehn Gehälter">
-                  <table className="rtable">
-                    <thead>
-                      <tr>
-                        <th>Position</th>
-                        <th className="n">Nettogehalt</th>
-                        <th className="n">Steuerfreie Erstattungen</th>
-                        <th className="n">Auszahlung</th>
-                        <th>Zettel</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.salaries
-                        .filter((salary) => salary.ids.length > 0)
-                        .map((s) => (
-                          <tr key={s.position}>
-                            <th>{salaryPosition(s.position)}</th>
-                            {[s.salaryNetCents, s.reimbursementsCents, s.netCents].map(
-                              (value, i) => (
-                                <td className="n" key={i}>
-                                  {value === null ? 'nicht erfasst' : eur(value)}
-                                </td>
-                              ),
-                            )}
-                            <td>
-                              {s.ids.map((id) => (
-                                <AppLink
-                                  className="pp-history-link"
-                                  key={id}
-                                  to="/reports/gehalt/historie"
-                                  search={{ monat: month, zettel: id }}
-                                  state={{ reportDetailOpenedInApp: true }}
-                                >
-                                  Zettel öffnen
-                                </AppLink>
-                              ))}
+                          <tr key={y.year}>
+                            <th>
+                              {y.year} · {y.months}/12
+                            </th>
+                            {[
+                              y.grossCents,
+                              y.specialGrossCents,
+                              y.svCents,
+                              y.taxCents,
+                              y.otherCents,
+                              y.reimbursementsCents,
+                              y.netCents,
+                            ].map((v, i) => (
+                              <td className="n" key={i}>
+                                {eur(v)}
+                              </td>
+                            ))}
+                            <td className="n">{pct(y.deductionRatio)}</td>
+                            <td className="n">
+                              {y.changeCents === null
+                                ? 'nicht vergleichbar'
+                                : `${eur(y.changeCents, { sign: true })} · ${pct(y.changeRatio)}`}
                             </td>
                           </tr>
                         ))}
-                      {!data.salaries.some((salary) => salary.ids.length > 0) && (
-                        <tr>
-                          <td colSpan={5}>Für dieses Jahr sind keine Gehälter erfasst.</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </ScrollRegion>
-                {missingSalaries.length > 0 && (
+                      </tbody>
+                    </table>
+                  </ScrollRegion>
                   <p className="vnote">
-                    fehlt:{' '}
-                    {missingSalaries.map((salary) => salaryPosition(salary.position)).join(', ')}
+                    Keine Hochrechnung. Bruttovergleich ohne steuerfreie Erstattungen und nur bei
+                    erfassten gleichen Monaten und Zahlungsarten im Vorjahr.
                   </p>
-                )}
-                <p className="vnote">
-                  Sonstige Sonderzahlungen separat: {eur(data.otherSpecialCents)}. Steuerwerte laut
-                  Zettel; keine Steuerberechnung.
-                </p>
-              </section>
+                </section>
+              </ReportBodyDisclosure>
+              <ReportBodyDisclosure id="payroll-special" label="Sonderzahlungen und 14 Gehälter">
+                <section className="mr-card mr-wide">
+                  <h2>14 Gehälter · {month.slice(0, 4)}</h2>
+                  <ScrollRegion className="pp-scroll" label="Vierzehn Gehälter">
+                    <table className="rtable">
+                      <thead>
+                        <tr>
+                          <th>Position</th>
+                          <th className="n">Nettogehalt</th>
+                          <th className="n">Steuerfreie Erstattungen</th>
+                          <th className="n">Auszahlung</th>
+                          <th>Zettel</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.salaries
+                          .filter((salary) => salary.ids.length > 0)
+                          .map((s) => (
+                            <tr key={s.position}>
+                              <th>{salaryPosition(s.position)}</th>
+                              {[s.salaryNetCents, s.reimbursementsCents, s.netCents].map(
+                                (value, i) => (
+                                  <td className="n" key={i}>
+                                    {value === null ? 'nicht erfasst' : eur(value)}
+                                  </td>
+                                ),
+                              )}
+                              <td>
+                                {s.ids.map((id) => (
+                                  <AppLink
+                                    className="pp-history-link"
+                                    key={id}
+                                    to="/reports/gehalt/historie"
+                                    search={{ monat: month, zettel: id }}
+                                    state={{ reportDetailOpenedInApp: true }}
+                                  >
+                                    Zettel öffnen
+                                  </AppLink>
+                                ))}
+                              </td>
+                            </tr>
+                          ))}
+                        {!data.salaries.some((salary) => salary.ids.length > 0) && (
+                          <tr>
+                            <td colSpan={5}>Für dieses Jahr sind keine Gehälter erfasst.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </ScrollRegion>
+                  {missingSalaries.length > 0 && (
+                    <p className="vnote">
+                      fehlt:{' '}
+                      {missingSalaries.map((salary) => salaryPosition(salary.position)).join(', ')}
+                    </p>
+                  )}
+                  <p className="vnote">
+                    Sonstige Sonderzahlungen separat: {eur(data.otherSpecialCents)}. Steuerwerte
+                    laut Zettel; keine Steuerberechnung.
+                  </p>
+                </section>
+              </ReportBodyDisclosure>
             </>
           ))}
       </div>

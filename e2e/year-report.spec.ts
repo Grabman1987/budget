@@ -1,3 +1,4 @@
+import { openPaperView } from './report-frame';
 import { cents, formatEuro } from '@budget/domain';
 import { expect as baseExpect, sampleTest as test } from './sample';
 import { inspectReport } from './overview-report';
@@ -36,6 +37,7 @@ test('Jahresreport shows two sheets with the figures of the endpoint', async ({ 
   expect(data.report.year).toBe(2026);
   expect(data.report.months).toHaveLength(8);
 
+  await openPaperView(page);
   const sheets = page.locator('.ov-sheet');
   await expect(sheets).toHaveCount(2);
   await expect(page.getByRole('article', { name: 'Jahresreport 2026, Blatt 1' })).toBeVisible();
@@ -82,6 +84,7 @@ test('Jahresreport prints as exactly two A4 pages without clipping', async ({
   await page.setViewportSize({ width: 749, height: 1050 });
   await page.goto('/reports/jahresreport');
   await expect(page.locator('.ov-sheet')).toHaveCount(2);
+  await openPaperView(page);
   await expect(page.getByTestId('yr-networth')).toBeVisible();
   await expect(page.getByTestId('yr-heat')).toBeVisible();
   await page.emulateMedia({ media: 'print' });

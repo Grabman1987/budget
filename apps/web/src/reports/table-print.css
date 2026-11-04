@@ -128,3 +128,29 @@
     white-space: normal;
   }
 }
+@media print {
+  /* The shared ON frame keeps the same printed identity/source as the legacy table frame. */
+  body:has(.report-table-print) [data-budget-redesign='1'] .redesign-report-head {
+    display: block;
+    padding: 0;
+    margin-bottom: 12px;
+  }
+  body:has(.report-table-print) [data-budget-redesign='1'] .redesign-report-title h1 {
+    display: block;
+    color: var(--ink);
+  }
+  body:has(.report-table-print)
+    [data-budget-redesign='1']
+    .redesign-report-head
+    :is(
+      .redesign-report-back,
+      .report-navigation,
+      .redesign-report-number,
+      .redesign-report-controls,
+      .redesign-report-calculation,
+      .redesign-report-extra-controls
+    ),
+  [data-budget-redesign='1']:has(.report-table-print) .m-status {
+    display: none !important;
+  }
+}

@@ -1,3 +1,7 @@
+import {
+  retainBudgetCostInflationReaders,
+  chooseBudgetCostInflationView,
+} from './budget-cost-inflation-controls';
 import { expect } from '@playwright/test';
 import { openDatabase, storeCpi } from '@budget/db';
 import { monthsBetween } from '@budget/domain';
@@ -95,7 +99,9 @@ test('CPI method and searchable two-class mapping persist and show index units',
   await expect(basket).toContainText('112,0');
   await expect(basket).not.toContainText('€');
   await inspectReport(page, info, 'vpi-report');
-  await page.getByRole('button', { name: 'Je Jahr', exact: true }).click();
+  await chooseBudgetCostInflationView(page, 'Warenkorbansicht', 'year', 'Je Jahr');
   await expect(page.getByTestId('inflation-basket-yearly')).toContainText('VPI-Teilindex');
   await expect(page.getByTestId('inflation-basket-yearly')).not.toContainText('€');
 });
+
+test.beforeEach(async ({ page }) => retainBudgetCostInflationReaders(page));

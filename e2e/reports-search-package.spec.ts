@@ -1,3 +1,7 @@
+import {
+  retainBudgetCostInflationReaders,
+  chooseBudgetCostInflationView,
+} from './budget-cost-inflation-controls';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
 import { inspectReport } from './spending-helpers';
@@ -113,9 +117,11 @@ test('inflation labels expose method, coverage and each comparison window with r
     basket.locator('tbody tr').first().locator('td').nth(3).locator('small'),
   ).toBeVisible();
   await inspectReport(page, info, 'inflation-labels');
-  await page.getByRole('button', { name: 'Je Jahr', exact: true }).click();
+  await chooseBudgetCostInflationView(page, 'Warenkorbansicht', 'year', 'Je Jahr');
   await expect(page.getByTestId('inflation-basket-yearly')).toContainText(
     'Beitrag: Aug 25 bis Aug 26',
   );
   await inspectReport(page, info, 'inflation-labels-yearly');
 });
+
+test.beforeEach(async ({ page }) => retainBudgetCostInflationReaders(page));

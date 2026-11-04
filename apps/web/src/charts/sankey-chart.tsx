@@ -52,6 +52,7 @@ export function SankeyChart({
   label = LABEL,
   height = HEIGHT,
   period = 'Zeitraum',
+  table = false,
 }: {
   width: number;
   /** Nodes and links; default: the spike's synthetic sample. */
@@ -59,6 +60,7 @@ export function SankeyChart({
   label?: string;
   height?: number;
   period?: string;
+  table?: boolean;
 }) {
   useAmountPrivacy();
   // Class nodes as in the prototype: Bedarf solid, Wunsch and Zukunft hatched with an outline.
@@ -85,6 +87,7 @@ export function SankeyChart({
     return (
       <div data-testid="sankey-chart" role="region" aria-label={maskMoneyText(label)}>
         <ChartValues
+          table={table}
           label={label}
           points={nodes.map((node) => ({
             x: 50,
@@ -144,6 +147,7 @@ export function SankeyChart({
 
   return (
     <ChartSvg
+      table={table}
       width={width}
       height={height}
       label={label}

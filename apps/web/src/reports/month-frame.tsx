@@ -180,9 +180,15 @@ export function MonthControl({
   );
 }
 
-export function PrintButton() {
+export function PrintButton({ disabled = false }: { disabled?: boolean }) {
   return (
-    <Button variant="ghost" size="sm" className="mr-print" onClick={() => window.print()}>
+    <Button
+      disabled={disabled}
+      variant="ghost"
+      size="sm"
+      className="mr-print"
+      onClick={() => window.print()}
+    >
       <Printer className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
       Drucken
     </Button>
@@ -203,6 +209,7 @@ export function MonthReportFrame({
   asOf,
   basis,
   print = false,
+  printDisabled = false,
   extraFields = [],
   children,
   verdict,
@@ -221,6 +228,7 @@ export function MonthReportFrame({
   /** Replaces the data basis text (loading, unavailable). */
   basis?: ReactNode;
   print?: boolean;
+  printDisabled?: boolean;
   extraFields?: Array<{ label: string; value: ReactNode }>;
   children: ReactNode;
   reportControls?: ReactNode;
@@ -249,7 +257,7 @@ export function MonthReportFrame({
           ),
         },
         ...extraFields,
-        ...(print ? [{ label: 'Blatt', value: <PrintButton /> }] : []),
+        ...(print ? [{ label: 'Blatt', value: <PrintButton disabled={printDisabled} /> }] : []),
       ]}
     >
       <div ref={sectionsRef} className="rs-scope">

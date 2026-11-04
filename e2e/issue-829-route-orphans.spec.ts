@@ -1,5 +1,8 @@
+import { retainExplorerReaders } from './explorer-controls';
+import { openR8BodyDetails } from './income-spending-controls';
 import { portfolioReportPath, expectWealthReportView } from './wealth-report-controls';
 import { inboxFilters } from './ledger-helpers';
+import { redesignReportsOn, revealComparisonDetail } from './report-frame';
 // A2 positive browser bodies, using the real sample ledger and isolated import-detail fixture.
 // Expected patterns: approved 00-bestand rows 1..54; bodies: s3-a2-body-bindings-20261031.md.
 // Read the rendered build flag; optional A2_EXPECT_REDESIGN=0/1 additionally pins the artifact.
@@ -11,6 +14,10 @@ import { sampleTest as test, expect } from './sample';
 import { test as isolatedTest } from './isolated-ledger';
 import { wealthRedesign } from './wealth-navigation';
 import { openPruefenSource } from './pruefen-part';
+
+test.beforeEach(async ({ page }) => {
+  await retainExplorerReaders(page);
+});
 
 const id = (p: Page, name: string) => expect(p.getByTestId(name)).toBeVisible();
 const css = (p: Page, selector: string) => expect(p.locator(selector).first()).toBeVisible();
@@ -276,16 +283,19 @@ const probes = {
   freedom: (p: Page) => id(p, 'freedom-chart'),
   hub: (p: Page) => expect(p.locator('.report-hub-list > li')).toHaveCount(16),
   reportGroup: (p: Page) => css(p, '.report-hub-list a[href="/reports/einnahmen-ausgaben"]'),
-  onepager: (p: Page) => id(p, 'onepager-saved'), // Actual OnePagerSheet, not the unrelated rg-all table.
+  onepager: async (p: Page) =>
+    id(p, (await redesignReportsOn(p)) ? 'r5-month-saved' : 'onepager-saved'), // The real monthly reader in either presentation, never the unrelated rg-all table.
   // The hub opens the current (September) month, whose sample payslip is intentionally absent.
   // Its loaded historical payment rows still prove the real report; August's primary body is checked below.
-  payroll: (p: Page) =>
-    expect(
+  payroll: async (p: Page) => {
+    await openR8BodyDetails(p);
+    await expect(
       p
         .getByRole('region', { name: 'Auszahlungen nach Kalenderjahr', exact: true })
         .locator('tbody tr')
         .first(),
-    ).toBeVisible(),
+    ).toBeVisible();
+  },
   payrollHistory,
   sources: (p: Page) => css(p, '[data-testid="income-expense-sources"] .report-source-link'),
   settingsIndex: (p: Page) => css(p, '.settings-nav-index .settings-item-label'),
@@ -335,11 +345,17 @@ const probes = {
   incomeReport: (p: Page) => id(p, 'income-total'),
   incomeExpense: (p: Page) => id(p, 'income-expense-report'),
   cashflow: (p: Page) => id(p, 'cf-figure'),
-  projectReport: (p: Page) => css(p, '[data-testid="projects-report"] .pp-project'),
+  projectReport: async (p: Page) => {
+    await openR8BodyDetails(p);
+    await css(p, '[data-testid="projects-report"] .pp-project');
+  },
   payees: (p: Page) => id(p, 'payee-total'),
-  accuracy: (p: Page) =>
-    css(p, '[data-testid="planning-accuracy"] section[aria-label="Trefferquote"]'),
-  bankCosts: (p: Page) => id(p, 'bc-total'),
+  accuracy: async (p: Page) =>
+    (await redesignReportsOn(p))
+      ? css(p, '#accuracy-months')
+      : css(p, '[data-testid="planning-accuracy"] section[aria-label="Trefferquote"]'),
+  bankCosts: async (p: Page) =>
+    (await redesignReportsOn(p)) ? css(p, '[data-testid="bank-costs-chart"]') : id(p, 'bc-total'),
   wealthHistory: (p: Page) => id(p, 'wh-figure'),
   whole: (p: Page) => css(p, '[data-testid="whole-table"] tbody tr'),
   contributions: (p: Page) => id(p, 'contributions-end-value'),
@@ -350,23 +366,38 @@ const probes = {
     css(p, '[data-testid="template-category"] table.ex-template-table tbody tr'),
   totalTemplate: (p: Page) =>
     css(p, '[data-testid="template-total"] table.ex-template-table tbody tr'),
-  spending: (p: Page) => id(p, 'sa-consumption'),
+  spending: async (p: Page) =>
+    id(p, (await redesignReportsOn(p)) ? 'spending-period-chart' : 'sa-consumption'),
   flow: (p: Page) => id(p, 'sankey-chart'),
   savingsAge: async (p: Page) => {
     await id(p, 'savings-rate');
     await id(p, 'money-age');
   },
-  adherence: (p: Page) => id(p, 'ba-over'),
-  contracts: (p: Page) => id(p, 'co-bound'),
-  inflation: (p: Page) => id(p, 'pi-rate'),
+  adherence: async (p: Page) =>
+    (await redesignReportsOn(p)) ? css(p, '.r11-budget-total') : id(p, 'ba-over'),
+  contracts: async (p: Page) =>
+    (await redesignReportsOn(p)) ? css(p, '.r11-contract-summary') : id(p, 'co-bound'),
+  inflation: async (p: Page) =>
+    (await redesignReportsOn(p)) ? css(p, '[data-testid="inflation-chart"]') : id(p, 'pi-rate'),
   assetsDebts: (p: Page) => id(p, 'ad-net'),
-  depots: (p: Page) =>
-    expect(p.getByTestId('depot-total').getByTestId('depot-value')).toBeVisible(),
+  depots: async (p: Page) => {
+    if (await wealthRedesign(p)) await disclose(p.locator('.depot-comparison-detail'));
+    await expect(p.getByTestId('depot-total').getByTestId('depot-value')).toBeVisible();
+  },
   portfolioReport: (p: Page) => id(p, 'sunburst-classes'),
   costs: (p: Page) => id(p, 'costs-net'),
-  explorer: (p: Page) => css(p, '[data-testid="ex-table"] tbody tr'),
-  compare: (p: Page) => id(p, 'vg-consumption'),
-  yearReport: (p: Page) => id(p, 'yr-income'),
+  contactReport: async (p: Page) => {
+    await css(p, '.r4-contact-list');
+    await expect(p.getByTestId('report-frame-basis')).toContainText('Gesamte Historie');
+  },
+  explorer: (p: Page) =>
+    css(p, '[data-testid="ex-table"] tbody tr, [data-testid="template-heatmap"]'),
+  compare: async (p: Page) => {
+    await revealComparisonDetail(p);
+    await id(p, 'vg-consumption');
+  },
+  yearReport: async (p: Page) =>
+    id(p, (await redesignReportsOn(p)) ? 'r5-year-income' : 'yr-income'),
   finanzcheck: (p: Page) => css(p, '.finanzcheck-report .fc-table tr[data-rule="R07"] .ov-cell'),
 };
 type Body = keyof typeof probes;
@@ -515,9 +546,17 @@ for (const [slug, legacyPath, legacyIntent, view, legacyBody] of reportAliases)
   test(`A2 report alias ${slug}`, async ({ page }) => {
     await page.goto('/plan/monat?monat=2026-08');
     const finanzcheck = (await flag(page)) && slug === 'finanzcheck';
-    const path = finanzcheck ? '/reports/onepager' : legacyPath;
+    const path = finanzcheck
+      ? '/reports/onepager'
+      : (await flag(page)) && slug === 'kontakte'
+        ? '/reports/kontakte'
+        : legacyPath;
     const intent = finanzcheck ? 'darstellung=finanzcheck' : legacyIntent;
-    const body = finanzcheck ? 'finanzcheck' : legacyBody;
+    const body = finanzcheck
+      ? 'finanzcheck'
+      : (await flag(page)) && slug === 'kontakte'
+        ? 'contactReport'
+        : legacyBody;
     await probes.plan(page);
     await page.goto(
       `/reports/${slug}?monat=2026-08&period=month&zeitraum=2026-01..2026-08#details`,
@@ -535,12 +574,45 @@ for (const [slug, legacyPath, legacyIntent, view, legacyBody] of reportAliases)
       for (const [key, value] of new URLSearchParams(intent))
         expect(url.searchParams.get(key)).toBe(value);
       if (view) {
-        if (['/reports/pallocation', '/reports/vermoegen-schulden'].includes(path))
+        if (
+          (await redesignReportsOn(page)) &&
+          [
+            '/reports/einnahmen-ausgaben',
+            '/reports/ausgaben',
+            '/reports/budgettreue',
+            '/reports/abos',
+          ].includes(path)
+        ) {
+          const label =
+            path === '/reports/budgettreue'
+              ? 'Ansicht der Budgettreue'
+              : path === '/reports/abos'
+                ? 'Ansicht von Verträgen und Kosten'
+                : path === '/reports/ausgaben'
+                  ? 'Ansicht der Ausgabenanalyse'
+                  : 'Ansicht von Einnahmen und Cashflow';
+          await expect(
+            page.getByRole('combobox', { name: label, exact: true }).locator('option:checked'),
+          ).toHaveText(
+            view === 'Planungstreue'
+              ? 'Prognosegenauigkeit'
+              : view === 'Plan und Ist'
+                ? 'Budgettreue'
+                : view,
+          );
+        } else if ((await redesignReportsOn(page)) && path === '/reports/explorer') {
+          await expect(
+            page
+              .getByRole('combobox', { name: 'Darstellung der Auswertung' })
+              .locator('option:checked'),
+          ).toHaveText(view);
+        } else if (['/reports/pallocation', '/reports/vermoegen-schulden'].includes(path)) {
           await expectWealthReportView(page, view);
-        else
+        } else {
           await expect(
             page.getByRole('button', { name: view, exact: true, pressed: true }),
           ).toBeVisible();
+        }
       }
     };
     await check();
@@ -572,7 +644,7 @@ for (const [from, legacyPath, legacyBody, query] of fixedAliases)
     await loaded(page, '/plan/monat', 'plan');
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
   });
-// Both literal sets retain current capabilities; this does not migrate Kontakte or pallocation.
+// Literal legacy entries keep their readers through the accepted canonical destinations.
 const currentHub = [
   ['einnahmen-ausgaben', 'incomeExpense'],
   ['ausgaben', 'spending'],
@@ -596,8 +668,13 @@ for (const [name, body] of currentHub)
     await page.goto('/reports');
     await probes.hub(page);
     await page.locator(`.report-hub-list a[href="/reports/${name}"]`).click();
-    await loaded(page, `/reports/${name}`, body);
-    await reload(page, `/reports/${name}`, body);
+    const path = name === 'pallocation' ? await portfolioReportPath(page) : `/reports/${name}`;
+    await loaded(page, path, body);
+    if (name === 'pallocation' && (await wealthRedesign(page)))
+      await expectWealthReportView(page, 'Verteilung über Zeit');
+    await reload(page, path, body);
+    if (name === 'pallocation' && (await wealthRedesign(page)))
+      await expectWealthReportView(page, 'Verteilung über Zeit');
   });
 function seedImports(databasePath: string) {
   const opened = openDatabase(databasePath);

@@ -1,3 +1,8 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { flowCalculation } from './flow-savings-presentation';
+import { ReportBodyDisclosure } from './report-body-disclosure';
+import { ReportViewControl } from './report-view-control';
+import './flow-savings-redesign.css';
 import { useAmountPrivacy, DimensionChain, Segmented } from '@budget/ui';
 import { CLASS_NAMES, cents, type FlowNode, type MoneyFlow } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
@@ -51,10 +56,26 @@ export function FlowReport({ report, meta }: { report: ReportEntry; meta: PageMe
   const data = query.data;
   return (
     <MonthReportFrame
+      calculation={
+        data && !data.beforeRecords && !query.isFetching && !query.isError
+          ? flowCalculation(data.flow)
+          : undefined
+      }
+      reportControls={
+        REDESIGN_ENABLED ? (
+          <ReportViewControl
+            label="Zeitraum des Geldflusses"
+            options={SPANS}
+            value={span}
+            onChange={setSpan}
+          />
+        ) : undefined
+      }
       verdict={
         data && !query.isFetching && !query.isError
           ? {
               reportId: report.id,
+              ...(REDESIGN_ENABLED ? { unavailable: data.beforeRecords } : {}),
               period: `${data.from}..${data.to}`,
               partial: data.partial,
               metric: {
@@ -73,7 +94,13 @@ export function FlowReport({ report, meta }: { report: ReportEntry; meta: PageMe
       current={current}
       firstMonth={data?.firstMonth}
       asOf={data?.asOf}
-      basis={query.isError ? 'nicht verfügbar' : undefined}
+      basis={
+        query.isError
+          ? 'nicht verfügbar'
+          : REDESIGN_ENABLED && data
+            ? `${shortMonth(data.from)} bis ${shortMonth(data.to)} · Buchungsdatum`
+            : undefined
+      }
     >
       <div className="mrep flow-report" data-testid="flow-report">
         {query.isPending && <LoadingNote what="Daten des Geldflusses" />}
@@ -131,12 +158,14 @@ function FlowBody({
       <section className="mr-card mr-wide" aria-labelledby="flow-title">
         <div className="tbd-head">
           <h2 id="flow-title">Geldfluss {period}</h2>
-          <Segmented
-            label="Zeitraum des Geldflusses"
-            options={SPANS}
-            value={span}
-            onChange={setSpan}
-          />
+          {!REDESIGN_ENABLED && (
+            <Segmented
+              label="Zeitraum des Geldflusses"
+              options={SPANS}
+              value={span}
+              onChange={setSpan}
+            />
+          )}
         </div>
         {empty ? (
           <EmptyNote>
@@ -146,7 +175,31 @@ function FlowBody({
           </EmptyNote>
         ) : (
           <>
-            <DimensionChain terms={terms} precision="euro" label="Maßkette Geldfluss" />
+            {!REDESIGN_ENABLED && (
+              <DimensionChain terms={terms} precision="euro" label="Maßkette Geldfluss" />
+            )}
+            {REDESIGN_ENABLED && (
+              <div className="r10-flow-ratio" aria-label="Verwendung des verfügbaren Topfs">
+                <p className="r10-meta">Ein Topf · Bedarf, Wunsch, Zukunft und Rest</p>
+                <div className="r10-ratio-track" aria-hidden="true">
+                  {flow.columns.classes.map((node) => (
+                    <i
+                      key={node.id}
+                      data-tone={node.tone}
+                      style={{ width: `${(node.cents / flow.totalCents) * 100}%` }}
+                    />
+                  ))}
+                </div>
+                <ul>
+                  {flow.columns.classes.map((node) => (
+                    <li key={node.id}>
+                      <span>{node.name}</span> <strong>{eur(node.cents)}</strong>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <div
               className="mr-sankey-scroll"
               role="region"
@@ -156,6 +209,7 @@ function FlowBody({
             >
               <div ref={ref} className="mr-sankey">
                 <SankeyChart
+                  table={REDESIGN_ENABLED}
                   width={width}
                   model={sankeyModel(flow)}
                   period={period}
@@ -164,74 +218,84 @@ function FlowBody({
                 />
               </div>
             </div>
-            <p className="vnote">
-              Alle Einnahmen fließen erst in einen Topf und von dort in die Klassen; Umbuchungen
-              zwischen eigenen Konten, Erstattungen auf Kategorien und Rückzahlungen von Kontakten
-              sind weggelassen. Kapitalerträge sind eigens ausgewiesen und zählen nicht zum
-              Haushaltseinkommen. Zukunft heißt: Geld, das im Vermögen bleibt (ETF, Notgroschen,
-              Sondertilgung).
-              {data.partial && span === 'month'
-                ? ' Der Monat läuft noch: gezeigt ist, was bis heute gebucht ist.'
-                : ''}
-              {span === 'year' && data.monthCount < 12
-                ? ` Aufzeichnungen liegen für ${data.monthCount} Monate vor.`
-                : ''}
-            </p>
+            <ReportBodyDisclosure id="flow-definition" label="So wird der Geldfluss berechnet">
+              {REDESIGN_ENABLED && (
+                <DimensionChain terms={terms} precision="euro" label="Maßkette Geldfluss" />
+              )}
+              <p className="vnote">
+                Alle Einnahmen fließen erst in einen Topf und von dort in die Klassen; Umbuchungen
+                zwischen eigenen Konten, Erstattungen auf Kategorien und Rückzahlungen von Kontakten
+                sind weggelassen. Kapitalerträge sind eigens ausgewiesen und zählen nicht zum
+                Haushaltseinkommen. Zukunft heißt: Geld, das im Vermögen bleibt (ETF, Notgroschen,
+                Sondertilgung).
+                {data.partial && span === 'month'
+                  ? ' Der Monat läuft noch: gezeigt ist, was bis heute gebucht ist.'
+                  : ''}
+                {span === 'year' && data.monthCount < 12
+                  ? ` Aufzeichnungen liegen für ${data.monthCount} Monate vor.`
+                  : ''}
+              </p>
+            </ReportBodyDisclosure>
           </>
         )}
       </section>
 
       {!empty && (
-        <section className="mr-card mr-wide" aria-labelledby="flow-list-title">
-          <div className="tbd-head">
-            <h2 id="flow-list-title">Stückliste des Flusses</h2>
-          </div>
-          <div
-            className="mr-scroll"
-            role="region"
-            aria-label="Stückliste, bei Bedarf horizontal verschiebbar"
-            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table.
-            tabIndex={0}
-          >
-            <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
-            <table className="mr-table" data-testid="flow-list">
-              <thead>
-                <tr>
-                  <th scope="col" className="tech">
-                    Klasse
-                  </th>
-                  <th scope="col" className="tech">
-                    Gruppe
-                  </th>
-                  <th scope="col" className="tech n">
-                    Betrag
-                  </th>
-                  <th scope="col" className="tech n">
-                    Anteil an {flow.columns.pool[0]?.name}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {flow.table.map((row, i) => (
-                  <tr
-                    key={`${row.class}-${row.name}`}
-                    className={i > 0 && flow.table[i - 1]?.class !== row.class ? 'is-break' : ''}
-                  >
-                    <td>
-                      <i className={`sw sw-${TONE_SWATCH[row.class]}`} aria-hidden="true" />
-                      {row.class === 'rest' ? 'Übrig' : CLASS_NAMES[row.class]}
-                    </td>
-                    <td>{row.class === 'rest' ? '–' : row.name}</td>
-                    <td className="n">{eur(row.cents, { cents: false })}</td>
-                    <td className="n">
-                      {row.sharePercent === 0 && row.cents > 0 ? '< 1' : row.sharePercent} %
-                    </td>
+        <ReportBodyDisclosure
+          id="flow-parts"
+          label="Kategorien je Gruppe · vollständige Stückliste"
+        >
+          <section className="mr-card mr-wide" aria-labelledby="flow-list-title">
+            <div className="tbd-head">
+              <h2 id="flow-list-title">Stückliste des Flusses</h2>
+            </div>
+            <div
+              className="mr-scroll"
+              role="region"
+              aria-label="Stückliste, bei Bedarf horizontal verschiebbar"
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table.
+              tabIndex={0}
+            >
+              <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
+              <table className="mr-table" data-testid="flow-list">
+                <thead>
+                  <tr>
+                    <th scope="col" className="tech">
+                      Klasse
+                    </th>
+                    <th scope="col" className="tech">
+                      Gruppe
+                    </th>
+                    <th scope="col" className="tech n">
+                      Betrag
+                    </th>
+                    <th scope="col" className="tech n">
+                      Anteil an {flow.columns.pool[0]?.name}
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                </thead>
+                <tbody>
+                  {flow.table.map((row, i) => (
+                    <tr
+                      key={`${row.class}-${row.name}`}
+                      className={i > 0 && flow.table[i - 1]?.class !== row.class ? 'is-break' : ''}
+                    >
+                      <td>
+                        <i className={`sw sw-${TONE_SWATCH[row.class]}`} aria-hidden="true" />
+                        {row.class === 'rest' ? 'Übrig' : CLASS_NAMES[row.class]}
+                      </td>
+                      <td>{row.class === 'rest' ? '–' : row.name}</td>
+                      <td className="n">{eur(row.cents, { cents: false })}</td>
+                      <td className="n">
+                        {row.sharePercent === 0 && row.cents > 0 ? '< 1' : row.sharePercent} %
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </ReportBodyDisclosure>
       )}
     </>
   );

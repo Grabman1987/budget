@@ -1,11 +1,13 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { savingsPresentation } from './flow-savings-presentation';
+import { ReportBodyDisclosure } from './report-body-disclosure';
+import './flow-savings-redesign.css';
 import { ReportPeriodControl } from './period-quick-select';
-import { useAmountPrivacy, DimensionChain } from '@budget/ui';
+import { useAmountPrivacy, DimensionChain, useIsPhone } from '@budget/ui';
 import {
   cents,
   lastDayOfMonth,
   monthIncomeOfRole,
-  reportPeriodMonths,
-  savingsOverview,
   type MoneyAgePoint,
   type HistoryMatrix,
 } from '@budget/domain';
@@ -16,7 +18,7 @@ import { rulesQuery } from '../rules/use-rule-writes';
 import { useRuleDerivation } from './overview-api';
 import { TriangleAlert, CircleCheck } from 'lucide-react';
 import { useMemo } from 'react';
-import { eur } from '../ledger/format';
+import { eur, longDay } from '../ledger/format';
 import type { PageMeta } from '../nav/pages';
 import { Term } from './term';
 import type { ReportEntry } from '../nav/reports-catalog';
@@ -34,8 +36,20 @@ export function SavingsReport({ report, meta }: { report: ReportEntry; meta: Pag
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
   const query = useReportTables();
+  const model = useMemo(
+    () => (query.data ? savingsPresentation(query.data, period) : undefined),
+    [query.data, period],
+  );
   return (
     <TableReportFrame
+      calculation={
+        REDESIGN_ENABLED && !query.isFetching && !query.isError ? model?.calculation : undefined
+      }
+      basisOverride={
+        REDESIGN_ENABLED && model?.window.length
+          ? `${monthShort(model.window[0]!)} bis ${monthShort(model.window.at(-1)!)} · Monatsdaten nach Buchungsdatum`
+          : undefined
+      }
       report={report}
       meta={meta}
       through="full"
@@ -58,7 +72,7 @@ export function SavingsReport({ report, meta }: { report: ReportEntry; meta: Pag
         },
       ]}
     >
-      {(data) => <SavingsBody data={data} period={period} />}
+      {(data) => <SavingsBody data={data} period={period} model={model!} />}
     </TableReportFrame>
   );
 }
@@ -96,9 +110,11 @@ function DaysChain({
 function SavingsBody({
   data,
   period,
+  model,
 }: {
   data: ReportTables;
   period: (typeof ZEITRAUM_VALUES)[number];
+  model: ReturnType<typeof savingsPresentation>;
 }) {
   const book = useQuery(rulesQuery());
   const grossEnabled = book.data?.rules.some((r) => r.code === 'R17' && r.enabled) === true;
@@ -109,27 +125,8 @@ function SavingsBody({
   });
   useRuleDerivation(grossEnabled);
   useAmountPrivacy();
-  const window = useMemo(
-    () =>
-      data.firstMonth && (data.lastFullMonth || period.includes('..'))
-        ? reportPeriodMonths(
-            period,
-            period.includes('..') ? data.currentMonth : data.lastFullMonth!,
-            data.firstMonth,
-          )
-        : [],
-    [data.firstMonth, data.lastFullMonth, data.currentMonth, period],
-  );
-  const overview = useMemo(
-    () =>
-      savingsOverview(
-        data.months,
-        data,
-        window,
-        period.includes('..') ? data.currentMonth : data.lastFullMonth,
-      ),
-    [data, window, period],
-  );
+  const phone = useIsPhone();
+  const { window, overview } = model;
   const { window: w } = overview;
   const target = data.targets.savingsRateBp;
   const reached = w.rateBp !== null && w.rateBp >= target;
@@ -146,6 +143,31 @@ function SavingsBody({
   const goal = data.targets.moneyAgeDays;
   const agePoints = overview.moneyAge;
 
+  const ageChain =
+    first && now ? (
+      <ReportBodyDisclosure id="age-chain" label="Entwicklung und Vergleichsziel">
+        <DaysChain
+          label="Maßkette Geldalter"
+          terms={[
+            { label: monthShort(first.month), value: days(first.days) },
+            {
+              label: 'seither',
+              value: days(Math.abs(now.days - first.days)),
+              op: now.days >= first.days ? '+' : '−',
+            },
+            { label: 'heute', value: days(now.days), op: '=', result: true },
+            { label: 'Ziel', value: days(goal), op: '−' },
+            {
+              label: now.days >= goal ? 'darüber' : 'fehlen',
+              value: days(Math.abs(goal - now.days)),
+              op: '=',
+              result: true,
+            },
+          ]}
+        />
+      </ReportBodyDisclosure>
+    ) : null;
+
   const chartLabel = `Sparquote je Monat (Balken) und rollierend über 12 Monate (Linie), Ziel ${percentWhole(target)}${
     overview.rollingBp === null ? '' : `, rollierend zuletzt ${percentTenth(overview.rollingBp)}`
   }.`;
@@ -154,7 +176,7 @@ function SavingsBody({
     <>
       <div className="tr-pair">
         <section className="tr-card" aria-labelledby="savings-title">
-          <BookRuleMetric code="R17" />
+          {!REDESIGN_ENABLED && <BookRuleMetric code="R17" />}
           <div className="tbd-head">
             <h2 id="savings-title">
               <Term>Sparquote</Term> · {periodName(period, window)}
@@ -199,6 +221,7 @@ function SavingsBody({
           {overview.series.length > 0 && (
             <>
               <SavingsChart
+                table={REDESIGN_ENABLED}
                 points={overview.series.map((p) => ({
                   ...p,
                   grossBp:
@@ -206,13 +229,18 @@ function SavingsBody({
                       .find((r) => r.code === 'R17')
                       ?.cells.find((c) => c.asOf === lastDayOfMonth(p.month))?.grossBp ?? null,
                 }))}
+                height={REDESIGN_ENABLED ? (phone ? 140 : 240) : 260}
                 targetBp={target}
                 label={`${chartLabel} Bruttoquote R17 als zweite Linie, soweit bewertbar.`}
               />
-              <p className="vnote">
-                Bruttoquote R17: zweite Linie aus zwölf Monatsenden. Ohne vollständige Gehaltszettel
-                und Arbeitgeberbeiträge bleibt sie leer; die Regel muss aktiviert sein.
-              </p>
+              <ReportBodyDisclosure id="savings-gross" label="Bruttoquote R17 · Voraussetzungen">
+                {REDESIGN_ENABLED && <BookRuleMetric code="R17" />}
+                <p className="vnote">
+                  Bruttoquote R17: zweite Linie aus zwölf Monatsenden. Ohne vollständige
+                  Gehaltszettel und Arbeitgeberbeiträge bleibt sie leer; die Regel muss aktiviert
+                  sein.
+                </p>
+              </ReportBodyDisclosure>
               <ul className="chart-legend">
                 <li>
                   <svg aria-hidden="true" viewBox="0 0 32 8">
@@ -242,13 +270,15 @@ function SavingsBody({
               </ul>
             </>
           )}
-          <p className="vnote" data-testid="capital-note">
-            Einnahmen ohne Kapitalerträge (Erstattungen mindern die Ausgaben ihrer Kategorie);
-            Konsum = Bedarf plus Wunsch.{' '}
-            {capital > 0
-              ? `Kapitalerträge im Zeitraum: ${eur(capital, { cents: false })}, nicht in der Sparquote.`
-              : 'Im Zeitraum gab es keine Kapitalerträge.'}
-          </p>
+          <ReportBodyDisclosure id="savings-definition" label="Haushalt, Konsum und Kapitalerträge">
+            <p className="vnote" data-testid="capital-note">
+              Einnahmen ohne Kapitalerträge (Erstattungen mindern die Ausgaben ihrer Kategorie);
+              Konsum = Bedarf plus Wunsch.{' '}
+              {capital > 0
+                ? `Kapitalerträge im Zeitraum: ${eur(capital, { cents: false })}, nicht in der Sparquote.`
+                : 'Im Zeitraum gab es keine Kapitalerträge.'}
+            </p>
+          </ReportBodyDisclosure>
         </section>
 
         <section className="tr-card" aria-labelledby="age-title">
@@ -279,113 +309,110 @@ function SavingsBody({
           </div>
           {first && now ? (
             <>
+              {REDESIGN_ENABLED && (
+                <p className="r10-meta">Gesamter Verlauf · bis {longDay(data.asOf)}</p>
+              )}
               <div className="tbd-fig" data-testid="money-age">
                 {now.days}
                 <span className="cents"> {now.days === 1 ? 'Tag' : 'Tage'}</span>
               </div>
-              <DaysChain
-                label="Maßkette Geldalter"
-                terms={[
-                  { label: monthShort(first.month), value: days(first.days) },
-                  {
-                    label: 'seither',
-                    value: days(Math.abs(now.days - first.days)),
-                    op: now.days >= first.days ? '+' : '−',
-                  },
-                  { label: 'heute', value: days(now.days), op: '=', result: true },
-                  { label: 'Ziel', value: days(goal), op: '−' },
-                  {
-                    label: now.days >= goal ? 'darüber' : 'fehlen',
-                    value: days(Math.abs(goal - now.days)),
-                    op: '=',
-                    result: true,
-                  },
-                ]}
-              />
+              {!REDESIGN_ENABLED && ageChain}
               <MoneyAgeChart
+                table={REDESIGN_ENABLED}
                 points={agePoints}
+                height={REDESIGN_ENABLED ? (phone ? 140 : 240) : 260}
                 targetDays={goal}
                 label={`Geldalter in Tagen: abgeschlossene Monate zum Monatsende, laufender Monat bis heute; zuletzt ${days(now.days)}, Ziel ${days(goal)}.`}
               />
+              {REDESIGN_ENABLED && ageChain}
             </>
           ) : (
             <p className="vnote" role="status">
               Noch kein Geldalter: Es braucht Einnahmen und danach Ausgaben auf den Budgetkonten.
             </p>
           )}
-          <p className="vnote">
-            Geldalter betrachtet die letzten bis zu zehn bewertbaren Abflüsse auf Budgetkonten.
-            Zuerst eingegangenes Geld wird zuerst verbraucht. Innerhalb jedes Abflusses zählt das
-            Alter nach Betrag; anschließend zählt jeder dieser Abflüsse gleich viel im Durchschnitt.
-            Positive Anfangssalden zählen ab dem Eröffnungstag, Umbuchungen zwischen Budgetkonten
-            nicht. Ohne bewertbare Abflüsse bleibt das Geldalter offen.
-          </p>
-          <p className="vnote">
-            Vergleichsziel: {days(goal)}. Die Monatsstände gelten zum Monatsende, im laufenden Monat
-            bis heute. Das Geldalter beschreibt vergangene Abflüsse; Plan und Kontoprognose helfen
-            einzuschätzen, ob erfasste kommende Zahlungen gedeckt sind. Verfügbar und Frei bis
-            Gehalt behalten ihre eigene Berechnung.
-          </p>
+          <ReportBodyDisclosure id="age-definition" label="So wird das Geldalter berechnet">
+            <p className="vnote">
+              Geldalter betrachtet die letzten bis zu zehn bewertbaren Abflüsse auf Budgetkonten.
+              Zuerst eingegangenes Geld wird zuerst verbraucht. Innerhalb jedes Abflusses zählt das
+              Alter nach Betrag; anschließend zählt jeder dieser Abflüsse gleich viel im
+              Durchschnitt. Positive Anfangssalden zählen ab dem Eröffnungstag, Umbuchungen zwischen
+              Budgetkonten nicht. Ohne bewertbare Abflüsse bleibt das Geldalter offen.
+            </p>
+            <p className="vnote">
+              Vergleichsziel: {days(goal)}. Die Monatsstände gelten zum Monatsende, im laufenden
+              Monat bis heute. Das Geldalter beschreibt vergangene Abflüsse; Plan und Kontoprognose
+              helfen einzuschätzen, ob erfasste kommende Zahlungen gedeckt sind. Verfügbar und Frei
+              bis Gehalt behalten ihre eigene Berechnung.
+            </p>
+          </ReportBodyDisclosure>
         </section>
       </div>
 
-      <section className="tr-card" aria-labelledby="years-title">
-        <div className="tbd-head">
-          <h2 id="years-title">Je Jahr</h2>
-        </div>
-        <div
-          className="rscroll"
-          role="region"
-          aria-label="Jahrestabelle, bei Bedarf horizontal verschiebbar"
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the complete table.
-          tabIndex={0}
-        >
-          <table className="rtable">
-            <caption className="sr-only">Sparquote und Geldalter je Kalenderjahr</caption>
-            <thead>
-              <tr>
-                <th scope="col" className="tech">
-                  Jahr
-                </th>
-                <th scope="col" className="tech n">
-                  Einnahmen
-                </th>
-                <th scope="col" className="tech n">
-                  Konsum
-                </th>
-                <th scope="col" className="tech n">
-                  Gespart
-                </th>
-                <th scope="col" className="tech n">
-                  <Term>Sparquote</Term>
-                </th>
-                <th scope="col" className="tech n">
-                  Ø Geldalter
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {overview.years.map((y) => (
-                <tr key={y.year}>
-                  <th scope="row">
-                    {y.year}
-                    {y.months < 12 && <small className="muted"> {y.months} Monate</small>}
+      <ReportBodyDisclosure
+        id="savings-years"
+        label="Sparquote und Geldalter je Jahr · vollständige Tabelle"
+      >
+        <section className="tr-card" aria-labelledby="years-title">
+          <div className="tbd-head">
+            <h2 id="years-title">Je Jahr</h2>
+          </div>
+          <div
+            className="rscroll"
+            role="region"
+            aria-label="Jahrestabelle, bei Bedarf horizontal verschiebbar"
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the complete table.
+            tabIndex={0}
+          >
+            <table className="rtable">
+              <caption className="sr-only">Sparquote und Geldalter je Kalenderjahr</caption>
+              <thead>
+                <tr>
+                  <th scope="col" className="tech">
+                    Jahr
                   </th>
-                  <td className="n">{eur(y.incomeCents, { cents: false })}</td>
-                  <td className="n">{eur(y.consumptionCents, { cents: false })}</td>
-                  <td className="n">{eur(y.incomeCents - y.consumptionCents, { cents: false })}</td>
-                  <td className="n">
-                    <strong>{y.rateBp === null ? '–' : percentTenth(y.rateBp)}</strong>
-                  </td>
-                  <td className="n">
-                    {y.averageMoneyAgeDays === null ? '–' : days(y.averageMoneyAgeDays)}
-                  </td>
+                  <th scope="col" className="tech n">
+                    Einnahmen
+                  </th>
+                  <th scope="col" className="tech n">
+                    Konsum
+                  </th>
+                  <th scope="col" className="tech n">
+                    Gespart
+                  </th>
+                  <th scope="col" className="tech n">
+                    <Term>Sparquote</Term>
+                  </th>
+                  <th scope="col" className="tech n">
+                    Ø Geldalter
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              </thead>
+              <tbody>
+                {overview.years.map((y) => (
+                  <tr key={y.year}>
+                    <th scope="row">
+                      {y.year}
+                      {y.months < 12 && <small className="muted"> {y.months} Monate</small>}
+                    </th>
+                    <td className="n">{eur(y.incomeCents, { cents: false })}</td>
+                    <td className="n">{eur(y.consumptionCents, { cents: false })}</td>
+                    <td className="n">
+                      {eur(y.incomeCents - y.consumptionCents, { cents: false })}
+                    </td>
+                    <td className="n">
+                      <strong>{y.rateBp === null ? '–' : percentTenth(y.rateBp)}</strong>
+                    </td>
+                    <td className="n">
+                      {y.averageMoneyAgeDays === null ? '–' : days(y.averageMoneyAgeDays)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </ReportBodyDisclosure>
     </>
   );
 }

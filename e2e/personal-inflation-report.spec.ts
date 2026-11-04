@@ -1,3 +1,8 @@
+import { redesignReportsOn } from './report-frame';
+import {
+  retainBudgetCostInflationReaders,
+  chooseBudgetCostInflationView,
+} from './budget-cost-inflation-controls';
 import { expect, sampleTest as test } from './sample';
 import { inspectReport } from './spending-helpers';
 import type { InflationReport } from '@budget/db';
@@ -83,16 +88,17 @@ test('shows yearly basket prices and exact contributions matching the calendar-y
   ).json()) as InflationReport;
   await page.goto('/reports/inflation');
   await expect(page.getByTestId('pi-rate')).toBeVisible({ timeout: 30_000 });
-  const toggle = page.getByRole('group', { name: 'Warenkorbansicht' });
-  await expect(toggle.getByRole('button', { name: 'Seit Basis' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  const yearlyButton = toggle.getByRole('button', { name: 'Je Jahr' });
-  await yearlyButton.focus();
-  await yearlyButton.press('Enter');
-  await expect(yearlyButton).toHaveAttribute('aria-pressed', 'true');
-  expect((await yearlyButton.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  if (await redesignReportsOn(page))
+    await expect(page.getByRole('combobox', { name: 'Warenkorbansicht', exact: true })).toHaveValue(
+      'base',
+    );
+  else
+    await expect(
+      page
+        .getByRole('group', { name: 'Warenkorbansicht' })
+        .getByRole('button', { name: 'Seit Basis' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+  await chooseBudgetCostInflationView(page, 'Warenkorbansicht', 'year', 'Je Jahr');
   const basket = page.getByTestId('inflation-basket-yearly');
   await expect(basket.getByRole('columnheader', { name: /2026/ })).toContainText('bis Aug 26');
   const number = new Intl.NumberFormat('de-AT', {
@@ -127,7 +133,9 @@ test('shows yearly basket prices and exact contributions matching the calendar-y
   }
   await expect(basket).toContainText('Ø je Monat');
   await inspectReport(page, info, 'personal-inflation-yearly');
-  await toggle.getByRole('button', { name: 'Seit Basis' }).click();
+  await chooseBudgetCostInflationView(page, 'Warenkorbansicht', 'base', 'Seit Basis');
   await expect(page.getByTestId('inflation-basket')).toBeVisible();
   await expect(basket).toHaveCount(0);
 });
+
+test.beforeEach(async ({ page }) => retainBudgetCostInflationReaders(page));

@@ -1,3 +1,4 @@
+import { openCustomExplorer, retainExplorerReaders } from './explorer-controls';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase } from '@budget/db';
@@ -308,11 +309,12 @@ test('628 saved-view chips reload across contexts and resolve only the current s
   });
   try {
     const other = await second.newPage();
+    await retainExplorerReaders(other);
     await other.goto('/reports');
     await expect(
       other.getByText('Noch keine eigene Auswertung gespeichert.', { exact: false }),
     ).toBeVisible();
-    await page.goto('/reports/explorer');
+    await openCustomExplorer(page);
     await page.getByLabel('Spalten', { exact: true }).selectOption('jahr');
     await page.getByLabel('Kennzahl', { exact: true }).selectOption('avg');
     await page.getByLabel('Ansicht speichern', { exact: true }).fill('Synthetic 123,45 €');
@@ -436,6 +438,7 @@ test('628 saved-view chips reload across contexts and resolve only the current s
     await other.getByRole('button', { name: 'Eigene Auswertung öffnen', exact: true }).click();
     await expect(other).not.toHaveURL(/ansicht=/);
     await expect(other.getByLabel('Kennzahl', { exact: true })).toBeEnabled();
+    await retainExplorerReaders(other);
     await other.goto('/reports/explorer?vorlage=heatmap&exakt=true&zeitraum=2026-09..2026-09');
     await expect(
       other.getByRole('button', { name: 'Heatmap Ausgaben', exact: true }),

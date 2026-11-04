@@ -1,3 +1,8 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { ReportBodyDisclosure } from './report-body-disclosure';
+import { adherenceCalculation } from './budget-cost-inflation-presentation';
+import { BudgetPlanSummary } from './budget-plan-summary';
+import './budget-cost-inflation-redesign.css';
 import type { ReactNode } from 'react';
 import { AllocationBar } from './allocation-bar';
 import { chartShare } from '../charts/tooltip-data';
@@ -46,6 +51,7 @@ export function BudgetAdherenceReportPage({
   return (
     <PageFrame
       reportControls={viewControl}
+      calculation={data && !query.isError ? adherenceCalculation(data) : undefined}
       verdict={
         data && !query.isError
           ? {
@@ -103,7 +109,11 @@ export function BudgetAdherenceReportPage({
         },
       ]}
     >
-      <div className="kview sr" data-testid="budget-adherence">
+      <div
+        className="kview sr r11-body r11-budget"
+        data-current={data?.live ? '1' : '0'}
+        data-testid="budget-adherence"
+      >
         <ReportQuery query={query} what="Budgettreue">
           {(result) => <Body data={result} />}
         </ReportQuery>
@@ -144,228 +154,235 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
   });
   return (
     <>
-      <section className="sr-card" aria-labelledby="ba-main">
-        <div className="sr-head">
-          <h2 id="ba-main">
-            {monthLabel(data.month)}
-            {day ? ` · bis ${day}` : ''}
-          </h2>
-          {data.overCount > 0 ? (
-            <span className={`sr-status ${data.live ? 'is-action' : ''}`}>
-              <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
-              {data.overCount} über Plan
-            </span>
+      {REDESIGN_ENABLED && <BudgetPlanSummary data={data} />}
+      <ReportBodyDisclosure id="adherence-categories" label="Kategorien im Detail">
+        <section className="sr-card" aria-labelledby="ba-main">
+          <div className="sr-head">
+            <h2 id="ba-main">
+              {monthLabel(data.month)}
+              {day ? ` · bis ${day}` : ''}
+            </h2>
+            {data.overCount > 0 ? (
+              <span className={`sr-status ${data.live ? 'is-action' : ''}`}>
+                <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
+                {data.overCount} über Plan
+              </span>
+            ) : (
+              <span className="sr-status is-ok">
+                <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
+                {data.items.length ? 'alles im Plan' : 'nichts geplant'}
+              </span>
+            )}
+          </div>
+          <div className="sr-fig">
+            <span>Kategorien über Plan</span>
+            <strong data-testid="ba-over">
+              {data.overCount} von {data.items.length}
+            </strong>
+          </div>
+          <DimensionChain
+            label="Maßkette Plan gegen Ist"
+            precision="cent"
+            terms={[
+              { label: 'Plan', value: cents(data.planCents) },
+              { label: data.live ? 'Ist bis heute' : 'Ist', op: '-', value: cents(data.istCents) },
+              {
+                label: data.restCents >= 0 ? 'Rest' : 'Überzogen',
+                op: '=',
+                value: cents(data.restCents),
+                result: true,
+              },
+            ]}
+          />
+          {data.items.length === 0 ? (
+            <p className="sr-empty" role="status">
+              In diesem Monat ist nichts zugewiesen und nichts ausgegeben.
+            </p>
           ) : (
-            <span className="sr-status is-ok">
-              <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
-              {data.items.length ? 'alles im Plan' : 'nichts geplant'}
-            </span>
-          )}
-        </div>
-        <div className="sr-fig">
-          <span>Kategorien über Plan</span>
-          <strong data-testid="ba-over">
-            {data.overCount} von {data.items.length}
-          </strong>
-        </div>
-        <DimensionChain
-          label="Maßkette Plan gegen Ist"
-          precision="cent"
-          terms={[
-            { label: 'Plan', value: cents(data.planCents) },
-            { label: data.live ? 'Ist bis heute' : 'Ist', op: '-', value: cents(data.istCents) },
-            {
-              label: data.restCents >= 0 ? 'Rest' : 'Überzogen',
-              op: '=',
-              value: cents(data.restCents),
-              result: true,
-            },
-          ]}
-        />
-        {data.items.length === 0 ? (
-          <p className="sr-empty" role="status">
-            In diesem Monat ist nichts zugewiesen und nichts ausgegeben.
-          </p>
-        ) : (
-          <div className="sr-bullets">
-            {data.groups.map((group) => (
-              <div className="sr-bl-grp" key={group}>
-                <h3>{group}</h3>
-                {data.items
-                  .filter((x) => x.groupName === group)
-                  .map((x) => (
-                    <div className={`sr-bl${x.over ? ' is-over' : ''}`} key={x.id}>
-                      <AppLink to="/konten/buchungen" search={drill(x.id)} className="sr-name">
-                        <ClassSwatch kind={x.class} />
-                        <span>{x.name}</span>
-                      </AppLink>
-                      <ChartValue
-                        label={`Ist ${eur(x.istCents)} von Plan ${eur(x.planCents)}`}
-                        date={data.month}
-                        series={[
-                          { name: 'Ist', value: eur(x.istCents), color: `var(--${x.class})` },
-                          { name: 'Plan', value: eur(x.planCents), color: 'var(--line-2)' },
-                        ]}
-                      >
-                        <span className="sr-bl-track">
-                          <i
-                            className={`sr-bl-ist sw-${x.class}`}
-                            style={{ width: `${(Math.max(0, x.istCents) / max) * 100}%` }}
-                          />
-                          {x.planCents > 0 ? (
+            <div className="sr-bullets">
+              {data.groups.map((group) => (
+                <div className="sr-bl-grp" key={group}>
+                  <h3>{group}</h3>
+                  {data.items
+                    .filter((x) => x.groupName === group)
+                    .map((x) => (
+                      <div className={`sr-bl${x.over ? ' is-over' : ''}`} key={x.id}>
+                        <AppLink to="/konten/buchungen" search={drill(x.id)} className="sr-name">
+                          <ClassSwatch kind={x.class} />
+                          <span>{x.name}</span>
+                        </AppLink>
+                        <ChartValue
+                          label={`Ist ${eur(x.istCents)} von Plan ${eur(x.planCents)}`}
+                          date={data.month}
+                          series={[
+                            { name: 'Ist', value: eur(x.istCents), color: `var(--${x.class})` },
+                            { name: 'Plan', value: eur(x.planCents), color: 'var(--line-2)' },
+                          ]}
+                        >
+                          <span className="sr-bl-track">
                             <i
-                              className="sr-bl-plan"
-                              style={{ left: `${Math.min(99.5, (x.planCents / max) * 100)}%` }}
+                              className={`sr-bl-ist sw-${x.class}`}
+                              style={{ width: `${(Math.max(0, x.istCents) / max) * 100}%` }}
                             />
-                          ) : null}
-                        </span>
-                      </ChartValue>
-                      <span className="sr-val">
-                        <strong>{eur(x.istCents, { cents: false })}</strong>
-                        <small>/ {eur(x.planCents, { cents: false })}</small>
-                      </span>
-                      <span className="sr-bl-diff">
-                        {x.over ? (
-                          <span className="sr-status is-action">
-                            {data.live ? (
-                              <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
+                            {x.planCents > 0 ? (
+                              <i
+                                className="sr-bl-plan"
+                                style={{ left: `${Math.min(99.5, (x.planCents / max) * 100)}%` }}
+                              />
                             ) : null}
-                            {eur(x.istCents - x.planCents, { cents: false, sign: true })}
+                          </span>
+                        </ChartValue>
+                        <span className="sr-val">
+                          <strong>{eur(x.istCents, { cents: false })}</strong>
+                          <small>/ {eur(x.planCents, { cents: false })}</small>
+                        </span>
+                        <span className="sr-bl-diff">
+                          {x.over ? (
+                            <span className="sr-status is-action">
+                              {data.live ? (
+                                <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
+                              ) : null}
+                              {eur(x.istCents - x.planCents, { cents: false, sign: true })}
+                            </span>
+                          ) : (
+                            eur(x.istCents - x.planCents, { cents: false, sign: true })
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="sr-note">
+            Balken = Ist, senkrechte Marke = Plan (das im Plan zugewiesene Geld). Periodische
+            Kategorien zählen mit ihrer Rücklage: Übertrag plus Zuweisung, weil die Jahresrechnung
+            aus dem Angesparten bezahlt wird.
+            {data.live ? ' Rot heißt: jetzt handeln, im Plan umschichten.' : ''}
+          </p>
+        </section>
+      </ReportBodyDisclosure>
+
+      <ReportBodyDisclosure id="adherence-allocation" label="50/30/20 · zugewiesenes Geld">
+        <section className="sr-card" aria-labelledby="ba-523">
+          <div className="sr-head">
+            <h2 id="ba-523">50/30/20 je Monat</h2>
+            <span className="sr-state">zugewiesenes Geld</span>
+          </div>
+          {data.allocation.length === 0 ? (
+            <p className="sr-empty" role="status">
+              Es gibt noch keinen geschlossenen Monat.
+            </p>
+          ) : (
+            <div className="sr-523" role="list" aria-label="Aufteilung der Einnahmen je Monat">
+              {data.allocation.map((row) => (
+                <Allocation key={row.month} row={row} current={row.month === data.month} />
+              ))}
+            </div>
+          )}
+          <ul className="sr-leg">
+            {(['need', 'want', 'future'] as const).map((c, i) => (
+              <li key={c}>
+                <ClassSwatch kind={c} />
+                <Term>{CLASS_NAME[c]}</Term> · Soll {[50, 30, 20][i]} %
+              </li>
+            ))}
+            <li>
+              <i className="sw sw-rest" aria-hidden="true" />
+              Übrig / aus Guthaben
+            </li>
+          </ul>
+          <p className="sr-note">
+            Je Zeile zusammen 100 % der Haushaltseinnahmen: Bedarf, Wunsch und Zukunft plus Rest
+            (übrig, oder {MINUS} aus Guthaben). Periodische Kosten, Sonderzahlungen und ihre
+            Umbuchungen zählen als Zwölftel. Kapitalerträge und Erstattungen sind kein
+            Haushaltseinkommen und fehlen in der Basis.
+          </p>
+        </section>
+      </ReportBodyDisclosure>
+
+      <ReportBodyDisclosure id="adherence-deviation" label="Planabweichung · rollierend 12 Monate">
+        <section className="sr-card sr-wide" aria-labelledby="ba-dev">
+          <div className="sr-head">
+            <h2 id="ba-dev">Planabweichung, rollierend 12 Monate</h2>
+            <span className="sr-state">Ziel ± 10 %</span>
+          </div>
+          {data.deviation.rows.length === 0 ? (
+            <p className="sr-empty" role="status">
+              Für die letzten geschlossenen Monate ist noch nichts zugewiesen.
+            </p>
+          ) : (
+            <ScrollRegion label="Planabweichung je Kategorie, bei Bedarf horizontal verschiebbar">
+              <table className="sr-table">
+                <caption className="sr-only">
+                  Zugewiesen und ausgegeben je Kategorie, 12 Monate bis {data.deviation.to}
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Kategorie</th>
+                    <th scope="col" className="n">
+                      Plan 12 M
+                    </th>
+                    <th scope="col" className="n">
+                      Ist 12 M
+                    </th>
+                    <th scope="col" className="n">
+                      Abweichung
+                    </th>
+                    <th scope="col">Einordnung</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.deviation.rows.slice(0, 10).map((r) => (
+                    <tr key={r.id}>
+                      <th scope="row">
+                        <span className="sr-name">
+                          <ClassSwatch kind={r.class} />
+                          <span>{r.name}</span>
+                        </span>
+                      </th>
+                      <td className="n">{eur(r.planCents, { cents: false })}</td>
+                      <td className="n">{eur(r.istCents, { cents: false })}</td>
+                      <td className="n">
+                        <strong>
+                          {r.deviationBp === null
+                            ? eur(r.deviationCents, { cents: false, sign: true })
+                            : bpText(r.deviationBp, { sign: true })}
+                        </strong>
+                        {r.deviationBp === null && (
+                          <small>Kein Prozentvergleich · absolute Abweichung</small>
+                        )}
+                      </td>
+                      <td>
+                        {r.inBand === null ? (
+                          <span className="sr-status">Abweichung in Euro</span>
+                        ) : r.inBand ? (
+                          <span className="sr-status is-ok">
+                            <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
+                            im Band
                           </span>
                         ) : (
-                          eur(x.istCents - x.planCents, { cents: false, sign: true })
+                          <span className="sr-status">
+                            <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
+                            Plan anpassen?
+                          </span>
                         )}
-                      </span>
-                    </div>
+                      </td>
+                    </tr>
                   ))}
-              </div>
-            ))}
-          </div>
-        )}
-        <p className="sr-note">
-          Balken = Ist, senkrechte Marke = Plan (das im Plan zugewiesene Geld). Periodische
-          Kategorien zählen mit ihrer Rücklage: Übertrag plus Zuweisung, weil die Jahresrechnung aus
-          dem Angesparten bezahlt wird.
-          {data.live ? ' Rot heißt: jetzt handeln, im Plan umschichten.' : ''}
-        </p>
-      </section>
-
-      <section className="sr-card" aria-labelledby="ba-523">
-        <div className="sr-head">
-          <h2 id="ba-523">50/30/20 je Monat</h2>
-          <span className="sr-state">zugewiesenes Geld</span>
-        </div>
-        {data.allocation.length === 0 ? (
-          <p className="sr-empty" role="status">
-            Es gibt noch keinen geschlossenen Monat.
+                </tbody>
+              </table>
+            </ScrollRegion>
+          )}
+          <p className="sr-note">
+            Plan = zugewiesenes Geld der zwölf Monate
+            {data.deviation.from && data.deviation.to
+              ? ` (${longDay(data.deviation.from)} bis ${longDay(data.deviation.to)})`
+              : ''}
+            , Ist = Nettoausgaben. Die zehn größten Abweichungen.
           </p>
-        ) : (
-          <div className="sr-523" role="list" aria-label="Aufteilung der Einnahmen je Monat">
-            {data.allocation.map((row) => (
-              <Allocation key={row.month} row={row} current={row.month === data.month} />
-            ))}
-          </div>
-        )}
-        <ul className="sr-leg">
-          {(['need', 'want', 'future'] as const).map((c, i) => (
-            <li key={c}>
-              <ClassSwatch kind={c} />
-              <Term>{CLASS_NAME[c]}</Term> · Soll {[50, 30, 20][i]} %
-            </li>
-          ))}
-          <li>
-            <i className="sw sw-rest" aria-hidden="true" />
-            Übrig / aus Guthaben
-          </li>
-        </ul>
-        <p className="sr-note">
-          Je Zeile zusammen 100 % der Haushaltseinnahmen: Bedarf, Wunsch und Zukunft plus Rest
-          (übrig, oder {MINUS} aus Guthaben). Periodische Kosten, Sonderzahlungen und ihre
-          Umbuchungen zählen als Zwölftel. Kapitalerträge und Erstattungen sind kein
-          Haushaltseinkommen und fehlen in der Basis.
-        </p>
-      </section>
-
-      <section className="sr-card sr-wide" aria-labelledby="ba-dev">
-        <div className="sr-head">
-          <h2 id="ba-dev">Planabweichung, rollierend 12 Monate</h2>
-          <span className="sr-state">Ziel ± 10 %</span>
-        </div>
-        {data.deviation.rows.length === 0 ? (
-          <p className="sr-empty" role="status">
-            Für die letzten geschlossenen Monate ist noch nichts zugewiesen.
-          </p>
-        ) : (
-          <ScrollRegion label="Planabweichung je Kategorie, bei Bedarf horizontal verschiebbar">
-            <table className="sr-table">
-              <caption className="sr-only">
-                Zugewiesen und ausgegeben je Kategorie, 12 Monate bis {data.deviation.to}
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Kategorie</th>
-                  <th scope="col" className="n">
-                    Plan 12 M
-                  </th>
-                  <th scope="col" className="n">
-                    Ist 12 M
-                  </th>
-                  <th scope="col" className="n">
-                    Abweichung
-                  </th>
-                  <th scope="col">Einordnung</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.deviation.rows.slice(0, 10).map((r) => (
-                  <tr key={r.id}>
-                    <th scope="row">
-                      <span className="sr-name">
-                        <ClassSwatch kind={r.class} />
-                        <span>{r.name}</span>
-                      </span>
-                    </th>
-                    <td className="n">{eur(r.planCents, { cents: false })}</td>
-                    <td className="n">{eur(r.istCents, { cents: false })}</td>
-                    <td className="n">
-                      <strong>
-                        {r.deviationBp === null
-                          ? eur(r.deviationCents, { cents: false, sign: true })
-                          : bpText(r.deviationBp, { sign: true })}
-                      </strong>
-                      {r.deviationBp === null && (
-                        <small>Kein Prozentvergleich · absolute Abweichung</small>
-                      )}
-                    </td>
-                    <td>
-                      {r.inBand === null ? (
-                        <span className="sr-status">Abweichung in Euro</span>
-                      ) : r.inBand ? (
-                        <span className="sr-status is-ok">
-                          <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
-                          im Band
-                        </span>
-                      ) : (
-                        <span className="sr-status">
-                          <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
-                          Plan anpassen?
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </ScrollRegion>
-        )}
-        <p className="sr-note">
-          Plan = zugewiesenes Geld der zwölf Monate
-          {data.deviation.from && data.deviation.to
-            ? ` (${longDay(data.deviation.from)} bis ${longDay(data.deviation.to)})`
-            : ''}
-          , Ist = Nettoausgaben. Die zehn größten Abweichungen.
-        </p>
-      </section>
+        </section>
+      </ReportBodyDisclosure>
     </>
   );
 }

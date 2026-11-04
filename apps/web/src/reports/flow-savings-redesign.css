@@ -1,0 +1,112 @@
+[data-budget-redesign='1'] :is(.flow-report, .savings-report) {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+[data-budget-redesign='1'] :is(.flow-report, .savings-report) :is(.mr-card, .tr-card) {
+  padding: 12px 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+[data-budget-redesign='1'] .savings-report .tr-pair {
+  gap: 14px;
+}
+[data-budget-redesign='1'] :is(.flow-report, .savings-report) h2 {
+  margin-block: 0 8px;
+  font-size: var(--fs-title);
+}
+[data-budget-redesign='1'] :is(.flow-report, .savings-report) .r8-body-disclosure > summary {
+  min-height: 44px;
+  align-content: center;
+  border-block: 1px solid var(--rule);
+  color: var(--ink-2);
+  cursor: pointer;
+  padding-block: 8px;
+}
+[data-budget-redesign='1'] .r10-meta {
+  margin: 0 0 6px;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+[data-budget-redesign='1'] .r10-ratio-track {
+  display: flex;
+  height: 14px;
+  background: var(--surface-2);
+  outline: 1px solid var(--rule);
+}
+[data-budget-redesign='1'] .r10-ratio-track i {
+  background: var(--primary);
+}
+[data-budget-redesign='1'] .r10-ratio-track [data-tone='want'] {
+  background: repeating-linear-gradient(135deg, var(--primary) 0 2px, var(--surface) 2px 5px);
+}
+[data-budget-redesign='1'] .r10-ratio-track [data-tone='future'] {
+  background: repeating-linear-gradient(45deg, var(--primary) 0 1px, var(--surface) 1px 5px);
+}
+[data-budget-redesign='1'] .r10-ratio-track [data-tone='rest'] {
+  background: var(--surface-2);
+  outline: 1px dashed var(--ink-2);
+  outline-offset: -1px;
+}
+[data-budget-redesign='1'] .r10-flow-ratio ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+[data-budget-redesign='1'] .r10-flow-ratio strong {
+  font-variant-numeric: tabular-nums;
+}
+[data-budget-redesign='1'] .savings-report .chart-legend {
+  font-size: var(--fs-meta);
+  gap: 6px 14px;
+}
+@media screen {
+  [data-budget-redesign='1']
+    .savings-report
+    [aria-labelledby='savings-title']
+    > :is(.chain-inline, .tbd-fig) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+@media (max-width: 767px) {
+  [data-budget-redesign='1'] .savings-report .tr-pair {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  [data-budget-redesign='1'] .flow-report .sk-phone ul li {
+    min-height: 44px;
+    padding-block: 6px;
+    align-items: center;
+    font-size: var(--fs-body);
+  }
+  [data-budget-redesign='1'] .flow-report .sk-phone ul strong {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: end;
+    gap: 0 8px;
+  }
+}
+@media print {
+  [data-budget-redesign='1'] :is(.flow-report, .savings-report) .r8-body-disclosure > summary {
+    display: none;
+  }
+}
+[data-budget-redesign='1'] .savings-report [data-testid='money-age'] {
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
+  margin: 0 0 4px;
+}
+[data-budget-redesign='1'] .savings-report [data-testid='money-age'] .cents {
+  font-size: inherit;
+}

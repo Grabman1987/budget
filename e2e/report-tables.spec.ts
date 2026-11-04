@@ -1,3 +1,5 @@
+import { openR8BodyDetails } from './income-spending-controls';
+import { redesignReportsOn } from './report-frame';
 import AxeBuilder from '@axe-core/playwright';
 import {
   buildTableRows,
@@ -315,6 +317,18 @@ test.describe('1.6 Kategorie im Verlauf', () => {
 // ---------------------------------------------------------------------------------------------// 1.7 Sparquote und Geldalter
 // ---------------------------------------------------------------------------------------------
 test.describe('1.7 Sparquote und Geldalter', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      for (const id of [
+        'savings-definition',
+        'age-chain',
+        'age-definition',
+        'savings-years',
+        'savings-gross',
+      ])
+        localStorage.setItem(`budget-report-r8-${id}`, '1');
+    });
+  });
   test('Sparquote is household income only, the chain adds up, Geldalter and the years agree', async ({
     page,
   }, info) => {
@@ -541,6 +555,10 @@ test.describe('states', () => {
       );
       fail = false;
       await page.getByRole('button', { name: 'Erneut versuchen' }).click();
+      if (id === 'sparquote' && (await redesignReportsOn(page))) {
+        await expect(page.locator('[data-r8-detail]').first()).toBeVisible({ timeout: 20_000 });
+        await openR8BodyDetails(page);
+      }
       await expect(page.locator('table.rtable').first()).toBeVisible({ timeout: 20_000 });
       await expect(page.getByRole('alert')).toHaveCount(0);
     });

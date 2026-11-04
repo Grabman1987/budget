@@ -1,4 +1,4 @@
-import { isMonth } from '../nav/month';
+import { isMonth, monthOf } from '../nav/month';
 import { isExplorerTemplate } from '@budget/domain';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
@@ -17,7 +17,37 @@ const ids = (value: unknown) =>
     ? value.filter((value): value is string => id(value) !== undefined)
     : undefined;
 
+/** Retain the original monthly section bookmarks when the default summary is active. */
+export function isPaperPresentation(view: unknown, hash: string): boolean {
+  return REDESIGN_ENABLED && (view === 'druckblatt' || /^ps-[a-g]$/.test(hash));
+}
+
+/** Same historical-month period as the existing reader, before it can replace a heading hash. */
+export function normalizeHistoryPeriod(search: Record<string, unknown>): boolean {
+  return (
+    REDESIGN_ENABLED &&
+    search['darstellung'] === 'finanzcheck' &&
+    isMonth(search['monat']) &&
+    search['monat'] !== monthOf(new Date()) &&
+    search['period'] !== 'month'
+  );
+}
+
 export const validateReportSearch = (search: Record<string, unknown>) => ({
+  ...(REDESIGN_ENABLED
+    ? {
+        kontakteansicht: search['kontakteansicht'] === 'offen' ? 'offen' : undefined,
+        verlauf: search['verlauf'] === 1 || search['verlauf'] === '1' ? 1 : undefined,
+        inflationsansicht:
+          search['inflationsansicht'] === 'basket' || search['inflationsansicht'] === 'explorer'
+            ? (search['inflationsansicht'] as 'basket' | 'explorer')
+            : undefined,
+        warenkorb:
+          search['warenkorb'] === 'base' || search['warenkorb'] === 'year'
+            ? (search['warenkorb'] as 'base' | 'year')
+            : undefined,
+      }
+    : {}),
   ansicht: id(search['ansicht']),
   empfaenger: id(search['empfaenger']),
   projekt: id(search['projekt']),
@@ -46,7 +76,9 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
     'bankkosten',
     ...(REDESIGN_ENABLED
       ? [
+          'eigene',
           'finanzcheck',
+          'druckblatt',
           'schulden',
           'freiheit',
           'kennzahlen',
@@ -74,7 +106,9 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
         | 'planungstreue'
         | 'vertraege'
         | 'bankkosten'
+        | 'eigene'
         | 'finanzcheck'
+        | 'druckblatt'
         | 'schulden'
         | 'freiheit'
         | 'kennzahlen'

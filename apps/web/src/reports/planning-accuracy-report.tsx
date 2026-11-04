@@ -1,3 +1,7 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { ReportBodyDisclosure } from './report-body-disclosure';
+import { accuracyCalculation } from './budget-cost-inflation-presentation';
+import './budget-cost-inflation-redesign.css';
 import type { ReactNode } from 'react';
 import type { PlanningAccuracyReport } from '@budget/db';
 import { lastDayOfMonth } from '@budget/domain';
@@ -64,6 +68,11 @@ export function PlanningAccuracyReportPage({
   return (
     <PageFrame
       reportControls={viewControl}
+      calculation={
+        query.data && !query.isFetching && !query.isError
+          ? accuracyCalculation(query.data)
+          : undefined
+      }
       verdict={
         query.data && !query.isFetching && !query.isError
           ? {
@@ -109,23 +118,30 @@ export function PlanningAccuracyReportPage({
         },
       ]}
     >
-      <div className="sr accuracy-report" data-testid="planning-accuracy">
+      <div className="sr accuracy-report r11-body r11-accuracy" data-testid="planning-accuracy">
         <ReportQuery query={query} what={report.name}>
           {(data) => (
             <>
-              <section className="sr-card sr-wide" aria-label="Trefferquote">
-                <AccuracyHeadline summary={data.summary} reliableFrom={data.reliableFrom} />
-                <p>
-                  Abweichung = Prognose − Ist; Prozent bezogen auf Ist. Treffer: höchstens ±5 %. Der
-                  Schnitt verwendet absolute Abweichungen der letzten sechs abgeschlossenen
-                  Kalendermonate. Ohne positives Ist gibt es keine Prozentwertung. Bedarf und Wunsch
-                  entsprechen Pace.
-                </p>
-                <p>
-                  {data.summary.count} auswertbare Monate im Sechsmonatsfenster. Fehlende Prognosen
-                  werden nicht nachträglich geschätzt.
-                </p>
-              </section>
+              {!REDESIGN_ENABLED && (
+                <ReportBodyDisclosure
+                  id="accuracy-method"
+                  label="Trefferquote und Berechnungsbasis"
+                >
+                  <section className="sr-card sr-wide" aria-label="Trefferquote">
+                    <AccuracyHeadline summary={data.summary} reliableFrom={data.reliableFrom} />
+                    <p>
+                      Abweichung = Prognose − Ist; Prozent bezogen auf Ist. Treffer: höchstens ±5 %.
+                      Der Schnitt verwendet absolute Abweichungen der letzten sechs abgeschlossenen
+                      Kalendermonate. Ohne positives Ist gibt es keine Prozentwertung. Bedarf und
+                      Wunsch entsprechen Pace.
+                    </p>
+                    <p>
+                      {data.summary.count} auswertbare Monate im Sechsmonatsfenster. Fehlende
+                      Prognosen werden nicht nachträglich geschätzt.
+                    </p>
+                  </section>
+                </ReportBodyDisclosure>
+              )}
               <section className="sr-card sr-wide" aria-labelledby="accuracy-months">
                 <h2 id="accuracy-months">Prognose am 15. vs. Ist am Monatsende</h2>
                 {data.months.length ? (
@@ -187,52 +203,77 @@ export function PlanningAccuracyReportPage({
                   </p>
                 )}
               </section>
-              <section className="sr-card sr-wide" aria-labelledby="accuracy-categories">
-                <h2 id="accuracy-categories">{monthLabel(month)} · größte Abweichungen zuerst</h2>
-                {data.categories.length ? (
-                  <ScrollRegion label="Abweichungen je Kategorie">
-                    <table className="sr-table">
-                      <thead>
-                        <tr>
-                          <th scope="col">Kategorie</th>
-                          <th scope="col">Plan am 15.</th>
-                          <th scope="col">Ausgegeben am 15.</th>
-                          <th scope="col">Prognose am 15.</th>
-                          <th scope="col">Ist</th>
-                          <th scope="col">Abweichung €</th>
-                          <th scope="col">Abweichung %</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.categories.map((r) => (
-                          <tr key={r.categoryId}>
-                            <th scope="row">
-                              <AppLink
-                                to="/konten/buchungen"
-                                search={{
-                                  kategorie: r.categoryId,
-                                  von: `${month}-01`,
-                                  bis: lastDayOfMonth(month),
-                                }}
-                              >
-                                {r.name}
-                              </AppLink>
-                            </th>
-                            <td>{eur(r.plannedCents)}</td>
-                            <td>{eur(r.spentCents)}</td>
-                            <td>{eur(r.projectedCents)}</td>
-                            <td>{eur(r.actualCents)}</td>
-                            <td>{eur(r.deviationCents)}</td>
-                            <td>{bpText(r.deviationBp, { sign: true })}</td>
+              {REDESIGN_ENABLED && (
+                <ReportBodyDisclosure
+                  id="accuracy-method"
+                  label="Trefferquote und Berechnungsbasis"
+                >
+                  <section className="sr-card sr-wide" aria-label="Trefferquote">
+                    <AccuracyHeadline summary={data.summary} reliableFrom={data.reliableFrom} />
+                    <p>
+                      Abweichung = Prognose − Ist; Prozent bezogen auf Ist. Treffer: höchstens ±5 %.
+                      Der Schnitt verwendet absolute Abweichungen der letzten sechs abgeschlossenen
+                      Kalendermonate. Ohne positives Ist gibt es keine Prozentwertung. Bedarf und
+                      Wunsch entsprechen Pace.
+                    </p>
+                    <p>
+                      {data.summary.count} auswertbare Monate im Sechsmonatsfenster. Fehlende
+                      Prognosen werden nicht nachträglich geschätzt.
+                    </p>
+                  </section>
+                </ReportBodyDisclosure>
+              )}
+              <ReportBodyDisclosure
+                id="accuracy-categories"
+                label="Prognoseabweichung je Kategorie"
+              >
+                <section className="sr-card sr-wide" aria-labelledby="accuracy-categories">
+                  <h2 id="accuracy-categories">{monthLabel(month)} · größte Abweichungen zuerst</h2>
+                  {data.categories.length ? (
+                    <ScrollRegion label="Abweichungen je Kategorie">
+                      <table className="sr-table">
+                        <thead>
+                          <tr>
+                            <th scope="col">Kategorie</th>
+                            <th scope="col">Plan am 15.</th>
+                            <th scope="col">Ausgegeben am 15.</th>
+                            <th scope="col">Prognose am 15.</th>
+                            <th scope="col">Ist</th>
+                            <th scope="col">Abweichung €</th>
+                            <th scope="col">Abweichung %</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </ScrollRegion>
-                ) : (
-                  <p role="status">Für diesen Monat liegt noch kein Vergleich vor.</p>
-                )}
-              </section>
+                        </thead>
+                        <tbody>
+                          {data.categories.map((r) => (
+                            <tr key={r.categoryId}>
+                              <th scope="row">
+                                <AppLink
+                                  to="/konten/buchungen"
+                                  search={{
+                                    kategorie: r.categoryId,
+                                    von: `${month}-01`,
+                                    bis: lastDayOfMonth(month),
+                                  }}
+                                >
+                                  {r.name}
+                                </AppLink>
+                              </th>
+                              <td>{eur(r.plannedCents)}</td>
+                              <td>{eur(r.spentCents)}</td>
+                              <td>{eur(r.projectedCents)}</td>
+                              <td>{eur(r.actualCents)}</td>
+                              <td>{eur(r.deviationCents)}</td>
+                              <td>{bpText(r.deviationBp, { sign: true })}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </ScrollRegion>
+                  ) : (
+                    <p role="status">Für diesen Monat liegt noch kein Vergleich vor.</p>
+                  )}
+                </section>
+              </ReportBodyDisclosure>
             </>
           )}
         </ReportQuery>

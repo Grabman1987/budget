@@ -17,6 +17,7 @@ import { hubReport } from './report-hub-model';
 import { ReportNavigation } from './report-navigation';
 import { VerdictLine } from './verdict-line';
 import './report-frame.css';
+import '../charts/report-heatmap.css';
 
 /** Supplied by the existing reader. The frame never aggregates or infers missing terms. */
 export interface ReportCalculation {
@@ -24,6 +25,10 @@ export interface ReportCalculation {
   terms: readonly DimensionChainTerm[];
   result: VerdictMetric;
   precision?: 'cent' | 'euro';
+  signed?: boolean;
+  /** Source-formatted non-money inputs, such as indices or percentages. */
+  displayTerms?: readonly { label: string; text: string; op?: string }[];
+  pointsLabel?: string;
 }
 export interface ReportFrameProps extends PageFrameProps {
   calculation?: ReportCalculation | undefined;
@@ -31,12 +36,16 @@ export interface ReportFrameProps extends PageFrameProps {
   sourceReportId?: string | undefined;
 }
 
-function metricText(metric: VerdictMetric | undefined): string {
+function metricText(
+  metric: VerdictMetric | undefined,
+  signed = false,
+  pointsLabel = 'Punkte',
+): string {
   if (metric?.value === null || metric?.value === undefined) return '—';
-  if (metric.unit === 'money') return eur(metric.value);
+  if (metric.unit === 'money') return eur(metric.value, { sign: signed });
   if (metric.unit === 'percent') return privateAmount(formatPercent(metric.value));
   return privateAmount(
-    `${new Intl.NumberFormat('de-AT').format(metric.value)}${metric.unit === 'points' ? ' Punkte' : ''}`,
+    `${signed && metric.value > 0 ? '+' : ''}${new Intl.NumberFormat('de-AT').format(metric.value).replace('-', '−')}${metric.unit === 'points' ? ` ${pointsLabel}` : ''}`,
   );
 }
 
@@ -99,16 +108,30 @@ function RedesignReportFrame({
         <div className="redesign-report-calculation" data-testid="report-calculation">
           {calculation && (
             <div className="redesign-report-equation">
-              <DimensionChain
-                label={calculation.label}
-                terms={inputs ?? []}
-                precision={calculation.precision ?? 'cent'}
-              />
+              {calculation.displayTerms ? (
+                <div className="chain-inline" role="group" aria-label={calculation.label}>
+                  {calculation.displayTerms.map((term, index) => (
+                    <span className="ct-pair" key={index}>
+                      {term.op && <span className="ct-op">{term.op}</span>}
+                      <span className="ct-term">
+                        <span className="ct-label">{term.label}</span>
+                        <span className="ct-val">{privateAmount(term.text)}</span>
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <DimensionChain
+                  label={calculation.label}
+                  terms={inputs ?? []}
+                  precision={calculation.precision ?? 'cent'}
+                />
+              )}
               <span aria-hidden="true">=</span>
             </div>
           )}
           <strong className="redesign-report-result" data-testid="report-frame-result">
-            {metricText(result)}
+            {metricText(result, calculation?.signed, calculation?.pointsLabel)}
           </strong>
           {result && (
             <span className="redesign-report-result-label">{maskMoneyText(result.label)}</span>
@@ -153,9 +176,19 @@ function RedesignReportFrame({
                   <dd>{eur(cents(term.value))}</dd>
                 </div>
               ))}
+              {calculation.displayTerms?.map((term, index) => (
+                <div key={`display-${index}`}>
+                  <dt>
+                    {term.op} {term.label}
+                  </dt>
+                  <dd>{privateAmount(term.text)}</dd>
+                </div>
+              ))}
               <div>
                 <dt>{maskMoneyText(calculation.result.label)}</dt>
-                <dd>{metricText(calculation.result)}</dd>
+                <dd>
+                  {metricText(calculation.result, calculation.signed, calculation.pointsLabel)}
+                </dd>
               </div>
             </dl>
           )}
