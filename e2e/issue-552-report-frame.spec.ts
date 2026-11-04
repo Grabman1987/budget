@@ -29,16 +29,20 @@ for (const id of SAMPLE) {
     await page.goto(`/reports/${id}`);
     const first = firstHeading(page);
     await expect(first).toBeVisible({ timeout: 30_000 });
-    // One control: the preset segment. The dropdown and the trend checkbox are not on the page.
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    // Exactly one period preset control; presentation filters are separate.
     await expect(period(page)).toHaveCount(1);
-    // Canonical Cashflow has its project filter; the category template has its category picker.
+    // Cashflow/category have their data filters; ON wealth has its presentation selector.
     await expect(page.getByRole('combobox')).toHaveCount(
-      id === 'cashflow' || id === 'kategorien' ? 1 : 0,
+      id === 'cashflow' || id === 'kategorien' || (redesign && id === 'vermoegen') ? 1 : 0,
     );
+    if (redesign && id === 'vermoegen')
+      await expect(
+        page.getByRole('combobox', { name: 'Darstellung des Vermögensreports' }),
+      ).toHaveValue('verlauf');
     await expect(page.getByRole('checkbox', { name: 'Trendlinie' })).toHaveCount(0);
     await expect(rangeButton(page)).toBeVisible();
     if (phone(page)) return;
-    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     const headSelector = redesign ? '.redesign-report-head' : '.titleblock';
     const head = (await page.locator(headSelector).first().boundingBox())!;
     if (redesign) {

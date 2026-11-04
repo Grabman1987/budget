@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect } from './sample';
+import { showAllocationEvidence } from './wealth-navigation';
 
 test.describe('UX-3c phone chart and table containers', () => {
   test.skip(({ isMobile }) => !isMobile, '390 px phone project');
@@ -16,6 +17,7 @@ test.describe('UX-3c phone chart and table containers', () => {
   ]) {
     test(`${path} stays inside the phone in both themes`, async ({ page }, info) => {
       await page.goto(path!);
+      if (path === '/vermoegen/portfolio/allokation') await showAllocationEvidence(page);
       if (path!.startsWith('/plan/jahr')) {
         const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
         const group = page
@@ -113,6 +115,7 @@ test.describe('UX-3c phone chart and table containers', () => {
 
   test('portfolio tracks fill the whole row below name and values', async ({ page }) => {
     await page.goto('/vermoegen/portfolio/allokation');
+    await showAllocationEvidence(page);
     const track = page.locator('.vallo .va-track').first();
     await expect(track).toBeVisible({ timeout: 30_000 });
     const row = (await page.locator('.vallo li').first().boundingBox())!;

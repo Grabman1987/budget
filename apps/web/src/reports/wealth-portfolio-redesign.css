@@ -246,6 +246,11 @@
   font-size: var(--fs-table);
   font-variant-numeric: tabular-nums;
 }
+[data-budget-redesign='1'] .portfolio-performance-report .rscroll {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
 [data-budget-redesign='1'] .metrics-lead-table :is(th, td) {
   padding: 8px;
   border-bottom: 1px solid var(--rule);

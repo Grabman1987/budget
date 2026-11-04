@@ -64,126 +64,132 @@ function snapshot(path: string) {
   }
 }
 
-test('546 metrics share the report period and literal deposit-neutral return, flows and benchmark base', async ({
-  page,
-  isolatedLedger,
-}, info) => {
-  seed(isolatedLedger.databasePath);
-  const before = snapshot(isolatedLedger.databasePath);
-  const response = await page.request.get(
-    '/api/portfolio?period=YTD&view=securities&history=performance&provenance=valuation-v1',
-  );
-  expect(response.ok()).toBe(true);
-  const { portfolio } = (await response.json()) as { portfolio: PortfolioSummary };
-  expect(portfolio.performance).toMatchObject({
-    from: '2025-12-31',
-    to: '2026-12-31',
-    startValueCents: 10000,
-    contributionsCents: 10000,
-    endValueCents: 22000,
-  });
-  expect(portfolio.performance!.ttwror).toBeCloseTo(0.1, 12);
-  expect(portfolio.performance!.ttwrorAnnualised).toBeCloseTo(0.1, 12);
-  expect(portfolio.performance!.xirr).toBeCloseTo(0.2, 6);
-  expect(portfolio.benchmarks[0]!.dailyBenchmark[0]).toMatchObject({
-    date: '2025-12-31',
-    benchmark: 100,
-  });
-  expect(portfolio.benchmarks[0]!.dailyBenchmark.at(-1)).toMatchObject({
-    date: '2026-12-31',
-    benchmark: 105,
-  });
-
-  await page.goto('/vermoegen/portfolio/kennzahlen?zeitraum=YTD');
-  const metrics = page.getByRole('region', { name: 'Kennzahlen', exact: true });
-  await expect(metrics.getByTestId('metrics-period-ttwror')).toHaveText('+10,0 %');
-  await expect(metrics.getByTestId('metrics-annual-ttwror')).toHaveText('+10,0 %');
-  await expect(metrics.getByTestId('metrics-xirr')).toHaveText('+20,0 %');
-  await expect(metrics).not.toContainText('Modified Dietz');
-  const comparison = metrics.getByRole('table', { name: /Kursindex, ohne Ausschüttungen/ });
-  await expect(comparison).toContainText('gleicher Zeitraum und gleiche Startbasis');
-  await expect(comparison.getByRole('row').nth(1)).toContainText('+5,0 %');
-  await expect(comparison.getByRole('row').nth(1)).toContainText('+5,0 Pp');
-  await metrics.locator('.portfolio-flow-table summary').click();
-  const flows = metrics.getByRole('table', {
-    name: 'Tatsächliche Geldflüsse nach Steuern im gewählten Zeitraum',
-  });
-  await expect(flows.getByRole('row').nth(1)).toContainText('31.12.2026');
-  await expect(flows.getByRole('row').nth(1)).toContainText('+100,00 €');
-  await expect(flows.getByRole('row').nth(1)).toContainText('0,00 €');
-  await expect(metrics.locator('.portfolio-flow-table')).toContainText(
-    'nicht die Rendite-Zahlungsströme',
-  );
-  for (const term of ['Volatilität', 'Max. Rückgang', 'Sharpe']) {
-    const trigger = metrics.getByRole('button', { name: term, exact: true });
-    await trigger.focus();
-    await page.keyboard.press('Enter');
-    await expect(page.locator('[role="tooltip"]:popover-open')).toBeVisible();
-    await page.keyboard.press('Escape');
-  }
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => {
-      document.documentElement.dataset['theme'] = value;
-    }, theme);
-    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-      true,
+// Each theme retains the full literal/source/privacy journey and the original 30-second budget.
+for (const scheme of ['light', 'dark'] as const) {
+  test(`546 metrics share the report period and literal deposit-neutral return, flows and benchmark base · ${scheme}`, async ({
+    page,
+    isolatedLedger,
+  }, info) => {
+    seed(isolatedLedger.databasePath);
+    const before = snapshot(isolatedLedger.databasePath);
+    const response = await page.request.get(
+      '/api/portfolio?period=YTD&view=securities&history=performance&provenance=valuation-v1',
     );
-    if (info.project.name !== 'desktop') {
-      for (const control of await page.locator('main button, main a, main summary').all()) {
-        if (!(await control.isVisible())) continue;
-        const box = (await control.boundingBox())!;
-        expect(box.height).toBeGreaterThanOrEqual(44);
-        expect(box.width).toBeGreaterThanOrEqual(44);
-      }
-    }
-    await metrics.scrollIntoViewIfNeeded();
-    await page.screenshot({ path: info.outputPath(`metrics-${theme}.png`), fullPage: false });
-    await compactDesktop(page, info, `metrics-open-flow-${theme}`);
-    const riskValues = await metrics.locator('.portfolio-metrics-grid dd').allTextContents();
-    await privacy(page, true);
-    for (const id of ['metrics-period-ttwror', 'metrics-annual-ttwror', 'metrics-xirr']) {
-      await expect(metrics.getByTestId(id)).toHaveText('•••');
-    }
-    await expect(comparison.getByRole('row').nth(1).getByRole('cell')).toHaveText(['•••', '•••']);
-    await expect(metrics.locator('.portfolio-metrics-grid dd')).toHaveText(
-      riskValues.map((value) => (value === '–' ? '–' : '•••')),
-    );
-    await expect(flows.getByRole('row').nth(1).getByRole('cell')).toHaveText(['••• €', '••• €']);
-    await expect(flows.getByRole('row').nth(1)).toContainText('31.12.2026');
-    await metrics.locator('.portfolio-flow-table summary').click();
-    await expect(flows).not.toBeVisible();
-    await metrics.locator('.portfolio-flow-table summary').click();
-    await expect(flows.getByRole('row').nth(1).getByRole('cell')).toHaveText(['••• €', '••• €']);
-    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-    await page.screenshot({
-      path: info.outputPath(`metrics-private-${theme}.png`),
-      fullPage: false,
+    expect(response.ok()).toBe(true);
+    const { portfolio } = (await response.json()) as { portfolio: PortfolioSummary };
+    expect(portfolio.performance).toMatchObject({
+      from: '2025-12-31',
+      to: '2026-12-31',
+      startValueCents: 10000,
+      contributionsCents: 10000,
+      endValueCents: 22000,
     });
-    await privacy(page, false);
+    expect(portfolio.performance!.ttwror).toBeCloseTo(0.1, 12);
+    expect(portfolio.performance!.ttwrorAnnualised).toBeCloseTo(0.1, 12);
+    expect(portfolio.performance!.xirr).toBeCloseTo(0.2, 6);
+    expect(portfolio.benchmarks[0]!.dailyBenchmark[0]).toMatchObject({
+      date: '2025-12-31',
+      benchmark: 100,
+    });
+    expect(portfolio.benchmarks[0]!.dailyBenchmark.at(-1)).toMatchObject({
+      date: '2026-12-31',
+      benchmark: 105,
+    });
+
+    await page.goto('/vermoegen/portfolio/kennzahlen?zeitraum=YTD');
+    const metrics = page.getByRole('region', { name: 'Kennzahlen', exact: true });
     await expect(metrics.getByTestId('metrics-period-ttwror')).toHaveText('+10,0 %');
     await expect(metrics.getByTestId('metrics-annual-ttwror')).toHaveText('+10,0 %');
     await expect(metrics.getByTestId('metrics-xirr')).toHaveText('+20,0 %');
-    await expect(metrics.locator('.portfolio-metrics-grid dd')).toHaveText(riskValues);
+    await expect(metrics).not.toContainText('Modified Dietz');
+    const comparison = metrics.getByRole('table', { name: /Kursindex, ohne Ausschüttungen/ });
+    await expect(comparison).toContainText('gleicher Zeitraum und gleiche Startbasis');
+    await expect(comparison.getByRole('row').nth(1)).toContainText('+5,0 %');
     await expect(comparison.getByRole('row').nth(1)).toContainText('+5,0 Pp');
+    await metrics.locator('.portfolio-flow-table summary').click();
+    const flows = metrics.getByRole('table', {
+      name: 'Tatsächliche Geldflüsse nach Steuern im gewählten Zeitraum',
+    });
+    await expect(flows.getByRole('row').nth(1)).toContainText('31.12.2026');
     await expect(flows.getByRole('row').nth(1)).toContainText('+100,00 €');
-  }
-  const reportTarget = (await redesignReportsOn(page))
-    ? '/reports/vermoegen-schulden'
-    : '/reports/pallocation';
-  await metrics.getByRole('link', { name: 'Portfolio-Auswertung öffnen' }).click();
-  await expect(page).toHaveURL(
-    (url) =>
-      url.pathname === reportTarget &&
-      url.searchParams.get('darstellung') === 'rendite' &&
-      url.searchParams.get('zeitraum') === 'YTD' &&
-      url.searchParams.size === 2,
-  );
-  await expect(page.getByTestId('period-ttwror')).toHaveText('+10 %');
-  await expect(page.locator('.performance-metrics dd').nth(0)).toHaveText('+10 %');
-  await expect(page.locator('.performance-metrics dd').nth(1)).toHaveText(/^\+20 %\s*actual\/365$/);
-  expect(snapshot(isolatedLedger.databasePath)).toBe(before);
-});
+    await expect(flows.getByRole('row').nth(1)).toContainText('0,00 €');
+    await expect(metrics.locator('.portfolio-flow-table')).toContainText(
+      'nicht die Rendite-Zahlungsströme',
+    );
+    for (const term of ['Volatilität', 'Max. Rückgang', 'Sharpe']) {
+      const trigger = metrics.getByRole('button', { name: term, exact: true });
+      await trigger.focus();
+      await page.keyboard.press('Enter');
+      await expect(page.locator('[role="tooltip"]:popover-open')).toBeVisible();
+      await page.keyboard.press('Escape');
+    }
+    {
+      const theme = scheme;
+      await page.evaluate((value) => {
+        document.documentElement.dataset['theme'] = value;
+      }, theme);
+      expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      if (info.project.name !== 'desktop') {
+        for (const control of await page.locator('main button, main a, main summary').all()) {
+          if (!(await control.isVisible())) continue;
+          const box = (await control.boundingBox())!;
+          expect(box.height).toBeGreaterThanOrEqual(44);
+          expect(box.width).toBeGreaterThanOrEqual(44);
+        }
+      }
+      await metrics.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: info.outputPath(`metrics-${theme}.png`), fullPage: false });
+      await compactDesktop(page, info, `metrics-open-flow-${theme}`);
+      const riskValues = await metrics.locator('.portfolio-metrics-grid dd').allTextContents();
+      await privacy(page, true);
+      for (const id of ['metrics-period-ttwror', 'metrics-annual-ttwror', 'metrics-xirr']) {
+        await expect(metrics.getByTestId(id)).toHaveText('•••');
+      }
+      await expect(comparison.getByRole('row').nth(1).getByRole('cell')).toHaveText(['•••', '•••']);
+      await expect(metrics.locator('.portfolio-metrics-grid dd')).toHaveText(
+        riskValues.map((value) => (value === '–' ? '–' : '•••')),
+      );
+      await expect(flows.getByRole('row').nth(1).getByRole('cell')).toHaveText(['••• €', '••• €']);
+      await expect(flows.getByRole('row').nth(1)).toContainText('31.12.2026');
+      await metrics.locator('.portfolio-flow-table summary').click();
+      await expect(flows).not.toBeVisible();
+      await metrics.locator('.portfolio-flow-table summary').click();
+      await expect(flows.getByRole('row').nth(1).getByRole('cell')).toHaveText(['••• €', '••• €']);
+      expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+      await page.screenshot({
+        path: info.outputPath(`metrics-private-${theme}.png`),
+        fullPage: false,
+      });
+      await privacy(page, false);
+      await expect(metrics.getByTestId('metrics-period-ttwror')).toHaveText('+10,0 %');
+      await expect(metrics.getByTestId('metrics-annual-ttwror')).toHaveText('+10,0 %');
+      await expect(metrics.getByTestId('metrics-xirr')).toHaveText('+20,0 %');
+      await expect(metrics.locator('.portfolio-metrics-grid dd')).toHaveText(riskValues);
+      await expect(comparison.getByRole('row').nth(1)).toContainText('+5,0 Pp');
+      await expect(flows.getByRole('row').nth(1)).toContainText('+100,00 €');
+    }
+    const reportTarget = (await redesignReportsOn(page))
+      ? '/reports/vermoegen-schulden'
+      : '/reports/pallocation';
+    await metrics.getByRole('link', { name: 'Portfolio-Auswertung öffnen' }).click();
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === reportTarget &&
+        url.searchParams.get('darstellung') === 'rendite' &&
+        url.searchParams.get('zeitraum') === 'YTD' &&
+        url.searchParams.size === 2,
+    );
+    await expect(page.getByTestId('period-ttwror')).toHaveText('+10 %');
+    await expect(page.locator('.performance-metrics dd').nth(0)).toHaveText('+10 %');
+    await expect(page.locator('.performance-metrics dd').nth(1)).toHaveText(
+      /^\+20 %\s*actual\/365$/,
+    );
+    expect(snapshot(isolatedLedger.databasePath)).toBe(before);
+  });
+}
 
 test('546 representative thirteen-date cash-flow table stays within two desktop screens when open', async ({
   page,

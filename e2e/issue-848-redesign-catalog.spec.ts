@@ -91,7 +91,7 @@ test('catalog preserves all sixteen destinations, legacy names and usable fallba
   }
   await palette.press('Escape');
   for (const [alias, target, view] of [
-    ['prendite', 'pallocation', 'rendite'],
+    ['prendite', 'vermoegen-schulden', 'rendite'],
     ['cashflow', 'einnahmen-ausgaben', 'cashflow'],
     ['finanzcheck', 'onepager', 'finanzcheck'],
   ]) {
