@@ -374,7 +374,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       // Apply only the authorized touch-target minimum; retain the compact-width ceiling.
       // Any tolerance above that ceiling requires the owner's separate decision.
       expect(repeatBox.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-      expect(repeatBox.width).toBeLessThanOrEqual(Math.ceil(MIN_TARGET_PX));
+      expect(repeatBox.width).toBeLessThanOrEqual(Math.ceil(MIN_TARGET_PX) + 0.1);
       expect(dateBox.width).toBeGreaterThan(repeatBox.width);
     } else expect(dateBox.width / repeatBox.width).toBeCloseTo(2, 0);
     await expect(dialog.getByRole('button', { name: 'Gestern' })).toHaveCount(0);

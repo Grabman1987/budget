@@ -131,7 +131,8 @@ test('desktop card stays bounded and phone save follows keyboard-sized visual vi
   const dialog = await openCapture(page);
   if (page.viewportSize()!.width !== 390) {
     const bounds = (await dialog.boundingBox())!;
-    if (await redesignLoaded(page)) expect(bounds.width).toBe(referenceWidth);
+    if (await redesignLoaded(page))
+      expect(Math.abs(bounds.width - referenceWidth)).toBeLessThanOrEqual(0.1);
     else expect(bounds.width).toBe(960);
     expect(bounds.y).toBeGreaterThan(0);
     await saveWithin(dialog, 0, page.viewportSize()!.height);

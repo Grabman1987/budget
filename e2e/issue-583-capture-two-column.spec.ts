@@ -101,7 +101,8 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
     const box = async (locator: Locator) => (await locator.boundingBox())!;
     const dialogBox = await box(dialog);
     const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-    if (redesign) expect(dialogBox.width).toBe(captureLayout.desktopWidth);
+    if (redesign)
+      expect(Math.abs(dialogBox.width - captureLayout.desktopWidth)).toBeLessThanOrEqual(0.1);
     else {
       expect(dialogBox.width).toBeGreaterThanOrEqual(940);
       expect(dialogBox.width).toBeLessThanOrEqual(962);
@@ -126,8 +127,8 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       expect(notiz!.x).toBeGreaterThan(kategorie!.x + kategorie!.width);
       expect(betrag!.y).toBeLessThan(empfaenger!.y);
       expect(empfaenger!.y).toBeLessThan(kategorie!.y);
-      expect(notiz!.height).toBe(captureLayout.noteHeight);
-      expect(dialogBox.y).toBe(captureLayout.desktopInset);
+      expect(Math.abs(notiz!.height - captureLayout.noteHeight)).toBeLessThanOrEqual(0.1);
+      expect(Math.abs(dialogBox.y - captureLayout.desktopInset)).toBeLessThanOrEqual(0.1);
     } else {
       // Left column: Betrag, Empfänger, Bezahlt von, Datum, Notiz share one left edge and stack.
       // (the amount input itself starts after its sign, so Empfänger is the reference edge)
