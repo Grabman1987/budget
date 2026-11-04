@@ -437,6 +437,25 @@
 .plan-month-frame .plan-lead-controls .plan-hint {
   font-size: var(--fs-meta);
 }
+@media (min-width: 768px) {
+  .plan-month-frame .plan-month-lead {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .plan-month-frame .plan-lead-controls {
+    flex: 1 1 auto;
+  }
+  /* Reserve the figure's natural width before placing the action on this flex line. */
+  .plan-month-frame .plan-lead-controls > .plan-popover {
+    flex-basis: auto;
+  }
+  .plan-month-frame .plan-lead-controls .plan-tba strong {
+    white-space: normal;
+  }
+  .plan-month-frame .plan-class-lead {
+    flex: 1 1 280px;
+  }
+}
 .plan-month-frame .plan-class-lead {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
