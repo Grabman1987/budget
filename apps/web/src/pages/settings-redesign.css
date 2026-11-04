@@ -23,17 +23,6 @@
 [data-budget-redesign='1']:has(.settings-redesign) .topbar .topbar-actions {
   margin-left: 0;
 }
-[data-budget-redesign='1']:has(.settings-redesign) .brand-name {
-  font-size: var(--fs-headline);
-  text-transform: uppercase;
-}
-[data-budget-redesign='1']:has(.settings-redesign) .sheetlist-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
 .settings-redesign .settings-body {
   gap: 12px;
 }

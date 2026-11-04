@@ -406,6 +406,43 @@ test.describe('panel via route param', () => {
   });
 });
 
+sampleTest(
+  'settings keep the shared sidebar brand and section labels',
+  async ({ page, isMobile }, info) => {
+    const viewport = page.viewportSize()!;
+    for (const [name, path] of [
+      ['heute', '/'],
+      ['profil', '/einstellungen/profil'],
+    ] as const) {
+      await page.goto(path);
+      if (name === 'profil')
+        await expect(
+          page.locator('.profile-settings[aria-labelledby="profile-title"]'),
+        ).toBeVisible();
+      const sidebar = page.locator('.sidebar');
+      if (isMobile) await expect(sidebar).toBeHidden();
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await expect(sidebar).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      await sidebar.screenshot({ path: info.outputPath(`sidebar-${name}.png`) });
+      const brand = sidebar.locator('.brand-name');
+      await expect(brand).toHaveText('Budget');
+      await expect(brand).toHaveCSS('text-transform', 'none');
+      await expect(brand).toHaveCSS('font-size', '16px');
+      for (const [id, text] of [
+        ['planliste', 'Planliste'],
+        ['acct-tree-label', 'Konten'],
+      ] as const) {
+        const label = sidebar.locator(`#${id}`);
+        await expect(label).toHaveText(text);
+        await expect(label).toBeVisible();
+        await expect(label).toHaveCSS('clip-path', 'none');
+      }
+      await page.setViewportSize(viewport);
+    }
+  },
+);
+
 test.describe('desktop shell', () => {
   test.skip(({ isMobile }) => isMobile, 'desktop only');
 
