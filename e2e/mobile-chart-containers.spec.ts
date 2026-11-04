@@ -8,14 +8,24 @@ test.describe('UX-3c phone chart and table containers', () => {
   for (const [path, ready] of [
     ['/reports/liquiditaet', '[data-testid="liq-outlook"]'],
     ['/reports/geldfluss', '[data-testid="flow-list"]'],
-    ['/plan/jahr?monat=2026-09', '.year-phone-row'],
+    [
+      '/plan/jahr?monat=2026-09',
+      '.plan-v2-page .year-table tbody:has(.year-group) tr:not(.year-group), .year-phone-row',
+    ],
     ['/vermoegen/portfolio/allokation', '.vallo .va-track'],
   ]) {
     test(`${path} stays inside the phone in both themes`, async ({ page }, info) => {
       await page.goto(path!);
       if (path!.startsWith('/plan/jahr')) {
-        const group = page.locator('.year-phone-summary').first();
-        await expect(group).toHaveAttribute('aria-expanded', 'false');
+        const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+        const group = page
+          .locator(on ? '.year-table .year-group button' : '.year-phone-summary')
+          .first();
+        await expect(group).toHaveAttribute('aria-expanded', on ? 'true' : 'false');
+        if (on) {
+          await group.click();
+          await expect(group).toHaveAttribute('aria-expanded', 'false');
+        }
         await group.click();
         await expect(group).toHaveAttribute('aria-expanded', 'true');
       }
@@ -73,20 +83,28 @@ test.describe('UX-3c phone chart and table containers', () => {
     page,
   }) => {
     await page.goto('/reports/liquiditaet');
-    const title = page.locator('.m-title-text');
+    const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    const title = on
+      ? page.getByLabel('Planansicht wählen: Prognose', { exact: true })
+      : page.locator('.m-title-text');
     expect(await title.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-    for (const horizon of ['90 Tage', '6 Monate', '12 Monate']) {
-      await page.getByRole('button', { name: horizon, exact: true }).click();
+    for (const [value, horizon] of [
+      ['90d', '90 Tage'],
+      ['6m', '6 Monate'],
+      ['12m', '12 Monate'],
+    ]) {
+      if (on) await page.getByRole('combobox', { name: 'Prognosezeitraum' }).selectOption(value!);
+      else await page.getByRole('button', { name: horizon, exact: true }).click();
       const chart = page.getByTestId('liquidity-chart');
       await expect(chart).toBeVisible();
-      const labels = await chart.locator('text').evaluateAll((elements) =>
-        elements
-          .filter((el) => el.getAttribute('y') === '252')
-          .map((el) => {
+      const labels = await chart
+        .locator(on ? 'text[y="212"]' : 'text[y="252"]')
+        .evaluateAll((elements) =>
+          elements.map((el) => {
             const b = el.getBoundingClientRect();
             return { left: b.left, right: b.right };
           }),
-      );
+        );
       expect(labels.length).toBeGreaterThanOrEqual(2);
       for (let i = 1; i < labels.length; i++)
         expect(labels[i]!.left).toBeGreaterThan(labels[i - 1]!.right + 4);
