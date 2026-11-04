@@ -1,3 +1,4 @@
+import { chooseReportView, openR8BodyDetails } from './income-spending-controls';
 import { selectWealthReportView, expectWealthReportView } from './wealth-report-controls';
 import { redesignReportsOn, revealReportDetail } from './report-frame';
 import { withShellControls } from './shell-actions';
@@ -234,6 +235,7 @@ test('487 global project results retain literal August cents and require an expl
   await expect(
     page.getByTestId('projects-report').locator('section.mr-wide .tbd-fig').first(),
   ).toHaveText('2.700,03 €');
+  await openR8BodyDetails(page);
   const body = await page.getByTestId('projects-report').innerText();
   await revealReportDetail(page);
   const verdict = await page.getByTestId('report-verdict').innerText();
@@ -241,14 +243,15 @@ test('487 global project results retain literal August cents and require an expl
     `/reports/einnahmen-ausgaben?monat=2026-08&zeitraum=${period}&darstellung=income&projekt=a&ansicht=saved-id&exakt=true`,
   );
   await expect(page.getByTestId('income-total')).toHaveText('1.000,01 €');
-  await page.getByRole('button', { name: 'Projekt-Ergebnisse', exact: true }).click();
+  await chooseReportView(page, 'Ansicht von Einnahmen und Cashflow', 'Projekt-Ergebnisse');
   await expect(page.getByTestId('projects-report')).toHaveCount(0);
   await expect(page.getByText('Ein Projekt ist ausgewählt.', { exact: false })).toBeVisible();
   expect(new URL(page.url()).searchParams.get('projekt')).toBe('a');
   await page.goBack();
   await expect(page.getByTestId('income-total')).toHaveText('1.000,01 €');
-  await page.getByRole('button', { name: 'Projekt-Ergebnisse', exact: true }).click();
+  await chooseReportView(page, 'Ansicht von Einnahmen und Cashflow', 'Projekt-Ergebnisse');
   await page.getByRole('button', { name: 'Alle Projekte zeigen', exact: true }).click();
+  await openR8BodyDetails(page);
   await expect(page.getByTestId('projects-report')).toHaveText(body, { useInnerText: true });
   await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });

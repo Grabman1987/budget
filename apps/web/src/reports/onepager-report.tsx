@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import { MonthSummary } from './period-report-summary';
+import { PeriodPresentation, usePaperView } from './period-presentation';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { AllocationBar } from './allocation-bar';
 import { AppLink } from '../shell/app-link';
@@ -40,6 +42,7 @@ export function OnePagerReport({ report, meta }: { report: ReportEntry; meta: Pa
   const { month, shift, current } = useReportMonth();
   const query = useQuery(onePagerQuery(month));
   const data = query.data;
+  const paperView = usePaperView();
   const facts = useMemo(() => (data ? onePagerVerdictFacts(data) : undefined), [data]);
   return (
     <MonthReportFrame
@@ -81,8 +84,18 @@ export function OnePagerReport({ report, meta }: { report: ReportEntry; meta: Pa
             : undefined
       }
       print
+      printDisabled={
+        REDESIGN_ENABLED && (query.isPending || query.isError || !!data?.beforeRecords)
+      }
+      extraFields={
+        REDESIGN_ENABLED ? [{ label: 'Darstellung', value: <PeriodPresentation monthly /> }] : []
+      }
     >
-      <div className="mrep onepager-report" data-testid="onepager-report">
+      <div
+        className="mrep onepager-report"
+        data-testid="onepager-report"
+        data-paper-view={REDESIGN_ENABLED ? (paperView ? 'druckblatt' : 'summary') : undefined}
+      >
         {query.isPending && <LoadingNote what="Daten des Monatsblatts" />}
         {query.isError && (
           <ErrorNote
@@ -97,6 +110,7 @@ export function OnePagerReport({ report, meta }: { report: ReportEntry; meta: Pa
             Monatsblatt.
           </EmptyNote>
         )}
+        {data && !data.beforeRecords && REDESIGN_ENABLED && <MonthSummary data={data} />}
         {data && !data.beforeRecords && <OnePagerSheet data={data} />}
       </div>
     </MonthReportFrame>

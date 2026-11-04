@@ -1,3 +1,7 @@
+import {
+  retainBudgetCostInflationReaders,
+  chooseBudgetCostInflationView,
+} from './budget-cost-inflation-controls';
 import { expect } from '@playwright/test';
 import { openDatabase, storeCpi } from '@budget/db';
 import { monthsBetween } from '@budget/domain';
@@ -80,9 +84,12 @@ for (const mapped of [true, false]) {
         await expect(page.getByText('Warenkorb nicht berechenbar', { exact: true })).toHaveText(
           'Warenkorb nicht berechenbar',
         );
-      const views = page.getByRole('group', { name: 'Inflationsansicht' });
-      await expect(views).toBeVisible({ timeout: 30_000 });
-      await views.getByRole('button', { name: 'Kategorie-Explorer', exact: true }).click();
+      await chooseBudgetCostInflationView(
+        page,
+        'Inflationsansicht',
+        'explorer',
+        'Kategorie-Explorer',
+      );
       const explorer = page.getByTestId('inflation-explorer');
       for (const [i, c] of categories.entries()) {
         await expect(explorer.getByRole('checkbox', { name: c.name, exact: true })).toBeChecked();
@@ -137,7 +144,12 @@ for (const mapped of [true, false]) {
           '01.1 Nahrungsmittel',
         );
         await page.getByRole('link', { name: 'Zur persönlichen Inflation' }).click();
-        await page.getByRole('button', { name: 'Kategorie-Explorer', exact: true }).click();
+        await chooseBudgetCostInflationView(
+          page,
+          'Inflationsansicht',
+          'explorer',
+          'Kategorie-Explorer',
+        );
         await expect(
           page
             .getByTestId('explorer-category-' + categories[0]!.id)
@@ -148,3 +160,5 @@ for (const mapped of [true, false]) {
     },
   );
 }
+
+test.beforeEach(async ({ page }) => retainBudgetCostInflationReaders(page));

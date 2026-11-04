@@ -37,6 +37,12 @@ import { TableReportFrame } from './table-report-frame';
 import type { IncomeExpenseReportData } from '@budget/db';
 import type { ReactNode } from 'react';
 import { ReportProjectScopeNote } from './report-project-scope';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import {
+  IncomeExpenseSummary,
+  IncomeOverviewDetails,
+  incomeOverviewModel,
+} from './income-expense-summary';
 
 const queryOptionsForReport = (projectId?: string) =>
   queryOptions({
@@ -84,6 +90,7 @@ export function IncomeExpenseReport({
     : [];
   const months = data?.months.filter((m) => window.includes(m.month)) ?? [];
   const rows = data ? incomeExpenseRows(months, data, expanded) : [];
+  const summary = data && months.length ? incomeOverviewModel(data, window) : undefined;
   const selected = data
     ? incomeExpenseRows(months, data, new Set(data.categories.map((c) => c.groupId))).find(
         (r) => r.key === zelle,
@@ -124,6 +131,12 @@ export function IncomeExpenseReport({
         />
       )}
       <TableReportFrame
+        calculation={REDESIGN_ENABLED && summary ? summary.calculation : undefined}
+        basisOverride={
+          REDESIGN_ENABLED && window.length
+            ? `${monthShort(window[0]!, true)} bis ${monthShort(window.at(-1)!, true)} · Buchungsdatum`
+            : undefined
+        }
         report={report}
         meta={meta}
         through="full"
@@ -222,60 +235,68 @@ export function IncomeExpenseReport({
                       CSV
                     </Button>
                   </div>
-                  <IncomeExpenseChart data={data} months={window} />
-                  <LineLegend items={[{ kind: 'actual', label: 'Netto' }]} />
-                  <RowsGrid
-                    rows={rows}
-                    columns={window.map((m) => ({ key: m, label: monthShort(m, true) }))}
-                    caption="Einnahmen und Ausgaben in Euro"
-                    regionLabel="Einnahmen und Ausgaben, seitlich scrollbar"
-                    average
-                    cellLink={(row, column) => ({
-                      to: '/reports/einnahmen-ausgaben/buchungen',
-                      search: {
-                        ...(monat ? { monat } : {}),
-                        ...(projectId ? { projekt: projectId, darstellung: 'overview' } : {}),
-                        zeitraum: period,
-                        gruppen,
-                        zelle: row.key,
-                        spalte: column === null ? 'summe' : window[column],
-                      },
-                    })}
-                    renderLabel={(r) =>
-                      r.key.startsWith('group:') ? (
-                        <button
-                          type="button"
-                          className="table-cell-open"
-                          aria-expanded={expanded.has(r.key.slice(6))}
-                          onClick={() =>
-                            void navigate({
-                              to: '.',
-                              search: ((old: Record<string, unknown>) => ({
-                                ...old,
-                                gruppen: expanded.has(r.key.slice(6))
-                                  ? [...expanded].filter((id) => id !== r.key.slice(6))
-                                  : [...expanded, r.key.slice(6)],
-                              })) as never,
-                              replace: true,
-                            })
-                          }
-                        >
-                          {expanded.has(r.key.slice(6)) ? '−' : '+'} {r.label}
-                        </button>
-                      ) : (
-                        r.label
-                      )
-                    }
-                  />
-                  <p className="vnote">
-                    Haushaltseinnahmen minus Bedarf, Wunsch, Zukunft und Ausgaben ohne Kategorie.
-                    Kapitalerträge und Erstattungen ohne Kategorie stehen außerhalb der
-                    Haushaltseinnahmen; kategorisierte Erstattungen mindern die Ausgaben.
-                    Kategorisierte Zukunft-Umbuchungen zählen wie in der Gesamttabelle. Netto =
-                    Übrig nach Zukunft minus Ohne Kategorie. Zuflüsse ohne Einkommensart werden
-                    nicht gezählt. Eine Zelle öffnet ihre Buchungen; CSV enthält genau die
-                    sichtbaren Zeilen, Monate, Summe und Ø. Der laufende Monat reicht bis heute.
-                  </p>
+                  {REDESIGN_ENABLED ? (
+                    <IncomeExpenseSummary data={data} months={window} />
+                  ) : (
+                    <>
+                      <IncomeExpenseChart data={data} months={window} />
+                      <LineLegend items={[{ kind: 'actual', label: 'Netto' }]} />
+                    </>
+                  )}
+                  <IncomeOverviewDetails>
+                    <RowsGrid
+                      rows={rows}
+                      columns={window.map((m) => ({ key: m, label: monthShort(m, true) }))}
+                      caption="Einnahmen und Ausgaben in Euro"
+                      regionLabel="Einnahmen und Ausgaben, seitlich scrollbar"
+                      average
+                      cellLink={(row, column) => ({
+                        to: '/reports/einnahmen-ausgaben/buchungen',
+                        search: {
+                          ...(monat ? { monat } : {}),
+                          ...(projectId ? { projekt: projectId, darstellung: 'overview' } : {}),
+                          zeitraum: period,
+                          gruppen,
+                          zelle: row.key,
+                          spalte: column === null ? 'summe' : window[column],
+                        },
+                      })}
+                      renderLabel={(r) =>
+                        r.key.startsWith('group:') ? (
+                          <button
+                            type="button"
+                            className="table-cell-open"
+                            aria-expanded={expanded.has(r.key.slice(6))}
+                            onClick={() =>
+                              void navigate({
+                                to: '.',
+                                search: ((old: Record<string, unknown>) => ({
+                                  ...old,
+                                  gruppen: expanded.has(r.key.slice(6))
+                                    ? [...expanded].filter((id) => id !== r.key.slice(6))
+                                    : [...expanded, r.key.slice(6)],
+                                })) as never,
+                                replace: true,
+                              })
+                            }
+                          >
+                            {expanded.has(r.key.slice(6)) ? '−' : '+'} {r.label}
+                          </button>
+                        ) : (
+                          r.label
+                        )
+                      }
+                    />
+                    <p className="vnote">
+                      Haushaltseinnahmen minus Bedarf, Wunsch, Zukunft und Ausgaben ohne Kategorie.
+                      Kapitalerträge und Erstattungen ohne Kategorie stehen außerhalb der
+                      Haushaltseinnahmen; kategorisierte Erstattungen mindern die Ausgaben.
+                      Kategorisierte Zukunft-Umbuchungen zählen wie in der Gesamttabelle. Netto =
+                      Übrig nach Zukunft minus Ohne Kategorie. Zuflüsse ohne Einkommensart werden
+                      nicht gezählt. Eine Zelle öffnet ihre Buchungen; CSV enthält genau die
+                      sichtbaren Zeilen, Monate, Summe und Ø. Der laufende Monat reicht bis heute.
+                    </p>
+                  </IncomeOverviewDetails>
                 </section>
               )}
             </>

@@ -1,3 +1,5 @@
+import { ReportBodyDisclosure } from './report-body-disclosure';
+import { cents } from '@budget/domain';
 import { useAmountPrivacy } from '@budget/ui';
 import type { ReactNode } from 'react';
 import { ReportProjectScopeNote } from './report-project-scope';
@@ -64,6 +66,19 @@ export function IncomeReport({
     : query.data;
   return (
     <MonthReportFrame
+      calculation={
+        data && !data.beforeRecords && !query.isFetching && !query.isError
+          ? {
+              label: 'Berechnung Haushaltseinnahmen',
+              terms: [{ label: 'Haushalt · gebucht', value: cents(data.income.earnedCents) }],
+              result: {
+                label: 'Haushaltseinnahmen · Buchungsdatum',
+                value: data.income.earnedCents,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       verdict={
         data && !query.isFetching && !query.isError
           ? {
@@ -217,142 +232,146 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
         </section>
       )}
 
-      {expected === null ? (
-        <section className="mr-card" aria-labelledby="inc-exp-title">
+      <ReportBodyDisclosure id="income-expected" label="Erwartet gegen eingegangen">
+        {expected === null ? (
+          <section className="mr-card" aria-labelledby="inc-exp-title">
+            <div className="tbd-head">
+              <h2 id="inc-exp-title">Erwartet gegen eingegangen</h2>
+            </div>
+            <p className="vnote">
+              Erwartete Zahlungen sind keinem Projekt zugeordnet. Für diesen Projektfilter sind
+              Erwartungswerte und Fehlend-Status daher nicht verfügbar; tatsächliche Einnahmen
+              bleiben sichtbar.
+            </p>
+          </section>
+        ) : (
+          <section className="mr-card" aria-labelledby="inc-exp-title">
+            <div className="tbd-head">
+              <h2 id="inc-exp-title">Erwartet gegen eingegangen</h2>
+            </div>
+            {expected.lines.length > 0 ? (
+              <div
+                className="mr-scroll"
+                role="region"
+                aria-label="Wiederkehrende Zahlungen, bei Bedarf horizontal verschiebbar"
+                // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table.
+                tabIndex={0}
+              >
+                <table className="mr-table is-expected" data-testid="income-expected">
+                  <thead>
+                    <tr>
+                      <th className="tech">Zahlung</th>
+                      <th className="tech n">Erwartet</th>
+                      <th className="tech n">Eingegangen</th>
+                      <th className="tech">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expected.lines.map((line) => {
+                      const s = STATUS[line.status];
+                      const Icon = s.icon;
+                      return (
+                        <tr key={line.key} data-status={line.status}>
+                          <td>
+                            <strong>{line.name}</strong>
+                            <small>
+                              {line.sub}
+                              {line.dueDate ? ` · ${shortDay(line.dueDate)}` : ''}
+                            </small>
+                          </td>
+                          <td className="n">
+                            {line.status === 'unplanned' ? '–' : eur(line.expectedCents)}
+                          </td>
+                          <td className="n">
+                            {line.receivedCents > 0 ? eur(line.receivedCents) : '–'}
+                          </td>
+                          <td>
+                            <span className={`mr-status ${s.tone}`}>
+                              <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+                              {s.label}
+                              {line.status === 'diff'
+                                ? ` ${eur(line.differenceCents, { sign: true })}`
+                                : ''}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="vnote">Für diesen Monat sind keine Einnahmen erwartet.</p>
+            )}
+            <p className="vnote">
+              {data.expectedMaterialised
+                ? 'Wiederkehrende Zahlungen ordnet der Nachtlauf automatisch zu; Abweichungen landen unter Prüfen.'
+                : 'Die wiederkehrenden Zahlungen stammen aus dem Zahlungsplan und sind für diesen Monat noch nicht zugeordnet; ob sie eingegangen sind, zeigt die Tabelle darunter.'}
+              {data.foreignCurrencyCount !== null && data.foreignCurrencyCount > 0
+                ? ` ${data.foreignCurrencyCount} wiederkehrende Zahlung${data.foreignCurrencyCount === 1 ? '' : 'en'} in Fremdwährung ${data.foreignCurrencyCount === 1 ? 'ist' : 'sind'} hier nicht enthalten.`
+                : ''}
+            </p>
+          </section>
+        )}
+      </ReportBodyDisclosure>
+      <ReportBodyDisclosure id="income-types" label="Einnahmen nach Art und Monat">
+        <section className="mr-card mr-wide" aria-labelledby="inc-type-title">
           <div className="tbd-head">
-            <h2 id="inc-exp-title">Erwartet gegen eingegangen</h2>
+            <h2 id="inc-type-title">
+              Nach Art, {shortMonth(first)} bis {shortMonth(data.month)}
+            </h2>
           </div>
-          <p className="vnote">
-            Erwartete Zahlungen sind keinem Projekt zugeordnet. Für diesen Projektfilter sind
-            Erwartungswerte und Fehlend-Status daher nicht verfügbar; tatsächliche Einnahmen bleiben
-            sichtbar.
-          </p>
-        </section>
-      ) : (
-        <section className="mr-card" aria-labelledby="inc-exp-title">
-          <div className="tbd-head">
-            <h2 id="inc-exp-title">Erwartet gegen eingegangen</h2>
-          </div>
-          {expected.lines.length > 0 ? (
+          {window.rows.length > 0 ? (
             <div
               className="mr-scroll"
               role="region"
-              aria-label="Wiederkehrende Zahlungen, bei Bedarf horizontal verschiebbar"
+              aria-label="Einnahmen nach Art, bei Bedarf horizontal verschiebbar"
               // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table.
               tabIndex={0}
             >
-              <table className="mr-table is-expected" data-testid="income-expected">
+              <table className="mr-table is-types" data-testid="income-types">
                 <thead>
                   <tr>
-                    <th className="tech">Zahlung</th>
-                    <th className="tech n">Erwartet</th>
-                    <th className="tech n">Eingegangen</th>
-                    <th className="tech">Status</th>
+                    <th className="tech">Art</th>
+                    <th className="tech n">{shortMonth(data.month)}</th>
+                    <th className="tech n">Ø Monat</th>
+                    <th className="tech n">Summe {window.months.length} M</th>
+                    <th className="tech n">Anteil</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {expected.lines.map((line) => {
-                    const s = STATUS[line.status];
-                    const Icon = s.icon;
-                    return (
-                      <tr key={line.key} data-status={line.status}>
-                        <td>
-                          <strong>{line.name}</strong>
-                          <small>
-                            {line.sub}
-                            {line.dueDate ? ` · ${shortDay(line.dueDate)}` : ''}
-                          </small>
-                        </td>
-                        <td className="n">
-                          {line.status === 'unplanned' ? '–' : eur(line.expectedCents)}
-                        </td>
-                        <td className="n">
-                          {line.receivedCents > 0 ? eur(line.receivedCents) : '–'}
-                        </td>
-                        <td>
-                          <span className={`mr-status ${s.tone}`}>
-                            <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
-                            {s.label}
-                            {line.status === 'diff'
-                              ? ` ${eur(line.differenceCents, { sign: true })}`
-                              : ''}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {window.rows.map((row) => (
+                    <tr key={row.typeId ?? 'none'}>
+                      <td>
+                        <i className={`mr-sw ${fillOf(row.typeId)}`} aria-hidden="true" />
+                        {row.name}
+                      </td>
+                      <td className="n">{eur(row.monthCents)}</td>
+                      <td className="n">{eur(row.averageCents)}</td>
+                      <td className="n">
+                        <strong>{eur(row.sumCents, { cents: false })}</strong>
+                      </td>
+                      <td className="n">{row.sharePercent} %</td>
+                    </tr>
+                  ))}
+                  <tr className="is-total">
+                    <td>Summe</td>
+                    <td className="n">{eur(window.totalMonthCents)}</td>
+                    <td className="n">{eur(window.totalAverageCents)}</td>
+                    <td className="n">{eur(window.totalCents, { cents: false })}</td>
+                    <td className="n">{window.totalCents > 0 ? '100 %' : '–'}</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
           ) : (
-            <p className="vnote">Für diesen Monat sind keine Einnahmen erwartet.</p>
+            <p className="vnote">Keine Einnahmen im Zeitraum.</p>
           )}
-          <p className="vnote">
-            {data.expectedMaterialised
-              ? 'Wiederkehrende Zahlungen ordnet der Nachtlauf automatisch zu; Abweichungen landen unter Prüfen.'
-              : 'Die wiederkehrenden Zahlungen stammen aus dem Zahlungsplan und sind für diesen Monat noch nicht zugeordnet; ob sie eingegangen sind, zeigt die Tabelle darunter.'}
-            {data.foreignCurrencyCount !== null && data.foreignCurrencyCount > 0
-              ? ` ${data.foreignCurrencyCount} wiederkehrende Zahlung${data.foreignCurrencyCount === 1 ? '' : 'en'} in Fremdwährung ${data.foreignCurrencyCount === 1 ? 'ist' : 'sind'} hier nicht enthalten.`
-              : ''}
-          </p>
         </section>
-      )}
-
-      <section className="mr-card mr-wide" aria-labelledby="inc-type-title">
-        <div className="tbd-head">
-          <h2 id="inc-type-title">
-            Nach Art, {shortMonth(first)} bis {shortMonth(data.month)}
-          </h2>
-        </div>
-        {window.rows.length > 0 ? (
-          <div
-            className="mr-scroll"
-            role="region"
-            aria-label="Einnahmen nach Art, bei Bedarf horizontal verschiebbar"
-            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table.
-            tabIndex={0}
-          >
-            <table className="mr-table is-types" data-testid="income-types">
-              <thead>
-                <tr>
-                  <th className="tech">Art</th>
-                  <th className="tech n">{shortMonth(data.month)}</th>
-                  <th className="tech n">Ø Monat</th>
-                  <th className="tech n">Summe {window.months.length} M</th>
-                  <th className="tech n">Anteil</th>
-                </tr>
-              </thead>
-              <tbody>
-                {window.rows.map((row) => (
-                  <tr key={row.typeId ?? 'none'}>
-                    <td>
-                      <i className={`mr-sw ${fillOf(row.typeId)}`} aria-hidden="true" />
-                      {row.name}
-                    </td>
-                    <td className="n">{eur(row.monthCents)}</td>
-                    <td className="n">{eur(row.averageCents)}</td>
-                    <td className="n">
-                      <strong>{eur(row.sumCents, { cents: false })}</strong>
-                    </td>
-                    <td className="n">{row.sharePercent} %</td>
-                  </tr>
-                ))}
-                <tr className="is-total">
-                  <td>Summe</td>
-                  <td className="n">{eur(window.totalMonthCents)}</td>
-                  <td className="n">{eur(window.totalAverageCents)}</td>
-                  <td className="n">{eur(window.totalCents, { cents: false })}</td>
-                  <td className="n">{window.totalCents > 0 ? '100 %' : '–'}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="vnote">Keine Einnahmen im Zeitraum.</p>
-        )}
-      </section>
-
-      <CapitalSection data={data} />
+      </ReportBodyDisclosure>
+      <ReportBodyDisclosure id="income-capital" label="Kapitalerträge und Erstattungen, separat">
+        <CapitalSection data={data} />
+      </ReportBodyDisclosure>
     </>
   );
 }

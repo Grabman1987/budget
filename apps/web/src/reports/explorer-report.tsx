@@ -1,3 +1,13 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { ReportViewControl } from './report-view-control';
+import { ReportBodyDisclosure } from './report-body-disclosure';
+import {
+  ExplorerDraftGuard,
+  ExplorerPhoneRows,
+  ExplorerTableDetails,
+  explorerDraftDirty,
+  explorerHeadline,
+} from './explorer-redesign';
 import { PeriodQuickSelect, ReportPeriodControl } from './period-quick-select';
 import {
   useAmountPrivacy,
@@ -31,6 +41,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Bookmark, Download, Pencil, X } from 'lucide-react';
 import {
   useEffect,
+  useLayoutEffect,
   useId,
   useMemo,
   useRef,
@@ -72,6 +83,8 @@ const periodName = (months: string[]) =>
 
 export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   useAmountPrivacy();
+  const draftState = useRef({ dirty: false, busy: false });
+  const [editorReveal, setEditorReveal] = useState(0);
   const toast = useToast();
   const search = useSearch({ strict: false }) as {
     vorlage?: unknown;
@@ -80,18 +93,37 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
     kategorien?: string[];
     zelle?: string;
     spalte?: string;
+    darstellung?: string;
   };
-  const template =
-    !search.ansicht && isExplorerTemplate(search.vorlage) ? search.vorlage : undefined;
+  const template = !search.ansicht
+    ? isExplorerTemplate(search.vorlage)
+      ? search.vorlage
+      : REDESIGN_ENABLED && search.darstellung !== 'eigene'
+        ? 'heatmap'
+        : undefined
+    : undefined;
   const navigate = useNavigate();
   const changeTemplateSearch = (patch: Record<string, unknown>) =>
     void navigate({
       to: '.',
       search: ((previous: Record<string, unknown>) => ({ ...previous, ...patch })) as never,
     });
-  const chooseTemplate = (id: typeof template) =>
+  const chooseTemplate = (id: typeof template) => {
+    if (REDESIGN_ENABLED) {
+      if (
+        draftState.current.busy ||
+        (draftState.current.dirty && !window.confirm('Ungespeicherte Auswertung verwerfen?'))
+      )
+        return false;
+      draftState.current.dirty = false;
+      setName('');
+      setEditingId(undefined);
+      setReplace(undefined);
+      if (!id) setEditorReveal((value) => value + 1);
+    }
     changeTemplateSearch({
       vorlage: id,
+      ...(REDESIGN_ENABLED ? { darstellung: id ? undefined : 'eigene' } : {}),
       ansicht: undefined,
       exakt: undefined,
       zelle: undefined,
@@ -100,6 +132,8 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
         ? { zeitraum: EXPLORER_TEMPLATES.find((candidate) => candidate.id === id)!.period }
         : {}),
     });
+    return true;
+  };
   const [templatePeriod, setTemplatePeriod] = useZeitraum('1J');
   const templateRead = useQuery({ ...explorerTemplateQuery, enabled: Boolean(template) });
   const templateCategory = search.kategorien?.[0];
@@ -139,6 +173,16 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
   const [name, setName] = useState('');
   const [editingId, setEditingId] = useState<string>();
   const [replace, setReplace] = useState<PersistedExplorerView>();
+  const [viewWriting, setViewWriting] = useState(false);
+  const dirty = explorerDraftDirty(
+    name,
+    query,
+    views.find((view) => view.id === editingId),
+  );
+  useLayoutEffect(() => {
+    draftState.current = { dirty, busy: viewWriting };
+  }, [dirty, viewWriting]);
+
   // Capture once per fresh entry; background reads must not overwrite local edits.
   if (observedEntry.id !== search.ansicht) {
     setObservedEntry({ id: search.ansicht, generation: observedEntry.generation + 1 });
@@ -217,25 +261,35 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
 
   const persist = async (id?: string) => {
     const clean = name.trim();
-    const response = await saved.write(
-      { kind: 'save', view: { name: clean, query }, ...(id ? { id } : {}) },
-      `Ansicht „${clean}“ gespeichert.`,
-    );
-    if (response) {
-      setName('');
-      setEditingId(undefined);
-      setReplace(undefined);
+    setViewWriting(true);
+    try {
+      const response = await saved.write(
+        { kind: 'save', view: { name: clean, query }, ...(id ? { id } : {}) },
+        `Ansicht „${clean}“ gespeichert.`,
+      );
+      if (response) {
+        setName('');
+        setEditingId(undefined);
+        setReplace(undefined);
+      }
+    } finally {
+      setViewWriting(false);
     }
   };
   const remove = async (view: PersistedExplorerView) => {
-    const removed = await saved.write(
-      { kind: 'delete', id: view.id },
-      `Ansicht „${view.name}“ gelöscht.`,
-    );
-    if (removed && editingId === view.id) {
-      setEditingId(undefined);
-      setName('');
-      setReplace(undefined);
+    setViewWriting(true);
+    try {
+      const removed = await saved.write(
+        { kind: 'delete', id: view.id },
+        `Ansicht „${view.name}“ gelöscht.`,
+      );
+      if (removed && editingId === view.id) {
+        setEditingId(undefined);
+        setName('');
+        setReplace(undefined);
+      }
+    } finally {
+      setViewWriting(false);
     }
   };
   const save = (event: FormEvent) => {
@@ -251,15 +305,118 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
     else void persist(editingId);
   };
 
+  const entryStatus = (
+    <>
+      {' '}
+      {search.ansicht && !entryReady && (
+        <div>
+          {entry.isFetching && <LoadingNote what="Gespeicherte Auswertung" />}
+          {entry.isError && (
+            <ErrorNote
+              what="Gespeicherte Auswertung"
+              error={entry.error}
+              onRetry={() => void entry.refetch()}
+            />
+          )}
+          {entry.isSuccess && !entry.isFetching && !requested && (
+            <p role="status">
+              Diese gespeicherte Auswertung ist nicht mehr verfügbar. Es wird keine andere Auswahl
+              geladen.
+            </p>
+          )}
+          <Button variant="ghost" onClick={() => chooseTemplate(undefined)}>
+            Eigene Auswertung öffnen
+          </Button>
+        </div>
+      )}
+    </>
+  );
+  const savedStatus = (
+    <>
+      {' '}
+      {saved.isPending && <LoadingNote what="Gespeicherte Ansichten" />}
+      {saved.isError && (
+        <ErrorNote
+          what="Gespeicherte Ansichten"
+          error={saved.error}
+          onRetry={() => void saved.refetch()}
+        />
+      )}
+      {saved.data?.unavailable && (
+        <p role="status">
+          Gespeicherte Ansichten sind nicht verfügbar. Die Daten bleiben erhalten; die Vorlagen und
+          Filter kannst du weiter verwenden.
+        </p>
+      )}
+      {saved.migrationError && (
+        <p role="status">
+          {saved.migrationError}{' '}
+          <Button variant="ghost" onClick={saved.retryMigration}>
+            Erneut versuchen
+          </Button>
+        </p>
+      )}
+      {saved.unavailableLocalCount > 0 && (
+        <p role="status">
+          {saved.unavailableLocalCount} lokale Ansichten sind nicht verfügbar. Ihre ursprünglichen
+          Daten bleiben in diesem Browser erhalten.
+        </p>
+      )}
+    </>
+  );
   return (
     <PageFrame
+      sourceDate={
+        template
+          ? !templateRead.isFetching && !templateRead.isError
+            ? templateRead.data?.asOf
+            : undefined
+          : exportReady
+            ? data?.today
+            : undefined
+      }
+      reportControls={
+        REDESIGN_ENABLED ? (
+          <ReportViewControl
+            label="Darstellung der Auswertung"
+            options={[
+              ...EXPLORER_TEMPLATES.map((item) => ({ value: item.id, label: item.label })),
+              { value: 'custom', label: 'Eigene Auswertung' },
+              ...(search.ansicht
+                ? [{ value: 'saved', label: requested?.name ?? 'Gespeicherte Auswertung' }]
+                : []),
+            ]}
+            value={template ?? (search.ansicht ? 'saved' : 'custom')}
+            onChange={(value) => {
+              if (value !== 'saved') chooseTemplate(isExplorerTemplate(value) ? value : undefined);
+            }}
+          />
+        ) : undefined
+      }
       verdict={
         template
           ? templateModel && templateRead.data && !templateRead.isFetching && !templateRead.isError
-            ? explorerTemplateVerdictFacts(templateModel, templateRead.data)
+            ? {
+                ...explorerTemplateVerdictFacts(templateModel, templateRead.data),
+                ...(REDESIGN_ENABLED && template === 'heatmap'
+                  ? {
+                      metric: {
+                        label: `Kategorien · ${templateModel.months.length} Monate`,
+                        value: templateModel.rows.length,
+                        unit: 'count' as const,
+                      },
+                    }
+                  : {}),
+              }
             : undefined
           : data && !result.isFetching && !result.isPlaceholderData && !result.isError
-            ? { reportId: report.id, period: `${query.period}:${data.ref}` }
+            ? {
+                reportId: report.id,
+                period: `${query.period}:${data.ref}`,
+                ...(REDESIGN_ENABLED && exportReady
+                  ? { metric: explorerHeadline(data.result) }
+                  : {}),
+              }
             : undefined
       }
       meta={meta}
@@ -300,7 +457,24 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
               },
             ],
           }
-        : {})}
+        : REDESIGN_ENABLED
+          ? {
+              extraFields: [
+                {
+                  label: 'Zeitraum',
+                  value: (
+                    <ReportPeriodControl
+                      label="Zeitraum"
+                      options={EXPLORER_PERIODS.map((value) => ({ value, label: value }))}
+                      value={query.period}
+                      onChange={(period) => set('period', period)}
+                      trend={false}
+                    />
+                  ),
+                },
+              ],
+            }
+          : {})}
       reportDataBasis={
         template
           ? templateRead.isError
@@ -320,280 +494,271 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
       }
     >
       <div className="kview ov explorer-report">
-        <section
-          className={`card ov-card${template ? ' ex-template-controls' : ''}`}
-          aria-labelledby="ex-views"
-        >
-          <div className="tbd-head">
-            <h2 id="ex-views">Gespeicherte Ansichten</h2>
-          </div>
-          <div className="ex-chips" role="group" aria-label="Vorlagen">
-            {EXPLORER_TEMPLATES.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                className="ex-chip"
-                aria-pressed={template === preset.id}
-                onClick={() => chooseTemplate(preset.id)}
-              >
-                {preset.label}
-              </button>
-            ))}
-            {template && (
-              <button type="button" className="ex-chip" onClick={() => chooseTemplate(undefined)}>
-                Eigene Auswertung
-              </button>
-            )}
-          </div>
-          {search.ansicht && !entryReady && (
-            <div>
-              {entry.isFetching && <LoadingNote what="Gespeicherte Auswertung" />}
-              {entry.isError && (
-                <ErrorNote
-                  what="Gespeicherte Auswertung"
-                  error={entry.error}
-                  onRetry={() => void entry.refetch()}
-                />
-              )}
-              {entry.isSuccess && !entry.isFetching && !requested && (
-                <p role="status">
-                  Diese gespeicherte Auswertung ist nicht mehr verfügbar. Es wird keine andere
-                  Auswahl geladen.
-                </p>
-              )}
-              <Button variant="ghost" onClick={() => chooseTemplate(undefined)}>
-                Eigene Auswertung öffnen
-              </Button>
-            </div>
-          )}
-          {saved.isPending && <LoadingNote what="Gespeicherte Ansichten" />}
-          {saved.isError && (
-            <ErrorNote
-              what="Gespeicherte Ansichten"
-              error={saved.error}
-              onRetry={() => void saved.refetch()}
-            />
-          )}
-          {saved.data?.unavailable && (
-            <p role="status">
-              Gespeicherte Ansichten sind nicht verfügbar. Die Daten bleiben erhalten; die Vorlagen
-              und Filter kannst du weiter verwenden.
-            </p>
-          )}
-          {saved.migrationError && (
-            <p role="status">
-              {saved.migrationError}{' '}
-              <Button variant="ghost" onClick={saved.retryMigration}>
-                Erneut versuchen
-              </Button>
-            </p>
-          )}
-          {saved.unavailableLocalCount > 0 && (
-            <p role="status">
-              {saved.unavailableLocalCount} lokale Ansichten sind nicht verfügbar. Ihre
-              ursprünglichen Daten bleiben in diesem Browser erhalten.
-            </p>
-          )}
-          <div className="ex-chips" role="group" aria-label="Gespeicherte Ansichten">
-            {EXPLORER_PRESETS.map((preset) => (
-              <button
-                key={preset.name}
-                type="button"
-                className="ex-chip"
-                aria-pressed={!template && sameQuery(preset.query, query)}
+        {REDESIGN_ENABLED && (
+          <>
+            <ExplorerDraftGuard state={draftState} />
+            {entryStatus}
+            {savedStatus}
+            <nav className="r6-saved-strip" aria-label="Meine Auswertungen">
+              <strong>Meine Auswertungen</strong>
+              {views.map((view) => (
+                <AppLink key={view.id} to="/reports/explorer" search={{ ansicht: view.id }}>
+                  <Bookmark size={14} aria-hidden="true" />
+                  {view.name}
+                </AppLink>
+              ))}
+              <Button
+                variant="ghost"
                 onClick={() => {
-                  chooseTemplate(undefined);
-                  setQuery(preset.query);
+                  if (template && !chooseTemplate(undefined)) return;
+                  setEditorReveal((value) => value + 1);
                 }}
               >
-                <Bookmark size={16} strokeWidth={1.75} aria-hidden="true" />
-                {preset.name}
-              </button>
-            ))}
-            {views.map((view) => (
-              <span className="ex-chip-pair" key={view.id}>
+                Auswertung bearbeiten und speichern
+              </Button>
+            </nav>
+          </>
+        )}
+        <ReportBodyDisclosure
+          id="explorer-editor"
+          label="Vorlagen, Filter und Ansichten"
+          reveal={
+            editingId ? `edit:${editingId}` : editorReveal ? `open:${editorReveal}` : undefined
+          }
+        >
+          {' '}
+          <section
+            className={`card ov-card${template ? ' ex-template-controls' : ''}`}
+            aria-labelledby="ex-views"
+          >
+            <div className="tbd-head">
+              <h2 id="ex-views">Gespeicherte Ansichten</h2>
+            </div>
+            <div className="ex-chips" role="group" aria-label="Vorlagen">
+              {EXPLORER_TEMPLATES.map((preset) => (
                 <button
+                  key={preset.id}
                   type="button"
                   className="ex-chip"
-                  aria-pressed={!template && sameQuery(view.query, query)}
+                  aria-pressed={template === preset.id}
+                  onClick={() => chooseTemplate(preset.id)}
+                >
+                  {preset.label}
+                </button>
+              ))}
+              {template && (
+                <button type="button" className="ex-chip" onClick={() => chooseTemplate(undefined)}>
+                  Eigene Auswertung
+                </button>
+              )}
+            </div>
+            {!REDESIGN_ENABLED && entryStatus}
+            {!REDESIGN_ENABLED && savedStatus}
+            <div className="ex-chips" role="group" aria-label="Gespeicherte Ansichten">
+              {EXPLORER_PRESETS.map((preset) => (
+                <button
+                  key={preset.name}
+                  type="button"
+                  className="ex-chip"
+                  aria-pressed={!template && sameQuery(preset.query, query)}
                   onClick={() => {
-                    chooseTemplate(undefined);
-                    setQuery(view.query);
+                    if (!chooseTemplate(undefined)) return;
+                    setQuery(preset.query);
                   }}
                 >
                   <Bookmark size={16} strokeWidth={1.75} aria-hidden="true" />
-                  {view.name}
+                  {preset.name}
                 </button>
-                <button
-                  type="button"
-                  className="ex-chip-x"
-                  aria-label={`Ansicht ${view.name} bearbeiten`}
-                  disabled={saved.busy}
-                  onClick={() => {
-                    chooseTemplate(undefined);
-                    setEditingId(view.id);
-                    setName(view.name);
-                    setQuery(view.query);
-                    setReplace(undefined);
-                  }}
-                >
-                  <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  className="ex-chip-x"
-                  aria-label={`Ansicht ${view.name} löschen`}
-                  disabled={saved.busy}
-                  onClick={() => void remove(view)}
-                >
-                  <X size={16} strokeWidth={1.75} aria-hidden="true" />
-                </button>
-              </span>
-            ))}
-          </div>
-          {!template && (
-            <fieldset className="ex-custom-query" disabled={!entryReady}>
-              <legend className="sr-only">Auswertungseinstellungen</legend>
-              <PeriodQuickSelect
-                period={query.period}
-                onChange={(period) => set('period', period)}
-                trend={false}
-              />
-              <div className="ex-bar">
-                <Field label="Zeilen">
-                  {({ id }) => (
-                    <Select
-                      id={id}
-                      value={query.dim}
-                      onChange={(e) => set('dim', e.target.value as ExplorerQuery['dim'])}
-                    >
-                      {EXPLORER_DIMS.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.label}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </Field>
-                <Field label="Klasse">
-                  {({ id }) => (
-                    <Select
-                      id={id}
-                      value={query.cls}
-                      disabled={query.dim === 'einnahme'}
-                      onChange={(e) => set('cls', e.target.value as ExplorerQuery['cls'])}
-                    >
-                      {EXPLORER_CLASSES.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </Field>
-                <Field label="Kennzahl">
-                  {({ id }) => (
-                    <Select
-                      id={id}
-                      value={query.meas}
-                      onChange={(e) => set('meas', e.target.value as ExplorerQuery['meas'])}
-                    >
-                      {EXPLORER_MEASURES.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </Field>
-                <Field label="Spalten">
-                  {({ id }) => (
-                    <Select
-                      id={id}
-                      value={query.cols}
-                      onChange={(e) => set('cols', e.target.value as ExplorerQuery['cols'])}
-                    >
-                      {EXPLORER_COLS.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </Field>
-                <Field label="Zeitraum">
-                  {({ id }) => (
-                    <Select
-                      id={id}
-                      value={query.period}
-                      onChange={(e) => set('period', e.target.value as ExplorerQuery['period'])}
-                    >
-                      {EXPLORER_PERIODS.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </Field>
-              </div>
-              <form className="ex-save" onSubmit={save}>
-                <Field label="Ansicht speichern">
-                  {({ id }) => (
-                    <TextInput
-                      id={id}
-                      value={name}
-                      maxLength={40}
-                      placeholder="Name"
-                      autoComplete="off"
-                      onChange={(e) => setName(e.target.value)}
-                    />
-                  )}
-                </Field>
-                <Button
-                  type="submit"
-                  variant="ghost"
-                  size="sm"
-                  disabled={!entryReady || !saved.data || saved.data.unavailable || saved.busy}
-                >
-                  <Bookmark size={16} strokeWidth={1.75} aria-hidden="true" />
-                  Speichern
-                </Button>
-                {editingId && (
-                  <Button
-                    variant="ghost"
+              ))}
+              {views.map((view) => (
+                <span className="ex-chip-pair" key={view.id}>
+                  <button
+                    type="button"
+                    className="ex-chip"
+                    aria-pressed={!template && sameQuery(view.query, query)}
                     onClick={() => {
-                      setEditingId(undefined);
-                      setName('');
+                      if (!chooseTemplate(undefined)) return;
+                      setQuery(view.query);
+                    }}
+                  >
+                    <Bookmark size={16} strokeWidth={1.75} aria-hidden="true" />
+                    {view.name}
+                  </button>
+                  <button
+                    type="button"
+                    className="ex-chip-x"
+                    aria-label={`Ansicht ${view.name} bearbeiten`}
+                    disabled={saved.busy}
+                    onClick={() => {
+                      if (!chooseTemplate(undefined)) return;
+                      setEditingId(view.id);
+                      setName(view.name);
+                      setQuery(view.query);
                       setReplace(undefined);
                     }}
                   >
-                    Bearbeiten abbrechen
-                  </Button>
-                )}
-              </form>
-              {replace && (
-                <div role="alert">
-                  Die Ansicht „{replace.name}“ ersetzen?{' '}
-                  <Button
-                    variant="ghost"
-                    onClick={() => void persist(replace.id)}
+                    <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className="ex-chip-x"
+                    aria-label={`Ansicht ${view.name} löschen`}
                     disabled={saved.busy}
+                    onClick={() => void remove(view)}
                   >
-                    Ersetzen
-                  </Button>
-                  <Button variant="ghost" onClick={() => setReplace(undefined)}>
-                    Abbrechen
-                  </Button>
+                    <X size={16} strokeWidth={1.75} aria-hidden="true" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            {!template && (
+              <fieldset className="ex-custom-query" disabled={!entryReady}>
+                <legend className="sr-only">Auswertungseinstellungen</legend>
+                {!REDESIGN_ENABLED && (
+                  <PeriodQuickSelect
+                    period={query.period}
+                    onChange={(period) => set('period', period)}
+                    trend={false}
+                  />
+                )}
+                <div className="ex-bar">
+                  <Field label="Zeilen">
+                    {({ id }) => (
+                      <Select
+                        id={id}
+                        value={query.dim}
+                        onChange={(e) => set('dim', e.target.value as ExplorerQuery['dim'])}
+                      >
+                        {EXPLORER_DIMS.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.label}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                  <Field label="Klasse">
+                    {({ id }) => (
+                      <Select
+                        id={id}
+                        value={query.cls}
+                        disabled={query.dim === 'einnahme'}
+                        onChange={(e) => set('cls', e.target.value as ExplorerQuery['cls'])}
+                      >
+                        {EXPLORER_CLASSES.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                  <Field label="Kennzahl">
+                    {({ id }) => (
+                      <Select
+                        id={id}
+                        value={query.meas}
+                        onChange={(e) => set('meas', e.target.value as ExplorerQuery['meas'])}
+                      >
+                        {EXPLORER_MEASURES.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.label}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                  <Field label="Spalten">
+                    {({ id }) => (
+                      <Select
+                        id={id}
+                        value={query.cols}
+                        onChange={(e) => set('cols', e.target.value as ExplorerQuery['cols'])}
+                      >
+                        {EXPLORER_COLS.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                  {!REDESIGN_ENABLED && (
+                    <Field label="Zeitraum">
+                      {({ id }) => (
+                        <Select
+                          id={id}
+                          value={query.period}
+                          onChange={(e) => set('period', e.target.value as ExplorerQuery['period'])}
+                        >
+                          {EXPLORER_PERIODS.map((p) => (
+                            <option key={p} value={p}>
+                              {p}
+                            </option>
+                          ))}
+                        </Select>
+                      )}
+                    </Field>
+                  )}
                 </div>
-              )}
-            </fieldset>
-          )}
-          <p className="ov-note">
-            Gespeicherte Ansichten sind nach dem Neuladen auch auf deinen anderen Geräten verfügbar.
-            Höchstens 20 Ansichten; je Name höchstens 40 Zeichen.
-          </p>
-        </section>
+                <form className="ex-save" onSubmit={save}>
+                  <Field label="Ansicht speichern">
+                    {({ id }) => (
+                      <TextInput
+                        id={id}
+                        value={name}
+                        maxLength={40}
+                        placeholder="Name"
+                        autoComplete="off"
+                        onChange={(e) => setName(e.target.value)}
+                      />
+                    )}
+                  </Field>
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    size="sm"
+                    disabled={!entryReady || !saved.data || saved.data.unavailable || saved.busy}
+                  >
+                    <Bookmark size={16} strokeWidth={1.75} aria-hidden="true" />
+                    Speichern
+                  </Button>
+                  {editingId && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setEditingId(undefined);
+                        setName('');
+                        setReplace(undefined);
+                      }}
+                    >
+                      Bearbeiten abbrechen
+                    </Button>
+                  )}
+                </form>
+                {replace && (
+                  <div role="alert">
+                    Die Ansicht „{replace.name}“ ersetzen?{' '}
+                    <Button
+                      variant="ghost"
+                      onClick={() => void persist(replace.id)}
+                      disabled={saved.busy}
+                    >
+                      Ersetzen
+                    </Button>
+                    <Button variant="ghost" onClick={() => setReplace(undefined)}>
+                      Abbrechen
+                    </Button>
+                  </div>
+                )}
+              </fieldset>
+            )}
+            <p className="ov-note">
+              Gespeicherte Ansichten sind nach dem Neuladen auch auf deinen anderen Geräten
+              verfügbar. Höchstens 20 Ansichten; je Name höchstens 40 Zeichen.
+            </p>
+          </section>
+        </ReportBodyDisclosure>
 
         {template && (templateRead.isPending || templateRead.isFetching) && (
           <LoadingNote what="Vorlage" />
@@ -745,6 +910,15 @@ function Pivot({
           {exporting ? 'CSV wird geprüft …' : 'CSV exportieren'}
         </Button>
       </div>
+      {REDESIGN_ENABLED && !ready && (
+        <p className="ov-note" role="status">
+          {fetching
+            ? 'Wird aktualisiert · Daten der vorherigen Auswahl.'
+            : failed
+              ? 'Letzter verfügbarer Stand · erneutes Laden oben versuchen.'
+              : 'Auswertung wird geladen.'}
+        </p>
+      )}
       <ExplorerViewToggle626 value={view} onChange={setView} busy={!ready} />
       {view === 'chart' &&
         (failed ? (
@@ -755,104 +929,114 @@ function Pivot({
           <ExplorerChart626 data={chartData} />
         ))}
       <div hidden={view !== 'table'} className="ex-native-view">
-        <ExplorerTableInspector626 data={chartData} active={view === 'table'}>
-          {rows.length === 0 ? (
-            <p className="ov-empty" role="status">
-              {firstMonth === null
-                ? 'Es gibt noch keine Buchungen auf Budgetkonten.'
-                : 'Keine Werte für diese Auswahl.'}
-            </p>
-          ) : (
-            <div
-              className="ov-scroll ex-scroll"
-              role="region"
-              aria-label="Pivottabelle, bei Bedarf horizontal verschiebbar"
-              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the wide table.
-              tabIndex={0}
-            >
-              <table className="ov-table ex-table" data-testid="ex-table">
-                <thead>
-                  <tr>
-                    <th className="tech ex-first">{headers[0]}</th>
-                    {columns.map((c, i) => (
-                      <th key={c.key} className="tech n">
-                        {headers[i + 1]}
-                      </th>
-                    ))}
-                    {columns.length > 1 && <th className="tech n">{headers.at(-1)}</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row, rowIndex) => {
-                    const heat = columns.length > 1 ? overviewHeat(row.values, result.good) : [];
-                    const to = link(row.key);
-                    return (
-                      <tr key={row.key || '__none'}>
-                        <th scope="row" className="ex-first">
-                          {row.class && <ClassSwatch kind={row.class} />}
-                          {to ? (
-                            <AppLink to="/konten/buchungen" search={to}>
-                              {row.label}
-                            </AppLink>
-                          ) : (
-                            row.label
-                          )}
-                        </th>
-                        {row.values.map((value, i) => {
-                          const h = heat[i];
-                          return (
+        <div className="r6-native-grid">
+          {REDESIGN_ENABLED && (
+            <ExplorerPhoneRows data={chartData} mode="total" rowLink={link} ready={ready} />
+          )}
+          <ExplorerTableDetails>
+            <ExplorerTableInspector626 data={chartData} active={view === 'table'}>
+              {rows.length === 0 ? (
+                <p className="ov-empty" role="status">
+                  {firstMonth === null
+                    ? 'Es gibt noch keine Buchungen auf Budgetkonten.'
+                    : 'Keine Werte für diese Auswahl.'}
+                </p>
+              ) : (
+                <div
+                  className="ov-scroll ex-scroll"
+                  role="region"
+                  aria-label="Pivottabelle, bei Bedarf horizontal verschiebbar"
+                  // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the wide table.
+                  tabIndex={0}
+                >
+                  <table className="ov-table ex-table" data-testid="ex-table">
+                    <thead>
+                      <tr>
+                        <th className="tech ex-first">{headers[0]}</th>
+                        {columns.map((c, i) => (
+                          <th key={c.key} className="tech n">
+                            {headers[i + 1]}
+                          </th>
+                        ))}
+                        {columns.length > 1 && <th className="tech n">{headers.at(-1)}</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row, rowIndex) => {
+                        const heat =
+                          columns.length > 1 ? overviewHeat(row.values, result.good) : [];
+                        const to = link(row.key);
+                        return (
+                          <tr key={row.key || '__none'}>
+                            <th scope="row" className="ex-first">
+                              {row.class && <ClassSwatch kind={row.class} />}
+                              {to ? (
+                                <AppLink to="/konten/buchungen" search={to}>
+                                  {row.label}
+                                </AppLink>
+                              ) : (
+                                row.label
+                              )}
+                            </th>
+                            {row.values.map((value, i) => {
+                              const h = heat[i];
+                              return (
+                                <td
+                                  key={columns[i]?.key ?? i}
+                                  data-chart-point={rowIndex * cellsPerRow + i}
+                                  className={`n${h ? ` ov-hc is-${h.tone}` : ''}`}
+                                  style={
+                                    h
+                                      ? ({ '--h': h.strength.toFixed(2) } as CSSProperties)
+                                      : undefined
+                                  }
+                                >
+                                  {value === 0 ? <span className="muted">·</span> : fmt(value)}
+                                </td>
+                              );
+                            })}
+                            {columns.length > 1 && (
+                              <td
+                                className="n"
+                                data-chart-point={rowIndex * cellsPerRow + columns.length}
+                              >
+                                <strong>{fmt(row.total)}</strong>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                      {totals && (
+                        <tr className="is-total">
+                          <th scope="row" className="ex-first">
+                            Summe
+                          </th>
+                          {totals.values.map((value, i) => (
                             <td
                               key={columns[i]?.key ?? i}
-                              data-chart-point={rowIndex * cellsPerRow + i}
-                              className={`n${h ? ` ov-hc is-${h.tone}` : ''}`}
-                              style={
-                                h ? ({ '--h': h.strength.toFixed(2) } as CSSProperties) : undefined
-                              }
+                              className="n"
+                              data-chart-point={rows.length * cellsPerRow + i}
                             >
-                              {value === 0 ? <span className="muted">·</span> : fmt(value)}
+                              {fmt(value)}
                             </td>
-                          );
-                        })}
-                        {columns.length > 1 && (
-                          <td
-                            className="n"
-                            data-chart-point={rowIndex * cellsPerRow + columns.length}
-                          >
-                            <strong>{fmt(row.total)}</strong>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                  {totals && (
-                    <tr className="is-total">
-                      <th scope="row" className="ex-first">
-                        Summe
-                      </th>
-                      {totals.values.map((value, i) => (
-                        <td
-                          key={columns[i]?.key ?? i}
-                          className="n"
-                          data-chart-point={rows.length * cellsPerRow + i}
-                        >
-                          {fmt(value)}
-                        </td>
-                      ))}
-                      {columns.length > 1 && (
-                        <td
-                          className="n"
-                          data-chart-point={rows.length * cellsPerRow + columns.length}
-                        >
-                          {fmt(totals.total)}
-                        </td>
+                          ))}
+                          {columns.length > 1 && (
+                            <td
+                              className="n"
+                              data-chart-point={rows.length * cellsPerRow + columns.length}
+                            >
+                              {fmt(totals.total)}
+                            </td>
+                          )}
+                        </tr>
                       )}
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </ExplorerTableInspector626>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </ExplorerTableInspector626>
+          </ExplorerTableDetails>
+        </div>
       </div>
       {result.truncated > 0 && (
         <p className="ov-note" role="note">

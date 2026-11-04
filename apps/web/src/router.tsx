@@ -63,7 +63,11 @@ import type { PageTitleData } from './shell/page-meta';
 import { isMonth } from './nav/month';
 import { isZeitraum } from './wealth/zeitraum';
 import { isPanelId, type PanelId } from './shell/panels';
-import { FINANZCHECK_HEADING_HASHES, validateReportSearch } from './reports/report-search';
+import {
+  FINANZCHECK_HEADING_HASHES,
+  validateReportSearch,
+  normalizeHistoryPeriod,
+} from './reports/report-search';
 import { validateLiquiditySearch } from './reports/liquidity-selection';
 
 // Route-level code splitting: everything except the shell and the generic placeholder page is
@@ -738,7 +742,7 @@ const redirects = [
     '/plan/sparziele',
     REDESIGN_ENABLED ? { ansicht: 'fortschritt' } : {},
   ),
-  redirectRoute('/reports/kontakte', '/konten/kontakte'),
+  ...(!REDESIGN_ENABLED ? [redirectRoute('/reports/kontakte', '/konten/kontakte')] : []),
   redirectRoute(
     '/reports/finanzcheck',
     REDESIGN_ENABLED ? '/reports/onepager' : '/',
@@ -820,7 +824,15 @@ const reportGroupRoute = createRoute({
 const reportRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/reports/$reportId',
-  beforeLoad: ({ params, location }) => {
+  validateSearch: validateReportSearch,
+  beforeLoad: ({ params, search, location }) => {
+    if (params.reportId === 'onepager' && normalizeHistoryPeriod(search))
+      throw redirect({
+        to: '/reports/onepager',
+        search: { ...search, period: 'month' },
+        hash: location.hash,
+        replace: true,
+      });
     if (!REDESIGN_ENABLED || params.reportId !== 'pallocation') return;
     const target = new URL(
       `/reports/vermoegen-schulden${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
@@ -835,7 +847,6 @@ const reportRoute = createRoute({
       target.searchParams.set('darstellung', 'verteilung');
     throw redirect({ href: `${target.pathname}${target.search}${target.hash}`, replace: true });
   },
-  validateSearch: validateReportSearch,
   staticData: { meta: { ...REPORTS_CATALOG, title: 'Report', register: 'katalog' } },
   loaderDeps: ({ search }) => ({
     finanzcheck: REDESIGN_ENABLED && search.darstellung === 'finanzcheck',

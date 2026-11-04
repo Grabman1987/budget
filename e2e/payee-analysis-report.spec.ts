@@ -9,6 +9,15 @@ function euro(value: number) {
   return formatEuro(cents(value));
 }
 
+sampleTest.beforeEach(async ({ page }) => {
+  await page.addInitScript(
+    (ids) => {
+      for (const id of ids) localStorage.setItem(`budget-report-r8-${id}`, '1');
+    },
+    ['payee-bon', 'payee-frequency', 'payee-all', 'payee-basis'],
+  );
+});
+
 sampleTest(
   'real sample payee report follows API periods, opens exact recipient bookings, and fits both themes',
   async ({ page }, info) => {

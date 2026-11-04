@@ -1,0 +1,179 @@
+[data-budget-redesign='1'] .explorer-report {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+[data-budget-redesign='1'] .explorer-report :is(.ov-card, .tr-card) {
+  padding: 12px 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  min-width: 0;
+}
+[data-budget-redesign='1'] .explorer-report h2 {
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
+  margin-block: 0 8px;
+}
+[data-budget-redesign='1'] .explorer-report .ov-note,
+[data-budget-redesign='1'] .r6-meta {
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+  line-height: var(--lh-meta);
+}
+[data-budget-redesign='1'] .explorer-report .r8-body-disclosure > summary,
+[data-budget-redesign='1'] .r6-table-details > summary {
+  min-height: 44px;
+  align-content: center;
+  padding-block: 8px;
+  border-block: 1px solid var(--rule);
+  cursor: pointer;
+  color: var(--ink-2);
+}
+[data-budget-redesign='1'] .r6-table-details {
+  min-width: 0;
+}
+[data-budget-redesign='1'] .r6-phone-rows {
+  display: none;
+}
+[data-budget-redesign='1'] .r6-saved-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-width: 0;
+  font-size: var(--fs-meta);
+}
+[data-budget-redesign='1'] .r6-saved-strip > strong {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+[data-budget-redesign='1'] .r6-saved-strip a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+[data-budget-redesign='1'] .explorer-report .ex-bar {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+[data-budget-redesign='1'] .explorer-report :is(.ex-table, .ex-template-table) {
+  font-size: var(--fs-table);
+}
+[data-budget-redesign='1'] .explorer-report .ex-table :is(th, td) {
+  padding-block: 4px;
+}
+[data-budget-redesign='1'] .explorer-report .ex-table a {
+  min-height: 44px;
+}
+[data-budget-redesign='1'] .explorer-report .ex-template-table .table-cell-open {
+  font-size: var(--fs-table);
+}
+[data-budget-redesign='1'] .explorer-report .ex-chip {
+  font-size: var(--fs-table);
+}
+@media (min-width: 768px) {
+  [data-budget-redesign='1'] .r6-table-details > summary {
+    display: none;
+  }
+}
+@media (max-width: 767px) {
+  [data-budget-redesign='1'] .r6-native-grid:not(:has(.r6-table-details[open])) > .r6-phone-rows {
+    display: block;
+  }
+  [data-budget-redesign='1'] .r6-phone-rows ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  [data-budget-redesign='1'] .r6-phone-rows li {
+    border-block-start: 1px solid var(--rule);
+  }
+  [data-budget-redesign='1'] .r6-phone-rows li > :is(button, a, div) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 90px auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 52px;
+    padding-block: 8px;
+    width: 100%;
+    color: var(--ink);
+    font: inherit;
+    font-size: var(--fs-table);
+    text-decoration: none;
+    background: none;
+    border: none;
+    text-align: left;
+  }
+  [data-budget-redesign='1'] .r6-phone-rows strong {
+    overflow-wrap: anywhere;
+  }
+  [data-budget-redesign='1'] .r6-phone-rows li span {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  [data-budget-redesign='1'] .explorer-report .ex-bar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 350px) {
+  [data-budget-redesign='1'] .r6-phone-rows li > :is(button, a, div) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  [data-budget-redesign='1'] .r6-phone-rows svg {
+    display: none;
+  }
+  [data-budget-redesign='1'] .explorer-report .ex-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media print {
+  [data-budget-redesign='1'] .r6-phone-rows,
+  [data-budget-redesign='1'] .r6-saved-strip,
+  [data-budget-redesign='1'] .r6-table-details > summary,
+  [data-budget-redesign='1'] .explorer-report > .r8-body-disclosure > summary {
+    display: none;
+  }
+}
+
+[data-budget-redesign='1'] .explorer-report .ex-template-table :is(th, td) {
+  padding-block: 0;
+}
+@media (max-width: 767px) {
+  [data-budget-redesign='1'] .redesign-report-frame:has(.explorer-report) .redesign-report-control {
+    width: 100%;
+  }
+  [data-budget-redesign='1'] .redesign-report-frame:has(.explorer-report) .report-period-control {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 4px;
+  }
+  [data-budget-redesign='1']
+    .redesign-report-frame:has(.explorer-report)
+    .report-period-control
+    > .seg {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100%;
+    display: flex;
+  }
+  [data-budget-redesign='1']
+    .redesign-report-frame:has(.explorer-report)
+    .report-period-control
+    > .seg
+    button {
+    min-width: 44px;
+    flex: 1;
+    padding-inline: 0;
+  }
+  [data-budget-redesign='1']
+    .redesign-report-frame:has(.explorer-report)
+    .report-period-control
+    > .rpc-step {
+    grid-row: 2;
+    width: 44px;
+  }
+}

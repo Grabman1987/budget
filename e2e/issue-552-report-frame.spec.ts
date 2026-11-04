@@ -32,10 +32,12 @@ for (const id of SAMPLE) {
     const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     // Exactly one period preset control; presentation filters are separate.
     await expect(period(page)).toHaveCount(1);
-    // Cashflow/category have their data filters; ON wealth has its presentation selector.
-    await expect(page.getByRole('combobox')).toHaveCount(
-      id === 'cashflow' || id === 'kategorien' || (redesign && id === 'vermoegen') ? 1 : 0,
-    );
+    // Cashflow/category keep their data filters; ON adds the presentation selector of
+    // cashflow/ausgaben (bodies A) and of the wealth report (bodies B).
+    const scopes = id === 'cashflow' || id === 'kategorien' ? 1 : 0;
+    const views =
+      redesign && (id === 'cashflow' || id === 'ausgaben' || id === 'vermoegen') ? 1 : 0;
+    await expect(page.getByRole('combobox')).toHaveCount(scopes + views);
     if (redesign && id === 'vermoegen')
       await expect(
         page.getByRole('combobox', { name: 'Darstellung des Vermögensreports' }),

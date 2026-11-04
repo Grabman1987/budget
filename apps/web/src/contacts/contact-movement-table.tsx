@@ -125,6 +125,7 @@ export function ContactMovementTable({
                   <button
                     type="button"
                     className="contact-source"
+                    data-contact-source={movement.splitId}
                     aria-label={`Ursprungsbuchung öffnen · ${description(movement)} ${longDay(movement.date)} · ${movementKind(movement)} · Kontaktanteil ${eur(receivableDelta(movement.amountCents), { sign: true })}`}
                     onClick={() => onOpen(movement)}
                   >

@@ -1,4 +1,5 @@
 import { openHeuteReview, detectHeuteRedesign } from './heute-visual-fixture';
+import { openPaperView } from './report-frame';
 import { sampleTest as test, expect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
 import { eur } from '../apps/web/src/ledger/format';
@@ -18,7 +19,10 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const url of ['/?monat=2026-09', '/reports/onepager?monat=2026-09']) {
     if (url.startsWith('/?')) await openHeuteReview(page, url);
-    else await page.goto(url);
+    else {
+      await page.goto(url);
+      await openPaperView(page);
+    }
     await expect(page.getByTestId('pace-header')).toHaveCount(0);
     const chart = page.getByTestId('heute-pace-chart');
     await expect(chart).toBeVisible({ timeout: 30_000 });

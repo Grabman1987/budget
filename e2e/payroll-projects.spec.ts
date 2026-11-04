@@ -5,6 +5,24 @@ import { toast } from './ledger-helpers';
 
 test.describe.configure({ timeout: 120000 });
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(
+    (ids) => {
+      for (const id of ids) localStorage.setItem(`budget-report-r8-${id}`, '1');
+    },
+    [
+      'projects-history',
+      'projects-side',
+      'projects-months',
+      'payroll-payout',
+      'payroll-history',
+      'payroll-months',
+      'payroll-years',
+      'payroll-special',
+    ],
+  );
+});
+
 test('captured salary through the real API, with undo and mobile/desktop evidence', async ({
   page,
   request,

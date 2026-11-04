@@ -1,3 +1,4 @@
+import { retainBudgetCostInflationReaders } from './budget-cost-inflation-controls';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
 import { inspectReport } from './spending-helpers';
@@ -95,3 +96,5 @@ test('owner basket choices recalculate report 2.4 and survive reload', async ({
   await expect(page.getByTestId('pi-rate')).toHaveText('0 %');
   await inspectReport(page, info, 'inflation-basket-report');
 });
+
+test.beforeEach(async ({ page }) => retainBudgetCostInflationReaders(page));

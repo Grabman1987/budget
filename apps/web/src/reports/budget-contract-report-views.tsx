@@ -1,4 +1,5 @@
-import { Segmented } from '@budget/ui';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { ReportViewControl } from './report-view-control';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
@@ -23,10 +24,17 @@ export function BudgetReportViews({ report, meta }: { report: ReportEntry; meta:
   const navigate = useNavigate();
   const view = search.darstellung === 'planungstreue' ? 'planungstreue' : 'budget';
   const control = (
-    <Segmented
+    <ReportViewControl
       className="report-view-switch report-wealth-switch"
       label="Ansicht der Budgettreue"
-      options={BUDGET_VIEWS}
+      options={
+        REDESIGN_ENABLED
+          ? [
+              { value: 'budget', label: 'Budgettreue' },
+              { value: 'planungstreue', label: 'Prognosegenauigkeit' },
+            ]
+          : BUDGET_VIEWS
+      }
       value={view}
       onChange={(value) =>
         void navigate({
@@ -57,7 +65,7 @@ export function ContractsReportViews({ report, meta }: { report: ReportEntry; me
     question: 'Welche Verträge binden uns, und was kostet uns das Geld?',
   };
   const control = (
-    <Segmented
+    <ReportViewControl
       className="report-view-switch report-wealth-switch"
       label="Ansicht von Verträgen und Kosten"
       options={CONTRACT_VIEWS}

@@ -1,0 +1,454 @@
+[data-budget-redesign='1'] .period-summary {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 20px;
+  min-width: 0;
+  container-type: inline-size;
+}
+[data-budget-redesign='1'] .period-paper {
+  --paper-scale: 0.66;
+  zoom: var(--paper-scale);
+  width: 794px;
+  max-width: calc(100cqw / var(--paper-scale));
+  min-height: 1123px;
+  padding: 44px 48px;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 18px;
+  border: 1px solid var(--rule-strong);
+  background: var(--surface);
+  font-size: var(--fs-body);
+}
+[data-budget-redesign='1'] .period-year-summary {
+  gap: 14px;
+}
+[data-budget-redesign='1'] .period-year-summary .period-paper {
+  --paper-scale: 0.58;
+}
+[data-budget-redesign='1'] .period-paper-heading > span,
+[data-budget-redesign='1'] .period-summary-label {
+  margin: 0 0 8px;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+  font-weight: 600;
+}
+[data-budget-redesign='1'] .period-paper-heading h2 {
+  margin: 0;
+  font-size: var(--fs-display);
+}
+[data-budget-redesign='1'] .period-paper-lead {
+  font-size: var(--fs-figure);
+  font-weight: 650;
+  line-height: 1.25;
+}
+[data-budget-redesign='1'] .period-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+[data-budget-redesign='1'] .period-kpis > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--rule-strong);
+  min-width: 0;
+}
+[data-budget-redesign='1'] .period-kpis span {
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+[data-budget-redesign='1'] .period-kpis strong {
+  font-size: var(--fs-title);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+[data-budget-redesign='1'] .period-kpis strong span {
+  color: inherit;
+  font-size: inherit;
+}
+[data-budget-redesign='1'] .period-summary-chart {
+  min-width: 0;
+}
+[data-budget-redesign='1'] .period-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-table);
+  font-variant-numeric: tabular-nums;
+}
+[data-budget-redesign='1'] .period-summary-table :is(th, td) {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule);
+  text-align: right;
+}
+[data-budget-redesign='1'] .period-summary-table tr > :first-child {
+  text-align: left;
+  font-weight: 500;
+  padding-right: 8px;
+  overflow-wrap: anywhere;
+}
+[data-budget-redesign='1'] .period-summary-table tfoot th,
+[data-budget-redesign='1'] .period-summary-table tfoot td {
+  font-weight: 650;
+}
+[data-budget-redesign='1'] .period-wealth-line {
+  font-size: var(--fs-body);
+  font-variant-numeric: tabular-nums;
+}
+[data-budget-redesign='1'] .period-paper-footer {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: 2fr 1.4fr 1.4fr 1fr;
+  border: 1px solid var(--rule-strong);
+}
+[data-budget-redesign='1'] .period-paper-footer > div {
+  display: grid;
+  gap: 2px;
+  padding: 6px 10px;
+  border-left: 1px solid var(--rule);
+  font-size: var(--fs-meta);
+  min-width: 0;
+}
+[data-budget-redesign='1'] .period-paper-footer > div:first-child {
+  border-left: 0;
+}
+[data-budget-redesign='1'] .period-paper-footer span {
+  color: var(--ink-2);
+}
+[data-budget-redesign='1'] .period-print-settings {
+  flex: 1;
+  min-width: 140px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+}
+[data-budget-redesign='1'] .period-print-settings h2 {
+  margin: 0 0 8px;
+  font-size: var(--fs-title);
+}
+[data-budget-redesign='1'] .period-print-settings dl {
+  margin: 0;
+}
+[data-budget-redesign='1'] .period-print-settings dl > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding-block: 8px;
+  border-top: 1px solid var(--rule);
+  font-size: var(--fs-meta);
+}
+[data-budget-redesign='1'] .period-print-settings dd {
+  margin: 0;
+  font-weight: 600;
+}
+[data-budget-redesign='1'] .period-print-settings .btn {
+  white-space: normal;
+  text-align: left;
+  min-height: 44px;
+  height: auto;
+  margin-top: 8px;
+}
+[data-budget-redesign='1'] .period-wealth-rows {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+[data-budget-redesign='1'] .period-wealth-rows > div {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-block: 6px;
+  border-top: 1px solid var(--rule);
+}
+[data-budget-redesign='1'] .period-wealth-rows dd {
+  margin: 0;
+  font-weight: 600;
+}
+[data-budget-redesign='1'] .period-summary-note {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+@media screen {
+  [data-budget-redesign='1'] .onepager-report[data-paper-view='summary'] > .psheet-wrap,
+  [data-budget-redesign='1'] .year-report[data-paper-view='summary'] > .ov-sheets,
+  [data-budget-redesign='1'] [data-paper-view='druckblatt'] > .period-summary {
+    display: none;
+  }
+}
+@media screen and (min-width: 768px) {
+  [data-budget-redesign='1'] .period-paper {
+    --ink: #0b1b33;
+    --ink-2: #3a4e6e;
+    --ink-3: #4d6a89;
+    --surface: #fff;
+    --primary: #1747a6;
+    --line: #1747a6;
+    --line-2: #6786ac;
+    --rule: #d6dfed;
+    --rule-strong: #6786ac;
+    --graticule: #e9eef6;
+  }
+  [data-budget-redesign='1'] .period-paper .chart-data-table {
+    display: none;
+  }
+}
+@media (max-width: 767px) {
+  [data-budget-redesign='1'] .period-summary {
+    display: grid;
+    gap: 12px;
+  }
+  [data-budget-redesign='1'] .period-paper,
+  [data-budget-redesign='1'] .period-year-summary .period-paper {
+    zoom: 1;
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    gap: 8px;
+    background: transparent;
+  }
+  [data-budget-redesign='1'] .period-paper-lead,
+  [data-budget-redesign='1'] .period-paper-footer,
+  [data-budget-redesign='1'] .period-desktop-months,
+  [data-budget-redesign='1'] .period-desktop-wealth {
+    display: none;
+  }
+  [data-budget-redesign='1'] .period-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  [data-budget-redesign='1'] .period-kpis > div {
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+  }
+  [data-budget-redesign='1'] .period-summary-table thead,
+  [data-budget-redesign='1'] .period-month-summary .period-summary-table td:nth-child(n + 3) {
+    display: none;
+  }
+  [data-budget-redesign='1'] .period-month-summary .period-summary-label {
+    margin-bottom: 0;
+  }
+  [data-budget-redesign='1'] .period-print-settings {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  [data-budget-redesign='1'] .period-print-settings h2,
+  [data-budget-redesign='1'] .period-print-settings dl {
+    display: none;
+  }
+  [data-budget-redesign='1'] .period-summary .chart-data-table > summary {
+    min-height: 44px;
+    align-content: center;
+  }
+}
+@media (max-width: 767px) {
+  [data-budget-redesign='1'] .period-paper-heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+@media print {
+  [data-budget-redesign='1'] .period-summary,
+  [data-budget-redesign='1'] .period-presentation {
+    display: none !important;
+  }
+}
+[data-budget-redesign='1'] .period-comparison .dv-track :is(.is-less, .is-more) {
+  background: var(--primary);
+}
+[data-budget-redesign='1'] .period-comparison .dv li {
+  min-height: 44px;
+}
+[data-budget-redesign='1'] .period-comparison .ov-card {
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+[data-budget-redesign='1'] .period-comparison-table {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  margin-top: 16px;
+}
+[data-budget-redesign='1'] .period-comparison-table table {
+  min-width: 520px;
+}
+[data-budget-redesign='1'] .period-comparison-table caption {
+  text-align: left;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+  padding-block: 8px;
+}
+[data-budget-redesign='1'] .period-comparison-detail > summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+  color: var(--ink-2);
+  border-block: 1px solid var(--rule);
+}
+@media (max-width: 767px) {
+  [data-budget-redesign='1'] .period-comparison .dv li {
+    min-height: 60px;
+    padding-block: 8px;
+  }
+  [data-budget-redesign='1'] .period-comparison .dv-track {
+    height: 16px;
+  }
+  [data-budget-redesign='1'] .period-comparison .dv-val small {
+    display: none;
+  }
+}
+@page period-summary-page {
+  size: A4 portrait;
+  margin: 8mm;
+}
+@media print {
+  /* Print the chosen representation. The full legacy sheets remain available in A4 detail view. */
+  [data-budget-redesign='1']
+    :is(.onepager-report, .year-report)[data-paper-view='summary']
+    > .period-summary {
+    display: block !important;
+    margin: 0;
+  }
+  [data-budget-redesign='1'] .onepager-report[data-paper-view='summary'] > .psheet-wrap,
+  [data-budget-redesign='1'] .year-report[data-paper-view='summary'] > .ov-sheets,
+  [data-budget-redesign='1'] .period-print-settings,
+  [data-budget-redesign='1'] .period-summary .chart-data-table {
+    display: none !important;
+  }
+  [data-budget-redesign='1'] .period-summary .period-paper {
+    --ink: #0b1b33;
+    --ink-2: #3a4e6e;
+    --ink-3: #4d6a89;
+    --surface: #fff;
+    --primary: #1747a6;
+    --line: #1747a6;
+    --line-2: #6786ac;
+    --rule: #d6dfed;
+    --rule-strong: #6786ac;
+    --graticule: #e9eef6;
+    --fs-body: 15px;
+    --fs-table: 14px;
+    --fs-title: 16px;
+    --fs-meta: 13px;
+    --fs-label: 11px;
+    page: period-summary-page;
+    zoom: 1;
+    width: 194mm;
+    max-width: none;
+    min-height: 0;
+    height: 279mm;
+    box-sizing: border-box;
+    padding: 10mm;
+    margin: 0;
+    gap: 12px;
+    background: #fff;
+    color: var(--ink);
+    border: 0;
+    break-inside: avoid;
+    break-after: page;
+  }
+  [data-budget-redesign='1'] .period-paper-heading {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    clip: auto;
+    overflow: visible;
+    white-space: normal;
+  }
+  [data-budget-redesign='1'] .period-paper-heading,
+  [data-budget-redesign='1'] .period-paper-lead,
+  [data-budget-redesign='1'] .period-desktop-months,
+  [data-budget-redesign='1'] .period-desktop-wealth {
+    display: block;
+  }
+  [data-budget-redesign='1'] .period-paper-footer {
+    display: grid;
+  }
+  [data-budget-redesign='1'] .period-paper .period-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  [data-budget-redesign='1'] .period-kpis > div {
+    padding: 8px 10px;
+  }
+  [data-budget-redesign='1'] .period-summary-table :is(th, td) {
+    padding-block: 4px;
+  }
+  [data-budget-redesign='1'] .period-summary-table thead {
+    display: table-header-group;
+  }
+  [data-budget-redesign='1'] .period-month-summary .period-summary-table td:nth-child(n + 3) {
+    display: table-cell;
+  }
+  [data-budget-redesign='1'] .period-paper .period-summary-chart svg {
+    max-height: 150px;
+  }
+}
+
+@media print {
+  [data-budget-redesign='1'] .period-summary .period-paper:last-of-type {
+    break-after: auto;
+  }
+}
+@media print {
+  [data-budget-redesign='1']:has(.period-summary) .m-status {
+    display: none !important;
+  }
+}
+@media print {
+  body:has([data-budget-redesign='1'] [data-paper-view='summary'] > .period-summary) {
+    page: period-summary-page;
+  }
+  [data-budget-redesign='1'] .rs-scope:has(> .onepager-report[data-paper-view='summary']) {
+    display: block;
+  }
+}
+
+[data-budget-redesign='1'] .period-comparison-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 8px;
+}
+[data-budget-redesign='1'] .period-comparison-actions .btn {
+  min-height: 44px;
+}
+[data-budget-redesign='1'] .period-mobile-table {
+  display: none;
+}
+@media screen and (max-width: 767px) {
+  [data-budget-redesign='1'] .period-comparison [data-table-open='false'] .period-comparison-table {
+    display: none;
+  }
+  [data-budget-redesign='1'] .period-mobile-table {
+    display: inline-flex;
+  }
+}
+@media print {
+  [data-budget-redesign='1'] .period-comparison-actions {
+    display: none;
+  }
+  [data-budget-redesign='1']
+    .redesign-report-frame:has(.period-comparison)
+    .redesign-report-head
+    .redesign-report-calculation {
+    display: flex !important;
+  }
+  [data-budget-redesign='1'] .period-comparison-detail > summary {
+    display: none !important;
+  }
+}

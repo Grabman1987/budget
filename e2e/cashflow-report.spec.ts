@@ -36,6 +36,15 @@ async function inspect(page: Page, info: TestInfo, label: string) {
   }
 }
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(
+    (ids) => {
+      for (const id of ids) localStorage.setItem(`budget-report-r8-${id}`, '1');
+    },
+    ['cashflow-months'],
+  );
+});
+
 test('figure, chain, Kapitalerträge line, charts and table agree with the cashflow API', async ({
   page,
 }, info) => {

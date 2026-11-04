@@ -1,3 +1,4 @@
+import { openCustomExplorer } from './explorer-controls';
 import { expect, devices } from '@playwright/test';
 import type { ExplorerViewsState, ExplorerViewsWrite } from '@budget/domain';
 import { test } from './isolated-ledger';
@@ -36,7 +37,7 @@ test('saved Explorer views survive independent contexts, editing, deletion and g
         })
       ).status(),
     ).toBe(403);
-    await page.goto('/reports/explorer');
+    await openCustomExplorer(page);
     await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
     await page.getByLabel('Spalten').selectOption('jahr');
     await page.getByLabel('Kennzahl').selectOption('avg');
@@ -45,7 +46,7 @@ test('saved Explorer views survive independent contexts, editing, deletion and g
     await expect(page.getByRole('button', { name: 'Muster', exact: true })).toBeVisible();
     const first = (await (await page.request.get(endpoint)).json()) as ExplorerViewsState;
     const id = first.views[0]!.id;
-    await other.goto('/reports/explorer');
+    await openCustomExplorer(other);
     await other.getByRole('button', { name: 'Muster', exact: true }).click();
     await expect(other.getByLabel('Kennzahl')).toHaveValue('avg');
     await expect(other.getByLabel('Spalten')).toHaveValue('jahr');
@@ -120,7 +121,7 @@ test('legacy promotion recovers a lost acknowledgment without overwriting or dro
       await route.abort('failed');
     } else await route.continue();
   });
-  await page.goto('/reports/explorer');
+  await openCustomExplorer(page);
   await expect(page.getByText(/Lokale Ansichten bleiben erhalten/)).toBeVisible();
   expect(await page.evaluate((key) => localStorage.getItem(key), localKey)).toBe(raw);
   await page.getByRole('button', { name: 'Erneut versuchen', exact: true }).click();
@@ -144,7 +145,7 @@ test('legacy promotion recovers a lost acknowledgment without overwriting or dro
   });
   try {
     const independent = await context.newPage();
-    await independent.goto('/reports/explorer');
+    await openCustomExplorer(independent);
     await expect(independent.getByRole('button', { name: 'Muster', exact: true })).toBeVisible();
     await independent.getByRole('button', { name: 'Muster (lokal 1)', exact: true }).click();
     await expect(independent.getByLabel('Kennzahl')).toHaveValue('avg');
@@ -166,7 +167,7 @@ test('a forty-character saved view keeps its edit and delete controls inside the
     data: { kind: 'save', revision: initial.revision, view: { name, query } },
   });
   expect(response.ok()).toBe(true);
-  await page.goto('/reports/explorer');
+  await openCustomExplorer(page);
   const chip = page.getByRole('button', { name, exact: true });
   await expect(chip).toBeVisible();
   const icon = await chip.locator('svg').boundingBox();

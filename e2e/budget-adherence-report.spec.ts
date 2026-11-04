@@ -1,3 +1,4 @@
+import { retainBudgetCostInflationReaders } from './budget-cost-inflation-controls';
 import { test as isolatedTest } from './isolated-ledger';
 import { expect, sampleTest as test } from './sample';
 import { inspectReport } from './spending-helpers';
@@ -59,7 +60,9 @@ test('shows plan against actuals of August 2026 with the 50/30/20 history and pl
 test('the running month counts up to today and marks overspending as action', async ({ page }) => {
   await page.goto('/reports/budgettreue?monat=2026-09');
   await expect(page.getByRole('heading', { name: 'September 2026 · bis 17.' })).toBeVisible();
-  await expect(page.getByText('Ist bis heute')).toBeVisible();
+  await expect(
+    page.getByRole('group', { name: 'Maßkette Plan gegen Ist' }).getByText('Ist bis heute'),
+  ).toBeVisible();
   await expect(page.getByTestId('sr-month')).toHaveText('September 2026');
   // The history shows only months that are over.
   await expect(page.locator('.sr-523-row').last()).toContainText('Aug 26');
@@ -116,3 +119,5 @@ isolatedTest(
     await inspectReport(page, info, 'nonpositive-plan');
   },
 );
+
+test.beforeEach(async ({ page }) => retainBudgetCostInflationReaders(page));

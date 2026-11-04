@@ -116,6 +116,8 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
       .locator('.settings-source-head button[aria-expanded]')
       .click();
   const source = page.locator('section[aria-labelledby="payslip-source-title"]');
+  if (redesign) await source.getByLabel('Gehaltskonto', { exact: true }).scrollIntoViewIfNeeded();
+
   await source.getByLabel('Gehaltskonto', { exact: true }).selectOption(account.account.id);
   await source.getByRole('button', { name: 'Lohnart hinzufügen' }).click();
   await source.getByLabel('Lohnart 1', { exact: true }).fill('899');
@@ -125,6 +127,7 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   await inspectReport(page, info, 'payslip-source');
   await page.goto('/plan/monat/einnahmen?monat=2026-09');
   await expectIncomeHead(page, '2.975,00 €');
+
   await inspectReport(page, info, '609-income');
   await page.goto('/reports/gehalt?monat=2026-09');
   await expect(

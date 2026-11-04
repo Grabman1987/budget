@@ -10,6 +10,8 @@ import {
   type YearReport,
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
+import { YearSummary } from './period-report-summary';
+import { PeriodPresentation, usePaperView } from './period-presentation';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { Printer } from 'lucide-react';
 import { useState } from 'react';
@@ -40,6 +42,7 @@ export function JahresreportPage({ report, meta }: { report: ReportEntry; meta: 
   const [year, setYear] = useState<number | null>(null);
   const query = useQuery(yearReportQuery(year));
   const data = query.data;
+  const paperView = usePaperView();
   // The Finanz-Check of the year's last month end is stored for the last twelve month ends only.
   const lastMonth = data?.report.months[data.report.months.length - 1];
   useRuleDerivation(
@@ -93,7 +96,14 @@ export function JahresreportPage({ report, meta }: { report: ReportEntry; meta: 
             }
           : undefined
       }
-      {...(REDESIGN_ENABLED ? { extraFields: [{ label: 'Jahr', value: yearControls }] } : {})}
+      {...(REDESIGN_ENABLED
+        ? {
+            extraFields: [
+              { label: 'Jahr', value: yearControls },
+              ...(paperView ? [{ label: 'Darstellung', value: <PeriodPresentation /> }] : []),
+            ],
+          }
+        : {})}
       verdict={
         data && !query.isFetching && !query.isError
           ? {
@@ -123,7 +133,10 @@ export function JahresreportPage({ report, meta }: { report: ReportEntry; meta: 
             : 'wird geladen'
       }
     >
-      <div className="kview ov year-report">
+      <div
+        className="kview ov year-report"
+        data-paper-view={REDESIGN_ENABLED ? (paperView ? 'druckblatt' : 'summary') : undefined}
+      >
         {query.isPending && <LoadingNote what="Jahresreport" />}
         {query.isError && (
           <ErrorNote what="Jahresreport" error={query.error} onRetry={() => void query.refetch()} />
@@ -151,7 +164,10 @@ export function JahresreportPage({ report, meta }: { report: ReportEntry; meta: 
                 </p>
               </section>
             ) : (
-              <Sheets data={data} />
+              <>
+                {REDESIGN_ENABLED && <YearSummary data={data} />}
+                <Sheets data={data} />
+              </>
             )}
           </>
         )}

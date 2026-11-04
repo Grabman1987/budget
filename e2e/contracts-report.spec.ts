@@ -1,3 +1,4 @@
+import { retainBudgetCostInflationReaders } from './budget-cost-inflation-controls';
 import { expect, sampleTest as test } from './sample';
 import { inspectReport } from './spending-helpers';
 
@@ -44,3 +45,5 @@ test('lists the contracts of the expected payments with R10 quote, price history
 
   await inspectReport(page, info, 'contracts');
 });
+
+test.beforeEach(async ({ page }) => retainBudgetCostInflationReaders(page));

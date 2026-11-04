@@ -1,3 +1,4 @@
+import { openCustomExplorer, retainExplorerReaders } from './explorer-controls';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase } from '@budget/db';
@@ -109,6 +110,7 @@ async function inspect(
 ) {
   const closeObservation = await observe625Close(page);
   await page.addInitScript(() => localStorage.setItem('budget-theme', 'light'));
+  await retainExplorerReaders(page);
   await page.goto(
     `/reports/explorer?vorlage=${id}&zeitraum=${id === 'total' ? '3J' : id === 'year' ? 'YTD' : '1J'}&kategorien=%5B%22food%22%5D`,
   );
@@ -437,7 +439,7 @@ test('saved custom view and exact627 CSV survive fixed-template use with grouped
 }) => {
   seed(isolatedLedger.databasePath);
   const before = financialFingerprint(isolatedLedger.databasePath);
-  await page.goto('/reports/explorer');
+  await openCustomExplorer(page);
   await page.getByLabel('Ansicht speichern').fill('625 Eigene Ansicht');
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   const view = page.getByRole('button', { name: '625 Eigene Ansicht', exact: true });
