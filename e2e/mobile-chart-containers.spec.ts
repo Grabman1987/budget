@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect } from './sample';
 import { showAllocationEvidence } from './wealth-navigation';
+import { redesignReportsOn } from './report-frame';
 
 test.describe('UX-3c phone chart and table containers', () => {
   test.beforeEach(async ({ page }) => {
@@ -131,6 +132,13 @@ test.describe('UX-3c phone chart and table containers', () => {
     page,
   }) => {
     await page.goto('/reports/jahresansicht?monat=2026-09');
+    if (await redesignReportsOn(page)) {
+      const details = page.locator('.r6-table-details');
+      await expect(details).toBeVisible();
+      await expect(details).not.toHaveAttribute('open');
+      await details.getByText('Vollständige Tabelle anzeigen', { exact: true }).click();
+      await expect(details).toHaveAttribute('open');
+    }
     const region = page.getByRole('region', {
       name: 'Jahresansicht, bei Bedarf horizontal verschiebbar',
       exact: true,
