@@ -1,4 +1,5 @@
 import { openR8BodyDetails } from './income-spending-controls';
+import { retainExplorerTable } from './explorer-controls';
 import { redesignReportsOn } from './report-frame';
 import AxeBuilder from '@axe-core/playwright';
 import {
@@ -32,6 +33,7 @@ import { sampleTest as test, expect } from './sample';
 
 // The ledger read behind every report is real work on the sample ledger; the machine may be busy.
 test.describe.configure({ timeout: 90_000 });
+test.beforeEach(async ({ page }) => retainExplorerTable(page));
 
 async function facts(page: Page, netWorth = false): Promise<ReportTables> {
   const response = await page.request.get(

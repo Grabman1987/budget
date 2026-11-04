@@ -12,10 +12,12 @@ export function NextMonthPlan({
   data,
   onApply,
   onDirtyChange,
+  disabled = false,
 }: {
   data: NextClosePlan;
   onApply: (items: Array<{ categoryId: string; assignedCents: number }>) => Promise<boolean>;
   onDirtyChange?: (dirty: boolean) => void;
+  disabled?: boolean;
 }) {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -83,7 +85,7 @@ export function NextMonthPlan({
     0n;
   const apply = async (ids: string[]) => {
     const selected = selection(ids);
-    if (invalid || !funded(ids) || busy || !selected.length) return;
+    if (disabled || invalid || !funded(ids) || busy || !selected.length) return;
     setBusy(true);
     if (await onApply(selected)) {
       const remaining = Object.fromEntries(
@@ -107,7 +109,7 @@ export function NextMonthPlan({
         Durchschnitt{all ? ' · alle' : ''}
       </Button>
       <Button
-        disabled={busy || invalid || !funded(ids) || selection(ids).length === 0}
+        disabled={disabled || busy || invalid || !funded(ids) || selection(ids).length === 0}
         onClick={() => void apply(ids)}
       >
         Plan übernehmen{all ? ' · alle' : ''}

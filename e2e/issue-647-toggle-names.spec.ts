@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import { openR8BodyDetails } from './income-spending-controls';
 import { sampleTest as test, expect } from './sample';
 
 /**
@@ -15,6 +16,7 @@ test('each section toggle is named by the action and its own section title', asy
   page,
 }, info) => {
   await page.goto(MONTH);
+  await openR8BodyDetails(page);
   const toggles = page.locator('main .section-toggle');
   await expect(toggles.first()).toBeVisible({ timeout: 20_000 });
   const count = await toggles.count();
@@ -23,6 +25,7 @@ test('each section toggle is named by the action and its own section title', asy
   const names: string[] = [];
   for (let i = 0; i < count; i += 1) {
     const toggle = toggles.nth(i);
+    await expect(toggle).toBeVisible();
     const title = (
       await toggle.evaluate((el) => {
         const id = el.getAttribute('aria-labelledby')!.split(' ')[1]!;

@@ -2,6 +2,7 @@ import { openHeuteReview } from './heute-visual-fixture';
 import { redesignEnabled, openPaymentManagement } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import { withShellControls } from './shell-actions';
+import { MIN_TARGET_PX } from './ledger-helpers';
 import { openDatabase, schema } from '@budget/db';
 import {
   expect,
@@ -202,7 +203,7 @@ async function scene(
   await expect(page.getByTestId('heute-month-note')).toContainText('August');
   const compactGeometry = await chartGeometry(card.locator('.rf-chart'));
   const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-  const minimum = coarse ? 44 : 24;
+  const minimum = coarse ? MIN_TARGET_PX : 24;
   await photo(page, '.heute-compact-forecast', `forecast-card-${profile}-${theme}`, info);
   const details = card.getByRole('link', { name: 'Details zur Kontoprognose für 35 Tage' });
   await hit(details, minimum);
@@ -244,7 +245,7 @@ async function scene(
     const horizon = page.getByRole('combobox', { name: 'Prognosezeitraum' });
     await expect(horizon.locator('option')).toHaveCount(4);
     await expect(horizon).toHaveValue('35d');
-    await hit(horizon, 44);
+    await hit(horizon, MIN_TARGET_PX);
   } else {
     const horizons = page.getByRole('group', { name: 'Prognosezeitraum' }).getByRole('button');
     await expect(horizons).toHaveCount(4);
