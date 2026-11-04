@@ -1,4 +1,6 @@
 import { withShellControls } from './shell-actions';
+import { retainExplorerTable } from './explorer-controls';
+import { openSpendingGroups } from './income-spending-controls';
 import { cents, formatEuro, lastDayOfMonth } from '@budget/domain';
 import type { Page } from '@playwright/test';
 import type { ReportTables } from '../apps/web/src/reports/table-reports-api';
@@ -6,6 +8,7 @@ import { sampleTest as test, expect } from './sample';
 import { inspectReport } from './spending-helpers';
 
 test.describe.configure({ timeout: 120_000 });
+test.beforeEach(async ({ page }) => retainExplorerTable(page));
 
 async function openExpenseHeatmap(page: Page) {
   const toggle = page.locator('section[aria-labelledby="sa-explorer"] .section-toggle');
@@ -181,6 +184,7 @@ test('heatmap month cell opens the exact classified category sum and has usable 
   ]);
   await expect(sources.getByRole('alert')).toHaveCount(0);
   await page.goto(reportUrl);
+  await openSpendingGroups(page);
   const category = page.locator(`[data-category="${categoryId}"]`);
   const group = page.locator('.sa-groups > li').filter({ has: category });
   await group.locator('.sa-group-name').click();
