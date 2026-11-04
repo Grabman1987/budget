@@ -162,6 +162,7 @@ jobs:
       - name: E2E shard ${{ matrix.shard }}
         env:
           SHARD: ${{ matrix.shard }}
+          A2_EXPECT_REDESIGN: '1'
         run: |
           if [ "$CI_LANE" = "ui" ]; then
             if [ -z "$SPECS" ]; then
@@ -236,6 +237,8 @@ jobs:
       - name: Build (e2e mode)
         run: VITE_BUDGET_REDESIGN=1 npm run build:e2e
       - name: Visual specs
+        env:
+          A2_EXPECT_REDESIGN: '1'
         run: |
           mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
           npx playwright test "${specs[@]}"
