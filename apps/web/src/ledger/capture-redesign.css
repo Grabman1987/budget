@@ -261,6 +261,15 @@
   min-height: 44px;
   height: auto;
 }
+/* Theme and availability changes must switch the foreground/background pair together. */
+.bkform-redesign .bk-foot > .btn-primary {
+  transition: none;
+}
+.bkform-redesign .bk-foot > .btn-primary:disabled {
+  opacity: 1;
+  background: var(--quiet-soft);
+  color: var(--ink-2);
+}
 .bkform-redesign .bk-foot > .bk-cancel,
 .bkform-redesign .bk-foot > .bk-foot-extra {
   margin-inline-end: auto;
