@@ -3,7 +3,7 @@ import { useMemo, type ReactNode } from 'react';
 import { ErrorNote, LoadingNote, EmptyNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
-import { ReportFrame as PageFrame } from './report-frame';
+import { ReportFrame as PageFrame, type ReportCalculation } from './report-frame';
 import { useCollapsibleSections } from './month-frame';
 import { monthShort } from './table-format';
 import { reportTablesQuery, type ReportTables } from './table-reports-api';
@@ -40,6 +40,8 @@ export function TableReportFrame<T extends FrameFacts = ReportTables>({
   verdictPeriod,
   reportControls,
   embedded = false,
+  calculation,
+  basisOverride,
 }: {
   report: ReportEntry;
   verdictEnd?: string | undefined;
@@ -53,6 +55,8 @@ export function TableReportFrame<T extends FrameFacts = ReportTables>({
   className: string;
   children: (tables: T) => ReactNode;
   embedded?: boolean;
+  calculation?: ReportCalculation | undefined;
+  basisOverride?: ReactNode;
 }) {
   const tables = embedded && (query.isFetching || query.isError) ? undefined : query.data;
   const end =
@@ -107,6 +111,7 @@ export function TableReportFrame<T extends FrameFacts = ReportTables>({
     );
   return (
     <PageFrame
+      calculation={calculation}
       sourceReportId={report.id}
       sourceDate={tables?.asOf}
       verdict={verdict}
@@ -114,7 +119,7 @@ export function TableReportFrame<T extends FrameFacts = ReportTables>({
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
-      reportDataBasis={basis}
+      reportDataBasis={basisOverride ?? basis}
       {...(extraFields ? { extraFields } : {})}
     >
       {body}

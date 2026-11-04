@@ -1,4 +1,3 @@
-import { Segmented } from '@budget/ui';
 import type { SpendingPeriod } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import type { PageMeta } from '../nav/pages';
@@ -6,6 +5,7 @@ import type { ReportEntry } from '../nav/reports-catalog';
 import { PayeeAnalysisReport } from '../pages/payee-analysis-report';
 import { SpendingAnalysisReport } from './spending-analysis-report';
 import './report-views.css';
+import { ReportViewControl } from './report-view-control';
 
 const SPENDING_VIEWS = [
   { value: 'gruppen', label: 'Gruppen und Kategorien' },
@@ -29,7 +29,7 @@ export function SpendingReportViews({ report, meta }: { report: ReportEntry; met
   const changePeriod = (period: SpendingPeriod) =>
     update({ zeitraum: period, empfaenger: undefined }, true);
   const control = (
-    <Segmented
+    <ReportViewControl
       className="report-view-switch"
       label="Ansicht der Ausgabenanalyse"
       options={SPENDING_VIEWS}

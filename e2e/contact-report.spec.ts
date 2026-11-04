@@ -1,3 +1,4 @@
+import { redesignReportsOn } from './report-frame';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
 import { join } from 'node:path';
@@ -100,7 +101,18 @@ test('fixed EUR report preserves credit, running history, source links and recei
     [12000, -2000, 'confirmed', data.account.id, data.receipt.bookingId, data.today],
   ]);
   await page.goto(`/reports/kontakte?kontakt=${data.contact.id}`);
-  await expect(page).toHaveURL(new RegExp(`/konten/kontakte/${data.contact.id}$`));
+  const on = await redesignReportsOn(page);
+  await expect(page).toHaveURL(
+    on
+      ? new RegExp(`/reports/kontakte\\?kontakt=${data.contact.id}$`)
+      : new RegExp(`/konten/kontakte/${data.contact.id}$`),
+  );
+  if (on) {
+    await expect(
+      page.getByRole('heading', { name: `Kontoblatt ${data.contact.name}`, exact: true }),
+    ).toBeFocused();
+    await page.locator('[data-r8-detail="contact-history"] > summary').click();
+  }
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   await expect(sheet.locator('.contacts-balance')).toContainText('Du schuldest 20,00 €');
   const movements = sheet.locator('.contact-movements tbody tr');
@@ -112,7 +124,10 @@ test('fixed EUR report preserves credit, running history, source links and recei
   await expect(outlay.locator('td').nth(1)).toHaveText('+100,00 €');
   await expect(outlay).toContainText('01.09.2026');
   await expect(receipt.locator('td').nth(1)).toHaveText('−120,00 €');
-  await expect(sheet.getByRole('heading', { name: data.contact.name, exact: true })).toBeFocused();
+  if (!on)
+    await expect(
+      sheet.getByRole('heading', { name: data.contact.name, exact: true }),
+    ).toBeFocused();
   await receipt.locator('.contact-allocation-details > summary').click();
   await expect(receipt.locator('.contact-allocation-details')).toContainText('Guthaben: 20,00 €');
   await expect(page.getByRole('combobox', { name: /Monat|Zeitraum/ })).toHaveCount(0);
@@ -129,7 +144,7 @@ test('fixed EUR report preserves credit, running history, source links and recei
     () => matchMedia('(pointer: coarse), (max-width: 767px)').matches,
   );
   // The existing contact source is compact on desktop; the shared touch floor remains 44px.
-  if (touch) expect((await source.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  if (touch || on) expect((await source.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   else expect((await source.boundingBox())!.height).toBe(34);
   await source.focus();
   const sourceRead = page.waitForRequest(
@@ -171,14 +186,14 @@ test('balanced contacts stay hidden by default and retain deep-linked full histo
     amountCents: 10000,
   });
   await page.goto('/reports/kontakte');
-  await expect(
-    page.locator('.contacts-table').getByRole('link', { name: data.contact.name, exact: true }),
-  ).toHaveCount(0);
-  await page.getByRole('button', { name: 'Alle', exact: true }).click();
-  await page
-    .locator('.contacts-table')
-    .getByRole('link', { name: data.contact.name, exact: true })
-    .click();
+  const on = await redesignReportsOn(page);
+  const list = page.locator(on ? '.r4-contact-list' : '.contacts-table');
+  const contact = list.getByRole('link').filter({ hasText: data.contact.name });
+  await expect(contact).toHaveCount(0);
+  if (on) await page.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' }).check();
+  else await page.getByRole('button', { name: 'Alle', exact: true }).click();
+  await contact.click();
+  if (on) await page.locator('[data-r8-detail="contact-history"] > summary').click();
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   await expect(sheet.locator('.contacts-balance')).toContainText('Ausgeglichen');
   await expect(sheet.locator('.contacts-balance')).toContainText('0,00 €');
@@ -196,22 +211,27 @@ test('balanced contacts stay hidden by default and retain deep-linked full histo
   await expect(
     sheet.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ }),
   ).toBeVisible();
-  // Source context is now explicitly the area's retained-history filter.
-  await page.getByRole('link', { name: 'Zurück zu Kontakte', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Alle', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await page.getByRole('button', { name: 'Offen', exact: true }).click();
-  await expect(
-    page.locator('.contacts-table').getByRole('link', { name: data.contact.name, exact: true }),
-  ).toHaveCount(0);
+  // Both readers preserve the retained-history filter after opening a balanced contact.
+  if (on) {
+    const all = page.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' });
+    await expect(all).toBeChecked();
+    await all.uncheck();
+    await expect(contact).toHaveCount(0);
+  } else {
+    await page.getByRole('link', { name: 'Zurück zu Kontakte', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Alle', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await page.getByRole('button', { name: 'Offen', exact: true }).click();
+    await expect(contact).toHaveCount(0);
+  }
 });
 
 test('mixed-currency failure hides every figure and person ledger, with usable retry and unknown ID', async ({
   page,
 }) => {
-  const path = '**/api/contacts/foreign-contact';
+  const path = '**/api/contacts/foreign-contact*';
   await page.route(path, (route) =>
     route.fulfill({
       status: 422,
@@ -219,8 +239,13 @@ test('mixed-currency failure hides every figure and person ledger, with usable r
     }),
   );
   await page.goto('/reports/kontakte?kontakt=foreign-contact');
+  const on = await redesignReportsOn(page);
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
-  await expect(page.getByRole('alert')).toContainText('Kontoblatt konnten nicht geladen werden');
+  await expect(page.getByRole('alert')).toContainText(
+    on
+      ? 'Kontaktabrechnung konnten nicht geladen werden'
+      : 'Kontoblatt konnten nicht geladen werden',
+  );
   await expect(sheet.locator('.contacts-balance')).toHaveCount(0);
   await expect(sheet.getByRole('table')).toHaveCount(0);
   let releaseRetry!: () => void;
@@ -260,7 +285,10 @@ test('mixed-currency failure hides every figure and person ledger, with usable r
   );
   await page.getByRole('button', { name: 'Erneut versuchen', exact: true }).click();
   await expect(
-    sheet.getByRole('heading', { name: 'Wieder verfügbare Historie', exact: true }),
+    sheet.getByRole('heading', {
+      name: on ? 'Kontoblatt Wieder verfügbare Historie' : 'Wieder verfügbare Historie',
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(sheet.locator('.contacts-balance')).toContainText('Ausgeglichen');
   await page.route(path, (route) => route.fulfill({ status: 503, json: { error: 'unavailable' } }));

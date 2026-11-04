@@ -1,5 +1,11 @@
-import { ChartValue } from '@budget/ui';
-import { useAmountPrivacy, ClassSwatch, DimensionChain, Segmented } from '@budget/ui';
+import { ChartValue, Button, useMediaQuery } from '@budget/ui';
+import {
+  useAmountPrivacy,
+  maskMoneyText,
+  ClassSwatch,
+  DimensionChain,
+  Segmented,
+} from '@budget/ui';
 import {
   COMPARE_MODES,
   cents,
@@ -19,6 +25,8 @@ import { periodComparisonQuery } from './overview-api';
 import { bpText, monthLong, monthShortYear } from './overview-format';
 import './overview-reports.css';
 import './compare-report.css';
+import './period-report-summary.css';
+import './table-print.css';
 
 const MODE_OPTIONS = COMPARE_MODES.map((m) => ({ value: m.id, label: m.label }));
 
@@ -34,6 +42,9 @@ const changeBp = (now: number, before: number) =>
 export function CompareReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   useAmountPrivacy();
   const [mode, setMode] = useState<CompareMode>('vj');
+  const [detailOpen, setDetailOpen] = useState(false);
+  const printMedia = useMediaQuery('print');
+  const printing = REDESIGN_ENABLED && printMedia;
   const query = useQuery(periodComparisonQuery(mode));
   const data = query.data;
   const comparison = data?.comparison;
@@ -62,20 +73,14 @@ export function CompareReport({ report, meta }: { report: ReportEntry; meta: Pag
         comparison && comparison.current.length > 0 && !query.isFetching && !query.isError
           ? {
               label: 'Berechnung Zeitraumvergleich',
+              signed: true,
               terms: [
-                { label: 'Konsum vorher', value: cents(comparison.chain.previousCents) },
-                { op: '+', label: 'mehr', value: cents(comparison.chain.moreCents) },
-                { op: '-', label: 'weniger', value: cents(comparison.chain.lessCents) },
-                {
-                  op: '=',
-                  label: 'Konsum jetzt',
-                  value: cents(comparison.chain.currentCents),
-                  result: true,
-                },
+                { label: 'Konsum jetzt', value: cents(comparison.chain.currentCents) },
+                { op: '-', label: 'Konsum vorher', value: cents(comparison.chain.previousCents) },
               ],
               result: {
-                label: 'Konsum jetzt',
-                value: comparison.chain.currentCents,
+                label: 'Konsum · Veränderung',
+                value: comparison.chain.currentCents - comparison.chain.previousCents,
                 unit: 'money',
               },
             }
@@ -114,7 +119,9 @@ export function CompareReport({ report, meta }: { report: ReportEntry; meta: Pag
             : 'wird geladen'
       }
     >
-      <div className="kview ov compare-report">
+      <div
+        className={`kview ov compare-report${REDESIGN_ENABLED ? ' period-comparison report-table-print' : ''}`}
+      >
         {query.isPending && <LoadingNote what="Zeitraumvergleich" />}
         {query.isError && (
           <ErrorNote
@@ -125,30 +132,79 @@ export function CompareReport({ report, meta }: { report: ReportEntry; meta: Pag
         )}
         {data && comparison && (
           <>
-            <section className="card ov-card" aria-labelledby="vg-title">
-              <div className="tbd-head">
-                <h2 id="vg-title">
-                  {comparison.current.length === 0
-                    ? 'Zeitraumvergleich'
-                    : `${periodName(comparison.current)} gegen ${periodName(comparison.previous)}`}
-                </h2>
-                {!REDESIGN_ENABLED && comparisonControl}
-              </div>
-              {data.firstMonth === null ? (
-                <p className="ov-empty" role="status">
-                  Es gibt noch keine Buchungen auf Budgetkonten, die sich vergleichen ließen.
-                </p>
-              ) : comparison.current.length === 0 ? (
-                <p className="ov-empty" role="status">
-                  Dieser Vergleich braucht Buchungen in beiden Zeiträumen, das Hauptbuch beginnt
-                  aber erst im {monthLong(data.firstMonth)}. Wähle einen kürzeren Vergleich.
-                </p>
-              ) : (
-                <Body comparison={comparison} fetching={query.isFetching} />
-              )}
-            </section>
-            {comparison.current.length > 0 && (
-              <Rows rows={comparison.rows} date={periodName(comparison.current)} />
+            {REDESIGN_ENABLED && comparison.current.length > 0 ? (
+              <>
+                <Rows
+                  rows={comparison.rows}
+                  date={periodName(comparison.current)}
+                  comparison={comparison}
+                  printing={printing}
+                />
+                <details
+                  className="period-comparison-detail"
+                  open={detailOpen || printing}
+                  onToggle={(event) => {
+                    if (!printing) setDetailOpen(event.currentTarget.open);
+                  }}
+                >
+                  <summary>Kennzahlen und vollständige Berechnung</summary>
+                  <section className="card ov-card" aria-labelledby="vg-title">
+                    <div className="tbd-head">
+                      <h2 id="vg-title">
+                        {comparison.current.length === 0
+                          ? 'Zeitraumvergleich'
+                          : `${periodName(comparison.current)} gegen ${periodName(comparison.previous)}`}
+                      </h2>
+                      {!REDESIGN_ENABLED && comparisonControl}
+                    </div>
+                    {data.firstMonth === null ? (
+                      <p className="ov-empty" role="status">
+                        Es gibt noch keine Buchungen auf Budgetkonten, die sich vergleichen ließen.
+                      </p>
+                    ) : comparison.current.length === 0 ? (
+                      <p className="ov-empty" role="status">
+                        Dieser Vergleich braucht Buchungen in beiden Zeiträumen, das Hauptbuch
+                        beginnt aber erst im {monthLong(data.firstMonth)}. Wähle einen kürzeren
+                        Vergleich.
+                      </p>
+                    ) : (
+                      <Body comparison={comparison} fetching={query.isFetching} />
+                    )}
+                  </section>
+                </details>
+              </>
+            ) : (
+              <>
+                <section className="card ov-card" aria-labelledby="vg-title">
+                  <div className="tbd-head">
+                    <h2 id="vg-title">
+                      {comparison.current.length === 0
+                        ? 'Zeitraumvergleich'
+                        : `${periodName(comparison.current)} gegen ${periodName(comparison.previous)}`}
+                    </h2>
+                    {!REDESIGN_ENABLED && comparisonControl}
+                  </div>
+                  {data.firstMonth === null ? (
+                    <p className="ov-empty" role="status">
+                      Es gibt noch keine Buchungen auf Budgetkonten, die sich vergleichen ließen.
+                    </p>
+                  ) : comparison.current.length === 0 ? (
+                    <p className="ov-empty" role="status">
+                      Dieser Vergleich braucht Buchungen in beiden Zeiträumen, das Hauptbuch beginnt
+                      aber erst im {monthLong(data.firstMonth)}. Wähle einen kürzeren Vergleich.
+                    </p>
+                  ) : (
+                    <Body comparison={comparison} fetching={query.isFetching} />
+                  )}
+                </section>
+                {comparison.current.length > 0 && (
+                  <Rows
+                    rows={comparison.rows}
+                    date={periodName(comparison.current)}
+                    comparison={comparison}
+                  />
+                )}
+              </>
             )}
           </>
         )}
@@ -219,15 +275,38 @@ function Body({ comparison, fetching }: { comparison: PeriodComparison; fetching
   );
 }
 
-function Rows({ rows, date }: { rows: CompareRow[]; date: string }) {
+function Rows({
+  rows,
+  date,
+  comparison,
+  printing = false,
+}: {
+  rows: CompareRow[];
+  date: string;
+  comparison: PeriodComparison;
+  printing?: boolean;
+}) {
   useAmountPrivacy();
+  const [expanded, setExpanded] = useState(false);
+  const [tableOpen, setTableOpen] = useState(false);
+  const visibleRows = REDESIGN_ENABLED && !expanded && !printing ? rows.slice(0, 4) : rows;
   const maxDelta = Math.max(1, ...rows.map((r) => Math.abs(r.deltaCents)));
   return (
-    <section className="card ov-card" aria-labelledby="vg-rows">
+    <section
+      className="card ov-card"
+      aria-labelledby="vg-rows"
+      data-table-open={REDESIGN_ENABLED ? String(tableOpen) : undefined}
+    >
       <div className="tbd-head">
-        <h2 id="vg-rows">Veränderung je Kategorie</h2>
+        <h2 id="vg-rows">
+          {REDESIGN_ENABLED ? 'Differenz je Kategorie' : 'Veränderung je Kategorie'}
+        </h2>
         <span className="tbd-state">
-          <span className="ink">sortiert nach Ausschlag</span>
+          <span className="ink">
+            {REDESIGN_ENABLED
+              ? `${periodName(comparison.current)} · ${periodName(comparison.previous)}`
+              : 'sortiert nach Ausschlag'}
+          </span>
         </span>
       </div>
       {rows.length === 0 ? (
@@ -244,12 +323,16 @@ function Rows({ rows, date }: { rows: CompareRow[]; date: string }) {
             </span>
             <span />
           </div>
-          <ul className="dv" aria-label="Veränderung je Kategorie">
-            {rows.map((row) => (
+          <ul
+            className="dv"
+            id={REDESIGN_ENABLED ? 'vg-list' : undefined}
+            aria-label="Veränderung je Kategorie"
+          >
+            {visibleRows.map((row) => (
               <li key={row.categoryId}>
                 <span className="dv-name">
                   <ClassSwatch kind={row.class} />
-                  {row.name}
+                  {REDESIGN_ENABLED ? maskMoneyText(row.name) : row.name}
                 </span>
                 <ChartValue
                   label="Zeitraumvergleich"
@@ -278,6 +361,82 @@ function Rows({ rows, date }: { rows: CompareRow[]; date: string }) {
             ))}
           </ul>
         </>
+      )}
+      {REDESIGN_ENABLED && (
+        <div className="period-comparison-actions">
+          {rows.length > 4 && (
+            <Button
+              variant="ghost"
+              aria-expanded={expanded}
+              aria-controls="vg-list vg-table"
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded
+                ? 'Nur größte Änderungen zeigen'
+                : `Alle ${rows.length} Kategorien anzeigen`}
+            </Button>
+          )}
+          <Button
+            className="period-mobile-table"
+            variant="ghost"
+            aria-expanded={tableOpen}
+            aria-controls="vg-table"
+            onClick={() => setTableOpen(!tableOpen)}
+          >
+            {tableOpen ? 'Tabelle ausblenden' : 'Werte als Tabelle'}
+          </Button>
+        </div>
+      )}
+      {REDESIGN_ENABLED && !expanded && !printing && rows.length > 4 && (
+        <p className="period-summary-note">
+          Größte 4 von {rows.length} Änderungen. Die Summe umfasst alle Kategorien.
+        </p>
+      )}
+      {REDESIGN_ENABLED && (
+        <div
+          className="period-comparison-table"
+          id="vg-table"
+          role="region"
+          aria-label="Zeitraumvergleich als Tabelle, horizontal verschiebbar"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The complete table needs a keyboard scrolling alternative.
+          tabIndex={0}
+        >
+          <table className="period-summary-table">
+            <caption>
+              {periodName(comparison.current)} gegen {periodName(comparison.previous)}
+            </caption>
+            <thead>
+              <tr>
+                <th>Kategorie</th>
+                <th>Jetzt</th>
+                <th>Vorher</th>
+                <th>Differenz</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleRows.map((row) => (
+                <tr key={row.categoryId}>
+                  <th scope="row">{maskMoneyText(row.name)}</th>
+                  <td>{eur(row.currentCents)}</td>
+                  <td>{eur(row.previousCents)}</td>
+                  <td>{eur(row.deltaCents, { sign: true })}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th>Summe Konsum · alle Kategorien</th>
+                <td>{eur(comparison.chain.currentCents)}</td>
+                <td>{eur(comparison.chain.previousCents)}</td>
+                <td>
+                  {eur(comparison.chain.currentCents - comparison.chain.previousCents, {
+                    sign: true,
+                  })}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       )}
       <p className="ov-note">
         Balken um die Mittellinie: rechts mehr ausgegeben, links weniger; die Zahl bleibt das

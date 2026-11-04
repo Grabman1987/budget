@@ -1,4 +1,6 @@
+import { openR8BodyDetails } from './income-spending-controls';
 import { redesignLoaded } from './ledger-helpers';
+import { revealComparisonDetail } from './report-frame';
 import { openPruefenSource } from './pruefen-part';
 import AxeBuilder from '@axe-core/playwright';
 import type { InboxView } from '../apps/web/src/inbox/api';
@@ -29,6 +31,8 @@ for (const theme of ['light', 'dark'] as const) {
       }, info) => {
         await page.goto(path);
         await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+        if (name === 'vergleich') await revealComparisonDetail(page);
+        if (name === 'projekte') await openR8BodyDetails(page);
         // Wait for populated content, so a passing scan cannot just cover a loading/empty page.
         await expect(page.locator(ready).first()).toBeVisible();
         await page.evaluate(async (value) => {

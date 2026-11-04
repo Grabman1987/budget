@@ -1,4 +1,5 @@
-import { ChartValue } from '@budget/ui';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { ChartValue, useIsPhone } from '@budget/ui';
 import { ReportPeriodControl } from '../reports/period-quick-select';
 import { isReportPeriod, cents, type Period } from '@budget/domain';
 import { useAmountPrivacy, Button, DimensionChain } from '@budget/ui';
@@ -14,6 +15,8 @@ import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { ReportFrame as PageFrame } from '../reports/report-frame';
 import './payee-analysis-report.css';
+import '../reports/income-spending-redesign.css';
+import { ReportBodyDisclosure } from '../reports/report-body-disclosure';
 
 type ReportPeriod = Period;
 interface PayeeReportRow {
@@ -136,10 +139,27 @@ export function PayeeAnalysisReport({
 
   return (
     <PageFrame
+      calculation={
+        data && data.from && data.to
+          ? {
+              label: 'Berechnung Empfängerausgaben',
+              terms: [
+                { label: 'Top 5 Empfänger', value: cents(data.topFiveCents) },
+                { op: '+', label: 'Übrige Empfänger', value: cents(data.remainingCents) },
+              ],
+              result: {
+                label: 'Konsum bei Empfängern · netto',
+                value: data.totalSpendCents,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       verdict={
         data && !query.isError
           ? {
               reportId: report.id,
+              ...(REDESIGN_ENABLED ? { unavailable: !data.from || !data.to } : {}),
               period: `${data.from}..${data.to}`,
               metric: {
                 label: 'Konsum bei Empfängern',
@@ -234,6 +254,8 @@ function ReportBody({
     selected === null
       ? null
       : (data.rows.find((row) => (row.payeeId ?? 'none') === selected) ?? null);
+  const phone = useIsPhone();
+  const [allBars, setAllBars] = React.useState(false);
   const avg = data.averageSpendCents === null ? '–' : eur(data.averageSpendCents);
 
   return (
@@ -273,36 +295,40 @@ function ReportBody({
           Nettoanteil der Top 5: {share(data.topFiveSharePercent)}
           {data.totalSpendCents <= 0 && ' · bei nicht positiver Gesamtsumme nicht berechenbar'}
         </p>
-        <h3>Häufigste Empfänger</h3>
-        <table className="sr-table" data-testid="payee-frequency">
-          <thead>
-            <tr>
-              <th scope="col">Empfänger</th>
-              <th scope="col">Anzahl</th>
-              <th scope="col">Ø netto je Buchung</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...data.rows]
-              .sort((a, b) => b.bookingCount - a.bookingCount || a.name.localeCompare(b.name, 'de'))
-              .slice(0, 6)
-              .map((r) => (
-                <tr key={r.payeeId ?? 'none'}>
-                  <th scope="row">
-                    <button
-                      type="button"
-                      className="payee-row-open"
-                      onClick={() => onSelect(r.payeeId ?? 'none')}
-                    >
-                      {r.name}
-                    </button>
-                  </th>
-                  <td>{r.bookingCount}</td>
-                  <td>{eur(r.averageSpendCents)}</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+        <ReportBodyDisclosure id="payee-frequency" label="Bon-Statistik im Detail">
+          <h3>Häufigste Empfänger</h3>
+          <table className="sr-table" data-testid="payee-frequency">
+            <thead>
+              <tr>
+                <th scope="col">Empfänger</th>
+                <th scope="col">Anzahl</th>
+                <th scope="col">Ø netto je Buchung</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...data.rows]
+                .sort(
+                  (a, b) => b.bookingCount - a.bookingCount || a.name.localeCompare(b.name, 'de'),
+                )
+                .slice(0, 6)
+                .map((r) => (
+                  <tr key={r.payeeId ?? 'none'}>
+                    <th scope="row">
+                      <button
+                        type="button"
+                        className="payee-row-open"
+                        onClick={() => onSelect(r.payeeId ?? 'none')}
+                      >
+                        {r.name}
+                      </button>
+                    </th>
+                    <td>{r.bookingCount}</td>
+                    <td>{eur(r.averageSpendCents)}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </ReportBodyDisclosure>
         <h3 className="payee-chart-title">Empfänger nach Nettoausgaben</h3>
         {data.rows.length === 0 ? (
           <p role="status">
@@ -310,7 +336,7 @@ function ReportBody({
           </p>
         ) : (
           <ol className="payee-bars" aria-label="Empfänger, nach Nettoausgaben sortiert">
-            {data.rows.slice(0, 14).map((row) => (
+            {data.rows.slice(0, REDESIGN_ENABLED && !allBars ? 6 : 14).map((row) => (
               <li key={row.payeeId ?? 'none'}>
                 <button
                   type="button"
@@ -346,222 +372,249 @@ function ReportBody({
             ))}
           </ol>
         )}
+        {REDESIGN_ENABLED && data.rows.length > 6 && (
+          <button
+            type="button"
+            className="btn"
+            aria-expanded={allBars}
+            onClick={() => setAllBars(!allBars)}
+          >
+            {allBars
+              ? 'Nur größte Empfänger zeigen'
+              : `Alle ${Math.min(14, data.rows.length)} Diagrammzeilen anzeigen`}
+          </button>
+        )}
         <p className="payee-legend">
           Balken nach rechts zeigen Nettoausgaben, Balken nach links Nettoerstattungen.
         </p>
       </section>
 
-      <section className="payee-frequent" aria-labelledby="payee-frequent-title">
-        <div className="payee-section-head">
-          <h2 id="payee-frequent-title">Häufige Empfänger</h2>
-        </div>
-        <table className="payee-compact-table">
-          <thead>
-            <tr>
-              <th scope="col">Empfänger</th>
-              <th scope="col">Buchungen</th>
-              <th scope="col">Ø netto</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...data.rows]
-              .sort((a, b) => b.bookingCount - a.bookingCount || b.amountCents - a.amountCents)
-              .slice(0, 8)
-              .map((row) => (
-                <tr key={row.payeeId ?? 'none'}>
-                  <th scope="row">{row.name}</th>
-                  <td>{row.bookingCount}</td>
-                  <td>{eur(row.averageSpendCents)}</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-        <p className="payee-note">
-          Erstattungen mindern die Aktivitäten des Empfängers, bei dem sie gebucht wurden. Es wird
-          keine ursprüngliche Ausgabe zugeordnet.
-        </p>
-      </section>
-
-      <section className="payee-detail" aria-labelledby="payee-detail-title">
-        <div className="payee-section-head">
-          <h2 id="payee-detail-title">Alle Empfänger</h2>
-          <span>{data.rows.length} Empfänger</span>
-        </div>
-        <div
-          className="payee-scroll"
-          role="region"
-          aria-label="Empfängerübersicht, seitlich scrollbar"
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the complete recipient table.
-          tabIndex={0}
-        >
-          <table className="payee-table">
-            <caption className="sr-only">
-              Nettoausgaben, Buchungen und Vergleich je Empfänger
-            </caption>
+      <ReportBodyDisclosure
+        id="payee-bon"
+        label="Häufige Empfänger und Bon-Statistik"
+        defaultOpen={!phone}
+      >
+        <section className="payee-frequent" aria-labelledby="payee-frequent-title">
+          <div className="payee-section-head">
+            <h2 id="payee-frequent-title">Häufige Empfänger</h2>
+          </div>
+          <table className="payee-compact-table">
             <thead>
               <tr>
                 <th scope="col">Empfänger</th>
-                <th scope="col">Kategorien</th>
                 <th scope="col">Buchungen</th>
                 <th scope="col">Ø netto</th>
-                <th scope="col">Summe netto</th>
-                <th scope="col">Nettoanteil</th>
-                <th scope="col">Änderung zur Vorperiode</th>
               </tr>
             </thead>
             <tbody>
-              {data.rows.map((row) => (
-                <tr
-                  key={row.payeeId ?? 'none'}
-                  className={(row.payeeId ?? 'none') === selected ? 'is-selected' : ''}
-                >
-                  <th scope="row">
-                    <button
-                      type="button"
-                      className="payee-row-button"
-                      aria-expanded={(row.payeeId ?? 'none') === selected}
-                      aria-controls={bookingDetailId}
-                      onClick={() =>
-                        onSelect(
-                          (row.payeeId ?? 'none') === selected ? null : (row.payeeId ?? 'none'),
-                        )
-                      }
-                    >
-                      {row.name}
-                    </button>
-                  </th>
-                  <td>{row.categories.map((category) => category.name).join(', ') || '–'}</td>
-                  <td className="numeric">{row.bookingCount}</td>
-                  <td className="numeric">{eur(row.averageSpendCents)}</td>
-                  <td className="numeric">
-                    <strong>{eur(row.amountCents)}</strong>
-                  </td>
-                  <td className="numeric">{share(row.sharePercent)}</td>
-                  <td className="numeric">
-                    {row.previousAmountCents === null ? '–' : eur(row.changeCents ?? 0)}
-                  </td>
-                </tr>
-              ))}
+              {[...data.rows]
+                .sort((a, b) => b.bookingCount - a.bookingCount || b.amountCents - a.amountCents)
+                .slice(0, 8)
+                .map((row) => (
+                  <tr key={row.payeeId ?? 'none'}>
+                    <th scope="row">{row.name}</th>
+                    <td>{row.bookingCount}</td>
+                    <td>{eur(row.averageSpendCents)}</td>
+                  </tr>
+                ))}
             </tbody>
           </table>
-        </div>
-        {data.previousAvailable ? (
           <p className="payee-note">
-            Veränderung zur gleich langen Vorperiode (
-            {data.previousFrom && data.previousTo
-              ? `${longDay(data.previousFrom)} bis ${longDay(data.previousTo)}`
-              : ''}
-            ). Positive oder negative Werte zeigen den gebuchten Netto-Unterschied.
+            Erstattungen mindern die Aktivitäten des Empfängers, bei dem sie gebucht wurden. Es wird
+            keine ursprüngliche Ausgabe zugeordnet.
           </p>
-        ) : (
-          <p className="payee-note">
-            Für die gleich lange Vorperiode liegen nicht genügend geschlossene Quelldaten vor.
-          </p>
-        )}
-        <div
-          className="payee-drilldown"
-          id={bookingDetailId}
-          aria-labelledby={`${bookingDetailId}-heading`}
-          aria-live="polite"
-          hidden={!selectedRow}
-        >
+        </section>
+      </ReportBodyDisclosure>
+      <ReportBodyDisclosure
+        id="payee-all"
+        label="Alle Empfänger, Kategorien und Buchungen"
+        reveal={selected ?? undefined}
+      >
+        <section className="payee-detail" aria-labelledby="payee-detail-title">
           <div className="payee-section-head">
-            <h3 id={`${bookingDetailId}-heading`}>
-              {selectedRow ? `Buchungen · ${selectedRow.name}` : 'Buchungen'}
-            </h3>
-            <button type="button" className="payee-close" onClick={() => onSelect(null)}>
-              Schließen
-            </button>
+            <h2 id="payee-detail-title">Alle Empfänger</h2>
+            <span>{data.rows.length} Empfänger</span>
           </div>
-          {selectedRow && (
-            <>
-              {detail.isFetching && !detail.isError && <LoadingNote what="Buchungen" />}
-              {detail.isError && (
-                <ErrorNote
-                  what="Buchungen"
-                  error={detail.error}
-                  onRetry={() =>
-                    void (detail.isFetchNextPageError ? detail.fetchNextPage() : detail.refetch())
-                  }
-                />
-              )}
-              {detail.data && !detail.isFetching && !detail.isError && (
-                <>
-                  <p className="payee-note">
-                    {detail.data.pages[0]?.total ?? 0} passende Buchungen · seitlich scrollbar
-                  </p>
-                  <div
-                    className="payee-scroll"
-                    role="region"
-                    aria-label="Buchungen dieses Empfängers, seitlich scrollbar"
-                    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the complete booking table.
-                    tabIndex={0}
+          <div
+            className="payee-scroll"
+            role="region"
+            aria-label="Empfängerübersicht, seitlich scrollbar"
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the complete recipient table.
+            tabIndex={0}
+          >
+            <table className="payee-table">
+              <caption className="sr-only">
+                Nettoausgaben, Buchungen und Vergleich je Empfänger
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Empfänger</th>
+                  <th scope="col">Kategorien</th>
+                  <th scope="col">Buchungen</th>
+                  <th scope="col">Ø netto</th>
+                  <th scope="col">Summe netto</th>
+                  <th scope="col">Nettoanteil</th>
+                  <th scope="col">Änderung zur Vorperiode</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.rows.map((row) => (
+                  <tr
+                    key={row.payeeId ?? 'none'}
+                    className={(row.payeeId ?? 'none') === selected ? 'is-selected' : ''}
                   >
-                    <table className="payee-table payee-bookings">
-                      <thead>
-                        <tr>
-                          <th scope="col">Datum</th>
-                          <th scope="col">Buchung</th>
-                          <th scope="col">Kategorien</th>
-                          <th scope="col">Status</th>
-                          <th scope="col">Netto</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {detail.data.pages
-                          .flatMap((page) => page.items)
-                          .map((item) => (
-                            <tr key={item.booking.id}>
-                              <td>{longDay(item.booking.date)}</td>
-                              <th scope="row">
-                                <AppLink
-                                  to="/konten/buchungen"
-                                  search={{ buchung: item.booking.id }}
-                                >
-                                  {item.booking.payeeName ?? 'Ohne Empfänger'}
-                                </AppLink>
-                              </th>
-                              <td>
-                                {item.categories
-                                  .map((category) => `${category.name} ${eur(category.spendCents)}`)
-                                  .join(' · ') || '–'}
-                              </td>
-                              <td>{statusName[item.booking.status] ?? item.booking.status}</td>
-                              <td className="numeric">
-                                <strong>{eur(item.spendCents)}</strong>
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {detail.hasNextPage && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => void detail.fetchNextPage()}
-                      disabled={detail.isFetchingNextPage}
-                    >
-                      Weitere Buchungen laden
-                    </Button>
-                  )}
-                </>
-              )}
-            </>
+                    <th scope="row">
+                      <button
+                        type="button"
+                        className="payee-row-button"
+                        aria-expanded={(row.payeeId ?? 'none') === selected}
+                        aria-controls={bookingDetailId}
+                        onClick={() =>
+                          onSelect(
+                            (row.payeeId ?? 'none') === selected ? null : (row.payeeId ?? 'none'),
+                          )
+                        }
+                      >
+                        {row.name}
+                      </button>
+                    </th>
+                    <td>{row.categories.map((category) => category.name).join(', ') || '–'}</td>
+                    <td className="numeric">{row.bookingCount}</td>
+                    <td className="numeric">{eur(row.averageSpendCents)}</td>
+                    <td className="numeric">
+                      <strong>{eur(row.amountCents)}</strong>
+                    </td>
+                    <td className="numeric">{share(row.sharePercent)}</td>
+                    <td className="numeric">
+                      {row.previousAmountCents === null ? '–' : eur(row.changeCents ?? 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {data.previousAvailable ? (
+            <p className="payee-note">
+              Veränderung zur gleich langen Vorperiode (
+              {data.previousFrom && data.previousTo
+                ? `${longDay(data.previousFrom)} bis ${longDay(data.previousTo)}`
+                : ''}
+              ). Positive oder negative Werte zeigen den gebuchten Netto-Unterschied.
+            </p>
+          ) : (
+            <p className="payee-note">
+              Für die gleich lange Vorperiode liegen nicht genügend geschlossene Quelldaten vor.
+            </p>
           )}
-        </div>
-      </section>
-
-      <p className="payee-scope">
-        Berücksichtigt sind Bedarf- und Wunschkategorien auf Budgetkonten; Zukunft, interne
-        Umbuchungen, Einnahmen- und Kartenzahlungskategorien sowie Auslagen-Durchlaufkategorien
-        gehören nicht zu dieser Summe. Unzugeordnete Auszahlungen im Zeitraum:{' '}
-        <strong>{eur(data.excludedUnclassifiedOutflowCents)}</strong>. Vorgemerkte, bestätigte und
-        geprüfte Buchungen sind enthalten (
-        {data.observedStatuses.map((status) => statusName[status] ?? status).join(', ') || 'keine'}
-        ). Nettoerstattungen bleiben dem gebuchten Empfänger zugeordnet. Buchungen ohne Namen stehen
-        als „Ohne Empfänger“ in der Übersicht.
-      </p>
+          <div
+            className="payee-drilldown"
+            id={bookingDetailId}
+            aria-labelledby={`${bookingDetailId}-heading`}
+            aria-live="polite"
+            hidden={!selectedRow}
+          >
+            <div className="payee-section-head">
+              <h3 id={`${bookingDetailId}-heading`}>
+                {selectedRow ? `Buchungen · ${selectedRow.name}` : 'Buchungen'}
+              </h3>
+              <button type="button" className="payee-close" onClick={() => onSelect(null)}>
+                Schließen
+              </button>
+            </div>
+            {selectedRow && (
+              <>
+                {detail.isFetching && !detail.isError && <LoadingNote what="Buchungen" />}
+                {detail.isError && (
+                  <ErrorNote
+                    what="Buchungen"
+                    error={detail.error}
+                    onRetry={() =>
+                      void (detail.isFetchNextPageError ? detail.fetchNextPage() : detail.refetch())
+                    }
+                  />
+                )}
+                {detail.data && !detail.isFetching && !detail.isError && (
+                  <>
+                    <p className="payee-note">
+                      {detail.data.pages[0]?.total ?? 0} passende Buchungen · seitlich scrollbar
+                    </p>
+                    <div
+                      className="payee-scroll"
+                      role="region"
+                      aria-label="Buchungen dieses Empfängers, seitlich scrollbar"
+                      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the complete booking table.
+                      tabIndex={0}
+                    >
+                      <table className="payee-table payee-bookings">
+                        <thead>
+                          <tr>
+                            <th scope="col">Datum</th>
+                            <th scope="col">Buchung</th>
+                            <th scope="col">Kategorien</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Netto</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detail.data.pages
+                            .flatMap((page) => page.items)
+                            .map((item) => (
+                              <tr key={item.booking.id}>
+                                <td>{longDay(item.booking.date)}</td>
+                                <th scope="row">
+                                  <AppLink
+                                    to="/konten/buchungen"
+                                    search={{ buchung: item.booking.id }}
+                                  >
+                                    {item.booking.payeeName ?? 'Ohne Empfänger'}
+                                  </AppLink>
+                                </th>
+                                <td>
+                                  {item.categories
+                                    .map(
+                                      (category) => `${category.name} ${eur(category.spendCents)}`,
+                                    )
+                                    .join(' · ') || '–'}
+                                </td>
+                                <td>{statusName[item.booking.status] ?? item.booking.status}</td>
+                                <td className="numeric">
+                                  <strong>{eur(item.spendCents)}</strong>
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {detail.hasNextPage && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void detail.fetchNextPage()}
+                        disabled={detail.isFetchingNextPage}
+                      >
+                        Weitere Buchungen laden
+                      </Button>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+      </ReportBodyDisclosure>
+      <ReportBodyDisclosure id="payee-basis" label="Datenbasis und Definition">
+        <p className="payee-scope">
+          Berücksichtigt sind Bedarf- und Wunschkategorien auf Budgetkonten; Zukunft, interne
+          Umbuchungen, Einnahmen- und Kartenzahlungskategorien sowie Auslagen-Durchlaufkategorien
+          gehören nicht zu dieser Summe. Unzugeordnete Auszahlungen im Zeitraum:{' '}
+          <strong>{eur(data.excludedUnclassifiedOutflowCents)}</strong>. Vorgemerkte, bestätigte und
+          geprüfte Buchungen sind enthalten (
+          {data.observedStatuses.map((status) => statusName[status] ?? status).join(', ') ||
+            'keine'}
+          ). Nettoerstattungen bleiben dem gebuchten Empfänger zugeordnet. Buchungen ohne Namen
+          stehen als „Ohne Empfänger“ in der Übersicht.
+        </p>
+      </ReportBodyDisclosure>
     </>
   );
 }

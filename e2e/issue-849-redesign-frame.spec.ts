@@ -54,7 +54,7 @@ for (const [name, path, chain] of reports)
         true,
       );
       expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-      const folder = 'docs/evidence/redesign-reports-20261102';
+      const folder = info.outputPath('report-frame');
       mkdirSync(folder, { recursive: true });
       if (info.project.name !== 'webkit-iphone')
         await page.screenshot({
@@ -85,11 +85,12 @@ test('missing, loading and failed reads never become a zero lead, and retry keep
   await expect(page.getByText(/gibt es keine Aufzeichnungen/)).toBeVisible();
   const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   if (on) {
+    await expect(page.getByRole('button', { name: 'Drucken', exact: true })).toBeDisabled();
     await expect(page.getByTestId('report-frame-result')).toHaveText('—');
     await expect(page.getByTestId('report-calculation').getByRole('group')).toHaveCount(0);
     if (info.project.name !== 'webkit-iphone')
       await page.screenshot({
-        path: `docs/evidence/redesign-reports-20261102/r2-empty-${info.project.name}.png`,
+        path: info.outputPath('report-frame-empty.png'),
         fullPage: true,
       });
   }
@@ -112,15 +113,16 @@ test('missing, loading and failed reads never become a zero lead, and retry keep
   }
   await expect(page.getByRole('alert')).toBeVisible();
   if (on) {
+    await expect(page.getByRole('button', { name: 'Drucken', exact: true })).toBeDisabled();
     await expect(page.getByTestId('report-frame-result')).toHaveText('—');
     if (info.project.name !== 'webkit-iphone')
       await page.screenshot({
-        path: `docs/evidence/redesign-reports-20261102/r2-error-${info.project.name}.png`,
+        path: info.outputPath('report-frame-error.png'),
         fullPage: true,
       });
   }
   await page.unroute('**/api/reports/month/onepager?*');
   await page.getByRole('button', { name: /Erneut versuchen/ }).click();
-  await expect(page.getByTestId('onepager-saved')).toBeVisible();
+  await expect(page.getByTestId(on ? 'r5-month-saved' : 'onepager-saved')).toBeVisible();
   if (on) await expect(page.getByTestId('report-frame-result')).not.toHaveText('—');
 });

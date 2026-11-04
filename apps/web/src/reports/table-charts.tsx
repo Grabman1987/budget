@@ -171,13 +171,16 @@ export function SavingsChart({
   points,
   targetBp,
   label,
+  height = 260,
+  table = false,
 }: {
   points: ReadonlyArray<SavingsChartPoint>;
   targetBp: number;
   label: string;
+  height?: number;
+  table?: boolean;
 }) {
   useAmountPrivacy();
-  const height = 260;
   return (
     <ChartBox height={height}>
       {(W) => {
@@ -217,6 +220,7 @@ export function SavingsChart({
         const labels = labelIndexes(n, W);
         return (
           <ChartSvg
+            table={table}
             width={W}
             height={height}
             label={label}
@@ -301,13 +305,16 @@ export function MoneyAgeChart({
   points,
   targetDays,
   label,
+  height = 260,
+  table = false,
 }: {
   points: ReadonlyArray<MoneyAgeChartPoint>;
   targetDays: number;
   label: string;
+  height?: number;
+  table?: boolean;
 }) {
   useAmountPrivacy();
-  const height = 260;
   return (
     <ChartBox height={height}>
       {(W) => {
@@ -323,6 +330,7 @@ export function MoneyAgeChart({
         const labels = labelIndexes(n, W);
         return (
           <ChartSvg
+            table={table}
             width={W}
             height={height}
             label={label}

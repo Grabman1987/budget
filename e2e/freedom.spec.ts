@@ -237,14 +237,12 @@ ledgerTest(
       );
       expect(restored.months.map((m) => m.month)).toEqual(before.months.map((m) => m.month));
       // Keep the cached Freedom query alive through native navigation; MAIN is isolated.
-      await page
-        .getByRole('link', {
-          name: (await wealthRedesign(page))
-            ? 'Profil Einstellungen › Profil'
-            : 'Profil / Einstellungen Passkey',
-          exact: true,
-        })
-        .click();
+      const profile = page
+        .locator('.sidebar-foot')
+        .getByTitle('Profil / Einstellungen', { exact: true });
+      await expect(profile).toHaveRole('link');
+      await expect(profile).toHaveAttribute('href', '/einstellungen/profil');
+      await profile.click();
       if (await wealthRedesign(page))
         await page
           .getByRole('navigation', { name: 'Einstellungen', exact: true })

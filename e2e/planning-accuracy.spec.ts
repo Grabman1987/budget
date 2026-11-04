@@ -1,3 +1,4 @@
+import { retainBudgetCostInflationReaders } from './budget-cost-inflation-controls';
 import { openHeuteReview } from './heute-visual-fixture';
 import { expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -107,3 +108,5 @@ test('Budgettreue shows observed forecasts, sorted category misses and booking d
     page.getByText(/Deine Hochrechnung lag zuletzt im Schnitt 2 % daneben/),
   ).toBeVisible();
 });
+
+test.beforeEach(async ({ page }) => retainBudgetCostInflationReaders(page));

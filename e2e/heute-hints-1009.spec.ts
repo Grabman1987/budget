@@ -1,3 +1,4 @@
+import { openPaperView } from './report-frame';
 import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect as baseExpect } from './sample';
@@ -172,5 +173,6 @@ test('tiny actual income stays the denominator and offers a completed comparison
   expect(box!.height).toBeGreaterThanOrEqual(44);
   await link.click();
   await expect(page).toHaveURL(/\/reports\/onepager\?monat=2026-08/);
+  await openPaperView(page);
   await expect(page.getByTestId('onepager-split')).toBeVisible();
 });

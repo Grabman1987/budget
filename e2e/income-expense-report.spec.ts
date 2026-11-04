@@ -1,3 +1,4 @@
+import { openIncomeTable } from './income-spending-controls';
 import { readFileSync } from 'node:fs';
 import { expect, sampleTest as test } from './sample';
 import { inspectReport } from './spending-helpers';
@@ -7,16 +8,17 @@ test('income versus expense expands categories, drills bookings and exports the 
 }, info) => {
   test.setTimeout(120_000);
   await page.goto('/reports/einnahmen-ausgaben?zeitraum=1J');
+  await openIncomeTable(page);
   const report = page.getByTestId('income-expense-report');
   await expect(report).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('income-expense-chart')).toBeVisible();
   await expect(report.getByText('Netto (Einnahmen − Ausgaben)', { exact: true })).toBeVisible();
   const expand = report.getByRole('button', { expanded: false }).first();
   await expect(expand).toBeVisible();
-  const collapsed = await report.locator('tbody tr').count();
+  const collapsed = await report.locator('.rgrid tbody tr').count();
   await expand.click();
-  expect(await report.locator('tbody tr').count()).toBeGreaterThan(collapsed);
-  const rows = await report.locator('tbody tr').count();
+  expect(await report.locator('.rgrid tbody tr').count()).toBeGreaterThan(collapsed);
+  const rows = await report.locator('.rgrid tbody tr').count();
   expect(rows).toBeGreaterThan(10);
   const downloaded = page.waitForEvent('download');
   await report.getByRole('button', { name: 'CSV', exact: true }).click();
@@ -25,7 +27,7 @@ test('income versus expense expands categories, drills bookings and exports the 
   expect(csv).toContain('"Summe";"Ø Monat"');
   expect(csv).toContain('Netto (Einnahmen − Ausgaben)');
   expect(csv.trim().split('\n')).toHaveLength(rows + 1);
-  const cell = report.locator('tbody tr').first().getByRole('link').first();
+  const cell = report.locator('.rgrid tbody tr').first().getByRole('link').first();
   await expect(cell).toHaveAttribute('href', /spalte=2025-09/);
   expect((await cell.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await cell.click();

@@ -1,3 +1,4 @@
+import { budgetQuery } from '../budget/budget-api';
 import {
   useAmountPrivacy,
   AmountInput,
@@ -21,7 +22,7 @@ import {
   type OpenContactOutlay,
 } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocation, useNavigate, useParams, useSearch } from '@tanstack/react-router';
+import { useBlocker, useLocation, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Info, Pencil } from 'lucide-react';
 import { request } from '../api/http';
@@ -384,12 +385,21 @@ export function ContactStatementPage() {
   );
 }
 
-function ContactBody({ statement, ready }: { statement: Statement; ready: boolean }) {
+export function ContactBody({
+  statement,
+  ready,
+  reportReader = false,
+}: {
+  statement: Statement;
+  ready: boolean;
+  reportReader?: boolean;
+}) {
   useAmountPrivacy();
   const heading = useRef<HTMLHeadingElement>(null);
+  const readerRoot = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    heading.current?.focus({ preventScroll: true });
-  }, [statement.contact.id]);
+    if (!reportReader) heading.current?.focus({ preventScroll: true });
+  }, [statement.contact.id, reportReader]);
   const [receipt, setReceipt] = useState(false);
   const [writeOff, setWriteOff] = useState(false);
   const [info, setInfo] = useState(false);
@@ -425,14 +435,16 @@ function ContactBody({ statement, ready }: { statement: Statement; ready: boolea
     (movement) => movement.date.slice(0, 7) !== currentMonth && !openOlderIds.has(movement.splitId),
   );
   return (
-    <div className="contacts-form">
-      <div className="contacts-title">
-        <h2 ref={heading} tabIndex={-1}>
-          {statement.contact.name}
-        </h2>
-        <ContactRename contact={statement.contact} onOpen={() => setRenaming(true)} />
-      </div>
-      {ready && (
+    <div className="contacts-form" ref={readerRoot}>
+      {!reportReader && (
+        <div className="contacts-title">
+          <h2 ref={heading} tabIndex={-1}>
+            {statement.contact.name}
+          </h2>
+          <ContactRename contact={statement.contact} onOpen={() => setRenaming(true)} />
+        </div>
+      )}
+      {ready && !reportReader && (
         <>
           <p className={`contacts-balance is-${balance.tone}`}>
             <span className="contacts-balance-words">{balance.words}</span>{' '}
@@ -541,21 +553,53 @@ function ContactBody({ statement, ready }: { statement: Statement; ready: boolea
         contact={renaming ? statement.contact : null}
         onClose={() => setRenaming(false)}
       />
-      <ContactBookingSource opening={sourceOpening} onClose={() => setSourceOpening(null)} />
+      <ContactBookingSource
+        opening={sourceOpening}
+        onClose={() => {
+          const split = sourceOpening?.movement.splitId;
+          setSourceOpening(null);
+          if (reportReader && split)
+            requestAnimationFrame(() => {
+              const replacement = [
+                ...(readerRoot.current?.querySelectorAll<HTMLButtonElement>(
+                  '[data-contact-source]',
+                ) ?? []),
+              ].find((element) => element.dataset['contactSource'] === split);
+              (
+                replacement ??
+                readerRoot.current?.closest('details')?.querySelector<HTMLElement>('summary')
+              )?.focus({ preventScroll: true });
+            });
+        }}
+      />
     </div>
   );
+}
+
+function ContactForgivenessGuard({ dirty, busy }: { dirty: boolean; busy: boolean }) {
+  useBlocker({
+    shouldBlockFn: () =>
+      busy || (dirty && !window.confirm('Ungespeicherten Schuldenerlass verwerfen?')),
+    enableBeforeUnload: dirty || busy,
+  });
+  return null;
 }
 
 export function ContactWriteOffDialog({
   contact,
   ready = true,
+  forgivenessOnly = false,
+  onRecheck,
   onClose,
 }: {
   contact: { id: string; name: string; balanceCents: number };
   ready?: boolean;
+  forgivenessOnly?: boolean;
+  onRecheck?: () => void;
   onClose: () => void;
 }) {
   useAmountPrivacy();
+  const queryClient = useQueryClient();
   const accounts = useQuery(accountsQuery());
   const lookups = useQuery(lookupsQuery());
   const sourceReady =
@@ -573,7 +617,7 @@ export function ContactWriteOffDialog({
     lookups.data?.categories.filter(
       (c) => c.class !== null && !['advance', 'income', 'card_payment'].includes(c.kind),
     ) ?? [];
-  const credit = contact.balanceCents < 0;
+  const credit = !forgivenessOnly && contact.balanceCents < 0;
   const [amount, setAmount] = useState(decimal(Math.abs(contact.balanceCents)));
   const [dateText, setDateText] = useState(longDay(todayInVienna()));
   const [memo, setMemo] = useState('');
@@ -594,12 +638,55 @@ export function ContactWriteOffDialog({
     Number.isFinite(Date.parse(date)) &&
     new Date(date).toISOString().slice(0, 10) === date &&
     date <= todayInVienna();
+  const budget = useQuery({
+    ...budgetQuery(validDate ? date.slice(0, 7) : todayInVienna().slice(0, 7)),
+    enabled: forgivenessOnly && validDate,
+  });
+  const envelope = forgivenessOnly
+    ? budget.data?.summary.envelopes.find((item) => item.categoryId === categoryId)
+    : undefined;
+  const afterAvailable = envelope ? envelope.availableCents - amountCents : undefined;
+  const previewReady =
+    !forgivenessOnly ||
+    (budget.isSuccess &&
+      !budget.isFetching &&
+      !budget.isError &&
+      Number.isSafeInteger(afterAvailable));
+  const category = expenses.find((item) => item.id === categoryId);
+  const dirty =
+    amount !== decimal(Math.abs(contact.balanceCents)) ||
+    !!categoryId ||
+    !!memo ||
+    !!accountId ||
+    dateText !== longDay(todayInVienna());
+  const close = () => {
+    if (
+      busy ||
+      (forgivenessOnly && dirty && !window.confirm('Ungespeicherten Schuldenerlass verwerfen?'))
+    )
+      return;
+    onClose();
+  };
   const valid =
-    sourceReady && validAmount && chosenAccount && validDate && (credit ? chosenType : categoryId);
+    previewReady &&
+    (!forgivenessOnly || (contact.balanceCents > 0 && !!category)) &&
+    sourceReady &&
+    validAmount &&
+    chosenAccount &&
+    validDate &&
+    (credit ? chosenType : categoryId);
   return (
-    <FormDialog open onClose={onClose} title="Kontakt ausgleichen" beforeClose={() => !busy}>
+    <FormDialog
+      open
+      onClose={onClose}
+      title={forgivenessOnly ? 'Schulden erlassen' : 'Kontakt ausgleichen'}
+      beforeClose={() =>
+        !busy &&
+        (!forgivenessOnly || !dirty || window.confirm('Ungespeicherten Schuldenerlass verwerfen?'))
+      }
+    >
       <form
-        className="bkform contacts-write-off"
+        className={`bkform contacts-write-off${forgivenessOnly ? ' contact-forgiveness-only' : ''}`}
         onSubmit={(e) => {
           e.preventDefault();
           if (!valid || busy) return;
@@ -613,16 +700,20 @@ export function ContactWriteOffDialog({
                 memo,
                 ...(credit ? { incomeTypeId: chosenType } : { categoryId }),
               }),
-            'Kontakt ausgeglichen.',
+            forgivenessOnly ? 'Schulden erlassen.' : 'Kontakt ausgeglichen.',
           ).then((ok) => {
             setBusy(false);
             if (ok) onClose();
+            else if (forgivenessOnly) void queryClient.invalidateQueries();
           });
         }}
       >
+        {forgivenessOnly && <ContactForgivenessGuard dirty={dirty} busy={busy} />}
         <div className="bk-head">
-          <h2 className="bk-kind bk-kind-fixed">Kontakt ausgleichen</h2>
-          <Button variant="ghost" onClick={onClose} disabled={busy} aria-label="Schließen">
+          <h2 className="bk-kind bk-kind-fixed">
+            {forgivenessOnly ? 'Schulden erlassen' : 'Kontakt ausgleichen'}
+          </h2>
+          <Button variant="ghost" onClick={close} disabled={busy} aria-label="Schließen">
             ×
           </Button>
         </div>
@@ -633,6 +724,19 @@ export function ContactWriteOffDialog({
               ? ` · ${credit ? 'Einnahme ins Budget' : 'Ausgabe'}`
               : ' · Kontostand wird geprüft'}
           </p>
+          {forgivenessOnly && contact.balanceCents <= 0 && (
+            <p role="status">
+              Aktuell besteht keine offene Forderung. Ein Schuldenerlass ist nicht möglich.
+            </p>
+          )}
+          {forgivenessOnly && !ready && onRecheck && (
+            <p role="status">
+              Der Kontaktsaldo ist derzeit nicht bestätigt. Deine Eingaben bleiben erhalten.{' '}
+              <Button variant="ghost" onClick={onRecheck}>
+                Saldo erneut prüfen
+              </Button>
+            </p>
+          )}
           <AmountInput label="Betrag" value={amount} onChange={setAmount} />
           {sourceReady && !validAmount && (
             <p role="alert" className="field-error">
@@ -716,11 +820,40 @@ export function ContactWriteOffDialog({
               />
             )}
           </Field>
-          {sourceReady && validAmount && (
+          {!forgivenessOnly && sourceReady && validAmount && (
             <p aria-live="polite">
               {eur(amountCents)} werden {credit ? 'ins Budget übernommen' : 'als Ausgabe gebucht'};
               der Kontakt steht danach auf {eur(remaining)}. Kein Geld bewegt sich.
             </p>
+          )}
+          {forgivenessOnly &&
+            sourceReady &&
+            validAmount &&
+            category &&
+            previewReady &&
+            afterAvailable !== undefined && (
+              <div aria-live="polite" className="contact-forgiveness-preview">
+                <p>
+                  Schuldenerlass für {contact.name}: {eur(amountCents)} · höchstens{' '}
+                  {eur(Math.max(0, contact.balanceCents))}.
+                </p>
+                <p>
+                  Kategorie {category.name}: verfügbar {eur(envelope!.availableCents)} →{' '}
+                  {eur(afterAvailable)}. Fehlbetrag danach: {eur(Math.max(0, -afterAvailable))}.
+                </p>
+                <p>
+                  Kontaktschuld danach: {eur(remaining)}. Kontogeld bleibt unverändert. Der Betrag
+                  wird vom Auslagenposten in die gewählte Ausgabenkategorie umgebucht.
+                </p>
+              </div>
+            )}
+          {forgivenessOnly && budget.isPending && <LoadingNote what="Kategorievorschau" />}
+          {forgivenessOnly && budget.isError && (
+            <ErrorNote
+              what="Kategorievorschau"
+              error={budget.error}
+              onRetry={() => void budget.refetch()}
+            />
           )}
           {accounts.isError && (
             <ErrorNote
@@ -749,11 +882,11 @@ export function ContactWriteOffDialog({
           )}
         </div>
         <div className="bk-foot">
-          <Button variant="ghost" onClick={onClose} disabled={busy}>
+          <Button variant="ghost" onClick={close} disabled={busy}>
             Abbrechen
           </Button>
           <Button type="submit" disabled={busy || !valid}>
-            Ausgleich speichern
+            {forgivenessOnly ? 'Schulden erlassen' : 'Ausgleich speichern'}
           </Button>
         </div>
       </form>

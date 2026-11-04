@@ -1,3 +1,4 @@
+import { openCustomExplorer, selectExplorerPeriod } from './explorer-controls';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase } from '@budget/db';
 import { expect, type Page, type TestInfo } from '@playwright/test';
@@ -73,7 +74,7 @@ async function download(page: Page, info: TestInfo, stage: string): Promise<stri
 }
 
 async function inspect(page: Page, info: TestInfo) {
-  await page.goto('/reports/explorer');
+  await openCustomExplorer(page);
   const exportButton = page.getByRole('button', { name: 'CSV exportieren', exact: true });
   await expect(exportButton).toBeEnabled();
   for (const [name, field, value] of [
@@ -88,7 +89,8 @@ async function inspect(page: Page, info: TestInfo) {
         response.status() === 200
       );
     });
-    await page.getByLabel(name, { exact: true }).selectOption(value);
+    if (field === 'period') await selectExplorerPeriod(page, value);
+    else await page.getByLabel(name, { exact: true }).selectOption(value);
     await fresh;
     await expect(exportButton).toBeEnabled();
   }

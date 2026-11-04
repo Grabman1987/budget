@@ -1,3 +1,4 @@
+import { openPaperView, revealReportDetail } from './report-frame';
 import { openHeuteReview } from './heute-visual-fixture';
 import { openShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
@@ -97,6 +98,10 @@ test('Today and One-Pager explain booked month progress beside expected salary',
   for (const scene of scenes) {
     if (scene.name === 'heute') await openHeuteReview(page, scene.path);
     else await page.goto(scene.path);
+    if (scene.name === 'onepager') {
+      await openPaperView(page);
+      await revealReportDetail(page);
+    }
     const verdicts = page.getByTestId('report-verdict');
     await expect(verdicts).toHaveCount(scene.count, { timeout: 30_000 });
     for (let index = 0; index < scene.count; index++) {

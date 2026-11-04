@@ -1,3 +1,4 @@
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { ReportPeriodControl } from './period-quick-select';
 import type { ReactNode } from 'react';
 import { ReportProjectScopeNote } from './report-project-scope';
@@ -14,6 +15,7 @@ import { ReportFrame as PageFrame } from './report-frame';
 import { periodText } from '../wealth/networth-model';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import { cashflowQuery, type CashflowReport } from './cashflow-api';
+import { ReportBodyDisclosure } from './report-body-disclosure';
 import { CashflowChart } from './cashflow-chart';
 import './reports-future.css';
 
@@ -43,10 +45,29 @@ export function CashflowReportPage({
   const window = data?.windowMonths ?? [];
   return (
     <PageFrame
+      sourceDate={data?.asOf}
+      calculation={
+        data && window.length && !query.isFetching && !query.isError
+          ? {
+              label: 'Berechnung Cashflow',
+              signed: true,
+              terms: [
+                { label: 'Haushaltseinnahmen', value: cents(data.totals.incomeCents) },
+                { op: '-', label: 'Konsum', value: cents(data.totals.consumptionCents) },
+              ],
+              result: {
+                label: 'Nettocashflow · Buchungsdatum',
+                value: data.totals.netCents,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       verdict={
         data && !query.isFetching && !query.isError
           ? {
               reportId: report.id,
+              ...(REDESIGN_ENABLED ? { unavailable: window.length === 0 } : {}),
               period: `${data.windowMonths[0]}..${data.windowMonths.at(-1)}`,
               metric: {
                 label: 'Sparbetrag im Zeitraum',
@@ -180,71 +201,73 @@ function Body({ data }: { data: CashflowReport }) {
           {data.months.length > t.months ? '; das Diagramm zeigt mindestens sechs Monate' : ''}.
         </p>
       </section>
-      <section className="card rf-card rf-wide" aria-labelledby="cf-months">
-        <div className="tbd-head">
-          <h2 id="cf-months">Je Monat</h2>
-          <span className="tbd-state">
-            <span className="ink">Stand {longDay(data.asOf)}</span>
-          </span>
-        </div>
-        <div
-          className="rf-scroll"
-          role="region"
-          aria-label="Cashflow je Monat, bei Bedarf horizontal verschiebbar"
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table on narrow viewports.
-          tabIndex={0}
-        >
-          <table className="rf-table" data-testid="cf-table">
-            <thead>
-              <tr>
-                <th className="tech">Monat</th>
-                <th className="tech n">Einnahmen</th>
-                <th className="tech n">
-                  <Term>Bedarf</Term>
-                </th>
-                <th className="tech n">
-                  <Term>Wunsch</Term>
-                </th>
-                <th className="tech n">Nettocashflow</th>
-                <th className="tech n">
-                  davon in <Term>Zukunft</Term>
-                </th>
-                <th className="tech n">Kapitalerträge (separat)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inWindow
-                .slice()
-                .reverse()
-                .map((m) => (
-                  <tr key={m.month}>
-                    <td>{long(m.month)}</td>
-                    <td className="n">{eur(m.incomeCents)}</td>
-                    <td className="n">{eur(m.needCents)}</td>
-                    <td className="n">{eur(m.wantCents)}</td>
-                    <td className="n">
-                      <strong>{eur(m.netCents, { sign: true })}</strong>
-                    </td>
-                    <td className="n">{eur(m.futureCents)}</td>
-                    <td className="n">{eur(m.capitalCents)}</td>
-                  </tr>
-                ))}
-              <tr className="is-total">
-                <td>Zeitraum</td>
-                <td className="n">{eur(t.incomeCents)}</td>
-                <td className="n">{eur(t.needCents)}</td>
-                <td className="n">{eur(t.wantCents)}</td>
-                <td className="n">{eur(t.netCents, { sign: true })}</td>
-                <td className="n">{eur(t.futureCents)}</td>
-                <td className="n">{eur(t.capitalCents)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p className="vnote">
-          Gesamt {eurWhole(t.netCents, true)} Nettocashflow in {t.months} Monaten.
-        </p>
-      </section>
+      <ReportBodyDisclosure id="cashflow-months" label="Alle Monate und Kapitalerträge">
+        <section className="card rf-card rf-wide" aria-labelledby="cf-months">
+          <div className="tbd-head">
+            <h2 id="cf-months">Je Monat</h2>
+            <span className="tbd-state">
+              <span className="ink">Stand {longDay(data.asOf)}</span>
+            </span>
+          </div>
+          <div
+            className="rf-scroll"
+            role="region"
+            aria-label="Cashflow je Monat, bei Bedarf horizontal verschiebbar"
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table on narrow viewports.
+            tabIndex={0}
+          >
+            <table className="rf-table" data-testid="cf-table">
+              <thead>
+                <tr>
+                  <th className="tech">Monat</th>
+                  <th className="tech n">Einnahmen</th>
+                  <th className="tech n">
+                    <Term>Bedarf</Term>
+                  </th>
+                  <th className="tech n">
+                    <Term>Wunsch</Term>
+                  </th>
+                  <th className="tech n">Nettocashflow</th>
+                  <th className="tech n">
+                    davon in <Term>Zukunft</Term>
+                  </th>
+                  <th className="tech n">Kapitalerträge (separat)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inWindow
+                  .slice()
+                  .reverse()
+                  .map((m) => (
+                    <tr key={m.month}>
+                      <td>{long(m.month)}</td>
+                      <td className="n">{eur(m.incomeCents)}</td>
+                      <td className="n">{eur(m.needCents)}</td>
+                      <td className="n">{eur(m.wantCents)}</td>
+                      <td className="n">
+                        <strong>{eur(m.netCents, { sign: true })}</strong>
+                      </td>
+                      <td className="n">{eur(m.futureCents)}</td>
+                      <td className="n">{eur(m.capitalCents)}</td>
+                    </tr>
+                  ))}
+                <tr className="is-total">
+                  <td>Zeitraum</td>
+                  <td className="n">{eur(t.incomeCents)}</td>
+                  <td className="n">{eur(t.needCents)}</td>
+                  <td className="n">{eur(t.wantCents)}</td>
+                  <td className="n">{eur(t.netCents, { sign: true })}</td>
+                  <td className="n">{eur(t.futureCents)}</td>
+                  <td className="n">{eur(t.capitalCents)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="vnote">
+            Gesamt {eurWhole(t.netCents, true)} Nettocashflow in {t.months} Monaten.
+          </p>
+        </section>
+      </ReportBodyDisclosure>
     </>
   );
 }

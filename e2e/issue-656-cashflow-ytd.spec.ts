@@ -2,6 +2,15 @@ import type { CashflowReport } from '@budget/db';
 import { cashflowMonth, cashflowTotals, monthsBetween, type Period } from '@budget/domain';
 import { expect, sampleTest as test } from './sample';
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(
+    (ids) => {
+      for (const id of ids) localStorage.setItem(`budget-report-r8-${id}`, '1');
+    },
+    ['cashflow-months'],
+  );
+});
+
 test('January cashflow YTD steps to the complete previous year', async ({ page }, info) => {
   await page.clock.setFixedTime(new Date('2027-01-15T12:00:00Z'));
   // The sample server keeps its September clock; the API has separate fixed-January unit tests.

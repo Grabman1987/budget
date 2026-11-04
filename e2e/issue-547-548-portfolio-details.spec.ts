@@ -300,14 +300,19 @@ async function savingsPrivacy(page: Page, info: TestInfo, theme: string) {
   await purchases.locator(':scope > summary').click();
   await versions.locator(':scope > summary').click();
 }
-async function themes(page: Page, info: TestInfo, name: string) {
+async function themes(
+  page: Page,
+  info: TestInfo,
+  name: string,
+  schemes: readonly ('light' | 'dark')[] = ['light', 'dark'],
+) {
   if (name === 'instrument')
     await page.getByTestId('instrument-value-chart').scrollIntoViewIfNeeded();
   else
     await page
       .getByRole('region', { name: 'Letzte zwölf Monate', exact: true })
       .scrollIntoViewIfNeeded();
-  for (const theme of ['light', 'dark']) {
+  for (const theme of schemes) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
@@ -356,104 +361,114 @@ async function themes(page: Page, info: TestInfo, name: string) {
   }
 }
 
-test('547 instrument shares literal value/basis and dates, hover/keyboard and last-twelve row editing', async ({
-  page,
-  isolatedLedger,
-}, info) => {
-  seed(isolatedLedger.databasePath);
-  const before = snapshot(isolatedLedger.databasePath);
-  const response = await page.request.get(
-    '/api/securities/s/history?from=2026-09-10&to=2026-09-17',
-  );
-  expect(response.ok()).toBe(true);
-  const history = (await response.json()).history;
-  expect(history.points.at(-1)).toMatchObject({
-    date: '2026-09-17',
-    unitsE8: 100_000_000,
-    valueCents: 1750,
-  });
-  expect(history.position).toMatchObject({ valueCents: 1750, costCents: 1000 });
-  await page.goto('/vermoegen/portfolio/instrument/s?zeitraum=Alles');
-  if (await wealthRedesign(page))
-    await expect(page.getByTestId('instrument-value-chart')).toBeVisible();
-  else
-    await expect(page.getByRole('button', { name: 'Wert €', exact: true })).toHaveAttribute(
-      'aria-pressed',
-      'true',
+// Keep both themes' complete instrument checks, each with its original test budget.
+for (const scheme of ['light', 'dark'] as const) {
+  test(`547 instrument shares literal value/basis and dates, hover/keyboard and last-twelve row editing · ${scheme}`, async ({
+    page,
+    isolatedLedger,
+  }, info) => {
+    seed(isolatedLedger.databasePath);
+    const before = snapshot(isolatedLedger.databasePath);
+    const response = await page.request.get(
+      '/api/securities/s/history?from=2026-09-10&to=2026-09-17',
     );
-  const chart = page.getByTestId('instrument-value-chart');
-  await expect(chart).toBeVisible();
-  expect(
-    await chart
-      .locator('[data-trade-date]')
-      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-trade-date'))),
-  ).toEqual(['2026-09-10', '2026-09-12']);
-  expect(
-    await chart
-      .locator('.instrument-cost-line')
-      .evaluate((line) => getComputedStyle(line).strokeDasharray),
-  ).not.toBe('none');
-  const inspect = chart.locator('..');
-  await inspect.focus();
-  await inspect.press('ArrowRight');
-  await expect(page.locator('.chart-tooltip')).toContainText('11.09.2026');
-  await expect(page.locator('.chart-tooltip')).toContainText('24,69 €');
-  await expect(page.locator('.chart-tooltip')).toContainText('Stück');
-  await expect(page.locator('.chart-tooltip')).toContainText('10,00 €');
-  const keyboard = await page.locator('.chart-tooltip').textContent();
-  expect(keyboard).toBeTruthy();
-  await inspect.press('Escape');
-  const box = (await chart.boundingBox())!;
-  const target = { x: box.x + 64 + (box.width - 80) / 7, y: box.y + 80 };
-  if (info.project.use.hasTouch) await page.touchscreen.tap(target.x, target.y);
-  else await page.mouse.move(target.x, target.y);
-  await expect(page.locator('.chart-tooltip')).toHaveText(keyboard!);
-  await inspect.press('Escape');
-  const trades = page.locator('.trade-list tbody tr');
-  await expect(trades).toHaveCount((await wealthRedesign(page)) ? 4 : 12);
-  await expect(trades.first()).toContainText('Synthetic depot');
-  if (info.project.name === 'desktop') {
-    await expect(page.locator('.price-history .chart-data-table')).not.toHaveAttribute('open', '');
-    for (const theme of ['light', 'dark']) {
-      await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
-      await compactDesktop(page, info, `instrument-default-last-twelve-${theme}`);
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await page.screenshot({
-        path: info.outputPath(`instrument-default-last-twelve-${theme}.png`),
-        fullPage: false,
-      });
+    expect(response.ok()).toBe(true);
+    const history = (await response.json()).history;
+    expect(history.points.at(-1)).toMatchObject({
+      date: '2026-09-17',
+      unitsE8: 100_000_000,
+      valueCents: 1750,
+    });
+    expect(history.position).toMatchObject({ valueCents: 1750, costCents: 1000 });
+    await page.goto('/vermoegen/portfolio/instrument/s?zeitraum=Alles');
+    if (await wealthRedesign(page))
+      await expect(page.getByTestId('instrument-value-chart')).toBeVisible();
+    else
+      await expect(page.getByRole('button', { name: 'Wert €', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    const chart = page.getByTestId('instrument-value-chart');
+    await expect(chart).toBeVisible();
+    expect(
+      await chart
+        .locator('[data-trade-date]')
+        .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-trade-date'))),
+    ).toEqual(['2026-09-10', '2026-09-12']);
+    expect(
+      await chart
+        .locator('.instrument-cost-line')
+        .evaluate((line) => getComputedStyle(line).strokeDasharray),
+    ).not.toBe('none');
+    const inspect = chart.locator('..');
+    await inspect.focus();
+    await inspect.press('ArrowRight');
+    await expect(page.locator('.chart-tooltip')).toContainText('11.09.2026');
+    await expect(page.locator('.chart-tooltip')).toContainText('24,69 €');
+    await expect(page.locator('.chart-tooltip')).toContainText('Stück');
+    await expect(page.locator('.chart-tooltip')).toContainText('10,00 €');
+    const keyboard = await page.locator('.chart-tooltip').textContent();
+    expect(keyboard).toBeTruthy();
+    await inspect.press('Escape');
+    const box = (await chart.boundingBox())!;
+    const target = { x: box.x + 64 + (box.width - 80) / 7, y: box.y + 80 };
+    if (info.project.use.hasTouch) await page.touchscreen.tap(target.x, target.y);
+    else await page.mouse.move(target.x, target.y);
+    await expect(page.locator('.chart-tooltip')).toHaveText(keyboard!);
+    await inspect.press('Escape');
+    const trades = page.locator('.trade-list tbody tr');
+    await expect(trades).toHaveCount((await wealthRedesign(page)) ? 4 : 12);
+    await expect(trades.first()).toContainText('Synthetic depot');
+    if (info.project.name === 'desktop') {
+      await expect(page.locator('.price-history .chart-data-table')).not.toHaveAttribute(
+        'open',
+        '',
+      );
+      for (const theme of [scheme]) {
+        await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+        await compactDesktop(page, info, `instrument-default-last-twelve-${theme}`);
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.screenshot({
+          path: info.outputPath(`instrument-default-last-twelve-${theme}.png`),
+          fullPage: false,
+        });
+      }
     }
-  }
-  await page.getByRole('button', { name: 'Alle anzeigen (13)', exact: true }).click();
-  await expect(trades).toHaveCount(13);
-  await trades.first().locator('td').first().click();
-  await expect(page.getByRole('dialog', { name: 'Handel bearbeiten', exact: true })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await trades
-    .first()
-    .getByRole('button', { name: /bearbeiten/ })
-    .focus();
-  await trades
-    .first()
-    .getByRole('button', { name: /bearbeiten/ })
-    .press('Enter');
-  await expect(page.getByRole('dialog', { name: 'Handel bearbeiten', exact: true })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await themes(page, info, 'instrument');
-  if (await wealthRedesign(page))
-    await page
-      .getByText('Zeitraum, gespeicherte Kurse und Bewertungsquellen', { exact: true })
-      .click();
-  await page.getByRole('button', { name: 'Kurs', exact: true }).click();
-  const priceChart = page.getByTestId(
-    (await wealthRedesign(page)) ? 'price-history-chart-expanded' : 'price-history-chart',
-  );
-  await expect(priceChart).toBeVisible();
-  await expect(priceChart.locator('[data-chart-point]')).toHaveCount(4);
-  expect(snapshot(isolatedLedger.databasePath)).toBe(before);
-});
+    await page.getByRole('button', { name: 'Alle anzeigen (13)', exact: true }).click();
+    await expect(trades).toHaveCount(13);
+    await trades.first().locator('td').first().click();
+    await expect(
+      page.getByRole('dialog', { name: 'Handel bearbeiten', exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await trades
+      .first()
+      .getByRole('button', { name: /bearbeiten/ })
+      .focus();
+    await trades
+      .first()
+      .getByRole('button', { name: /bearbeiten/ })
+      .press('Enter');
+    await expect(
+      page.getByRole('dialog', { name: 'Handel bearbeiten', exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await themes(page, info, 'instrument', [scheme]);
+    if (await wealthRedesign(page))
+      await page
+        .getByText('Zeitraum, gespeicherte Kurse und Bewertungsquellen', { exact: true })
+        .click();
+    await page.getByRole('button', { name: 'Kurs', exact: true }).click();
+    const priceChart = page.getByTestId(
+      (await wealthRedesign(page)) ? 'price-history-chart-expanded' : 'price-history-chart',
+    );
+    await expect(priceChart).toBeVisible();
+    await expect(priceChart.locator('[data-chart-point]')).toHaveCount(4);
+    expect(snapshot(isolatedLedger.databasePath)).toBe(before);
+  });
+}
 
 test('548 twelve months keep explicit executions, missing inbox proposals and extra manual buys', async ({
   page,

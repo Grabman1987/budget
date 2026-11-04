@@ -1,3 +1,5 @@
+import { redesignReportsOn } from './report-frame';
+import { retainBudgetCostInflationReaders } from './budget-cost-inflation-controls';
 import { test as isolatedTest } from './isolated-ledger';
 import { expect, sampleTest as test } from './sample';
 import { inspectReport } from './spending-helpers';
@@ -9,7 +11,9 @@ test('shows monthly cost stacks, sources and separate earnings', async ({ page }
   await page.goto('/reports/kosten');
   await expect(page.getByTestId('bc-total')).toHaveText(/\d.*,\d\d €$/, { timeout: 30_000 });
   await expect(
-    page.getByRole('heading', { name: 'Was kostet uns das Geld selbst?' }),
+    page.getByRole('heading', {
+      name: (await redesignReportsOn(page)) ? 'Kosten je Monat' : 'Was kostet uns das Geld selbst?',
+    }),
   ).toBeVisible();
   await expect(page.getByTestId('bank-costs-chart')).toBeVisible();
   await expect(page.getByText(/Erfasste Bank- und Zinskosten · letzte/)).toBeVisible();
@@ -181,3 +185,5 @@ isolatedTest(
     await inspectReport(page, info, 'bank-cost-coverage');
   },
 );
+
+test.beforeEach(async ({ page }) => retainBudgetCostInflationReaders(page));

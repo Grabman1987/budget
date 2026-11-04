@@ -1,4 +1,4 @@
-import { redesignReportsOn } from './report-frame';
+import { redesignReportsOn, openPaperView } from './report-frame';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { sampleTest } from './sample';
@@ -134,10 +134,11 @@ sampleTest(
     );
     await page.goto('/reports/onepager?monat=2026-08');
     expect((await onepager).status()).toBe(200);
+    await openPaperView(page);
     await expect(page.getByTestId('onepager-income')).toBeVisible();
     await expect(page.locator('#ps-b')).toHaveText('BAusgaben im Monatsverlauf');
     await expect(page.locator('#ps-f')).toHaveText('FNettovermögen');
-    await expect(page.locator('.chart-legend')).not.toContainText('Prognose');
+    await expect(page.locator('.psheet-wrap .chart-legend')).not.toContainText('Prognose');
     // Income is an optional context line of the pace chart (owner request 06.10.2026).
     await page.getByRole('button', { name: 'Mehr anzeigen' }).click();
     await expect(page.locator('.pace-income-line').first()).toBeVisible();

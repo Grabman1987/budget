@@ -655,7 +655,8 @@ test('source-view links open the corresponding live pages', async ({ page }) => 
       .filter({ has: page.getByRole('heading', { name: heading, exact: true }) })
       .getByRole('link', { name: link, exact: true })
       .click();
-    await expect.poll(() => new URL(page.url()).pathname).toBe(target);
+    const destination = redesign && target === '/vermoegen/nettovermoegen' ? '/vermoegen' : target;
+    await expect.poll(() => new URL(page.url()).pathname).toBe(destination);
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     if (redesign && target === '/vermoegen/nettovermoegen') {

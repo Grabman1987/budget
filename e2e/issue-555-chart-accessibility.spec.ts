@@ -1,20 +1,32 @@
+import { retainBudgetCostInflationReaders } from './budget-cost-inflation-controls';
 import AxeBuilder from '@axe-core/playwright';
+import { openPaperView, redesignReportsOn } from './report-frame';
 import { expect, sampleTest as test } from './sample';
 import { eur } from '../apps/web/src/ledger/format';
 
-test('existing report bars retain one data-rich image summary per shared chart', async ({
-  page,
-}) => {
-  test.slow();
-  for (const path of [
-    '/reports/ausgaben',
-    '/reports/budgettreue?monat=2026-08',
-    '/reports/sparziele',
-    '/reports/onepager?monat=2026-08',
-  ]) {
+for (const path of [
+  '/reports/ausgaben',
+  '/reports/budgettreue?monat=2026-08',
+  '/reports/sparziele',
+  '/reports/onepager?monat=2026-08',
+]) {
+  test(`existing report bars retain one data-rich image summary per shared chart: ${path}`, async ({
+    page,
+  }) => {
+    test.slow();
+    await retainBudgetCostInflationReaders(page);
     await page.goto(path);
-    if (path === '/reports/sparziele') await page.locator('.goals tr.prow .pname').first().click();
-    const charts = page.locator('.chart-interactive');
+    if (path.startsWith('/reports/onepager')) await openPaperView(page);
+    if (path === '/reports/sparziele') {
+      if (await redesignReportsOn(page))
+        await expect(page.locator('.goals-progress-report')).toBeVisible();
+      else await page.locator('.goals tr.prow .pname').first().click();
+    }
+    const charts = page.locator(
+      path.startsWith('/reports/onepager')
+        ? '.psheet-wrap .chart-interactive'
+        : '.chart-interactive',
+    );
     await expect(charts.first()).toBeVisible();
     const imageCounts = await charts.evaluateAll((containers) =>
       containers.map(
@@ -39,8 +51,8 @@ test('existing report bars retain one data-rich image summary per shared chart',
         true,
       );
     }
-  }
-});
+  });
+}
 
 test('chart summary and exact-value alternative retain keyboard access in both themes', async ({
   page,

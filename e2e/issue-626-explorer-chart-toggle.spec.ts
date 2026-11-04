@@ -1,3 +1,4 @@
+import { openCustomExplorer, retainExplorerReaders } from './explorer-controls';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase } from '@budget/db';
@@ -116,7 +117,11 @@ async function proof(
     view === 'custom'
       ? ''
       : `?vorlage=${view}&zeitraum=${view === 'year' ? 'YTD' : view === 'total' ? '3J' : '1J'}${view === 'category' ? '&kategorien=%5B%22c09%22%5D' : ''}`;
-  await page.goto(`/reports/explorer${search}`);
+  if (view === 'custom') await openCustomExplorer(page);
+  else {
+    await retainExplorerReaders(page);
+    await page.goto(`/reports/explorer${search}`);
+  }
   const table =
     view === 'custom'
       ? page.getByTestId('ex-table')

@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { redesignReportsOn } from './report-frame';
 import { expect, sampleTest as test } from './sample';
 
@@ -39,6 +40,51 @@ const landings = [
   ['gesamtuebersicht', '/reports/vermoegen-schulden', 'Gesamtübersicht'],
 ] as const;
 
+async function selectedView(page: Page, target: string, view: string) {
+  if (!view) return;
+  if (
+    (await redesignReportsOn(page)) &&
+    [
+      '/reports/einnahmen-ausgaben',
+      '/reports/ausgaben',
+      '/reports/budgettreue',
+      '/reports/abos',
+    ].includes(target)
+  ) {
+    const label =
+      target === '/reports/budgettreue'
+        ? 'Ansicht der Budgettreue'
+        : target === '/reports/abos'
+          ? 'Ansicht von Verträgen und Kosten'
+          : target === '/reports/ausgaben'
+            ? 'Ansicht der Ausgabenanalyse'
+            : 'Ansicht von Einnahmen und Cashflow';
+    await expect(
+      page.getByRole('combobox', { name: label, exact: true }).locator('option:checked'),
+    ).toHaveText(
+      view === 'Planungstreue'
+        ? 'Prognosegenauigkeit'
+        : view === 'Plan und Ist'
+          ? 'Budgettreue'
+          : view,
+    );
+  } else if ((await redesignReportsOn(page)) && target === '/reports/explorer') {
+    await expect(
+      page.getByRole('combobox', { name: 'Darstellung der Auswertung' }).locator('option:checked'),
+    ).toHaveText(view);
+  } else if ((await redesignReportsOn(page)) && target === '/reports/vermoegen-schulden') {
+    await expect(
+      page
+        .getByRole('combobox', { name: 'Darstellung des Vermögensreports' })
+        .locator('option:checked'),
+    ).toHaveText(view);
+  } else {
+    await expect(
+      page.getByRole('button', { name: view, exact: true, pressed: true }),
+    ).toBeVisible();
+  }
+}
+
 for (const [slug, target, view] of landings) {
   test(`620 ${slug} opens ${target} with its supported bookmark state`, async ({ page }) => {
     // An explicit Heute period avoids its existing other-month normalization.
@@ -50,11 +96,13 @@ for (const [slug, target, view] of landings) {
     const redesign = await redesignReportsOn(page);
     const finanzcheck = slug === 'finanzcheck' && redesign;
     const expectedTarget =
-      redesign && ['pallocation', 'peinzahlungen', 'prendite'].includes(slug)
-        ? '/reports/vermoegen-schulden'
-        : finanzcheck
-          ? '/reports/onepager'
-          : target;
+      redesign && slug === 'kontakte'
+        ? '/reports/kontakte'
+        : redesign && ['pallocation', 'peinzahlungen', 'prendite'].includes(slug)
+          ? '/reports/vermoegen-schulden'
+          : finanzcheck
+            ? '/reports/onepager'
+            : target;
     await expect.poll(() => new URL(page.url()).pathname).toBe(expectedTarget);
     if (finanzcheck) {
       expect(new URL(page.url()).searchParams.get('darstellung')).toBe('finanzcheck');
@@ -67,35 +115,11 @@ for (const [slug, target, view] of landings) {
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('2026-01..2026-08');
     expect(new URL(page.url()).hash).toBe('#details');
-    if (view) {
-      if (redesign && expectedTarget === '/reports/vermoegen-schulden') {
-        await expect(
-          page
-            .getByRole('combobox', { name: 'Darstellung des Vermögensreports' })
-            .locator('option:checked'),
-        ).toHaveText(view);
-      } else {
-        await expect(
-          page.getByRole('button', { name: view, exact: true, pressed: true }),
-        ).toBeVisible();
-      }
-    }
+    await selectedView(page, expectedTarget, view);
     const bookmark = page.url();
     await page.reload();
     await expect(page).toHaveURL(bookmark);
-    if (view) {
-      if (redesign && expectedTarget === '/reports/vermoegen-schulden') {
-        await expect(
-          page
-            .getByRole('combobox', { name: 'Darstellung des Vermögensreports' })
-            .locator('option:checked'),
-        ).toHaveText(view);
-      } else {
-        await expect(
-          page.getByRole('button', { name: view, exact: true, pressed: true }),
-        ).toBeVisible();
-      }
-    }
+    await selectedView(page, expectedTarget, view);
   });
 }
 
@@ -114,13 +138,12 @@ test('620 absent period follows the canonical destination normalization', async 
       expect(new URL(page.url()).pathname).toBe('/');
     }
     await expect.poll(() => new URL(page.url()).searchParams.get('period')).toBe('month');
-    const reportAlias = path === '/reports/finanzcheck' && (await redesignReportsOn(page));
-    expect(new URL(page.url()).pathname).toBe(reportAlias ? '/reports/onepager' : '/');
-    if (reportAlias)
-      expect(new URL(page.url()).searchParams.get('darstellung')).toBe('finanzcheck');
+    const history = path === '/reports/finanzcheck' && (await redesignReportsOn(page));
+    expect(new URL(page.url()).pathname).toBe(history ? '/reports/onepager' : '/');
+    if (history) expect(new URL(page.url()).searchParams.get('darstellung')).toBe('finanzcheck');
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('2026-01..2026-08');
-    expect(new URL(page.url()).hash).toBe('');
+    expect(new URL(page.url()).hash).toBe(history ? '#details' : '');
   }
 });
 

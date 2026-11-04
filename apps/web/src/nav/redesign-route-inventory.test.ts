@@ -70,7 +70,9 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
     const expected = [
       '/einstellungen/kontakte',
       ...baselinePatterns.map((row) => row[1]),
-      ...aliasPatterns.map((row) => row[0]),
+      ...aliasPatterns
+        .filter((row) => !enabled || row[0] !== '/reports/kontakte')
+        .map((row) => row[0]),
       ...devPatterns.map((row) => row[0]),
     ];
     expect(new Set(expected).size).toBe(expected.length);
@@ -108,13 +110,15 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
         `${concrete(from)}?monat=2026-08&period=month&zeitraum=2026-01..2026-08#details`,
       );
       expect(router.state.location.pathname).toBe(
-        offFinanzcheck
-          ? '/'
-          : enabled && from === '/vermoegen'
-            ? '/vermoegen'
-            : enabled && target === '/reports/pallocation'
-              ? '/reports/vermoegen-schulden'
-              : concrete(target),
+        enabled && from === '/reports/kontakte'
+          ? '/reports/kontakte'
+          : offFinanzcheck
+            ? '/'
+            : enabled && from === '/vermoegen'
+              ? '/vermoegen'
+              : enabled && target === '/reports/pallocation'
+                ? '/reports/vermoegen-schulden'
+                : concrete(target),
       );
       expect(router.state.location.hash).toBe('details');
       expect(router.state.matches.at(-1)?.search).toMatchObject({
@@ -134,7 +138,9 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
     );
     for (const [id, target] of plannedStable16) {
       const router = await open(`/reports/${id}?monat=2026-09`);
-      expect(router.state.location.pathname).toBe(target);
+      expect(router.state.location.pathname).toBe(
+        enabled && id === 'kontakte' ? '/reports/kontakte' : target,
+      );
     }
   });
 

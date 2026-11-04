@@ -66,10 +66,20 @@ async function expectLoadedRegister(page: Page, label: (typeof registers)[number
 // Keep the complete sequential journey; accessibility/captures get independent register cases.
 test('five portfolio registers preserve period across navigation and reload', async ({ page }) => {
   await gotoWealthAnalysis(page, '/vermoegen/portfolio?zeitraum=3J');
+  await expectLoadedRegister(page, 'Übersicht');
+  const redesign = await wealthRedesign(page);
   for (const [label, path] of registers) {
     let nav = await portfolioNavigation(page);
     await expect(nav.getByRole('link')).toHaveCount(5);
     await selectPortfolioView(page, label);
+    const destination = redesign && label === 'Kennzahlen' ? '/reports/vermoegen-schulden' : path;
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === destination &&
+        url.searchParams.get('zeitraum') === '3J' &&
+        (!redesign || label !== 'Übersicht' || url.searchParams.get('ansicht') === 'analyse'),
+    );
+    await expectLoadedRegister(page, label);
     nav = await portfolioNavigation(page);
     expect(new URL(page.url()).pathname).toBe(
       (await wealthRedesign(page)) && label === 'Kennzahlen' ? '/reports/vermoegen-schulden' : path,
@@ -80,6 +90,7 @@ test('five portfolio registers preserve period across navigation and reload', as
       'page',
     );
     await page.reload();
+    await expectLoadedRegister(page, label);
     nav = await portfolioNavigation(page);
     await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute(
       'aria-current',

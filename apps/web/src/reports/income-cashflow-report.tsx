@@ -1,4 +1,4 @@
-import { maskMoneyText, Segmented, useAmountPrivacy } from '@budget/ui';
+import { maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import type { project } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
@@ -14,6 +14,8 @@ import { IncomeExpenseReport } from './income-expense-report';
 import { ProjectsReport } from './projects-report';
 import { CashflowReportPage } from './cashflow-report';
 import './report-views.css';
+import { ReportViewControl } from './report-view-control';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 const INCOME_VIEWS = [
   { value: 'income', label: 'Einnahmen' },
@@ -63,7 +65,7 @@ export function IncomeCashflowReport({
   const heading = { ...report, name: 'Einnahmen und Cashflow' };
   const controls = (
     <div className="report-income-controls" role="region" aria-label="Ansicht und Projekt">
-      <Segmented
+      <ReportViewControl
         className="report-view-switch"
         label="Ansicht von Einnahmen und Cashflow"
         options={INCOME_VIEWS}
@@ -124,8 +126,9 @@ export function IncomeCashflowReport({
       )}
       {view === 'projekte' && (
         <p className="report-project-note">
-          Projekt-Ergebnisse und Nebeneinkünfte umfassen alle Projekte mit den Monatsgrenzen des
-          bestehenden Projektberichts. Der Projektfilter gilt für die anderen Ansichten.
+          {REDESIGN_ENABLED
+            ? 'Alle Projekte · eigener Berichtszeitraum'
+            : 'Projekt-Ergebnisse und Nebeneinkünfte umfassen alle Projekte mit den Monatsgrenzen des bestehenden Projektberichts. Der Projektfilter gilt für die anderen Ansichten.'}
         </p>
       )}
     </div>

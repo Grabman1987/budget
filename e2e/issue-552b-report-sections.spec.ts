@@ -9,6 +9,25 @@ import { sampleTest as test, expect } from './sample';
  * storage. A retained month reader and the canonical income/expense table on the sample server.
  */
 test.describe.configure({ timeout: 90_000 });
+// Inspect the retained full readers before exercising their original section toggles.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      for (const id of [
+        'flow-definition',
+        'flow-parts',
+        'savings-definition',
+        'age-chain',
+        'age-definition',
+        'savings-years',
+        'savings-gross',
+      ])
+        localStorage.setItem(`budget-report-r8-${id}`, '1');
+    } catch {
+      /* The storage-unavailable case still exercises the original report toggles. */
+    }
+  });
+});
 
 const MONTH = '/reports/geldfluss?monat=2026-08';
 const TABLE = '/reports/einnahmen-ausgaben';
@@ -158,7 +177,7 @@ test('Axe is clean in light and dark, the toggle is a 44 px target on the phone'
     if (scheme === 'light') {
       const evidence =
         (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
-          ? 'docs/evidence/redesign-reports-20261102/r2-sections'
+          ? info.outputPath('r10-sections')
           : 'docs/evidence/issue-552b-report-sections';
       mkdirSync(evidence, { recursive: true });
       await page.screenshot({
