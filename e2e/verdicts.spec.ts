@@ -9,23 +9,26 @@ import { addDays, lastDayOfMonth } from '@budget/domain';
 import { SAMPLE_NOW } from './sample';
 import { eur, longDay } from '../apps/web/src/ledger/format';
 import { contactBalanceLine } from '../apps/web/src/contacts/contact-balance';
+import type { ContactOverview } from '../apps/web/src/reports/contact-api';
 import { goalReportRows } from '../apps/web/src/pages/goals-progress-model';
 import type { GoalView } from '../apps/web/src/budget/goals-api';
 import type { Occurrence } from '../apps/web/src/expected/api';
 import { money, paymentGroups } from '../apps/web/src/expected/expected-model';
 
-/** Explicit owner-retired wrappers keep their actual area/source contract, without a fake Fazit. */
-async function retiredArea(page: Page, id: 'vorschau' | 'sparziele' | 'kontakte') {
+/** Plan redirects and the contact reader keep their source contract, without a fake Fazit. */
+async function sourceArea(page: Page, id: 'vorschau' | 'sparziele' | 'kontakte') {
+  const on = await redesignEnabled(page);
   const path =
     id === 'vorschau'
       ? '/plan/erwartet'
       : id === 'sparziele'
         ? '/plan/sparziele'
-        : '/konten/kontakte';
+        : on
+          ? '/reports/kontakte'
+          : '/konten/kontakte';
   await expect(page).toHaveURL(
     (url) => url.pathname === path && url.searchParams.get('monat') === '2026-08',
   );
-  const on = await redesignEnabled(page);
   if (on && id === 'vorschau') await paymentView(page, 'next');
   // The payment redesign names the page; other Plan titles keep the selected month.
   await expect(
@@ -148,28 +151,46 @@ async function retiredArea(page: Page, id: 'vorschau' | 'sparziele' | 'kontakte'
       }
     }
   } else {
-    await expect(page.getByRole('button', { name: 'Offen', exact: true })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    const response = await page.request.get('/api/contacts?history=0');
+    if (on)
+      await expect(page.getByRole('combobox', { name: 'Darstellung der Kontakte' })).toHaveValue(
+        'salden',
+      );
+    else
+      await expect(page.getByRole('button', { name: 'Offen', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    const response = await page.request.get(`/api/contacts?history=${on ? 1 : 0}`);
     expect(response.ok()).toBe(true);
-    const data = (await response.json()) as {
-      contacts: Array<{ id: string; name: string; balanceCents: number }>;
-    };
-    await expect(page.locator('.contacts-table tbody tr')).toHaveCount(data.contacts.length);
-    for (const contact of data.contacts) {
-      const row = page.locator('.contacts-table tbody tr').filter({
-        has: page.locator(`a[href^="/konten/kontakte/${encodeURIComponent(contact.id)}"]`),
+    const data = (await response.json()) as ContactOverview;
+    const contacts = on ? data.contacts.filter((c) => c.balanceCents !== 0) : data.contacts;
+    const rows = page.locator(on ? '.r4-contact-list li' : '.contacts-table tbody tr');
+    await expect(rows).toHaveCount(contacts.length);
+    if (on)
+      await expect(page.getByTestId('report-frame-result')).toContainText(
+        eur(data.totals.balanceCents, { sign: true }),
+      );
+    for (const contact of contacts) {
+      const row = rows.filter({
+        has: page.locator(
+          on
+            ? `a[href*="kontakt=${encodeURIComponent(contact.id)}"]`
+            : `a[href^="/konten/kontakte/${encodeURIComponent(contact.id)}"]`,
+        ),
       });
-      await expect(row.getByRole('link', { name: contact.name, exact: true })).toBeVisible();
-      await expect(row.locator('.num')).toHaveText(contactBalanceLine(contact.balanceCents));
+      if (on) await expect(row.getByText(contact.name, { exact: true })).toBeVisible();
+      else await expect(row.getByRole('link', { name: contact.name, exact: true })).toBeVisible();
+      const balance = row.locator(on ? 'b' : '.num');
+      const text = on
+        ? eur(contact.balanceCents, { sign: true })
+        : contactBalanceLine(contact.balanceCents);
+      await expect(balance).toHaveText(text);
       if (!amount && contact.balanceCents !== 0) {
-        amount = row.locator('.num');
-        expected = contactBalanceLine(contact.balanceCents);
+        amount = balance;
+        expected = text;
       }
     }
-    if (!data.contacts.length)
+    if (!contacts.length)
       await expect(page.getByText(/Keine offenen Kontaktbeträge/)).toBeVisible();
   }
   for (const theme of ['light', 'dark']) {
@@ -195,7 +216,7 @@ sampleTest.describe.configure({ timeout: 180_000 });
 for (const group of REPORT_GROUPS) {
   sampleTest(`Fazit: ${group.name}`, async ({ page }, info) => {
     for (const report of group.items) {
-      const retired =
+      const sourceReader =
         report.id === 'vorschau' || report.id === 'sparziele' || report.id === 'kontakte';
       const writes: string[] = [];
       const watch = (request: Request) => {
@@ -205,10 +226,10 @@ for (const group of REPORT_GROUPS) {
         )
           writes.push(new URL(request.url()).pathname);
       };
-      if (retired) page.on('request', watch);
+      if (sourceReader) page.on('request', watch);
       await page.goto(`/reports/${report.id}?monat=2026-08`);
       if (report.id === 'vorschau' || report.id === 'sparziele' || report.id === 'kontakte') {
-        await retiredArea(page, report.id);
+        await sourceArea(page, report.id);
         page.off('request', watch);
         expect(
           writes.filter((path) => report.id !== 'vorschau' || path !== '/api/expected/refresh'),

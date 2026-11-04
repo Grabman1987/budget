@@ -52,6 +52,22 @@ test('close draft uses its original basis, refreshes conflicts and guards leave/
   });
   await field.fill('50,00');
   expect(writes).toEqual([]);
+  // Keep the real refreshed basis in flight until the UI has shown its loading guard.
+  // CI can reach the second confirmation before this read completes.
+  let releaseRefresh!: () => void;
+  const refreshGate = new Promise<void>((resolve) => {
+    releaseRefresh = resolve;
+  });
+  let markRefreshing!: () => void;
+  const refreshing = new Promise<void>((resolve) => {
+    markRefreshing = resolve;
+  });
+  await page.route('**/api/month-close/2026-09', async (route) => {
+    const current = await route.fetch();
+    markRefreshing();
+    await refreshGate;
+    await route.fulfill({ response: current });
+  });
   await send('PUT', '/budget/2026-10/assigned', {
     items: [{ categoryId: category.id, assignedCents: 8_000 }],
   });
@@ -61,12 +77,23 @@ test('close draft uses its original basis, refreshes conflicts and guards leave/
   );
   await apply.click();
   expect((await response).status()).toBe(409);
-  await expect(
-    page.getByRole('alert').filter({ hasText: 'Dein Entwurf bleibt erhalten' }),
-  ).toBeVisible();
-  await expect(field).toHaveValue('50,00');
+  try {
+    await refreshing;
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'Dein Entwurf bleibt erhalten' }),
+    ).toBeVisible();
+    await expect(field).toHaveValue('50,00');
+    await expect(apply).toBeDisabled();
+    expect(writes).toEqual(['PUT']);
+  } finally {
+    releaseRefresh();
+  }
   await expect(apply).toBeEnabled();
+  const applied = page.waitForResponse(
+    (r) => r.url().endsWith('/budget/2026-10/assigned') && r.request().method() === 'PUT',
+  );
   await apply.click();
+  expect((await applied).status()).toBe(200);
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(field).toHaveValue('80,00');
   await field.fill('60,00');

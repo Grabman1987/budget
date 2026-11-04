@@ -87,7 +87,16 @@ test('594 immediate URL filters, exact native sums, CSV and single-account Saldo
   await dialog.getByLabel('Markierung', { exact: true }).selectOption('blue');
   await expect(page).toHaveURL(/markierung=blue/);
   for (const theme of ['light', 'dark'] as const) {
-    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    await dialog.evaluate(async (element: HTMLElement, value) => {
+      document.documentElement.dataset['theme'] = value;
+      // Audit the selected palette after its native colour transitions have finished.
+      // Flush the changed styles before collecting transitions, including WebKit's deferred ones.
+      void element.offsetWidth;
+      const finite = element
+        .getAnimations({ subtree: true })
+        .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
+      await Promise.all(finite.map((animation) => animation.finished.catch(() => undefined)));
+    }, theme);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
