@@ -74,7 +74,19 @@ async function countParity(page: Page, count: number) {
   );
   await page.goto('/konten');
   await expect(page.locator('.kcheck.is-stale')).toHaveCount(count);
+  // A fresh route load must finish its real Heute read before checking the derived task row.
+  const heuteRead = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === '/api/heute',
+  );
   await openHeuteReview(page, '/');
+  const loaded = await heuteRead;
+  expect(loaded.ok()).toBe(true);
+  expect(
+    (await loaded.json()).accountReminders.map((a: { accountId: string }) => a.accountId).sort(),
+  ).toEqual(data.accountReminders.map((a) => a.accountId).sort());
+  if (await redesignLoaded(page))
+    await expect(page).toHaveURL((url) => url.pathname === '/heute/details/month');
+  await expect(page.getByTestId('heute-lead-value')).toBeVisible();
   const source = page
     .getByRole('region', { name: 'Zu tun' })
     .locator('.attention-row')
