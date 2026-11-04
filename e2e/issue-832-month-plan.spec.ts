@@ -7,6 +7,51 @@ import { MIN_TARGET_PX } from './ledger-helpers';
 
 test.use({ ledgerToday: '2026-10-15' });
 
+test('ON long negative month amount never overlaps the distribution button', async ({
+  page,
+  request,
+  baseURL,
+}, info) => {
+  const account = await request.post('/api/accounts', {
+    headers: { origin: baseURL! },
+    data: {
+      name: 'Synthetic negative head balance',
+      type: 'checking',
+      openingDate: '2026-10-01',
+      openingBalanceCents: -1_234_567_890,
+    },
+  });
+  expect(account.ok()).toBe(true);
+  await page.goto('/plan/monat?monat=2026-10');
+  const amount = page.getByTestId('to-be-assigned');
+  await expect(amount).toHaveText('−12.345.678,90 €');
+  const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  if (!on) {
+    await expect(page.getByRole('region', { name: 'Monatsbudget', exact: true })).toHaveCount(0);
+    return;
+  }
+  const viewport = page.viewportSize()!;
+  const widths = viewport.width >= 768 ? [1024, 1280, 1440] : [viewport.width];
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: viewport.height });
+    await page.evaluate(() => document.fonts.ready);
+    const value = (await amount.boundingBox())!;
+    const action = (await page
+      .getByRole('button', { name: 'Geld verteilen', exact: true })
+      .boundingBox())!;
+    expect(
+      value.x < action.x + action.width &&
+        value.x + value.width > action.x &&
+        value.y < action.y + action.height &&
+        value.y + value.height > action.y,
+      `Amount and distribution button must not overlap at ${width}px`,
+    ).toBe(false);
+    expect(action.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    expect(action.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    await page.screenshot({ path: info.outputPath(`negative-head-${width}.png`) });
+  }
+});
+
 test('computed preview conflict refreshes and waits for explicit confirmation, then grouped Undo restores cents', async ({
   page,
   request,
