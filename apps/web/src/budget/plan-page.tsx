@@ -1543,12 +1543,15 @@ function PlanTopBar({
   const [active, setActive] = useState<string | null>(null);
   const head = useRef<HTMLElement>(null);
   const [compact, setCompact] = useState(compactOnRestore);
-  const compactState = useRef(compactOnRestore);
   const restoringCompact = useRef(compactOnRestore);
   const stickyStart = useRef(0);
-  const setCompactMode = useCallback((next: boolean) => {
-    compactState.current = next;
-    setCompact(next);
+  const setCompactMode = useCallback((next: boolean) => setCompact(next), []);
+  const naturalTop = useCallback(() => {
+    const element = head.current;
+    const grid = element?.closest<HTMLElement>('.plan-grid');
+    return grid
+      ? grid.getBoundingClientRect().top + window.scrollY
+      : (element?.getBoundingClientRect().top ?? 0) + window.scrollY;
   }, []);
   const shouldCompact = useCallback(
     () =>
@@ -1556,20 +1559,51 @@ function PlanTopBar({
       Boolean(head.current?.querySelector('details[open]')),
     [],
   );
+  const updatePopoverPosition = useCallback(() => {
+    const element = head.current;
+    if (!element?.querySelector('details[open]')) {
+      element?.style.removeProperty('--plan-popover-top');
+      return;
+    }
+    requestAnimationFrame(() => {
+      const current = head.current;
+      if (current?.querySelector('details[open]'))
+        current.style.setProperty(
+          '--plan-popover-top',
+          `${current.getBoundingClientRect().bottom}px`,
+        );
+    });
+  }, []);
+  const pinOpenHead = useCallback(() => {
+    const current = head.current;
+    if (current)
+      current.style.setProperty(
+        '--plan-popover-top',
+        `${current.getBoundingClientRect().bottom}px`,
+      );
+    setCompactMode(true);
+    requestAnimationFrame(() => {
+      const element = head.current;
+      if (!element) return;
+      const stickyTop = Number.parseFloat(getComputedStyle(element).top) || 0;
+      const offset = element.getBoundingClientRect().top - stickyTop;
+      if (offset > 1) window.scrollBy({ top: offset, behavior: 'instant' });
+      updatePopoverPosition();
+    });
+  }, [setCompactMode, updatePopoverPosition]);
   useEffect(() => {
     const element = head.current;
     if (!REDESIGN_ENABLED || !element) return;
     const stickyTop = Number.parseFloat(getComputedStyle(element).top) || 0;
-    let start = element.getBoundingClientRect().top + window.scrollY - stickyTop;
+    let start = naturalTop() - stickyTop;
     stickyStart.current = start;
     const sync = () => {
       setCompactMode(shouldCompact());
+      updatePopoverPosition();
     };
     const resize = () => {
-      if (!compactState.current) {
-        start = element.getBoundingClientRect().top + window.scrollY - stickyTop;
-        stickyStart.current = start;
-      }
+      start = naturalTop() - stickyTop;
+      stickyStart.current = start;
       sync();
     };
     // Keep the saved header height while the router restores scroll; collapsing afterward moves its anchor.
@@ -1581,10 +1615,10 @@ function PlanTopBar({
       window.removeEventListener('scroll', sync);
       window.removeEventListener('resize', resize);
     };
-  }, [setCompactMode, shouldCompact]);
+  }, [naturalTop, setCompactMode, shouldCompact, updatePopoverPosition]);
   const disclosureToggle = (element: HTMLDetailsElement, key: string) => {
     if (element.open) {
-      if (REDESIGN_ENABLED) setCompactMode(true);
+      if (REDESIGN_ENABLED) pinOpenHead();
       document
         .querySelectorAll<HTMLDetailsElement>('.plan-topbar details[open]')
         .forEach((other) => {
@@ -1593,6 +1627,7 @@ function PlanTopBar({
       setActive(key);
     } else {
       if (REDESIGN_ENABLED) setCompactMode(shouldCompact());
+      updatePopoverPosition();
       setActive((current) => (current === key ? null : current));
     }
   };

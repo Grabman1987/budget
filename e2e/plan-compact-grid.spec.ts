@@ -37,7 +37,7 @@ async function expectPhoneSelectionTargets(page: Page) {
   }
 }
 
-// #481: actual category rows and standalone parents retain their original budgets.
+// #481: ON category rows reserve 44px for the name, 4px for the bar, and 8px below it.
 async function compactDimensions(page: Page) {
   return page.locator('.plan').evaluate((plan) => {
     const rows = Array.from(plan.querySelectorAll('.ptable .prow'));

@@ -31,10 +31,11 @@ test('ON long negative month amount never overlaps the distribution button', asy
     return;
   }
   const viewport = page.viewportSize()!;
-  const widths = viewport.width >= 768 ? [1024, 1280, 1440] : [viewport.width];
+  const widths = viewport.width >= 768 ? [1024, 1280, 1440] : [viewport.width, 320];
   for (const width of widths) {
     await page.setViewportSize({ width, height: viewport.height });
     await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(() => window.scrollTo(0, 0));
     const value = (await amount.boundingBox())!;
     const action = (await page
       .getByRole('button', { name: 'Geld verteilen', exact: true })
@@ -48,6 +49,32 @@ test('ON long negative month amount never overlaps the distribution button', asy
     ).toBe(false);
     expect(action.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
     expect(action.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    await page.locator('.plan-topbar-v2 .plan-tba').click();
+    await expect(page.getByTestId('plan-topbar')).toHaveClass(/is-compact/);
+    const compact = await page.getByTestId('plan-topbar').evaluate((head) => {
+      const headRect = head.getBoundingClientRect();
+      const summary = head.querySelector('.plan-tba')!;
+      const summaryRect = summary.getBoundingClientRect();
+      const actionRect = head.querySelector('.plan-lead-controls > .btn')!.getBoundingClientRect();
+      return {
+        height: headRect.height,
+        headCenter: headRect.left + headRect.width / 2,
+        summaryCenter: summaryRect.left + summaryRect.width / 2,
+        summaryLeft: summaryRect.left,
+        summaryRight: summaryRect.right,
+        summaryText: summary.textContent?.replaceAll(/\s+/g, ' ').trim(),
+        actionLeft: actionRect.left,
+        actionRight: actionRect.right,
+      };
+    });
+    expect(compact.height).toBeLessThanOrEqual(width < 768 ? 104 : 56);
+    expect(compact.summaryCenter).toBeCloseTo(compact.headCenter, 0);
+    expect(compact.summaryText).toContain('12.345.678,90 €');
+    expect(
+      compact.summaryRight <= compact.actionLeft || compact.actionRight <= compact.summaryLeft,
+      `Compact amount and action must not overlap at ${width}px`,
+    ).toBe(true);
+    await page.locator('.plan-topbar-v2 .plan-tba').click();
     await page.screenshot({ path: info.outputPath(`negative-head-${width}.png`) });
   }
 });
@@ -334,7 +361,7 @@ for (const theme of ['light', 'dark'] as const) {
           });
           const targetRowTop = (await row.boundingBox())!.y;
           expect(stickyGeometry.top).toBeCloseTo(64, 0);
-          expect(stickyGeometry.height).toBeLessThanOrEqual(56);
+          expect(stickyGeometry.height).toBeLessThanOrEqual(width < 768 ? 104 : 56);
           expect(stickyGeometry.summaryCenter).toBeCloseTo(stickyGeometry.headCenter, 0);
           expect(stickyGeometry.summaryScrollWidth).toBeLessThanOrEqual(
             stickyGeometry.summaryClientWidth + 1,

@@ -477,26 +477,29 @@
 .plan-month-frame .plan-topbar-v2.is-compact .plan-distribute-compact-label {
   display: inline;
 }
-@media (max-width: 360px) {
+@media (max-width: 767px) {
+  .plan-month-frame .plan-month-v2 .plan-grid > .plan-topbar-v2.is-compact {
+    min-height: 104px;
+  }
+  .plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    row-gap: var(--space-xs);
+  }
+  .plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls > .plan-popover {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: center;
+    max-width: 100%;
+  }
   .plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls summary.plan-tba {
-    gap: 0;
-    padding-inline: var(--space-xs);
-  }
-  .plan-month-frame .plan-topbar-v2.is-compact .plan-tba-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-  .plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls summary.plan-tba strong {
-    font-size: var(--fs-label);
+    max-width: 100%;
+    white-space: normal;
   }
   .plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls > .btn {
-    padding-inline: var(--space-xs);
-    font-size: var(--fs-label);
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: center;
   }
 }
 @media (max-width: 767px) {
@@ -504,7 +507,7 @@
   .plan-month-frame .plan-topbar-v2 .plan-popover-content {
     position: fixed;
     inset-inline: var(--space-lg);
-    inset-block-start: calc(64px + 56px);
+    inset-block-start: var(--plan-popover-top, auto);
     inset-block-end: calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + var(--space-md));
     width: auto;
     max-height: none;
