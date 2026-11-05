@@ -718,6 +718,9 @@
     overscroll-behavior: contain;
     scroll-padding-block: var(--space-sm);
   }
+  .plan-month-frame .plan-month-v2 .plan-menu:not([open]) > .plan-menu-panel {
+    display: none;
+  }
 }
 
 /* Retain every month action when the desktop shell leaves a narrow content column. */
