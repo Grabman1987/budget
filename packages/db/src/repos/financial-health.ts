@@ -48,6 +48,13 @@ function sumCents(values: readonly number[]): number | null {
 export function checkedHealthEmergencyCoverage(input: EmergencyCoverageInput) {
   const total = sumCents(input.needSpending.map((month) => month.cents));
   if (total === null || !Number.isSafeInteger(input.reserveCents)) return null;
+  // The shared helper reduces Number values in input order. Signed spending/refunds must not
+  // overflow on the way to a safe final sum and silently lose cents through cancellation.
+  let runningTotal = 0;
+  for (const month of input.needSpending) {
+    runningTotal += month.cents;
+    if (!Number.isSafeInteger(runningTotal)) return null;
+  }
   const coverage = emergencyCoverage(input);
   if (
     BigInt(Math.max(0, input.reserveCents)) * 10n * BigInt(coverage.months) >

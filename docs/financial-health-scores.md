@@ -64,7 +64,8 @@ category scores.
 A short ledger history is explicitly labelled with its actual completed-month
 window. Missing months inside that window are unavailable and are never filled
 with zero. Source cents remain safe integers; unsafe/non-finite values and unsafe
-sums are unusable, not rounded into a plausible assessment.
+sums (including intermediate signed sums before cancellation) are unusable,
+not rounded into a plausible assessment.
 
 ## Completeness and special cases
 

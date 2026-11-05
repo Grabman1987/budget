@@ -43,4 +43,20 @@ describe('assessment reserve eligibility keeps shared R02 arithmetic', () => {
       }),
     ).toBeNull();
   });
+  it('rejects unsafe signed cancellation rather than changing exact 6 cents to 5', () => {
+    // Exact total: 9007199254740991 + 6 - 9007199254740991 = 6 cents.
+    // For reserve 100 and 3 months: 100*10*3/6 = 500 tenths (not the unsafe 600).
+    // A 60-month target would give 83 points, not 100. The unsafe source is unavailable.
+    expect(
+      checkedHealthEmergencyCoverage({
+        ...source,
+        reserveCents: 100,
+        needSpending: [
+          { month: '2026-01', cents: 9007199254740991 },
+          { month: '2026-02', cents: 6 },
+          { month: '2026-03', cents: -9007199254740991 },
+        ],
+      }),
+    ).toBeNull();
+  });
 });
