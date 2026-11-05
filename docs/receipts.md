@@ -62,6 +62,41 @@ receipts. `POST /api/receipts` accepts multipart `file`, optional `bookingId`.
 unlinks. `DELETE /api/receipts/:id` removes an unlinked receipt.
 `GET .../:id/download` downloads; `GET .../:id/preview` supplies raster thumbnails.
 
+## Offline file transport (#559, headless; owner approval required)
+
+`pwa/receipt-queue.ts` prepares physical file intents independently of the existing
+text-booking FIFO. `enqueueReceipt` commits the original Blob, filename and optional
+saved-booking target in a separate `budget-receipt-intents` IndexedDB database
+before any send. Each explicit selection gets a new UUID, including identical
+bytes. `sendReceiptQueue` reuses that identity and payload, with matching
+`Idempotency-Key` and multipart `uploadIntent`, through the existing receipt API.
+That API's existing delivery cache and audited metadata/link transaction remain
+authoritative. A failed upload retains the file intent and the saved booking;
+neither queue rolls the other back. No server schema migration is added.
+
+Uncertain, rejected and login-required file intents remain pending for explicit
+retry. A truncated/incomplete reply or failed device cleanup is not acknowledgement.
+An acknowledged upload supplies its original audit group for the existing Undo;
+replaying an undone upload never recreates its receipt or link. Deliberately new
+intents still create independent metadata/audit actions sharing the immutable blob.
+
+Explicit sign-out rotates a cross-tab wipe epoch synchronously, then clears file
+rows and the IndexedDB epoch in one transaction. Every async read/write checks its
+captured epoch; stale opens and responses cannot restore files or notify success.
+New epochs have independent receipt locks so an old stalled operation cannot hold
+a fresh capture. Session expiry clears cached financial reads but retains pending
+files for reauthentication; the existing unsent text queue is untouched. An upload
+already accepted by the server may finish after sign-out; clearing a device does
+not undo that authoritative action or physically erase retained server blobs.
+
+These are unencrypted same-origin raw files, not a backup or an eviction guarantee.
+Only the opaque wipe epoch is stored in localStorage; files and credentials never
+enter localStorage or Cache Storage. Unavailable/quota/private storage rejects
+capture rather than claiming durability. A blocked or failed physical clear is
+best effort under the existing bounded sign-out contract, not forensic erasure.
+This core transport adds no UI, automatic send loop or receipt-picker integration;
+the separate #700 capture/retry/privacy interface remains outside this no-UI slice.
+
 ## Inert PDF page preview (#609, source implementation; validation pending)
 
 `POST /api/receipts/:id/pdf-preview` is a read-only, session- and same-origin-guarded
