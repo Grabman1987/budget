@@ -499,8 +499,20 @@
   max-width: none;
 }
 @media (min-width: 768px) {
-  .plan-month-frame .plan-month-v2 .ptable-zero .prow:not(.is-empty) .col-name {
+  .plan-month-frame
+    .plan-month-v2
+    .ptable-zero
+    .prow:not(.psingle):not(.pmulti):not(.is-empty)
+    .col-name {
+    grid-template-rows: var(--touch) var(--bar-progress);
     padding-block-end: var(--space-sm);
+  }
+  .plan-month-frame
+    .plan-month-v2
+    .ptable-zero
+    .prow:not(.psingle):not(.pmulti):not(.is-empty)
+    .pname {
+    min-height: var(--touch);
   }
 }
 .plan-month-frame .plan-month-v2 .ptable-zero .pgroup-gap td {
