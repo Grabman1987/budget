@@ -67,7 +67,9 @@ unlinks. `DELETE /api/receipts/:id` removes an unlinked receipt.
 `pwa/receipt-queue.ts` prepares physical file intents independently of the existing
 text-booking FIFO. `enqueueReceipt` commits the original Blob, filename and optional
 saved-booking target in a separate `budget-receipt-intents` IndexedDB database
-before any send. Each explicit selection gets a new UUID, including identical
+before any send. Original file rows are immutable; mutable delivery state is stored
+separately in its metadata store, so retries never replace a Blob's backing file.
+Each explicit selection gets a new UUID, including identical
 bytes. `sendReceiptQueue` reuses that identity and payload, with matching
 `Idempotency-Key` and multipart `uploadIntent`, through the existing receipt API.
 That API's existing delivery cache and audited metadata/link transaction remain
@@ -80,17 +82,33 @@ An acknowledged upload supplies its original audit group for the existing Undo;
 replaying an undone upload never recreates its receipt or link. Deliberately new
 intents still create independent metadata/audit actions sharing the immutable blob.
 
-Explicit sign-out rotates a cross-tab wipe epoch synchronously, then clears file
-rows and the IndexedDB epoch in one transaction. Every async read/write checks its
-captured epoch; stale opens and responses cannot restore files or notify success.
-New epochs have independent receipt locks so an old stalled operation cannot hold
-a fresh capture. Session expiry clears cached financial reads but retains pending
-files for reauthentication; the existing unsent text queue is untouched. An upload
+Explicit sign-out revokes observed tickets locally before any storage access or
+await, broadcasts opaque revocations to active contexts and attempts a synchronous
+shared wipe-epoch rotation. File rows and the IndexedDB epoch clear in one
+transaction. Every async read/write checks its captured epoch; a separate ephemeral
+writeability probe and reread prevent readable-but-unwritable storage from granting
+permission. The probe never writes back a captured epoch. Stale opens and responses
+cannot restore files or notify success after revocation.
+Successful shared rotation provides the cross-tab fence; broadcast propagation is
+asynchronous. If only the initiating tab's storage fails, other contexts cannot
+observe its logical revocation until the message arrives. An origin-wide write
+failure blocks their probes. No instantaneous cross-process or forensic erasure
+guarantee is claimed when browser storage itself cannot persist revocation.
+New epochs have independent receipt delivery locks. Physical clears use a separate
+global Web Lock and check ownership after waiting, including when rotation failed;
+an older wipe cannot erase a newer generation's fresh files. A permanently stalled
+database open holds this clear lock: sign-out still returns under its existing time
+bound, but later clears wait and fresh captures fail closed until their database
+fence is committed. Raw-file capture/delivery requires Web Locks; unsupported
+browsers reject it rather than using a per-tab fallback. The text queue's existing
+locks/fallback are unchanged. Session expiry clears cached financial reads but
+retains pending files for reauthentication; the existing unsent text queue is
+untouched. An upload
 already accepted by the server may finish after sign-out; clearing a device does
 not undo that authoritative action or physically erase retained server blobs.
 
 These are unencrypted same-origin raw files, not a backup or an eviction guarantee.
-Only the opaque wipe epoch is stored in localStorage; files and credentials never
+Only opaque epoch/probe identifiers enter localStorage; files and credentials never
 enter localStorage or Cache Storage. Unavailable/quota/private storage rejects
 capture rather than claiming durability. A blocked or failed physical clear is
 best effort under the existing bounded sign-out contract, not forensic erasure.

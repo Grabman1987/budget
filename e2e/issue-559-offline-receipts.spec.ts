@@ -56,6 +56,9 @@ declare global {
     committed559: boolean;
     status559: number;
     reply559: { groupId: string };
+    clearing559: Promise<void>;
+    wipeOpen559: boolean;
+    releaseWipe559: () => void;
   }
 }
 interface ReceiptAttempt {
@@ -629,4 +632,256 @@ test('a complete browser restart retains native receipt bytes and a later sign-o
   } finally {
     await reopened.close();
   }
+});
+
+test('repeated unavailable uploads retain readable native receipt bytes across reloads', async ({
+  page,
+  baseURL,
+}) => {
+  await load(page, baseURL!);
+  const id = await enqueue(page);
+  for (let attempt = 0; attempt < 20; attempt++) {
+    await page.evaluate(() => {
+      window.fetch = async () => Response.json({ error: 'synthetic_unavailable' }, { status: 503 });
+    });
+    await page.evaluate(() => window.queue559.sendReceiptQueue());
+    expect(await files(page)).toEqual([
+      {
+        id,
+        filename: 'synthetic-offline.png',
+        bookingId: undefined,
+        uncertain: true,
+        reason: 'server_unavailable',
+        type: '',
+        bytes: [...PNG],
+      },
+    ]);
+    await restart(page);
+  }
+});
+
+for (const initiator of ['same-tab', 'other-tab'] as const) {
+  test(`a failed storage rotation and blocked clear revoke a held reply in ${initiator}`, async ({
+    page,
+    context,
+    request,
+    baseURL,
+  }) => {
+    const origin = baseURL!;
+    await load(page, origin);
+    await enqueue(page);
+    await page.evaluate(() => {
+      const native = window.fetch.bind(window);
+      window.fetch = async (input, init) => {
+        const response = await native(input, init);
+        if (input === '/api/receipts' && init?.method === 'POST') {
+          window.status559 = response.status;
+          window.reply559 = await response.clone().json();
+          window.committed559 = true;
+          await new Promise<void>((resolve) => (window.release559 = resolve));
+        }
+        return response;
+      };
+      window.sent559 = window.writes559 = 0;
+      window.queue559.onApiWrite(() => window.writes559++);
+      window.pending559 = window.queue559.sendReceiptQueue(() => window.sent559++);
+    });
+    await expect.poll(() => page.evaluate(() => window.committed559)).toBe(true);
+    expect(await page.evaluate(() => window.status559)).toBe(201);
+    const groupId = await page.evaluate(() => window.reply559.groupId);
+    const clearing = initiator === 'same-tab' ? page : await context.newPage();
+    if (clearing !== page) await load(clearing, origin);
+    await clearing.evaluate(() => {
+      const set = Storage.prototype.setItem;
+      Storage.prototype.setItem = () => {
+        throw new DOMException('Synthetic rotation failure', 'QuotaExceededError');
+      };
+      const native = indexedDB.open.bind(indexedDB);
+      indexedDB.open = (...args: Parameters<IDBFactory['open']>) => {
+        const actual = native(...args);
+        if (args[0] !== 'budget-receipt-intents') return actual;
+        indexedDB.open = native;
+        const delayed = {} as IDBOpenDBRequest;
+        for (const key of ['result', 'error', 'transaction'] as const)
+          Object.defineProperty(delayed, key, { get: () => actual[key] });
+        actual.onerror = (event) => delayed.onerror?.call(delayed, event);
+        actual.onblocked = (event) => delayed.onblocked?.call(delayed, event);
+        actual.onsuccess = (event) => {
+          window.wipeOpen559 = true;
+          window.releaseWipe559 = () => {
+            Storage.prototype.setItem = set;
+            delayed.onsuccess?.call(delayed, event);
+          };
+        };
+        return delayed;
+      };
+      window.clearing559 = window.queue559.clearDeviceFinancialData();
+    });
+    await expect.poll(() => clearing.evaluate(() => window.wipeOpen559)).toBe(true);
+    // Logical revocation is immediate locally, propagated asynchronously to a peer. Its still
+    // writable storage and unchanged epoch cannot authorize the reply after propagation.
+    await expect
+      .poll(() =>
+        page.evaluate(async () => {
+          try {
+            await window.queue559.listReceiptIntents();
+            return 'not-revoked';
+          } catch (error) {
+            return (error as { code: string }).code;
+          }
+        }),
+      )
+      .toBe('cleared');
+    expect(await page.evaluate(() => localStorage.getItem('budget-receipt-wipe-epoch'))).toBeNull();
+    await page.evaluate(() => window.release559());
+    await page.evaluate(() => window.pending559);
+    expect(await page.evaluate(() => [window.sent559, window.writes559])).toEqual([0, 0]);
+    expect(await page.evaluate(() => window.queue559.rawFiles())).toHaveLength(1);
+    await clearing.evaluate(() => window.releaseWipe559());
+    await clearing.evaluate(() => window.clearing559);
+    expect(await page.evaluate(() => window.queue559.rawFiles())).toEqual([]);
+    // A successful new rotation permits fresh captures; a delayed old revocation cannot revoke it.
+    await clearing.evaluate(() => window.queue559.clearDeviceFinancialData());
+    await enqueue(page, undefined, 'fresh-after-failed-clear.png');
+    await page.evaluate(async () => {
+      const receiver = new BroadcastChannel('budget-receipt-revocations');
+      const sender = new BroadcastChannel('budget-receipt-revocations');
+      try {
+        const received = new Promise<void>((resolve) => (receiver.onmessage = () => resolve()));
+        sender.postMessage({ epochs: ['initial'] });
+        await received;
+      } finally {
+        receiver.close();
+        sender.close();
+      }
+    });
+    expect((await files(page)).map((row) => row.filename)).toEqual([
+      'fresh-after-failed-clear.png',
+    ]);
+    const reversed = await request.post('/api/undo', { headers: { origin }, data: { groupId } });
+    expect(reversed.status()).toBe(200);
+    if (clearing !== page) await clearing.close();
+  });
+}
+
+for (const pause of ['open', 'lock'] as const) {
+  test(`an older failed clear paused before ${pause} cannot erase a newer generation's fresh file`, async ({
+    page,
+    context,
+    baseURL,
+  }) => {
+    await load(page, baseURL!);
+    await enqueue(page, undefined, 'before-overlap.png');
+    const newer = await context.newPage();
+    await load(newer, baseURL!);
+    await page.evaluate((pause) => {
+      if (pause === 'open') {
+        const native = indexedDB.open.bind(indexedDB);
+        indexedDB.open = (...args: Parameters<IDBFactory['open']>) => {
+          indexedDB.open = native;
+          const actual = native(...args);
+          const delayed = {} as IDBOpenDBRequest;
+          for (const key of ['result', 'error', 'transaction'] as const)
+            Object.defineProperty(delayed, key, { get: () => actual[key] });
+          actual.onerror = (event) => delayed.onerror?.call(delayed, event);
+          actual.onblocked = (event) => delayed.onblocked?.call(delayed, event);
+          actual.onsuccess = (event) => {
+            window.opened559 = true;
+            window.release559 = () => delayed.onsuccess?.call(delayed, event);
+          };
+          return delayed;
+        };
+      } else {
+        const native = navigator.locks.request.bind(navigator.locks);
+        navigator.locks.request = ((...args: Parameters<LockManager['request']>) => {
+          navigator.locks.request = native;
+          window.opened559 = true;
+          return new Promise<void>((resolve) => (window.release559 = resolve)).then(() =>
+            native(...args),
+          );
+        }) as LockManager['request'];
+      }
+      const set = Storage.prototype.setItem;
+      Storage.prototype.setItem = () => {
+        throw new DOMException('Synthetic rotation failure', 'QuotaExceededError');
+      };
+      window.pending559 = window.queue559.clearReceiptIntents().then(
+        () => 'unexpected-success',
+        (error: { code: string }) => error.code,
+      );
+      Storage.prototype.setItem = set;
+    }, pause);
+    await expect.poll(() => page.evaluate(() => window.opened559)).toBe(true);
+    await newer.evaluate(() => {
+      window.committed559 = false;
+      window.clearing559 = window.queue559.clearReceiptIntents().then(() => {
+        window.committed559 = true;
+      });
+    });
+    const freshEpoch = await newer.evaluate(() =>
+      localStorage.getItem('budget-receipt-wipe-epoch'),
+    );
+    expect(freshEpoch).toMatch(/^[a-f\d-]{36}$/);
+    if (pause === 'lock') {
+      // The stale clear has not acquired its lock; the newer clear can finish and capture first.
+      await newer.evaluate(() => window.clearing559);
+      await enqueue(newer, undefined, 'after-overlap.png');
+    } else {
+      // Physical clears serialize while the older database open is held. The new epoch cannot
+      // capture until its own database fence is committed, even after the sign-out time bound.
+      expect(await newer.evaluate(() => window.committed559)).toBe(false);
+      expect(
+        await newer.evaluate(() =>
+          window.queue559.enqueueReceipt(new File(['not-durable'], 'too-early.png')).then(
+            () => 'unexpected-save',
+            (error: { code: string }) => error.code,
+          ),
+        ),
+      ).toBe('cleared');
+    }
+    await page.evaluate(() => window.release559());
+    expect(await page.evaluate(() => window.pending559)).toBe('unavailable');
+    await newer.evaluate(() => window.clearing559);
+    if (pause === 'open') await enqueue(newer, undefined, 'after-overlap.png');
+    expect((await files(newer)).map((row) => [row.filename, row.bytes])).toEqual([
+      ['after-overlap.png', [...PNG]],
+    ]);
+    expect(await newer.evaluate(() => localStorage.getItem('budget-receipt-wipe-epoch'))).toBe(
+      freshEpoch,
+    );
+    await newer.close();
+  });
+}
+
+test('without Web Locks new raw-file capture and delivery fail closed while clearing remains possible', async ({
+  page,
+  baseURL,
+}) => {
+  await load(page, baseURL!);
+  await enqueue(page);
+  expect(
+    await page.evaluate(async () => {
+      const locks = navigator.locks;
+      Object.defineProperty(navigator, 'locks', { value: undefined, configurable: true });
+      try {
+        const outcomes: string[] = [];
+        for (const action of [
+          () => window.queue559.enqueueReceipt(new File(['synthetic'], 'unsupported.png')),
+          () => window.queue559.sendReceiptQueue(),
+        ]) {
+          try {
+            await action();
+            outcomes.push('unexpected-success');
+          } catch (error) {
+            outcomes.push((error as { code: string }).code);
+          }
+        }
+        await window.queue559.clearReceiptIntents();
+        return outcomes;
+      } finally {
+        Object.defineProperty(navigator, 'locks', { value: locks, configurable: true });
+      }
+    }),
+  ).toEqual(['unavailable', 'unavailable']);
+  expect(await page.evaluate(() => window.queue559.rawFiles())).toEqual([]);
 });

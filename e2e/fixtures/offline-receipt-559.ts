@@ -1,6 +1,6 @@
 /** Test-only browser entry, injected by Playwright; no application route or UI is added. */
 export { enqueueReceipt, sendReceiptQueue } from '../../apps/web/src/pwa/receipt-queue';
-export { listReceiptIntents } from '../../apps/web/src/pwa/receipt-store';
+export { listReceiptIntents, clearReceiptIntents } from '../../apps/web/src/pwa/receipt-store';
 export { submitCapture, sendQueue } from '../../apps/web/src/pwa/queue';
 export { listQueue } from '../../apps/web/src/pwa/queue-store';
 export { emptyDraft } from '../../apps/web/src/ledger/booking-model';
