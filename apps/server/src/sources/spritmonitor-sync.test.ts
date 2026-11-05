@@ -171,6 +171,85 @@ describe('bounded Spritmonitor ledger sync', () => {
     await sync.refresh(later);
     expect(counts()).toEqual(before);
   });
+  it('invalidates the stale review token when a changed source returns to its accepted snapshot', async () => {
+    const sync = service();
+    await sync.refresh(initial);
+    payload = [row()];
+    await sync.refresh(later);
+    const original = sync.status().rows[0]!;
+    payload = [{ ...row(), amountCents: -7400 } as SpritmonitorFueling];
+    await sync.refresh(later);
+    const changed = sync.status().rows[0]!;
+    payload = [row()];
+    expect(await sync.refresh(later)).toMatchObject({ imported: 0, review: 1 });
+    const reverted = sync.status().rows[0]!;
+    expect(reverted.reviewFingerprint).toBe(original.fingerprint);
+    expect(reverted.reviewFingerprint).not.toBe(changed.reviewFingerprint);
+    expect(() => sync.resolve(reverted.key, changed.reviewFingerprint, 'ignore')).toThrow();
+    expect(counts().bookings[0]!.amountCents).toBe(-7255);
+    const before = counts();
+    await sync.refresh(later);
+    expect(counts()).toEqual(before);
+  });
+  it('bootstraps each explicitly configured vehicle and tank independently', async () => {
+    let selected = { ...config };
+    const sync = spritmonitorSync(opened.db, {
+      config: () => selected,
+      client: { configured: () => true, fuelings: async () => payload },
+    });
+    await sync.refresh(initial);
+    selected = { ...config, vehicleId: 789, tankId: 987 };
+    payload = [{ ...row(), sourceId: 'spritmonitor:789:987:1', vehicleId: 789, tankId: 987 }];
+    expect(await sync.refresh(later)).toMatchObject({ imported: 0, review: 1 });
+    expect(sync.status().state).toMatchObject({
+      vehicleId: 789,
+      tankId: 987,
+      bootstrapThrough: '2026-11-05',
+    });
+    expect(counts().bookings).toHaveLength(0);
+    selected = { ...config };
+    expect(sync.status().state).toMatchObject({
+      vehicleId: 123,
+      tankId: 456,
+      bootstrapThrough: '2026-11-01',
+    });
+  });
+  it('does not reuse another source same-day scheduled success', async () => {
+    let selected = { ...config };
+    const fetchRows = vi.fn(async () => payload);
+    const sync = spritmonitorSync(opened.db, {
+      config: () => selected,
+      client: { configured: () => true, fuelings: fetchRows },
+    });
+    await sync.refresh(later);
+    selected = { ...config, vehicleId: 789, tankId: 987 };
+    payload = [{ ...row(), sourceId: 'spritmonitor:789:987:1', vehicleId: 789, tankId: 987 }];
+    await sync.ifDue(new Date('2026-11-05T13:00:00Z'));
+    expect(fetchRows).toHaveBeenCalledTimes(2);
+    expect(sync.status().state).toMatchObject({
+      vehicleId: 789,
+      tankId: 987,
+      bootstrapThrough: '2026-11-05',
+    });
+    expect(counts().bookings).toHaveLength(0);
+    expect(sync.status().rows[0]!.status).toBe('review');
+  });
+  it('allows one explicit booking of a corrected, never-booked bootstrap review', async () => {
+    payload = [row(1, '2026-10-31')];
+    const sync = service();
+    await sync.refresh(initial);
+    payload = [{ ...row(1, '2026-10-31'), amountCents: -7400 } as SpritmonitorFueling];
+    await sync.refresh(later);
+    const corrected = sync.status().rows[0]!;
+    const result = sync.resolve(corrected.key, corrected.reviewFingerprint, 'book');
+    expect(counts().bookings).toEqual([
+      expect.objectContaining({ amountCents: -7400, status: 'pending' }),
+    ]);
+    expect(() => sync.resolve(corrected.key, corrected.reviewFingerprint, 'book')).toThrow();
+    undo(opened.db, { groupId: result.groupId }, { actor: 'owner' });
+    expect(() => sync.resolve(corrected.key, corrected.reviewFingerprint, 'book')).toThrow();
+    expect(counts().bookings.filter((b) => !b.deletedAt)).toHaveLength(0);
+  });
   it('does not infer discounts: a possible existing net fuel purchase blocks a gross import', async () => {
     const sync = service();
     await sync.refresh(initial);

@@ -38,7 +38,9 @@ including soft-deleted rows, forces review regardless of amount. Fuel-category o
 fuel/station text evidence qualifies. This deliberately catches net/gross differences;
 there is no inferred discount, rebate, balance adjustment or bank confirmation.
 Ambiguous rows are never automatically linked. Unsupported currencies/missing costs
-remain in review. A changed source snapshot never overwrites a booking. Source deletions
+remain in review. A changed source snapshot never overwrites a booking. If the provider later returns to
+the accepted snapshot, review adopts the latest returned snapshot and invalidates the
+previous changed-snapshot token. Source deletions
 never delete ledger data.
 
 ## API and scheduling
@@ -54,12 +56,15 @@ passkey-opened session, matching existing data-source APIs:
   `reviewFingerprint`), `action` (`link`, `ignore`, or explicit `book`) and optional
   `bookingId`. Linking requires a live EUR expense within two days; a booking already
   mapped to another source row is refused. `book` is explicit review approval for a
-  previously unbooked, supported fueling; it cannot rebook a changed linked source.
+  previously unbooked, supported fueling, including a corrected review snapshot; it
+  cannot rebook a changed linked source or a previously created/undone fueling.
 
 The independent timer checks every 15 minutes, with an initial 30-second delay. It
 fetches at most once per Vienna day after success, with a minimum 30-minute retry delay
 in the running process. Last attempt/failure is sanitized and process-local; the last
-source-changing success and bootstrap boundary are audited settings. Restart may repeat
+source-changing success and bootstrap boundary are audited settings keyed by vehicle/tank.
+Attempt/success state is checked against that same scope, so a different source never
+borrows another source's daily success or bootstrap date. Restart may repeat
 an unchanged read. Read failures never write money. An unchanged replay writes nothing.
 
 ## Identity, atomicity and Undo
@@ -87,7 +92,7 @@ or real IDs. Provider setup and private historical mapping remain separate owner
 
 ## Local validation (2026-11-05)
 
-- Both targeted source suites: 27/27 passed, one worker. The installed Vitest was
+- Both targeted source suites: 31/31 passed, one worker. The installed Vitest was
   5.0.3; the lockfile requests 5.0.5. This is a local runtime diagnostic, not evidence
   for the lockfile's exact dependency graph or required CI.
 - ESLint on every changed server file and the client dependency: passed.
@@ -99,3 +104,7 @@ or real IDs. Provider setup and private historical mapping remain separate owner
 These checks use the isolated worktree's own `@budget/*` packages. Independent full-diff
 financial/security review and exact-head CI remain required before integration. No
 production credentials, settings, private mappings or deployment were changed.
+
+Independent review follow-up: four added regressions first reproduced the stale review
+token, cross-source bootstrap, cross-source daily skip and corrected-unbooked-review
+failures. All four now pass with the existing 27 checks; no money oracle was changed.

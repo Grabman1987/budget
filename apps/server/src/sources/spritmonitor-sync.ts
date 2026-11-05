@@ -25,7 +25,8 @@ import { spritmonitorApi, type SpritmonitorFueling } from './spritmonitor-api';
 
 type Executor = Parameters<typeof getEntity>[0];
 const PREFIX = 'spritmonitor.row.';
-const STATE = 'spritmonitor.sync';
+const stateKey = (config: SpritmonitorConfig) =>
+  `spritmonitor.sync.${config.vehicleId}.${config.tankId}`;
 const id = z.string().trim().min(1).max(200);
 const configSchema = z.object({
   vehicleId: z.coerce.number().int().positive().max(2147483647),
@@ -72,6 +73,8 @@ interface SourceRecord {
   changed?: SpritmonitorFueling;
 }
 interface SyncState {
+  vehicleId: number;
+  tankId: number;
   bootstrapThrough: string;
   lastSuccess: string;
 }
@@ -83,6 +86,12 @@ function read<T>(db: Executor, setting: string): T | null {
   } catch {
     throw conflict();
   }
+}
+function readState(db: Executor, config: SpritmonitorConfig) {
+  const state = read<SyncState>(db, stateKey(config));
+  if (state && (state.vehicleId !== config.vehicleId || state.tankId !== config.tankId))
+    throw conflict();
+  return state;
 }
 function save(db: Executor, setting: string, value: unknown, ctx: AuditContext) {
   const serialized = JSON.stringify(value);
@@ -268,10 +277,9 @@ function book(
 }
 
 const running = new WeakSet<Db>();
-const attempted = new WeakMap<Db, number>();
 const lastResult = new WeakMap<
   Db,
-  { lastAttempt: string; lastSuccess: string | null; failed: boolean }
+  { sourceKey: string; lastAttempt: string; lastSuccess: string | null; failed: boolean }
 >();
 export interface SpritmonitorSyncOptions {
   config?: () => SpritmonitorConfig | null;
@@ -288,17 +296,20 @@ export function spritmonitorSync(db: Db, options: SpritmonitorSyncOptions = {}) 
   }
   return {
     status() {
-      let configured = false;
+      let settings: SpritmonitorConfig | null = null;
       try {
-        configured = Boolean(ready());
+        settings = ready();
       } catch {
         /* No private configuration/errors in status. */
       }
       return {
-        configured,
+        configured: Boolean(settings),
         running: running.has(db),
-        lastResult: lastResult.get(db) ?? null,
-        state: read<SyncState>(db, STATE),
+        lastResult:
+          settings && lastResult.get(db)?.sourceKey === stateKey(settings)
+            ? lastResult.get(db)
+            : null,
+        state: settings ? readState(db, settings) : null,
         rows: rows(db),
       };
     },
@@ -308,10 +319,13 @@ export function spritmonitorSync(db: Db, options: SpritmonitorSyncOptions = {}) 
       if (settings.startDate > today) throw unavailable();
       if (running.has(db) || writesHeld(db)) throw busy();
       running.add(db);
-      attempted.set(db, now.getTime());
+      const scope = stateKey(settings);
+      const previousSuccess =
+        lastResult.get(db)?.sourceKey === scope ? lastResult.get(db)!.lastSuccess : null;
       lastResult.set(db, {
+        sourceKey: scope,
         lastAttempt: now.toISOString(),
-        lastSuccess: lastResult.get(db)?.lastSuccess ?? null,
+        lastSuccess: previousSuccess,
         failed: false,
       });
       const version = auditVersion(db);
@@ -347,7 +361,7 @@ export function spritmonitorSync(db: Db, options: SpritmonitorSyncOptions = {}) 
         const ctx = { actor, groupId: randomUUID() };
         const result = db.transaction((tx) => {
           if (auditVersion(tx) !== version || hash(ready()) !== hash(settings)) throw conflict();
-          const previous = read<SyncState>(tx, STATE);
+          const previous = readState(tx, settings);
           const bootstrapThrough = previous?.bootstrapThrough ?? today;
           let imported = 0,
             pendingReview = 0,
@@ -357,11 +371,7 @@ export function spritmonitorSync(db: Db, options: SpritmonitorSyncOptions = {}) 
               fp = fingerprint(row);
             const current = read<SourceRecord>(tx, rowKey);
             if (current) {
-              if (
-                current.fingerprint === fp ||
-                (current.changed && fingerprint(current.changed) === fp)
-              )
-                continue;
+              if (fingerprint(current.changed ?? current.source) === fp) continue;
               review(
                 tx,
                 rowKey,
@@ -415,7 +425,17 @@ export function spritmonitorSync(db: Db, options: SpritmonitorSyncOptions = {}) 
           }
           // An unchanged replay writes no source state or audit rows.
           if (!previous || imported || pendingReview || linked)
-            save(tx, STATE, { bootstrapThrough, lastSuccess: now.toISOString() }, ctx);
+            save(
+              tx,
+              scope,
+              {
+                vehicleId: settings.vehicleId,
+                tankId: settings.tankId,
+                bootstrapThrough,
+                lastSuccess: now.toISOString(),
+              },
+              ctx,
+            );
           return {
             imported,
             linked,
@@ -424,6 +444,7 @@ export function spritmonitorSync(db: Db, options: SpritmonitorSyncOptions = {}) 
           };
         });
         lastResult.set(db, {
+          sourceKey: scope,
           lastAttempt: now.toISOString(),
           lastSuccess: now.toISOString(),
           failed: false,
@@ -431,8 +452,9 @@ export function spritmonitorSync(db: Db, options: SpritmonitorSyncOptions = {}) 
         return result;
       } catch (error) {
         lastResult.set(db, {
+          sourceKey: scope,
           lastAttempt: now.toISOString(),
-          lastSuccess: lastResult.get(db)?.lastSuccess ?? null,
+          lastSuccess: previousSuccess,
           failed: true,
         });
         if (error instanceof ApiError) throw error;
@@ -471,7 +493,7 @@ export function spritmonitorSync(db: Db, options: SpritmonitorSyncOptions = {}) 
           source.date < settings.startDate
         )
           throw conflict();
-        if (action === 'book' && (current.bookingId || current.changed)) throw conflict();
+        if (action === 'book' && current.bookingId) throw conflict();
         let linked = current.bookingId;
         if (action === 'link') {
           if (!bookingId) throw conflict();
@@ -509,14 +531,14 @@ export function spritmonitorSync(db: Db, options: SpritmonitorSyncOptions = {}) 
       });
     },
     async ifDue(now = new Date()) {
-      if (
-        running.has(db) ||
-        writesHeld(db) ||
-        now.getTime() - (attempted.get(db) ?? 0) < 30 * 60_000
-      )
-        return;
+      if (running.has(db) || writesHeld(db)) return;
       try {
-        const last = lastResult.get(db)?.lastSuccess ?? read<SyncState>(db, STATE)?.lastSuccess;
+        const settings = ready();
+        const scope = stateKey(settings);
+        const currentResult = lastResult.get(db)?.sourceKey === scope ? lastResult.get(db) : null;
+        if (currentResult && now.getTime() - Date.parse(currentResult.lastAttempt) < 30 * 60_000)
+          return;
+        const last = currentResult?.lastSuccess ?? readState(db, settings)?.lastSuccess;
         if (last && todayInVienna(new Date(last)) === todayInVienna(now)) return;
         await this.refresh(now);
       } catch {
