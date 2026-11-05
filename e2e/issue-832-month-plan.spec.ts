@@ -365,7 +365,9 @@ for (const theme of ['light', 'dark'] as const) {
           );
           await expect(scrollTarget).toBeVisible();
           await scrollTarget.evaluate((node) => node.scrollIntoView({ block: 'center' }));
-          await expect(row).toBeInViewport();
+          await expect(scrollTarget).toBeInViewport();
+          const scrollControl = scrollTarget.getByRole('button', { name: /Verfügbar/ });
+          await expect(scrollControl).toBeInViewport();
           const stickyHead = page.getByTestId('plan-topbar');
           await expect(stickyHead).toHaveClass(/is-compact/);
           await expect(stickyHead).toBeInViewport();
@@ -409,7 +411,7 @@ for (const theme of ['light', 'dark'] as const) {
               headBottom: headRect.bottom,
             };
           });
-          const targetRowTop = (await row.boundingBox())!.y;
+          const targetRowTop = (await scrollTarget.boundingBox())!.y;
           expect(stickyGeometry.top).toBeCloseTo(64, 0);
           expect(stickyGeometry.height).toBeLessThanOrEqual(width < 768 ? 104 : 56);
           expect(stickyGeometry.summaryCenter).toBeCloseTo(stickyGeometry.headCenter, 0);
@@ -429,6 +431,9 @@ for (const theme of ['light', 'dark'] as const) {
               stickyGeometry.actionBottom <= stickyGeometry.summaryTop,
           ).toBe(true);
           await expect(page.getByTestId('to-be-assigned')).toBeInViewport();
+          await expect(action).toBeInViewport();
+          await row.evaluate((node) => node.scrollIntoView({ block: 'center' }));
+          await expect(row).toBeInViewport();
           await expect(action).toBeInViewport();
           await page.evaluate(() => window.scrollTo(0, 0));
         }
