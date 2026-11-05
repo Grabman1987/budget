@@ -42,6 +42,7 @@ import { AppLink } from '../shell/app-link';
 import { PeriodPresentation } from './period-presentation';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { FINANZCHECK_HEADING_HASHES } from './report-search';
+import { FinancialHealthScores } from './financial-health-scores';
 import '../heute/heute.css';
 
 type Status = 'ok' | 'warn' | 'bad' | 'open' | null;
@@ -165,6 +166,7 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
       }
     >
       <div className="kview ov finanzcheck-report">
+        <FinancialHealthScores />
         <section className="card ov-card" aria-labelledby="r07-title">
           <div className="tbd-head">
             <h2 id="r07-title" tabIndex={REDESIGN_ENABLED ? -1 : undefined}>

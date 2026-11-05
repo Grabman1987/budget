@@ -1,0 +1,78 @@
+[data-budget-redesign='1'] .health-assessment {
+  min-width: 0;
+}
+[data-budget-redesign='1'] .health-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+  padding-block: 16px;
+  border-block: 1px solid var(--rule);
+}
+[data-budget-redesign='1'] .health-summary > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+[data-budget-redesign='1'] .health-summary strong {
+  font-size: var(--fs-title);
+  font-variant-numeric: tabular-nums;
+}
+[data-budget-redesign='1'] .health-summary > p {
+  margin: 0;
+}
+[data-budget-redesign='1'] .health-category {
+  min-width: 0;
+  padding-block: 16px;
+  border-bottom: 1px solid var(--rule);
+}
+[data-budget-redesign='1'] .health-category-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  align-items: baseline;
+}
+[data-budget-redesign='1'] .health-category h3,
+[data-budget-redesign='1'] .health-category h4 {
+  margin: 0;
+  font-size: var(--fs-body);
+}
+[data-budget-redesign='1'] .health-category p,
+[data-budget-redesign='1'] .health-method p {
+  margin-block: 8px;
+  overflow-wrap: anywhere;
+}
+[data-budget-redesign='1'] .health-meta,
+[data-budget-redesign='1'] .health-summary > p {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+[data-budget-redesign='1'] .health-assessment :is(summary, a, button) {
+  min-height: 44px;
+  min-width: 44px;
+  align-content: center;
+}
+[data-budget-redesign='1'] .health-assessment summary {
+  padding-block: 10px;
+  cursor: pointer;
+}
+[data-budget-redesign='1'] .health-assessment a {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-end: 16px;
+  overflow-wrap: anywhere;
+}
+[data-budget-redesign='1'] .health-metric {
+  border-block-start: 1px solid var(--rule);
+  padding-block: 12px;
+}
+[data-budget-redesign='1'] :is(.health-stale, .health-unavailable) {
+  border: 1px dashed var(--rule-strong);
+  padding: 12px;
+}
+@media (max-width: 600px) {
+  [data-budget-redesign='1'] .health-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
