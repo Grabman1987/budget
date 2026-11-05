@@ -12,11 +12,31 @@ ${body}
 `;
 }
 
+export function writeMocks(bin, mocks) {
+  let functions = '';
+  for (const [name, body] of Object.entries(mocks)) {
+    const script = mockExecutable(body);
+    // Keep executable fallbacks on PATH. Ordinary calls avoid env + a new Bash
+    // interpreter per mock; a subshell still isolates variables, exit and traps.
+    writeFileSync(join(bin, name), script, { mode: 0o755 });
+    functions += `${name}() (\nset +eu\nset +o pipefail\n${script}\n)\n`;
+  }
+  writeFileSync(join(bin, 'functions.sh'), functions);
+}
+
 export function runFixture(bash, args, options, label) {
   const phases = join(options.cwd, '.test-phases');
   const startup = join(options.cwd, '.test-startup');
   writeFileSync(phases, '');
-  writeFileSync(startup, 'printf \'%s shell-entry\\n\' "$EPOCHREALTIME" >> "$QUEUE_TEST_PHASES"\n');
+  writeFileSync(
+    startup,
+    `printf '%s shell-entry\\n' "$EPOCHREALTIME" >> "$QUEUE_TEST_PHASES"
+# Git Bash prepends its own tools on startup. Restore fixture mocks here, using
+# the same interpreter for the script instead of an outer shell + exec bash.
+export PATH="$STUB_BIN:$PATH"
+. "$STUB_BIN/functions.sh"
+`,
+  );
   const start = Date.now();
   const result = spawnSync(bash, args, {
     ...options,

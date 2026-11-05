@@ -3,7 +3,6 @@
 // Nothing here touches GitHub, the network or the real checkout.
 import { spawnSync } from 'node:child_process';
 import {
-  chmodSync,
   copyFileSync,
   cpSync,
   existsSync,
@@ -17,7 +16,7 @@ import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { mockExecutable, runFixture } from './fixture-timing.mjs';
+import { writeMocks, runFixture } from './fixture-timing.mjs';
 
 const QUEUE = dirname(fileURLToPath(import.meta.url));
 const fwd = (p) => p.replace(/\\/g, '/');
@@ -141,10 +140,7 @@ function fixture() {
   const bin = join(tmp, 'bin');
   const stub = join(tmp, 'stub');
   for (const d of [bin, stub]) mkdirSync(d);
-  writeFileSync(join(bin, 'gh'), mockExecutable(GH_STUB));
-  writeFileSync(join(bin, 'curl'), mockExecutable(CURL_STUB));
-  chmodSync(join(bin, 'gh'), 0o755);
-  chmodSync(join(bin, 'curl'), 0o755);
+  writeMocks(bin, { gh: GH_STUB, curl: CURL_STUB });
 
   const f = {
     tmp,
@@ -209,16 +205,9 @@ function fixture() {
       STUB_BIN: posix(bin),
     }),
     sh(args, opts = {}) {
-      // Git Bash puts its own tools (curl.exe, ...) in front of PATH at start-up, so the stubs are put
-      // back in front from inside the shell.
-      const front = 'export PATH="$STUB_BIN:$PATH"; ';
-      const inner =
-        args[0] === '-c'
-          ? ['-c', front + args[1]]
-          : ['-c', `${front}exec bash "$@"`, 'bash', ...args];
       const r = runFixture(
         BASH,
-        inner,
+        args,
         {
           cwd: root,
           env: f.env(),
@@ -265,7 +254,7 @@ function mergeObserver(states = [`42\t${GOOD_MAIN}\t2\tcompleted\tsuccess`]) {
     sh(args) {
       const r = runFixture(
         BASH,
-        ['-c', `export PATH="$STUB_BIN:$PATH"; ${args[1]}`],
+        args,
         {
           cwd: root,
           env: {
@@ -287,9 +276,8 @@ function mergeObserver(states = [`42\t${GOOD_MAIN}\t2\tcompleted\tsuccess`]) {
     source.indexOf('retry()'),
     source.indexOf('until main=$(gate_ok)'),
   );
-  writeFileSync(
-    join(f.tmp, 'bin', 'gh'),
-    mockExecutable(`#!/usr/bin/env bash
+  writeMocks(bin, {
+    gh: `#!/usr/bin/env bash
 emit_file() {
   [ -r "$1" ] || return 1
   local contents=''
@@ -317,11 +305,9 @@ case "$1 $2" in
     esac ;;
   "pr view") [ -f "$STUB_DIR/metadata-error" ] && exit 1; emit_file "$STUB_DIR/closing-result" ;;
 esac
-`),
-  );
-  chmodSync(join(f.tmp, 'bin', 'gh'), 0o755);
-  writeFileSync(join(f.tmp, 'bin', 'sleep'), mockExecutable('exit 0'));
-  chmodSync(join(f.tmp, 'bin', 'sleep'), 0o755);
+`,
+    sleep: 'exit 0',
+  });
   f.write('identity', `42\t${GOOD_MAIN}\t2\n`);
   f.write('states', states.join('\n') + '\n');
   f.write('read-count', '0');
