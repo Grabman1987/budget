@@ -126,18 +126,26 @@ it('E3 ON puts categories in compact groups and retains edit, order and hidden-c
   expect(document.querySelector('.settings-category-list')).not.toBeNull();
   expect(screen.getByRole('button', { name: 'Essen verschieben' })).toBeTruthy();
 });
-it('E4 ON orders the five real sources and makes unavailable-source recovery accessible', async () => {
-  mount(<DataSourcesPage />, '/einstellungen/datenquellen');
+it('E4 ON orders the real sources and makes unavailable-source recovery accessible', async () => {
+  const { writes } = mount(<DataSourcesPage />, '/einstellungen/datenquellen');
   await screen.findByRole('heading', { name: 'Verbindungen' });
   expect(
     [...document.querySelectorAll('.settings-source-copy strong')].map(
       (element) => element.textContent,
     ),
-  ).toEqual(['Bank', 'Krypto', 'Gehaltszettel', 'Kurse', 'VPI']);
+  ).toEqual(['Bank', 'Krypto', 'Spritmonitor', 'Gehaltszettel', 'Kurse', 'VPI']);
+  const fuel = screen.getByRole('region', { name: 'Spritmonitor' });
+  await userEvent.click(within(fuel).getByRole('button', { name: 'Prüfen' }));
+  await within(fuel).findByText(/Die Verbindung wird am Server eingerichtet/);
+  expect(within(fuel).getByRole('button', { name: 'Jetzt abrufen' }).hasAttribute('disabled')).toBe(
+    true,
+  );
+  expect(within(fuel).queryByRole('textbox')).toBeNull();
   const bank = screen.getByRole('region', { name: 'Bank' });
   await userEvent.click(within(bank).getByRole('button', { name: 'Prüfen' }));
   await within(bank).findByText(/Bank-Sync ist noch nicht eingerichtet/);
   expect(within(bank).getByText(/Noch kein erfolgreicher Abruf/)).toBeTruthy();
+  expect(writes).toEqual([]);
 });
 it('E5 ON provides the one persisted target editor as a settings destination', async () => {
   mount(<AssetClassesSettingsPage />, '/einstellungen/anlageklassen?ansicht=stufen');
