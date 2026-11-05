@@ -39,8 +39,13 @@
 
 /* Prüfen v1: compact header, flat source rows and a phone action dock. */
 .konten-frame-inbox .konten-view-bar {
+  flex-wrap: wrap;
   min-height: 44px;
   gap: 12px;
+}
+.konten-inbox-segments-slot {
+  flex-shrink: 0;
+  max-width: 100%;
 }
 .konten-inbox-segments-slot .inbox-segments {
   width: auto;
@@ -635,4 +640,44 @@
   .kinbox-v1 .bank-v1-row .bank-v1-action {
     grid-area: action;
   }
+}
+
+/* Keep the complete bank toolbar readable beside the desktop sidebar. */
+@media (min-width: 768px) and (max-width: 1100px) {
+  .konten-frame-inbox .konten-view-bar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 44px;
+  }
+  .konten-frame-inbox .konten-view-bar > .area-page-menu {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+  }
+  .konten-inbox-segments-slot {
+    grid-column: 2 / -1;
+    grid-row: 1;
+  }
+  .konten-inbox-sort-slot {
+    grid-column: 1;
+    grid-row: 2;
+    margin-inline-start: 0;
+  }
+  .konten-inbox-filters-slot {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+  }
+  .konten-inbox-selection-slot {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .konten-inbox-safe-slot {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: end;
+  }
+}
+.konten-inbox-sort-slot:empty,
+.konten-inbox-safe-slot:empty {
+  display: none;
 }

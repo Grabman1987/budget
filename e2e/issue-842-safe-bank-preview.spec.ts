@@ -113,6 +113,35 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
       await expect(row).toBeVisible();
       await expect(row.locator('.bank-v1-payee strong')).toHaveText(longPayee);
       await expect(row.locator('.bank-v1-payee strong')).toHaveCSS('display', 'block');
+      if (path.startsWith('/konten/pruefen')) {
+        if (width >= 768) await expect(page.getByLabel('Datumssortierung')).toBeVisible();
+        const toolbar = page.locator('.konten-frame-inbox .konten-view-bar');
+        const layout = await toolbar.evaluate((element) => {
+          const controls = [
+            ...element.querySelectorAll<HTMLElement>('button, select, summary'),
+          ].filter((control) => control.getClientRects().length > 0);
+          const insideViewport = controls.every((control) => {
+            const box = control.getBoundingClientRect();
+            return box.left >= 0 && box.right <= innerWidth;
+          });
+          const readableSegments = [...element.querySelectorAll('.inbox-segments button')].every(
+            (button) => {
+              const range = document.createRange();
+              range.selectNodeContents(button);
+              const text = range.getBoundingClientRect(),
+                box = button.getBoundingClientRect();
+              return text.left >= box.left && text.right <= box.right;
+            },
+          );
+          return { insideViewport, readableSegments };
+        });
+        expect(layout).toEqual({ insideViewport: true, readableSegments: true });
+        await expect(
+          toolbar.getByRole('button', { name: /Alle sicheren bestätigen/ }),
+        ).toBeVisible();
+        await expect(toolbar.getByLabel('Auswahl (0)', { exact: true })).toBeVisible();
+      }
+
       const geometry = await row.evaluate((element) => {
         const within = (child: Element, parent: Element) => {
           const a = child.getBoundingClientRect(),
