@@ -195,7 +195,7 @@
     padding: var(--space-xs);
   }
   .plan-month-v2 .plan-topbar-v2.is-compact .plan-month-scope,
-  .plan-month-v2 .plan-topbar-v2.is-compact .chain-inline,
+  .plan-month-v2 .plan-topbar-v2.is-compact .plan-month-lead .chain-inline,
   .plan-month-v2 .plan-topbar-v2.is-compact .plan-hint {
     display: none;
   }
@@ -499,6 +499,15 @@
   max-width: none;
 }
 @media (min-width: 768px) {
+  /* The worksheet's base desktop rule fixes every plan cell at 32px. Let redesigned category
+     rows grow to fit the 44px name target, progress bar, and trailing breathing room. */
+  .plan-month-frame
+    .plan-month-v2
+    .ptable-zero
+    .prow:not(.psingle):not(.pmulti):not(.is-empty)
+    > td {
+    height: auto;
+  }
   .plan-month-frame
     .plan-month-v2
     .ptable-zero
