@@ -498,6 +498,11 @@
   width: 100%;
   max-width: none;
 }
+@media (min-width: 768px) {
+  .plan-month-frame .plan-month-v2 .ptable-zero .prow:not(.is-empty) .col-name {
+    padding-block-end: var(--space-sm);
+  }
+}
 .plan-month-frame .plan-month-v2 .ptable-zero .pgroup-gap td {
   height: var(--space-md);
 }
