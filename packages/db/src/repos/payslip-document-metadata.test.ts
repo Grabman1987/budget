@@ -43,7 +43,7 @@ it('projects filenames for existing inbox letters without inventing a month or c
     },
   });
   expect(readInboxCount(opened.db, '2026-11-05').count).toBe(inbox.count);
-  expect(opened.sqlite.serialize()).toEqual(before);
+  expect(opened.sqlite.serialize().equals(before)).toBe(true);
 });
 it('labels an unambiguous filename month as filename metadata without creating a payroll draft', () => {
   expect(payslipDocumentMetadata(letter, 'synthetic-202609.pdf')).toMatchObject({
