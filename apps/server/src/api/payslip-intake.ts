@@ -3,6 +3,8 @@ import {
   listEntities,
   decidePayslipIntake,
   getPayslipIntake,
+  getReceipt,
+  payslipDocumentMetadata,
   readPayslipPayoutAssociation,
   getPayslipSourceConfig,
   payslipMatches,
@@ -94,6 +96,7 @@ function intakeView(
     id: row.id,
     status: row.status,
     receiptId: row.receiptId,
+    document: payslipDocumentMetadata(row.parsed, getReceipt(db, row.receiptId).originalFilename),
     payout: readPayslipPayoutAssociation(db, row.id),
     parsed: row.parsed,
     matches: payslipMatches(db, row.parsed, payoutAccountId, proposedPayoutDate, {

@@ -11,7 +11,14 @@ import {
   or,
   sql,
 } from 'drizzle-orm';
-import { cents, formatEuro, monthOf, overspentEnvelopes, summarizeMonth } from '@budget/domain';
+import {
+  cents,
+  formatEuro,
+  monthOf,
+  overspentEnvelopes,
+  summarizeMonth,
+  type ParsedPayrollDocument,
+} from '@budget/domain';
 import { categoryTree } from './categories';
 import { budget } from './queries';
 import {
@@ -22,6 +29,8 @@ import {
   payee,
   bankSyncAccount,
   bankSyncCandidate,
+  payslipIntake,
+  receipt,
 } from '../schema';
 import { nowIso, updateTracked, withGroup, type AuditContext } from './audit';
 import { ConflictError, EntityNotFoundError } from './errors';
@@ -31,6 +40,7 @@ import { listReceipts } from './receipts';
 import { accountReminders } from './account-reminders';
 import { savingsExecutionProposals, type SavingsExecutionProposal } from './savings-plans';
 import { candidateMatches } from './bank-followups';
+import { payslipDocumentMetadata } from './payslip-intake';
 import { readAssignmentCandidate } from './assignment-rules';
 
 export type BankSuggestion = { label: string; needsReview: boolean };
@@ -61,6 +71,7 @@ export interface InboxStored {
   refId: string | null;
   urgent: boolean;
   createdAt: string;
+  payslipDocument?: ReturnType<typeof payslipDocumentMetadata>;
   bankCandidate?:
     | {
         date: string;
@@ -368,8 +379,21 @@ export function readInbox(
         !candidateKeys.has(`${row.accountId}:${row.importKey}`),
     ).length;
     const stored: InboxStored[] = tx
-      .select()
+      .select({
+        item: inboxItem,
+        parsedJson: payslipIntake.parsedJson,
+        originalFilename: receipt.originalFilename,
+      })
       .from(inboxItem)
+      .leftJoin(
+        payslipIntake,
+        and(
+          eq(inboxItem.refType, 'payslip-intake'),
+          eq(payslipIntake.id, inboxItem.refId),
+          isNull(payslipIntake.deletedAt),
+        ),
+      )
+      .leftJoin(receipt, and(eq(receipt.id, payslipIntake.receiptId), isNull(receipt.deletedAt)))
       .where(
         and(
           readSource ? sourceMovementsWhere(readSource) : storedWhere(),
@@ -390,7 +414,7 @@ export function readInbox(
       )
       .orderBy(desc(inboxItem.urgent), asc(inboxItem.createdAt), asc(inboxItem.id))
       .all()
-      .map((row) => ({
+      .map(({ item: row, parsedJson, originalFilename }) => ({
         type: 'stored',
         id: row.id,
         kind: row.kind,
@@ -403,6 +427,14 @@ export function readInbox(
         refId: row.refId,
         urgent: row.urgent,
         createdAt: row.createdAt,
+        ...(parsedJson
+          ? {
+              payslipDocument: payslipDocumentMetadata(
+                JSON.parse(parsedJson) as ParsedPayrollDocument,
+                originalFilename,
+              ),
+            }
+          : {}),
         ...(row.refType === 'bank-sync-candidate' && row.refId
           ? { bankCandidate: candidates.get(row.refId) }
           : {}),

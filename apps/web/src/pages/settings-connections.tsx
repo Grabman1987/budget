@@ -19,6 +19,7 @@ type PayslipStatus = {
   lastScanAt: string | null;
   filesFound: number;
   errors: number;
+  errorCode?: string | null;
 };
 type MarketStatus = {
   lastRun: { status: string; finishedAt: string | null; error?: string | null } | null;
@@ -155,17 +156,21 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
         status={
           !payslip.data?.dropboxConfigured
             ? 'Upload verfügbar'
-            : payslip.data.dropboxConnected
-              ? 'Verbunden'
-              : 'Wartet auf Scan'
+            : payslip.data.errorCode && payslip.data.errorCode !== 'document_warning'
+              ? 'Abruf fehlgeschlagen'
+              : payslip.data.dropboxConnected
+                ? 'Verbunden'
+                : 'Wartet auf Scan'
         }
         attention={!!payslip.data?.errors}
         detail={
           payslip.data
-            ? `PDF-Import · ${payslip.data.filesFound} Dateien · ${payslip.data.errors} Fehler / Warnungen`
+            ? `PDF-Import · ${payslip.data.filesFound} Dateien${payslip.data.errorCode && payslip.data.errorCode !== 'document_warning' ? ' bis zum Fehler' : ''} · ${payslip.data.errors} Fehler / Warnungen`
             : 'PDF-Import · Dropbox'
         }
         date={payslip.data?.lastScanAt}
+        dateLabel="Letzter Scanversuch"
+        emptyDate="Noch kein Scanversuch"
         loading={payslip.isPending}
         error={payslip.isError}
         onRetry={() => void payslip.refetch()}

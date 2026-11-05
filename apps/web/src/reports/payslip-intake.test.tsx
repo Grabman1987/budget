@@ -3,7 +3,13 @@ import { ToastProvider } from '@budget/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PayslipIntakeDetail, PayslipSourceSection, PayslipUpload } from './payslip-intake';
+import {
+  PayslipIntakeDetail,
+  PayslipSourceSection,
+  PayslipUpload,
+  PayslipDocumentCaption,
+  payslipDocumentTypeLabel,
+} from './payslip-intake';
 
 const account = (id: string, name: string, over: Record<string, unknown> = {}) => ({
   id,
@@ -59,6 +65,40 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+});
+it.each(['bonus', 'pension'] as const)(
+  'identifies a %s letter by filename without inventing a month',
+  (documentType) => {
+    render(
+      <PayslipDocumentCaption
+        document={{
+          originalFilename: 'Synthetische Mitteilung 2025.pdf',
+          documentType,
+          month: null,
+          periodSource: null,
+        }}
+      />,
+    );
+    expect(screen.getByText('Synthetische Mitteilung 2025.pdf')).toBeTruthy();
+    expect(screen.queryByText(/Abrechnungsmonat/)).toBeNull();
+    expect(payslipDocumentTypeLabel(documentType)).toBe(
+      documentType === 'bonus' ? 'Bonus-Mitteilung' : 'Pensionskassen-Mitteilung',
+    );
+  },
+);
+it('discloses a filename month rather than presenting it as a parsed payroll month', () => {
+  render(
+    <PayslipDocumentCaption
+      document={{
+        originalFilename: 'synthetic-202609.pdf',
+        documentType: 'unknown',
+        month: '2026-09',
+        periodSource: 'filename',
+      }}
+    />,
+  );
+  expect(screen.getByText(/Abrechnungsmonat 09\/2026 \(aus Dateiname\)/)).toBeTruthy();
+  expect(payslipDocumentTypeLabel('unknown')).toBe('Dokumenttyp nicht erkannt');
 });
 
 it('accepts a dropped PDF without the native chooser and rejects ambiguous or non-PDF drops', async () => {
