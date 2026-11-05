@@ -221,6 +221,17 @@ for (const theme of ['light', 'dark'] as const) {
     await send('/budget/2026-10/assigned', 'PUT', {
       items: [{ categoryId: category.id, assignedCents: 400 }],
     });
+    const trailingCategories = [];
+    for (let index = 1; index <= 8; index += 1) {
+      const { category: trailingCategory } = await send('/categories', 'POST', {
+        name: `Synthetic trailing category ${index}`,
+        groupId: group.id,
+        kind: 'variable',
+        class: 'need',
+        stage: 2,
+      });
+      trailingCategories.push(trailingCategory.id);
+    }
     const budget = async (api: APIRequestContext) => {
       const response = await api.get('/api/budget/2026-10');
       expect(response.ok()).toBe(true);
@@ -349,7 +360,11 @@ for (const theme of ['light', 'dark'] as const) {
           expect(rect!.x + rect!.width).toBeLessThanOrEqual(width + 0.5);
         }
         if (on && width < 768) {
-          await row.evaluate((node) => node.scrollIntoView({ block: 'center' }));
+          const scrollTarget = page.locator(
+            `.prow:has(.pname[data-category-id="${trailingCategories.at(-1)}"])`,
+          );
+          await expect(scrollTarget).toBeVisible();
+          await scrollTarget.evaluate((node) => node.scrollIntoView({ block: 'center' }));
           await expect(row).toBeInViewport();
           const stickyHead = page.getByTestId('plan-topbar');
           await expect(stickyHead).toHaveClass(/is-compact/);
