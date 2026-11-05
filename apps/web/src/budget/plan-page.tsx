@@ -2274,7 +2274,8 @@ function EnvelopeRow({
               className="phone-assigned"
               title={assignment ? ghostSource(assignment) : undefined}
             >
-              Zugewiesen {assignment ? `≈ ${eur(assignment.ghostCents)}` : eur(r.assignedCents)}
+              Zugewiesen {eur(r.assignedCents)}
+              {assignment ? ` · Vorschlag ≈ ${eur(assignment.ghostCents)}` : ''}
             </span>
           ) : (
             <>
@@ -2309,7 +2310,7 @@ function EnvelopeRow({
             <button
               type="button"
               onClick={over ? onCover : onInspect}
-              aria-label={`${over ? `${r.name} decken` : `Zugewiesen für ${r.name} ändern`} · ${eur(r.availableCents)}`}
+              aria-label={`${over ? `Deckung für ${r.name} wählen` : `Details für ${r.name} öffnen`} · Verfügbar ${eur(r.availableCents)}`}
               className={cx(
                 'plan-available pill',
                 over ? 'is-bad' : r.availableCents > 0 && 'is-good',
