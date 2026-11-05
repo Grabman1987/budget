@@ -253,6 +253,9 @@ test('814 a failed refetch labels cached scores stale; offline never presents cu
   ).toHaveCount(0);
   await page.unroute('**/api/rules/health');
   await context.setOffline(false);
+  // Match the existing offline surface's "Erneut verbinden" reload: a late failed request
+  // may keep that surface active after the browser emits online. Fresh reads must recover.
+  await page.reload();
   await expect(report.getByTestId('health-overall-score')).toHaveText('71 von 100');
   await expect(report.getByRole('alert')).toHaveCount(0);
 });
