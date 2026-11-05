@@ -195,6 +195,10 @@ test('814 loading, source error and retry preserve the real known assessment', a
   isolatedLedger,
 }) => {
   await fixture(request, isolatedLedger.origin);
+  let checkReads = 0;
+  page.on('response', (response) => {
+    if (new URL(response.url()).pathname === '/api/rules/check') checkReads++;
+  });
   let release!: () => void;
   const hold = new Promise<void>((done) => {
     release = done;
@@ -210,6 +214,9 @@ test('814 loading, source error and retry preserve the real known assessment', a
   }
   const report = page.getByRole('region', { name: 'Financial Health Scores', exact: true });
   await expect(report.getByRole('status')).toContainText('werden geladen');
+  // The existing report derives rule history once, then invalidates ledger queries. Let that
+  // refresh start while the first health read is pending, so it cannot race the retry click.
+  await expect.poll(() => checkReads).toBe(2);
   release();
   await expect(report.getByRole('alert')).toContainText('konnten nicht geladen');
   await expect(report.getByTestId('health-overall-score')).toHaveCount(0);
@@ -240,7 +247,10 @@ test('814 a failed refetch labels cached scores stale; offline never presents cu
   await context.setOffline(true);
   await expect(page.getByRole('heading', { name: 'Budget ist offline' })).toBeVisible();
   await expect(page.getByText('Für diese Seite brauchst du eine Verbindung.')).toBeVisible();
-  await expect(page.getByTestId('health-assessment')).toHaveCount(0);
+  await expect(page.getByTestId('health-assessment')).toBeHidden();
+  await expect(
+    page.getByRole('region', { name: 'Financial Health Scores', exact: true }),
+  ).toHaveCount(0);
   await page.unroute('**/api/rules/health');
   await context.setOffline(false);
   await expect(report.getByTestId('health-overall-score')).toHaveText('71 von 100');
