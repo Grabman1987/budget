@@ -234,15 +234,13 @@ export function ReconcileFlow({
         Vergleicht den gebuchten App-Saldo mit dem Saldo laut Bank. Stimmt beides überein, werden
         die bestätigten Buchungen als geprüft festgeschrieben. Vorgemerkte Buchungen zählen nicht.
       </p>
-      {suggestedBalance !== null &&
-        date === today &&
-        text === formatDecimal(cents(suggestedBalance)) && (
-          <p className="kmeta">
-            Vorbelegt ist der gebuchte App-Saldo ohne Vormerkungen. Vergleiche ihn mit Bank oder
-            Bargeld und bestätige „Kontostand stimmt“. Einen abweichenden Saldo kannst du unten
-            eingeben.
-          </p>
-        )}
+      {suggestedBalance !== null && date === today && statement === suggestedBalance && (
+        <p className="kmeta">
+          Vorbelegt ist der gebuchte App-Saldo ohne Vormerkungen. Vergleiche ihn mit Bank oder
+          Bargeld und bestätige „Kontostand stimmt“. Einen abweichenden Saldo kannst du unten
+          eingeben.
+        </p>
+      )}
       {bank && bank.amountCents !== null && bankDate && (
         <Button
           variant="ghost"

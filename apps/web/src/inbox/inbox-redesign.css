@@ -412,12 +412,12 @@
     font-size: var(--fs-label);
   }
   .bank-v1-payee .bank-v1-phone-source {
-    display: inline;
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: var(--fs-label);
     color: var(--ink-2);
-  }
-  .bank-v1-payee .bank-v1-phone-source::before {
-    content: ' · ';
   }
   .bank-v1-table .bank-v1-amount {
     grid-area: amount;

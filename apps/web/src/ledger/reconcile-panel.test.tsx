@@ -138,6 +138,22 @@ it.each([1234, -1234, 0])(
   },
 );
 
+it('keeps the booked-balance hint stable when an equivalent amount is formatted on blur', async () => {
+  bookedBalanceCents = 10000;
+  show({ clearedCents: 10000, balanceCents: 10000 });
+  const amount = screen.getByLabelText('Saldo laut Bank');
+  const hint = screen.getByText(/Vorbelegt ist der gebuchte App-Saldo ohne Vormerkungen/);
+  fireEvent.change(amount, { target: { value: '100' } });
+  expect(screen.getByText(/Vorbelegt ist der gebuchte App-Saldo ohne Vormerkungen/)).toBe(hint);
+  fireEvent.blur(amount);
+  expect((amount as HTMLInputElement).value).toBe('100,00');
+  expect(screen.getByText(/Vorbelegt ist der gebuchte App-Saldo ohne Vormerkungen/)).toBe(hint);
+  fireEvent.click(await screen.findByRole('button', { name: 'Kontostand stimmt' }));
+  await waitFor(() =>
+    expect(sends).toEqual([{ date: expect.any(String), statementBalanceCents: 10000 }]),
+  );
+});
+
 it('does not confirm a stale suggested balance when the current server preview differs', async () => {
   bookedBalanceCents = 1200;
   show({ clearedCents: 1234, unclearedCents: 0, balanceCents: 1234 });

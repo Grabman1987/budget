@@ -153,6 +153,7 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
         const action = element.querySelector('.bank-v1-action')!;
         const payeeText = element.querySelector('.bank-v1-payee strong')!;
         const date = element.querySelector('.bank-v1-payee > span')!;
+        const source = element.querySelector('.bank-v1-phone-source')!;
         const a = payeeText.getBoundingClientRect();
         const text = document.createRange();
         text.selectNodeContents(amount);
@@ -161,6 +162,7 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
         return {
           payee: within(payeeText, payee),
           date: within(date, payee),
+          source: source.getClientRects().length === 0 || within(source, payee),
           amount: money.left >= moneyCell.left && money.right <= moneyCell.right,
           action: within(action.querySelector('button')!, action),
           separate:
@@ -168,12 +170,13 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
             a.left >= money.right ||
             a.bottom <= money.top ||
             a.top >= money.bottom,
-          page: document.documentElement.scrollWidth <= innerWidth,
+          page: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
         };
       });
       expect(geometry).toEqual({
         payee: true,
         date: true,
+        source: true,
         amount: true,
         action: true,
         separate: true,
@@ -197,6 +200,11 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
   await expect(candidate.getByText(longRule, { exact: true })).toBeVisible();
   await expect(candidate).toContainText(longPayee);
   await expect(candidate).toContainText(account.name);
+  const close = candidate.getByRole('button', { name: 'Schließen', exact: true });
+  const closeBox = await close.boundingBox();
+  expect(closeBox).not.toBeNull();
+  expect(closeBox!.x).toBeGreaterThanOrEqual(0);
+  expect(closeBox!.x + closeBox!.width).toBeLessThanOrEqual(originalViewport.width);
   await candidate.getByRole('button', { name: 'Schließen', exact: true }).click();
   await expect(shortcut).toHaveText('Alle sicheren bestätigen (1)');
   for (const width of [390, 768, 871, 1024, 1280]) {
