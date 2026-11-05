@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider, setAmountsHidden } from '@budget/ui';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpritmonitorReview, SpritmonitorSourceSection } from './spritmonitor-source';
 import type { FuelStatus } from './spritmonitor-api';
@@ -38,14 +38,44 @@ vi.mock('../shell/app-link', () => ({
     );
   },
 }));
-vi.mock('../ledger/booking-panel', () => ({
-  BookingPanel: ({ state }: { state: { mode: string; booking: ListedBooking } | null }) =>
-    state ? (
-      <div role="dialog" aria-label="Buchung bearbeiten">
-        Normale Buchung {state.booking.id} auf {state.booking.accountName}
-      </div>
-    ) : null,
-}));
+// Keep the real BookingPanel/dirty guard; only its finance form is replaced by a draft probe.
+vi.mock('../ledger/capture-form', async () => {
+  const { useState } = await import('react');
+  return {
+    CaptureForm: function DraftProbe({
+      state,
+      dirtyRef,
+      discard,
+    }: {
+      state: { mode: string; booking: ListedBooking };
+      dirtyRef: { current: boolean };
+      discard: { asking: boolean; keep: () => void; discard: () => void };
+    }) {
+      const [draft, setDraft] = useState('');
+      return (
+        <div>
+          Normale Buchung {state.booking.id} auf {state.booking.accountName}
+          <label>
+            Entwurfnotiz
+            <input
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                dirtyRef.current = true;
+              }}
+            />
+          </label>
+          {discard.asking && (
+            <div role="alertdialog" aria-label="Entwurf behalten">
+              <button onClick={discard.keep}>Weiter bearbeiten</button>
+              <button onClick={discard.discard}>Entwurf verwerfen</button>
+            </div>
+          )}
+        </div>
+      );
+    },
+  };
+});
 
 const source = {
   sourceId: 'spritmonitor:123:456:1',
@@ -102,6 +132,12 @@ function mount(node: React.ReactNode) {
   );
 }
 beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = function () {
+    this.open = true;
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.open = false;
+  };
   flags.REDESIGN_ENABLED = false;
   data = base();
   calls = [];
@@ -153,6 +189,7 @@ beforeEach(() => {
   );
 });
 afterEach(() => {
+  cleanup();
   client?.clear();
   setAmountsHidden(false);
   vi.unstubAllGlobals();
@@ -316,6 +353,85 @@ describe('Spritmonitor connection and review UI', () => {
       expect(calls.every((c) => c.method === 'GET')).toBe(true);
     },
   );
+  it('masks free source text and candidate memo amounts in closed and open history', async () => {
+    setAmountsHidden(true);
+    data.rows[0]!.source.stationName = 'Tankstelle 72,55 \u20ac';
+    data.rows[0]!.source.location = 'Ort 12,34 \u20ac';
+    data.rows[0]!.source.note = 'Notiz 23,45 \u20ac';
+    const oldName = booking.payeeName,
+      oldMemo = booking.memo;
+    booking.payeeName = null;
+    booking.memo = 'Kraftstoff 70,00 \u20ac';
+    try {
+      mount(<SpritmonitorSourceSection />);
+      const summary = await screen.findByText(/Tankstelle.*Zu pr\u00fcfen/);
+      expect(summary.textContent).not.toMatch(/72,55/);
+      const details = summary.closest('details')!;
+      details.open = true;
+      fireEvent(details, new Event('toggle'));
+      await screen.findByRole('option', { name: /Kraftstoff/ });
+      expect(document.body.textContent).not.toMatch(/72,55|12,34|23,45|70,00/);
+      expect(data.rows[0]!.source.stationName).toBe('Tankstelle 72,55 \u20ac');
+      expect(booking.memo).toBe('Kraftstoff 70,00 \u20ac');
+    } finally {
+      booking.payeeName = oldName;
+      booking.memo = oldMemo;
+    }
+  });
+  it('masks an unsupported source amount even when its currency is unknown', async () => {
+    setAmountsHidden(true);
+    data.rows[0]!.source = {
+      ...source,
+      status: 'unsupported',
+      currency: null,
+      sourceAmount: '99.99',
+      reason: 'unknown_currency',
+    };
+    data.rows[0]!.canBook = false;
+    mount(<SpritmonitorSourceSection />);
+    const summary = await screen.findByText(/Tankstelle.*Zu pr\u00fcfen/);
+    expect(summary.textContent).not.toContain('99.99');
+    const details = summary.closest('details')!;
+    details.open = true;
+    fireEvent(details, new Event('toggle'));
+    await screen.findByRole('option', { name: /Giro Muster/ });
+    expect(document.body.textContent).not.toContain('99.99');
+    expect(data.rows[0]!.source).toMatchObject({ sourceAmount: '99.99', currency: null });
+  });
+  it('keeps an open dirty booking draft through source fingerprint/status updates and read failure', async () => {
+    data.rows[0] = {
+      ...data.rows[0]!,
+      bookingId: 'existing',
+      status: 'booked',
+      canBook: false,
+      canResolve: false,
+    };
+    mount(<SpritmonitorReview rowKey={row.key} />);
+    await screen.findByText(/Erfasst:.*Giro Muster/);
+    fireEvent.click(screen.getByRole('button', { name: 'Buchung bearbeiten' }));
+    const input = (await screen.findByLabelText('Entwurfnotiz')) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Noch nicht gespeicherte Kontokorrektur' } });
+    await act(async () => {
+      data.rows[0]!.reviewFingerprint = 'c'.repeat(64);
+      data.rows[0]!.status = 'review';
+      data.rows[0]!.canResolve = true;
+      client.setQueryData(['ledger', 'spritmonitor'], structuredClone(data));
+    });
+    await screen.findByLabelText('Vorhandene Buchung verknüpfen');
+    expect(screen.getByLabelText('Entwurfnotiz')).toBe(input);
+    expect(input.value).toBe('Noch nicht gespeicherte Kontokorrektur');
+    fail = true;
+    await act(async () => {
+      await client.refetchQueries({ queryKey: ['ledger', 'spritmonitor'] });
+    });
+    await screen.findByRole('alert');
+    expect(screen.getByLabelText('Entwurfnotiz')).toBe(input);
+    expect(input.value).toBe('Noch nicht gespeicherte Kontokorrektur');
+    const dialog = screen.getByRole('dialog', { name: 'Buchung bearbeiten' });
+    fireEvent(dialog, new Event('cancel', { bubbles: true, cancelable: true }));
+    await screen.findByRole('alertdialog', { name: 'Entwurf behalten' });
+    expect(calls.every((c) => c.method === 'GET')).toBe(true);
+  });
   it('respects amount privacy in source snapshots and candidate labels', async () => {
     setAmountsHidden(true);
     mount(<SpritmonitorReview rowKey={row.key} />);

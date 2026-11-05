@@ -6,6 +6,7 @@ import {
   useAmountPrivacy,
   useToast,
   maskMoneyText,
+  privateAmount,
 } from '@budget/ui';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type ReactNode } from 'react';
@@ -54,15 +55,15 @@ function fuelAmount(source: FuelSource) {
   return source.status === 'importable'
     ? nativeCurrency(source.amountCents, 'EUR')
     : source.sourceAmount
-      ? maskMoneyText(`${source.sourceAmount} ${source.currency ?? ''}`)
+      ? maskMoneyText(`${privateAmount(source.sourceAmount)} ${source.currency ?? ''}`)
       : 'Betrag fehlt';
 }
 function Snapshot({ label, source }: { label: string; source: FuelSource }) {
   return (
     <p>
       <strong>{label}:</strong> {longDay(source.date)} ·{' '}
-      {source.stationName ?? 'Tankstelle ohne Namen'} · {fuelAmount(source)}
-      {source.location && <> · {source.location}</>}
+      {maskMoneyText(source.stationName ?? 'Tankstelle ohne Namen')} · {fuelAmount(source)}
+      {source.location && <> · {maskMoneyText(source.location)}</>}
       {source.note && <> · {maskMoneyText(source.note)}</>}
     </p>
   );
@@ -73,21 +74,72 @@ export function SpritmonitorReview({ rowKey }: { rowKey: string }) {
   useAmountPrivacy();
   const query = useQuery(spritmonitorQuery());
   const row = query.data?.rows.find((r) => r.key === rowKey);
-  if (query.isPending) return <LoadingNote what="Tankung" />;
-  if (query.isError)
-    return <ErrorNote what="Tankung" error={query.error} onRetry={() => void query.refetch()} />;
-  if (!row) return <p role="status">Diese Tankung ist nicht mehr zur Prüfung verfügbar.</p>;
+  // The normal editor owns its draft independently of source refreshes and decision-token resets.
+  const [editing, setEditing] = useState<ListedBooking | null>(null);
+  const [opening, setOpening] = useState(false);
+  const [editError, setEditError] = useState('');
+  const trigger = useRef<HTMLElement | null>(null);
+  async function edit(id: string) {
+    if (opening) return;
+    trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setOpening(true);
+    setEditError('');
+    try {
+      const result = await request<{ booking: ListedBooking }>(
+        'GET',
+        `/api/bookings/${encodeURIComponent(id)}`,
+      );
+      setEditing(result.booking);
+    } catch (caught) {
+      setEditError(errorText(caught));
+    } finally {
+      setOpening(false);
+    }
+  }
+  const content = query.isPending ? (
+    <LoadingNote what="Tankung" />
+  ) : query.isError ? (
+    <ErrorNote what="Tankung" error={query.error} onRetry={() => void query.refetch()} />
+  ) : !row ? (
+    <p role="status">Diese Tankung ist nicht mehr zur Prüfung verfügbar.</p>
+  ) : (
+    <FuelReviewForm
+      key={row.reviewFingerprint + ':' + row.status}
+      row={row}
+      data={query.data!}
+      opening={opening}
+      onEdit={(id) => void edit(id)}
+    />
+  );
   return (
-    <FuelReviewForm key={row.reviewFingerprint + ':' + row.status} row={row} data={query.data!} />
+    <>
+      {content}
+      {editError && <p role="alert">{maskMoneyText(editError)}</p>}
+      <BookingPanel
+        state={editing ? { mode: 'edit', booking: editing } : null}
+        onClose={() => {
+          setEditing(null);
+          requestAnimationFrame(() => trigger.current?.focus());
+        }}
+      />
+    </>
   );
 }
-function FuelReviewForm({ row, data }: { row: FuelRow; data: FuelStatus }) {
+function FuelReviewForm({
+  row,
+  data,
+  opening,
+  onEdit,
+}: {
+  row: FuelRow;
+  data: FuelStatus;
+  opening: boolean;
+  onEdit: (id: string) => void;
+}) {
   const source = row.changed ?? row.source;
   const [selected, setSelected] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [editing, setEditing] = useState<ListedBooking | null>(null);
-  const trigger = useRef<HTMLElement | null>(null);
   const client = useQueryClient();
   const resolving = busy || data.running;
   const acknowledge = useBudgetWrite();
@@ -144,23 +196,6 @@ function FuelReviewForm({ row, data }: { row: FuelRow; data: FuelStatus }) {
       setBusy(false);
     }
   }
-  async function edit() {
-    if (!row.bookingId || busy) return;
-    trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setBusy(true);
-    setError('');
-    try {
-      const result = await request<{ booking: ListedBooking }>(
-        'GET',
-        `/api/bookings/${encodeURIComponent(row.bookingId)}`,
-      );
-      setEditing(result.booking);
-    } catch (caught) {
-      setError(errorText(caught));
-    } finally {
-      setBusy(false);
-    }
-  }
   return (
     <div className="spritmonitor-review">
       <Snapshot label="Aktuelle Quelle" source={source} />
@@ -177,11 +212,16 @@ function FuelReviewForm({ row, data }: { row: FuelRow; data: FuelStatus }) {
           )}
           {linked.data && (
             <p>
-              Erfasst: {longDay(linked.data.booking.date)} · {linked.data.booking.accountName} ·{' '}
+              Erfasst: {longDay(linked.data.booking.date)} ·{' '}
+              {maskMoneyText(linked.data.booking.accountName)} ·{' '}
               {nativeCurrency(linked.data.booking.amountCents, linked.data.booking.currency)}
             </p>
           )}
-          <Button variant="ghost" disabled={busy || !linked.data} onClick={() => void edit()}>
+          <Button
+            variant="ghost"
+            disabled={busy || opening || !linked.data}
+            onClick={() => onEdit(row.bookingId!)}
+          >
             Buchung bearbeiten
           </Button>
           <p>Zahlung über ein anderes Konto? Das Konto kann in der Buchung geändert werden.</p>
@@ -216,9 +256,9 @@ function FuelReviewForm({ row, data }: { row: FuelRow; data: FuelStatus }) {
                 <option value="">Buchung auswählen</option>
                 {choices.map((b) => (
                   <option value={b.id} key={b.id}>
-                    {longDay(b.date)} · {b.accountName} ·{' '}
+                    {longDay(b.date)} · {maskMoneyText(b.accountName)} ·{' '}
                     {nativeCurrency(b.amountCents, b.currency)} ·{' '}
-                    {b.payeeName ?? b.memo ?? 'Ohne Empfänger'}
+                    {maskMoneyText(b.payeeName ?? b.memo ?? 'Ohne Empfänger')}
                     {row.candidates.includes(b.id) ? ' · möglicher Treffer' : ''}
                   </option>
                 ))}
@@ -252,8 +292,8 @@ function FuelReviewForm({ row, data }: { row: FuelRow; data: FuelStatus }) {
           {row.canBook && data.destination && (
             <div>
               <p>
-                Neue Buchung: {fuelAmount(source)} · {data.destination.accountName} ·{' '}
-                {data.destination.categoryName} · vorgemerkt.
+                Neue Buchung: {fuelAmount(source)} · {maskMoneyText(data.destination.accountName)} ·{' '}
+                {maskMoneyText(data.destination.categoryName)} · vorgemerkt.
               </p>
               <p>Nur neu buchen, wenn diese Tankung noch nicht im Hauptbuch erfasst ist.</p>
               <Button
@@ -266,14 +306,7 @@ function FuelReviewForm({ row, data }: { row: FuelRow; data: FuelStatus }) {
           )}
         </>
       )}
-      {error && <p role="alert">{error}</p>}
-      <BookingPanel
-        state={editing ? { mode: 'edit', booking: editing } : null}
-        onClose={() => {
-          setEditing(null);
-          requestAnimationFrame(() => trigger.current?.focus());
-        }}
-      />
+      {error && <p role="alert">{maskMoneyText(error)}</p>}
     </div>
   );
 }
@@ -350,9 +383,10 @@ export function SpritmonitorSourceSection({ compact = false }: { compact?: boole
       {data?.configured && (
         <>
           <p>
-            Neue eindeutige Tankungen werden auf {data.destination?.accountName} unter{' '}
-            {data.destination?.categoryName} vorgemerkt. Historische und unklare Tankungen bleiben
-            zur Prüfung offen.
+            Neue eindeutige Tankungen werden auf{' '}
+            {maskMoneyText(data.destination?.accountName ?? '')} unter{' '}
+            {maskMoneyText(data.destination?.categoryName ?? '')} vorgemerkt. Historische und
+            unklare Tankungen bleiben zur Prüfung offen.
           </p>
           <p>
             Letzter Versuch: {sourceDate(data.lastResult?.lastAttempt)} · {open} offen
@@ -382,7 +416,7 @@ export function SpritmonitorSourceSection({ compact = false }: { compact?: boole
       )}
       {data?.configured && !rows.length && <p>Noch keine Tankungen abgerufen.</p>}
       {message && <p role="status">{message}</p>}
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{maskMoneyText(error)}</p>}
     </>
   );
   return compact ? (
@@ -425,7 +459,7 @@ function FuelDisclosure({ row }: { row: FuelRow }) {
     <details className="spritmonitor-row" onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary>
         {longDay((row.changed ?? row.source).date)} ·{' '}
-        {(row.changed ?? row.source).stationName ?? 'Tankstelle ohne Namen'} ·{' '}
+        {maskMoneyText((row.changed ?? row.source).stationName ?? 'Tankstelle ohne Namen')} ·{' '}
         {fuelAmount(row.changed ?? row.source)} · {statusLabels[row.status]}
       </summary>
       {open && <SpritmonitorReview rowKey={row.key} />}

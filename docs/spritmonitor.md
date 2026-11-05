@@ -150,3 +150,27 @@ money write. All new amounts use the existing privacy-aware native formatter.
 Desktop/mobile visual review is pending the root-coordinated synthetic preview. No
 browser, Vite server, preview build, provider credential or production setting was
 started or changed for this follow-up. The new source remains disabled by default.
+
+## UI review correction (2026-11-05)
+
+Independent review found two presentation defects: free monetary text could bypass
+amount privacy, and the fingerprint-keyed source form owned the normal editor's draft.
+The follow-up masks free station/location/note, candidate description/account and
+configured destination labels. Unsupported numeric source amounts also use the shared
+private-amount formatter when the currency is unknown; stored values remain untouched.
+
+The normal BookingPanel and its state now live in the stable review parent, outside
+source decision-token/status keys and loading/error returns. Source decisions still
+reset when their token changes. An open booking draft remains under the existing native
+editor's explicit save/discard, dirty and session guards during a source refresh or 503.
+
+Validation: 19 Spritmonitor UI checks plus the 10 unchanged bank-inbox checks passed
+serially with one worker (29/29). The new draft test retains the real BookingPanel and
+its dirty guard; only CaptureForm is replaced by a stateful draft probe. It verifies the
+same input/draft survives a fingerprint/status update and a source-read failure, native
+cancel still asks before discard, and no POST occurs. Free-text privacy is checked both
+before and after expanding history, including an amount with no known currency. The
+original reviewer cases failed before the fix. Explicit cleanup now unmounts the real
+panel before browser globals are restored; no assertion or timeout was weakened.
+Affected ESLint, Prettier, web TypeScript and whitespace checks passed. API and financial
+writers are unchanged. Root-coordinated browser/visual verification remains outstanding.
