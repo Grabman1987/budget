@@ -56,22 +56,53 @@ test('ON long negative month amount never overlaps the distribution button', asy
       const summary = head.querySelector('.plan-tba')!;
       const summaryRect = summary.getBoundingClientRect();
       const actionRect = head.querySelector('.plan-lead-controls > .btn')!.getBoundingClientRect();
+      const amount = summary.querySelector('strong')!;
+      const amountRect = amount.getBoundingClientRect();
+      const amountStyle = getComputedStyle(amount);
       return {
         height: headRect.height,
+        headTop: headRect.top,
+        headBottom: headRect.bottom,
         headCenter: headRect.left + headRect.width / 2,
         summaryCenter: summaryRect.left + summaryRect.width / 2,
         summaryLeft: summaryRect.left,
         summaryRight: summaryRect.right,
+        summaryTop: summaryRect.top,
+        summaryBottom: summaryRect.bottom,
         summaryText: summary.textContent?.replaceAll(/\s+/g, ' ').trim(),
+        amountLeft: amountRect.left,
+        amountRight: amountRect.right,
+        amountTop: amountRect.top,
+        amountBottom: amountRect.bottom,
+        amountScrollWidth: amount.scrollWidth,
+        amountClientWidth: amount.clientWidth,
+        amountVisibility: amountStyle.visibility,
+        amountDisplay: amountStyle.display,
         actionLeft: actionRect.left,
         actionRight: actionRect.right,
+        actionTop: actionRect.top,
+        actionBottom: actionRect.bottom,
       };
     });
     expect(compact.height).toBeLessThanOrEqual(width < 768 ? 104 : 56);
     expect(compact.summaryCenter).toBeCloseTo(compact.headCenter, 0);
+    expect(compact.summaryLeft).toBeGreaterThanOrEqual(0);
+    expect(compact.summaryRight).toBeLessThanOrEqual(width);
     expect(compact.summaryText).toContain('12.345.678,90 €');
+    expect(compact.amountVisibility).toBe('visible');
+    expect(compact.amountDisplay).not.toBe('none');
+    expect(compact.amountScrollWidth).toBeLessThanOrEqual(compact.amountClientWidth + 1);
+    expect(compact.amountLeft).toBeGreaterThanOrEqual(compact.summaryLeft);
+    expect(compact.amountRight).toBeLessThanOrEqual(compact.summaryRight);
+    expect(compact.amountLeft).toBeGreaterThanOrEqual(0);
+    expect(compact.amountRight).toBeLessThanOrEqual(width);
+    expect(compact.amountTop).toBeGreaterThanOrEqual(compact.headTop);
+    expect(compact.amountBottom).toBeLessThanOrEqual(compact.headBottom);
     expect(
-      compact.summaryRight <= compact.actionLeft || compact.actionRight <= compact.summaryLeft,
+      compact.summaryRight <= compact.actionLeft ||
+        compact.actionRight <= compact.summaryLeft ||
+        compact.summaryBottom <= compact.actionTop ||
+        compact.actionBottom <= compact.summaryTop,
       `Compact amount and action must not overlap at ${width}px`,
     ).toBe(true);
     await page.locator('.plan-topbar-v2 .plan-tba').click();
@@ -344,6 +375,8 @@ for (const theme of ['light', 'dark'] as const) {
               summaryCenter: summaryRect.left + summaryRect.width / 2,
               summaryLeft: summaryRect.left,
               summaryRight: summaryRect.right,
+              summaryTop: summaryRect.top,
+              summaryBottom: summaryRect.bottom,
               summaryScrollWidth: summary.scrollWidth,
               summaryClientWidth: summary.clientWidth,
               contentLeft: labelVisible
@@ -354,6 +387,8 @@ for (const theme of ['light', 'dark'] as const) {
                 : amountRect.right,
               actionLeft: actionRect.left,
               actionRight: actionRect.right,
+              actionTop: actionRect.top,
+              actionBottom: actionRect.bottom,
               background: style.backgroundColor,
               zIndex: Number.parseInt(style.zIndex, 10),
               headBottom: headRect.bottom,
@@ -374,7 +409,9 @@ for (const theme of ['light', 'dark'] as const) {
           expect(targetRowTop).toBeGreaterThanOrEqual(stickyGeometry.headBottom);
           expect(
             stickyGeometry.summaryRight <= stickyGeometry.actionLeft ||
-              stickyGeometry.actionRight <= stickyGeometry.summaryLeft,
+              stickyGeometry.actionRight <= stickyGeometry.summaryLeft ||
+              stickyGeometry.summaryBottom <= stickyGeometry.actionTop ||
+              stickyGeometry.actionBottom <= stickyGeometry.summaryTop,
           ).toBe(true);
           await expect(page.getByTestId('to-be-assigned')).toBeInViewport();
           await expect(action).toBeInViewport();
