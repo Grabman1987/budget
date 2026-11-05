@@ -123,6 +123,7 @@
   display: none;
 }
 .account-detail-redesign .kacct-actions {
+  position: relative;
   gap: 8px;
 }
 .account-detail-redesign .account-review-button-state {
@@ -288,6 +289,10 @@
   }
 }
 
+/* Anchor the popup to the available action row, including when a long title wraps it. */
+.account-detail-redesign .account-actions-menu {
+  position: static;
+}
 .account-detail-redesign .account-actions-menu > summary {
   display: flex;
   align-items: center;
@@ -301,6 +306,7 @@
   display: none;
 }
 .account-detail-redesign .account-actions-menu > .konten-menu-content {
-  inset-inline-start: auto;
-  inset-inline-end: 0;
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+  width: min(360px, 100%);
 }

@@ -11,10 +11,11 @@ for (const theme of ['light', 'dark'] as const) {
     isolatedLedger,
   }, info) => {
     const origin = isolatedLedger.origin;
+    const accountName = 'Synthetic Account with a long descriptive household current account label';
     const created = await page.request.post('/api/accounts', {
       headers: { origin },
       data: {
-        name: 'Synthetic Account',
+        name: accountName,
         type: 'checking',
         onBudget: true,
         openingDate: '2026-09-01',
@@ -43,6 +44,29 @@ for (const theme of ['light', 'dark'] as const) {
     const redesign = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
     await expect(page.locator('[data-redesign="account-detail"]')).toHaveCount(redesign ? 1 : 0);
     if (redesign) {
+      const originalViewport = page.viewportSize()!;
+      for (const width of [390, 1280]) {
+        await page.setViewportSize({ width, height: 900 });
+        const trigger = page.getByLabel('Kontoaktionen', { exact: true });
+        await trigger.click();
+        const menu = page.locator('.account-actions-menu > .konten-menu-content');
+        await expect(menu).toBeVisible();
+        const bounds = await menu.evaluate((element) => {
+          const popup = element.getBoundingClientRect();
+          const row = element.closest('.kacct-actions')!.getBoundingClientRect();
+          const trigger = element.parentElement!.querySelector('summary')!.getBoundingClientRect();
+          return {
+            insideRow: popup.left >= row.left && popup.right <= row.right,
+            insideViewport: popup.left >= 0 && popup.right <= innerWidth,
+            belowTrigger: popup.top >= trigger.bottom,
+          };
+        });
+        expect(bounds).toEqual({ insideRow: true, insideViewport: true, belowTrigger: true });
+        await trigger.press('Escape');
+        await expect(menu).toBeHidden();
+        await expect(trigger).toBeFocused();
+      }
+      await page.setViewportSize(originalViewport);
       await page.getByLabel('Kontoaktionen', { exact: true }).click();
       const jump = page.getByRole('link', { name: 'Buchungen ansehen', exact: true });
       await jump.focus();
@@ -64,7 +88,7 @@ for (const theme of ['light', 'dark'] as const) {
         writes.push(`${request.method()} ${path}`);
     });
     await page.getByTestId('account-review-badge').click();
-    const dialog = page.getByRole('dialog', { name: 'Kontostand prüfen · Synthetic Account' });
+    const dialog = page.getByRole('dialog', { name: `Kontostand prüfen · ${accountName}` });
     await dialog.getByLabel('Saldo laut Bank', { exact: true }).fill('100');
     await expect(dialog.getByRole('button', { name: 'Kontostand stimmt' })).toBeEnabled();
     await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
