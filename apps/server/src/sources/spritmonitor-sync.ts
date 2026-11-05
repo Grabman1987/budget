@@ -235,6 +235,19 @@ function closeReview(db: Executor, rowKey: string, now: string, ctx: AuditContex
         ctx,
       );
 }
+function previouslyBooked(db: Executor, sourceId: string) {
+  return history(db, 'app_setting', key(sourceId)).some((entry) =>
+    [entry.before, entry.after].some((snapshot) => {
+      if (typeof snapshot?.value !== 'string') return false;
+      try {
+        const prior = JSON.parse(snapshot.value) as SourceRecord;
+        return prior.status === 'booked' && Boolean(prior.bookingId);
+      } catch {
+        throw conflict();
+      }
+    }),
+  );
+}
 function book(
   db: Executor,
   row: SpritmonitorFueling,
@@ -243,20 +256,7 @@ function book(
 ) {
   if (row.status !== 'importable') throw conflict();
   // A prior creation undone back to review is restored only through native redo.
-  if (
-    history(db, 'app_setting', key(row.sourceId)).some((entry) =>
-      [entry.before, entry.after].some((snapshot) => {
-        if (typeof snapshot?.value !== 'string') return false;
-        try {
-          const prior = JSON.parse(snapshot.value) as SourceRecord;
-          return prior.status === 'booked' && Boolean(prior.bookingId);
-        } catch {
-          throw conflict();
-        }
-      }),
-    )
-  )
-    throw conflict();
+  if (previouslyBooked(db, row.sourceId)) throw conflict();
   const global = globalBooking(db, row.sourceId);
   if (global.length) throw conflict();
   return importBooking(
@@ -310,7 +310,33 @@ export function spritmonitorSync(db: Db, options: SpritmonitorSyncOptions = {}) 
             ? lastResult.get(db)
             : null,
         state: settings ? readState(db, settings) : null,
-        rows: rows(db),
+        destination: settings
+          ? {
+              accountId: settings.accountId,
+              accountName: getEntity(db, account, settings.accountId)!.name,
+              categoryName: getEntity(db, category, settings.categoryId)!.name,
+            }
+          : null,
+        rows: rows(db).map((row) => {
+          const source = row.changed ?? row.source;
+          const canResolve = Boolean(
+            settings &&
+            row.status === 'review' &&
+            source.vehicleId === settings.vehicleId &&
+            source.tankId === settings.tankId &&
+            source.date >= settings.startDate,
+          );
+          return {
+            ...row,
+            canResolve,
+            canBook:
+              canResolve &&
+              source.status === 'importable' &&
+              !row.bookingId &&
+              !previouslyBooked(db, source.sourceId) &&
+              globalBooking(db, source.sourceId).length === 0,
+          };
+        }),
       };
     },
     async refresh(now = new Date(), actor = 'system') {

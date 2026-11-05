@@ -23,8 +23,8 @@ The client validates the response and enforces a 10,000-row limit before any led
 
 ## Bootstrap and duplicate handling
 
-The first successful fetch stages every returned fueling in Prüfen. It records its
-Vienna as-of date as a bootstrap boundary: later arrivals on or before that date also
+The first successful fetch for each explicitly selected vehicle/tank pair stages every
+returned fueling in Prüfen. It records its Vienna as-of date as a source-bound bootstrap boundary: later arrivals on or before that date also
 require review. An empty first fetch still establishes this boundary. Existing manual,
 card statement, net or gross fuel purchases must be explicitly linked or ignored before
 using automation for subsequent fuelings. Linking retains the existing amount, account,
@@ -108,3 +108,45 @@ production credentials, settings, private mappings or deployment were changed.
 Independent review follow-up: four added regressions first reproduced the stale review
 token, cross-source bootstrap, cross-source daily skip and corrected-unbooked-review
 failures. All four now pass with the existing 27 checks; no money oracle was changed.
+
+## App controls
+
+Both presentations of Einstellungen › Datenquellen include the Spritmonitor source.
+The source shows setup, running, review, success and failure states, an explicit refresh,
+and a bounded, expandable history. Access credentials and provider IDs are configured
+on the server; no secret fields are rendered. The read-only status additionally supplies
+the configured destination labels and guarded `canResolve` / `canBook` capabilities.
+These capabilities reuse the writer's durable booking history/global-key checks.
+
+Open source rows also appear in the existing Konten › Prüfen detail. That detail uses
+Spritmonitor's fingerprint-guarded link/book/ignore actions instead of generic task
+completion. It shows current/original source values, existing ledger expense choices
+within two days, the configured destination and the exact pending amount before an
+explicit new booking. A link preserves an existing different net/gross amount. Reads
+and disclosures do not book anything; historical review is loaded only when opened.
+Source actions reuse the existing audited group Undo/redo UI.
+
+A booked/linked row opens the existing normal BookingPanel, including its existing
+account reassignment, category, amount, lock and Undo rules. Deleted/undone rows have
+no rebook control. Unknown currency/missing-cost rows have no new-book action. A stale
+review rejection refreshes the current token and shows the error without retrying the
+money write. All new amounts use the existing privacy-aware native formatter.
+
+## UI follow-up validation (2026-11-05)
+
+- New Spritmonitor UI suite: 16/16 passed with one worker. It covers both source
+  presentations and the actual ON/OFF inbox-detail integration, lazy ledger matches,
+  setup/running/current/failure states, explicit refresh/link/book/ignore, native Undo,
+  the existing booking editor, stale-token refusal without retry and amount privacy.
+- Both server suites: 31/31 passed after adding read-only destination/capability data.
+  The existing account-bank-review-724 UI path also passed all 10 checks unchanged.
+- Affected ESLint, CSS-scale, web TypeScript and server TypeScript checks passed.
+- The first UI run exposed incorrect use of the existing Field render-prop contract;
+  fixing the component call made all 16 UI checks pass. No timeout, protected oracle
+  or assertion was weakened. A later lint fix changed only an erased test type argument.
+- Existing sync-test additions assert only the new destination/capability presentation,
+  including `canBook: false` after native Undo. The native money/Undo expectations remain.
+
+Desktop/mobile visual review is pending the root-coordinated synthetic preview. No
+browser, Vite server, preview build, provider credential or production setting was
+started or changed for this follow-up. The new source remains disabled by default.

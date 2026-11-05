@@ -1,3 +1,4 @@
+import { SpritmonitorSourceSection } from './spritmonitor-source';
 import { FileText, Landmark, LineChart, Percent } from 'lucide-react';
 import { Button } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -149,6 +150,7 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
         {bankConfiguration}
       </SettingsSourceCard>
       <CryptoReadSourceSection compact />
+      <SpritmonitorSourceSection compact />
       <SettingsSourceCard
         title="Gehaltszettel"
         icon={FileText}

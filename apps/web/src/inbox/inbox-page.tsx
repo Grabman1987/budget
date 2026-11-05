@@ -1,3 +1,4 @@
+import { SpritmonitorReview } from '../pages/spritmonitor-source';
 import { TaskSourceSummary } from './task-source-summary';
 import { Check, CircleHelp, CircleCheck, Filter, MoreHorizontal } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -1192,6 +1193,39 @@ function InboxRow({
 }) {
   useAmountPrivacy();
   const search = useSearch({ strict: false }) as InboxSearch;
+  if (item.type === 'stored' && item.refType === 'spritmonitor' && item.refId)
+    return (
+      <tr className="rev-row" data-testid="inbox-row">
+        <td className="rev-mark">
+          <InboxTypeIcon entry={item} />
+        </td>
+        <td className="rev-what" colSpan={bankLayout ? 4 : undefined}>
+          <strong>{item.title}</strong>
+          {detailView ? <SpritmonitorReview rowKey={item.refId} /> : <span>{item.detail}</span>}
+        </td>
+        <td className="rev-act kact" colSpan={bankLayout ? 2 : undefined}>
+          <div className="inbox-row-actions">
+            {!detailView && (
+              <AppLink
+                className="btn btn-ghost btn-sm"
+                to={`/konten/pruefen/${encodeURIComponent(item.id)}`}
+                search={search}
+                state={{ inboxOpenedInApp: true }}
+              >
+                Tankung prüfen
+              </AppLink>
+            )}
+            <AppLink
+              className="btn btn-ghost btn-sm"
+              to="/einstellungen/datenquellen"
+              hash="spritmonitor-source-title"
+            >
+              Datenquelle prüfen
+            </AppLink>
+          </div>
+        </td>
+      </tr>
+    );
   if (isBankInboxRow(item))
     return (
       <BankInboxRow

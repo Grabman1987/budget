@@ -309,9 +309,12 @@ describe('bounded Spritmonitor ledger sync', () => {
     const sync = service();
     await sync.refresh(initial);
     const record = sync.status().rows[0]!;
+    expect(sync.status().destination).toMatchObject({ accountName: 'Giro', categoryName: 'Essen' });
+    expect(record).toMatchObject({ canResolve: true, canBook: true });
     const result = sync.resolve(record.key, record.reviewFingerprint, 'book');
     undo(opened.db, { groupId: result.groupId }, { actor: 'owner' });
     await sync.refresh(later);
+    expect(sync.status().rows[0]).toMatchObject({ canResolve: true, canBook: false });
     expect(() => sync.resolve(record.key, record.reviewFingerprint, 'book')).toThrow();
     expect(counts().bookings.filter((b) => !b.deletedAt)).toHaveLength(0);
   });
