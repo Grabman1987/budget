@@ -1,6 +1,5 @@
 // Review #646 regressions. Scripts run only as disposable copies with local command/sibling mocks;
 // no real GitHub, network, dispatch, merge, deploy or unattended queue is used.
-import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   existsSync,
@@ -15,6 +14,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { checkScope } from './policy.mjs';
+import { mockExecutable, runFixture } from './fixture-timing.mjs';
 
 const QUEUE = dirname(fileURLToPath(import.meta.url));
 const fwd = (p) => p.replace(/\\/g, '/');
@@ -43,7 +43,7 @@ function fixture(script) {
   mkdirSync(bin);
   const write = (name, text) => writeFileSync(join(root, name), text);
   const executable = (name, body) =>
-    writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`, { mode: 0o755 });
+    writeFileSync(join(bin, name), mockExecutable(body), { mode: 0o755 });
   copyFileSync(join(QUEUE, script), join(root, script));
   copyFileSync(join(QUEUE, 'policy.mjs'), join(root, 'policy.mjs'));
   executable(
@@ -73,7 +73,7 @@ esac`,
     calls: () => readFileSync(join(root, 'calls.log'), 'utf8'),
     run() {
       // Git Bash prepends its own tools: put mocks first again inside the shell.
-      const r = spawnSync(
+      const r = runFixture(
         BASH,
         ['-c', 'export PATH="$STUB_BIN:$PATH"; exec bash "$@"', 'bash', script, '--once'],
         {
@@ -82,6 +82,7 @@ esac`,
           encoding: 'utf8',
           timeout: 10_000,
         },
+        `review-${script}`,
       );
       expect(r.error).toBeUndefined();
       expect(r.status, `${r.stdout}${r.stderr}`).toBe(0);

@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { mockExecutable, runFixture } from './fixture-timing.mjs';
 
 const QUEUE = dirname(fileURLToPath(import.meta.url));
 const fwd = (p) => p.replace(/\\/g, '/');
@@ -140,8 +141,8 @@ function fixture() {
   const bin = join(tmp, 'bin');
   const stub = join(tmp, 'stub');
   for (const d of [bin, stub]) mkdirSync(d);
-  writeFileSync(join(bin, 'gh'), GH_STUB);
-  writeFileSync(join(bin, 'curl'), CURL_STUB);
+  writeFileSync(join(bin, 'gh'), mockExecutable(GH_STUB));
+  writeFileSync(join(bin, 'curl'), mockExecutable(CURL_STUB));
   chmodSync(join(bin, 'gh'), 0o755);
   chmodSync(join(bin, 'curl'), 0o755);
 
@@ -215,13 +216,18 @@ function fixture() {
         args[0] === '-c'
           ? ['-c', front + args[1]]
           : ['-c', `${front}exec bash "$@"`, 'bash', ...args];
-      const r = spawnSync(BASH, inner, {
-        cwd: root,
-        env: f.env(),
-        encoding: 'utf8',
-        timeout: 90_000,
-        ...opts,
-      });
+      const r = runFixture(
+        BASH,
+        inner,
+        {
+          cwd: root,
+          env: f.env(),
+          encoding: 'utf8',
+          timeout: 90_000,
+          ...opts,
+        },
+        'glue',
+      );
       return { status: r.status, out: `${r.stdout}${r.stderr}`.trim() };
     },
     script: (name, ...args) => f.sh([fwd(join(root, 'scripts', 'queue', name)), ...args]),
@@ -257,17 +263,22 @@ function mergeObserver(states = [`42\t${GOOD_MAIN}\t2\tcompleted\tsuccess`]) {
     calls: () =>
       existsSync(join(stub, 'calls.log')) ? readFileSync(join(stub, 'calls.log'), 'utf8') : '',
     sh(args) {
-      const r = spawnSync(BASH, ['-c', `export PATH="$STUB_BIN:$PATH"; ${args[1]}`], {
-        cwd: root,
-        env: {
-          ...process.env,
-          PATH: `${bin}${delimiter}${process.env.PATH}`,
-          STUB_DIR: fwd(stub),
-          STUB_BIN: posix(bin),
+      const r = runFixture(
+        BASH,
+        ['-c', `export PATH="$STUB_BIN:$PATH"; ${args[1]}`],
+        {
+          cwd: root,
+          env: {
+            ...process.env,
+            PATH: `${bin}${delimiter}${process.env.PATH}`,
+            STUB_DIR: fwd(stub),
+            STUB_BIN: posix(bin),
+          },
+          encoding: 'utf8',
+          timeout: 90_000,
         },
-        encoding: 'utf8',
-        timeout: 90_000,
-      });
+        'observer',
+      );
       return { status: r.status, out: `${r.stdout}${r.stderr}`.trim() };
     },
   };
@@ -278,7 +289,7 @@ function mergeObserver(states = [`42\t${GOOD_MAIN}\t2\tcompleted\tsuccess`]) {
   );
   writeFileSync(
     join(f.tmp, 'bin', 'gh'),
-    `#!/usr/bin/env bash
+    mockExecutable(`#!/usr/bin/env bash
 emit_file() {
   [ -r "$1" ] || return 1
   local contents=''
@@ -306,10 +317,10 @@ case "$1 $2" in
     esac ;;
   "pr view") [ -f "$STUB_DIR/metadata-error" ] && exit 1; emit_file "$STUB_DIR/closing-result" ;;
 esac
-`,
+`),
   );
   chmodSync(join(f.tmp, 'bin', 'gh'), 0o755);
-  writeFileSync(join(f.tmp, 'bin', 'sleep'), '#!/usr/bin/env bash\nexit 0\n');
+  writeFileSync(join(f.tmp, 'bin', 'sleep'), mockExecutable('exit 0'));
   chmodSync(join(f.tmp, 'bin', 'sleep'), 0o755);
   f.write('identity', `42\t${GOOD_MAIN}\t2\n`);
   f.write('states', states.join('\n') + '\n');
