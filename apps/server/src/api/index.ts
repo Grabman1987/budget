@@ -1,3 +1,4 @@
+import { spritmonitorRoutes } from './spritmonitor';
 import { inflationBasketRoutes } from './inflation-basket';
 import { displaySettingsRoutes } from './display-settings';
 import { explorerViewsRoutes } from './explorer-views';
@@ -143,6 +144,7 @@ export function createLedgerApi({
       });
     });
   });
+  api.route('/sources/spritmonitor', spritmonitorRoutes(db, passkeyGate));
   api.route('/payslips', payrollRoutes(db, today));
   api.route('/payslip-intake', payslipIntakeRoutes(db, receiptsDir));
   api.route('/statement-intake', statementIntakeRoutes(db, receiptsDir));
