@@ -631,10 +631,17 @@
 .plan-month-frame .plan-month-v2 .ptable-zero .pgroup-gap td {
   height: var(--space-md);
 }
-@media (max-width: 767px) {
-  .plan-month-frame .plan-month-v2 .ptable-zero .prow:not(.is-empty),
-  .plan-month-frame .plan-month-v2 .ptable-zero .pmulti:not(.is-empty) {
-    padding-bottom: var(--space-sm) !important;
+/* Important overrides must share the legacy page layer to win its row padding. */
+@layer pages {
+  @media (max-width: 767px) {
+    .plan-month-frame .plan-month-v2 .ptable-zero .prow:not(.is-empty),
+    .plan-month-frame .plan-month-v2 .ptable-zero .pmulti:not(.is-empty) {
+      padding-bottom: var(--space-sm) !important;
+    }
+    /* Metadata keeps its line height and may grow; retain the name target and bar tracks. */
+    .plan-month-frame .plan-month-v2 .ptable-zero .prow:not(.pmulti):not(.is-empty) {
+      grid-template-rows: var(--touch) minmax(18px, auto) var(--bar-progress);
+    }
   }
 }
 .plan-month-frame .plan-reference-filters .plan-filter-segments {
