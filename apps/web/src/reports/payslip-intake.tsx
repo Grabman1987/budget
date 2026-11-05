@@ -13,6 +13,7 @@ import {
   Select,
   TextInput,
   useAmountPrivacy,
+  maskMoneyText,
   useToast,
   WideDialog,
 } from '@budget/ui';
@@ -46,6 +47,7 @@ export function payslipDocumentTypeLabel(type: ParsedPayrollDocument['documentTy
 }
 /** A document year or upload timestamp is not an Abrechnungsmonat. */
 export function PayslipDocumentCaption({ document }: { document: PayslipDocumentMetadata }) {
+  useAmountPrivacy();
   return (
     <span>
       {document.month && (
@@ -54,7 +56,7 @@ export function PayslipDocumentCaption({ document }: { document: PayslipDocument
           {document.periodSource === 'filename' ? ' (aus Dateiname)' : ''} ·{' '}
         </>
       )}
-      {document.originalFilename ?? 'Dateiname nicht verfügbar'}
+      {maskMoneyText(document.originalFilename ?? 'Dateiname nicht verfügbar')}
     </span>
   );
 }

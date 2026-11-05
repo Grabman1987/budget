@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { ToastProvider } from '@budget/ui';
+import { ToastProvider, setAmountsHidden } from '@budget/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   PayslipIntakeDetail,
@@ -64,7 +64,25 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  setAmountsHidden(false);
   vi.unstubAllGlobals();
+});
+it('masks money inside an original filename while retaining its month and unchanged source', () => {
+  const document = Object.freeze({
+    originalFilename: 'Bonus 1.234,56 €.pdf',
+    documentType: 'bonus' as const,
+    month: '2026-09',
+    periodSource: 'filename' as const,
+  });
+  const { container } = render(<PayslipDocumentCaption document={document} />);
+  expect(container.textContent).toContain('Bonus 1.234,56 €.pdf');
+  act(() => setAmountsHidden(true));
+  expect(container.innerHTML).not.toContain('1.234,56');
+  expect(container.textContent).toContain('Bonus ••• €.pdf');
+  expect(container.textContent).toContain('Abrechnungsmonat 09/2026 (aus Dateiname)');
+  expect(document.originalFilename).toBe('Bonus 1.234,56 €.pdf');
+  act(() => setAmountsHidden(false));
+  expect(container.textContent).toContain('Bonus 1.234,56 €.pdf');
 });
 it.each(['bonus', 'pension'] as const)(
   'identifies a %s letter by filename without inventing a month',
