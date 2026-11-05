@@ -25,6 +25,7 @@ import { ApiError } from '../api/http';
 import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 import { TriangleAlert, ArrowLeftRight, Check, CircleCheck, ChevronDown, Info } from 'lucide-react';
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -817,7 +818,6 @@ function PlanBody({
       onIncome={onIncome}
       onDistribute={startDistribute}
       coverControls={filter === 'overspent' ? null : coverControls}
-      phone={phone}
       monthIncome={monthIncome}
       compactOnRestore={REDESIGN_ENABLED && Boolean(restoredPlan?.compactHead)}
     />
@@ -1527,7 +1527,6 @@ function PlanTopBar({
   onIncome,
   onDistribute,
   coverControls,
-  phone,
   monthIncome,
   compactOnRestore = false,
 }: {
@@ -1538,35 +1537,64 @@ function PlanTopBar({
   onIncome: () => void;
   onDistribute: () => void;
   coverControls: React.ReactNode;
-  phone: boolean;
   monthIncome?: MonthIncome | undefined;
   compactOnRestore?: boolean;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const head = useRef<HTMLElement>(null);
-  const [compact, setCompact] = useState(compactOnRestore && phone);
+  const [compact, setCompact] = useState(compactOnRestore);
+  const compactState = useRef(compactOnRestore);
   const restoringCompact = useRef(compactOnRestore);
+  const stickyStart = useRef(0);
+  const setCompactMode = useCallback((next: boolean) => {
+    compactState.current = next;
+    setCompact(next);
+  }, []);
+  const shouldCompact = useCallback(
+    () =>
+      window.scrollY > stickyStart.current + 1 ||
+      Boolean(head.current?.querySelector('details[open]')),
+    [],
+  );
   useEffect(() => {
     const element = head.current;
-    if (!REDESIGN_ENABLED || !phone || !element) return;
+    if (!REDESIGN_ENABLED || !element) return;
     const stickyTop = Number.parseFloat(getComputedStyle(element).top) || 0;
-    const start = element.getBoundingClientRect().top + window.scrollY - stickyTop;
-    const sync = () => setCompact(window.scrollY > start + 1);
+    let start = element.getBoundingClientRect().top + window.scrollY - stickyTop;
+    stickyStart.current = start;
+    const sync = () => {
+      setCompactMode(shouldCompact());
+    };
+    const resize = () => {
+      if (!compactState.current) {
+        start = element.getBoundingClientRect().top + window.scrollY - stickyTop;
+        stickyStart.current = start;
+      }
+      sync();
+    };
     // Keep the saved header height while the router restores scroll; collapsing afterward moves its anchor.
     if (!restoringCompact.current) sync();
     restoringCompact.current = false;
     window.addEventListener('scroll', sync, { passive: true });
-    return () => window.removeEventListener('scroll', sync);
-  }, [phone]);
+    window.addEventListener('resize', resize, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', sync);
+      window.removeEventListener('resize', resize);
+    };
+  }, [setCompactMode, shouldCompact]);
   const disclosureToggle = (element: HTMLDetailsElement, key: string) => {
     if (element.open) {
+      if (REDESIGN_ENABLED) setCompactMode(true);
       document
         .querySelectorAll<HTMLDetailsElement>('.plan-topbar details[open]')
         .forEach((other) => {
           if (other !== element) other.open = false;
         });
       setActive(key);
-    } else setActive((current) => (current === key ? null : current));
+    } else {
+      if (REDESIGN_ENABLED) setCompactMode(shouldCompact());
+      setActive((current) => (current === key ? null : current));
+    }
   };
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
@@ -1646,10 +1674,14 @@ function PlanTopBar({
     <Button
       size="sm"
       disabled={Boolean(distributeBlock)}
+      aria-label="Geld verteilen"
       aria-describedby={distributeBlock ? 'plan-distribute-hint' : undefined}
       onClick={onDistribute}
     >
-      Geld verteilen
+      <span className="plan-distribute-full-label">Geld verteilen</span>
+      <span className="plan-distribute-compact-label" aria-hidden="true">
+        Verteilen
+      </span>
     </Button>
   );
   const hint = distributeBlock && (
@@ -1667,9 +1699,10 @@ function PlanTopBar({
       className={cx(
         'plan-topbar',
         REDESIGN_ENABLED && 'plan-topbar-v2',
-        REDESIGN_ENABLED && phone && compact && 'is-compact',
+        REDESIGN_ENABLED && compact && 'is-compact',
       )}
       aria-label={REDESIGN_ENABLED ? 'Monatsbudget' : 'Monat planen'}
+      data-testid="plan-topbar"
     >
       {REDESIGN_ENABLED ? (
         <>

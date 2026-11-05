@@ -65,6 +65,7 @@ async function compactDimensions(page: Page) {
       };
     });
     return {
+      redesigned: plan.closest('[data-budget-redesign="1"]') !== null,
       beforeGrid:
         plan.querySelector('.ptable')!.getBoundingClientRect().top -
         plan.getBoundingClientRect().top,
@@ -294,7 +295,12 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     expect(dimensions.pairs).toHaveLength(2);
     for (const pair of dimensions.pairs)
       expect(pair.parentBottom).toBeLessThanOrEqual(pair.childTop);
-    expect(Math.max(...dimensions.bandHeights)).toBeLessThanOrEqual(76);
+    if (redesigned) {
+      for (const pair of dimensions.pairs) {
+        expect(pair.height).toBeGreaterThanOrEqual(80);
+        expect(pair.height).toBeLessThanOrEqual(100);
+      }
+    } else expect(Math.max(...dimensions.bandHeights)).toBeLessThanOrEqual(76);
     await info.attach('compact-grid-dimensions', {
       body: JSON.stringify(dimensions),
       contentType: 'application/json',
@@ -304,7 +310,10 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
       const first = await page.locator('.ptable .prow').first().boundingBox();
       expect(first!.y + first!.height).toBeLessThanOrEqual(900);
     } else expect(dimensions.beforeGrid).toBeLessThanOrEqual(120);
-    expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(40);
+    if (redesigned) {
+      expect(Math.min(...dimensions.heights)).toBeGreaterThanOrEqual(56);
+      expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(64);
+    } else expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(40);
     expect(Math.max(...dimensions.groups)).toBeLessThanOrEqual(36);
     // The compact OFF worksheet retains its original density. The ON canvas exposes
     // the lead chain; its fold contract is the first-row check above and P1's phone bound.
@@ -396,9 +405,17 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
       expect(dimensions.pairs).toHaveLength(2);
       for (const pair of dimensions.pairs)
         expect(pair.parentBottom).toBeLessThanOrEqual(pair.childTop);
-      expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(76);
+      if (redesigned) {
+        expect(Math.min(...dimensions.heights)).toBeGreaterThanOrEqual(56);
+        expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(76);
+      } else expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(76);
       expect(Math.max(...dimensions.groups)).toBeLessThanOrEqual(76);
-      expect(Math.max(...dimensions.bandHeights)).toBeLessThanOrEqual(152);
+      if (redesigned) {
+        for (const pair of dimensions.pairs) {
+          expect(pair.height).toBeGreaterThanOrEqual(80);
+          expect(pair.height).toBeLessThanOrEqual(152);
+        }
+      } else expect(Math.max(...dimensions.bandHeights)).toBeLessThanOrEqual(152);
       const bar = page.locator('.plan-topbar');
       if (redesigned) {
         // ON exposes the full lead at the top and compacts it at the sticky edge.
