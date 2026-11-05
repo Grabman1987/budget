@@ -27,6 +27,7 @@ const account = {
   },
 } as AccountRow;
 const sends: Array<Record<string, unknown>> = [];
+let bookedBalanceCents = 0;
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -39,6 +40,7 @@ beforeEach(() => {
     removeEventListener: () => undefined,
   }));
   sends.length = 0;
+  bookedBalanceCents = 0;
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, options?: RequestInit) => {
@@ -73,9 +75,9 @@ beforeEach(() => {
           preview: {
             accountId: 'a',
             ...input,
-            bookedBalanceCents: 0,
+            bookedBalanceCents,
             pendingCents: 0,
-            differenceCents: input.statementBalanceCents,
+            differenceCents: input.statementBalanceCents - bookedBalanceCents,
             toReconcileCount: 0,
             duplicates: [],
             pendingMatches: [],
@@ -98,18 +100,78 @@ beforeEach(() => {
     }),
   );
 });
-function show(over: Partial<AccountRow> = {}) {
+function show(
+  over: Partial<AccountRow> = {},
+  initialDate?: string,
+  monthClose?: Parameters<typeof ReconcileFlow>[0]['monthClose'],
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
-        <ReconcileFlow account={{ ...account, ...over }} onDone={() => undefined} />
+        <ReconcileFlow
+          account={{ ...account, ...over }}
+          {...(initialDate === undefined ? {} : { initialDate })}
+          {...(monthClose === undefined ? {} : { monthClose })}
+          onDone={() => undefined}
+        />
       </ToastProvider>
     </QueryClientProvider>,
   );
 }
+it.each([1234, -1234, 0])(
+  'offers confirmation of the booked balance %s on opening without typing or counting pending money',
+  async (balance) => {
+    bookedBalanceCents = balance;
+    show({ clearedCents: balance, unclearedCents: 5000, balanceCents: balance + 5000 });
+    expect((screen.getByLabelText('Saldo laut Bank') as HTMLInputElement).value).not.toBe('');
+    expect(screen.getByText(/Vorbelegt ist der gebuchte App-Saldo ohne Vormerkungen/)).toBeTruthy();
+    const confirm = await screen.findByRole('button', { name: 'Kontostand stimmt' });
+    expect(sends).toEqual([]);
+    expect(screen.queryByRole('button', { name: 'Differenz ausgleichen' })).toBeNull();
+    fireEvent.click(confirm);
+    await waitFor(() =>
+      expect(sends).toEqual([{ date: expect.any(String), statementBalanceCents: balance }]),
+    );
+  },
+);
+
+it('does not confirm a stale suggested balance when the current server preview differs', async () => {
+  bookedBalanceCents = 1200;
+  show({ clearedCents: 1234, unclearedCents: 0, balanceCents: 1234 });
+  await screen.findByRole('button', { name: 'Differenz ausgleichen' });
+  expect(screen.queryByRole('button', { name: 'Kontostand stimmt' })).toBeNull();
+  expect(sends).toEqual([]);
+  fireEvent.change(screen.getByLabelText('Saldo laut Bank'), { target: { value: '12,00' } });
+  fireEvent.click(await screen.findByRole('button', { name: 'Kontostand stimmt' }));
+  await waitFor(() =>
+    expect(sends).toEqual([{ date: expect.any(String), statementBalanceCents: 1200 }]),
+  );
+});
+
+it('does not suggest today’s booked balance for an explicit historical check date', () => {
+  show({ clearedCents: 1234, balanceCents: 1234 }, '2026-09-30');
+  expect((screen.getByLabelText('Saldo laut Bank') as HTMLInputElement).value).toBe('');
+  expect(screen.queryByRole('button', { name: 'Kontostand stimmt' })).toBeNull();
+  expect(sends).toEqual([]);
+});
+
+it('does not suggest today’s balance or bypass the month-close confirmation context', () => {
+  const confirm = vi.fn();
+  show({ clearedCents: 1234, balanceCents: 1234 }, undefined, {
+    asOf: '2026-09-30',
+    confirm,
+    onReload: vi.fn(),
+    onBusy: vi.fn(),
+  });
+  expect((screen.getByLabelText('Saldo laut Bank') as HTMLInputElement).value).toBe('');
+  expect(screen.queryByRole('button', { name: 'Kontostand stimmt' })).toBeNull();
+  expect(confirm).not.toHaveBeenCalled();
+  expect(sends).toEqual([]);
+});
+
 it('takes signed bank cents and date without booking, then sends the chosen date with the canonical uncategorised adjustment only on click', async () => {
   show();
   fireEvent.click(screen.getByRole('button', { name: /Bankstand übernehmen/ }));

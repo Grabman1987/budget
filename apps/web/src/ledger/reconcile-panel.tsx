@@ -75,7 +75,16 @@ export function ReconcileFlow({
     [closeContext],
   );
   const [date, setDate] = useState(initialDate ?? today);
-  const [text, setText] = useState('');
+  // Only the normal today check may suggest the already loaded booked balance. A historical
+  // check or month close needs its own statement value; pending money is never suggested.
+  const [suggestedBalance] = useState(() =>
+    !closeContext && initialDate === undefined && Number.isSafeInteger(account.clearedCents)
+      ? account.clearedCents
+      : null,
+  );
+  const [text, setText] = useState(() =>
+    suggestedBalance === null ? '' : formatDecimal(cents(suggestedBalance)),
+  );
   const [adjustDate, setAdjustDate] = useState<string | null>(null);
   const [unlock, setUnlock] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -225,6 +234,15 @@ export function ReconcileFlow({
         Vergleicht den gebuchten App-Saldo mit dem Saldo laut Bank. Stimmt beides überein, werden
         die bestätigten Buchungen als geprüft festgeschrieben. Vorgemerkte Buchungen zählen nicht.
       </p>
+      {suggestedBalance !== null &&
+        date === today &&
+        text === formatDecimal(cents(suggestedBalance)) && (
+          <p className="kmeta">
+            Vorbelegt ist der gebuchte App-Saldo ohne Vormerkungen. Vergleiche ihn mit Bank oder
+            Bargeld und bestätige „Kontostand stimmt“. Einen abweichenden Saldo kannst du unten
+            eingeben.
+          </p>
+        )}
       {bank && bank.amountCents !== null && bankDate && (
         <Button
           variant="ghost"
