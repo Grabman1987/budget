@@ -293,7 +293,8 @@ for (const theme of ['light', 'dark'] as const) {
         if (width < 768) {
           await row.evaluate((node) => node.scrollIntoView({ block: 'center' }));
           await expect(row).toBeInViewport();
-          await expect(page.getByTestId('to-be-assigned')).toBeInViewport();
+          // Plan values stay in document flow instead of floating over categories while scrolling.
+          await expect(page.getByTestId('to-be-assigned')).not.toBeInViewport();
           await expect(action).toBeInViewport();
           await page.evaluate(() => window.scrollTo(0, 0));
         }
