@@ -331,6 +331,7 @@ export function CaptureForm({
   });
   const lineProblem = !lineValidation.ok ? lineValidation.errors.splits : undefined;
   const blocked = !isTransfer && Boolean(lineProblem);
+  const showLineProblem = blocked && Boolean(draft.amount.trim() || errors.splits);
   const splitError = errors.splits === REMAINDER_SAVE_ERROR && !blocked ? undefined : errors.splits;
 
   const draftDirty = queued
@@ -1187,7 +1188,7 @@ export function CaptureForm({
           )}
         </div>
       )}
-      {blocked && (
+      {showLineProblem && (
         <p id="booking-save-reason" className="bk-save-reason" role="status">
           {lineProblem}
         </p>
@@ -1229,7 +1230,7 @@ export function CaptureForm({
         <Button
           type="submit"
           disabled={busy || blocked}
-          aria-describedby={blocked ? 'booking-save-reason' : undefined}
+          aria-describedby={showLineProblem ? 'booking-save-reason' : undefined}
         >
           Speichern
         </Button>

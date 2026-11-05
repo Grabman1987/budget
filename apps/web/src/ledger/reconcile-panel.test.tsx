@@ -110,18 +110,16 @@ function show(over: Partial<AccountRow> = {}) {
     </QueryClientProvider>,
   );
 }
-it('takes signed bank cents and date without booking, then sends the chosen adjustment date/category only on click', async () => {
+it('takes signed bank cents and date without booking, then sends the chosen date with the canonical uncategorised adjustment only on click', async () => {
   show();
   fireEvent.click(screen.getByRole('button', { name: /Bankstand übernehmen/ }));
   expect((screen.getByLabelText('Stichtag') as HTMLInputElement).value).toBe('30.09.2026');
   expect((screen.getByLabelText('Saldo laut Bank') as HTMLInputElement).value).toBe('−12,34');
-  await screen.findByRole('button', { name: 'Fehlende Buchung erfassen' });
+  await screen.findByRole('button', { name: 'Differenz ausgleichen' });
+  expect(screen.queryByRole('button', { name: 'Fehlende Buchung erfassen' })).toBeNull();
   fireEvent.change(screen.getByLabelText('Ausgleichsdatum'), { target: { value: '2026-09-25' } });
-  fireEvent.change(screen.getByLabelText('Kategorie für den Ausgleich'), {
-    target: { value: 'c' },
-  });
   expect(sends).toEqual([]);
-  expect(screen.getByText(/Eine echte Buchung.*25.09.2026.*Kategorie Muster/)).toBeTruthy();
+  expect(screen.getByText(/Eine echte Buchung.*25.09.2026.*keiner Kategorie/)).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: /Differenz ausgleichen/ }));
   await waitFor(() =>
     expect(sends).toEqual([
@@ -130,7 +128,6 @@ it('takes signed bank cents and date without booking, then sends the chosen adju
         statementBalanceCents: -1234,
         adjust: true,
         adjustDate: '2026-09-25',
-        categoryId: 'c',
       },
     ]),
   );
@@ -168,19 +165,28 @@ it.each(['brokerage', 'crypto'] as const)('labels %s as cash only', (type) => {
   show({ type });
   expect(screen.getByLabelText('Bargeld-Saldo (ohne Wertpapiere)')).toBeTruthy();
 });
-it.each([
-  ['negative', '-12,34'],
-  ['positive', '12,34'],
-])('offers only plain spending categories for a %s difference', async (_name, amount) => {
-  show();
-  fireEvent.change(screen.getByLabelText('Saldo laut Bank'), { target: { value: amount } });
-  const select = (await screen.findByLabelText('Kategorie für den Ausgleich')) as HTMLSelectElement;
-  expect([...select.options].map((o) => o.value).filter(Boolean)).toEqual([
-    'c',
-    'k-fixed',
-    'k-saving',
-  ]);
-});
+it.each(['-12,34', '12,34'])(
+  'uses Zu verteilen for a budget account difference %s',
+  async (amount) => {
+    localStorage.setItem('budget-reconcile-category:a', 'c');
+    show({ onBudget: true });
+    fireEvent.change(screen.getByLabelText('Saldo laut Bank'), { target: { value: amount } });
+    await screen.findByRole('button', { name: 'Differenz ausgleichen' });
+    expect(screen.queryByLabelText('Kategorie für den Ausgleich')).toBeNull();
+    expect(screen.getByText(/Eine echte Buchung.*Zu verteilen/)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'In Buchungen suchen' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Differenz ausgleichen' }));
+    await waitFor(() =>
+      expect(sends).toEqual([
+        {
+          date: expect.any(String),
+          statementBalanceCents: amount.startsWith('-') ? -1234 : 1234,
+          adjust: true,
+        },
+      ]),
+    );
+  },
+);
 it('needs an explicit tick before an adjustment dated in an already checked period', async () => {
   show({ lastReconciledOn: '2026-09-20' });
   fireEvent.click(screen.getByRole('button', { name: /Bankstand übernehmen/ }));

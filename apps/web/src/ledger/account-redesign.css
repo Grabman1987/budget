@@ -287,3 +287,20 @@
     scroll-margin-block: 64px calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 16px);
   }
 }
+
+.account-detail-redesign .account-actions-menu > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  padding: 0;
+  list-style: none;
+}
+.account-detail-redesign .account-actions-menu > summary::before,
+.account-detail-redesign .account-actions-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.account-detail-redesign .account-actions-menu > .konten-menu-content {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+}

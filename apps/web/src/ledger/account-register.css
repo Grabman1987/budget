@@ -285,3 +285,29 @@
     font-weight: 500;
   }
 }
+
+/* Relative due-date hints must wrap inside their own column, never over the payee. */
+.ktx-account .kcol-date {
+  width: 112px;
+}
+.ktx.ktx-account .is-upcoming .kx-date,
+.ktx.ktx-account .is-upcoming .kx-date .kcell-edit {
+  white-space: normal;
+  overflow-wrap: normal;
+  line-height: var(--lh-table);
+}
+.ktx.ktx-account .is-upcoming .kx-date .kcell-edit {
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+}
+@media (max-width: 767px) {
+  .kacct-register .ktx.ktx-account tr.is-upcoming {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    grid-template-areas: 'flag payee amount' '. cat run' '. date status';
+    gap: 4px 8px;
+  }
+  .ktx-account .is-upcoming .kx-payee {
+    min-width: 0;
+  }
+}

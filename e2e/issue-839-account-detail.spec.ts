@@ -43,6 +43,7 @@ for (const theme of ['light', 'dark'] as const) {
     const redesign = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
     await expect(page.locator('[data-redesign="account-detail"]')).toHaveCount(redesign ? 1 : 0);
     if (redesign) {
+      await page.getByLabel('Kontoaktionen', { exact: true }).click();
       const jump = page.getByRole('link', { name: 'Buchungen ansehen', exact: true });
       await jump.focus();
       await expect(jump).toBeFocused();
@@ -65,7 +66,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.getByTestId('account-review-badge').click();
     const dialog = page.getByRole('dialog', { name: 'Kontostand prüfen · Synthetic Account' });
     await dialog.getByLabel('Saldo laut Bank', { exact: true }).fill('100');
-    await expect(dialog.getByRole('button', { name: /Festschreiben/ })).toBeEnabled();
+    await expect(dialog.getByRole('button', { name: 'Kontostand stimmt' })).toBeEnabled();
     await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
     await expect(dialog).toBeHidden();
     expect(writes).toEqual([]);
@@ -73,7 +74,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.goto(`/konten/${account.id}?pruefen=reconcile`);
     await expect(dialog).toBeVisible();
     await dialog.getByLabel('Saldo laut Bank', { exact: true }).fill('100');
-    await dialog.getByRole('button', { name: /Festschreiben/ }).click();
+    await dialog.getByRole('button', { name: 'Kontostand stimmt' }).click();
     await expect(dialog).toBeHidden();
     await expect(toast(page)).toContainText('Rückgängig');
     await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
