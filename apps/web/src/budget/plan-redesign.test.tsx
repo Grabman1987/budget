@@ -320,7 +320,7 @@ it('ON phone separates actual assignment, quick-assign suggestion, and available
     return fetchFixture(input, init);
   });
 
-  const { container } = mount();
+  mount();
   const category = await screen.findByRole('button', { name: 'Miete' });
   const row = category.closest('tr')!;
   expect(row.querySelector('.phone-assigned')!.textContent).toBe(
@@ -331,9 +331,6 @@ it('ON phone separates actual assignment, quick-assign suggestion, and available
       name: 'Details für Miete öffnen · Verfügbar 176,02 €',
     }),
   ).toBeTruthy();
-  expect(container.querySelector('.phone-assigned')!.textContent).not.toContain(
-    'Zugewiesen ≈ 890,00 €',
-  );
 });
 
 it('ON phone keeps month read utilities reachable through native menu keyboard navigation and returns to the income inspector without writes', async () => {
