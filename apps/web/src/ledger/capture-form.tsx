@@ -754,6 +754,13 @@ export function CaptureForm({
       singleMetadata={singleMetadata}
       contactHost={REDESIGN_ENABLED ? contactHost : undefined}
       compact={REDESIGN_ENABLED && isPhone}
+      allowReadyToAssign={
+        !draft.splitOn &&
+        editing?.splits.length === 1 &&
+        draft.payee.trim() === editing.payeeName &&
+        (editing.payeeSystemKind === 'reconciliation_adjustment' ||
+          editing.payeeSystemKind === 'manual_adjustment')
+      }
     />
   );
 

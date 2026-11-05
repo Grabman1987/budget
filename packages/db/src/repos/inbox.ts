@@ -156,6 +156,11 @@ const unclassifiedWhere = (today: string) =>
     isNull(bookingSplit.categoryId),
     isNull(bookingSplit.incomeTypeId),
     sql`${bookingSplit.amountCents} <> 0`,
+    // A canonical balance correction intentionally changes Zu verteilen. Ordinary unnamed
+    // expenses still need classification, even if their payee has an adjustment-like name.
+    sql`NOT EXISTS (SELECT 1 FROM ${payee}
+      WHERE ${payee.id} = ${booking.payeeId} AND ${payee.deletedAt} IS NULL
+      AND ${payee.systemKind} IN ('reconciliation_adjustment', 'manual_adjustment'))`,
   );
 const storedWhere = () =>
   and(
