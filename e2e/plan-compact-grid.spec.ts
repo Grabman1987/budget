@@ -417,12 +417,15 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
         }
       } else expect(Math.max(...dimensions.bandHeights)).toBeLessThanOrEqual(152);
       const bar = page.locator('.plan-topbar');
+      const compactTopbarMax = redesigned && page.viewportSize()!.width < 768 ? 104 : 56;
       if (redesigned) {
-        // ON exposes the full lead at the top and compacts it at the sticky edge.
+        // ON exposes the full lead at the top, then compacts to one desktop or two phone rows.
         await page.evaluate(() => window.scrollTo(0, 400));
-        await expect.poll(async () => (await bar.boundingBox())!.height).toBeLessThanOrEqual(56);
+        await expect
+          .poll(async () => (await bar.boundingBox())!.height)
+          .toBeLessThanOrEqual(compactTopbarMax);
       }
-      expect((await bar.boundingBox())!.height).toBeLessThanOrEqual(56);
+      expect((await bar.boundingBox())!.height).toBeLessThanOrEqual(compactTopbarMax);
       await page.locator('.ptoolbar').scrollIntoViewIfNeeded();
       const topbar = (await bar.boundingBox())!;
       const toolbar = (await page.locator('.ptoolbar').boundingBox())!;
