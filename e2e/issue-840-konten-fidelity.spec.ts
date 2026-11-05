@@ -166,6 +166,22 @@ test('K1–K5: synthetic desktop and phone views retain read-only entry paths', 
           const bookings = page.locator('.ktx tr[data-booking]');
           const upcoming = bookings.filter({ hasText: 'Muster kommende Zahlung' });
           const dated = bookings.filter({ hasNotText: 'Muster kommende Zahlung' });
+          const upcomingToggle = page.getByRole('button', { name: /^Kommend/ });
+          await expect(upcomingToggle).toBeVisible();
+          await expect(upcomingToggle).toContainText(
+            '1 kommend · nächste: Muster kommende Zahlung 22.09.',
+          );
+          // Account details start expanded; All bookings deliberately starts collapsed.
+          await expect(upcomingToggle).toHaveAttribute(
+            'aria-expanded',
+            view === 'account' ? 'true' : 'false',
+          );
+          if (view === 'bookings') {
+            await expect(bookings).toHaveCount(6);
+            await expect(upcoming).toHaveCount(0);
+            await upcomingToggle.click();
+            await expect(upcomingToggle).toHaveAttribute('aria-expanded', 'true');
+          }
           await expect(bookings).toHaveCount(7);
           await expect(upcoming).toHaveCount(1);
           await expect(upcoming).toBeVisible();
