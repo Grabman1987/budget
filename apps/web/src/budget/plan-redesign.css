@@ -336,6 +336,7 @@
 
 .plan-month-frame .plan-month-v2 .plan-grid > .plan-topbar-v2 {
   grid-column: 1 / -1;
+  position: static;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -407,7 +408,6 @@
     display: block;
   }
   .plan-month-frame .plan-month-v2 .plan-grid > .plan-topbar-v2 {
-    position: sticky;
     padding: var(--space-sm) 0;
     background: var(--ground);
   }
@@ -495,7 +495,17 @@
   background: var(--good);
 }
 .plan-month-frame .ptable-zero .spending-bar {
-  max-width: 190px;
+  width: 100%;
+  max-width: none;
+}
+.plan-month-frame .plan-month-v2 .ptable-zero .pgroup-gap td {
+  height: var(--space-md);
+}
+@media (max-width: 767px) {
+  .plan-month-frame .plan-month-v2 .ptable-zero .prow:not(.is-empty),
+  .plan-month-frame .plan-month-v2 .ptable-zero .pmulti:not(.is-empty) {
+    padding-bottom: var(--space-sm) !important;
+  }
 }
 .plan-month-frame .plan-reference-filters .plan-filter-segments {
   display: grid;
