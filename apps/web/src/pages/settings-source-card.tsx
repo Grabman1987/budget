@@ -58,7 +58,7 @@ export function SettingsSourceCard({
           </div>
           <small>{detail}</small>
           <small>
-            Letzter Erfolg: {sourceDate(date)}
+            Letzter Erfolg: {loading ? 'Wird geladen …' : sourceDate(date)}
             {next && <> · Nächster Abruf: {next}</>}
           </small>
         </div>
