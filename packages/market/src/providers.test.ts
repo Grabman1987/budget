@@ -185,7 +185,7 @@ describe('Ariva historic-quotes page', () => {
       expect(parseArivaUrl(bad), String(bad)).toBeUndefined();
   });
 
-  it('fetches the 30-day page for a recent window: one request, no credentials', async () => {
+  it('fetches the 30-day page with only the explicit exchange preference and no credentials', async () => {
     const urls: string[] = [];
     const on = arivaSource({
       enabled: true,
@@ -193,7 +193,9 @@ describe('Ariva historic-quotes page', () => {
       minIntervalMs: 0,
       fetch: async (url, init) => {
         urls.push(String(url));
-        expect(JSON.stringify(init?.headers)).not.toMatch(/cookie|authorization/i);
+        const headers = new Headers(init?.headers);
+        expect(headers.get('cookie')).toBe('ariva_exchange=45');
+        expect(headers.get('authorization')).toBeNull();
         return new Response(data('ariva-historic.html'));
       },
     });
@@ -205,6 +207,108 @@ describe('Ariva historic-quotes page', () => {
     expect(urls).toEqual([
       'https://www.ariva.de/etf/synthetic-world-etf/kurse/historische-kurse?boerse_id=45',
     ]);
+  });
+
+  it('keeps the selected EUR exchange when Ariva redirects away the query parameter', async () => {
+    const requests: Array<{ url: string; cookie: string | null }> = [];
+    const on = arivaSource({
+      enabled: true,
+      now: NOW,
+      minIntervalMs: 0,
+      fetch: async (url, init) => {
+        requests.push({ url: String(url), cookie: new Headers(init?.headers).get('cookie') });
+        if (new URL(String(url)).searchParams.has('boerse_id')) {
+          // Default server fetch follows the 301 without retaining the response cookie.
+          if (init?.redirect !== 'manual') return new Response(data('ariva-historic-usd.html'));
+          return new Response(null, {
+            status: 301,
+            headers: {
+              location: PAGE,
+              'set-cookie': 'ariva_exchange=4; Path=/; Secure; SameSite=Lax',
+            },
+          });
+        }
+        return new Response(
+          data(
+            new Headers(init?.headers).get('cookie') === 'ariva_exchange=4'
+              ? 'ariva-historic.html'
+              : 'ariva-historic-usd.html',
+          ),
+        );
+      },
+    });
+    expect(await on.history(ref({ quoteExchange: '4' }), '2024-01-04', '2024-01-05')).toEqual([
+      { date: '2024-01-04', priceMicro: 85_470_000 },
+      { date: '2024-01-05', priceMicro: 86_010_000 },
+    ]);
+    expect(requests).toEqual([
+      { url: `${PAGE}?boerse_id=4`, cookie: 'ariva_exchange=4' },
+      { url: PAGE, cookie: 'ariva_exchange=4' },
+    ]);
+  });
+
+  it('never retains response cookies or a previous instrument exchange and still refuses USD', async () => {
+    const cookies: Array<string | null> = [];
+    const on = arivaSource({
+      enabled: true,
+      now: NOW,
+      minIntervalMs: 0,
+      fetch: async (_url, init) => {
+        const cookie = new Headers(init?.headers).get('cookie');
+        cookies.push(cookie);
+        return new Response(data(cookie ? 'ariva-historic.html' : 'ariva-historic-usd.html'), {
+          headers: { 'set-cookie': 'session=untrusted; Path=/' },
+        });
+      },
+    });
+    await on.history(ref({ quoteExchange: '4' }), '2024-01-04', '2024-01-05');
+    await on.history(ref({ quoteExchange: '131' }), '2024-01-04', '2024-01-05');
+    expect(
+      await kindOf(() => on.history(ref({ quoteUrl: PAGE }), '2024-01-04', '2024-01-05')),
+    ).toBe('currency_mismatch');
+    expect(cookies).toEqual(['ariva_exchange=4', 'ariva_exchange=131', null]);
+  });
+
+  it.each([
+    'https://evil.example/kurse/historische-kurse',
+    '//127.0.0.1/kurse/historische-kurse',
+    'http://www.ariva.de/etf/x/kurse/historische-kurse',
+    'https://www.ariva.de:444/etf/x/kurse/historische-kurse',
+    'https://user:password@www.ariva.de/etf/x/kurse/historische-kurse',
+    'https://www.ariva.de/login',
+    `${PAGE}?boerse_id=4%3Bsession%3Dstolen`,
+  ])('refuses an unsafe redirect without sending an exchange cookie to %s', async (location) => {
+    const requests: string[] = [];
+    const on = arivaSource({
+      enabled: true,
+      now: NOW,
+      minIntervalMs: 0,
+      fetch: async (url, init) => {
+        requests.push(String(url));
+        if (init?.redirect !== 'manual') return new Response(data('ariva-historic.html'));
+        return new Response(null, { status: 302, headers: { location } });
+      },
+    });
+    expect(await kindOf(() => on.history(ref(), '2024-01-04', '2024-01-05'))).toBe('http');
+    expect(requests).toEqual([`${PAGE}?boerse_id=45`]);
+  });
+
+  it('bounds redirects and refuses redirects without a location', async () => {
+    for (const location of [PAGE, null]) {
+      let requests = 0;
+      const on = arivaSource({
+        enabled: true,
+        now: NOW,
+        minIntervalMs: 0,
+        fetch: async (_url, init) => {
+          requests++;
+          if (init?.redirect !== 'manual') return new Response(data('ariva-historic.html'));
+          return new Response(null, { status: 302, headers: location ? { location } : {} });
+        },
+      });
+      expect(await kindOf(() => on.history(ref(), '2024-01-04', '2024-01-05'))).toBe('http');
+      expect(requests).toBe(location ? 4 : 1);
+    }
   });
 
   it('prefers the stored exchange and pages month by month for an older window', async () => {
@@ -272,6 +376,9 @@ describe('Ariva historic-quotes page', () => {
       { quoteUrl: null },
       { quoteUrl: 'https://evil.example/kurse/x' },
       { quoteExchange: '4;5' },
+      { quoteExchange: '4; session=stolen' },
+      { quoteExchange: '4\r\nCookie: session=stolen' },
+      { quoteExchange: '1234567' },
     ])
       expect(await kindOf(() => on.history(ref(over), '2024-01-03', '2024-01-05'))).toBe(
         'not_configured',

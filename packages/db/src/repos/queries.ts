@@ -10,7 +10,7 @@ import {
 import { and, asc, count, eq, gte, isNull, lte, sql } from 'drizzle-orm';
 import { account, booking, bookingSplit, budgetMonth, category } from '../schema';
 import { assignedByMonth } from './envelopes';
-import { budgetInputFromRows } from './budget-ledger-input';
+import { budgetInputFromRows, type BudgetLedgerRows } from './budget-ledger-input';
 import { assertEurBudgetAccounts } from './account-invariants';
 import { memoizedShared } from './request-memo';
 import type { Executor } from './types';
@@ -91,25 +91,27 @@ function readBudgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
     .from(category)
     .where(isNull(category.deletedAt))
     .all();
+  // Keep the identical join, filter and row order, without ORM column-dispatch for
+  // every cell of this large primitive row set. Match SQLiteBoolean's Number(value) === 1 decoder.
+  type RawRow = Omit<BudgetLedgerRows['rows'][number], 'incomeNextMonth'> & {
+    incomeNextMonth: number;
+  };
   const rows = db
-    .select({
-      bookingId: booking.id,
-      splitId: bookingSplit.id,
-      payeeId: booking.payeeId,
-      status: booking.status,
-      accountId: booking.accountId,
-      date: booking.date,
-      incomeNextMonth: booking.incomeNextMonth,
-      bookingTransferId: booking.transferId,
-      splitTransferId: bookingSplit.transferId,
-      amountCents: bookingSplit.amountCents,
-      categoryId: bookingSplit.categoryId,
-    })
-    .from(bookingSplit)
-    .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
-    .innerJoin(account, eq(account.id, booking.accountId))
-    .where(and(isNull(booking.deletedAt), isNull(account.deletedAt)))
-    .all();
+    .all<RawRow>(
+      sql`
+    select ${booking.id} as "bookingId", ${bookingSplit.id} as "splitId",
+      ${booking.payeeId} as "payeeId", ${booking.status} as "status",
+      ${booking.accountId} as "accountId", ${booking.date} as "date",
+      ${booking.incomeNextMonth} as "incomeNextMonth",
+      ${booking.transferId} as "bookingTransferId", ${bookingSplit.transferId} as "splitTransferId",
+      ${bookingSplit.amountCents} as "amountCents", ${bookingSplit.categoryId} as "categoryId"
+    from ${bookingSplit}
+    inner join ${booking} on ${eq(booking.id, bookingSplit.bookingId)}
+    inner join ${account} on ${eq(account.id, booking.accountId)}
+    where ${and(isNull(booking.deletedAt), isNull(account.deletedAt))}
+  `,
+    )
+    .map((row) => ({ ...row, incomeNextMonth: Number(row.incomeNextMonth) === 1 }));
   const held = Object.fromEntries(
     db
       .select({ month: budgetMonth.month, heldCents: budgetMonth.heldCents })
