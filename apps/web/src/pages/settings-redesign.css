@@ -557,6 +557,13 @@
   display: grid;
   gap: 12px;
 }
+.settings-redesign .settings-data-v2 .settings-row > .btn {
+  max-width: 100%;
+  height: auto;
+  min-height: 44px;
+  padding: 8px 16px;
+  white-space: normal;
+}
 .settings-redesign .settings-project-form {
   display: flex;
   align-items: end;

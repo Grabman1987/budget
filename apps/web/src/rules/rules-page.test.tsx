@@ -166,7 +166,9 @@ it('keeps warnings and unavailable rules out of met rules and hides disabled rul
   ).toHaveLength(16);
   await user.click(within(disabled).getByText('Ausgeschaltet (6)'));
   expect(disabled.open).toBe(true);
-  expect(screen.getAllByRole('switch', { name: /^R/ })).toHaveLength(22);
+  expect(
+    within(container.querySelector('.rw')!).getAllByRole('switch', { name: /^R/ }),
+  ).toHaveLength(22);
   for (const row of container.querySelectorAll('.rw-rules > li')) {
     const link = within(row as HTMLElement).getByRole('link', { name: /^Einstellen R/ });
     expect(link.getAttribute('href')).toBe(
