@@ -103,6 +103,8 @@ for (const mode of ['create', 'edit'] as const) {
     }
     if (mode === 'create') {
       await amount.press('Tab');
+      await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toHaveCount(0);
+      await amount.press('Control+Enter');
       await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toBeVisible();
       await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
     }

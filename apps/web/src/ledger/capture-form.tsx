@@ -901,10 +901,6 @@ export function CaptureForm({
         void save(false);
       }}
       onKeyDown={onKeyDown}
-      onBlur={(event) => {
-        if (event.target instanceof HTMLInputElement && event.target.matches('.amount-input'))
-          setAmountInteracted(true);
-      }}
       noValidate
     >
       {REDESIGN_ENABLED && (

@@ -67,7 +67,7 @@ beforeEach(() => {
   create.mockResolvedValue({ bookings: [], groupId: 'synthetic-group' });
 });
 
-it.each(['blur', 'save'])(
+it.each(['save'])(
   'waits for amount %s before showing the mobile missing-line-amount error',
   async (trigger) => {
     flags.REDESIGN_ENABLED = true;
@@ -94,8 +94,10 @@ it.each(['blur', 'save'])(
     expect((screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement).disabled).toBe(
       true,
     );
-    if (trigger === 'blur') fireEvent.blur(amount);
-    else fireEvent.keyDown(amount, { key: 'Enter', ctrlKey: true });
+    fireEvent.blur(amount);
+    expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
+    void trigger;
+    fireEvent.keyDown(amount, { key: 'Enter', ctrlKey: true });
     expect(screen.getByText('Jede Zeile braucht einen Betrag.')).toBeTruthy();
     expect(create).not.toHaveBeenCalled();
     fireEvent.change(amount, { target: { value: '12,34' } });
