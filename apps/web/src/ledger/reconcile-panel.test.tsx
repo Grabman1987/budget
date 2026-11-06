@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
+import { todayInVienna } from '@budget/domain';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { ToastProvider } from '@budget/ui';
+import { ToastProvider, setAmountsHidden } from '@budget/ui';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ReconcileFlow } from './reconcile-panel';
 import type { AccountRow } from './types';
@@ -30,6 +31,8 @@ const sends: Array<Record<string, unknown>> = [];
 let bookedBalanceCents = 0;
 afterEach(() => {
   cleanup();
+  setAmountsHidden(false);
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 beforeEach(() => {
@@ -48,6 +51,15 @@ beforeEach(() => {
       if (url.includes('/lookups'))
         result = {
           categories: [
+            {
+              id: 'archived',
+              name: 'Archived synthetic category',
+              groupId: 'g',
+              kind: 'variable',
+              class: 'need',
+              sortOrder: 9,
+              hiddenAt: '2026-01-01',
+            },
             {
               id: 'c',
               name: 'Kategorie Muster',
@@ -122,56 +134,35 @@ function show(
   );
 }
 it.each([1234, -1234, 0])(
-  'offers confirmation of the booked balance %s on opening without typing or counting pending money',
+  'shows booked cents %s only as a placeholder and requires typed confirmation',
   async (balance) => {
     bookedBalanceCents = balance;
     show({ clearedCents: balance, unclearedCents: 5000, balanceCents: balance + 5000 });
-    expect((screen.getByLabelText('Saldo laut Bank') as HTMLInputElement).value).not.toBe('');
-    expect(screen.getByText(/Vorbelegt ist der gebuchte App-Saldo ohne Vormerkungen/)).toBeTruthy();
-    const confirm = await screen.findByRole('button', { name: 'Kontostand stimmt' });
+    const amount = screen.getByLabelText('Saldo laut Bank') as HTMLInputElement;
+    expect(amount.value).toBe('');
+    expect(amount.placeholder).toBe(balance === 0 ? '0,00' : balance < 0 ? '−12,34' : '12,34');
+    expect(screen.queryByRole('button', { name: 'Kontostand stimmt' })).toBeNull();
     expect(sends).toEqual([]);
-    expect(screen.queryByRole('button', { name: 'Differenz ausgleichen' })).toBeNull();
-    fireEvent.click(confirm);
+    fireEvent.change(amount, { target: { value: amount.placeholder } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Kontostand stimmt' }));
     await waitFor(() =>
       expect(sends).toEqual([{ date: expect.any(String), statementBalanceCents: balance }]),
     );
   },
 );
 
-it('keeps the booked-balance hint stable when an equivalent amount is formatted on blur', async () => {
-  bookedBalanceCents = 10000;
-  show({ clearedCents: 10000, balanceCents: 10000 });
-  const amount = screen.getByLabelText('Saldo laut Bank');
-  const hint = screen.getByText(/Vorbelegt ist der gebuchte App-Saldo ohne Vormerkungen/);
-  fireEvent.change(amount, { target: { value: '100' } });
-  expect(screen.getByText(/Vorbelegt ist der gebuchte App-Saldo ohne Vormerkungen/)).toBe(hint);
-  fireEvent.blur(amount);
-  expect((amount as HTMLInputElement).value).toBe('100,00');
-  expect(screen.getByText(/Vorbelegt ist der gebuchte App-Saldo ohne Vormerkungen/)).toBe(hint);
-  fireEvent.click(await screen.findByRole('button', { name: 'Kontostand stimmt' }));
-  await waitFor(() =>
-    expect(sends).toEqual([{ date: expect.any(String), statementBalanceCents: 10000 }]),
-  );
-});
-
-it('does not confirm a stale suggested balance when the current server preview differs', async () => {
+it('does not confirm a typed stale balance when the server preview differs', async () => {
   bookedBalanceCents = 1200;
-  show({ clearedCents: 1234, unclearedCents: 0, balanceCents: 1234 });
+  show({ clearedCents: 1234, balanceCents: 1234 });
+  fireEvent.change(screen.getByLabelText('Saldo laut Bank'), { target: { value: '12,34' } });
   await screen.findByRole('button', { name: 'Differenz ausgleichen' });
   expect(screen.queryByRole('button', { name: 'Kontostand stimmt' })).toBeNull();
   expect(sends).toEqual([]);
   fireEvent.change(screen.getByLabelText('Saldo laut Bank'), { target: { value: '12,00' } });
   fireEvent.click(await screen.findByRole('button', { name: 'Kontostand stimmt' }));
   await waitFor(() =>
-    expect(sends).toEqual([{ date: expect.any(String), statementBalanceCents: 1200 }]),
+    expect(sends).toEqual([{ date: todayInVienna(), statementBalanceCents: 1200 }]),
   );
-});
-
-it('does not suggest today’s booked balance for an explicit historical check date', () => {
-  show({ clearedCents: 1234, balanceCents: 1234 }, '2026-09-30');
-  expect((screen.getByLabelText('Saldo laut Bank') as HTMLInputElement).value).toBe('');
-  expect(screen.queryByRole('button', { name: 'Kontostand stimmt' })).toBeNull();
-  expect(sends).toEqual([]);
 });
 
 it('does not suggest today’s balance or bypass the month-close confirmation context', () => {
@@ -188,53 +179,37 @@ it('does not suggest today’s balance or bypass the month-close confirmation co
   expect(sends).toEqual([]);
 });
 
-it('takes signed bank cents and date without booking, then sends the chosen date with the canonical uncategorised adjustment only on click', async () => {
+it('takes a historical bank amount but checks and adjusts on today without date inputs', async () => {
   show();
   fireEvent.click(screen.getByRole('button', { name: /Bankstand übernehmen/ }));
-  expect((screen.getByLabelText('Stichtag') as HTMLInputElement).value).toBe('30.09.2026');
+  expect(screen.queryByLabelText('Stichtag')).toBeNull();
   expect((screen.getByLabelText('Saldo laut Bank') as HTMLInputElement).value).toBe('−12,34');
   await screen.findByRole('button', { name: 'Differenz ausgleichen' });
-  expect(screen.queryByRole('button', { name: 'Fehlende Buchung erfassen' })).toBeNull();
-  fireEvent.change(screen.getByLabelText('Ausgleichsdatum'), { target: { value: '2026-09-25' } });
+  expect(screen.queryByLabelText('Ausgleichsdatum')).toBeNull();
   expect(sends).toEqual([]);
-  expect(screen.getByText(/Eine echte Buchung.*25.09.2026.*keiner Kategorie/)).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: /Differenz ausgleichen/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Differenz ausgleichen' }));
+  await waitFor(() =>
+    expect(sends).toEqual([{ date: todayInVienna(), statementBalanceCents: -1234, adjust: true }]),
+  );
+});
+
+it('uses the existing grouped category picker for an explicit correction override', async () => {
+  show({ onBudget: true });
+  fireEvent.change(screen.getByLabelText('Saldo laut Bank'), { target: { value: '12,34' } });
+  const picker = await screen.findByRole('combobox', { name: 'Kategorie für den Ausgleich' });
+  expect((picker as HTMLInputElement).value).toBe('Zu verteilen');
+  fireEvent.focus(picker);
+  expect(await screen.findByText('Gruppe Muster')).toBeTruthy();
+  expect(screen.queryByRole('option', { name: 'Archived synthetic category' })).toBeNull();
+  fireEvent.click(screen.getByRole('option', { name: 'Kategorie Muster' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Differenz ausgleichen' }));
   await waitFor(() =>
     expect(sends).toEqual([
-      {
-        date: '2026-09-30',
-        statementBalanceCents: -1234,
-        adjust: true,
-        adjustDate: '2026-09-25',
-      },
+      { date: todayInVienna(), statementBalanceCents: 1234, adjust: true, categoryId: 'c' },
     ]),
   );
 });
-it('uses the Vienna fetch day when the balance has no date', () => {
-  // The server computes the effective day (Vienna day of the fetch) and sends it along.
-  show({
-    bankBalance: {
-      ...account.bankBalance!,
-      date: null,
-      effectiveDate: '2026-10-01',
-      fetchedAt: '2026-09-30T23:30:00Z',
-    },
-  });
-  fireEvent.click(screen.getByRole('button', { name: /Bankstand übernehmen/ }));
-  expect((screen.getByLabelText('Stichtag') as HTMLInputElement).value).toBe('01.10.2026');
-});
-it('blocks an adjustment outside the opening/statement interval or with an invalid date', async () => {
-  show();
-  fireEvent.click(screen.getByRole('button', { name: /Bankstand übernehmen/ }));
-  await screen.findByRole('button', { name: /Differenz ausgleichen/ });
-  for (const date of ['2025-12-31', '2026-10-01', '2026-02-30']) {
-    fireEvent.change(screen.getByLabelText('Ausgleichsdatum'), { target: { value: date } });
-    expect(
-      (screen.getByRole('button', { name: /Differenz ausgleichen/ }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-  }
-  expect(sends).toEqual([]);
-});
+
 it.each(['credit_card', 'loan'] as const)('explains the debt sign for %s', (type) => {
   show({ type });
   expect(screen.getByText('Schuld als Minus eingeben')).toBeTruthy();
@@ -250,7 +225,9 @@ it.each(['-12,34', '12,34'])(
     show({ onBudget: true });
     fireEvent.change(screen.getByLabelText('Saldo laut Bank'), { target: { value: amount } });
     await screen.findByRole('button', { name: 'Differenz ausgleichen' });
-    expect(screen.queryByLabelText('Kategorie für den Ausgleich')).toBeNull();
+    expect((screen.getByLabelText('Kategorie für den Ausgleich') as HTMLInputElement).value).toBe(
+      'Zu verteilen',
+    );
     expect(screen.getByText(/Eine echte Buchung.*Zu verteilen/)).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'In Buchungen suchen' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Differenz ausgleichen' }));
@@ -266,12 +243,29 @@ it.each(['-12,34', '12,34'])(
   },
 );
 it('needs an explicit tick before an adjustment dated in an already checked period', async () => {
-  show({ lastReconciledOn: '2026-09-20' });
+  show({ lastReconciledOn: '2026-09-20' }, '2026-09-30', {
+    asOf: '2026-09-30',
+    confirm: async (input) => {
+      sends.push({ ...input });
+      return {
+        result: {
+          groupId: 'synthetic',
+          differenceCents: -1234,
+          adjustmentBookingId: 'adjustment',
+        } as never,
+      };
+    },
+    onReload: vi.fn(),
+    onBusy: vi.fn(),
+  });
   fireEvent.click(screen.getByRole('button', { name: /Bankstand übernehmen/ }));
   const button = async () =>
     (await screen.findByRole('button', {
       name: /Differenz ausgleichen/,
     })) as HTMLButtonElement;
+  fireEvent.change(await screen.findByLabelText('Grund für den Ausgleich'), {
+    target: { value: 'Synthetic reason' },
+  });
   expect((await button()).disabled).toBe(false);
   expect(screen.queryByLabelText('Geprüften Zeitraum trotzdem ändern')).toBeNull();
   fireEvent.change(screen.getByLabelText('Ausgleichsdatum'), { target: { value: '2026-09-20' } });
@@ -282,6 +276,9 @@ it('needs an explicit tick before an adjustment dated in an already checked peri
   ).toBeTruthy();
   expect((await button()).disabled).toBe(true);
   fireEvent.click(screen.getByLabelText('Geprüften Zeitraum trotzdem ändern'));
+  fireEvent.change(await screen.findByLabelText('Grund für den Ausgleich'), {
+    target: { value: 'Synthetic reason' },
+  });
   expect((await button()).disabled).toBe(false);
   fireEvent.click(await button());
   await waitFor(() =>
@@ -292,21 +289,114 @@ it('needs an explicit tick before an adjustment dated in an already checked peri
         adjust: true,
         adjustDate: '2026-09-20',
         unlockReconciled: true,
+        note: 'Synthetic reason',
       },
     ]),
   );
 });
 it('does not send the unlock flag for a date after the last check', async () => {
-  show({ lastReconciledOn: '2026-09-20' });
+  show({ lastReconciledOn: '2026-09-20' }, '2026-09-30', {
+    asOf: '2026-09-30',
+    confirm: async (input) => {
+      sends.push({ ...input });
+      return {
+        result: {
+          groupId: 'synthetic',
+          differenceCents: -1234,
+          adjustmentBookingId: 'adjustment',
+        } as never,
+      };
+    },
+    onReload: vi.fn(),
+    onBusy: vi.fn(),
+  });
   fireEvent.click(screen.getByRole('button', { name: /Bankstand übernehmen/ }));
   fireEvent.change(await screen.findByLabelText('Ausgleichsdatum'), {
     target: { value: '2026-09-21' },
   });
   expect(screen.queryByLabelText('Geprüften Zeitraum trotzdem ändern')).toBeNull();
+  fireEvent.change(await screen.findByLabelText('Grund für den Ausgleich'), {
+    target: { value: 'Synthetic reason' },
+  });
   fireEvent.click(screen.getByRole('button', { name: /Differenz ausgleichen/ }));
   await waitFor(() =>
     expect(sends).toEqual([
-      { date: '2026-09-30', statementBalanceCents: -1234, adjust: true, adjustDate: '2026-09-21' },
+      {
+        date: '2026-09-30',
+        statementBalanceCents: -1234,
+        adjust: true,
+        adjustDate: '2026-09-21',
+        note: 'Synthetic reason',
+      },
     ]),
+  );
+});
+
+it('retains historical month-close adjustment interval validation', async () => {
+  const confirm = vi.fn();
+  show({}, '2026-09-30', { asOf: '2026-09-30', confirm, onReload: vi.fn(), onBusy: vi.fn() });
+  fireEvent.click(screen.getByRole('button', { name: /Bankstand übernehmen/ }));
+  fireEvent.change(await screen.findByLabelText('Grund für den Ausgleich'), {
+    target: { value: 'Synthetic reason' },
+  });
+  for (const date of ['2025-12-31', '2026-10-01', '2026-02-30']) {
+    fireEvent.change(screen.getByLabelText('Ausgleichsdatum'), { target: { value: date } });
+    expect(
+      (screen.getByRole('button', { name: 'Differenz ausgleichen' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  }
+  expect(confirm).not.toHaveBeenCalled();
+  expect(sends).toEqual([]);
+});
+
+it('formats the typed amount on blur and preserves literal confirmation cents', async () => {
+  bookedBalanceCents = 10000;
+  show({ clearedCents: 10000, balanceCents: 10000 });
+  const amount = screen.getByLabelText('Saldo laut Bank') as HTMLInputElement;
+  fireEvent.change(amount, { target: { value: '100' } });
+  fireEvent.blur(amount);
+  expect(amount.value).toBe('100,00');
+  fireEvent.click(await screen.findByRole('button', { name: 'Kontostand stimmt' }));
+  await waitFor(() =>
+    expect(sends).toEqual([{ date: todayInVienna(), statementBalanceCents: 10000 }]),
+  );
+});
+
+it('masks typed and adopted amounts and the suggested balance in privacy mode', () => {
+  setAmountsHidden(true);
+  show({ clearedCents: 10000 });
+  const amount = screen.getByLabelText('Saldo laut Bank') as HTMLInputElement;
+  expect(amount.type).toBe('password');
+  expect(amount.placeholder).toBe('');
+  fireEvent.change(amount, { target: { value: '12,34' } });
+  expect(amount.type).toBe('password');
+  fireEvent.click(screen.getByRole('button', { name: /Bankstand übernehmen/ }));
+  expect(amount.value).toBe('−12,34');
+  expect(amount.type).toBe('password');
+  expect(sends).toEqual([]);
+});
+
+it('reports invalid typed amounts and never offers confirmation', () => {
+  show({ clearedCents: 10000 });
+  const amount = screen.getByLabelText('Saldo laut Bank');
+  fireEvent.change(amount, { target: { value: 'invalid' } });
+  expect(amount.getAttribute('aria-invalid')).toBe('true');
+  expect(screen.getByText('Bitte einen gültigen Betrag eingeben.')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Kontostand stimmt' })).toBeNull();
+  expect(sends).toEqual([]);
+});
+
+it('refreshes the day and preview at Vienna midnight before committing an adjustment', async () => {
+  vi.setSystemTime(new Date('2026-10-01T21:59:00Z'));
+  show({ onBudget: true });
+  fireEvent.change(screen.getByLabelText('Saldo laut Bank'), { target: { value: '-12,34' } });
+  const button = await screen.findByRole('button', { name: 'Differenz ausgleichen' });
+  vi.setSystemTime(new Date('2026-10-01T22:01:00Z'));
+  fireEvent.click(button);
+  expect(sends).toEqual([]);
+  expect(screen.getByText(/Der Tag hat gewechselt/)).toBeTruthy();
+  fireEvent.click(await screen.findByRole('button', { name: 'Differenz ausgleichen' }));
+  await waitFor(() =>
+    expect(sends).toEqual([{ date: '2026-10-02', statementBalanceCents: -1234, adjust: true }]),
   );
 });

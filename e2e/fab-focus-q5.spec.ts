@@ -146,7 +146,6 @@ test('detail has one name, one return path and keyboard-only focus in both theme
           for (const next of [
             page.locator('#global-search-mobile'),
             page.locator('.konten-review-count'),
-            page.getByLabel('Kontoaktionen', { exact: true }),
             badge,
           ]) {
             await page.keyboard.press('Tab');

@@ -20,6 +20,7 @@ let preview: ReconciliationPreview;
 const sends: unknown[] = [];
 let categories: Category[] = [];
 beforeEach(() => {
+  vi.setSystemTime(new Date('2026-09-30T10:00:00Z'));
   localStorage.clear();
   categories = [];
   writes.remove.mutate.mockReset();
@@ -76,6 +77,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 const show = (
@@ -112,20 +114,20 @@ it('requires explicit review of every existing candidate before correction and l
   show();
   const duplicate = await screen.findByTestId('candidate-duplicate-duplicate');
   const pending = screen.getByTestId('candidate-pending-pending');
-  expect(screen.queryByLabelText('Ausgleichsdatum')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Differenz ausgleichen' })).toBeNull();
   expect(screen.queryByRole('button', { name: /Differenz ausgleichen/ })).toBeNull();
   fireEvent.click(within(duplicate).getByRole('button', { name: 'Ignorieren' }));
-  expect(screen.queryByLabelText('Ausgleichsdatum')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Differenz ausgleichen' })).toBeNull();
   fireEvent.click(within(pending).getByRole('button', { name: 'Ignorieren' }));
-  expect(await screen.findByLabelText('Ausgleichsdatum')).toBeTruthy();
+  expect(await screen.findByRole('button', { name: 'Differenz ausgleichen' })).toBeTruthy();
   expect(screen.getByText(/Eine echte Buchung/).textContent).toContain('+12,34 €');
   expect(sends).toEqual([]);
   expect(writes.remove.mutate).not.toHaveBeenCalled();
   fireEvent.click(within(duplicate).getByRole('button', { name: 'Ignorieren rückgängig' }));
-  expect(screen.queryByLabelText('Ausgleichsdatum')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Differenz ausgleichen' })).toBeNull();
   expect(sends).toEqual([]);
   fireEvent.click(within(duplicate).getByRole('button', { name: 'Ignorieren' }));
-  expect(await screen.findByLabelText('Ausgleichsdatum')).toBeTruthy();
+  expect(await screen.findByRole('button', { name: 'Differenz ausgleichen' })).toBeTruthy();
   preview = { ...preview, statementBalanceCents: -1235, differenceCents: 1233 };
   fireEvent.change(screen.getByLabelText('Saldo laut Bank', { exact: true }), {
     target: { value: '-12,35' },
@@ -134,7 +136,7 @@ it('requires explicit review of every existing candidate before correction and l
     expect(screen.queryByRole('button', { name: 'Ignorieren rückgängig' })).toBeNull(),
   );
   expect(await screen.findByTestId('candidate-duplicate-duplicate')).toBeTruthy();
-  expect(screen.queryByLabelText('Ausgleichsdatum')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Differenz ausgleichen' })).toBeNull();
 });
 it('uses the existing duplicate action, refreshes to literal zero, and reconciles without adjust only on explicit click', async () => {
   preview.pendingMatches = [];
@@ -248,9 +250,9 @@ it('keeps an existing month-close token stale after a separate candidate confirm
 });
 
 it.each([
-  [{ onBudget: true }, 'Zu verteilen (ohne Kategorie)'],
-  [{ onBudget: false }, 'keiner Kategorie'],
-  [{ type: 'credit_card' }, 'keiner Kategorie'],
+  [{ onBudget: true }, 'Zu verteilen'],
+  [{ onBudget: false }, 'Ohne Kategorie'],
+  [{ type: 'credit_card' }, 'Ohne Kategorie'],
 ] as const)(
   'retains the canonical correction policy for %j and ignores remembered categories',
   async (overrides, label) => {
@@ -258,7 +260,9 @@ it.each([
     localStorage.setItem('budget-reconcile-category:a', 'food');
     show(-1234, undefined, overrides);
     const correction = await screen.findByRole('button', { name: 'Differenz ausgleichen' });
-    expect(screen.queryByLabelText('Kategorie für den Ausgleich')).toBeNull();
+    expect((screen.getByLabelText('Kategorie für den Ausgleich') as HTMLInputElement).value).toBe(
+      label,
+    );
     expect(screen.getByText(/Eine echte Buchung/).textContent).toContain(label);
     expect(sends).toEqual([]);
     fireEvent.click(correction);

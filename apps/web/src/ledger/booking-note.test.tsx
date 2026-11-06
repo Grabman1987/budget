@@ -2,6 +2,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { BookingTable } from './booking-table';
 import { MiniLine } from './mini-line';
 import type { ListedBooking } from './types';
@@ -50,8 +51,14 @@ it('gives account notes their own cell with full hover text and a mobile payee l
       <BookingTable items={[booking]} caption="Bookings" variant="all" onOpen={vi.fn()} />
     </QueryClientProvider>,
   );
-  expect(screen.queryByRole('columnheader', { name: 'Notiz' })).toBeNull();
-  expect(container.querySelector('.kx-payee .kmeta')?.textContent).toBe(booking.memo);
+  if (REDESIGN_ENABLED) {
+    expect(screen.getByRole('columnheader', { name: 'Notiz' })).toBeTruthy();
+    expect(container.querySelector('td.kx-note span')?.getAttribute('title')).toBe(booking.memo);
+    expect(container.querySelector('.kx-mobile-note')?.textContent).toBe(booking.memo);
+  } else {
+    expect(screen.queryByRole('columnheader', { name: 'Notiz' })).toBeNull();
+    expect(container.querySelector('.kx-payee .kmeta')?.textContent).toBe(booking.memo);
+  }
 });
 it('names the overview sparkline with its 90-day range', () => {
   const { container } = render(

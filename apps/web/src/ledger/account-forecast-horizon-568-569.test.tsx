@@ -111,7 +111,7 @@ it.each([false, true])(
         ).toBe(true),
       );
       expect(document.querySelector('[data-redesign="account-detail"]') !== null).toBe(enabled);
-      expect(screen.queryByLabelText('Kontoaktionen') !== null).toBe(enabled);
+      expect(screen.queryByLabelText('Kontoaktionen')).toBeNull();
       expect(document.querySelector('#account-register-forecast-account')).toBeTruthy();
       if (enabled) {
         await userEvent.setup().click(screen.getByText('Dokumente und Kontoauszüge'));

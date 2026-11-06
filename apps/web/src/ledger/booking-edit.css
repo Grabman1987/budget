@@ -1,0 +1,24 @@
+/* Edit-only overrides: capture retains its independently maintained phone layout. */
+@media (min-width: 768px) {
+  .bk-edit-scope .bkform-redesign .bk-body {
+    grid-template-areas: 'kind amount' 'payee context' 'lines lines' 'memo memo';
+  }
+  .bk-edit-scope .bkform-redesign .bk-body:has(> .kdiff) {
+    grid-template-areas: 'guard guard' 'kind amount' 'payee context' 'lines lines' 'memo memo';
+  }
+  .bk-edit-scope .bkform-redesign :is(.bk-cols, .bk-col-head) {
+    display: contents;
+  }
+  .bk-edit-scope .bkform-redesign .bk-context-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bk-edit-scope .bkform-redesign .bk-line-fields.is-multiple {
+    grid-template-columns: minmax(0, 1fr) 170px 44px;
+  }
+  .bk-edit-scope .bkform-redesign:not(.bk-split-cols) .bk-body {
+    grid-template-areas: 'kind amount' 'context context' 'lines lines' 'memo memo';
+  }
+  .bk-edit-scope .bkform-redesign:not(.bk-split-cols) .bk-body:has(> .kdiff) {
+    grid-template-areas: 'guard guard' 'kind amount' 'context context' 'lines lines' 'memo memo';
+  }
+}

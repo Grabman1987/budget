@@ -20,3 +20,12 @@
   outline: 2px solid var(--line);
   outline-offset: 2px;
 }
+
+.reconcile-adjustment-actions {
+  justify-content: flex-end;
+  align-items: center;
+}
+.kreconcile input::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
