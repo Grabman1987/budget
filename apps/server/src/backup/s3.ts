@@ -1,6 +1,6 @@
 import { createHash, createHmac } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { open, stat } from 'node:fs/promises';
 
 /**
  * Minimal S3 client (PUT, list, DELETE) with AWS Signature Version 4, enough for the encrypted
@@ -177,7 +177,11 @@ export class S3Client {
         signal: controller.signal,
         redirect: 'error',
         ...(file
-          ? { body: createReadStream(file.path), duplex: 'half' }
+          ? // Node fetch accepts Readable uploads; DOM-based API tests use the narrower BodyInit.
+            {
+              body: createReadStream(file.path) as unknown as NonNullable<RequestInit['body']>,
+              duplex: 'half',
+            }
           : body
             ? { body: new Uint8Array(body) }
             : {}),
@@ -216,6 +220,88 @@ export class S3Client {
 
   async delete(key: string): Promise<void> {
     await this.send('DELETE', this.url(key));
+  }
+
+  /** Download only ciphertext, verifying the single-PUT ETag before a caller serves the file. */
+  async getEncryptedFile(key: string, path: string, signal: AbortSignal): Promise<number> {
+    const url = this.url(key);
+    const date = this.clock();
+    const payloadHash = sha256('');
+    const headers = {
+      'x-amz-content-sha256': payloadHash,
+      'x-amz-date': amzDate(date),
+    };
+    const authorization = signV4({
+      method: 'GET',
+      url,
+      headers,
+      payloadHash,
+      date,
+      accessKeyId: this.config.accessKeyId,
+      secretAccessKey: this.config.secretAccessKey,
+      region: this.config.region,
+      service: 's3',
+    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    let body: ReadableStream<Uint8Array> | null = null;
+    try {
+      const response = await fetch(url, {
+        headers: { ...headers, authorization },
+        signal: AbortSignal.any([signal, controller.signal]),
+        redirect: 'error',
+      });
+      body = response.body;
+      const length = Number(response.headers.get('content-length'));
+      const etag = /^"([a-f0-9]{32})"$/i.exec(response.headers.get('etag') ?? '')?.[1];
+      // The nightly writer uses one PUT, never multipart. Fail closed on other formats.
+      if (
+        response.status !== 200 ||
+        !body ||
+        !etag ||
+        !Number.isSafeInteger(length) ||
+        length < 100 ||
+        response.headers.has('content-encoding')
+      )
+        throw new S3Error('InvalidResponse');
+      clearTimeout(timer);
+      const file = await open(path, 'wx', 0o600);
+      const transferTimer = setTimeout(
+        () => controller.abort(),
+        this.timeoutMs + Math.ceil(length / 1_048_576) * 1000,
+      );
+      const hash = createHash('md5');
+      let bytes = 0;
+      let header = Buffer.alloc(0);
+      try {
+        for await (const chunk of body) {
+          bytes += chunk.byteLength;
+          if (bytes > length) throw new S3Error('InvalidResponse');
+          if (header.length < 24)
+            header = Buffer.concat([header, Buffer.from(chunk)]).subarray(0, 24);
+          hash.update(chunk);
+          await file.writeFile(chunk);
+        }
+        if (
+          bytes !== length ||
+          hash.digest('hex') !== etag.toLowerCase() ||
+          header.toString() !== 'age-encryption.org/v1\n->'
+        )
+          throw new S3Error('InvalidResponse');
+        return bytes;
+      } finally {
+        clearTimeout(transferTimer);
+        await file.close();
+      }
+    } catch (error) {
+      throw error instanceof S3Error
+        ? error
+        : new S3Error(controller.signal.aborted ? 'Timeout' : 'NetworkError');
+    } finally {
+      clearTimeout(timer);
+      controller.abort();
+      await body?.cancel().catch(() => undefined);
+    }
   }
 
   /** All keys below `prefix` (ListObjectsV2, follows continuation tokens). */

@@ -69,6 +69,17 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+[data-budget-redesign='1'] .r4-contact-amounts {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+  flex-shrink: 0;
+  font-size: var(--fs-meta);
+}
+[data-budget-redesign='1'] .r4-contact-summary {
+  font-size: var(--fs-table);
+  font-variant-numeric: tabular-nums;
+}
 [data-budget-redesign='1'] :is(.r4-contact-history, .r4-contact-settings) {
   display: flex;
   align-items: center;

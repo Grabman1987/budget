@@ -126,6 +126,8 @@ test('rule status direct links, browser back and return keep context; threshold 
   await edit.click();
   await inspect(page, 'rule-threshold');
   await page.getByRole('dialog').getByLabel('Mindestens').fill('2');
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    page.once('dialog', (dialog) => dialog.accept());
   await page.keyboard.press('Escape');
   await expect(edit).toBeFocused();
   await edit.click();

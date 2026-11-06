@@ -8,25 +8,58 @@ import {
   Switch,
 } from '@budget/ui';
 import { cents, formatDecimal, parseAmount } from '@budget/domain';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { patchRule, type RuleRow } from './api';
 import { RULE_FIELDS, fieldError, fieldText, fieldValue, type FieldSpec } from './rules-model';
 import { useRuleWrite } from './use-rule-writes';
 
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
+import { useBlocker } from '@tanstack/react-router';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 /** Input dialog for thresholds; status belongs to the rule sub-page. */
 export function RulePanel({ rule, onClose }: { rule: RuleRow | null; onClose: () => void }) {
   useAmountPrivacy();
+  const draft = useRef({ dirty: false, busy: false });
+  const closing = useRef(false);
+  useEffect(() => {
+    closing.current = false;
+  }, [rule]);
+  useBlocker({
+    shouldBlockFn: () =>
+      REDESIGN_ENABLED &&
+      rule !== null &&
+      !closing.current &&
+      (draft.current.busy ||
+        (draft.current.dirty && !window.confirm('Ungespeicherte Änderungen verwerfen?'))),
+    enableBeforeUnload: () =>
+      REDESIGN_ENABLED && rule !== null && (draft.current.dirty || draft.current.busy),
+  });
   return (
     <SettingsFormDialog
       open={rule !== null}
       onClose={onClose}
+      beforeClose={() => {
+        if (
+          REDESIGN_ENABLED &&
+          (draft.current.busy ||
+            (draft.current.dirty && !window.confirm('Ungespeicherte Änderungen verwerfen?')))
+        )
+          return false;
+        closing.current = true;
+        return true;
+      }}
       title={rule ? `Schwellen bearbeiten · ${rule.code} ${rule.name}` : ''}
     >
       {rule && (
         // Remounts when the stored parameters change (saved, undone, redone).
-        <RuleForm key={`${rule.code}:${JSON.stringify(rule.params)}`} rule={rule} />
+        <RuleForm
+          key={`${rule.code}:${JSON.stringify(rule.params)}`}
+          rule={rule}
+          onDraftChange={(state) => {
+            draft.current = state;
+          }}
+        />
       )}
     </SettingsFormDialog>
   );
@@ -36,7 +69,13 @@ export function RulePanel({ rule, onClose }: { rule: RuleRow | null; onClose: ()
 const initial = (spec: FieldSpec, value: unknown): string =>
   spec.unit === 'euro' ? formatDecimal(cents(Number(value ?? 0))) : fieldText(spec, value);
 
-function RuleForm({ rule }: { rule: RuleRow }) {
+function RuleForm({
+  rule,
+  onDraftChange,
+}: {
+  rule: RuleRow;
+  onDraftChange: (state: { dirty: boolean; busy: boolean }) => void;
+}) {
   useAmountPrivacy();
   const write = useRuleWrite();
   const specs = RULE_FIELDS[rule.code] ?? [];
@@ -77,6 +116,10 @@ function RuleForm({ rule }: { rule: RuleRow }) {
     if (value !== rule.params[s.key]) changed[s.key] = value;
   }
   const dirty = Object.keys(changed).length > 0;
+  const draftDirty = specs.some((s) => texts[s.key] !== initial(s, rule.params[s.key]));
+  useEffect(() => {
+    onDraftChange({ dirty: draftDirty, busy });
+  }, [draftDirty, busy, onDraftChange]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();

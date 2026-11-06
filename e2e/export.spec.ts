@@ -67,3 +67,47 @@ test('legacy import entry points cannot open the removed wizard or report', asyn
   await expect(page.getByText('Seite nicht gefunden')).toBeVisible();
   await expect(page.getByText('Abgleich mit YNAB', { exact: true })).toHaveCount(0);
 });
+
+test('encrypted backup is a separate retryable download with restore guidance', async ({
+  page,
+}, info) => {
+  await page.goto('/einstellungen/export');
+  const backup = page.getByRole('button', { name: 'Verschlüsselte Sicherung herunterladen' });
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) !== '1') {
+    await expect(backup).toHaveCount(0);
+    return;
+  }
+  await expect(backup).toBeEnabled();
+  await expect(page.getByText(/privaten age-Schlüssel/)).toBeVisible();
+  await expect(page.getByText(/Sicherungstag \(UTC\)/)).toBeVisible();
+  let attempts = 0;
+  // The auth/storage boundary is covered by encrypted-backup.test.ts; the browser has no bucket.
+  await page.route('**/api/export/backup.age', async (route) => {
+    attempts += 1;
+    if (attempts === 1) return route.fulfill({ status: 404, json: { error: 'backup_missing' } });
+    return route.fulfill({
+      contentType: 'application/octet-stream',
+      headers: { 'content-disposition': 'attachment; filename="budget-2026-11-05.tar.age"' },
+      body: 'age-encryption.org/v1\n-> synthetic encrypted fixture',
+    });
+  });
+  await backup.click();
+  await expect(page.getByRole('alert')).toContainText('keine abgeschlossene');
+  await expect(backup).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'ZIP-Export herunterladen' })).toBeEnabled();
+  const download = page.waitForEvent('download');
+  await backup.click();
+  expect((await download).suggestedFilename()).toBe('budget-2026-11-05.tar.age');
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Sicherung heruntergeladen' }),
+  ).toContainText('2026-11-05');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  expect(attempts).toBe(2);
+  await page.screenshot({ path: info.outputPath('encrypted-backup.png'), fullPage: true });
+  await page.setViewportSize({ width: 320, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  const bounds = await backup.boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(320);
+  expect(await backup.evaluate((button) => button.scrollWidth <= button.clientWidth)).toBe(true);
+});
