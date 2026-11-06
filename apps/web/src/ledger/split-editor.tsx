@@ -180,9 +180,7 @@ export function SplitEditor({
         const n = index + 1;
         const category = categories.find((c) => c.id === line.categoryId);
         const contact = contacts.find((c) => c.id === line.contactId);
-        const retained = parseAmount(
-          expanded.splits.find((s) => s.key === line.key)?.amount ?? '0',
-        );
+        const categoryAmount = parseAmount(line.amount);
         const shareChange = (key: string, patch: Partial<BookingLineDraft['shares'][number]>) =>
           update((current) =>
             current.map((row) =>
@@ -292,7 +290,7 @@ export function SplitEditor({
                 <p className="khint" aria-live="polite">
                   {sharingInvalid
                     ? 'Kontakt und gültigen Anteil wählen. Anteile dürfen den Zeilenbetrag nicht überschreiten.'
-                    : `Kategorie trägt ${eur(parseAmount(line.amount).ok ? (parseAmount(line.amount) as { cents: number }).cents : 0)} bis zur Rückzahlung`}
+                    : `Kategorie trägt ${eur(categoryAmount.ok ? categoryAmount.cents : 0)} bis zur Rückzahlung`}
                 </p>
                 <Button
                   variant="ghost"
@@ -335,8 +333,8 @@ export function SplitEditor({
               category?.availableCents !== undefined && (
                 <p className="kavail" aria-live="polite">
                   Verfügbar: <strong>{eur(category.availableCents)}</strong>
-                  {draft.kind === 'expense' && retained.ok && (
-                    <> · danach {eur(category.availableCents - retained.cents)}</>
+                  {draft.kind === 'expense' && categoryAmount.ok && (
+                    <> · danach {eur(category.availableCents - categoryAmount.cents)}</>
                   )}
                 </p>
               )}

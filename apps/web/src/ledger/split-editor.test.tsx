@@ -31,7 +31,7 @@ it('shares a category by percent, keeps cents exact, and guards an unfinished se
               group: 'Bedarf',
               kind: 'expense',
               cls: 'need',
-              availableCents: null,
+              availableCents: 20000,
               hidden: false,
             },
           ]}
@@ -56,6 +56,8 @@ it('shares a category by percent, keeps cents exact, and guards an unfinished se
   fireEvent.click(screen.getByRole('button', { name: 'Teilen' }));
   fireEvent.change(screen.getByLabelText('Kontakt 1.1'), { target: { value: 'contact-example' } });
   fireEvent.change(screen.getByLabelText('Anteil 1.1 (%)'), { target: { value: '33,33' } });
+  expect(screen.getByText(/danach 99,99/)).toBeTruthy();
+  expect(screen.getByText('Kategorie trägt 100,01 € bis zur Rückzahlung')).toBeTruthy();
   expect(JSON.parse(screen.getByTestId('payload').textContent!)).toMatchObject({
     ok: true,
     value: {
