@@ -1,0 +1,53 @@
+{
+  "referenceApi": "9a4acd22fa2ce7ac0bfffdafe948e9432e15720a",
+  "today": "2026-09-17",
+  "epoch": "00000000-0000-4000-8000-000000000956",
+  "responses": [
+    {
+      "path": "/budget/2026-09?previewBasis=1",
+      "bytes": 44917,
+      "sha256": "0310e5d6716ef4610b317af4383387e9418de6cc16470a661285772e7a526db2"
+    },
+    {
+      "path": "/budget/months?months=2026-08,2026-09&previewBasis=1",
+      "bytes": 89946,
+      "sha256": "f04dd5aa22e19b4119774edba13e09825d19ea24c48c0d12aa07061b1f4cb17e"
+    },
+    {
+      "path": "/accounts",
+      "bytes": 34352,
+      "sha256": "e53f7f99d3b08005035aab482717cd6d996147206d6453819bd014e7b8f2102f"
+    },
+    {
+      "path": "/payslip-intake/status",
+      "bytes": 4216,
+      "sha256": "c7fbdc2fae2c92a7685b1f22bd3b72c5c51f5cfd53b236b38dd478a8401e955f"
+    },
+    {
+      "path": "/reports/spending/inflation",
+      "bytes": 76118,
+      "sha256": "5cc41c75b6c2ea9cd4a18731359f5a5110892c0d0b5e48b890f33afa28ceeedf"
+    },
+    {
+      "path": "/sources/crypto",
+      "bytes": 1158,
+      "sha256": "5e1398cfbdfd88265bc5d3251a87e270d5c3a5ebbad6dbd36bb89dc34b420730"
+    },
+    {
+      "path": "/inbox/count",
+      "bytes": 33,
+      "sha256": "e1aed645b0ab5c5cdd54f70d26c9590dae5648f5a1b8b2aefa44f85fd8b67f4a"
+    },
+    {
+      "path": "/market/status",
+      "bytes": 455,
+      "sha256": "c9ccfabb21827490b4a65d53b4ca31c2815e48aa42ace4755707090c39d0aa5d"
+    },
+    {
+      "path": "/profile",
+      "bytes": 71,
+      "sha256": "3e47a13f9f66c54e9e6b7cf257098c2f7dcb930dbd7697961910b34972ec4c20"
+    }
+  ],
+  "referenceBody": "{\"reference\":{\"series\":\"fixture\",\"source\":\"fixture\",\"fetchedAt\":\"2026-09-01T00:00:00.000Z\",\"lastMonth\":\"2026-08\"}}"
+}

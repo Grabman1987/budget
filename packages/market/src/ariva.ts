@@ -135,8 +135,45 @@ export function arivaSource(options: ArivaOptions): QuoteSource {
   const now = options.now ?? (() => new Date());
   const wait = throttle(options.minIntervalMs ?? 1000, options.sleep);
   const fetchPage = async (path: string, query: Record<string, string>) => {
-    await wait();
-    return getText(`${base}${path}?${new URLSearchParams(query)}`, options, 'text/html');
+    // Ariva moves boerse_id into a preference cookie during a redirect. Server fetch has no
+    // cookie jar: send only our validated selection, never cookies from a response or other call.
+    const exchange = query.boerse_id;
+    const fetch: typeof options.fetch = async (url, init) => {
+      let current = String(url);
+      for (let redirects = 0; ; redirects++) {
+        await wait();
+        const headers = new Headers(init?.headers);
+        if (exchange !== undefined) headers.set('cookie', `ariva_exchange=${exchange}`);
+        const response = await options.fetch(current, {
+          ...init,
+          headers,
+          credentials: 'omit',
+          redirect: 'manual',
+        });
+        if (![301, 302, 303, 307, 308].includes(response.status)) return response;
+        await response.body?.cancel();
+        const location = response.headers.get('location');
+        let next: URL;
+        try {
+          next = new URL(location ?? '', current);
+        } catch {
+          throw new MarketError('http', 'redirect');
+        }
+        if (
+          !location ||
+          redirects >= 3 ||
+          next.origin !== new URL(base).origin ||
+          !parseArivaUrl(next.href)
+        )
+          throw new MarketError('http', 'redirect');
+        current = next.href;
+      }
+    };
+    return getText(
+      `${base}${path}?${new URLSearchParams(query)}`,
+      { ...options, fetch },
+      'text/html',
+    );
   };
   return {
     id: 'ariva',

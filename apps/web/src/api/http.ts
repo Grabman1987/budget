@@ -57,7 +57,7 @@ function endKnownSession(fromStatus = false): void {
   if (!expiryCleanupStarted) {
     expiryCleanupStarted = true;
     // Revocation runs synchronously before this promise reaches IndexedDB.
-    void clearDeviceFinancialData().catch(() => undefined);
+    void clearDeviceFinancialData({ preserveReceipts: true }).catch(() => undefined);
   }
   if (typeof window !== 'undefined')
     window.dispatchEvent(new CustomEvent('budget-session-expired', { detail: { fromStatus } }));
@@ -77,10 +77,26 @@ export async function request<T>(
   body?: unknown,
   headers?: Record<string, string>,
 ): Promise<T> {
+  const multipart = typeof FormData !== 'undefined' && body instanceof FormData;
+  const intent = headers?.['Idempotency-Key'];
+  const queuedReceipt =
+    multipart &&
+    method === 'POST' &&
+    path === '/api/receipts' &&
+    typeof intent === 'string' &&
+    /^[a-zA-Z0-9-]{16,80}$/.test(intent) &&
+    body.get('uploadIntent') === intent &&
+    body.getAll('uploadIntent').length === 1 &&
+    body.getAll('file').length === 1 &&
+    body.get('file') instanceof Blob &&
+    body.getAll('bookingId').length <= 1 &&
+    [...body.keys()].every((key) => ['file', 'bookingId', 'uploadIntent'].includes(key));
+  if (multipart && !queuedReceipt) throw new ApiError(400, 'invalid_receipt_intent');
   if (
     method !== 'GET' &&
     offlineReadOnly() &&
     !(method === 'POST' && path === '/api/bookings' && headers?.['Idempotency-Key']) &&
+    !queuedReceipt &&
     !(
       method === 'POST' &&
       (path === '/api/auth/login/verify' || path === '/api/auth/recovery/login')
@@ -109,8 +125,8 @@ export async function request<T>(
       ...(method === 'GET'
         ? {}
         : {
-            headers: { 'content-type': 'application/json', ...headers },
-            ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+            headers: { ...(multipart ? {} : { 'content-type': 'application/json' }), ...headers },
+            ...(body === undefined ? {} : { body: multipart ? body : JSON.stringify(body) }),
           }),
     });
   } catch {
@@ -144,7 +160,8 @@ export async function request<T>(
       ids,
     );
   }
-  if (method !== 'GET') notifyApiWrite();
+  // File delivery notifies only after a validated acknowledgement and epoch-checked device cleanup.
+  if (method !== 'GET' && !queuedReceipt) notifyApiWrite();
   if (
     authGeneration !== null &&
     snapshotGeneration() === authGeneration &&
