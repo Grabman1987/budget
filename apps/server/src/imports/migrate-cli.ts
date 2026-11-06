@@ -29,6 +29,7 @@ import { mappingSchema } from '@budget/import-ynab';
 import { deleteRun, saveMapping } from './staging';
 import { applyBankInboxEntries, listBankInbox, parseBankInboxFile } from './operator-bank-inbox';
 import { findRun, runTask, type ImportTask } from './tasks';
+import { applyRestructure, parseRestructureFile } from './operator-restructure';
 
 /**
  * One-time YNAB migration on the server (owner decision 01.10.2026: no import feature in the app;
@@ -46,6 +47,7 @@ import { findRun, runTask, type ImportTask } from './tasks';
  *   node migrate-cli.js payslips --file <json> [--dry-run] [--details] [--replace]
  *   node migrate-cli.js instrument-facts --file <json> [--dry-run]
  *   node migrate-cli.js owner-config --file <json> [--dry-run] [--details]
+ *   node migrate-cli.js restructure --file <json> [--dry-run] [--details]
  *   node migrate-cli.js owner-trades --file <json> [--dry-run] [--details]
  *   node migrate-cli.js bank-inbox list [--source <bankSyncAccountId>] [--out <file>]
  *   node migrate-cli.js bank-inbox apply --file <json> [--dry-run]
@@ -547,6 +549,23 @@ try {
       if (result.counts.skipped) process.exitCode = 3;
       break;
     }
+    case 'restructure': {
+      const dryRun = args.includes('--dry-run');
+      const config = parseRestructureFile(JSON.parse(readFileSync(required('file'), 'utf8')));
+      const outcomes = applyRestructure(db, config, { actor: 'operator' }, { dryRun });
+      for (const o of outcomes) {
+        console.log(o.section, o.status, o.reason, o.groupId || (dryRun ? '(dry run)' : ''));
+        if (args.includes('--details')) console.log('              ', o.key, o.detail);
+      }
+      console.log(
+        'entries',
+        outcomes.length,
+        'skipped',
+        outcomes.filter((o) => o.status === 'skipped').length,
+      );
+      if (outcomes.some((o) => o.status === 'skipped')) process.exitCode = 3;
+      break;
+    }
     case 'owner-config': {
       const dryRun = args.includes('--dry-run');
       const config = parseOwnerConfigFile(
@@ -640,7 +659,7 @@ try {
     }
     default:
       console.log(
-        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config|owner-trades|source-rebuild|bank-inbox [options]',
+        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config|restructure|owner-trades|source-rebuild|bank-inbox [options]',
       );
       process.exitCode = 2;
   }

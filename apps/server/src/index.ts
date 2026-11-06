@@ -1,3 +1,4 @@
+import { spritmonitorSync } from './sources/spritmonitor-sync';
 import { startBankWorker } from './bank-sync/worker-process';
 import { mkdirSync } from 'node:fs';
 import type { Server } from 'node:http';
@@ -75,6 +76,15 @@ const app = createApp({
   database: process.env['BUDGET_DEBUG_API'] === '1' ? db : undefined,
 });
 
+// Independent, explicitly enabled read-only fuel source; no bank/crypto source state is reused.
+const fuelSync = spritmonitorSync(db);
+const fuelTimers: NodeJS.Timeout[] = [];
+if (process.env['BUDGET_SPRITMONITOR_ENABLED'] === '1') {
+  const tick = () => void fuelSync.ifDue();
+  fuelTimers.push(setTimeout(tick, 30_000), setInterval(tick, 15 * 60_000));
+  for (const timer of fuelTimers) timer.unref();
+}
+
 // Nightly prices (previous day's close) and ECB rates at 02:30 Vienna, plus a catch-up after a
 // missed night; in-process until the P4 worker owns scheduling (docs/market-data.md).
 if (process.env['BUDGET_MARKET_DAILY'] === '1') {
@@ -146,6 +156,7 @@ function shutdown(signal: NodeJS.Signals): void {
   if (stopping) return;
   stopping = true;
   stopBankWorker();
+  for (const timer of fuelTimers) clearTimeout(timer);
   for (const timer of backupTimers) clearTimeout(timer);
   console.log(`${signal} received, closing the server and the database`);
   // Force-close after 10 s so a stuck connection cannot delay the stop past Fly's kill_timeout.

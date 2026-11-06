@@ -1,3 +1,4 @@
+import { SpritmonitorSourceSection } from './spritmonitor-source';
 import { Button, Field, SectionHead, Select, TextInput } from '@budget/ui';
 import { AppLink } from '../shell/app-link';
 import { todayInVienna } from '@budget/domain';
@@ -86,6 +87,7 @@ export function DataSourcesPage() {
         <div className="data-sources">
           <BankSourceSection />
           <CryptoReadSourceSection />
+          <SpritmonitorSourceSection />
           <PayslipSourceSection />
         </div>
       )}
