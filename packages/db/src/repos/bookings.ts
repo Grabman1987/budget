@@ -239,7 +239,7 @@ function normalizeFx<T extends FxFields>(input: T): T {
 function assertSplitRefs(
   tx: Executor,
   splits: readonly SplitInput[],
-  allowSharedCategories = true,
+  allowSharedCategories = false,
 ): void {
   for (const s of splits) {
     const categoryId = s.categoryId ?? null;
@@ -333,11 +333,12 @@ function insertBooking(
   input: BookingInput,
   transferId: string | null,
   ctx: GroupedContext,
+  contactModel = false,
 ): string {
   assertDate(input.date);
   assertProjectAssignment(tx, input.projectId);
   assertSplits(input.amountCents, input.splits);
-  assertSplitRefs(tx, input.splits);
+  assertSplitRefs(tx, input.splits, contactModel);
   const acct = liveAccount(tx, input.accountId);
   const currency = input.currency ?? acct.currency;
   if (currency !== acct.currency)
@@ -412,7 +413,13 @@ export function createBooking(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const incomeNextMonth = input.incomeNextMonth ?? false;
-    const id = insertBooking(tx, { ...input, incomeNextMonth }, null, grouped);
+    const id = insertBooking(
+      tx,
+      { ...input, incomeNextMonth },
+      null,
+      grouped,
+      options.contactModel,
+    );
     if (options.contactModel) recordContactReceipts(tx, id, grouped);
     applyContactCredit(tx, id, grouped);
     assertLedgerInvariants(tx, relatedTransferBookings(tx, id));
@@ -440,9 +447,10 @@ function recordContactReceipts(tx: Executor, bookingId: string, ctx: GroupedCont
       updateTracked(tx, bookingSplit, [receipt.id], { categoryId: advanceId }, ctx);
   }
   const refunds = new Map<string, number>();
+  const records = contactCreditRecords(tx);
   for (const receipt of receipts) {
     const statement = contactStatement(
-      actualContactMovements(tx, receipt.contactId!),
+      actualContactMovements(tx, receipt.contactId!, undefined, records),
       savedContactSettlements(tx, receipt.contactId!),
     );
     const plan = statement.receipts.find((r) => r.receiptSplitId === receipt.id)!;
@@ -506,9 +514,10 @@ function applyContactCredit(tx: Executor, bookingId: string, ctx: GroupedContext
       tx.select().from(category).where(eq(category.id, s.categoryId)).get()?.kind !== 'advance',
   );
   if (!shared.length) return;
+  const records = contactCreditRecords(tx);
   const uses = [...new Set(shared.map((s) => s.contactId!))].flatMap((id) =>
     contactStatement(
-      actualContactMovements(tx, id),
+      actualContactMovements(tx, id, undefined, records),
       savedContactSettlements(tx, id),
     ).creditUses.filter((u) => shared.some((s) => s.id === u.outlaySplitId)),
   );

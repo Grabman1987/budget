@@ -25,7 +25,7 @@ import {
   type SplitInput,
 } from './bookings';
 import { ensureAdvanceCategory } from './categories';
-import { saveContactCreditRecord } from './contact-credit';
+import { contactCreditRecords, saveContactCreditRecord } from './contact-credit';
 import {
   actualContactMovements,
   assertContactSettlementInvariants,
@@ -34,14 +34,19 @@ import {
 import { BookingInvariantError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
 
-export function getContactStatement(db: Executor, id: string, asOf: string) {
+export function getContactStatement(
+  db: Executor,
+  id: string,
+  asOf: string,
+  records = contactCreditRecords(db),
+) {
   const row = db
     .select()
     .from(contact)
     .where(and(eq(contact.id, id), isNull(contact.deletedAt)))
     .get();
   if (!row) throw new EntityNotFoundError('contact', id);
-  const movements = actualContactMovements(db, id, asOf);
+  const movements = actualContactMovements(db, id, asOf, records);
   if (movements.some((m) => m.currency !== 'EUR'))
     throw new BookingInvariantError('Contact statements require EUR movements');
   return {
@@ -53,13 +58,14 @@ export function getContactStatement(db: Executor, id: string, asOf: string) {
 }
 
 export function listContactStatements(db: Executor, asOf: string, history = false) {
+  const records = contactCreditRecords(db);
   return db
     .select()
     .from(contact)
     .where(isNull(contact.deletedAt))
     .all()
     .map((c) => {
-      const s = getContactStatement(db, c.id, asOf);
+      const s = getContactStatement(db, c.id, asOf, records);
       return {
         ...s.contact,
         balanceCents: s.balanceCents,
@@ -80,6 +86,7 @@ export function readOverdueContactReminders(db: Executor, today: string) {
     overdueCents: number;
   }[] = [];
   let unavailableCount = 0;
+  const records = contactCreditRecords(db);
   for (const row of db
     .select({ id: contact.id })
     .from(contact)
@@ -87,7 +94,7 @@ export function readOverdueContactReminders(db: Executor, today: string) {
     .all()) {
     let statement: ReturnType<typeof getContactStatement>;
     try {
-      statement = getContactStatement(db, row.id, today);
+      statement = getContactStatement(db, row.id, today, records);
     } catch (error) {
       if (
         error instanceof BookingInvariantError &&
@@ -137,8 +144,9 @@ export function chooseContactCredit(
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    const current = getContactStatement(tx, contactId, today);
-    const dated = getContactStatement(tx, contactId, input.date);
+    const records = contactCreditRecords(tx);
+    const current = getContactStatement(tx, contactId, today, records);
+    const dated = getContactStatement(tx, contactId, input.date, records);
     const credit = current.credits.find((c) => c.receiptSplitId === input.receiptSplitId);
     const available = dated.credits.find((c) => c.receiptSplitId === input.receiptSplitId);
     if (
@@ -327,8 +335,9 @@ export function writeOffContact(
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    const current = getContactStatement(tx, contactId, today).balanceCents;
-    const dated = getContactStatement(tx, contactId, input.date).balanceCents;
+    const records = contactCreditRecords(tx);
+    const current = getContactStatement(tx, contactId, today, records).balanceCents;
+    const dated = getContactStatement(tx, contactId, input.date, records).balanceCents;
     if (
       input.date > today ||
       !Number.isSafeInteger(input.amountCents) ||

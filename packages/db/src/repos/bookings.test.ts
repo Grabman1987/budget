@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { booking, bookingSplit } from '../schema';
+import { auditLog, booking, bookingSplit } from '../schema';
 import { history, undo } from './audit';
 import {
   type BookingInput,
@@ -57,6 +57,24 @@ const usdOffBudget = () =>
   );
 
 describe('createBooking', () => {
+  it('requires explicit contactModel opt-in for ordinary-category contact shares', () => {
+    const input = basic({
+      splits: [{ categoryId: 'essen', contactId: 'k1', amountCents: -1200 }],
+    });
+    const before = db.select().from(auditLog).all().length;
+    expect(() => createBooking(db, input, ctx)).toThrow(/Auslagen/);
+    expect(() => importBooking(db, { ...input, importKey: 'synthetic-shared' }, ctx)).toThrow(
+      /Auslagen/,
+    );
+    expect(db.select().from(booking).all()).toHaveLength(0);
+    expect(db.select().from(auditLog).all()).toHaveLength(before);
+
+    const id = createBooking(db, input, ctx, { contactModel: true });
+    expect(getBooking(db, id)?.splits).toMatchObject([
+      { categoryId: 'essen', contactId: 'k1', amountCents: -1200 },
+    ]);
+  });
+
   it('creates a booking with its splits and returns the id', () => {
     const id = createBooking(
       db,

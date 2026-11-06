@@ -7,7 +7,8 @@ import { contactCreditRecords } from './contact-credit';
 
 /** Report only. No legacy category is inferred as fact and no row is written. */
 export function previewContactRepayments(db: Executor) {
-  const current = new Set(contactCreditRecords(db).flatMap((r) => r.repayments ?? []));
+  const records = contactCreditRecords(db);
+  const current = new Set(records.flatMap((r) => r.repayments ?? []));
   const rows = db
     .select({
       split: bookingSplit,
@@ -54,7 +55,7 @@ export function previewContactRepayments(db: Executor) {
         return { ...base, status: 'existing-credit-conversion-needs-owner-review', mappings: [] };
       if (!contactId) return { ...base, status: 'needs-contact', mappings: [] };
       try {
-        const statement = getContactStatement(db, contactId, r.booking.date);
+        const statement = getContactStatement(db, contactId, r.booking.date, records);
         const receipt = statement.receipts.find((s) => s.receiptSplitId === r.split.id);
         const plan = receipt ?? allocateContactReceipt(statement.outlays, r.split.amountCents);
         return {

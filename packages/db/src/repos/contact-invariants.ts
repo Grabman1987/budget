@@ -59,8 +59,12 @@ function readCashlessContactBookingIds(db: Executor): Set<string> {
   );
 }
 
-export function actualContactMovements(tx: Executor, contactId: string, asOf?: string) {
-  const records = contactCreditRecords(tx);
+export function actualContactMovements(
+  tx: Executor,
+  contactId: string,
+  asOf?: string,
+  records = contactCreditRecords(tx),
+) {
   return tx
     .select({
       categoryId: category.id,
@@ -234,7 +238,7 @@ export function assertContactSettlementInvariants(tx: Executor): void {
   for (const contactId of contacts) {
     try {
       const statement = contactStatement(
-        actualContactMovements(tx, contactId),
+        actualContactMovements(tx, contactId, undefined, creditRecords),
         savedContactSettlements(tx, contactId),
       );
       uses.push(...statement.creditUses);
@@ -244,7 +248,7 @@ export function assertContactSettlementInvariants(tx: Executor): void {
       );
     }
   }
-  assertContactCreditRecords(tx, uses);
+  assertContactCreditRecords(tx, uses, creditRecords);
 }
 
 /** Write-offs are plain zero bookings, so their outlay must stay unchanged until they are undone. */

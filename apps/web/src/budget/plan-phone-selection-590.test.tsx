@@ -352,7 +352,9 @@ describe('phone selection has no checkbox dependency or implicit financial write
     for (const target of [
       screen.getByRole('button', { name: 'Gruppe Mustergruppe' }),
       screen.getByRole('button', { name: 'Kategorie in Mustergruppe anlegen' }),
-      screen.getByRole('button', { name: 'Zugewiesen für Erster Posten ändern · 0,00 €' }),
+      screen.getByRole('button', {
+        name: 'Details für Erster Posten öffnen · Verfügbar 0,00 €',
+      }),
     ]) {
       pointer(target, 'pointerdown');
       waitHold(600);

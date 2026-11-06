@@ -13,6 +13,7 @@ import {
   Select,
   TextInput,
   useAmountPrivacy,
+  maskMoneyText,
   useToast,
   WideDialog,
 } from '@budget/ui';
@@ -29,6 +30,36 @@ import { ReceiptPdfPreview } from '../receipts/pdf-preview';
 import './payslip-intake.css';
 
 const PATH = '/api/payslip-intake';
+export type PayslipDocumentMetadata = {
+  originalFilename: string | null;
+  documentType: ParsedPayrollDocument['documentType'];
+  month: string | null;
+  periodSource: ParsedPayrollDocument['periodSource'];
+};
+export function payslipDocumentTypeLabel(type: ParsedPayrollDocument['documentType']) {
+  return type === 'bonus'
+    ? 'Bonus-Mitteilung'
+    : type === 'pension'
+      ? 'Pensionskassen-Mitteilung'
+      : type === 'payslip'
+        ? 'Gehaltszettel'
+        : 'Dokumenttyp nicht erkannt';
+}
+/** A document year or upload timestamp is not an Abrechnungsmonat. */
+export function PayslipDocumentCaption({ document }: { document: PayslipDocumentMetadata }) {
+  useAmountPrivacy();
+  return (
+    <span>
+      {document.month && (
+        <>
+          Abrechnungsmonat {document.month.slice(5)}/{document.month.slice(0, 4)}
+          {document.periodSource === 'filename' ? ' (aus Dateiname)' : ''} ·{' '}
+        </>
+      )}
+      {maskMoneyText(document.originalFilename ?? 'Dateiname nicht verfügbar')}
+    </span>
+  );
+}
 type RememberResult = 'saved' | 'unavailable' | 'not_opened' | 'off';
 const rememberText = (r?: RememberResult) =>
   r === 'saved'
@@ -260,6 +291,7 @@ export function PayslipUpload({
 type Intake = {
   id: string;
   receiptId: string;
+  document?: PayslipDocumentMetadata;
   /** Older responses may omit the live, persisted source association. */
   payout?: { payslipId: string; bookingId: string; accountId: string } | null;
   status: string;
@@ -441,13 +473,12 @@ export function PayslipIntakeDetail({
       )}
       {data && (
         <>
-          <p>
-            {p?.documentType === 'bonus'
-              ? 'Mitarbeiterbonus'
-              : p?.documentType === 'pension'
-                ? 'Pensionskassen-Mitteilung'
-                : 'Gehaltszettel'}
-          </p>
+          <p>{p && payslipDocumentTypeLabel(p.documentType)}</p>
+          {data.document && (
+            <p>
+              <PayslipDocumentCaption document={data.document} />
+            </p>
+          )}
           {p?.warnings.map((w) => (
             <p key={w} role="status">
               {w}
@@ -836,6 +867,7 @@ type SourceStatus = {
   lastScanAt: string | null;
   filesFound: number;
   errors: number;
+  errorCode?: string | null;
   config: PayslipSourceConfig;
   payees?: { id: string; name: string }[];
 };
@@ -878,12 +910,14 @@ export function PayslipSourceSection() {
               <dd>
                 {query.data.dropboxConnected ? 'ja' : 'nein'}
                 {query.data.dropboxConfigured && !query.data.dropboxConnected
-                  ? ' · wartet auf erfolgreichen Scan'
+                  ? query.data.errorCode && query.data.errorCode !== 'document_warning'
+                    ? ` · Abruf fehlgeschlagen (${query.data.errorCode})`
+                    : ' · wartet auf erfolgreichen Scan'
                   : ''}
               </dd>
             </div>
             <div>
-              <dt>Letzter Scan</dt>
+              <dt>Letzter Scanversuch</dt>
               <dd>
                 {query.data.lastScanAt
                   ? new Date(query.data.lastScanAt).toLocaleString('de-AT')
@@ -891,8 +925,13 @@ export function PayslipSourceSection() {
               </dd>
             </div>
             <div>
-              <dt>Dateien gefunden</dt>
-              <dd>{query.data.filesFound}</dd>
+              <dt>Beim letzten Scanversuch gefunden</dt>
+              <dd>
+                {query.data.filesFound}
+                {query.data.errorCode && query.data.errorCode !== 'document_warning'
+                  ? ' · Auflistung nicht abgeschlossen'
+                  : ''}
+              </dd>
             </div>
             <div>
               <dt>Fehler / Warnungen</dt>

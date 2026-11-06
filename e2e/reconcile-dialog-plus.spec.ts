@@ -6,7 +6,7 @@ import { openDatabase, schema } from '@budget/db';
 import { test } from './isolated-ledger';
 
 test.setTimeout(120_000);
-test('takes an undated bank balance, captures the missing booking and locks only through yesterday', async ({
+test('takes an undated bank balance, adjusts the difference and locks only through yesterday', async ({
   page,
   request,
   isolatedLedger,
@@ -74,7 +74,10 @@ test('takes an undated bank balance, captures the missing booking and locks only
   await dialog.getByRole('button', { name: /Bankstand übernehmen/ }).click();
   await expect(dialog.getByLabel('Stichtag')).toHaveValue('01.10.2026');
   await expect(dialog.getByLabel('Saldo laut Bank', { exact: true })).toHaveValue('87,66');
-  await expect(dialog.getByRole('button', { name: 'Fehlende Buchung erfassen' })).toBeVisible();
+  await expect(
+    dialog.getByRole('button', { name: 'Differenz ausgleichen', exact: true }),
+  ).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Fehlende Buchung erfassen' })).toHaveCount(0);
   const getBookings = async () =>
     (await (await request.get(origin + '/api/bookings?accountId=' + account.id)).json()).items;
   expect(await getBookings()).toEqual([]);
@@ -95,20 +98,17 @@ test('takes an undated bank balance, captures the missing booking and locks only
     }
     await page.screenshot({ path: test.info().outputPath(`reconcile-${theme}.png`) });
   }
-  await dialog.getByRole('button', { name: 'Fehlende Buchung erfassen' }).click();
-  const booking = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
-  await expect(booking.getByLabel('Betrag', { exact: true })).toHaveValue('12,34');
-  await expect(booking.getByLabel('Datum', { exact: true })).toHaveValue('01.10.2026');
-  await booking.getByLabel('Empfänger', { exact: true }).fill('Laden Muster');
-  await booking.getByLabel('Kategorie', { exact: true }).fill('Kategorie Muster');
-  await booking.getByRole('option', { name: /Kategorie Muster/ }).click();
-  await booking.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(booking).not.toBeVisible();
-  await expect(dialog.getByRole('button', { name: /Festschreiben/ })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Differenz ausgleichen', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
   expect(await getBookings()).toMatchObject([
-    { accountId: account.id, date: '2026-10-01', amountCents: -1234, status: 'confirmed' },
+    {
+      accountId: account.id,
+      date: '2026-10-01',
+      amountCents: -1234,
+      status: 'reconciled',
+      splits: [{ categoryId: null }],
+    },
   ]);
-  await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
   await post('/bookings', {
     type: 'booking',
     accountId: account.id,
@@ -126,7 +126,7 @@ test('takes an undated bank balance, captures the missing booking and locks only
   expect(rows.find((b: { date: string }) => b.date === '2026-10-01').status).toBe('reconciled');
 });
 
-test('custom adjustment date/category creates one reviewed booking and supports undo', async ({
+test('custom adjustment date creates one uncategorised reviewed booking and supports undo', async ({
   page,
   request,
   isolatedLedger,
@@ -143,12 +143,6 @@ test('custom adjustment date/category creates one reviewed booking and supports 
     openingDate: '2026-01-01',
     openingBalanceCents: 10000,
   });
-  const { group } = await post('/categories/groups', { name: 'Gruppe Ausgleich' });
-  const { category } = await post('/categories', {
-    name: 'Kategorie Ausgleich',
-    class: 'need',
-    groupId: group.id,
-  });
   await page.goto(`/konten/${account.id}`);
   await (
     (await redesignLoaded(page))
@@ -161,11 +155,9 @@ test('custom adjustment date/category creates one reviewed booking and supports 
   const dialog = page.getByRole('dialog', { name: /Kontostand prüfen/ });
   await dialog.getByLabel('Stichtag').fill('01.10.2026');
   await dialog.getByLabel('Saldo laut Bank', { exact: true }).fill('99');
+  await dialog.getByText('Anderes Ausgleichsdatum', { exact: true }).click();
   await dialog.getByLabel('Ausgleichsdatum').fill('25.09.2026');
-  await dialog.getByLabel('Kategorie für den Ausgleich').selectOption(category.id);
-  await expect(
-    dialog.getByText(/Eine echte Buchung.*25.09.2026.*Kategorie Ausgleich/),
-  ).toBeVisible();
+  await expect(dialog.getByText(/Eine echte Buchung.*25.09.2026.*Zu verteilen/)).toBeVisible();
   await dialog.getByRole('button', { name: /Differenz ausgleichen/ }).click();
   await expect(dialog).not.toBeVisible();
   const rows = (await (await request.get(origin + '/api/bookings?accountId=' + account.id)).json())
@@ -175,7 +167,7 @@ test('custom adjustment date/category creates one reviewed booking and supports 
       date: '2026-09-25',
       amountCents: -100,
       status: 'reconciled',
-      splits: [{ categoryId: category.id }],
+      splits: [{ categoryId: null }],
     },
   ]);
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();

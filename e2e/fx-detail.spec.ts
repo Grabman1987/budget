@@ -188,11 +188,11 @@ test('missing FX stays explicit while the native check remains available', async
   await panel.getByLabel('Saldo laut Bank · CHF').fill('49');
   await expect(panel.locator('.kv-list')).toContainText('EUR: Kurs fehlt');
   await expect(panel.getByText(/stimmt überein/)).toContainText('CHF');
-  await expect(panel.getByRole('button', { name: /Festschreiben/ })).toBeEnabled();
+  await expect(panel.getByRole('button', { name: 'Kontostand stimmt' })).toBeEnabled();
   expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
   await page.screenshot({ path: join(info.outputDir, 'fx-missing-rate.png') });
   await expect(panel.getByLabel('Saldo laut Bank · CHF')).toHaveValue(/49/);
-  await panel.getByRole('button', { name: /Festschreiben/ }).click();
+  await panel.getByRole('button', { name: 'Kontostand stimmt' }).click();
   await expect(panel).not.toBeVisible();
   await expect(page.getByTestId('account-balance')).toHaveText('Kurs fehlt');
 });

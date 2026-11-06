@@ -15,7 +15,14 @@ import {
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearch, useNavigate } from '@tanstack/react-router';
-import { ChevronDown, ChevronLeft, ChevronRight, Plus, List, Settings2 } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  MoreHorizontal,
+  Settings2,
+} from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ACCOUNT_PAGE } from '../nav/pages';
 import { KontenFrame } from './konten-frame';
@@ -362,10 +369,19 @@ function AccountBody({ account, bankReview }: { account: AccountRow; bankReview?
         <div className="kacct-actions">
           {REDESIGN_ENABLED && (
             <>
-              <a className="btn btn-ghost" href={`#account-register-${account.id}`}>
-                <List size={16} aria-hidden="true" />
-                <span className="sr-only">Buchungen ansehen</span>
-              </a>
+              <KontenMenu
+                label="Kontoaktionen"
+                icon={<MoreHorizontal size={16} aria-hidden="true" />}
+                iconOnly
+                className="account-actions-menu"
+              >
+                <a className="btn btn-ghost" href={`#account-register-${account.id}`}>
+                  Buchungen ansehen
+                </a>
+                <AppLink className="btn btn-ghost" to="/einstellungen/konten">
+                  Kontoeinstellungen
+                </AppLink>
+              </KontenMenu>
               <AccountReview account={account} badgeOnPhone />
             </>
           )}

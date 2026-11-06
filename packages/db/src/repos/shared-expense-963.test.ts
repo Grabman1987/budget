@@ -58,6 +58,7 @@ function purchase(categoryId: string, amountCents: number, day = '2026-09-02') {
       ],
     },
     testCtx,
+    { contactModel: true },
   );
 }
 function receipt(
@@ -291,6 +292,7 @@ it('settles several contact credits independently of split/contact ordering', ()
       ],
     },
     testCtx,
+    { contactModel: true },
   );
   expect(totals()).toMatchObject({ essen: 0, reise: 0, auslagen: 0 });
 });

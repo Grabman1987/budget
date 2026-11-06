@@ -1,4 +1,5 @@
 import { eq, like } from 'drizzle-orm';
+import { z } from 'zod';
 import {
   appSetting,
   booking,
@@ -9,31 +10,71 @@ import {
 } from '../schema';
 import { insertTracked, updateTracked, type GroupedContext } from './audit';
 import { BookingInvariantError } from './errors';
+import { memoizedShared } from './request-memo';
 import type { Executor } from './types';
 
 const PREFIX = 'contacts.credit.';
-export interface ContactCreditRecord {
-  bookingId: string;
-  decision?: {
-    debitSplitId: string;
-    sourceSplitId: string;
-    creditSplitId?: string;
-    categoryId: string | null;
-  };
-  uses?: { receiptSplitId: string; outlaySplitId: string; amountCents: number }[];
-  refunds?: { categoryId: string; amountCents: number }[];
-  repayments?: string[];
-  repaymentRefunds?: { categoryId: string; amountCents: number }[];
+const idSchema = z.string().min(1);
+const centsSchema = z.number().int().safe().positive();
+const refundSchema = z.object({ categoryId: idSchema, amountCents: centsSchema });
+const contactCreditRecordSchema = z.object({
+  bookingId: idSchema,
+  decision: z
+    .object({
+      debitSplitId: idSchema,
+      sourceSplitId: idSchema,
+      creditSplitId: idSchema.optional(),
+      categoryId: idSchema.nullable(),
+    })
+    .optional(),
+  uses: z
+    .array(
+      z.object({
+        receiptSplitId: idSchema,
+        outlaySplitId: idSchema,
+        amountCents: centsSchema,
+      }),
+    )
+    .optional(),
+  refunds: z.array(refundSchema).optional(),
+  repayments: z.array(idSchema).optional(),
+  repaymentRefunds: z.array(refundSchema).optional(),
+});
+export type ContactCreditRecord = z.infer<typeof contactCreditRecordSchema>;
+
+function parseContactCreditRecord(row: {
+  id: string;
+  value: string;
+}): ContactCreditRecord | undefined {
+  let value: unknown;
+  try {
+    value = JSON.parse(row.value);
+  } catch {
+    // Never log stored values or identifiers: settings may contain private data.
+    console.warn('Skipping malformed contact credit record');
+    return;
+  }
+  const parsed = contactCreditRecordSchema.safeParse(value);
+  if (!parsed.success || row.id !== `${PREFIX}${parsed.data.bookingId}`) {
+    console.warn('Skipping malformed contact credit record');
+    return;
+  }
+  return parsed.data;
 }
 
 /** Existing audited settings store explicit credit provenance, never inferred historical edits. */
 export function contactCreditRecords(db: Executor): ContactCreditRecord[] {
-  return db
-    .select()
-    .from(appSetting)
-    .where(like(appSetting.id, `${PREFIX}%`))
-    .all()
-    .map((r) => JSON.parse(r.value) as ContactCreditRecord);
+  return memoizedShared(db, 'contactCreditRecords', () =>
+    db
+      .select()
+      .from(appSetting)
+      .where(like(appSetting.id, `${PREFIX}%`))
+      .all()
+      .flatMap((row) => {
+        const record = parseContactCreditRecord(row);
+        return record ? [record] : [];
+      }),
+  );
 }
 
 export function saveContactCreditRecord(
@@ -48,14 +89,18 @@ export function saveContactCreditRecord(
       db,
       appSetting,
       [id],
-      { value: JSON.stringify({ ...JSON.parse(current.value), ...record }) },
+      { value: JSON.stringify({ ...parseContactCreditRecord(current), ...record }) },
       ctx,
     );
   else insertTracked(db, appSetting, { id, value: JSON.stringify(record) }, ctx);
 }
 
-export function assertContactCreditRecords(db: Executor, uses: ContactCreditRecord['uses']) {
-  for (const record of contactCreditRecords(db)) {
+export function assertContactCreditRecords(
+  db: Executor,
+  uses: ContactCreditRecord['uses'],
+  records = contactCreditRecords(db),
+) {
+  for (const record of records) {
     const row = db.select().from(booking).where(eq(booking.id, record.bookingId)).get();
     if (
       (!row || row.deletedAt !== null) &&
