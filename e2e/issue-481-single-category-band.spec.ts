@@ -69,13 +69,21 @@ async function expectCompactBandContents(page: Page, phone: boolean) {
       const status = child
         .querySelector(redesigned ? '.col-name' : '.spending-status')!
         .getBoundingClientRect();
+      const nameCell = child.querySelector('.col-name')!;
+      const nameBox = child.querySelector('.pname')!.getBoundingClientRect();
+      const barBox = child.querySelector('.spending-bar')!.getBoundingClientRect();
       return {
         id: row.id,
+        redesigned,
         categoryCount: category.length,
         parentCount: parent.length,
         categoryHeight: height([...category, ...categoryControls]),
         parentHeight: height([...parent, ...parentControls]),
         wholeHeight: child.getBoundingClientRect().bottom - row.getBoundingClientRect().top,
+        nameHeight: nameBox.height,
+        barHeight: barBox.height,
+        bottomPadding: Number.parseFloat(getComputedStyle(nameCell).paddingBlockEnd),
+        rowPadding: Number.parseFloat(getComputedStyle(child).paddingBlockEnd),
         parentBottom: row.getBoundingClientRect().bottom,
         childTop: child.getBoundingClientRect().top,
         nameRight: name.right,
@@ -88,9 +96,18 @@ async function expectCompactBandContents(page: Page, phone: boolean) {
     expect(band.categoryCount, band.id).toBe(phone ? 5 : 7);
     expect(band.parentCount, band.id).toBe(4);
     expect(band.parentBottom, band.id).toBeLessThanOrEqual(band.childTop);
-    expect(band.categoryHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 40);
+    if (band.redesigned) {
+      expect(band.nameHeight, band.id).toBeGreaterThanOrEqual(44);
+      expect(band.barHeight, band.id).toBe(4);
+      expect(phone ? band.rowPadding : band.bottomPadding, band.id).toBe(8);
+      expect(band.categoryHeight, JSON.stringify(band)).toBeGreaterThanOrEqual(56);
+      expect(band.categoryHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 64);
+      expect(band.wholeHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 152 : 100);
+    } else {
+      expect(band.categoryHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 40);
+      expect(band.wholeHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 152 : 76);
+    }
     expect(band.parentHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 36);
-    expect(band.wholeHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 152 : 76);
     if (!phone) expect(band.nameRight, band.id).toBeLessThanOrEqual(band.statusLeft);
   }
 }
@@ -538,7 +555,11 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   });
   await page.reload();
   await expect(band).toHaveClass(/is-over/);
-  await band.getByRole('button', { name: 'Musterposten decken' }).click();
+  const coverAction =
+    (page.viewportSize()?.width ?? 1024) < 768
+      ? band.getByRole('button', { name: /^Deckung für .* wählen · Verfügbar / })
+      : band.getByRole('button', { name: 'Musterposten decken' });
+  await coverAction.click();
   await inspector.getByRole('button', { name: 'Decken · 0,01 €', exact: true }).click();
   expect(writes[3]).toEqual({
     path: `/api/budget/${month}/cover`,

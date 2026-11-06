@@ -34,6 +34,9 @@
 .plan-v2-page-head > .area-page-menu {
   margin: 0;
 }
+.plan-v2-page-head > .area-page-menu[open] {
+  z-index: 21;
+}
 .plan-v2-page-actions {
   margin-left: auto;
 }

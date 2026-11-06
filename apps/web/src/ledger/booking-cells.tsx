@@ -135,8 +135,13 @@ export function CategoryCell({
       </span>
     );
   }
-  if (!only?.categoryId && booking.amountCents > 0) {
-    // An inflow without a category is money to distribute, nothing missing.
+  if (
+    !only?.categoryId &&
+    (booking.amountCents > 0 ||
+      booking.payeeSystemKind === 'reconciliation_adjustment' ||
+      booking.payeeSystemKind === 'manual_adjustment')
+  ) {
+    // Explicit balance corrections can also take money out of Zu verteilen.
     return (
       <span className="kcat">
         {showClass && <ClassSwatch kind="open" />}

@@ -284,6 +284,55 @@ it('ON phone separates a singleton group heading and its available sum from the 
   expect(await screen.findByRole('button', { name: 'Synthetic goal' })).toBeTruthy();
 });
 
+it('ON phone separates actual assignment, quick-assign suggestion, and available balance labels', async () => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: /max-width: (767|1179)px/.test(query),
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+  const quickAssign = {
+    lastMonthCents: 0,
+    averageCents: 0,
+    ghostCents: 89000,
+    ghostSource: 'target' as const,
+    historyMonths: ['2026-06', '2026-07', '2026-08'],
+  };
+  const phoneData: BudgetMonthView = {
+    ...data,
+    categories: data.categories.map((category) =>
+      category.id === 'zero' ? { ...category, name: 'Miete' } : category,
+    ),
+    summary: {
+      ...data.summary,
+      activityCents: 15102,
+      availableCents: 29102,
+      envelopes: data.summary.envelopes.map((row) =>
+        row.categoryId === 'zero'
+          ? { ...row, activityCents: 17602, availableCents: 17602, quickAssign }
+          : row,
+      ),
+    },
+  };
+  const fetchFixture = fetch;
+  vi.stubGlobal('fetch', (input: string, init?: RequestInit) => {
+    if (new URL(input, 'http://localhost').pathname === '/api/budget/2026-09')
+      return Promise.resolve(Response.json(phoneData));
+    return fetchFixture(input, init);
+  });
+
+  mount();
+  const category = await screen.findByRole('button', { name: 'Miete' });
+  const row = category.closest('tr')!;
+  expect(row.querySelector('.phone-assigned')!.textContent).toBe(
+    'Zugewiesen 0,00 € · Vorschlag ≈ 890,00 €',
+  );
+  expect(
+    within(row).getByRole('button', {
+      name: 'Details für Miete öffnen · Verfügbar 176,02 €',
+    }),
+  ).toBeTruthy();
+});
+
 it('ON phone keeps month read utilities reachable through native menu keyboard navigation and returns to the income inspector without writes', async () => {
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: /max-width: (767|1179)px/.test(query),
