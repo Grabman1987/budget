@@ -422,7 +422,7 @@ test('the dialog is a centred card on the desktop and a sheet on the phone with 
   }
   await expect(panel.getByRole('group', { name: 'Schnellwahl' })).toHaveCount(0);
   await expect(panel.getByRole('button', { name: 'Gestern' })).toHaveCount(0);
-  // Field order: amount, payee, account, date, category, optional note.
+  // The mobile redesign puts category before account/date in visual and keyboard order.
   const wanted = ['Betrag', 'Empfänger', 'Bezahlt von', 'Datum', 'Kategorie', 'Notiz'];
   const order = await panel.evaluate(
     (el, names) =>
@@ -433,7 +433,9 @@ test('the dialog is a centred card on the desktop and a sheet on the phone with 
   );
   expect(order).toEqual(
     (await redesignLoaded(page))
-      ? ['Betrag', 'Empfänger', 'Datum', 'Bezahlt von', 'Kategorie', 'Notiz']
+      ? isPhone(testInfo)
+        ? ['Betrag', 'Empfänger', 'Kategorie', 'Bezahlt von', 'Datum', 'Notiz']
+        : ['Betrag', 'Empfänger', 'Datum', 'Bezahlt von', 'Kategorie', 'Notiz']
       : wanted,
   );
   // The footer stays in view with the Speichern button.

@@ -774,3 +774,86 @@
   padding-inline-end: 2px;
   scroll-padding-inline-end: 2px;
 }
+
+/* Phone capture prioritises the amount and category above the keyboard. */
+@media (max-width: 767px) {
+  .bkform-redesign .bk-amount-primary {
+    order: -6;
+    display: block;
+    padding-block: 4px;
+  }
+  .bkform-redesign .bk-amount-primary .amount-box {
+    display: flex;
+    justify-content: center;
+    min-height: 48px;
+    border: 0;
+    box-shadow: none;
+  }
+  .bkform-redesign .bk-amount-primary .amount-input {
+    width: 9ch;
+    max-width: calc(100% - 32px);
+    font-size: var(--fs-dimension);
+    text-align: center;
+  }
+  .bkform-redesign .bk-amount-primary .amount-input:focus-visible {
+    outline: none;
+    border-radius: 0;
+    box-shadow: inset 0 -2px var(--line);
+  }
+  .bkform-redesign .bk-head {
+    order: -5;
+    padding-block-end: 4px;
+  }
+  .bkform-redesign .bk-kind {
+    min-height: 44px;
+    padding: 0;
+  }
+  .bkform-redesign .bk-kind button {
+    padding-inline: 8px;
+    font-size: var(--fs-meta);
+  }
+  .bkform-redesign .bk-payee {
+    order: -4;
+  }
+  .bkform-redesign.bk-split-cols .bk-col-lines {
+    order: -3;
+    display: block;
+  }
+  .bkform-redesign .bk-account-row {
+    order: -2;
+    display: block;
+  }
+  .bkform-redesign.bk-split-cols .bk-dates {
+    order: -1;
+  }
+  .bkform-redesign :is(.bk-payee, .bk-account-row, .bk-dates),
+  .bkform-redesign .bk-line-fields:has(> .bk-mobile-row-icon) {
+    position: relative;
+    padding-inline-start: 24px;
+  }
+  .bkform-redesign .bk-mobile-row-icon {
+    position: absolute;
+    inset-inline-start: 0;
+    inset-block-start: 14px;
+    color: var(--ink-3);
+    pointer-events: none;
+    stroke-width: 1.75;
+  }
+  .bkform-redesign .bk-body .field-row:not(.amount):not(.bk-contact-line .field-row) {
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+  .bkform-redesign .bk-mobile-status .bk-status {
+    justify-content: flex-start;
+    border: 0;
+    padding-inline: 0;
+  }
+  .bkform-redesign .bk-foot > .bk-foot-extra {
+    flex: none;
+  }
+  .bkform-redesign .bk-foot .btn {
+    padding-inline: 10px;
+  }
+  .bkform-redesign .bk-body > .kdiff {
+    order: -7;
+  }
+}

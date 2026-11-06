@@ -229,9 +229,22 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   await dialog.getByRole('option', { name: /^Kategorie Tastatur/ }).click();
   await amount.fill('12,34');
   if (await redesignLoaded(page)) {
+    const phone = page.viewportSize()!.width < 768;
     const targets = [
-      dialog.getByRole('button', { name: 'Vorgemerkt', exact: true }),
+      ...(phone
+        ? ['Ausgabe', 'Einnahme', 'Umbuchung'].map((name) =>
+            dialog.getByRole('button', { name, exact: true }),
+          )
+        : [dialog.getByRole('button', { name: 'Vorgemerkt', exact: true })]),
       dialog.getByLabel('Empfänger', { exact: true }),
+      ...(phone
+        ? [
+            dialog.getByLabel('Kategorie', { exact: true }),
+            dialog.getByLabel('Vorschläge und Verfügbarkeit', { exact: true }),
+            await categoryLineControl(dialog),
+            dialog.getByLabel('Bezahlt von'),
+          ]
+        : []),
       dialog.getByLabel('Datum', { exact: true }),
       dialog.getByLabel('Datum im Kalender'),
     ];
@@ -246,16 +259,16 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
     }
     await expect(dialog.getByLabel('Wiederholen')).toBeFocused();
     for (const target of [
-      dialog.getByLabel('Bezahlt von'),
-      dialog.getByLabel('Kategorie', { exact: true }),
-      ...((page.viewportSize()?.width ?? 1440) < 768
-        ? [dialog.getByLabel('Vorschläge und Verfügbarkeit', { exact: true })]
+      ...(phone
+        ? [dialog.getByRole('button', { name: 'Vorgemerkt', exact: true })]
         : [
+            dialog.getByLabel('Bezahlt von'),
+            dialog.getByLabel('Kategorie', { exact: true }),
             dialog
               .getByRole('group', { name: 'Vorschläge' })
               .getByRole('button', { name: 'Kategorie Tastatur' }),
+            await categoryLineControl(dialog),
           ]),
-      await categoryLineControl(dialog),
       dialog.getByLabel('Notiz'),
       await contactShareControl(dialog),
       ...((page.viewportSize()?.width ?? 1440) < 768
