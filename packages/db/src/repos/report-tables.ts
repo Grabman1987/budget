@@ -35,7 +35,7 @@ import {
   type ReportProjectScope,
 } from './report-project-scope';
 import { netWorthDaily, earliestAccountDate } from './portfolio';
-import { budget, budgetLedger } from './queries';
+import { budgetLedger, budgetOfLedger } from './queries';
 import { referenceMonth } from './rule-inputs';
 import type { Executor } from './types';
 
@@ -93,15 +93,36 @@ function ruleTargets(db: Executor): ReportTables['targets'] {
   };
 }
 
-export function reportTables(
+interface ReportOptions {
+  today: string;
+  withNetWorth?: boolean;
+  withSources?: boolean;
+  projectScope?: ReportProjectScope;
+  /** Reuse the caller's ledger from the same SQLite read snapshot. */
+  budgetSource?: ReturnType<typeof budgetLedger>;
+}
+
+type MonthFigures = Pick<TableMonth, 'month' | 'spending' | 'assigned'>;
+
+export function reportTables(db: Executor, options: ReportOptions): ReportTables {
+  return readTables(db, options, false);
+}
+
+/** Same spending/assignment calculation, without unused money-age or payee report work. */
+export function reportMonthFigures(
   db: Executor,
-  options: {
-    today: string;
-    withNetWorth?: boolean;
-    withSources?: boolean;
-    projectScope?: ReportProjectScope;
-  },
-): ReportTables {
+  options: Pick<ReportOptions, 'today' | 'budgetSource' | 'projectScope'>,
+): MonthFigures[] {
+  return readTables(db, options, true);
+}
+
+function readTables(db: Executor, options: ReportOptions, monthsOnly: false): ReportTables;
+function readTables(db: Executor, options: ReportOptions, monthsOnly: true): MonthFigures[];
+function readTables(
+  db: Executor,
+  options: ReportOptions,
+  monthsOnly: boolean,
+): ReportTables | MonthFigures[] {
   const { today } = options;
   const currentMonth = monthOf(today);
   const targets = ruleTargets(db);
@@ -119,7 +140,7 @@ export function reportTables(
     targets,
     netWorth: options.withNetWorth ? 'unavailable' : 'omitted',
   };
-  if (budgetAccounts.length === 0) return empty;
+  if (budgetAccounts.length === 0) return monthsOnly ? [] : empty;
   const firstMonth = budgetAccounts
     .map((a) => monthOf(a.openingDate))
     .reduce((a, m) => (m < a ? m : a), currentMonth);
@@ -195,25 +216,28 @@ export function reportTables(
   }
 
   // Spending and assignment per month from the one budget calculation.
+  const budgetSource = options.budgetSource ?? budgetLedger(db);
   const envelopes = new Map(
-    budget(db, monthKeys, { asOf: today }).map((m) => [m.month, m.envelopes]),
+    budgetOfLedger(budgetSource, monthKeys, { asOf: today }).map((m) => [m.month, m.envelopes]),
   );
 
   // Geldalter at every month end (today for the running month), the rule R03 definition.
   const onBudget = new Set(budgetAccounts.map((a) => a.id));
-  const ledgerSplits = budgetLedger(db).splits.filter(
+  const ledgerSplits = budgetSource.splits.filter(
     (s) => onBudget.has(s.accountId) && s.date <= today,
   );
   const betweenBudgetAccounts = (s: (typeof ledgerSplits)[number]) =>
     s.transferAccountId != null && onBudget.has(s.transferAccountId);
-  const events: MoneyEvent[] = [
-    ...budgetAccounts
-      .filter((a) => a.openingBalanceCents > 0)
-      .map((a) => ({ day: a.openingDate, cents: a.openingBalanceCents })),
-    ...ledgerSplits
-      .filter((s) => !betweenBudgetAccounts(s))
-      .map((s) => ({ day: s.date, cents: s.amountCents })),
-  ];
+  const events: MoneyEvent[] = monthsOnly
+    ? []
+    : [
+        ...budgetAccounts
+          .filter((a) => a.openingBalanceCents > 0)
+          .map((a) => ({ day: a.openingDate, cents: a.openingBalanceCents })),
+        ...ledgerSplits
+          .filter((s) => !betweenBudgetAccounts(s))
+          .map((s) => ({ day: s.date, cents: s.amountCents })),
+      ];
   // Money set aside for the future stays on the budget when it moves to a reserve account: the
   // budget calculation gives such a transfer no activity, so a categorised transfer between two
   // budget accounts counts as spending of its Zukunft category here (Bedarf and Wunsch never do).
@@ -270,9 +294,12 @@ export function reportTables(
   }
 
   const moneyAge = new Map(
-    ageOfMoneyAt(
-      events,
-      monthKeys.map((m) => standDay(m)),
+    (monthsOnly
+      ? []
+      : ageOfMoneyAt(
+          events,
+          monthKeys.map((m) => standDay(m)),
+        )
     ).map((a, i) => [monthKeys[i]!, a.days] as const),
   );
   const months: TableMonth[] = monthKeys.map((month) => {
@@ -298,6 +325,9 @@ export function reportTables(
       moneyAgeDays: moneyAge.get(month) ?? null,
     };
   });
+
+  if (monthsOnly)
+    return months.map(({ month, spending, assigned }) => ({ month, spending, assigned }));
 
   // Largest payees per category over the last twelve full months.
   const payees: Record<string, string[]> = {};

@@ -1,5 +1,6 @@
 import {
   createEntity,
+  convertContactOutlayToGift,
   getContactStatement,
   listContactStatements,
   schema,
@@ -27,6 +28,7 @@ const receipt = z
     date: day,
     amountCents: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
     memo: z.string().max(2000).nullable().optional(),
+    excessToBudget: z.boolean().optional(),
     allocations: z
       .array(
         z
@@ -79,9 +81,10 @@ export function contactRoutes(db: Db, today: () => string): Hono {
     const input = await readBody(c, receipt);
     if (input.date > today())
       throw new ApiError(422, 'future_receipt', 'A contact receipt must be an actual payment');
-    return c.json(
-      settleContact(
-        db,
+    const ctx = audit();
+    const result = db.transaction((tx) => {
+      const settled = settleContact(
+        tx,
         c.req.param('id'),
         {
           accountId: input.accountId,
@@ -90,7 +93,48 @@ export function contactRoutes(db: Db, today: () => string): Hono {
           ...(input.memo === undefined ? {} : { memo: input.memo }),
           ...(input.allocations === undefined ? {} : { allocations: input.allocations }),
         },
+        ctx,
+      );
+      const budgetConversion =
+        input.excessToBudget && settled.creditCents > 0
+          ? {
+              ...writeOffContact(
+                tx,
+                c.req.param('id'),
+                {
+                  accountId: input.accountId,
+                  date: input.date,
+                  amountCents: settled.creditCents,
+                  memo: 'Überschuss dieser Rückzahlung ins Budget',
+                },
+                ctx,
+                today(),
+              ),
+              amountCents: settled.creditCents,
+            }
+          : null;
+      return { ...settled, budgetConversion };
+    });
+    return c.json(result, 201);
+  });
+  app.post('/:id/outlays/:splitId/gift', async (c) => {
+    const input = await readBody(
+      c,
+      z
+        .object({
+          amountCents: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+          categoryId: z.string().min(1).max(100),
+        })
+        .strict(),
+    );
+    return c.json(
+      convertContactOutlayToGift(
+        db,
+        c.req.param('id'),
+        c.req.param('splitId'),
+        input,
         audit(),
+        today(),
       ),
       201,
     );
@@ -98,7 +142,7 @@ export function contactRoutes(db: Db, today: () => string): Hono {
   app.post('/:id/write-offs', async (c) => {
     const input = await readBody(
       c,
-      receipt.omit({ allocations: true }).extend({
+      receipt.omit({ allocations: true, excessToBudget: true }).extend({
         categoryId: z.string().min(1).max(100).nullable().optional(),
         incomeTypeId: z.string().min(1).max(100).nullable().optional(),
       }),

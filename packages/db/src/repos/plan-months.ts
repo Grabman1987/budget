@@ -14,7 +14,7 @@ import { categoryTree } from './categories';
 import { planIncomeTargets } from './income-targets';
 import { budgetLedger, budgetOfLedger, budgetActivityOfLedger } from './queries';
 import { loadFacts } from './rule-inputs';
-import { reportTables } from './report-tables';
+import { reportMonthFigures } from './report-tables';
 import { planUncategorizedCount } from './plan-uncategorized';
 import type { Executor } from './types';
 
@@ -37,11 +37,11 @@ export function planMonthViews(
   if (last === undefined) return {};
   const tree = categoryTree(db);
   const ledger = budgetLedger(db);
-  const history = reportTables(db, { today }).months;
+  const history = reportMonthFigures(db, { today, budgetSource: ledger });
   const categoryById = new Map(tree.categories.map((c) => [c.id, c]));
-  const facts = loadFacts(db, lastDayOfMonth(last));
+  const facts = loadFacts(db, lastDayOfMonth(last), ledger);
   // Cover limits always read today's facts, as the single and bulk cover do.
-  const coverFacts = loadFacts(db, today);
+  const coverFacts = loadFacts(db, today, ledger);
   const budgetMoney = coverBudgetMoney(db, today, coverFacts);
   const starts = ledger.accounts.filter((a) => a.onBudget).map((a) => monthOf(a.openingDate));
   // One budget run from the first budget month (the facts hold it for the default card rule).

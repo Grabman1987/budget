@@ -17,7 +17,13 @@ import {
   INCOME_TYPES,
 } from '../schema';
 import { insertTracked, withGroup, type AuditContext } from './audit';
-import { createBooking, createContactSettlementBooking, type SplitInput } from './bookings';
+import {
+  createBooking,
+  createContactSettlementBooking,
+  getBooking,
+  updateBooking,
+  type SplitInput,
+} from './bookings';
 import { ensureAdvanceCategory } from './categories';
 import {
   actualContactMovements,
@@ -115,6 +121,81 @@ export interface ContactWriteOffInput {
   memo?: string | null;
   categoryId?: string | null;
   incomeTypeId?: string | null;
+}
+
+/** Reclassify the chosen source share, keeping its original date and every bank amount. */
+export function convertContactOutlayToGift(
+  db: Executor,
+  contactId: string,
+  outlaySplitId: string,
+  input: { amountCents: number; categoryId: string },
+  ctx: AuditContext,
+  today: string,
+) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const outlay = getContactStatement(tx, contactId, today).outlays.find(
+      (o) => o.splitId === outlaySplitId,
+    );
+    if (
+      !outlay ||
+      !Number.isSafeInteger(input.amountCents) ||
+      input.amountCents <= 0 ||
+      input.amountCents > outlay.remainingCents
+    )
+      throw new BookingInvariantError(
+        'Bitte eine aktuell offene Auslage und höchstens deren offenen Betrag wählen.',
+      );
+    const expense = tx
+      .select()
+      .from(category)
+      .where(and(eq(category.id, input.categoryId), isNull(category.deletedAt)))
+      .get();
+    if (
+      !expense ||
+      expense.class === null ||
+      ['advance', 'income', 'card_payment'].includes(expense.kind)
+    )
+      throw new BookingInvariantError(
+        'Bitte eine eigene Ausgabenkategorie für das Geschenk wählen.',
+      );
+    const source = getBooking(tx, outlay.bookingId)!;
+    if (source.transferId || source.splits.some((s) => s.transferId))
+      throw new BookingInvariantError(
+        'Diese Auslage ist mit einer Umbuchung verknüpft. Bitte die Ursprungsbuchung öffnen.',
+      );
+    const splits: SplitInput[] = source.splits.map((s) => ({
+      amountCents: s.amountCents,
+      categoryId: s.categoryId,
+      contactId: s.contactId,
+      incomeTypeId: s.incomeTypeId,
+      memo: s.memo,
+    }));
+    const index = source.splits.findIndex((s) => s.id === outlaySplitId);
+    const selected = splits[index]!;
+    if (input.amountCents === -selected.amountCents) {
+      splits[index] = {
+        amountCents: selected.amountCents,
+        categoryId: input.categoryId,
+        memo: selected.memo ?? null,
+      };
+    } else {
+      splits[index] = { ...selected, amountCents: selected.amountCents + input.amountCents };
+      splits.push({
+        amountCents: -input.amountCents,
+        categoryId: input.categoryId,
+        memo: selected.memo ?? null,
+      });
+    }
+    // The ordinary writer retains reconciled, contact-allocation, receipt and transfer guards.
+    updateBooking(tx, source.id, { splits }, grouped);
+    return {
+      bookingId: source.id,
+      date: source.date,
+      amountCents: input.amountCents,
+      groupId: grouped.groupId,
+    };
+  });
 }
 
 /** Reclassify an existing contact share; the ordinary zero booking is deletable and undoable. */

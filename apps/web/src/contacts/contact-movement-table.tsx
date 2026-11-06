@@ -1,5 +1,5 @@
 import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
-import type { ContactMovement } from '@budget/domain';
+import type { ContactMovement, OpenContactOutlay } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 import { request } from '../api/http';
@@ -30,6 +30,7 @@ export function ContactMovementTable({
   heading,
   headingId,
   onOpen,
+  onGift,
 }: {
   statement: Statement;
   movements: ContactMovement[];
@@ -38,6 +39,7 @@ export function ContactMovementTable({
   heading?: string | false;
   headingId?: string;
   onOpen: (movement: ContactMovement) => void;
+  onGift?: ((outlay: OpenContactOutlay) => void) | undefined;
 }) {
   useAmountPrivacy();
   const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied' | 'manual'>('idle');
@@ -134,6 +136,15 @@ export function ContactMovementTable({
                       {longDay(movement.date)} · {movementKind(movement)}
                     </span>
                   </button>
+                  {onGift && outlay && outlay.remainingCents > 0 && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => onGift(outlay)}
+                      aria-label={`${description(movement)} als Geschenk übernehmen`}
+                    >
+                      Als Geschenk übernehmen
+                    </Button>
+                  )}
                   {repayment && (
                     <details className="contact-allocation-details">
                       <summary>Zuordnung</summary>
