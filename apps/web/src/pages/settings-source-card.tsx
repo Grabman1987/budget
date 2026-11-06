@@ -62,7 +62,7 @@ export function SettingsSourceCard({
           </div>
           <small>{detail}</small>
           <small>
-            {dateLabel}: {date === null ? emptyDate : sourceDate(date)}
+            {dateLabel}: {loading ? 'Wird geladen …' : date === null ? emptyDate : sourceDate(date)}
             {next && <> · Nächster Abruf: {next}</>}
           </small>
         </div>

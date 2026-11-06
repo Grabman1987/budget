@@ -102,7 +102,7 @@ export function budgetOfMonths(db: Executor, months: string[]): BudgetMonth[] {
  * figure in every report.
  */
 export function tableSpendByMonth(
-  tables: ReportTables,
+  tables: { months: ReadonlyArray<Pick<ReportTables['months'][number], 'month' | 'spending'>> },
   categories: ReadonlyArray<SpendCategory>,
 ): SpendByMonth {
   const out: Record<string, Record<string, number>> = {};

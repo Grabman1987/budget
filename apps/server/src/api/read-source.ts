@@ -1,7 +1,8 @@
 import { Hono, type MiddlewareHandler } from 'hono';
+import { asc } from 'drizzle-orm';
 import { z } from 'zod';
 import {
-  accountSummaries,
+  account,
   listEntities,
   mapReadSource,
   readSourceMappings,
@@ -20,7 +21,7 @@ import { ACTOR, ApiError, readBody } from './http';
 
 export function readSourceRoutes(
   db: Db,
-  today: () => string,
+  _today: () => string,
   passkeySession: MiddlewareHandler,
   source: ReadSource,
 ): Hono {
@@ -37,7 +38,9 @@ export function readSourceRoutes(
       mappings: readSourceMappings(db),
       since: readSourceSince(db),
       match: readSourceMatchSummary(db),
-      accounts: accountSummaries(db, today())
+      accounts: listEntities(db, account, {
+        orderBy: [asc(account.sortOrder), asc(account.name), asc(account.id)],
+      })
         .filter((a) => !a.onBudget && !a.closedAt)
         .map(({ id, name, currency, type, onBudget, sortOrder, closedAt }) => ({
           id,

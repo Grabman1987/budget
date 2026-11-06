@@ -103,6 +103,7 @@ export function OverviewPage() {
   const [ordering, setOrdering] = useState(false);
   const ordered = useOrderedAccounts(accounts.data?.accounts);
   const positions = useQuery(treePositionsQuery(ordered.accounts));
+  const valuesLoading = positions.isPending && treePositionsQuery(ordered.accounts).enabled;
   const values =
     ordered.accounts && !positions.isError
       ? treeValues(ordered.accounts, positions.data)
@@ -179,7 +180,12 @@ export function OverviewPage() {
         )}
         {model && presentation && (
           <>
-            <OverviewLead presentation={presentation} asOf={asOf} sourcesByRow={sourcesByRow} />
+            <OverviewLead
+              presentation={presentation}
+              asOf={asOf}
+              sourcesByRow={sourcesByRow}
+              loading={valuesLoading}
+            />
             {!REDESIGN_ENABLED && ordered.accounts && asOf && (
               <ClosedAccountDisclosure accounts={ordered.accounts} asOf={asOf} />
             )}
@@ -244,7 +250,7 @@ export function OverviewPage() {
                           group={group}
                           index={index + 1}
                           values={values}
-                          loading={positions.isFetching && !positions.data}
+                          loading={valuesLoading}
                           series={series.data}
                           seriesLoading={series.isPending}
                           ordering={ordering}
@@ -298,18 +304,28 @@ function OverviewLead({
   presentation,
   asOf,
   sourcesByRow,
+  loading,
 }: {
   presentation: ReturnType<typeof accountOverviewPresentation>;
   asOf: string | undefined;
   sourcesByRow: ReadonlyMap<string, ValuationSource[]>;
+  loading: boolean;
 }) {
   const budget = presentation.budget;
   const value = budget ? budget.sumCents : 0;
   return (
     <section className="overview-lead" aria-labelledby="overview-lead-title">
       <h2 id="overview-lead-title">Saldo Budget-Konten</h2>
-      <div className="overview-lead-value" data-testid="budget-accounts-balance">
-        {value === null ? 'Nicht verfügbar' : `${budget?.sumApprox ? '≈ ' : ''}${eur(value)}`}
+      <div
+        className="overview-lead-value"
+        data-testid="budget-accounts-balance"
+        aria-busy={value === null && loading}
+      >
+        {value === null
+          ? loading
+            ? 'Wird geladen …'
+            : 'Nicht verfügbar'
+          : `${budget?.sumApprox ? '≈ ' : ''}${eur(value)}`}
         <OverviewValueSource
           sources={budget ? overviewGroupValuationSources(budget.accounts, sourcesByRow) : []}
           label="Saldo Budget-Konten"
@@ -589,7 +605,7 @@ function OverviewAccount({
           <span data-testid="account-value">
             {value === null
               ? loading
-                ? '–'
+                ? 'Wird geladen …'
                 : 'Nicht verfügbar'
               : `${shown?.approx ? '≈ ' : ''}${eur(value)}`}
           </span>

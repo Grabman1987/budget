@@ -68,8 +68,9 @@ them and they fall back to their cryptocalc link. Nothing is guessed. A PP `COIN
 
 - PP stores `https://www.ariva.de/<slug>/kurse/historische-kurse?boerse_id=<n>` (older links) or
   `https://www.ariva.de/etf/<slug>/kurse/historische-kurse`. Ariva has moved its pages
-  (`<slug>-fonds` and `/fonds/` 301 to `/etf/...`); `fetch` follows the redirect, so the stored link
-  keeps working. Derivative and certificate links look like `/<type>/<WKN>/kurse/historische-kurse`.
+  (`<slug>-fonds` and `/fonds/` 301 to `/etf/...`); the adapter follows at most three redirects to
+  another valid quote path on the same origin. Derivative and certificate links look like
+  `/<type>/<WKN>/kurse/historische-kurse`.
 - **The CSV download needs an ARIVA account** ("Dann legen Sie sich jetzt ein ARIVA Konto an oder
   melden Sie sich an"). The old CSV URL guessed in P5.1 is gone. The adapter never handles
   credentials; it reads the **public HTML table** of the same page instead, which holds the same
@@ -77,6 +78,13 @@ them and they fall back to their cryptocalc link. Nothing is guessed. A PP `COIN
 - Without parameters the page lists the last 30 calendar days of the default exchange. `boerse_id`
   picks the exchange (`45` Xetra, `131` Tradegate, ...). `month=<last day of month>` (`2026-08-31`)
   lists that month. `min_time`/`max_time` are ignored. `currency=automatic` is the exchange currency.
+- Provider change verified 05.11.2026: `boerse_id` can redirect to a URL without that parameter
+  while setting the public `ariva_exchange` preference cookie. Server fetch does not retain that
+  response cookie. The adapter therefore sends only `ariva_exchange=<validated exchange>` with
+  each request for an explicit selection, including same-origin redirects. It never retains
+  response cookies, shares preferences between instruments or forwards them to another origin.
+  Without a selection no Cookie header is sent. The existing currency check still rejects a
+  default-exchange quote in another currency.
 - Table `Datum | Erster | Hoch | Tief | Schluss | (marker) | Stücke | Volumen`, date `dd.mm.yy`,
   cells like `129,135 €` (`$` for a Nasdaq quote, ...). The row of the running session carries a
   `*` in the marker column and is dropped. A currency other than `security.currency` is refused

@@ -6,6 +6,7 @@ import {
   evaluateRules,
   evaluationDays,
   financeCheck,
+  financialHealthAsOf,
   listRules,
   ruleResults,
   updateRule,
@@ -82,6 +83,7 @@ export function ruleRoutes(db: Db, today: () => string): Hono {
   });
 
   app.get('/check', (c) => c.json(financeCheck(db, today())));
+  app.get('/health', (c) => c.json(financialHealthAsOf(db, today())));
 
   app.patch('/checklist/:code', async (c) => {
     const { confirmed } = await readBody(c, confirmBody);
