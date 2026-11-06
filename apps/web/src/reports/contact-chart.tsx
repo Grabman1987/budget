@@ -9,14 +9,17 @@ import type { ContactReportStatement } from './contact-api';
 export function ContactBalanceChart({
   statement,
   height = 234,
+  days,
 }: {
   statement: ContactReportStatement;
   height?: number;
+  /** Show only the movements of the last `days` days up to `statement.asOf`. */
+  days?: number;
 }) {
   useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
-  const rows = statement.movements;
-  const values = [0, ...rows.map((row) => row.balanceCents / 100)];
+  const { rows, startCents, startLabel } = chartWindow(statement, days);
+  const values = [startCents / 100, ...rows.map((row) => row.balanceCents / 100)];
   const lo = Math.min(...values),
     hi = Math.max(...values);
   const pad = (hi - lo) * 0.08 || 1;
@@ -33,7 +36,7 @@ export function ContactBalanceChart({
         [x(i + 1), y(value)],
       ] as Point[],
   );
-  const label = `Saldo mit ${statement.contact.name} nach jeder Buchung: Beginn 0,00 €, Ende ${eur(statement.balanceCents)}. ${rows.length} Bewegungen; erfasste unbestätigte Buchungen sind enthalten.`;
+  const label = `Saldo mit ${statement.contact.name} nach jeder Buchung${days ? ` der letzten ${days} Tage` : ''}: Beginn ${eur(startCents)}, Ende ${eur(statement.balanceCents)}. ${rows.length} Bewegungen; erfasste unbestätigte Buchungen sind enthalten.`;
   return (
     <div ref={ref} className="contact-balance-chart">
       {width > 0 && (
@@ -42,10 +45,10 @@ export function ContactBalanceChart({
           height={height}
           label={label}
           testId="contact-balance-chart"
-          points={chartPoints(['Start', ...rows.map((r) => r.date)], x, [
+          points={chartPoints([startLabel, ...rows.map((r) => r.date)], x, [
             {
               name: 'Saldo',
-              values: [0, ...rows.map((r) => r.balanceCents)],
+              values: [startCents, ...rows.map((r) => r.balanceCents)],
               color: 'var(--line)',
             },
           ])}
@@ -64,7 +67,7 @@ export function ContactBalanceChart({
           <Line points={points} kind="actual" />
           <circle cx={right} cy={y(values.at(-1)!)} r={3.5} className="dot-actual" />
           <text x={left} y={height - 9} className="svg-label">
-            Start
+            {startLabel}
           </text>
           {rows.length > 1 && (
             <text
@@ -84,8 +87,22 @@ export function ContactBalanceChart({
         </ChartSvg>
       )}
       <p className="vnote">
-        Saldo je erfasster Bewegung · EUR. Gleiche Tage behalten die gespeicherte Reihenfolge.
+        {days ? `Letzte ${days} Tage · ` : ''}Saldo je erfasster Bewegung · EUR. Gleiche Tage
+        behalten die gespeicherte Reihenfolge.
       </p>
     </div>
   );
+}
+
+/** Movements inside the window plus the balance carried in from before it. */
+export function chartWindow(statement: ContactReportStatement, days?: number) {
+  const all = statement.movements;
+  if (!days) return { rows: all, startCents: 0, startLabel: 'Start' };
+  const end = new Date(`${statement.asOf}T00:00:00Z`);
+  end.setUTCDate(end.getUTCDate() - days);
+  const from = end.toISOString().slice(0, 10);
+  const firstIn = all.findIndex((row) => row.date > from);
+  const rows = firstIn < 0 ? [] : all.slice(firstIn);
+  const before = firstIn < 0 ? all.at(-1) : all[firstIn - 1];
+  return { rows, startCents: before?.balanceCents ?? 0, startLabel: shortDay(from) };
 }
