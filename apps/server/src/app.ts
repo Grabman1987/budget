@@ -8,7 +8,7 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { secureHeaders } from 'hono/secure-headers';
 import type { Auth } from './auth/routes';
-import { createLedgerApi, type LedgerApi } from './api';
+import { createLedgerApi, type LedgerApi, type LedgerApiOptions } from './api';
 import { debugSummary } from './debug-summary';
 import type { ImportJobs } from './imports/jobs';
 import { IMPORT_BODY_LIMIT, IMPORT_UPLOAD_LIMIT } from './imports/routes';
@@ -47,6 +47,7 @@ export type AppOptions = BaseOptions &
               market?: MarketSources | undefined;
               jobs?: ImportJobs | undefined;
               receiptsDir?: string | undefined;
+              strategyEvidence?: LedgerApiOptions['strategyEvidence'];
               /** Gets the ledger API once it exists (the start-up warm-up uses it). */
               onApi?: ((api: LedgerApi) => void) | undefined;
             }
