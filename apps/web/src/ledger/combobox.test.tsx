@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Combobox, type ComboOption } from './combobox';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 const OPTIONS: ComboOption[] = [
   { id: 'essen', label: 'Essen', group: '2 Laufender Monat', hint: 'Verfügbar 10,00 €' },
@@ -17,10 +21,12 @@ function Harness({
   onSelect,
   onParentKey,
   pickFirst = false,
+  captureCategory = false,
 }: {
   onSelect: (o: ComboOption) => void;
   onParentKey?: () => void;
   pickFirst?: boolean;
+  captureCategory?: boolean;
 }) {
   const [text, setText] = useState('');
   return (
@@ -34,12 +40,78 @@ function Harness({
         onSelect={onSelect}
         listWhenEmpty
         pickFirst={pickFirst}
+        captureCategory={captureCategory}
       />
     </div>
   );
 }
 
 describe('Combobox', () => {
+  it.each([
+    { height: 240, offsetTop: 80, anchorTop: 300 },
+    { height: 120, offsetTop: 80, anchorTop: 110 },
+    { height: 240, offsetTop: 120, anchorTop: 400 },
+  ])('keeps capture matches selectable in a panned $height px visual viewport', async (bounds) => {
+    const viewport = Object.assign(new EventTarget(), bounds, { width: 390, offsetLeft: 0 });
+    vi.stubGlobal('visualViewport', viewport);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(16, bounds.anchorTop, 280, 44),
+    );
+    const listHeight = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(120);
+    const observe = vi.fn();
+    let resizeList = () => undefined;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => undefined) {
+          resizeList = callback;
+        }
+        observe = observe;
+        disconnect = vi.fn();
+      },
+    );
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    const { container } = render(<Harness onSelect={onSelect} captureCategory pickFirst />);
+    // A collapsed/offset form scroller must not clip a fixed category popup to zero.
+    container.style.overflowY = 'auto';
+    const field = screen.getByRole('combobox', { name: 'Kategorie' });
+    await user.click(field);
+    await user.keyboard('mie');
+    act(() => {
+      viewport.dispatchEvent(new Event('resize'));
+      viewport.dispatchEvent(new Event('scroll'));
+    });
+    const list = screen.getByRole('listbox');
+    expect(list.hidden).toBe(false);
+    expect(field.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(field);
+    expect(Number.parseFloat(list.style.maxHeight)).toBeGreaterThanOrEqual(120);
+    expect(Number.parseFloat(list.style.maxHeight)).toBeLessThanOrEqual(bounds.height);
+    expect(Number.parseFloat(list.style.top)).toBeGreaterThanOrEqual(bounds.offsetTop);
+    expect(Number.parseFloat(list.style.top) + 120).toBeLessThanOrEqual(
+      bounds.offsetTop + bounds.height,
+    );
+    if (bounds.anchorTop >= bounds.offsetTop + bounds.height - 44)
+      expect(Number.parseFloat(list.style.top) + 120).toBeLessThan(bounds.anchorTop);
+    // A different single match can wrap onto more lines without resizing the form.
+    await user.clear(field);
+    await user.keyboard('rei');
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+    expect(observe).toHaveBeenCalledWith(list);
+    const resizedHeight = Math.min(160, bounds.height);
+    listHeight.mockReturnValue(resizedHeight);
+    act(resizeList);
+    expect(Number.parseFloat(list.style.top) + resizedHeight).toBeLessThanOrEqual(
+      bounds.offsetTop + bounds.height,
+    );
+    await user.clear(field);
+    await user.keyboard('mie');
+    await user.click(screen.getByRole('option', { name: 'Miete' }));
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'miete' }));
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
   it('lists everything grouped when focused, and filters while typing', async () => {
     const user = userEvent.setup();
     render(<Harness onSelect={() => undefined} />);

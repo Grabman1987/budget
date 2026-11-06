@@ -51,8 +51,8 @@ async function post<T>(
 async function bounds(list: Locator) {
   return list.evaluate((node) => {
     const box = node.getBoundingClientRect();
-    const body = node.closest('.bk-body');
-    if (!(body instanceof HTMLElement)) throw new Error('Missing real capture scroller');
+    const body = node.closest('dialog');
+    if (!(body instanceof HTMLElement)) throw new Error('Missing capture dialog');
     const clip = body.getBoundingClientRect();
     const viewport = window.visualViewport;
     const top = Math.max(clip.top + body.clientTop, viewport?.offsetTop ?? 0);
@@ -435,9 +435,9 @@ for (const profile of ['configured', 'desktop1440'] as const) {
                 });
               })
               .toBe(true);
-            await expect(list).toBeHidden();
-            await expect(field).toHaveAttribute('aria-expanded', 'false');
-            await field.press('Enter');
+            // #975: a focused picker stays usable even while its anchor is clipped.
+            await expect(list).toBeVisible();
+            await expect(field).toHaveAttribute('aria-expanded', 'true');
             await expect(dialog).toBeVisible();
             await expect(field).toHaveValue(draftBeforeResize);
             expect(writes.map((w) => w.path)).toEqual([
@@ -466,10 +466,9 @@ for (const profile of ['configured', 'desktop1440'] as const) {
               });
             })
             .toBe(true);
-          await expect(list).toBeHidden();
-          await expect(field).toHaveAttribute('aria-expanded', 'false');
+          await expect(list).toBeVisible();
+          await expect(field).toHaveAttribute('aria-expanded', 'true');
           const draftValue = await field.inputValue();
-          await field.press('Enter');
           await expect(dialog).toBeVisible();
           await expect(field).toHaveValue(draftValue);
           expect(writes.map((w) => w.path)).toEqual([

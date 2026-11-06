@@ -137,18 +137,26 @@ it('E3 ON puts categories in compact groups and retains edit, order and hidden-c
   expect(document.querySelector('.settings-category-list')).not.toBeNull();
   expect(screen.getByRole('button', { name: 'Essen verschieben' })).toBeTruthy();
 });
-it('E4 ON orders the five real sources and makes unavailable-source recovery accessible', async () => {
-  mount(<DataSourcesPage />, '/einstellungen/datenquellen');
+it('E4 ON orders the real sources and makes unavailable-source recovery accessible', async () => {
+  const { writes } = mount(<DataSourcesPage />, '/einstellungen/datenquellen');
   await screen.findByRole('heading', { name: 'Verbindungen' });
   expect(
     [...document.querySelectorAll('.settings-source-copy strong')].map(
       (element) => element.textContent,
     ),
-  ).toEqual(['Bank', 'Krypto', 'Gehaltszettel', 'Kurse', 'VPI']);
+  ).toEqual(['Bank', 'Krypto', 'Spritmonitor', 'Gehaltszettel', 'Kurse', 'VPI']);
+  const fuel = screen.getByRole('region', { name: 'Spritmonitor' });
+  await userEvent.click(within(fuel).getByRole('button', { name: 'Prüfen' }));
+  await within(fuel).findByText(/Die Verbindung wird am Server eingerichtet/);
+  expect(within(fuel).getByRole('button', { name: 'Jetzt abrufen' }).hasAttribute('disabled')).toBe(
+    true,
+  );
+  expect(within(fuel).queryByRole('textbox')).toBeNull();
   const bank = screen.getByRole('region', { name: 'Bank' });
   await userEvent.click(within(bank).getByRole('button', { name: 'Prüfen' }));
   await within(bank).findByText(/Bank-Sync ist noch nicht eingerichtet/);
   expect(within(bank).getByText(/Noch kein erfolgreicher Abruf/)).toBeTruthy();
+  expect(writes).toEqual([]);
 });
 it('shows loading source dates and reads only VPI reference metadata on settings entry', async () => {
   let release!: () => void;
@@ -161,7 +169,12 @@ it('shows loading source dates and reads only VPI reference metadata on settings
     await pending;
   });
   await screen.findByRole('heading', { name: 'Verbindungen' });
-  expect(screen.getAllByText(/Letzter Erfolg: Wird geladen/)).toHaveLength(4);
+  expect(screen.getAllByText(/Letzter Erfolg: Wird geladen/)).toHaveLength(5);
+  for (const name of ['Bank', 'Krypto', 'Spritmonitor', 'Kurse', 'VPI']) {
+    expect(
+      within(screen.getByRole('region', { name })).getByText(/Letzter Erfolg: Wird geladen/),
+    ).toBeTruthy();
+  }
   const payslip = within(screen.getByRole('region', { name: 'Gehaltszettel' }));
   expect(payslip.getByText('Letzter Scanversuch: Wird geladen …')).toBeTruthy();
   expect(payslip.queryByText(/Letzter Erfolg:/)).toBeNull();
@@ -170,10 +183,12 @@ it('shows loading source dates and reads only VPI reference metadata on settings
   await act(async () => release());
   await waitFor(() => expect(view.client.isFetching()).toBe(0));
   expect(paths).toContain('/api/inflation-basket/reference');
+  expect(paths).toContain('/api/sources/spritmonitor');
   expect(paths).not.toContain('/api/reports/spending/inflation');
   expect(screen.queryByText(/Letzter Erfolg: Wird geladen/)).toBeNull();
   expect(payslip.queryByText(/Letzter Scanversuch: Wird geladen/)).toBeNull();
   expect(payslip.getByText('Letzter Scanversuch: Noch kein Scanversuch')).toBeTruthy();
+  expect(view.writes).toEqual([]);
 });
 it('E5 ON provides the one persisted target editor as a settings destination', async () => {
   mount(<AssetClassesSettingsPage />, '/einstellungen/anlageklassen?ansicht=stufen');

@@ -49,6 +49,8 @@ export interface ComboboxProps {
 
 const fold = (text: string) => text.toLocaleLowerCase('de-AT').trim();
 const MAX_OPTIONS = 60;
+// Room for a heading and a touch-sized option, even while the keyboard is opening.
+const MIN_CAPTURE_LIST_HEIGHT = 120;
 
 function revealOption(list: HTMLElement, option: HTMLElement | null) {
   if (!option) return;
@@ -90,7 +92,6 @@ export function Combobox({
   const [focused, setFocused] = useState(false);
   const [active, setActive] = useState(-1);
   const [dismissed, setDismissed] = useState(false);
-  const [anchorVisible, setAnchorVisible] = useState(true);
   // The text is selected on focus. A value that changes in the same moment (the payee's default
   // category, set as the payee field is left) would drop that selection, so it is redone after
   // the render.
@@ -132,44 +133,44 @@ export function Combobox({
       let bottom = top + (viewport?.height ?? window.innerHeight);
       let left = viewport?.offsetLeft ?? 0;
       let right = left + (viewport?.width ?? window.innerWidth);
-      // visualViewport already defines the root clip; the root document rect scrolls.
-      for (
-        let node = field.parentElement;
-        node && node !== document.documentElement;
-        node = node.parentElement
-      ) {
-        const style = getComputedStyle(node);
-        const box = node.getBoundingClientRect();
-        if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) {
-          top = Math.max(top, box.top + node.clientTop);
-          bottom = Math.min(bottom, box.top + node.clientTop + node.clientHeight);
-        }
-        if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) {
-          left = Math.max(left, box.left + node.clientLeft);
-          right = Math.min(right, box.left + node.clientLeft + node.clientWidth);
-        }
+      // The fixed list escapes the form's scroll clip but stays inside its modal.
+      // iOS can pan the visual viewport before the focused field has scrolled into view.
+      const dialog = field.closest('dialog');
+      if (dialog) {
+        const box = dialog.getBoundingClientRect();
+        top = Math.max(top, box.top + dialog.clientTop);
+        bottom = Math.min(bottom, box.top + dialog.clientTop + dialog.clientHeight);
+        left = Math.max(left, box.left + dialog.clientLeft);
+        right = Math.min(right, box.left + dialog.clientLeft + dialog.clientWidth);
       }
       const anchor = field.getBoundingClientRect();
-      const visible =
-        anchor.bottom > top && anchor.top < bottom && anchor.right > left && anchor.left < right;
       const belowOrigin = Math.max(top, Math.min(anchor.bottom + 4, bottom));
       const aboveOrigin = Math.max(top, Math.min(anchor.top - 4, bottom));
       const below = Math.max(0, bottom - belowOrigin);
       const above = Math.max(0, aboveOrigin - top);
       const opensAbove = above > below;
       const width = Math.max(0, Math.min(anchor.width, right - left));
-      list.style.maxHeight = `${Math.floor(opensAbove ? above : below)}px`;
-      list.style.top = opensAbove ? 'auto' : `${belowOrigin - anchor.top}px`;
-      list.style.bottom = opensAbove ? `${anchor.bottom - aboveOrigin}px` : 'auto';
-      list.style.left = `${Math.max(left, Math.min(anchor.left, right - width)) - anchor.left}px`;
+      const maxHeight = Math.min(
+        bottom - top,
+        Math.max(MIN_CAPTURE_LIST_HEIGHT, opensAbove ? above : below),
+      );
+      list.style.maxHeight = `${Math.floor(maxHeight)}px`;
+      list.style.left = `${Math.max(left, Math.min(anchor.left, right - width))}px`;
       list.style.right = 'auto';
       list.style.width = `${width}px`;
+      list.style.bottom = 'auto';
+      list.style.top = `${Math.max(
+        top,
+        Math.min(
+          opensAbove ? aboveOrigin - list.offsetHeight : belowOrigin,
+          bottom - list.offsetHeight,
+        ),
+      )}px`;
       const activeId = field.querySelector('input')?.getAttribute('aria-activedescendant');
       if (activeId) revealOption(list, document.getElementById(activeId));
-      return visible;
     };
     updateBounds();
-    const refresh = () => setAnchorVisible(updateBounds());
+    const refresh = updateBounds;
     const onScroll = (event: Event) => {
       if (event.target !== list) refresh();
     };
@@ -179,9 +180,8 @@ export function Combobox({
     viewport?.addEventListener('scroll', onScroll);
     const observer =
       typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(refresh);
-    const intersection =
-      typeof IntersectionObserver === 'undefined' ? undefined : new IntersectionObserver(refresh);
-    intersection?.observe(field);
+    // Equal-count filter results can still change height through wrapping or group headings.
+    observer?.observe(list);
     for (let node: HTMLElement | null = field; node; node = node.parentElement)
       observer?.observe(node);
     return () => {
@@ -190,7 +190,6 @@ export function Combobox({
       viewport?.removeEventListener('resize', refresh);
       viewport?.removeEventListener('scroll', onScroll);
       observer?.disconnect();
-      intersection?.disconnect();
     };
   }, [captureCategory, open, listId, shown.length]);
   const optionId = (index: number) => `${listId}-${index}`;
@@ -204,11 +203,11 @@ export function Combobox({
         ? 0
         : -1;
   useLayoutEffect(() => {
-    if (!captureCategory || !open || !anchorVisible || activeIndex < 0) return;
+    if (!captureCategory || !open || activeIndex < 0) return;
     const list = document.getElementById(listId);
     const option = document.getElementById(`${listId}-${activeIndex}`);
     if (list) revealOption(list, option);
-  }, [captureCategory, open, anchorVisible, activeIndex, listId]);
+  }, [captureCategory, open, activeIndex, listId]);
 
   const pick = (option: ComboOption) => {
     onSelect(option);
@@ -225,25 +224,19 @@ export function Combobox({
             ref={inputRef}
             type={type}
             role="combobox"
-            aria-expanded={open && (!captureCategory || anchorVisible)}
+            aria-expanded={open}
             aria-controls={listId}
             aria-autocomplete="list"
-            aria-activedescendant={
-              open && (!captureCategory || anchorVisible) && activeIndex >= 0
-                ? optionId(activeIndex)
-                : undefined
-            }
+            aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
             aria-invalid={invalid}
             aria-describedby={describedBy}
             autoComplete="off"
             value={value}
             placeholder={placeholder}
             onFocus={(e) => {
-              // A newly focused split row can be outside the sheet after it grows. Reveal the
-              // anchor once; later manual scrolling still hides an offscreen picker.
+              // A newly focused split row can be outside the sheet after it grows.
               if (captureCategory) {
                 e.currentTarget.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-                setAnchorVisible(true);
               }
               setFocused(true);
               setDismissed(false);
@@ -263,17 +256,6 @@ export function Combobox({
             onKeyDown={(e) => {
               // Modifier shortcuts belong to the form; never consume Ctrl/Cmd+Enter as a pick.
               if (e.ctrlKey || e.metaKey || e.altKey) return;
-              if (
-                captureCategory &&
-                !anchorVisible &&
-                (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter')
-              ) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.currentTarget.scrollIntoView({ block: 'nearest' });
-                setDismissed(false);
-                return;
-              }
               if (!open) {
                 if (e.key === 'ArrowDown') setDismissed(false);
                 return;
@@ -304,7 +286,6 @@ export function Combobox({
               id={listId}
               role="listbox"
               aria-label={`${label}, Vorschläge`}
-              hidden={captureCategory && !anchorVisible}
             >
               {hintHeading !== undefined && shown.length > 0 && (
                 <li className="combo-head" role="presentation">
