@@ -230,7 +230,10 @@ const r07: Rule<'R07'> = (p, i) => {
   );
 };
 
-const r08: Rule<'R08'> = (p, i) => {
+const r08 = (
+  p: RuleParams<'R08'>,
+  i: Pick<RuleInputs, 'netIncomeMonthlyCents' | 'loanPaymentsMonthlyCents'>,
+): RuleEvaluation | null => {
   if (i.netIncomeMonthlyCents === null || i.loanPaymentsMonthlyCents === null) return null;
   const ratio = debtServiceRatio({
     loanPaymentsCents: i.loanPaymentsMonthlyCents,
@@ -244,6 +247,9 @@ const r08: Rule<'R08'> = (p, i) => {
     { ratioBp: ratio, loanPaymentsCents: i.loanPaymentsMonthlyCents },
   );
 };
+
+/** The identical R08 assessment for readers that do not need unrelated portfolio inputs. */
+export const evaluateDebtServiceRule = r08;
 
 const r09: Rule<'R09'> = (p, i) => {
   if (!i.debt) return null;
