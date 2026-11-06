@@ -303,23 +303,28 @@ export function ReconcileFlow({
           }
         >
           {({ id, describedBy, invalid }) => (
-            <TextInput
-              id={id}
-              money
-              inputMode="decimal"
-              aria-describedby={describedBy}
-              aria-invalid={invalid}
-              placeholder={
-                hidden || suggestedBalance === null
-                  ? undefined
-                  : formatDecimal(cents(suggestedBalance))
-              }
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              onBlur={() => {
-                if (statement !== null) setText(formatDecimal(statement));
-              }}
-            />
+            <div className="reconcile-balance">
+              <TextInput
+                id={id}
+                money
+                inputMode="decimal"
+                aria-describedby={describedBy}
+                aria-invalid={invalid}
+                placeholder={
+                  hidden || suggestedBalance === null
+                    ? undefined
+                    : formatDecimal(cents(suggestedBalance))
+                }
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                onBlur={() => {
+                  if (statement !== null) setText(formatDecimal(statement));
+                }}
+              />
+              <span className="amount-cur" aria-hidden="true">
+                {account.currency === 'EUR' ? '€' : account.currency}
+              </span>
+            </div>
           )}
         </Field>
       )}

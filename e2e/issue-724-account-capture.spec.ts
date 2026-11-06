@@ -1,4 +1,4 @@
-import { redesignLoaded } from './ledger-helpers';
+import { openAccountCapture, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext } from '@playwright/test';
 import { test as base } from './isolated-ledger';
@@ -101,8 +101,7 @@ for (const profile of ['configured', 'desktop1440'] as const) {
             exact: true,
           }),
         ).toBeVisible();
-        if (entry === 'page')
-          await page.getByRole('button', { name: 'Buchung erfassen', exact: true }).click();
+        if (entry === 'page') await openAccountCapture(page);
         else if (entry === 'shortcut') await page.keyboard.press('n');
         else if (await page.evaluate(() => matchMedia('(pointer: coarse)').matches))
           await page.getByRole('link', { name: 'Buchung erfassen', exact: true }).click();
@@ -170,7 +169,7 @@ for (const profile of ['configured', 'desktop1440'] as const) {
         });
       });
       await page.goto(`/konten/${viewed.id}`);
-      await page.getByRole('button', { name: 'Buchung erfassen', exact: true }).click();
+      await openAccountCapture(page);
       const dialog = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
       await dialog.getByLabel('Betrag', { exact: true }).fill('19,99');
       const date = dialog.getByRole('textbox', { name: 'Datum', exact: true });

@@ -29,3 +29,12 @@
   color: var(--ink-3);
   opacity: 1;
 }
+.reconcile-balance {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.reconcile-balance > .amount-cur {
+  grid-area: auto;
+}

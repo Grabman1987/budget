@@ -151,7 +151,7 @@ test('detail has one name, one return path and keyboard-only focus in both theme
             await page.keyboard.press('Tab');
             await expect(next).toBeFocused();
           }
-        } else await page.keyboard.press('Tab');
+        } else if (!redesign) await page.keyboard.press('Tab');
         await expect(badge).toBeFocused();
         await expect(focus).toHaveCSS('outline-width', '2px');
         await expect(focus).toHaveCSS('outline-style', 'solid');

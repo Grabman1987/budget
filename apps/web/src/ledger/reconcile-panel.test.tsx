@@ -165,6 +165,19 @@ it('does not confirm a typed stale balance when the server preview differs', asy
   );
 });
 
+it.each(['EUR', 'USD'])('keeps the %s unit beside the empty balance field', (currency) => {
+  show({ currency, clearedCents: 1234 });
+  const input = screen.getByLabelText(
+    currency === 'EUR' ? 'Saldo laut Bank' : `Saldo laut Bank · ${currency}`,
+  ) as HTMLInputElement;
+  expect(input.value).toBe('');
+  expect(input.placeholder).toBe('12,34');
+  expect(input.parentElement?.querySelector('.amount-cur')?.textContent).toBe(
+    currency === 'EUR' ? '€' : currency,
+  );
+  expect(sends).toEqual([]);
+});
+
 it('does not suggest today’s balance or bypass the month-close confirmation context', () => {
   const confirm = vi.fn();
   show({ clearedCents: 1234, balanceCents: 1234 }, undefined, {

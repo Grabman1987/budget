@@ -1,4 +1,4 @@
-import { categoryLineControl } from './ledger-helpers';
+import { openAccountCapture, categoryLineControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
@@ -101,7 +101,7 @@ for (const profile of [
       await page.goto(`/konten/${a.id}`);
       await expect(page.getByTestId('account-balance')).toHaveText('975,00 €');
 
-      await page.getByRole('button', { name: 'Buchung erfassen', exact: true }).click();
+      await openAccountCapture(page);
       let panel = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
       await panel.getByLabel('Betrag', { exact: true }).fill('10');
       await panel.getByLabel('Empfänger').fill('Synthetic509 split guard');
@@ -134,7 +134,7 @@ for (const profile of [
       expect((await splitUndo).status()).toBe(200);
       await expect(page.getByTestId('account-balance')).toHaveText('975,00 €');
 
-      await page.getByRole('button', { name: 'Buchung erfassen', exact: true }).click();
+      await openAccountCapture(page);
       panel = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
       await panel.getByRole('button', { name: 'Umbuchung', exact: true }).click();
       await panel

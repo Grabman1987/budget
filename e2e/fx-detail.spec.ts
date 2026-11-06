@@ -110,6 +110,13 @@ test('native detail, dated EUR history and reconciliation undo', async ({
   await expect(panel.locator('.kv-list')).toContainText('76,50 €');
   await expect(panel.locator('.kv-list')).toContainText('+0,75 €');
   await expect(panel.locator('.amount-cur')).toHaveText('USD');
+  const inputBox = (await panel
+    .getByLabel('Saldo laut Bank · USD', { exact: true })
+    .boundingBox())!;
+  const unitBox = (await panel.locator('.amount-cur').boundingBox())!;
+  expect(unitBox.x).toBeGreaterThanOrEqual(inputBox.x + inputBox.width);
+  expect(unitBox.y + unitBox.height / 2).toBeGreaterThanOrEqual(inputBox.y);
+  expect(unitBox.y + unitBox.height / 2).toBeLessThanOrEqual(inputBox.y + inputBox.height);
   expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
   // Full-page capture resizes the native desktop dialog; keep its draft in the real viewport.
   await page.screenshot({ path: join(info.outputDir, 'fx-reconciliation.png') });
