@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { createTestDatabase, type OpenedDatabase } from '@budget/db';
+import { createTestDatabase, ensureDefaultRules, type OpenedDatabase } from '@budget/db';
 import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
 import { ToastProvider } from '@budget/ui';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import {
   Outlet,
   RouterProvider,
@@ -12,7 +12,7 @@ import {
   createMemoryHistory,
   useLocation,
 } from '@tanstack/react-router';
-import { act, cleanup, render, screen, within, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createLedgerApi } from '../../../server/src/api';
@@ -25,6 +25,10 @@ import { ProjectSettings } from './project-settings';
 import { InflationBasketSettingsPage } from './inflation-basket-settings';
 import { ExportPlaceholderPage } from './export-placeholder';
 import { AppLink } from '../shell/app-link';
+import { BookInputForm } from '../rules/book-input-form';
+import { RulePanel } from '../rules/rule-panel';
+import { SettingsRuleList } from '../rules/settings-rule-list';
+import { rulesQuery } from '../rules/use-rule-writes';
 
 vi.mock('../shell/redesign-flag', () => ({ REDESIGN_ENABLED: true }));
 const databases: OpenedDatabase[] = [];
@@ -60,6 +64,7 @@ function mount(
   const database = createTestDatabase();
   databases.push(database);
   seedBasics(database.db);
+  ensureDefaultRules(database.db);
   const api = createLedgerApi({
     db: database.db,
     today: () => '2026-09-17',
@@ -132,18 +137,26 @@ it('E3 ON puts categories in compact groups and retains edit, order and hidden-c
   expect(document.querySelector('.settings-category-list')).not.toBeNull();
   expect(screen.getByRole('button', { name: 'Essen verschieben' })).toBeTruthy();
 });
-it('E4 ON orders the five real sources and makes unavailable-source recovery accessible', async () => {
-  mount(<DataSourcesPage />, '/einstellungen/datenquellen');
+it('E4 ON orders the real sources and makes unavailable-source recovery accessible', async () => {
+  const { writes } = mount(<DataSourcesPage />, '/einstellungen/datenquellen');
   await screen.findByRole('heading', { name: 'Verbindungen' });
   expect(
     [...document.querySelectorAll('.settings-source-copy strong')].map(
       (element) => element.textContent,
     ),
-  ).toEqual(['Bank', 'Krypto', 'Gehaltszettel', 'Kurse', 'VPI']);
+  ).toEqual(['Bank', 'Krypto', 'Spritmonitor', 'Gehaltszettel', 'Kurse', 'VPI']);
+  const fuel = screen.getByRole('region', { name: 'Spritmonitor' });
+  await userEvent.click(within(fuel).getByRole('button', { name: 'Prüfen' }));
+  await within(fuel).findByText(/Die Verbindung wird am Server eingerichtet/);
+  expect(within(fuel).getByRole('button', { name: 'Jetzt abrufen' }).hasAttribute('disabled')).toBe(
+    true,
+  );
+  expect(within(fuel).queryByRole('textbox')).toBeNull();
   const bank = screen.getByRole('region', { name: 'Bank' });
   await userEvent.click(within(bank).getByRole('button', { name: 'Prüfen' }));
   await within(bank).findByText(/Bank-Sync ist noch nicht eingerichtet/);
   expect(within(bank).getByText(/Noch kein erfolgreicher Abruf/)).toBeTruthy();
+  expect(writes).toEqual([]);
 });
 it('shows loading source dates and reads only VPI reference metadata on settings entry', async () => {
   let release!: () => void;
@@ -156,7 +169,12 @@ it('shows loading source dates and reads only VPI reference metadata on settings
     await pending;
   });
   await screen.findByRole('heading', { name: 'Verbindungen' });
-  expect(screen.getAllByText(/Letzter Erfolg: Wird geladen/)).toHaveLength(4);
+  expect(screen.getAllByText(/Letzter Erfolg: Wird geladen/)).toHaveLength(5);
+  for (const name of ['Bank', 'Krypto', 'Spritmonitor', 'Kurse', 'VPI']) {
+    expect(
+      within(screen.getByRole('region', { name })).getByText(/Letzter Erfolg: Wird geladen/),
+    ).toBeTruthy();
+  }
   const payslip = within(screen.getByRole('region', { name: 'Gehaltszettel' }));
   expect(payslip.getByText('Letzter Scanversuch: Wird geladen …')).toBeTruthy();
   expect(payslip.queryByText(/Letzter Erfolg:/)).toBeNull();
@@ -165,10 +183,12 @@ it('shows loading source dates and reads only VPI reference metadata on settings
   await act(async () => release());
   await waitFor(() => expect(view.client.isFetching()).toBe(0));
   expect(paths).toContain('/api/inflation-basket/reference');
+  expect(paths).toContain('/api/sources/spritmonitor');
   expect(paths).not.toContain('/api/reports/spending/inflation');
   expect(screen.queryByText(/Letzter Erfolg: Wird geladen/)).toBeNull();
   expect(payslip.queryByText(/Letzter Scanversuch: Wird geladen/)).toBeNull();
   expect(payslip.getByText('Letzter Scanversuch: Noch kein Scanversuch')).toBeTruthy();
+  expect(view.writes).toEqual([]);
 });
 it('E5 ON provides the one persisted target editor as a settings destination', async () => {
   mount(<AssetClassesSettingsPage />, '/einstellungen/anlageklassen?ansicht=stufen');
@@ -188,14 +208,125 @@ it('E6 ON presents actual security factors and cancellation never ends another s
   await userEvent.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
   expect(writes).toEqual([]);
 });
-it('E7 ON distinguishes the real CSV download from an unavailable encrypted restore backup', async () => {
+it('E7 ON distinguishes the CSV download from the encrypted restore backup', async () => {
   mount(<ExportPlaceholderPage />, '/einstellungen/export');
   await screen.findByRole('button', { name: 'ZIP-Export herunterladen' });
   expect(screen.getByRole('heading', { name: 'Verschlüsselte Sicherung' })).toBeTruthy();
   expect(
-    screen.getByText('Der verschlüsselte Backup-Download ist derzeit nicht verfügbar.'),
+    screen.getByRole('button', { name: 'Verschlüsselte Sicherung herunterladen' }),
   ).toBeTruthy();
-  expect(screen.queryByRole('button', { name: /Backup|Sicherung/ })).toBeNull();
+  expect(screen.getByText(/privaten age-Schlüssel/)).toBeTruthy();
+});
+
+it('E7 ON downloads the encrypted artifact separately and keeps failures retryable', async () => {
+  mount(<ExportPlaceholderPage />, '/einstellungen/export');
+  const button = await screen.findByRole('button', {
+    name: 'Verschlüsselte Sicherung herunterladen',
+  });
+  const fetch = vi.mocked(globalThis.fetch);
+  fetch.mockResolvedValueOnce(
+    new Response(JSON.stringify({ error: 'backup_missing' }), { status: 404 }),
+  );
+  await userEvent.click(button);
+  await screen.findByRole('alert');
+  expect(screen.getByRole('alert').textContent).toContain('keine abgeschlossene');
+  expect(button.hasAttribute('disabled')).toBe(false);
+  fetch.mockResolvedValueOnce(
+    new Response('synthetic ciphertext', {
+      headers: { 'content-disposition': 'attachment; filename="budget-2026-11-05.tar.age"' },
+    }),
+  );
+  const createUrl = vi.fn(() => 'blob:synthetic');
+  vi.stubGlobal(
+    'URL',
+    class extends URL {
+      static override createObjectURL = createUrl;
+      static override revokeObjectURL = vi.fn();
+    },
+  );
+  const downloads: string[] = [];
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+    this: HTMLAnchorElement,
+  ) {
+    downloads.push(this.download);
+  });
+  await userEvent.click(button);
+  await screen.findByText('Sicherung heruntergeladen: budget-2026-11-05.tar.age');
+  expect(downloads).toEqual(['budget-2026-11-05.tar.age']);
+  expect(createUrl).toHaveBeenCalledOnce();
+  expect(fetch).toHaveBeenLastCalledWith('/api/export/backup.age', { credentials: 'same-origin' });
+  expect(screen.queryByRole('alert')).toBeNull();
+});
+
+it('E3 ON exposes advanced thresholds through the same settings detail route', async () => {
+  mount(<SettingsRuleList />, '/einstellungen/regelwerk');
+  const link = await screen.findByRole('link', { name: 'Schwellen bearbeiten R02 Notgroschen' });
+  expect(link.getAttribute('href')).toBe('/einstellungen/regelwerk/R02?bearbeiten=true');
+});
+
+it('E3 ON guards even invalid threshold drafts, validates, saves and undoes through the existing writer', async () => {
+  const close = vi.fn();
+  function Threshold() {
+    const query = useQuery(rulesQuery());
+    return (
+      <RulePanel
+        rule={query.data?.rules.find((row) => row.code === 'R02') ?? null}
+        onClose={close}
+      />
+    );
+  }
+  const { writes } = mount(<Threshold />, '/einstellungen/regelwerk/R02');
+  const input = await screen.findByLabelText('Mindestens');
+  await userEvent.clear(input);
+  await userEvent.type(input, '5000');
+  expect(screen.getByRole('button', { name: 'Speichern' }).hasAttribute('disabled')).toBe(true);
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  await userEvent.click(screen.getByRole('button', { name: 'Schließen' }));
+  expect(confirm).toHaveBeenCalledWith('Ungespeicherte Änderungen verwerfen?');
+  expect(close).not.toHaveBeenCalled();
+  expect(writes).toEqual([]);
+  await userEvent.clear(input);
+  await userEvent.type(input, '2');
+  await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+  await waitFor(() =>
+    expect((screen.getByLabelText('Mindestens') as HTMLInputElement).value).toBe('2'),
+  );
+  await userEvent.click(await screen.findByRole('button', { name: 'Rückgängig' }));
+  await waitFor(() =>
+    expect((screen.getByLabelText('Mindestens') as HTMLInputElement).value).toBe('3'),
+  );
+  expect(writes).toContain('PATCH /api/rules/R02');
+  expect(writes).toContain('POST /api/undo');
+});
+
+it('E3 ON guards book-input drafts and preserves validation, cents and Undo', async () => {
+  const { router, writes } = mount(<BookInputForm />, '/einstellungen/regelwerk', [
+    '/einstellungen/kategorien',
+  ]);
+  const month = await screen.findByLabelText('Beitragsmonat');
+  await userEvent.type(month, '2026-08');
+  const amount = screen.getByLabelText('Arbeitgeberbeitrag Pensionskasse');
+  await userEvent.type(amount, '-1');
+  await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+  expect(screen.getByRole('alert').textContent).toContain('Bitte einen Beitrag');
+  expect(writes).toEqual([]);
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  await act(async () => {
+    void router.navigate({ to: '/einstellungen/kategorien' });
+  });
+  await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
+  expect(router.state.location.pathname).toBe('/einstellungen/regelwerk');
+  expect(confirm).toHaveBeenCalledOnce();
+  await userEvent.clear(amount);
+  await userEvent.type(amount, '23');
+  await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+  await screen.findByRole('table');
+  expect(screen.getByRole('table').textContent).toContain('23,00');
+  await userEvent.click(await screen.findByRole('button', { name: 'Rückgängig' }));
+  await waitFor(() => expect(screen.queryByRole('table')).toBeNull());
+  expect((screen.getByLabelText('Beitragsmonat') as HTMLInputElement).value).toBe('');
+  expect(writes).toContain('PATCH /api/rules/inputs');
+  expect(writes).toContain('POST /api/undo');
 });
 
 it('E3 ON refuses a stale category save and retains the typed draft', async () => {
