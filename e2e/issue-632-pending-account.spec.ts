@@ -169,16 +169,14 @@ test('pending and confirmed account rows remain distinct, readable and read-only
   expect(historyReads.length).toBeGreaterThanOrEqual(2);
   expect(historyReads.every((url) => !url.searchParams.has('status'))).toBe(true);
 
-  // The planned occurrence remains #579's separate collapsed row, never a pending booking.
+  // The planned occurrence remains separate and visible initially, never a pending booking.
   const upcoming = page.locator('.kupcoming-toggle');
   await expect(upcoming).toHaveText(
     (await redesignLoaded(page))
       ? `Kommend1 kommend · nächste: ${tag} geplant 20.10.`
       : `1 kommend · nächste: ${tag} geplant 20.10.`,
   );
-  await expect(upcoming).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.locator('[data-occurrence]')).toHaveCount(0);
-  await upcoming.click();
+  await expect(upcoming).toHaveAttribute('aria-expanded', 'true');
   const planned = page.locator('.kupcoming [data-occurrence]');
   await expect(planned).toHaveCount(1);
   await expect(planned.getByRole('img', { name: 'Nächste Wiederholung' })).toBeVisible();

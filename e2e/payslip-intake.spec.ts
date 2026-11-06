@@ -177,8 +177,10 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   await page.goto('/konten/posteingang');
   await openPruefenPart(page, 'Aufgaben');
   await openPruefenSource(page, 'Gehaltszettel');
-  const row = page.getByTestId('inbox-row').filter({ hasText: 'Gehaltszettel 09/2026 erkannt' });
-  await row.getByText('Gehaltszettel prüfen', { exact: true }).click();
+  const row = page.getByTestId('inbox-row').filter({ hasText: 'synthetic-202701.pdf' });
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText('Abrechnungsmonat 09/2026');
+  await row.getByRole('button', { name: 'Gehaltszettel prüfen', exact: true }).click();
   const inboxReview = page.getByRole('dialog', { name: 'Gehaltszettel prüfen' });
   await expect(inboxReview).toContainText('innerhalb 1 Cent');
   await inboxReview.getByRole('button', { name: 'Ablehnen', exact: true }).click();

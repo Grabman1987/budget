@@ -155,6 +155,7 @@ for (const profile of ['configured', 'desktop', 'phone-tall'] as const) {
             };
             return {
               viewport: { width: innerWidth, height: innerHeight },
+              redesigned: element.closest('[data-budget-redesign="1"]') !== null,
               documentWidth: document.documentElement.scrollWidth,
               dpr: devicePixelRatio,
               rawTouchPoints: navigator.maxTouchPoints,
@@ -170,7 +171,18 @@ for (const profile of ['configured', 'desktop', 'phone-tall'] as const) {
               ),
               categories: Array.from(
                 element.querySelectorAll('tbody > .prow:not(.psingle):not(.is-empty)'),
-                box,
+                (row) => {
+                  const cell = row.querySelector('.col-name')!;
+                  const name = row.querySelector('.pname')!.getBoundingClientRect();
+                  const bar = row.querySelector('.spending-bar')!.getBoundingClientRect();
+                  return {
+                    ...box(row),
+                    nameHeight: name.height,
+                    barHeight: bar.height,
+                    bottomPadding: Number.parseFloat(getComputedStyle(cell).paddingBlockEnd),
+                    rowPadding: Number.parseFloat(getComputedStyle(row).paddingBlockEnd),
+                  };
+                },
               ),
             };
           });
@@ -214,9 +226,11 @@ for (const profile of ['configured', 'desktop', 'phone-tall'] as const) {
             expect(parent.height, parent.id).toBeGreaterThan(0);
             expect(parent.height, parent.id).toBeLessThanOrEqual(phone ? 76 : 36);
             expect(parent.bottom, parent.id).toBeLessThanOrEqual(parent.first.top);
-            expect(parent.first.bottom - parent.top, parent.id).toBeLessThanOrEqual(
-              phone ? 152 : 76,
-            );
+            const combinedHeight = parent.first.bottom - parent.top;
+            if (geometry.redesigned) {
+              expect(combinedHeight, parent.id).toBeGreaterThanOrEqual(80);
+              expect(combinedHeight, parent.id).toBeLessThanOrEqual(phone ? 152 : 100);
+            } else expect(combinedHeight, parent.id).toBeLessThanOrEqual(phone ? 152 : 76);
             expect(parent.controls.length, parent.id).toBeGreaterThan(0);
             if (phone)
               for (const control of parent.controls) {
@@ -226,7 +240,13 @@ for (const profile of ['configured', 'desktop', 'phone-tall'] as const) {
           }
           for (const category of geometry.categories) {
             expect(category.height).toBeGreaterThan(0);
-            expect(category.height).toBeLessThanOrEqual(phone ? 76 : 40);
+            if (geometry.redesigned) {
+              expect(category.nameHeight).toBeGreaterThanOrEqual(44);
+              expect(category.barHeight).toBe(4);
+              expect(phone ? category.rowPadding : category.bottomPadding).toBe(8);
+              expect(category.height).toBeGreaterThanOrEqual(56);
+              expect(category.height).toBeLessThanOrEqual(phone ? 76 : 64);
+            } else expect(category.height).toBeLessThanOrEqual(phone ? 76 : 40);
           }
           const toggle = page.getByRole('button', { name: 'Gruppe Wohnen', exact: true });
           await toggle.focus();

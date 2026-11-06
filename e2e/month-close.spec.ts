@@ -115,7 +115,7 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   await expect(page.getByRole('heading', { name: '2. Konten abgleichen' })).toBeVisible();
   await page.getByRole('button', { name: 'Kontostand prüfen', exact: true }).click();
   await page.getByLabel('Saldo laut Bank').fill('96');
-  await page.getByRole('button', { name: /Festschreiben/ }).click();
+  await page.getByRole('button', { name: 'Kontostand stimmt' }).click();
   // The previous mutation's onDone clears the shared selected row. Wait for that
   // completion before opening the next account's value editor.
   await expect(page.getByLabel('Saldo laut Bank')).toBeHidden();

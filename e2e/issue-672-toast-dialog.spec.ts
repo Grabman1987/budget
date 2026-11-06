@@ -32,7 +32,7 @@ test('a visible toast does not cover the Speichern button of an open dialog', as
   await page.getByRole('button', { name: 'Kontostand prüfen' }).click();
   const check = page.getByRole('dialog', { name: `Kontostand prüfen · ${name}` });
   await check.getByLabel('Saldo laut Bank', { exact: true }).fill('480');
-  await check.getByRole('button', { name: /Festschreiben/ }).click();
+  await check.getByRole('button', { name: 'Kontostand stimmt' }).click();
   await expect(toast(page)).toContainText('Kontostand geprüft');
 
   // The toast is still open (6 s) when the edit dialog opens; it must stay on the page.

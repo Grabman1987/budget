@@ -590,6 +590,10 @@
 .bkform-redesign .bk-amount-primary .amount-box {
   grid-template-columns: minmax(0, 1fr) auto;
 }
+/* The amount box already provides the focus ring for its input. */
+.bkform-redesign .bk-amount-primary .amount-input:focus-visible {
+  outline: 0;
+}
 .bkform-redesign .bk-close::after {
   display: none;
 }

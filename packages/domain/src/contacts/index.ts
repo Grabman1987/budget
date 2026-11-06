@@ -5,6 +5,10 @@ export interface ContactMovement {
   date: string;
   amountCents: number;
   memo: string | null;
+  /** Optional source labels supplied by the statement reader, never calculation inputs. */
+  bookingMemo?: string | null;
+  payeeName?: string | null;
+  categoryName?: string | null;
 }
 export interface ContactAllocation {
   outlaySplitId: string;

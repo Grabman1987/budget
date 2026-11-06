@@ -65,12 +65,16 @@ test('collapses "Kommend" to one row with hover-only actions and a full, keyboar
   const scheduled = page.locator('.kupcoming [data-occurrence]');
   const touch = info.project.name !== 'desktop';
 
-  // Collapsed by default: one line, and the history starts inside the first viewport.
+  // Account future rows are visible initially; the explicit collapse keeps the compact history view.
   await expect(toggle).toHaveText(
     (await redesignLoaded(page))
       ? 'Kommend19 kommend · nächste: Wöchentlich Muster 19.10.'
       : '19 kommend · nächste: Wöchentlich Muster 19.10.',
   );
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('.kupcoming [data-booking]')).toHaveCount(18);
+  await expect(scheduled).toHaveCount(1);
+  await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('.kupcoming [data-booking], .kupcoming [data-occurrence]')).toHaveCount(
     0,
