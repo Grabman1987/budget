@@ -276,6 +276,7 @@ for (const profile of ['desktop', 'phone'] as const)
             {
               ...source.splits[0],
               categoryId: gift.id,
+              categoryKind: 'variable',
               categoryName: 'Synthetisches Geschenk',
               contactId: null,
             },
