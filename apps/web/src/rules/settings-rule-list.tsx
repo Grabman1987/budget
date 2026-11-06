@@ -6,7 +6,7 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import { AppLink } from '../shell/app-link';
 import { patchRule } from './api';
 import { rulesQuery, useRuleWrite } from './use-rule-writes';
-import { thresholdText } from './rules-model';
+import { RULE_FIELDS, thresholdText } from './rules-model';
 
 /** Compact settings overview. It uses the same registered rules and audited writer as Finanz-Check. */
 export function SettingsRuleList() {
@@ -31,6 +31,17 @@ export function SettingsRuleList() {
                 <small>{thresholdText(rule.code, rule.params)}</small>
               </div>
               <div className="settings-row-actions">
+                {(RULE_FIELDS[rule.code] ?? []).length > 0 && (
+                  <AppLink
+                    className="btn btn-ghost"
+                    aria-label={`Schwellen bearbeiten ${rule.code} ${rule.name}`}
+                    to={`/einstellungen/regelwerk/${rule.code}`}
+                    search={(previous) => ({ monat: previous['monat'], bearbeiten: true })}
+                    state={{ panelOpenedInApp: true, ruleDetailOpenedInApp: true }}
+                  >
+                    Schwellen
+                  </AppLink>
+                )}
                 <AppLink
                   className="btn btn-ghost"
                   aria-label={`Einstellen ${rule.code} ${rule.name}`}

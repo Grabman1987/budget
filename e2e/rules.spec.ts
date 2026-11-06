@@ -104,7 +104,7 @@ test('violations lead with values, thresholds and correction links; disabled rul
     }
   }
   await expect(page.locator('.rw-disabled')).not.toHaveAttribute('open');
-  await expect(page.locator('.rw-sec').first()).toHaveAttribute('aria-labelledby', 'rl-title');
+  await expect(page.locator('.rw .rw-sec').first()).toHaveAttribute('aria-labelledby', 'rl-title');
   const fix = r02.getByRole('link', { name: 'Im Plan aufstocken' });
   await expect(fix).toHaveAttribute('href', '/plan/monat');
   await fix.click();
@@ -194,9 +194,39 @@ test('the rule status page separates thresholds and is axe clean', async ({ page
   await panel.getByLabel('Mindestens').fill('5000');
   await expect(panel.getByRole('alert')).toContainText('Zwischen 0 und 1200');
   await expect(panel.getByRole('button', { name: 'Speichern' })).toBeDisabled();
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    page.once('dialog', (dialog) => dialog.accept());
   await page.keyboard.press('Escape');
   await expect(panel).toBeHidden();
   await expect(opener).toBeFocused();
+});
+
+test('redesign opens advanced thresholds directly and retains rejected dirty drafts', async ({
+  page,
+}) => {
+  await page.goto('/einstellungen/regelwerk');
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) !== '1') {
+    await expect(page.locator('.settings-rule-list')).toHaveCount(0);
+    return;
+  }
+  const opener = page.getByRole('link', {
+    name: 'Schwellen bearbeiten R02 Notgroschen',
+    exact: true,
+  });
+  await opener.click();
+  const dialog = page.getByRole('dialog', { name: /Schwellen bearbeiten.*R02/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Mindestens').fill('5000');
+  await expect(dialog.getByRole('button', { name: 'Speichern' })).toBeDisabled();
+  page.once('dialog', (confirmation) => confirmation.dismiss());
+  await page.keyboard.press('Escape');
+  await expect(dialog.getByLabel('Mindestens')).toHaveValue('5000');
+  page.once('dialog', (confirmation) => confirmation.accept());
+  await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await expect(page).toHaveURL(/\/einstellungen\/regelwerk$/);
+  await expect(opener).toBeVisible();
+  await page.locator('.settings-book-inputs > summary').click();
+  await expect(page.getByLabel('Geburtsmonat und Jahr')).toBeVisible();
 });
 
 test('phone: switches and buttons are 44 px targets', async ({ page }, testInfo) => {
@@ -356,6 +386,8 @@ test('book rules start disabled, toggle and threshold edit are undoable', async 
   await expect(panel.getByLabel('Ziel Bruttoquote')).toHaveValue('25');
   await page.keyboard.press('Escape');
   await page.getByRole('link', { name: 'Zurück zum Regelwerk', exact: true }).click();
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+    await page.locator('.settings-book-inputs > summary').click();
   await expect(page.getByLabel('Geburtsmonat und Jahr')).toHaveValue('');
 
   // Saving and undoing private inputs must refresh the form as well as the stored rows.
