@@ -164,13 +164,20 @@ it('shows loading source dates and reads only VPI reference metadata on settings
     await pending;
   });
   await screen.findByRole('heading', { name: 'Verbindungen' });
-  expect(screen.getAllByText(/Letzter Erfolg: Wird geladen/)).toHaveLength(5);
+  expect(screen.getAllByText(/Letzter Erfolg: Wird geladen/)).toHaveLength(6);
+  for (const name of ['Bank', 'Krypto', 'Spritmonitor', 'Gehaltszettel', 'Kurse', 'VPI']) {
+    expect(
+      within(screen.getByRole('region', { name })).getByText(/Letzter Erfolg: Wird geladen/),
+    ).toBeTruthy();
+  }
   expect(screen.queryByText(/Letzter Erfolg: Nicht verfügbar/)).toBeNull();
   await act(async () => release());
   await waitFor(() => expect(view.client.isFetching()).toBe(0));
   expect(paths).toContain('/api/inflation-basket/reference');
+  expect(paths).toContain('/api/sources/spritmonitor');
   expect(paths).not.toContain('/api/reports/spending/inflation');
   expect(screen.queryByText(/Letzter Erfolg: Wird geladen/)).toBeNull();
+  expect(view.writes).toEqual([]);
 });
 it('E5 ON provides the one persisted target editor as a settings destination', async () => {
   mount(<AssetClassesSettingsPage />, '/einstellungen/anlageklassen?ansicht=stufen');
