@@ -677,6 +677,7 @@
     flex-direction: column;
     gap: 0;
   }
+  .hv-booking-list strong,
   .hv-booking-list small {
     max-width: 100%;
   }

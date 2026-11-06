@@ -1,4 +1,6 @@
+import { bookingCounterparty } from '../ledger/booking-counterparty';
 import {
+  privateAmount,
   useAmountPrivacy,
   ChartValue,
   Button,
@@ -484,10 +486,12 @@ function HeuteBody({
                   aria-hidden="true"
                 />
                 <div>
-                  <strong>{item.payeeName ?? 'Ohne Empfänger'}</strong>
+                  <strong>{privateAmount(bookingCounterparty(item))}</strong>
                   <span>
                     {longDay(item.date)} ·{' '}
-                    {[item.categoryName, item.memo].filter(Boolean).join(' · ') || 'Ohne Kategorie'}
+                    {[item.categoryName, item.memo ? privateAmount(item.memo) : null]
+                      .filter(Boolean)
+                      .join(' · ') || 'Ohne Kategorie'}
                   </span>
                 </div>
                 <div>

@@ -78,6 +78,9 @@ export async function warmReadModels(api: Hono, today: () => string): Promise<nu
     } catch {
       // A failing page is for the first real visit to report.
     }
+    // Both cold models are synchronous CPU work. Give ready HTTP/health I/O a turn
+    // between them; awaiting an already-computed response only drains microtasks.
+    await new Promise<void>((done) => setImmediate(done));
   }
   return warmed;
 }
