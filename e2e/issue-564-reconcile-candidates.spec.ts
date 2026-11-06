@@ -98,12 +98,12 @@ test('564 partial pending and duplicate candidates precede corrections, retain e
     });
   }
   await pendingRow.getByRole('button', { name: 'Bestätigen', exact: true }).click();
-  await expect(check.getByRole('button', { name: /Differenz ausgleichen/ })).toContainText(
-    '−10,00 €',
-  );
-  await expect(check.getByRole('button', { name: /Differenz ausgleichen/ })).not.toContainText(
-    '−40,00 €',
-  );
+  await expect(
+    check.locator('.text-muted').filter({ hasText: 'Eine echte Buchung' }),
+  ).toContainText('−10,00 €');
+  await expect(
+    check.locator('.text-muted').filter({ hasText: 'Eine echte Buchung' }),
+  ).not.toContainText('−40,00 €');
   expect(
     (await read(partial.id)).map((row: { status: string; amountCents: number }) => [
       row.amountCents,
@@ -124,14 +124,14 @@ test('564 partial pending and duplicate candidates precede corrections, retain e
   await expect(candidate).toContainText('−12,34 €');
   await expect(check.getByRole('button', { name: /Differenz ausgleichen/ })).toHaveCount(0);
   await candidate.getByRole('button', { name: 'Ignorieren', exact: true }).click();
-  await expect(check.getByRole('button', { name: /Differenz ausgleichen/ })).toContainText(
-    '+12,34 €',
-  );
+  await expect(
+    check.locator('.text-muted').filter({ hasText: 'Eine echte Buchung' }),
+  ).toContainText('+12,34 €');
   expect(await read(duplicates.id)).toEqual(beforeTwins);
   await candidate.getByRole('button', { name: 'Ignorieren rückgängig', exact: true }).click();
   await expect(check.getByRole('button', { name: /Differenz ausgleichen/ })).toHaveCount(0);
   await candidate.getByRole('button', { name: 'Doppelte Buchung entfernen', exact: true }).click();
-  await expect(check.getByRole('button', { name: 'Festschreiben (1)', exact: true })).toBeVisible();
+  await expect(check.getByRole('button', { name: 'Kontostand stimmt', exact: true })).toBeVisible();
   await expect(check.getByRole('button', { name: /Differenz ausgleichen/ })).toHaveCount(0);
   expect(postedChecks).toBe(0);
   await check.getByRole('button', { name: 'Schließen', exact: true }).click();
@@ -143,7 +143,7 @@ test('564 partial pending and duplicate candidates precede corrections, retain e
     .first()
     .getByRole('button', { name: 'Doppelte Buchung entfernen', exact: true })
     .click();
-  await check.getByRole('button', { name: 'Festschreiben (1)', exact: true }).click();
+  await check.getByRole('button', { name: 'Kontostand stimmt', exact: true }).click();
   await expect(check).not.toBeVisible();
   const locked = await read(duplicates.id);
   expect(
@@ -165,7 +165,7 @@ test('564 partial pending and duplicate candidates precede corrections, retain e
   ).toEqual([[-1234, 'confirmed']]);
 });
 
-test('565 contextual correction default, account memory, archived fallback and exact adjustment Undo', async ({
+test('canonical uncategorised correction ignores old preferences and retains exact adjustment Undo', async ({
   page,
   isolatedLedger,
 }, info) => {
@@ -204,27 +204,30 @@ test('565 contextual correction default, account memory, archived fallback and e
     second = await create('Synthetic correction B'),
     tracking = await create('Synthetic tracking', false);
   const check = page.getByRole('dialog', { name: /Kontostand prüfen/ });
-  const select = check.getByLabel('Kategorie für den Ausgleich');
+  const correctionNote = check.locator('.text-muted').filter({ hasText: 'Eine echte Buchung' });
   const open = async (id: string) => {
     await page.goto(`/konten/${id}?pruefen=reconcile`);
     await check.getByLabel('Stichtag', { exact: true }).fill('2026-09-30');
     await check.getByLabel('Saldo laut Bank', { exact: true }).fill('987,66');
-    await expect(select).toBeVisible();
-    await expect(check.getByRole('button', { name: /Differenz ausgleichen/ })).toContainText(
-      '−12,34 €',
-    );
+    await expect(correctionNote).toBeVisible();
+    await expect(check.getByLabel('Kategorie für den Ausgleich')).toHaveCount(0);
+    await expect(
+      check.locator('.text-muted').filter({ hasText: 'Eine echte Buchung' }),
+    ).toContainText('−12,34 €');
   };
   await open(first.id);
-  await expect(select).toHaveValue('');
-  await expect(select.locator('option:checked')).toHaveText('Zu verteilen');
-  await select.selectOption(category.id);
+  await expect(correctionNote).toContainText('Zu verteilen (ohne Kategorie)');
+  await page.evaluate(
+    ({ id, categoryId }) => localStorage.setItem(`budget-reconcile-category:${id}`, categoryId),
+    { id: first.id, categoryId: category.id },
+  );
   await check.getByRole('button', { name: 'Schließen', exact: true }).click();
   await open(second.id);
-  await expect(select).toHaveValue('');
+  await expect(correctionNote).toContainText('Zu verteilen (ohne Kategorie)');
   await open(tracking.id);
-  await expect(select.locator('option:checked')).toHaveText('Ohne Kategorie');
+  await expect(correctionNote).toContainText('keiner Kategorie');
   await open(first.id);
-  await expect(select).toHaveValue(category.id);
+  await expect(correctionNote).toContainText('Zu verteilen (ohne Kategorie)');
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
@@ -236,17 +239,25 @@ test('565 contextual correction default, account memory, archived fallback and e
       page.viewportSize()!.width,
     );
     if (info.project.name !== 'desktop') {
-      await select.evaluate((element) => element.scrollIntoView({ block: 'center' }));
-      const r = await select.boundingBox();
+      await check
+        .getByRole('button', { name: 'Differenz ausgleichen', exact: true })
+        .evaluate((element) => element.scrollIntoView({ block: 'center' }));
+      const r = await check
+        .getByRole('button', { name: 'Differenz ausgleichen', exact: true })
+        .boundingBox();
       expect(r!.height).toBeGreaterThanOrEqual(44);
       expect(r!.width).toBeGreaterThanOrEqual(44);
       expect(r!.x).toBeGreaterThanOrEqual(0);
       expect(r!.x + r!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
       expect(
-        await select.evaluate((element) => {
-          const r = element.getBoundingClientRect();
-          return element.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
-        }),
+        await check
+          .getByRole('button', { name: 'Differenz ausgleichen', exact: true })
+          .evaluate((element) => {
+            const r = element.getBoundingClientRect();
+            return element.contains(
+              document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2),
+            );
+          }),
       ).toBe(true);
     }
   }
@@ -271,12 +282,10 @@ test('565 contextual correction default, account memory, archived fallback and e
         row.splits.map((split) => [split.categoryId, split.amountCents]),
       ],
     ),
-  ).toEqual([[-1234, 'reconciled', [[category.id, -1234]]]]);
+  ).toEqual([[-1234, 'reconciled', [[null, -1234]]]]);
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect.poll(read).toEqual([]);
   await request('PATCH', `/categories/${category.id}`, { hidden: true });
   await open(first.id);
-  await expect(select).toHaveValue('');
-  await expect(select.locator('option:checked')).toHaveText('Zu verteilen');
-  await expect(select.locator(`option[value="${category.id}"]`)).toHaveCount(0);
+  await expect(correctionNote).toContainText('Zu verteilen (ohne Kategorie)');
 });

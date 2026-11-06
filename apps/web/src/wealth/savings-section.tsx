@@ -17,6 +17,7 @@ import { BANK_NOTE, currentRates, planGroups } from './savings-model';
 import { SavingsPanel } from './savings-panel';
 import './savings.css';
 import { FundingPlanner } from './funding-plan';
+import { PortfolioStrategySection } from './strategy-page';
 
 export function SavingsSection({
   navigationPath = '/vermoegen/portfolio',
@@ -290,6 +291,7 @@ export function SavingsSection({
       )}
       <p className="vnote">{BANK_NOTE}</p>
       <FundingPlanner />
+      {REDESIGN_ENABLED && <PortfolioStrategySection />}
       {search.sparplan && ready && (
         <SavingsPanel
           key={search.sparplan}

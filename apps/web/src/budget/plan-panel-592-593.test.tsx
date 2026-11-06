@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider, setAmountsHidden } from '@budget/ui';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { PlanAutomatic } from './plan-automatic';
+import { PlanAssignmentPreview, selectedAssignmentPreview } from './plan-assignment-preview';
 import { EnvelopeBody } from './envelope-panel';
 import { PlanInspector } from './plan-inspector';
 import type { PlanRow } from './plan-model';
@@ -47,6 +48,156 @@ const row = (over: Partial<PlanRow> = {}): PlanRow => ({
     historyMonths: [],
   },
   ...over,
+});
+
+const target = {
+  id: 'target',
+  categoryId: 'a',
+  kind: 'monthly' as const,
+  amountCents: 1000,
+  everyMonths: 1,
+  targetDate: null,
+  dueDay: null,
+  validFrom: '2026-10',
+};
+
+it('514 previews selected targets in the existing supplied order with literal funding and shortfall', () => {
+  const selected = [
+    row({ id: 'later-stage', categoryId: 'later-stage', stage: 8, needCents: 600, target }),
+    row({
+      id: 'first-stage',
+      categoryId: 'first-stage',
+      stage: 1,
+      assignedCents: 0,
+      needCents: 200,
+      target,
+    }),
+  ];
+  const original = structuredClone(selected);
+  const preview = selectedAssignmentPreview(selected, 'target', 500);
+  expect(preview.deltaCents).toBe(500);
+  expect(preview.missingCents).toBe(300);
+  expect(
+    preview.rows.map(({ afterCents, deltaCents, missingCents }) => [
+      afterCents,
+      deltaCents,
+      missingCents,
+    ]),
+  ).toEqual([
+    [900, 500, 100],
+    [0, 0, 200],
+  ]);
+  expect(selected).toEqual(original);
+  expect(selectedAssignmentPreview(selected, 'target', -100).deltaCents).toBe(0);
+});
+
+it('514 exposes exclusions and still includes legacy assignments in a capped reset', () => {
+  const legacy = row({ target, assignedCents: -500 });
+  delete legacy.quickAssign;
+  const selected = [
+    legacy,
+    row({ id: 'no-target', categoryId: 'no-target', assignedCents: 0 }),
+    row({ id: 'card', categoryId: 'card', kind: 'card_payment', cls: null, assignedCents: 1000 }),
+    row({ id: 'advance', categoryId: 'advance', kind: 'advance', cls: null, assignedCents: 1000 }),
+  ];
+  expect(
+    selectedAssignmentPreview(selected, 'target', 200).rows.map(({ reason }) => reason),
+  ).toEqual([
+    'Zuweisungsdaten nicht verfügbar',
+    'Kein Ziel',
+    'Kartenreserve – keine automatische Zuweisung',
+    'Keine Ausgabenkategorie',
+  ]);
+  const preview = selectedAssignmentPreview(selected, 'reset', 200);
+  expect(preview).toMatchObject({ deltaCents: 200, missingCents: 300 });
+  expect(preview.rows[0]).toMatchObject({
+    afterCents: -300,
+    deltaCents: 200,
+    missingCents: 300,
+    reason: null,
+  });
+  expect(preview.rows[2]).toMatchObject({ afterCents: 1000, deltaCents: 0, missingCents: null });
+});
+
+it('514 shows both offsetting reset changes even when their total is zero', () => {
+  const preview = selectedAssignmentPreview(
+    [
+      row({ assignedCents: 500 }),
+      row({ id: 'negative', categoryId: 'negative', assignedCents: -500 }),
+    ],
+    'reset',
+    0,
+  );
+  expect(preview).toMatchObject({ deltaCents: 0, missingCents: 0, changedCount: 2 });
+  expect(preview.rows.map(({ afterCents, deltaCents }) => [afterCents, deltaCents])).toEqual([
+    [0, -500],
+    [0, 500],
+  ]);
+});
+
+it('514 disclosure, mode changes and live privacy stay read-only', () => {
+  const calls = setup(
+    <PlanAssignmentPreview month="2026-10" rows={[row({ target, needCents: 600 })]} tba={200} />,
+  );
+  fireEvent.click(screen.getByText('Zuweisungsvorschau', { selector: 'summary' }));
+  const preview = screen.getByRole('region', { name: 'Zuweisungsvorschau' });
+  const category = within(preview).getByRole('group', { name: 'Synthetic category' });
+  expect(
+    within(category)
+      .getAllByRole('definition')
+      .map((cell) => cell.textContent),
+  ).toEqual(['4,00 €', '6,00 €', '+2,00 €', '6,00 €', '4,00 €']);
+  fireEvent.change(screen.getByLabelText('Vorschau für'), { target: { value: 'reset' } });
+  expect(
+    within(category)
+      .getAllByRole('definition')
+      .map((cell) => cell.textContent),
+  ).toEqual(['4,00 €', '−4,00 €', '0,00 €', '0,00 €']);
+  act(() => setAmountsHidden(true));
+  expect(
+    within(preview)
+      .getAllByRole('definition')
+      .every((cell) => cell.textContent === '••• €'),
+  ).toBe(true);
+  expect(within(preview).queryByRole('button')).toBeNull();
+  expect(calls).toEqual([]);
+});
+
+it.each([false, true])(
+  '514 disables preview for an empty selection or multiple months (%s)',
+  (disabled) => {
+    const calls = setup(
+      <PlanAssignmentPreview
+        month="2026-10"
+        rows={disabled ? [row()] : []}
+        tba={200}
+        disabled={disabled}
+      />,
+    );
+    fireEvent.click(screen.getByText('Zuweisungsvorschau', { selector: 'summary' }));
+    expect(screen.getByLabelText('Vorschau für').hasAttribute('disabled')).toBe(true);
+    expect(
+      screen.getByText(disabled ? 'Nur bei einem Monat' : 'Bitte Kategorien auswählen.'),
+    ).toBeTruthy();
+    expect(calls).toEqual([]);
+  },
+);
+
+it('514 recalculates a read-only preview when current funds or target need change', () => {
+  const selected = row({ target, needCents: 600 });
+  const view = render(<PlanAssignmentPreview month="2026-10" rows={[selected]} tba={200} />);
+  fireEvent.click(screen.getByText('Zuweisungsvorschau', { selector: 'summary' }));
+  view.rerender(<PlanAssignmentPreview month="2026-10" rows={[selected]} tba={0} />);
+  expect(screen.getByText('Kein Geld für weitere Zuweisungen verfügbar.')).toBeTruthy();
+  view.rerender(
+    <PlanAssignmentPreview month="2026-10" rows={[{ ...selected, needCents: 0 }]} tba={200} />,
+  );
+  expect(screen.getByText('Keine Zuweisung erforderlich.')).toBeTruthy();
+  const unavailable = { ...selected };
+  delete unavailable.quickAssign;
+  view.rerender(<PlanAssignmentPreview month="2026-10" rows={[unavailable]} tba={200} />);
+  expect(screen.getByText('Keine vollständige Zuweisungsvorschau verfügbar.')).toBeTruthy();
+  expect(screen.queryByText('Keine Zuweisung erforderlich.')).toBeNull();
 });
 function setup(ui: ReactNode, changedCount = 1) {
   const calls: { path: string; body: unknown }[] = [];

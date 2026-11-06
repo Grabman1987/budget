@@ -118,7 +118,7 @@ test('checks off-budget accounts, updates manual values with undo and prepares t
       await button.click();
       const dialog = page.getByRole('dialog', { name: `Kontostand prüfen · ${account.name}` });
       await dialog.getByLabel('Bargeld-Saldo (ohne Wertpapiere)', { exact: true }).fill('0');
-      await dialog.getByRole('button', { name: /Festschreiben/ }).click();
+      await dialog.getByRole('button', { name: 'Kontostand stimmt' }).click();
       await expect(dialog).toBeHidden();
       await expect(status.locator('strong')).toHaveText('11.10.2026');
       await page.goto(`/konten/${account.id}?pruefen=reconcile`);

@@ -267,7 +267,7 @@ test('source operations remain readable in data sources without posting', async 
     .getByRole('button', { name: /Quellbewegung: Umbuchung abgleichen.*Einzelpunkte anzeigen/ })
     .click();
   await expect(page.getByText('Zugang: 12,34', { exact: false })).toBeVisible();
-  await page.getByText('Quelldaten und Zuordnung anzeigen').click();
+  await page.getByText('Rohdaten und Zuordnung anzeigen').click();
   await expect(page.locator('.source-inbox-detail pre')).toContainText('operation-synthetic');
   await expect(page.getByRole('link', { name: 'Datenquelle prüfen' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -347,7 +347,7 @@ test('invalid movements and categorized failures are readable without raw payloa
   await page
     .getByRole('button', { name: /Quellbewegung: Datenformat prüfen.*Einzelpunkte anzeigen/ })
     .click();
-  await page.getByText('Quelldaten und Zuordnung anzeigen').first().click();
+  await page.getByText('Rohdaten und Zuordnung anzeigen').first().click();
   await expect(page.locator('.source-inbox-detail pre').first()).toContainText('invalid-op');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

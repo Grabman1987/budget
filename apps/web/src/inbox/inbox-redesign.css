@@ -39,8 +39,13 @@
 
 /* Prüfen v1: compact header, flat source rows and a phone action dock. */
 .konten-frame-inbox .konten-view-bar {
+  flex-wrap: wrap;
   min-height: 44px;
   gap: 12px;
+}
+.konten-inbox-segments-slot {
+  flex-shrink: 0;
+  max-width: 100%;
 }
 .konten-inbox-segments-slot .inbox-segments {
   width: auto;
@@ -407,12 +412,12 @@
     font-size: var(--fs-label);
   }
   .bank-v1-payee .bank-v1-phone-source {
-    display: inline;
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: var(--fs-label);
     color: var(--ink-2);
-  }
-  .bank-v1-payee .bank-v1-phone-source::before {
-    content: ' · ';
   }
   .bank-v1-table .bank-v1-amount {
     grid-area: amount;
@@ -485,19 +490,6 @@
   .kinbox-v1 .bank-v1-table .bank-v1-row td {
     padding-block: 0;
     height: 44px;
-  }
-  .bank-v1-payee strong,
-  .bank-v1-payee > span,
-  .bank-v1-source span,
-  .bank-v1-source small {
-    display: inline;
-  }
-  .bank-v1-payee > span,
-  .bank-v1-source small {
-    margin-inline-start: 8px;
-  }
-  .bank-v1-source small::before {
-    content: '· ';
   }
 }
 @media (max-width: 767px) {
@@ -592,4 +584,100 @@
   .konten-frame-inbox .konten-view-bar > .area-page-menu {
     grid-row: 1;
   }
+}
+
+/* A desktop sidebar leaves too little table width at tablet sizes. Keep every action and
+   the desktop selection control in the same bounded row instead of squeezing text columns. */
+@media (min-width: 768px) and (max-width: 1100px) {
+  .kinbox-v1 .bank-v1-table {
+    display: block;
+    border: 0;
+    background: transparent;
+  }
+  .kinbox-v1 .bank-v1-table thead {
+    display: none;
+  }
+  .kinbox-v1 .bank-v1-table tbody {
+    display: grid;
+    gap: var(--space-sm);
+  }
+  .kinbox-v1 .bank-v1-table .bank-v1-row {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto 44px;
+    grid-template-areas: 'select payee amount more' 'select source source more' '. suggestion action action';
+    gap: var(--space-xs) var(--space-sm);
+    align-items: start;
+    padding: var(--space-sm) var(--space-md);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .kinbox-v1 .bank-v1-table .bank-v1-row td {
+    min-width: 0;
+    width: auto;
+    height: auto;
+    padding: 0;
+    border: 0;
+  }
+  .kinbox-v1 .bank-v1-row .bank-v1-select {
+    grid-area: select;
+  }
+  .kinbox-v1 .bank-v1-row .bank-v1-payee {
+    grid-area: payee;
+  }
+  .kinbox-v1 .bank-v1-row .bank-v1-source {
+    grid-area: source;
+  }
+  .kinbox-v1 .bank-v1-row .bank-v1-amount {
+    grid-area: amount;
+  }
+  .kinbox-v1 .bank-v1-row .bank-v1-more {
+    grid-area: more;
+  }
+  .kinbox-v1 .bank-v1-row .bank-v1-suggestion {
+    grid-area: suggestion;
+  }
+  .kinbox-v1 .bank-v1-row .bank-v1-action {
+    grid-area: action;
+  }
+}
+
+/* Keep the complete bank toolbar readable beside the desktop sidebar. */
+@media (min-width: 768px) and (max-width: 1100px) {
+  .konten-frame-inbox .konten-view-bar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 44px;
+  }
+  .konten-frame-inbox .konten-view-bar > .area-page-menu {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+  }
+  .konten-inbox-segments-slot {
+    grid-column: 2 / -1;
+    grid-row: 1;
+  }
+  .konten-inbox-sort-slot {
+    grid-column: 1;
+    grid-row: 2;
+    margin-inline-start: 0;
+  }
+  .konten-inbox-filters-slot {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+  }
+  .konten-inbox-selection-slot {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .konten-inbox-safe-slot {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: end;
+  }
+}
+.konten-inbox-sort-slot:empty,
+.konten-inbox-safe-slot:empty {
+  display: none;
 }

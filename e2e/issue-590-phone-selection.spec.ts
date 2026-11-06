@@ -100,6 +100,7 @@ async function setTheme(page: Page, theme: 'dark' | 'light') {
 }
 /** Retain complete role/control/tick unions for separate parent/category pairs. */
 async function assertCompactBands(page: Page, phone: boolean, info: TestInfo, stage: string) {
+  const redesigned = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   const bands = await page.locator('.ptable-zero .pgroup:not(.psingle)').evaluateAll((rows) =>
     rows.map((row) => {
       const child = row.nextElementSibling!;
@@ -201,9 +202,15 @@ async function assertCompactBands(page: Page, phone: boolean, info: TestInfo, st
     expect(band.parentBottom).toBeLessThanOrEqual(band.childTop);
     expect(band.categoryHeight).toBeGreaterThan(0);
     expect(band.parentHeight).toBeGreaterThan(0);
-    expect(band.categoryHeight).toBeLessThanOrEqual(phone ? 76 : 40);
+    if (redesigned) {
+      expect(band.categoryHeight).toBeGreaterThanOrEqual(56);
+      expect(band.categoryHeight).toBeLessThanOrEqual(phone ? 76 : 64);
+      expect(band.wholeHeight).toBeLessThanOrEqual(phone ? 152 : 100);
+    } else {
+      expect(band.categoryHeight).toBeLessThanOrEqual(phone ? 76 : 40);
+      expect(band.wholeHeight).toBeLessThanOrEqual(phone ? 152 : 76);
+    }
     expect(band.parentHeight).toBeLessThanOrEqual(phone ? 76 : 36);
-    expect(band.wholeHeight).toBeLessThanOrEqual(phone ? 152 : 76);
   }
 }
 async function assertPhoneSelectionTargets(page: Page) {

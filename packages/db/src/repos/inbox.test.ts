@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { accountReconciliation, inboxItem } from '../schema';
+import { accountReconciliation, inboxItem, payee, SYSTEM_PAYEE_IDS } from '../schema';
+import { queryBookings } from './ledger-queries';
 import { insertTracked, undo } from './audit';
 import { createBooking, createTransfer, deleteBooking, updateBooking } from './bookings';
 import { readInbox, readInboxCount, resolveInboxItem } from './inbox';
@@ -42,6 +43,52 @@ const uncat = (amountCents = -1000, date = TODAY) =>
     testCtx,
   );
 describe('actual inbox work', () => {
+  it('recognizes explicit balance adjustments as ready to assign, with audited repair and undo', () => {
+    const id = uncat(-1200);
+    insertTracked(
+      opened.db,
+      payee,
+      { id: 'ordinary-adjustment-name', name: 'Reconciliation Balance Adjustment' },
+      testCtx,
+    );
+    updateBooking(
+      opened.db,
+      id,
+      { payeeId: 'ordinary-adjustment-name', status: 'confirmed' },
+      testCtx,
+    );
+    expect(queue().entries.some((e) => e.type === 'booking' && e.bookingId === id)).toBe(true);
+    const ctx = { actor: 'test', groupId: 'explicit-adjustment-repair' };
+    updateBooking(opened.db, id, { payeeId: SYSTEM_PAYEE_IDS.reconciliation_adjustment.id }, ctx);
+    expect(queue().entries.some((e) => e.type === 'booking' && e.bookingId === id)).toBe(false);
+    expect(queryBookings(opened.db, { ids: [id] }).items[0]).toMatchObject({
+      amountCents: -1200,
+      payeeSystemKind: 'reconciliation_adjustment',
+      splits: [{ amountCents: -1200, categoryId: null }],
+    });
+    undo(opened.db, { groupId: ctx.groupId }, testCtx);
+    expect(queue().entries.some((e) => e.type === 'booking' && e.bookingId === id)).toBe(true);
+  });
+  it.each(['confirmed', 'reconciled'] as const)(
+    'does not flag explicit manual corrections as missing a category (%s)',
+    (status) => {
+      createBooking(
+        opened.db,
+        {
+          accountId: 'giro',
+          date: TODAY,
+          amountCents: -2300,
+          payeeId: SYSTEM_PAYEE_IDS.manual_adjustment.id,
+          status,
+          source: 'system',
+          splits: [{ amountCents: -2300 }],
+        },
+        testCtx,
+      );
+      uncat(-600);
+      expect(queue().entries.filter((e) => e.type === 'booking')).toHaveLength(1);
+    },
+  );
   it('counts one task per actual budget booking and stored warning; no future/tracking/transfers/income/zero/legacy-summary tasks', () => {
     uncat();
     createBooking(
