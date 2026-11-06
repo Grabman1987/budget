@@ -10,6 +10,7 @@ import { targetText } from './labels';
 import { barFor, CLASS_TEXT, type PlanRow } from './plan-model';
 import { todayInVienna } from '@budget/domain';
 import { PlanAutomatic } from './plan-automatic';
+import { PlanAssignmentPreview } from './plan-assignment-preview';
 import type { PanelState } from './category-panel';
 import { MonthOverviewInspector } from './plan-overview';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
@@ -87,12 +88,17 @@ export function PlanInspector({
       heading.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
   }, [selectionKey, focusSelection]);
   const automatic = (
-    <PlanAutomatic
-      month={month}
-      rows={selected.length ? selected : visibleRows}
-      tba={tba}
-      disabled={multi}
-    />
+    <>
+      <PlanAutomatic
+        month={month}
+        rows={selected.length ? selected : visibleRows}
+        tba={tba}
+        disabled={multi}
+      />
+      {REDESIGN_ENABLED && selected.length > 0 && (
+        <PlanAssignmentPreview month={month} rows={selected} tba={tba} disabled={multi} />
+      )}
+    </>
   );
   if (selected.length === 0)
     return (

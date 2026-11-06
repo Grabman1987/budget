@@ -238,6 +238,7 @@ export interface ListedBooking {
   amountCents: number;
   payeeId: string | null;
   payeeName: string | null;
+  payeeSystemKind?: typeof payee.$inferSelect.systemKind;
   memo: string | null;
   status: (typeof BOOKING_STATUSES)[number];
   flag: (typeof BOOKING_FLAGS)[number] | null;
@@ -497,6 +498,7 @@ export function queryBookings(
       booking,
       accountName: account.name,
       payeeName: payee.name,
+      payeeSystemKind: payee.systemKind,
       sortValue: sql<string | number>`${sortExpr}`,
     })
     .from(booking)
@@ -600,6 +602,7 @@ export function queryBookings(
       amountCents: b.amountCents,
       payeeId: b.payeeId,
       payeeName: r.payeeName,
+      payeeSystemKind: r.payeeSystemKind,
       memo: b.memo,
       status: b.status,
       flag: b.flag,

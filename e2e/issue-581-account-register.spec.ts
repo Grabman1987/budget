@@ -60,6 +60,8 @@ test('compact account head, fixed desktop table and ten two-line phone bookings'
     'aria-expanded',
     redesign ? 'true' : 'false',
   );
+  await expect(page.locator('.kupcoming-toggle')).toHaveAttribute('aria-expanded', 'true');
+  await page.locator('.kupcoming-toggle').click();
   await expect(page.locator('.kupcoming-toggle')).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('heading', { name: account.name, exact: true })).toHaveCount(1);
   const review = page.getByTestId('account-review-badge');

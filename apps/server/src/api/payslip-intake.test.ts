@@ -84,7 +84,16 @@ describe('authenticated payslip intake HTTP boundary', () => {
     expect(systemIds.length).toBeGreaterThan(0);
     const { id } = (await (await upload()).json()) as { id: string };
     const result = await app.request(`/api/payslip-intake/${id}`, { headers });
-    const { payees } = (await result.json()) as { payees: { id: string; name: string }[] };
+    const { payees, document } = (await result.json()) as {
+      payees: { id: string; name: string }[];
+      document: unknown;
+    };
+    expect(document).toEqual({
+      originalFilename: 'synthetic-202609.pdf',
+      documentType: 'payslip',
+      month: '2026-09',
+      periodSource: 'content',
+    });
     expect(payees).toContainEqual({ id: 'synthetic-employer', name: 'Musterarbeitgeber' });
     expect(payees.some((partner) => systemIds.includes(partner.id))).toBe(false);
   });

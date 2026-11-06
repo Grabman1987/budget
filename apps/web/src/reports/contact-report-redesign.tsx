@@ -291,7 +291,7 @@ export function ContactReportRedesign({
                           }}
                         />
                         {mode === 'salden' && person.movements.length > 0 && (
-                          <ContactBalanceChart statement={person} height={160} />
+                          <ContactBalanceChart statement={person} height={160} days={35} />
                         )}
                         {mode === 'offen' && (
                           <section className="r4-open-items" aria-labelledby="r4-open-items-title">

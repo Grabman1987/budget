@@ -89,7 +89,13 @@ test('ghosts, selected quick assignment and capped empty-fill share grouped undo
   // On a phone the compact row shows the amount as text; editing happens in the inspector.
   const phone = info.project.name !== 'desktop';
   const assigned = (name: string) => row(name).locator(phone ? '.phone-assigned' : '.assign-btn');
-  const shown = (value: string) => (phone ? `Zugewiesen ${value}` : value);
+  // Phone rows distinguish zero actually assigned from the unchanged literal proposal.
+  const shown = (value: string) =>
+    phone
+      ? value.startsWith('≈ ')
+        ? `Zugewiesen 0,00 € · Vorschlag ${value}`
+        : `Zugewiesen ${value}`
+      : value;
   const toast = page.locator('.toast.is-open');
   await expect(assigned('Testziel')).toHaveText(shown('≈ 400,01 €'));
   await expect(assigned('Testhistorie')).toHaveText(shown('≈ 190,02 €'));

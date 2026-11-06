@@ -77,10 +77,11 @@ export function useUpcomingRegister(
   const phone = useIsPhone();
   const storageKey = `budget.register.upcoming.${variant}.${filter.accountId ?? 'all'}.${phone ? 'phone' : 'desktop'}`;
   const [remembered, setRemembered] = useState<{ key: string; open: boolean } | null>(null);
-  // Collapsed by default everywhere; a remembered choice wins.
-  let open = false;
+  // Account details expose future captures and planned occurrences immediately; a saved choice wins.
+  let open = variant === 'account';
   try {
-    open = localStorage.getItem(storageKey) === 'open';
+    const stored = localStorage.getItem(storageKey);
+    if (stored !== null) open = stored === 'open';
   } catch {
     /* Storage may be disabled. */
   }

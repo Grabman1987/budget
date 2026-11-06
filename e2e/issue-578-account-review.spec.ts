@@ -108,7 +108,7 @@ test('shared due badges and Heute count follow real completion, backdated activi
   const dialog = page.getByRole('dialog', { name: `Kontostand prüfen · ${budget.name}` });
   await expect(dialog).toBeVisible();
   await dialog.getByLabel('Saldo laut Bank', { exact: true }).fill('99');
-  await dialog.getByRole('button', { name: /Festschreiben/ }).click();
+  await dialog.getByRole('button', { name: 'Kontostand stimmt' }).click();
   await expect(dialog).toBeHidden();
   const check = (await (
     await page.request.get(`/api/accounts/${budget.id}/reconciliations`)

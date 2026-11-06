@@ -118,9 +118,7 @@ it('requires explicit review of every existing candidate before correction and l
   expect(screen.queryByLabelText('Ausgleichsdatum')).toBeNull();
   fireEvent.click(within(pending).getByRole('button', { name: 'Ignorieren' }));
   expect(await screen.findByLabelText('Ausgleichsdatum')).toBeTruthy();
-  expect(screen.getByRole('button', { name: /Differenz ausgleichen/ }).textContent).toContain(
-    '+12,34 €',
-  );
+  expect(screen.getByText(/Eine echte Buchung/).textContent).toContain('+12,34 €');
   expect(sends).toEqual([]);
   expect(writes.remove.mutate).not.toHaveBeenCalled();
   fireEvent.click(within(duplicate).getByRole('button', { name: 'Ignorieren rückgängig' }));
@@ -153,7 +151,7 @@ it('uses the existing duplicate action, refreshes to literal zero, and reconcile
     duplicates: [],
   };
   await client.invalidateQueries({ queryKey: ['ledger'] });
-  const lock = await screen.findByRole('button', { name: 'Festschreiben (1)' });
+  const lock = await screen.findByRole('button', { name: 'Kontostand stimmt' });
   expect(screen.queryByRole('button', { name: /Differenz ausgleichen/ })).toBeNull();
   fireEvent.click(lock);
   await waitFor(() =>
@@ -197,8 +195,9 @@ it('shows a partial pending minus3000 against minus4000 and uses canonical statu
   };
   await client.invalidateQueries({ queryKey: ['ledger'] });
   const correction = await screen.findByRole('button', { name: /Differenz ausgleichen/ });
-  expect(correction.textContent).toContain('−10,00 €');
-  expect(correction.textContent).not.toContain('−40,00 €');
+  expect(correction.textContent).toBe('Differenz ausgleichen');
+  expect(screen.getByText(/Eine echte Buchung/).textContent).toContain('−10,00 €');
+  expect(screen.getByText(/Eine echte Buchung/).textContent).not.toContain('−40,00 €');
   expect(sends).toEqual([]);
 });
 it('keeps an existing month-close token stale after a separate candidate confirmation and requires reload instead of silently advancing it', async () => {
@@ -248,137 +247,23 @@ it('keeps an existing month-close token stale after a separate candidate confirm
   expect(close.onReload).toHaveBeenCalledTimes(1);
 });
 
-it('565 remembers an eligible category per account and falls back for archived or deleted choices', async () => {
-  preview = { ...preview, duplicates: [], pendingMatches: [], pendingBookings: [] };
-  categories = [
-    {
-      id: 'food',
-      name: 'Synthetic food',
-      groupId: null,
-      class: 'need',
-      kind: 'variable',
-      sortOrder: 0,
-    },
-  ];
-  show();
-  const select = await screen.findByLabelText('Kategorie für den Ausgleich');
-  expect((select as HTMLSelectElement).value).toBe('');
-  expect(within(select).getByRole('option', { name: 'Zu verteilen' })).toBeTruthy();
-  fireEvent.change(select, { target: { value: 'food' } });
-  cleanup();
-  show();
-  await waitFor(() =>
-    expect((screen.getByLabelText('Kategorie für den Ausgleich') as HTMLSelectElement).value).toBe(
-      'food',
-    ),
-  );
-  cleanup();
-  show(-1234, undefined, { id: 'b' });
-  expect(
-    ((await screen.findByLabelText('Kategorie für den Ausgleich')) as HTMLSelectElement).value,
-  ).toBe('');
-  cleanup();
-  categories = [{ ...categories[0]!, hiddenAt: '2026-09-30T00:00:00Z' }];
-  show();
-  expect(
-    ((await screen.findByLabelText('Kategorie für den Ausgleich')) as HTMLSelectElement).value,
-  ).toBe('');
-  expect(screen.queryByRole('option', { name: 'Synthetic food' })).toBeNull();
-  await waitFor(() => expect(localStorage.getItem('budget-reconcile-category:a')).toBe(''));
-  cleanup();
-  localStorage.setItem('budget-reconcile-category:a', 'deleted');
-  categories = [];
-  show();
-  expect(
-    ((await screen.findByLabelText('Kategorie für den Ausgleich')) as HTMLSelectElement).value,
-  ).toBe('');
-  await waitFor(() => expect(localStorage.getItem('budget-reconcile-category:a')).toBe(''));
-});
-
-it('565 retains truthful uncategorised tracking/card defaults and canonical category request cents', async () => {
-  preview = { ...preview, duplicates: [], pendingMatches: [], pendingBookings: [] };
-  show(-1234, undefined, { onBudget: false });
-  expect(
-    within(await screen.findByLabelText('Kategorie für den Ausgleich')).getByRole('option', {
-      name: 'Ohne Kategorie',
-    }),
-  ).toBeTruthy();
-  cleanup();
-  show(-1234, undefined, { type: 'credit_card' });
-  expect(
-    within(await screen.findByLabelText('Kategorie für den Ausgleich')).getByRole('option', {
-      name: 'Ohne Kategorie',
-    }),
-  ).toBeTruthy();
-  cleanup();
-  categories = [
-    {
-      id: 'food',
-      name: 'Synthetic food',
-      groupId: null,
-      class: 'need',
-      kind: 'variable',
-      sortOrder: 0,
-    },
-  ];
-  show();
-  fireEvent.change(await screen.findByLabelText('Kategorie für den Ausgleich'), {
-    target: { value: 'food' },
-  });
-  fireEvent.click(screen.getByRole('button', { name: /Differenz ausgleichen/ }));
-  await waitFor(() =>
-    expect(sends).toEqual([
-      { date: '2026-09-30', statementBalanceCents: -1234, adjust: true, categoryId: 'food' },
-    ]),
-  );
-});
-
-it('565 preserves an eligible remembered choice while a cold lookup is unresolved', async () => {
-  preview = { ...preview, duplicates: [], pendingMatches: [], pendingBookings: [] };
-  localStorage.setItem('budget-reconcile-category:a', 'c');
-  let releaseLookup!: (response: Response) => void;
-  const heldLookup = new Promise<Response>((resolve) => {
-    releaseLookup = resolve;
-  });
-  const originalFetch = globalThis.fetch;
-  vi.stubGlobal(
-    'fetch',
-    vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
-      String(input).includes('/lookups') ? heldLookup : originalFetch(input, init),
-    ),
-  );
-  show();
-  const correction = await screen.findByRole('button', { name: /Differenz ausgleichen/ });
-  const select = screen.getByLabelText('Kategorie für den Ausgleich') as HTMLSelectElement;
-  expect(localStorage.getItem('budget-reconcile-category:a')).toBe('c');
-  expect(select.disabled).toBe(true);
-  expect((correction as HTMLButtonElement).disabled).toBe(true);
-  expect(sends).toEqual([]);
-  await act(async () =>
-    releaseLookup(
-      new Response(
-        JSON.stringify({
-          categories: [
-            {
-              id: 'c',
-              name: 'Synthetic remembered choice',
-              groupId: null,
-              class: 'need',
-              kind: 'variable',
-              sortOrder: 0,
-              hiddenAt: null,
-            },
-          ],
-          groups: [],
-          projects: [],
-        }),
-        { headers: { 'content-type': 'application/json' } },
-      ),
-    ),
-  );
-  await waitFor(() => expect(select.value).toBe('c'));
-  expect(select.disabled).toBe(false);
-  expect((correction as HTMLButtonElement).disabled).toBe(false);
-  expect(localStorage.getItem('budget-reconcile-category:a')).toBe('c');
-  expect(sends).toEqual([]);
-});
+it.each([
+  [{ onBudget: true }, 'Zu verteilen (ohne Kategorie)'],
+  [{ onBudget: false }, 'keiner Kategorie'],
+  [{ type: 'credit_card' }, 'keiner Kategorie'],
+] as const)(
+  'retains the canonical correction policy for %j and ignores remembered categories',
+  async (overrides, label) => {
+    preview = { ...preview, duplicates: [], pendingMatches: [], pendingBookings: [] };
+    localStorage.setItem('budget-reconcile-category:a', 'food');
+    show(-1234, undefined, overrides);
+    const correction = await screen.findByRole('button', { name: 'Differenz ausgleichen' });
+    expect(screen.queryByLabelText('Kategorie für den Ausgleich')).toBeNull();
+    expect(screen.getByText(/Eine echte Buchung/).textContent).toContain(label);
+    expect(sends).toEqual([]);
+    fireEvent.click(correction);
+    await waitFor(() =>
+      expect(sends).toEqual([{ date: '2026-09-30', statementBalanceCents: -1234, adjust: true }]),
+    );
+  },
+);
