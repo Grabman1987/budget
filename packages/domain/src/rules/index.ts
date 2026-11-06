@@ -12,7 +12,12 @@ export {
 } from './params';
 export { CHECKLIST_DEFS, RULE_DEFS, type ChecklistDef, type RuleDef } from './definitions';
 export type { BookRuleInputs, RuleEvaluation, RuleInputs, RuleStatus } from './types';
-export { evaluateRule, evaluateFreedomRule, formatPercent } from './evaluate';
+export {
+  evaluateRule,
+  evaluateFreedomRule,
+  evaluateDebtServiceRule,
+  formatPercent,
+} from './evaluate';
 export {
   bySeverity,
   KEY_RULES,
@@ -35,3 +40,4 @@ export {
 } from './history';
 
 export * from './books';
+export * from './health';
