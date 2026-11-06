@@ -1276,8 +1276,11 @@
   color: var(--ink-2);
 }
 .is-capture-category .combo-list {
+  /* Keep keyboard-sized capture sheets from clipping the focused suggestion list. */
+  position: fixed;
   box-sizing: border-box;
   min-width: 0;
+  overscroll-behavior: contain;
 }
 .is-capture-category .combo-option > span:first-child {
   min-width: 0;
