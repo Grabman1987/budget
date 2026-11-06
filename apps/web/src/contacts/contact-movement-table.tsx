@@ -121,6 +121,18 @@ export function ContactMovementTable({
             const repayment = statement.receipts.find(
               (row) => row.receiptSplitId === movement.splitId,
             );
+            const bookingNote =
+              movement.bookingMemo?.trim() && movement.bookingMemo.trim() !== movement.memo?.trim()
+                ? movement.bookingMemo
+                : undefined;
+            const sourceLabel = [
+              `${description(movement)} ${longDay(movement.date)} · ${movementKind(movement)}`,
+              movement.payeeName && maskMoneyText(movement.payeeName),
+              bookingNote && maskMoneyText(bookingNote),
+              movement.categoryName && `Kategorie: ${maskMoneyText(movement.categoryName)}`,
+            ]
+              .filter(Boolean)
+              .join(' ');
             return (
               <tr key={movement.splitId}>
                 <td>
@@ -128,13 +140,33 @@ export function ContactMovementTable({
                     type="button"
                     className="contact-source"
                     data-contact-source={movement.splitId}
-                    aria-label={`Ursprungsbuchung öffnen · ${description(movement)} ${longDay(movement.date)} · ${movementKind(movement)} · Kontaktanteil ${eur(receivableDelta(movement.amountCents), { sign: true })}`}
+                    aria-label={`Ursprungsbuchung öffnen · ${sourceLabel} · Kontaktanteil ${eur(receivableDelta(movement.amountCents), { sign: true })}`}
                     onClick={() => onOpen(movement)}
                   >
-                    <span>{description(movement)}</span>{' '}
+                    <span className="contact-movement-note" title={description(movement)}>
+                      {description(movement)}
+                    </span>{' '}
                     <span className="contact-movement-meta">
                       {longDay(movement.date)} · {movementKind(movement)}
                     </span>
+                    {movement.payeeName && (
+                      <span className="contact-movement-context">
+                        {' '}
+                        {maskMoneyText(movement.payeeName)}
+                      </span>
+                    )}
+                    {bookingNote && (
+                      <span className="contact-movement-note" title={maskMoneyText(bookingNote)}>
+                        {' '}
+                        {maskMoneyText(bookingNote)}
+                      </span>
+                    )}
+                    {movement.categoryName && (
+                      <span className="contact-movement-context">
+                        {' '}
+                        Kategorie: {maskMoneyText(movement.categoryName)}
+                      </span>
+                    )}
                   </button>
                   {onGift && outlay && outlay.remainingCents > 0 && (
                     <Button

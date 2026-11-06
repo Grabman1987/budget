@@ -114,7 +114,9 @@ test('fixed EUR report preserves credit, running history, source links and recei
     await page.locator('[data-r8-detail="contact-history"] > summary').click();
   }
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
-  await expect(sheet.locator('.contacts-balance')).toContainText('Du schuldest 20,00 €');
+  await expect(sheet.locator('.contacts-balance')).toContainText(
+    on ? 'Guthaben · 20,00 €' : 'Du schuldest 20,00 €',
+  );
   const movements = sheet.locator('.contact-movements tbody tr');
   await expect(movements).toHaveCount(2);
   const outlay = movements.filter({
@@ -167,7 +169,9 @@ test('fixed EUR report preserves credit, running history, source links and recei
   await data.post('/undo', { groupId: undone.groupId });
   await page.reload();
   await expect(movements).toHaveCount(2);
-  await expect(sheet.locator('.contacts-balance')).toContainText('Du schuldest 20,00 €');
+  await expect(sheet.locator('.contacts-balance')).toContainText(
+    on ? 'Guthaben · 20,00 €' : 'Du schuldest 20,00 €',
+  );
   expect(
     (await statement()).movements.map((m: { balanceCents: number }) => m.balanceCents),
   ).toEqual([10000, -2000]);
