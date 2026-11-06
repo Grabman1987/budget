@@ -1,0 +1,22 @@
+.kreconcile .amount-box:not(:has(.amount-sign)) {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 44px;
+  padding: 0 12px;
+}
+.kreconcile .amount-input {
+  font-size: var(--fs-headline);
+  letter-spacing: normal;
+}
+.kreconcile .amount-cur {
+  font-size: var(--fs-body);
+}
+.reconcile-adjustment-date > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+.reconcile-adjustment-date > summary:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}

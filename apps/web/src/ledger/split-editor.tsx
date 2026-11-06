@@ -42,6 +42,8 @@ export interface SplitEditorProps {
   singleMetadata?: Partial<SplitDraft>;
   contactHost?: Element | null | undefined;
   compact?: boolean;
+  /** Only an existing, explicitly identified balance correction can use this expense target. */
+  allowReadyToAssign?: boolean;
 }
 
 /** Retain stored rows independently: the ledger does not store a gross-line grouping. */
@@ -90,6 +92,7 @@ export function SplitEditor({
   singleMetadata,
   contactHost,
   compact = false,
+  allowReadyToAssign = false,
 }: SplitEditorProps) {
   useAmountPrivacy();
   const editorRef = useRef<HTMLFieldSetElement>(null);
@@ -205,7 +208,9 @@ export function SplitEditor({
           { id: '__new-contact', label: 'Kontakt neu anlegen', group: 'Kontakte' },
         ];
         const leading = [
-          ...(draft.kind === 'income' ? [{ id: '__none', label: 'Zu verteilen' }] : []),
+          ...(draft.kind === 'income' || allowReadyToAssign
+            ? [{ id: '__none', label: 'Zu verteilen' }]
+            : []),
           ...(draft.kind === 'expense' && multiple
             ? accounts
                 .filter((a) => a.id !== accountId)
@@ -222,7 +227,9 @@ export function SplitEditor({
             : line.type === 'transfer'
               ? `Umbuchung → ${accounts.find((a) => a.id === line.toAccountId)?.name ?? ''}`
               : (category?.name ??
-                (draft.kind === 'income' && !line.categoryId ? 'Zu verteilen' : ''));
+                ((draft.kind === 'income' || allowReadyToAssign) && !line.categoryId
+                  ? 'Zu verteilen'
+                  : ''));
         const shareFields = (
           <>
             {line.shares.map((share, shareIndex) => {

@@ -95,17 +95,18 @@ test('phone status or Heute action opens real triage cover and undo on an isolat
   expect(url.pathname).toBe('/plan/monat');
   expect(url.searchParams.get('monat')).toBe(month);
   expect(url.searchParams.get('ansicht')).toBe('triage');
-  // #587: no overspending chip in the head; the overspent row is marked and the cover actions
-  // open from the Zu verteilen disclosure.
+  // The legacy triage URL selects the overspent filter, whose cover actions are inline.
+  // The separate Zu verteilen disclosure contains the derivation and would cover these controls.
   const targetRow = page.locator('tr.prow', { hasText: 'Testziel' });
   await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
   await expect(targetRow).toHaveClass(/is-over/);
-  await page.locator('.plan-tba').click();
-  await expect(page.locator('.triage')).toContainText('1 Envelopes überzogen');
+  const coverControls = page.locator('.plan-filter-cover');
+  await expect(coverControls).toBeVisible();
+  await expect(coverControls.locator('.triage')).toContainText('1 Envelopes überzogen');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  const sourceSelect = page.getByLabel('Quelle für alle Überziehungen');
+  const sourceSelect = coverControls.getByLabel('Quelle für alle Überziehungen');
   await sourceSelect.selectOption(source.id);
-  await page.getByRole('button', { name: 'Alle aus Testquelle decken' }).click();
+  await coverControls.getByRole('button', { name: 'Alle aus Testquelle decken' }).click();
   await expect(page.locator('.toast.is-open')).toContainText('1 gedeckt, 0 offen');
   await expect(status).toHaveCount(0);
   // The triage view lists only overspent rows: the covered target leaves the marked rows.

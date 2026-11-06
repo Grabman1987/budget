@@ -101,9 +101,17 @@ export function ContactReportRedesign({
   const ready = Boolean(view && !overview.isFetching && !overview.isError && !unsupported);
   const detailReady = ready && statement.isSuccess && !statement.isFetching && !statement.isError;
   const current = view?.contacts.find((contact) => contact.id === forgiving?.id);
-  const visible = view?.contacts.filter((contact) => history || contact.balanceCents !== 0) ?? [];
-  const relation = (balance: number) =>
-    balance > 0 ? 'schuldet dir' : balance < 0 ? 'Du schuldest dem Kontakt' : 'ausgeglichen';
+  const hasOpenAmount = (contact: { balanceCents: number; creditCents: number }) =>
+    contact.balanceCents !== 0 || contact.creditCents > 0;
+  const visible = view?.contacts.filter((contact) => history || hasOpenAmount(contact)) ?? [];
+  const relation = (balance: number, credit = 0) =>
+    credit > 0
+      ? 'Guthaben des Kontakts'
+      : balance > 0
+        ? 'schuldet dir'
+        : balance < 0
+          ? 'Du schuldest dem Kontakt'
+          : 'ausgeglichen';
   return (
     <ReportFrame
       meta={{
@@ -167,7 +175,7 @@ export function ContactReportRedesign({
                     <h2 id="r4-contact-list-title">
                       {mode === 'salden' ? 'Kontaktsalden' : 'Offene Kontakte'}
                     </h2>
-                    <span>{view.contacts.filter((c) => c.balanceCents !== 0).length} offen</span>
+                    <span>{view.contacts.filter(hasOpenAmount).length} offen</span>
                   </div>
                   <ul>
                     {visible.map((contact) => (
@@ -183,9 +191,17 @@ export function ContactReportRedesign({
                         >
                           <span>
                             <strong>{contact.name}</strong>
-                            <small>{relation(contact.balanceCents)}</small>
+                            <small>{relation(contact.balanceCents, contact.creditCents)}</small>
                           </span>
-                          <b>{eur(contact.balanceCents, { sign: true })}</b>
+                          <span className="r4-contact-amounts">
+                            <span>
+                              Offen:{' '}
+                              <b>{eur(contact.balanceCents > 0 ? contact.balanceCents : 0)}</b>
+                            </span>
+                            <span>
+                              Guthaben: <b>{eur(contact.creditCents)}</b>
+                            </span>
+                          </span>
                         </AppLink>
                       </li>
                     ))}
@@ -239,15 +255,22 @@ export function ContactReportRedesign({
                             Kontoblatt {person.contact.name}
                           </h2>
                           <strong className="contacts-balance">
-                            {person.balanceCents === 0
-                              ? `Ausgeglichen · ${eur(person.balanceCents)}`
-                              : contactBalanceLine(person.balanceCents)}
+                            {person.creditCents > 0
+                              ? `Guthaben · ${eur(person.creditCents)}`
+                              : person.balanceCents === 0
+                                ? `Ausgeglichen · ${eur(person.balanceCents)}`
+                                : contactBalanceLine(person.balanceCents)}
                           </strong>
                         </div>
+                        <p className="r4-contact-summary">
+                          Offene Forderung: {eur(person.balanceCents > 0 ? person.balanceCents : 0)}
+                          {' · '}Guthaben des Kontakts: {eur(person.creditCents)}
+                        </p>
                         {person.contact.note && <p>{person.contact.note}</p>}
                         <p className="r4-source">
-                          {person.movements.length} Bewegungen · {relation(person.balanceCents)} ·
-                          Stand {longDay(person.asOf)}
+                          {person.movements.length} Bewegungen ·{' '}
+                          {relation(person.balanceCents, person.creditCents)} · Stand{' '}
+                          {longDay(person.asOf)}
                         </p>
                         <ContactForgivenessAction
                           balance={person.balanceCents}
@@ -268,7 +291,7 @@ export function ContactReportRedesign({
                           }}
                         />
                         {mode === 'salden' && person.movements.length > 0 && (
-                          <ContactBalanceChart statement={person} height={160} />
+                          <ContactBalanceChart statement={person} height={160} days={35} />
                         )}
                         {mode === 'offen' && (
                           <section className="r4-open-items" aria-labelledby="r4-open-items-title">

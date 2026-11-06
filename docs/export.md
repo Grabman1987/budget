@@ -38,3 +38,39 @@ sessions/devices), with a process-wide cap of two. Excess requests return
 `429 export_busy` with a German retry hint. Admission happens before temporary
 snapshot allocation and remains held until response completion/cancellation and
 snapshot cleanup. Limits are process-local; run one API process per database.
+
+## Encrypted application backup download
+
+`GET /api/export/backup.age` is separate from the CSV export. It uses the same
+session and fresh passkey step-up middleware and shared admission slot; recovery
+sessions are denied before storage access. It reads only the latest completed
+`encrypted/budget-YYYY-MM-DD.tar.age` object from the existing nightly backup
+destination. It never creates a snapshot, decrypts data, changes retention (30
+daily and 12 monthly copies), or restores the application. Older DB-only
+`.sqlite.age` objects and partial/other files are not eligible.
+
+Before returning download headers, the server stages ciphertext in a restricted
+temporary directory, verifies its exact length, the single-PUT MD5 ETag and the
+age header, then streams it with `no-store` and `nosniff`. Multipart/missing ETags,
+encoded bodies, redirects and interrupted or inconsistent transfers fail closed.
+Storage headers have the existing 30-second deadline; transferring ciphertext
+allows one additional second per MiB, as does the nightly uploader. Temporary
+files and admission are released on completion, cancellation or failure. MD5
+checks transport consistency, not authenticity against a compromised storage
+service; age authenticates the archive when the owner decrypts it. The server
+has no private age key and cannot verify decrypted archive contents.
+
+No completed artifact returns `404 backup_missing`; unavailable configuration,
+storage or failed integrity returns `503 backup_unavailable`, without provider
+details. Concurrent CSV/backup downloads return `429 export_busy`. A failed
+latest artifact is not silently replaced with an older copy. The filename shows
+the UTC backup day; the artifact may precede recent edits.
+
+The archive contains the database (including authentication/session state) and
+hash-referenced receipts, including retained receipts needed for Undo. It excludes
+server configuration and external secrets. Restore requires the separately held
+private age key, archive/database/receipt verification and restoring both DB and
+receipts together in maintenance mode; see [operations, section 8.3](ops.md).
+Losing `BUDGET_PEPPER` invalidates existing recovery codes, so regenerate them
+after passkey login; it does not prevent database decryption or restoration.
+Downloading is not evidence of a successful real restore.

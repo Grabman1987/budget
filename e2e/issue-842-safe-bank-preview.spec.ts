@@ -1,4 +1,4 @@
-import { bankPreviewControl, toast } from './ledger-helpers';
+import { accountBankReview, bankPreviewControl, toast } from './ledger-helpers';
 
 import { randomUUID } from 'node:crypto';
 import { openDatabase, schema } from '@budget/db';
@@ -18,8 +18,11 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
+  const longPayee =
+    'Synthetic safe merchant with an exceptionally long invoice and payment reference';
+  const longRule = 'Synthetic explicit rule with a long household allocation description';
   const { account } = await post('/accounts', {
-    name: 'Synthetic Account',
+    name: 'Synthetic Account with a long descriptive household current account label',
     type: 'checking',
     openingDate: '2026-09-01',
     openingBalanceCents: 10000,
@@ -31,7 +34,7 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
     groupId: group.id,
   });
   await post('/assignment-rules', {
-    name: 'Synthetic explicit rule',
+    name: longRule,
     enabled: true,
     automatic: true,
     match: { mode: 'all', conditions: [{ type: 'contains', text: 'Synthetic safe' }] },
@@ -63,7 +66,7 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
         accountId: account.id,
       })
       .run();
-    for (const memo of ['Synthetic safe', 'Synthetic ambiguous']) {
+    for (const memo of [longPayee, 'Synthetic ambiguous']) {
       const id = randomUUID();
       opened.db
         .insert(schema.bankSyncCandidate)
@@ -100,6 +103,93 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
   await expect(shortcut).toHaveCount(redesign ? 1 : 0);
   if (!redesign) return;
   await expect(shortcut).toHaveText('Alle sicheren bestätigen (0)');
+  const originalViewport = page.viewportSize()!;
+  for (const path of [`/konten/pruefen?bankSource=${sourceId}`, `/konten/${account.id}`]) {
+    await page.goto(path);
+    if (!path.startsWith('/konten/pruefen')) await accountBankReview(page);
+    for (const width of [390, 768, 871, 1024, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      const row = page.locator('.bank-v1-row').filter({ hasText: longPayee });
+      await expect(row).toBeVisible();
+      await expect(row.locator('.bank-v1-payee strong')).toHaveText(longPayee);
+      await expect(row.locator('.bank-v1-payee strong')).toHaveCSS('display', 'block');
+      if (path.startsWith('/konten/pruefen')) {
+        if (width >= 768) await expect(page.getByLabel('Datumssortierung')).toBeVisible();
+        const toolbar = page.locator('.konten-frame-inbox .konten-view-bar');
+        const layout = await toolbar.evaluate((element) => {
+          const controls = [
+            ...element.querySelectorAll<HTMLElement>('button, select, summary'),
+          ].filter((control) => control.getClientRects().length > 0);
+          const insideViewport = controls.every((control) => {
+            const box = control.getBoundingClientRect();
+            return box.left >= 0 && box.right <= innerWidth;
+          });
+          const readableSegments = [...element.querySelectorAll('.inbox-segments button')].every(
+            (button) => {
+              const range = document.createRange();
+              range.selectNodeContents(button);
+              const text = range.getBoundingClientRect(),
+                box = button.getBoundingClientRect();
+              return text.left >= box.left && text.right <= box.right;
+            },
+          );
+          return { insideViewport, readableSegments };
+        });
+        expect(layout).toEqual({ insideViewport: true, readableSegments: true });
+        await expect(
+          toolbar.getByRole('button', { name: /Alle sicheren bestätigen/ }),
+        ).toBeVisible();
+        await expect(toolbar.getByLabel('Auswahl (0)', { exact: true })).toBeVisible();
+      }
+
+      const geometry = await row.evaluate((element) => {
+        const within = (child: Element, parent: Element) => {
+          const a = child.getBoundingClientRect(),
+            b = parent.getBoundingClientRect();
+          return a.left >= b.left && a.right <= b.right && a.top >= b.top && a.bottom <= b.bottom;
+        };
+        const payee = element.querySelector('.bank-v1-payee')!;
+        const amount = element.querySelector('.bank-v1-amount')!;
+        const action = element.querySelector('.bank-v1-action')!;
+        const payeeText = element.querySelector('.bank-v1-payee strong')!;
+        const date = element.querySelector('.bank-v1-payee > span')!;
+        const source = element.querySelector('.bank-v1-phone-source')!;
+        const a = payeeText.getBoundingClientRect();
+        const text = document.createRange();
+        text.selectNodeContents(amount);
+        const money = text.getBoundingClientRect(),
+          moneyCell = amount.getBoundingClientRect();
+        return {
+          payee: within(payeeText, payee),
+          date: within(date, payee),
+          source: source.getClientRects().length === 0 || within(source, payee),
+          amount: money.left >= moneyCell.left && money.right <= moneyCell.right,
+          action: within(action.querySelector('button')!, action),
+          separate:
+            a.right <= money.left ||
+            a.left >= money.right ||
+            a.bottom <= money.top ||
+            a.top >= money.bottom,
+          page: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+        };
+      });
+      expect(geometry).toEqual({
+        payee: true,
+        date: true,
+        source: true,
+        amount: true,
+        action: true,
+        separate: true,
+        page: true,
+      });
+      if (width >= 768 && path.startsWith('/konten/pruefen'))
+        await expect(row.getByRole('checkbox')).toBeVisible();
+    }
+  }
+  await page.setViewportSize(originalViewport);
+  await page.goto(`/konten/pruefen?bankSource=${sourceId}`);
+  await expect(shortcut).toHaveText('Alle sicheren bestätigen (0)');
+
   const writes: string[] = [];
   page.on('request', (req) => {
     if (req.method() === 'POST') writes.push(new URL(req.url()).pathname);
@@ -107,9 +197,36 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
   const safe = page.locator('.bank-inbox-row').filter({ hasText: 'Synthetic safe' });
   await (await bankPreviewControl(safe)).click();
   const candidate = page.getByRole('dialog', { name: 'Buchung übernehmen' });
-  await expect(candidate.getByText('Synthetic explicit rule', { exact: true })).toBeVisible();
+  await expect(candidate.getByText(longRule, { exact: true })).toBeVisible();
+  await expect(candidate).toContainText(longPayee);
+  await expect(candidate).toContainText(account.name);
+  const close = candidate.getByRole('button', { name: 'Schließen', exact: true });
+  const closeBox = await close.boundingBox();
+  expect(closeBox).not.toBeNull();
+  expect(closeBox!.x).toBeGreaterThanOrEqual(0);
+  expect(closeBox!.x + closeBox!.width).toBeLessThanOrEqual(originalViewport.width);
   await candidate.getByRole('button', { name: 'Schließen', exact: true }).click();
   await expect(shortcut).toHaveText('Alle sicheren bestätigen (1)');
+  for (const width of [390, 768, 871, 1024, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    const suggestion = safe.locator('.bank-suggestion-pill');
+    await expect(suggestion).toContainText(longRule);
+    const bounds = await suggestion.evaluate((element) => {
+      const pill = element.getBoundingClientRect();
+      const cell = element.closest('td')!.getBoundingClientRect();
+      const text = document.createRange();
+      text.selectNodeContents(element);
+      const content = text.getBoundingClientRect();
+      return {
+        width: pill.width,
+        within: pill.left >= cell.left && pill.right <= cell.right && content.right <= cell.right,
+      };
+    });
+    expect(bounds.width).toBeGreaterThanOrEqual(100);
+    expect(bounds.within).toBe(true);
+  }
+  await page.setViewportSize(originalViewport);
+
   await shortcut.click();
   const preview = page.getByRole('dialog', { name: 'Bankauswahl prüfen' });
   await expect(preview).toContainText('1 ausgewählt · 1 bestätigen · 0 übersprungen');

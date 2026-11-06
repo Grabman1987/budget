@@ -1,40 +1,20 @@
-import {
-  useAmountPrivacy,
-  AmountInput,
-  Button,
-  Field,
-  Select,
-  TextInput,
-  maskMoneyText,
-} from '@budget/ui';
-import {
-  cents,
-  formatDecimal,
-  isReconcileAdjustCategoryKind,
-  parseAmount,
-  todayInVienna,
-} from '@budget/domain';
+import { useAmountPrivacy, AmountInput, Button, Field, TextInput, maskMoneyText } from '@budget/ui';
+import { cents, formatDecimal, parseAmount, todayInVienna } from '@budget/domain';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { TriangleAlert, CircleCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { AppLink } from '../shell/app-link';
 import { ApiError } from '../api/http';
 import { previewReconciliation, reconcileAccount, type ReconcileRequest } from './api';
 import { nativeCurrency, valuedCurrency, longDay, shortDay } from './format';
 import { errorText } from './labels';
 import { useLedgerWrites } from './mutations';
-import { LEDGER_KEY, lookupsQuery } from './queries';
+import { LEDGER_KEY } from './queries';
 import { candidatesOf, findingOf } from './reconcile-model';
 import { ErrorNote, LoadingNote } from './states';
 import type { AccountRow, ReconcileResult } from './types';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
-import { BookingPanel, type BookingPanelState } from './booking-panel';
-import { categoriesFor, pickableCategories } from './capture-model';
-import {
-  defaultCorrectionCategoryLabel,
-  readCorrectionCategory,
-  rememberCorrectionCategory,
-} from './reconcile-category';
+import { defaultCorrectionCategoryLabel } from './reconcile-category';
+import './reconcile-panel.css';
 
 /** Value that follows `value` after a pause (the preview is asked for when typing stops). */
 function useDebounced<T>(value: T, ms: number): T {
@@ -95,18 +75,19 @@ export function ReconcileFlow({
     [closeContext],
   );
   const [date, setDate] = useState(initialDate ?? today);
-  const [text, setText] = useState('');
+  // Only the normal today check may suggest the already loaded booked balance. A historical
+  // check or month close needs its own statement value; pending money is never suggested.
+  const [suggestedBalance] = useState(() =>
+    !closeContext && initialDate === undefined && Number.isSafeInteger(account.clearedCents)
+      ? account.clearedCents
+      : null,
+  );
+  const [text, setText] = useState(() =>
+    suggestedBalance === null ? '' : formatDecimal(cents(suggestedBalance)),
+  );
   const [adjustDate, setAdjustDate] = useState<string | null>(null);
-  const [categoryChoice, setCategoryChoice] = useState(() => ({
-    accountId: account.id,
-    id: readCorrectionCategory(account.id),
-  }));
-  if (categoryChoice.accountId !== account.id)
-    setCategoryChoice({ accountId: account.id, id: readCorrectionCategory(account.id) });
   const [unlock, setUnlock] = useState(false);
-  const [bookingState, setBookingState] = useState<BookingPanelState>(null);
   const [error, setError] = useState<string | null>(null);
-  const lookups = useQuery(lookupsQuery());
   const bank = account.bankBalance;
   const bankDate = bank?.effectiveDate ?? null;
   const adjustmentDay = adjustDate ?? date;
@@ -156,24 +137,7 @@ export function ReconcileFlow({
   const canCorrect = !unresolvedCandidates && !candidateBusy;
   const money = (amount: number, sign = false) => nativeCurrency(amount, account.currency, sign);
   const finding = data ? findingOf(data) : null;
-  // The same plain spending categories for a surplus and a shortfall; the server enforces it too.
-  const categories = categoriesFor(pickableCategories(undefined, lookups.data), 'expense').filter(
-    (c) =>
-      isReconcileAdjustCategoryKind(c.kind) &&
-      !lookups.data?.categories.find((row) => row.id === c.id)?.hiddenAt,
-  );
-  const selectedCategory =
-    categoryChoice.accountId === account.id
-      ? categoryChoice.id
-      : readCorrectionCategory(account.id);
-  const categoryId = categories.some((c) => c.id === selectedCategory) ? selectedCategory : '';
   const defaultCategoryLabel = defaultCorrectionCategoryLabel(account);
-  const categoryName = categories.find((c) => c.id === categoryId)?.name ?? defaultCategoryLabel;
-  if (lookups.isSuccess && selectedCategory && !categoryId)
-    setCategoryChoice({ accountId: account.id, id: '' });
-  useEffect(() => {
-    if (lookups.isSuccess) rememberCorrectionCategory(account.id, categoryId);
-  }, [account.id, lookups.isSuccess, categoryId]);
   // The panel shows the answer for what is typed now, not for the previous input.
   const current =
     ready &&
@@ -270,6 +234,13 @@ export function ReconcileFlow({
         Vergleicht den gebuchten App-Saldo mit dem Saldo laut Bank. Stimmt beides überein, werden
         die bestätigten Buchungen als geprüft festgeschrieben. Vorgemerkte Buchungen zählen nicht.
       </p>
+      {suggestedBalance !== null && date === today && statement === suggestedBalance && (
+        <p className="kmeta">
+          Vorbelegt ist der gebuchte App-Saldo ohne Vormerkungen. Vergleiche ihn mit Bank oder
+          Bargeld und bestätige „Kontostand stimmt“. Einen abweichenden Saldo kannst du unten
+          eingeben.
+        </p>
+      )}
       {bank && bank.amountCents !== null && bankDate && (
         <Button
           variant="ghost"
@@ -306,6 +277,7 @@ export function ReconcileFlow({
       <AmountInput
         label={`${account.type === 'brokerage' || account.type === 'crypto' ? 'Bargeld-Saldo (ohne Wertpapiere)' : 'Saldo laut Bank'}${account.currency === 'EUR' ? '' : ` · ${account.currency}`}`}
         currency={account.currency}
+        showOperators={false}
         value={text}
         onChange={setText}
       />
@@ -374,7 +346,7 @@ export function ReconcileFlow({
                 disabled={confirm.isPending || candidateBusy || staleClose}
                 onClick={() => run({})}
               >
-                Festschreiben ({data.toReconcileCount})
+                Kontostand stimmt
               </Button>
             </div>
           </>
@@ -503,15 +475,6 @@ export function ReconcileFlow({
                     </div>
                   </section>
                 ))}
-                {unresolvedCandidates && (
-                  <AppLink
-                    className="btn btn-ghost"
-                    to="/konten/buchungen"
-                    search={{ konto: account.id, bis: asked.date }}
-                  >
-                    In Buchungen suchen
-                  </AppLink>
-                )}
               </section>
             )}
             {canCorrect && (
@@ -537,38 +500,21 @@ export function ReconcileFlow({
                       Ausgleich gebucht wird.
                     </p>
                   )}
-                  <Field label="Ausgleichsdatum">
-                    {({ id }) => (
-                      <TextInput
-                        id={id}
-                        type="date"
-                        min={account.openingDate}
-                        max={date}
-                        value={adjustmentDay}
-                        onChange={(e) => setAdjustDate(e.target.value)}
-                      />
-                    )}
-                  </Field>
-                  <Field label="Kategorie für den Ausgleich">
-                    {({ id }) => (
-                      <Select
-                        id={id}
-                        value={categoryId}
-                        disabled={!lookups.isSuccess || confirm.isPending}
-                        onChange={(e) => {
-                          setCategoryChoice({ accountId: account.id, id: e.target.value });
-                          rememberCorrectionCategory(account.id, e.target.value);
-                        }}
-                      >
-                        <option value="">{defaultCategoryLabel}</option>
-                        {categories.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </Select>
-                    )}
-                  </Field>
+                  <details className="reconcile-adjustment-date">
+                    <summary>Anderes Ausgleichsdatum</summary>
+                    <Field label="Ausgleichsdatum">
+                      {({ id }) => (
+                        <TextInput
+                          id={id}
+                          type="date"
+                          min={account.openingDate}
+                          max={date}
+                          value={adjustmentDay}
+                          onChange={(e) => setAdjustDate(e.target.value)}
+                        />
+                      )}
+                    </Field>
+                  </details>
                   {!adjustmentValid && (
                     <p className="field-error" role="alert">
                       Das Ausgleichsdatum muss zwischen Kontoeröffnung und Stichtag liegen.
@@ -593,65 +539,34 @@ export function ReconcileFlow({
                   <p className="text-muted">
                     Eine echte Buchung über {money(data.differenceCents, true)} wird am{' '}
                     {longDay(adjustmentDay)} mit{' '}
-                    {categoryId
-                      ? `Kategorie „${categoryName}“`
-                      : defaultCategoryLabel === 'Zu verteilen'
-                        ? 'Zu verteilen (ohne Kategorie)'
-                        : 'keiner Kategorie'}{' '}
+                    {defaultCategoryLabel === 'Zu verteilen'
+                      ? 'Zu verteilen (ohne Kategorie)'
+                      : 'keiner Kategorie'}{' '}
                     erstellt und festgeschrieben.
                   </p>
                 </div>
                 <div className="panel-actions">
-                  {finding.kind === 'missing' && (
-                    <Button
-                      disabled={confirm.isPending}
-                      onClick={() =>
-                        setBookingState({
-                          mode: 'create',
-                          accountId: account.id,
-                          prefill: {
-                            kind: finding.type,
-                            amount: formatDecimal(cents(finding.amountCents)),
-                            date,
-                            status: 'confirmed',
-                          },
-                        })
-                      }
-                    >
-                      Fehlende Buchung erfassen
-                    </Button>
-                  )}
                   <Button
                     variant={
                       finding.kind === 'missing' || finding.kind === 'other' ? 'primary' : 'ghost'
                     }
                     disabled={
                       confirm.isPending ||
-                      !lookups.isSuccess ||
                       staleClose ||
                       Boolean(closeContext && !reason.trim()) ||
                       !adjustmentValid ||
-                      (locked && !unlock) ||
-                      (categoryId !== '' && !categories.some((c) => c.id === categoryId))
+                      (locked && !unlock)
                     }
                     onClick={() =>
                       run({
                         adjust: true,
                         ...(adjustDate === null ? {} : { adjustDate }),
-                        ...(categoryId ? { categoryId } : {}),
                         ...(locked ? { unlockReconciled: true } : {}),
                       })
                     }
                   >
-                    Differenz ausgleichen · {money(data.differenceCents, true)}
+                    Differenz ausgleichen
                   </Button>
-                  <AppLink
-                    className="btn btn-ghost"
-                    to="/konten/buchungen"
-                    search={{ konto: account.id, bis: asked.date }}
-                  >
-                    In Buchungen suchen
-                  </AppLink>
                 </div>
               </>
             )}
@@ -673,7 +588,6 @@ export function ReconcileFlow({
           ? `Zuletzt geprüft am ${longDay(account.lastReconciledOn)}.`
           : 'Dieses Konto wurde noch nie geprüft.'}
       </p>
-      <BookingPanel state={bookingState} onClose={() => setBookingState(null)} />
     </div>
   );
 }

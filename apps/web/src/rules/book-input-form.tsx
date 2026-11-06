@@ -13,6 +13,8 @@ import { useState, type FormEvent } from 'react';
 import { request } from '../api/http';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { useRuleWrite } from './use-rule-writes';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { SettingsDraftGuard } from '../pages/settings-draft-guard';
 
 interface Settings {
   birthMonth: string;
@@ -58,7 +60,7 @@ function Inputs({ settings }: { settings: Settings }) {
     }
     setError(undefined);
     setBusy(true);
-    await write(
+    const result = await write(
       () =>
         request<Settings & { groupId: string }>('PATCH', '/api/rules/inputs', {
           ...(birthMonth !== settings.birthMonth ? { birthMonth } : {}),
@@ -66,10 +68,21 @@ function Inputs({ settings }: { settings: Settings }) {
         }),
       () => 'Regeldaten gespeichert.',
     );
+    if (result) {
+      setBirth(result.birthMonth);
+      setMonth('');
+      setAmount('');
+    }
     setBusy(false);
   };
   return (
     <form className="kform rw-form" onSubmit={(event) => void submit(event)}>
+      {REDESIGN_ENABLED && (
+        <SettingsDraftGuard
+          dirty={birthMonth !== settings.birthMonth || month !== '' || amount !== ''}
+          busy={busy}
+        />
+      )}
       <Field
         label="Geburtsmonat und Jahr"
         hint="Für R18; kein Geburtstag erforderlich. Ohne Angabe nicht bewertbar."

@@ -163,6 +163,10 @@ it('places status by account, repeat by date and sharing by category, and expose
       </ToastProvider>
     </QueryClientProvider>,
   );
+  expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
+  expect((screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement).disabled).toBe(
+    true,
+  );
   const status = screen.getByRole('button', { name: 'Vorgemerkt' });
   expect(status.closest('.bk-account-row')?.contains(screen.getByLabelText('Bezahlt von'))).toBe(
     true,

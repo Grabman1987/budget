@@ -217,6 +217,8 @@ export interface Heute extends WithValuationNotes {
     };
   };
   lastBookings: Array<{
+    transferId: string | null;
+    transferAccountName: string | null;
     id: string;
     date: string;
     payeeName: string | null;

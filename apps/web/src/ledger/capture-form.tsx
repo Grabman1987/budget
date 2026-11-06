@@ -337,7 +337,7 @@ export function CaptureForm({
   const blocked = !isTransfer && Boolean(lineProblem);
   const showLineProblem =
     blocked &&
-    (!mobileRedesign || amountInteracted || lineProblem !== 'Jede Zeile braucht einen Betrag.');
+    (Boolean(draft.amount.trim() || errors.splits) || (mobileRedesign && amountInteracted));
   const splitError = errors.splits === REMAINDER_SAVE_ERROR && !blocked ? undefined : errors.splits;
 
   const draftDirty = queued
@@ -765,6 +765,13 @@ export function CaptureForm({
       singleMetadata={singleMetadata}
       contactHost={REDESIGN_ENABLED ? contactHost : undefined}
       compact={REDESIGN_ENABLED && isPhone}
+      allowReadyToAssign={
+        !draft.splitOn &&
+        editing?.splits.length === 1 &&
+        draft.payee.trim() === editing.payeeName &&
+        (editing.payeeSystemKind === 'reconciliation_adjustment' ||
+          editing.payeeSystemKind === 'manual_adjustment')
+      }
     />
   );
 

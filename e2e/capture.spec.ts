@@ -200,10 +200,14 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await expect(
     panel.getByLabel('Bezahlt von', { exact: true }).locator('option:checked'),
   ).toHaveText(account);
-  // Empty lines now disable saving with a visible reason. A footer click with
+  // An untouched empty amount disables saving without an immediate error. After input,
+  // an invalid amount explains why saving is blocked. A footer click with
   // an invalid date must still land while the payee suggestions are open.
   await expect(panel.getByRole('button', { name: 'Speichern und neu' })).toBeDisabled();
+  await expect(panel.locator('.bk-save-reason')).toHaveCount(0);
+  await panel.getByLabel('Betrag', { exact: true }).fill('0');
   await expect(panel.locator('.bk-save-reason')).toContainText('Jede Zeile braucht einen Betrag.');
+  await expect(panel.getByRole('button', { name: 'Speichern und neu' })).toBeDisabled();
   await panel.getByLabel('Betrag', { exact: true }).fill('1');
   await panel.getByLabel('Datum', { exact: true }).fill('31.02.2026');
   await panel.getByLabel('Empfänger').press('ArrowDown');
