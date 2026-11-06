@@ -1,3 +1,4 @@
+import { withShellControls } from './shell-actions';
 import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { expect as baseExpect, sampleTest as test } from './sample';
@@ -124,3 +125,68 @@ for (const colorScheme of ['light', 'dark'] as const) {
     });
   });
 }
+
+test('recent bookings show counterparties and mask them in privacy mode (#951)', async ({
+  page,
+}) => {
+  const response = await page.request.get('/api/heute');
+  expect(response.ok()).toBe(true);
+  const data = await response.json();
+  const base = {
+    date: '2026-09-17',
+    payeeName: null,
+    categoryName: null,
+    categoryClass: null,
+    memo: null,
+    status: 'confirmed',
+    accountName: 'Musterkonto',
+    transferId: null,
+    transferAccountName: null,
+  };
+  data.lastBookings = [
+    {
+      ...base,
+      id: 'out',
+      amountCents: -1234,
+      transferId: 'transfer',
+      transferAccountName: 'Mustersparkonto',
+    },
+    {
+      ...base,
+      id: 'in',
+      amountCents: 1234,
+      transferId: 'transfer',
+      transferAccountName: 'Mustergiro',
+    },
+    { ...base, id: 'memo', amountCents: 123, memo: 'Musterzinsen' },
+    { ...base, id: 'payee', amountCents: -456, payeeName: 'Musterladen' },
+  ];
+  await page.route('**/api/heute?*', (route) => route.fulfill({ json: data }));
+  try {
+    await page.goto('/');
+    const labels = page.locator(redesign ? '.hv-booking-list strong' : '.heute-booking strong');
+    await expect(labels).toHaveText([
+      'Umbuchung nach Mustersparkonto',
+      'Umbuchung von Mustergiro',
+      'Musterzinsen',
+      'Musterladen',
+    ]);
+    await withShellControls(page, async ({ privacy }) => {
+      await privacy.click();
+    });
+    await expect(labels).toHaveText(['•••', '•••', '•••', '•••']);
+    await expect(page.locator('main')).not.toContainText('Musterzinsen');
+    if (redesign) {
+      await page.goto('/heute/details/bookings');
+      await expect(page.locator('.heute-booking strong')).toHaveText(['•••', '•••', '•••', '•••']);
+      await expect(page.locator('main')).not.toContainText('Musterzinsen');
+      await page.goto('/');
+    }
+    await withShellControls(page, async ({ privacy }) => {
+      await privacy.click();
+    });
+    await expect(labels.first()).toHaveText('Umbuchung nach Mustersparkonto');
+  } finally {
+    await page.unrouteAll({ behavior: 'wait' });
+  }
+});

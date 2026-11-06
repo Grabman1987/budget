@@ -114,6 +114,8 @@ export interface NextStep {
 }
 
 export interface HeuteLastBooking {
+  transferId: string | null;
+  transferAccountName: string | null;
   id: string;
   date: string;
   payeeName: string | null;
@@ -697,6 +699,8 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
         id: b.id,
         date: b.date,
         payeeName: b.payeeName,
+        transferId: b.transferId,
+        transferAccountName: b.transferAccountName,
         categoryName: single?.categoryName ?? null,
         categoryClass: (categoryId ? categories.get(categoryId)?.class : null) ?? null,
         memo: b.memo ?? first?.memo ?? null,
