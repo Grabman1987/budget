@@ -211,9 +211,30 @@ it('adds credit category returns on edits while unallocated purchases retain ord
       ],
     },
     testCtx,
+    { contactModel: true },
   );
   expect(cash()).toEqual(before);
   expect(totals()).toMatchObject({ essen: -3000, auslagen: 0 });
+});
+
+it('lets legacy edits retain shared-category pairs while adding valid advance shares', () => {
+  const id = purchase('essen', 4000);
+  const before = cash();
+  updateBooking(
+    opened.db,
+    id,
+    {
+      splits: [
+        { categoryId: 'essen', amountCents: -1000 },
+        { categoryId: 'essen', contactId: 'k1', amountCents: -2000 },
+        { categoryId: 'auslagen', contactId: 'k1', amountCents: -1000 },
+      ],
+    },
+    testCtx,
+  );
+  expect(cash()).toEqual(before);
+  expect(totals()).toMatchObject({ essen: -3000, auslagen: -1000 });
+  expect(statement().balanceCents).toBe(3000);
 });
 
 it('keeps gross claims and earmarked credit visible even with a zero net contact balance', () => {

@@ -129,7 +129,7 @@ export interface TransferResult {
 export interface WriteOptions {
   /** Allow changing or deleting `reconciled` bookings (they are locked otherwise). */
   unlockReconciled?: boolean;
-  /** Owner capture opts into the current contact receipt model; imports keep legacy semantics. */
+  /** Owner capture/edit opts into current contact receipts and new shared-category pairs. */
   contactModel?: boolean;
 }
 
@@ -236,7 +236,11 @@ function normalizeFx<T extends FxFields>(input: T): T {
 }
 
 /** Categories and contacts referenced by splits (see the invariants at the top). */
-function assertSplitRefs(tx: Executor, splits: readonly SplitInput[]): void {
+function assertSplitRefs(
+  tx: Executor,
+  splits: readonly SplitInput[],
+  allowSharedCategories = true,
+): void {
   for (const s of splits) {
     const categoryId = s.categoryId ?? null;
     if (categoryId === null) {
@@ -256,7 +260,11 @@ function assertSplitRefs(tx: Executor, splits: readonly SplitInput[]): void {
         'A card payment envelope is filled automatically by card spending; book the spending category instead',
       );
     }
-    if (s.contactId && row.kind !== 'advance' && (row.class === null || row.kind === 'income')) {
+    if (
+      s.contactId &&
+      row.kind !== 'advance' &&
+      (!allowSharedCategories || row.class === null || row.kind === 'income')
+    ) {
       throw new BookingInvariantError(
         'A split with a contact (receivable share) must use an "Auslagen" category (kind advance)',
       );
@@ -874,7 +882,17 @@ function updateBookingImpl(
       nextSplits = curSplits;
     }
     assertSplits(amount, nextSplits);
-    if (patch.splits) assertSplitRefs(tx, nextSplits);
+    if (patch.splits) {
+      // Legacy operator edits cannot silently promote historical splits into the new model.
+      for (const split of nextSplits) {
+        const sharedCategory =
+          options.contactModel ||
+          curSplits.some(
+            (old) => old.contactId === split.contactId && old.categoryId === split.categoryId,
+          );
+        assertSplitRefs(tx, [split], sharedCategory);
+      }
+    }
     const fx = normalizeFx({ ...cur, ...patch, amountCents: amount });
 
     if (cur.transferId) {
