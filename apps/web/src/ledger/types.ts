@@ -118,6 +118,7 @@ export interface AccountSeriesBatch {
 }
 
 export interface ListedSplit {
+  categoryKind?: string | null;
   id: string;
   categoryId: string | null;
   categoryName: string | null;

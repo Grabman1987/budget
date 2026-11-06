@@ -1,3 +1,4 @@
+import { contactCreditRecords, assertContactCreditRecords } from './contact-credit';
 import { contactStatement } from '@budget/domain';
 import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 import {
@@ -35,6 +36,11 @@ export function cashlessContactBookingIds(db: Executor): Set<string> {
 }
 
 function readCashlessContactBookingIds(db: Executor): Set<string> {
+  const gifts = new Set(
+    contactCreditRecords(db)
+      .filter((r) => r.decision && !r.decision.creditSplitId)
+      .map((r) => r.bookingId),
+  );
   return new Set(
     db
       .select({ id: booking.id })
@@ -48,13 +54,17 @@ function readCashlessContactBookingIds(db: Executor): Set<string> {
         ),
       )
       .all()
-      .map((b) => b.id),
+      .map((b) => b.id)
+      .filter((id) => !gifts.has(id)),
   );
 }
 
 export function actualContactMovements(tx: Executor, contactId: string, asOf?: string) {
+  const records = contactCreditRecords(tx);
   return tx
     .select({
+      categoryId: category.id,
+      categoryKind: category.kind,
       splitId: bookingSplit.id,
       bookingId: booking.id,
       date: booking.date,
@@ -66,9 +76,11 @@ export function actualContactMovements(tx: Executor, contactId: string, asOf?: s
       currency: booking.currency,
       status: booking.status,
       accountId: booking.accountId,
+      onBudget: account.onBudget,
     })
     .from(bookingSplit)
     .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
+    .innerJoin(account, eq(account.id, booking.accountId))
     .leftJoin(payee, eq(payee.id, booking.payeeId))
     .leftJoin(category, eq(category.id, bookingSplit.categoryId))
     .where(
@@ -79,7 +91,25 @@ export function actualContactMovements(tx: Executor, contactId: string, asOf?: s
       ),
     )
     .orderBy(booking.date, sql`${booking}.rowid`, bookingSplit.sortOrder)
-    .all();
+    .all()
+    .map((m) => {
+      const decision = records.find((r) => r.bookingId === m.bookingId)?.decision;
+      const target =
+        decision?.categoryId && decision.creditSplitId === m.splitId
+          ? tx.select().from(category).where(eq(category.id, decision.categoryId)).get()
+          : null;
+      return {
+        ...m,
+        categoryName: target ? `Vorgemerkt: ${target.name}` : m.categoryName,
+        categoryId: m.categoryKind === 'advance' ? null : m.categoryId,
+        ...(decision?.debitSplitId === m.splitId
+          ? { creditSourceSplitId: decision.sourceSplitId }
+          : {}),
+        ...(decision?.creditSplitId === m.splitId
+          ? { creditOnly: true, creditCategoryId: decision.categoryId }
+          : {}),
+      };
+    });
 }
 
 export function savedContactSettlements(tx: Executor, contactId: string, asOf?: string) {
@@ -120,8 +150,15 @@ export function assertContactSettlementInvariants(tx: Executor): void {
   for (const ref of referenced) {
     const envelope =
       ref.categoryId && tx.select().from(category).where(eq(category.id, ref.categoryId)).get();
-    if (!envelope || envelope.deletedAt !== null || envelope.kind !== 'advance')
-      throw new BookingInvariantError('Contact movements must retain their live Auslagen category');
+    if (
+      !envelope ||
+      envelope.deletedAt !== null ||
+      (envelope.kind !== 'advance' &&
+        (envelope.class === null || ['income', 'card_payment'].includes(envelope.kind)))
+    )
+      throw new BookingInvariantError(
+        'Contact movements must retain a live expense or Auslagen category',
+      );
   }
   for (const id of new Set(referenced.map((r) => r.contactId!))) {
     const row = tx.select().from(contact).where(eq(contact.id, id)).get();
@@ -130,7 +167,11 @@ export function assertContactSettlementInvariants(tx: Executor): void {
         'A contact with live ledger movements must retain its identity',
       );
   }
+  const creditRecords = contactCreditRecords(tx);
   for (const s of tx.select().from(contactSettlement).all()) {
+    const modeled = creditRecords.some(
+      (r) => r.bookingId === s.bookingId && r.repayments?.includes(s.receiptSplitId),
+    );
     const cash = tx.select().from(booking).where(eq(booking.id, s.bookingId)).get();
     const parts = tx
       .select()
@@ -143,9 +184,10 @@ export function assertContactSettlementInvariants(tx: Executor): void {
     if (!live) continue;
     const cashAccount =
       cash && tx.select().from(account).where(eq(account.id, cash.accountId)).get();
+    const receipt = parts.find((p) => p.id === s.receiptSplitId);
     const envelope =
-      parts[0]?.categoryId &&
-      tx.select().from(category).where(eq(category.id, parts[0].categoryId)).get();
+      receipt?.categoryId &&
+      tx.select().from(category).where(eq(category.id, receipt.categoryId)).get();
     if (
       !cashAccount ||
       cashAccount.deletedAt !== null ||
@@ -162,15 +204,15 @@ export function assertContactSettlementInvariants(tx: Executor): void {
       !owner ||
       owner.deletedAt !== null ||
       !cash ||
-      cash.amountCents <= 0 ||
+      (cash.amountCents <= 0 && !modeled) ||
       cash.currency !== 'EUR' ||
       cash.transferId !== null ||
       cash.originalAmountCents !== null ||
-      parts.length !== 1 ||
-      parts[0]?.id !== s.receiptSplitId ||
-      parts[0]?.contactId !== s.contactId ||
-      parts[0]?.incomeTypeId !== null ||
-      parts[0]?.amountCents !== cash.amountCents
+      !receipt ||
+      receipt.contactId !== s.contactId ||
+      receipt.incomeTypeId !== null ||
+      receipt.transferId !== null ||
+      receipt.amountCents <= 0
     )
       throw new BookingInvariantError('Invalid contact settlement cash booking');
   }
@@ -187,26 +229,22 @@ export function assertContactSettlementInvariants(tx: Executor): void {
     if (!owner || owner.deletedAt !== null)
       throw new BookingInvariantError('Contact allocation has no live settlement');
   }
-  const contacts = new Set(
-    tx
-      .select({ contactId: contactSettlement.contactId })
-      .from(contactSettlement)
-      .where(isNull(contactSettlement.deletedAt))
-      .all()
-      .map((s) => s.contactId),
-  );
+  const contacts = new Set(referenced.map((r) => r.contactId!));
+  const uses: NonNullable<ReturnType<typeof contactStatement>['creditUses']> = [];
   for (const contactId of contacts) {
     try {
-      contactStatement(
+      const statement = contactStatement(
         actualContactMovements(tx, contactId),
         savedContactSettlements(tx, contactId),
       );
+      uses.push(...statement.creditUses);
     } catch (error) {
       throw new BookingInvariantError(
         error instanceof Error ? error.message : 'Invalid contact allocation',
       );
     }
   }
+  assertContactCreditRecords(tx, uses);
 }
 
 /** Write-offs are plain zero bookings, so their outlay must stay unchanged until they are undone. */
@@ -271,7 +309,15 @@ export function assertContactBookingWrite(
   const economic =
     operation === 'update' && !fieldList.every((f) => ['memo', 'status', 'flag'].includes(f));
   if (operation === 'delete' || economic) assertNoLaterWriteOff(tx, bookingId);
-  if (!settlement && !allocated) return;
+  const creditRecord = contactCreditRecords(tx).find((r) => r.bookingId === bookingId);
+  if (
+    !settlement &&
+    !allocated &&
+    !creditRecord?.decision &&
+    !creditRecord?.uses?.length &&
+    !creditRecord?.repayments?.length
+  )
+    return;
   if (operation === 'update' && [...fields].every((f) => ['memo', 'status', 'flag'].includes(f)))
     return;
   throw new BookingInvariantError(

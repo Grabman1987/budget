@@ -686,6 +686,8 @@ export function undo(
         throw new AuditError('Gehaltszettel-Aufnahme nur als gesamte Aktion rückgängig machen.');
       if (['security_asset_exposure', 'security_exposure_version'].includes(entry.entityType))
         throw new AuditError('Klassenzuordnung nur als gesamte Aktion rückgängig machen.');
+      if (entry.entityType === 'app_setting' && entry.entityId.startsWith('contacts.credit.'))
+        throw new AuditError('Kontaktguthaben nur als gesamte Aktion rückgängig machen.');
       const snapshot = entry.after ?? entry.before;
       if (
         entry.entityType === 'booking_split' ||

@@ -1,5 +1,26 @@
 # Budget — Specification
 
+Owner shared-expense decision (2026-11-06, #963): new category/contact-share
+purchases retain the original category on every share, charging the gross purchase
+until repayment. Receipts use saved allocations (oldest open outlay first unless
+explicitly chosen) and return each settled amount to that original category as an
+inflow, never to general income or Zu verteilen. Standalone/legacy Auslagen shares
+without a proven original category retain their stored category; no historical
+category is guessed. Free or category-earmarked excess remains contact credit.
+Only a matching-category purchase may consume earmarked credit; free credit is
+consumed in receipt order. Budget purchases do not consume off-budget credit.
+Cash, category returns, allocations and automatic credit use are one audited,
+undoable action. Credit provenance prevents changing an earlier source while a
+later use depends on it, including forced Undo. The owner can explicitly keep any
+remaining credit free, earmark a portion, or accept it as a gift (income). These
+decisions use zero-cash bookings and preserve account balances and net worth;
+only the explicit gift increases income/Zu verteilen. Credit choices and their
+category remain visible in the contact statement. Gross open claims and credit
+remain visible even when their net balance is zero. Existing data is not rewritten
+or financially reinterpreted. Historical mappings require the report-only operator
+preview and separate owner approval before any correction. See
+[the implementation contract](docs/shared-expenses.md).
+
 Plan sidebar continuation (#592/#593, owner reset clarification 2026-10-27):
 automatic assignment rows display the exact signed change from `quickAssignPlan`,
 using the selection or the currently filtered row order. Reset means absolute

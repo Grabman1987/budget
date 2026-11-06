@@ -1,4 +1,8 @@
 import { bookingIncomeDefault } from './income-month';
+import { contactStatement } from '@budget/domain';
+import { actualContactMovements, savedContactSettlements } from './contact-invariants';
+import { contactCreditRecords, saveContactCreditRecord } from './contact-credit';
+import { ensureAdvanceCategory } from './categories';
 import { manualTransferStatus, type ManualBankStatus } from '@budget/domain';
 import { assertContactBookingWrite, assertContactSettlementInvariants } from './contact-invariants';
 import {
@@ -13,6 +17,8 @@ import {
   booking,
   bookingSplit,
   category,
+  contactSettlement,
+  contactAllocation,
   expectedOccurrence,
   project,
   transfer,
@@ -123,6 +129,8 @@ export interface TransferResult {
 export interface WriteOptions {
   /** Allow changing or deleting `reconciled` bookings (they are locked otherwise). */
   unlockReconciled?: boolean;
+  /** Owner capture opts into the current contact receipt model; imports keep legacy semantics. */
+  contactModel?: boolean;
 }
 
 /** Fields of a reconciled booking that stay editable without an unlock (no effect on any figure). */
@@ -237,7 +245,7 @@ function assertSplitRefs(tx: Executor, splits: readonly SplitInput[]): void {
       continue;
     }
     const row = tx
-      .select({ kind: category.kind })
+      .select({ kind: category.kind, class: category.class })
       .from(category)
       .where(and(eq(category.id, categoryId), isNull(category.deletedAt)))
       .get();
@@ -248,7 +256,7 @@ function assertSplitRefs(tx: Executor, splits: readonly SplitInput[]): void {
         'A card payment envelope is filled automatically by card spending; book the spending category instead',
       );
     }
-    if (s.contactId && row.kind !== 'advance') {
+    if (s.contactId && row.kind !== 'advance' && (row.class === null || row.kind === 'income')) {
       throw new BookingInvariantError(
         'A split with a contact (receivable share) must use an "Auslagen" category (kind advance)',
       );
@@ -387,14 +395,143 @@ function insertBooking(
 }
 
 /** Create a booking with its splits. Returns the booking id. */
-export function createBooking(db: Executor, input: BookingInput, ctx: AuditContext): string {
+export function createBooking(
+  db: Executor,
+  input: BookingInput,
+  ctx: AuditContext,
+  options: WriteOptions = {},
+): string {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const incomeNextMonth = input.incomeNextMonth ?? false;
     const id = insertBooking(tx, { ...input, incomeNextMonth }, null, grouped);
+    if (options.contactModel) recordContactReceipts(tx, id, grouped);
+    applyContactCredit(tx, id, grouped);
     assertLedgerInvariants(tx, relatedTransferBookings(tx, id));
     return id;
   });
+}
+
+/** Manual capture uses the same persisted FIFO allocations as the contact receipt form. */
+function recordContactReceipts(tx: Executor, bookingId: string, ctx: GroupedContext) {
+  const cash = loadBooking(tx, bookingId)!;
+  const parts = loadSplits(tx, bookingId);
+  const receipts = parts.filter((s) => s.contactId && s.amountCents > 0);
+  if (!receipts.length) return;
+  const acct = liveAccount(tx, cash.accountId);
+  if (
+    cash.currency !== 'EUR' ||
+    !['checking', 'savings', 'cash'].includes(acct.type) ||
+    cash.transferId ||
+    cash.originalAmountCents !== null
+  )
+    throw new BookingInvariantError('Contact receipts need an EUR cash account');
+  const advanceId = ensureAdvanceCategory(tx, ctx);
+  for (const receipt of receipts) {
+    if (receipt.categoryId !== advanceId)
+      updateTracked(tx, bookingSplit, [receipt.id], { categoryId: advanceId }, ctx);
+  }
+  const refunds = new Map<string, number>();
+  for (const receipt of receipts) {
+    const statement = contactStatement(
+      actualContactMovements(tx, receipt.contactId!),
+      savedContactSettlements(tx, receipt.contactId!),
+    );
+    const plan = statement.receipts.find((r) => r.receiptSplitId === receipt.id)!;
+    const id = randomUUID();
+    insertTracked(
+      tx,
+      contactSettlement,
+      {
+        id,
+        contactId: receipt.contactId!,
+        bookingId,
+        receiptSplitId: receipt.id,
+        creditCents: plan.creditCents,
+      },
+      ctx,
+    );
+    for (const a of plan.allocations) {
+      insertTracked(tx, contactAllocation, { id: randomUUID(), settlementId: id, ...a }, ctx);
+      const original = statement.outlays.find((o) => o.splitId === a.outlaySplitId)!;
+      if (original.categoryId) {
+        if (!acct.onBudget)
+          throw new BookingInvariantError('Shared category repayments require a budget account');
+        refunds.set(original.categoryId, (refunds.get(original.categoryId) ?? 0) + a.amountCents);
+      }
+    }
+  }
+  const returned = [...refunds].map(([categoryId, amountCents]) => ({ categoryId, amountCents }));
+  if (returned.length)
+    [
+      ...returned,
+      { categoryId: advanceId, amountCents: -returned.reduce((sum, r) => sum + r.amountCents, 0) },
+    ].forEach((s, i) =>
+      insertTracked(
+        tx,
+        bookingSplit,
+        {
+          id: randomUUID(),
+          bookingId,
+          sortOrder: parts.length + i,
+          ...s,
+          memo: 'Rückzahlung in die ursprüngliche Kategorie',
+        },
+        ctx,
+      ),
+    );
+  saveContactCreditRecord(
+    tx,
+    { bookingId, repayments: receipts.map((r) => r.id), repaymentRefunds: returned },
+    ctx,
+  );
+}
+
+/** A new shared purchase consumes available credit in the same audit group, without cash. */
+function applyContactCredit(tx: Executor, bookingId: string, ctx: GroupedContext) {
+  const parts = loadSplits(tx, bookingId);
+  const shared = parts.filter(
+    (s) =>
+      s.contactId &&
+      s.amountCents < 0 &&
+      s.categoryId &&
+      tx.select().from(category).where(eq(category.id, s.categoryId)).get()?.kind !== 'advance',
+  );
+  if (!shared.length) return;
+  const uses = [...new Set(shared.map((s) => s.contactId!))].flatMap((id) =>
+    contactStatement(
+      actualContactMovements(tx, id),
+      savedContactSettlements(tx, id),
+    ).creditUses.filter((u) => shared.some((s) => s.id === u.outlaySplitId)),
+  );
+  const totals = new Map<string, number>();
+  for (const use of uses) {
+    const categoryId = shared.find((s) => s.id === use.outlaySplitId)!.categoryId!;
+    totals.set(categoryId, (totals.get(categoryId) ?? 0) + use.amountCents);
+  }
+  const refunds = [...totals].map(([categoryId, amountCents]) => ({ categoryId, amountCents }));
+  if (refunds.length) {
+    const advanceId = ensureAdvanceCategory(tx, ctx);
+    const adjustments = [
+      ...refunds,
+      { categoryId: advanceId, amountCents: -refunds.reduce((sum, r) => sum + r.amountCents, 0) },
+    ];
+    adjustments.forEach((s, i) =>
+      insertTracked(
+        tx,
+        bookingSplit,
+        {
+          id: randomUUID(),
+          bookingId,
+          sortOrder: parts.length + i,
+          ...s,
+          memo: 'Mit Kontaktguthaben ausgeglichen',
+        },
+        ctx,
+      ),
+    );
+  }
+  saveContactCreditRecord(tx, { bookingId, uses, refunds }, ctx);
 }
 
 /** Internal settlement path: allocations are persisted by its outer transaction before validation. */
@@ -810,6 +947,16 @@ function updateBookingImpl(
     if (fx.fxFeeCents !== cur.fxFeeCents) columns['fxFeeCents'] = fx.fxFeeCents;
     updateTracked(tx, booking, [id], columns, grouped);
     if (patch.splits || amountChanged) syncSplits(tx, id, curSplits, nextSplits, grouped);
+    if (patch.splits || amountChanged || patch.date !== undefined) {
+      if (
+        options.contactModel &&
+        !tx.select().from(contactSettlement).where(eq(contactSettlement.bookingId, id)).get()
+      )
+        recordContactReceipts(tx, id, grouped);
+      const existingCredit = contactCreditRecords(tx).find((r) => r.bookingId === id);
+      if (!existingCredit?.uses?.length && !existingCredit?.decision)
+        applyContactCredit(tx, id, grouped);
+    }
     const touchedBookings = relatedTransferBookings(tx, id);
     assertLedgerInvariants(tx, touchedBookings);
     for (const { id: occurrenceId, patch } of expectedLinkPatches(tx, touchedBookings))

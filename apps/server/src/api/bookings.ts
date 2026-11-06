@@ -248,11 +248,14 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
         const lines = (
           splits ?? [{ categoryId: categoryId ?? null, amountCents: body.amountCents }]
         ).map((s) => defined(s) as SplitInput);
+        if (columns.date > today() && lines.some((s) => s.contactId && s.amountCents > 0))
+          throw new ApiError(422, 'future_receipt', 'A contact receipt must be an actual payment');
         // One transaction: a refused booking must not leave a freshly created Auslagen category.
         const id = createBooking(
           tx,
           { ...defined(columns), splits: withAdvanceCategory(tx, lines, ctx) },
           ctx,
+          { contactModel: true },
         );
         if (repeat) repeatFrom(tx, id, repeat, ctx);
         result = { id, bookings: read([id]), groupId: ctx.groupId };
@@ -307,7 +310,16 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
       };
       if (repeat && getBooking(tx, id)?.status === 'reconciled' && !unlockReconciled)
         throw new ReconciledLockedError([id]);
-      updateBooking(tx, id, patch, ctx, { unlockReconciled: unlockReconciled ?? false });
+      const previous = getBooking(tx, id);
+      if (
+        (patch.date ?? previous?.date ?? '') > today() &&
+        (patch.splits ?? previous?.splits ?? []).some((s) => s.contactId && s.amountCents > 0)
+      )
+        throw new ApiError(422, 'future_receipt', 'A contact receipt must be an actual payment');
+      updateBooking(tx, id, patch, ctx, {
+        unlockReconciled: unlockReconciled ?? false,
+        contactModel: true,
+      });
       if (repeat) repeatFrom(tx, id, repeat, ctx);
       const response = { bookings: read([id]), groupId: ctx.groupId };
       if (key)

@@ -112,10 +112,7 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
   await expect(panel.locator('.contacts-balance')).toContainText('60,00 €');
   await panel.getByRole('button', { name: 'Rückzahlung buchen', exact: true }).click();
   await panel.getByLabel('Konto', { exact: true }).selectOption(accountId);
-  // This branch deliberately retains contact credit; the form defaults new excess to the budget.
-  await panel
-    .getByRole('checkbox', { name: 'Überschuss dieser Rückzahlung ins Budget übernehmen' })
-    .uncheck();
+  await panel.getByRole('combobox', { name: 'Guthaben verwenden' }).selectOption('free');
   await panel.getByLabel('Rückzahlung', { exact: true }).fill('80');
   await expect(panel).toContainText('Guthaben aus dieser Rückzahlung: 20,00 €');
   await panel.getByRole('button', { name: 'Rückzahlung speichern' }).click();

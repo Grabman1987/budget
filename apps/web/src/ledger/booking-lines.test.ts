@@ -32,7 +32,7 @@ it.each([
     },
     [
       { categoryId: 'category-example', amountCents: -6000 },
-      { categoryId: 'advance-example', contactId: 'contact-example', amountCents: -6000 },
+      { categoryId: 'category-example', contactId: 'contact-example', amountCents: -6000 },
     ],
   ],
   [
@@ -44,7 +44,7 @@ it.each([
     },
     [
       { categoryId: 'category-example', amountCents: -10000 },
-      { categoryId: 'advance-example', contactId: 'contact-example', amountCents: -2000 },
+      { categoryId: 'category-example', contactId: 'contact-example', amountCents: -2000 },
     ],
   ],
 ])('maps an independent category/outlay line to the existing payload', (entry, expected) => {
@@ -85,8 +85,8 @@ it('maps several gross categories with their own contact shares', () => {
       amountCents: -12000,
       splits: [
         { categoryId: 'category-example', amountCents: -7000 },
-        { categoryId: 'advance-example', contactId: 'contact-a', amountCents: -2000 },
-        { categoryId: 'advance-example', contactId: 'contact-b', amountCents: -1000 },
+        { categoryId: 'category-example', contactId: 'contact-a', amountCents: -2000 },
+        { categoryId: 'category-example', contactId: 'contact-b', amountCents: -1000 },
         { categoryId: 'category-other', amountCents: -2000 },
       ],
     },
@@ -133,7 +133,7 @@ it('maps a category and 33,33% contact share into exact existing split payloads'
       amountCents: -10001,
       splits: [
         { categoryId: 'category-example', amountCents: -6668 },
-        { categoryId: 'advance-example', contactId: 'contact-example', amountCents: -3333 },
+        { categoryId: 'category-example', contactId: 'contact-example', amountCents: -3333 },
       ],
     },
   });

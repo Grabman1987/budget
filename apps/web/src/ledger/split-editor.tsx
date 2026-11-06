@@ -292,7 +292,7 @@ export function SplitEditor({
                 <p className="khint" aria-live="polite">
                   {sharingInvalid
                     ? 'Kontakt und gültigen Anteil wählen. Anteile dürfen den Zeilenbetrag nicht überschreiten.'
-                    : `Kategorie behält ${eur(retained.ok ? retained.cents : 0)}`}
+                    : `Kategorie trägt ${eur(parseAmount(line.amount).ok ? (parseAmount(line.amount) as { cents: number }).cents : 0)} bis zur Rückzahlung`}
                 </p>
                 <Button
                   variant="ghost"
@@ -392,6 +392,9 @@ export function SplitEditor({
                 </Button>
               )}
             </div>
+            {line.type === 'contact' && category && category.kind !== 'advance' && (
+              <p className="khint">Ursprüngliche Kategorie: {category.name}</p>
+            )}
             {compact && !multiple && (
               <div className="bk-category-tools">
                 {line.type === 'category' &&

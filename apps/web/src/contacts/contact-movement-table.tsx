@@ -188,7 +188,7 @@ export function ContactMovementTable({
                                 const source = statement.outlays.find(
                                   (row) => row.splitId === allocation.outlaySplitId,
                                 );
-                                return `${source ? longDay(source.date) : 'Auslage'}: ${eur(allocation.amountCents)}`;
+                                return `${source ? longDay(source.date) : 'Auslage'} · ${source?.categoryName ?? 'Kategorie unbekannt'}: ${eur(allocation.amountCents)}`;
                               })
                               .join(' · ')}
                             {repayment.creditCents > 0 &&
