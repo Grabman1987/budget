@@ -234,6 +234,28 @@
 .contact-source:hover > span:first-child {
   text-decoration-color: currentColor;
 }
+.contact-source .contact-movement-note {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.contact-source:is(:hover, :focus) .contact-movement-note {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.contact-movement-context {
+  display: block;
+  width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.contact-movements td:first-child {
+  width: 100%;
+  max-width: 0;
+}
 .contact-movement-meta {
   white-space: nowrap;
 }

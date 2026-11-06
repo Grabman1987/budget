@@ -44,6 +44,52 @@ const receipt = (
     testCtx,
   );
 const statement = () => getContactStatement(opened.db, 'k1', '2026-09-17');
+it('retains booking and split notes, payee and the stored contact-share category in the statement', () => {
+  createBooking(
+    opened.db,
+    {
+      accountId: 'giro',
+      date: '2026-09-01',
+      amountCents: -3000,
+      payeeId: 'p1',
+      memo: 'Gemeinsamer Einkauf im Beispielmarkt',
+      splits: [
+        { categoryId: 'essen', amountCents: -2000 },
+        {
+          categoryId: 'auslagen',
+          contactId: 'k1',
+          amountCents: -1000,
+          memo: 'Anteil Beispielkontakt',
+        },
+      ],
+    },
+    testCtx,
+  );
+  const result = statement();
+  expect(result.movements).toHaveLength(1);
+  expect(result.movements[0]).toMatchObject({
+    bookingMemo: 'Gemeinsamer Einkauf im Beispielmarkt',
+    memo: 'Anteil Beispielkontakt',
+    payeeName: 'Vermieter',
+    categoryName: 'Auslagen',
+    amountCents: -1000,
+    balanceCents: 1000,
+  });
+  expect(result.outlays[0]).toMatchObject({
+    bookingMemo: 'Gemeinsamer Einkauf im Beispielmarkt',
+    categoryName: 'Auslagen',
+  });
+});
+
+it('keeps movements without a payee or booking note', () => {
+  outlay(1000);
+  expect(statement().movements[0]).toMatchObject({
+    payeeName: null,
+    bookingMemo: null,
+    categoryName: 'Auslagen',
+    balanceCents: 1000,
+  });
+});
 describe('overdue contact reminders', () => {
   it('starts on day 31 and shows one row per contact with the actual open amount', () => {
     outlay(3000);

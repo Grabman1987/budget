@@ -126,13 +126,34 @@ export function ContactMovementTable({
                     type="button"
                     className="contact-source"
                     data-contact-source={movement.splitId}
-                    aria-label={`Ursprungsbuchung öffnen · ${description(movement)} ${longDay(movement.date)} · ${movementKind(movement)} · Kontaktanteil ${eur(receivableDelta(movement.amountCents), { sign: true })}`}
+                    aria-label={`Ursprungsbuchung öffnen · ${description(movement)} ${longDay(movement.date)} · ${movementKind(movement)} · ${maskMoneyText([movement.payeeName, movement.bookingMemo, movement.categoryName].filter(Boolean).join(' · '))} · Kontaktanteil ${eur(receivableDelta(movement.amountCents), { sign: true })}`}
                     onClick={() => onOpen(movement)}
                   >
-                    <span>{description(movement)}</span>{' '}
+                    <span className="contact-movement-note" title={description(movement)}>
+                      {description(movement)}
+                    </span>{' '}
                     <span className="contact-movement-meta">
                       {longDay(movement.date)} · {movementKind(movement)}
                     </span>
+                    {movement.payeeName && (
+                      <span className="contact-movement-context">
+                        {maskMoneyText(movement.payeeName)}
+                      </span>
+                    )}
+                    {movement.bookingMemo?.trim() &&
+                      movement.bookingMemo.trim() !== movement.memo?.trim() && (
+                        <span
+                          className="contact-movement-note"
+                          title={maskMoneyText(movement.bookingMemo)}
+                        >
+                          {maskMoneyText(movement.bookingMemo)}
+                        </span>
+                      )}
+                    {movement.categoryName && (
+                      <span className="contact-movement-context">
+                        Kategorie: {maskMoneyText(movement.categoryName)}
+                      </span>
+                    )}
                   </button>
                   {repayment && (
                     <details className="contact-allocation-details">
