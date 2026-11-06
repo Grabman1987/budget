@@ -1,4 +1,6 @@
 import { withShellControls } from './shell-actions';
+import { redesignEnabled } from './plan-redesign-controls';
+import { MIN_TARGET_PX } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
@@ -131,6 +133,62 @@ test('592 all five displayed deltas equal actual selected/visible assignments an
   await page.reload();
   await expect(automatic).toBeVisible();
   await expect.poll(state).toEqual({ assigned: [400, 0, 250], tba: 500 });
+});
+
+test('514 selected assignment preview is read-only, capped and private', async ({
+  page,
+  request,
+  baseURL,
+}, info) => {
+  const { ids, state } = await seedAutomaticPlan(page, request, baseURL);
+  const before = await state();
+  const writes: string[] = [];
+  page.on('request', (req) => {
+    if (new URL(req.url()).pathname.startsWith('/api/') && !['GET', 'HEAD'].includes(req.method()))
+      writes.push(`${req.method()} ${new URL(req.url()).pathname}`);
+  });
+  await page.locator(`.pname[data-category-id="${ids[0]}"]`).click();
+  const side = page.getByRole('complementary', { name: 'Plan-Inspektor' });
+  const disclosure = side.getByText('Zuweisungsvorschau', { selector: 'summary', exact: true });
+  if (!(await redesignEnabled(page))) {
+    await expect(disclosure).toHaveCount(0);
+    expect(await state()).toEqual(before);
+    return;
+  }
+  await disclosure.focus();
+  await page.keyboard.press('Enter');
+  const preview = side.getByRole('region', { name: 'Zuweisungsvorschau' });
+  const category = preview.getByRole('group', { name: 'Visible target', exact: true });
+  await expect(category.locator('dd')).toHaveText([
+    '4,00 €',
+    '6,00 €',
+    '+5,00 €',
+    '9,00 €',
+    '1,00 €',
+  ]);
+  await expect(preview.getByRole('button')).toHaveCount(0);
+  await preview.getByLabel('Vorschau für').selectOption('reset');
+  await expect(category.locator('dd')).toHaveText(['4,00 €', '−4,00 €', '0,00 €', '0,00 €']);
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => {
+      document.documentElement.dataset['theme'] = value;
+    }, theme);
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await preview.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: info.outputPath(`assignment-preview-${theme}.png`) });
+  }
+  for (const control of [disclosure, preview.getByLabel('Vorschau für')]) {
+    const box = await control.boundingBox();
+    expect(box!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+  }
+  await togglePrivacy(page);
+  await expect(category.locator('dd')).toHaveText(['••• €', '••• €', '••• €', '••• €']);
+  await togglePrivacy(page);
+  expect(await state()).toEqual(before);
+  expect(writes).toEqual([]);
 });
 
 test('592 automatic panel themes, privacy and selected assignment preserve literal state and Undo', async ({
