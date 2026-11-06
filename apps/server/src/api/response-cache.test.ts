@@ -154,6 +154,24 @@ describe('readModelCache', () => {
     expect(computed).toBe(2);
   });
 
+  it('services a ready event-loop callback between the two startup models', async () => {
+    const events: string[] = [];
+    const api = new Hono();
+    api.get('/heute', (c) => {
+      events.push(c.req.query('period')!);
+      return c.json({ ok: true });
+    });
+    const ready = new Promise<void>((done) =>
+      setImmediate(() => {
+        events.push('ready-io');
+        done();
+      }),
+    );
+    expect(await warmReadModels(api, () => '2026-09-17')).toBe(2);
+    await ready;
+    expect(events).toEqual(['month', 'ready-io', 'payday']);
+  });
+
   it('does not count the uncached inbox badge as warmed and recomputes its real route on a second call', async () => {
     const opened = createTestDatabase();
     const { db } = opened;
