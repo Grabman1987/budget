@@ -102,6 +102,10 @@ test('961/962 contacts: zero net retains credit and movement source context', as
   await expect(source).toHaveAccessibleName(
     new RegExp(note.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
   );
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+  }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 

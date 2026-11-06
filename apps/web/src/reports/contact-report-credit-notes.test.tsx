@@ -137,11 +137,36 @@ it.each(['2026-10-01', '2026-09-01'])(
     expect(row.textContent).toContain('Beispielempfänger');
     expect(row.textContent).toContain('Kategorie: Beispielauslagen');
     expect(row.getAttribute('aria-label')).toContain(note);
-    expect(within(row).getByTitle(note).textContent).toBe(note);
+    expect(row.getAttribute('aria-label')).toBe(
+      `Ursprungsbuchung öffnen · Vorauszahlung ${date === '2026-10-01' ? '01.10.2026' : '01.09.2026'} · Rückzahlung Beispielempfänger ${note} Kategorie: Beispielauslagen · Kontaktanteil −50,00 €`,
+    );
+    expect(row.getAttribute('aria-label')).toContain(row.textContent?.replace(/\s+/g, ' ').trim());
+    expect(within(row).getByTitle(note).textContent?.trim()).toBe(note);
     row.focus();
     expect(document.activeElement).toBe(row);
   },
 );
+
+it('includes the visible fallback and category in the source name without repeating a booking note', () => {
+  show(overview, {
+    ...statement,
+    movements: [{ ...movement, memo: null, bookingMemo: null, payeeName: null }],
+  });
+  expect(
+    screen.getByRole('button', {
+      name: 'Ursprungsbuchung öffnen · Rückzahlung 01.10.2026 · Rückzahlung Kategorie: Beispielauslagen · Kontaktanteil −50,00 €',
+    }),
+  ).toBeTruthy();
+});
+
+it('does not repeat matching booking and split notes in the accessible name', () => {
+  show(overview, { ...statement, movements: [{ ...movement, bookingMemo: movement.memo }] });
+  expect(
+    screen.getByRole('button', {
+      name: 'Ursprungsbuchung öffnen · Vorauszahlung 01.10.2026 · Rückzahlung Beispielempfänger Kategorie: Beispielauslagen · Kontaktanteil −50,00 €',
+    }),
+  ).toBeTruthy();
+});
 
 it('masks money in added context, titles and accessible names', () => {
   const privateNote = 'Beispielkosten 50,00 €';
