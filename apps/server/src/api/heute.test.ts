@@ -4,6 +4,7 @@ import {
   accounts,
   categories,
   createBooking,
+  createTransfer,
   createEntity,
   createTestDatabase,
   ensureDefaultRules,
@@ -548,6 +549,65 @@ describe('GET /heute', () => {
     expect(res.body.netWorth.series).toHaveLength(12);
     expect(res.body.lastBookings).toHaveLength(1);
     expect(res.body.nextSteps).toEqual({ items: [], count: 0 });
+  });
+
+  it('recent bookings retain transfer counterparties in both directions and booking text', async () => {
+    accounts.create(
+      db,
+      {
+        id: 'savings',
+        name: 'Mustersparkonto',
+        type: 'savings',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2026-01-01',
+        openingBalanceCents: 0,
+      },
+      { actor: 'tester' },
+    );
+    createTransfer(
+      db,
+      {
+        fromAccountId: 'giro',
+        toAccountId: 'savings',
+        date: TODAY,
+        amountCents: 1234,
+      },
+      { actor: 'tester' },
+    );
+    createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: TODAY,
+        amountCents: 123,
+        memo: 'Musterzinsen',
+        splits: [{ amountCents: 123 }],
+      },
+      { actor: 'tester' },
+    );
+    const res = await call('GET', '/heute');
+    expect(res.body.lastBookings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          amountCents: -1234,
+          transferId: expect.any(String),
+          transferAccountName: 'Mustersparkonto',
+        }),
+        expect.objectContaining({
+          amountCents: 1234,
+          transferId: expect.any(String),
+          transferAccountName: 'Giro',
+        }),
+        expect.objectContaining({
+          amountCents: 123,
+          payeeName: null,
+          memo: 'Musterzinsen',
+          transferId: null,
+          transferAccountName: null,
+        }),
+      ]),
+    );
   });
 
   it('period=payday includes fourteen actual days and ends two days after payday', async () => {

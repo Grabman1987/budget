@@ -153,7 +153,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function mount() {
+function mount(beforeRequest: (path: string) => Promise<void> = async () => {}) {
   const api = createLedgerApi({
     db: opened.db,
     today: () => TODAY,
@@ -162,6 +162,7 @@ function mount() {
   vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
     const url = new URL(input, 'http://localhost');
     requests.push(`${init?.method ?? 'GET'} ${url.pathname}${url.search}`);
+    await beforeRequest(url.pathname);
     if (url.pathname === '/api/auth/status')
       return Response.json({
         setupRequired: false,
@@ -211,6 +212,39 @@ async function openActions(user = userEvent.setup()) {
   const summary = screen.queryByLabelText('Kontenaktionen');
   if (summary && !(summary.parentElement as HTMLDetailsElement).open) await user.click(summary);
 }
+
+it('shows a loading balance while linked depot positions are pending, then the real balance', async () => {
+  opened.db
+    .insert(schema.account)
+    .values({
+      id: 'pending-depot',
+      name: 'Synthetic pending depot',
+      type: 'brokerage',
+      role: 'investment',
+      onBudget: false,
+      openingDate: TODAY,
+      openingBalanceCents: 500,
+      referenceAccountId: 'alpha',
+    })
+    .run();
+  let release!: () => void;
+  const pending = new Promise<void>((done) => {
+    release = done;
+  });
+  mount(async (path) => {
+    if (path === '/api/portfolio/positions') await pending;
+  });
+  await screen.findByTestId('budget-accounts-balance');
+  await waitFor(() =>
+    expect(screen.getByTestId('budget-accounts-balance').textContent).toBe('Wird geladen …'),
+  );
+  expect(screen.getByTestId('budget-accounts-balance').getAttribute('aria-busy')).toBe('true');
+  await act(async () => release());
+  await waitFor(() =>
+    expect(screen.getByTestId('budget-accounts-balance').textContent).toBe('125,00 €'),
+  );
+  expect(screen.getByTestId('budget-accounts-balance').getAttribute('aria-busy')).toBe('false');
+});
 
 it.each([false, true])(
   'retains canonical signed, unknown and zero figures with redesign %s',

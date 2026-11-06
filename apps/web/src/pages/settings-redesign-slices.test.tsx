@@ -55,7 +55,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-function mount(node: React.ReactNode, path: string, additionalPaths: string[] = []) {
+function mount(
+  node: React.ReactNode,
+  path: string,
+  additionalPaths: string[] = [],
+  beforeRequest: (path: string) => Promise<void> = async () => {},
+) {
   const database = createTestDatabase();
   databases.push(database);
   seedBasics(database.db);
@@ -70,6 +75,7 @@ function mount(node: React.ReactNode, path: string, additionalPaths: string[] = 
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init: RequestInit = {}) => {
+      await beforeRequest(url);
       if (init.method && init.method !== 'GET') writes.push(`${init.method} ${url}`);
       if (failAssetReads && url === '/api/asset-classes/settings')
         return new Response(JSON.stringify({ error: 'unavailable' }), { status: 503 });
@@ -143,6 +149,25 @@ it('E4 ON orders the five real sources and makes unavailable-source recovery acc
   await userEvent.click(within(bank).getByRole('button', { name: 'Prüfen' }));
   await within(bank).findByText(/Bank-Sync ist noch nicht eingerichtet/);
   expect(within(bank).getByText(/Noch kein erfolgreicher Abruf/)).toBeTruthy();
+});
+it('shows loading source dates and reads only VPI reference metadata on settings entry', async () => {
+  let release!: () => void;
+  const pending = new Promise<void>((done) => {
+    release = done;
+  });
+  const paths: string[] = [];
+  const view = mount(<DataSourcesPage />, '/einstellungen/datenquellen', [], async (path) => {
+    paths.push(path);
+    await pending;
+  });
+  await screen.findByRole('heading', { name: 'Verbindungen' });
+  expect(screen.getAllByText(/Letzter Erfolg: Wird geladen/)).toHaveLength(5);
+  expect(screen.queryByText(/Letzter Erfolg: Nicht verfügbar/)).toBeNull();
+  await act(async () => release());
+  await waitFor(() => expect(view.client.isFetching()).toBe(0));
+  expect(paths).toContain('/api/inflation-basket/reference');
+  expect(paths).not.toContain('/api/reports/spending/inflation');
+  expect(screen.queryByText(/Letzter Erfolg: Wird geladen/)).toBeNull();
 });
 it('E5 ON provides the one persisted target editor as a settings destination', async () => {
   mount(<AssetClassesSettingsPage />, '/einstellungen/anlageklassen?ansicht=stufen');

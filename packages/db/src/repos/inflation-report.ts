@@ -1,5 +1,5 @@
-import { asc, isNull } from 'drizzle-orm';
-import { category, categoryGroup } from '../schema';
+import { asc, inArray, isNull } from 'drizzle-orm';
+import { category, categoryGroup, consumerPriceIndex } from '../schema';
 import { inflationBasketSettings } from './inflation-basket';
 import {
   addMonths,
@@ -29,7 +29,7 @@ import { matchedCharges } from './contract-history';
 import { overviewData } from './report-ledger';
 import { cpiMonths, currentCpiSeries } from './cpi';
 import { fxRateOnOrBefore } from './prices';
-import { reportTables } from './report-tables';
+import { reportMonthFigures } from './report-tables';
 import { reportMonths, spendCategories, tableSpendByMonth } from './spending-report';
 import type { Executor } from './types';
 
@@ -95,9 +95,55 @@ function latestChange(months: Record<string, number>): InflationReport['referenc
     : null;
 }
 
+function referenceMetadata(
+  series: string | null,
+  stored: ReturnType<typeof cpiMonths> | null,
+): InflationReport['reference'] {
+  return series && stored
+    ? {
+        series,
+        source: stored.source ?? 'statistik_austria',
+        fetchedAt: stored.fetchedAt,
+        lastMonth: Object.keys(stored.months).sort().at(-1) as string,
+      }
+    : null;
+}
+
+/** Public reference metadata for settings; no household ledger or personal index is needed. */
+export function inflationReference(db: Executor): InflationReport['reference'] {
+  const series = currentCpiSeries(db);
+  return referenceMetadata(series, series ? cpiMonths(db, series) : null);
+}
+
+/** The same complete COICOP map as individual cpiMonths reads, loaded in one query. */
+export function inflationSubindices(db: Executor): Record<string, Record<string, number>> {
+  const series = new Map<string, Record<string, number>>();
+  const rows = db
+    .select({
+      series: consumerPriceIndex.series,
+      month: consumerPriceIndex.month,
+      indexMicro: consumerPriceIndex.indexMicro,
+    })
+    .from(consumerPriceIndex)
+    .where(
+      inArray(
+        consumerPriceIndex.series,
+        COICOP_CLASSES.map((c) => `vpi:${c.code}`),
+      ),
+    )
+    .orderBy(asc(consumerPriceIndex.series), asc(consumerPriceIndex.month))
+    .all();
+  for (const row of rows) {
+    const months = series.get(row.series) ?? {};
+    months[row.month] = row.indexMicro / 1_000_000;
+    series.set(row.series, months);
+  }
+  return Object.fromEntries(COICOP_CLASSES.map((c) => [c.code, series.get(`vpi:${c.code}`) ?? {}]));
+}
+
 export function inflationReport(db: Executor, today: string): InflationReport {
   const categories = spendCategories(db);
-  const spend = tableSpendByMonth(reportTables(db, { today }), categories);
+  const spend = tableSpendByMonth({ months: reportMonthFigures(db, { today }) }, categories);
   // The index starts with the first month that has spending: an opening-balance month before it
   // holds no prices and would leave the basket empty.
   const months = reportMonths(db, today).available;
@@ -121,24 +167,34 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     inflationCategoryIncluded(c, ownerSettings.get(c.id)?.inclusion);
   const countsPayee = (categoryId: string, payeeId: string | null) =>
     !ownerSettings.get(categoryId)?.excludedPayeeIds.includes(payeeId);
-  const charged = new Map<
-    string,
-    { bookingId: string; date: string; amountCents: number; payeeId: string | null; name: string }[]
-  >();
+  type Charge = {
+    bookingId: string;
+    date: string;
+    amountCents: number;
+    payeeId: string | null;
+    name: string;
+  };
+  const charged = new Map<string, Charge[]>();
+  const byBooking = new Map<string, Map<string, Charge>>();
   for (const split of ledger.splits) {
     if (split.kind !== 'spend' || !split.categoryId || split.date > today) continue;
     const own = charged.get(split.categoryId) ?? [];
-    const existing = own.find((r) => r.bookingId === split.bookingId);
+    const index = byBooking.get(split.categoryId) ?? new Map<string, Charge>();
+    const existing = index.get(split.bookingId);
     if (existing) existing.amountCents -= split.amountCents;
-    else
-      own.push({
+    else {
+      const charge = {
         bookingId: split.bookingId,
         date: split.date,
         amountCents: -split.amountCents,
         payeeId: split.payeeId,
         name: split.payeeName ?? 'Ohne Empfänger',
-      });
+      };
+      own.push(charge);
+      index.set(split.bookingId, charge);
+    }
     charged.set(split.categoryId, own);
+    byBooking.set(split.categoryId, index);
   }
   const allCharged = new Map([...charged].map(([id, rows]) => [id, [...rows]]));
   for (const [id, rows] of charged)
@@ -228,9 +284,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     return cache.get(key) ?? null;
   };
   const items: InflationItem[] = [];
-  const subindices = Object.fromEntries(
-    COICOP_CLASSES.map((c) => [c.code, cpiMonths(db, `vpi:${c.code}`).months]),
-  );
+  const subindices = inflationSubindices(db);
   for (const category of categories) {
     const categoryId = category.id;
     const allCharges = charged.get(categoryId) ?? [];
@@ -469,14 +523,6 @@ export function inflationReport(db: Executor, today: string): InflationReport {
             ? 'months'
             : 'basket',
     referenceLatest: stored ? latestChange(stored.months) : null,
-    reference:
-      series && stored
-        ? {
-            series,
-            source: stored.source ?? 'statistik_austria',
-            fetchedAt: stored.fetchedAt,
-            lastMonth: Object.keys(stored.months).sort().at(-1) as string,
-          }
-        : null,
+    reference: referenceMetadata(series, stored),
   };
 }

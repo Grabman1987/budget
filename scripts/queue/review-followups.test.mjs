@@ -1,6 +1,5 @@
 // Review #646 regressions. Scripts run only as disposable copies with local command/sibling mocks;
 // no real GitHub, network, dispatch, merge, deploy or unattended queue is used.
-import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   existsSync,
@@ -15,6 +14,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { checkScope } from './policy.mjs';
+import { writeMocks, runFixture } from './fixture-timing.mjs';
 
 const QUEUE = dirname(fileURLToPath(import.meta.url));
 const fwd = (p) => p.replace(/\\/g, '/');
@@ -42,22 +42,16 @@ function fixture(script) {
   const bin = join(root, 'bin');
   mkdirSync(bin);
   const write = (name, text) => writeFileSync(join(root, name), text);
-  const executable = (name, body) =>
-    writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`, { mode: 0o755 });
   copyFileSync(join(QUEUE, script), join(root, script));
   copyFileSync(join(QUEUE, 'policy.mjs'), join(root, 'policy.mjs'));
-  executable(
-    'git',
-    `case "$*" in
+  writeMocks(bin, {
+    git: `case "$*" in
   *"rev-parse --show-toplevel") echo "$STUB_ROOT" ;;
   "fetch -q origin main" | "merge-base --is-ancestor ${SHA} ${SHA}") ;;
   *) echo "unexpected git: $*" >&2; exit 99 ;;
 esac`,
-  );
-  executable('curl', `echo '{"status":"ok","revision":"${SHA}"}'`);
-  executable(
-    'gh',
-    `echo "$*" >>"$STUB_ROOT/calls.log"
+    curl: `echo '{"status":"ok","revision":"${SHA}"}'`,
+    gh: `echo "$*" >>"$STUB_ROOT/calls.log"
 case "$1 $2" in
   "run list") echo success ;;
   "pr list") cat "$STUB_ROOT/merged.tsv" ;;
@@ -66,22 +60,22 @@ case "$1 $2" in
   "issue comment" | "issue close") ;;
   *) echo "unexpected gh: $*" >&2; exit 99 ;;
 esac`,
-  );
+  });
   write('board.sh', '#!/usr/bin/env bash\nexit 0\n');
   return {
     write,
     calls: () => readFileSync(join(root, 'calls.log'), 'utf8'),
     run() {
-      // Git Bash prepends its own tools: put mocks first again inside the shell.
-      const r = spawnSync(
+      const r = runFixture(
         BASH,
-        ['-c', 'export PATH="$STUB_BIN:$PATH"; exec bash "$@"', 'bash', script, '--once'],
+        [script, '--once'],
         {
           cwd: root,
           env: { ...process.env, STUB_ROOT: fwd(root), STUB_BIN: posix(bin) },
           encoding: 'utf8',
           timeout: 10_000,
         },
+        `review-${script}`,
       );
       expect(r.error).toBeUndefined();
       expect(r.status, `${r.stdout}${r.stderr}`).toBe(0);
