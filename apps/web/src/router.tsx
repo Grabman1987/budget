@@ -136,9 +136,10 @@ const shellRoute = createRoute({
     const status = await queryClient.fetchQuery(authStatusQuery);
     if (status.setupRequired) throw redirect({ to: '/setup' });
     if (!status.authenticated) {
-      // Session ended (expiry, sign-out in another tab): nothing financial may stay on the device.
+      // Revoke cached reads; pending files survive expiry for reauthentication. Explicit logout
+      // already fences and clears file intents, while the text-booking queue remains unchanged.
       queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== AUTH_STATUS_KEY[0] });
-      void clearDeviceFinancialData();
+      void clearDeviceFinancialData({ preserveReceipts: true });
       throw redirect({ to: '/login', search: { weiter: captureContinuation(location.href) } });
     }
   },
