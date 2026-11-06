@@ -783,6 +783,78 @@ Output: one line per entry (`created`/`updated`/`unchanged <section> <key> <chan
 `skipped <section> <key> <reason>`), then one summary per section
 (`<section> created C updated U unchanged N skipped S`).
 
+#### 12.6.1 Category restructuring (operator task)
+
+`node migrate-cli.js restructure --file <json> [--dry-run] [--details]` applies an
+explicit category plan. This is operator tooling only; no application import UI or
+schema migration is involved. Prepare the actual file outside the public repository,
+rehearse on a database copy, compare balances, net worth and monthly "Zu verteilen",
+and obtain the owner's approval and backup before a live run. The command never
+changes booking amounts, dates, accounts, statuses, transfer links or account
+balances. Category assignments and openings are explicit inputs, not inferred money.
+
+All eight sections are optional. They execute in the order below, regardless of JSON
+key order. Names match exactly (case-sensitive, surrounding blanks trimmed). Category
+selectors accept a unique name or `Group › Category`, including hidden categories.
+Selectors are resolved against the current transaction: after a rename/move, use the
+new name/group in later entries. New names use the repository's whitespace normalization.
+Unknown and ambiguous matches are refused, never guessed. Unknown JSON keys, unsafe
+or fractional cents and invalid month formats reject the file before applying it.
+
+| Section | JSON shape and behavior |
+| --- | --- |
+| `groups` | Array of `{action:"create", name}`, `{action:"rename", group, name}` or `{action:"delete", group}`. Create is unchanged if exactly one group already has the name; deletion requires no live categories. |
+| `categories` | Array of `{category, name?, group?, hidden?, icon?}`; `hidden` is boolean and `icon` is one emoji or `null`. Optional creation uses `{action:"create", name, group, kind?, class?, icon?}` with the existing category rules (`kind` defaults to `variable`; spending kinds require `need`, `want` or `future` as `class`). Existing categories are never overwritten by create. |
+| `order` | Array of `{group, categories:[selector,...]}`. Must enumerate **every live group and category exactly once**, including hidden categories and empty groups. Categories must already belong to the listed group; move them in `categories` first. The complete order is one atomic entry. |
+| `splits` | Array of `{splitId, category, unlock?:true}`. Changes only the category of that split, including whole-booking and split-level transfer legs. Reconciled bookings require `unlock:true`; their reconciled status stays unchanged. Contact, statement and trade protections still apply. Typed income splits and card-payment destinations are refused. |
+| `openings` | Array of `{category, availableCents}`. Sets exact signed opening available cents, using the audited category writer. It does not change an account opening balance. |
+| `assigned` | `{entries:[{month, category, assignedCents}], expectedDeltaByMonth:{"YYYY-MM":signedCents,...}}`. Sets exact signed values through `setAssigned`, deliberately without the UI's "Zu verteilen" guard. Every touched month needs an explicit expected delta, calculated as the sum of **new minus previous** assignments in that month (usually zero). Duplicate resolved month/category pairs, missing categories or a mismatched delta roll back the **entire assigned section**, including its audit rows. Extra expected months must have zero delta. Integer totals are checked with `BigInt`, and the run checks its audited assignment delta again before commit. |
+| `merge` | Array of `{from, into}`. The source must have no split references (including retained splits of deleted bookings), no nonzero live assignments and zero opening money. The existing merge writer repoints payee defaults, assignment rules (including split actions), expected payments, savings goals and planned events, and retires source targets. The source `inflation.basket` key moves to the destination; different explicit basket policies refuse that merge (`basket_conflict`) instead of choosing one. Card payment categories cannot merge. |
+| `retire` | Array of `{category}` or `{group}`. Soft-deletes empty entries, in array order (categories before their group). Categories with targets, basket policies or other live references are refused: use `merge` to retain those references. Card payment categories cannot retire. |
+
+Each entry has a savepoint; ordinary refusals report a stable reason code and leave
+that entry unchanged while subsequent entries continue. `order` and `assigned` each
+count as one section-wide entry, with assignment writes also using per-entry savepoints.
+Unexpected errors or any protected-ledger snapshot difference roll back the whole run.
+All successful changes share **one audit/undo group**, visible in `list-groups` and
+reversible with `undo-group --group <id>`. A dry run executes the same dependent
+sections, then rolls back every data and audit write; its output has no group ID.
+Default output contains section, status (`created`, `updated`, `deleted`, `unchanged`,
+`skipped`), refusal code and group ID. `--details` adds selectors and refusal text for
+the operator's private terminal. Exit code 3 means at least one section/entry was
+skipped, 1 means the run failed, and 0 means no refusal. Review skipped entries before
+proceeding: a refused assigned section does not undo earlier successful sections.
+This is an explicit plan, not a replay-safe import: rename, merge and retire selectors
+may no longer exist on a second run; nonzero expected deltas must match that run's baseline.
+
+Synthetic example (assumes a group `Beispiel Alltag` with `Beispiel Alt` and
+`Beispiel Ziel`, and no other groups/categories; replace the synthetic split ID when
+rehearsing). The source has 500 cents assigned in the example month and zero opening:
+
+```json
+{
+  "groups": [{ "action": "create", "name": "Beispiel Reserve" }],
+  "categories": [
+    { "category": "Beispiel Ziel", "group": "Beispiel Reserve", "icon": "🧰" }
+  ],
+  "order": [
+    { "group": "Beispiel Reserve", "categories": ["Beispiel Ziel"] },
+    { "group": "Beispiel Alltag", "categories": ["Beispiel Alt"] }
+  ],
+  "splits": [{ "splitId": "synthetic-split-id", "category": "Beispiel Ziel", "unlock": true }],
+  "openings": [{ "category": "Beispiel Ziel", "availableCents": 0 }],
+  "assigned": {
+    "entries": [
+      { "month": "2026-03", "category": "Beispiel Alt", "assignedCents": 0 },
+      { "month": "2026-03", "category": "Beispiel Ziel", "assignedCents": 500 }
+    ],
+    "expectedDeltaByMonth": { "2026-03": 0 }
+  },
+  "merge": [{ "from": "Beispiel Alt", "into": "Beispiel Ziel" }],
+  "retire": [{ "group": "Beispiel Alltag" }]
+}
+```
+
 ### 12.7 Owner trades (operator task)
 
 `owner-trades --file <json> [--dry-run] [--details]` back-fills or removes trades explicitly

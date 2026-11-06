@@ -1,0 +1,36 @@
+.spritmonitor-review {
+  display: grid;
+  gap: var(--space-sm, 8px);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.spritmonitor-review .btn,
+.spritmonitor-review select {
+  min-height: 44px;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.spritmonitor-row {
+  border-top: 1px solid var(--rule);
+  padding-block: var(--space-sm, 8px);
+  overflow-wrap: anywhere;
+}
+.spritmonitor-row summary {
+  display: list-item;
+  min-height: 44px;
+  cursor: pointer;
+  padding-block: var(--space-sm, 8px);
+}
+.spritmonitor-row summary:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.spritmonitor-review .sources-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm, 8px);
+}
+.spritmonitor-review .field-row {
+  min-width: 0;
+}

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { backupsToDelete } from './retention';
 import { createServer, type RequestListener } from 'node:http';
+import { createHash } from 'node:crypto';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { S3Client, safeBackupMessage, amzDate, signV4 } from './s3';
 
@@ -78,6 +82,16 @@ describe('backupsToDelete', () => {
 });
 
 describe('bounded S3 responses', () => {
+  const ciphertext = Buffer.from('age-encryption.org/v1\n-> X25519 synthetic\n' + 'x'.repeat(128));
+  const etag = (bytes: Buffer) => `"${createHash('md5').update(bytes).digest('hex')}"`;
+  async function withDownload(run: (path: string) => Promise<void>) {
+    const dir = await mkdtemp(join(tmpdir(), 'budget-s3-download-test-'));
+    try {
+      await run(join(dir, 'synthetic.age'));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
   async function withServer(
     handler: RequestListener,
     test: (client: S3Client) => Promise<void>,
@@ -178,6 +192,94 @@ describe('bounded S3 responses', () => {
     );
     expect(safeBackupMessage(new Error('synthetic-secret SQL/path/command'))).toBe(
       'Sicherung fehlgeschlagen. Bitte die Sicherungskonfiguration prüfen.',
+    );
+  });
+
+  it('downloads signed ciphertext with a split age header and verifies every byte', async () => {
+    await withDownload(async (path) =>
+      withServer(
+        (req, res) => {
+          expect(req.method).toBe('GET');
+          expect(req.headers.authorization).toMatch(/^AWS4-HMAC-SHA256 /);
+          expect(req.url).toBe('/synthetic-bucket/encrypted/budget-2026-11-05.tar.age');
+          res.writeHead(200, { 'content-length': ciphertext.length, etag: etag(ciphertext) });
+          res.write(ciphertext.subarray(0, 7));
+          setImmediate(() => res.end(ciphertext.subarray(7)));
+        },
+        async (client) => {
+          expect(
+            await client.getEncryptedFile(
+              'encrypted/budget-2026-11-05.tar.age',
+              path,
+              new AbortController().signal,
+            ),
+          ).toBe(ciphertext.length);
+          expect(await readFile(path)).toEqual(ciphertext);
+        },
+      ),
+    );
+  });
+
+  it.each([
+    'checksum',
+    'plaintext',
+    'multipart',
+    'missing length',
+    'truncated',
+    'redirect',
+    'encoded',
+  ])('refuses %s without accepting an artifact', async (failure) => {
+    await withDownload(async (path) =>
+      withServer(
+        (_req, res) => {
+          const bytes =
+            failure === 'plaintext'
+              ? Buffer.from('SQLite format 3\0' + 'x'.repeat(128))
+              : ciphertext;
+          res.writeHead(failure === 'redirect' ? 302 : 200, {
+            ...(failure === 'missing length' ? {} : { 'content-length': bytes.length }),
+            etag:
+              failure === 'checksum'
+                ? '"00000000000000000000000000000000"'
+                : failure === 'multipart'
+                  ? '"synthetic-2"'
+                  : etag(bytes),
+            ...(failure === 'redirect' ? { location: 'http://127.0.0.1:1/never-follow' } : {}),
+            ...(failure === 'encoded' ? { 'content-encoding': 'gzip' } : {}),
+          });
+          res.write(failure === 'truncated' ? bytes.subarray(0, 30) : bytes);
+          if (failure === 'truncated') setImmediate(() => res.destroy());
+          else res.end();
+        },
+        async (client) => {
+          await expect(
+            client.getEncryptedFile(
+              'encrypted/synthetic.tar.age',
+              path,
+              new AbortController().signal,
+            ),
+          ).rejects.toThrow(/Objektspeicher:/);
+        },
+      ),
+    );
+  });
+
+  it.each(['timeout', 'cancel'])('bounds a stalled ciphertext body on %s', async (failure) => {
+    const controller = new AbortController();
+    await withDownload(async (path) =>
+      withServer(
+        (_req, res) => {
+          res.writeHead(200, { 'content-length': ciphertext.length, etag: etag(ciphertext) });
+          res.write(ciphertext.subarray(0, 30));
+          if (failure === 'cancel') controller.abort();
+        },
+        async (client) => {
+          await expect(
+            client.getEncryptedFile('encrypted/synthetic.tar.age', path, controller.signal),
+          ).rejects.toThrow(/Objektspeicher:/);
+        },
+        100,
+      ),
     );
   });
 });

@@ -345,7 +345,7 @@ export function RulesPage() {
               ))}
             </div>
           </section>
-          <BookInputForm />
+          {!REDESIGN_ENABLED && <BookInputForm />}
         </>
       )}
     </div>
@@ -355,6 +355,10 @@ export function RulesPage() {
       {REDESIGN_ENABLED ? (
         <>
           <SettingsRuleList />
+          <details className="settings-advanced settings-book-inputs">
+            <summary>Daten für die Buchregeln</summary>
+            <BookInputForm />
+          </details>
           <details
             className="settings-advanced settings-check-details"
             open={detailsOpen}
@@ -364,7 +368,7 @@ export function RulesPage() {
               window.history.replaceState({ ...window.history.state, settingsCheckOpen: open }, '');
             }}
           >
-            <summary>Finanz-Check, Stufen und Buchangaben</summary>
+            <summary>Finanz-Check und Stufen</summary>
             {detailed}
           </details>
         </>
