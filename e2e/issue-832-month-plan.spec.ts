@@ -31,10 +31,11 @@ test('ON long negative month amount never overlaps the distribution button', asy
     return;
   }
   const viewport = page.viewportSize()!;
-  const widths = viewport.width >= 768 ? [1024, 1280, 1440] : [viewport.width];
+  const widths = viewport.width >= 768 ? [1024, 1280, 1440] : [viewport.width, 320];
   for (const width of widths) {
     await page.setViewportSize({ width, height: viewport.height });
     await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(() => window.scrollTo(0, 0));
     const value = (await amount.boundingBox())!;
     const action = (await page
       .getByRole('button', { name: 'Geld verteilen', exact: true })
@@ -48,6 +49,63 @@ test('ON long negative month amount never overlaps the distribution button', asy
     ).toBe(false);
     expect(action.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
     expect(action.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    await page.locator('.plan-topbar-v2 .plan-tba').click();
+    await expect(page.getByTestId('plan-topbar')).toHaveClass(/is-compact/);
+    const compact = await page.getByTestId('plan-topbar').evaluate((head) => {
+      const headRect = head.getBoundingClientRect();
+      const summary = head.querySelector('.plan-tba')!;
+      const summaryRect = summary.getBoundingClientRect();
+      const actionRect = head.querySelector('.plan-lead-controls > .btn')!.getBoundingClientRect();
+      const amount = summary.querySelector('strong')!;
+      const amountRect = amount.getBoundingClientRect();
+      const amountStyle = getComputedStyle(amount);
+      return {
+        height: headRect.height,
+        headTop: headRect.top,
+        headBottom: headRect.bottom,
+        headCenter: headRect.left + headRect.width / 2,
+        summaryCenter: summaryRect.left + summaryRect.width / 2,
+        summaryLeft: summaryRect.left,
+        summaryRight: summaryRect.right,
+        summaryTop: summaryRect.top,
+        summaryBottom: summaryRect.bottom,
+        summaryText: summary.textContent?.replaceAll(/\s+/g, ' ').trim(),
+        amountLeft: amountRect.left,
+        amountRight: amountRect.right,
+        amountTop: amountRect.top,
+        amountBottom: amountRect.bottom,
+        amountScrollWidth: amount.scrollWidth,
+        amountClientWidth: amount.clientWidth,
+        amountVisibility: amountStyle.visibility,
+        amountDisplay: amountStyle.display,
+        actionLeft: actionRect.left,
+        actionRight: actionRect.right,
+        actionTop: actionRect.top,
+        actionBottom: actionRect.bottom,
+      };
+    });
+    expect(compact.height).toBeLessThanOrEqual(width < 768 ? 104 : 56);
+    expect(compact.summaryCenter).toBeCloseTo(compact.headCenter, 0);
+    expect(compact.summaryLeft).toBeGreaterThanOrEqual(0);
+    expect(compact.summaryRight).toBeLessThanOrEqual(width);
+    expect(compact.summaryText).toContain('12.345.678,90 €');
+    expect(compact.amountVisibility).toBe('visible');
+    expect(compact.amountDisplay).not.toBe('none');
+    expect(compact.amountScrollWidth).toBeLessThanOrEqual(compact.amountClientWidth + 1);
+    expect(compact.amountLeft).toBeGreaterThanOrEqual(compact.summaryLeft);
+    expect(compact.amountRight).toBeLessThanOrEqual(compact.summaryRight);
+    expect(compact.amountLeft).toBeGreaterThanOrEqual(0);
+    expect(compact.amountRight).toBeLessThanOrEqual(width);
+    expect(compact.amountTop).toBeGreaterThanOrEqual(compact.headTop);
+    expect(compact.amountBottom).toBeLessThanOrEqual(compact.headBottom);
+    expect(
+      compact.summaryRight <= compact.actionLeft ||
+        compact.actionRight <= compact.summaryLeft ||
+        compact.summaryBottom <= compact.actionTop ||
+        compact.actionBottom <= compact.summaryTop,
+      `Compact amount and action must not overlap at ${width}px`,
+    ).toBe(true);
+    await page.locator('.plan-topbar-v2 .plan-tba').click();
     await page.screenshot({ path: info.outputPath(`negative-head-${width}.png`) });
   }
 });
@@ -163,6 +221,17 @@ for (const theme of ['light', 'dark'] as const) {
     await send('/budget/2026-10/assigned', 'PUT', {
       items: [{ categoryId: category.id, assignedCents: 400 }],
     });
+    const trailingCategories = [];
+    for (let index = 1; index <= 8; index += 1) {
+      const { category: trailingCategory } = await send('/categories', 'POST', {
+        name: `Synthetic trailing category ${index}`,
+        groupId: group.id,
+        kind: 'variable',
+        class: 'need',
+        stage: 2,
+      });
+      trailingCategories.push(trailingCategory.id);
+    }
     const budget = async (api: APIRequestContext) => {
       const response = await api.get('/api/budget/2026-10');
       expect(response.ok()).toBe(true);
@@ -290,10 +359,81 @@ for (const theme of ['light', 'dark'] as const) {
           expect(rect!.x).toBeGreaterThanOrEqual(-0.5);
           expect(rect!.x + rect!.width).toBeLessThanOrEqual(width + 0.5);
         }
-        if (width < 768) {
+        if (on && width < 768) {
+          const scrollTarget = page.locator(
+            `.prow:has(.pname[data-category-id="${trailingCategories.at(-1)}"])`,
+          );
+          await expect(scrollTarget).toBeVisible();
+          await scrollTarget.evaluate((node) => node.scrollIntoView({ block: 'center' }));
+          await expect(scrollTarget).toBeInViewport();
+          const scrollControl = scrollTarget.getByRole('button', { name: /Verfügbar/ });
+          await expect(scrollControl).toBeInViewport();
+          const stickyHead = page.getByTestId('plan-topbar');
+          await expect(stickyHead).toHaveClass(/is-compact/);
+          await expect(stickyHead).toBeInViewport();
+          const stickyGeometry = await stickyHead.evaluate((head) => {
+            const headRect = head.getBoundingClientRect();
+            const summary = head
+              .querySelector('[data-testid="to-be-assigned"]')!
+              .closest('.plan-tba') as HTMLElement;
+            const summaryRect = summary.getBoundingClientRect();
+            const label = summary.querySelector('.plan-tba-label')!;
+            const labelRect = label.getBoundingClientRect();
+            const amountRect = summary.querySelector('strong')!.getBoundingClientRect();
+            const labelVisible = getComputedStyle(label).position !== 'absolute';
+            const actionRect = head
+              .querySelector('.plan-lead-controls > .btn')!
+              .getBoundingClientRect();
+            const style = getComputedStyle(head);
+            return {
+              top: headRect.top,
+              height: headRect.height,
+              headCenter: headRect.left + headRect.width / 2,
+              summaryCenter: summaryRect.left + summaryRect.width / 2,
+              summaryLeft: summaryRect.left,
+              summaryRight: summaryRect.right,
+              summaryTop: summaryRect.top,
+              summaryBottom: summaryRect.bottom,
+              summaryScrollWidth: summary.scrollWidth,
+              summaryClientWidth: summary.clientWidth,
+              contentLeft: labelVisible
+                ? Math.min(labelRect.left, amountRect.left)
+                : amountRect.left,
+              contentRight: labelVisible
+                ? Math.max(labelRect.right, amountRect.right)
+                : amountRect.right,
+              actionLeft: actionRect.left,
+              actionRight: actionRect.right,
+              actionTop: actionRect.top,
+              actionBottom: actionRect.bottom,
+              background: style.backgroundColor,
+              zIndex: Number.parseInt(style.zIndex, 10),
+              headBottom: headRect.bottom,
+            };
+          });
+          const targetRowTop = (await scrollTarget.boundingBox())!.y;
+          expect(stickyGeometry.top).toBeCloseTo(64, 0);
+          expect(stickyGeometry.height).toBeLessThanOrEqual(width < 768 ? 104 : 56);
+          expect(stickyGeometry.summaryCenter).toBeCloseTo(stickyGeometry.headCenter, 0);
+          expect(stickyGeometry.summaryScrollWidth).toBeLessThanOrEqual(
+            stickyGeometry.summaryClientWidth + 1,
+          );
+          expect(stickyGeometry.contentLeft).toBeGreaterThanOrEqual(stickyGeometry.summaryLeft - 1);
+          expect(stickyGeometry.contentRight).toBeLessThanOrEqual(stickyGeometry.summaryRight + 1);
+          expect(stickyGeometry.background).not.toBe('transparent');
+          expect(stickyGeometry.background).not.toBe('rgba(0, 0, 0, 0)');
+          expect(stickyGeometry.zIndex).toBeGreaterThan(0);
+          expect(targetRowTop).toBeGreaterThanOrEqual(stickyGeometry.headBottom);
+          expect(
+            stickyGeometry.summaryRight <= stickyGeometry.actionLeft ||
+              stickyGeometry.actionRight <= stickyGeometry.summaryLeft ||
+              stickyGeometry.summaryBottom <= stickyGeometry.actionTop ||
+              stickyGeometry.actionBottom <= stickyGeometry.summaryTop,
+          ).toBe(true);
+          await expect(page.getByTestId('to-be-assigned')).toBeInViewport();
+          await expect(action).toBeInViewport();
           await row.evaluate((node) => node.scrollIntoView({ block: 'center' }));
           await expect(row).toBeInViewport();
-          await expect(page.getByTestId('to-be-assigned')).toBeInViewport();
           await expect(action).toBeInViewport();
           await page.evaluate(() => window.scrollTo(0, 0));
         }

@@ -20,6 +20,51 @@ const destinations = [
   ['projekte', '/einstellungen/projekte'],
 ] as const;
 
+test('source dates distinguish a pending payslip scan from an empty scan history', async ({
+  page,
+}) => {
+  let release!: () => void;
+  const pending = new Promise<void>((done) => {
+    release = done;
+  });
+  await page.route('**/api/payslip-intake/status', async (route) => {
+    const response = await route.fetch();
+    const status = await response.json();
+    await pending;
+    await route.fulfill({
+      response,
+      json: {
+        ...status,
+        dropboxConfigured: false,
+        dropboxConnected: false,
+        lastScanAt: null,
+        filesFound: 0,
+        errors: 0,
+      },
+    });
+  });
+  try {
+    await page.goto('/einstellungen/datenquellen');
+    const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    if (!on) {
+      await expect(page.locator('.settings-connections-v2')).toHaveCount(0);
+      return;
+    }
+    const payslip = page.getByRole('region', { name: 'Gehaltszettel', exact: true });
+    await expect(payslip.getByText('Letzter Scanversuch: Wird geladen …')).toBeVisible();
+    await expect(payslip).not.toContainText('Nicht verfügbar');
+    await expect(payslip).not.toContainText('Letzter Erfolg:');
+    release();
+    await expect(payslip.getByText('Letzter Scanversuch: Noch kein Scanversuch')).toBeVisible();
+    await expect(payslip).not.toContainText('Wird geladen');
+    await expect(page.getByRole('region', { name: 'Bank', exact: true })).toContainText(
+      'Letzter Erfolg:',
+    );
+  } finally {
+    release();
+  }
+});
+
 test('settings design: every destination and group at the reference viewport, with 320px reflow', async ({
   page,
   isMobile,

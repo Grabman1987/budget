@@ -17,6 +17,10 @@ const month = today.slice(0, 7);
 const toast = (page: Page) => page.locator('.toast.is-open');
 const row = (page: Page, name: string) => page.locator('tr.prow', { hasText: name });
 const available = (page: Page, name: string) => row(page, name).locator('.col-avail .pill');
+const categoryCoverAction = (page: Page, name: string) =>
+  (page.viewportSize()?.width ?? 1024) < 768
+    ? row(page, name).getByRole('button', { name: /^Deckung für .* wählen · Verfügbar / })
+    : row(page, name).getByRole('button', { name: `${name} decken` });
 
 async function postTo(
   request: APIRequestContext,
@@ -263,7 +267,7 @@ isolatedTest(
     const cap = ((await money.json()) as { budgetMoney?: { coverCapCents: number } }).budgetMoney
       ?.coverCapCents;
     expect(cap, `cover cap before covering: ${cap}`).toBeGreaterThanOrEqual(10_000);
-    await page.getByRole('button', { name: `${food} decken` }).click();
+    await categoryCoverAction(page, food).click();
     const coverPanel = page.getByRole('complementary', { name: 'Plan-Inspektor' });
     await coverPanel
       .getByLabel('Aus', { exact: true })
@@ -416,7 +420,7 @@ test('plan: a negative assignment stays editable, Escape keeps it, Decken asks w
     categoryId: tripCat.id,
   });
   await page.reload();
-  await page.getByRole('button', { name: `${trip} decken` }).click();
+  await categoryCoverAction(page, trip).click();
   const coverPanel = page.getByRole('complementary', { name: 'Plan-Inspektor' });
   if (tba > 0) {
     await coverPanel.getByLabel('Aus', { exact: true }).selectOption('');

@@ -66,9 +66,11 @@ test('separates future captures and next weekly occurrence, projects cents and u
     // One table: the section shares header and columns with the history below.
     await expect(page.locator('.ktable')).toHaveCount(1);
     await expect(page.locator('.ktable thead')).toHaveCount(1);
-    await expect(summary).toHaveAttribute('aria-expanded', 'false');
-    await expect(section.locator('[data-booking], [data-occurrence]')).toHaveCount(0);
-    await summary.click();
+    if (url.endsWith('/buchungen')) {
+      await expect(summary).toHaveAttribute('aria-expanded', 'false');
+      await expect(section.locator('[data-booking], [data-occurrence]')).toHaveCount(0);
+      await summary.click();
+    }
     await expect(summary).toHaveAttribute('aria-expanded', 'true');
     const scheduled = section.locator('[data-occurrence]');
     const booked = section.locator(`[data-booking="${future.id}"]`);
@@ -76,6 +78,13 @@ test('separates future captures and next weekly occurrence, projects cents and u
     await expect(scheduled.locator('.kx-run')).toContainText('995,94');
     await expect(booked.locator('.kx-run')).toContainText('983,60');
     await expect(booked.locator('.kx-date')).toContainText('27.10. · in 14 Tagen');
+    for (const row of [scheduled, booked]) {
+      const date = await row.locator('.kx-date').boundingBox();
+      const payee = await row.locator('.kx-payee').boundingBox();
+      expect(date).not.toBeNull();
+      expect(payee).not.toBeNull();
+      expect(date!.y >= payee!.y + payee!.height || date!.x + date!.width <= payee!.x).toBe(true);
+    }
     await expect(booked.getByRole('img', { name: 'Kommende Buchung' })).toBeVisible();
     await expect(scheduled.getByRole('img', { name: 'Nächste Wiederholung' })).toBeVisible();
     await registerContext(page);
@@ -241,9 +250,7 @@ test('loads every future capture beyond the preview and first cursor page', asyn
       ? 'Kommend201 kommend · nächste: Buchung 01.12.'
       : '201 kommend · nächste: Buchung 01.12.',
   );
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(section.locator('[data-booking]')).toHaveCount(0);
-  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect(section.locator('[data-booking]')).toHaveCount(201);
   await expect(section.locator('[data-booking]').last().locator('.kx-run')).toContainText('997,99');
   await expect(page.getByTestId('account-balance')).toContainText('1.000,00');

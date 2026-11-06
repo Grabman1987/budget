@@ -139,6 +139,8 @@ export interface ListedBooking {
   amountCents: number;
   payeeId: string | null;
   payeeName: string | null;
+  /** Explicit system metadata; absent in older offline rows. Never inferred from the name. */
+  payeeSystemKind?: string | null;
   memo: string | null;
   status: BookingStatus;
   flag: BookingFlag | null;

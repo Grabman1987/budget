@@ -25,6 +25,7 @@ import { ApiError } from '../api/http';
 import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 import { TriangleAlert, ArrowLeftRight, Check, CircleCheck, ChevronDown, Info } from 'lucide-react';
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -817,7 +818,6 @@ function PlanBody({
       onIncome={onIncome}
       onDistribute={startDistribute}
       coverControls={filter === 'overspent' ? null : coverControls}
-      phone={phone}
       monthIncome={monthIncome}
       compactOnRestore={REDESIGN_ENABLED && Boolean(restoredPlan?.compactHead)}
     />
@@ -1527,7 +1527,6 @@ function PlanTopBar({
   onIncome,
   onDistribute,
   coverControls,
-  phone,
   monthIncome,
   compactOnRestore = false,
 }: {
@@ -1538,35 +1537,99 @@ function PlanTopBar({
   onIncome: () => void;
   onDistribute: () => void;
   coverControls: React.ReactNode;
-  phone: boolean;
   monthIncome?: MonthIncome | undefined;
   compactOnRestore?: boolean;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const head = useRef<HTMLElement>(null);
-  const [compact, setCompact] = useState(compactOnRestore && phone);
+  const [compact, setCompact] = useState(compactOnRestore);
   const restoringCompact = useRef(compactOnRestore);
+  const stickyStart = useRef(0);
+  const setCompactMode = useCallback((next: boolean) => setCompact(next), []);
+  const naturalTop = useCallback(() => {
+    const element = head.current;
+    const grid = element?.closest<HTMLElement>('.plan-grid');
+    return grid
+      ? grid.getBoundingClientRect().top + window.scrollY
+      : (element?.getBoundingClientRect().top ?? 0) + window.scrollY;
+  }, []);
+  const shouldCompact = useCallback(
+    () =>
+      window.scrollY > stickyStart.current + 1 ||
+      Boolean(head.current?.querySelector('details[open]')),
+    [],
+  );
+  const updatePopoverPosition = useCallback(() => {
+    const element = head.current;
+    if (!element?.querySelector('details[open]')) {
+      element?.style.removeProperty('--plan-popover-top');
+      return;
+    }
+    requestAnimationFrame(() => {
+      const current = head.current;
+      if (current?.querySelector('details[open]'))
+        current.style.setProperty(
+          '--plan-popover-top',
+          `${current.getBoundingClientRect().bottom}px`,
+        );
+    });
+  }, []);
+  const pinOpenHead = useCallback(() => {
+    const current = head.current;
+    if (current)
+      current.style.setProperty(
+        '--plan-popover-top',
+        `${current.getBoundingClientRect().bottom}px`,
+      );
+    setCompactMode(true);
+    requestAnimationFrame(() => {
+      const element = head.current;
+      if (!element) return;
+      const stickyTop = Number.parseFloat(getComputedStyle(element).top) || 0;
+      const offset = element.getBoundingClientRect().top - stickyTop;
+      if (offset > 1) window.scrollBy({ top: offset, behavior: 'instant' });
+      updatePopoverPosition();
+    });
+  }, [setCompactMode, updatePopoverPosition]);
   useEffect(() => {
     const element = head.current;
-    if (!REDESIGN_ENABLED || !phone || !element) return;
+    if (!REDESIGN_ENABLED || !element) return;
     const stickyTop = Number.parseFloat(getComputedStyle(element).top) || 0;
-    const start = element.getBoundingClientRect().top + window.scrollY - stickyTop;
-    const sync = () => setCompact(window.scrollY > start + 1);
+    let start = naturalTop() - stickyTop;
+    stickyStart.current = start;
+    const sync = () => {
+      setCompactMode(shouldCompact());
+      updatePopoverPosition();
+    };
+    const resize = () => {
+      start = naturalTop() - stickyTop;
+      stickyStart.current = start;
+      sync();
+    };
     // Keep the saved header height while the router restores scroll; collapsing afterward moves its anchor.
     if (!restoringCompact.current) sync();
     restoringCompact.current = false;
     window.addEventListener('scroll', sync, { passive: true });
-    return () => window.removeEventListener('scroll', sync);
-  }, [phone]);
+    window.addEventListener('resize', resize, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', sync);
+      window.removeEventListener('resize', resize);
+    };
+  }, [naturalTop, setCompactMode, shouldCompact, updatePopoverPosition]);
   const disclosureToggle = (element: HTMLDetailsElement, key: string) => {
     if (element.open) {
+      if (REDESIGN_ENABLED) pinOpenHead();
       document
         .querySelectorAll<HTMLDetailsElement>('.plan-topbar details[open]')
         .forEach((other) => {
           if (other !== element) other.open = false;
         });
       setActive(key);
-    } else setActive((current) => (current === key ? null : current));
+    } else {
+      if (REDESIGN_ENABLED) setCompactMode(shouldCompact());
+      updatePopoverPosition();
+      setActive((current) => (current === key ? null : current));
+    }
   };
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
@@ -1646,10 +1709,14 @@ function PlanTopBar({
     <Button
       size="sm"
       disabled={Boolean(distributeBlock)}
+      aria-label="Geld verteilen"
       aria-describedby={distributeBlock ? 'plan-distribute-hint' : undefined}
       onClick={onDistribute}
     >
-      Geld verteilen
+      <span className="plan-distribute-full-label">Geld verteilen</span>
+      <span className="plan-distribute-compact-label" aria-hidden="true">
+        Verteilen
+      </span>
     </Button>
   );
   const hint = distributeBlock && (
@@ -1667,9 +1734,10 @@ function PlanTopBar({
       className={cx(
         'plan-topbar',
         REDESIGN_ENABLED && 'plan-topbar-v2',
-        REDESIGN_ENABLED && phone && compact && 'is-compact',
+        REDESIGN_ENABLED && compact && 'is-compact',
       )}
       aria-label={REDESIGN_ENABLED ? 'Monatsbudget' : 'Monat planen'}
+      data-testid="plan-topbar"
     >
       {REDESIGN_ENABLED ? (
         <>
@@ -2274,7 +2342,8 @@ function EnvelopeRow({
               className="phone-assigned"
               title={assignment ? ghostSource(assignment) : undefined}
             >
-              Zugewiesen {assignment ? `≈ ${eur(assignment.ghostCents)}` : eur(r.assignedCents)}
+              Zugewiesen {eur(r.assignedCents)}
+              {assignment ? ` · Vorschlag ≈ ${eur(assignment.ghostCents)}` : ''}
             </span>
           ) : (
             <>
@@ -2309,7 +2378,7 @@ function EnvelopeRow({
             <button
               type="button"
               onClick={over ? onCover : onInspect}
-              aria-label={`${over ? `${r.name} decken` : `Zugewiesen für ${r.name} ändern`} · ${eur(r.availableCents)}`}
+              aria-label={`${over ? `Deckung für ${r.name} wählen` : `Details für ${r.name} öffnen`} · Verfügbar ${eur(r.availableCents)}`}
               className={cx(
                 'plan-available pill',
                 over ? 'is-bad' : r.availableCents > 0 && 'is-good',

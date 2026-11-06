@@ -4,6 +4,7 @@ import type { InboxPeriod, InboxSegment, InboxTaskSource } from '@budget/domain'
 import { LEDGER_KEY } from '../ledger/queries';
 import type { AccountReminder } from '../heute/api';
 import type { SavingsExecutionProposal } from '../wealth/savings-api';
+import type { PayslipDocumentMetadata } from '../reports/payslip-intake';
 export type InboxKind =
   | 'uncategorized'
   | 'revision'
@@ -33,6 +34,7 @@ export interface InboxBooking {
   missingSplits: number;
 }
 export interface InboxStored {
+  payslipDocument?: PayslipDocumentMetadata;
   type: 'stored';
   id: string;
   kind: InboxKind;

@@ -6,6 +6,7 @@ import { AppLink } from '../shell/app-link';
 import { MONTH_SPANS, setMonthSpan, useStoredMonthSpan } from './month-span';
 import { useQuickAssign } from './quick-assign-actions';
 import type { PlanView } from './plan-model';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 /**
  * The two Plan › Monat toolbar menus (#588): "Verteilen ▾" and "Optionen ▾". Native disclosure
@@ -31,6 +32,54 @@ function PlanMenu({
   useEffect(() => {
     const details = ref.current;
     if (!details) return;
+    let pointerActive = false;
+    const pointerDown = () => {
+      pointerActive = REDESIGN_ENABLED && window.innerWidth < 768;
+    };
+    const pointerUp = () => {
+      pointerActive = false;
+    };
+    const pointerCancel = () => {
+      const wasActive = pointerActive;
+      pointerActive = false;
+      // A cancelled touch can be a menu pan. Keep it open, with a keyboard focus target.
+      const active = document.activeElement;
+      if (wasActive && details.open && active?.contains(details))
+        details.querySelector('summary')?.focus({ preventScroll: true });
+    };
+    const panel = details.querySelector<HTMLElement>('.plan-menu-panel');
+    const head = details.closest('.plan-grid')?.querySelector<HTMLElement>('.plan-topbar-v2');
+    const positionPanel = () => {
+      if (!REDESIGN_ENABLED || !details.open || window.innerWidth >= 768) {
+        panel?.style.removeProperty('--plan-action-menu-top');
+        return;
+      }
+      const summary = details.querySelector('summary');
+      if (!panel || !summary) return;
+      const rootStyle = getComputedStyle(document.documentElement);
+      const bottom = window.innerHeight - (Number.parseFloat(rootStyle.scrollPaddingBottom) || 154);
+      const panelStyle = getComputedStyle(panel);
+      const minimumHeight =
+        44 +
+        Number.parseFloat(panelStyle.paddingTop) +
+        Number.parseFloat(panelStyle.paddingBottom) +
+        Number.parseFloat(panelStyle.borderTopWidth) +
+        Number.parseFloat(panelStyle.borderBottomWidth);
+      const top = Math.max(
+        Number.parseFloat(rootStyle.scrollPaddingTop) || 176,
+        (head?.getBoundingClientRect().bottom ?? 0) + 8,
+        summary.getBoundingClientRect().bottom + 4,
+      );
+      panel.style.setProperty(
+        '--plan-action-menu-top',
+        `${Math.max(8, Math.min(top, bottom - minimumHeight))}px`,
+      );
+    };
+    const observer =
+      REDESIGN_ENABLED && typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(positionPanel)
+        : null;
+    if (head) observer?.observe(head);
     const items = () => [...details.querySelectorAll<HTMLElement>(`.plan-menu-panel ${ITEMS}`)];
     const close = () => {
       details.open = false;
@@ -73,15 +122,32 @@ function PlanMenu({
     // Focus leaving the menu (Tab away, click elsewhere) closes it; Esc keeps returning to the summary.
     const onFocusOut = (event: FocusEvent) => {
       const next = event.relatedTarget;
+      // WebKit focuses the containing sheet on touch-down before the menu item's click.
+      if (pointerActive && next instanceof Element && next.contains(details)) return;
       if (details.open && next instanceof Node && !details.contains(next)) details.open = false;
     };
     details.addEventListener('keydown', onKeyDown);
     details.addEventListener('focusout', onFocusOut);
     details.addEventListener('click', onClick);
+    details.addEventListener('toggle', positionPanel);
+    details.addEventListener('pointerdown', pointerDown);
+    window.addEventListener('pointerup', pointerUp, true);
+    window.addEventListener('pointercancel', pointerCancel, true);
+    window.addEventListener('scroll', positionPanel, { passive: true });
+    window.addEventListener('resize', positionPanel);
     return () => {
       details.removeEventListener('keydown', onKeyDown);
       details.removeEventListener('focusout', onFocusOut);
       details.removeEventListener('click', onClick);
+      details.removeEventListener('toggle', positionPanel);
+      details.removeEventListener('pointerdown', pointerDown);
+      window.removeEventListener('pointerup', pointerUp, true);
+      window.removeEventListener('pointercancel', pointerCancel, true);
+      pointerActive = false;
+      window.removeEventListener('scroll', positionPanel);
+      window.removeEventListener('resize', positionPanel);
+      observer?.disconnect();
+      panel?.style.removeProperty('--plan-action-menu-top');
     };
   }, []);
   return (

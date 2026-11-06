@@ -161,13 +161,19 @@ it('shows loading source dates and reads only VPI reference metadata on settings
     await pending;
   });
   await screen.findByRole('heading', { name: 'Verbindungen' });
-  expect(screen.getAllByText(/Letzter Erfolg: Wird geladen/)).toHaveLength(5);
+  expect(screen.getAllByText(/Letzter Erfolg: Wird geladen/)).toHaveLength(4);
+  const payslip = within(screen.getByRole('region', { name: 'Gehaltszettel' }));
+  expect(payslip.getByText('Letzter Scanversuch: Wird geladen …')).toBeTruthy();
+  expect(payslip.queryByText(/Letzter Erfolg:/)).toBeNull();
   expect(screen.queryByText(/Letzter Erfolg: Nicht verfügbar/)).toBeNull();
+  expect(payslip.queryByText(/Letzter Scanversuch: Nicht verfügbar/)).toBeNull();
   await act(async () => release());
   await waitFor(() => expect(view.client.isFetching()).toBe(0));
   expect(paths).toContain('/api/inflation-basket/reference');
   expect(paths).not.toContain('/api/reports/spending/inflation');
   expect(screen.queryByText(/Letzter Erfolg: Wird geladen/)).toBeNull();
+  expect(payslip.queryByText(/Letzter Scanversuch: Wird geladen/)).toBeNull();
+  expect(payslip.getByText('Letzter Scanversuch: Noch kein Scanversuch')).toBeTruthy();
 });
 it('E5 ON provides the one persisted target editor as a settings destination', async () => {
   mount(<AssetClassesSettingsPage />, '/einstellungen/anlageklassen?ansicht=stufen');

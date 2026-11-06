@@ -75,6 +75,9 @@
   flex: 1;
   min-width: 0;
 }
+.plan-distribute-compact-label {
+  display: none;
+}
 .plan-month-v2 .plan-lead-controls .plan-tba {
   min-width: 0;
   max-width: 100%;
@@ -195,7 +198,7 @@
     padding: var(--space-xs);
   }
   .plan-month-v2 .plan-topbar-v2.is-compact .plan-month-scope,
-  .plan-month-v2 .plan-topbar-v2.is-compact .chain-inline,
+  .plan-month-v2 .plan-topbar-v2.is-compact .plan-month-lead .chain-inline,
   .plan-month-v2 .plan-topbar-v2.is-compact .plan-hint {
     display: none;
   }
@@ -336,10 +339,14 @@
 
 .plan-month-frame .plan-month-v2 .plan-grid > .plan-topbar-v2 {
   grid-column: 1 / -1;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  position: sticky;
+  top: 64px;
+  z-index: 20;
+  box-sizing: border-box;
+  padding: var(--space-sm);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  background-color: var(--ground);
 }
 .plan-month-frame .plan-reference-lead-layout {
   display: flex;
@@ -407,9 +414,106 @@
     display: block;
   }
   .plan-month-frame .plan-month-v2 .plan-grid > .plan-topbar-v2 {
-    position: sticky;
     padding: var(--space-sm) 0;
     background: var(--ground);
+  }
+}
+
+/* Keep the distribution total visible while scrolling, without pinning the full month lead. */
+.plan-month-frame .plan-month-v2 .plan-grid > .plan-topbar-v2.is-compact {
+  min-height: 56px;
+  padding-block: var(--space-xs);
+  background-color: var(--ground);
+}
+.plan-month-frame .plan-topbar-v2.is-compact .plan-reference-lead-layout {
+  display: block;
+}
+.plan-month-frame .plan-topbar-v2.is-compact .plan-month-scope,
+.plan-month-frame .plan-topbar-v2.is-compact .plan-class-lead,
+.plan-month-frame .plan-topbar-v2.is-compact .plan-reference-income,
+.plan-month-frame .plan-topbar-v2.is-compact .plan-hint {
+  display: none;
+}
+.plan-month-frame .plan-topbar-v2.is-compact .plan-month-lead {
+  display: block;
+  min-width: 0;
+}
+.plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0;
+  min-height: 44px;
+}
+.plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls > .plan-popover {
+  grid-column: 2;
+  justify-self: center;
+  flex: none;
+  width: max-content;
+}
+.plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls summary.plan-tba {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  width: max-content;
+  min-height: var(--touch);
+  padding-inline: var(--space-sm);
+  white-space: nowrap;
+}
+.plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls summary.plan-tba strong {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+.plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls > .btn {
+  grid-column: 3;
+  justify-self: end;
+  min-height: var(--touch);
+  white-space: nowrap;
+}
+.plan-month-frame .plan-topbar-v2.is-compact .plan-distribute-full-label {
+  display: none;
+}
+.plan-month-frame .plan-topbar-v2.is-compact .plan-distribute-compact-label {
+  display: inline;
+}
+@media (max-width: 767px) {
+  .plan-month-frame .plan-month-v2 .plan-grid > .plan-topbar-v2.is-compact {
+    min-height: 104px;
+  }
+  .plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    row-gap: var(--space-xs);
+  }
+  .plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls > .plan-popover {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: center;
+    max-width: 100%;
+  }
+  .plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls summary.plan-tba {
+    max-width: 100%;
+    white-space: normal;
+  }
+  .plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls > .btn {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: center;
+  }
+}
+@media (max-width: 767px) {
+  /* Keep open Plan actions inside the usable mobile viewport, above the fixed tab bar and FAB. */
+  .plan-month-frame .plan-topbar-v2 .plan-popover-content {
+    position: fixed;
+    inset-inline: var(--space-lg);
+    inset-block-start: var(--plan-popover-top, auto);
+    inset-block-end: calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + var(--space-md));
+    width: auto;
+    max-height: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding-block: var(--space-md);
   }
 }
 .plan-month-frame .plan-month-lead {
@@ -495,7 +599,50 @@
   background: var(--good);
 }
 .plan-month-frame .ptable-zero .spending-bar {
-  max-width: 190px;
+  width: 100%;
+  max-width: none;
+}
+@media (min-width: 768px) {
+  /* The worksheet's base desktop rule fixes every plan cell at 32px. Let redesigned category
+     rows grow to fit the 44px name target, progress bar, and trailing breathing room. */
+  .plan-month-frame
+    .plan-month-v2
+    .ptable-zero
+    .prow:not(.psingle):not(.pmulti):not(.is-empty)
+    > td {
+    height: auto;
+  }
+  .plan-month-frame
+    .plan-month-v2
+    .ptable-zero
+    .prow:not(.psingle):not(.pmulti):not(.is-empty)
+    .col-name {
+    grid-template-rows: var(--touch) var(--bar-progress);
+    padding-block-end: var(--space-sm);
+  }
+  .plan-month-frame
+    .plan-month-v2
+    .ptable-zero
+    .prow:not(.psingle):not(.pmulti):not(.is-empty)
+    .pname {
+    min-height: var(--touch);
+  }
+}
+.plan-month-frame .plan-month-v2 .ptable-zero .pgroup-gap td {
+  height: var(--space-md);
+}
+/* Important overrides must share the legacy page layer to win its row padding. */
+@layer pages {
+  @media (max-width: 767px) {
+    .plan-month-frame .plan-month-v2 .ptable-zero .prow:not(.is-empty),
+    .plan-month-frame .plan-month-v2 .ptable-zero .pmulti:not(.is-empty) {
+      padding-bottom: var(--space-sm) !important;
+    }
+    /* Metadata keeps its line height and may grow; retain the name target and bar tracks. */
+    .plan-month-frame .plan-month-v2 .ptable-zero .prow:not(.pmulti):not(.is-empty) {
+      grid-template-rows: var(--touch) minmax(18px, auto) var(--bar-progress);
+    }
+  }
 }
 .plan-month-frame .plan-reference-filters .plan-filter-segments {
   display: grid;
@@ -544,6 +691,35 @@
 @media (max-width: 767px) {
   .plan-month-frame .plan-month-v2 .plan-grid > .plan-topbar-v2.is-compact {
     padding-block: var(--space-xs);
+  }
+}
+
+@media (max-width: 767px) {
+  /* Native scroll alignment must clear the compact two-row head and the phone action dock. */
+  html:has(.plan-month-frame .plan-month-v2) {
+    scroll-padding-block: calc(64px + 104px + var(--space-sm))
+      calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + var(--space-lg));
+  }
+  /* The root supplies head/dock clearance; selection only adds its own action-bar height. */
+  .plan-month-frame .plan-month-v2 .has-phone-selection :is(.pname, .plan-select-toggle) {
+    scroll-margin-block: 0 var(--plan-selection-clearance, 0px);
+  }
+  .plan-month-frame .plan-month-v2 .plan-menu-panel {
+    position: fixed;
+    z-index: 21;
+    inset-inline: var(--space-lg);
+    top: var(--plan-action-menu-top, calc(64px + 104px + var(--space-sm)));
+    bottom: calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + var(--space-lg));
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    max-height: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding-block: var(--space-sm);
+  }
+  .plan-month-frame .plan-month-v2 .plan-menu:not([open]) > .plan-menu-panel {
+    display: none;
   }
 }
 

@@ -12,7 +12,11 @@ import {
 } from './bank-candidate';
 import { BankBulkActions, isBankInboxRow } from './bank-bulk-actions';
 import { AssignmentLearnOffer, BookingAssignmentReview } from '../assignment/review';
-import { PayslipIntakeDetail } from '../reports/payslip-intake';
+import {
+  PayslipIntakeDetail,
+  PayslipDocumentCaption,
+  payslipDocumentTypeLabel,
+} from '../reports/payslip-intake';
 import { InboxTypeIcon } from './type-icon';
 import { ReadSourceDetail, sourceWarningReason } from './read-source-detail';
 import { ReadSourceSummaries } from './read-source-summaries';
@@ -1220,9 +1224,13 @@ function InboxRow({
             ? `${item.payeeName ?? 'Buchung ohne Empfänger'} · ${nativeCurrency(item.amountCents, item.currency)}`
             : item.type === 'savings'
               ? `Sparplan: ${item.securityName} · ${nativeCurrency(item.amountCents, item.currency)}`
-              : item.title}
+              : item.payslipDocument
+                ? payslipDocumentTypeLabel(item.payslipDocument.documentType)
+                : item.title}
         </strong>
-        {item.type === 'stored' && item.kind === 'import' && !detailView ? (
+        {item.type === 'stored' && item.payslipDocument ? (
+          <PayslipDocumentCaption document={item.payslipDocument} />
+        ) : item.type === 'stored' && item.kind === 'import' && !detailView ? (
           <span>
             {longDay(item.createdAt.slice(0, 10))} ·{' '}
             {maskMoneyText(sourceWarningReason(item.detail))}
