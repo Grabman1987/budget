@@ -40,9 +40,10 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
     queryFn: () => request<MarketStatus>('GET', '/api/market/status'),
   });
   const cpi = useQuery({
-    queryKey: [...LEDGER_KEY, 'personal-inflation'],
+    queryKey: [...LEDGER_KEY, 'inflation-reference'],
     retry: false,
-    queryFn: () => request<InflationReport>('GET', '/api/reports/spending/inflation'),
+    queryFn: () =>
+      request<Pick<InflationReport, 'reference'>>('GET', '/api/inflation-basket/reference'),
   });
   const client = useQueryClient();
   const [busy, setBusy] = useState(false),

@@ -32,6 +32,7 @@ export * from './expected-detail';
 export * from './market';
 export * from './goals';
 export * from './rule-inputs';
+export * from './financial-health';
 export * from './rules';
 export * from './trades';
 export * from './securities';
