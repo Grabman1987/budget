@@ -567,6 +567,70 @@ export function freedomRuleInput(
   };
 }
 
+/** The unchanged R06/R08 facts, independently readable without portfolio policy. */
+export function debtServiceRuleInputs(
+  f: RuleFacts,
+  asOf: string,
+  byAccount: Readonly<Record<string, number>>,
+): Pick<RuleInputs, 'cards' | 'loanPaymentsMonthlyCents' | 'netIncomeMonthlyCents'> {
+  const ref = referenceMonth(asOf);
+  const cur = monthOf(asOf);
+  const accounts = f.accounts.filter((a) => a.openingDate <= asOf);
+  const cats = catById(f);
+  const onBudget = new Set(accounts.filter((a) => a.onBudget).map((a) => a.id));
+  const curEnvelopes = f.budgetByMonth.get(cur)?.envelopes ?? {};
+  const outflows = f.payments.filter((p) => p.kind === 'outflow');
+  const isMinimumDebt = (c: CategoryRow | undefined) => c?.kind === 'debt' && (c.stage ?? 1) === 1;
+  const isDebt = (p: PaymentRow) => (p.categoryId ? isMinimumDebt(cats.get(p.categoryId)) : false);
+  const refAlloc = allocOf(f, ref);
+  const netIncome = refAlloc ? netIncomeOf(refAlloc) : null;
+  const balances = new Map(accounts.map((a) => [a.id, byAccount[a.id] ?? 0] as const));
+  const cards: CardBalance[] = f.categories.flatMap((c) => {
+    if (c.kind !== 'card_payment' || !c.cardAccountId) return [];
+    const balance = balances.get(c.cardAccountId);
+    if (balance === undefined) return [];
+    return [
+      {
+        id: c.cardAccountId,
+        owedCents: Math.max(0, -balance),
+        availableCents: curEnvelopes[c.id]?.availableCents ?? 0,
+      },
+    ];
+  });
+  const debtAccounts = accounts.filter(
+    (a) =>
+      a.closedAt === null &&
+      (a.type === 'loan' ||
+        a.role === 'debt' ||
+        (a.type === 'credit_card' &&
+          cards.some((c) => c.id === a.id && c.owedCents > c.availableCents))) &&
+      (byAccount[a.id] ?? 0) < 0,
+  );
+  const debtIds = new Set(debtAccounts.map((a) => a.id));
+  const scheduledDebt = outflows.filter(isDebt).reduce((s, p) => s + monthlyAmount(f, p, asOf), 0);
+  // Historical principal repayments to debt accounts are a lower bound, not another schedule.
+  const recordedDebt = f.ledgerSplits
+    .filter(
+      (s) =>
+        monthOf(s.date) === ref &&
+        s.transferAccountId != null &&
+        debtIds.has(s.transferAccountId) &&
+        s.categoryId != null &&
+        isMinimumDebt(cats.get(s.categoryId)) &&
+        s.amountCents < 0 &&
+        onBudget.has(s.accountId),
+    )
+    .reduce((sum, s) => sum - s.amountCents, 0);
+  const knownDebtPayment = scheduledDebt > 0 ? scheduledDebt : recordedDebt;
+  const loanPaymentsMonthlyCents =
+    debtAccounts.length > 0 && knownDebtPayment === 0 ? null : knownDebtPayment;
+  return {
+    cards,
+    loanPaymentsMonthlyCents,
+    netIncomeMonthlyCents: netIncome !== null && netIncome > 0 ? netIncome : null,
+  };
+}
+
 export function ruleInputs(
   db: Executor,
   asOf: string,
@@ -589,8 +653,6 @@ export function ruleInputs(
     const a = allocOf(f, m);
     if (a) allocByMonth[m] = a;
   }
-  const refAlloc = allocOf(f, ref);
-  const netIncome = refAlloc ? netIncomeOf(refAlloc) : null;
 
   // R02
   const emergency = hasBudget
@@ -687,19 +749,11 @@ export function ruleInputs(
       },
     ];
   });
-  const balances = new Map(accounts.map((a) => [a.id, nw.byAccount[a.id] ?? 0] as const));
-  const cards: CardBalance[] = f.categories.flatMap((c) => {
-    if (c.kind !== 'card_payment' || !c.cardAccountId) return [];
-    const balance = balances.get(c.cardAccountId);
-    if (balance === undefined) return [];
-    return [
-      {
-        id: c.cardAccountId,
-        owedCents: Math.max(0, -balance),
-        availableCents: curEnvelopes[c.id]?.availableCents ?? 0,
-      },
-    ];
-  });
+  const { cards, loanPaymentsMonthlyCents, netIncomeMonthlyCents } = debtServiceRuleInputs(
+    f,
+    asOf,
+    nw.byAccount,
+  );
 
   const forecast = hasBudget ? forecastInputs(f, asOf, nw) : null;
 
@@ -708,7 +762,6 @@ export function ruleInputs(
   // Debt categories in waterfall stage 1 are the contractual minimum rate; later stages are
   // extra repayments (Sondertilgung).
   const isMinimumDebt = (c: CategoryRow | undefined) => c?.kind === 'debt' && (c.stage ?? 1) === 1;
-  const isDebt = (p: PaymentRow) => (p.categoryId ? isMinimumDebt(cats.get(p.categoryId)) : false);
   const bindingOf = (p: PaymentRow) => {
     const cat = cats.get(p.categoryId ?? '');
     return contractBinding(
@@ -716,33 +769,6 @@ export function ruleInputs(
       asOf,
     );
   };
-  const debtAccounts = accounts.filter(
-    (a) =>
-      a.closedAt === null &&
-      (a.type === 'loan' ||
-        a.role === 'debt' ||
-        (a.type === 'credit_card' &&
-          cards.some((c) => c.id === a.id && c.owedCents > c.availableCents))) &&
-      (nw.byAccount[a.id] ?? 0) < 0,
-  );
-  const debtIds = new Set(debtAccounts.map((a) => a.id));
-  const scheduledDebt = outflows.filter(isDebt).reduce((s, p) => s + monthlyAmount(f, p, asOf), 0);
-  // Historical principal repayments to debt accounts are a lower bound, not another schedule.
-  const recordedDebt = f.ledgerSplits
-    .filter(
-      (s) =>
-        monthOf(s.date) === ref &&
-        s.transferAccountId != null &&
-        debtIds.has(s.transferAccountId) &&
-        s.categoryId != null &&
-        isMinimumDebt(cats.get(s.categoryId)) &&
-        s.amountCents < 0 &&
-        onBudget.has(s.accountId),
-    )
-    .reduce((sum, s) => sum - s.amountCents, 0);
-  const knownDebtPayment = scheduledDebt > 0 ? scheduledDebt : recordedDebt;
-  const loanPaymentsMonthlyCents =
-    debtAccounts.length > 0 && knownDebtPayment === 0 ? null : knownDebtPayment;
   const fixedCosts =
     outflows.length > 0
       ? {
@@ -842,7 +868,7 @@ export function ruleInputs(
     sinkingFunds,
     cards,
     forecast,
-    netIncomeMonthlyCents: netIncome !== null && netIncome > 0 ? netIncome : null,
+    netIncomeMonthlyCents,
     loanPaymentsMonthlyCents,
     fixedCosts,
     debt,
@@ -858,5 +884,32 @@ export function ruleInputs(
       platforms: f.platformNames,
     },
     freedom,
+  };
+}
+
+/** Read-only R02/R11 budget facts without requiring unrelated wealth valuations or policy. */
+export function healthBudgetInputs(facts: RuleFacts, asOf: string) {
+  const ref = referenceMonth(asOf);
+  const from = facts.firstMonth > addMonths(ref, -11) ? facts.firstMonth : addMonths(ref, -11);
+  const months = from <= ref ? monthsBetween(from, ref) : [];
+  return {
+    refMonth: ref,
+    firstMonth: facts.firstMonth,
+    months,
+    complete: months.length > 0 && months.every((month) => facts.budgetByMonth.has(month)),
+    flows: months.map((month) => {
+      const allocation = allocOf(facts, month);
+      return allocation
+        ? {
+            month,
+            incomeCents: netIncomeOf(allocation),
+            spendingCents: spent(facts, month, (c) => c.class === 'need' || c.class === 'want'),
+          }
+        : null;
+    }),
+    needSpending: months.map((month) => ({
+      month,
+      cents: spent(facts, month, (c) => c.class === 'need'),
+    })),
   };
 }
