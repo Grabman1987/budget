@@ -49,8 +49,9 @@ jobs:
       - name: Regenerate changed screenshots
         env:
           SPECS: ${{ inputs.specs }}
+          A2_EXPECT_REDESIGN: '1'
         run: |
-          npm run build:e2e
+          VITE_BUDGET_REDESIGN=1 npm run build:e2e
           read -r -a specs <<< "$SPECS"
           if [ "${#specs[@]}" -eq 0 ]; then
             mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)

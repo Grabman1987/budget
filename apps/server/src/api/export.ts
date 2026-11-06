@@ -17,6 +17,7 @@ import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import yazl from 'yazl';
 import { admitExport } from './export-admission';
+import { encryptedBackupRoutes } from './encrypted-backup';
 import {
   account,
   assetClass,
@@ -716,6 +717,7 @@ function exportEntries(
 
 export function exportRoutes(db: Db, today: () => string, stepUp: MiddlewareHandler): Hono {
   const api = new Hono();
+  api.route('/', encryptedBackupRoutes(db, stepUp));
   api.get('/csv.zip', stepUp, async (c) => {
     const releaseSlot = admitExport(db);
     if (!releaseSlot)

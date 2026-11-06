@@ -8,6 +8,7 @@ import {
   contact,
   contactAllocation,
   contactSettlement,
+  payee,
 } from '../schema';
 import { BookingInvariantError, ConflictError } from './errors';
 import { memoizedShared } from './request-memo';
@@ -59,12 +60,17 @@ export function actualContactMovements(tx: Executor, contactId: string, asOf?: s
       date: booking.date,
       amountCents: bookingSplit.amountCents,
       memo: bookingSplit.memo,
+      bookingMemo: booking.memo,
+      payeeName: payee.name,
+      categoryName: category.name,
       currency: booking.currency,
       status: booking.status,
       accountId: booking.accountId,
     })
     .from(bookingSplit)
     .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
+    .leftJoin(payee, eq(payee.id, booking.payeeId))
+    .leftJoin(category, eq(category.id, bookingSplit.categoryId))
     .where(
       and(
         eq(bookingSplit.contactId, contactId),
