@@ -1,4 +1,11 @@
-import { useAmountPrivacy, Segmented, RevisionTriangle, BudgetStateMark } from '@budget/ui';
+import { bookingCounterparty } from '../ledger/booking-counterparty';
+import {
+  privateAmount,
+  useAmountPrivacy,
+  Segmented,
+  RevisionTriangle,
+  BudgetStateMark,
+} from '@budget/ui';
 import { addDays } from '@budget/domain';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -508,7 +515,7 @@ export function HeuteOverview({
                 {data.lastBookings.slice(0, 4).map((item) => (
                   <li key={item.id}>
                     <span>
-                      <strong>{item.payeeName ?? 'Ohne Empfänger'}</strong>
+                      <strong>{privateAmount(bookingCounterparty(item))}</strong>
                       <small>
                         {item.accountName} · {shortDay(item.date)}
                       </small>
