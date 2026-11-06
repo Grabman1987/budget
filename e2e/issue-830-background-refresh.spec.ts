@@ -231,6 +231,14 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await readableControl(page.locator('.hv-lead-value'), true);
     for (const action of await page.locator('.hv-revisions a').all())
       await readableControl(action, true);
+    const overflowingBookings = await page
+      .locator('.hv-booking-list strong')
+      .evaluateAll((labels) =>
+        labels
+          .filter((label) => label.getBoundingClientRect().right > innerWidth)
+          .map((label) => label.textContent),
+      );
+    expect(overflowingBookings).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
