@@ -297,6 +297,21 @@ const filenameMonth = (filename: string) => {
   const m = filename.match(/(?:^|\D)(20\d{2})(0[1-9]|1[0-2])(?:\D|$)/);
   return m ? `${m[1]}-${m[2]}` : null;
 };
+/** Display metadata only: never creates a payroll draft or invents a month from a bare year. */
+export function payslipDocumentMetadata(
+  parsed: ParsedPayrollDocument,
+  originalFilename: string | null,
+) {
+  const draftMonth = parsed.draft?.month;
+  const fromDraft = draftMonth && /^20\d{2}-(0[1-9]|1[0-2])$/.test(draftMonth);
+  const month = fromDraft ? draftMonth : filenameMonth(originalFilename ?? '');
+  return {
+    originalFilename,
+    documentType: parsed.documentType,
+    month: month ?? null,
+    periodSource: fromDraft ? parsed.periodSource : month ? ('filename' as const) : null,
+  };
+}
 /**
  * Whether a document belongs into the review queue. The read period decides (Abrechnungsmonat,
  * else a YYYYMM filename); only without any period the year folder (`folderYear`) is used.

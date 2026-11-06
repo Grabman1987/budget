@@ -271,7 +271,7 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
   await check.getByRole('button', { name: 'Doppelte Buchung entfernen' }).click();
   await expect(check.getByText('Differenz 0,00 € · stimmt überein')).toBeVisible();
   await expect(balance(page)).toHaveText('475,00 €');
-  await check.getByRole('button', { name: /Festschreiben/ }).click();
+  await check.getByRole('button', { name: 'Kontostand stimmt' }).click();
   await expect(toast(page)).toContainText('Kontostand geprüft');
   await expect(
     page

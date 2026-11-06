@@ -85,6 +85,7 @@ for (const [profile, desired, viewport] of [
   test(`566 real task sources, counts and read-only actions in ${profile} ${desired}`, async ({
     browser,
     isolatedLedger,
+    ledgerToday,
   }, info) => {
     const opened = openDatabase(isolatedLedger.databasePath),
       accountId = randomUUID();
@@ -160,8 +161,10 @@ for (const [profile, desired, viewport] of [
         checks: opened.db.select().from(schema.accountReconciliation).all(),
         audit: opened.db.select().from(schema.auditLog).all(),
       });
-    const before = snapshot(),
-      writes: string[] = [];
+    const before = snapshot();
+    const writes: Array<{ method: string; path: string }> = [];
+    const previewReads: unknown[] = [];
+    const previewPath = `/api/accounts/${encodeURIComponent(accountId)}/reconciliation/preview`;
     const context = await browser.newContext({
       baseURL: isolatedLedger.origin,
       storageState: isolatedLedger.storageState,
@@ -172,12 +175,17 @@ for (const [profile, desired, viewport] of [
     });
     try {
       const page = await context.newPage();
+      // This explicit context bypasses the fixture's page, so retain its matching client clock.
+      await page.clock.setFixedTime(new Date(`${ledgerToday}T12:00:00+02:00`));
       page.on('request', (request) => {
-        if (
-          new URL(request.url()).pathname.startsWith('/api/') &&
-          !['GET', 'HEAD', 'OPTIONS'].includes(request.method())
-        )
-          writes.push(request.method());
+        const path = new URL(request.url()).pathname;
+        // This existing POST only computes a comparison. Every other non-GET remains forbidden.
+        if (request.method() === 'POST' && path === previewPath) {
+          previewReads.push(request.postDataJSON());
+          return;
+        }
+        if (path.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method()))
+          writes.push({ method: request.method(), path });
       });
       await page.goto('/konten/pruefen?teil=aufgaben');
       await theme(page, desired);
@@ -289,10 +297,16 @@ for (const [profile, desired, viewport] of [
       );
       const reminder = page.getByRole('link', { name: 'Kontostand prüfen', exact: true });
       await hit(reminder);
+      const previewReady = page.waitForResponse(
+        (response) =>
+          response.request().method() === 'POST' &&
+          new URL(response.url()).pathname === previewPath,
+      );
       await reminder.click();
       await expect(
         page.getByRole('dialog', { name: 'Kontostand prüfen · Muster Prüfkonto', exact: true }),
       ).toBeVisible();
+      expect((await previewReady).status()).toBe(200);
       await page.goto('/konten/pruefen?teil=umsaetze');
       const row = page.getByTestId('inbox-row').filter({ hasText: 'Synthetic assignment 566' });
       await expect(row).toContainText('−12,01');
@@ -300,6 +314,7 @@ for (const [profile, desired, viewport] of [
       const editor = page.getByRole('dialog', { name: 'Buchung bearbeiten', exact: true });
       await expect(editor).toBeVisible();
       await expect(editor.getByLabel('Betrag', { exact: true })).toHaveValue('12,01');
+      expect(previewReads).toEqual([{ date: '2026-10-20', statementBalanceCents: 98_799 }]);
       expect(writes).toEqual([]);
       expect(snapshot()).toBe(before);
       await writeFile(
@@ -312,6 +327,7 @@ for (const [profile, desired, viewport] of [
             viewport,
             theme: desired,
             model,
+            previewReads,
             noWrites: true,
             preservedFinancialSnapshot: true,
             assistedScrollHitChecks: true,

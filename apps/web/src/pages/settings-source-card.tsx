@@ -15,6 +15,8 @@ export function SettingsSourceCard({
   attention = false,
   detail,
   date,
+  dateLabel = 'Letzter Erfolg',
+  emptyDate = 'Noch kein erfolgreicher Abruf',
   next,
   loading,
   error,
@@ -29,6 +31,8 @@ export function SettingsSourceCard({
   attention?: boolean;
   detail: ReactNode;
   date: string | null | undefined;
+  dateLabel?: string;
+  emptyDate?: string;
   next?: ReactNode;
   loading?: boolean;
   error?: boolean;
@@ -58,7 +62,7 @@ export function SettingsSourceCard({
           </div>
           <small>{detail}</small>
           <small>
-            Letzter Erfolg: {loading ? 'Wird geladen …' : sourceDate(date)}
+            {dateLabel}: {loading ? 'Wird geladen …' : date === null ? emptyDate : sourceDate(date)}
             {next && <> · Nächster Abruf: {next}</>}
           </small>
         </div>

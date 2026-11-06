@@ -5,6 +5,110 @@ import { test } from './isolated-ledger';
 import { redesignReportsOn } from './report-frame';
 
 test.use({ ledgerToday: '2026-10-02', reducedMotion: 'reduce' });
+test('961/962 contacts: zero net retains credit and movement source context', async ({
+  page,
+  request,
+  isolatedLedger,
+}) => {
+  const post = async (path: string, data: unknown) => {
+    const response = await request.post(`/api${path}`, {
+      data,
+      headers: { origin: isolatedLedger.origin },
+    });
+    expect(response.ok(), await response.text()).toBe(true);
+    return response.json();
+  };
+  const group = (await post('/categories/groups', { name: 'Beispielgruppe' })).group;
+  const advance = (
+    await post('/categories', {
+      name: 'Beispielauslagen',
+      groupId: group.id,
+      class: null,
+      kind: 'advance',
+    })
+  ).category;
+  const account = (
+    await post('/accounts', {
+      name: 'Beispielkonto',
+      type: 'checking',
+      onBudget: true,
+      openingDate: '2026-09-01',
+      openingBalanceCents: 500000,
+    })
+  ).account;
+  const payee = (await post('/payees', { name: 'Beispielmarkt' })).payee;
+  const credit = (await post('/contacts', { name: 'Beispiel Vorauszahlung' })).contact;
+  const owed = (await post('/contacts', { name: 'Beispiel Forderung' })).contact;
+  const settled = (await post('/contacts', { name: 'Beispiel Ausgeglichen' })).contact;
+  const note =
+    'Gemeinsamer Beispieleinkauf mit einer langen Buchungsnotiz für die vollständige Anzeige bei Tastaturfokus und beim Zeigen mit der Maus.';
+  await post('/bookings', {
+    type: 'booking',
+    accountId: account.id,
+    date: '2026-10-01',
+    amountCents: -123456,
+    payeeId: payee.id,
+    memo: note,
+    splits: [
+      {
+        categoryId: advance.id,
+        contactId: owed.id,
+        amountCents: -123456,
+        memo: 'Anteil Beispielkontakt',
+      },
+    ],
+  });
+  await post(`/contacts/${credit.id}/settlements`, {
+    accountId: account.id,
+    date: '2026-10-01',
+    amountCents: 123456,
+    memo: 'Vorauszahlung für einen gemeinsamen Einkauf',
+  });
+  await page.goto(`/reports/kontakte?kontakt=${credit.id}`);
+  if (!(await redesignReportsOn(page))) return;
+  const list = page.getByRole('region', { name: 'Kontaktsalden' });
+  const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
+  await expect(page.getByTestId('report-frame-result')).toHaveText('0,00 €');
+  const chain = page.getByRole('group', { name: 'Maßkette Kontakte' });
+  await expect(chain).toContainText('Wir bekommen');
+  await expect(chain).toContainText('Wir schulden');
+  await expect(chain.locator('.ct-val')).toHaveText(['1.234,56 €', '1.234,56 €']);
+  await expect(list.getByRole('link', { name: new RegExp(credit.name) })).toContainText(
+    'Guthaben: 1.234,56 €',
+  );
+  await expect(sheet.locator('.r4-contact-summary')).toHaveText(
+    'Offene Forderung: 0,00 € · Guthaben des Kontakts: 1.234,56 €',
+  );
+  await expect(sheet.locator('.contacts-balance')).toHaveText('Guthaben · 1.234,56 €');
+  const showAll = page.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' });
+  await expect(showAll).not.toBeChecked();
+  await expect(list.getByRole('link', { name: new RegExp(settled.name) })).toHaveCount(0);
+  await showAll.check();
+  await expect(list.getByRole('link', { name: new RegExp(settled.name) })).toBeVisible();
+  await showAll.uncheck();
+  await expect(list.getByRole('link', { name: new RegExp(credit.name) })).toBeVisible();
+  await list.getByRole('link', { name: new RegExp(owed.name) }).click();
+  await sheet.locator('[data-r8-detail="contact-history"] > summary').click();
+  const source = sheet.getByRole('button', { name: /Ursprungsbuchung öffnen/ });
+  await expect(source).toContainText(payee.name);
+  await expect(source).toContainText(`Kategorie: ${advance.name}`);
+  const bookingNote = source.getByTitle(note);
+  await expect(bookingNote).toHaveText(note);
+  await page.mouse.move(0, 0);
+  await expect(bookingNote).toHaveCSS('text-overflow', 'ellipsis');
+  await expect(bookingNote).toHaveCSS('white-space', 'nowrap');
+  await source.focus();
+  await expect(bookingNote).toHaveCSS('white-space', 'normal');
+  await expect(source).toHaveAccessibleName(
+    new RegExp(note.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+  );
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged, stale denial and Undo', async ({
   page,
   request,

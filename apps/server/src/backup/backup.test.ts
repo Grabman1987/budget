@@ -1,7 +1,8 @@
 import { addReceipt, migrateDatabase, openDatabase, removeReceipt, schema } from '@budget/db';
 import { seedDatabase } from '@budget/fixtures/seed';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -81,7 +82,14 @@ function fakeS3() {
       }
       if (req.method === 'GET') {
         const found = objects.get(key);
-        return found ? void res.writeHead(200).end(found) : void res.writeHead(404).end();
+        return found
+          ? void res
+              .writeHead(200, {
+                'content-length': String(found.length),
+                etag: `"${createHash('md5').update(found).digest('hex')}"`,
+              })
+              .end(found)
+          : void res.writeHead(404).end();
       }
       res.writeHead(405).end();
     });
@@ -186,7 +194,14 @@ describe.skipIf(!hasAge)('encrypted backup round trip (test key)', () => {
     const restoredDir = join(work, 'restored-archive');
     mkdirSync(restoredDir);
     const restored = join(restoredDir, 'budget.sqlite');
-    writeFileSync(downloaded, sealed);
+    expect(
+      await new S3Client(config.s3).getEncryptedFile(
+        result.key,
+        downloaded,
+        new AbortController().signal,
+      ),
+    ).toBe(result.bytes);
+    expect(readFileSync(downloaded)).toEqual(sealed);
     execFileSync('age', ['--decrypt', '-i', identity, '-o', archive, downloaded]);
     execFileSync(tarBinary, ['-xf', archive, '-C', restoredDir]);
     const restoredReceipt = readFileSync(receiptPath(join(restoredDir, 'receipts'), sha256));
