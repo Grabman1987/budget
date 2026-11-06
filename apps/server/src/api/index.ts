@@ -56,6 +56,7 @@ import { overviewReportRoutes } from './overview-reports';
 import { spendingReportRoutes } from './spending-reports';
 import { reportTableRoutes } from './report-tables';
 import { payeeReportRoutes } from './payee-report';
+import { portfolioStrategyRoutes, type StrategyEvidenceProvider } from './portfolio-strategy';
 
 /** The ledger API, plus the start-up warm-up of the read-model cache (`warmReadModels`). */
 export type LedgerApi = Hono & { warm: () => Promise<number> };
@@ -96,6 +97,7 @@ export interface LedgerApiOptions {
   /** Runner of the import tasks (worker threads); one per database. */
   jobs?: ImportJobs | undefined;
   receiptsDir?: string | undefined;
+  strategyEvidence?: StrategyEvidenceProvider | undefined;
 }
 
 /**
@@ -112,6 +114,7 @@ export function createLedgerApi({
   bankSync = bankSyncFromEnv(db),
   jobs,
   receiptsDir = receiptDirectory(sqliteOf(db).name),
+  strategyEvidence,
 }: LedgerApiOptions): LedgerApi {
   const api = new Hono();
   api.use('*', readModelCache(db, today));
@@ -183,6 +186,7 @@ export function createLedgerApi({
   api.route('/trades', tradeRoutes(db));
   api.route('/savings-plans', savingsPlanRoutes(db, today));
   api.route('/portfolio', portfolioRoutes(db, today));
+  api.route('/portfolio-strategy', portfolioStrategyRoutes(db, undefined, strategyEvidence));
   api.route('/display-settings', displaySettingsRoutes(db));
   api.route('/reports/saved-queries', explorerViewsRoutes(db));
   api.route('/profile', profileRoutes(db, today));

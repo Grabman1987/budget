@@ -114,3 +114,4 @@ export * from './month-close-reconciliation';
 export * from './booking-bulk-eligibility';
 export * from './instrument-history';
 export * from './networth-composition';
+export * from './portfolio-strategy';
