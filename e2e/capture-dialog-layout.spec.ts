@@ -105,7 +105,8 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   await accountSelect.selectOption(account.id);
   const status = dialog.locator('.bk-status');
   if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768) {
-    await expect(dialog.getByLabel('Status', { exact: true })).toHaveAccessibleName('Vorgemerkt');
+    await expect(dialog.locator('.bk-mobile-status label')).toHaveText('Status');
+    await expect(status).toHaveAccessibleName('Vorgemerkt');
     expect((await status.boundingBox())!.y).toBeGreaterThan((await date.boundingBox())!.y);
   } else
     await expect
@@ -165,6 +166,8 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   await expect(discard).toHaveCount(0);
   await (await captureFlagControl(dialog, 'Markierung: keine')).click();
   await dialog.getByRole('menuitemradio', { name: /Blau/ }).click();
+  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768)
+    await dialog.locator('.kmore > summary').click();
   await expect(discard).toHaveCount(0);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {

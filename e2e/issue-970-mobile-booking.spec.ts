@@ -79,6 +79,9 @@ for (const mode of ['create', 'edit'] as const) {
         dialog.getByLabel('Datum', { exact: true }),
       ];
       for (const field of fields) await expect(field).toBeInViewport({ ratio: 1 });
+      const icons = dialog.locator('.bk-mobile-row-icon');
+      await expect(icons).toHaveCount(4);
+      for (const icon of await icons.all()) await expect(icon).toBeInViewport({ ratio: 1 });
       const boxes = await Promise.all(fields.map((field) => field.boundingBox()));
       for (let i = 1; i < boxes.length; i++) expect(boxes[i]!.y).toBeGreaterThan(boxes[i - 1]!.y);
       await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport({

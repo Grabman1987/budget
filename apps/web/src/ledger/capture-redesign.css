@@ -826,15 +826,15 @@
   .bkform-redesign.bk-split-cols .bk-dates {
     order: -1;
   }
-  .bkform-redesign :is(.bk-payee, .bk-account-row, .bk-dates),
+  .bkform-redesign :is(.bk-payee, .bk-account-row, .bk-dates):has(> .bk-mobile-row-icon),
   .bkform-redesign .bk-line-fields:has(> .bk-mobile-row-icon) {
-    position: relative;
-    padding-inline-start: 24px;
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
   }
   .bkform-redesign .bk-mobile-row-icon {
-    position: absolute;
-    inset-inline-start: 0;
-    inset-block-start: 14px;
+    margin-block-start: 14px;
     color: var(--ink-3);
     pointer-events: none;
     stroke-width: 1.75;
