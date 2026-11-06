@@ -129,7 +129,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
 test('recent bookings show counterparties and mask them in privacy mode (#951)', async ({
   page,
 }) => {
-  const response = await page.request.get('/api/heute');
+  const response = await page.request.get('/api/heute?period=payday&month=2026-09');
   expect(response.ok()).toBe(true);
   const data = await response.json();
   const base = {
@@ -163,7 +163,7 @@ test('recent bookings show counterparties and mask them in privacy mode (#951)',
   ];
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: data }));
   try {
-    await page.goto('/');
+    await page.goto('/?monat=2026-09&period=payday');
     const labels = page.locator(redesign ? '.hv-booking-list strong' : '.heute-booking strong');
     await expect(labels).toHaveText([
       'Umbuchung nach Mustersparkonto',
@@ -177,10 +177,10 @@ test('recent bookings show counterparties and mask them in privacy mode (#951)',
     await expect(labels).toHaveText(['•••', '•••', '•••', '•••']);
     await expect(page.locator('main')).not.toContainText('Musterzinsen');
     if (redesign) {
-      await page.goto('/heute/details/bookings');
+      await page.goto('/heute/details/bookings?monat=2026-09&period=payday');
       await expect(page.locator('.heute-booking strong')).toHaveText(['•••', '•••', '•••', '•••']);
       await expect(page.locator('main')).not.toContainText('Musterzinsen');
-      await page.goto('/');
+      await page.goto('/?monat=2026-09&period=payday');
     }
     await withShellControls(page, async ({ privacy }) => {
       await privacy.click();
