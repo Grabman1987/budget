@@ -31,6 +31,7 @@ import { undoGroup } from '../ledger/api';
 import { eur, longDay } from '../ledger/format';
 import { errorText } from '../ledger/labels';
 import { accountsQuery, lookupsQuery, LEDGER_KEY } from '../ledger/queries';
+import type { ListedBooking } from '../ledger/types';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
@@ -406,6 +407,7 @@ export function ContactBody({
   const [renaming, setRenaming] = useState(false);
   const noteId = useId();
   const [sourceOpening, setSourceOpening] = useState<ContactSourceOpening | null>(null);
+  const [giftOutlay, setGiftOutlay] = useState<OpenContactOutlay | null>(null);
   const sourceGeneration = useRef(0);
   const openSource = (movement: ContactMovement) =>
     setSourceOpening({ movement, generation: ++sourceGeneration.current });
@@ -489,6 +491,18 @@ export function ContactBody({
           onClose={() => setWriteOff(false)}
         />
       )}
+      {giftOutlay && (
+        <ContactGiftDialog
+          statement={statement}
+          outlay={giftOutlay}
+          ready={ready}
+          onClose={() => setGiftOutlay(null)}
+          onOpenSource={() => {
+            openSource(giftOutlay);
+            setGiftOutlay(null);
+          }}
+        />
+      )}
       {ready && (
         <>
           {currentMonthMovements.length === 0 ? (
@@ -503,6 +517,7 @@ export function ContactBody({
               title={monthTitle}
               caption="Kontaktbuchungen im aktuellen Monat"
               onOpen={openSource}
+              onGift={reportReader ? undefined : setGiftOutlay}
             />
           )}
           {openOlderOutlays.length > 0 && (
@@ -514,6 +529,7 @@ export function ContactBody({
                 headingId="contacts-open-older"
                 caption="Noch offene Auslagen aus früheren Monaten"
                 onOpen={openSource}
+                onGift={reportReader ? undefined : setGiftOutlay}
               />
             </section>
           )}
@@ -530,6 +546,7 @@ export function ContactBody({
               heading="Verlauf"
               caption="Kontaktbuchungen außerhalb des aktuellen Monats"
               onOpen={openSource}
+              onGift={reportReader ? undefined : setGiftOutlay}
             />
           )}
           {archived.length > 0 && (
@@ -544,6 +561,7 @@ export function ContactBody({
                 heading={false}
                 caption="Abgeschlossene Kontaktbuchungen bis zum Ausgleich"
                 onOpen={openSource}
+                onGift={reportReader ? undefined : setGiftOutlay}
               />
             </details>
           )}
@@ -894,6 +912,165 @@ export function ContactWriteOffDialog({
   );
 }
 
+function ContactGiftDialog({
+  statement,
+  outlay,
+  ready,
+  onClose,
+  onOpenSource,
+}: {
+  statement: Statement;
+  outlay: OpenContactOutlay;
+  ready: boolean;
+  onClose: () => void;
+  onOpenSource: () => void;
+}) {
+  useAmountPrivacy();
+  const [amount, setAmount] = useState(decimal(outlay.remainingCents));
+  const [categoryId, setCategoryId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const write = useContactWrite();
+  const source = useQuery({
+    queryKey: [...LEDGER_KEY, 'contact-gift-source', outlay.bookingId],
+    queryFn: () =>
+      request<{ booking: ListedBooking }>(
+        'GET',
+        `/api/bookings/${encodeURIComponent(outlay.bookingId)}`,
+      ),
+    gcTime: 0,
+  });
+  const lookups = useQuery(lookupsQuery());
+  const expenses =
+    lookups.data?.categories.filter(
+      (c) => c.class !== null && !['advance', 'income', 'card_payment'].includes(c.kind),
+    ) ?? [];
+  const parsed = parseAmount(amount);
+  const amountCents = parsed.ok ? parsed.cents : 0;
+  const booking = source.data?.booking;
+  const allocated = statement.receipts.some(
+    (receipt) =>
+      receipt.recorded &&
+      receipt.allocations.some(
+        (a) =>
+          a.outlaySplitId === outlay.splitId ||
+          booking?.splits.some((s) => s.id === a.outlaySplitId),
+      ),
+  );
+  const blocked =
+    allocated ||
+    booking?.status === 'reconciled' ||
+    !!booking?.transferId ||
+    booking?.splits.some((s) => s.transferId);
+  const valid =
+    ready &&
+    !!booking &&
+    source.isSuccess &&
+    !source.isFetching &&
+    lookups.isSuccess &&
+    !lookups.isFetching &&
+    !blocked &&
+    outlay.date <= todayInVienna() &&
+    amountCents > 0 &&
+    amountCents <= outlay.remainingCents &&
+    expenses.some((c) => c.id === categoryId);
+  return (
+    <FormDialog
+      open
+      title="Auslage als Geschenk übernehmen"
+      onClose={onClose}
+      beforeClose={() => !busy}
+    >
+      <form
+        className="contacts-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!valid || busy) return;
+          setBusy(true);
+          void write(
+            () =>
+              request(
+                'POST',
+                `${contactUrl(statement.contact.id)}/outlays/${encodeURIComponent(outlay.splitId)}/gift`,
+                { amountCents, categoryId },
+              ),
+            'Auslage als eigenes Geschenk übernommen.',
+          ).then((ok) => {
+            setBusy(false);
+            if (ok) onClose();
+          });
+        }}
+      >
+        <h2>Auslage als Geschenk übernehmen</h2>
+        <p>
+          {maskMoneyText(outlay.memo?.trim() || 'Auslage')} · {statement.contact.name}
+        </p>
+        <p>
+          Datum bleibt {longDay(booking?.date ?? outlay.date)}. Der Bankbetrag bleibt gleich. Nur
+          der gewählte Kontaktanteil wird deine eigene Ausgabe.
+        </p>
+        {allocated && (
+          <p role="status">
+            Diese Buchung ist bereits einer Rückzahlung zugeordnet. Zuerst die zugehörige
+            Rückzahlung rückgängig machen.
+          </p>
+        )}
+        {booking?.status === 'reconciled' && (
+          <p role="status">
+            Die Ursprungsbuchung ist abgeglichen und gesperrt. Bitte dort den bestehenden
+            Entsperrweg verwenden.
+          </p>
+        )}
+        {blocked && (
+          <Button variant="ghost" onClick={onOpenSource}>
+            Ursprungsbuchung öffnen
+          </Button>
+        )}
+        <AmountInput label="Geschenkbetrag" value={amount} onChange={setAmount} />
+        <Field label="Eigene Geschenkkategorie">
+          {({ id }) => (
+            <Select
+              id={id}
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              required
+            >
+              <option value="">Kategorie wählen</option>
+              {expenses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+        {source.isPending && <LoadingNote what="Ursprungsbuchung" />}
+        {source.isError && (
+          <ErrorNote
+            what="Ursprungsbuchung"
+            error={source.error}
+            onRetry={() => void source.refetch()}
+          />
+        )}
+        {lookups.isError && (
+          <ErrorNote
+            what="Geschenkkategorie"
+            error={lookups.error}
+            onRetry={() => void lookups.refetch()}
+          />
+        )}
+        <div className="contacts-actions">
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            Abbrechen
+          </Button>
+          <Button type="submit" disabled={!valid || busy}>
+            Als Geschenk übernehmen
+          </Button>
+        </div>
+      </form>
+    </FormDialog>
+  );
+}
+
 function ReceiptForm({
   statement,
   ready,
@@ -916,6 +1093,7 @@ function ReceiptForm({
   const [date, setDate] = useState(todayInVienna());
   const [amount, setAmount] = useState('');
   const [chosen, setChosen] = useState<Record<string, string> | null>(null);
+  const [excessToBudget, setExcessToBudget] = useState(true);
   const [busy, setBusy] = useState(false);
   const write = useContactWrite();
   const target = useQuery({
@@ -933,6 +1111,9 @@ function ReceiptForm({
   const parsed = parseAmount(amount);
   const amountCents = parsed.ok && parsed.cents > 0 ? parsed.cents : 0;
   const plan = allocateContactReceipt(open, amountCents);
+  const chosenAccount = cash.find((a) => a.id === (accountId || cash[0]?.id));
+  const validExcessDestination =
+    !excessToBudget || plan.creditCents === 0 || chosenAccount?.onBudget === true;
   const values =
     chosen ??
     Object.fromEntries(
@@ -959,7 +1140,14 @@ function ReceiptForm({
       className="contacts-form contacts-receipt"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!sourceReady || !amountCents || allocationError || !target.data) return;
+        if (
+          !sourceReady ||
+          !amountCents ||
+          allocationError ||
+          !validExcessDestination ||
+          !target.data
+        )
+          return;
         setBusy(true);
         void write(
           () =>
@@ -968,6 +1156,7 @@ function ReceiptForm({
               date,
               amountCents,
               allocations,
+              excessToBudget,
             }),
           'Rückzahlung gebucht.',
         ).then((ok) => {
@@ -1009,10 +1198,13 @@ function ReceiptForm({
         value={amount}
         onChange={(v) => {
           setAmount(v);
-          setChosen(null);
         }}
       />
       <p>Standard: älteste offene Auslage zuerst. Anteile vor dem Speichern ändern.</p>
+      <p>
+        Auslagen auswählen und die tatsächliche Rückzahlung prüfen. Die Auswahl allein bucht kein
+        Geld.
+      </p>
       {(!ready || target.isPending || target.isFetching || accounts.isFetching) && (
         <LoadingNote what="Offene Auslagen" />
       )}
@@ -1027,29 +1219,64 @@ function ReceiptForm({
         />
       )}
       {open.map((o, i) => (
-        <Field
-          key={o.splitId}
-          label={
-            sourceReady
-              ? `Auslage ${i + 1} · ${longDay(o.date)} · offen ${eur(o.remainingCents)}`
-              : `Auslage ${i + 1}`
-          }
-        >
-          {({ id }) => (
-            <TextInput
-              id={id}
-              inputMode="decimal"
-              value={values[o.splitId] ?? '0'}
-              money
-              onChange={(e) => setChosen({ ...values, [o.splitId]: e.target.value })}
+        <div key={o.splitId} className="contact-receipt-allocation">
+          <label className="contact-select-outlay">
+            <input
+              type="checkbox"
+              checked={sourceReady && allocations.some((a) => a.outlaySplitId === o.splitId)}
+              disabled={!sourceReady || busy}
+              onChange={(e) => {
+                const next = {
+                  ...values,
+                  [o.splitId]: decimal(e.target.checked ? o.remainingCents : 0),
+                };
+                const total = open.reduce((sum, item) => {
+                  const value = parseAmount(next[item.splitId] ?? '0');
+                  return sum + (value.ok && value.cents > 0 ? value.cents : 0);
+                }, 0);
+                setChosen(next);
+                setAmount(Number.isSafeInteger(total) ? decimal(total) : '');
+              }}
             />
-          )}
-        </Field>
+            Für Rückzahlung:{' '}
+            {sourceReady ? maskMoneyText(o.memo?.trim() || `Auslage ${i + 1}`) : `Auslage ${i + 1}`}{' '}
+            ausgleichen
+          </label>
+          <Field
+            label={
+              sourceReady
+                ? `Auslage ${i + 1} · ${longDay(o.date)} · offen ${eur(o.remainingCents)}`
+                : `Auslage ${i + 1}`
+            }
+          >
+            {({ id }) => (
+              <TextInput
+                id={id}
+                inputMode="decimal"
+                value={values[o.splitId] ?? '0'}
+                money
+                onChange={(e) => setChosen({ ...values, [o.splitId]: e.target.value })}
+              />
+            )}
+          </Field>
+        </div>
       ))}
+      <label className="contact-select-outlay">
+        <input
+          type="checkbox"
+          checked={excessToBudget}
+          onChange={(e) => setExcessToBudget(e.target.checked)}
+        />
+        Überschuss dieser Rückzahlung ins Budget übernehmen
+      </label>
       {sourceReady && (
         <p>
-          Guthaben aus dieser Rückzahlung: <strong>{eur(plan.creditCents)}</strong>
+          {excessToBudget ? 'Zusätzlich zu verteilen: ' : 'Guthaben aus dieser Rückzahlung: '}
+          <strong>{eur(plan.creditCents)}</strong>
         </p>
+      )}
+      {!validExcessDestination && (
+        <p role="alert">Für die Übernahme ins Budget bitte ein Budgetkonto wählen.</p>
       )}
       {sourceReady && amountCents > 0 && allocationError && (
         <p className="field-error" role="alert">
@@ -1064,6 +1291,7 @@ function ReceiptForm({
           !cash.length ||
           !amountCents ||
           !!allocationError ||
+          !validExcessDestination ||
           !target.data ||
           target.isFetching
         }
