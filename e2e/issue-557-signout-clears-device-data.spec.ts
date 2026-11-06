@@ -7,7 +7,7 @@ import { MAIN_URL } from '../playwright.config';
 test.use({ serviceWorkers: 'allow' });
 test.setTimeout(90_000);
 
-/** Every localStorage key that may remain after sign-out: UI preferences only, no ledger data. */
+/** UI preference keys that may remain after sign-out; no ledger data. */
 const PREFERENCE_KEYS = [
   'budget-theme',
   'budget-amounts-hidden',
@@ -35,6 +35,8 @@ type Snapshot = {
   theme: string | null;
   choices: number;
   caches: string[];
+  receiptEpoch: string | null;
+  receiptProbe: string | null;
 };
 
 async function snapshot(page: Page): Promise<Snapshot> {
@@ -78,6 +80,8 @@ async function snapshot(page: Page): Promise<Snapshot> {
       theme: localStorage.getItem('budget-theme'),
       choices: await count('choices'),
       caches: (await caches.keys()).sort(),
+      receiptEpoch: localStorage.getItem('budget-receipt-wipe-epoch'),
+      receiptProbe: localStorage.getItem('budget-receipt-storage-probe'),
     };
   });
 }
@@ -155,11 +159,15 @@ test('sign-out deletes cached choices, capture memory and data caches; shell and
   // The offline shell and non-financial preferences survive.
   expect(after.caches.some((name) => name.startsWith('budget-shell-'))).toBe(true);
   expect(after.theme).toBe('dark');
-  // Only preference keys remain in localStorage (explicit allow-list, no ledger data).
+  // The one new lifecycle marker is an opaque UUID, never financial data; its probe is transient.
+  expect(after.receiptEpoch).toMatch(/^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i);
+  expect(after.receiptProbe).toBeNull();
+  // Only preferences and this exact revocation key remain (no broad receipt-key exception).
   expect(
     after.keys.filter(
       (key) =>
         !PREFERENCE_KEYS.includes(key) &&
+        key !== 'budget-receipt-wipe-epoch' &&
         !PREFERENCE_PREFIXES.some((prefix) => key.startsWith(prefix)),
     ),
   ).toEqual([]);
