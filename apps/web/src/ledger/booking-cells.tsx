@@ -1,6 +1,7 @@
 import { BookingStatusIcon, ClassSwatch, type SwatchKind } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { TriangleAlert, ArrowLeftRight, Check, CircleCheck, Clock, Split } from 'lucide-react';
+import { bookingCounterparty } from './booking-counterparty';
 import { FlagGlyph, FlagPicker } from './flag-picker';
 import { FLAG_LABEL, STATUS_LABEL } from './labels';
 import { accountsQuery, lookupsQuery } from './queries';
@@ -182,11 +183,11 @@ export function PayeeCell({
   /** The account register shows the note in its own column and phone line instead. */
   hideNote?: boolean;
 }) {
-  const name = booking.payeeName ?? (booking.transferId ? 'Umbuchung' : 'Ohne Empfänger');
+  const name = bookingCounterparty(booking);
   return (
     <>
       <span className="kname-s">{name}</span>
-      {booking.memo && !hideNote && (
+      {booking.memo && booking.memo.trim() !== name && !hideNote && (
         <span className={noteClassName ? `kmeta ${noteClassName}` : 'kmeta'}>{booking.memo}</span>
       )}
     </>
