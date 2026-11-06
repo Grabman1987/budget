@@ -483,7 +483,7 @@ export function ContactBody({
           )}
         </>
       )}
-      {ready && <ContactCredits statement={statement} />}
+      {ready && !!statement.credits?.length && <ContactCredits statement={statement} />}
       {receipt && (
         <ReceiptForm statement={statement} ready={ready} onDone={() => setReceipt(false)} />
       )}
