@@ -90,7 +90,6 @@ async function bounded(list: Locator) {
       })
       .toBe(true);
   } catch (error) {
-    console.log('734_LIST_BOUNDS ' + JSON.stringify(lastBounds!));
     throw error;
   }
   return bounds(list);
@@ -139,7 +138,6 @@ async function activeVisible(field: Locator, list: Locator) {
       })
       .toBe(true);
   } catch (error) {
-    console.log('734_ACTIVE_VISIBILITY_GEOMETRY ' + JSON.stringify(lastGeometry));
     const path = test.info().outputPath('active-visibility-failure.json');
     await writeFile(path, JSON.stringify(lastGeometry, null, 2));
     await test
