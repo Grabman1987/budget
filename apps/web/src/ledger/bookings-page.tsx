@@ -154,7 +154,8 @@ export function BookingsPage() {
     setSelected((prev) => new Set([...prev].filter((id) => !completed.includes(id))));
   const runBulk = async (
     vars:
-      { ids: string[]; set: BulkSet } | { ids: string[]; remove: true; previewRevision: string },
+      | { ids: string[]; set: BulkSet; previewRevision?: string }
+      | { ids: string[]; remove: true; previewRevision: string },
     submitted?: BulkSelection,
   ) => {
     if (pending) return;
@@ -168,7 +169,7 @@ export function BookingsPage() {
       });
       bulkDone(result.changed);
     } catch (error) {
-      if ('remove' in vars) throw error;
+      if ('remove' in vars || vars.previewRevision) throw error;
       /* The mutation reports failure; the selection and its context stay intact. */
     }
   };
@@ -401,7 +402,9 @@ export function BookingsPage() {
           pending={pending}
           categories={lookups.data?.categories ?? []}
           projects={lookups.data?.projects ?? []}
-          onApply={(set, facts) => void runBulk({ ids: [...ids], set }, facts)}
+          onApply={(set, facts, previewRevision) =>
+            runBulk({ ids: [...ids], set, ...(previewRevision ? { previewRevision } : {}) }, facts)
+          }
           onClear={() => {
             if (!pending) setSelected(new Set());
           }}

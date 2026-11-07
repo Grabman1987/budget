@@ -187,7 +187,7 @@ it.each([300, 900])(
 it.each([
   ['last-month', -400, 0],
   ['average', -400, 0],
-  ['target', 500, 100],
+  ['target', 600, 0],
   ['empty', 0, 0],
   ['reset', -400, 0],
 ] as const)(

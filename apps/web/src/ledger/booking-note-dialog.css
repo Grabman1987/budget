@@ -1,0 +1,4 @@
+/* Keep the themed foreground/background pair in sync, including in WebKit. */
+.knote-preview .bk-foot > .btn-primary {
+  transition: none;
+}

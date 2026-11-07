@@ -182,9 +182,8 @@ it('reading and cancelling a preview writes nothing; batch and single reads shar
   expect(counts()).toEqual(before);
 });
 
-it('keeps the existing funding guard and rolls a fresh but invalid batch back', async () => {
+it('accepts a fresh over-assignment preview and restores its whole audit group', async () => {
   const a = await view();
-  const before = counts();
   const response = await put(
     [
       { categoryId: 'second', assignedCents: 1 },
@@ -192,9 +191,41 @@ it('keeps the existing funding guard and rolls a fresh but invalid batch back', 
     ],
     a.previewBasis,
   );
-  expect(response.status).toBe(422);
-  expect(counts()).toEqual(before);
+  expect(response.status).toBe(200);
+  const result = (await response.json()) as { groupId: string; toBeAssignedCents: number };
+  expect(result.toBeAssignedCents).toBe(-2);
+  expect(await centsOf('first')).toBe(20_001);
+  expect(await centsOf('second')).toBe(1);
+  expect((await send('POST', '/undo', { groupId: result.groupId })).status).toBe(200);
+  expect(await centsOf('first')).toBe(1_000);
+  expect(await centsOf('second')).toBe(0);
 });
+
+it.each(['assigned', 'available'] as const)(
+  'rolls unsafe %s cents back without persisted assignment or audit writes',
+  async (figure) => {
+    if (figure === 'available') {
+      opened.db.update(schema.account).set({ openingDate: '2026-09-01' }).run();
+      const carry = await send('PUT', '/budget/2026-09/assigned', {
+        items: [{ categoryId: 'first', assignedCents: 2 }],
+      });
+      expect(carry.status).toBe(200);
+    }
+    const before = counts();
+    const response = await put(
+      [
+        { categoryId: 'second', assignedCents: figure === 'assigned' ? 1 : 0 },
+        { categoryId: 'first', assignedCents: Number.MAX_SAFE_INTEGER },
+      ],
+      (await view()).previewBasis,
+    );
+    expect(response.status).toBe(422);
+    // SQLite total_changes includes rolled-back writes; persisted rows must remain identical.
+    expect(counts()).toMatchObject({ audits: before.audits, assignments: before.assignments });
+    expect(await centsOf('first')).toBe(1_000);
+    expect(await centsOf('second')).toBe(0);
+  },
+);
 
 it('guards the exact next-month close snapshot before grouped assignment or audit writes', async () => {
   const closeBasis = async () => {

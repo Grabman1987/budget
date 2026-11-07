@@ -327,7 +327,7 @@ isolatedTest(
   },
 );
 
-test('plan: a negative assignment stays editable, Escape keeps it, Decken asks when short', async ({
+test('plan: a negative assignment stays editable, Escape keeps it, Decken permits overdraft planning', async ({
   page,
 }, testInfo) => {
   const tag = `${testInfo.project.name}-${Date.now().toString(36).slice(-5)}`;
@@ -386,7 +386,7 @@ test('plan: a negative assignment stays editable, Escape keeps it, Decken asks w
   await expect(toast(page)).toContainText(`${name}: −50,00 € → −30,00 € zugewiesen`);
   expect(writes).toHaveLength(1);
 
-  // Decken from "Zu verteilen" never goes below 0 silently: more card debt than it holds asks.
+  // Explicit cover from Zu verteilen remains available and previews overdraft planning.
   const view = (await (await request.get(`/api/budget/${month}`)).json()) as {
     summary: { toBeAssignedCents: number };
   };
@@ -422,85 +422,106 @@ test('plan: a negative assignment stays editable, Escape keeps it, Decken asks w
   await page.reload();
   await categoryCoverAction(page, trip).click();
   const coverPanel = page.getByRole('complementary', { name: 'Plan-Inspektor' });
-  if (tba > 0) {
-    await coverPanel.getByLabel('Aus', { exact: true }).selectOption('');
-    await coverPanel.getByRole('button', { name: /^Decken ·/ }).click();
-    const choice = page.getByRole('group', { name: 'Decken aus Zu verteilen' });
-    await expect(choice.getByRole('button', { name: /^Nur .* decken$/ })).toBeVisible();
-    await expect(choice.getByRole('button', { name: /Trotzdem ganz decken/ })).toHaveCount(0);
-    await choice.getByRole('button', { name: 'Abbrechen' }).click();
-    await expect(choice).toHaveCount(0);
-  } else {
-    await expect(coverPanel.getByLabel('Aus').locator('option[value=""]')).toHaveCount(0);
-  }
+  await coverPanel.getByLabel('Aus', { exact: true }).selectOption('');
+  await expect(coverPanel.getByTestId('cover-remaining')).toContainText('(Dispo)');
+  await expect(coverPanel.getByRole('button', { name: /^Decken ·/ })).toBeEnabled();
   const axe = await new AxeBuilder({ page }).include('main').analyze();
   expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
   expect(writes).toHaveLength(1);
 });
 
-test('plan: the guard refuses assigning more than Zu verteilen holds, in the field and the API', async ({
-  page,
-}, testInfo) => {
-  const tag = `${testInfo.project.name}-${Date.now().toString(36).slice(-5)}`;
-  const { request } = page;
-  const group = (await post(request, '/categories/groups', { name: `Plan guard ${tag}` }))[
-    'group'
-  ]!;
-  const name = `Schranke G ${tag}`;
-  const category = (
-    await post(request, '/categories', { name, groupId: group.id, class: 'want', stage: 5 })
-  )['category']!;
-  const writes: string[] = [];
-  page.on('request', (r) => {
-    if (r.method() !== 'GET' && r.url().includes('/api/budget/')) writes.push(r.url());
-  });
+isolatedTest(
+  'plan: over-assignment, move and goal filling keep exact cents and Undo',
+  async ({ page, baseURL }) => {
+    const month = '2026-10';
+    const origin = baseURL!;
+    const { request } = page;
+    const post = (path: string, data: unknown) => postTo(request, path, data, origin);
+    await post('/accounts', {
+      name: 'Synthetic plan overdraft',
+      type: 'checking',
+      openingDate: `${month}-01`,
+      openingBalanceCents: 1_000,
+    });
+    const group = (await post('/categories/groups', { name: 'Synthetic plan goals' })).group!;
+    const name = 'Synthetic target';
+    const category = (
+      await post('/categories', {
+        name,
+        groupId: group.id,
+        class: 'want',
+        stage: 5,
+        target: { validFrom: month, target: { kind: 'monthly', amountCents: 2_001 } },
+      })
+    ).category!;
+    const accountsBefore = await (await request.get('/api/accounts')).json();
+    const read = async () => (await (await request.get(`/api/budget/${month}`)).json()).summary;
+    await page.goto(`/plan/monat?monat=${month}`);
+    await expect(page.locator('.app')).toHaveAttribute('data-budget-redesign', '1');
+    const hero = page.getByTestId('to-be-assigned');
+    await expect(hero).toHaveText('10,00 €');
+    const phone = page.viewportSize()!.width < 768;
+    if (phone) await row(page, name).locator('.plan-available').click();
+    else
+      await row(page, name)
+        .getByRole('button', { name: /^Zugewiesen .* ändern/ })
+        .click();
+    const field = phone
+      ? page.getByLabel('Zugewiesen', { exact: true })
+      : page.getByLabel(`Zugewiesen für ${name}. Rechnen erlaubt, +50 addiert.`);
+    await field.fill('12,01');
+    await expect(page.getByRole('status').filter({ hasText: '(Dispo)' })).toContainText('−2,01 €');
+    await expect(field).toHaveAttribute('aria-invalid', 'false');
+    if (phone) await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+    else await field.press('Enter');
+    await expect(hero).toHaveText('−2,01 €');
+    await expect(toast(page)).toContainText('(Dispo)');
+    expect((await read()).assignedCents).toBe(1_201);
+    expect(await (await request.get('/api/accounts')).json()).toEqual(accountsBefore);
+    await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
+    await expect(hero).toHaveText('10,00 €');
 
-  // The API refuses with 422 and a German message; nothing is written.
-  const refused = await request.put(`/api/budget/${month}/assigned`, {
-    data: { items: [{ categoryId: category.id, assignedCents: 99_999_999_900 }] },
-    headers: { origin: MAIN_URL },
-  });
-  expect(refused.status()).toBe(422);
-  expect(await refused.json()).toMatchObject({
-    error: 'category_rule',
-    message: expect.stringMatching(/Höchstens|nichts frei/),
-  });
+    // The API permits a move beyond available money before the next goal assignment.
+    const moved = await request.post(`/api/budget/${month}/move`, {
+      headers: { origin },
+      data: { fromId: null, toId: category.id, amountCents: 1_501 },
+    });
+    expect(moved.ok()).toBe(true);
+    const movedBody = await moved.json();
+    expect(movedBody.toBeAssignedCents).toBe(-501);
+    await page.reload();
+    // All targets remain actionable at negative Zu verteilen, with a non-blocking preview.
+    await page.locator('.plan-menu-verteilen > summary').click();
+    await page.getByRole('button', { name: 'Alle Ziele füllen', exact: true }).click();
+    const preview = page.getByRole('dialog', { name: 'Alle Ziele füllen' });
+    await expect(preview.getByRole('status').filter({ hasText: '(Dispo)' })).toContainText(
+      '−10,01 €',
+    );
+    await preview.getByRole('button', { name: '5,00 € zuweisen' }).click();
+    await expect(hero).toHaveText('−10,01 €');
+    expect((await read()).assignedCents).toBe(2_001);
+    const splitDisclosure = page.locator('[data-overview-section="split"]');
+    if (!(await splitDisclosure.evaluate((element) => element.hasAttribute('open'))))
+      await splitDisclosure.locator(':scope > summary').click();
+    await expect(page.getByRole('list', { name: 'Zustand des Monats' })).not.toContainText(
+      'Nichts ist überzogen',
+    );
+    await expect(page.locator('.split-band .sb-legend')).not.toContainText(
+      /-\d+ %|−\d+ %|\b[1-9]\d{3,} %/,
+    );
 
-  // The inline field refuses too, says why and stays open; no request leaves the page.
-  await page.goto(`/plan/monat?monat=${month}`);
-  const phone = testInfo.project.name === 'mobile';
-  const field = phone
-    ? page.getByLabel('Zugewiesen', { exact: true })
-    : page.getByLabel(`Zugewiesen für ${name}. Rechnen erlaubt, +50 addiert.`);
-  if (phone) await row(page, name).locator('.plan-available').click();
-  else
-    await row(page, name)
-      .getByRole('button', { name: /^Zugewiesen .* ändern$/ })
-      .click();
-  await field.fill('999999999');
-  if (phone) await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
-  else await page.keyboard.press('Enter');
-  await expect(field).toHaveAttribute('aria-invalid', 'true');
-  await expect(page.getByRole('alert').filter({ hasText: /Höchstens|nichts frei/ })).toBeVisible();
-  expect(writes).toEqual([]);
-  await page.keyboard.press('Escape');
-  await expect(row(page, name).locator('.col-assign')).toContainText('0,00 €');
-
-  // The month status never says "Nichts ist überzogen." while the hero says too much assigned.
-  const hero = page.getByTestId('to-be-assigned');
-  const negative = (await hero.innerText()).trim().startsWith('−');
-  const splitDisclosure = page.locator('[data-overview-section="split"]');
-  if (!(await splitDisclosure.evaluate((element) => element.hasAttribute('open'))))
-    await splitDisclosure.locator(':scope > summary').click();
-  await expect(splitDisclosure).toHaveAttribute('open', '');
-  const status = page.getByRole('list', { name: 'Zustand des Monats' });
-  if (negative) await expect(status).not.toContainText('Nichts ist überzogen');
-  await expect(status).toBeVisible();
-
-  // 50/30/20 never shows percentages that mean nothing.
-  const split = page.locator('.split-band');
-  await expect(split.locator('.sb-legend')).not.toContainText(/-\d+ %|−\d+ %|\b[1-9]\d{3,} %/);
-
-  const axe = await new AxeBuilder({ page }).include('main').analyze();
-  expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
-});
+    expect(await (await request.get('/api/accounts')).json()).toEqual(accountsBefore);
+    await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
+    await expect(hero).toHaveText('−5,01 €');
+    const undone = await request.post('/api/undo', {
+      headers: { origin },
+      data: { groupId: movedBody.groupId },
+    });
+    expect(undone.ok()).toBe(true);
+    await page.reload();
+    await expect(hero).toHaveText('10,00 €');
+    expect((await read()).assignedCents).toBe(0);
+    const axe = await new AxeBuilder({ page }).include('main').analyze();
+    expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
+  },
+);
