@@ -16,6 +16,7 @@ import { PayslipSourceSection } from '../reports/payslip-intake';
 import './data-sources.css';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { SettingsConnections } from './settings-connections';
+import { BankSyncRecap } from '../inbox/bank-sync-recap';
 
 type LinkedAccount = {
   locked: boolean;
@@ -283,6 +284,7 @@ function BankSourceSection() {
       </div>
       {query.data?.configured && (
         <>
+          {REDESIGN_ENABLED && <BankSyncRecap />}
           {query.data.connections.length === 0 && <p>Noch keine Bank verbunden.</p>}
           <p className="text-muted">
             Nächtlicher Abruf mit Nachholen nach Ausfällen. Das Tageslimit gilt pro Bankkonto und
