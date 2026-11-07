@@ -1,5 +1,31 @@
 # Shared expenses and contact credit
 
+## Targeted allocations and later credit decisions (#978)
+
+The contact statement offers exact-cent allocations when recording a repayment and
+an explicit reallocation form for recorded repayments. The default remains oldest
+open outlay first. A later reallocation can reserve an already recorded outlay
+whose date follows the receipt. Reserved amounts are not freely reusable credit.
+
+An owner credit choice can recover surplus already consumed automatically. The
+available remainder is used first; only the missing cents are released, newest
+automatic use first. Explicit repayment allocations and other receipt lots remain
+unchanged. Reopened outlays remain open until another explicit repayment or a new
+purchase uses eligible credit. Standalone Auslagen uses need no guessed category.
+
+Corrections of category returns are zero-cash bookings dated to the decision (or
+today for reallocation). Original return rows and earlier month carry remain
+unchanged. Audited credit settings retain prior uses/allocations for historical
+as-of statements and reciprocal references to the correction bookings. The whole
+decision, its corrections and provenance share one Undo group; partial and forced
+Undo cannot detach a correction. Reconciled source, affected outlay and correction
+bookings retain their locks. Free/category choices and reallocation preserve
+current Zu verteilen; only an explicit gift adds income. Normal subsequent month
+carry continues to use the existing budget rules for the reopened category spending.
+
+The ID-based `contact-allocate` operator command uses the same writers, per-entry
+savepoints, refusal codes and a rollback-only preview. See [operator examples](ops.md).
+
 Approved scope: #963 and its owner comments of 2026-11-06. The purchase UI remains
 one category line with contact shares. Largest-remainder splitting is unchanged;
 new share splits retain that category, so it carries the full purchase until repaid.

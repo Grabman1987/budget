@@ -75,6 +75,15 @@ const statement: ContactReportStatement = {
   balanceCents: -5000,
   creditCents: 5000,
   credits: [{ receiptSplitId: 'receipt', remainingCents: 5000, categoryId: null }],
+  creditChoices: [
+    {
+      receiptSplitId: 'receipt',
+      remainingCents: 5000,
+      categoryId: null,
+      availableCents: 5000,
+      automaticallyUsedCents: 0,
+    },
+  ],
   creditUses: [],
   movements: [movement],
   outlays: [],

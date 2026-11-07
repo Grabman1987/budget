@@ -2,6 +2,7 @@ import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import {
   applyBookEntries,
+  applyContactAllocations,
   applyInstrumentFacts,
   applyOwnerConfig,
   applyOwnerTrades,
@@ -13,6 +14,7 @@ import {
   openDatabase,
   orderAccountsByNames,
   parseBookFile,
+  parseContactAllocateFile,
   parseGroupsFile,
   parsePayslipsFile,
   parseInstrumentFactsFile,
@@ -47,6 +49,7 @@ import { applyRestructure, parseRestructureFile } from './operator-restructure';
  *   node migrate-cli.js payslips --file <json> [--dry-run] [--details] [--replace]
  *   node migrate-cli.js instrument-facts --file <json> [--dry-run]
  *   node migrate-cli.js owner-config --file <json> [--dry-run] [--details]
+ *   node migrate-cli.js contact-allocate --file <json> [--dry-run] [--details]
  *   node migrate-cli.js restructure --file <json> [--dry-run] [--details]
  *   node migrate-cli.js owner-trades --file <json> [--dry-run] [--details]
  *   node migrate-cli.js bank-inbox list [--source <bankSyncAccountId>] [--out <file>]
@@ -566,6 +569,45 @@ try {
       if (outcomes.some((o) => o.status === 'skipped')) process.exitCode = 3;
       break;
     }
+    case 'contact-allocate': {
+      const dryRun = args.includes('--dry-run');
+      const contents = readFileSync(required('file'), 'utf8');
+      let json: unknown;
+      try {
+        json = JSON.parse(contents);
+      } catch {
+        throw new Error('Invalid JSON in contact-allocate file');
+      }
+      const file = parseContactAllocateFile(json);
+      const outcomes = applyContactAllocations(
+        db,
+        file,
+        { actor: 'operator' },
+        { dryRun, today: ctx.today },
+      );
+      for (const outcome of outcomes) {
+        console.log(
+          outcome.status.padEnd(14),
+          outcome.index,
+          outcome.action,
+          outcome.reason,
+          outcome.groupId || (dryRun ? '(dry run)' : ''),
+        );
+        if (args.includes('--details')) console.log('              ', outcome.detail);
+      }
+      console.log(
+        'entries',
+        outcomes.length,
+        'updated',
+        outcomes.filter((o) => o.status === 'updated').length,
+        'unchanged',
+        outcomes.filter((o) => o.status === 'unchanged').length,
+        'skipped',
+        outcomes.filter((o) => o.status === 'skipped').length,
+      );
+      if (outcomes.some((o) => o.status === 'skipped')) process.exitCode = 3;
+      break;
+    }
     case 'owner-config': {
       const dryRun = args.includes('--dry-run');
       const config = parseOwnerConfigFile(
@@ -659,7 +701,7 @@ try {
     }
     default:
       console.log(
-        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config|restructure|owner-trades|source-rebuild|bank-inbox [options]',
+        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config|contact-allocate|restructure|owner-trades|source-rebuild|bank-inbox [options]',
       );
       process.exitCode = 2;
   }

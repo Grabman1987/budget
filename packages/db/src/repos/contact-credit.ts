@@ -17,6 +17,20 @@ const PREFIX = 'contacts.credit.';
 const idSchema = z.string().min(1);
 const centsSchema = z.number().int().safe().positive();
 const refundSchema = z.object({ categoryId: idSchema, amountCents: centsSchema });
+const useSchema = z.object({
+  receiptSplitId: idSchema,
+  outlaySplitId: idSchema,
+  amountCents: centsSchema,
+});
+const correctionSchema = z.object({
+  bookingId: idSchema,
+  entries: z.array(
+    z.object({
+      categoryId: idSchema,
+      amountCents: z.number().int().safe(),
+    }),
+  ),
+});
 const contactCreditRecordSchema = z.object({
   bookingId: idSchema,
   decision: z
@@ -36,13 +50,50 @@ const contactCreditRecordSchema = z.object({
       }),
     )
     .optional(),
+  explicitUses: z.boolean().optional(),
+  useHistory: z
+    .array(z.object({ date: z.string(), uses: z.array(useSchema), explicitUses: z.boolean() }))
+    .optional(),
   refunds: z.array(refundSchema).optional(),
   repayments: z.array(idSchema).optional(),
+  targetedRepayments: z.array(idSchema).optional(),
+  allocationHistory: z
+    .array(
+      z.object({
+        date: z.string(),
+        receiptSplitId: idSchema,
+        allocations: z.array(z.object({ outlaySplitId: idSchema, amountCents: centsSchema })),
+        creditCents: z.number().int().safe().nonnegative(),
+        allowFutureAllocations: z.boolean(),
+      }),
+    )
+    .optional(),
   repaymentRefunds: z.array(refundSchema).optional(),
+  refundCorrections: z.array(correctionSchema).optional(),
+  repaymentRefundCorrections: z.array(correctionSchema).optional(),
+  adjustmentFor: z
+    .object({ bookingId: idSchema, kind: z.enum(['refunds', 'repaymentRefunds']) })
+    .optional(),
 });
 export type ContactCreditRecord = z.infer<typeof contactCreditRecordSchema>;
 
-function parseContactCreditRecord(row: {
+export function contactRefundTotals(
+  record: ContactCreditRecord,
+  kind: 'refunds' | 'repaymentRefunds',
+) {
+  const totals = new Map<string, number>();
+  for (const r of [
+    ...(record[kind] ?? []),
+    ...(
+      record[kind === 'refunds' ? 'refundCorrections' : 'repaymentRefundCorrections'] ?? []
+    ).flatMap((c) => c.entries),
+  ])
+    totals.set(r.categoryId, (totals.get(r.categoryId) ?? 0) + r.amountCents);
+  for (const [id, amount] of totals) if (!amount) totals.delete(id);
+  return totals;
+}
+
+export function parseContactCreditRecord(row: {
   id: string;
   value: string;
 }): ContactCreditRecord | undefined {
@@ -106,12 +157,70 @@ export function assertContactCreditRecords(
       (!row || row.deletedAt !== null) &&
       !record.decision &&
       !record.uses?.length &&
-      !record.repayments?.length
+      !record.repayments?.length &&
+      !record.adjustmentFor &&
+      !record.explicitUses &&
+      !record.useHistory?.length &&
+      !record.refundCorrections?.length &&
+      !record.repaymentRefundCorrections?.length
     )
       continue;
     if (!row || row.deletedAt !== null)
       throw new BookingInvariantError('Contact credit and its booking must be undone together');
     const parts = db.select().from(bookingSplit).where(eq(bookingSplit.bookingId, row.id)).all();
+    if (record.adjustmentFor) {
+      const parent = records.find((r) => r.bookingId === record.adjustmentFor!.bookingId);
+      const corrections =
+        parent?.[
+          record.adjustmentFor.kind === 'refunds'
+            ? 'refundCorrections'
+            : 'repaymentRefundCorrections'
+        ];
+      if (!parent || !corrections?.some((c) => c.bookingId === row.id))
+        throw new BookingInvariantError('Contact adjustment needs its allocation provenance');
+    }
+    for (const kind of ['refunds', 'repaymentRefunds'] as const) {
+      for (const correction of record[
+        kind === 'refunds' ? 'refundCorrections' : 'repaymentRefundCorrections'
+      ] ?? []) {
+        const adjustment = db
+          .select()
+          .from(booking)
+          .where(eq(booking.id, correction.bookingId))
+          .get();
+        const linked = records.find((r) => r.bookingId === correction.bookingId)?.adjustmentFor;
+        const lines = db
+          .select()
+          .from(bookingSplit)
+          .where(eq(bookingSplit.bookingId, correction.bookingId))
+          .all();
+        const actual = new Map<string, number>();
+        for (const line of lines) {
+          const envelope =
+            line.categoryId &&
+            db.select().from(category).where(eq(category.id, line.categoryId)).get();
+          if (!envelope || line.contactId || line.incomeTypeId || line.transferId)
+            throw new BookingInvariantError('Invalid contact category adjustment');
+          if (envelope.kind !== 'advance')
+            actual.set(envelope.id, (actual.get(envelope.id) ?? 0) + line.amountCents);
+        }
+        if (
+          !adjustment ||
+          adjustment.deletedAt !== null ||
+          adjustment.amountCents !== 0 ||
+          adjustment.accountId !== row.accountId ||
+          adjustment.date < row.date ||
+          linked?.bookingId !== row.id ||
+          linked.kind !== kind ||
+          actual.size !== correction.entries.length ||
+          correction.entries.some((e) => actual.get(e.categoryId) !== e.amountCents) ||
+          lines.reduce((sum, s) => sum + s.amountCents, 0) !== 0
+        )
+          throw new BookingInvariantError(
+            'Contact category adjustment must be undone with its allocation',
+          );
+      }
+    }
     if (record.decision) {
       const d = record.decision;
       const debit = parts.find((s) => s.id === d.debitSplitId);
@@ -158,6 +267,25 @@ export function assertContactCreditRecords(
         )
           throw new BookingInvariantError('Contact credit category inflow is missing');
       }
+      if (record.refundCorrections) {
+        const expected = new Map<string, number>();
+        for (const use of record.uses) {
+          const part = parts.find((p) => p.id === use.outlaySplitId);
+          if (!part?.categoryId)
+            throw new BookingInvariantError('Contact credit outlay is missing');
+          if (
+            db.select().from(category).where(eq(category.id, part.categoryId)).get()?.kind !==
+            'advance'
+          )
+            expected.set(part.categoryId, (expected.get(part.categoryId) ?? 0) + use.amountCents);
+        }
+        const actual = contactRefundTotals(record, 'refunds');
+        if (
+          actual.size !== expected.size ||
+          [...expected].some(([id, amount]) => actual.get(id) !== amount)
+        )
+          throw new BookingInvariantError('Contact credit return does not match its allocation');
+      }
     }
     if (record.repayments) {
       const expected = new Map<string, number>();
@@ -188,15 +316,13 @@ export function assertContactCreditRecords(
             );
         }
       }
-      const saved = new Map(
-        (record.repaymentRefunds ?? []).map((r) => [r.categoryId, r.amountCents]),
-      );
+      const saved = contactRefundTotals(record, 'repaymentRefunds');
       if (
         expected.size !== saved.size ||
         [...expected].some(([id, amount]) => saved.get(id) !== amount)
       )
         throw new BookingInvariantError('Contact repayment must retain its original categories');
-      for (const [categoryId, amountCents] of expected) {
+      for (const { categoryId, amountCents } of record.repaymentRefunds ?? []) {
         if (
           !parts.some(
             (s) => !s.contactId && s.categoryId === categoryId && s.amountCents === amountCents,
