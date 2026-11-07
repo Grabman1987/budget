@@ -4,7 +4,6 @@ import {
   assignGuard,
   barFor,
   spendingBar,
-  coverFromToBeAssigned,
   coverSource,
   coverSources,
   dueDate,
@@ -249,13 +248,6 @@ describe('Plan › Monat view model', () => {
     expect(readAssign('abc', 0, false)).toBeNull();
   });
 
-  it('covers from Zu verteilen at most what it holds', () => {
-    expect(coverFromToBeAssigned(5_000, 10_000)).toEqual({ capCents: 5_000, short: false });
-    expect(coverFromToBeAssigned(5_000, 2_000)).toEqual({ capCents: 2_000, short: true });
-    expect(coverFromToBeAssigned(5_000, 0)).toEqual({ capCents: 0, short: true });
-    expect(coverFromToBeAssigned(5_000, -3_000)).toEqual({ capCents: 0, short: true });
-  });
-
   it('dates a yearly or periodic target on its own day, not the 1st of the due month', () => {
     const row = (t: Partial<PlanRow['target'] & object>, dueMonth: string | null): PlanRow =>
       ({
@@ -286,18 +278,34 @@ describe('Plan › Monat view model', () => {
     expect(groups.find((g) => g.key === 'tnext')?.rows.map((r) => r.id)).toEqual(['kfz']);
   });
 
-  it('guards assigning: never more than Zu verteilen holds, reducing always passes', () => {
+  it('permits over-assignment and previews the exact signed remainder without blocking', () => {
     expect(assignGuard(10_000, 4_000, 6_000)).toEqual({ ok: true });
-    const refused = assignGuard(10_001, 4_000, 6_000);
-    expect(refused).toMatchObject({ ok: false, maxCents: 10_000 });
-    expect(refused.ok === false && refused.message).toContain('Höchstens 100,00 €');
-    // Nothing free (also when negative): only values that do not raise pass.
-    expect(assignGuard(4_001, 4_000, 0)).toMatchObject({ ok: false, maxCents: 4_000 });
-    expect(assignGuard(4_001, 4_000, -2_000)).toMatchObject({ ok: false, maxCents: 4_000 });
-    expect(assignGuard(3_000, 4_000, -2_000)).toEqual({ ok: true });
+    expect(assignGuard(10_001, 4_000, 6_000)).toEqual({
+      ok: true,
+      message: 'Damit steht ‚Zu verteilen‘ bei −0,01 € – du verplanst mehr, als da ist (Dispo).',
+    });
+    expect(assignGuard(4_001, 4_000, 0)).toMatchObject({
+      ok: true,
+      message: expect.stringContaining('−0,01 €'),
+    });
+    expect(assignGuard(4_001, 4_000, -2_000)).toMatchObject({
+      ok: true,
+      message: expect.stringContaining('−20,01 €'),
+    });
+    expect(assignGuard(3_000, 4_000, -2_000)).toMatchObject({
+      ok: true,
+      message: expect.stringContaining('−10,00 €'),
+    });
+    expect(assignGuard(2_000, 4_000, -2_000)).toEqual({ ok: true });
     expect(moveGuard(5_000, 5_000)).toEqual({ ok: true });
-    expect(moveGuard(5_001, 5_000)).toMatchObject({ ok: false, maxCents: 5_000 });
-    expect(moveGuard(1, -1)).toMatchObject({ ok: false, maxCents: 0 });
+    expect(moveGuard(5_001, 5_000)).toMatchObject({
+      ok: true,
+      message: expect.stringContaining('−0,01 €'),
+    });
+    expect(moveGuard(1, -1)).toMatchObject({
+      ok: true,
+      message: expect.stringContaining('−0,02 €'),
+    });
   });
 
   it('states the month truthfully: worst first, calm only when nothing applies', () => {

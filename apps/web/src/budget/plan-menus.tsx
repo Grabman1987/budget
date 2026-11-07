@@ -280,11 +280,7 @@ export function VerteilenMenu({
           {text}
         </MenuAction>
       ))}
-      <MenuAction
-        disabled={multi || Boolean(distributeBlock)}
-        reason={multi ? single : (distributeBlock ?? undefined)}
-        onSelect={onFillTargets}
-      >
+      <MenuAction disabled={multi} reason={multi ? single : undefined} onSelect={onFillTargets}>
         Alle Ziele füllen
       </MenuAction>
       <MenuAction

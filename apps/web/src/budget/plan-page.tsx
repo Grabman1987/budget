@@ -84,6 +84,7 @@ import {
   isCard,
   isCashOver,
   monthStatus,
+  moveGuard,
   planGroups,
   planMulti,
   planRows,
@@ -641,7 +642,15 @@ function PlanBody({
     setDistribute(true);
     setView('stage');
   };
-  const sug = distribute || targetPreview ? suggestions(rows, tba) : {};
+  const sug = targetPreview
+    ? Object.fromEntries(
+        rows
+          .filter((row) => !isCard(row) && row.needCents > 0)
+          .map((row) => [row.id, row.needCents]),
+      )
+    : distribute
+      ? suggestions(rows, tba)
+      : {};
   const targetPreviewTotal = Object.values(sug).reduce((sum, value) => sum + value, 0);
   const closeTargetPreview = () => {
     setTargetPreview(false);
@@ -1056,8 +1065,15 @@ function PlanBody({
                 <>
                   <span className="dist-left">noch {eur(tba)}</span>
                   {Object.keys(sug).length > 0 && (
-                    <Button size="sm" onClick={() => take(Object.keys(sug))}>
-                      Alle Ziele füllen · {eur(Object.values(sug).reduce((a, v) => a + v, 0))}
+                    <Button
+                      size="sm"
+                      onClick={(event) => {
+                        targetPreviewReturn.current = event.currentTarget;
+                        setTargetPreviewError(false);
+                        setTargetPreview(true);
+                      }}
+                    >
+                      Alle Ziele füllen
                     </Button>
                   )}
                   <Button size="sm" variant="ghost" onClick={() => setDistribute(false)}>
@@ -1467,7 +1483,12 @@ function PlanBody({
                   </div>
                 ))}
             </dl>
-            {targetPreviewTotal === 0 && <p>Keine offenen Ziele mit verfügbarem Geld.</p>}
+            {targetPreviewTotal === 0 && <p>Keine offenen Ziele.</p>}
+            {targetPreviewTotal > 0 && moveGuard(targetPreviewTotal, tba).message && (
+              <p className="panel-sub" role="status">
+                {moveGuard(targetPreviewTotal, tba).message}
+              </p>
+            )}
             {targetPreviewError && (
               <p role="alert">
                 {previewChanged
@@ -2193,7 +2214,7 @@ function EnvelopeRow({
   onAdd: () => void;
   ctx: PlanContext;
   suggestion: number | undefined;
-  /** "Zu verteilen": the guard refuses raising the assignment beyond it. */
+  /** "Zu verteilen" for the non-blocking assignment preview. */
   tba: number;
   editing: boolean;
   onEdit: (on: boolean) => void;
