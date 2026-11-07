@@ -214,7 +214,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   ).toBeVisible();
 });
 
-test('single payee suggestion selects its recent account and leaves account controls uncovered', async ({
+test('single payee suggestion selects its recent account and keeps capture controls accessible', async ({
   page,
   request,
   baseURL,
@@ -269,7 +269,24 @@ test('single payee suggestion selects its recent account and leaves account cont
   await expect(list).toBeVisible();
   const listBox = (await list.boundingBox())!;
   const accountBox = (await panel.getByLabel('Bezahlt von', { exact: true }).boundingBox())!;
-  if (await redesignLoaded(page)) {
+  const payeeField = panel.getByLabel('Empfänger', { exact: true });
+  const mobileOverlay = await payeeField
+    .locator('..')
+    .evaluate((el) => el.classList.contains('is-capture-overlay'));
+  if (mobileOverlay) {
+    const anchor = (await payeeField.boundingBox())!;
+    await expect(list).toHaveCSS('position', 'fixed');
+    expect(listBox.y).toBeGreaterThanOrEqual(anchor.y + anchor.height);
+    const card = (await panel.locator('.bk-cols').boundingBox())!;
+    expect(listBox.x).toBe(card.x);
+    expect(listBox.width).toBe(card.width);
+    // The mobile dropdown intentionally overlays following rows. Escape restores access.
+    await payeeField.press('Escape');
+    await expect(list).toBeHidden();
+    await expect(panel).toBeVisible();
+    await expect(payeeField).toHaveValue('Laden');
+    await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(recent.id);
+  } else if (await redesignLoaded(page)) {
     expect(
       listBox.y + listBox.height <= accountBox.y || listBox.x + listBox.width <= accountBox.x,
     ).toBe(true);

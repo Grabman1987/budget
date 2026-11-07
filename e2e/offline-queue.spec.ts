@@ -68,7 +68,7 @@ test('offline capture survives reload, edits/deletes locally and sends on reconn
   await page.getByRole('button', { name: 'Buchung erfassen', exact: true }).click();
   const next = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
   await next.getByLabel('Bezahlt von', { exact: true }).selectOption(accountId);
-  await next.getByLabel('Betrag', { exact: true }).fill('2');
+  await next.getByLabel('Betrag', { exact: true }).fill('2,00');
   await pickCategory(next, 'Essen');
   await next.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(waiting(page).locator('li')).toHaveCount(2);

@@ -22,11 +22,13 @@ function Harness({
   onParentKey,
   pickFirst = false,
   captureCategory = false,
+  captureOverlay = false,
 }: {
   onSelect: (o: ComboOption) => void;
   onParentKey?: () => void;
   pickFirst?: boolean;
   captureCategory?: boolean;
+  captureOverlay?: boolean;
 }) {
   const [text, setText] = useState('');
   return (
@@ -41,12 +43,97 @@ function Harness({
         listWhenEmpty
         pickFirst={pickFirst}
         captureCategory={captureCategory}
+        captureOverlay={captureOverlay}
       />
     </div>
   );
 }
 
 describe('Combobox', () => {
+  it.each([false, true])(
+    'overlays the card below the field, flips above the keyboard and retains selection (category: %s)',
+    async (captureCategory) => {
+      const viewport = Object.assign(new EventTarget(), {
+        height: 600,
+        offsetTop: 0,
+        width: 390,
+        offsetLeft: 0,
+      });
+      vi.stubGlobal('visualViewport', viewport);
+      const listHeight = () =>
+        Math.min(264, Number.parseFloat(screen.queryByRole('listbox')?.style.maxHeight || '220'));
+      vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return this.classList.contains('combo-list') ? listHeight() : 44;
+      });
+      vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return this.classList.contains('combo-list') ? listHeight() - 2 : 600;
+      });
+      vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(264);
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        if (this.classList.contains('bk-cols')) return new DOMRect(16, 20, 358, 500);
+        if (this.classList.contains('combo-list'))
+          return new DOMRect(16, Number.parseFloat(this.style.top), 358, listHeight());
+        if (this.getAttribute('role') === 'option') {
+          const list = this.closest('ul')!;
+          const index = Number(this.id.split('-').at(-1));
+          return new DOMRect(
+            16,
+            Number.parseFloat(list.style.top) + index * 88 - list.scrollTop,
+            358,
+            44,
+          );
+        }
+        // display:contents has no box; positioning must use the input itself.
+        if (this.classList.contains('combo')) return new DOMRect();
+        return new DOMRect(130, 180.25, 220, 44);
+      });
+      const onSelect = vi.fn();
+      const user = userEvent.setup();
+      render(
+        <div className="bk-cols">
+          <Harness onSelect={onSelect} captureOverlay captureCategory={captureCategory} />
+        </div>,
+      );
+      const field = screen.getByRole('combobox');
+      await user.click(field);
+      const list = screen.getByRole('listbox');
+      expect(list.tabIndex).toBe(-1);
+      expect(list.style.left).toBe('16px');
+      expect(list.style.width).toBe('358px');
+      expect(list.getBoundingClientRect().top).toBe(228.25);
+      expect(list.getBoundingClientRect().height).toBe(220);
+      await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}');
+      act(() => {
+        viewport.height = 280;
+        viewport.offsetTop = 40;
+        viewport.dispatchEvent(new Event('resize'));
+        viewport.dispatchEvent(new Event('scroll'));
+      });
+      expect(list.getBoundingClientRect().top).toBeGreaterThanOrEqual(40);
+      expect(list.getBoundingClientRect().bottom).toBeLessThanOrEqual(180.25);
+      const selected = screen.getByRole('option', { selected: true });
+      expect(selected.textContent).toBe('Reise');
+      expect(selected.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+        list.getBoundingClientRect().top,
+      );
+      expect(selected.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+        list.getBoundingClientRect().top + list.clientHeight,
+      );
+      expect(document.activeElement).toBe(field);
+      const previousTop = list.style.top;
+      act(() => viewport.dispatchEvent(new Event('resize')));
+      expect(list.style.top).toBe(previousTop);
+      await user.keyboard('{Enter}');
+      expect(onSelect).toHaveBeenCalledWith(OPTIONS[2]);
+    },
+  );
+
   it.each([
     { height: 240, offsetTop: 80, anchorTop: 300 },
     { height: 120, offsetTop: 80, anchorTop: 110 },
