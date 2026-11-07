@@ -1,3 +1,4 @@
+import { bulkFieldProtection, type BulkBookingField } from '@budget/domain';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import {
   account,
@@ -60,7 +61,7 @@ export interface BookingBulkSelection {
 export function readBookingBulkSelection(
   db: Executor,
   requested: readonly string[],
-  policy: 'update' | 'delete' = 'update',
+  policy: 'update' | 'delete' | BulkBookingField = 'update',
 ): BookingBulkSelection {
   const ids = [...new Set(requested)];
   if (ids.length > 500) throw new RangeError('At most500 selected bookings');
@@ -253,27 +254,21 @@ export function readBookingBulkSelection(
         const reason: BookingBulkReason | null =
           policy === 'delete'
             ? deleteReason
-            : b.status === 'reconciled'
-              ? 'reconciled_locked'
-              : b.transferId || own.some((s) => s.transferId)
-                ? 'linked_transfer'
-                : contacts.has(b.id) || own.some((s) => s.contactId)
-                  ? 'linked_contact'
-                  : expected.has(b.id)
-                    ? 'linked_expected'
-                    : trades.has(b.id)
-                      ? 'linked_trade'
-                      : payroll.has(b.id)
-                        ? 'linked_payroll'
-                        : documents.has(b.id)
-                          ? 'linked_document'
-                          : statements.has(b.id)
-                            ? 'linked_statement'
-                            : b.bankSourceId !== null || bank.has(b.id)
-                              ? 'linked_bank'
-                              : !Number.isSafeInteger(b.amountCents)
-                                ? 'invalid'
-                                : null;
+            : bulkFieldProtection(policy === 'update' ? 'memo' : policy, {
+                reconciled_locked: b.status === 'reconciled',
+                linked_transfer: !!b.transferId || own.some((s) => !!s.transferId),
+                linked_contact: contacts.has(b.id) || own.some((s) => !!s.contactId),
+                linked_expected: expected.has(b.id),
+                linked_trade: trades.has(b.id),
+                linked_payroll: payroll.has(b.id),
+                linked_document: documents.has(b.id),
+                linked_statement: statements.has(b.id),
+                linked_bank:
+                  b.bankSourceId !== null ||
+                  bank.has(b.id) ||
+                  (policy !== 'update' && b.source === 'bank'),
+                invalid: !Number.isSafeInteger(b.amountCents),
+              });
         items.push({
           id: b.id,
           date: b.date,
