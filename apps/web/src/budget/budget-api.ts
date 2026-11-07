@@ -107,7 +107,7 @@ export const moveMoney = (
   toId: string | null,
   amountCents: number,
 ) => request<WriteResult>('POST', `${path(month)}/move`, { fromId, toId, amountCents });
-/** Cover is capped at the free source amount on the server. */
+/** Category-source cover stays capped; explicit Zu verteilen cover permits overdraft planning. */
 export const coverOverspending = (month: string, categoryId: string, fromId: string | null) =>
   request<WriteResult & { coveredCents: number }>('POST', `${path(month)}/cover`, {
     categoryId,

@@ -27,11 +27,11 @@ const rows = [
 it.each([
   ['last-month', 500, 300, [900, 0]],
   ['average', 100, 0, [300, 200]],
-  ['target', 500, 100, [900, 0]],
+  ['target', 600, 0, [1000, 0]],
   ['empty', 200, 0, [400, 200]],
   ['reset', -400, 0, [0, 0]],
 ] as const)(
-  '%s displays the exact signed booked delta, including the capped boundary',
+  '%s displays the exact signed booked delta, with full target need and other modes capped',
   (mode, delta, missing, after) => {
     const preview = automaticAssignment(rows, mode, 500);
     expect(preview.deltaCents).toBe(delta);
