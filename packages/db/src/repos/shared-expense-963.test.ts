@@ -317,7 +317,8 @@ it('keeps category receipts out of Zu verteilen and previews only legacy mapping
   expect(previewContactRepayments(opened.db)).toMatchObject([
     { bookingId: legacy, status: 'needs-allocation-review', creditCents: 500 },
   ]);
-  expect(opened.sqlite.serialize()).toEqual(snapshot);
+  // Compare every database byte natively; deep equality walks over a million Buffer entries.
+  expect(opened.sqlite.serialize().equals(snapshot)).toBe(true);
 });
 
 it('allows an existing credit to become free or a gift with no cash or wealth change', () => {
@@ -540,7 +541,8 @@ it('previews recorded destinations and unrecorded RTA candidates with explicit u
     creditCents: 200,
     mappings: [{ categoryId: 'essen', amountCents: 500 }],
   });
-  expect(opened.sqlite.serialize()).toEqual(before);
+  // Keep the same byte-for-byte no-write guard without generic deep-equality overhead.
+  expect(opened.sqlite.serialize().equals(before)).toBe(true);
   expect(opened.db.select().from(appSetting).all()).not.toEqual([]);
 });
 
