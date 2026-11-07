@@ -167,4 +167,28 @@ test('desktop card stays bounded and phone save follows keyboard-sized visual vi
     await dialog.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
     await expect(dialog.getByLabel('Betrag', { exact: true })).toHaveValue('120,00');
   }
+  if (await redesignLoaded(page)) {
+    await page.evaluate(() => {
+      document.documentElement.style.setProperty('--mobile-safe-top', '47px');
+      document.documentElement.style.setProperty('--mobile-safe-bottom', '34px');
+    });
+    for (const top of [0, 80]) {
+      await page.evaluate((offsetTop) => {
+        Object.defineProperty(window.visualViewport!, 'offsetTop', {
+          configurable: true,
+          value: offsetTop,
+        });
+        window.visualViewport!.dispatchEvent(new Event('scroll'));
+      }, top);
+      // Only the portion of the notch still inside the panned viewport needs reserving.
+      const expectedTop = Math.max(47, top);
+      const bounds = (await dialog.boundingBox())!;
+      expect(bounds.y).toBe(expectedTop);
+      expect(bounds.y + bounds.height).toBe(top + 300);
+      await saveWithin(dialog, expectedTop, top + 300 - expectedTop - 34);
+      await expect(
+        dialog.getByRole('button', { name: 'Blatt schließen', exact: true }),
+      ).toBeHidden();
+    }
+  }
 });

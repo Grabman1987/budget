@@ -279,6 +279,7 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
         : [dialog.getByRole('button', { name: 'Abbrechen', exact: true })]),
       dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
       dialog.getByRole('button', { name: 'Speichern', exact: true }),
+      ...(phone ? [dialog.getByRole('button', { name: 'Blatt schließen', exact: true })] : []),
       dialog.getByRole('button', {
         name: (page.viewportSize()?.width ?? 1440) < 768 ? 'Schließen' : 'Datei anhängen',
         exact: true,
@@ -288,6 +289,12 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
       await expect(target).toBeFocused();
     }
     await page.keyboard.press('Shift+Tab');
+    if (phone) {
+      await expect(
+        dialog.getByRole('button', { name: 'Blatt schließen', exact: true }),
+      ).toBeFocused();
+      await page.keyboard.press('Shift+Tab');
+    }
     await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeFocused();
   } else {
     await amount.press('Tab');

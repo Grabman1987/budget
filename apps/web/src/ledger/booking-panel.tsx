@@ -43,11 +43,11 @@ export function BookingPanel({
     // Scope the visible bounds to this capture sheet; other dialogs keep their own geometry.
     const viewport = window.visualViewport;
     const update = () => {
-      focusScope.current?.style.setProperty(
-        '--bk-viewport-height',
-        `${viewport?.height ?? window.innerHeight}px`,
-      );
+      const height = viewport?.height ?? window.innerHeight;
+      focusScope.current?.style.setProperty('--bk-viewport-height', `${height}px`);
       focusScope.current?.style.setProperty('--bk-viewport-top', `${viewport?.offsetTop ?? 0}px`);
+      // Reclaim sheet chrome while the software keyboard leaves little room for primary fields.
+      focusScope.current?.toggleAttribute('data-compact-viewport', height <= 500);
     };
     update();
     viewport?.addEventListener('resize', update);

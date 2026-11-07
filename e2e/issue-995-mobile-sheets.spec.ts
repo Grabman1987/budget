@@ -93,6 +93,22 @@ for (const theme of ['light', 'dark']) {
       expect(box.y + box.height).toBe(844);
       await expect(dialog.locator('.bk-foot')).toHaveCSS('padding-bottom', '8px');
       await page.screenshot({ path: info.outputPath(`sheet-${theme}.png`) });
+      // Keyboard-sized capture reclaims decorative chrome, but never the notch or home area.
+      await page.setViewportSize({ width: 390, height: 430 });
+      await expect(grip).toBeHidden();
+      const compact = (await dialog.boundingBox())!;
+      expect(compact.y).toBe(47);
+      expect(compact.y + compact.height).toBe(430);
+      const close = (await dialog
+        .getByRole('button', { name: 'Schließen', exact: true })
+        .boundingBox())!;
+      expect(close.y).toBeGreaterThanOrEqual(47);
+      const save = (await dialog
+        .getByRole('button', { name: 'Speichern', exact: true })
+        .boundingBox())!;
+      expect(save.y + save.height).toBeLessThanOrEqual(430 - 34);
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expect(grip).toBeVisible();
       await swipe(page, grip, 0, 90);
     } else {
       await expect(dialog.getByRole('button', { name: 'Blatt schließen' })).toHaveCount(0);

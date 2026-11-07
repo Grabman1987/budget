@@ -49,4 +49,14 @@
     /* The outer dialog owns the safe area, including the synthetic browser inset. */
     padding-bottom: var(--space-sm);
   }
+  .bk-focus-scope[data-compact-viewport] dialog.sheet-bottom.is-swipe-sheet:has(.bkform) {
+    --mobile-sheet-top: max(
+      0px,
+      calc(var(--mobile-safe-top, env(safe-area-inset-top, 0px)) - var(--bk-viewport-top, 0px))
+    );
+    border-radius: 0;
+  }
+  .bk-focus-scope[data-compact-viewport] .sheet-drag-handle {
+    display: none;
+  }
 }

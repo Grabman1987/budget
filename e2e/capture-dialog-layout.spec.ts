@@ -23,7 +23,8 @@ test('only Escape, close and a genuine outside click ask to discard a dirty book
   await dialog.getByLabel('Betrag', { exact: true }).fill('12,34');
   for (const close of ['escape', 'button', 'outside']) {
     if (close === 'escape') await dialog.getByLabel('Notiz').press('Escape');
-    else if (close === 'button') await dialog.getByRole('button', { name: 'Schließen' }).click();
+    else if (close === 'button')
+      await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
     else if (page.viewportSize()!.width < 768) {
       // #995 exposes a scrim above the redesign sheet; rollback remains full-screen.
       const bounds = (await dialog.boundingBox())!;
@@ -32,14 +33,14 @@ test('only Escape, close and a genuine outside click ask to discard a dirty book
       expect(bounds.y).toBe(redesign ? 24 : 0);
       expect(bounds.width).toBe(page.viewportSize()!.width);
       if (redesign) await page.mouse.click(page.viewportSize()!.width / 2, 12);
-      else await dialog.getByRole('button', { name: 'Schließen' }).click();
+      else await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
     } else await page.mouse.click(2, 2);
     await expect(dialog.getByRole('alertdialog')).toBeVisible();
     await dialog.getByRole('button', { name: 'Weiter bearbeiten' }).click();
     await expect(dialog.getByRole('alertdialog')).toHaveCount(0);
     await expect(dialog.getByLabel('Betrag', { exact: true })).toHaveValue('12,34');
   }
-  await dialog.getByRole('button', { name: 'Schließen' }).click();
+  await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
   await dialog.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await expect(dialog).toBeHidden();
 });
