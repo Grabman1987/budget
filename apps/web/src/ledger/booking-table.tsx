@@ -487,6 +487,7 @@ function Row({
       }}
       className={cx(
         b.status === 'pending' && 'is-pending',
+        REDESIGN_ENABLED && b.status === 'reconciled' && 'is-reconciled',
         flashing && 'tx-flash',
         checked && 'is-selected',
         upcomingToday && 'is-upcoming',

@@ -80,7 +80,7 @@ async function paintedRoles(page: Page, phone: boolean) {
       redesign
         ? [
             ['.plan-class-lead span', '--ink-2'],
-            [".prow[data-plan-state='met'] .col-avail .pill", '--primary'],
+            [".prow[data-plan-state='met'] .col-avail .pill", '--ink-2'],
             [".prow[data-plan-state='overspent'] .col-avail .pill", '--red'],
           ]
         : [

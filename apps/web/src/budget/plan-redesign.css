@@ -134,42 +134,56 @@
 .plan-month-v2 .prow[data-plan-class] > .col-name {
   box-shadow: inset 2px 0 var(--plan-class);
 }
-.plan-month-v2 .prow[data-plan-state='met'] {
-  --plan-bar: var(--primary);
-}
-.plan-month-v2 .prow[data-plan-state='overfunded'] {
-  --plan-bar: var(--good);
-}
 .plan-month-v2 .prow[data-plan-state='open'] {
   --plan-bar: var(--warning);
 }
 .plan-month-v2 .prow[data-plan-state='overspent'] {
   --plan-bar: var(--red);
 }
-.plan-month-v2 .prow[data-plan-state='neutral'] {
-  --plan-bar: var(--ink-3);
-}
-.plan-month-v2 .prow .spending-bar {
+.plan.plan-month-v2 .ptable-zero .prow .spending-bar {
   background: color-mix(in srgb, var(--plan-bar) 15%, transparent);
 }
-.plan-month-v2 .prow .spending-bar .pbar-fill {
-  background-color: var(--plan-bar);
+.plan.plan-month-v2 .ptable-zero .prow .spending-bar .pbar-fill {
+  background: var(--plan-bar);
 }
-.plan-month-v2 .prow[data-plan-state='met'] .col-avail .pill {
-  background: var(--tint);
-  color: var(--primary);
+/* Fully covered categories keep an empty track; only missing money needs colour. */
+.plan.plan-month-v2
+  .ptable-zero
+  .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
+  .spending-bar {
+  background: var(--rule);
+}
+.plan.plan-month-v2
+  .ptable-zero
+  .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
+  .spending-bar
+  > i {
+  display: none;
+}
+.plan-month-v2
+  .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
+  > .col-name {
+  box-shadow: none;
 }
 .plan-month-v2 .prow[data-plan-state='open'] .col-avail .pill {
   background: var(--warning-soft);
   color: var(--warning);
 }
-.plan-month-v2 .prow[data-plan-state='overfunded'] .col-avail .pill {
-  background: var(--good-soft);
-  color: var(--on-good-soft);
-}
-.plan-month-v2 .prow[data-plan-state='neutral'] .col-avail .pill {
+.plan-month-v2
+  .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
+  .col-avail
+  .pill {
   background: var(--quiet-soft);
   color: var(--ink-2);
+}
+@media (hover: hover) and (min-width: 768px) {
+  .plan.plan-month-v2 .ptable .prow:not(.is-selected):hover > td {
+    background: var(--tint);
+  }
+}
+/* A header height change must not masquerade as an opposite user scroll. */
+.plan-month-frame {
+  overflow-anchor: none;
 }
 .plan-month-v2 .prow[data-plan-state='overspent'] .col-avail .pill {
   background: var(--red-soft);

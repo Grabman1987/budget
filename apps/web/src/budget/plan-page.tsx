@@ -572,6 +572,7 @@ function PlanBody({
     uncategorizedLoading || uncategorized.isError ? [] : (uncategorized.data?.pages ?? []);
   const counts = {
     all: idsFor('all').size,
+    attention: idsFor('attention').size,
     underfunded: idsFor('underfunded').size,
     overspent: idsFor('overspent').size,
     available: idsFor('available').size,
@@ -911,6 +912,7 @@ function PlanBody({
                     {(
                       [
                         ['all', 'Alle', counts.all],
+                        ['attention', 'Braucht Aufmerksamkeit', counts.attention],
                         ['underfunded', 'Unterfinanziert', counts.underfunded],
                         ['overspent', 'Überzogen', counts.overspent],
                         ['available', 'Verfügbar', counts.available],
@@ -1545,6 +1547,7 @@ function PlanTopBar({
   const [compact, setCompact] = useState(compactOnRestore);
   const restoringCompact = useRef(compactOnRestore);
   const stickyStart = useRef(0);
+  const scrollCompact = useRef(compactOnRestore);
   const setCompactMode = useCallback((next: boolean) => setCompact(next), []);
   const naturalTop = useCallback(() => {
     const element = head.current;
@@ -1554,9 +1557,7 @@ function PlanTopBar({
       : (element?.getBoundingClientRect().top ?? 0) + window.scrollY;
   }, []);
   const shouldCompact = useCallback(
-    () =>
-      window.scrollY > stickyStart.current + 1 ||
-      Boolean(head.current?.querySelector('details[open]')),
+    () => scrollCompact.current || Boolean(head.current?.querySelector('details[open]')),
     [],
   );
   const updatePopoverPosition = useCallback(() => {
@@ -1597,7 +1598,21 @@ function PlanTopBar({
     const stickyTop = Number.parseFloat(getComputedStyle(element).top) || 0;
     let start = naturalTop() - stickyTop;
     stickyStart.current = start;
+    let previousY = Math.max(0, window.scrollY);
+    let direction = 0;
+    let travel = 0;
     const sync = () => {
+      const y = Math.max(0, window.scrollY);
+      const delta = y - previousY;
+      previousY = y;
+      if (delta !== 0) {
+        const nextDirection = Math.sign(delta);
+        travel = nextDirection === direction ? travel + Math.abs(delta) : Math.abs(delta);
+        direction = nextDirection;
+        // Ignore tiny trackpad/bounce movements; expand even when still deep in the list.
+        if (travel >= 12) scrollCompact.current = direction > 0 && y > stickyStart.current + 1;
+      }
+      if (y <= stickyStart.current + 1) scrollCompact.current = false;
       setCompactMode(shouldCompact());
       updatePopoverPosition();
     };

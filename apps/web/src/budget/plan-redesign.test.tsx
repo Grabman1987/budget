@@ -251,6 +251,44 @@ it('OFF retains the original compact head and original unadorned values', async 
   expect(screen.getByRole('button', { name: 'Geld verteilen' })).toBeTruthy();
 });
 
+it('ON attention filters via the URL, keeps matching groups and restores all rows without writes', async () => {
+  const { container, router } = mount();
+  await screen.findByRole('button', { name: 'Synthetic goal' });
+  const menu = container.querySelector<HTMLDetailsElement>('.plan-reference-filters')!;
+  menu.open = true;
+  fireEvent.click(screen.getByRole('button', { name: 'Braucht Aufmerksamkeit (3)' }));
+  await waitFor(() => expect(router.state.location.search.filter).toBe('attention'));
+  expect(
+    [...container.querySelectorAll('.pname')].map((el) => el.getAttribute('data-category-id')),
+  ).toEqual(['open', 'cash', 'credit']);
+  expect(screen.getByRole('button', { name: 'Gruppe Synthetic group' })).toBeTruthy();
+  expect(screen.getByTestId('to-be-assigned').textContent).toBe('140,00 €');
+  fireEvent.click(screen.getByRole('button', { name: 'Alle (6)' }));
+  await waitFor(() => expect(container.querySelectorAll('.pname')).toHaveLength(6));
+});
+
+it('ON month lead collapses down, expands up away from the top, and ignores tiny scroll reversals', async () => {
+  vi.stubGlobal('scrollY', 0);
+  mount();
+  const head = await screen.findByTestId('plan-topbar');
+  const scroll = (y: number) => {
+    vi.stubGlobal('scrollY', y);
+    fireEvent.scroll(window);
+  };
+  scroll(300);
+  expect(head.classList.contains('is-compact')).toBe(true);
+  scroll(298);
+  expect(head.classList.contains('is-compact')).toBe(true);
+  scroll(260);
+  expect(head.classList.contains('is-compact')).toBe(false);
+  scroll(262);
+  expect(head.classList.contains('is-compact')).toBe(false);
+  scroll(300);
+  expect(head.classList.contains('is-compact')).toBe(true);
+  scroll(0);
+  expect(head.classList.contains('is-compact')).toBe(false);
+});
+
 it('ON phone separates a singleton group heading and its available sum from the member row', async () => {
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: /max-width: (767|1179)px/.test(query),

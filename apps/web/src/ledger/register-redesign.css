@@ -64,6 +64,45 @@
   line-height: var(--lh-table);
   background: var(--surface);
 }
+/* Secondary ink dims checked rows without reducing text/control contrast via opacity. */
+.ktx.ktx-redesign tr.is-reconciled:not(.is-selected):not(:has(.kcat.is-none)) > td {
+  color: var(--ink-2);
+}
+.ktx.ktx-redesign tr[data-booking]:has(.kcat.is-none):not(.is-selected),
+.ktx.ktx-redesign tr[data-booking]:has(.kcat.is-none):not(.is-selected) > td {
+  background: var(--warning-soft);
+}
+.ktx.ktx-redesign .kcat.is-none {
+  color: var(--warning);
+}
+@media (max-width: 767px) {
+  .ktx.ktx-redesign.ktx-all .kname-s {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* A long account/note must not squeeze the missing-category warning to zero width. */
+  .ktx.ktx-redesign tr[data-booking]:has(.kcat.is-none) .kx-payee {
+    height: auto;
+    overflow: visible;
+  }
+  .ktx.ktx-redesign .kaccount-mobile-meta:has(.kcat.is-none) {
+    flex-wrap: wrap;
+    white-space: normal;
+    overflow: visible;
+  }
+  .ktx.ktx-redesign .kaccount-mobile-meta:has(.kcat.is-none) > span {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .ktx.ktx-redesign .kaccount-mobile-meta > .kcat.is-none {
+    flex-shrink: 0;
+    white-space: normal;
+    overflow: visible;
+  }
+}
 .ktx-redesign thead th {
   height: 28px;
   border-bottom: 1px solid var(--rule-strong);
