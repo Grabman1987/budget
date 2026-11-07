@@ -1,4 +1,4 @@
-import { assertContactSettlementInvariants } from './contact-invariants';
+import { assertContactBookingWrite, assertContactSettlementInvariants } from './contact-invariants';
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, getTableColumns, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import {
@@ -311,12 +311,24 @@ export function mergeCategories(
     let opening = target.openingAvailableCents;
     for (const source of sources) {
       const splits = tx
-        .select({ id: bookingSplit.id })
+        .select({
+          id: bookingSplit.id,
+          bookingId: bookingSplit.bookingId,
+          contactId: bookingSplit.contactId,
+          deletedAt: booking.deletedAt,
+        })
         .from(bookingSplit)
+        .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
         .where(eq(bookingSplit.categoryId, source.id))
         .all();
-      for (const s of splits)
+      for (const s of splits) {
+        if (s.deletedAt === null) assertContactBookingWrite(tx, s.bookingId, 'update', ['splits']);
+        if (s.deletedAt === null && s.contactId && source.kind === 'advance')
+          throw new CategoryRuleError(
+            'Bestehende Kontaktkategorien nur nach geprüfter Zuordnung ändern.',
+          );
         updateTracked(tx, bookingSplit, [s.id], { categoryId: targetId }, grouped);
+      }
       movedSplits += splits.length;
       const months = tx
         .select()
@@ -464,7 +476,11 @@ export function splitOffCategory(
     const ids = [...new Set(splitIds)];
     const rows = ids.length
       ? tx
-          .select({ id: bookingSplit.id })
+          .select({
+            id: bookingSplit.id,
+            bookingId: bookingSplit.bookingId,
+            contactId: bookingSplit.contactId,
+          })
           .from(bookingSplit)
           .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
           // Only splits of live bookings: a deleted booking is not re-categorised behind the back.
@@ -481,8 +497,14 @@ export function splitOffCategory(
       throw new CategoryRuleError(
         'Die gewählten Buchungen gehören nicht (mehr) zu dieser Kategorie.',
       );
-    for (const r of rows)
+    for (const r of rows) {
+      assertContactBookingWrite(tx, r.bookingId, 'update', ['splits']);
+      if (r.contactId && liveCategory(tx, categoryId).kind === 'advance')
+        throw new CategoryRuleError(
+          'Bestehende Kontaktkategorien nur nach geprüfter Zuordnung ändern.',
+        );
       updateTracked(tx, bookingSplit, [r.id], { categoryId: targetId }, grouped);
+    }
     assertContactSettlementInvariants(tx);
     return { groupId: grouped.groupId, targetId, moved: rows.length };
   });

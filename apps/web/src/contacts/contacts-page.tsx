@@ -19,6 +19,7 @@ import {
   todayInVienna,
   type ContactAllocation,
   type ContactMovement,
+  type ContactCredit,
   type OpenContactOutlay,
 } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -56,6 +57,7 @@ export interface Statement {
   asOf: string;
   balanceCents: number;
   creditCents: number;
+  credits?: ContactCredit[];
   movements: ContactMovement[];
   outlays: OpenContactOutlay[];
   receipts: {
@@ -481,6 +483,7 @@ export function ContactBody({
           )}
         </>
       )}
+      {ready && !!statement.credits?.length && <ContactCredits statement={statement} />}
       {receipt && (
         <ReceiptForm statement={statement} ready={ready} onDone={() => setReceipt(false)} />
       )}
@@ -1071,6 +1074,186 @@ function ContactGiftDialog({
   );
 }
 
+function CreditChoiceFields({
+  choice,
+  onChoice,
+  categoryId,
+  onCategory,
+}: {
+  choice: 'free' | 'category' | 'gift';
+  onChoice: (choice: 'free' | 'category' | 'gift') => void;
+  categoryId: string;
+  onCategory: (id: string) => void;
+}) {
+  const lookups = useQuery(lookupsQuery());
+  const categories =
+    lookups.data?.categories.filter(
+      (c) => c.class !== null && !['advance', 'income', 'card_payment'].includes(c.kind),
+    ) ?? [];
+  return (
+    <>
+      <Field label="Guthaben verwenden">
+        {({ id }) => (
+          <Select
+            id={id}
+            value={choice}
+            onChange={(e) => onChoice(e.target.value as typeof choice)}
+          >
+            <option value="free">Als freies Kontaktguthaben behalten</option>
+            <option value="category">Für Kategorie vormerken</option>
+            <option value="gift">Geschenk erhalten (Einnahme)</option>
+          </Select>
+        )}
+      </Field>
+      {choice === 'category' && (
+        <Field label="Kategorie für Guthaben">
+          {({ id }) => (
+            <Select
+              id={id}
+              value={categoryId}
+              onChange={(e) => onCategory(e.target.value)}
+              required
+              disabled={!lookups.isSuccess || lookups.isFetching}
+            >
+              <option value="">Kategorie wählen</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+      )}
+      {lookups.isError && (
+        <ErrorNote what="Kategorien" error={lookups.error} onRetry={() => void lookups.refetch()} />
+      )}
+    </>
+  );
+}
+
+function ContactCredits({ statement }: { statement: Statement }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [amount, setAmount] = useState('');
+  const [choice, setChoice] = useState<'free' | 'category' | 'gift'>('free');
+  const [categoryId, setCategoryId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [accountId, setAccountId] = useState('');
+  const accounts = useQuery(accountsQuery());
+  const cash =
+    accounts.data?.accounts.filter(
+      (a) =>
+        !a.closedAt &&
+        a.onBudget &&
+        a.currency === 'EUR' &&
+        ['checking', 'savings', 'cash'].includes(a.type),
+    ) ?? [];
+  const lookups = useQuery(lookupsQuery());
+  const write = useContactWrite();
+  const credit = statement.credits?.find((c) => c.receiptSplitId === selected);
+  const parsed = parseAmount(amount);
+  const valid =
+    credit &&
+    parsed.ok &&
+    parsed.cents > 0 &&
+    parsed.cents <= credit.remainingCents &&
+    (choice !== 'category' || !!categoryId) &&
+    (choice !== 'gift' ||
+      (accounts.isSuccess && !accounts.isFetching && !!(accountId || cash[0]?.id)));
+  return (
+    <>
+      {!!statement.credits?.length && (
+        <section aria-label="Kontaktguthaben">
+          <h3>Guthaben verwenden</h3>
+          {statement.credits.map((c) => (
+            <p key={c.receiptSplitId}>
+              {eur(c.remainingCents)} ·{' '}
+              {c.categoryId
+                ? `Vorgemerkt: ${lookups.data?.categories.find((category) => category.id === c.categoryId)?.name ?? 'Kategorie'}`
+                : 'Freies Kontaktguthaben'}{' '}
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setSelected(c.receiptSplitId);
+                  setAmount(decimal(c.remainingCents));
+                  setChoice(c.categoryId ? 'category' : 'free');
+                  setCategoryId(c.categoryId ?? '');
+                }}
+              >
+                Guthaben ändern
+              </Button>
+            </p>
+          ))}
+        </section>
+      )}
+      {credit && (
+        <FormDialog
+          open
+          onClose={() => {
+            if (!busy) setSelected(null);
+          }}
+          title="Kontaktguthaben verwenden"
+        >
+          <form
+            className="contacts-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!valid || !parsed.ok) return;
+              setBusy(true);
+              void write(
+                () =>
+                  request(
+                    'POST',
+                    `${contactUrl(statement.contact.id)}/credits/${encodeURIComponent(credit.receiptSplitId)}`,
+                    {
+                      date: todayInVienna(),
+                      amountCents: parsed.cents,
+                      choice,
+                      ...(choice === 'category' ? { categoryId } : {}),
+                      ...(choice === 'gift' ? { accountId: accountId || cash[0]?.id } : {}),
+                    },
+                  ),
+                'Guthaben geändert.',
+              ).then((ok) => {
+                setBusy(false);
+                if (ok) setSelected(null);
+              });
+            }}
+          >
+            <AmountInput label="Guthabenbetrag" value={amount} onChange={setAmount} />
+            <CreditChoiceFields
+              choice={choice}
+              onChoice={setChoice}
+              categoryId={categoryId}
+              onCategory={setCategoryId}
+            />
+            {choice === 'gift' && (
+              <Field label="Konto für Zuordnung">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={accountId || cash[0]?.id || ''}
+                    onChange={(e) => setAccountId(e.target.value)}
+                  >
+                    <AccountOptions accounts={cash} />
+                  </Select>
+                )}
+              </Field>
+            )}
+            <p>
+              Kontostand und Nettovermögen bleiben unverändert. Ein Geschenk wird als Einnahme ins
+              Budget übernommen.
+            </p>
+            <Button type="submit" disabled={!valid || busy}>
+              Entscheidung speichern
+            </Button>
+          </form>
+        </FormDialog>
+      )}
+    </>
+  );
+}
+
 function ReceiptForm({
   statement,
   ready,
@@ -1093,7 +1276,8 @@ function ReceiptForm({
   const [date, setDate] = useState(todayInVienna());
   const [amount, setAmount] = useState('');
   const [chosen, setChosen] = useState<Record<string, string> | null>(null);
-  const [excessToBudget, setExcessToBudget] = useState(true);
+  const [creditChoice, setCreditChoice] = useState<'free' | 'category' | 'gift'>('free');
+  const [creditCategoryId, setCreditCategoryId] = useState('');
   const [busy, setBusy] = useState(false);
   const write = useContactWrite();
   const target = useQuery({
@@ -1113,7 +1297,9 @@ function ReceiptForm({
   const plan = allocateContactReceipt(open, amountCents);
   const chosenAccount = cash.find((a) => a.id === (accountId || cash[0]?.id));
   const validExcessDestination =
-    !excessToBudget || plan.creditCents === 0 || chosenAccount?.onBudget === true;
+    plan.creditCents === 0 ||
+    creditChoice === 'free' ||
+    (chosenAccount?.onBudget === true && (creditChoice !== 'category' || !!creditCategoryId));
   const values =
     chosen ??
     Object.fromEntries(
@@ -1156,7 +1342,8 @@ function ReceiptForm({
               date,
               amountCents,
               allocations,
-              excessToBudget,
+              creditChoice,
+              ...(creditChoice === 'category' ? { creditCategoryId } : {}),
             }),
           'Rückzahlung gebucht.',
         ).then((ok) => {
@@ -1261,22 +1448,19 @@ function ReceiptForm({
           </Field>
         </div>
       ))}
-      <label className="contact-select-outlay">
-        <input
-          type="checkbox"
-          checked={excessToBudget}
-          onChange={(e) => setExcessToBudget(e.target.checked)}
-        />
-        Überschuss dieser Rückzahlung ins Budget übernehmen
-      </label>
+      <CreditChoiceFields
+        choice={creditChoice}
+        onChoice={setCreditChoice}
+        categoryId={creditCategoryId}
+        onCategory={setCreditCategoryId}
+      />
       {sourceReady && (
         <p>
-          {excessToBudget ? 'Zusätzlich zu verteilen: ' : 'Guthaben aus dieser Rückzahlung: '}
-          <strong>{eur(plan.creditCents)}</strong>
+          Guthaben aus dieser Rückzahlung: <strong>{eur(plan.creditCents)}</strong>
         </p>
       )}
       {!validExcessDestination && (
-        <p role="alert">Für die Übernahme ins Budget bitte ein Budgetkonto wählen.</p>
+        <p role="alert">Bitte ein Budgetkonto und bei Vormerkung eine Kategorie wählen.</p>
       )}
       {sourceReady && amountCents > 0 && allocationError && (
         <p className="field-error" role="alert">

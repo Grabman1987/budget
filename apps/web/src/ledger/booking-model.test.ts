@@ -545,6 +545,24 @@ describe('split lines of mixed sign keep their own sign', () => {
 });
 
 describe('transfer lines and Auslagen on edit', () => {
+  it('retains the original category of a 100% shared purchase in the editor', () => {
+    const shared = stored({
+      splits: [
+        {
+          ...stored().splits[0]!,
+          categoryId: 'c1',
+          categoryKind: 'variable',
+          contactId: 'contact-example',
+        },
+      ],
+    });
+    const open = draftFromBooking(shared);
+    expect(open).toMatchObject({ contactId: 'contact-example', categoryId: 'c1' });
+    expect(buildPatch(shared, { ...open, contactId: '' }, 'p1', false)).toMatchObject({
+      ok: true,
+      value: { splits: [{ categoryId: 'c1', amountCents: shared.amountCents }] },
+    });
+  });
   const tracking = { trackingAccountIds: new Set(['sparen']), requireCategory: true };
   const lines = (over: Partial<ReturnType<typeof newSplit>>) => [
     newSplit({ amount: '30', categoryId: 'c1' }),

@@ -99,6 +99,7 @@ it('opens the actual mixed source read-only, converts only its unallocated share
       {
         ...before.splits[0]!,
         categoryId: 'gift',
+        categoryKind: 'variable',
         categoryName: 'Synthetisches Geschenk',
         contactId: null,
       },

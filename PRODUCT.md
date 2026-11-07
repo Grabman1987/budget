@@ -1,5 +1,17 @@
 # Product
 
+Owner decision (2026-11-06, #963): shared purchases keep one category with contact
+shares. The gross amount stays in that category until repaid. Repayments return
+the allocated share to its original category. Excess stays visible contact credit;
+the owner chooses free credit, a category earmark, or an explicit gift received as
+income, including partial decisions on existing credit. Matching later purchases
+consume credit automatically. These actions preserve cash and net worth and are
+undoable. Older unproven categories are not inferred or rewritten; operator
+corrections need a read-only preview and separate approval. This supersedes the
+older blanket prohibition on explicitly accepting credit as a gift, while retaining
+the prohibition on silently converting excess into income. See
+[shared expenses](docs/shared-expenses.md).
+
 Owner wealth completeness/backlog request (2026-10-15): add open implementation
 work for a compact benchmark comparison in Vermögen, actual portfolio-value EUR
 history and asset composition/development. Value, flow-adjusted return and allocation

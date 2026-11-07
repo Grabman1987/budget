@@ -2,10 +2,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
-import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { BookingTable } from './booking-table';
 import { MiniLine } from './mini-line';
 import type { ListedBooking } from './types';
+
+const flags = vi.hoisted(() => ({ REDESIGN_ENABLED: true }));
+vi.mock('../shell/redesign-flag', () => flags);
 
 vi.mock('./queries', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -36,30 +38,34 @@ const booking: ListedBooking = {
   splits: [],
   balanceAfterCents: -123,
 };
-it('gives account notes their own cell with full hover text and a mobile payee line', () => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const { container, rerender } = render(
-    <QueryClientProvider client={client}>
-      <BookingTable items={[booking]} caption="Bookings" variant="account" onOpen={vi.fn()} />
-    </QueryClientProvider>,
-  );
-  expect(screen.getByRole('columnheader', { name: 'Notiz' })).toBeTruthy();
-  expect(container.querySelector('td.kx-note span')?.getAttribute('title')).toBe(booking.memo);
-  expect(container.querySelector('.kx-mobile-note')?.textContent).toBe(booking.memo);
-  rerender(
-    <QueryClientProvider client={client}>
-      <BookingTable items={[booking]} caption="Bookings" variant="all" onOpen={vi.fn()} />
-    </QueryClientProvider>,
-  );
-  if (REDESIGN_ENABLED) {
+it.each([true, false])(
+  'keeps full notes in account and all-booking layouts (redesign=%s)',
+  (enabled) => {
+    flags.REDESIGN_ENABLED = enabled;
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { container, rerender } = render(
+      <QueryClientProvider client={client}>
+        <BookingTable items={[booking]} caption="Bookings" variant="account" onOpen={vi.fn()} />
+      </QueryClientProvider>,
+    );
     expect(screen.getByRole('columnheader', { name: 'Notiz' })).toBeTruthy();
     expect(container.querySelector('td.kx-note span')?.getAttribute('title')).toBe(booking.memo);
     expect(container.querySelector('.kx-mobile-note')?.textContent).toBe(booking.memo);
-  } else {
-    expect(screen.queryByRole('columnheader', { name: 'Notiz' })).toBeNull();
-    expect(container.querySelector('.kx-payee .kmeta')?.textContent).toBe(booking.memo);
-  }
-});
+    rerender(
+      <QueryClientProvider client={client}>
+        <BookingTable items={[booking]} caption="Bookings" variant="all" onOpen={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    if (enabled) {
+      expect(screen.getByRole('columnheader', { name: 'Notiz' })).toBeTruthy();
+      expect(container.querySelector('td.kx-note span')?.getAttribute('title')).toBe(booking.memo);
+      expect(container.querySelector('.kx-mobile-note')?.textContent).toBe(booking.memo);
+    } else {
+      expect(screen.queryByRole('columnheader', { name: 'Notiz' })).toBeNull();
+      expect(container.querySelector('.kx-payee .kmeta')?.textContent).toBe(booking.memo);
+    }
+  },
+);
 it('names the overview sparkline with its 90-day range', () => {
   const { container } = render(
     <MiniLine

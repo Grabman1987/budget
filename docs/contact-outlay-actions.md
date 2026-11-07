@@ -2,6 +2,12 @@
 
 Owner continuation, 2026-11-05. Local implementation scope; publication and owner acceptance remain separate.
 
+Superseded in part by the approved [shared-expense model](shared-expenses.md),
+2026-11-06 (#963): the receipt form now defaults to free contact credit and offers
+explicit category earmarking or gift income. The old `excessToBudget` API flag is
+retained for compatibility; it is no longer the form's default. Original-category
+returns and automatic credit use follow the newer contract.
+
 Outlay checkboxes belong to the actual receipt form. Selecting one proposes its remaining amount and updates the receipt total. Selection alone writes nothing. The existing allocation validator still requires allocating the actual receipt up to the dated open balance. For example, paying a selected EUR 20 outlay can leave another EUR 10 outlay open. A EUR 35 receipt must cover both before its EUR 5 excess can become credit or budget money. Paid/open is derived from the ledger and saved allocations, never an independent flag. The receipt keeps its explicit account, actual date and amount. Future outlays are excluded by that date and future receipts remain forbidden.
 
 `POST /contacts/:id/settlements` accepts optional `excessToBudget`. Existing callers retain their contact-credit behavior when the field is absent or false. The current form initially selects budget conversion. When requested, only this receipt's excess (`settleContact.creditCents`) is converted through the existing `writeOffContact` path, using the same date, account, transaction and audit group. Older contact credit is not swept. A budget destination must satisfy the existing open EUR budget-account guard. A historical receipt whose excess has already been consumed by later outlays is refused atomically; no partial receipt, hidden reduction or future-outlay activation occurs. The response retains the receipt allocation result and adds the optional `budgetConversion` result. Its `creditCents` remains the receipt's recorded allocation fact, not a replacement for the current contact statement.

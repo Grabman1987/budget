@@ -196,7 +196,9 @@ export function ContactReportRedesign({
                           <span className="r4-contact-amounts">
                             <span>
                               Offen:{' '}
-                              <b>{eur(contact.balanceCents > 0 ? contact.balanceCents : 0)}</b>
+                              <b>
+                                {eur(contact.receivableCents ?? Math.max(0, contact.balanceCents))}
+                              </b>
                             </span>
                             <span>
                               Guthaben: <b>{eur(contact.creditCents)}</b>
@@ -263,7 +265,8 @@ export function ContactReportRedesign({
                           </strong>
                         </div>
                         <p className="r4-contact-summary">
-                          Offene Forderung: {eur(person.balanceCents > 0 ? person.balanceCents : 0)}
+                          Offene Forderung:{' '}
+                          {eur(person.outlays.reduce((sum, o) => sum + o.remainingCents, 0))}
                           {' · '}Guthaben des Kontakts: {eur(person.creditCents)}
                         </p>
                         {person.contact.note && <p>{person.contact.note}</p>}

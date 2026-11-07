@@ -100,7 +100,7 @@ it('selects one outlay for a real receipt while leaving the other outlay unalloc
   expect(sent[0]).toMatchObject({
     amountCents: 2000,
     allocations: [{ outlaySplitId: 'Zweite Auslage', amountCents: 2000 }],
-    excessToBudget: true,
+    creditChoice: 'free',
   });
 });
 

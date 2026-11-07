@@ -220,7 +220,7 @@ it.each(['parent', 'target', 'accounts'] as const)(
     allocation.focus();
     const save = within(receipt).getByRole('button', { name: 'Rückzahlung speichern' });
     await waitFor(() => expect((save as HTMLButtonElement).disabled).toBe(false));
-    expect(receipt.textContent).toContain('Zusätzlich zu verteilen:');
+    expect(receipt.textContent).toContain('Guthaben aus dieser Rückzahlung:');
     const key =
       source === 'parent'
         ? view.key
@@ -239,7 +239,7 @@ it.each(['parent', 'target', 'accounts'] as const)(
     });
     await waitFor(() => expect((save as HTMLButtonElement).disabled).toBe(true));
     expect(receipt.textContent).not.toContain('offen 20,00');
-    expect(receipt.textContent).not.toContain('Zusätzlich zu verteilen:');
+    expect(receipt.textContent).not.toContain('Guthaben aus dieser Rückzahlung:');
     expect(receipt.contains(allocation)).toBe(true);
     expect((allocation as HTMLInputElement).value).toBe('10,00');
     expect(document.activeElement).toBe(allocation);
@@ -251,7 +251,7 @@ it.each(['parent', 'target', 'accounts'] as const)(
     await waitFor(() => expect(view.client.getQueryState(key)?.status).toBe('error'));
     expect((save as HTMLButtonElement).disabled).toBe(true);
     expect(receipt.textContent).not.toContain('offen 20,00');
-    expect(receipt.textContent).not.toContain('Zusätzlich zu verteilen:');
+    expect(receipt.textContent).not.toContain('Guthaben aus dieser Rückzahlung:');
     fireEvent.submit(receipt);
     expect(view.writes).toEqual([]);
     await act(async () => {

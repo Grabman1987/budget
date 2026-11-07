@@ -377,7 +377,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       await dialog.getByRole('button', { name: '+ Weiterer Kontakt', exact: true }).click();
       await dialog.getByLabel('Kontakt 1.2').selectOption(secondContact.id);
       await dialog.getByLabel('Anteil 1.2 (%)').fill('10');
-      await expect(dialog.getByText('Kategorie behält 70,00 €')).toBeVisible();
+      await expect(dialog.getByText('Kategorie trägt 100,00 € bis zur Rückzahlung')).toBeVisible();
     }
     await expect(save).toBeEnabled();
     await dialog.getByLabel('Bezahlt von').selectOption(account.id);

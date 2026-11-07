@@ -115,8 +115,11 @@ export function draftFromBooking(b: ListedBooking): BookingDraft {
     date: b.date,
     amount: plain(b.amountCents),
     payee: b.payeeName ?? '',
-    // A contact share runs through Auslagen, which the form never shows as a category.
-    categoryId: b.splits[0]?.contactId && !several ? '' : (b.splits[0]?.categoryId ?? ''),
+    // Old cached rows lack kind and retain the legacy Auslagen removal guard.
+    categoryId:
+      b.splits[0]?.contactId && !several && (b.splits[0].categoryKind ?? 'advance') === 'advance'
+        ? ''
+        : (b.splits[0]?.categoryId ?? ''),
     incomeTypeId: b.splits[0]?.incomeTypeId ?? '',
     contactId: several ? '' : (b.splits[0]?.contactId ?? ''),
     projectId: b.projectId ?? '',
@@ -175,6 +178,7 @@ function expandLine(line: BookingLineDraft): SplitDraft[] {
     ...line.shares.map((s, i) => ({
       ...s,
       type: 'contact' as const,
+      categoryId: line.categoryId,
       amount: formatDecimal(toCents(result.contactCents[i]!)),
     })),
   ];

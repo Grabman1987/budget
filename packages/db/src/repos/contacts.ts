@@ -25,6 +25,7 @@ import {
   type SplitInput,
 } from './bookings';
 import { ensureAdvanceCategory } from './categories';
+import { contactCreditRecords, saveContactCreditRecord } from './contact-credit';
 import {
   actualContactMovements,
   assertContactSettlementInvariants,
@@ -33,14 +34,19 @@ import {
 import { BookingInvariantError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
 
-export function getContactStatement(db: Executor, id: string, asOf: string) {
+export function getContactStatement(
+  db: Executor,
+  id: string,
+  asOf: string,
+  records = contactCreditRecords(db),
+) {
   const row = db
     .select()
     .from(contact)
     .where(and(eq(contact.id, id), isNull(contact.deletedAt)))
     .get();
   if (!row) throw new EntityNotFoundError('contact', id);
-  const movements = actualContactMovements(db, id, asOf);
+  const movements = actualContactMovements(db, id, asOf, records);
   if (movements.some((m) => m.currency !== 'EUR'))
     throw new BookingInvariantError('Contact statements require EUR movements');
   return {
@@ -52,16 +58,22 @@ export function getContactStatement(db: Executor, id: string, asOf: string) {
 }
 
 export function listContactStatements(db: Executor, asOf: string, history = false) {
+  const records = contactCreditRecords(db);
   return db
     .select()
     .from(contact)
     .where(isNull(contact.deletedAt))
     .all()
     .map((c) => {
-      const s = getContactStatement(db, c.id, asOf);
-      return { ...s.contact, balanceCents: s.balanceCents, creditCents: s.creditCents };
+      const s = getContactStatement(db, c.id, asOf, records);
+      return {
+        ...s.contact,
+        balanceCents: s.balanceCents,
+        creditCents: s.creditCents,
+        receivableCents: s.outlays.reduce((sum, o) => sum + o.remainingCents, 0),
+      };
     })
-    .filter((c) => history || c.balanceCents !== 0);
+    .filter((c) => history || c.receivableCents !== 0 || c.creditCents !== 0);
 }
 
 /** One reminder per contact with a still-open actual outlay older than 30 calendar days. */
@@ -74,6 +86,7 @@ export function readOverdueContactReminders(db: Executor, today: string) {
     overdueCents: number;
   }[] = [];
   let unavailableCount = 0;
+  const records = contactCreditRecords(db);
   for (const row of db
     .select({ id: contact.id })
     .from(contact)
@@ -81,7 +94,7 @@ export function readOverdueContactReminders(db: Executor, today: string) {
     .all()) {
     let statement: ReturnType<typeof getContactStatement>;
     try {
-      statement = getContactStatement(db, row.id, today);
+      statement = getContactStatement(db, row.id, today, records);
     } catch (error) {
       if (
         error instanceof BookingInvariantError &&
@@ -112,6 +125,120 @@ export interface ContactReceiptInput {
   amountCents: number;
   memo?: string | null;
   allocations?: ContactAllocation[];
+}
+
+/** Explicit decision on one remaining receipt lot; never sweeps older or unrelated credit. */
+export function chooseContactCredit(
+  db: Executor,
+  contactId: string,
+  input: {
+    receiptSplitId: string;
+    amountCents: number;
+    date: string;
+    choice: 'free' | 'category' | 'gift';
+    categoryId?: string;
+    accountId?: string;
+  },
+  ctx: AuditContext,
+  today: string,
+) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const records = contactCreditRecords(tx);
+    const current = getContactStatement(tx, contactId, today, records);
+    const dated = getContactStatement(tx, contactId, input.date, records);
+    const credit = current.credits.find((c) => c.receiptSplitId === input.receiptSplitId);
+    const available = dated.credits.find((c) => c.receiptSplitId === input.receiptSplitId);
+    if (
+      input.date > today ||
+      !Number.isSafeInteger(input.amountCents) ||
+      input.amountCents <= 0 ||
+      !credit ||
+      !available ||
+      input.amountCents > credit.remainingCents ||
+      input.amountCents > available.remainingCents
+    )
+      throw new BookingInvariantError('Das gewählte Kontaktguthaben ist nicht mehr verfügbar.');
+    const sourceSplit = tx
+      .select()
+      .from(bookingSplit)
+      .where(eq(bookingSplit.id, input.receiptSplitId))
+      .get()!;
+    const source = getBooking(tx, sourceSplit.bookingId)!;
+    const cash = tx
+      .select()
+      .from(account)
+      .where(
+        eq(
+          account.id,
+          input.choice === 'gift' ? (input.accountId ?? source.accountId) : source.accountId,
+        ),
+      )
+      .get();
+    if (
+      !cash ||
+      cash.deletedAt ||
+      input.date < cash.openingDate ||
+      (input.choice === 'gift' && (cash.closedAt || !cash.onBudget)) ||
+      cash.currency !== 'EUR' ||
+      !['checking', 'savings', 'cash'].includes(cash.type)
+    )
+      throw new BookingInvariantError(
+        'Für diese Entscheidung ist ein offenes EUR-Budgetkonto erforderlich.',
+      );
+    const categoryId = input.choice === 'category' ? input.categoryId : null;
+    if (input.choice === 'category') {
+      const target =
+        categoryId && tx.select().from(category).where(eq(category.id, categoryId)).get();
+      if (
+        !target ||
+        target.deletedAt ||
+        target.class === null ||
+        ['advance', 'income', 'card_payment'].includes(target.kind)
+      )
+        throw new BookingInvariantError('Bitte eine Ausgabenkategorie für das Guthaben wählen.');
+    }
+    const advanceId = ensureAdvanceCategory(tx, grouped);
+    const memo =
+      input.choice === 'gift'
+        ? 'Geschenk erhalten'
+        : categoryId
+          ? 'Kontaktguthaben vorgemerkt'
+          : 'Freies Kontaktguthaben';
+    const bookingId = createContactSettlementBooking(
+      tx,
+      {
+        accountId: cash.id,
+        date: input.date,
+        amountCents: 0,
+        status: 'confirmed',
+        memo,
+        splits: [
+          { categoryId: advanceId, contactId, amountCents: -input.amountCents, memo },
+          input.choice === 'gift'
+            ? { incomeTypeId: INCOME_TYPES.other.id, amountCents: input.amountCents, memo }
+            : { categoryId: advanceId, contactId, amountCents: input.amountCents, memo },
+        ],
+      },
+      grouped,
+    );
+    const parts = getBooking(tx, bookingId)!.splits;
+    saveContactCreditRecord(
+      tx,
+      {
+        bookingId,
+        decision: {
+          debitSplitId: parts[0]!.id,
+          sourceSplitId: input.receiptSplitId,
+          ...(input.choice !== 'gift' ? { creditSplitId: parts[1]!.id } : {}),
+          categoryId: categoryId ?? null,
+        },
+      },
+      grouped,
+    );
+    assertContactSettlementInvariants(tx);
+    return { bookingId, groupId: grouped.groupId };
+  });
 }
 
 export interface ContactWriteOffInput {
@@ -208,8 +335,9 @@ export function writeOffContact(
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    const current = getContactStatement(tx, contactId, today).balanceCents;
-    const dated = getContactStatement(tx, contactId, input.date).balanceCents;
+    const records = contactCreditRecords(tx);
+    const current = getContactStatement(tx, contactId, today, records).balanceCents;
+    const dated = getContactStatement(tx, contactId, input.date, records).balanceCents;
     if (
       input.date > today ||
       !Number.isSafeInteger(input.amountCents) ||
@@ -331,6 +459,22 @@ export function settleContact(
       );
     }
     const categoryId = ensureAdvanceCategory(tx, grouped);
+    const refunds = new Map<string, number>();
+    for (const allocation of plan.allocations) {
+      const target = before.outlays.find((o) => o.splitId === allocation.outlaySplitId)!;
+      if (target.categoryId)
+        refunds.set(
+          target.categoryId,
+          (refunds.get(target.categoryId) ?? 0) + allocation.amountCents,
+        );
+    }
+    const returned = [...refunds].map(([categoryId, amountCents]) => ({
+      categoryId,
+      amountCents,
+      memo: 'Rückzahlung in die ursprüngliche Kategorie',
+    }));
+    if (returned.length && !cash.onBudget)
+      throw new BookingInvariantError('Shared category repayments require a budget account');
     const bookingId = createContactSettlementBooking(
       tx,
       {
@@ -339,7 +483,13 @@ export function settleContact(
         amountCents: input.amountCents,
         memo: input.memo ?? null,
         status: 'confirmed',
-        splits: [{ categoryId, contactId, amountCents: input.amountCents }],
+        splits: [
+          { categoryId, contactId, amountCents: input.amountCents },
+          ...returned,
+          ...(returned.length
+            ? [{ categoryId, amountCents: -returned.reduce((sum, r) => sum + r.amountCents, 0) }]
+            : []),
+        ],
       },
       grouped,
     );
@@ -357,6 +507,18 @@ export function settleContact(
     );
     for (const a of plan.allocations)
       insertTracked(tx, contactAllocation, { id: randomUUID(), settlementId: id, ...a }, grouped);
+    saveContactCreditRecord(
+      tx,
+      {
+        bookingId,
+        repayments: [split.id],
+        repaymentRefunds: returned.map(({ categoryId, amountCents }) => ({
+          categoryId,
+          amountCents,
+        })),
+      },
+      grouped,
+    );
     assertContactSettlementInvariants(tx);
     return { id, bookingId, ...plan, groupId: grouped.groupId };
   });

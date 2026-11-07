@@ -1,5 +1,6 @@
 import {
   createEntity,
+  chooseContactCredit,
   convertContactOutlayToGift,
   getContactStatement,
   listContactStatements,
@@ -29,6 +30,8 @@ const receipt = z
     amountCents: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
     memo: z.string().max(2000).nullable().optional(),
     excessToBudget: z.boolean().optional(),
+    creditChoice: z.enum(['free', 'category', 'gift']).optional(),
+    creditCategoryId: z.string().min(1).max(100).optional(),
     allocations: z
       .array(
         z
@@ -81,6 +84,8 @@ export function contactRoutes(db: Db, today: () => string): Hono {
     const input = await readBody(c, receipt);
     if (input.date > today())
       throw new ApiError(422, 'future_receipt', 'A contact receipt must be an actual payment');
+    if (input.excessToBudget !== undefined && input.creditChoice !== undefined)
+      throw new ApiError(422, 'credit_choice', 'Choose one credit disposition');
     const ctx = audit();
     const result = db.transaction((tx) => {
       const settled = settleContact(
@@ -113,9 +118,53 @@ export function contactRoutes(db: Db, today: () => string): Hono {
               amountCents: settled.creditCents,
             }
           : null;
+      if (input.creditChoice && input.creditChoice !== 'free' && settled.creditCents > 0) {
+        const receiptSplitId = getContactStatement(
+          tx,
+          c.req.param('id'),
+          input.date,
+        ).movements.find((m) => m.bookingId === settled.bookingId)!.splitId;
+        chooseContactCredit(
+          tx,
+          c.req.param('id'),
+          {
+            receiptSplitId,
+            amountCents: settled.creditCents,
+            date: input.date,
+            choice: input.creditChoice,
+            ...(input.creditCategoryId ? { categoryId: input.creditCategoryId } : {}),
+          },
+          ctx,
+          today(),
+        );
+      }
       return { ...settled, budgetConversion };
     });
     return c.json(result, 201);
+  });
+  app.post('/:id/credits/:splitId', async (c) => {
+    const input = await readBody(
+      c,
+      z
+        .object({
+          date: day,
+          amountCents: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+          choice: z.enum(['free', 'category', 'gift']),
+          categoryId: z.string().min(1).max(100).optional(),
+          accountId: z.string().min(1).max(100).optional(),
+        })
+        .strict(),
+    );
+    return c.json(
+      chooseContactCredit(
+        db,
+        c.req.param('id'),
+        { ...defined(input), receiptSplitId: c.req.param('splitId') },
+        audit(),
+        today(),
+      ),
+      201,
+    );
   });
   app.post('/:id/outlays/:splitId/gift', async (c) => {
     const input = await readBody(
@@ -142,10 +191,17 @@ export function contactRoutes(db: Db, today: () => string): Hono {
   app.post('/:id/write-offs', async (c) => {
     const input = await readBody(
       c,
-      receipt.omit({ allocations: true, excessToBudget: true }).extend({
-        categoryId: z.string().min(1).max(100).nullable().optional(),
-        incomeTypeId: z.string().min(1).max(100).nullable().optional(),
-      }),
+      receipt
+        .omit({
+          allocations: true,
+          excessToBudget: true,
+          creditChoice: true,
+          creditCategoryId: true,
+        })
+        .extend({
+          categoryId: z.string().min(1).max(100).nullable().optional(),
+          incomeTypeId: z.string().min(1).max(100).nullable().optional(),
+        }),
     );
     return c.json(writeOffContact(db, c.req.param('id'), defined(input), audit(), today()), 201);
   });

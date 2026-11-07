@@ -218,6 +218,7 @@ export interface BookingQuery {
 }
 
 export interface ListedSplit {
+  categoryKind?: string | null;
   id: string;
   categoryId: string | null;
   categoryName: string | null;
@@ -513,7 +514,7 @@ export function queryBookings(
   const ids = page.map((r) => r.booking.id);
   const splits = ids.length
     ? db
-        .select({ split: bookingSplit, categoryName: category.name })
+        .select({ split: bookingSplit, categoryName: category.name, categoryKind: category.kind })
         .from(bookingSplit)
         .leftJoin(category, eq(category.id, bookingSplit.categoryId))
         .where(inArray(bookingSplit.bookingId, ids))
@@ -521,12 +522,13 @@ export function queryBookings(
         .all()
     : [];
   const splitsOf = new Map<string, ListedSplit[]>();
-  for (const { split, categoryName } of splits) {
+  for (const { split, categoryName, categoryKind } of splits) {
     const list = splitsOf.get(split.bookingId) ?? [];
     list.push({
       id: split.id,
       categoryId: split.categoryId,
       categoryName,
+      categoryKind,
       amountCents: split.amountCents,
       memo: split.memo,
       contactId: split.contactId,
