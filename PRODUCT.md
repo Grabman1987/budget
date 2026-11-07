@@ -1,5 +1,16 @@
 # Product
 
+Contact owner controls (#978, 2026-11-07): the contact statement offers explicit
+adoption of older repayment allocations, reallocation of floating receipts, and
+reopening into another outlay or free credit. “Geschenk an Kontakt” waives an
+outstanding share, including the remainder of a partly settled purchase, without
+editing bank facts. Existing category purchases keep their original expense;
+standalone Auslagen require an explicit expense category. Every action is audited
+and undoable. Locked rows require an allocation-only confirmation; their bank
+status stays locked. Synthetic example: of 1,001 cents, 701 are repaid and 299 are
+waived, leaving 1 cent owed. The existing account/holdings net-worth model excludes
+derived contact claims; this action changes the receivable, not bank balances.
+
 Owner decision (2026-11-06, #963): shared purchases keep one category with contact
 shares. The gross amount stays in that category until repaid. Repayments return
 the allocated share to its original category. Excess stays visible contact credit;

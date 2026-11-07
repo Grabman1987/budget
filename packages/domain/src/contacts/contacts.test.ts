@@ -13,6 +13,28 @@ const movement = (splitId: string, amountCents: number, date = '2026-09-01'): Co
   memo: null,
 });
 describe('actual contact statement', () => {
+  it('allows an owner reallocation to retain exact credit while default capture still settles oldest first', () => {
+    const outlays = contactStatement([movement('a', -1001), movement('b', -2002)]).outlays;
+    expect(allocateContactReceipt(outlays, 701, [], { retainCredit: true })).toEqual({
+      allocations: [],
+      creditCents: 701,
+    });
+    expect(
+      allocateContactReceipt(outlays, 701, [{ outlaySplitId: 'b', amountCents: 299 }], {
+        retainCredit: true,
+      }),
+    ).toEqual({ allocations: [{ outlaySplitId: 'b', amountCents: 299 }], creditCents: 402 });
+    expect(() => allocateContactReceipt(outlays, 701, [], {})).toThrow();
+    expect(() =>
+      allocateContactReceipt(outlays, 701, [{ outlaySplitId: 'b', amountCents: 702 }], {
+        retainCredit: true,
+      }),
+    ).toThrow();
+    expect(allocateContactReceipt(outlays, 701)).toEqual({
+      allocations: [{ outlaySplitId: 'a', amountCents: 701 }],
+      creditCents: 0,
+    });
+  });
   it('reports exact shared running balances and cash/contact signs through excess credit', () => {
     const source = [
       movement('a', -10000),
