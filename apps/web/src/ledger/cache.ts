@@ -45,6 +45,7 @@ export function patchListed(b: ListedBooking, patch: BookingPatch, names: Names)
 
 /** Set of a bulk edit applied to a booking (only what a bulk edit can carry). */
 export interface BulkSet {
+  memo?: string | null;
   categoryId?: string | null;
   flag?: BookingFlag | null;
   status?: 'pending' | 'confirmed';
@@ -53,6 +54,7 @@ export interface BulkSet {
 
 export const patchOfBulk = (set: BulkSet): BookingPatch => {
   const patch: BookingPatch = {};
+  if (set.memo !== undefined) patch.memo = set.memo;
   if (set.flag !== undefined) patch.flag = set.flag;
   if (set.status !== undefined) patch.status = set.status;
   if (set.projectId !== undefined) patch.projectId = set.projectId;
