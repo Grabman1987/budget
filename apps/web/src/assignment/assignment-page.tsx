@@ -20,6 +20,18 @@ import { SettingsRowMenu } from '../pages/settings-row-menu';
 import { SettingsRuleList } from '../rules/settings-rule-list';
 import { Plus } from 'lucide-react';
 
+/** Rules arrive after route rendering; complete a cold inspector jump once its target exists. */
+function focusRuleAnchor(element: HTMLDivElement | null) {
+  if (!element) return;
+  try {
+    if (decodeURIComponent(window.location.hash.slice(1)) !== element.id) return;
+  } catch {
+    return;
+  }
+  element.scrollIntoView({ block: 'center' });
+  element.focus({ preventScroll: true });
+}
+
 export function AssignmentPage() {
   const rules = useQuery(assignmentQuery),
     write = useBudgetWrite();
@@ -90,7 +102,13 @@ export function AssignmentPage() {
           {!!rules.data?.rules.length && (
             <div className="settings-surface settings-assignment-list">
               {rules.data.rules.map((r, i) => (
-                <div className="settings-row" key={r.id}>
+                <div
+                  className="settings-row"
+                  key={r.id}
+                  id={`regel-${r.id}`}
+                  tabIndex={-1}
+                  ref={focusRuleAnchor}
+                >
                   <div>
                     <small>
                       {r.match.conditions

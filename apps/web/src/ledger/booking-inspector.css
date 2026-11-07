@@ -1,0 +1,61 @@
+.booking-inspector {
+  display: grid;
+  gap: var(--space-xl);
+  overflow-wrap: anywhere;
+}
+.booking-inspector section {
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-lg);
+}
+.booking-inspector h3 {
+  font-size: var(--fs-title);
+  margin: 0 0 var(--space-sm);
+}
+.booking-inspector p {
+  margin: var(--space-sm) 0;
+}
+.booking-inspector ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.booking-inspector li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-md);
+  padding-block: var(--space-sm);
+}
+.booking-inspector li strong {
+  white-space: nowrap;
+}
+.booking-inspector small {
+  display: block;
+  color: var(--ink-2);
+}
+.booking-inspector a {
+  display: block;
+  min-height: var(--touch);
+}
+.ktx.ktx-redesign td.kx-payee:has(.booking-inspect-trigger) {
+  position: relative;
+}
+.ktx.ktx-redesign tr[data-booking] .kx-payee:has(.booking-inspect-trigger) .kname-btn {
+  width: calc(100% - 44px);
+}
+.ktx.ktx-redesign .booking-inspect-trigger {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: var(--touch);
+  height: var(--touch);
+  min-width: var(--touch);
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+@media (max-width: 767px) {
+  .ktx.ktx-redesign .kx-payee:has(.booking-inspect-trigger) .kaccount-mobile-meta {
+    margin-right: var(--touch);
+  }
+}
