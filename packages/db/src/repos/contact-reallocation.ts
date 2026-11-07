@@ -35,7 +35,8 @@ export function assertContactAllocationUnlocked(
   const row = getBooking(db, bookingId);
   if (!row) throw new EntityNotFoundError('booking', bookingId);
   if (row.status === 'reconciled' && !options.unlock) throw new ReconciledLockedError([bookingId]);
-  if (options.unlock && ctx) recordContactAllocationUnlock(db, ctx, bookingId);
+  if (row.status === 'reconciled' && options.unlock && ctx)
+    recordContactAllocationUnlock(db, ctx, bookingId);
   if (row.transferId || row.splits.some((s) => s.transferId) || row.originalAmountCents !== null)
     throw new BookingInvariantError(
       'Diese Kontaktzuordnung ist mit einer anderen Buchung verknüpft.',

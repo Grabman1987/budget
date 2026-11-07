@@ -327,6 +327,56 @@ it('waives the open remainder while preserving spending and net worth through Un
 
 it('waives standalone legacy Auslagen only into an explicitly selected expense category', () => {
   const first = outlay(1001, 'auslagen');
+  const budgetFigures = () =>
+    ['2026-09', '2026-10'].map((month) => {
+      const { summary } = budgetSummary(opened.db, month);
+      return {
+        month,
+        toBeAssignedCents: summary.toBeAssignedCents,
+        categories: ['reise', 'auslagen'].map((categoryId) => {
+          const envelope = summary.envelopes.find((row) => row.categoryId === categoryId)!;
+          return [categoryId, envelope.activityCents, envelope.availableCents];
+        }),
+      };
+    });
+  // No assignments: September's cash overspending reduces October's unassigned money.
+  const beforeWaiver = [
+    {
+      month: '2026-09',
+      toBeAssignedCents: 100000,
+      categories: [
+        ['reise', 0, 0],
+        ['auslagen', -1001, -1001],
+      ],
+    },
+    {
+      month: '2026-10',
+      toBeAssignedCents: 98999,
+      categories: [
+        ['reise', 0, 0],
+        ['auslagen', 0, 0],
+      ],
+    },
+  ];
+  const afterWaiver = [
+    {
+      month: '2026-09',
+      toBeAssignedCents: 100000,
+      categories: [
+        ['reise', -501, -501],
+        ['auslagen', -500, -500],
+      ],
+    },
+    {
+      month: '2026-10',
+      toBeAssignedCents: 98999,
+      categories: [
+        ['reise', 0, 0],
+        ['auslagen', 0, 0],
+      ],
+    },
+  ];
+  expect(budgetFigures()).toEqual(beforeWaiver);
   expect(netWorthAsOf(opened.db, today).totalCents).toBe(98999);
   expect(() =>
     waiveContactOutlay(opened.db, 'k1', first.id, { amountCents: 501 }, testCtx, today),
@@ -340,6 +390,7 @@ it('waives standalone legacy Auslagen only into an explicitly selected expense c
     today,
   );
   expect(statement().balanceCents).toBe(500);
+  expect(budgetFigures()).toEqual(afterWaiver);
   expect(netWorthAsOf(opened.db, today).totalCents).toBe(98999);
   expect(
     getBooking(opened.db, waived.bookingId)?.splits.map((s) => [s.categoryId, s.amountCents]),
@@ -357,9 +408,57 @@ it('waives standalone legacy Auslagen only into an explicitly selected expense c
       today,
     ),
   ).toThrow();
-  undo(opened.db, { groupId: waived.groupId }, testCtx);
+  const undone = undo(opened.db, { groupId: waived.groupId }, testCtx);
   expect(statement().balanceCents).toBe(1001);
+  expect(budgetFigures()).toEqual(beforeWaiver);
   expect(netWorthAsOf(opened.db, today).totalCents).toBe(98999);
+  undo(opened.db, { groupId: undone.groupId }, testCtx);
+  expect(statement().balanceCents).toBe(500);
+  expect(budgetFigures()).toEqual(afterWaiver);
+  expect(netWorthAsOf(opened.db, today).totalCents).toBe(98999);
+});
+
+it('records unlock authorization only for reconciled bookings in a mixed allocation', () => {
+  const first = outlay();
+  const paid = receipt();
+  const unlocked = reallocateContactRepayment(
+    opened.db,
+    'k1',
+    paid.id,
+    { allocations: [] },
+    testCtx,
+    today,
+    { unlock: true },
+  );
+  const markers = (groupId: string) =>
+    opened.db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.groupId, groupId))
+      .all()
+      .filter((entry) => entry.entityId.startsWith('contacts.allocation-unlock.'));
+  expect(markers(unlocked.groupId)).toEqual([]);
+  updateBooking(opened.db, first.bookingId, { status: 'reconciled' }, testCtx);
+  const mixed = reallocateContactRepayment(
+    opened.db,
+    'k1',
+    paid.id,
+    { allocations: [{ outlaySplitId: first.id, amountCents: 701 }] },
+    testCtx,
+    today,
+    { unlock: true },
+  );
+  const marker = opened.db
+    .select()
+    .from(appSetting)
+    .where(eq(appSetting.id, `contacts.allocation-unlock.${mixed.groupId}`))
+    .get()!;
+  expect(JSON.parse(marker.value)).toEqual({ allocationOnly: true, bookingIds: [first.bookingId] });
+  expect(markers(mixed.groupId)).toHaveLength(1);
+  const undone = undo(opened.db, { groupId: mixed.groupId }, testCtx);
+  expect(statement().outlays[0]?.remainingCents).toBe(1001);
+  undo(opened.db, { groupId: undone.groupId }, testCtx);
+  expect(statement().outlays[0]?.remainingCents).toBe(300);
 });
 
 it('authorizes only allocation changes on locked bank rows and retains the authorization for Undo/redo', () => {

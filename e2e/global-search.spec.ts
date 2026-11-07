@@ -363,6 +363,7 @@ test('all results retain the query and source with reload-safe type filtering', 
 test('palette fits the viewport with touch targets, trapped focus and light/dark accessibility', async ({
   page,
 }, info) => {
+  if (info.project.name !== 'desktop') await page.setViewportSize({ width: 390, height: 600 });
   await page.goto('/konten');
   const input = await openSearch(page, info.project.name !== 'desktop');
   const dialog = page.getByRole('dialog', { name: 'Suchen', exact: true });
@@ -372,6 +373,24 @@ test('palette fits the viewport with touch targets, trapped focus and light/dark
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
+    for (const name of ['Alle Ergebnisse', 'Tastenkürzel anzeigen (?)']) {
+      const control = dialog.getByRole('button', { name, exact: true });
+      await control.focus();
+      await expect(control).toBeFocused();
+      // Focus can precede WebKit's native scrolling into the results viewport.
+      await expect
+        .poll(() =>
+          control.evaluate((element) => {
+            const bounds = element.getBoundingClientRect();
+            const clip = element.closest('.global-search-popup')!.getBoundingClientRect();
+            return (
+              bounds.top >= Math.max(0, clip.top) - 0.5 &&
+              bounds.bottom <= Math.min(innerHeight, clip.bottom) + 0.5
+            );
+          }),
+        )
+        .toBe(true);
+    }
     if (info.project.name !== 'desktop') {
       const bounds = (await dialog.boundingBox())!;
       expect(bounds.width).toBe(390);
