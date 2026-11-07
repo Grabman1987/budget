@@ -152,19 +152,21 @@ export function Combobox({
     const refresh = () => {
       // Reserve the active row and a few results above the keyboard, inside the form scroller.
       const frame = scroller.getBoundingClientRect();
+      const top = Math.max(frame.top + scroller.clientTop, viewport?.offsetTop ?? 0);
       const bottom = Math.min(
-        frame.bottom,
+        frame.top + scroller.clientTop + scroller.clientHeight,
         (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight),
       );
       const rowHeight = Math.max(
         44,
         field.getBoundingClientRect().height - list.getBoundingClientRect().height,
       );
-      list.style.maxHeight = `${Math.max(44, Math.min(220, bottom - frame.top - rowHeight))}px`;
+      // Leave one pixel for engines that quantize scrollTop while row positions are fractional.
+      list.style.maxHeight = `${Math.max(44, Math.min(220, Math.floor(bottom - top - rowHeight) - 1))}px`;
       const row = field.getBoundingClientRect();
       if (row.bottom > bottom)
-        scroller.scrollTop += Math.min(row.bottom - bottom, row.top - frame.top);
-      else if (row.top < frame.top) scroller.scrollTop += row.top - frame.top;
+        scroller.scrollTop += Math.ceil(Math.min(row.bottom - bottom, row.top - top));
+      else if (row.top < top) scroller.scrollTop += Math.floor(row.top - top);
       const activeId = field.querySelector('input')?.getAttribute('aria-activedescendant');
       if (activeId) revealOption(list, document.getElementById(activeId));
     };

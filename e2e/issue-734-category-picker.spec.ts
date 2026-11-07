@@ -75,14 +75,24 @@ async function bounds(list: Locator) {
 }
 async function bounded(list: Locator) {
   await expect(list).toBeVisible();
-  await expect
-    .poll(async () => {
-      const b = await bounds(list);
-      return (
-        b.top >= b.clipTop && b.bottom <= b.clipBottom && b.left >= 0 && b.right <= b.viewportWidth
-      );
-    })
-    .toBe(true);
+  let lastBounds: Awaited<ReturnType<typeof bounds>>;
+  try {
+    await expect
+      .poll(async () => {
+        const b = await bounds(list);
+        lastBounds = b;
+        return (
+          b.top >= b.clipTop &&
+          b.bottom <= b.clipBottom &&
+          b.left >= 0 &&
+          b.right <= b.viewportWidth
+        );
+      })
+      .toBe(true);
+  } catch (error) {
+    console.log('734_LIST_BOUNDS ' + JSON.stringify(lastBounds!));
+    throw error;
+  }
   return bounds(list);
 }
 async function activeVisible(field: Locator, list: Locator) {
