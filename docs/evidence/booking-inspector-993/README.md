@@ -28,3 +28,23 @@ Prettier, CSS scale check, 21 focused Vitest tests, OFF production web build, an
 ON e2e web/server build. An independent agent reviewed the final code and test
 changes. These images are review evidence, not screenshot baselines or physical
 iPhone acceptance.
+
+## Delivery blocker
+
+The enabled pre-push hook passed typecheck, ESLint, Prettier and CSS scale checks,
+then reported two failures in the unchanged `apps/server/src/api/export.test.ts`:
+
+- Client-abort snapshot cleanup: reported duration about 83 seconds, with an
+  existing Windows test budget of 60 seconds.
+- Late CSV-source failure cleanup: reported duration about 41 seconds, with an
+  existing test budget of 30 seconds.
+
+Only about 27 MB of physical memory was free during this run. After these failures,
+the remaining hook test process was stopped to release resources; no failure
+stack or completed related-suite total was available. The push did not proceed,
+and no draft PR was created. No hook or test was bypassed. The implementation and
+prepared PR body remain local.
+
+Next step: free runner capacity or serialize the concurrent builders' heavy
+checks, reproduce the two export tests, then rerun the full enabled pre-push hook.
+Do not change export behavior or weaken its tests as part of this inspector task.
