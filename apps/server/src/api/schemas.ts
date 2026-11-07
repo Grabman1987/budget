@@ -198,16 +198,22 @@ export const bookingDeleteQuery = z.object({
 export const bulkBody = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('update'),
+    previewRevision: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
     ids: z.array(id).min(1).max(500),
     set: z
       .object({
+        memo: nullableText,
         categoryId: id.nullable(),
         flag: flag.nullable(),
         status: writableStatus,
         projectId: id.nullable(),
       })
       .partial()
-      .refine((s) => Object.keys(s).length > 0, 'Nothing to set'),
+      .refine((s) => Object.keys(s).length > 0, 'Nothing to set')
+      .refine((s) => s.memo === undefined || Object.keys(s).length === 1, 'Notes change alone'),
     unlockReconciled: z.boolean().default(false),
   }),
   z.object({
