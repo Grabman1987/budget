@@ -281,6 +281,15 @@ function BankCandidateForm({
               onRetry={() => void matches.refetch()}
             />
           )}
+          {mergeRows.length > 0 && (
+            <p className="kmeta">
+              Quelle: Bankumsatz. Vorschläge haben dasselbe Konto, dieselbe Währung und denselben
+              Betrag bei höchstens fünf Kalendertagen Abstand. Erst das Zusammenführen übernimmt die
+              Bankreferenz.
+              {mergeRows.length > 1 &&
+                ' Mehrere Buchungen passen: Der geringste Datumsabstand ist keine eindeutige Zuordnung. Bitte die passende Buchung auswählen.'}
+            </p>
+          )}
           {(['merge', 'transfer'] as const).map((action) => {
             const rows =
               action === 'merge'
