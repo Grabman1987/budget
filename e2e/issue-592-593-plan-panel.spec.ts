@@ -110,7 +110,7 @@ test('592 all five displayed deltas equal actual selected/visible assignments an
   for (const [label, amount, assigned, tba] of [
     ['Wie letzter Monat', '−4,00 €', [0, 0, 250], 900],
     ['Ø 3 Monate', '−4,00 €', [0, 0, 250], 900],
-    ['Ziele', '+5,00 €', [900, 0, 250], 0],
+    ['Ziele', '+8,00 €', [1000, 200, 250], -300],
     ['Leere füllen', '+2,00 €', [400, 200, 250], 300],
     ['Auf 0 zurücksetzen', '−4,00 €', [0, 0, 250], 900],
   ] as const) {
@@ -126,16 +126,16 @@ test('592 all five displayed deltas equal actual selected/visible assignments an
   }
   await expect(
     automatic
-      .getByRole('button', { name: 'Ziele +5,00 €', exact: true })
+      .getByRole('button', { name: 'Ziele +8,00 €', exact: true })
       .locator('..')
-      .getByText('3,00 € fehlen für 2 Kategorien · auf Zu verteilen begrenzt'),
+      .getByText('Damit steht ‚Zu verteilen‘ bei −3,00 € – du verplanst mehr, als da ist (Dispo).'),
   ).toBeVisible();
   await page.reload();
   await expect(automatic).toBeVisible();
   await expect.poll(state).toEqual({ assigned: [400, 0, 250], tba: 500 });
 });
 
-test('514 selected assignment preview is read-only, capped and private', async ({
+test('514 selected assignment preview is read-only, funds full target need and stays private', async ({
   page,
   request,
   baseURL,
@@ -162,9 +162,9 @@ test('514 selected assignment preview is read-only, capped and private', async (
   await expect(category.locator('dd')).toHaveText([
     '4,00 €',
     '6,00 €',
-    '+5,00 €',
-    '9,00 €',
-    '1,00 €',
+    '+6,00 €',
+    '10,00 €',
+    '0,00 €',
   ]);
   await expect(preview.getByRole('button')).toHaveCount(0);
   await preview.getByLabel('Vorschau für').selectOption('reset');

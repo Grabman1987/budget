@@ -354,7 +354,7 @@ export const moveBody = z.union([
 export const coverBody = z.object({
   categoryId: id,
   fromId: id.nullable(),
-  /** Reject the legacy override: cover never creates negative unassigned money. */
+  /** Legacy false remains accepted; explicit cover from Zu verteilen now permits overdraft planning. */
   allowNegative: z.literal(false).optional(),
 });
 

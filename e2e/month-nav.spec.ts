@@ -1,8 +1,7 @@
 import { openHeuteReview } from './heute-visual-fixture';
 import { addMonths } from '@budget/domain';
 import AxeBuilder from '@axe-core/playwright';
-import { test as mainTest, type APIRequestContext, type Page } from '@playwright/test';
-import { MAIN_URL } from '../playwright.config';
+import { type APIRequestContext, type Page } from '@playwright/test';
 import { expect, sampleTest as test } from './sample';
 import { test as isolatedTest } from './isolated-ledger';
 
@@ -215,28 +214,42 @@ const viennaToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Vienna'
   new Date(),
 );
 
-async function post(request: APIRequestContext, path: string, data: unknown) {
-  const res = await request.post(`/api${path}`, { data, headers: { origin: MAIN_URL } });
+async function post(request: APIRequestContext, origin: string, path: string, data: unknown) {
+  const res = await request.post(`/api${path}`, { data, headers: { origin } });
   expect(res.ok(), await res.text()).toBe(true);
   return (await res.json()) as Record<string, { id: string }>;
 }
 
-mainTest(
-  'Plan with two months: assigning works in the second month and its guard applies there',
-  async ({ page }, info) => {
-    mainTest.skip(info.project.name === 'mobile', 'the phone always shows one month');
+isolatedTest(
+  'Plan with two months: over-assignment warns and writes only the second month with Undo',
+  async ({ page, baseURL }, info) => {
+    isolatedTest.skip(info.project.name === 'mobile', 'the phone always shows one month');
     const month = viennaToday.slice(0, 7);
     const tag = `${info.project.name}-${Date.now().toString(36).slice(-5)}`;
     const { request } = page;
-    await post(request, '/accounts', {
+    await post(request, baseURL!, '/accounts', {
       name: `Giro Monate ${tag}`,
       type: 'checking',
       openingDate: `${month}-01`,
       openingBalanceCents: 100_000,
     });
-    const group = (await post(request, '/categories/groups', { name: `Monate ${tag}` }))['group']!;
+    const group = (await post(request, baseURL!, '/categories/groups', { name: `Monate ${tag}` }))[
+      'group'
+    ]!;
     const name = `Kino M ${tag}`;
-    await post(request, '/categories', { name, groupId: group.id, class: 'want', stage: 2 });
+    await post(request, baseURL!, '/categories', {
+      name,
+      groupId: group.id,
+      class: 'want',
+      stage: 2,
+    });
+    const read = async (selectedMonth: string) => {
+      const response = await request.get(`/api/budget/${selectedMonth}`);
+      expect(response.ok()).toBe(true);
+      const { summary } = await response.json();
+      return [summary.assignedCents, summary.toBeAssignedCents];
+    };
+    const nextMonth = addMonths(month, 1);
 
     await withSpan(2)(page);
     await page.goto(`/plan/monat?monat=${month}`);
@@ -246,12 +259,21 @@ mainTest(
     const second = row.locator('td.col-assign').nth(1);
     const edit = second.getByRole('button', { name: /Zugewiesen .* ändern/ });
 
-    // More than the second month can distribute is refused there, with the way to the maximum.
+    // The second month permits over-assignment and reports its resulting negative remainder.
     await edit.click();
-    await second.getByRole('textbox').fill('9999999');
+    await second.getByRole('textbox').fill('1000,01');
+    await expect(second.getByRole('status')).toContainText(
+      'Damit steht ‚Zu verteilen‘ bei −0,01 € – du verplanst mehr, als da ist (Dispo).',
+    );
+    await expect(second.getByRole('textbox')).toHaveAttribute('aria-invalid', 'false');
     await second.getByRole('textbox').press('Enter');
-    await expect(second.getByRole('alert')).toContainText(/Zu verteilen/);
-    await second.getByRole('textbox').press('Escape');
+    await expect(second).toContainText('1.000,01 €');
+    await expect(first).toContainText('0,00 €');
+    await expect.poll(() => read(nextMonth)).toEqual([100_001, -1]);
+    expect(await read(month)).toEqual([0, 100_000]);
+    await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
+    await expect.poll(() => read(nextMonth)).toEqual([0, 100_000]);
+    await expect(second).toContainText('0,00 €');
 
     await edit.click();
     await second.getByRole('textbox').fill('50');
