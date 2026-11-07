@@ -93,20 +93,22 @@ export const isCard = (r: PlanRow) => r.kind === 'card_payment';
 
 /** Display-only net spending; the server's envelope and target amounts remain authoritative. */
 export function spendingBar(
-  r: Pick<EnvelopeSummary, 'activityCents' | 'availableCents' | 'needCents'>,
+  r: Pick<EnvelopeSummary, 'activityCents' | 'availableCents' | 'needCents' | 'target'>,
 ) {
   const spent = Math.max(0, -r.activityCents);
   const total = r.availableCents + spent;
   const over = r.availableCents < 0;
+  const compact = (value: number) => eur(value).replace(/\s?€$/, '');
   const status = over
-    ? `Überzogen um ${eur(-r.availableCents)}`
+    ? `Überzogen ${compact(-r.availableCents)}`
     : spent === 0
-      ? 'Noch nichts ausgegeben'
+      ? 'Nichts ausgegeben'
       : r.availableCents === 0
-        ? 'Komplett ausgegeben'
-        : `Ausgegeben ${eur(spent)} von ${eur(total)}`;
+        ? 'Voll ausgegeben'
+        : `${compact(spent)} von ${compact(total)}`;
   return {
-    status: status + (r.needCents > 0 ? ` · fehlt ${eur(r.needCents)} bis Ziel` : ''),
+    status:
+      status + (r.target && r.needCents > 0 ? ` · noch ${compact(r.needCents)} bis Ziel` : ''),
     spentShare: over ? 1 : total > 0 ? Math.min(1, spent / total) : 0,
     over,
   };

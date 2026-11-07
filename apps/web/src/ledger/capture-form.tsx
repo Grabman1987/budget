@@ -63,6 +63,7 @@ import {
   captureDate,
   categoriesFor,
   categoryFromPayee,
+  recentPayeeCategory,
   orderAccounts,
   pickableCategories,
   readMemory,
@@ -203,7 +204,7 @@ export function CaptureForm({
     const note = noteRef.current;
     if (!note) return;
     note.style.height = 'auto';
-    note.style.height = `${note.scrollHeight + 2}px`;
+    note.style.height = `${note.scrollHeight + note.offsetHeight - note.clientHeight}px`;
   }, [draft.memo]);
   const [errors, setErrors] = useState<DraftErrors & { form?: string }>({});
   const [offlineChoices, setOfflineChoices] = useState<CaptureChoices>();
@@ -218,12 +219,15 @@ export function CaptureForm({
   const saving = useRef(false);
   const isPhone = useIsPhone();
   const mobileRedesign = REDESIGN_ENABLED && isPhone;
+  const amountInputEvent = useRef<InputEvent | null>(null);
   const [amountInteracted, setAmountInteracted] = useState(false);
   const [moreOpen, setMoreOpen] = useState(
     !REDESIGN_ENABLED && Boolean(draft.projectId || draft.flag),
   );
   // The category the last chosen payee's default filled in; only that one is replaced by the next.
   const appliedByPayee = useRef<string | null>(null);
+  const categoryRequest = useRef(0);
+  const categoryChosen = useRef(Boolean(draft.categoryId || draft.contactId || draft.splitOn));
   // The payee "Speichern und neu" carried over: context, so it does not make the form dirty.
   const [keptPayee, setKeptPayee] = useState('');
   const set = <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) => {
@@ -359,51 +363,79 @@ export function CaptureForm({
   const applyPayeeDefault = (name: string, chosen = false) => {
     const key = name.trim().toLowerCase();
     const payee = payees.data?.payees.find((p) => p.name.toLowerCase() === key);
-    const fallback = payee?.defaultCategoryId;
-    // A delayed lookup must not replace a later payee or a manually selected account.
-    if (
+    const request = ++categoryRequest.current;
+    const applyCategory = (fallback: string | null | undefined) => {
+      if (request !== categoryRequest.current || categoryChosen.current) return;
+      setDraft((d) => {
+        if (d.splitOn || d.kind === 'transfer' || d.contactId) return d;
+        const next = categoryFromPayee(d.categoryId, appliedByPayee.current, fallback);
+        if (next === undefined || !categoriesFor(all, d.kind, '').some((c) => c.id === next))
+          return d;
+        appliedByPayee.current = next;
+        return {
+          ...d,
+          categoryId: next,
+          ...(d.lines?.length === 1 && d.lines[0]?.type === 'category'
+            ? { lines: [{ ...d.lines[0], categoryId: next }] }
+            : {}),
+        };
+      });
+    };
+    applyCategory(payee?.defaultCategoryId);
+    const suggestAccount =
       !editing &&
       !queued &&
       !hasAccountContext &&
       draft.kind !== 'transfer' &&
       key &&
-      (chosen || key !== accountPayee.current)
-    ) {
-      accountPayee.current = key;
-      const request = ++accountRequest.current;
-      const applyAccount = (last: string | undefined) => {
-        if (request !== accountRequest.current) return;
-        set(
-          'accountId',
-          accountFromPayee(open, memory.accounts.length ? memory.accounts : [accountId], last),
+      (chosen || key !== accountPayee.current);
+    const suggestCategory =
+      !editing &&
+      !queued &&
+      payee &&
+      !payee.defaultCategoryId &&
+      !categoryChosen.current &&
+      !draft.splitOn &&
+      !draft.contactId &&
+      draft.kind !== 'transfer';
+    // Share the history read; account and category choices have separate guards.
+    if (!suggestAccount && !suggestCategory) return;
+    const accountVersion = suggestAccount ? ++accountRequest.current : accountRequest.current;
+    if (suggestAccount) accountPayee.current = key;
+    const applyAccount = (last: string | undefined) => {
+      if (!suggestAccount || accountVersion !== accountRequest.current) return;
+      set(
+        'accountId',
+        accountFromPayee(open, memory.accounts.length ? memory.accounts : [accountId], last),
+      );
+    };
+    if (!payee) return applyAccount(undefined);
+    const readHistory = async () => {
+      let cursor: string | undefined;
+      do {
+        const page = await fetchBookings(
+          { payeeId: payee.id, to: today },
+          cursor,
+          suggestCategory ? 50 : 1,
         );
-      };
-      if (payee)
-        void fetchBookings({ payeeId: payee.id, to: today }, undefined, 1)
-          .then((page) => applyAccount(page.items[0]?.accountId))
-          .catch(() => undefined);
-      else applyAccount(undefined);
-    }
-    setDraft((d) => {
-      if (d.splitOn || d.kind === 'transfer') return d;
-      const next = categoryFromPayee(d.categoryId, appliedByPayee.current, fallback);
-      if (next === undefined || !categoriesFor(all, d.kind, '').some((c) => c.id === next))
-        return d;
-      appliedByPayee.current = next;
-      return {
-        ...d,
-        categoryId: next,
-        ...(d.lines?.length === 1 && d.lines[0]?.type === 'category'
-          ? { lines: [{ ...d.lines[0], categoryId: next }] }
-          : {}),
-      };
-    });
+        if (!cursor) applyAccount(page.items[0]?.accountId);
+        if (!suggestCategory || request !== categoryRequest.current || categoryChosen.current)
+          return;
+        const category = page.items
+          .map((booking) => recentPayeeCategory(booking, draft.kind))
+          .find((id) => id && categoriesFor(all, draft.kind).some((item) => item.id === id));
+        if (category) return applyCategory(category);
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+    };
+    void readHistory().catch(() => undefined);
   };
 
   const changeKind = (kind: BookingKind) => {
     if (kind !== draft.kind) setBankIntent(null);
     setDraft((d) => {
       accountRequest.current++;
+      categoryRequest.current++;
       appliedByPayee.current = null;
       const valid = kind !== 'expense' || all.find((c) => c.id === d.categoryId)?.kind !== 'income';
       const next = {
@@ -521,6 +553,9 @@ export function CaptureForm({
       // The next booking keeps the context (kind, account, date, payee and its category).
       setStatusChosen(false);
       setBankIntent(null);
+      categoryRequest.current++;
+      categoryChosen.current = false;
+      appliedByPayee.current = draft.splitOn ? null : draft.categoryId;
       setKeptPayee(draft.payee);
       setDraft((d) => ({
         ...emptyDraft(accountId, d.date),
@@ -754,6 +789,11 @@ export function CaptureForm({
     <SplitEditor
       draft={draft}
       setDraft={setDraft}
+      onCategoryChoose={() => {
+        categoryChosen.current = true;
+        categoryRequest.current++;
+        appliedByPayee.current = null;
+      }}
       categories={splitPickable}
       accounts={open}
       accountId={accountId}
@@ -861,7 +901,30 @@ export function CaptureForm({
       label="Betrag"
       showOperators={false}
       value={draft.amount}
-      onChange={(v) => set('amount', v)}
+      onChange={(value) => {
+        const event = amountInputEvent.current;
+        amountInputEvent.current = null;
+        // Direct keypad digits shift cents; paste, expressions and commits keep the shared parser.
+        if (
+          mobileRedesign &&
+          event &&
+          ((event.inputType === 'insertText' && /^\d$/.test(event.data ?? '')) ||
+            event.inputType.startsWith('delete')) &&
+          /^[\d.,]*$/.test(value)
+        ) {
+          const digits = value.replace(/\D/g, '').replace(/^0+/, '');
+          const padded = digits.padStart(3, '0');
+          value = value === '' ? '' : `${padded.slice(0, -2)},${padded.slice(-2)}`;
+        } else if (
+          mobileRedesign &&
+          event?.inputType === 'insertText' &&
+          /^[\d.,]*$/.test(draft.amount) &&
+          /^[.,]$/.test(event.data ?? '')
+        ) {
+          value = draft.amount;
+        }
+        set('amount', value);
+      }}
       sign={isTransfer ? null : draft.kind === 'income' ? '+' : '−'}
       error={errors.amount}
     />
@@ -886,6 +949,12 @@ export function CaptureForm({
       }}
       className={`bkform${isTransfer ? '' : ' bk-split-cols'}${REDESIGN_ENABLED ? ' bkform-redesign' : ''}`}
       data-redesign={REDESIGN_ENABLED ? 'booking-editor' : undefined}
+      onPointerDown={(event) => {
+        event.currentTarget.dataset.touchFocus = String(event.pointerType === 'touch');
+      }}
+      onKeyDownCapture={(event) => {
+        if (event.key === 'Tab') event.currentTarget.dataset.touchFocus = 'false';
+      }}
       onSubmit={(e) => {
         e.preventDefault();
         void save(false);
@@ -941,7 +1010,31 @@ export function CaptureForm({
         <div className="bk-cols">
           <div className="bk-col-head">
             {REDESIGN_ENABLED ? (
-              <div className="bk-amount-primary">
+              <div
+                className="bk-amount-primary"
+                data-kind={draft.kind}
+                style={
+                  mobileRedesign
+                    ? ({
+                        '--capture-amount-width': `${Math.max(4, draft.amount.length)}ch`,
+                      } as React.CSSProperties)
+                    : undefined
+                }
+                onInputCapture={(event) => {
+                  amountInputEvent.current = event.nativeEvent as InputEvent;
+                }}
+                onPointerUp={(event) => {
+                  if (
+                    mobileRedesign &&
+                    event.target instanceof HTMLInputElement &&
+                    event.target.selectionStart === event.target.selectionEnd
+                  )
+                    event.target.setSelectionRange(
+                      event.target.value.length,
+                      event.target.value.length,
+                    );
+                }}
+              >
                 {amountField}
                 {!isTransfer && !mobileRedesign && statusControl()}
               </div>
@@ -957,10 +1050,12 @@ export function CaptureForm({
                 <Combobox
                   label={draft.kind === 'income' ? 'Von (Zahler)' : 'Empfänger'}
                   value={draft.payee}
-                  placeholder="Suchen oder neu anlegen"
+                  placeholder={mobileRedesign ? 'Empfänger wählen' : 'Suchen oder neu anlegen'}
+                  captureOverlay={mobileRedesign}
                   pickSingle
                   onChange={(text) => {
                     accountRequest.current++;
+                    categoryRequest.current++;
                     set('payee', text);
                   }}
                   onSelect={(o) => {

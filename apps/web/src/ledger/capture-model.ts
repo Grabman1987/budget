@@ -1,6 +1,6 @@
 import type { BudgetMonthView } from '../budget/budget-api';
 import type { BookingKind } from './booking-model';
-import type { AccountRow, Lookups } from './types';
+import type { AccountRow, ListedBooking, Lookups } from './types';
 
 /** Pure parts of the capture panel: what can be picked, in which order, and what is remembered. */
 
@@ -187,6 +187,24 @@ export function categoryFromPayee(
 ): string | undefined {
   if (!payeeDefault) return undefined;
   return current === '' || current === appliedByPayee ? payeeDefault : undefined;
+}
+
+/** Only an unambiguous category from the latest same-kind purchase/income is suggested. */
+export function recentPayeeCategory(
+  booking: Pick<ListedBooking, 'amountCents' | 'transferId' | 'splits'> | undefined,
+  kind: BookingKind,
+): string | undefined {
+  if (
+    !booking ||
+    kind === 'transfer' ||
+    booking.transferId ||
+    (kind === 'expense' ? booking.amountCents >= 0 : booking.amountCents <= 0)
+  )
+    return undefined;
+  if (booking.splits.some((split) => !split.categoryId || split.contactId || split.transferId))
+    return undefined;
+  const categories = new Set(booking.splits.map((split) => split.categoryId!));
+  return categories.size === 1 ? [...categories][0] : undefined;
 }
 
 /**
