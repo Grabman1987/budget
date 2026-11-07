@@ -413,7 +413,7 @@ describe('canonical Plan funding and real DB goal lifecycle (#604)', () => {
     ).toBeNull();
   });
 
-  it('refuses the remaining25000 when only5000 is assignable without a partial assignment or audit write', () => {
+  it('funds the remaining25000 with only5000 free and undoes the whole over-assignment', () => {
     const ids = fixture(20000);
     assignMany(db, MONTH, [{ categoryId: ids.categoryId, assignedCents: 15000 }], ACTOR);
     const current = goal(ids.goalId);
@@ -423,11 +423,20 @@ describe('canonical Plan funding and real DB goal lifecycle (#604)', () => {
       conflict: null,
     });
     expect(plan(ids.categoryId).tba).toBe(5000);
-    unchangedReadOrRefusal(() => {
-      expect(() =>
-        fundGoalRate(db, ids.goalId, MONTH, current.funding!.reviewToken, ACTOR, '2026-10-01'),
-      ).toThrow(CategoryRuleError);
+    const funded = fundGoalRate(
+      db,
+      ids.goalId,
+      MONTH,
+      current.funding!.reviewToken,
+      ACTOR,
+      '2026-10-01',
+    );
+    expect(plan(ids.categoryId)).toMatchObject({
+      envelope: { assignedCents: 40000, needCents: 0, availableCents: 40000 },
+      tba: -20000,
     });
+    const undone = undo(db, { groupId: funded.groupId }, ACTOR);
+    expect(undone.entries).toHaveLength(1);
     expect(plan(ids.categoryId)).toMatchObject({
       envelope: { assignedCents: 15000, needCents: 25000, availableCents: 15000 },
       tba: 5000,
