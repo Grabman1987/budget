@@ -6,6 +6,74 @@ Fully covered categories have neutral empty tracks. Underfunded and overspent ca
 
 ## Verification
 
+### PR #996 repair after #985
+
+Merged `origin/main` at `606b97cb` and retained the one-line category/hint layout,
+short hint copy and continuous group frame. The newer quiet funded tracks and
+pills, row hover, attention filter and register dimming remain.
+
+Inspected every failed job in CI run `42408418407` using `gh run view --log-failed`:
+
+- Chromium 1/5 and WebKit 1: theme expectation drift. The token check already
+  used secondary ink, but the literal expected colours still described the old
+  funded pill. Both now assert the intended colour in both themes and viewports.
+- Chromium 1/2/4/5/6/8: Plan action/scroll stability defects. Collapsing the lead
+  changed document height near the bottom, reversing the observed scroll
+  direction and repeatedly reopening it. Reserve the expanded grid row, including
+  compact browser-back restoration. The collapsed background does not receive
+  pointer events; its visible controls and disclosures remain interactive.
+- Chromium 4/8: the quiet-bar selector also hid the neutral today marker. Hide
+  only the spent fill, retaining the existing marker and tooltip.
+- Chromium 6 and WebKit 2: wrapping uncategorised mobile metadata violated the
+  existing two-line register density. Keep the warning visible, let account text
+  truncate, omit ancillary note text there, and visually abbreviate incomplete
+  split metadata while preserving its full screen-reader description.
+- Aggregate `check`: failed because the browser shards failed; static, unit,
+  Docker, restore, Windows and visual jobs passed in that run.
+
+Repair test changes are limited to the theme colour migration, reserved-height
+unit assertions, and existing #992 browser cases for bottom-scroll actionability,
+reduced-motion style, pointer events and visible warning bounds (including an
+incomplete split). Financial response equality, no-write assertions, timeouts and
+all existing checks remain. Independent local agent review approved the repair.
+The screenshots below predate this merge; they are historical implementation
+evidence, not screenshots of the repaired revision.
+
+Repair screenshots: [compact desktop Plan](repair-desktop-compact-light.png) and
+[mobile booking warnings](repair-mobile-bookings-light.png), both inspected using
+synthetic fixtures. The mobile image includes an incomplete split and a checked
+booking; warning text remains fully visible within the second line.
+
+Focused repair browser evidence (`--workers=1`, one spec per invocation):
+
+- `contact-rename-plan-plus`: both desktop cases passed, including the previously
+  failing category creation and Undo flow.
+- `issue-481-reduced-motion-theme`: both Chromium desktop/phone cases passed.
+  Local WebKit expired during accessibility evaluation or shell interaction;
+  its former colour assertion was not the failure.
+- `issue-992-plan-calm-focus`: all 20 Chromium desktop/mobile cases passed across
+  focused runs. The new warning-bounds regression first reproduced real clipping;
+  after prioritising the warning, all six mobile register/attention cases passed.
+  One earlier mobile dark reload timeout passed unchanged on that focused retry.
+- `issue-581-account-register`: all four Chromium mobile and iPhone WebKit cases
+  passed, including density, exact cents, Undo and reconciled locks.
+- `plan-detail-pages`: all four desktop/mobile cases passed, including restoration
+  of the prior scroll position after browser Back.
+- `issue-981-plan-grid`: local desktop attempts reached both widths but expired
+  during browser evaluation under host memory pressure (about 420 MB free RAM).
+  No assertion or timeout was changed. The complete spec remains a CI gate.
+
+Local adapters omitted only unused global servers and setup dependencies for the
+isolated-ledger/sample specs. Browser profiles, timeouts, fixtures and production
+ON bundles were unchanged. No full local E2E suite or baseline regeneration ran.
+
+Final focused Vitest passed all 49 tests in `plan-model`, `plan-redesign`,
+`plan-filters-589` and `booking-table-581` with `VITEST_MAX_WORKERS=1`. Redesign ON
+E2E build and the OFF production web build both passed; OFF output stayed separate
+from the tested ON bundle.
+
+### Original implementation
+
 - `npm run typecheck`: passed.
 - Changed-file ESLint, Prettier and CSS scale checks: passed.
 - Focused Vitest: 45 tests passed across `plan-filters-589`, `plan-redesign`, `plan-page-head`, `booking-table-581`, `depot-category` and `balance-adjustment-rta`, with `VITEST_MAX_WORKERS=1`.

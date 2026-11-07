@@ -260,8 +260,7 @@ describe('moveMoneyByNames / applyMoves', () => {
     const done = applyMoves(db, plan, operator);
     expect(new Set(done.map((d) => d.groupId)).size).toBe(2);
     expect(assigned()).toEqual({ miete: 49_000, essen: 27_000, reise: 14_000 });
-    // A refusal by the domain rules (here the "Zu verteilen" guard of an assignment) rolls the
-    // moves before it back too.
+    // A refusal of an unsafe cent amount rolls the preceding moves back too.
     const state = assigned();
     const before2 = auditCount();
     expect(() =>
@@ -269,11 +268,11 @@ describe('moveMoneyByNames / applyMoves', () => {
         db,
         {
           moves: [{ month: MONTH, from: 'Miete', to: 'Essen', cents: 100 }],
-          assignments: [{ month: MONTH, category: 'Reise', deltaCents: 100_000_000 }],
+          assignments: [{ month: MONTH, category: 'Reise', deltaCents: Number.MAX_SAFE_INTEGER }],
         },
         operator,
       ),
-    ).toThrow(/frei|Zu verteilen/);
+    ).toThrow(/integer|Betragsbereich/);
     expect(assigned()).toEqual(state);
     expect(auditCount()).toBe(before2);
   });

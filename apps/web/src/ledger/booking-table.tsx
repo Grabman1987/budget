@@ -570,7 +570,7 @@ function Row({
             <span aria-hidden="true"> · </span>
             {variant === 'all' && (
               <>
-                <span>{b.accountName}</span>
+                <span className="kmeta-account">{b.accountName}</span>
                 <span aria-hidden="true"> · </span>
               </>
             )}

@@ -4,7 +4,6 @@ import {
   assignGuard,
   barFor,
   spendingBar,
-  coverFromToBeAssigned,
   coverSource,
   coverSources,
   dueDate,
@@ -44,12 +43,12 @@ const env = (categoryId: string, over: Partial<EnvelopeSummary> = {}): EnvelopeS
 describe('Zerosum spending display', () => {
   it('shows cent-exact net spending and remaining share, including carry and refunds', () => {
     expect(spendingBar(env('x', { activityCents: -12_898, availableCents: 72_972 }))).toEqual({
-      status: 'Ausgegeben 128,98 € von 858,70 €',
+      status: '128,98 von 858,70',
       spentShare: 12_898 / 85_870,
       over: false,
     });
     expect(spendingBar(env('x', { activityCents: 202, availableCents: 703 }))).toEqual({
-      status: 'Noch nichts ausgegeben',
+      status: 'Nichts ausgegeben',
       spentShare: 0,
       over: false,
     });
@@ -57,27 +56,36 @@ describe('Zerosum spending display', () => {
 
   it('distinguishes fully spent, overspent, empty and underfunded envelopes', () => {
     expect(spendingBar(env('x', { activityCents: -501 }))).toEqual({
-      status: 'Komplett ausgegeben',
+      status: 'Voll ausgegeben',
       spentShare: 1,
       over: false,
     });
     expect(
-      spendingBar(env('x', { activityCents: -703, availableCents: -202, needCents: 500 })),
+      spendingBar(
+        env('x', { activityCents: -703, availableCents: -202, needCents: 500, target: target() }),
+      ),
     ).toEqual({
-      status: 'Überzogen um 2,02 € · fehlt 5,00 € bis Ziel',
+      status: 'Überzogen 2,02 · noch 5,00 bis Ziel',
       spentShare: 1,
       over: true,
     });
     expect(spendingBar(env('x'))).toEqual({
-      status: 'Noch nichts ausgegeben',
+      status: 'Nichts ausgegeben',
       spentShare: 0,
       over: false,
     });
-    expect(spendingBar(env('x', { availableCents: 501, needCents: 1 }))).toEqual({
-      status: 'Noch nichts ausgegeben · fehlt 0,01 € bis Ziel',
+    expect(spendingBar(env('x', { availableCents: 501, needCents: 1, target: target() }))).toEqual({
+      status: 'Nichts ausgegeben · noch 0,01 bis Ziel',
       spentShare: 0,
       over: false,
     });
+  });
+
+  it('only appends a goal gap when a target exists and still needs funding', () => {
+    expect(spendingBar(env('x', { needCents: 500 })).status).toBe('Nichts ausgegeben');
+    expect(spendingBar(env('x', { target: target(), needCents: 0 })).status).toBe(
+      'Nichts ausgegeben',
+    );
   });
 });
 const cat = (id: string, stage: number | null, kind = 'variable', cls: string | null = 'need') => ({
@@ -240,13 +248,6 @@ describe('Plan › Monat view model', () => {
     expect(readAssign('abc', 0, false)).toBeNull();
   });
 
-  it('covers from Zu verteilen at most what it holds', () => {
-    expect(coverFromToBeAssigned(5_000, 10_000)).toEqual({ capCents: 5_000, short: false });
-    expect(coverFromToBeAssigned(5_000, 2_000)).toEqual({ capCents: 2_000, short: true });
-    expect(coverFromToBeAssigned(5_000, 0)).toEqual({ capCents: 0, short: true });
-    expect(coverFromToBeAssigned(5_000, -3_000)).toEqual({ capCents: 0, short: true });
-  });
-
   it('dates a yearly or periodic target on its own day, not the 1st of the due month', () => {
     const row = (t: Partial<PlanRow['target'] & object>, dueMonth: string | null): PlanRow =>
       ({
@@ -277,18 +278,34 @@ describe('Plan › Monat view model', () => {
     expect(groups.find((g) => g.key === 'tnext')?.rows.map((r) => r.id)).toEqual(['kfz']);
   });
 
-  it('guards assigning: never more than Zu verteilen holds, reducing always passes', () => {
+  it('permits over-assignment and previews the exact signed remainder without blocking', () => {
     expect(assignGuard(10_000, 4_000, 6_000)).toEqual({ ok: true });
-    const refused = assignGuard(10_001, 4_000, 6_000);
-    expect(refused).toMatchObject({ ok: false, maxCents: 10_000 });
-    expect(refused.ok === false && refused.message).toContain('Höchstens 100,00 €');
-    // Nothing free (also when negative): only values that do not raise pass.
-    expect(assignGuard(4_001, 4_000, 0)).toMatchObject({ ok: false, maxCents: 4_000 });
-    expect(assignGuard(4_001, 4_000, -2_000)).toMatchObject({ ok: false, maxCents: 4_000 });
-    expect(assignGuard(3_000, 4_000, -2_000)).toEqual({ ok: true });
+    expect(assignGuard(10_001, 4_000, 6_000)).toEqual({
+      ok: true,
+      message: 'Damit steht ‚Zu verteilen‘ bei −0,01 € – du verplanst mehr, als da ist (Dispo).',
+    });
+    expect(assignGuard(4_001, 4_000, 0)).toMatchObject({
+      ok: true,
+      message: expect.stringContaining('−0,01 €'),
+    });
+    expect(assignGuard(4_001, 4_000, -2_000)).toMatchObject({
+      ok: true,
+      message: expect.stringContaining('−20,01 €'),
+    });
+    expect(assignGuard(3_000, 4_000, -2_000)).toMatchObject({
+      ok: true,
+      message: expect.stringContaining('−10,00 €'),
+    });
+    expect(assignGuard(2_000, 4_000, -2_000)).toEqual({ ok: true });
     expect(moveGuard(5_000, 5_000)).toEqual({ ok: true });
-    expect(moveGuard(5_001, 5_000)).toMatchObject({ ok: false, maxCents: 5_000 });
-    expect(moveGuard(1, -1)).toMatchObject({ ok: false, maxCents: 0 });
+    expect(moveGuard(5_001, 5_000)).toMatchObject({
+      ok: true,
+      message: expect.stringContaining('−0,01 €'),
+    });
+    expect(moveGuard(1, -1)).toMatchObject({
+      ok: true,
+      message: expect.stringContaining('−0,02 €'),
+    });
   });
 
   it('states the month truthfully: worst first, calm only when nothing applies', () => {

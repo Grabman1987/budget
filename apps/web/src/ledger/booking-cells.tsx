@@ -142,7 +142,14 @@ export function CategoryCell({
         ) : (
           <Split className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
         )}
-        Aufgeteilt ({booking.splits.length}){missingCategory && ' · ohne Kategorie'}
+        {missingCategory ? (
+          <>
+            <span className="kcat-split-description">Aufgeteilt ({booking.splits.length}) · </span>
+            ohne Kategorie
+          </>
+        ) : (
+          <>Aufgeteilt ({booking.splits.length})</>
+        )}
       </span>
     );
   }

@@ -33,6 +33,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { Hono } from 'hono';
 import { filteredBookingCsv } from './booking-csv';
+import { bookingNotePreview, notePreviewBody } from './booking-note-preview';
 import { ACTOR, ApiError, defined, errorAnswer, readBody, readQuery } from './http';
 import { bookingDeleteQuery, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
 
@@ -441,9 +442,43 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
     );
     return c.json(runInTransaction(db, (tx) => deletePreview(tx, ids)));
   });
+  app.post('/note-preview', async (c) => {
+    const body = await readBody(c, notePreviewBody);
+    return c.json(runInTransaction(db, (tx) => bookingNotePreview(tx, body.ids, body.memo)));
+  });
   app.post('/bulk', async (c) => {
     const body = await readBody(c, bulkBody);
     const ctx = audit();
+    if (body.action === 'update' && body.set.memo !== undefined) {
+      const memo = body.set.memo;
+      const result = runInTransaction(db, (tx) => {
+        const preview = bookingNotePreview(tx, body.ids, memo);
+        if (!body.previewRevision || preview.revision !== body.previewRevision)
+          throw new ApiError(
+            409,
+            'stale_note_preview',
+            'Die Auswahl wurde geändert. Bitte die Notizänderung erneut prüfen.',
+          );
+        // Only exclusions acknowledged in this exact preview are skipped. Any writer failure
+        // rolls back every eligible row and its audit entries, without per-row catch/continue.
+        for (const id of preview.changed)
+          updateBooking(tx, id, { memo }, ctx, { unlockReconciled: false });
+        return {
+          changed: preview.changed,
+          skipped: [
+            ...preview.skipped,
+            ...preview.unchanged.map((id) => ({
+              id,
+              reason: 'unchanged' as const,
+              message: 'Already in the requested state',
+            })),
+          ],
+          transferPairs: 0,
+          groupId: ctx.groupId,
+        };
+      });
+      return c.json(result);
+    }
     const ids = [...new Set(body.ids)];
     const selected = new Set(ids);
     const changed: string[] = [];

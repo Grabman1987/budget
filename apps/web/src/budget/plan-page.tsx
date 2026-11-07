@@ -84,6 +84,7 @@ import {
   isCard,
   isCashOver,
   monthStatus,
+  moveGuard,
   planGroups,
   planMulti,
   planRows,
@@ -642,7 +643,15 @@ function PlanBody({
     setDistribute(true);
     setView('stage');
   };
-  const sug = distribute || targetPreview ? suggestions(rows, tba) : {};
+  const sug = targetPreview
+    ? Object.fromEntries(
+        rows
+          .filter((row) => !isCard(row) && row.needCents > 0)
+          .map((row) => [row.id, row.needCents]),
+      )
+    : distribute
+      ? suggestions(rows, tba)
+      : {};
   const targetPreviewTotal = Object.values(sug).reduce((sum, value) => sum + value, 0);
   const closeTargetPreview = () => {
     setTargetPreview(false);
@@ -1058,8 +1067,15 @@ function PlanBody({
                 <>
                   <span className="dist-left">noch {eur(tba)}</span>
                   {Object.keys(sug).length > 0 && (
-                    <Button size="sm" onClick={() => take(Object.keys(sug))}>
-                      Alle Ziele füllen · {eur(Object.values(sug).reduce((a, v) => a + v, 0))}
+                    <Button
+                      size="sm"
+                      onClick={(event) => {
+                        targetPreviewReturn.current = event.currentTarget;
+                        setTargetPreviewError(false);
+                        setTargetPreview(true);
+                      }}
+                    >
+                      Alle Ziele füllen
                     </Button>
                   )}
                   <Button size="sm" variant="ghost" onClick={() => setDistribute(false)}>
@@ -1244,6 +1260,9 @@ function PlanBody({
                         <tr
                           key={g.key}
                           className={cx('pgroup', isCollapsed && 'is-collapsed')}
+                          data-plan-class={
+                            REDESIGN_ENABLED ? (g.rows[0]?.cls ?? undefined) : undefined
+                          }
                           id={`grp-${g.key}`}
                         >
                           <td className="col-name">{groupHeading}</td>
@@ -1466,7 +1485,12 @@ function PlanBody({
                   </div>
                 ))}
             </dl>
-            {targetPreviewTotal === 0 && <p>Keine offenen Ziele mit verfügbarem Geld.</p>}
+            {targetPreviewTotal === 0 && <p>Keine offenen Ziele.</p>}
+            {targetPreviewTotal > 0 && moveGuard(targetPreviewTotal, tba).message && (
+              <p className="panel-sub" role="status">
+                {moveGuard(targetPreviewTotal, tba).message}
+              </p>
+            )}
             {targetPreviewError && (
               <p role="alert">
                 {previewChanged
@@ -1548,6 +1572,25 @@ function PlanTopBar({
   const restoringCompact = useRef(compactOnRestore);
   const stickyStart = useRef(0);
   const scrollCompact = useRef(compactOnRestore);
+  useLayoutEffect(() => {
+    const element = head.current;
+    const grid = element?.closest<HTMLElement>('.plan-grid');
+    if (!REDESIGN_ENABLED || !element || !grid) return;
+    // Reserve the expanded lead's row so collapsing cannot clamp scrollY at the
+    // document end, reverse the detected direction and repeatedly reopen it.
+    const measure = () => {
+      // Measure before paint even when Back restores the compact presentation.
+      element.classList.remove('is-compact');
+      const height = element.getBoundingClientRect().height;
+      element.classList.toggle('is-compact', compact);
+      grid.style.setProperty('--plan-head-height', `${height}px`);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [compact]);
   const setCompactMode = useCallback((next: boolean) => setCompact(next), []);
   const naturalTop = useCallback(() => {
     const element = head.current;
@@ -2205,7 +2248,7 @@ function EnvelopeRow({
   onAdd: () => void;
   ctx: PlanContext;
   suggestion: number | undefined;
-  /** "Zu verteilen": the guard refuses raising the assignment beyond it. */
+  /** "Zu verteilen" for the non-blocking assignment preview. */
   tba: number;
   editing: boolean;
   onEdit: (on: boolean) => void;
@@ -2402,6 +2445,24 @@ function EnvelopeRow({
               {eur(r.availableCents)}
               {over && <ArrowLeftRight size={16} strokeWidth={1.75} aria-hidden="true" />}
             </button>
+          ) : REDESIGN_ENABLED && over ? (
+            <span className="plan-available-action">
+              <span
+                className="pill is-bad"
+                id={`plan-available-${r.id}`}
+                title={credit ? 'neue Kartenschuld' : undefined}
+              >
+                {eur(r.availableCents)}
+              </span>
+              <button
+                type="button"
+                className="cover-row"
+                aria-label={`${r.name} decken`}
+                aria-describedby={`plan-available-${r.id}`}
+                title={credit ? 'neue Kartenschuld' : `${r.name} decken`}
+                onClick={onCover}
+              />
+            </span>
           ) : (
             <>
               <span

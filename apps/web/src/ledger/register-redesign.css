@@ -83,24 +83,34 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  /* A long account/note must not squeeze the missing-category warning to zero width. */
-  .ktx.ktx-redesign tr[data-booking]:has(.kcat.is-none) .kx-payee {
-    height: auto;
-    overflow: visible;
-  }
+  /* Keep the warning on the second line; ancillary metadata yields its space. */
   .ktx.ktx-redesign .kaccount-mobile-meta:has(.kcat.is-none) {
-    flex-wrap: wrap;
-    white-space: normal;
-    overflow: visible;
-  }
-  .ktx.ktx-redesign .kaccount-mobile-meta:has(.kcat.is-none) > span {
-    max-width: 100%;
-    overflow-wrap: anywhere;
+    flex-wrap: nowrap;
   }
   .ktx.ktx-redesign .kaccount-mobile-meta > .kcat.is-none {
+    order: -1;
     flex-shrink: 0;
-    white-space: normal;
-    overflow: visible;
+    white-space: nowrap;
+  }
+  .ktx.ktx-redesign .kaccount-mobile-meta:has(.kcat.is-none) > [aria-hidden='true'] {
+    display: none;
+  }
+  .ktx.ktx-redesign .kaccount-mobile-meta:has(.kcat.is-none) > .kx-mobile-note {
+    display: none;
+  }
+  .ktx.ktx-redesign .kaccount-mobile-meta:has(.kcat.is-none) > .kmeta-account {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ktx.ktx-redesign .kaccount-mobile-meta .kcat-split-description {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 .ktx-redesign thead th {

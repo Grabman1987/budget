@@ -93,20 +93,22 @@ export const isCard = (r: PlanRow) => r.kind === 'card_payment';
 
 /** Display-only net spending; the server's envelope and target amounts remain authoritative. */
 export function spendingBar(
-  r: Pick<EnvelopeSummary, 'activityCents' | 'availableCents' | 'needCents'>,
+  r: Pick<EnvelopeSummary, 'activityCents' | 'availableCents' | 'needCents' | 'target'>,
 ) {
   const spent = Math.max(0, -r.activityCents);
   const total = r.availableCents + spent;
   const over = r.availableCents < 0;
+  const compact = (value: number) => eur(value).replace(/\s?€$/, '');
   const status = over
-    ? `Überzogen um ${eur(-r.availableCents)}`
+    ? `Überzogen ${compact(-r.availableCents)}`
     : spent === 0
-      ? 'Noch nichts ausgegeben'
+      ? 'Nichts ausgegeben'
       : r.availableCents === 0
-        ? 'Komplett ausgegeben'
-        : `Ausgegeben ${eur(spent)} von ${eur(total)}`;
+        ? 'Voll ausgegeben'
+        : `${compact(spent)} von ${compact(total)}`;
   return {
-    status: status + (r.needCents > 0 ? ` · fehlt ${eur(r.needCents)} bis Ziel` : ''),
+    status:
+      status + (r.target && r.needCents > 0 ? ` · noch ${compact(r.needCents)} bis Ziel` : ''),
     spentShare: over ? 1 : total > 0 ? Math.min(1, spent / total) : 0,
     over,
   };
@@ -147,55 +149,31 @@ export function readAssign(raw: string, current: number, relative: boolean): num
   return value >= Math.min(0, current) ? value : null;
 }
 
-/**
- * The assignment guard on the client ("Schranken", the server enforces it with 422): raising the
- * month's assigned total beyond what "Zu verteilen" holds is refused. `value` is the new absolute
- * assignment of one envelope whose current one is `current`; a value that does not raise it always
- * passes. On refusal `maxCents` is the highest value that is still allowed.
- */
+/** Non-blocking overdraft planning hint; use the resulting signed unassigned cents. */
+export function overAssignmentHint(toBeAssignedCents: number): string | undefined {
+  if (!Number.isSafeInteger(toBeAssignedCents))
+    return 'Die Zuweisung überschreitet den unterstützten Betragsbereich.';
+  return toBeAssignedCents < 0
+    ? `Damit steht ‚Zu verteilen‘ bei ${eur(toBeAssignedCents)} – du verplanst mehr, als da ist (Dispo).`
+    : undefined;
+}
+
+/** Absolute assignment preview. Insufficient unassigned money is no longer a blocker (#982). */
 export function assignGuard(
   value: number,
   current: number,
   toBeAssignedCents: number,
-): { ok: true } | { ok: false; maxCents: number; message: string } {
-  const added = value - current;
-  const free = Math.max(0, toBeAssignedCents);
-  if (added <= free) return { ok: true };
-  const maxCents = current + free;
-  return {
-    ok: false,
-    maxCents,
-    message:
-      free > 0
-        ? `So viel ist nicht frei: „Zu verteilen“ hat ${eur(toBeAssignedCents)}. Höchstens ${eur(maxCents)} zuweisen.`
-        : `Es ist nichts frei: „Zu verteilen“ steht bei ${eur(toBeAssignedCents)}.`,
-  };
+): { ok: true; message?: string } {
+  const message = overAssignmentHint(toBeAssignedCents - (value - current));
+  return message ? { ok: true, message } : { ok: true };
 }
 
 /** The same guard for moving `amountCents` out of "Zu verteilen" into an envelope. */
 export function moveGuard(
   amountCents: number,
   toBeAssignedCents: number,
-): { ok: true } | { ok: false; maxCents: number; message: string } {
-  const free = Math.max(0, toBeAssignedCents);
-  if (amountCents <= free) return { ok: true };
-  return {
-    ok: false,
-    maxCents: free,
-    message:
-      free > 0
-        ? `So viel ist nicht frei: „Zu verteilen“ hat ${eur(toBeAssignedCents)}. Höchstens ${eur(free)} verschieben.`
-        : `Es ist nichts frei: „Zu verteilen“ steht bei ${eur(toBeAssignedCents)}.`,
-  };
-}
-
-/**
- * "Decken" from "Zu verteilen": `capCents` is what it can cover without going below 0; `short`
- * when that is less than the overspending (the rest stays open).
- */
-export function coverFromToBeAssigned(overspentCents: number, toBeAssignedCents: number) {
-  const capCents = Math.min(overspentCents, Math.max(0, toBeAssignedCents));
-  return { capCents, short: capCents < overspentCents };
+): { ok: true; message?: string } {
+  return assignGuard(amountCents, 0, toBeAssignedCents);
 }
 
 export interface PlanContext {

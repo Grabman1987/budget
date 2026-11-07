@@ -80,6 +80,21 @@ for (const theme of ['light', 'dark'] as const) {
       const confirmed = await booking('Synthetic confirmed purchase', ids[1]);
       await booking('Synthetic overspent purchase', ids[3]);
       const missing = await booking('Synthetic missing category');
+      const incomplete =
+        area === 'bookings' || area === 'account'
+          ? await send('/bookings', {
+              type: 'booking',
+              accountId: account.id,
+              date: '2026-10-10',
+              amountCents: -100,
+              status: 'confirmed',
+              memo: 'Synthetic incomplete split',
+              splits: [
+                { categoryId: ids[0], amountCents: -50 },
+                { categoryId: null, amountCents: -50 },
+              ],
+            })
+          : null;
       // Fixture-only status setup in this test's disposable ledger; no production writer changes.
       const database = openDatabase(isolatedLedger.databasePath);
       try {
@@ -180,6 +195,16 @@ for (const theme of ['light', 'dark'] as const) {
           expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
           await page.evaluate(() => window.scrollBy(0, 100));
           await expect(head).toHaveClass(/is-compact/);
+          await expect(head).toHaveCSS('pointer-events', 'none');
+          await expect(head.locator('summary.plan-tba')).toHaveCSS('pointer-events', 'auto');
+          await expect(head).toHaveCSS('transition-duration', '0s');
+          // The bottom clamp must not turn a collapse into an endless expand/collapse loop.
+          await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+          const lastCategory = page.locator('.prow .pname').last();
+          await lastCategory.click();
+          const history = page.getByRole('link', { name: 'Verlauf und Buchungen' });
+          await history.scrollIntoViewIfNeeded();
+          await expect(history).toBeVisible();
           await page.screenshot({ path: info.outputPath(`compact-${theme}.png`) });
           await page.evaluate(() => window.scrollTo(0, 0));
           await expect(head).not.toHaveClass(/is-compact/);
@@ -213,6 +238,13 @@ for (const theme of ['light', 'dark'] as const) {
           const name = await missingRow.locator('.kname-s').boundingBox();
           const metadata = await missingRow.locator('.kaccount-mobile-meta').boundingBox();
           expect(name!.y + name!.height).toBeLessThanOrEqual(metadata!.y);
+          for (const id of [missing.id, incomplete!.id]) {
+            const meta = page.locator(`tr[data-booking="${id}"] .kaccount-mobile-meta`);
+            const bounds = (await meta.boundingBox())!;
+            const warning = (await meta.locator('.kcat.is-none').boundingBox())!;
+            expect(warning.x).toBeGreaterThanOrEqual(bounds.x);
+            expect(warning.x + warning.width).toBeLessThanOrEqual(bounds.x + bounds.width);
+          }
         }
         expect(
           (await new AxeBuilder({ page }).include('.ktx-redesign').analyze()).violations,
