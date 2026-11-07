@@ -162,7 +162,7 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
 
   // Esc with input asks first; "Weiter bearbeiten" keeps everything.
   let panel = await openCapture(page, testInfo);
-  await panel.getByLabel('Betrag', { exact: true }).fill('5');
+  await panel.getByLabel('Betrag', { exact: true }).fill('5,00');
   await page.keyboard.press('Escape');
   await expect(panel.getByText('Eingaben verwerfen?')).toBeVisible();
   await panel.getByRole('button', { name: 'Weiter bearbeiten' }).click();
@@ -174,7 +174,7 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
 
   // Speichern und neu (Ctrl+Umschalt+Enter): the panel stays with payee, category and date.
   panel = await openCapture(page, testInfo);
-  await panel.getByLabel('Betrag', { exact: true }).fill('5');
+  await panel.getByLabel('Betrag', { exact: true }).fill('5,00');
   await panel.getByLabel('Empfänger').fill(payee);
   await pickCategory(panel, category);
   const date = await panel.getByLabel('Datum', { exact: true }).inputValue();
@@ -184,7 +184,7 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await expect(panel.getByLabel('Empfänger')).toHaveValue(payee);
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue(category);
   await expect(panel.getByLabel('Datum', { exact: true })).toHaveValue(date);
-  await panel.getByLabel('Betrag', { exact: true }).fill('3');
+  await panel.getByLabel('Betrag', { exact: true }).fill('3,00');
   await page.keyboard.press('Control+Enter');
   await expect(page.getByRole('row', { name: new RegExp(payee) })).toHaveCount(2);
   await expect(balance(page)).toHaveText('92,00 €');
@@ -208,7 +208,7 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await panel.getByLabel('Betrag', { exact: true }).fill('0');
   await expect(panel.locator('.bk-save-reason')).toContainText('Jede Zeile braucht einen Betrag.');
   await expect(panel.getByRole('button', { name: 'Speichern und neu' })).toBeDisabled();
-  await panel.getByLabel('Betrag', { exact: true }).fill('1');
+  await panel.getByLabel('Betrag', { exact: true }).fill('1,00');
   await panel.getByLabel('Datum', { exact: true }).fill('31.02.2026');
   await panel.getByLabel('Empfänger').press('ArrowDown');
   await expect(panel.getByRole('listbox')).toBeVisible();
@@ -384,7 +384,7 @@ test('Ctrl+Enter held or pressed twice sends the booking once', async ({ page },
     await route.continue();
   });
   const panel = await openCapture(page, testInfo);
-  await panel.getByLabel('Betrag', { exact: true }).fill('7');
+  await panel.getByLabel('Betrag', { exact: true }).fill('7,00');
   await pickCategory(panel, `Cap A ${tag}`);
   await page.keyboard.press('Control+Enter');
   await page.keyboard.press('Control+Enter');
@@ -398,7 +398,7 @@ test('a second Esc without any interaction still asks before discarding', async 
 }, testInfo) => {
   await visit(page, '/');
   const panel = await openCapture(page, testInfo);
-  await panel.getByLabel('Betrag', { exact: true }).fill('5');
+  await panel.getByLabel('Betrag', { exact: true }).fill('5,00');
   // Chrome lets a repeated Esc close a dialog without a cancel event unless it is handled.
   await page.keyboard.press('Escape');
   await expect(panel.getByText('Eingaben verwerfen?')).toBeVisible();
@@ -484,7 +484,7 @@ test('the flag: popover with six colours and keys, first column of the table', a
   await expect(menu).toBeHidden();
   await expect(head.getByRole('button', { name: 'Markierung: Gelb' })).toBeFocused();
 
-  await panel.getByLabel('Betrag', { exact: true }).fill('9');
+  await panel.getByLabel('Betrag', { exact: true }).fill('9,00');
   await panel.getByLabel('Empfänger').fill(`Kiosk ${tag}`);
   await pickCategory(panel, `Cap A ${tag}`);
   await page.keyboard.press('Control+Enter');
@@ -542,7 +542,7 @@ test('the checkmark: a new booking starts pending and can be confirmed', async (
   await expect(toggle).toHaveAttribute('title', 'Vorgemerkt');
   await expect(toggle).toHaveText('Vorgemerkt');
   await expect(panel.getByLabel('Budgetmonat')).toHaveCount(0);
-  await panel.getByLabel('Betrag', { exact: true }).fill('4');
+  await panel.getByLabel('Betrag', { exact: true }).fill('4,00');
   await panel.getByLabel('Empfänger').fill(`Vormerk ${tag}`);
   await pickCategory(panel, `Cap B ${tag}`);
   await page.keyboard.press('Control+Enter');
@@ -678,7 +678,7 @@ test('visible growing note, direct split and responsive account note column', as
     expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
     expect(box.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
   }
-  await panel.getByLabel('Betrag', { exact: true }).fill('5');
+  await panel.getByLabel('Betrag', { exact: true }).fill('5,00');
   await panel.getByLabel('Empfänger').fill(payee);
   await pickCategory(panel, `Cap A ${tag}`);
   await page.screenshot({ path: testInfo.outputPath(`dialog-${tag}.png`) });

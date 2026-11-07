@@ -203,7 +203,7 @@ export function CaptureForm({
     const note = noteRef.current;
     if (!note) return;
     note.style.height = 'auto';
-    note.style.height = `${note.scrollHeight + 2}px`;
+    note.style.height = `${note.scrollHeight + note.offsetHeight - note.clientHeight}px`;
   }, [draft.memo]);
   const [errors, setErrors] = useState<DraftErrors & { form?: string }>({});
   const [offlineChoices, setOfflineChoices] = useState<CaptureChoices>();

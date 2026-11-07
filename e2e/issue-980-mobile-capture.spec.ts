@@ -82,9 +82,11 @@ for (const theme of ['light', 'dark'] as const) {
     await bounded();
     await screenshot('category');
     await page.setViewportSize({ width: 900, height: 844 });
+    await expect(dialog.locator('.is-capture-inline')).toHaveCount(0);
     await category.focus();
     await expect(dialog.getByRole('listbox')).toHaveCSS('position', 'fixed');
     await page.setViewportSize({ width: 390, height: 844 });
+    await expect(dialog.locator('.is-capture-inline')).toHaveCount(2);
     await category.focus();
     await bounded();
     // A reduced viewport models the space left by the keyboard; focus must keep results open.
