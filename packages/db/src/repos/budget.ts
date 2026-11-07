@@ -1,7 +1,6 @@
 import {
-  cents,
   coverPlan,
-  formatEuro,
+  freedomSumCents,
   monthOf,
   quickAssignPlan,
   summarizeMonth,
@@ -18,7 +17,7 @@ import { loadFacts } from './rule-inputs';
 import { withGroup, type AuditContext } from './audit';
 import { getEntity } from './entities';
 import { categoryTree } from './categories';
-import { setAssigned } from './envelopes';
+import { getAssigned, setAssigned } from './envelopes';
 import { CategoryRuleError, EntityNotFoundError } from './errors';
 import { budget, budgetLedger, budgetOfLedger } from './queries';
 import { runInTransaction, type Executor } from './types';
@@ -90,59 +89,43 @@ function requireEnvelope(db: Executor, id: string) {
   return row;
 }
 
-/**
- * The assignment guard ("Schranken"): money that is not there cannot be assigned. A write that
- * raises the month's assigned total (`addedCents` > 0) must leave "Zu verteilen" at 0 or more;
- * writes that only reduce or reshuffle (net 0) always pass, also while "Zu verteilen" is already
- * negative. The overdraft of an account is a floor of the account, not money to assign: it is
- * not part of "Zu verteilen" and so never offered here. Repository-only `allowNegative` supports synthetic reconciliation; the cover API never permits it.
- */
-function guardAssignable(db: Executor, month: string, addedCents: number): void {
-  if (addedCents <= 0) return;
-  const [m] = budget(db, [month]);
-  const free = m?.toBeAssignedCents ?? 0;
-  if (addedCents <= Math.max(0, free)) return;
-  const max = Math.max(0, free);
-  const euro = (value: number) => formatEuro(cents(value));
-  throw new CategoryRuleError(
-    max > 0
-      ? `So viel ist nicht frei: „Zu verteilen“ hat ${euro(free)}, zugewiesen würden ${euro(addedCents)} mehr. Höchstens ${euro(max)} mehr zuweisen.`
-      : `Es ist nichts frei: „Zu verteilen“ steht bei ${euro(free)}. Erst Geld zurücknehmen oder Einnahmen erfassen.`,
-  );
+/** Owner decision #982: negative unassigned money is a hint, never an assignment limit. */
+function assignmentResult(db: Executor, month: string, groupId: string) {
+  const assigned = freedomSumCents(getAssigned(db, month).map((row) => row.assignedCents));
+  const result = budget(db, [month])[0]!;
+  if (
+    assigned === null ||
+    !Number.isSafeInteger(result.toBeAssignedCents) ||
+    !Number.isSafeInteger(result.availableCents) ||
+    Object.values(result.envelopes).some((row) => !Number.isSafeInteger(row.availableCents))
+  )
+    throw new CategoryRuleError('Die Zuweisung überschreitet den unterstützten Betragsbereich.');
+  return { groupId, toBeAssignedCents: result.toBeAssignedCents };
 }
 
 /**
  * Set the assigned amount of several envelopes in one month (one undo, e.g. "Ziele füllen").
- * Refused (`CategoryRuleError`) when it would take "Zu verteilen" below 0 (see `guardAssignable`);
- * `options.allowNegative` is for repository-level callers and tests, the API never passes it.
+ * Account balances are unchanged; "Zu verteilen" may become or remain negative.
  */
 export function assignMany(
   db: Executor,
   month: string,
   items: ReadonlyArray<{ categoryId: string; assignedCents: number }>,
   ctx: AuditContext,
-  options: { allowNegative?: boolean } = {},
-): { groupId: string } {
+) {
   const grouped = withGroup(ctx);
-  runInTransaction(db, (tx) => {
-    // Later items of the same envelope win, as they do when applied one after the other.
-    const target = new Map<string, number>();
+  return runInTransaction(db, (tx) => {
     for (const item of items) {
       requireEnvelope(tx, item.categoryId);
-      target.set(item.categoryId, item.assignedCents);
     }
-    let added = 0;
-    for (const [id, value] of target) added += value - assignedOf(tx, id, month);
-    if (!options.allowNegative) guardAssignable(tx, month, added);
     for (const item of items) setAssigned(tx, item.categoryId, month, item.assignedCents, grouped);
+    return assignmentResult(tx, month, grouped.groupId);
   });
-  return { groupId: grouped.groupId };
 }
 
 /**
  * Move `amountCents` (> 0) in `month` from one envelope to another; `null` is "Zu verteilen":
- * from `null` assigns, to `null` takes money back. Assigning from `null` is guarded like
- * `assignMany`; `options.allowNegative` lifts that (only `coverOverspending` passes it).
+ * from `null` assigns (including overdraft planning), to `null` takes money back.
  */
 export function moveMoney(
   db: Executor,
@@ -151,19 +134,12 @@ export function moveMoney(
   toId: string | null,
   amountCents: number,
   ctx: AuditContext,
-  options: { allowNegative?: boolean } = {},
-): { groupId: string } {
+) {
   if (!Number.isSafeInteger(amountCents) || amountCents <= 0)
     throw new RangeError('The amount to move is a positive number of cents');
   if (fromId === toId) throw new CategoryRuleError('Quelle und Ziel sind gleich.');
   const grouped = withGroup(ctx);
-  runInTransaction(db, (tx) => {
-    if (!options.allowNegative)
-      guardAssignable(
-        tx,
-        month,
-        (fromId === null ? amountCents : 0) - (toId === null ? amountCents : 0),
-      );
+  return runInTransaction(db, (tx) => {
     for (const [id, sign] of [
       [fromId, -1],
       [toId, 1],
@@ -172,14 +148,13 @@ export function moveMoney(
       requireEnvelope(tx, id);
       setAssigned(tx, id, month, assignedOf(tx, id, month) + sign * amountCents, grouped);
     }
+    return assignmentResult(tx, month, grouped.groupId);
   });
-  return { groupId: grouped.groupId };
 }
 
 /**
  * Cover the overspending of `categoryId` in `month` from another envelope (at most what it has
- * available) or from "Zu verteilen" (`null`): at most what "Zu verteilen" holds, unless
- * `allowNegative` confirms taking it below 0. Returns the covered amount.
+ * available) or explicitly from "Zu verteilen" (`null`), including overdraft planning.
  */
 export function coverOverspending(
   db: Executor,
@@ -187,10 +162,10 @@ export function coverOverspending(
   categoryId: string,
   fromId: string | null,
   ctx: AuditContext,
-  options: { cardRule?: CardRule; allowNegative?: boolean; today?: string } = {},
-): { groupId: string; coveredCents: number } {
+  options: { cardRule?: CardRule; today?: string } = {},
+) {
   const grouped = withGroup(ctx);
-  const { allowNegative, today = todayInVienna(), ...read } = options;
+  const { today = todayInVienna(), ...read } = options;
   return runInTransaction(db, (tx) => {
     if (fromId !== null) assertCoverSource(tx, fromId);
     const [m] = budget(tx, [month], read);
@@ -199,20 +174,18 @@ export function coverOverspending(
     const cap = coverCap(tx, month, today);
     const available =
       fromId === null
-        ? allowNegative
-          ? overspent
-          : (m?.toBeAssignedCents ?? 0)
+        ? overspent
         : (coverCommitments(
             tx,
             month,
             today,
           )([{ categoryId: fromId, availableCents: m?.envelopes[fromId]?.availableCents ?? 0 }])[0]
             ?.freeCents ?? 0);
-    // Never more than the budget accounts really hold (balances plus allowed overdraft).
+    // Category sources retain their existing free-money and account limits.
     const coveredCents = Math.min(
       overspent,
       Math.max(0, available),
-      allowNegative && fromId === null ? Infinity : cap,
+      fromId === null ? Infinity : cap,
     );
     if (coveredCents === 0)
       throw new CategoryRuleError(
@@ -220,9 +193,7 @@ export function coverOverspending(
           ? '„Zu verteilen“ reicht nicht zum Decken.'
           : 'Die Quelle hat kein freies Geld zum Decken.',
       );
-    // The API always caps above; the repository override is only for reconciliation tests.
-    moveMoney(tx, month, fromId, categoryId, coveredCents, grouped, { allowNegative: true });
-    return { groupId: grouped.groupId, coveredCents };
+    return { ...moveMoney(tx, month, fromId, categoryId, coveredCents, grouped), coveredCents };
   });
 }
 

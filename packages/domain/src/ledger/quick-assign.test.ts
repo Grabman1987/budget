@@ -85,3 +85,45 @@ describe('Plan quick assignment', () => {
     ]);
   });
 });
+
+it('fully funds targets at positive, zero and negative Zu verteilen without changing other modes', () => {
+  for (const tba of [1, 0, -500]) {
+    const rows = [
+      {
+        categoryId: 'a',
+        assignedCents: 10,
+        needCents: 101,
+        target: {},
+        quickAssign: {
+          lastMonthCents: 0,
+          averageCents: 0,
+          ghostCents: 101,
+          ghostSource: 'target' as const,
+          historyMonths: [],
+        },
+      },
+      {
+        categoryId: 'b',
+        assignedCents: 0,
+        needCents: 202,
+        target: {},
+        quickAssign: {
+          lastMonthCents: 0,
+          averageCents: 0,
+          ghostCents: 202,
+          ghostSource: 'target' as const,
+          historyMonths: [],
+        },
+      },
+    ];
+    expect(quickAssignPlan(rows, 'target', tba)).toEqual({
+      items: [
+        { categoryId: 'a', assignedCents: 111 },
+        { categoryId: 'b', assignedCents: 202 },
+      ],
+      changedCount: 2,
+      openCount: 0,
+      missingCents: 0,
+    });
+  }
+});
