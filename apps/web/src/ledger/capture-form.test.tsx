@@ -105,6 +105,13 @@ it('shifts mobile keypad digits into cents and retains paste, validation and sav
   await user.keyboard(',25');
   await user.tab();
   expect(amount.value).toBe('15,75');
+  // Native replacement may focus before selecting; focus must leave that operation alone.
+  amount.setSelectionRange(0, 0);
+  act(() => amount.focus());
+  expect(amount.selectionStart).toBe(0);
+  fireEvent.pointerUp(amount);
+  expect(amount.selectionStart).toBe(5);
+  await user.tab();
   // Replacing a selected amount after refocus must not append to the existing cents.
   amount.setSelectionRange(0, amount.value.length);
   act(() => amount.focus());

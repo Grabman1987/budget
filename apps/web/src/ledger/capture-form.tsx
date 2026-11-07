@@ -984,17 +984,6 @@ export function CaptureForm({
                 onInputCapture={(event) => {
                   amountInputEvent.current = event.nativeEvent as InputEvent;
                 }}
-                onFocusCapture={(event) => {
-                  if (
-                    mobileRedesign &&
-                    event.target instanceof HTMLInputElement &&
-                    event.target.selectionStart === event.target.selectionEnd
-                  )
-                    event.target.setSelectionRange(
-                      event.target.value.length,
-                      event.target.value.length,
-                    );
-                }}
                 onPointerUp={(event) => {
                   if (
                     mobileRedesign &&
