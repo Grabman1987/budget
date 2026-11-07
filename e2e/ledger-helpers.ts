@@ -8,6 +8,19 @@ import { expect, type Locator, type Page, type TestInfo } from '@playwright/test
  */
 export const MIN_TARGET_PX = 43.9;
 
+/** Account capture uses the retained global entry in ON; OFF keeps its local button. */
+export async function openAccountCapture(page: Page) {
+  if (!(await redesignLoaded(page))) {
+    await page.getByRole('button', { name: 'Buchung erfassen', exact: true }).click();
+  } else if (await page.evaluate(() => matchMedia('(pointer: coarse)').matches)) {
+    // The FAB reappears on upward scroll, including after a long account register.
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await page.getByRole('link', { name: 'Buchung erfassen', exact: true }).click();
+  } else {
+    await page.getByTitle('Buchung erfassen (N)', { exact: true }).click();
+  }
+}
+
 /** Phone filters live in a sheet; desktop keeps the inline controls. */
 export async function openLedgerFilters(page: Page) {
   await page.getByLabel('In Buchungen suchen').waitFor({ state: 'visible' });

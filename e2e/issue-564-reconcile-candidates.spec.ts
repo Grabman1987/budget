@@ -2,6 +2,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
 
+test.use({ ledgerToday: '2026-09-30' });
+
 test('564 partial pending and duplicate candidates precede corrections, retain exact Undo and explicit zero locking', async ({
   page,
   isolatedLedger,
@@ -51,7 +53,7 @@ test('564 partial pending and duplicate candidates precede corrections, retain e
   const open = async (id: string, statement: string) => {
     await page.goto(`/konten/${id}?pruefen=reconcile`);
     await expect(check).toBeVisible();
-    await check.getByLabel('Stichtag', { exact: true }).fill('2026-09-30');
+    await expect(check.getByLabel('Stichtag', { exact: true })).toHaveCount(0);
     await check.getByLabel('Saldo laut Bank', { exact: true }).fill(statement);
   };
   let postedChecks = 0;
@@ -207,27 +209,27 @@ test('canonical uncategorised correction ignores old preferences and retains exa
   const correctionNote = check.locator('.text-muted').filter({ hasText: 'Eine echte Buchung' });
   const open = async (id: string) => {
     await page.goto(`/konten/${id}?pruefen=reconcile`);
-    await check.getByLabel('Stichtag', { exact: true }).fill('2026-09-30');
+    await expect(check.getByLabel('Stichtag', { exact: true })).toHaveCount(0);
     await check.getByLabel('Saldo laut Bank', { exact: true }).fill('987,66');
     await expect(correctionNote).toBeVisible();
-    await expect(check.getByLabel('Kategorie für den Ausgleich')).toHaveCount(0);
+    await expect(check.getByLabel('Kategorie für den Ausgleich')).toBeVisible();
     await expect(
       check.locator('.text-muted').filter({ hasText: 'Eine echte Buchung' }),
     ).toContainText('−12,34 €');
   };
   await open(first.id);
-  await expect(correctionNote).toContainText('Zu verteilen (ohne Kategorie)');
+  await expect(correctionNote).toContainText('Zu verteilen');
   await page.evaluate(
     ({ id, categoryId }) => localStorage.setItem(`budget-reconcile-category:${id}`, categoryId),
     { id: first.id, categoryId: category.id },
   );
   await check.getByRole('button', { name: 'Schließen', exact: true }).click();
   await open(second.id);
-  await expect(correctionNote).toContainText('Zu verteilen (ohne Kategorie)');
+  await expect(correctionNote).toContainText('Zu verteilen');
   await open(tracking.id);
-  await expect(correctionNote).toContainText('keiner Kategorie');
+  await expect(correctionNote).toContainText('Ohne Kategorie');
   await open(first.id);
-  await expect(correctionNote).toContainText('Zu verteilen (ohne Kategorie)');
+  await expect(correctionNote).toContainText('Zu verteilen');
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
@@ -287,5 +289,5 @@ test('canonical uncategorised correction ignores old preferences and retains exa
   await expect.poll(read).toEqual([]);
   await request('PATCH', `/categories/${category.id}`, { hidden: true });
   await open(first.id);
-  await expect(correctionNote).toContainText('Zu verteilen (ohne Kategorie)');
+  await expect(correctionNote).toContainText('Zu verteilen');
 });

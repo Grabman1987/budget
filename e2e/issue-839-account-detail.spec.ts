@@ -44,30 +44,14 @@ for (const theme of ['light', 'dark'] as const) {
     const redesign = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
     await expect(page.locator('[data-redesign="account-detail"]')).toHaveCount(redesign ? 1 : 0);
     if (redesign) {
-      const originalViewport = page.viewportSize()!;
-      for (const width of [390, 1280]) {
-        await page.setViewportSize({ width, height: 900 });
-        const trigger = page.getByLabel('Kontoaktionen', { exact: true });
-        await trigger.click();
-        const menu = page.locator('.account-actions-menu > .konten-menu-content');
-        await expect(menu).toBeVisible();
-        const bounds = await menu.evaluate((element) => {
-          const popup = element.getBoundingClientRect();
-          const row = element.closest('.kacct-actions')!.getBoundingClientRect();
-          const trigger = element.parentElement!.querySelector('summary')!.getBoundingClientRect();
-          return {
-            insideRow: popup.left >= row.left && popup.right <= row.right,
-            insideViewport: popup.left >= 0 && popup.right <= innerWidth,
-            belowTrigger: popup.top >= trigger.bottom,
-          };
-        });
-        expect(bounds).toEqual({ insideRow: true, insideViewport: true, belowTrigger: true });
-        await trigger.press('Escape');
-        await expect(menu).toBeHidden();
-        await expect(trigger).toBeFocused();
-      }
-      await page.setViewportSize(originalViewport);
-      await page.getByLabel('Kontoaktionen', { exact: true }).click();
+      await expect(page.getByLabel('Kontoaktionen', { exact: true })).toHaveCount(0);
+      await expect(
+        page.locator('.kacct-actions').getByRole('button', { name: 'Buchung erfassen' }),
+      ).toHaveCount(0);
+      await page.getByText('Datenstand und Monatsbewegung', { exact: true }).click();
+      await expect(
+        page.getByRole('link', { name: 'Kontoeinstellungen', exact: true }),
+      ).toBeVisible();
       const jump = page.getByRole('link', { name: 'Buchungen ansehen', exact: true });
       await jump.focus();
       await expect(jump).toBeFocused();

@@ -16,7 +16,7 @@ import { createAccount, undoGroup, type AccountInput } from './api';
 import { ACCOUNT_TYPE_LABEL, errorText } from './labels';
 import { accountsQuery, LEDGER_KEY } from './queries';
 import { ACCOUNT_TYPES, type AccountType } from './types';
-import { SettingsFormDialog } from '../pages/settings-form-dialog';
+import { AccountFormDialog } from './account-form-dialog';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { SettingsDraftGuard } from '../pages/settings-draft-guard';
 
@@ -80,7 +80,7 @@ export function AccountFormPanel({ open, onClose }: { open: boolean; onClose: ()
       onClose();
   };
   return (
-    <SettingsFormDialog
+    <AccountFormDialog
       open={open}
       onClose={onClose}
       title="Konto anlegen"
@@ -94,7 +94,7 @@ export function AccountFormPanel({ open, onClose }: { open: boolean; onClose: ()
     >
       {REDESIGN_ENABLED && open && <SettingsDraftGuard dirty={state.dirty} busy={state.busy} />}
       <AccountForm onDone={onClose} onCancel={close} onState={onState} />
-    </SettingsFormDialog>
+    </AccountFormDialog>
   );
 }
 

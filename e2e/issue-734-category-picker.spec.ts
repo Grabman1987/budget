@@ -1,4 +1,5 @@
 import {
+  openAccountCapture,
   redesignLoaded,
   accountBankReview,
   bankPreviewControl,
@@ -329,7 +330,7 @@ for (const profile of ['configured', 'desktop1440'] as const) {
           expect(await balance(request, origin, account.id)).toBe(50000);
           expect(active()).toEqual(before);
           expect(opened.db.select().from(schema.auditLog).all()).toEqual(auditBefore);
-          await page.getByRole('button', { name: 'Buchung erfassen', exact: true }).click();
+          await openAccountCapture(page);
           const dialog = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
           const field = dialog.getByRole('combobox', { name: 'Kategorie', exact: true });
           const redesign = await redesignLoaded(page);

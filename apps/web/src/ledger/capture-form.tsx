@@ -1,3 +1,4 @@
+import { DialogClose } from './dialog-close';
 import { BookingAssignmentReview } from '../assignment/review';
 import {
   useAmountPrivacy,
@@ -19,7 +20,6 @@ import {
   Check,
   ChevronDown,
   Trash2,
-  X,
   Repeat2,
   Plus,
   MoreHorizontal,
@@ -834,17 +834,7 @@ export function CaptureForm({
       </div>
     </details>
   );
-  const closeControl = (
-    <button
-      type="button"
-      className="icon-btn bk-close"
-      aria-label="Schließen"
-      title="Schließen"
-      onClick={requestClose}
-    >
-      <X size={16} strokeWidth={1.75} aria-hidden="true" />
-    </button>
-  );
+  const closeControl = <DialogClose onClick={requestClose} />;
   const kindHeader = (
     <div className="bk-head">
       {!REDESIGN_ENABLED && !isTransfer && (
