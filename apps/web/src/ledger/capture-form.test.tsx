@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@budget/ui';
@@ -105,7 +105,17 @@ it('shifts mobile keypad digits into cents and retains paste, validation and sav
   await user.keyboard(',25');
   await user.tab();
   expect(amount.value).toBe('15,75');
-  fireEvent.change(amount, { target: { value: '' } });
+  // Replacing a selected amount after refocus must not append to the existing cents.
+  amount.setSelectionRange(0, amount.value.length);
+  act(() => amount.focus());
+  expect(amount.selectionStart).toBe(0);
+  expect(amount.selectionEnd).toBe(5);
+  fireEvent.pointerUp(amount);
+  expect(amount.selectionStart).toBe(0);
+  expect(amount.selectionEnd).toBe(5);
+  await user.paste('12,34');
+  expect(amount.value).toBe('12,34');
+  await user.clear(amount);
   expect(amount.getAttribute('aria-invalid')).toBe('false');
   expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
   await user.click(amount);

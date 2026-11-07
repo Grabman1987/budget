@@ -344,6 +344,7 @@ export function Combobox({
               className="combo-list"
               id={listId}
               role="listbox"
+              tabIndex={inlineCapture ? -1 : undefined}
               aria-label={`${label}, Vorschläge`}
             >
               {hintHeading !== undefined && shown.length > 0 && (

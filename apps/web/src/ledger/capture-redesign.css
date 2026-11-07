@@ -1021,3 +1021,11 @@
     grid-column: 1 / -1;
   }
 }
+
+/* Keep the primary rows visible when the software keyboard reduces the sheet. */
+@media (max-width: 767px) and (max-height: 500px) {
+  .bkform-redesign .bk-body,
+  .bkform-redesign .bk-cols {
+    padding-block-start: 0;
+  }
+}

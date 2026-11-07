@@ -73,7 +73,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   // A split booking: 30,00 as 20,00 Essen and 10,00 Reise; a wrong sum is refused first.
   await openAccountCapture(page);
   panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
-  await panel.getByLabel('Betrag', { exact: true }).fill('30');
+  await panel.getByLabel('Betrag', { exact: true }).fill('30,00');
   await panel.getByLabel('Empfänger').fill(`Splitmarkt ${tag}`);
   await (await categoryLineControl(panel)).click();
   await panel.getByLabel('Kategorie 1').fill('Essen');
@@ -98,7 +98,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await panel.getByRole('button', { name: 'Umbuchung' }).click();
   await panel.getByLabel('Nach Konto').selectOption({ label: spar });
-  await panel.getByLabel('Betrag', { exact: true }).fill('100');
+  await panel.getByLabel('Betrag', { exact: true }).fill('100,00');
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByRole('row', { name: /Umbuchung nach/ })).toBeVisible();
   await expect(balance(page)).toHaveText('857,50 €');
@@ -127,7 +127,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   // Edit the amount in the panel; the running balance follows.
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   panel = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
-  await panel.getByLabel('Betrag', { exact: true }).fill('10');
+  await panel.getByLabel('Betrag', { exact: true }).fill('10,00');
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(balance(page)).toHaveText('860,00 €');
 
@@ -259,9 +259,9 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
     await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(page.getByRole('row', { name: new RegExp(payee) }).first()).toBeVisible();
   };
-  await book(`Laden ${tag}`, '20');
-  await book(`Doppel ${tag}`, '5');
-  await book(`Doppel ${tag}`, '5');
+  await book(`Laden ${tag}`, '20,00');
+  await book(`Doppel ${tag}`, '5,00');
+  await book(`Doppel ${tag}`, '5,00');
   await expect(balance(page)).toHaveText('470,00 €');
 
   // The bank knows "Doppel" once: the app is 5,00 too low, and the duplicate explains it.
@@ -286,7 +286,7 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
     .getByRole('button', { name: /Betrag ändern/ })
     .click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
-  await edit.getByLabel('Betrag', { exact: true }).fill('21');
+  await edit.getByLabel('Betrag', { exact: true }).fill('21,00');
   await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(edit.getByRole('alert')).toContainText('geprüft');
   await edit.getByLabel('Trotzdem ändern').check();
