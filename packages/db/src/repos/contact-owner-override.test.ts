@@ -15,6 +15,7 @@ import {
 import { undo } from './audit';
 import { bookedBalance } from './reconciliation';
 import { budgetSummary } from './budget';
+import { netWorthAsOf } from './portfolio';
 
 let opened: OpenedDatabase;
 const today = '2026-09-30';
@@ -286,9 +287,12 @@ it('pins unrelated later floating receipt allocations while reopening an earlier
   expect(statement()).toEqual(before);
 });
 
-it('waives the open remainder of a partly settled category share, preserving gross spending and Undo', () => {
+it('waives the open remainder while preserving spending and net worth through Undo/redo', () => {
+  expect(netWorthAsOf(opened.db, today).totalCents).toBe(100000);
   const first = outlay();
+  expect(netWorthAsOf(opened.db, today).totalCents).toBe(98999);
   receipt();
+  expect(netWorthAsOf(opened.db, today).totalCents).toBe(99700);
   const source = getBooking(opened.db, first.bookingId);
   const balance = bookedBalance(opened.db, 'giro', today);
   const rta = budgetSummary(opened.db, '2026-09').summary.toBeAssignedCents;
@@ -310,16 +314,20 @@ it('waives the open remainder of a partly settled category share, preserving gro
     ['auslagen', -299],
   ]);
   expect(bookedBalance(opened.db, 'giro', today)).toBe(balance);
+  expect(netWorthAsOf(opened.db, today).totalCents).toBe(99700);
   expect(budgetSummary(opened.db, '2026-09').summary.toBeAssignedCents).toBe(rta);
   expect(getContactStatement(opened.db, 'k1', '2026-09-29').balanceCents).toBe(300);
   const undone = undo(opened.db, { groupId: waived.groupId }, testCtx);
   expect(statement().balanceCents).toBe(300);
+  expect(netWorthAsOf(opened.db, today).totalCents).toBe(99700);
   undo(opened.db, { groupId: undone.groupId }, testCtx);
   expect(statement().balanceCents).toBe(1);
+  expect(netWorthAsOf(opened.db, today).totalCents).toBe(99700);
 });
 
 it('waives standalone legacy Auslagen only into an explicitly selected expense category', () => {
   const first = outlay(1001, 'auslagen');
+  expect(netWorthAsOf(opened.db, today).totalCents).toBe(98999);
   expect(() =>
     waiveContactOutlay(opened.db, 'k1', first.id, { amountCents: 501 }, testCtx, today),
   ).toThrow(/Ausgabenkategorie/);
@@ -332,6 +340,7 @@ it('waives standalone legacy Auslagen only into an explicitly selected expense c
     today,
   );
   expect(statement().balanceCents).toBe(500);
+  expect(netWorthAsOf(opened.db, today).totalCents).toBe(98999);
   expect(
     getBooking(opened.db, waived.bookingId)?.splits.map((s) => [s.categoryId, s.amountCents]),
   ).toEqual([
@@ -350,6 +359,7 @@ it('waives standalone legacy Auslagen only into an explicitly selected expense c
   ).toThrow();
   undo(opened.db, { groupId: waived.groupId }, testCtx);
   expect(statement().balanceCents).toBe(1001);
+  expect(netWorthAsOf(opened.db, today).totalCents).toBe(98999);
 });
 
 it('authorizes only allocation changes on locked bank rows and retains the authorization for Undo/redo', () => {
@@ -358,6 +368,7 @@ it('authorizes only allocation changes on locked bank rows and retains the autho
   updateBooking(opened.db, first.bookingId, { status: 'reconciled' }, testCtx);
   updateBooking(opened.db, paid.bookingId, { status: 'reconciled' }, testCtx);
   const bankFacts = opened.db.select().from(booking).all();
+  expect(netWorthAsOf(opened.db, today).totalCents).toBe(99700);
   const snapshot = opened.sqlite.serialize();
   expect(() =>
     reallocateContactRepayment(opened.db, 'k1', paid.id, { allocations: [] }, testCtx, today),
@@ -389,7 +400,9 @@ it('authorizes only allocation changes on locked bank rows and retains the autho
     { unlock: true },
   );
   expect(statement().balanceCents).toBe(-701);
+  expect(netWorthAsOf(opened.db, today).totalCents).toBe(99700);
   undo(opened.db, { groupId: waived.groupId }, testCtx);
+  expect(netWorthAsOf(opened.db, today).totalCents).toBe(99700);
   const undone = undo(opened.db, { groupId: changed.groupId }, testCtx);
   expect(statement().outlays.map((o) => o.remainingCents)).toEqual([300]);
   undo(opened.db, { groupId: undone.groupId }, testCtx);

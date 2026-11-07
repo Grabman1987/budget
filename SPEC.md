@@ -17,13 +17,13 @@ an explicitly selected expense category. No income is created. Prior month carry
 is preserved; category spending and subsequent carry follow the existing envelope
 rules. Example: a synthetic 1,001-cent share with a 701-cent repayment has 300 cents
 open; waiving 299 leaves exactly 1 cent. Account balances remain unchanged.
-The existing net-worth resolver excludes derived contact claims (PRODUCT decision
-01.10.2026); adding them is a separate central valuation-model decision, not a
-zero-cash ledger adjustment. See [operator contract](docs/ops.md#1211-contact-allocation-and-credit-decisions-operator-task).
-
-Open acceptance decision for #978: the requested net-worth decrease on waiver is
-not implemented under that existing model. Owner clarification is required before
-this slice can claim that criterion or change the shared valuation model.
+Owner valuation decision (2026-11-07, #978): keep the existing account/holdings
+net-worth model, which excludes derived contact claims (PRODUCT decision
+01.10.2026). Paying an outlay already reduces net worth until actual repayment.
+Waiving it as a gift to the contact therefore leaves net worth unchanged: it only
+removes the waived receivable from the contact statement and keeps the expense
+in its category. This resolves the earlier waiver/net-worth acceptance question;
+no central valuation change is required. See [operator contract](docs/ops.md#1211-contact-allocation-and-credit-decisions-operator-task).
 
 Owner shared-expense decision (2026-11-06, #963): new category/contact-share
 purchases retain the original category on every share, charging the gross purchase

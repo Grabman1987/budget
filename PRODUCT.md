@@ -8,8 +8,12 @@ editing bank facts. Existing category purchases keep their original expense;
 standalone Auslagen require an explicit expense category. Every action is audited
 and undoable. Locked rows require an allocation-only confirmation; their bank
 status stays locked. Synthetic example: of 1,001 cents, 701 are repaid and 299 are
-waived, leaving 1 cent owed. The existing account/holdings net-worth model excludes
-derived contact claims; this action changes the receivable, not bank balances.
+waived, leaving 1 cent owed. Owner valuation decision (2026-11-07): retain the
+existing account/holdings net-worth model, which excludes derived contact claims.
+An outlay already reduces net worth when paid, until actual repayment. Waiving it
+as a gift to the contact leaves net worth and bank balances unchanged, removes
+the waived receivable from the contact statement and keeps the expense in its
+category.
 
 Owner decision (2026-11-06, #963): shared purchases keep one category with contact
 shares. The gross amount stays in that category until repaid. Repayments return
