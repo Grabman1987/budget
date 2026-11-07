@@ -23,6 +23,8 @@ import {
   Repeat2,
   Plus,
   MoreHorizontal,
+  Store,
+  Landmark,
 } from 'lucide-react';
 import {
   useEffect,
@@ -215,6 +217,8 @@ export function CaptureForm({
   // Guards save() itself: held or repeated Ctrl+Enter must not send the booking twice.
   const saving = useRef(false);
   const isPhone = useIsPhone();
+  const mobileRedesign = REDESIGN_ENABLED && isPhone;
+  const [amountInteracted, setAmountInteracted] = useState(false);
   const [moreOpen, setMoreOpen] = useState(
     !REDESIGN_ENABLED && Boolean(draft.projectId || draft.flag),
   );
@@ -331,7 +335,9 @@ export function CaptureForm({
   });
   const lineProblem = !lineValidation.ok ? lineValidation.errors.splits : undefined;
   const blocked = !isTransfer && Boolean(lineProblem);
-  const showLineProblem = blocked && Boolean(draft.amount.trim() || errors.splits);
+  const showLineProblem =
+    blocked &&
+    (Boolean(draft.amount.trim() || errors.splits) || (mobileRedesign && amountInteracted));
   const splitError = errors.splits === REMAINDER_SAVE_ERROR && !blocked ? undefined : errors.splits;
 
   const draftDirty = queued
@@ -453,6 +459,7 @@ export function CaptureForm({
 
   const save = async (andNew: boolean) => {
     if (saving.current) return;
+    setAmountInteracted(true);
     if (!editing && !from) return setErrors({ account: 'Bitte ein verfügbares Konto wählen.' });
     if (blocked) return setErrors({ splits: REMAINDER_SAVE_ERROR });
     const filled = {
@@ -525,6 +532,7 @@ export function CaptureForm({
         projectId: d.projectId,
       }));
       setErrors({});
+      setAmountInteracted(false);
       requestAnimationFrame(() =>
         formRef.current?.querySelector<HTMLElement>('.amount-input')?.focus(),
       );
@@ -718,6 +726,9 @@ export function CaptureForm({
   );
   const dateAndRepeat = (
     <div className="bk-dates" data-enter-skip>
+      {mobileRedesign && (
+        <CalendarDays className="bk-mobile-row-icon" size={16} aria-hidden="true" />
+      )}
       <div className="bk-date-row">
         <DateField
           draft={draft}
@@ -863,6 +874,10 @@ export function CaptureForm({
       // React's autoFocus runs before showModal; the native dialog needs the attribute itself.
       ref={(form) => {
         formRef.current = form;
+        // Keep the shared arithmetic field unchanged outside this mobile capture surface.
+        form?.querySelectorAll<HTMLInputElement>('.amount-input').forEach((input) => {
+          input.inputMode = mobileRedesign ? 'decimal' : 'text';
+        });
         const amount = form?.querySelector<HTMLInputElement>('.amount-input');
         if (!editing && amount && !amount.autofocus) {
           amount.autofocus = true;
@@ -897,7 +912,7 @@ export function CaptureForm({
       )}
       {!REDESIGN_ENABLED && kindHeader}
       <div className="bk-body kform">
-        {REDESIGN_ENABLED && kindHeader}
+        {REDESIGN_ENABLED && !mobileRedesign && kindHeader}
         {editing?.source === 'bank' && editing.status !== 'reconciled' && (
           <BookingAssignmentReview
             id={editing.id}
@@ -928,13 +943,17 @@ export function CaptureForm({
             {REDESIGN_ENABLED ? (
               <div className="bk-amount-primary">
                 {amountField}
-                {!isTransfer && statusControl()}
+                {!isTransfer && !mobileRedesign && statusControl()}
               </div>
             ) : (
               amountField
             )}
+            {mobileRedesign && kindHeader}
             {!isTransfer && (
               <div className="bk-payee">
+                {mobileRedesign && (
+                  <Store className="bk-mobile-row-icon" size={16} aria-hidden="true" />
+                )}
                 <Combobox
                   label={draft.kind === 'income' ? 'Von (Zahler)' : 'Empfänger'}
                   value={draft.payee}
@@ -962,13 +981,17 @@ export function CaptureForm({
                 />
               </div>
             )}
+            {mobileRedesign && !isTransfer && <div className="bk-col-lines">{lineEditor}</div>}
             <div className="bk-context">
               <div className="bk-context-fields">
-                {REDESIGN_ENABLED && !isTransfer && dateAndRepeat}
+                {REDESIGN_ENABLED && !mobileRedesign && !isTransfer && dateAndRepeat}
                 <div
                   className={isTransfer ? 'kform-pair' : 'bk-account-row'}
                   {...(isTransfer ? {} : { 'data-enter-skip': true })}
                 >
+                  {mobileRedesign && !isTransfer && (
+                    <Landmark className="bk-mobile-row-icon" size={16} aria-hidden="true" />
+                  )}
                   <Field
                     label={
                       isTransfer
@@ -1047,24 +1070,31 @@ export function CaptureForm({
                   ) : (
                     statusControl()
                   ))}
-                {(!REDESIGN_ENABLED || isTransfer) && dateAndRepeat}
+                {(!REDESIGN_ENABLED || mobileRedesign || isTransfer) && dateAndRepeat}
+                {mobileRedesign && !isTransfer && (
+                  <div className="bk-mobile-status">
+                    <Field label="Status">{({ id }) => statusControl(id)}</Field>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-          <div className="bk-col-lines">
-            {isTransfer && showCategory && (
-              <CategoryCombobox
-                label="Kategorie"
-                capturePicker
-                categories={pickable}
-                leading={leading}
-                selectedName={categoryName}
-                error={errors.category}
-                onSelect={pickCategory}
-              />
-            )}
-            {!isTransfer && lineEditor}
-          </div>
+          {(!mobileRedesign || isTransfer) && (
+            <div className="bk-col-lines">
+              {isTransfer && showCategory && (
+                <CategoryCombobox
+                  label="Kategorie"
+                  capturePicker
+                  categories={pickable}
+                  leading={leading}
+                  selectedName={categoryName}
+                  error={errors.category}
+                  onSelect={pickCategory}
+                />
+              )}
+              {!isTransfer && !mobileRedesign && lineEditor}
+            </div>
+          )}
           <div className="bk-col-memo">
             <Field label="Notiz">
               {({ id }) => (

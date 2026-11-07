@@ -164,11 +164,17 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   const statusBox = await panel
     .getByRole('button', { name: 'Bestätigt', exact: true })
     .boundingBox();
-  // The checkmark sits right of the account select, on the same row.
-  expect(statusBox!.x).toBeGreaterThan(accountBox!.x + accountBox!.width);
-  expect(
-    Math.abs(statusBox!.y + statusBox!.height - accountBox!.y - accountBox!.height),
-  ).toBeLessThan((await redesignLoaded(page)) ? 12 : 2);
+  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768) {
+    const dateBox = await panel.getByLabel('Datum', { exact: true }).boundingBox();
+    await expect(panel.locator('.bk-mobile-status label')).toHaveText('Status');
+    expect(statusBox!.y).toBeGreaterThan(dateBox!.y + dateBox!.height);
+  } else {
+    // Desktop and OFF keep the checkmark beside the amount/account field.
+    expect(statusBox!.x).toBeGreaterThan(accountBox!.x + accountBox!.width);
+    expect(
+      Math.abs(statusBox!.y + statusBox!.height - accountBox!.y - accountBox!.height),
+    ).toBeLessThan((await redesignLoaded(page)) ? 12 : 2);
+  }
   await panel.getByLabel('Betrag', { exact: true }).fill('2,03');
   await panel.getByLabel('Empfänger', { exact: true }).fill('Kiosk Muster');
   await pickCategory(panel, category.name);

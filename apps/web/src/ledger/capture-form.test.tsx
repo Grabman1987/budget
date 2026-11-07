@@ -10,9 +10,13 @@ import * as ledgerApi from './api';
 // jsdom has no native media query implementation.
 Object.defineProperty(window, 'matchMedia', {
   configurable: true,
-  value: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
+  value: (query: string) => ({
+    matches: flags.phone && query === '(max-width: 767px)',
+    addEventListener() {},
+    removeEventListener() {},
+  }),
 });
-const flags = vi.hoisted(() => ({ REDESIGN_ENABLED: false }));
+const flags = vi.hoisted(() => ({ REDESIGN_ENABLED: false, phone: false }));
 vi.mock('../shell/redesign-flag', () => flags);
 
 const create = vi.hoisted(() => vi.fn());
@@ -56,11 +60,55 @@ vi.mock('../pwa/queue-store', () => ({
 }));
 beforeEach(() => {
   flags.REDESIGN_ENABLED = false;
+  flags.phone = false;
   create.mockReset();
   patch.mockReset();
   patch.mockResolvedValue({ groupId: 'synthetic-patch' });
   create.mockResolvedValue({ bookings: [], groupId: 'synthetic-group' });
 });
+
+it.each(['save'])(
+  'waits for amount %s before showing the mobile missing-line-amount error',
+  async (trigger) => {
+    flags.REDESIGN_ENABLED = true;
+    flags.phone = true;
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <ToastProvider>
+          <CaptureForm
+            state={{ mode: 'create', accountId: 'giro' }}
+            onDone={vi.fn()}
+            dirtyRef={{ current: false }}
+            discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+            requestClose={vi.fn()}
+          />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+    await screen.findByRole('option', { name: 'Giro Muster' });
+    const amount = screen.getByLabelText('Betrag', { exact: true });
+    expect(amount.getAttribute('inputmode')).toBe('decimal');
+    expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
+    expect((screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    fireEvent.blur(amount);
+    expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
+    void trigger;
+    fireEvent.keyDown(amount, { key: 'Enter', ctrlKey: true });
+    expect(screen.getByText('Jede Zeile braucht einen Betrag.')).toBeTruthy();
+    expect(create).not.toHaveBeenCalled();
+    fireEvent.change(amount, { target: { value: '12,34' } });
+    expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Einnahme' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Speichern und neu' }));
+    await waitFor(() => expect((amount as HTMLInputElement).value).toBe(''));
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
+  },
+);
 it.each(['1.10.2026', '1.10.26', '01.10.', '1.10.'])(
   'saves the short German date %s as ISO through Ctrl+Enter',
   async (text) => {
