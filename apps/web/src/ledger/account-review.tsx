@@ -3,7 +3,7 @@ import { lastDayOfMonth, monthOf } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { CircleCheck } from 'lucide-react';
 import { useState } from 'react';
-import { SettingsFormDialog } from '../pages/settings-form-dialog';
+import { AccountFormDialog } from './account-form-dialog';
 import { canReconcile } from './labels';
 import { ManualValue } from './manual-value';
 import { ReconcilePanel } from './reconcile-panel';
@@ -83,7 +83,7 @@ export function AccountReview({
         onClose={closeCheck}
       />
       {manual && (
-        <SettingsFormDialog
+        <AccountFormDialog
           open={!account.closedAt && (updatingValue || search.pruefen === 'value')}
           onClose={closeCheck}
           title={`Wert aktualisieren · ${account.name}`}
@@ -104,7 +104,7 @@ export function AccountReview({
             }
             onDone={closeCheck}
           />
-        </SettingsFormDialog>
+        </AccountFormDialog>
       )}
     </>
   );

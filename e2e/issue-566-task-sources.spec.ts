@@ -297,15 +297,22 @@ for (const [profile, desired, viewport] of [
       );
       const reminder = page.getByRole('link', { name: 'Kontostand prüfen', exact: true });
       await hit(reminder);
+      await reminder.click();
+      const check = page.getByRole('dialog', {
+        name: 'Kontostand prüfen · Muster Prüfkonto',
+        exact: true,
+      });
+      await expect(check).toBeVisible();
+      const amount = check.getByLabel('Saldo laut Bank', { exact: true });
+      await expect(amount).toHaveValue('');
+      await expect(amount).toHaveAttribute('placeholder', '987,99');
+      expect(previewReads).toEqual([]);
       const previewReady = page.waitForResponse(
         (response) =>
           response.request().method() === 'POST' &&
           new URL(response.url()).pathname === previewPath,
       );
-      await reminder.click();
-      await expect(
-        page.getByRole('dialog', { name: 'Kontostand prüfen · Muster Prüfkonto', exact: true }),
-      ).toBeVisible();
+      await amount.fill('987,99');
       expect((await previewReady).status()).toBe(200);
       await page.goto('/konten/pruefen?teil=umsaetze');
       const row = page.getByTestId('inbox-row').filter({ hasText: 'Synthetic assignment 566' });

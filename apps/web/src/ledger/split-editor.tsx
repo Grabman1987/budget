@@ -7,7 +7,7 @@
   maskMoneyText,
 } from '@budget/ui';
 import { parseAmount } from '@budget/domain';
-import { ChevronDown, Plus, X, Info } from 'lucide-react';
+import { ChevronDown, Plus, X, Info, Tag } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { KontenMenu } from './konten-menu';
 import { useRef, useState, type Dispatch, type SetStateAction } from 'react';
@@ -356,6 +356,9 @@ export function SplitEditor({
             aria-label={`Zeile ${n}`}
           >
             <div className={`bk-line-fields${multiple ? ' is-multiple' : ''}`}>
+              {compact && !multiple && (
+                <Tag className="bk-mobile-row-icon" size={16} aria-hidden="true" />
+              )}
               {multiple && (
                 <AmountInput
                   label={`Betrag ${n}`}

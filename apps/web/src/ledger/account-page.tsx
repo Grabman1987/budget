@@ -15,14 +15,7 @@ import {
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearch, useNavigate } from '@tanstack/react-router';
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  MoreHorizontal,
-  Settings2,
-} from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Plus, Settings2 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ACCOUNT_PAGE } from '../nav/pages';
 import { KontenFrame } from './konten-frame';
@@ -367,32 +360,11 @@ function AccountBody({ account, bankReview }: { account: AccountRow; bankReview?
           </p>
         </div>
         <div className="kacct-actions">
-          {REDESIGN_ENABLED && (
-            <>
-              <KontenMenu
-                label="Kontoaktionen"
-                icon={<MoreHorizontal size={16} aria-hidden="true" />}
-                iconOnly
-                className="account-actions-menu"
-              >
-                <a className="btn btn-ghost" href={`#account-register-${account.id}`}>
-                  Buchungen ansehen
-                </a>
-                <AppLink className="btn btn-ghost" to="/einstellungen/konten">
-                  Kontoeinstellungen
-                </AppLink>
-              </KontenMenu>
-              <AccountReview account={account} badgeOnPhone />
-            </>
-          )}
-          {!account.closedAt && (
+          {REDESIGN_ENABLED && <AccountReview account={account} badgeOnPhone />}
+          {!REDESIGN_ENABLED && !account.closedAt && (
             <Button onClick={() => setPanel({ mode: 'create', accountId: account.id })}>
               <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
-              {REDESIGN_ENABLED ? (
-                <span className="sr-only">Buchung erfassen</span>
-              ) : (
-                'Buchung erfassen'
-              )}
+              Buchung erfassen
             </Button>
           )}
         </div>
@@ -645,6 +617,14 @@ function AccountBody({ account, bankReview }: { account: AccountRow; bankReview?
       {REDESIGN_ENABLED && (
         <details className="account-value-details">
           <summary>Datenstand und Monatsbewegung</summary>
+          <div className="panel-actions">
+            <a className="btn btn-ghost" href={`#account-register-${account.id}`}>
+              Buchungen ansehen
+            </a>
+            <AppLink className="btn btn-ghost" to="/einstellungen/konten">
+              Kontoeinstellungen
+            </AppLink>
+          </div>
           {monthFigure}
           <AccountFreshness
             lastReconciledOn={account.lastReconciledOn}

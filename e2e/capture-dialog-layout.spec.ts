@@ -104,18 +104,23 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   const accountSelect = dialog.getByLabel('Bezahlt von');
   await accountSelect.selectOption(account.id);
   const status = dialog.locator('.bk-status');
-  await expect
-    .poll(async () => {
-      const reference = (await redesignLoaded(page)) ? amount : accountSelect;
-      const [a, b] = [(await reference.boundingBox())!, (await status.boundingBox())!];
-      return (
-        b.x > a.x + a.width &&
-        ((await redesignLoaded(page))
-          ? Math.abs(b.y + b.height - a.y - a.height) < 12
-          : Math.abs(b.y - a.y) < 2)
-      );
-    })
-    .toBe(true);
+  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768) {
+    await expect(dialog.locator('.bk-mobile-status label')).toHaveText('Status');
+    await expect(status).toHaveAccessibleName('Vorgemerkt');
+    expect((await status.boundingBox())!.y).toBeGreaterThan((await date.boundingBox())!.y);
+  } else
+    await expect
+      .poll(async () => {
+        const reference = (await redesignLoaded(page)) ? amount : accountSelect;
+        const [a, b] = [(await reference.boundingBox())!, (await status.boundingBox())!];
+        return (
+          b.x > a.x + a.width &&
+          ((await redesignLoaded(page))
+            ? Math.abs(b.y + b.height - a.y - a.height) < 12
+            : Math.abs(b.y - a.y) < 2)
+        );
+      })
+      .toBe(true);
   const pending = await status.evaluate((el) => getComputedStyle(el).backgroundColor);
   await status.click();
   await expect(status).toHaveAttribute('aria-pressed', 'true');
@@ -161,6 +166,8 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   await expect(discard).toHaveCount(0);
   await (await captureFlagControl(dialog, 'Markierung: keine')).click();
   await dialog.getByRole('menuitemradio', { name: /Blau/ }).click();
+  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768)
+    await dialog.locator('.kmore > summary').click();
   await expect(discard).toHaveCount(0);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
@@ -286,14 +293,22 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       await expect(accountField).toBeVisible();
       await expect(dialog.getByLabel('Datum', { exact: true })).toBeVisible();
       await amount.press('Tab');
-      if (await redesignLoaded(page)) {
+      const mobileRedesign = (await redesignLoaded(page)) && page.viewportSize()!.width < 768;
+      if (mobileRedesign) {
+        for (const kind of ['Ausgabe', 'Einnahme', 'Umbuchung']) {
+          await expect(dialog.getByRole('button', { name: kind, exact: true })).toBeFocused();
+          await page.keyboard.press('Tab');
+        }
+      } else if (await redesignLoaded(page)) {
         await expect(dialog.locator('.bk-status')).toBeFocused();
         await page.keyboard.press('Tab');
       }
       const payeeField = dialog.getByLabel('Empfänger', { exact: true });
       await expect(payeeField).toBeFocused();
       await payeeField.press('Tab');
-      if (await redesignLoaded(page)) {
+      if (mobileRedesign) {
+        await expect(category).toBeFocused();
+      } else if (await redesignLoaded(page)) {
         await expect(dialog.getByLabel('Datum', { exact: true })).toBeFocused();
       } else await expect(accountField).toBeFocused();
     }

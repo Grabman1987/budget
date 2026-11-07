@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
-import { again, balance, createAccount, openAccount, pickCategory, toast } from './ledger-helpers';
+import {
+  openAccountCapture,
+  again,
+  balance,
+  createAccount,
+  openAccount,
+  pickCategory,
+  toast,
+} from './ledger-helpers';
 
 /**
  * Issue #672: a toast must never cover the primary action of the dialog it is shown over. The
@@ -18,7 +26,7 @@ test('a visible toast does not cover the Speichern button of an open dialog', as
   await createAccount(page, name, 'Giro', '500');
   await openAccount(page, name);
 
-  await page.getByRole('button', { name: 'Buchung erfassen' }).click();
+  await openAccountCapture(page);
   const capture = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await capture.getByLabel('Betrag', { exact: true }).fill('20');
   await capture.getByLabel('Empfänger').fill(payee);

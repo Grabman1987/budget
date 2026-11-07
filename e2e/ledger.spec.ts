@@ -1,4 +1,5 @@
 import {
+  openAccountCapture,
   historyChart,
   categoryLineControl,
   again,
@@ -53,7 +54,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await expect(page.getByTestId('balance-chart')).toBeVisible();
 
   // A plain expense with category.
-  await page.getByRole('button', { name: 'Buchung erfassen' }).click();
+  await openAccountCapture(page);
   let panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await panel.getByLabel('Betrag', { exact: true }).fill('12,50');
   await panel.getByLabel('Empfänger').fill(shop);
@@ -70,7 +71,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await expect(balance(page)).toHaveText('987,50 €');
 
   // A split booking: 30,00 as 20,00 Essen and 10,00 Reise; a wrong sum is refused first.
-  await page.getByRole('button', { name: 'Buchung erfassen' }).click();
+  await openAccountCapture(page);
   panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await panel.getByLabel('Betrag', { exact: true }).fill('30');
   await panel.getByLabel('Empfänger').fill(`Splitmarkt ${tag}`);
@@ -93,7 +94,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await expect(balance(page)).toHaveText('957,50 €');
 
   // A transfer to the savings account: both balances move.
-  await page.getByRole('button', { name: 'Buchung erfassen' }).click();
+  await openAccountCapture(page);
   panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await panel.getByRole('button', { name: 'Umbuchung' }).click();
   await panel.getByLabel('Nach Konto').selectOption({ label: spar });
@@ -248,7 +249,7 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
   await createAccount(page, name, 'Giro', '500');
   await openAccount(page, name);
   const book = async (payee: string, amount: string) => {
-    await page.getByRole('button', { name: 'Buchung erfassen' }).click();
+    await openAccountCapture(page);
     const panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
     await panel.getByLabel('Betrag', { exact: true }).fill(amount);
     await panel.getByLabel('Empfänger').fill(payee);
@@ -318,7 +319,7 @@ test('ledger pages with data: axe clean in both themes, no sideways scrolling', 
   const name = `Axe ${tag}`;
   await createAccount(page, name, 'Giro', '250');
   await openAccount(page, name);
-  await page.getByRole('button', { name: 'Buchung erfassen' }).click();
+  await openAccountCapture(page);
   const panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await panel.getByLabel('Betrag', { exact: true }).fill('9,90');
   await panel.getByLabel('Empfänger').fill(`Kontenkiosk ${tag}`);
@@ -352,7 +353,7 @@ test('ledger pages with data: axe clean in both themes, no sideways scrolling', 
     }
     // The panels: booking form and Kontostand prüfen.
     await page.goto(accountUrl);
-    await page.getByRole('button', { name: 'Buchung erfassen' }).click();
+    await openAccountCapture(page);
     await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeVisible();
     expect(await violations(), `${scheme} booking panel`).toEqual([]);
     await page.keyboard.press('Escape');

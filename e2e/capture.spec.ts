@@ -253,7 +253,8 @@ test('the capture panel is axe clean in both themes and never scrolls sideways',
     // The split editor with a contact line and a transfer line.
     await panel.getByRole('button', { name: 'Ausgabe' }).click();
     await panel.getByLabel('Betrag', { exact: true }).fill('30');
-    await panel.locator('.kmore > summary').click();
+    if (!(await redesignLoaded(page)) || page.viewportSize()!.width >= 768)
+      await panel.locator('.kmore > summary').click();
     await (await categoryLineControl(panel)).click();
     const second = panel.getByRole('group', { name: 'Zeile 2', exact: true });
     await second.getByLabel('Kategorie 2').fill('Anna Muster');
@@ -286,7 +287,8 @@ test('a split with a contact share: the chain shows what is left, saving waits u
   const panel = await openCapture(page, testInfo);
   await panel.getByLabel('Betrag', { exact: true }).fill('50');
   await panel.getByLabel('Empfänger').fill(`Restaurant ${tag}`);
-  await panel.locator('.kmore > summary').click();
+  if (!(await redesignLoaded(page)) || page.viewportSize()!.width >= 768)
+    await panel.locator('.kmore > summary').click();
   await (await categoryLineControl(panel)).click();
   const chain = panel.locator('.bk-lines > .kdiff');
   const save = panel.getByRole('button', { name: 'Speichern', exact: true });
@@ -329,7 +331,8 @@ test('a transfer line in a split moves money to the other account', async ({ pag
   const panel = await openCapture(page, testInfo);
   await panel.getByLabel('Betrag', { exact: true }).fill('60');
   await panel.getByLabel('Empfänger').fill(`Bank ${tag}`);
-  await panel.locator('.kmore > summary').click();
+  if (!(await redesignLoaded(page)) || page.viewportSize()!.width >= 768)
+    await panel.locator('.kmore > summary').click();
   await (await categoryLineControl(panel)).click();
   const line1 = panel.getByRole('group', { name: 'Zeile 1', exact: true });
   const line2 = panel.getByRole('group', { name: 'Zeile 2', exact: true });
@@ -426,7 +429,7 @@ test('the dialog is a centred card on the desktop and a sheet on the phone with 
   }
   await expect(panel.getByRole('group', { name: 'Schnellwahl' })).toHaveCount(0);
   await expect(panel.getByRole('button', { name: 'Gestern' })).toHaveCount(0);
-  // Field order: amount, payee, account, date, category, optional note.
+  // The mobile redesign puts category before account/date in visual and keyboard order.
   const wanted = ['Betrag', 'Empfänger', 'Bezahlt von', 'Datum', 'Kategorie', 'Notiz'];
   const order = await panel.evaluate(
     (el, names) =>
@@ -437,7 +440,9 @@ test('the dialog is a centred card on the desktop and a sheet on the phone with 
   );
   expect(order).toEqual(
     (await redesignLoaded(page))
-      ? ['Betrag', 'Empfänger', 'Datum', 'Bezahlt von', 'Kategorie', 'Notiz']
+      ? isPhone(testInfo)
+        ? ['Betrag', 'Empfänger', 'Kategorie', 'Bezahlt von', 'Datum', 'Notiz']
+        : ['Betrag', 'Empfänger', 'Datum', 'Bezahlt von', 'Kategorie', 'Notiz']
       : wanted,
   );
   // The footer stays in view with the Speichern button.

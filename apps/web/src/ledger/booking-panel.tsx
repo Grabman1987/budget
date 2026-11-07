@@ -1,3 +1,4 @@
+import './booking-edit.css';
 import { FormDialog } from '@budget/ui';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
@@ -129,7 +130,11 @@ export function BookingPanel({
   };
   const dialog = (
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Delegates Tab wrapping for the native dialog and its discard question.
-    <div ref={focusScope} className="bk-focus-scope" onKeyDown={wrapFocus}>
+    <div
+      ref={focusScope}
+      className={`bk-focus-scope${current?.mode === 'edit' ? ' bk-edit-scope' : ''}`}
+      onKeyDown={wrapFocus}
+    >
       <FormDialog open={state !== null} onClose={close} title={title} beforeClose={beforeClose}>
         {current && shown && (
           <CaptureForm
