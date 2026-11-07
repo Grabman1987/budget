@@ -76,7 +76,8 @@ export type BankLineMatch =
  * - exactly one booking: linked; when several lines claim the same booking the nearest date wins
  *   (then input order) and the others count as new;
  * - several bookings: ambiguous, nothing is decided for the owner. Identical lines (same day and
- *   amount) that face exactly as many identical candidates pair off in order instead;
+ *   amount) that face exactly as many identical candidates pair off in order instead, only when
+ *   no line outside that group also claims any of those candidates;
  * - none: not present yet.
  * A booking is never assigned to two lines.
  */
@@ -114,7 +115,13 @@ export function matchBankLines(
   });
   for (const members of groups.values()) {
     const pool = candidates[members[0]!]!;
-    if (members.length !== pool.length) continue;
+    if (members.length !== pool.length || pool.some((b) => b.date !== pool[0]!.date)) continue;
+    const memberIds = new Set(members);
+    const poolIds = new Set(pool.map((b) => b.id));
+    // Equal counts alone do not prove identity. Competing groups must not resolve the same
+    // booking twice or let input order decide which source history is discarded.
+    if (candidates.some((rows, i) => !memberIds.has(i) && rows.some((b) => poolIds.has(b.id))))
+      continue;
     members.forEach((lineIndex, n) => {
       result.set(lines[lineIndex]!.key, { kind: 'linked', bookingId: pool[n]!.id });
       taken.add(pool[n]!.id);

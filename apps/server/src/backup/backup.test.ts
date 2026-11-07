@@ -1,4 +1,13 @@
-import { addReceipt, migrateDatabase, openDatabase, removeReceipt, schema } from '@budget/db';
+import {
+  addReceipt,
+  createBooking,
+  linkReceipt,
+  listReceipts,
+  migrateDatabase,
+  openDatabase,
+  removeReceipt,
+  schema,
+} from '@budget/db';
 import { seedDatabase } from '@budget/fixtures/seed';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -8,6 +17,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
 import {
   BackupScheduler,
   backupConfigFromEnv,
@@ -19,7 +29,7 @@ import {
 import { backupKey } from './retention';
 import { S3Client } from './s3';
 import { digest, receiptPath, storeReceipt } from '../receipts/files';
-import { PNG } from '../receipts/testing';
+import { PDF, PNG } from '../receipts/testing';
 
 /**
  * Restore test of the encrypted backup: a throwaway age key pair is generated for the test only
@@ -168,6 +178,125 @@ const tableCounts = (sqlite: ReturnType<typeof openDatabase>['sqlite']) =>
   );
 
 describe.skipIf(!hasAge)('encrypted backup round trip (test key)', () => {
+  it('restores exact bookings and many-to-many receipt references from a downloaded backup', async () => {
+    const live = migratedDatabase();
+    seedBasics(live.db);
+    const actor = { actor: 'synthetic-restore-proof' };
+    const expense = createBooking(
+      live.db,
+      {
+        accountId: 'giro',
+        date: '2026-01-05',
+        amountCents: -3456,
+        splits: [
+          { categoryId: 'essen', amountCents: -1234 },
+          { categoryId: 'miete', amountCents: -2222 },
+        ],
+      },
+      actor,
+    );
+    const refund = createBooking(
+      live.db,
+      {
+        accountId: 'giro',
+        date: '2026-01-06',
+        amountCents: 456,
+        splits: [{ categoryId: 'essen', amountCents: 456 }],
+      },
+      actor,
+    );
+    const receiptsDir = join(work, 'shared-receipt-blobs');
+    const pngHash = await storeReceipt(receiptsDir, PNG);
+    const pdfHash = await storeReceipt(receiptsDir, PDF);
+    const shared = addReceipt(
+      live.db,
+      {
+        sha256: pngHash,
+        mime: 'image/png',
+        sizeBytes: PNG.length,
+        originalFilename: 'synthetic-shared.png',
+      },
+      expense,
+      actor,
+    );
+    linkReceipt(live.db, shared.receipt.id, refund, actor);
+    addReceipt(
+      live.db,
+      {
+        sha256: pdfHash,
+        mime: 'application/pdf',
+        sizeBytes: PDF.length,
+        originalFilename: 'synthetic-expense.pdf',
+      },
+      expense,
+      actor,
+    );
+
+    // Row equality also preserves generated identities, timestamps, tombstones and audit payloads.
+    const queries = [
+      'SELECT * FROM booking ORDER BY id',
+      'SELECT * FROM booking_split ORDER BY id',
+      'SELECT * FROM receipt ORDER BY id',
+      'SELECT * FROM booking_receipt ORDER BY booking_id, receipt_id',
+      'SELECT * FROM audit_log ORDER BY id',
+    ];
+    const sourceRows = queries.map((query) => live.sqlite.prepare(query).all());
+    const client = new S3Client(config.s3);
+    const result = await runBackup(
+      live.sqlite,
+      config,
+      new Date('2026-01-07T02:15:00Z'),
+      client,
+      receiptsDir,
+    );
+    live.close();
+    const downloaded = join(work, 'shared-receipts.tar.age');
+    await client.getEncryptedFile(result.key, downloaded, new AbortController().signal);
+    const archive = join(work, 'shared-receipts.tar');
+    const restoredDir = join(work, 'shared-receipts-restored');
+    mkdirSync(restoredDir);
+    execFileSync('age', ['--decrypt', '-i', identity, '-o', archive, downloaded]);
+    execFileSync(tarBinary, ['-xf', archive, '-C', restoredDir]);
+    const copy = trackDatabase(openDatabase(join(restoredDir, 'budget.sqlite')));
+    expect(copy.sqlite.pragma('integrity_check', { simple: true })).toBe('ok');
+    expect(copy.sqlite.pragma('foreign_key_check')).toEqual([]);
+    expect(queries.map((query) => copy.sqlite.prepare(query).all())).toEqual(sourceRows);
+
+    // Independent literal oracles: equal row counts or totals cannot detect swapped receipt links.
+    expect(
+      copy.sqlite.prepare('SELECT account_id, date, amount_cents FROM booking ORDER BY date').all(),
+    ).toEqual([
+      { account_id: 'giro', date: '2026-01-05', amount_cents: -3456 },
+      { account_id: 'giro', date: '2026-01-06', amount_cents: 456 },
+    ]);
+    expect(
+      copy.sqlite
+        .prepare(
+          `SELECT b.date, s.category_id, s.amount_cents
+           FROM booking_split s JOIN booking b ON b.id = s.booking_id
+           ORDER BY b.date, s.category_id`,
+        )
+        .all(),
+    ).toEqual([
+      { date: '2026-01-05', category_id: 'essen', amount_cents: -1234 },
+      { date: '2026-01-05', category_id: 'miete', amount_cents: -2222 },
+      { date: '2026-01-06', category_id: 'essen', amount_cents: 456 },
+    ]);
+    expect({
+      expense: listReceipts(copy.db, expense)
+        .map((receipt) => receipt.originalFilename)
+        .sort(),
+      refund: listReceipts(copy.db, refund).map((receipt) => receipt.originalFilename),
+      inbox: listReceipts(copy.db),
+    }).toEqual({
+      expense: ['synthetic-expense.pdf', 'synthetic-shared.png'],
+      refund: ['synthetic-shared.png'],
+      inbox: [],
+    });
+    expect(readFileSync(receiptPath(join(restoredDir, 'receipts'), pngHash))).toEqual(PNG);
+    expect(readFileSync(receiptPath(join(restoredDir, 'receipts'), pdfHash))).toEqual(PDF);
+  });
+
   it('uploads an age file that only the private key opens and that restores the full database', async () => {
     const live = seededDatabase();
     const receiptsDir = join(work, 'receipt-blobs');
