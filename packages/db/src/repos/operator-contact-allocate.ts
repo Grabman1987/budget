@@ -3,7 +3,13 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { booking, bookingSplit, contact } from '../schema';
 import { withGroup, type AuditContext } from './audit';
-import { chooseContactCredit, getContactStatement, reallocateContactRepayment } from './contacts';
+import {
+  adoptContactRepayment,
+  chooseContactCredit,
+  getContactStatement,
+  reallocateContactRepayment,
+  waiveContactOutlay,
+} from './contacts';
 import {
   BookingInvariantError,
   ConflictError,
@@ -23,6 +29,16 @@ const day = z
     return Number.isFinite(date.getTime()) && date.toISOString().startsWith(value);
   });
 const entrySchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('adopt'), contactId: id, receiptSplitId: id }).strict(),
+  z
+    .object({
+      action: z.literal('waive'),
+      contactId: id,
+      outlaySplitId: id,
+      amountCents: cents,
+      categoryId: id.optional(),
+    })
+    .strict(),
   z
     .object({
       action: z.literal('reallocate'),
@@ -69,7 +85,10 @@ const REFUSALS = {
   invalid_outlay: 'An outlay is missing, deleted or belongs to another contact.',
   future_decision: 'The credit decision date is in the future.',
   reconciled_locked:
-    'An affected booking is reconciled; use the existing explicit unlock path first.',
+    'An affected booking is reconciled; rerun with --unlock to authorize allocation-only changes.',
+  adoption_required: 'Adopt the legacy repayment explicitly before reallocating it.',
+  invalid_adoption: 'The current settlement state cannot be adopted.',
+  invalid_waiver: 'The waiver must fit the outstanding share and retain its original category.',
   invalid_allocation:
     'The allocation is not permitted by the current contact balances or dependencies.',
   invalid_credit_choice:
@@ -95,9 +114,27 @@ export interface ContactAllocateOutcome {
   groupId: string;
 }
 
-function preflight(tx: Executor, entry: Entry, today: string) {
+function preflight(tx: Executor, entry: Entry, today: string, unlock = false) {
   const owner = tx.select().from(contact).where(eq(contact.id, entry.contactId)).get();
   if (!owner || owner.deletedAt) throw new EntryRefusal('unknown_contact');
+  if (entry.action === 'waive') {
+    const split = tx
+      .select()
+      .from(bookingSplit)
+      .where(eq(bookingSplit.id, entry.outlaySplitId))
+      .get();
+    const source = split && tx.select().from(booking).where(eq(booking.id, split.bookingId)).get();
+    if (
+      !split ||
+      split.contactId !== entry.contactId ||
+      split.amountCents >= 0 ||
+      !source ||
+      source.deletedAt
+    )
+      throw new EntryRefusal('invalid_outlay');
+    if (source.status === 'reconciled' && !unlock) throw new EntryRefusal('reconciled_locked');
+    return;
+  }
   const receipt = tx
     .select()
     .from(bookingSplit)
@@ -113,7 +150,8 @@ function preflight(tx: Executor, entry: Entry, today: string) {
     source.deletedAt
   )
     throw new EntryRefusal('invalid_receipt');
-  if (source.status === 'reconciled') throw new EntryRefusal('reconciled_locked');
+  if (source.status === 'reconciled' && !unlock) throw new EntryRefusal('reconciled_locked');
+  if (entry.action === 'adopt') return;
   if (entry.action === 'credit') {
     if (entry.date > today) throw new EntryRefusal('future_decision');
     return;
@@ -142,7 +180,15 @@ function refusal(error: unknown, entry: Entry): RefusalCode {
   if (error instanceof EntityNotFoundError) return 'not_found';
   if (error instanceof ConflictError) return 'conflict';
   if (error instanceof BookingInvariantError)
-    return entry.action === 'reallocate' ? 'invalid_allocation' : 'invalid_credit_choice';
+    return error.message.includes('adoption_required')
+      ? 'adoption_required'
+      : entry.action === 'adopt'
+        ? 'invalid_adoption'
+        : entry.action === 'waive'
+          ? 'invalid_waiver'
+          : entry.action === 'reallocate'
+            ? 'invalid_allocation'
+            : 'invalid_credit_choice';
   // Unexpected failures abort the run, including previously successful entries.
   throw error;
 }
@@ -152,7 +198,7 @@ export function applyContactAllocations(
   db: Executor,
   file: ContactAllocateFile,
   ctx: AuditContext,
-  options: { dryRun?: boolean; today?: string } = {},
+  options: { dryRun?: boolean; today?: string; unlock?: boolean } = {},
 ): ContactAllocateOutcome[] {
   const input = parseContactAllocateFile(file);
   const today = options.today ?? todayInVienna();
@@ -163,7 +209,7 @@ export function applyContactAllocations(
       for (const [index, entry] of input.entries.entries()) {
         try {
           const status = runInTransaction(tx, (inner) => {
-            preflight(inner, entry, today);
+            preflight(inner, entry, today, options.unlock);
             if (entry.action === 'reallocate') {
               const previous = getContactStatement(inner, entry.contactId, today).receipts.find(
                 (receipt) => receipt.recorded && receipt.receiptSplitId === entry.receiptSplitId,
@@ -172,7 +218,17 @@ export function applyContactAllocations(
                 JSON.stringify(
                   allocations.allocations.map((a) => [a.outlaySplitId, a.amountCents]).sort(),
                 );
-              if (previous && canonical(previous) === canonical(entry)) return 'unchanged' as const;
+              // Automatic uses can exist despite an empty saved allocation: those still need release.
+              const current = getContactStatement(inner, entry.contactId, today);
+              const used = current.creditUses.some(
+                (u) =>
+                  u.receiptSplitId === entry.receiptSplitId &&
+                  current.outlays.some(
+                    (o) => o.splitId === u.outlaySplitId && !o.creditSourceSplitId,
+                  ),
+              );
+              if (previous && !used && canonical(previous) === canonical(entry))
+                return 'unchanged' as const;
               reallocateContactRepayment(
                 inner,
                 entry.contactId,
@@ -180,6 +236,30 @@ export function applyContactAllocations(
                 { allocations: entry.allocations },
                 grouped,
                 today,
+                options,
+              );
+            } else if (entry.action === 'adopt') {
+              const result = adoptContactRepayment(
+                inner,
+                entry.contactId,
+                entry.receiptSplitId,
+                grouped,
+                today,
+                options,
+              );
+              if (!result.adopted) return 'unchanged' as const;
+            } else if (entry.action === 'waive') {
+              waiveContactOutlay(
+                inner,
+                entry.contactId,
+                entry.outlaySplitId,
+                {
+                  amountCents: entry.amountCents,
+                  ...(entry.categoryId ? { categoryId: entry.categoryId } : {}),
+                },
+                grouped,
+                today,
+                options,
               );
             } else {
               chooseContactCredit(
@@ -195,6 +275,7 @@ export function applyContactAllocations(
                 },
                 grouped,
                 today,
+                options,
               );
             }
             return 'updated' as const;
