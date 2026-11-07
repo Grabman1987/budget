@@ -1015,6 +1015,93 @@ describe('matching bank lines against existing bookings', () => {
     expect(new Set(bookings().map((b) => b.importKey)).size).toBe(2);
     expect(bookings().every((b) => b.bankSourceId === linkId)).toBe(true);
   });
+  it.each(['different target dates', 'competing source groups'])(
+    '%s stay open without changing money or provenance',
+    async (scenario) => {
+      service.setPolicy(consentId, true);
+      existing('2026-09-30');
+      existing(scenario === 'different target dates' ? '2026-09-29' : '2026-09-30');
+      const before = bookings();
+      vi.mocked(provider.transactions).mockResolvedValue(
+        batch([
+          { ...row, reference: 'a' },
+          { ...row, reference: 'b' },
+          ...(scenario === 'competing source groups'
+            ? [
+                { ...row, reference: 'c', date: '2026-10-01' },
+                { ...row, reference: 'd', date: '2026-10-01' },
+              ]
+            : []),
+        ]),
+      );
+      await service.tick();
+      expect(connection().failures).toBe(0);
+      expect(bookings()).toEqual(before);
+      expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(97598);
+      for (const candidate of candidates()) {
+        expect(item(candidate.id).resolvedAt).toBeNull();
+        expect(item(candidate.id).detail).toContain('Mehrere passende vorhandene Buchungen');
+      }
+      nextDay();
+      await service.tick();
+      expect(bookings()).toEqual(before);
+      expect(candidates()).toHaveLength(scenario === 'competing source groups' ? 4 : 2);
+    },
+  );
+
+  it('rolls back a failed automatic link and retries the 21-day overlap without advancing its watermark', async () => {
+    const target = existing('2026-09-10');
+    const before = bookings();
+    opened.db
+      .update(schema.bankSyncConsent)
+      .set({ lastSuccessAt: '2026-10-01T02:00:00.000Z' })
+      .where(eq(schema.bankSyncConsent.id, consentId))
+      .run();
+    opened.db
+      .update(schema.bankSyncAccount)
+      .set({ lastSyncAt: '2026-10-01T02:00:00.000Z' })
+      .where(eq(schema.bankSyncAccount.id, linkId))
+      .run();
+    vi.mocked(provider.transactions).mockResolvedValue(batch([{ ...row, date: '2026-09-10' }]));
+    opened.sqlite.exec(
+      "CREATE TRIGGER reject_link_audit BEFORE INSERT ON audit_log WHEN NEW.entity_type = 'booking' BEGIN SELECT RAISE(ABORT, 'synthetic link failure'); END",
+    );
+    await service.tick();
+    expect(provider.transactions).toHaveBeenLastCalledWith(
+      'synthetic-uid',
+      '2026-09-10',
+      '2026-10-01',
+      expect.any(Function),
+    );
+    expect(bookings()).toEqual(before);
+    expect(candidates()).toEqual([]);
+    expect(
+      opened.db
+        .select()
+        .from(schema.bankSyncAccount)
+        .where(eq(schema.bankSyncAccount.id, linkId))
+        .get()!.lastSyncAt,
+    ).toBe('2026-10-01T02:00:00.000Z');
+    opened.sqlite.exec('DROP TRIGGER reject_link_audit');
+    now = new Date('2026-10-01T03:15:00Z');
+    await service.tick();
+    expect(provider.transactions).toHaveBeenLastCalledWith(
+      'synthetic-uid',
+      '2026-09-10',
+      '2026-10-01',
+      expect.any(Function),
+    );
+    expect(bookings()).toHaveLength(1);
+    expect(bookings()[0]).toMatchObject({ id: target, bankSourceId: linkId });
+    const linkAudit = opened.db
+      .select()
+      .from(schema.auditLog)
+      .all()
+      .find((entry) => entry.entityType === 'booking' && entry.actor === 'bank-sync')!;
+    undo(opened.db, { groupId: linkAudit.groupId! }, { actor: 'owner' });
+    expect(bookings()).toEqual(before);
+    expect(item(candidates()[0]!.id).resolvedAt).toBeNull();
+  });
   it('creates one new booking when two identical lines meet a single existing booking', async () => {
     service.setPolicy(consentId, true);
     existing('2026-09-30');
