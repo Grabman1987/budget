@@ -74,9 +74,10 @@ async function expectStatusContentInsideButton(status: Locator, redesigned: bool
   });
 
   expect(bounds.icon.right - bounds.icon.left).toBe(16);
-  if (redesigned) expect(bounds.labelDisplay).toBe('none');
+  const iconOnly = redesigned && bounds.viewportWidth >= 768;
+  if (iconOnly) expect(bounds.labelDisplay).toBe('none');
   else expect(bounds.labelDisplay).not.toBe('none');
-  for (const content of redesigned ? [bounds.icon] : [bounds.icon, bounds.label]) {
+  for (const content of iconOnly ? [bounds.icon] : [bounds.icon, bounds.label]) {
     expect(content.left).toBeGreaterThanOrEqual(bounds.button.left);
     expect(content.top).toBeGreaterThanOrEqual(bounds.button.top);
     expect(content.right).toBeLessThanOrEqual(bounds.button.right);
