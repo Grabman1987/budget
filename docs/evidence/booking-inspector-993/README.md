@@ -29,7 +29,7 @@ ON e2e web/server build. An independent agent reviewed the final code and test
 changes. These images are review evidence, not screenshot baselines or physical
 iPhone acceptance.
 
-## Delivery blocker
+## Previous delivery blocker
 
 The enabled pre-push hook passed typecheck, ESLint, Prettier and CSS scale checks,
 then reported two failures in the unchanged `apps/server/src/api/export.test.ts`:
@@ -45,6 +45,18 @@ stack or completed related-suite total was available. The push did not proceed,
 and no draft PR was created. No hook or test was bypassed. The implementation and
 prepared PR body remain local.
 
-Next step: free runner capacity or serialize the concurrent builders' heavy
-checks, reproduce the two export tests, then rerun the full enabled pre-push hook.
-Do not change export behavior or weaken its tests as part of this inspector task.
+## Continuation verification
+
+Merged `origin/main` at `b177f58c`. The only conflict was the adjacent imports in
+`apps/server/src/api/bookings.ts`; both the inspector and bulk-note-preview imports
+and routes were retained. An independent agent reviewed the merged implementation
+at `b613e35b` and found no integration issues.
+
+With `VITEST_MAX_WORKERS=1` and explicit `--maxWorkers=1`, the two previously
+failing export tests passed in isolation (2 passed, 9 excluded by the name filter).
+Their original assertions and timeouts remain unchanged. This supports a
+load-related failure in the earlier run, not a reproduced export defect.
+
+Both inspector test files also passed after the merge (7 tests). Fresh production
+web builds passed with redesign OFF and ON, and the server build passed. The
+earlier WebKit acceptance gap remains open; no full local browser suite was run.
