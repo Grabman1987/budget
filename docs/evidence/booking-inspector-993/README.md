@@ -60,3 +60,15 @@ load-related failure in the earlier run, not a reproduced export defect.
 Both inspector test files also passed after the merge (7 tests). Fresh production
 web builds passed with redesign OFF and ON, and the server build passed. The
 earlier WebKit acceptance gap remains open; no full local browser suite was run.
+
+A continuation hook attempt incorrectly supplied the redesign flag globally to
+the mixed-mode unit suite and restricted every check to one CPU. It reported
+failures in the unchanged settings, Plan-filter and forecast-tools UI suites and
+was stopped without pushing. All three suites subsequently passed in isolation
+(27 tests) with CI's unit-test environment, their existing per-test flag choices
+and one worker. No test files or timeouts changed.
+
+The hook retry uses that same CI unit-test environment. Vitest 5 does not read
+`VITEST_MAX_WORKERS` directly, so a process-local temporary Node preload adds only
+`--maxWorkers=1` to its CLI when that variable is set. This limits test workers
+without changing repository configuration, test selection, assertions or timeouts.
