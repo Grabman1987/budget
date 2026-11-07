@@ -15,6 +15,18 @@ as a gift to the contact leaves net worth and bank balances unchanged, removes
 the waived receivable from the contact statement and keeps the expense in its
 category.
 
+Owner assignment decision (2026-11-07, #982), superseding the previous
+"Schranken" rule: explicit assignment, moving from "Zu verteilen", single-category
+cover from "Zu verteilen", and goal funding ("Ziele füllen") may make or leave
+"Zu verteilen" negative. Show the non-blocking de-AT hint
+"Damit steht ‚Zu verteilen‘ bei −… € – du verplanst mehr, als da ist (Dispo)."
+with the actual resulting amount; negative "Zu verteilen" stays red. No extra
+confirmation or account overdraft limit blocks these assignments. Only assigned
+cents change; account balances, net worth, audit groups, Undo and keyboard behavior
+remain unchanged. Category-source cover limits, automatic cover source selection,
+waterfall suggestions and the other quick-assignment modes retain their existing
+rules. Targets use their full remaining need, even without free money.
+
 Owner decision (2026-11-06, #963): shared purchases keep one category with contact
 shares. The gross amount stays in that category until repaid. Repayments return
 the allocated share to its original category. Excess stays visible contact credit;
@@ -234,7 +246,7 @@ Alle Reports rechnen aus demselben Hauptbuch; Nettovermögen, Rendite und Regels
 
 **Kreditkarten (Entscheidung 30.09.2026, ersetzt die einfache Konzeptregel aus Konzept 3.1):** Kartenausgaben folgen YNAB. In den Envelope „Kartenzahlung“ wandert nur der gedeckte Teil einer Kartenausgabe; was die Kategorie nicht decken kann, bleibt als neue Kartenschuld stehen (Kredit-Überziehung) und mindert „Zu verteilen“ im Folgemonat nicht, anders als eine Überziehung mit Bargeld. Wird die Kategorie später im Monat gedeckt, wandert der Betrag nachträglich. Gutschriften auf der Karte fließen voll in die Kategorie zurück, Zahlungen an die Karte mindern den Envelope. Ist eine Kategorie im selben Monat bar und mit Karte überzogen, zählt zuerst das Bargeld (wie YNAB: „takes the cash out first“), nur der Rest ist Kartenschuld. Die einfache Konzeptregel bleibt für den Parallelbetrieb umschaltbar.
 
-**Kategorien und Plan › Monat (Entscheidungen 30.09.2026, P2c-Review):** Zusammenführen verrechnet eine Überziehung der Quelle mit dem Geld des Ziels, der Übertrag in den Folgemonat kann sich daher ändern (wie YNAB); die Oberfläche weist darauf hin. Zusammenführen in eine Einnahmen-Kategorie ist nur für Einnahmen möglich (Server und Oberfläche), in eine ausgeblendete nur mit Hinweis. Zusammenführen und Abspalten ordnen auch geprüfte Buchungen um, Abspalten nimmt nur bestehende (nicht gelöschte) Buchungen. Ein entferntes Ziel verliert alle Versionen (die Geschichte bleibt im Änderungsprotokoll). Eine Kartenzahlung behält Art und Karte. „Decken“ aus „Zu verteilen“ nimmt höchstens, was dort liegt; mehr (dann wird „Zu verteilen“ negativ) nur nach ausdrücklicher Bestätigung. Auf dem Handy wird statt Ziehen mit ↑/↓ sortiert. Der Beispielhaushalt lebt nach R03 vom Vormonat: das Gehalt vom 30. bleibt bis zum Folgemonat in „Zu verteilen“, periodische Kosten werden als Zwölftel angespart.
+**Kategorien und Plan › Monat (Entscheidungen 30.09.2026, P2c-Review):** Zusammenführen verrechnet eine Überziehung der Quelle mit dem Geld des Ziels, der Übertrag in den Folgemonat kann sich daher ändern (wie YNAB); die Oberfläche weist darauf hin. Zusammenführen in eine Einnahmen-Kategorie ist nur für Einnahmen möglich (Server und Oberfläche), in eine ausgeblendete nur mit Hinweis. Zusammenführen und Abspalten ordnen auch geprüfte Buchungen um, Abspalten nimmt nur bestehende (nicht gelöschte) Buchungen. Ein entferntes Ziel verliert alle Versionen (die Geschichte bleibt im Änderungsprotokoll). Eine Kartenzahlung behält Art und Karte. The 2026-11-07 owner decision (#982) supersedes the earlier free-money cap and extra confirmation for explicit cover from „Zu verteilen“. Auf dem Handy wird statt Ziehen mit ↑/↓ sortiert. Der Beispielhaushalt lebt nach R03 vom Vormonat: das Gehalt vom 30. bleibt bis zum Folgemonat in „Zu verteilen“, periodische Kosten werden als Zwölftel angespart.
 
 **YNAB-Import, Review (Entscheidungen 30.09.2026):** Eine Überweisung von der Kreditkarte auf ein Budgetkonto (z. B. PayPal) ist ein Barvorschuss nach YNAB: neue Kartenschuld, das Geld kommt in „Zu verteilen“, die Kartenzahlung bleibt unverändert. Ab der ersten Zuordnungsregel werden die Kartenzahlungs-Kategorien nicht mehr mit YNAB verglichen; die Verschiebung der Kartenschuld wird eigens ausgewiesen. Buchungen nach dem Exportdatum kommen vorerst als offene Buchungen (erwartete Zahlungen entscheidet P3). Eine Buchung wandert nie auf ein Konto mit anderer Währung, und ein zusammengeführter Empfänger mit geprüften Buchungen bleibt bestehen.
 

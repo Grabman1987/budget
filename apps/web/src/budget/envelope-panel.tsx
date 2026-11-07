@@ -14,12 +14,11 @@ import { useState } from 'react';
 import { eur } from '../ledger/format';
 import { monthLabel } from '../nav/month';
 import { assign, moveMoney } from './budget-api';
-import { CoverChoice, useCover } from './cover-choice';
+import { useCover } from './cover-choice';
 import { STAGES, targetText } from './labels';
 import {
   assignGuard,
   CLASS_TEXT,
-  coverFromToBeAssigned,
   coverSourceLabel,
   freeCoverCents,
   coverSource,
@@ -99,30 +98,24 @@ export function EnvelopeBody({
   const suggested =
     r.overspentCents === 0 || (tba >= r.overspentCents && tba >= (best ? freeCoverCents(best) : 0))
       ? ''
-      : (best?.id ?? 'none');
+      : (best?.id ?? '');
   const [chosenOther, setOther] = useState(suggested);
-  const [explicitShort, setExplicitShort] = useState(false);
   const other =
-    r.overspentCents > 0 &&
-    ((chosenOther === '' && tba < r.overspentCents && !explicitShort) ||
-      (chosenOther !== '' && !enough.some((o) => o.id === chosenOther)))
+    chosenOther !== '' && !(r.overspentCents > 0 ? enough : rows).some((o) => o.id === chosenOther)
       ? suggested
       : chosenOther;
   const coverOptions = [
     ...enough,
-    ...(tba >= r.overspentCents
-      ? [{ id: '', name: 'Zu verteilen', availableCents: tba, freeCents: tba }]
-      : []),
+    { id: '', name: 'Zu verteilen', availableCents: tba, freeCents: Math.max(0, tba) },
   ].sort((a, b) => freeCoverCents(b) - freeCoverCents(a));
   const [moveText, setMoveText] = useState('');
   const [error, setError] = useState<string>();
   const [moveError, setMoveError] = useState<string>();
-  const [choosing, setChoosing] = useState(false);
   const others = rows.filter((o) => o.id !== r.id && !isCard(o));
-  const fill = Math.min(r.needCents, Math.max(0, tba));
+  const fill = r.needCents;
   const sourceFree =
     other === ''
-      ? Math.max(0, tba)
+      ? r.overspentCents
       : freeCoverCents(rows.find((o) => o.id === other) ?? { availableCents: 0 });
   const cappedRest = Math.max(0, r.overspentCents - sourceFree);
   const name = (id: string) =>
@@ -142,21 +135,23 @@ export function EnvelopeBody({
       setCoverBusy(false);
     }
   };
-  /** Confirm only the capped amount when Zu verteilen is short. */
-  const cover = async (confirmedCap = false) => {
-    const short = other === '' && coverFromToBeAssigned(r.overspentCents, tba).short;
-    if (!confirmedCap && short) return setChoosing(true);
-    setChoosing(false);
+  const cover = async () => {
     if (await coverFrom(r, other === '' ? null : other)) onDone();
   };
+  const assignment = readAssign(amount, r.assignedCents, false);
+  const assignHint =
+    assignment === null ? undefined : assignGuard(assignment, r.assignedCents, tba).message;
+  const moveAmount = parseAmount(moveText);
+  const moveHint =
+    other === '' && direction === 'in' && moveAmount.ok && moveAmount.cents > 0
+      ? moveGuard(moveAmount.cents, tba).message
+      : undefined;
+  const coverHint = other === '' ? moveGuard(r.overspentCents, tba).message : undefined;
   const save = () => {
     // Absolute: the pre-filled figure (also a negative one) is the value, not a change.
     const value = readAssign(amount, r.assignedCents, false);
     if (value === null) return setError('Das lässt sich nicht als Betrag lesen.');
     if (value === r.assignedCents) return onDone();
-    // The guard: no more than "Zu verteilen" holds; the message names the maximum.
-    const guard = assignGuard(value, r.assignedCents, tba);
-    if (!guard.ok) return setError(guard.message);
     void run(
       () => assign(month, [{ categoryId: r.id, assignedCents: value }]),
       `${r.name}: ${eur(r.assignedCents)} → ${eur(value)} zugewiesen`,
@@ -168,10 +163,6 @@ export function EnvelopeBody({
       return setMoveError('Bitte einen Betrag über 0 eintragen.');
     const src = other === '' ? null : other;
     const [from, to] = direction === 'in' ? [src, r.id] : [r.id, src];
-    if (from === null) {
-      const guard = moveGuard(parsed.cents, tba);
-      if (!guard.ok) return setMoveError(guard.message);
-    }
     void run(
       () => moveMoney(month, from, to, parsed.cents),
       `${eur(parsed.cents)} von ${from ? name(from) : 'Zu verteilen'} zu ${to ? name(to) : 'Zu verteilen'} verschoben`,
@@ -197,22 +188,9 @@ export function EnvelopeBody({
             value={other}
             onChange={(e) => {
               setOther(e.target.value);
-              setExplicitShort(e.target.value === '' && tba < r.overspentCents);
-              setChoosing(false);
             }}
           >
-            {r.overspentCents > 0 && direction === 'in' ? (
-              <>
-                {other === 'none' && (
-                  <option value="none" disabled>
-                    Keine Quelle hat freies Geld
-                  </option>
-                )}
-                {tba > 0 && tba < r.overspentCents && (
-                  <option value="">Zu verteilen · {eur(tba)} · reicht nicht vollständig</option>
-                )}
-              </>
-            ) : (
+            {!(r.overspentCents > 0 && direction === 'in') && (
               <option value="">Zu verteilen · {eur(tba)}</option>
             )}
             {(r.overspentCents > 0 && direction === 'in' ? coverOptions : others).map((o) => (
@@ -227,11 +205,9 @@ export function EnvelopeBody({
       </Field>
       {r.overspentCents > 0 && (
         <p className="panel-sub" data-testid="cover-remaining">
-          {other === 'none'
-            ? 'Keine Quelle hat freies Geld zum Decken.'
-            : other !== '' || tba >= r.overspentCents
-              ? `aus ${name(other)} · bleibt ${eur(Math.max(0, sourceFree - r.overspentCents))}${cappedRest > 0 ? ` · ${eur(cappedRest)} bleiben offen (auf freies Geld begrenzt)` : ''}`
-              : `Zu verteilen reicht nicht · ${eur(Math.max(0, r.overspentCents - Math.max(0, tba)))} fehlen`}
+          {other === ''
+            ? (coverHint ?? `aus Zu verteilen · bleibt ${eur(tba - r.overspentCents)}`)
+            : `aus ${name(other)} · bleibt ${eur(Math.max(0, sourceFree - r.overspentCents))}${cappedRest > 0 ? ` · ${eur(cappedRest)} bleiben offen (auf freies Geld begrenzt)` : ''}`}
         </p>
       )}
       <AmountInput
@@ -243,6 +219,11 @@ export function EnvelopeBody({
         }}
         error={moveError}
       />
+      {moveHint && (
+        <p className="panel-sub" role="status">
+          {moveHint}
+        </p>
+      )}
       <div className="panel-actions">
         <Button variant="ghost" onClick={move} disabled={other === 'none'}>
           Verschieben
@@ -257,14 +238,6 @@ export function EnvelopeBody({
           </Button>
         )}
       </div>
-      {choosing && (
-        <CoverChoice
-          overspentCents={r.overspentCents}
-          toBeAssignedCents={tba}
-          onCover={() => void cover(true)}
-          onCancel={() => setChoosing(false)}
-        />
-      )}
     </>
   );
 
@@ -299,6 +272,14 @@ export function EnvelopeBody({
         }}
         error={error}
       />
+      {assignHint && (
+        <p className="panel-sub" role="status">
+          {assignHint}
+        </p>
+      )}
+      {fill > 0 && moveGuard(fill, tba).message && (
+        <p className="panel-sub">{moveGuard(fill, tba).message}</p>
+      )}
       <div className="panel-actions">
         <Button onClick={save}>Übernehmen</Button>
         {fill > 0 && (
@@ -327,7 +308,7 @@ export function EnvelopeBody({
       {compact ? (
         <details
           className="inspector-move"
-          open={r.overspentCents > 0 || Boolean(moveError) || choosing || undefined}
+          open={r.overspentCents > 0 || Boolean(moveError) || undefined}
         >
           <summary>
             <ChevronDown className="insp-chev" size={16} strokeWidth={1.75} aria-hidden="true" />

@@ -9,6 +9,7 @@ import { LEDGER_KEY } from './queries';
 import { ErrorNote, LoadingNote } from './states';
 import { BOOKING_FLAGS } from './types';
 import { MoreHorizontal } from 'lucide-react';
+import { BookingNoteDialog } from './booking-note-dialog';
 
 export interface BulkOutcome {
   action: 'update' | 'delete';
@@ -29,12 +30,13 @@ export function BookingSelectionBar({
   pending: boolean;
   categories: { id: string; name: string }[];
   projects: { id: string; name: string; archivedAt?: string | null }[];
-  onApply: (set: BulkSet, facts: BulkSelection) => void;
+  onApply: (set: BulkSet, facts: BulkSelection, previewRevision?: string) => Promise<void>;
   onClear: () => void;
   extra: (facts: BulkSelection | undefined) => ReactNode;
   outcome: BulkOutcome | null;
 }) {
   useAmountPrivacy();
+  const [noteOpen, setNoteOpen] = useState(false);
   const ordered = [...ids].sort(),
     key = ordered.join('|');
   const query = useQuery({
@@ -64,7 +66,7 @@ export function BookingSelectionBar({
     return () => observer.disconnect();
   }, [visible]);
   const apply = (set: BulkSet) => {
-    if (!locked && facts) onApply(set, facts);
+    if (!locked && facts) void onApply(set, facts);
   };
   const result = outcome && (
     <section
@@ -108,6 +110,16 @@ export function BookingSelectionBar({
   );
   return (
     <>
+      {visible && noteOpen && (
+        <BookingNoteDialog
+          key={key}
+          ids={ordered}
+          onClose={() => setNoteOpen(false)}
+          onConfirm={(preview) =>
+            onApply({ memo: preview.memo }, preview.selection, preview.revision)
+          }
+        />
+      )}
       {visible && (
         <>
           <div className="kselection-reserve" style={{ height }} aria-hidden="true" />
@@ -156,6 +168,7 @@ export function BookingSelectionBar({
             )}
             <fieldset className="kbulk-controls" disabled={locked}>
               <legend className="sr-only">Sammeländerung</legend>
+              <Button onClick={() => setNoteOpen(true)}>Notiz ändern</Button>
               <Select
                 className="select-sm"
                 aria-label="Kategorie für die Auswahl setzen"

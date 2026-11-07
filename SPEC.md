@@ -25,6 +25,18 @@ removes the waived receivable from the contact statement and keeps the expense
 in its category. This resolves the earlier waiver/net-worth acceptance question;
 no central valuation change is required. See [operator contract](docs/ops.md#1211-contact-allocation-and-credit-decisions-operator-task).
 
+Owner assignment decision (2026-11-07, #982), superseding the previous
+"Schranken" rule: explicit assignment, moving from "Zu verteilen", single-category
+cover from "Zu verteilen", and goal funding ("Ziele füllen") may make or leave
+"Zu verteilen" negative. Show the non-blocking de-AT hint
+"Damit steht ‚Zu verteilen‘ bei −… € – du verplanst mehr, als da ist (Dispo)."
+with the actual resulting amount; negative "Zu verteilen" stays red. No extra
+confirmation or account overdraft limit blocks these assignments. Only assigned
+cents change; account balances, net worth, audit groups, Undo and keyboard behavior
+remain unchanged. Category-source cover limits, automatic cover source selection,
+waterfall suggestions and the other quick-assignment modes retain their existing
+rules. Targets use their full remaining need, even without free money.
+
 Owner shared-expense decision (2026-11-06, #963): new category/contact-share
 purchases retain the original category on every share, charging the gross purchase
 until repayment. Receipts use saved allocations (oldest open outlay first unless

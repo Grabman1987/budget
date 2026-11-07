@@ -11,6 +11,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { PlanMonthPage } from './plan-page';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 /**
  * #587: the cover actions moved from the removed "N überzogen" chip into the Zu verteilen
@@ -72,6 +73,7 @@ const envelope = (categoryId: string, assignedCents: number, activityCents: numb
 
 /** Miete 50 € assigned, Essen 10 € assigned and 25 € spent; "Zu verteilen" is −30 €. */
 const view = () => ({
+  previewBasis: 'a'.repeat(64),
   groups: [{ id: 'g', name: 'Alltag', sortOrder: 0 }],
   categories: [category('miete', 'Miete'), category('essen', 'Essen')],
   targets: [],
@@ -188,6 +190,7 @@ it('"Zurücknehmen" in the disclosure takes the over-assignment back from the lo
     method: 'PUT',
     path: '/api/budget/2026-09/assigned',
     body: {
+      ...(REDESIGN_ENABLED && { expectedBasis: 'a'.repeat(64) }),
       items: [
         { categoryId: 'essen', assignedCents: 0 },
         { categoryId: 'miete', assignedCents: 3_000 },

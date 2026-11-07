@@ -6,6 +6,7 @@ import { errorText } from '../ledger/labels';
 import { LEDGER_KEY } from '../ledger/queries';
 import { EXPECTED_KEY } from '../expected/api';
 import { fetchCategories } from './api';
+import { overAssignmentHint } from './plan-model';
 
 /** Categories feed the pick lists, the budget and the booking lists: a write refreshes all. */
 export const CATEGORIES_KEY = ['categories'] as const;
@@ -54,13 +55,17 @@ export function useBudgetWrite() {
     try {
       const result = await run();
       await refresh();
+      const hint =
+        'toBeAssignedCents' in result && typeof result.toBeAssignedCents === 'number'
+          ? overAssignmentHint(result.toBeAssignedCents)
+          : undefined;
       // A stale quick-fill or an exhausted pool may produce no audit entries.
       if ('changedCount' in result && result.changedCount === 0) {
         toast.show({ message: message(result) });
         return result;
       }
       toast.show({
-        message: message(result),
+        message: [message(result), hint].filter(Boolean).join(' · '),
         actionLabel: 'Rückgängig',
         onAction: () =>
           void undoGroup(result.groupId).then(

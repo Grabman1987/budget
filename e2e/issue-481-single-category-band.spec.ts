@@ -505,9 +505,15 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   );
   const toast = page.locator('.toast.is-open');
   await inspector.getByLabel('Zugewiesen', { exact: true }).fill('1000,01');
+  await expect(inspector.getByRole('status').filter({ hasText: '(Dispo)' })).toContainText(
+    '−0,01 €',
+  );
   await inspector.getByRole('button', { name: 'Übernehmen', exact: true }).click();
-  await expect(inspector.getByText(/Höchstens 1\.000,00 € zuweisen\./)).toBeVisible();
-  expect(writes).toEqual([]);
+  await expect(assigned).toContainText('1.000,01 €');
+  await toast.getByRole('button', { name: 'Rückgängig' }).click();
+  await expect(assigned).toContainText('100,01 €');
+  writes.length = 0;
+  await band.locator('.pname').click();
   await inspector.getByLabel('Zugewiesen', { exact: true }).fill('10+0,01');
   await inspector.getByRole('button', { name: 'Übernehmen', exact: true }).click();
   expect(writes[0]).toEqual({

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers are inspected, not typed */
-import { createTestDatabase, reportTables, type Db } from '@budget/db';
+import { accountBalances, createTestDatabase, reportTables, type Db } from '@budget/db';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -234,23 +234,20 @@ describe('categories and budget API', () => {
     month = await ok('GET', '/budget/2026-10');
     expect(month['summary']).toMatchObject({ assignedCents: 95_000, toBeAssignedCents: 205_000 });
 
-    // The guard: more than "Zu verteilen" holds is refused with 422 and names the maximum; a
-    // write that only reduces or reshuffles passes. Only "Decken" can confirm going below 0.
-    const tooMuch = await call('PUT', '/budget/2026-10/assigned', {
+    // #982: both assignment and moving from Zu verteilen may over-assign; Undo restores all.
+    const tooMuch = await ok('PUT', '/budget/2026-10/assigned', {
       items: [{ categoryId: cafe.id, assignedCents: 5_000 + 205_001 }],
     });
-    expect(tooMuch.status).toBe(422);
-    expect(tooMuch.body).toMatchObject({ error: 'category_rule' });
-    expect(tooMuch.body['message']).toContain('Höchstens 2.050,00 € mehr');
-    expect(
-      (
-        await call('POST', '/budget/2026-10/move', {
-          fromId: null,
-          toId: cafe.id,
-          amountCents: 205_001,
-        })
-      ).status,
-    ).toBe(422);
+    expect(tooMuch.toBeAssignedCents).toBe(-3_001);
+    const movedBeyond = await ok('POST', '/budget/2026-10/move', {
+      fromId: null,
+      toId: cafe.id,
+      amountCents: 205_001,
+    });
+    expect(movedBeyond.toBeAssignedCents).toBe(-208_002);
+    await ok('POST', '/undo', { groupId: movedBeyond.groupId });
+    await ok('POST', '/undo', { groupId: tooMuch.groupId });
+    expect((await ok('GET', '/budget/2026-10')).summary.toBeAssignedCents).toBe(205_000);
     expect(
       (
         await call('PUT', '/budget/2026-10/assigned', {
@@ -506,4 +503,63 @@ it('rejects the old negative-money cover override before any mutation', async ()
     allowNegative: true,
   });
   expect(result.status).toBe(400);
+});
+
+it('fills goals and covers from already negative Zu verteilen without changing account money', async () => {
+  const account = (
+    await ok('POST', '/accounts', {
+      name: 'Synthetic overdraft',
+      type: 'checking',
+      openingDate: '2026-10-01',
+      openingBalanceCents: -1_000,
+    })
+  ).account;
+  const group = (await ok('POST', '/categories/groups', { name: 'Synthetic goals' })).group;
+  const category = (
+    await ok('POST', '/categories', {
+      name: 'Synthetic target',
+      groupId: group.id,
+      class: 'need',
+      stage: 2,
+    })
+  ).category;
+  await ok('PUT', `/categories/${category.id}/target`, {
+    validFrom: '2026-10',
+    target: { kind: 'monthly', amountCents: 2_001 },
+  });
+  const before = accountBalances(db);
+  const fill = await ok('POST', '/budget/2026-10/quick-assign', {
+    mode: 'target',
+    categoryIds: [category.id],
+  });
+  expect(accountBalances(db)).toEqual([{ accountId: account.id, balanceCents: -1_000 }]);
+  expect(fill).toMatchObject({
+    changedCount: 1,
+    missingCents: 0,
+    openCount: 0,
+    toBeAssignedCents: -3_001,
+  });
+  expect(
+    (await ok('GET', '/budget/2026-10')).summary.envelopes.find(
+      (e: any) => e.categoryId === category.id,
+    ).assignedCents,
+  ).toBe(2_001);
+  await ok('POST', '/undo', { groupId: fill.groupId });
+  expect((await ok('GET', '/budget/2026-10')).summary.toBeAssignedCents).toBe(-1_000);
+  expect(accountBalances(db)).toEqual(before);
+  await ok('POST', '/bookings', {
+    type: 'booking',
+    accountId: account.id,
+    date: '2026-10-03',
+    amountCents: -500,
+    categoryId: category.id,
+  });
+  const cover = await ok('POST', '/budget/2026-10/cover', {
+    categoryId: category.id,
+    fromId: null,
+  });
+  expect(accountBalances(db)).toEqual([{ accountId: account.id, balanceCents: -1_500 }]);
+  expect(cover).toMatchObject({ coveredCents: 500, toBeAssignedCents: -1_500 });
+  await ok('POST', '/undo', { groupId: cover.groupId });
+  expect((await ok('GET', '/budget/2026-10')).summary.toBeAssignedCents).toBe(-1_000);
 });

@@ -2,7 +2,7 @@ import { freedomSumCents, quickAssignPlan, type QuickAssignMode } from '@budget/
 import { Button, useAmountPrivacy } from '@budget/ui';
 import { ArrowLeftRight, ChevronRight, Copy, RotateCcw, Target, TrendingUp } from 'lucide-react';
 import { eur } from '../ledger/format';
-import type { PlanRow } from './plan-model';
+import { moveGuard, type PlanRow } from './plan-model';
 import { useQuickAssign } from './quick-assign-actions';
 
 /** The exact existing planner items, expressed as the signed change this action will book. */
@@ -54,6 +54,7 @@ export function PlanAutomatic({
       {disabled && <p className="panel-sub">Nur bei einem Monat</p>}
       {ACTIONS.map(([mode, label, Icon]) => {
         const preview = automaticAssignment(eligible, mode, tba);
+        const hint = moveGuard(preview.deltaCents, tba).message;
         return (
           <div key={mode}>
             <Button
@@ -79,6 +80,7 @@ export function PlanAutomatic({
                 verteilen begrenzt
               </p>
             )}
+            {preview.changedCount > 0 && hint && <p className="panel-sub">{hint}</p>}
           </div>
         );
       })}

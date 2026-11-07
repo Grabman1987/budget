@@ -1133,7 +1133,7 @@
   color: var(--ink-3);
 }
 
-/* The guard's refusal under the assign field. */
+/* Non-blocking overdraft hint under the assignment field. */
 .plan .assign-note {
   display: grid;
   justify-items: end;
