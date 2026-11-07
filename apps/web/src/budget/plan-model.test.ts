@@ -43,12 +43,12 @@ const env = (categoryId: string, over: Partial<EnvelopeSummary> = {}): EnvelopeS
 describe('Zerosum spending display', () => {
   it('shows cent-exact net spending and remaining share, including carry and refunds', () => {
     expect(spendingBar(env('x', { activityCents: -12_898, availableCents: 72_972 }))).toEqual({
-      status: 'Ausgegeben 128,98 € von 858,70 €',
+      status: '128,98 von 858,70',
       spentShare: 12_898 / 85_870,
       over: false,
     });
     expect(spendingBar(env('x', { activityCents: 202, availableCents: 703 }))).toEqual({
-      status: 'Noch nichts ausgegeben',
+      status: 'Nichts ausgegeben',
       spentShare: 0,
       over: false,
     });
@@ -56,27 +56,36 @@ describe('Zerosum spending display', () => {
 
   it('distinguishes fully spent, overspent, empty and underfunded envelopes', () => {
     expect(spendingBar(env('x', { activityCents: -501 }))).toEqual({
-      status: 'Komplett ausgegeben',
+      status: 'Voll ausgegeben',
       spentShare: 1,
       over: false,
     });
     expect(
-      spendingBar(env('x', { activityCents: -703, availableCents: -202, needCents: 500 })),
+      spendingBar(
+        env('x', { activityCents: -703, availableCents: -202, needCents: 500, target: target() }),
+      ),
     ).toEqual({
-      status: 'Überzogen um 2,02 € · fehlt 5,00 € bis Ziel',
+      status: 'Überzogen 2,02 · noch 5,00 bis Ziel',
       spentShare: 1,
       over: true,
     });
     expect(spendingBar(env('x'))).toEqual({
-      status: 'Noch nichts ausgegeben',
+      status: 'Nichts ausgegeben',
       spentShare: 0,
       over: false,
     });
-    expect(spendingBar(env('x', { availableCents: 501, needCents: 1 }))).toEqual({
-      status: 'Noch nichts ausgegeben · fehlt 0,01 € bis Ziel',
+    expect(spendingBar(env('x', { availableCents: 501, needCents: 1, target: target() }))).toEqual({
+      status: 'Nichts ausgegeben · noch 0,01 bis Ziel',
       spentShare: 0,
       over: false,
     });
+  });
+
+  it('only appends a goal gap when a target exists and still needs funding', () => {
+    expect(spendingBar(env('x', { needCents: 500 })).status).toBe('Nichts ausgegeben');
+    expect(spendingBar(env('x', { target: target(), needCents: 0 })).status).toBe(
+      'Nichts ausgegeben',
+    );
   });
 });
 const cat = (id: string, stage: number | null, kind = 'variable', cls: string | null = 'need') => ({

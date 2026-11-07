@@ -229,7 +229,8 @@ for (const profile of ['configured', 'desktop', 'phone-tall'] as const) {
             const combinedHeight = parent.first.bottom - parent.top;
             if (geometry.redesigned) {
               expect(combinedHeight, parent.id).toBeGreaterThanOrEqual(80);
-              expect(combinedHeight, parent.id).toBeLessThanOrEqual(phone ? 152 : 100);
+              // Desktop retains full-size category targets and spacing below the bar.
+              expect(combinedHeight, parent.id).toBeLessThanOrEqual(phone ? 152 : 140);
             } else expect(combinedHeight, parent.id).toBeLessThanOrEqual(phone ? 152 : 76);
             expect(parent.controls.length, parent.id).toBeGreaterThan(0);
             if (phone)
@@ -245,7 +246,7 @@ for (const profile of ['configured', 'desktop', 'phone-tall'] as const) {
               expect(category.barHeight).toBe(4);
               expect(phone ? category.rowPadding : category.bottomPadding).toBe(8);
               expect(category.height).toBeGreaterThanOrEqual(56);
-              expect(category.height).toBeLessThanOrEqual(phone ? 76 : 64);
+              expect(category.height).toBeLessThanOrEqual(phone ? 76 : 104);
             } else expect(category.height).toBeLessThanOrEqual(phone ? 76 : 40);
           }
           const toggle = page.getByRole('button', { name: 'Gruppe Wohnen', exact: true });

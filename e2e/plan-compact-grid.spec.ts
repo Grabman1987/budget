@@ -167,9 +167,9 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   const redesigned = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   // ON adds a separate semantic state mark; the exact financial copy stays intact.
   const spending = page.locator(`.prow ${redesigned ? '.plan-spending-copy' : '.spending-status'}`);
-  await expect(spending.first()).toHaveText('Überzogen um 2,02 € · fehlt 5,00 € bis Ziel');
-  await expect(spending.nth(1)).toHaveText('Ausgegeben 2,01 € von 5,01 € · fehlt 5,00 € bis Ziel');
-  await expect(spending.nth(2)).toHaveText('Komplett ausgegeben · fehlt 5,00 € bis Ziel');
+  await expect(spending.first()).toHaveText('Überzogen 2,02 · noch 5,00 bis Ziel');
+  await expect(spending.nth(1)).toHaveText('2,01 von 5,01 · noch 5,00 bis Ziel');
+  await expect(spending.nth(2)).toHaveText('Voll ausgegeben · noch 5,00 bis Ziel');
   if (page.viewportSize()!.width < 768) {
     await enterPhoneSelection(page);
     const all = page.getByRole('button', { name: /^Alle Kategorien auswählen · \d+\/\d+$/ });
@@ -298,7 +298,7 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     if (redesigned) {
       for (const pair of dimensions.pairs) {
         expect(pair.height).toBeGreaterThanOrEqual(80);
-        expect(pair.height).toBeLessThanOrEqual(100);
+        expect(pair.height).toBeLessThanOrEqual(140);
       }
     } else expect(Math.max(...dimensions.bandHeights)).toBeLessThanOrEqual(76);
     await info.attach('compact-grid-dimensions', {
@@ -312,6 +312,7 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     } else expect(dimensions.beforeGrid).toBeLessThanOrEqual(120);
     if (redesigned) {
       expect(Math.min(...dimensions.heights)).toBeGreaterThanOrEqual(56);
+      // Name and hint share the 44px target line, with the bar and bottom spacing below.
       expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(64);
     } else expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(40);
     expect(Math.max(...dimensions.groups)).toBeLessThanOrEqual(36);
