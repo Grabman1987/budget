@@ -46,8 +46,8 @@ export interface ComboboxProps {
   hintHeading?: string;
   /** Capture categories retain their caller's group order and expose the entire scrollable list. */
   captureCategory?: boolean;
-  /** Mobile capture suggestions participate in the form's scroll layout. */
-  captureInline?: boolean;
+  /** Mobile capture suggestions overlay following rows at the card's full width. */
+  captureOverlay?: boolean;
 }
 
 const fold = (text: string) => text.toLocaleLowerCase('de-AT').trim();
@@ -90,7 +90,7 @@ export function Combobox({
   pickSingle = false,
   hintHeading,
   captureCategory = false,
-  captureInline = false,
+  captureOverlay = false,
 }: ComboboxProps) {
   const [isPhone, setIsPhone] = useState(
     () => window.matchMedia?.('(max-width: 767px)').matches ?? false,
@@ -101,7 +101,7 @@ export function Combobox({
     media?.addEventListener('change', update);
     return () => media?.removeEventListener('change', update);
   }, []);
-  const inlineCapture = captureInline || (captureCategory && REDESIGN_ENABLED && isPhone);
+  const overlayCapture = captureOverlay || (captureCategory && REDESIGN_ENABLED && isPhone);
   const listId = useId();
   const [focused, setFocused] = useState(false);
   const [active, setActive] = useState(-1);
@@ -134,55 +134,16 @@ export function Combobox({
   // On the phone the list opens inside a scrolling sheet: bring it into view.
   useEffect(() => {
     if (
-      inlineCapture ||
+      overlayCapture ||
       captureCategory ||
       !open ||
       !window.matchMedia?.('(max-width: 767px)')?.matches
     )
       return;
     document.getElementById(listId)?.scrollIntoView?.({ block: 'nearest' });
-  }, [open, listId, captureCategory, inlineCapture]);
+  }, [open, listId, captureCategory, overlayCapture]);
   useLayoutEffect(() => {
-    if (!inlineCapture || !open) return;
-    const list = document.getElementById(listId);
-    const field = list?.closest('.field-row');
-    const scroller = list?.closest('.bk-body');
-    if (!list || !field || !scroller) return;
-    const viewport = window.visualViewport;
-    const refresh = () => {
-      // Reserve the active row and a few results above the keyboard, inside the form scroller.
-      const frame = scroller.getBoundingClientRect();
-      const top = Math.max(frame.top + scroller.clientTop, viewport?.offsetTop ?? 0);
-      const bottom = Math.min(
-        frame.top + scroller.clientTop + scroller.clientHeight,
-        (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight),
-      );
-      const rowHeight = Math.max(
-        44,
-        field.getBoundingClientRect().height - list.getBoundingClientRect().height,
-      );
-      // Leave one pixel for engines that quantize scrollTop while row positions are fractional.
-      list.style.maxHeight = `${Math.max(44, Math.min(220, Math.floor(bottom - top - rowHeight) - 1))}px`;
-      const row = field.getBoundingClientRect();
-      if (row.bottom > bottom)
-        scroller.scrollTop += Math.ceil(Math.min(row.bottom - bottom, row.top - top));
-      else if (row.top < top) scroller.scrollTop += Math.floor(row.top - top);
-      const activeId = field.querySelector('input')?.getAttribute('aria-activedescendant');
-      if (activeId) revealOption(list, document.getElementById(activeId));
-    };
-    refresh();
-    window.addEventListener('resize', refresh);
-    viewport?.addEventListener('resize', refresh);
-    viewport?.addEventListener('scroll', refresh);
-    return () => {
-      window.removeEventListener('resize', refresh);
-      viewport?.removeEventListener('resize', refresh);
-      viewport?.removeEventListener('scroll', refresh);
-      list.style.removeProperty('max-height');
-    };
-  }, [inlineCapture, open, listId, shown.length]);
-  useLayoutEffect(() => {
-    if (inlineCapture || !captureCategory || !open) return;
+    if ((!overlayCapture && !captureCategory) || !open) return;
     const list = document.getElementById(listId);
     const field = list?.parentElement;
     if (!list || !field) return;
@@ -202,19 +163,26 @@ export function Combobox({
         left = Math.max(left, box.left + dialog.clientLeft);
         right = Math.min(right, box.left + dialog.clientLeft + dialog.clientWidth);
       }
-      const anchor = field.getBoundingClientRect();
+      const anchor = (
+        overlayCapture ? field.querySelector('input') : field
+      )?.getBoundingClientRect();
+      if (!anchor) return;
+      const card =
+        (overlayCapture ? field.closest('.bk-cols') : null)?.getBoundingClientRect() ?? anchor;
       const belowOrigin = Math.max(top, Math.min(anchor.bottom + 4, bottom));
       const aboveOrigin = Math.max(top, Math.min(anchor.top - 4, bottom));
       const below = Math.max(0, bottom - belowOrigin);
       const above = Math.max(0, aboveOrigin - top);
-      const opensAbove = above > below;
-      const width = Math.max(0, Math.min(anchor.width, right - left));
-      const maxHeight = Math.min(
-        bottom - top,
-        Math.max(MIN_CAPTURE_LIST_HEIGHT, opensAbove ? above : below),
-      );
+      // Prefer the following rows; only flip when the desired list will not fit below.
+      const opensAbove = overlayCapture
+        ? below < Math.min(220, list.scrollHeight) && above > below
+        : above > below;
+      const width = Math.max(0, Math.min(card.width, right - left));
+      const maxHeight = overlayCapture
+        ? Math.min(220, opensAbove ? above : below)
+        : Math.min(bottom - top, Math.max(MIN_CAPTURE_LIST_HEIGHT, opensAbove ? above : below));
       list.style.maxHeight = `${Math.floor(maxHeight)}px`;
-      list.style.left = `${Math.max(left, Math.min(anchor.left, right - width))}px`;
+      list.style.left = `${Math.max(left, Math.min(card.left, right - width))}px`;
       list.style.right = 'auto';
       list.style.width = `${width}px`;
       list.style.bottom = 'auto';
@@ -252,7 +220,7 @@ export function Combobox({
       for (const property of ['max-height', 'left', 'right', 'width', 'bottom', 'top'])
         list.style.removeProperty(property);
     };
-  }, [captureCategory, inlineCapture, open, listId, shown.length]);
+  }, [captureCategory, overlayCapture, open, listId, shown.length]);
   const optionId = (index: number) => `${listId}-${index}`;
   // Without arrow keys, `pickFirst` highlights the first match once something is typed.
   const activeIndex =
@@ -264,11 +232,11 @@ export function Combobox({
         ? 0
         : -1;
   useLayoutEffect(() => {
-    if ((!captureCategory && !inlineCapture) || !open || activeIndex < 0) return;
+    if ((!captureCategory && !overlayCapture) || !open || activeIndex < 0) return;
     const list = document.getElementById(listId);
     const option = document.getElementById(`${listId}-${activeIndex}`);
     if (list) revealOption(list, option);
-  }, [captureCategory, inlineCapture, open, activeIndex, listId]);
+  }, [captureCategory, overlayCapture, open, activeIndex, listId]);
 
   const pick = (option: ComboOption) => {
     onSelect(option);
@@ -283,7 +251,7 @@ export function Combobox({
           className={cx(
             'combo',
             captureCategory && 'is-capture-category',
-            inlineCapture && 'is-capture-inline',
+            overlayCapture && 'is-capture-overlay',
           )}
         >
           <TextInput
@@ -299,7 +267,7 @@ export function Combobox({
             aria-describedby={describedBy}
             autoComplete="off"
             value={value}
-            placeholder={inlineCapture && captureCategory ? 'Kategorie wählen' : placeholder}
+            placeholder={overlayCapture && captureCategory ? 'Kategorie wählen' : placeholder}
             onFocus={(e) => {
               // A newly focused split row can be outside the sheet after it grows.
               if (captureCategory) {
@@ -352,7 +320,7 @@ export function Combobox({
               className="combo-list"
               id={listId}
               role="listbox"
-              tabIndex={inlineCapture ? -1 : undefined}
+              tabIndex={overlayCapture ? -1 : undefined}
               aria-label={`${label}, Vorschläge`}
             >
               {hintHeading !== undefined && shown.length > 0 && (

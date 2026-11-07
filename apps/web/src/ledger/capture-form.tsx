@@ -63,6 +63,7 @@ import {
   captureDate,
   categoriesFor,
   categoryFromPayee,
+  recentPayeeCategory,
   orderAccounts,
   pickableCategories,
   readMemory,
@@ -225,6 +226,8 @@ export function CaptureForm({
   );
   // The category the last chosen payee's default filled in; only that one is replaced by the next.
   const appliedByPayee = useRef<string | null>(null);
+  const categoryRequest = useRef(0);
+  const categoryChosen = useRef(Boolean(draft.categoryId || draft.contactId || draft.splitOn));
   // The payee "Speichern und neu" carried over: context, so it does not make the form dirty.
   const [keptPayee, setKeptPayee] = useState('');
   const set = <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) => {
@@ -360,51 +363,79 @@ export function CaptureForm({
   const applyPayeeDefault = (name: string, chosen = false) => {
     const key = name.trim().toLowerCase();
     const payee = payees.data?.payees.find((p) => p.name.toLowerCase() === key);
-    const fallback = payee?.defaultCategoryId;
-    // A delayed lookup must not replace a later payee or a manually selected account.
-    if (
+    const request = ++categoryRequest.current;
+    const applyCategory = (fallback: string | null | undefined) => {
+      if (request !== categoryRequest.current || categoryChosen.current) return;
+      setDraft((d) => {
+        if (d.splitOn || d.kind === 'transfer' || d.contactId) return d;
+        const next = categoryFromPayee(d.categoryId, appliedByPayee.current, fallback);
+        if (next === undefined || !categoriesFor(all, d.kind, '').some((c) => c.id === next))
+          return d;
+        appliedByPayee.current = next;
+        return {
+          ...d,
+          categoryId: next,
+          ...(d.lines?.length === 1 && d.lines[0]?.type === 'category'
+            ? { lines: [{ ...d.lines[0], categoryId: next }] }
+            : {}),
+        };
+      });
+    };
+    applyCategory(payee?.defaultCategoryId);
+    const suggestAccount =
       !editing &&
       !queued &&
       !hasAccountContext &&
       draft.kind !== 'transfer' &&
       key &&
-      (chosen || key !== accountPayee.current)
-    ) {
-      accountPayee.current = key;
-      const request = ++accountRequest.current;
-      const applyAccount = (last: string | undefined) => {
-        if (request !== accountRequest.current) return;
-        set(
-          'accountId',
-          accountFromPayee(open, memory.accounts.length ? memory.accounts : [accountId], last),
+      (chosen || key !== accountPayee.current);
+    const suggestCategory =
+      !editing &&
+      !queued &&
+      payee &&
+      !payee.defaultCategoryId &&
+      !categoryChosen.current &&
+      !draft.splitOn &&
+      !draft.contactId &&
+      draft.kind !== 'transfer';
+    // Share the history read; account and category choices have separate guards.
+    if (!suggestAccount && !suggestCategory) return;
+    const accountVersion = suggestAccount ? ++accountRequest.current : accountRequest.current;
+    if (suggestAccount) accountPayee.current = key;
+    const applyAccount = (last: string | undefined) => {
+      if (!suggestAccount || accountVersion !== accountRequest.current) return;
+      set(
+        'accountId',
+        accountFromPayee(open, memory.accounts.length ? memory.accounts : [accountId], last),
+      );
+    };
+    if (!payee) return applyAccount(undefined);
+    const readHistory = async () => {
+      let cursor: string | undefined;
+      do {
+        const page = await fetchBookings(
+          { payeeId: payee.id, to: today },
+          cursor,
+          suggestCategory ? 50 : 1,
         );
-      };
-      if (payee)
-        void fetchBookings({ payeeId: payee.id, to: today }, undefined, 1)
-          .then((page) => applyAccount(page.items[0]?.accountId))
-          .catch(() => undefined);
-      else applyAccount(undefined);
-    }
-    setDraft((d) => {
-      if (d.splitOn || d.kind === 'transfer') return d;
-      const next = categoryFromPayee(d.categoryId, appliedByPayee.current, fallback);
-      if (next === undefined || !categoriesFor(all, d.kind, '').some((c) => c.id === next))
-        return d;
-      appliedByPayee.current = next;
-      return {
-        ...d,
-        categoryId: next,
-        ...(d.lines?.length === 1 && d.lines[0]?.type === 'category'
-          ? { lines: [{ ...d.lines[0], categoryId: next }] }
-          : {}),
-      };
-    });
+        if (!cursor) applyAccount(page.items[0]?.accountId);
+        if (!suggestCategory || request !== categoryRequest.current || categoryChosen.current)
+          return;
+        const category = page.items
+          .map((booking) => recentPayeeCategory(booking, draft.kind))
+          .find((id) => id && categoriesFor(all, draft.kind).some((item) => item.id === id));
+        if (category) return applyCategory(category);
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+    };
+    void readHistory().catch(() => undefined);
   };
 
   const changeKind = (kind: BookingKind) => {
     if (kind !== draft.kind) setBankIntent(null);
     setDraft((d) => {
       accountRequest.current++;
+      categoryRequest.current++;
       appliedByPayee.current = null;
       const valid = kind !== 'expense' || all.find((c) => c.id === d.categoryId)?.kind !== 'income';
       const next = {
@@ -522,6 +553,9 @@ export function CaptureForm({
       // The next booking keeps the context (kind, account, date, payee and its category).
       setStatusChosen(false);
       setBankIntent(null);
+      categoryRequest.current++;
+      categoryChosen.current = false;
+      appliedByPayee.current = draft.splitOn ? null : draft.categoryId;
       setKeptPayee(draft.payee);
       setDraft((d) => ({
         ...emptyDraft(accountId, d.date),
@@ -755,6 +789,11 @@ export function CaptureForm({
     <SplitEditor
       draft={draft}
       setDraft={setDraft}
+      onCategoryChoose={() => {
+        categoryChosen.current = true;
+        categoryRequest.current++;
+        appliedByPayee.current = null;
+      }}
       categories={splitPickable}
       accounts={open}
       accountId={accountId}
@@ -1012,10 +1051,11 @@ export function CaptureForm({
                   label={draft.kind === 'income' ? 'Von (Zahler)' : 'Empfänger'}
                   value={draft.payee}
                   placeholder={mobileRedesign ? 'Empfänger wählen' : 'Suchen oder neu anlegen'}
-                  captureInline={mobileRedesign}
+                  captureOverlay={mobileRedesign}
                   pickSingle
                   onChange={(text) => {
                     accountRequest.current++;
+                    categoryRequest.current++;
                     set('payee', text);
                   }}
                   onSelect={(o) => {

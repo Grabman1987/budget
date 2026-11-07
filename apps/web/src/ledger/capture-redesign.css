@@ -862,7 +862,7 @@
   }
 }
 
-/* Inset grouped capture: one opaque surface, with inline suggestions sharing its rows. */
+/* Inset grouped capture: one opaque surface, with suggestions floating over following rows. */
 @media (max-width: 767px) {
   .bkform-redesign .bk-body {
     padding-block-start: 8px;
@@ -966,55 +966,55 @@
     border-radius: inherit;
     background: var(--surface);
   }
-  .bkform-redesign .bk-body .combo.is-capture-inline {
+  .bkform-redesign .bk-body .combo.is-capture-overlay {
     display: contents;
   }
-  .bkform-redesign .is-capture-inline > .input {
+  .bkform-redesign .is-capture-overlay > .input {
     grid-column: 2;
   }
-  .bkform-redesign .is-capture-inline > .combo-list {
-    position: static;
-    grid-column: 1 / -1;
+  .bkform-redesign .is-capture-overlay > .combo-list {
+    position: fixed;
+    box-sizing: border-box;
     width: auto;
     max-width: 100%;
     max-height: 220px;
     min-width: 0;
     padding: 0;
-    border: 0;
-    border-top: 1px solid var(--rule);
-    border-radius: 0;
-    box-shadow: none;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-sheet);
+    box-shadow: var(--shadow);
     background: var(--surface);
     overscroll-behavior: contain;
   }
-  .bkform-redesign .is-capture-inline .combo-option {
-    padding-inline: 0;
+  .bkform-redesign .is-capture-overlay .combo-option {
+    min-height: 44px;
+    padding-inline: 12px;
     border-radius: 0;
     border-bottom: 1px solid var(--rule);
   }
-  .bkform-redesign .is-capture-inline .combo-option > span {
+  .bkform-redesign .is-capture-overlay .combo-option > span {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .bkform-redesign .is-capture-inline .combo-hint {
+  .bkform-redesign .is-capture-overlay .combo-hint {
     max-width: 50%;
   }
-  .bkform-redesign .is-capture-inline .combo-hint:has(.combo-avail) {
+  .bkform-redesign .is-capture-overlay .combo-hint:has(.combo-avail) {
     flex-shrink: 0;
     max-width: none;
   }
-  .bkform-redesign .is-capture-inline .combo-avail {
+  .bkform-redesign .is-capture-overlay .combo-avail {
     white-space: nowrap;
   }
-  .bkform-redesign .bk-line:has(.is-capture-inline) .bk-line-fields {
+  .bkform-redesign .bk-line:has(.is-capture-overlay) .bk-line-fields {
     padding-inline-end: 0;
   }
-  .bkform-redesign .bk-line:has(.bk-category-tools) .is-capture-inline > .input {
+  .bkform-redesign .bk-line:has(.bk-category-tools) .is-capture-overlay > .input {
     padding-inline-end: 44px;
   }
-  .bkform-redesign .bk-line:has(.bk-category-context) .is-capture-inline > .input {
+  .bkform-redesign .bk-line:has(.bk-category-context) .is-capture-overlay > .input {
     padding-inline-end: 88px;
   }
   .bkform-redesign .bk-body .field-error {

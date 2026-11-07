@@ -22,13 +22,13 @@ function Harness({
   onParentKey,
   pickFirst = false,
   captureCategory = false,
-  captureInline = false,
+  captureOverlay = false,
 }: {
   onSelect: (o: ComboOption) => void;
   onParentKey?: () => void;
   pickFirst?: boolean;
   captureCategory?: boolean;
-  captureInline?: boolean;
+  captureOverlay?: boolean;
 }) {
   const [text, setText] = useState('');
   return (
@@ -43,88 +43,92 @@ function Harness({
         listWhenEmpty
         pickFirst={pickFirst}
         captureCategory={captureCategory}
-        captureInline={captureInline}
+        captureOverlay={captureOverlay}
       />
     </div>
   );
 }
 
 describe('Combobox', () => {
-  it.each([
-    { fraction: 0, rowOffset: 0, resizedHeight: 200 },
-    { fraction: 0.25, rowOffset: 0, resizedHeight: 200 },
-    { fraction: 0, rowOffset: 0.796875, resizedHeight: 200 },
-    { fraction: 0, rowOffset: 113.796875, resizedHeight: 333 },
-  ])(
-    'keeps inline results visible after resize with fractional body $fraction and row $rowOffset',
-    async ({ fraction, rowOffset, resizedHeight }) => {
-      let bodyScroll = 0;
-      let bodyHeight = 400;
+  it.each([false, true])(
+    'overlays the card below the field, flips above the keyboard and retains selection (category: %s)',
+    async (captureCategory) => {
+      const viewport = Object.assign(new EventTarget(), {
+        height: 600,
+        offsetTop: 0,
+        width: 390,
+        offsetLeft: 0,
+      });
+      vi.stubGlobal('visualViewport', viewport);
       const listHeight = () =>
-        Number.parseFloat(screen.queryByRole('listbox')?.style.maxHeight || '220');
-      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+        Math.min(264, Number.parseFloat(screen.queryByRole('listbox')?.style.maxHeight || '220'));
+      vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
         this: HTMLElement,
       ) {
-        if (this.classList.contains('bk-body')) return new DOMRect(16, 50, 358, bodyHeight);
-        if (this.classList.contains('field-row'))
-          return new DOMRect(28, 50 + rowOffset - bodyScroll, 334, 45 + listHeight());
-        if (this.classList.contains('combo-list'))
-          return new DOMRect(28, 95 + rowOffset - bodyScroll, 334, listHeight());
-        if (this.getAttribute('role') === 'option') {
-          const index = Number(this.id.split('-').at(-1));
-          return new DOMRect(
-            28,
-            95 + rowOffset - bodyScroll + index * 88 - this.closest('ul')!.scrollTop,
-            334,
-            44,
-          );
-        }
-        return new DOMRect(28, 50, 334, 44);
+        return this.classList.contains('combo-list') ? listHeight() : 44;
       });
       vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
         this: HTMLElement,
       ) {
-        return this.classList.contains('combo-list') ? listHeight() : Math.floor(bodyHeight);
+        return this.classList.contains('combo-list') ? listHeight() - 2 : 600;
+      });
+      vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(264);
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        if (this.classList.contains('bk-cols')) return new DOMRect(16, 20, 358, 500);
+        if (this.classList.contains('combo-list'))
+          return new DOMRect(16, Number.parseFloat(this.style.top), 358, listHeight());
+        if (this.getAttribute('role') === 'option') {
+          const list = this.closest('ul')!;
+          const index = Number(this.id.split('-').at(-1));
+          return new DOMRect(
+            16,
+            Number.parseFloat(list.style.top) + index * 88 - list.scrollTop,
+            358,
+            44,
+          );
+        }
+        // display:contents has no box; positioning must use the input itself.
+        if (this.classList.contains('combo')) return new DOMRect();
+        return new DOMRect(130, 180.25, 220, 44);
       });
       const onSelect = vi.fn();
       const user = userEvent.setup();
       render(
-        <div className="bk-body">
-          <Harness onSelect={onSelect} captureInline captureCategory />
+        <div className="bk-cols">
+          <Harness onSelect={onSelect} captureOverlay captureCategory={captureCategory} />
         </div>,
       );
-      Object.defineProperty(document.querySelector('.bk-body')!, 'scrollTop', {
-        get: () => bodyScroll,
-        set: (value: number) => {
-          bodyScroll = Math.trunc(value);
-        },
-        configurable: true,
-      });
       const field = screen.getByRole('combobox');
       await user.click(field);
-      await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}');
       const list = screen.getByRole('listbox');
       expect(list.tabIndex).toBe(-1);
-      expect(list.scrollTop).toBe(0);
+      expect(list.style.left).toBe('16px');
+      expect(list.style.width).toBe('358px');
+      expect(list.getBoundingClientRect().top).toBe(228.25);
+      expect(list.getBoundingClientRect().height).toBe(220);
+      await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}');
       act(() => {
-        bodyHeight = resizedHeight + fraction;
-        window.dispatchEvent(new Event('resize'));
+        viewport.height = 280;
+        viewport.offsetTop = 40;
+        viewport.dispatchEvent(new Event('resize'));
+        viewport.dispatchEvent(new Event('scroll'));
       });
-      // WebKit quantizes scrollTop even when the row position and body height are fractional.
-      expect(list.getBoundingClientRect().bottom).toBeLessThanOrEqual(50 + resizedHeight);
-      expect(field.closest('.field-row')!.getBoundingClientRect().top).toBeGreaterThanOrEqual(50);
-      const scrollAfterResize = bodyScroll;
-      act(() => window.dispatchEvent(new Event('resize')));
-      expect(bodyScroll).toBe(scrollAfterResize);
+      expect(list.getBoundingClientRect().top).toBeGreaterThanOrEqual(40);
+      expect(list.getBoundingClientRect().bottom).toBeLessThanOrEqual(180.25);
       const selected = screen.getByRole('option', { selected: true });
       expect(selected.textContent).toBe('Reise');
       expect(selected.getBoundingClientRect().top).toBeGreaterThanOrEqual(
-        list.getBoundingClientRect().top + list.clientTop,
+        list.getBoundingClientRect().top,
       );
       expect(selected.getBoundingClientRect().bottom).toBeLessThanOrEqual(
-        list.getBoundingClientRect().bottom,
+        list.getBoundingClientRect().top + list.clientHeight,
       );
       expect(document.activeElement).toBe(field);
+      const previousTop = list.style.top;
+      act(() => viewport.dispatchEvent(new Event('resize')));
+      expect(list.style.top).toBe(previousTop);
       await user.keyboard('{Enter}');
       expect(onSelect).toHaveBeenCalledWith(OPTIONS[2]);
     },

@@ -39,6 +39,8 @@ export interface SplitEditorProps {
   locked: boolean;
   error: string | undefined;
   suggestions?: ReadonlyArray<PickCategory>;
+  /** Explicit choices take precedence over asynchronous payee suggestions. */
+  onCategoryChoose?: () => void;
   singleMetadata?: Partial<SplitDraft>;
   contactHost?: Element | null | undefined;
   compact?: boolean;
@@ -89,6 +91,7 @@ export function SplitEditor({
   locked,
   error,
   suggestions = [],
+  onCategoryChoose,
   singleMetadata,
   contactHost,
   compact = false,
@@ -121,6 +124,7 @@ export function SplitEditor({
   const change = (key: string, patch: Partial<BookingLineDraft>) =>
     update((current) => current.map((line) => (line.key === key ? { ...line, ...patch } : line)));
   const choose = (line: BookingLineDraft, id: string) => {
+    onCategoryChoose?.();
     if (id === '__new-contact') return setCreatingLine(line.key);
     if (id.startsWith('__contact:'))
       change(line.key, {
@@ -456,7 +460,10 @@ export function SplitEditor({
                   capturePicker
                   categories={categories}
                   selectedName={category?.name ?? ''}
-                  onSelect={(categoryId) => change(line.key, { categoryId })}
+                  onSelect={(categoryId) => {
+                    onCategoryChoose?.();
+                    change(line.key, { categoryId });
+                  }}
                 />
               )}
             {!(compact && !multiple) && categoryHints}

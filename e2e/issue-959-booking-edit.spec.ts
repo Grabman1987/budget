@@ -87,7 +87,7 @@ test('reconciled split editing keeps fields and cents readable and closes withou
       for (const input of await dialog.locator('.bk-lines input:not([type="checkbox"])').all()) {
         if (
           width === 390 &&
-          (await input.locator('..').getAttribute('class'))?.includes('is-capture-inline')
+          (await input.locator('..').getAttribute('class'))?.includes('is-capture-overlay')
         ) {
           // Long category names are one-line ellipses in the inset rows (#980).
           await expect(input).toHaveCSS('text-overflow', 'ellipsis');

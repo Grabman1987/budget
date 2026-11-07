@@ -653,3 +653,173 @@ it('treats contact-sharing input as dirty before the gross amount is entered', a
   fireEvent.click(screen.getByRole('button', { name: 'Teilen' }));
   await waitFor(() => expect(dirty.current).toBe(true));
 });
+
+function renderPayeeSuggestions(phone: boolean) {
+  flags.REDESIGN_ENABLED = true;
+  flags.phone = phone;
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  client.setQueryData(['lookups'], {
+    categories: [
+      { id: 'food', name: 'Essen Muster', kind: 'expense', sortOrder: 0 },
+      { id: 'other', name: 'Freizeit Muster', kind: 'expense', sortOrder: 1 },
+    ],
+    groups: [],
+    contacts: [],
+    incomeTypes: [],
+    projects: [],
+  });
+  client.setQueryData(['payees'], {
+    payees: [
+      { id: 'shop', name: 'Laden Beispiel', defaultCategoryId: null },
+      { id: 'other-shop', name: 'Anderer Musterladen', defaultCategoryId: 'other' },
+    ],
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <ToastProvider>
+        <CaptureForm
+          state={{ mode: 'create', accountId: 'wallet' }}
+          onDone={vi.fn()}
+          dirtyRef={{ current: false }}
+          discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+          requestClose={vi.fn()}
+        />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+}
+const payeeHistory: Awaited<ReturnType<typeof ledgerApi.fetchBookings>> = {
+  items: [
+    {
+      id: 'history-synthetic',
+      accountId: 'giro',
+      accountName: 'Giro Muster',
+      date: '2026-10-01',
+      amountCents: -100,
+      payeeId: 'shop',
+      payeeName: 'Laden Beispiel',
+      memo: null,
+      status: 'confirmed',
+      flag: null,
+      transferId: null,
+      transferAccountId: null,
+      transferAccountName: null,
+      projectId: null,
+      currency: 'EUR',
+      originalAmountCents: null,
+      originalCurrency: null,
+      balanceAfterCents: -100,
+      splits: [
+        {
+          id: 'history-split',
+          categoryId: 'food',
+          categoryName: 'Essen Muster',
+          amountCents: -100,
+          memo: null,
+          contactId: null,
+          incomeTypeId: null,
+          transferId: null,
+        },
+      ],
+    },
+  ],
+  total: 1,
+  nextCursor: null,
+  sumCents: -100,
+};
+it.each([false, true])(
+  'suggests the latest payee category and preserves an explicit same-category choice (phone: %s)',
+  async (phone) => {
+    const lookup = vi.spyOn(ledgerApi, 'fetchBookings').mockResolvedValue(payeeHistory);
+    try {
+      renderPayeeSuggestions(phone);
+      const user = userEvent.setup();
+      const payee = screen.getByLabelText('Empfänger');
+      const category = screen.getByRole('combobox', {
+        name: 'Kategorie',
+      }) as HTMLInputElement;
+      await user.type(payee, 'Laden Bei');
+      expect(category.value).toBe('');
+      await user.click(screen.getByRole('option', { name: 'Laden Beispiel' }));
+      await waitFor(() => expect(category.value).toBe('Essen Muster'));
+      // Account context stays authoritative even though category history is now read.
+      expect((screen.getByLabelText('Konto', { exact: true }) as HTMLSelectElement).value).toBe(
+        'wallet',
+      );
+      await user.click(category);
+      await user.click(screen.getByRole('option', { name: 'Essen Muster' }));
+      await user.clear(payee);
+      await user.type(payee, 'Anderer');
+      await user.keyboard('{Enter}');
+      expect(category.value).toBe('Essen Muster');
+      await user.click(category);
+      await user.click(screen.getByRole('option', { name: 'Freizeit Muster' }));
+      expect(category.value).toBe('Freizeit Muster');
+      expect(create).not.toHaveBeenCalled();
+    } finally {
+      lookup.mockRestore();
+    }
+  },
+);
+it.each(['manual category', 'different payee', 'kind'])(
+  'ignores delayed category history after %s changes',
+  async (change) => {
+    let resolve!: (page: typeof payeeHistory) => void;
+    const lookup = vi.spyOn(ledgerApi, 'fetchBookings').mockReturnValue(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    try {
+      renderPayeeSuggestions(false);
+      const user = userEvent.setup();
+      const payee = screen.getByLabelText('Empfänger');
+      const category = screen.getByRole('combobox', {
+        name: 'Kategorie',
+      }) as HTMLInputElement;
+      await user.type(payee, 'Laden Bei{Enter}');
+      if (change === 'manual category') {
+        await user.click(category);
+        await user.click(screen.getByRole('option', { name: 'Freizeit Muster' }));
+      } else if (change === 'different payee') {
+        await user.clear(payee);
+        await user.type(payee, 'Anderer{Enter}');
+      } else {
+        await user.click(screen.getByRole('button', { name: 'Einnahme' }));
+      }
+      await act(async () => resolve(payeeHistory));
+      expect(category.value).toBe(change === 'kind' ? 'Zu verteilen' : 'Freizeit Muster');
+      expect(create).not.toHaveBeenCalled();
+    } finally {
+      lookup.mockRestore();
+    }
+  },
+);
+
+it('continues past ambiguous recent bookings to the latest usable category', async () => {
+  const lookup = vi
+    .spyOn(ledgerApi, 'fetchBookings')
+    .mockResolvedValueOnce({
+      ...payeeHistory,
+      items: [{ ...payeeHistory.items[0]!, splits: [] }],
+      nextCursor: 'older',
+    })
+    .mockResolvedValueOnce(payeeHistory);
+  try {
+    renderPayeeSuggestions(false);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Empfänger'), 'Laden Bei{Enter}');
+    await waitFor(() =>
+      expect((screen.getByRole('combobox', { name: 'Kategorie' }) as HTMLInputElement).value).toBe(
+        'Essen Muster',
+      ),
+    );
+    expect(lookup).toHaveBeenCalledTimes(2);
+    expect(lookup.mock.calls[1]?.[1]).toBe('older');
+    expect(create).not.toHaveBeenCalled();
+  } finally {
+    lookup.mockRestore();
+  }
+});
