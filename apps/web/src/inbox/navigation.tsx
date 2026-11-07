@@ -17,18 +17,23 @@ export function validateInboxSearch(search: Record<string, unknown>) {
       ? value
       : undefined;
   const source = search['bankSource'];
+  const bankSource =
+    typeof source === 'string' &&
+    /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(source)
+      ? source
+      : undefined;
   return {
+    bankRecap:
+      bankSource && z.iso.datetime({ offset: true }).safeParse(search['bankRecap']).success
+        ? (search['bankRecap'] as string)
+        : undefined,
     dateSort: (search['dateSort'] === 'newest' || search['dateSort'] === 'oldest'
       ? search['dateSort']
       : undefined) as 'newest' | 'oldest' | undefined,
     fromDate: z.iso.date().safeParse(search['fromDate']).success
       ? (search['fromDate'] as string)
       : undefined,
-    bankSource:
-      typeof source === 'string' &&
-      /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(source)
-        ? source
-        : undefined,
+    bankSource,
     // `all` is the default and stays out of the URL.
     aufgaben: (search['aufgaben'] === 'current' || search['aufgaben'] === 'historical'
       ? search['aufgaben']

@@ -12,6 +12,7 @@ import {
   type PreparedBankSuggestion,
 } from './bank-candidate';
 import { BankBulkActions, isBankInboxRow } from './bank-bulk-actions';
+import { BankSyncRecap } from './bank-sync-recap';
 import { AssignmentLearnOffer, BookingAssignmentReview } from '../assignment/review';
 import {
   PayslipIntakeDetail,
@@ -116,6 +117,23 @@ export function InboxPage() {
     <KontenFrame meta={META} view="inbox">
       {search.von && <InboxBack to={search.von} label="Zurück zur vorherigen Ansicht" />}
       {(!REDESIGN_ENABLED || isPhone) && sourceStatus}
+      {REDESIGN_ENABLED && !search.bankRecap && <BankSyncRecap />}
+      {REDESIGN_ENABLED && search.bankRecap && search.bankSource && (
+        <div className="inbox-source-line">
+          <p>
+            Neue Umsätze aus dem Abruf vom{' '}
+            {new Date(search.bankRecap).toLocaleString('de-AT', { timeZone: 'Europe/Vienna' })}.
+            Bereits geprüfte Umsätze sind ausgeblendet.
+          </p>
+          <AppLink
+            className="btn btn-ghost"
+            to="/konten/pruefen"
+            search={{ bankSource: search.bankSource }}
+          >
+            Alle Aufgaben dieser Quelle
+          </AppLink>
+        </div>
+      )}
       <InboxWorkflow bankSource={search.bankSource} />
       {REDESIGN_ENABLED && !isPhone && sourceStatus}
     </KontenFrame>
@@ -534,6 +552,7 @@ function PaginatedInboxBodyContent({
         (taskSource === 'plan' || taskSource === 'payslips' || taskSource === 'other')
         ? taskSource
         : undefined,
+      REDESIGN_ENABLED && bankSource ? search.bankRecap : undefined,
     ),
   );
   // The source queue does not carry segment totals. Reuse the canonical global query for
@@ -669,7 +688,9 @@ function PaginatedInboxBodyContent({
                   ...search,
                   teil,
                   gruppe: undefined,
-                  ...(REDESIGN_ENABLED && teil === 'aufgaben' ? { bankSource: undefined } : {}),
+                  ...(REDESIGN_ENABLED && teil === 'aufgaben'
+                    ? { bankSource: undefined, bankRecap: undefined }
+                    : {}),
                 },
               } as never)
             }
@@ -910,11 +931,13 @@ function InboxBodyContent({
               : 'Offene Entscheidungen'
         }
         aside={
-          segmentCounts
-            ? `${segmentCounts.counts[segmentCounts.shown]} offen`
-            : count !== undefined
-              ? `${count} offen`
-              : undefined
+          REDESIGN_ENABLED && search.bankRecap && count !== undefined
+            ? `${count} offen`
+            : segmentCounts
+              ? `${segmentCounts.counts[segmentCounts.shown]} offen`
+              : count !== undefined
+                ? `${count} offen`
+                : undefined
         }
       />
       {!REDESIGN_ENABLED && reviewProgress}
@@ -933,8 +956,12 @@ function InboxBodyContent({
       entries.length === 0 ? (
         <div className="inbox-empty-v1">
           <CircleCheck size={64} strokeWidth={1.2} aria-hidden="true" />
-          <h2>Alles geprüft</h2>
-          <p>Neue Buchungen aus dem Bank-Sync erscheinen hier.</p>
+          <h2>{search.bankRecap ? 'Alle neuen Umsätze dieses Abrufs geprüft' : 'Alles geprüft'}</h2>
+          <p>
+            {search.bankRecap
+              ? 'Frühere offene Aufgaben bleiben unter „Alle Aufgaben dieser Quelle“ verfügbar.'
+              : 'Neue Buchungen aus dem Bank-Sync erscheinen hier.'}
+          </p>
         </div>
       ) : (
         count === 0 && (

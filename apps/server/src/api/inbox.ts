@@ -15,13 +15,15 @@ import {
   type InboxSegment,
 } from '@budget/domain';
 import { z } from 'zod';
-import { ACTOR, readBody, readQuery } from './http';
+import { ACTOR, ApiError, readBody, readQuery } from './http';
+import { bankRecapEntryIds } from '../bank-sync/recap';
 
 const page = z.object({
   limit: z.coerce.number().int().min(1).max(1000).optional(),
   offset: z.coerce.number().int().min(0).optional(),
   period: z.enum(['all', 'current', 'historical']).default('all'),
   bankSource: z.string().uuid().optional(),
+  bankRecap: z.iso.datetime({ offset: true }).optional(),
   bankAccountId: z.string().uuid().optional(),
   dateSort: z.enum(['newest', 'oldest']).optional(),
   fromDate: z.iso.date().optional(),
@@ -41,6 +43,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
       offset,
       period,
       bankSource,
+      bankRecap,
       bankAccountId,
       dateSort,
       fromDate,
@@ -49,11 +52,22 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
       segment,
       taskSource,
     } = readQuery(c, page);
+    if (bankRecap && !bankSource)
+      throw new ApiError(400, 'invalid', 'Bitte eine Bankquelle auswählen.');
+    const recapIds =
+      bankRecap && bankSource ? bankRecapEntryIds(db, bankSource, bankRecap) : undefined;
+    if (recapIds === null)
+      throw new ApiError(
+        409,
+        'unavailable',
+        'Dieser Abruf lässt sich nicht eindeutig zuordnen. Bitte alle Aufgaben der Quelle öffnen.',
+      );
     const { bankProgress, ...inbox } = readInbox(db, today(), bankSource, readSource, {
       excludeOverspent: segment !== undefined,
       ...(bankAccountId ? { bankAccountId } : {}),
     });
-    const progressFields = segment !== undefined || bankSource ? { bankProgress } : {};
+    const progressFields =
+      !bankRecap && (segment !== undefined || bankSource) ? { bankProgress } : {};
     // Unlinked receipts count as tasks but are not entries; the header pill is the sum of both parts.
     const segments = { umsaetze: 0, aufgaben: inbox.count - inbox.entries.length };
     for (const entry of inbox.entries) segments[inboxSegment(entry)] += 1;
@@ -90,6 +104,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
           : entry.date;
     const filtered = inbox.entries.filter(
       (entry) =>
+        (!recapIds || recapIds.includes(entry.id)) &&
         (!shown || inboxSegment(entry) === shown) &&
         (!taskSource ||
           (inboxSegment(entry) === 'aufgaben' && inboxTaskSource(entry) === taskSource)) &&
@@ -118,6 +133,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
     if (limit === undefined)
       return c.json({
         ...inbox,
+        ...(bankRecap ? { count: filtered.length } : {}),
         ...progressFields,
         entries: prepareInboxBankSuggestions(db, filtered),
         overspentSummary,
@@ -135,6 +151,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
     }
     return c.json({
       ...inbox,
+      ...(bankRecap ? { count: filtered.length } : {}),
       ...progressFields,
       entries,
       overspentSummary,
