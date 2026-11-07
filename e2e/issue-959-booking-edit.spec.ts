@@ -85,7 +85,20 @@ test('reconciled split editing keeps fields and cents readable and closes withou
           ).toBe(true);
         }
       for (const input of await dialog.locator('.bk-lines input:not([type="checkbox"])').all()) {
-        expect(await input.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+        if (
+          width === 390 &&
+          (await input.locator('..').getAttribute('class'))?.includes('is-capture-inline')
+        ) {
+          // Long category names are one-line ellipses in the inset rows (#980).
+          await expect(input).toHaveCSS('text-overflow', 'ellipsis');
+          await expect(input).toHaveValue('Synthetic long household category');
+          expect(await input.evaluate((el) => el.getBoundingClientRect().right <= innerWidth)).toBe(
+            true,
+          );
+        } else {
+          // In particular, every split amount still displays all of its cents.
+          expect(await input.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+        }
       }
       const close = dialog.getByRole('button', { name: 'Schließen', exact: true });
       expect((await close.innerText()).trim()).toBe('');

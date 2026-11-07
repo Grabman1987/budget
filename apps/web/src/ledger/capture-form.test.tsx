@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@budget/ui';
@@ -65,6 +65,72 @@ beforeEach(() => {
   patch.mockReset();
   patch.mockResolvedValue({ groupId: 'synthetic-patch' });
   create.mockResolvedValue({ bookings: [], groupId: 'synthetic-group' });
+});
+
+it('shifts mobile keypad digits into cents and retains paste, validation and save semantics', async () => {
+  flags.REDESIGN_ENABLED = true;
+  flags.phone = true;
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <ToastProvider>
+        <CaptureForm
+          state={{ mode: 'create', accountId: 'wallet' }}
+          onDone={vi.fn()}
+          dirtyRef={{ current: false }}
+          discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+          requestClose={vi.fn()}
+        />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByRole('option', { name: 'Bargeld Muster' });
+  const amount = screen.getByLabelText('Betrag', { exact: true }) as HTMLInputElement;
+  const user = userEvent.setup();
+  await user.click(amount);
+  for (const [digit, expected] of [
+    ['1', '0,01'],
+    ['2', '0,12'],
+    ['3', '1,23'],
+    ['4', '12,34'],
+  ]) {
+    await user.keyboard(digit!);
+    expect(amount.value).toBe(expected);
+  }
+  await user.keyboard('{Backspace}');
+  expect(amount.value).toBe('1,23');
+  await user.clear(amount);
+  await user.paste('12,50+3');
+  await user.keyboard(',25');
+  await user.tab();
+  expect(amount.value).toBe('15,75');
+  // Native replacement may focus before selecting; focus must leave that operation alone.
+  amount.setSelectionRange(0, 0);
+  act(() => amount.focus());
+  expect(amount.selectionStart).toBe(0);
+  fireEvent.pointerUp(amount);
+  expect(amount.selectionStart).toBe(5);
+  await user.tab();
+  // Replacing a selected amount after refocus must not append to the existing cents.
+  amount.setSelectionRange(0, amount.value.length);
+  act(() => amount.focus());
+  expect(amount.selectionStart).toBe(0);
+  expect(amount.selectionEnd).toBe(5);
+  fireEvent.pointerUp(amount);
+  expect(amount.selectionStart).toBe(0);
+  expect(amount.selectionEnd).toBe(5);
+  await user.paste('12,34');
+  expect(amount.value).toBe('12,34');
+  await user.clear(amount);
+  expect(amount.getAttribute('aria-invalid')).toBe('false');
+  expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
+  await user.click(amount);
+  await user.keyboard('1234');
+  await user.click(screen.getByRole('button', { name: 'Einnahme' }));
+  await user.click(screen.getByRole('button', { name: /^Speichern$/ }));
+  await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+  expect(create.mock.calls[0]![0].input.amountCents).toBe(1234);
 });
 
 it.each(['save'])(

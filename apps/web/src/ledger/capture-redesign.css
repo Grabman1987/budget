@@ -861,3 +861,171 @@
     order: -7;
   }
 }
+
+/* Inset grouped capture: one opaque surface, with inline suggestions sharing its rows. */
+@media (max-width: 767px) {
+  .bkform-redesign .bk-body {
+    padding-block-start: 8px;
+  }
+  .bkform-redesign .bk-cols {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    min-width: 0;
+    padding: 8px 12px;
+    background: var(--surface);
+    border-radius: var(--radius-sheet);
+  }
+  .bkform-redesign .bk-body .bk-mobile-row-icon {
+    display: none;
+  }
+  .bkform-redesign :is(.bk-payee, .bk-account-row, .bk-dates):has(> .bk-mobile-row-icon),
+  .bkform-redesign .bk-line-fields:has(> .bk-mobile-row-icon) {
+    display: block;
+  }
+  .bkform-redesign .bk-body .field-row > label {
+    font-size: var(--fs-table);
+    color: var(--ink-2);
+  }
+  .bkform-redesign .bk-body .field-row :is(.input, .select) {
+    font-size: var(--fs-title);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    text-overflow: ellipsis;
+  }
+  .bkform-redesign .bk-body .input::placeholder {
+    color: var(--ink-3);
+    opacity: 1;
+  }
+  .bkform-redesign .bk-body :is(input, textarea, select):focus:not(:focus-visible) {
+    outline: none;
+    box-shadow: none;
+  }
+  /* Text inputs match :focus-visible even after a touch in browsers. Retain rings for Tab. */
+  .bkform-redesign[data-touch-focus='true'] .bk-body :is(input, textarea, select):focus {
+    outline: none;
+    box-shadow: none;
+  }
+  .bkform-redesign .bk-amount-primary .amount-input {
+    width: var(--capture-amount-width, 4ch);
+    max-width: calc(100% - 36px);
+    --fs-dimension: 44px;
+    font-size: var(--fs-dimension);
+    font-weight: 500;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    caret-color: transparent;
+  }
+  .bkform-redesign .bk-amount-primary .amount-box {
+    gap: 4px;
+    color: var(--ink);
+  }
+  .bkform-redesign .bk-amount-primary[data-kind='expense'] .amount-box {
+    color: var(--minus-ink);
+  }
+  .bkform-redesign .bk-amount-primary[data-kind='income'] .amount-box {
+    color: var(--good);
+  }
+  .bkform-redesign .bk-amount-primary :is(.amount-input, .amount-cur),
+  .bkform-redesign .bk-amount-primary .amount-input::placeholder {
+    color: inherit;
+  }
+  .bkform-redesign .bk-kind {
+    position: relative;
+    isolation: isolate;
+    border: 0;
+    background: transparent;
+    border-radius: var(--radius-pill);
+  }
+  .bkform-redesign .bk-kind::before {
+    content: '';
+    position: absolute;
+    inset: 6px 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--quiet-soft);
+  }
+  .bkform-redesign .bk-kind button {
+    position: relative;
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+    font-size: var(--fs-meta);
+    border-radius: var(--radius-pill);
+  }
+  .bkform-redesign .bk-kind button[aria-pressed='true'] {
+    background: transparent;
+    box-shadow: none;
+  }
+  .bkform-redesign .bk-kind button[aria-pressed='true']::before {
+    content: '';
+    position: absolute;
+    inset: 8px 2px;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--surface);
+  }
+  .bkform-redesign .bk-body .combo.is-capture-inline {
+    display: contents;
+  }
+  .bkform-redesign .is-capture-inline > .input {
+    grid-column: 2;
+  }
+  .bkform-redesign .is-capture-inline > .combo-list {
+    position: static;
+    grid-column: 1 / -1;
+    width: auto;
+    max-width: 100%;
+    max-height: 220px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-top: 1px solid var(--rule);
+    border-radius: 0;
+    box-shadow: none;
+    background: var(--surface);
+    overscroll-behavior: contain;
+  }
+  .bkform-redesign .is-capture-inline .combo-option {
+    padding-inline: 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .bkform-redesign .is-capture-inline .combo-option > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bkform-redesign .is-capture-inline .combo-hint {
+    max-width: 50%;
+  }
+  .bkform-redesign .is-capture-inline .combo-hint:has(.combo-avail) {
+    flex-shrink: 0;
+    max-width: none;
+  }
+  .bkform-redesign .is-capture-inline .combo-avail {
+    white-space: nowrap;
+  }
+  .bkform-redesign .bk-line:has(.is-capture-inline) .bk-line-fields {
+    padding-inline-end: 0;
+  }
+  .bkform-redesign .bk-line:has(.bk-category-tools) .is-capture-inline > .input {
+    padding-inline-end: 44px;
+  }
+  .bkform-redesign .bk-line:has(.bk-category-context) .is-capture-inline > .input {
+    padding-inline-end: 88px;
+  }
+  .bkform-redesign .bk-body .field-error {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Keep the primary rows visible when the software keyboard reduces the sheet. */
+@media (max-width: 767px) and (max-height: 500px) {
+  .bkform-redesign .bk-body,
+  .bkform-redesign .bk-cols {
+    padding-block-start: 0;
+  }
+}

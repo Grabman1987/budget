@@ -52,7 +52,7 @@ async function post<T>(
 async function bounds(list: Locator) {
   return list.evaluate((node) => {
     const box = node.getBoundingClientRect();
-    const body = node.closest('dialog');
+    const body = node.closest(getComputedStyle(node).position === 'static' ? '.bk-body' : 'dialog');
     if (!(body instanceof HTMLElement)) throw new Error('Missing capture dialog');
     const clip = body.getBoundingClientRect();
     const viewport = window.visualViewport;
@@ -75,14 +75,24 @@ async function bounds(list: Locator) {
 }
 async function bounded(list: Locator) {
   await expect(list).toBeVisible();
-  await expect
-    .poll(async () => {
-      const b = await bounds(list);
-      return (
-        b.top >= b.clipTop && b.bottom <= b.clipBottom && b.left >= 0 && b.right <= b.viewportWidth
-      );
-    })
-    .toBe(true);
+  let lastBounds: Awaited<ReturnType<typeof bounds>>;
+  try {
+    await expect
+      .poll(async () => {
+        const b = await bounds(list);
+        lastBounds = b;
+        return (
+          b.top >= b.clipTop &&
+          b.bottom <= b.clipBottom &&
+          b.left >= 0 &&
+          b.right <= b.viewportWidth
+        );
+      })
+      .toBe(true);
+  } catch (error) {
+    console.log('734_LIST_BOUNDS ' + JSON.stringify(lastBounds!));
+    throw error;
+  }
   return bounds(list);
 }
 async function activeVisible(field: Locator, list: Locator) {
@@ -399,35 +409,89 @@ for (const profile of ['configured', 'desktop1440'] as const) {
           for (let i = 0; i < 12; i++) await field.press('ArrowDown');
           expect(await activeVisible(field, list)).toBe(tailId);
           const scroller = dialog.locator('.bk-body');
-          const hideRedesignAnchor = async () =>
-            field.evaluate((anchor) => {
-              const body = anchor.closest('.bk-body')!;
-              body.scrollTop = 0;
-              const clip = body.getBoundingClientRect(),
-                box = anchor.getBoundingClientRect();
-              if (box.bottom > clip.top && box.top < clip.bottom)
-                body.scrollTop = body.scrollHeight;
+          const inline = await list.evaluate((el) => getComputedStyle(el).position === 'static');
+          if (inline) {
+            // Inline results move with their row; keyboard resize keeps both in the scroller.
+            const draftBeforeResize = await field.inputValue();
+            await page.setViewportSize({ width: actual.viewport.width, height: 450 });
+            await expect(field).toBeInViewport({ ratio: 1 });
+            await bounded(list);
+            await activeVisible(field, list);
+            expect(await field.getAttribute('aria-activedescendant')).toBe(tailId);
+            // Scroll away, then return to the same row without discarding the open picker.
+            await scroller.evaluate((el) => {
+              el.scrollTop = el.scrollHeight;
             });
-          const scrollBefore = await scroller.evaluate((el) => el.scrollTop);
-          const draftBeforeResize = await field.inputValue();
-          await page.setViewportSize({ width: actual.viewport.width, height: 450 });
-          await expect
-            .poll(async () => (await bounds(list)).clipBottom - (await bounds(list)).clipTop)
-            .toBeLessThan(initialBounds.clipBottom - initialBounds.clipTop);
-          expect(await scroller.evaluate((el) => el.scrollTop)).toBe(scrollBefore);
-          if (actual.coarse || (await redesignLoaded(page))) {
-            // The ON two-column layout also clips the lower category anchor at 450px.
-            // Fresh focus can scroll the anchor before resize. Arrange a fully hidden
-            // anchor explicitly; a partially visible field may correctly keep its popup.
+            await expect(field).toHaveAttribute('aria-expanded', 'true');
+            await field.scrollIntoViewIfNeeded();
+            await page.setViewportSize({ width: actual.viewport.width, height: 430 });
+            await bounded(list);
+            await activeVisible(field, list);
+            await expect(field).toHaveValue(draftBeforeResize);
+            expect(writes.map((w) => w.path)).toEqual([
+              `/api/bank-sync/candidates/${candidate}/confirm`,
+            ]);
+          } else {
+            const hideRedesignAnchor = async () =>
+              field.evaluate((anchor) => {
+                const body = anchor.closest('.bk-body')!;
+                body.scrollTop = 0;
+                const clip = body.getBoundingClientRect(),
+                  box = anchor.getBoundingClientRect();
+                if (box.bottom > clip.top && box.top < clip.bottom)
+                  body.scrollTop = body.scrollHeight;
+              });
+            const scrollBefore = await scroller.evaluate((el) => el.scrollTop);
+            const draftBeforeResize = await field.inputValue();
+            await page.setViewportSize({ width: actual.viewport.width, height: 450 });
+            await expect
+              .poll(async () => (await bounds(list)).clipBottom - (await bounds(list)).clipTop)
+              .toBeLessThan(initialBounds.clipBottom - initialBounds.clipTop);
+            expect(await scroller.evaluate((el) => el.scrollTop)).toBe(scrollBefore);
+            if (actual.coarse || (await redesignLoaded(page))) {
+              // The ON two-column layout also clips the lower category anchor at 450px.
+              // Fresh focus can scroll the anchor before resize. Arrange a fully hidden
+              // anchor explicitly; a partially visible field may correctly keep its popup.
+              if (redesign) await hideRedesignAnchor();
+              else
+                await scroller.evaluate((el) => {
+                  el.scrollTop = 0;
+                });
+              await expect
+                .poll(async () => {
+                  // WebKit may finish focused-input scrolling after viewport resize.
+                  // Reapply the scroll fixture; keep the strict fully-clipped anchor oracle.
+                  if (redesign) await hideRedesignAnchor();
+                  return field.evaluate((el) => {
+                    const clip = el.closest('.bk-body')!.getBoundingClientRect(),
+                      box = el.getBoundingClientRect();
+                    return box.bottom <= clip.top || box.top >= clip.bottom;
+                  });
+                })
+                .toBe(true);
+              // #975: a focused picker stays usable even while its anchor is clipped.
+              await expect(list).toBeVisible();
+              await expect(field).toHaveAttribute('aria-expanded', 'true');
+              await expect(dialog).toBeVisible();
+              await expect(field).toHaveValue(draftBeforeResize);
+              expect(writes.map((w) => w.path)).toEqual([
+                `/api/bank-sync/candidates/${candidate}/confirm`,
+              ]);
+              await expect(list).toBeVisible();
+              await bounded(list);
+            }
+            await activeVisible(field, list);
+            expect(await field.getAttribute('aria-activedescendant')).toBe(tailId);
+            expect(
+              await scroller.evaluate((el) => el.scrollHeight - el.clientHeight),
+            ).toBeGreaterThan(0);
             if (redesign) await hideRedesignAnchor();
             else
-              await scroller.evaluate((el) => {
-                el.scrollTop = 0;
-              });
+              await scroller.evaluate((el, phone) => {
+                el.scrollTop = phone ? 0 : el.scrollHeight;
+              }, actual.coarse);
             await expect
               .poll(async () => {
-                // WebKit may finish focused-input scrolling after viewport resize.
-                // Reapply the scroll fixture; keep the strict fully-clipped anchor oracle.
                 if (redesign) await hideRedesignAnchor();
                 return field.evaluate((el) => {
                   const clip = el.closest('.bk-body')!.getBoundingClientRect(),
@@ -436,49 +500,19 @@ for (const profile of ['configured', 'desktop1440'] as const) {
                 });
               })
               .toBe(true);
-            // #975: a focused picker stays usable even while its anchor is clipped.
             await expect(list).toBeVisible();
             await expect(field).toHaveAttribute('aria-expanded', 'true');
+            const draftValue = await field.inputValue();
             await expect(dialog).toBeVisible();
-            await expect(field).toHaveValue(draftBeforeResize);
+            await expect(field).toHaveValue(draftValue);
             expect(writes.map((w) => w.path)).toEqual([
               `/api/bank-sync/candidates/${candidate}/confirm`,
             ]);
             await expect(list).toBeVisible();
             await bounded(list);
+            expect(await field.getAttribute('aria-activedescendant')).toBe(tailId);
+            await activeVisible(field, list);
           }
-          await activeVisible(field, list);
-          expect(await field.getAttribute('aria-activedescendant')).toBe(tailId);
-          expect(
-            await scroller.evaluate((el) => el.scrollHeight - el.clientHeight),
-          ).toBeGreaterThan(0);
-          if (redesign) await hideRedesignAnchor();
-          else
-            await scroller.evaluate((el, phone) => {
-              el.scrollTop = phone ? 0 : el.scrollHeight;
-            }, actual.coarse);
-          await expect
-            .poll(async () => {
-              if (redesign) await hideRedesignAnchor();
-              return field.evaluate((el) => {
-                const clip = el.closest('.bk-body')!.getBoundingClientRect(),
-                  box = el.getBoundingClientRect();
-                return box.bottom <= clip.top || box.top >= clip.bottom;
-              });
-            })
-            .toBe(true);
-          await expect(list).toBeVisible();
-          await expect(field).toHaveAttribute('aria-expanded', 'true');
-          const draftValue = await field.inputValue();
-          await expect(dialog).toBeVisible();
-          await expect(field).toHaveValue(draftValue);
-          expect(writes.map((w) => w.path)).toEqual([
-            `/api/bank-sync/candidates/${candidate}/confirm`,
-          ]);
-          await expect(list).toBeVisible();
-          await bounded(list);
-          expect(await field.getAttribute('aria-activedescendant')).toBe(tailId);
-          await activeVisible(field, list);
           await page.setViewportSize(actual.viewport);
           await field.scrollIntoViewIfNeeded();
           await bounded(list);

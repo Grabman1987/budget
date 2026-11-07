@@ -22,11 +22,13 @@ function Harness({
   onParentKey,
   pickFirst = false,
   captureCategory = false,
+  captureInline = false,
 }: {
   onSelect: (o: ComboOption) => void;
   onParentKey?: () => void;
   pickFirst?: boolean;
   captureCategory?: boolean;
+  captureInline?: boolean;
 }) {
   const [text, setText] = useState('');
   return (
@@ -41,12 +43,93 @@ function Harness({
         listWhenEmpty
         pickFirst={pickFirst}
         captureCategory={captureCategory}
+        captureInline={captureInline}
       />
     </div>
   );
 }
 
 describe('Combobox', () => {
+  it.each([
+    { fraction: 0, rowOffset: 0, resizedHeight: 200 },
+    { fraction: 0.25, rowOffset: 0, resizedHeight: 200 },
+    { fraction: 0, rowOffset: 0.796875, resizedHeight: 200 },
+    { fraction: 0, rowOffset: 113.796875, resizedHeight: 333 },
+  ])(
+    'keeps inline results visible after resize with fractional body $fraction and row $rowOffset',
+    async ({ fraction, rowOffset, resizedHeight }) => {
+      let bodyScroll = 0;
+      let bodyHeight = 400;
+      const listHeight = () =>
+        Number.parseFloat(screen.queryByRole('listbox')?.style.maxHeight || '220');
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        if (this.classList.contains('bk-body')) return new DOMRect(16, 50, 358, bodyHeight);
+        if (this.classList.contains('field-row'))
+          return new DOMRect(28, 50 + rowOffset - bodyScroll, 334, 45 + listHeight());
+        if (this.classList.contains('combo-list'))
+          return new DOMRect(28, 95 + rowOffset - bodyScroll, 334, listHeight());
+        if (this.getAttribute('role') === 'option') {
+          const index = Number(this.id.split('-').at(-1));
+          return new DOMRect(
+            28,
+            95 + rowOffset - bodyScroll + index * 88 - this.closest('ul')!.scrollTop,
+            334,
+            44,
+          );
+        }
+        return new DOMRect(28, 50, 334, 44);
+      });
+      vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return this.classList.contains('combo-list') ? listHeight() : Math.floor(bodyHeight);
+      });
+      const onSelect = vi.fn();
+      const user = userEvent.setup();
+      render(
+        <div className="bk-body">
+          <Harness onSelect={onSelect} captureInline captureCategory />
+        </div>,
+      );
+      Object.defineProperty(document.querySelector('.bk-body')!, 'scrollTop', {
+        get: () => bodyScroll,
+        set: (value: number) => {
+          bodyScroll = Math.trunc(value);
+        },
+        configurable: true,
+      });
+      const field = screen.getByRole('combobox');
+      await user.click(field);
+      await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}');
+      const list = screen.getByRole('listbox');
+      expect(list.tabIndex).toBe(-1);
+      expect(list.scrollTop).toBe(0);
+      act(() => {
+        bodyHeight = resizedHeight + fraction;
+        window.dispatchEvent(new Event('resize'));
+      });
+      // WebKit quantizes scrollTop even when the row position and body height are fractional.
+      expect(list.getBoundingClientRect().bottom).toBeLessThanOrEqual(50 + resizedHeight);
+      expect(field.closest('.field-row')!.getBoundingClientRect().top).toBeGreaterThanOrEqual(50);
+      const scrollAfterResize = bodyScroll;
+      act(() => window.dispatchEvent(new Event('resize')));
+      expect(bodyScroll).toBe(scrollAfterResize);
+      const selected = screen.getByRole('option', { selected: true });
+      expect(selected.textContent).toBe('Reise');
+      expect(selected.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+        list.getBoundingClientRect().top + list.clientTop,
+      );
+      expect(selected.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+        list.getBoundingClientRect().bottom,
+      );
+      expect(document.activeElement).toBe(field);
+      await user.keyboard('{Enter}');
+      expect(onSelect).toHaveBeenCalledWith(OPTIONS[2]);
+    },
+  );
+
   it.each([
     { height: 240, offsetTop: 80, anchorTop: 300 },
     { height: 120, offsetTop: 80, anchorTop: 110 },
