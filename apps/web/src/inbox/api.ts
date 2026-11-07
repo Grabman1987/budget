@@ -126,6 +126,7 @@ export const inboxPagesQuery = (
   pinned?: InboxSegment,
   bankAccountId?: string,
   taskSource?: 'plan' | 'payslips' | 'other',
+  bankRecap?: string,
 ) =>
   infiniteQueryOptions({
     queryKey: [
@@ -139,11 +140,12 @@ export const inboxPagesQuery = (
       bankSource ? null : segment,
       ...(bankAccountId ? ['bank-account', bankAccountId] : []),
       ...(taskSource ? ['task-source', taskSource] : []),
+      ...(bankRecap ? ['bank-recap', bankRecap] : []),
     ] as const,
     queryFn: ({ pageParam }) =>
       request<InboxPage>(
         'GET',
-        `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${period === 'all' ? '' : `&period=${period}`}${bankSource ? `&bankSource=${encodeURIComponent(bankSource)}` : ''}${dateSort ? `&dateSort=${dateSort}` : ''}${fromDate ? `&fromDate=${encodeURIComponent(fromDate)}` : ''}${bankSource ? '' : `&segment=${segment === 'auto' ? (pinned ?? segment) : segment}`}${bankAccountId ? `&bankAccountId=${encodeURIComponent(bankAccountId)}` : ''}${taskSource ? `&taskSource=${taskSource}` : ''}`,
+        `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${period === 'all' ? '' : `&period=${period}`}${bankSource ? `&bankSource=${encodeURIComponent(bankSource)}` : ''}${dateSort ? `&dateSort=${dateSort}` : ''}${fromDate ? `&fromDate=${encodeURIComponent(fromDate)}` : ''}${bankSource ? '' : `&segment=${segment === 'auto' ? (pinned ?? segment) : segment}`}${bankAccountId ? `&bankAccountId=${encodeURIComponent(bankAccountId)}` : ''}${taskSource ? `&taskSource=${taskSource}` : ''}${bankRecap ? `&bankRecap=${encodeURIComponent(bankRecap)}` : ''}`,
       ),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.next ?? undefined,

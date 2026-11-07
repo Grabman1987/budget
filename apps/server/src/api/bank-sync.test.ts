@@ -95,6 +95,40 @@ const call = (
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 describe('bank API security boundary', () => {
+  it('keeps recap reads authenticated, read-only and free of provider secrets', async () => {
+    const sourceId = randomUUID();
+    opened.db
+      .insert(schema.bankSyncAccount)
+      .values({
+        id: sourceId,
+        consentId: connectionId,
+        accountId: 'giro',
+        secret: 'synthetic-secret-not-for-response',
+        label: 'Synthetic source',
+        currency: 'EUR',
+      })
+      .run();
+    const before = opened.db.select().from(schema.auditLog).all();
+    const response = await call('/recap');
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    expect(await response.json()).toEqual({
+      accounts: [
+        {
+          sourceId,
+          name: 'Giro',
+          sourceName: 'Synthetic source',
+          syncedAt: null,
+          result: null,
+          running: false,
+          status: 'pending',
+          open: null,
+        },
+      ],
+    });
+    expect(opened.db.select().from(schema.auditLog).all()).toEqual(before);
+    authenticated = false;
+    expect((await call('/recap')).status).toBe(401);
+  });
   it('uses decision 41 by default, audits per-source changes, and requires a passkey session and origin', async () => {
     const policy = '/' + connectionId + '/policy';
     expect(await (await call('')).json()).toMatchObject({
