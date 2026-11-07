@@ -58,4 +58,11 @@
   .ktx.ktx-redesign .kx-payee:has(.booking-inspect-trigger) .kaccount-mobile-meta {
     margin-right: var(--touch);
   }
+  /* The note gives way first; the category must never collapse to zero width. */
+  .ktx.ktx-redesign .kx-payee:has(.booking-inspect-trigger) .kaccount-mobile-meta > .kcat {
+    min-width: 6ch;
+  }
+  .ktx.ktx-redesign .kx-payee:has(.booking-inspect-trigger) .kaccount-mobile-meta .kx-mobile-note {
+    flex-shrink: 8;
+  }
 }
