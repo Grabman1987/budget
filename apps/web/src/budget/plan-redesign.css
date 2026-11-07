@@ -1,10 +1,4 @@
 /* P1 presentation is opt-in; the legacy worksheet keeps its original selectors. */
-@media (min-width: 768px) {
-  /* Status copy is now visually hidden: give its former track back to the name. */
-  .plan-month-v2 .ptable-zero .prow:not(.psingle) .pname {
-    grid-column: 2 / -1;
-  }
-}
 @media (max-width: 767px) {
   .plan-month-v2 .ptable-zero tr.pgroup:not(.prow) {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -603,29 +597,131 @@
   max-width: none;
 }
 @media (min-width: 768px) {
-  /* The worksheet's base desktop rule fixes every plan cell at 32px. Let redesigned category
-     rows grow to fit the 44px name target, progress bar, and trailing breathing room. */
-  .plan-month-frame
-    .plan-month-v2
-    .ptable-zero
-    .prow:not(.psingle):not(.pmulti):not(.is-empty)
-    > td {
+  /* Fixed amount tracks leave the entire remaining name track for the spending bar. */
+  .plan.plan-month-v2 .ptable-zero {
+    table-layout: fixed;
+    width: 100%;
+    /* Reserve 256px for names/hints beside three amount tracks; narrower hosts scroll. */
+    min-width: 640px;
+  }
+  .plan.plan-month-v2 .ptable-zero .col-num {
+    box-sizing: border-box;
+    width: 128px;
+    padding-inline: var(--space-md);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .plan-month-frame .plan-month-v2 .ptable-zero .prow:not(.is-empty) > td {
     height: auto;
   }
-  .plan-month-frame
-    .plan-month-v2
-    .ptable-zero
-    .prow:not(.psingle):not(.pmulti):not(.is-empty)
-    .col-name {
-    grid-template-rows: var(--touch) var(--bar-progress);
+  .plan-month-frame .plan-month-v2 .ptable-zero .prow:not(.is-empty) .col-name {
+    grid-template-columns: var(--touch) minmax(0, 1fr);
+    grid-template-rows: var(--touch) minmax(20px, auto) var(--bar-progress);
     padding-block-end: var(--space-sm);
   }
-  .plan-month-frame
-    .plan-month-v2
-    .ptable-zero
-    .prow:not(.psingle):not(.pmulti):not(.is-empty)
-    .pname {
+  .plan.plan-month-v2 .ptable-zero .prow .pname {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: stretch;
+    align-items: flex-start;
+    padding-top: var(--space-xs);
     min-height: var(--touch);
+  }
+  .plan.plan-month-v2 .ptable-zero .prow .plan-select {
+    grid-row: 1 / -1;
+    min-width: var(--touch);
+    min-height: var(--touch);
+  }
+  .plan.plan-month-v2 .ptable-zero .plan-select input {
+    --check-size: 16px;
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    min-height: 16px;
+  }
+  .plan.plan-month-v2 .ptable-zero .prow .spending-bar {
+    grid-column: 2 / -1;
+    grid-row: 3;
+    margin: 0;
+  }
+  .plan-month-frame .plan-month-v2 .ptable-zero .col-name .spending-status {
+    position: static;
+    grid-column: 2 / -1;
+    grid-row: 2;
+    width: auto;
+    height: auto;
+    clip-path: none;
+    padding-bottom: var(--space-xs);
+    color: var(--ink-2);
+    text-align: right;
+  }
+  .plan.plan-month-v2 .ptable-zero .plan-spending-copy {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  /* Keep the funding state available to assistive technology without a second visual badge. */
+  .plan.plan-month-v2 .ptable-zero .plan-row-state {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .plan.plan-month-v2 .ptable-zero .plan-row-state .budget-state {
+    flex-shrink: 0;
+  }
+  .plan-month-frame .plan-month-v2 .ptable-zero .psingle:not(.is-empty) .col-name {
+    grid-template-columns: var(--touch) minmax(0, 1fr) var(--touch);
+  }
+  .plan.plan-month-v2 .ptable-zero .psingle .plan-add {
+    grid-row: 1;
+    align-self: start;
+    align-items: flex-start;
+    padding-top: var(--space-xs);
+    min-width: var(--touch);
+    min-height: var(--touch);
+  }
+  .plan.plan-month-v2 .ptable-zero :is(.assign-btn, .activity-link, .cover-row) {
+    min-height: var(--touch);
+    text-decoration: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .plan.plan-month-v2 .ptable-zero .activity-link:hover {
+    background: var(--tint);
+  }
+  .plan.plan-month-v2 .ptable-zero :is(.assign-btn, .activity-link, .cover-row):focus-visible {
+    outline: 2px solid var(--line);
+    outline-offset: 2px;
+  }
+  .plan.plan-month-v2 .plan-available-action {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch);
+  }
+  .plan.plan-month-v2 .plan-available-action .cover-row {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    background: transparent;
+  }
+  .plan.plan-month-v2 .plan-available-action .cover-row:hover {
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .plan.plan-month-v2 .ptable-zero .col-avail .pill {
+    background: var(--quiet-soft);
+    color: var(--ink-2);
+  }
+  .plan.plan-month-v2 .ptable-zero .col-avail .pill.is-good {
+    background: var(--good-soft);
+    color: var(--on-good-soft);
+  }
+  .plan.plan-month-v2 .ptable-zero .col-avail .pill.is-bad {
+    background: var(--red-soft);
+    color: var(--red);
   }
 }
 .plan-month-frame .plan-month-v2 .ptable-zero .pgroup-gap td {

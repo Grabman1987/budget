@@ -2387,6 +2387,24 @@ function EnvelopeRow({
               {eur(r.availableCents)}
               {over && <ArrowLeftRight size={16} strokeWidth={1.75} aria-hidden="true" />}
             </button>
+          ) : REDESIGN_ENABLED && over ? (
+            <span className="plan-available-action">
+              <span
+                className="pill is-bad"
+                id={`plan-available-${r.id}`}
+                title={credit ? 'neue Kartenschuld' : undefined}
+              >
+                {eur(r.availableCents)}
+              </span>
+              <button
+                type="button"
+                className="cover-row"
+                aria-label={`${r.name} decken`}
+                aria-describedby={`plan-available-${r.id}`}
+                title={credit ? 'neue Kartenschuld' : `${r.name} decken`}
+                onClick={onCover}
+              />
+            </span>
           ) : (
             <>
               <span

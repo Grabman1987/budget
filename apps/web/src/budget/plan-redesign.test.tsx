@@ -249,6 +249,30 @@ it('OFF retains the original compact head and original unadorned values', async 
   expect(screen.queryByRole('region', { name: 'Monatsbudget' })).toBeNull();
   expect(container.querySelector('.plan-row-state')).toBeNull();
   expect(screen.getByRole('button', { name: 'Geld verteilen' })).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: 'Synthetic cash decken' }).querySelector('svg'),
+  ).not.toBeNull();
+});
+
+it('ON desktop keeps exact spending hints and moves the named cover action onto the available pill', async () => {
+  const { container } = mount();
+  await screen.findByRole('button', { name: 'Synthetic met' });
+  const row = (id: string) =>
+    container.querySelector(`.pname[data-category-id="${id}"]`)!.closest('tr')!;
+  expect(row('met').querySelector('.plan-spending-copy')!.textContent).toBe(
+    'Ausgegeben 15,00 € von 20,00 €',
+  );
+  expect(row('cash').querySelector('.plan-spending-copy')!.textContent).toBe('Überzogen um 7,00 €');
+  const cover = within(row('cash')).getByRole('button', { name: 'Synthetic cash decken' });
+  const amountId = cover.getAttribute('aria-describedby')!;
+  expect(document.getElementById(amountId)!.textContent).toBe('−7,00 €');
+  expect(cover.parentElement!.classList.contains('plan-available-action')).toBe(true);
+  expect(cover.querySelector('svg')).toBeNull();
+  expect(row('credit').querySelector('.pill')!.getAttribute('title')).toBe('neue Kartenschuld');
+  fireEvent.click(cover);
+  const inspector = await screen.findByRole('complementary', { name: 'Plan-Inspektor' });
+  expect(within(inspector).getByRole('heading', { name: 'Synthetic cash' })).toBeTruthy();
+  expect(within(inspector).getByRole('button', { name: 'Mit 7,00 € decken' })).toBeTruthy();
 });
 
 it('ON phone separates a singleton group heading and its available sum from the member row', async () => {
