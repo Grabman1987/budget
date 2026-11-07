@@ -398,13 +398,22 @@ for (const profile of ['configured', 'desktop1440'] as const) {
           for (let i = 0; i < 12; i++) await field.press('ArrowDown');
           expect(await activeVisible(field, list)).toBe(tailId);
           const scroller = dialog.locator('.bk-body');
-          const inline = await list.evaluate((el) => getComputedStyle(el).position === 'static');
-          if (inline) {
-            // Inline results move with their row; keyboard resize keeps both in the scroller.
+          const mobileOverlay = await field
+            .locator('..')
+            .evaluate((el) => el.classList.contains('is-capture-overlay'));
+          if (mobileOverlay) {
+            // Mobile keyboard layout changes padding and may trigger native scroll anchoring.
+            // The active field and overlay must stay usable, independently of scrollTop.
+            await expect(list).toHaveCSS('position', 'fixed');
             const draftBeforeResize = await field.inputValue();
             await page.setViewportSize({ width: actual.viewport.width, height: 450 });
             await expect(field).toBeInViewport({ ratio: 1 });
             await bounded(list);
+            const anchor = (await field.boundingBox())!;
+            const popup = (await list.boundingBox())!;
+            expect(popup.y >= anchor.y + anchor.height || popup.y + popup.height <= anchor.y).toBe(
+              true,
+            );
             await activeVisible(field, list);
             expect(await field.getAttribute('aria-activedescendant')).toBe(tailId);
             // Scroll away, then return to the same row without discarding the open picker.
@@ -412,6 +421,9 @@ for (const profile of ['configured', 'desktop1440'] as const) {
               el.scrollTop = el.scrollHeight;
             });
             await expect(field).toHaveAttribute('aria-expanded', 'true');
+            await expect(list).toBeVisible();
+            await bounded(list);
+            await activeVisible(field, list);
             await field.scrollIntoViewIfNeeded();
             await page.setViewportSize({ width: actual.viewport.width, height: 430 });
             await bounded(list);
