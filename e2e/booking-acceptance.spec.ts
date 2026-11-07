@@ -133,9 +133,12 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     expect(box!.y).toBeGreaterThanOrEqual(0);
     expect(box!.y + box!.height).toBeLessThanOrEqual(page.viewportSize()!.height + 1);
     if (page.viewportSize()!.width < 768) {
-      // #586: capture fills the visible phone viewport; other sheets retain their own caps.
-      expect(box!.y).toBe(0);
-      expect(box!.height).toBe(await page.evaluate(() => window.visualViewport!.height));
+      // #995: the redesign keeps a sheet inset; rollback retains its full-screen capture.
+      const topInset = (await redesignLoaded(page)) ? 24 : 0;
+      expect(box!.y).toBe(topInset);
+      expect(box!.height).toBe(
+        (await page.evaluate(() => window.visualViewport!.height)) - topInset,
+      );
       const small = await dialog
         .locator('button, input, textarea, select, summary')
         .evaluateAll((els) =>

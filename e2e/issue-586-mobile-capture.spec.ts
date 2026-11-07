@@ -89,9 +89,10 @@ test('capture keeps save visible with many lines, status, targets and both theme
     if (phone) {
       const bounds = (await dialog.boundingBox())!;
       expect(bounds.x).toBe(0);
-      expect(bounds.y).toBe(0);
+      const topInset = (await redesignLoaded(page)) ? 24 : 0;
+      expect(bounds.y).toBe(topInset);
       expect(bounds.width).toBe(390);
-      expect(bounds.height).toBe(height);
+      expect(bounds.height).toBe(height - topInset);
       const small = await dialog
         .locator('button, input:not([aria-hidden="true"]), select, textarea, summary')
         .evaluateAll((els) =>

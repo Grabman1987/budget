@@ -102,6 +102,7 @@ async function expectNoModal(page: Page) {
 }
 
 interface Geometry {
+  swipeSheet: boolean;
   viewport: { w: number; h: number };
   rect: { top: number; bottom: number; left: number; right: number; height: number };
   innerHeight: number;
@@ -153,6 +154,7 @@ const geometry = (page: Page): Promise<Geometry> =>
       .slice(0, 5)
       .map((el) => `${el.tagName}.${el.className}`);
     return {
+      swipeSheet: d.classList.contains('is-swipe-sheet'),
       viewport: { w, h },
       rect: { top: r.top, bottom: r.bottom, left: r.left, right: r.right, height: r.height },
       innerHeight: inner?.height ?? 0,
@@ -195,6 +197,8 @@ function expectVisibleAndInside(g: Geometry, s: Scenario) {
   if (s.kind === 'sheet') {
     // A sheet stops at 88 % of the screen: the backdrop stays visible above it.
     expect(g.rect.height).toBeLessThanOrEqual(g.viewport.h * 0.88 + 1);
+  } else if (g.swipeSheet) {
+    expect(g.rect.top).toBe(24);
   } else {
     expect(g.rect.top).toBeLessThanOrEqual(0.5);
   }
@@ -314,7 +318,11 @@ test.describe('behaviour', () => {
         const d = document.querySelector<HTMLElement>('dialog.overlay[open]');
         return { top: d?.getBoundingClientRect().top ?? 0, w: window.innerWidth };
       });
-      if (s.kind === 'full') expect(top, 'capture fills the phone with no exposed scrim').toBe(0);
+      const swipeSheet = await dialogOf(page, s).evaluate((el) =>
+        el.classList.contains('is-swipe-sheet'),
+      );
+      if (s.kind === 'full')
+        expect(top, 'capture keeps the requested top inset').toBe(swipeSheet ? 24 : 0);
       else expect(top, 'there is a backdrop above the sheet to tap').toBeGreaterThan(20);
       // Capture's left inset is inside the dialog without changing a field or booking kind.
       await page.touchscreen.tap(s.kind === 'full' ? 2 : w / 2, top + 80);
