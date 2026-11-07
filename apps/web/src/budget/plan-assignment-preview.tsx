@@ -3,7 +3,7 @@ import { Field, Select, useAmountPrivacy } from '@budget/ui';
 import { eur } from '../ledger/format';
 import { monthLabel } from '../nav/month';
 import { automaticAssignment } from './plan-automatic';
-import type { PlanRow } from './plan-model';
+import { moveGuard, type PlanRow } from './plan-model';
 
 type PreviewMode = 'target' | 'reset';
 
@@ -15,7 +15,7 @@ function exclusion(row: PlanRow, mode: PreviewMode): string | null {
   return null;
 }
 
-/** Advisory only: preserve the existing selected-row order, funding cap and reset policy. */
+/** Advisory only: target funding permits overdraft planning; reset retains its funding cap. */
 export function selectedAssignmentPreview(rows: PlanRow[], mode: PreviewMode, tba: number) {
   const plan = automaticAssignment(
     rows.filter((row) => !exclusion(row, mode)),
@@ -99,6 +99,11 @@ export function PlanAssignmentPreview({
                 <dd className="plan-money">{eur(preview.missingCents)}</dd>
               </div>
             </dl>
+            {preview.changedCount > 0 && moveGuard(preview.deltaCents, tba).message && (
+              <p className="panel-sub" role="status">
+                {moveGuard(preview.deltaCents, tba).message}
+              </p>
+            )}
             {preview.changedCount === 0 && (
               <p className="panel-sub">
                 {preview.rows.some(({ reason }) => reason)

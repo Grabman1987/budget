@@ -290,15 +290,35 @@ export interface BulkResult extends WriteResult {
   transferPairs: number;
 }
 
+export interface BookingNotePreview {
+  ids: string[];
+  memo: string | null;
+  selection: BulkSelection;
+  changed: string[];
+  unchanged: string[];
+  skipped: BulkResult['skipped'];
+  revision: string;
+}
+export const readNotePreview = (ids: string[], memo: string | null) =>
+  request<BookingNotePreview>('POST', '/api/bookings/note-preview', { ids, memo });
+
 export const bulkUpdateBookings = (
   ids: string[],
   set: {
+    memo?: string | null;
     categoryId?: string | null;
     flag?: BookingFlag | null;
     status?: 'pending' | 'confirmed';
     projectId?: string | null;
   },
-) => request<BulkResult>('POST', '/api/bookings/bulk', { action: 'update', ids, set });
+  previewRevision?: string,
+) =>
+  request<BulkResult>('POST', '/api/bookings/bulk', {
+    action: 'update',
+    ids,
+    set,
+    previewRevision,
+  });
 
 export const bulkDeleteBookings = (ids: string[], previewRevision: string) =>
   request<BulkResult>('POST', '/api/bookings/bulk', { action: 'delete', ids, previewRevision });

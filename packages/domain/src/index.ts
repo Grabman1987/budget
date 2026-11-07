@@ -66,3 +66,4 @@ export * from './ledger/bookings-search';
 export * from './ledger/booking-views';
 export * from './wealth/strategy-trend';
 export * from './wealth/strategy-plan';
+export * from './ledger/bulk-field-protection';

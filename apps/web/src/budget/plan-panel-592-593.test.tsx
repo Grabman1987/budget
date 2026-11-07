@@ -61,7 +61,7 @@ const target = {
   validFrom: '2026-10',
 };
 
-it('514 previews selected targets in the existing supplied order with literal funding and shortfall', () => {
+it('514 previews selected targets in the existing supplied order with full target funding beyond available money', () => {
   const selected = [
     row({ id: 'later-stage', categoryId: 'later-stage', stage: 8, needCents: 600, target }),
     row({
@@ -75,8 +75,8 @@ it('514 previews selected targets in the existing supplied order with literal fu
   ];
   const original = structuredClone(selected);
   const preview = selectedAssignmentPreview(selected, 'target', 500);
-  expect(preview.deltaCents).toBe(500);
-  expect(preview.missingCents).toBe(300);
+  expect(preview.deltaCents).toBe(800);
+  expect(preview.missingCents).toBe(0);
   expect(
     preview.rows.map(({ afterCents, deltaCents, missingCents }) => [
       afterCents,
@@ -84,11 +84,11 @@ it('514 previews selected targets in the existing supplied order with literal fu
       missingCents,
     ]),
   ).toEqual([
-    [900, 500, 100],
-    [0, 0, 200],
+    [1000, 600, 0],
+    [200, 200, 0],
   ]);
   expect(selected).toEqual(original);
-  expect(selectedAssignmentPreview(selected, 'target', -100).deltaCents).toBe(0);
+  expect(selectedAssignmentPreview(selected, 'target', -100).deltaCents).toBe(800);
 });
 
 it('514 exposes exclusions and still includes legacy assignments in a capped reset', () => {
@@ -146,7 +146,7 @@ it('514 disclosure, mode changes and live privacy stay read-only', () => {
     within(category)
       .getAllByRole('definition')
       .map((cell) => cell.textContent),
-  ).toEqual(['4,00 €', '6,00 €', '+2,00 €', '6,00 €', '4,00 €']);
+  ).toEqual(['4,00 €', '6,00 €', '+6,00 €', '10,00 €', '0,00 €']);
   fireEvent.change(screen.getByLabelText('Vorschau für'), { target: { value: 'reset' } });
   expect(
     within(category)
@@ -188,7 +188,7 @@ it('514 recalculates a read-only preview when current funds or target need chang
   const view = render(<PlanAssignmentPreview month="2026-10" rows={[selected]} tba={200} />);
   fireEvent.click(screen.getByText('Zuweisungsvorschau', { selector: 'summary' }));
   view.rerender(<PlanAssignmentPreview month="2026-10" rows={[selected]} tba={0} />);
-  expect(screen.getByText('Kein Geld für weitere Zuweisungen verfügbar.')).toBeTruthy();
+  expect(screen.getByRole('status').textContent).toContain('−6,00 €');
   view.rerender(
     <PlanAssignmentPreview month="2026-10" rows={[{ ...selected, needCents: 0 }]} tba={200} />,
   );
