@@ -29,6 +29,10 @@ for (const theme of ['light', 'dark'] as const)
         width,
       );
       if (!phone) {
+        const tableScroll = page.locator('.pmulti-scroll:has(.ptable-zero)');
+        expect(
+          await tableScroll.evaluate((element) => element.scrollWidth - element.clientWidth),
+        ).toBe(0);
         const rows = await page.locator('.ptable-zero .prow:not(.is-empty)').evaluateAll((rows) =>
           rows.map((row) => {
             const element = (selector: string) => row.querySelector<HTMLElement>(selector)!;
@@ -52,8 +56,13 @@ for (const theme of ['light', 'dark'] as const)
               nameCellEnd:
                 cell.right - parseFloat(getComputedStyle(element('.col-name')).paddingRight),
               statusEnd: status.right,
+              nameBottom: name.bottom,
+              nameHeight: name.height,
+              nameWidth: name.width,
               statusTop: status.top,
               statusBottom: status.bottom,
+              statusHeight: status.height,
+              addBottom: add?.getBoundingClientRect().bottom ?? null,
               addLabelBottom: add ? addLabel.getBoundingClientRect().bottom : null,
               barTop: bar.top,
               belowBar: row.getBoundingClientRect().bottom - bar.bottom,
@@ -82,7 +91,12 @@ for (const theme of ['light', 'dark'] as const)
           expect(row.barStart).toBeCloseTo(row.nameStart, 0);
           expect(row.barEnd).toBeCloseTo(row.nameCellEnd, 0);
           expect(row.statusEnd).toBeCloseTo(row.barEnd, 0);
+          expect(row.nameHeight).toBe(44);
+          expect(row.nameWidth).toBeGreaterThan(0);
+          expect(row.nameBottom).toBeLessThanOrEqual(row.statusTop);
+          expect(row.statusHeight).toBeLessThanOrEqual(40);
           expect(row.statusBottom).toBeLessThanOrEqual(row.barTop);
+          if (row.addBottom !== null) expect(row.addBottom).toBeLessThanOrEqual(row.statusTop);
           if (row.addLabelBottom !== null)
             expect(row.addLabelBottom).toBeLessThanOrEqual(row.statusTop);
           expect(row.belowBar).toBeGreaterThanOrEqual(8);

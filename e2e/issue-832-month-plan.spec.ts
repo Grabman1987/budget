@@ -337,7 +337,7 @@ for (const theme of ['light', 'dark'] as const) {
             await name.evaluate((node) => node.scrollWidth - node.clientWidth),
           ).toBeLessThanOrEqual(1);
           for (const column of ['.col-assign', '.col-act', '.col-avail']) {
-            expect((await row.locator(column).boundingBox())!.width).toBeCloseTo(108, 0);
+            expect((await row.locator(column).boundingBox())!.width).toBeCloseTo(128, 0);
             expect(
               await row.locator(column).evaluate((node) => getComputedStyle(node).textAlign),
             ).toBe('right');

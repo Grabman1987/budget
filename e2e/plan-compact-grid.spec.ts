@@ -298,7 +298,7 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     if (redesigned) {
       for (const pair of dimensions.pairs) {
         expect(pair.height).toBeGreaterThanOrEqual(80);
-        expect(pair.height).toBeLessThanOrEqual(100);
+        expect(pair.height).toBeLessThanOrEqual(140);
       }
     } else expect(Math.max(...dimensions.bandHeights)).toBeLessThanOrEqual(76);
     await info.attach('compact-grid-dimensions', {
@@ -312,7 +312,8 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     } else expect(dimensions.beforeGrid).toBeLessThanOrEqual(120);
     if (redesigned) {
       expect(Math.min(...dimensions.heights)).toBeGreaterThanOrEqual(56);
-      expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(64);
+      // The visible spending hint has its own track below the 44px name target (up to two lines).
+      expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(104);
     } else expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(40);
     expect(Math.max(...dimensions.groups)).toBeLessThanOrEqual(36);
     // The compact OFF worksheet retains its original density. The ON canvas exposes
