@@ -2,6 +2,7 @@ import { Button, FormDialog, TextInput } from '@budget/ui';
 import { useId, useRef, useState } from 'react';
 import { readNotePreview, type BookingNotePreview } from './api';
 import { errorText, SKIP_REASON_LABEL } from './labels';
+import './booking-note-dialog.css';
 
 export function BookingNoteDialog({
   ids,
@@ -44,7 +45,7 @@ export function BookingNoteDialog({
       beforeClose={() => !accepting.current}
     >
       <form
-        className="bkform kdelete-preview"
+        className="bkform kdelete-preview knote-preview"
         aria-busy={busy}
         onSubmit={(event) => event.preventDefault()}
       >
