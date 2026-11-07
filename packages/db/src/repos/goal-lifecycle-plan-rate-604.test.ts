@@ -435,6 +435,11 @@ describe('canonical Plan funding and real DB goal lifecycle (#604)', () => {
       envelope: { assignedCents: 40000, needCents: 0, availableCents: 40000 },
       tba: -20000,
     });
+    expect(funded).toMatchObject({
+      assignedCents: 25000,
+      changedCount: 1,
+      toBeAssignedCents: -20000,
+    });
     const undone = undo(db, { groupId: funded.groupId }, ACTOR);
     expect(undone.entries).toHaveLength(1);
     expect(plan(ids.categoryId)).toMatchObject({

@@ -457,8 +457,7 @@ isolatedTest(
     const accountsBefore = await (await request.get('/api/accounts')).json();
     const read = async () => (await (await request.get(`/api/budget/${month}`)).json()).summary;
     await page.goto(`/plan/monat?monat=${month}`);
-    const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-    expect(on).toBe(process.env['VITE_BUDGET_REDESIGN'] === '1');
+    await expect(page.locator('.app')).toHaveAttribute('data-budget-redesign', '1');
     const hero = page.getByTestId('to-be-assigned');
     await expect(hero).toHaveText('10,00 €');
     const phone = page.viewportSize()!.width < 768;

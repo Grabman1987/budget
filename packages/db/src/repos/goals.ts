@@ -463,7 +463,7 @@ export function fundGoalRate(
   reviewToken: string,
   ctx: AuditContext,
   today = todayInVienna(),
-): { groupId: string; changedCount: number; assignedCents: number } {
+): { groupId: string; changedCount: number; assignedCents: number; toBeAssignedCents?: number } {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const goal = getGoal(tx, id, month, today);
@@ -484,13 +484,13 @@ export function fundGoalRate(
     const amount = goal.funding.remainingCents;
     if (amount === 0) return { groupId: grouped.groupId, changedCount: 0, assignedCents: 0 };
     const assigned = budget(tx, [month])[0]?.envelopes[goal.categoryId]?.assignedCents ?? 0;
-    assignMany(
+    const result = assignMany(
       tx,
       month,
       [{ categoryId: goal.categoryId, assignedCents: assigned + amount }],
       grouped,
     );
-    return { groupId: grouped.groupId, changedCount: 1, assignedCents: amount };
+    return { ...result, changedCount: 1, assignedCents: amount };
   });
 }
 
