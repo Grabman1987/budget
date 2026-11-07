@@ -1242,6 +1242,9 @@ function PlanBody({
                         <tr
                           key={g.key}
                           className={cx('pgroup', isCollapsed && 'is-collapsed')}
+                          data-plan-class={
+                            REDESIGN_ENABLED ? (g.rows[0]?.cls ?? undefined) : undefined
+                          }
                           id={`grp-${g.key}`}
                         >
                           <td className="col-name">{groupHeading}</td>

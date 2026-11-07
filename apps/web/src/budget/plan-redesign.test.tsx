@@ -259,10 +259,8 @@ it('ON desktop keeps exact spending hints and moves the named cover action onto 
   await screen.findByRole('button', { name: 'Synthetic met' });
   const row = (id: string) =>
     container.querySelector(`.pname[data-category-id="${id}"]`)!.closest('tr')!;
-  expect(row('met').querySelector('.plan-spending-copy')!.textContent).toBe(
-    'Ausgegeben 15,00 € von 20,00 €',
-  );
-  expect(row('cash').querySelector('.plan-spending-copy')!.textContent).toBe('Überzogen um 7,00 €');
+  expect(row('met').querySelector('.plan-spending-copy')!.textContent).toBe('15,00 von 20,00');
+  expect(row('cash').querySelector('.plan-spending-copy')!.textContent).toBe('Überzogen 7,00');
   const cover = within(row('cash')).getByRole('button', { name: 'Synthetic cash decken' });
   const amountId = cover.getAttribute('aria-describedby')!;
   expect(document.getElementById(amountId)!.textContent).toBe('−7,00 €');

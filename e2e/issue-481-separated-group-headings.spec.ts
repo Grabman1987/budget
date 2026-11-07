@@ -229,7 +229,7 @@ for (const profile of ['configured', 'desktop', 'phone-tall'] as const) {
             const combinedHeight = parent.first.bottom - parent.top;
             if (geometry.redesigned) {
               expect(combinedHeight, parent.id).toBeGreaterThanOrEqual(80);
-              // The visible desktop hint owns a separate track, wrapping to at most two lines.
+              // Desktop retains full-size category targets and spacing below the bar.
               expect(combinedHeight, parent.id).toBeLessThanOrEqual(phone ? 152 : 140);
             } else expect(combinedHeight, parent.id).toBeLessThanOrEqual(phone ? 152 : 76);
             expect(parent.controls.length, parent.id).toBeGreaterThan(0);

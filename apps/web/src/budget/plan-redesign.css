@@ -116,13 +116,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.plan-month-v2 .prow[data-plan-class='need'] {
+.plan-month-v2 [data-plan-class='need'] {
   --plan-class: var(--need);
 }
-.plan-month-v2 .prow[data-plan-class='want'] {
+.plan-month-v2 [data-plan-class='want'] {
   --plan-class: var(--want);
 }
-.plan-month-v2 .prow[data-plan-class='future'] {
+.plan-month-v2 [data-plan-class='future'] {
   --plan-class: var(--future);
 }
 .plan-month-v2 .prow[data-plan-class] > .col-name {
@@ -518,6 +518,31 @@
 }
 /* Detail routes also load the legacy stylesheet; keep the ON geometry independent of load order. */
 @media (min-width: 768px) {
+  /* One frame joins the heading and categories, with rounding only at the outer corners. */
+  .plan.plan-month-v2 .ptable-zero :is(.pgroup, .prow) > td:first-child {
+    border-left: var(--stroke-hairline) solid var(--plan-class, var(--rule));
+    box-shadow: inset 1px 0 var(--plan-class, var(--rule));
+  }
+  .plan.plan-month-v2 .ptable-zero :is(.pgroup, .prow) > td:last-child {
+    border-right: var(--stroke-hairline) solid var(--rule);
+  }
+  .plan.plan-month-v2 .ptable-zero .pgroup > td {
+    border-top: var(--stroke-hairline) solid var(--rule);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .plan.plan-month-v2
+    .ptable-zero
+    :is(.pgroup, .prow):is(:has(+ .pgroup-gap), :last-child)
+    > td:first-child {
+    border-bottom-left-radius: var(--radius-md);
+  }
+  .plan.plan-month-v2
+    .ptable-zero
+    :is(.pgroup, .prow):is(:has(+ .pgroup-gap), :last-child)
+    > td:last-child {
+    border-bottom-right-radius: var(--radius-md);
+  }
   .plan-month-frame .plan.plan-month-v2 .plan-lead-controls summary.plan-tba {
     display: flex;
     flex-direction: column;
@@ -616,16 +641,16 @@
     height: auto;
   }
   .plan-month-frame .plan-month-v2 .ptable-zero .prow:not(.is-empty) .col-name {
-    grid-template-columns: var(--touch) minmax(0, 1fr);
-    grid-template-rows: var(--touch) minmax(20px, auto) var(--bar-progress);
+    grid-template-columns: var(--touch) minmax(var(--touch), 1fr) minmax(0, 1fr);
+    grid-template-rows: var(--touch) var(--bar-progress);
     padding-block-end: var(--space-sm);
   }
   .plan.plan-month-v2 .ptable-zero .prow .pname {
     grid-column: 2;
     grid-row: 1;
     align-self: stretch;
-    align-items: flex-start;
-    padding-top: var(--space-xs);
+    align-items: center;
+    padding-top: 0;
     min-height: var(--touch);
   }
   .plan.plan-month-v2 .ptable-zero .prow .plan-select {
@@ -642,23 +667,23 @@
   }
   .plan.plan-month-v2 .ptable-zero .prow .spending-bar {
     grid-column: 2 / -1;
-    grid-row: 3;
+    grid-row: 2;
     margin: 0;
   }
   .plan-month-frame .plan-month-v2 .ptable-zero .col-name .spending-status {
     position: static;
-    grid-column: 2 / -1;
-    grid-row: 2;
+    grid-column: 3 / -1;
+    grid-row: 1;
     width: auto;
     height: auto;
     clip-path: none;
-    padding-bottom: var(--space-xs);
+    padding-bottom: 0;
     color: var(--ink-2);
     text-align: right;
+    font-variant-numeric: tabular-nums;
   }
   .plan.plan-month-v2 .ptable-zero .plan-spending-copy {
-    white-space: normal;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
   }
   /* Keep the funding state available to assistive technology without a second visual badge. */
   .plan.plan-month-v2 .ptable-zero .plan-row-state {
@@ -672,13 +697,16 @@
     flex-shrink: 0;
   }
   .plan-month-frame .plan-month-v2 .ptable-zero .psingle:not(.is-empty) .col-name {
-    grid-template-columns: var(--touch) minmax(0, 1fr) var(--touch);
+    grid-template-columns: var(--touch) minmax(var(--touch), 1fr) var(--touch) minmax(0, 1fr);
+  }
+  .plan-month-frame .plan-month-v2 .ptable-zero .psingle .spending-status {
+    grid-column: 4;
   }
   .plan.plan-month-v2 .ptable-zero .psingle .plan-add {
     grid-row: 1;
     align-self: start;
-    align-items: flex-start;
-    padding-top: var(--space-xs);
+    align-items: center;
+    padding-top: 0;
     min-width: var(--touch);
     min-height: var(--touch);
   }

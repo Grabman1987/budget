@@ -56,14 +56,25 @@ for (const theme of ['light', 'dark'] as const)
               nameCellEnd:
                 cell.right - parseFloat(getComputedStyle(element('.col-name')).paddingRight),
               statusEnd: status.right,
-              nameBottom: name.bottom,
+              nameCenter: name.top + name.height / 2,
+              nameEnd: name.right,
               nameHeight: name.height,
               nameWidth: name.width,
-              statusTop: status.top,
+              statusCenter: status.top + status.height / 2,
+              statusStart: status.left,
               statusBottom: status.bottom,
               statusHeight: status.height,
-              addBottom: add?.getBoundingClientRect().bottom ?? null,
-              addLabelBottom: add ? addLabel.getBoundingClientRect().bottom : null,
+              addStart: add?.getBoundingClientRect().left ?? null,
+              addEnd: add?.getBoundingClientRect().right ?? null,
+              addLabelEnd: add ? addLabel.getBoundingClientRect().right : null,
+              statusWhiteSpace: getComputedStyle(element('.plan-spending-copy')).whiteSpace,
+              statusOverflow: getComputedStyle(element('.plan-spending-copy')).textOverflow,
+              statusFigures: statusStyle.fontVariantNumeric,
+              hintTruncated:
+                element('.plan-spending-copy').scrollWidth >
+                element('.plan-spending-copy').clientWidth,
+              fullHint: element('.spending-status').title,
+              hintText: element('.plan-spending-copy').textContent,
               barTop: bar.top,
               belowBar: row.getBoundingClientRect().bottom - bar.bottom,
               checkboxSize: [checkbox.width, checkbox.height],
@@ -87,18 +98,26 @@ for (const theme of ['light', 'dark'] as const)
           }),
         );
         expect(rows.length).toBeGreaterThan(1);
+        expect(rows.some((row) => row.hintTruncated)).toBe(true);
         for (const row of rows) {
           expect(row.barStart).toBeCloseTo(row.nameStart, 0);
           expect(row.barEnd).toBeCloseTo(row.nameCellEnd, 0);
           expect(row.statusEnd).toBeCloseTo(row.barEnd, 0);
           expect(row.nameHeight).toBe(44);
           expect(row.nameWidth).toBeGreaterThan(0);
-          expect(row.nameBottom).toBeLessThanOrEqual(row.statusTop);
-          expect(row.statusHeight).toBeLessThanOrEqual(40);
+          expect(row.nameCenter).toBeCloseTo(row.statusCenter, 0);
+          expect(row.nameEnd).toBeLessThanOrEqual(row.statusStart);
+          expect(row.statusHeight).toBeLessThanOrEqual(20);
+          expect(row.statusWhiteSpace).toBe('nowrap');
+          expect(row.statusOverflow).toBe('ellipsis');
+          expect(row.statusFigures).toBe('tabular-nums');
+          expect(row.fullHint).toBe(row.hintText);
+          expect(row.hintText).not.toContain('€');
           expect(row.statusBottom).toBeLessThanOrEqual(row.barTop);
-          if (row.addBottom !== null) expect(row.addBottom).toBeLessThanOrEqual(row.statusTop);
-          if (row.addLabelBottom !== null)
-            expect(row.addLabelBottom).toBeLessThanOrEqual(row.statusTop);
+          if (row.addStart !== null) expect(row.nameEnd).toBeLessThanOrEqual(row.addStart);
+          if (row.addEnd !== null) expect(row.addEnd).toBeLessThanOrEqual(row.statusStart);
+          if (row.addLabelEnd !== null)
+            expect(row.addLabelEnd).toBeLessThanOrEqual(row.statusStart);
           expect(row.belowBar).toBeGreaterThanOrEqual(8);
           expect(row.checkboxSize).toEqual([16, 16]);
           expect(row.checkboxInkSize).toBe('16px');
@@ -114,6 +133,66 @@ for (const theme of ['light', 'dark'] as const)
           body: JSON.stringify(rows),
           contentType: 'application/json',
         });
+        const frame = await page
+          .locator('.ptable-zero tbody > tr:not(.pgroup-gap)')
+          .evaluateAll((rows) =>
+            rows.map((row) => {
+              const first = row.querySelector('td:first-child')!;
+              const last = row.querySelector('td:last-child')!;
+              const start = getComputedStyle(first);
+              const end = getComputedStyle(last);
+              const box = row.getBoundingClientRect();
+              const firstBox = first.getBoundingClientRect();
+              const next = row.nextElementSibling;
+              const groupEnd = !next || next.classList.contains('pgroup-gap');
+              return {
+                leftWidth: start.borderLeftWidth,
+                leftAccent: start.boxShadow,
+                rightWidth: end.borderRightWidth,
+                leftHeight: firstBox.height,
+                rowHeight: box.height,
+                nextGap: groupEnd ? 0 : next.getBoundingClientRect().top - box.bottom,
+                bottomLeft: start.borderBottomLeftRadius,
+                bottomRight: end.borderBottomRightRadius,
+                groupEnd,
+                header: row.classList.contains('pgroup'),
+                topWidth: start.borderTopWidth,
+                topColor: start.borderTopColor,
+                frameColor: end.borderRightColor,
+              };
+            }),
+          );
+        for (const row of frame) {
+          expect(row.leftWidth).toBe('1px');
+          expect(row.leftAccent).toContain('1px 0px 0px 0px inset');
+          expect(row.rightWidth).toBe('1px');
+          expect(row.leftHeight).toBeCloseTo(row.rowHeight, 1);
+          expect(row.nextGap).toBe(0);
+          expect(row.bottomLeft).toBe(row.groupEnd ? '8px' : '0px');
+          expect(row.bottomRight).toBe(row.groupEnd ? '8px' : '0px');
+          if (row.header) {
+            expect(row.topWidth).toBe('1px');
+            expect(row.topColor).toBe(row.frameColor);
+          }
+        }
+        const parent = page.locator('.ptable-zero .pgroup:not(.prow)').first();
+        const toggle = parent.locator('.grp-toggle');
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        await expect(parent.locator('td:first-child')).toHaveCSS(
+          'border-bottom-left-radius',
+          '8px',
+        );
+        await expect(parent.locator('td:last-child')).toHaveCSS(
+          'border-bottom-right-radius',
+          '8px',
+        );
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        await expect(parent.locator('td:first-child')).toHaveCSS(
+          'border-bottom-left-radius',
+          '0px',
+        );
       } else {
         for (const selector of ['.pname', '.plan-available']) {
           const control = await page.locator(`.ptable ${selector}`).first().boundingBox();

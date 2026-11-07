@@ -42,7 +42,7 @@ async function expectPhoneSelectionTargets(page: Page) {
   }
 }
 
-/** Keep separate parent/category bounds, including the ON hint's own track (up to two lines). */
+/** Keep separate parent/category bounds, including the ON category targets and bar spacing. */
 async function expectCompactBandContents(page: Page, phone: boolean) {
   const bands = await page.locator('.ptable-zero .pgroup:not(.psingle)').evaluateAll((rows) =>
     rows.map((row) => {

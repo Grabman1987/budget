@@ -204,7 +204,7 @@ async function assertCompactBands(page: Page, phone: boolean, info: TestInfo, st
     expect(band.parentHeight).toBeGreaterThan(0);
     if (redesigned) {
       expect(band.categoryHeight).toBeGreaterThanOrEqual(56);
-      // Desktop keeps the spending hint below the 44px name target, with room for two lines.
+      // Desktop retains the 44px name target and spacing below the spending bar.
       expect(band.categoryHeight).toBeLessThanOrEqual(phone ? 76 : 104);
       expect(band.wholeHeight).toBeLessThanOrEqual(phone ? 152 : 140);
     } else {
