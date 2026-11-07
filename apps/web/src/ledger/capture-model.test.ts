@@ -6,6 +6,7 @@ import {
   accountFromPayee,
   categoriesFor,
   categoryFromPayee,
+  recentPayeeCategory,
   defaultAccountId,
   orderAccounts,
   pickableCategories,
@@ -182,5 +183,39 @@ describe('captureDirty', () => {
     expect(captureDirty({ ...blank, payee: 'Markt' }, 'Markt')).toBe(false);
     expect(captureDirty({ ...blank, payee: 'Markt', amount: '5' }, 'Markt')).toBe(true);
     expect(captureDirty({ ...blank, payee: 'Bäcker' }, 'Markt')).toBe(true);
+  });
+});
+
+describe('recentPayeeCategory', () => {
+  const split = {
+    id: 'synthetic-split',
+    categoryId: 'food',
+    categoryName: 'Essen',
+    amountCents: -100,
+    memo: null,
+    contactId: null,
+    incomeTypeId: null,
+    transferId: null,
+  };
+  const booking = { amountCents: -100, transferId: null, splits: [split] };
+  it('uses a single category while leaving ambiguous, opposite-kind and contact/transfer history alone', () => {
+    expect(recentPayeeCategory(booking, 'expense')).toBe('food');
+    expect(
+      recentPayeeCategory({ ...booking, splits: [split, { ...split, id: 'second' }] }, 'expense'),
+    ).toBe('food');
+    expect(recentPayeeCategory(undefined, 'expense')).toBeUndefined();
+    expect(recentPayeeCategory(booking, 'income')).toBeUndefined();
+    expect(recentPayeeCategory(booking, 'transfer')).toBeUndefined();
+    expect(recentPayeeCategory({ ...booking, transferId: 'transfer' }, 'expense')).toBeUndefined();
+    for (const patch of [
+      { categoryId: 'other' },
+      { categoryId: null },
+      { contactId: 'contact' },
+      { transferId: 'transfer' },
+    ]) {
+      expect(
+        recentPayeeCategory({ ...booking, splits: [split, { ...split, ...patch }] }, 'expense'),
+      ).toBeUndefined();
+    }
   });
 });

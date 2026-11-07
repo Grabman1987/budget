@@ -201,10 +201,18 @@ test('K1–K5: synthetic desktop and phone views retain read-only entry paths', 
           await dialog.getByLabel('Empfänger', { exact: true }).fill('Muster Einkauf');
           await pickCategory(dialog, category.name);
           await dialog.getByLabel('Notiz', { exact: true }).fill('Muster Wocheneinkauf');
-          if (width === 390 && (await page.locator('[data-budget-redesign="1"]').count()) > 0)
-            expect(
-              (await dialog.getByLabel('Betrag', { exact: true }).boundingBox())!.width,
-            ).toBeGreaterThanOrEqual(160);
+          if (width === 390 && (await page.locator('[data-budget-redesign="1"]').count()) > 0) {
+            // The amount now fits its digits so the euro sign remains attached (#980).
+            const amount = dialog.getByLabel('Betrag', { exact: true });
+            await expect(amount).toHaveValue('13,57');
+            expect(await amount.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+            const amountBox = (await amount.boundingBox())!;
+            const currencyBox = (await dialog
+              .locator('.bk-amount-primary .amount-cur')
+              .boundingBox())!;
+            expect(currencyBox.x - amountBox.x - amountBox.width).toBeLessThanOrEqual(4);
+            expect(currencyBox.x).toBeGreaterThanOrEqual(amountBox.x + amountBox.width);
+          }
         }
         const output =
           info.project.name === 'desktop' ? process.env['BUDGET_KONTEN_EVIDENCE_DIR'] : undefined;

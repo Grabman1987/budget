@@ -1,4 +1,5 @@
 import { Field, TextInput, cx } from '@budget/ui';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import {
   useEffect,
   useId,
@@ -45,6 +46,8 @@ export interface ComboboxProps {
   hintHeading?: string;
   /** Capture categories retain their caller's group order and expose the entire scrollable list. */
   captureCategory?: boolean;
+  /** Mobile capture suggestions overlay following rows at the card's full width. */
+  captureOverlay?: boolean;
 }
 
 const fold = (text: string) => text.toLocaleLowerCase('de-AT').trim();
@@ -87,7 +90,18 @@ export function Combobox({
   pickSingle = false,
   hintHeading,
   captureCategory = false,
+  captureOverlay = false,
 }: ComboboxProps) {
+  const [isPhone, setIsPhone] = useState(
+    () => window.matchMedia?.('(max-width: 767px)').matches ?? false,
+  );
+  useEffect(() => {
+    const media = window.matchMedia?.('(max-width: 767px)');
+    const update = () => setIsPhone(media?.matches ?? false);
+    media?.addEventListener('change', update);
+    return () => media?.removeEventListener('change', update);
+  }, []);
+  const overlayCapture = captureOverlay || (captureCategory && REDESIGN_ENABLED && isPhone);
   const listId = useId();
   const [focused, setFocused] = useState(false);
   const [active, setActive] = useState(-1);
@@ -119,11 +133,17 @@ export function Combobox({
     (shown.length > 0 || (emptyText !== undefined && (filter ?? value).trim() !== ''));
   // On the phone the list opens inside a scrolling sheet: bring it into view.
   useEffect(() => {
-    if (captureCategory || !open || !window.matchMedia?.('(max-width: 767px)')?.matches) return;
+    if (
+      overlayCapture ||
+      captureCategory ||
+      !open ||
+      !window.matchMedia?.('(max-width: 767px)')?.matches
+    )
+      return;
     document.getElementById(listId)?.scrollIntoView?.({ block: 'nearest' });
-  }, [open, listId, captureCategory]);
+  }, [open, listId, captureCategory, overlayCapture]);
   useLayoutEffect(() => {
-    if (!captureCategory || !open) return;
+    if ((!overlayCapture && !captureCategory) || !open) return;
     const list = document.getElementById(listId);
     const field = list?.parentElement;
     if (!list || !field) return;
@@ -143,19 +163,26 @@ export function Combobox({
         left = Math.max(left, box.left + dialog.clientLeft);
         right = Math.min(right, box.left + dialog.clientLeft + dialog.clientWidth);
       }
-      const anchor = field.getBoundingClientRect();
+      const anchor = (
+        overlayCapture ? field.querySelector('input') : field
+      )?.getBoundingClientRect();
+      if (!anchor) return;
+      const card =
+        (overlayCapture ? field.closest('.bk-cols') : null)?.getBoundingClientRect() ?? anchor;
       const belowOrigin = Math.max(top, Math.min(anchor.bottom + 4, bottom));
       const aboveOrigin = Math.max(top, Math.min(anchor.top - 4, bottom));
       const below = Math.max(0, bottom - belowOrigin);
       const above = Math.max(0, aboveOrigin - top);
-      const opensAbove = above > below;
-      const width = Math.max(0, Math.min(anchor.width, right - left));
-      const maxHeight = Math.min(
-        bottom - top,
-        Math.max(MIN_CAPTURE_LIST_HEIGHT, opensAbove ? above : below),
-      );
+      // Prefer the following rows; only flip when the desired list will not fit below.
+      const opensAbove = overlayCapture
+        ? below < Math.min(220, list.scrollHeight) && above > below
+        : above > below;
+      const width = Math.max(0, Math.min(card.width, right - left));
+      const maxHeight = overlayCapture
+        ? Math.min(220, opensAbove ? above : below)
+        : Math.min(bottom - top, Math.max(MIN_CAPTURE_LIST_HEIGHT, opensAbove ? above : below));
       list.style.maxHeight = `${Math.floor(maxHeight)}px`;
-      list.style.left = `${Math.max(left, Math.min(anchor.left, right - width))}px`;
+      list.style.left = `${Math.max(left, Math.min(card.left, right - width))}px`;
       list.style.right = 'auto';
       list.style.width = `${width}px`;
       list.style.bottom = 'auto';
@@ -190,8 +217,10 @@ export function Combobox({
       viewport?.removeEventListener('resize', refresh);
       viewport?.removeEventListener('scroll', onScroll);
       observer?.disconnect();
+      for (const property of ['max-height', 'left', 'right', 'width', 'bottom', 'top'])
+        list.style.removeProperty(property);
     };
-  }, [captureCategory, open, listId, shown.length]);
+  }, [captureCategory, overlayCapture, open, listId, shown.length]);
   const optionId = (index: number) => `${listId}-${index}`;
   // Without arrow keys, `pickFirst` highlights the first match once something is typed.
   const activeIndex =
@@ -203,11 +232,11 @@ export function Combobox({
         ? 0
         : -1;
   useLayoutEffect(() => {
-    if (!captureCategory || !open || activeIndex < 0) return;
+    if ((!captureCategory && !overlayCapture) || !open || activeIndex < 0) return;
     const list = document.getElementById(listId);
     const option = document.getElementById(`${listId}-${activeIndex}`);
     if (list) revealOption(list, option);
-  }, [captureCategory, open, activeIndex, listId]);
+  }, [captureCategory, overlayCapture, open, activeIndex, listId]);
 
   const pick = (option: ComboOption) => {
     onSelect(option);
@@ -218,7 +247,13 @@ export function Combobox({
   return (
     <Field label={label} error={error}>
       {({ id, describedBy, invalid }) => (
-        <div className={cx('combo', captureCategory && 'is-capture-category')}>
+        <div
+          className={cx(
+            'combo',
+            captureCategory && 'is-capture-category',
+            overlayCapture && 'is-capture-overlay',
+          )}
+        >
           <TextInput
             id={id}
             ref={inputRef}
@@ -232,7 +267,7 @@ export function Combobox({
             aria-describedby={describedBy}
             autoComplete="off"
             value={value}
-            placeholder={placeholder}
+            placeholder={overlayCapture && captureCategory ? 'Kategorie wählen' : placeholder}
             onFocus={(e) => {
               // A newly focused split row can be outside the sheet after it grows.
               if (captureCategory) {
@@ -285,6 +320,7 @@ export function Combobox({
               className="combo-list"
               id={listId}
               role="listbox"
+              tabIndex={overlayCapture ? -1 : undefined}
               aria-label={`${label}, Vorschläge`}
             >
               {hintHeading !== undefined && shown.length > 0 && (
