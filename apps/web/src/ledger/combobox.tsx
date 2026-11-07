@@ -156,11 +156,17 @@ export function Combobox({
         frame.bottom,
         (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight),
       );
-      list.style.maxHeight = `${Math.max(44, Math.min(220, bottom - frame.top - 44))}px`;
+      const rowHeight = Math.max(
+        44,
+        field.getBoundingClientRect().height - list.getBoundingClientRect().height,
+      );
+      list.style.maxHeight = `${Math.max(44, Math.min(220, bottom - frame.top - rowHeight))}px`;
       const row = field.getBoundingClientRect();
       if (row.bottom > bottom)
         scroller.scrollTop += Math.min(row.bottom - bottom, row.top - frame.top);
       else if (row.top < frame.top) scroller.scrollTop += row.top - frame.top;
+      const activeId = field.querySelector('input')?.getAttribute('aria-activedescendant');
+      if (activeId) revealOption(list, document.getElementById(activeId));
     };
     refresh();
     window.addEventListener('resize', refresh);

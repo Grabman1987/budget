@@ -22,11 +22,13 @@ function Harness({
   onParentKey,
   pickFirst = false,
   captureCategory = false,
+  captureInline = false,
 }: {
   onSelect: (o: ComboOption) => void;
   onParentKey?: () => void;
   pickFirst?: boolean;
   captureCategory?: boolean;
+  captureInline?: boolean;
 }) {
   const [text, setText] = useState('');
   return (
@@ -41,12 +43,61 @@ function Harness({
         listWhenEmpty
         pickFirst={pickFirst}
         captureCategory={captureCategory}
+        captureInline={captureInline}
       />
     </div>
   );
 }
 
 describe('Combobox', () => {
+  it('keeps an inline selected result inside the body when the keyboard reduces its height', async () => {
+    let bodyHeight = 400;
+    const listHeight = () =>
+      Number.parseFloat(screen.queryByRole('listbox')?.style.maxHeight || '220');
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.classList.contains('bk-body')) return new DOMRect(16, 50, 358, bodyHeight);
+      if (this.classList.contains('field-row')) return new DOMRect(28, 50, 334, 45 + listHeight());
+      if (this.classList.contains('combo-list')) return new DOMRect(28, 95, 334, listHeight());
+      if (this.getAttribute('role') === 'option') {
+        const index = Number(this.id.split('-').at(-1));
+        return new DOMRect(28, 95 + index * 88 - this.closest('ul')!.scrollTop, 334, 44);
+      }
+      return new DOMRect(28, 50, 334, 44);
+    });
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.classList.contains('combo-list') ? listHeight() : bodyHeight;
+    });
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <div className="bk-body">
+        <Harness onSelect={onSelect} captureInline captureCategory />
+      </div>,
+    );
+    const field = screen.getByRole('combobox');
+    await user.click(field);
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}');
+    const list = screen.getByRole('listbox');
+    expect(list.tabIndex).toBe(-1);
+    expect(list.scrollTop).toBe(0);
+    act(() => {
+      bodyHeight = 200;
+      window.dispatchEvent(new Event('resize'));
+    });
+    // The 45px row includes its hairline; the remaining 155px end at the body boundary.
+    expect(list.getBoundingClientRect().bottom).toBe(250);
+    const selected = screen.getByRole('option', { selected: true });
+    expect(selected.textContent).toBe('Reise');
+    expect(selected.getBoundingClientRect().bottom).toBe(250);
+    expect(document.activeElement).toBe(field);
+    await user.keyboard('{Enter}');
+    expect(onSelect).toHaveBeenCalledWith(OPTIONS[2]);
+  });
+
   it.each([
     { height: 240, offsetTop: 80, anchorTop: 300 },
     { height: 120, offsetTop: 80, anchorTop: 110 },
