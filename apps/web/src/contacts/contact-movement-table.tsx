@@ -31,6 +31,7 @@ export function ContactMovementTable({
   headingId,
   onOpen,
   onGift,
+  onAllocate,
 }: {
   statement: Statement;
   movements: ContactMovement[];
@@ -40,6 +41,7 @@ export function ContactMovementTable({
   headingId?: string;
   onOpen: (movement: ContactMovement) => void;
   onGift?: ((outlay: OpenContactOutlay) => void) | undefined;
+  onAllocate?: ((receiptSplitId: string) => void) | undefined;
 }) {
   useAmountPrivacy();
   const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied' | 'manual'>('idle');
@@ -198,6 +200,11 @@ export function ContactMovementTable({
                           'Zuordnung nicht protokolliert'
                         )}
                       </p>
+                      {repayment.recorded && onAllocate && (
+                        <Button variant="ghost" onClick={() => onAllocate(movement.splitId)}>
+                          Zuordnung ändern
+                        </Button>
+                      )}
                     </details>
                   )}
                 </td>

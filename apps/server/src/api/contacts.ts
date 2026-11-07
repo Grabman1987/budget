@@ -3,6 +3,8 @@ import {
   chooseContactCredit,
   convertContactOutlayToGift,
   getContactStatement,
+  getContactRepaymentAllocation,
+  reallocateContactRepayment,
   listContactStatements,
   schema,
   settleContact,
@@ -164,6 +166,25 @@ export function contactRoutes(db: Db, today: () => string): Hono {
         today(),
       ),
       201,
+    );
+  });
+  app.get('/:id/settlements/:splitId/allocations', (c) =>
+    c.json(getContactRepaymentAllocation(db, c.req.param('id'), c.req.param('splitId'), today())),
+  );
+  app.post('/:id/settlements/:splitId/allocations', async (c) => {
+    const input = await readBody(
+      c,
+      z.object({ allocations: receipt.shape.allocations.unwrap() }).strict(),
+    );
+    return c.json(
+      reallocateContactRepayment(
+        db,
+        c.req.param('id'),
+        c.req.param('splitId'),
+        input,
+        audit(),
+        today(),
+      ),
     );
   });
   app.post('/:id/outlays/:splitId/gift', async (c) => {

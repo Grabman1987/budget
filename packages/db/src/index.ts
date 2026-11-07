@@ -18,3 +18,4 @@ export * from './repos/account-preview';
 
 export { databaseStamp } from './repos/request-memo';
 export * from './repos/booking-views';
+export * from './repos/operator-contact-allocate';

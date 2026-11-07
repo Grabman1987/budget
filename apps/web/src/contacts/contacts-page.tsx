@@ -58,6 +58,10 @@ export interface Statement {
   balanceCents: number;
   creditCents: number;
   credits?: ContactCredit[];
+  creditChoices?: (ContactCredit & {
+    availableCents: number;
+    automaticallyUsedCents: number;
+  })[];
   movements: ContactMovement[];
   outlays: OpenContactOutlay[];
   receipts: {
@@ -410,6 +414,7 @@ export function ContactBody({
   const noteId = useId();
   const [sourceOpening, setSourceOpening] = useState<ContactSourceOpening | null>(null);
   const [giftOutlay, setGiftOutlay] = useState<OpenContactOutlay | null>(null);
+  const [allocationReceipt, setAllocationReceipt] = useState<string | null>(null);
   const sourceGeneration = useRef(0);
   const openSource = (movement: ContactMovement) =>
     setSourceOpening({ movement, generation: ++sourceGeneration.current });
@@ -483,7 +488,17 @@ export function ContactBody({
           )}
         </>
       )}
-      {ready && !!statement.credits?.length && <ContactCredits statement={statement} />}
+      {ready && !!(statement.creditChoices ?? statement.credits)?.length && (
+        <ContactCredits statement={statement} />
+      )}
+      {allocationReceipt && (
+        <ContactAllocationDialog
+          contactId={statement.contact.id}
+          receiptSplitId={allocationReceipt}
+          ready={ready}
+          onClose={() => setAllocationReceipt(null)}
+        />
+      )}
       {receipt && (
         <ReceiptForm statement={statement} ready={ready} onDone={() => setReceipt(false)} />
       )}
@@ -520,6 +535,7 @@ export function ContactBody({
               title={monthTitle}
               caption="Kontaktbuchungen im aktuellen Monat"
               onOpen={openSource}
+              onAllocate={setAllocationReceipt}
               onGift={reportReader ? undefined : setGiftOutlay}
             />
           )}
@@ -532,6 +548,7 @@ export function ContactBody({
                 headingId="contacts-open-older"
                 caption="Noch offene Auslagen aus früheren Monaten"
                 onOpen={openSource}
+                onAllocate={setAllocationReceipt}
                 onGift={reportReader ? undefined : setGiftOutlay}
               />
             </section>
@@ -549,6 +566,7 @@ export function ContactBody({
               heading="Verlauf"
               caption="Kontaktbuchungen außerhalb des aktuellen Monats"
               onOpen={openSource}
+              onAllocate={setAllocationReceipt}
               onGift={reportReader ? undefined : setGiftOutlay}
             />
           )}
@@ -564,6 +582,7 @@ export function ContactBody({
                 heading={false}
                 caption="Abgeschlossene Kontaktbuchungen bis zum Ausgleich"
                 onOpen={openSource}
+                onAllocate={setAllocationReceipt}
                 onGift={reportReader ? undefined : setGiftOutlay}
               />
             </details>
@@ -1074,6 +1093,160 @@ function ContactGiftDialog({
   );
 }
 
+interface RepaymentAllocation {
+  receiptSplitId: string;
+  amountCents: number;
+  retainedCreditCents?: number;
+  allocations: ContactAllocation[];
+  outlays: OpenContactOutlay[];
+}
+
+function ContactAllocationDialog({
+  contactId,
+  receiptSplitId,
+  ready,
+  onClose,
+}: {
+  contactId: string;
+  receiptSplitId: string;
+  ready: boolean;
+  onClose: () => void;
+}) {
+  const [chosen, setChosen] = useState<Record<string, string> | null>(null);
+  const [busy, setBusy] = useState(false);
+  const write = useContactWrite();
+  const url = `${contactUrl(contactId)}/settlements/${encodeURIComponent(receiptSplitId)}/allocations`;
+  const preview = useQuery({
+    queryKey: [...LEDGER_KEY, 'contact-allocation', contactId, receiptSplitId],
+    queryFn: () => request<RepaymentAllocation>('GET', url),
+    gcTime: 0,
+  });
+  const sourceReady = ready && preview.isSuccess && !preview.isFetching;
+  const open = preview.data?.outlays ?? [];
+  const values =
+    chosen ??
+    Object.fromEntries(
+      open.map((outlay) => [
+        outlay.splitId,
+        decimal(
+          preview.data?.allocations.find((a) => a.outlaySplitId === outlay.splitId)?.amountCents ??
+            0,
+        ),
+      ]),
+    );
+  let allocations: ContactAllocation[] = [];
+  let allocationError = '';
+  let creditCents = 0;
+  try {
+    allocations = open.flatMap((outlay) => {
+      const value = parseAmount(values[outlay.splitId] ?? '0');
+      if (!value.ok || value.cents < 0) throw new Error('Invalid allocation amount');
+      return value.cents ? [{ outlaySplitId: outlay.splitId, amountCents: value.cents }] : [];
+    });
+    creditCents = allocateContactReceipt(
+      open,
+      preview.data?.amountCents ?? 0,
+      allocations,
+    ).creditCents;
+  } catch {
+    allocationError =
+      'Die Anteile müssen zur Rückzahlung passen und dürfen die verfügbare Auslage nicht übersteigen.';
+  }
+  return (
+    <FormDialog open title="Rückzahlung neu zuordnen" onClose={onClose} beforeClose={() => !busy}>
+      <form
+        className="contacts-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!sourceReady || allocationError || busy) return;
+          setBusy(true);
+          void write(
+            () => request('POST', url, { allocations }),
+            'Rückzahlung neu zugeordnet.',
+          ).then((ok) => {
+            setBusy(false);
+            if (ok) onClose();
+          });
+        }}
+      >
+        <h2>Rückzahlung neu zuordnen</h2>
+        <p>
+          Wähle, welche Auslagen diese Rückzahlung begleicht. Betrag, Buchungsdatum, Kontostand und
+          Nettovermögen bleiben unverändert.
+        </p>
+        {(!ready || preview.isPending || preview.isFetching) && (
+          <LoadingNote what="Verfügbare Auslagen" />
+        )}
+        {preview.isError && (
+          <ErrorNote
+            what="Verfügbare Auslagen"
+            error={preview.error}
+            onRetry={() => void preview.refetch()}
+          />
+        )}
+        {sourceReady && preview.data && (
+          <>
+            <p>
+              {preview.data.retainedCreditCents ? 'Neu zuordenbarer Anteil' : 'Rückzahlung'}:{' '}
+              <strong>{eur(preview.data.amountCents)}</strong>
+            </p>
+            {!!preview.data.retainedCreditCents && (
+              <p>
+                Die bereits gewählte Verwendung von {eur(preview.data.retainedCreditCents)} Guthaben
+                bleibt erhalten.
+              </p>
+            )}
+            <Button
+              variant="ghost"
+              disabled={busy}
+              onClick={() => {
+                const plan = allocateContactReceipt(open, preview.data.amountCents);
+                setChosen(
+                  Object.fromEntries(
+                    open.map((outlay) => [
+                      outlay.splitId,
+                      decimal(
+                        plan.allocations.find((a) => a.outlaySplitId === outlay.splitId)
+                          ?.amountCents ?? 0,
+                      ),
+                    ]),
+                  ),
+                );
+              }}
+            >
+              Älteste Auslagen zuerst
+            </Button>
+            {open.map((outlay, index) => (
+              <div key={outlay.splitId} className="contact-receipt-allocation">
+                <p>
+                  {maskMoneyText(outlay.memo?.trim() || `Auslage ${index + 1}`)} ·{' '}
+                  {longDay(outlay.date)}
+                  {outlay.categoryName && ` · ${maskMoneyText(outlay.categoryName)}`}
+                </p>
+                <AmountInput
+                  label={`Zuordnung Auslage ${index + 1} · verfügbar ${eur(outlay.remainingCents)}`}
+                  value={values[outlay.splitId] ?? '0'}
+                  onChange={(value) => setChosen({ ...values, [outlay.splitId]: value })}
+                />
+              </div>
+            ))}
+            {!allocationError && <p>Verbleibendes Kontaktguthaben: {eur(creditCents)}</p>}
+            {allocationError && <p role="alert">{allocationError}</p>}
+          </>
+        )}
+        <div className="contacts-actions">
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            Abbrechen
+          </Button>
+          <Button type="submit" disabled={!sourceReady || !!allocationError || busy}>
+            Zuordnung speichern
+          </Button>
+        </div>
+      </form>
+    </FormDialog>
+  );
+}
+
 function CreditChoiceFields({
   choice,
   onChoice,
@@ -1150,32 +1323,42 @@ function ContactCredits({ statement }: { statement: Statement }) {
     ) ?? [];
   const lookups = useQuery(lookupsQuery());
   const write = useContactWrite();
-  const credit = statement.credits?.find((c) => c.receiptSplitId === selected);
+  const choices =
+    statement.creditChoices ??
+    statement.credits?.map((c) => ({
+      ...c,
+      availableCents: c.remainingCents,
+      automaticallyUsedCents: 0,
+    })) ??
+    [];
+  const credit = choices.find((c) => c.receiptSplitId === selected);
   const parsed = parseAmount(amount);
   const valid =
     credit &&
     parsed.ok &&
     parsed.cents > 0 &&
-    parsed.cents <= credit.remainingCents &&
+    parsed.cents <= credit.availableCents &&
     (choice !== 'category' || !!categoryId) &&
     (choice !== 'gift' ||
       (accounts.isSuccess && !accounts.isFetching && !!(accountId || cash[0]?.id)));
   return (
     <>
-      {!!statement.credits?.length && (
+      {!!choices.length && (
         <section aria-label="Kontaktguthaben">
           <h3>Guthaben verwenden</h3>
-          {statement.credits.map((c) => (
+          {choices.map((c) => (
             <p key={c.receiptSplitId}>
               {eur(c.remainingCents)} ·{' '}
               {c.categoryId
                 ? `Vorgemerkt: ${lookups.data?.categories.find((category) => category.id === c.categoryId)?.name ?? 'Kategorie'}`
                 : 'Freies Kontaktguthaben'}{' '}
+              {c.automaticallyUsedCents > 0 &&
+                `· automatisch verrechnet: ${eur(c.automaticallyUsedCents)} `}
               <Button
                 variant="ghost"
                 onClick={() => {
                   setSelected(c.receiptSplitId);
-                  setAmount(decimal(c.remainingCents));
+                  setAmount(decimal(c.availableCents));
                   setChoice(c.categoryId ? 'category' : 'free');
                   setCategoryId(c.categoryId ?? '');
                 }}
@@ -1198,7 +1381,7 @@ function ContactCredits({ statement }: { statement: Statement }) {
             className="contacts-form"
             onSubmit={(e) => {
               e.preventDefault();
-              if (!valid || !parsed.ok) return;
+              if (!valid || !parsed.ok || busy) return;
               setBusy(true);
               void write(
                 () =>
@@ -1221,6 +1404,13 @@ function ContactCredits({ statement }: { statement: Statement }) {
             }}
           >
             <AmountInput label="Guthabenbetrag" value={amount} onChange={setAmount} />
+            {credit.automaticallyUsedCents > 0 && (
+              <p role="status">
+                {eur(credit.availableCents)} können neu verwendet werden. Dafür wird nur der
+                benötigte automatisch verrechnete Betrag zurückgenommen; die betroffenen Auslagen
+                werden wieder offen.
+              </p>
+            )}
             <CreditChoiceFields
               choice={choice}
               onChoice={setChoice}

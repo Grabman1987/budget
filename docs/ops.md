@@ -1228,6 +1228,95 @@ node /app/migrate-cli.js bank-inbox apply --file /data/migration/decisions.json 
 node /app/migrate-cli.js bank-inbox apply --file /data/migration/decisions.json
 ```
 
+### 12.11 Contact allocation and credit decisions (operator task)
+
+`contact-allocate --file <json> [--dry-run] [--details]` applies explicit owner decisions
+by contact, receipt split and outlay split IDs. It calls the same allocation and credit
+writers as the contact statement. No names are resolved or historical categories guessed.
+Use an owner-approved file in operator-controlled storage; real IDs and financial data
+must never enter the public repository, issues or PRs.
+
+The file has an `entries` array (at most 1,000 entries), processed in file order. A run
+has one audit group with actor `operator`. Each entry has its own savepoint: a refused
+entry rolls back its money, provenance and audit changes, and later entries continue.
+`--dry-run` executes the same operations, including dependencies between entries, then
+rolls back the entire run. Its output has no usable audit group. Unexpected operational
+errors roll back the run instead of reporting partial success.
+
+Synthetic file shape:
+
+```json
+{
+  "entries": [
+    {
+      "action": "reallocate",
+      "contactId": "example-contact",
+      "receiptSplitId": "example-repayment-split",
+      "allocations": [
+        { "outlaySplitId": "example-rent-split", "amountCents": 12501 }
+      ]
+    },
+    {
+      "action": "credit",
+      "contactId": "example-contact",
+      "receiptSplitId": "example-credit-split-a",
+      "date": "2026-11-07",
+      "amountCents": 751,
+      "choice": "category",
+      "categoryId": "example-household-category"
+    },
+    {
+      "action": "credit",
+      "contactId": "example-contact",
+      "receiptSplitId": "example-credit-split-b",
+      "date": "2026-11-07",
+      "amountCents": 249,
+      "choice": "gift",
+      "accountId": "example-budget-account"
+    },
+    {
+      "action": "credit",
+      "contactId": "example-contact",
+      "receiptSplitId": "example-credit-split-c",
+      "date": "2026-11-07",
+      "amountCents": 500,
+      "choice": "free"
+    }
+  ]
+}
+```
+
+`reallocate` replaces the chosen repayment's allocation with the submitted outlay IDs
+and positive integer-cent amounts. Already identical allocations are `unchanged`.
+`credit` chooses a portion of one credit source: `category` requires a live expense
+`categoryId`, `gift` may specify an open EUR budget `accountId`, and `free` has no
+category. Gifts default to the source account when no account is specified. The same
+writer can release the necessary automatic credit uses before applying the choice.
+Reconciled bookings remain locked; this command has no implicit unlock option.
+Balances and net worth stay unchanged. The existing SPEC rules determine category
+returns and the explicit gift's income/Zu verteilen effect.
+
+Credit entries are **amount decisions, not desired final balances**: rerunning an
+applied partial decision can consume another portion of the source. Preview against
+the current state and use `undo-group` to reverse a run before intentionally retrying
+it. Invalid file structure, unknown fields, invalid dates and non-integer cents are
+rejected before any entries run. Per-entry refusal codes are `unknown_contact`,
+`invalid_receipt`, `invalid_outlay`, `future_decision`, `reconciled_locked`,
+`invalid_allocation`, `invalid_credit_choice`, `conflict` and `not_found`.
+Any skipped entry sets exit code 3. Output contains entry positions, actions, counts,
+codes and group IDs; `--details` adds fixed explanations without names, amounts,
+submitted IDs or raw database errors.
+
+```bash
+node /app/migrate-cli.js contact-allocate --file /data/migration/contact-decisions.json --dry-run --details
+node /app/migrate-cli.js contact-allocate --file /data/migration/contact-decisions.json --details
+node /app/migrate-cli.js undo-group --group <group-id> --dry-run
+node /app/migrate-cli.js undo-group --group <group-id>
+```
+
+`undo-group` restores the whole successful part of the run through the ordinary
+audited Undo path, with the same subsequent-use and lock guards as the application.
+
 ## 13. One-time Portfolio Performance migration (operator task)
 
 Same rules as section 12 (no import feature in the app, files and the private mapping never enter the repo). Prerequisite: the YNAB migration is committed (the depot, crypto and P2P accounts exist). `migrate-pp-cli.js` has the same shape: each step is one transaction, `revert` undoes a whole run (the newest committed one only, also across sources). What is written and why: `docs/migration/pp-export.md` §Commit.

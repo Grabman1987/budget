@@ -1,4 +1,8 @@
-import { contactCreditRecords, assertContactCreditRecords } from './contact-credit';
+import {
+  contactCreditRecords,
+  assertContactCreditRecords,
+  parseContactCreditRecord,
+} from './contact-credit';
 import { contactStatement } from '@budget/domain';
 import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 import {
@@ -11,7 +15,7 @@ import {
   contactSettlement,
   payee,
 } from '../schema';
-import { BookingInvariantError, ConflictError } from './errors';
+import { BookingInvariantError, ConflictError, ReconciledLockedError } from './errors';
 import { memoizedShared } from './request-memo';
 import type { Executor } from './types';
 
@@ -97,7 +101,11 @@ export function actualContactMovements(
     .orderBy(booking.date, sql`${booking}.rowid`, bookingSplit.sortOrder)
     .all()
     .map((m) => {
-      const decision = records.find((r) => r.bookingId === m.bookingId)?.decision;
+      const record = records.find((r) => r.bookingId === m.bookingId);
+      const decision = record?.decision;
+      const historical = asOf ? record?.useHistory?.find((h) => h.date > asOf) : undefined;
+      const explicitUses = historical?.explicitUses ?? record?.explicitUses;
+      const uses = historical?.uses ?? record?.uses;
       const target =
         decision?.categoryId && decision.creditSplitId === m.splitId
           ? tx.select().from(category).where(eq(category.id, decision.categoryId)).get()
@@ -106,6 +114,13 @@ export function actualContactMovements(
         ...m,
         categoryName: target ? `Vorgemerkt: ${target.name}` : m.categoryName,
         categoryId: m.categoryKind === 'advance' ? null : m.categoryId,
+        ...(explicitUses && m.amountCents < 0 && !decision
+          ? {
+              creditAllocations: (uses ?? [])
+                .filter((u) => u.outlaySplitId === m.splitId)
+                .map(({ receiptSplitId, amountCents }) => ({ receiptSplitId, amountCents })),
+            }
+          : {}),
         ...(decision?.debitSplitId === m.splitId
           ? { creditSourceSplitId: decision.sourceSplitId }
           : {}),
@@ -116,7 +131,12 @@ export function actualContactMovements(
     });
 }
 
-export function savedContactSettlements(tx: Executor, contactId: string, asOf?: string) {
+export function savedContactSettlements(
+  tx: Executor,
+  contactId: string,
+  asOf?: string,
+  records = contactCreditRecords(tx),
+) {
   return tx
     .select({ settlement: contactSettlement, date: booking.date })
     .from(contactSettlement)
@@ -129,18 +149,37 @@ export function savedContactSettlements(tx: Executor, contactId: string, asOf?: 
       ),
     )
     .all()
-    .map(({ settlement: s }) => ({
-      receiptSplitId: s.receiptSplitId,
-      creditCents: s.creditCents,
-      allocations: tx
-        .select({
-          outlaySplitId: contactAllocation.outlaySplitId,
-          amountCents: contactAllocation.amountCents,
-        })
-        .from(contactAllocation)
-        .where(and(eq(contactAllocation.settlementId, s.id), isNull(contactAllocation.deletedAt)))
-        .all(),
-    }));
+    .map(({ settlement: s }) => {
+      const record = records.find((r) => r.bookingId === s.bookingId);
+      const historical = asOf
+        ? record?.allocationHistory?.find(
+            (h) => h.receiptSplitId === s.receiptSplitId && h.date > asOf,
+          )
+        : undefined;
+      return {
+        receiptSplitId: s.receiptSplitId,
+        creditCents: historical?.creditCents ?? s.creditCents,
+        ...((
+          historical
+            ? historical.allowFutureAllocations
+            : record?.targetedRepayments?.includes(s.receiptSplitId)
+        )
+          ? { allowFutureAllocations: true }
+          : {}),
+        allocations:
+          historical?.allocations ??
+          tx
+            .select({
+              outlaySplitId: contactAllocation.outlaySplitId,
+              amountCents: contactAllocation.amountCents,
+            })
+            .from(contactAllocation)
+            .where(
+              and(eq(contactAllocation.settlementId, s.id), isNull(contactAllocation.deletedAt)),
+            )
+            .all(),
+      };
+    });
 }
 
 /** Always checked after undo (including force); receipt, allocation and credit are inseparable. */
@@ -239,7 +278,7 @@ export function assertContactSettlementInvariants(tx: Executor): void {
     try {
       const statement = contactStatement(
         actualContactMovements(tx, contactId, undefined, creditRecords),
-        savedContactSettlements(tx, contactId),
+        savedContactSettlements(tx, contactId, undefined, creditRecords),
       );
       uses.push(...statement.creditUses);
     } catch (error) {
@@ -318,6 +357,11 @@ export function assertContactBookingWrite(
     !settlement &&
     !allocated &&
     !creditRecord?.decision &&
+    !creditRecord?.adjustmentFor &&
+    !creditRecord?.explicitUses &&
+    !creditRecord?.useHistory?.length &&
+    !creditRecord?.refundCorrections?.length &&
+    !creditRecord?.repaymentRefundCorrections?.length &&
     !creditRecord?.uses?.length &&
     !creditRecord?.repayments?.length
   )
@@ -339,6 +383,42 @@ export function assertContactUndoDependencies(
     after: Record<string, unknown> | null;
   }[],
 ): void {
+  const records = entries
+    .filter((e) => e.entityType === 'app_setting' && e.entityId.startsWith('contacts.credit.'))
+    .flatMap((e) =>
+      [e.before, e.after].flatMap((snapshot) => {
+        if (typeof snapshot?.value !== 'string') return [];
+        const record = parseContactCreditRecord({ id: e.entityId, value: snapshot.value });
+        return record ? [record] : [];
+      }),
+    )
+    .filter((r) => r.decision || r.explicitUses || r.targetedRepayments?.length || r.adjustmentFor);
+  if (records.length) {
+    const bookingIds = new Set(records.map((r) => r.bookingId));
+    for (const record of records) {
+      if (record.adjustmentFor) bookingIds.add(record.adjustmentFor.bookingId);
+    }
+    const splitIds = new Set(
+      records.flatMap((r) => (r.decision ? [r.decision.sourceSplitId] : [])),
+    );
+    for (const entry of entries.filter((e) => e.entityType === 'contact_allocation'))
+      for (const snapshot of [entry.before, entry.after])
+        if (typeof snapshot?.outlay_split_id === 'string') splitIds.add(snapshot.outlay_split_id);
+    for (const id of splitIds) {
+      const part = tx.select().from(bookingSplit).where(eq(bookingSplit.id, id)).get();
+      if (part) bookingIds.add(part.bookingId);
+      else
+        for (const e of entries.filter(
+          (e) => e.entityType === 'booking_split' && e.entityId === id,
+        ))
+          for (const snapshot of [e.before, e.after])
+            if (typeof snapshot?.booking_id === 'string') bookingIds.add(snapshot.booking_id);
+    }
+    const locked = [...bookingIds].filter(
+      (id) => tx.select().from(booking).where(eq(booking.id, id)).get()?.status === 'reconciled',
+    );
+    if (locked.length) throw new ReconciledLockedError(locked);
+  }
   const targets = tx
     .select({ splitId: bookingSplit.id, bookingId: bookingSplit.bookingId })
     .from(contactAllocation)

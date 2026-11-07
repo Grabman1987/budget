@@ -26,6 +26,9 @@ import {
 } from './bookings';
 import { ensureAdvanceCategory } from './categories';
 import { contactCreditRecords, saveContactCreditRecord } from './contact-credit';
+import { assertContactAllocationUnlocked, releaseContactCredit } from './contact-reallocation';
+import { assertLedgerInvariants } from './invariants';
+export { getContactRepaymentAllocation, reallocateContactRepayment } from './contact-reallocation';
 import {
   actualContactMovements,
   assertContactSettlementInvariants,
@@ -49,11 +52,60 @@ export function getContactStatement(
   const movements = actualContactMovements(db, id, asOf, records);
   if (movements.some((m) => m.currency !== 'EUR'))
     throw new BookingInvariantError('Contact statements require EUR movements');
+  const statement = (() => {
+    try {
+      return contactStatement(
+        movements,
+        savedContactSettlements(db, id, asOf, records),
+        actualContactMovements(db, id, undefined, records),
+      );
+    } catch (error) {
+      throw new BookingInvariantError(
+        error instanceof Error ? error.message : 'Invalid contact allocation',
+      );
+    }
+  })();
+  const creditChoices = statement.receipts.flatMap((receipt) => {
+    const remaining = statement.credits.find(
+      (c) => c.receiptSplitId === receipt.receiptSplitId && !c.targetOutlaySplitId,
+    );
+    const automaticallyUsedCents = statement.creditUses
+      .filter(
+        (u) =>
+          u.receiptSplitId === receipt.receiptSplitId &&
+          statement.outlays.some((o) => o.splitId === u.outlaySplitId && !o.creditSourceSplitId) &&
+          (statement.outlays.some((o) => o.splitId === u.outlaySplitId && !o.categoryId) ||
+            records.some((r) =>
+              r.uses?.some(
+                (saved) =>
+                  saved.receiptSplitId === u.receiptSplitId &&
+                  saved.outlaySplitId === u.outlaySplitId,
+              ),
+            )),
+      )
+      .reduce((sum, u) => sum + u.amountCents, 0);
+    const availableCents = (remaining?.remainingCents ?? 0) + automaticallyUsedCents;
+    const decision = records.find(
+      (r) => r.decision?.creditSplitId === receipt.receiptSplitId,
+    )?.decision;
+    return availableCents
+      ? [
+          {
+            receiptSplitId: receipt.receiptSplitId,
+            remainingCents: remaining?.remainingCents ?? 0,
+            categoryId: remaining?.categoryId ?? decision?.categoryId ?? null,
+            availableCents,
+            automaticallyUsedCents,
+          },
+        ]
+      : [];
+  });
   return {
     contact: { id: row.id, name: row.name, note: row.note },
     asOf,
     currency: 'EUR' as const,
-    ...contactStatement(movements, savedContactSettlements(db, id, asOf)),
+    ...statement,
+    creditChoices,
   };
 }
 
@@ -146,17 +198,13 @@ export function chooseContactCredit(
   return runInTransaction(db, (tx) => {
     const records = contactCreditRecords(tx);
     const current = getContactStatement(tx, contactId, today, records);
-    const dated = getContactStatement(tx, contactId, input.date, records);
-    const credit = current.credits.find((c) => c.receiptSplitId === input.receiptSplitId);
-    const available = dated.credits.find((c) => c.receiptSplitId === input.receiptSplitId);
+    const credit = current.creditChoices.find((c) => c.receiptSplitId === input.receiptSplitId);
     if (
       input.date > today ||
       !Number.isSafeInteger(input.amountCents) ||
       input.amountCents <= 0 ||
       !credit ||
-      !available ||
-      input.amountCents > credit.remainingCents ||
-      input.amountCents > available.remainingCents
+      input.amountCents > credit.availableCents
     )
       throw new BookingInvariantError('Das gewählte Kontaktguthaben ist nicht mehr verfügbar.');
     const sourceSplit = tx
@@ -165,6 +213,25 @@ export function chooseContactCredit(
       .where(eq(bookingSplit.id, input.receiptSplitId))
       .get()!;
     const source = getBooking(tx, sourceSplit.bookingId)!;
+    assertContactAllocationUnlocked(tx, source.id);
+    if (input.date < source.date)
+      throw new BookingInvariantError('Die Entscheidung darf nicht vor der Rückzahlung liegen.');
+    const touched = releaseContactCredit(
+      tx,
+      contactId,
+      input.receiptSplitId,
+      Math.max(0, input.amountCents - credit.remainingCents),
+      grouped,
+      today,
+      input.date,
+    );
+    const available = getContactStatement(tx, contactId, input.date).credits.find(
+      (c) => c.receiptSplitId === input.receiptSplitId && !c.targetOutlaySplitId,
+    );
+    if (!available || input.amountCents > available.remainingCents)
+      throw new BookingInvariantError(
+        'Das gewählte Kontaktguthaben ist zu diesem Datum nicht verfügbar.',
+      );
     const cash = tx
       .select()
       .from(account)
@@ -236,7 +303,7 @@ export function chooseContactCredit(
       },
       grouped,
     );
-    assertContactSettlementInvariants(tx);
+    assertLedgerInvariants(tx, [bookingId, ...touched]);
     return { bookingId, groupId: grouped.groupId };
   });
 }
