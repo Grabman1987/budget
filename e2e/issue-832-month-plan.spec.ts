@@ -331,11 +331,21 @@ for (const theme of ['light', 'dark'] as const) {
           expect(geometry.assigned.width).toBeLessThanOrEqual(1);
           expect(geometry.row.y).toBeGreaterThanOrEqual(geometry.group.y + geometry.group.height);
         } else {
-          // A real name needs the remaining cell width, rather than the legacy 1:3 status split.
+          // The compact row shares one line between the name and hint; long names ellipsize.
           const name = row.locator('.category-name');
+          await expect(name).toHaveText('Synthetic monthly target');
+          await expect(name).toHaveCSS('overflow', 'hidden');
+          await expect(name).toHaveCSS('text-overflow', 'ellipsis');
+          await expect(name).toHaveCSS('white-space', 'nowrap');
+          const nameButton = row.locator('.pname');
+          await expect(nameButton).toHaveAccessibleName('Synthetic monthly target');
+          const nameBox = (await nameButton.boundingBox())!;
+          const hintBox = (await row.locator('.spending-status').boundingBox())!;
+          expect((await name.boundingBox())!.width).toBeGreaterThan(0);
+          expect(nameBox.x + nameBox.width).toBeLessThanOrEqual(hintBox.x);
           expect(
-            await name.evaluate((node) => node.scrollWidth - node.clientWidth),
-          ).toBeLessThanOrEqual(1);
+            Math.abs(nameBox.y + nameBox.height / 2 - hintBox.y - hintBox.height / 2),
+          ).toBeLessThanOrEqual(0.5);
           for (const column of ['.col-assign', '.col-act', '.col-avail']) {
             expect((await row.locator(column).boundingBox())!.width).toBeCloseTo(128, 0);
             expect(
