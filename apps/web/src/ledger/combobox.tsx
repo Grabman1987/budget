@@ -1,4 +1,5 @@
 import { Field, TextInput, cx } from '@budget/ui';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import {
   useEffect,
   useId,
@@ -45,6 +46,8 @@ export interface ComboboxProps {
   hintHeading?: string;
   /** Capture categories retain their caller's group order and expose the entire scrollable list. */
   captureCategory?: boolean;
+  /** Mobile capture suggestions participate in the form's scroll layout. */
+  captureInline?: boolean;
 }
 
 const fold = (text: string) => text.toLocaleLowerCase('de-AT').trim();
@@ -87,7 +90,18 @@ export function Combobox({
   pickSingle = false,
   hintHeading,
   captureCategory = false,
+  captureInline = false,
 }: ComboboxProps) {
+  const [isPhone, setIsPhone] = useState(
+    () => window.matchMedia?.('(max-width: 767px)').matches ?? false,
+  );
+  useEffect(() => {
+    const media = window.matchMedia?.('(max-width: 767px)');
+    const update = () => setIsPhone(media?.matches ?? false);
+    media?.addEventListener('change', update);
+    return () => media?.removeEventListener('change', update);
+  }, []);
+  const inlineCapture = captureInline || (captureCategory && REDESIGN_ENABLED && isPhone);
   const listId = useId();
   const [focused, setFocused] = useState(false);
   const [active, setActive] = useState(-1);
@@ -119,11 +133,48 @@ export function Combobox({
     (shown.length > 0 || (emptyText !== undefined && (filter ?? value).trim() !== ''));
   // On the phone the list opens inside a scrolling sheet: bring it into view.
   useEffect(() => {
-    if (captureCategory || !open || !window.matchMedia?.('(max-width: 767px)')?.matches) return;
+    if (
+      inlineCapture ||
+      captureCategory ||
+      !open ||
+      !window.matchMedia?.('(max-width: 767px)')?.matches
+    )
+      return;
     document.getElementById(listId)?.scrollIntoView?.({ block: 'nearest' });
-  }, [open, listId, captureCategory]);
+  }, [open, listId, captureCategory, inlineCapture]);
   useLayoutEffect(() => {
-    if (!captureCategory || !open) return;
+    if (!inlineCapture || !open) return;
+    const list = document.getElementById(listId);
+    const field = list?.closest('.field-row');
+    const scroller = list?.closest('.bk-body');
+    if (!list || !field || !scroller) return;
+    const viewport = window.visualViewport;
+    const refresh = () => {
+      // Reserve the active row and a few results above the keyboard, inside the form scroller.
+      const frame = scroller.getBoundingClientRect();
+      const bottom = Math.min(
+        frame.bottom,
+        (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight),
+      );
+      list.style.maxHeight = `${Math.max(44, Math.min(220, bottom - frame.top - 44))}px`;
+      const row = field.getBoundingClientRect();
+      if (row.bottom > bottom)
+        scroller.scrollTop += Math.min(row.bottom - bottom, row.top - frame.top);
+      else if (row.top < frame.top) scroller.scrollTop += row.top - frame.top;
+    };
+    refresh();
+    window.addEventListener('resize', refresh);
+    viewport?.addEventListener('resize', refresh);
+    viewport?.addEventListener('scroll', refresh);
+    return () => {
+      window.removeEventListener('resize', refresh);
+      viewport?.removeEventListener('resize', refresh);
+      viewport?.removeEventListener('scroll', refresh);
+      list.style.removeProperty('max-height');
+    };
+  }, [inlineCapture, open, listId, shown.length]);
+  useLayoutEffect(() => {
+    if (inlineCapture || !captureCategory || !open) return;
     const list = document.getElementById(listId);
     const field = list?.parentElement;
     if (!list || !field) return;
@@ -190,8 +241,10 @@ export function Combobox({
       viewport?.removeEventListener('resize', refresh);
       viewport?.removeEventListener('scroll', onScroll);
       observer?.disconnect();
+      for (const property of ['max-height', 'left', 'right', 'width', 'bottom', 'top'])
+        list.style.removeProperty(property);
     };
-  }, [captureCategory, open, listId, shown.length]);
+  }, [captureCategory, inlineCapture, open, listId, shown.length]);
   const optionId = (index: number) => `${listId}-${index}`;
   // Without arrow keys, `pickFirst` highlights the first match once something is typed.
   const activeIndex =
@@ -203,11 +256,11 @@ export function Combobox({
         ? 0
         : -1;
   useLayoutEffect(() => {
-    if (!captureCategory || !open || activeIndex < 0) return;
+    if ((!captureCategory && !inlineCapture) || !open || activeIndex < 0) return;
     const list = document.getElementById(listId);
     const option = document.getElementById(`${listId}-${activeIndex}`);
     if (list) revealOption(list, option);
-  }, [captureCategory, open, activeIndex, listId]);
+  }, [captureCategory, inlineCapture, open, activeIndex, listId]);
 
   const pick = (option: ComboOption) => {
     onSelect(option);
@@ -218,7 +271,13 @@ export function Combobox({
   return (
     <Field label={label} error={error}>
       {({ id, describedBy, invalid }) => (
-        <div className={cx('combo', captureCategory && 'is-capture-category')}>
+        <div
+          className={cx(
+            'combo',
+            captureCategory && 'is-capture-category',
+            inlineCapture && 'is-capture-inline',
+          )}
+        >
           <TextInput
             id={id}
             ref={inputRef}
@@ -232,7 +291,7 @@ export function Combobox({
             aria-describedby={describedBy}
             autoComplete="off"
             value={value}
-            placeholder={placeholder}
+            placeholder={inlineCapture && captureCategory ? 'Kategorie wählen' : placeholder}
             onFocus={(e) => {
               // A newly focused split row can be outside the sheet after it grows.
               if (captureCategory) {

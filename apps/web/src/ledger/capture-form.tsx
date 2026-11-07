@@ -218,6 +218,7 @@ export function CaptureForm({
   const saving = useRef(false);
   const isPhone = useIsPhone();
   const mobileRedesign = REDESIGN_ENABLED && isPhone;
+  const amountInputEvent = useRef<InputEvent | null>(null);
   const [amountInteracted, setAmountInteracted] = useState(false);
   const [moreOpen, setMoreOpen] = useState(
     !REDESIGN_ENABLED && Boolean(draft.projectId || draft.flag),
@@ -861,7 +862,30 @@ export function CaptureForm({
       label="Betrag"
       showOperators={false}
       value={draft.amount}
-      onChange={(v) => set('amount', v)}
+      onChange={(value) => {
+        const event = amountInputEvent.current;
+        amountInputEvent.current = null;
+        // Direct keypad digits shift cents; paste, expressions and commits keep the shared parser.
+        if (
+          mobileRedesign &&
+          event &&
+          ((event.inputType === 'insertText' && /^\d$/.test(event.data ?? '')) ||
+            event.inputType.startsWith('delete')) &&
+          /^[\d.,]*$/.test(value)
+        ) {
+          const digits = value.replace(/\D/g, '').replace(/^0+/, '');
+          const padded = digits.padStart(3, '0');
+          value = value === '' ? '' : `${padded.slice(0, -2)},${padded.slice(-2)}`;
+        } else if (
+          mobileRedesign &&
+          event?.inputType === 'insertText' &&
+          /^[\d.,]*$/.test(draft.amount) &&
+          /^[.,]$/.test(event.data ?? '')
+        ) {
+          value = draft.amount;
+        }
+        set('amount', value);
+      }}
       sign={isTransfer ? null : draft.kind === 'income' ? '+' : '−'}
       error={errors.amount}
     />
@@ -886,6 +910,12 @@ export function CaptureForm({
       }}
       className={`bkform${isTransfer ? '' : ' bk-split-cols'}${REDESIGN_ENABLED ? ' bkform-redesign' : ''}`}
       data-redesign={REDESIGN_ENABLED ? 'booking-editor' : undefined}
+      onPointerDown={(event) => {
+        event.currentTarget.dataset.touchFocus = String(event.pointerType === 'touch');
+      }}
+      onKeyDownCapture={(event) => {
+        if (event.key === 'Tab') event.currentTarget.dataset.touchFocus = 'false';
+      }}
       onSubmit={(e) => {
         e.preventDefault();
         void save(false);
@@ -941,7 +971,34 @@ export function CaptureForm({
         <div className="bk-cols">
           <div className="bk-col-head">
             {REDESIGN_ENABLED ? (
-              <div className="bk-amount-primary">
+              <div
+                className="bk-amount-primary"
+                data-kind={draft.kind}
+                style={
+                  mobileRedesign
+                    ? ({
+                        '--capture-amount-width': `${Math.max(4, draft.amount.length)}ch`,
+                      } as React.CSSProperties)
+                    : undefined
+                }
+                onInputCapture={(event) => {
+                  amountInputEvent.current = event.nativeEvent as InputEvent;
+                }}
+                onFocusCapture={(event) => {
+                  if (mobileRedesign && event.target instanceof HTMLInputElement)
+                    event.target.setSelectionRange(
+                      event.target.value.length,
+                      event.target.value.length,
+                    );
+                }}
+                onPointerUp={(event) => {
+                  if (mobileRedesign && event.target instanceof HTMLInputElement)
+                    event.target.setSelectionRange(
+                      event.target.value.length,
+                      event.target.value.length,
+                    );
+                }}
+              >
                 {amountField}
                 {!isTransfer && !mobileRedesign && statusControl()}
               </div>
@@ -957,7 +1014,8 @@ export function CaptureForm({
                 <Combobox
                   label={draft.kind === 'income' ? 'Von (Zahler)' : 'Empfänger'}
                   value={draft.payee}
-                  placeholder="Suchen oder neu anlegen"
+                  placeholder={mobileRedesign ? 'Empfänger wählen' : 'Suchen oder neu anlegen'}
+                  captureInline={mobileRedesign}
                   pickSingle
                   onChange={(text) => {
                     accountRequest.current++;
