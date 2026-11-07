@@ -3,7 +3,7 @@ import { expect } from '@playwright/test';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 import { test } from './isolated-ledger';
 
-test('449 all-target preview preserves view and filter, caps 200 cents to 100 plus 100, cancels without writing and exactly undoes', async ({
+test('449 all-target preview preserves view and filter, funds full targets beyond free money, cancels without writing and exactly undoes', async ({
   page,
   isolatedLedger,
 }, info) => {
@@ -82,8 +82,11 @@ test('449 all-target preview preserves view and filter, caps 200 cents to 100 pl
   await open();
   await expect(dialog.getByText('Synthetic first', { exact: true })).toBeVisible();
   await expect(dialog.getByText('Synthetic second', { exact: true })).toBeVisible();
-  await expect(dialog.locator('dd')).toHaveText(['1,00 €', '1,00 €']);
-  await expect(dialog.getByRole('button', { name: '2,00 € zuweisen', exact: true })).toBeEnabled();
+  await expect(dialog.locator('dd')).toHaveText(['1,00 €', '3,00 €']);
+  await expect(dialog.getByRole('status').filter({ hasText: '(Dispo)' })).toContainText(
+    'Damit steht ‚Zu verteilen‘ bei −2,00 € – du verplanst mehr, als da ist (Dispo).',
+  );
+  await expect(dialog.getByRole('button', { name: '4,00 € zuweisen', exact: true })).toBeEnabled();
   expect(await state()).toEqual([0, 0, 200]);
   expect(writes).toBe(0);
   for (const theme of ['light', 'dark']) {
@@ -115,10 +118,10 @@ test('449 all-target preview preserves view and filter, caps 200 cents to 100 pl
   expect(await state()).toEqual([0, 0, 200]);
   expect(writes).toBe(0);
   await open();
-  await dialog.getByRole('button', { name: '2,00 € zuweisen', exact: true }).dblclick();
+  await dialog.getByRole('button', { name: '4,00 € zuweisen', exact: true }).dblclick();
   await expect(dialog).not.toBeVisible();
   await expect(page.locator('.plan-menu-verteilen > summary')).toBeFocused();
-  await expect.poll(state).toEqual([100, 100, 0]);
+  await expect.poll(state).toEqual([100, 300, -200]);
   expect(writes).toBe(1);
   await expect(page).toHaveURL(beforeURL);
   await options.locator('summary').click();

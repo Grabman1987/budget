@@ -47,7 +47,7 @@ interface QuickAssignRow {
   quickAssign?: QuickAssignFigures;
 }
 
-/** Absolute assignments in displayed sort order, capped at shared Zu verteilen. */
+/** Target funding permits overdraft planning; other modes retain their shared funding cap. */
 export function quickAssignPlan(
   rows: ReadonlyArray<QuickAssignRow>,
   mode: QuickAssignMode,
@@ -77,7 +77,7 @@ export function quickAssignPlan(
   const missing: number[] = [];
   for (const r of wanted) {
     const added = Math.max(0, r.value - r.assignedCents);
-    const funded = Math.min(added, left);
+    const funded = mode === 'target' ? added : Math.min(added, left);
     left -= funded;
     const assignedCents = added > 0 ? r.assignedCents + funded : r.value;
     if (!Number.isSafeInteger(assignedCents))

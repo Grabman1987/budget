@@ -17,8 +17,8 @@ export const ghostSource = (ghost: NonNullable<PlanRow['quickAssign']>) =>
 
 /**
  * Inline "Zugewiesen" of one envelope in one month: the amount as a button, the field while
- * editing (arithmetic allowed, a leading + or − typed first is relative) and the refusal of the
- * assignment guard with the highest amount that is still allowed. `tba` is that month's
+ * editing (arithmetic allowed, a leading + or − typed first is relative) and a non-blocking
+ * overdraft hint. `tba` is that month's
  * "Zu verteilen"; `monthKey` keeps the element ids unique when several months are shown.
  */
 export function AssignCell({
@@ -41,23 +41,18 @@ export function AssignCell({
   const source = ghost ? ghostSource(ghost) : undefined;
   const [text, setText] = useState('');
   const [invalid, setInvalid] = useState(false);
-  /** Why the guard refused the typed amount, with the highest amount that is still allowed. */
-  const [refused, setRefused] = useState<{ message: string; maxCents: number } | null>(null);
   // A leading + / − is relative only when typed first into an emptied or fully selected field.
   const [relative, setRelative] = useState(false);
   const replacing = useRef(false);
   // Enter or Escape ends the edit; the blur of the field going away must not commit (again).
   const settled = useRef(false);
-  const noteId = `refused-${monthKey}-${r.id}`;
+  const noteId = `assignment-hint-${monthKey}-${r.id}`;
+  const value = readAssign(text, r.assignedCents, relative);
+  const hint = value === null ? undefined : assignGuard(value, r.assignedCents, tba).message;
   const commit = () => {
     if (settled.current) return;
     const v = readAssign(text, r.assignedCents, relative);
     if (v === null) return setInvalid(true);
-    const guard = assignGuard(v, r.assignedCents, tba);
-    if (!guard.ok) {
-      setInvalid(true);
-      return setRefused({ message: guard.message, maxCents: guard.maxCents });
-    }
     settled.current = true;
     onCommit(v);
   };
@@ -89,7 +84,7 @@ export function AssignCell({
           autoFocus
           value={text}
           aria-invalid={invalid}
-          aria-describedby={refused ? noteId : undefined}
+          aria-describedby={hint ? noteId : undefined}
           aria-label={`Zugewiesen für ${r.name}. Rechnen erlaubt, +50 addiert.`}
           onFocus={(e) => e.currentTarget.select()}
           onChange={(e) => {
@@ -99,7 +94,6 @@ export function AssignCell({
             replacing.current = false;
             setText(next);
             setInvalid(false);
-            setRefused(null);
           }}
           onKeyDown={keys}
           onSelect={(e) => noteSelection(e.currentTarget)}
@@ -115,7 +109,6 @@ export function AssignCell({
           onClick={() => {
             setText(formatDecimal(cents(r.assignedCents)));
             setRelative(false);
-            setRefused(null);
             settled.current = false;
             onEdit(true);
           }}
@@ -128,23 +121,9 @@ export function AssignCell({
           Vorschlag ≈ {eur(ghost.ghostCents)} · {source}
         </span>
       )}
-      {editing && refused && (
-        <span className="assign-note" id={noteId} role="alert">
-          {maskMoneyText(refused.message)}
-          {refused.maxCents > r.assignedCents && (
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setText(formatDecimal(cents(refused.maxCents)));
-                setRelative(false);
-                setInvalid(false);
-                setRefused(null);
-              }}
-            >
-              {eur(refused.maxCents)} einsetzen
-            </button>
-          )}
+      {editing && hint && (
+        <span className="assign-note" id={noteId} role="status">
+          {maskMoneyText(hint)}
         </span>
       )}
     </>

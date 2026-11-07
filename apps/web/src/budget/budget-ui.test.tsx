@@ -225,35 +225,26 @@ describe('Envelope panel: Decken from Zu verteilen', () => {
     },
   );
 
-  it('offers "Nur x decken" by default when Zu verteilen is short, capped by the server', async () => {
-    const calls = stubApi({
-      'POST /api/budget/2026-09/cover': () => ok({ groupId: 'grp', coveredCents: 2_000 }),
-    });
-    renderEnvelope(envelope(), 2_000);
-    await userEvent.selectOptions(screen.getByLabelText('Aus'), '');
-    await userEvent.click(screen.getByRole('button', { name: 'Decken · 50,00 €' }));
-    expect(calls('POST /api/budget/2026-09/cover')).toEqual([]);
-    const choice = screen.getByRole('group', { name: 'Decken aus Zu verteilen' });
-    await userEvent.click(within(choice).getByRole('button', { name: 'Nur 20,00 € decken' }));
-    await waitFor(() =>
-      expect(calls('POST /api/budget/2026-09/cover')).toEqual([
-        { categoryId: 'essen', fromId: null },
-      ]),
-    );
-    await waitFor(() => expect(status()).toContain('30,00 € bleiben offen'));
-  });
-
-  it('does not offer an empty source or a negative-money override', async () => {
-    const calls = stubApi({
-      'POST /api/budget/2026-09/cover': () => ok({ groupId: 'grp', coveredCents: 5000 }),
-    });
-    renderEnvelope(envelope(), 0);
-    expect(screen.queryByRole('option', { name: /Zu verteilen/ })).toBeNull();
-    expect(
-      (screen.getByRole('button', { name: 'Decken · 50,00 €' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-    expect(calls('POST /api/budget/2026-09/cover')).toEqual([]);
-  });
+  it.each([2_000, 0, -1_000])(
+    'covers explicitly from Zu verteilen at %i cents without a blocking confirmation',
+    async (tba) => {
+      const calls = stubApi({
+        'POST /api/budget/2026-09/cover': () =>
+          ok({ groupId: 'grp', coveredCents: 5_000, toBeAssignedCents: tba - 5_000 }),
+      });
+      renderEnvelope(envelope(), tba);
+      await userEvent.selectOptions(screen.getByLabelText('Aus'), '');
+      expect(screen.getByTestId('cover-remaining').textContent).toContain('(Dispo)');
+      await userEvent.click(screen.getByRole('button', { name: 'Decken · 50,00 €' }));
+      await waitFor(() =>
+        expect(calls('POST /api/budget/2026-09/cover')).toEqual([
+          { categoryId: 'essen', fromId: null },
+        ]),
+      );
+      await waitFor(() => expect(status()).toContain('(Dispo)'));
+      expect(screen.getByRole('button', { name: 'Rückgängig' })).toBeTruthy();
+    },
+  );
 
   it('covers at once when Zu verteilen is enough, and shows a refusal as a toast', async () => {
     const calls = stubApi({
@@ -406,6 +397,7 @@ describe('Category panel', () => {
       cardAccountId: 'acc',
     });
     const calls = stubApi({
+      'GET /api/categories': () => ok(tree([card])),
       'GET /api/accounts': () =>
         ok({ accounts: [{ id: 'acc', name: 'Visa', type: 'credit_card', closedAt: null }] }),
       'PATCH /api/categories/karte': () => ({
@@ -417,7 +409,7 @@ describe('Category panel', () => {
       }),
     });
     const onClose = vi.fn();
-    renderWith(
+    renderPage(
       <CategoryPanel
         state={{ mode: 'edit', groupId: 'g1', category: card }}
         tree={tree([card])}
@@ -425,6 +417,7 @@ describe('Category panel', () => {
         onSwitch={vi.fn()}
       />,
     );
+    await screen.findByText(/Art und Karte lassen sich nicht ändern/);
     expect(screen.queryByLabelText('Art')).toBeNull();
     expect(screen.queryByLabelText('Kreditkarte')).toBeNull();
     expect(screen.getByText(/Art und Karte lassen sich nicht ändern/)).toBeTruthy();
@@ -455,7 +448,7 @@ describe('Category panel', () => {
           categories: [],
         }),
     });
-    renderWith(
+    renderPage(
       <CategoryPanel
         state={{ mode: 'merge', category: cafe }}
         tree={tree(categories)}
@@ -463,7 +456,7 @@ describe('Category panel', () => {
         onSwitch={vi.fn()}
       />,
     );
-    const select = screen.getByLabelText('Zusammenführen in') as HTMLSelectElement;
+    const select = (await screen.findByLabelText('Zusammenführen in')) as HTMLSelectElement;
     expect([...select.options].map((o) => o.textContent)).toEqual([
       'Alt (ausgeblendet)',
       'Lebensmittel',
@@ -588,7 +581,7 @@ it('cover label shows the source rest and replaces a depleted source', async () 
     'aus Zu verteilen · bleibt 37,60 €',
   );
   view.rerender(ui([target, source, second], 0));
-  expect(screen.getByTestId('cover-remaining').textContent).toBe('aus Freizeit · bleibt 12,40 €');
+  expect(screen.getByTestId('cover-remaining').textContent).toContain('−12,40 €');
 });
 
 it('offers only free envelope money, shows commitments and permits a capped partial cover', async () => {
@@ -623,4 +616,51 @@ it('offers only free envelope money, shows commitments and permits a capped part
   expect(screen.getByTestId('cover-remaining').textContent).toContain('30,00 € bleiben offen');
   await userEvent.click(screen.getByRole('button', { name: 'Decken · 50,00 €' }));
   await waitFor(() => expect(status()).toContain('auf freies Geld begrenzt'));
+});
+
+it('inline over-assignment shows a hint and commits once on Enter', async () => {
+  const commit = vi.fn();
+  renderWith(
+    <AssignCell
+      row={envelope()}
+      tba={-100}
+      editing
+      monthKey="2026-09"
+      onEdit={() => {}}
+      onCommit={commit}
+    />,
+  );
+  const input = screen.getByRole('textbox');
+  await userEvent.type(input, '2');
+  expect(status()).toContain('−3,00 €');
+  expect(input.getAttribute('aria-invalid')).toBe('false');
+  await userEvent.keyboard('{Enter}');
+  await userEvent.tab();
+  expect(commit).toHaveBeenCalledExactlyOnceWith(200);
+});
+
+it('the envelope form assigns and moves beyond negative Zu verteilen, with Undo', async () => {
+  const calls = stubApi({
+    'PUT /api/budget/2026-09/assigned': () => ok({ groupId: 'assigned', toBeAssignedCents: -300 }),
+    'POST /api/budget/2026-09/move': () => ok({ groupId: 'moved', toBeAssignedCents: -500 }),
+  });
+  renderEnvelope(envelope({ overspentCents: 0, cashOverspentCents: 0, availableCents: 0 }), -100);
+  await userEvent.clear(screen.getByLabelText('Zugewiesen'));
+  await userEvent.type(screen.getByLabelText('Zugewiesen'), '2');
+  expect(status()).toContain('−3,00 €');
+  await userEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
+  await waitFor(() =>
+    expect(calls('PUT /api/budget/2026-09/assigned')).toEqual([
+      { items: [{ categoryId: 'essen', assignedCents: 200 }] },
+    ]),
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'Hierher' }));
+  await userEvent.type(screen.getByLabelText('Betrag'), '4');
+  await userEvent.click(screen.getByRole('button', { name: 'Verschieben' }));
+  await waitFor(() =>
+    expect(calls('POST /api/budget/2026-09/move')).toEqual([
+      { fromId: null, toId: 'essen', amountCents: 400 },
+    ]),
+  );
+  expect(screen.getByRole('button', { name: 'Rückgängig' })).toBeTruthy();
 });
