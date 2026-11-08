@@ -1,0 +1,62 @@
+/* Keep the existing native dialog, scroll owners and keyboard viewport handling. */
+@media (max-width: 767px) {
+  dialog.overlay.sheet-bottom.is-swipe-sheet {
+    --mobile-sheet-top: max(24px, var(--mobile-safe-top, env(safe-area-inset-top, 0px)));
+    padding-bottom: var(--mobile-safe-bottom, env(safe-area-inset-bottom, 0px));
+    border-radius: var(--radius-sheet-mobile) var(--radius-sheet-mobile) 0 0;
+  }
+  dialog.overlay.sheet-bottom.is-swipe-sheet.is-full {
+    inset: auto 0 0;
+    height: calc(100dvh - var(--mobile-sheet-top));
+    max-height: calc(100dvh - var(--mobile-sheet-top));
+    padding-top: 0;
+  }
+  .bk-focus-scope dialog.sheet-bottom.is-swipe-sheet:has(.bkform) {
+    inset: calc(var(--bk-viewport-top, 0px) + var(--mobile-sheet-top)) 0 auto;
+    height: calc(var(--bk-viewport-height, 100dvh) - var(--mobile-sheet-top));
+    max-height: calc(var(--bk-viewport-height, 100dvh) - var(--mobile-sheet-top));
+    padding-top: 0;
+  }
+  .sheet-drag-handle {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-height: var(--touch);
+    flex: none;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--ink-2);
+    touch-action: none;
+  }
+  dialog.sheet-bottom.is-swipe-sheet .sheet-drag-handle .sheet-grip {
+    display: block;
+    margin: 0;
+  }
+  dialog.sheet-bottom.is-swipe-sheet:not(.is-full) .overlay-inner {
+    max-height: calc(
+      var(--sheet-max) - var(--mobile-safe-bottom, env(safe-area-inset-bottom, 0px))
+    );
+  }
+  .bk-focus-scope dialog.sheet-bottom.is-swipe-sheet:has(.bkform) .overlay-inner {
+    max-height: 100%;
+  }
+  .bk-focus-scope dialog.sheet-bottom.is-swipe-sheet .bkform {
+    flex: 1;
+    min-height: 0;
+  }
+  .bk-focus-scope dialog.sheet-bottom.is-swipe-sheet .bk-foot {
+    /* The outer dialog owns the safe area, including the synthetic browser inset. */
+    padding-bottom: var(--space-sm);
+  }
+  .bk-focus-scope[data-compact-viewport] dialog.sheet-bottom.is-swipe-sheet:has(.bkform) {
+    --mobile-sheet-top: max(
+      0px,
+      calc(var(--mobile-safe-top, env(safe-area-inset-top, 0px)) - var(--bk-viewport-top, 0px))
+    );
+    border-radius: 0;
+  }
+  .bk-focus-scope[data-compact-viewport] .sheet-drag-handle {
+    display: none;
+  }
+}

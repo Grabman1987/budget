@@ -376,6 +376,10 @@ test('palette fits the viewport with touch targets, trapped focus and light/dark
       const bounds = (await dialog.boundingBox())!;
       expect(bounds.width).toBe(390);
       expect(bounds.y).toBe(0);
+      expect(bounds.height).toBe(page.viewportSize()!.height);
+      await expect(
+        dialog.getByRole('button', { name: 'Blatt schließen', exact: true }),
+      ).toHaveCount(0);
       for (const control of await dialog.locator('button:visible, input:visible').all()) {
         const box = (await control.boundingBox())!;
         expect(box.height).toBeGreaterThanOrEqual(44);

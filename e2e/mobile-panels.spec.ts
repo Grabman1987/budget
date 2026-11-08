@@ -102,6 +102,7 @@ async function expectNoModal(page: Page) {
 }
 
 interface Geometry {
+  swipeSheet: boolean;
   viewport: { w: number; h: number };
   rect: { top: number; bottom: number; left: number; right: number; height: number };
   innerHeight: number;
@@ -153,6 +154,7 @@ const geometry = (page: Page): Promise<Geometry> =>
       .slice(0, 5)
       .map((el) => `${el.tagName}.${el.className}`);
     return {
+      swipeSheet: d.classList.contains('is-swipe-sheet'),
       viewport: { w, h },
       rect: { top: r.top, bottom: r.bottom, left: r.left, right: r.right, height: r.height },
       innerHeight: inner?.height ?? 0,
@@ -195,6 +197,8 @@ function expectVisibleAndInside(g: Geometry, s: Scenario) {
   if (s.kind === 'sheet') {
     // A sheet stops at 88 % of the screen: the backdrop stays visible above it.
     expect(g.rect.height).toBeLessThanOrEqual(g.viewport.h * 0.88 + 1);
+  } else if (g.swipeSheet) {
+    expect(g.rect.top).toBe(24);
   } else {
     expect(g.rect.top).toBeLessThanOrEqual(0.5);
   }
@@ -249,7 +253,7 @@ test.describe('behaviour', () => {
       await expect(dialogOf(page, s)).toBeVisible();
       await settle(page);
       for (let round = 0; round < 3; round += 1) {
-        await dialogOf(page, s).getByRole('button', { name: 'Schließen' }).first().tap();
+        await dialogOf(page, s).getByRole('button', { name: 'Schließen', exact: true }).tap();
         await expect(dialogOf(page, s)).toBeHidden();
         await expectNoModal(page);
         // The page answers again: a tap on the tab bar place hits the bar, not an invisible scrim.
@@ -275,7 +279,7 @@ test.describe('behaviour', () => {
       await s.open(page);
       await expect(dialogOf(page, s)).toBeVisible();
       await settle(page);
-      await dialogOf(page, s).getByRole('button', { name: 'Schließen' }).first().tap();
+      await dialogOf(page, s).getByRole('button', { name: 'Schließen', exact: true }).tap();
       await expectNoModal(page);
       const label = await page.evaluate(() => document.activeElement?.textContent?.trim());
       expect(label).toBe(s.name);
@@ -297,7 +301,7 @@ test.describe('behaviour', () => {
       await settle(page);
       expectVisibleAndInside(await geometry(page), s);
       // The close button steps back through history as well.
-      await dialogOf(page, s).getByRole('button', { name: 'Schließen' }).first().tap();
+      await dialogOf(page, s).getByRole('button', { name: 'Schließen', exact: true }).tap();
       await expect(page).not.toHaveURL(/panel=/);
       await expectNoModal(page);
     });
@@ -314,13 +318,22 @@ test.describe('behaviour', () => {
         const d = document.querySelector<HTMLElement>('dialog.overlay[open]');
         return { top: d?.getBoundingClientRect().top ?? 0, w: window.innerWidth };
       });
-      if (s.kind === 'full') expect(top, 'capture fills the phone with no exposed scrim').toBe(0);
+      const swipeSheet = await dialogOf(page, s).evaluate((el) =>
+        el.classList.contains('is-swipe-sheet'),
+      );
+      if (s.kind === 'full')
+        expect(top, 'capture keeps the requested top inset').toBe(swipeSheet ? 24 : 0);
       else expect(top, 'there is a backdrop above the sheet to tap').toBeGreaterThan(20);
-      // Capture's left inset is inside the dialog without changing a field or booking kind.
-      await page.touchscreen.tap(s.kind === 'full' ? 2 : w / 2, top + 80);
+      // The handle moved the title bar down. Its left edge is now next to Close, and mobile
+      // touch adjustment can activate that button. Probe the form body's empty inset instead.
+      if (s.kind === 'full')
+        await dialogOf(page, s)
+          .locator('.bk-body')
+          .tap({ position: { x: 2, y: 48 } });
+      else await page.touchscreen.tap(w / 2, top + 80);
       await expect(dialogOf(page, s)).toBeVisible();
       if (s.kind === 'full')
-        await dialogOf(page, s).getByRole('button', { name: 'Schließen' }).first().tap();
+        await dialogOf(page, s).getByRole('button', { name: 'Schließen', exact: true }).tap();
       else await page.touchscreen.tap(w / 2, top / 2);
       await expect(dialogOf(page, s)).toBeHidden();
       await expectNoModal(page);
@@ -399,7 +412,7 @@ test.describe('behaviour', () => {
     });
     expect(lastInside, 'the last control is reachable').toBe(true);
 
-    await dialogOf(page, s).getByRole('button', { name: 'Schließen' }).first().tap();
+    await dialogOf(page, s).getByRole('button', { name: 'Schließen', exact: true }).tap();
     await expectNoModal(page);
     expect(await page.evaluate(() => window.scrollY)).toBe(300);
     expect(
@@ -496,7 +509,7 @@ test.describe('behaviour', () => {
         expect(g.closeInViewport, label).toBe(true);
         expect(g.closeHit, label).toBe(true);
         expect(g.docOverflow, `${label} ${JSON.stringify(g.docOffenders)}`).toBe(false);
-        await dialogOf(page, s).getByRole('button', { name: 'Schließen' }).first().tap();
+        await dialogOf(page, s).getByRole('button', { name: 'Schließen', exact: true }).tap();
         await expectNoModal(page);
       }
     }
@@ -543,7 +556,7 @@ test.describe('behaviour', () => {
     await expect(dialogOf(page, s)).toBeVisible();
     await settle(page);
     expectVisibleAndInside(await geometry(page), s);
-    await dialogOf(page, s).getByRole('button', { name: 'Schließen' }).first().tap();
+    await dialogOf(page, s).getByRole('button', { name: 'Schließen', exact: true }).tap();
     await expectNoModal(page);
     await openCapture();
     await expect(dialogOf(page, s)).toBeVisible();

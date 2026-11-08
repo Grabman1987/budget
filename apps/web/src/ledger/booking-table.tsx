@@ -178,6 +178,13 @@ export function BookingTable({
           </th>
         </tr>
       )}
+      {REDESIGN_ENABLED && (
+        <tr className="kregister-day" data-day={group.day}>
+          <th scope="rowgroup" colSpan={columns}>
+            {dayHeading(group.day)}
+          </th>
+        </tr>
+      )}
       {group.items.map((b) => (
         <Row
           key={b.id}
@@ -385,7 +392,7 @@ export function BookingTable({
             )}
           </>
         )}
-        {all ? (
+        {all && !REDESIGN_ENABLED ? (
           <tbody>
             {groups.map((group) => (
               <Fragment key={group.day || 'all'}>{groupRows(group)}</Fragment>
@@ -587,8 +594,11 @@ function Row({
           // Outside the labelled button so the row still reads its category and note; the button
           // covers it on the phone, so a tap anywhere in the cell opens the booking.
           <span className="kaccount-mobile-meta">
-            <span>{shortDay(b.date)}</span>
-            <span aria-hidden="true"> · </span>
+            <span className="kregister-inline-date">{shortDay(b.date)}</span>
+            <span className="kregister-inline-date" aria-hidden="true">
+              {' '}
+              ·{' '}
+            </span>
             {variant === 'all' && (
               <>
                 <span>{b.accountName}</span>

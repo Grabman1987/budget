@@ -17,6 +17,7 @@ export {
 export { Field, Select, TextInput, type FieldProps } from './field';
 export {
   BottomSheet,
+  MobileSheetContext,
   DetailPanel,
   FormDialog,
   SidePanel,
