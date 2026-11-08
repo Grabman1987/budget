@@ -37,6 +37,8 @@ import {
   upcoming,
   versionSuggestions,
 } from './expected';
+import { monthIncomeBooked } from './month-reports';
+import { INCOME_TYPES } from '../schema';
 import { forecastInputs, loadFacts, scheduled } from './rule-inputs';
 import { readPaymentLifecycles } from './expected-lifecycle-invariants';
 import { seedBasics, testCtx as ctx } from './test-helpers';
@@ -436,6 +438,36 @@ describe('monthIncome', () => {
       { incomeTypeId: type.id, name: type.name, expectedCents: 300_000, receivedCents: 300_000 },
       { incomeTypeId: null, name: null, expectedCents: 50_000, receivedCents: 0 },
     ]);
+  });
+});
+
+describe('monthIncomeBooked', () => {
+  it('counts unlinked household income, leaves capital and refund out', () => {
+    const book = (amountCents: number, incomeTypeId: string) =>
+      createBooking(
+        db,
+        {
+          accountId: 'giro',
+          date: '2026-03-10',
+          amountCents,
+          payeeId: 'p1',
+          splits: [{ categoryId: null, amountCents, incomeTypeId }],
+        },
+        ctx,
+      );
+    book(12_345, INCOME_TYPES.side.id);
+    book(5_000, INCOME_TYPES.capital.id);
+    book(700, INCOME_TYPES.refund.id);
+    const income = monthIncomeBooked(db, TODAY, '2026-03');
+    expect(income.receivedCents).toBe(12_345);
+    expect(income.byIncomeType).toEqual([
+      expect.objectContaining({
+        incomeTypeId: INCOME_TYPES.side.id,
+        receivedCents: 12_345,
+        expectedCents: 0,
+      }),
+    ]);
+    expect(monthIncomeBooked(db, TODAY, '2026-04').receivedCents).toBe(0);
   });
 });
 

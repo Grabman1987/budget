@@ -15,7 +15,7 @@ import {
   listExpectedVersions,
   markOccurrenceMissed,
   matchOccurrences,
-  monthIncome,
+  monthIncomeBooked,
   refreshOccurrences,
   readPaymentsPreview,
   readPaymentDetail,
@@ -230,7 +230,9 @@ export function expectedRoutes(db: Db, today: () => string): Hono {
     c.json(unskipOccurrence(db, c.req.param('id'), audit(), today())),
   );
 
-  app.get('/income', (c) => c.json(monthIncome(db, readQuery(c, expectedIncomeQuery).month)));
+  app.get('/income', (c) =>
+    c.json(monthIncomeBooked(db, today(), readQuery(c, expectedIncomeQuery).month)),
+  );
 
   app.post('/refresh', (c) => {
     const ctx = system();
