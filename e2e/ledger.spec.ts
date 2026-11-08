@@ -1,3 +1,4 @@
+import { captureSaveControl, redesignLoaded } from './ledger-helpers';
 import {
   openAccountCapture,
   historyChart,
@@ -59,7 +60,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await panel.getByLabel('Betrag', { exact: true }).fill('12,50');
   await panel.getByLabel('Empfänger').fill(shop);
   await pickCategory(panel, 'Essen');
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(page.getByRole('row', { name: new RegExp(shop) })).toBeVisible();
   await expect(balance(page)).toHaveText('987,50 €');
 
@@ -84,10 +85,10 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await panel.getByLabel('Betrag 2').fill('5');
   await expect(panel.getByText('Rest: 5,00 €', { exact: false })).toBeVisible();
   // Saving waits until the split adds up.
-  await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
+  await expect(captureSaveControl(panel)).toBeDisabled();
   await panel.getByLabel('Betrag 2').fill('10');
   await expect(panel.getByText('Rest: 0,00 €')).toBeVisible();
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(page.getByRole('row', { name: new RegExp(`Splitmarkt ${tag}`) })).toContainText(
     'Aufgeteilt (2)',
   );
@@ -99,7 +100,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await panel.getByRole('button', { name: 'Umbuchung' }).click();
   await panel.getByLabel('Nach Konto').selectOption({ label: spar });
   await panel.getByLabel('Betrag', { exact: true }).fill('100,00');
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(page.getByRole('row', { name: /Umbuchung nach/ })).toBeVisible();
   await expect(balance(page)).toHaveText('857,50 €');
   await openAccount(page, spar);
@@ -118,7 +119,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
     await row.getByRole('button', { name: /bearbeiten/ }).click();
     const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
     await pickCategory(edit, 'Miete');
-    await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await captureSaveControl(edit).click();
     await expect(edit).toBeHidden();
   }
   await expect(row).toContainText('Miete');
@@ -128,7 +129,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   panel = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await panel.getByLabel('Betrag', { exact: true }).fill('10,00');
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(balance(page)).toHaveText('860,00 €');
 
   // Delete with undo.
@@ -256,7 +257,7 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
     await pickCategory(panel, 'Essen');
     // A new booking starts vorgemerkt; only confirmed ones can be checked against the bank.
     await panel.getByRole('button', { name: 'Vorgemerkt', exact: true }).click();
-    await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await captureSaveControl(panel).click();
     await expect(page.getByRole('row', { name: new RegExp(payee) }).first()).toBeVisible();
   };
   await book(`Laden ${tag}`, '20,00');
@@ -287,10 +288,14 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
     .click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await edit.getByLabel('Betrag', { exact: true }).fill('21,00');
-  await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768) {
+    await expect(captureSaveControl(edit)).toBeDisabled();
+    await expect(captureSaveControl(edit)).toHaveAccessibleDescription(/geprüft/);
+    await edit.getByLabel('Betrag', { exact: true }).press('Control+Enter');
+  } else await captureSaveControl(edit).click();
   await expect(edit.getByRole('alert')).toContainText('geprüft');
   await edit.getByLabel('Trotzdem ändern').check();
-  await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(edit).click();
   await expect(balance(page)).toHaveText('474,00 €');
 
   // The bank says 470: 4,00 missing; Ausgleich books it and stamps everything, undo reverts it.
@@ -324,7 +329,7 @@ test('ledger pages with data: axe clean in both themes, no sideways scrolling', 
   await panel.getByLabel('Betrag', { exact: true }).fill('9,90');
   await panel.getByLabel('Empfänger').fill(`Kontenkiosk ${tag}`);
   await pickCategory(panel, 'Essen');
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(page.getByRole('row', { name: new RegExp(`Kontenkiosk ${tag}`) })).toBeVisible();
   const accountUrl = page.url();
 
