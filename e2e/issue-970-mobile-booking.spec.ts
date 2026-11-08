@@ -1,3 +1,4 @@
+import { captureCloseControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -68,7 +69,7 @@ for (const mode of ['create', 'edit'] as const) {
     await amount.focus();
     // Compact capture reclaims the handle and top gap while keeping the close button available.
     await expect(dialog.getByRole('button', { name: 'Blatt schließen', exact: true })).toBeHidden();
-    await expect(dialog.getByRole('button', { name: 'Schließen', exact: true })).toBeInViewport({
+    await expect(captureCloseControl(dialog)).toBeInViewport({
       ratio: 1,
     });
     for (const theme of ['light', 'dark']) {
@@ -90,7 +91,7 @@ for (const mode of ['create', 'edit'] as const) {
       for (const icon of await icons.all()) await expect(icon).toBeHidden();
       const boxes = await Promise.all(fields.map((field) => field.boundingBox()));
       for (let i = 1; i < boxes.length; i++) expect(boxes[i]!.y).toBeGreaterThan(boxes[i - 1]!.y);
-      await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport({
+      await expect(dialog.getByRole('button', { name: 'Fertig', exact: true })).toBeInViewport({
         ratio: 1,
       });
       expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -112,7 +113,7 @@ for (const mode of ['create', 'edit'] as const) {
       await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toHaveCount(0);
       await amount.press('Control+Enter');
       await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toBeVisible();
-      await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
+      await expect(dialog.getByRole('button', { name: 'Fertig', exact: true })).toBeDisabled();
     }
   });
 }

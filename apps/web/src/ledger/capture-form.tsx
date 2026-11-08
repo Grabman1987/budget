@@ -831,9 +831,6 @@ export function CaptureForm({
         </span>
       </summary>
       <div className="kform">
-        {REDESIGN_ENABLED && isPhone && !isTransfer && (
-          <FlagPicker title="Markieren" value={draft.flag} onChange={(flag) => set('flag', flag)} />
-        )}
         {!isTransfer && (
           <Field label="Markierung">
             {({ id }) => (
@@ -899,7 +896,7 @@ export function CaptureForm({
   const amountField = (
     <AmountInput
       label="Betrag"
-      showOperators={false}
+      showOperators={mobileRedesign}
       value={draft.amount}
       onChange={(value) => {
         const event = amountInputEvent.current;
@@ -964,10 +961,25 @@ export function CaptureForm({
     >
       {REDESIGN_ENABLED && (
         <div className="bk-editor-titlebar">
-          {isPhone && closeControl}
+          {isPhone && (
+            <Button variant="ghost" className="bk-header-cancel" onClick={requestClose}>
+              Abbrechen
+            </Button>
+          )}
           <h2>{editing ? 'Buchung bearbeiten' : 'Buchung erfassen'}</h2>
+          {isPhone && (
+            <Button
+              variant="ghost"
+              className="bk-header-done"
+              type="submit"
+              disabled={busy || blocked}
+              aria-describedby={showLineProblem ? 'booking-save-reason' : undefined}
+            >
+              Fertig
+            </Button>
+          )}
           <div className="bk-editor-receipt-actions" ref={setReceiptActionsHost} />
-          {!isTransfer && !isPhone && (
+          {!isTransfer && (
             <FlagPicker
               title="Markieren"
               value={draft.flag}
@@ -1345,7 +1357,7 @@ export function CaptureForm({
           </Button>
         )}
         {editing && (
-          <Button variant="ghost" onClick={requestClose}>
+          <Button variant="ghost" className="bk-cancel" onClick={requestClose}>
             Abbrechen
           </Button>
         )}

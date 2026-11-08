@@ -1,3 +1,4 @@
+import { captureCloseControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
@@ -128,7 +129,7 @@ const geometry = (page: Page): Promise<Geometry> =>
     const h = window.innerHeight;
     const r = d.getBoundingClientRect();
     const inner = d.querySelector('.overlay-inner')?.getBoundingClientRect();
-    const close = d.querySelector<HTMLElement>('button[aria-label="Schließen"]');
+    const close = d.querySelector<HTMLElement>('button[aria-label="Schließen"], .bk-header-cancel');
     const cr = close?.getBoundingClientRect();
     const center = (b: DOMRect) => [b.left + b.width / 2, b.top + b.height / 2] as const;
     const at = (x: number, y: number) => document.elementFromPoint(x, y);
@@ -253,7 +254,7 @@ test.describe('behaviour', () => {
       await expect(dialogOf(page, s)).toBeVisible();
       await settle(page);
       for (let round = 0; round < 3; round += 1) {
-        await dialogOf(page, s).getByRole('button', { name: 'Schließen', exact: true }).tap();
+        await captureCloseControl(dialogOf(page, s)).tap();
         await expect(dialogOf(page, s)).toBeHidden();
         await expectNoModal(page);
         // The page answers again: a tap on the tab bar place hits the bar, not an invisible scrim.
@@ -279,7 +280,7 @@ test.describe('behaviour', () => {
       await s.open(page);
       await expect(dialogOf(page, s)).toBeVisible();
       await settle(page);
-      await dialogOf(page, s).getByRole('button', { name: 'Schließen', exact: true }).tap();
+      await captureCloseControl(dialogOf(page, s)).tap();
       await expectNoModal(page);
       const label = await page.evaluate(() => document.activeElement?.textContent?.trim());
       expect(label).toBe(s.name);
@@ -301,7 +302,7 @@ test.describe('behaviour', () => {
       await settle(page);
       expectVisibleAndInside(await geometry(page), s);
       // The close button steps back through history as well.
-      await dialogOf(page, s).getByRole('button', { name: 'Schließen', exact: true }).tap();
+      await captureCloseControl(dialogOf(page, s)).tap();
       await expect(page).not.toHaveURL(/panel=/);
       await expectNoModal(page);
     });
@@ -332,8 +333,7 @@ test.describe('behaviour', () => {
           .tap({ position: { x: 2, y: 48 } });
       else await page.touchscreen.tap(w / 2, top + 80);
       await expect(dialogOf(page, s)).toBeVisible();
-      if (s.kind === 'full')
-        await dialogOf(page, s).getByRole('button', { name: 'Schließen', exact: true }).tap();
+      if (s.kind === 'full') await captureCloseControl(dialogOf(page, s)).tap();
       else await page.touchscreen.tap(w / 2, top / 2);
       await expect(dialogOf(page, s)).toBeHidden();
       await expectNoModal(page);
@@ -412,7 +412,7 @@ test.describe('behaviour', () => {
     });
     expect(lastInside, 'the last control is reachable').toBe(true);
 
-    await dialogOf(page, s).getByRole('button', { name: 'Schließen', exact: true }).tap();
+    await captureCloseControl(dialogOf(page, s)).tap();
     await expectNoModal(page);
     expect(await page.evaluate(() => window.scrollY)).toBe(300);
     expect(
@@ -509,7 +509,7 @@ test.describe('behaviour', () => {
         expect(g.closeInViewport, label).toBe(true);
         expect(g.closeHit, label).toBe(true);
         expect(g.docOverflow, `${label} ${JSON.stringify(g.docOffenders)}`).toBe(false);
-        await dialogOf(page, s).getByRole('button', { name: 'Schließen', exact: true }).tap();
+        await captureCloseControl(dialogOf(page, s)).tap();
         await expectNoModal(page);
       }
     }
@@ -556,7 +556,7 @@ test.describe('behaviour', () => {
     await expect(dialogOf(page, s)).toBeVisible();
     await settle(page);
     expectVisibleAndInside(await geometry(page), s);
-    await dialogOf(page, s).getByRole('button', { name: 'Schließen', exact: true }).tap();
+    await captureCloseControl(dialogOf(page, s)).tap();
     await expectNoModal(page);
     await openCapture();
     await expect(dialogOf(page, s)).toBeVisible();

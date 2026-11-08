@@ -1,3 +1,4 @@
+import { captureCloseControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
@@ -255,7 +256,7 @@ for (const profile of ['desktop', 'phone'] as const)
         expect(
           (await (await request.get(`${origin}/api/bookings/${older.id}`)).json()).booking,
         ).toEqual(older);
-        await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
+        await captureCloseControl(dialog).click();
         await page.getByRole('button', { name: 'Verwerfen', exact: true }).click();
         await expect(dialog).not.toBeVisible();
 

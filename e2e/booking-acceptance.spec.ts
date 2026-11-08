@@ -281,7 +281,7 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
       dialog.getByRole('button', { name: 'Speichern', exact: true }),
       ...(phone ? [dialog.getByRole('button', { name: 'Blatt schließen', exact: true })] : []),
       dialog.getByRole('button', {
-        name: (page.viewportSize()?.width ?? 1440) < 768 ? 'Schließen' : 'Datei anhängen',
+        name: (page.viewportSize()?.width ?? 1440) < 768 ? 'Abbrechen' : 'Datei anhängen',
         exact: true,
       }),
     ]) {

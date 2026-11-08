@@ -132,12 +132,14 @@ export async function contactShareControl(scope: Locator) {
   });
 }
 
+/** Capture keeps the same guarded close action in both responsive layouts. */
+export function captureCloseControl(scope: Locator) {
+  return scope
+    .locator('.bk-header-cancel')
+    .or(scope.getByRole('button', { name: 'Schließen', exact: true }));
+}
+
 export async function captureFlagControl(scope: Locator, name: string | RegExp) {
-  const page = scope.page();
-  if ((await redesignLoaded(page)) && (page.viewportSize()?.width ?? 1440) < 768) {
-    const more = scope.locator('.kmore');
-    if ((await more.getAttribute('open')) === null) await more.locator(':scope > summary').click();
-  }
   return scope.getByRole('button', { name });
 }
 

@@ -1,3 +1,4 @@
+import { captureCloseControl } from './ledger-helpers';
 import { redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import Database from 'better-sqlite3';
@@ -226,7 +227,7 @@ test('pending and confirmed account rows remain distinct, readable and read-only
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await expect(edit).toBeVisible();
   await expect(edit.getByRole('button', { name: 'Vorgemerkt', exact: true })).toBeVisible();
-  await edit.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await captureCloseControl(edit).click();
   await expect(edit).toBeHidden();
   expect(rawState(isolatedLedger.databasePath)).toEqual(baseline);
   expect(writes).toEqual([]);

@@ -1,3 +1,4 @@
+import { captureCloseControl } from './ledger-helpers';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { expectScreenshot } from './visual';
 import { monthLabel, monthOf } from '../apps/web/src/nav/month';
@@ -393,7 +394,7 @@ test.describe('panel via route param', () => {
     await page.goto('/konten');
     await page.goto('/plan/monat');
     await openBookingPanel(page, testInfo);
-    await page.getByRole('button', { name: 'Schließen', exact: true }).click();
+    await captureCloseControl(page.getByRole('dialog')).click();
     await expect(page.getByRole('dialog')).toBeHidden();
     await page.goBack();
     await expect(page).toHaveURL(/\/konten$/);

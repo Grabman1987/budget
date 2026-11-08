@@ -1,3 +1,4 @@
+import { captureCloseControl } from './ledger-helpers';
 import {
   historyChart,
   redesignLoaded,
@@ -258,7 +259,7 @@ test('single payee suggestion selects its recent account and keeps capture contr
   await panel.locator('.kmore > summary').scrollIntoViewIfNeeded();
   await expect(panel.locator('.kmore > summary')).toBeInViewport({ ratio: 1 });
   await expect(await captureFlagControl(panel, 'Markierung: keine')).toBeVisible();
-  await expect(panel.getByTitle('Schließen')).toBeVisible();
+  await expect(captureCloseControl(panel)).toBeVisible();
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => {
       document.documentElement.dataset['theme'] = t;
@@ -321,7 +322,7 @@ test('single payee suggestion selects its recent account and keeps capture contr
     expect(await panel.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`booking-polish-${theme}.png`) });
   }
-  await panel.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await captureCloseControl(panel).click();
   await panel.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await expect(panel).toBeHidden();
   const { id } = await post('/bookings', {

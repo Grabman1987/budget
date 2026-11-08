@@ -1,3 +1,4 @@
+import { captureCloseControl } from './ledger-helpers';
 import {
   redesignLoaded,
   captureFlagControl,
@@ -668,12 +669,7 @@ test('visible growing note, direct split and responsive account note column', as
       .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
     await Promise.all(finite.map((animation) => animation.finished.catch(() => undefined)));
   });
-  for (const control of [
-    note,
-    split,
-    panel.locator('.bk-status'),
-    panel.getByRole('button', { name: 'Schließen', exact: true }),
-  ]) {
+  for (const control of [note, split, panel.locator('.bk-status'), captureCloseControl(panel)]) {
     const box = (await control.boundingBox())!;
     expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
     expect(box.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
@@ -710,10 +706,7 @@ test('visible growing note, direct split and responsive account note column', as
   await expect(
     page.getByRole('dialog', { name: 'Buchung bearbeiten' }).getByLabel('Notiz'),
   ).toHaveValue(memo);
-  await page
-    .getByRole('dialog', { name: 'Buchung bearbeiten' })
-    .getByRole('button', { name: 'Schließen', exact: true })
-    .click();
+  await captureCloseControl(page.getByRole('dialog', { name: 'Buchung bearbeiten' })).click();
   panel = await openCapture(page, testInfo);
   await (await categoryLineControl(panel)).click();
   await expect(panel.getByRole('group', { name: 'Zeile 1', exact: true })).toBeVisible();

@@ -100,6 +100,25 @@ it('shifts mobile keypad digits into cents and retains paste, validation and sav
   }
   await user.keyboard('{Backspace}');
   expect(amount.value).toBe('1,23');
+  // Operator taps reuse the shared parser, keep the caret and do not shift expression digits.
+  for (const [operator, operand, expected] of [
+    ['Plus', '2,77', '4,00'],
+    ['Minus', '1', '3,00'],
+    ['Mal', '2', '6,00'],
+    ['Geteilt durch', '4', '1,50'],
+  ]) {
+    await user.click(screen.getByRole('button', { name: operator! }));
+    expect(document.activeElement).toBe(amount);
+    await user.keyboard(operand!);
+    await user.tab();
+    expect(amount.value).toBe(expected);
+    await user.click(amount);
+  }
+  await user.click(screen.getByRole('button', { name: 'Geteilt durch' }));
+  await user.keyboard('0');
+  expect(amount.getAttribute('aria-invalid')).toBe('true');
+  await user.click(screen.getByRole('button', { name: 'Fertig' }));
+  expect(create).not.toHaveBeenCalled();
   await user.clear(amount);
   await user.paste('12,50+3');
   await user.keyboard(',25');
@@ -128,7 +147,7 @@ it('shifts mobile keypad digits into cents and retains paste, validation and sav
   await user.click(amount);
   await user.keyboard('1234');
   await user.click(screen.getByRole('button', { name: 'Einnahme' }));
-  await user.click(screen.getByRole('button', { name: /^Speichern$/ }));
+  await user.click(screen.getByRole('button', { name: 'Fertig' }));
   await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
   expect(create.mock.calls[0]![0].input.amountCents).toBe(1234);
 });

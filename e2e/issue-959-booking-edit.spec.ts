@@ -1,3 +1,4 @@
+import { captureCloseControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -100,8 +101,8 @@ test('reconciled split editing keeps fields and cents readable and closes withou
           expect(await input.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
         }
       }
-      const close = dialog.getByRole('button', { name: 'Schließen', exact: true });
-      expect((await close.innerText()).trim()).toBe('');
+      const close = captureCloseControl(dialog);
+      expect((await close.innerText()).trim()).toBe(width === 390 ? 'Abbrechen' : '');
       const closeBox = (await close.boundingBox())!;
       expect(closeBox.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
       expect(closeBox.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
@@ -111,7 +112,7 @@ test('reconciled split editing keeps fields and cents readable and closes withou
       await page.screenshot({ path: info.outputPath(`edit-${width}-${theme}.png`) });
     }
   }
-  await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await captureCloseControl(dialog).click();
   await expect(dialog).toBeHidden();
   expect(writes).toEqual([]);
   expect(await (await page.request.get(`/api/bookings/${id}`)).json()).toEqual(before);
