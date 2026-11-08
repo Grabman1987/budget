@@ -27,6 +27,8 @@ import type { BookingFlag, BookingSort, ListedBooking } from './types';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './register-redesign.css';
 import { BookingInspector } from './booking-inspector';
+import type { RegisterMonth } from '@budget/domain';
+import { registerAmount } from './register-summary';
 
 export interface Selection {
   selected: ReadonlySet<string>;
@@ -38,6 +40,8 @@ export interface Selection {
 }
 
 export interface BookingTableProps {
+  monthlyTotals?: readonly RegisterMonth[] | undefined;
+  monthlyTotalsPending?: boolean | undefined;
   items: ReadonlyArray<ListedBooking>;
   caption: string;
   /** Alle Buchungen: account column, day groups with day sums. Einzelkonto: running balance. */
@@ -70,6 +74,8 @@ export function BookingTable({
   upcoming,
   showTodayBalance = true,
   showRunningBalance = false,
+  monthlyTotals,
+  monthlyTotalsPending,
 }: BookingTableProps) {
   useAmountPrivacy();
   // Mount the responsive overlay on first use, then retain it for native close/focus return.
@@ -147,9 +153,30 @@ export function BookingTable({
       {REDESIGN_ENABLED &&
         (groups.indexOf(group) === 0 ||
           groups[groups.indexOf(group) - 1]?.day.slice(0, 7) !== group.day.slice(0, 7)) && (
-          <tr className="kmonth">
+          <tr className={`kmonth${all ? ' kmonth-totals' : ''}`}>
             <th scope="rowgroup" colSpan={columns}>
-              {monthName(group.day)} {group.day.slice(0, 4)}
+              <span>
+                {monthName(group.day)} {group.day.slice(0, 4)}
+              </span>
+              {all && (
+                <span className="kmonth-sums">
+                  {monthlyTotalsPending ? (
+                    'Summen werden aktualisiert …'
+                  ) : (
+                    <>
+                      Monat{' '}
+                      {registerAmount(
+                        monthlyTotals?.find((row) => row.month === group.day.slice(0, 7))?.cents,
+                      )}
+                      {' · '}bis hier{' '}
+                      {registerAmount(
+                        monthlyTotals?.find((row) => row.month === group.day.slice(0, 7))
+                          ?.cumulativeCents,
+                      )}
+                    </>
+                  )}
+                </span>
+              )}
             </th>
           </tr>
         )}
@@ -214,7 +241,7 @@ export function BookingTable({
     <>
       {REDESIGN_ENABLED && (
         <div className="redesign-register-toolbar">
-          {upcoming && (
+          {upcoming && upcoming.count > 0 && (
             <button
               type="button"
               className="kupcoming-toggle"

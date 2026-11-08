@@ -20,6 +20,7 @@ type KontenFrameProps = PageFrameProps & {
   phoneTitle?: string | undefined;
   sourceDay?: string | undefined;
   headerTools?: ReactNode;
+  headerSummary?: ReactNode;
 };
 
 /** Area-owned composition; the original frame and shell stay intact in the OFF build. */
@@ -28,6 +29,7 @@ export function KontenFrame({
   phoneTitle,
   sourceDay,
   headerTools,
+  headerSummary,
   ...props
 }: KontenFrameProps) {
   return REDESIGN_ENABLED ? (
@@ -37,6 +39,7 @@ export function KontenFrame({
       phoneTitle={phoneTitle}
       sourceDay={sourceDay}
       headerTools={headerTools}
+      headerSummary={headerSummary}
     />
   ) : (
     <PageFrame {...props} />
@@ -48,6 +51,7 @@ function RedesignKontenFrame({
   phoneTitle,
   sourceDay,
   headerTools,
+  headerSummary,
   children,
   ...props
 }: KontenFrameProps) {
@@ -104,18 +108,21 @@ function RedesignKontenFrame({
           slots.header,
         )}
       {!inHead && (
-        <div className="konten-view-bar">
-          {menu}
-          {headerTools}
-          {view === 'inbox' && (
-            <>
-              <div data-konten-slot="inbox-segments" className="konten-inbox-segments-slot" />
-              <div data-konten-slot="inbox-sort" className="konten-inbox-sort-slot" />
-              <div data-konten-slot="inbox-filters" className="konten-inbox-filters-slot" />
-              <div data-konten-slot="inbox-selection" className="konten-inbox-selection-slot" />
-              <div data-konten-slot="inbox-safe" className="konten-inbox-safe-slot" />
-            </>
-          )}
+        <div className={headerSummary ? 'konten-register-head' : undefined}>
+          <div className="konten-view-bar">
+            {menu}
+            {headerTools}
+            {view === 'inbox' && (
+              <>
+                <div data-konten-slot="inbox-segments" className="konten-inbox-segments-slot" />
+                <div data-konten-slot="inbox-sort" className="konten-inbox-sort-slot" />
+                <div data-konten-slot="inbox-filters" className="konten-inbox-filters-slot" />
+                <div data-konten-slot="inbox-selection" className="konten-inbox-selection-slot" />
+                <div data-konten-slot="inbox-safe" className="konten-inbox-safe-slot" />
+              </>
+            )}
+          </div>
+          {headerSummary}
         </div>
       )}
       {children}

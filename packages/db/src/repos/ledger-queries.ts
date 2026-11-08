@@ -1,6 +1,14 @@
-import { addDays, daysBetween, todayInVienna, type CashValuation } from '@budget/domain';
+import {
+  addDays,
+  daysBetween,
+  todayInVienna,
+  registerMonths,
+  type RegisterMonth,
+  type CashValuation,
+} from '@budget/domain';
 import { cashValuer } from './cash-valuation';
 import { reportTables } from './report-tables';
+import { overviewData } from './report-ledger';
 import {
   and,
   asc,
@@ -262,6 +270,7 @@ export interface ListedBooking {
 }
 
 export interface BookingPage {
+  monthlyTotals?: RegisterMonth[];
   nativeTotals?: { currency: string; count: number; cents: number | null }[];
   categorySpendingCents?: number;
   items: ListedBooking[];
@@ -324,6 +333,7 @@ export function queryBookings(
     (query.basis === 'category-spending' && query.categoryId) || query.categoryGroupId
       ? new Map<string, number>()
       : null;
+  const monthlyContributions = new Map<string, bigint>();
   if (contributions) {
     const facts = reportTables(db, { today, withSources: true });
     const groupCategories = query.categoryGroupId
@@ -343,6 +353,21 @@ export function queryBookings(
         contributions.set(s.bookingId, (contributions.get(s.bookingId) ?? 0) + s.amountCents);
     }
     conditions.push(inArray(booking.id, [...contributions.keys()]));
+    if (query.nativeSummary !== false) {
+      for (const s of overviewData(db, { excludeTransfers: true }).splits) {
+        if (
+          s.date <= today &&
+          s.kind === 'spend' &&
+          s.categoryId !== null &&
+          (!query.categoryId || s.categoryId === query.categoryId) &&
+          (!groupCategories || groupCategories.has(s.categoryId))
+        )
+          monthlyContributions.set(
+            s.bookingId,
+            (monthlyContributions.get(s.bookingId) ?? 0n) - BigInt(s.amountCents),
+          );
+      }
+    }
   }
   if (query.ids) conditions.push(inArray(booking.id, query.ids));
   if (query.accountId) conditions.push(eq(booking.accountId, query.accountId));
@@ -447,6 +472,60 @@ export function queryBookings(
       cents:
         value.unsafe || value.cents > bound || value.cents < -bound ? null : Number(value.cents),
     }));
+
+  // Reuse the exact list predicate BEFORE cursor/limit. Transfer legs never become spending.
+  const monthlyRows =
+    query.nativeSummary === false
+      ? []
+      : db
+          .select({
+            id: booking.id,
+            date: booking.date,
+            currency: booking.currency,
+            transferId: booking.transferId,
+            splitTransferId: bookingSplit.transferId,
+            categoryId: bookingSplit.categoryId,
+            amount: bookingSplit.amountCents,
+          })
+          .from(booking)
+          .innerJoin(account, eq(account.id, booking.accountId))
+          .leftJoin(payee, eq(payee.id, booking.payeeId))
+          .innerJoin(bookingSplit, eq(bookingSplit.bookingId, booking.id))
+          .where(base)
+          .all();
+  const monthlyBookings = new Map<string, { date: string; currency: string; amount: bigint }>();
+  for (const row of monthlyRows) {
+    if (row.transferId || row.splitTransferId) continue;
+    if (contributions && !monthlyContributions.has(row.id)) continue;
+    if (
+      !contributions &&
+      query.categoryId &&
+      (query.categoryId === 'none' ? row.categoryId !== null : row.categoryId !== query.categoryId)
+    )
+      continue;
+    const current = monthlyBookings.get(row.id) ?? {
+      date: row.date,
+      currency: row.currency,
+      amount: 0n,
+    };
+    // Report contributions are positive spending, while the register uses signed movements.
+    current.amount = contributions
+      ? (monthlyContributions.get(row.id) ?? 0n)
+      : current.amount + BigInt(row.amount);
+    monthlyBookings.set(row.id, current);
+  }
+  const monthlyTotals = registerMonths([
+    ...monthlyRows.map((row) => ({ date: row.date, cents: 0, count: 0 })),
+    ...[...monthlyBookings.values()].map((row) => ({
+      date: row.date,
+      cents:
+        row.amount > bound || row.amount < -bound
+          ? null
+          : contributions
+            ? Number(row.amount)
+            : value(Number(row.amount), row.currency, row.date).eurCents,
+    })),
+  ]);
 
   const after: SQL | undefined = (() => {
     if (!query.cursor) return undefined;
@@ -626,7 +705,7 @@ export function queryBookings(
   });
   const last = page.at(-1);
   return {
-    ...(query.nativeSummary !== false ? { nativeTotals } : {}),
+    ...(query.nativeSummary !== false ? { nativeTotals, monthlyTotals } : {}),
     ...(categorySpendingCents !== undefined ? { categorySpendingCents } : {}),
     items,
     nextCursor: rows.length > limit && last ? encodeCursor(last.sortValue, last.booking.id) : null,
