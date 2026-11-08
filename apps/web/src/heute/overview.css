@@ -847,7 +847,7 @@
     height: 1px;
     overflow: hidden;
   }
-  .hv-revisions tr {
+  .hv-revisions tbody tr {
     display: grid;
     grid-template-columns: 30px minmax(0, 1fr);
     border-top: 1px solid var(--rule);
@@ -1086,7 +1086,7 @@
   }
 }
 @media (max-width: 399px) {
-  .hv-revisions tr {
+  .hv-revisions tbody tr {
     grid-template-columns: 26px minmax(0, 1fr) auto;
   }
   .hv-revisions td:last-child {
