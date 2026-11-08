@@ -6,6 +6,7 @@ import { CaptureForm } from './capture-form';
 import type { ListedBooking } from './types';
 import { AssignmentLearnOffer } from '../assignment/review';
 import type { BookingDraft } from './booking-model';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 export type BookingPanelState =
   | { mode: 'create'; accountId?: string | undefined; prefill?: Partial<BookingDraft> }
@@ -42,18 +43,41 @@ export function BookingPanel({
     // Mobile keyboards shrink/pan the visual viewport without resizing 100dvh on iOS.
     // Scope the visible bounds to this capture sheet; other dialogs keep their own geometry.
     const viewport = window.visualViewport;
+    let frame = 0;
+    const revealActiveField = () => {
+      const active = document.activeElement;
+      if (
+        !REDESIGN_ENABLED ||
+        !window.matchMedia('(max-width: 767px)').matches ||
+        !(active instanceof HTMLElement) ||
+        !focusScope.current?.contains(active)
+      )
+        return;
+      const body = active.closest<HTMLElement>('.bk-body');
+      if (!body) return;
+      const clip = body.getBoundingClientRect();
+      const box = active.getBoundingClientRect();
+      // Scroll only the form body, keeping the header/footer and safe areas fixed.
+      if (box.top < clip.top) body.scrollTop += Math.floor(box.top - clip.top);
+      else if (box.bottom > clip.bottom) body.scrollTop += Math.ceil(box.bottom - clip.bottom);
+    };
     const update = () => {
       const height = viewport?.height ?? window.innerHeight;
       focusScope.current?.style.setProperty('--bk-viewport-height', `${height}px`);
       focusScope.current?.style.setProperty('--bk-viewport-top', `${viewport?.offsetTop ?? 0}px`);
       // Reclaim sheet chrome while the software keyboard leaves little room for primary fields.
       focusScope.current?.toggleAttribute('data-compact-viewport', height <= 500);
+      // Compact padding/handle changes and native scroll anchoring can clip the focused row.
+      // Measure after the new geometry is applied, without fighting deliberate body scrolling.
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(revealActiveField);
     };
     update();
     viewport?.addEventListener('resize', update);
     viewport?.addEventListener('scroll', update);
     window.addEventListener('resize', update);
     return () => {
+      cancelAnimationFrame(frame);
       viewport?.removeEventListener('resize', update);
       viewport?.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);

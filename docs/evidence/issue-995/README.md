@@ -131,3 +131,46 @@ these runs are not claimed green. Linux CI remains the cross-platform gate. No
 full local e2e suite or local baseline regeneration was run. Independent review
 approved the final code and test impact, including the safe-area correction and
 the M04 probe.
+
+## Category focus after keyboard resize — PR #997 follow-up
+
+Merged `origin/main` again before this repair. CI run `42422052281` has one
+underlying failure: #734's mobile category field remains partly clipped after
+the viewport shrinks to 450px (intersection ratio `0.6544744372367859`). The
+downloaded Linux trace shows the input beneath the fixed capture header after
+the five-second assertion wait. This is a product defect, not an unfinished
+opening animation. The `check` job fails because its required E2E dependency
+failed; its other dependencies passed. No CI configuration change is needed.
+
+The viewport handler now reveals the active control within `.bk-body` after
+applying compact sheet geometry. It coalesces viewport events into one animation
+frame and adjusts only the form's scroll position. The correction applies to
+redesign phone capture/edit sheets; desktop and OFF scrolling are unchanged.
+Header, footer, safe areas, dock dimensions and financial behavior are unchanged.
+Manual form scrolling does not trigger the correction.
+
+Test rationale:
+
+- `booking-panel.test.tsx`: synthetic geometry reproduces clipping before the
+  fix, then covers both scroll edges, viewport panning, preserved focus/value,
+  deliberate scrolling, OFF/desktop behavior and pending-frame cleanup.
+- `issue-995-mobile-sheets.spec.ts`: adds a short focused category regression in
+  both themes with synthetic 47px/34px safe areas and 450/430/844px viewports.
+  It keeps `ratio: 1`, additionally checks the actual body clipping bounds,
+  selected-option identity, focus and the pinned Save button. Existing tests,
+  #734's assertions, timeouts and screenshot baselines remain unchanged.
+
+Validation: the new unit regression failed on the expected clipping assertion
+before the fix; all 20 focused tests in `booking-panel`, `combobox` and `panel`
+then passed. The short browser regression reproduced the exact CI ratio in both
+Chromium themes against the old ON bundle, and both passed against the repaired
+ON bundle, including a rerun using the existing direct capture URL setup. The
+ON E2E build, OFF web build and workspace typecheck passed. Independent code and
+test-impact review approved the repair and direct-navigation fixture.
+
+Local Windows limits: the long #734 scenarios exhausted their unchanged 30-second
+budgets at varying steps. The short WebKit regression exhausted the same budget
+before resize, first during register/FAB setup and then at the scroll fixture
+after direct capture navigation. Neither is claimed green locally; Linux CI
+remains the gate. No timeout, assertion or baseline was relaxed, and no full
+local browser suite was run. Local tests use one worker.

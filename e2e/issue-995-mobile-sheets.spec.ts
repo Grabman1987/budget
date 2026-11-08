@@ -13,6 +13,49 @@ async function swipe(page: Page, grip: Locator, dx: number, dy: number) {
 }
 
 for (const theme of ['light', 'dark']) {
+  test(`focused category clears the keyboard and sheet chrome (${theme})`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/?panel=buchung');
+    await page.evaluate((value) => {
+      document.documentElement.dataset['theme'] = value;
+      document.documentElement.style.setProperty('--mobile-safe-top', '47px');
+      document.documentElement.style.setProperty('--mobile-safe-bottom', '34px');
+    }, theme);
+    const dialog = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
+    await dialog
+      .getByLabel('Notiz', { exact: true })
+      .fill('Synthetischer Scrolltest.\n'.repeat(18));
+    const field = dialog.getByRole('combobox', { name: 'Kategorie', exact: true });
+    await field.click();
+    await field.press('ArrowDown');
+    const active = await field.getAttribute('aria-activedescendant');
+    // Start at the scroll edge where removing the normal-height handle shifts the anchor.
+    await field.evaluate((el) => {
+      const body = el.closest('.bk-body')!;
+      body.scrollTop += el.getBoundingClientRect().top - body.getBoundingClientRect().top - 1;
+    });
+    await expect(field).toBeInViewport({ ratio: 1 });
+    for (const height of [450, 430, 844]) {
+      await page.setViewportSize({ width: 390, height });
+      await expect(field).toBeInViewport({ ratio: 1 });
+      await expect
+        .poll(() =>
+          field.evaluate((el) => {
+            const box = el.getBoundingClientRect();
+            const clip = el.closest('.bk-body')!.getBoundingClientRect();
+            return box.top >= clip.top && box.bottom <= clip.bottom;
+          }),
+        )
+        .toBe(true);
+      await expect(field).toBeFocused();
+      await expect(field).toHaveAttribute('aria-activedescendant', active!);
+      await expect(dialog.getByRole('listbox')).toBeVisible();
+      await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport({
+        ratio: 1,
+      });
+    }
+  });
+
   test(`safe-area dock, native date list and sheet (${theme})`, async ({
     page,
     isMobile,
