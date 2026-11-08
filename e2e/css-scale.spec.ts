@@ -35,10 +35,11 @@ for (const scheme of ['light', 'dark'] as const) {
         'line-height',
         redesign ? (isMobile ? '26px' : '56px') : isMobile ? '28px' : '32px',
       );
-      await expect(page.locator('.plan-topbar .plan-chip-scroll > .btn')).toHaveCSS(
-        'border-top-left-radius',
-        '8px',
-      );
+      await expect(
+        page.locator(
+          redesign ? '.plan-menu-verteilen > summary' : '.plan-topbar .plan-chip-scroll > .btn',
+        ),
+      ).toHaveCSS('border-top-left-radius', '8px');
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
         isMobile ? 390 : 1440,
       );

@@ -98,7 +98,9 @@ test('phone status or Heute action opens real triage cover and undo on an isolat
   // The legacy triage URL selects the overspent filter, whose cover actions are inline.
   // The separate Zu verteilen disclosure contains the derivation and would cover these controls.
   const targetRow = page.locator('tr.prow', { hasText: 'Testziel' });
-  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
+  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen', {
+    useInnerText: true,
+  });
   await expect(targetRow).toHaveClass(/is-over/);
   const coverControls = page.locator('.plan-filter-cover');
   await expect(coverControls).toBeVisible();
@@ -132,5 +134,7 @@ test('phone status or Heute action opens real triage cover and undo on an isolat
   if (phone) await expect(status).toBeVisible();
   await expect(targetRow).toHaveClass(/is-over/);
   await expect(page.locator('tr.prow.is-over')).toHaveCount(1);
-  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
+  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen', {
+    useInnerText: true,
+  });
 });

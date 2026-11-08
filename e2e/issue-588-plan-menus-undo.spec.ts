@@ -100,7 +100,7 @@ test('"Verteilen ▾" actions book like the quick-assign calls and each undo res
         : `Zugewiesen ${value}`
       : value;
   const toast = page.locator('.toast.is-open');
-  const verteilen = page.locator('.plan-menu summary', { hasText: 'Verteilen' });
+  const verteilen = page.locator('.plan-menu summary', { hasText: /verteilen/i });
   const item = (name: string) =>
     page.locator('.plan-menu-panel').getByRole('button', { name, exact: true });
   const run = async (name: string) => {
@@ -238,7 +238,7 @@ test('"Überzogene decken" covers from the named source and its undo restores th
   await expect(row('Testcafe').locator('.col-avail .pill')).toHaveText('100,00 €');
   await expect(tba).toHaveText('900,00 €');
 
-  await page.locator('.plan-menu summary', { hasText: 'Verteilen' }).click();
+  await page.locator('.plan-menu summary', { hasText: /verteilen/i }).click();
   const cover = page
     .locator('.plan-menu-panel')
     .getByRole('button', { name: 'Überzogene decken', exact: true });

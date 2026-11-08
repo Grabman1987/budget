@@ -1,9 +1,10 @@
+import { CategorySortHandle as Handle } from './category-sort-handle';
 import { SettingsReadStamp } from '../pages/settings-read-stamp';
 import { Button, CircleNumber, ClassTag, Switch, cx } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { AppLink } from '../shell/app-link';
-import { ArrowDown, ArrowUp, EyeOff, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, EyeOff, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { EINSTELLUNGEN_KATEGORIEN } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
@@ -474,20 +475,6 @@ type HandleProps = {
   onKeyDown: (e: KeyboardEvent) => void;
 };
 type DropProps = { onDragOver: (e: DragEvent) => void; onDrop: (e: DragEvent) => void };
-
-function Handle({ label, focusKey, ...props }: HandleProps & { label: string; focusKey: string }) {
-  return (
-    <button
-      type="button"
-      className="icon-btn cat-grip"
-      aria-label={label}
-      data-focus-key={focusKey}
-      {...props}
-    >
-      <GripVertical size={16} strokeWidth={1.75} aria-hidden="true" />
-    </button>
-  );
-}
 
 function GroupRows(props: {
   index: number;

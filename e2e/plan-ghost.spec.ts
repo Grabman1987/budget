@@ -174,7 +174,7 @@ test('ghosts, selected quick assignment and capped empty-fill share grouped undo
   await expect(assigned('Testziel')).toHaveText(shown('400,01 €'));
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(assigned('Testziel')).toHaveText(shown('≈ 400,01 €'));
-  await page.locator('.plan-menu summary', { hasText: 'Verteilen' }).click();
+  await page.locator('.plan-menu summary', { hasText: /verteilen/i }).click();
   await page
     .locator('.plan-menu-panel')
     .getByRole('button', { name: 'Leere füllen', exact: true })
