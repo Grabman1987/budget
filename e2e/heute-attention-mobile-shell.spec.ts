@@ -1,4 +1,4 @@
-import { controlBoxes } from './control-geometry';
+import { controlBoxes, minimumControlHeight } from './control-geometry';
 import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect as baseExpect } from './sample';
@@ -127,8 +127,9 @@ test('Today groups work, preserves its review destinations and distinguishes sel
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    const box = await note.getByRole('button', { name: 'Zum aktuellen Monat' }).boundingBox();
-    expect(box!.height).toBeGreaterThanOrEqual(44);
+    const currentMonth = note.getByRole('button', { name: 'Zum aktuellen Monat' });
+    const box = await currentMonth.boundingBox();
+    expect(box!.height).toBeGreaterThanOrEqual(await minimumControlHeight(currentMonth, 44));
     expect(box!.width).toBeGreaterThanOrEqual(44);
   }
   await note.getByRole('button', { name: 'Zum aktuellen Monat' }).click();

@@ -34,7 +34,7 @@
 
 :root:has([data-budget-redesign='1'])
   body
-  :is(.seg.seg, .price-history-ranges[role='group']):not(.bk-kind) {
+  :is(.seg.seg, .price-history-ranges[role='group']):not(.bk-kind, .hv-head-phone .seg) {
   border: var(--stroke-hairline) solid var(--field);
   border-radius: var(--radius-md);
   padding: 1px;
@@ -51,7 +51,7 @@
 }
 :root:has([data-budget-redesign='1'])
   body
-  :is(.seg.seg, .price-history-ranges[role='group']):not(.bk-kind)
+  :is(.seg.seg, .price-history-ranges[role='group']):not(.bk-kind, .hv-head-phone .seg)
   button {
   height: var(--segment-height);
   min-height: var(--segment-height);
@@ -59,7 +59,7 @@
 }
 :root:has([data-budget-redesign='1'])
   body
-  :is(.seg.seg, .price-history-ranges[role='group']):not(.bk-kind)
+  :is(.seg.seg, .price-history-ranges[role='group']):not(.bk-kind, .hv-head-phone .seg)
   button[aria-pressed='true'] {
   background: var(--surface);
   color: var(--primary);
@@ -73,7 +73,8 @@
 }
 
 /* Shared shell controls must also win over unlayered route styles. */
-:root:has([data-budget-redesign='1']) :is(.global-search-launch, .hv-head .month-switch) {
+:root:has([data-budget-redesign='1'])
+  :is(.global-search-launch, .hv-head:not(.hv-head-phone) .month-switch) {
   border: var(--stroke-hairline) solid var(--field);
   border-radius: var(--radius-md);
 }

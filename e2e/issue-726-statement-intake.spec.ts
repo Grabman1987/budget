@@ -321,7 +321,7 @@ for (const profile of ['desktop-layout', 'configured-profile'] as const)
             JSON.stringify(footerAfterScroll, null, 2),
           );
           expect(rect!.width).toBeGreaterThanOrEqual(44);
-          expect(rect!.height).toBeGreaterThanOrEqual(44);
+          expect(rect!.height).toBeGreaterThanOrEqual(await minimumControlHeight(action, 44));
           expect(rect!.x).toBeGreaterThanOrEqual(0);
           expect(rect!.y).toBeGreaterThanOrEqual(0);
           expect(rect!.x + rect!.width).toBeLessThanOrEqual(active.viewportSize()!.width);
