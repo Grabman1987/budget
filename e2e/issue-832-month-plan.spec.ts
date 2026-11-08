@@ -55,7 +55,9 @@ test('ON long negative month amount never overlaps the distribution button', asy
       const headRect = head.getBoundingClientRect();
       const summary = head.querySelector('.plan-tba')!;
       const summaryRect = summary.getBoundingClientRect();
-      const actionRect = head.querySelector('.plan-lead-controls > .btn')!.getBoundingClientRect();
+      const actionRect = head
+        .querySelector('.plan-menu-verteilen > summary')!
+        .getBoundingClientRect();
       const amount = summary.querySelector('strong')!;
       const amountRect = amount.getBoundingClientRect();
       const amountStyle = getComputedStyle(amount);
@@ -392,7 +394,7 @@ for (const theme of ['light', 'dark'] as const) {
             const amountRect = summary.querySelector('strong')!.getBoundingClientRect();
             const labelVisible = getComputedStyle(label).position !== 'absolute';
             const actionRect = head
-              .querySelector('.plan-lead-controls > .btn')!
+              .querySelector('.plan-menu-verteilen > summary')!
               .getBoundingClientRect();
             const style = getComputedStyle(head);
             return {

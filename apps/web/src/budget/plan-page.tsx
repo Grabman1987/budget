@@ -575,9 +575,9 @@ function PlanBody({
             };
             return rank(a.id) - rank(b.id);
           }),
-          categories: source.categories
-            .filter((category) => category.kind !== 'advance' && (showHidden || !category.hiddenAt))
-            .map((category) => ({ ...category, hiddenAt: null })),
+          categories: showHidden
+            ? source.categories.map((category) => ({ ...category, hiddenAt: null }))
+            : source.categories,
         }
       : source;
   const displayed = displayView(data);
@@ -618,18 +618,26 @@ function PlanBody({
   };
   const matchingIds = idsFor(filter);
   const narrowed = filter !== 'all' || Boolean(nameQuery.trim());
+  const hiddenGroupIds = new Set(
+    (multi ? (views ?? []) : [data]).flatMap((source) =>
+      source.categories.filter((category) => category.hiddenAt).map((category) => category.groupId),
+    ),
+  );
+  const keepGroup = (group: { key: string; rows: unknown[] }) =>
+    group.rows.length > 0 ||
+    (!narrowed &&
+      !(REDESIGN_ENABLED && shownView === 'group' && !showHidden && hiddenGroupIds.has(group.key)));
   const groups = unfilteredGroups
     .map((group) => ({ ...group, rows: group.rows.filter((row) => matchingIds.has(row.id)) }))
-    .filter(
-      (group) =>
-        (!narrowed && !(REDESIGN_ENABLED && shownView === 'group')) || group.rows.length > 0,
-    );
+    .filter(keepGroup);
   const visibleMultiGroups = multiGroups
     .map((group) => ({ ...group, rows: group.rows.filter((row) => matchingIds.has(row.id)) }))
-    .filter(
-      (group) =>
-        (!narrowed && !(REDESIGN_ENABLED && shownView === 'group')) || group.rows.length > 0,
-    );
+    .filter(keepGroup);
+  const visibleGroupIds = (multi ? visibleMultiGroups : groups).map((group) => group.key);
+  const groupSort = {
+    ...groupOrder,
+    handle: (id: string, name: string) => groupOrder.handle(id, name, visibleGroupIds),
+  };
   const collapsibleKeys = groups
     .filter(
       (g) => multi || shownView !== 'group' || g.rows.length !== 1 || (REDESIGN_ENABLED && phone),
@@ -1088,6 +1096,11 @@ function PlanBody({
           {filter === 'overspent' && (
             <div className="plan-filter-cover">{coverControls || <p>Nichts ist überzogen.</p>}</div>
           )}
+          {REDESIGN_ENABLED && (
+            <p className="sr-only" role="status" aria-live="polite">
+              {groupOrder.announcement}
+            </p>
+          )}
           <p className="sr-only" role="status">
             {filter === 'uncategorized'
               ? uncategorized.isError
@@ -1181,7 +1194,7 @@ function PlanBody({
                 groups={visibleMultiGroups}
                 collapsed={collapsed}
                 onToggle={toggleGroup}
-                groupSort={REDESIGN_ENABLED ? groupOrder : undefined}
+                groupSort={REDESIGN_ENABLED ? groupSort : undefined}
                 onAdd={(groupId) => setCategoryForm({ mode: 'edit', groupId })}
                 onOpen={inspect}
               />
@@ -1257,7 +1270,7 @@ function PlanBody({
                       <div className="group-heading">
                         {REDESIGN_ENABLED &&
                           shownView === 'group' &&
-                          groupOrder.handle(g.key, g.title)}
+                          groupSort.handle(g.key, g.title)}
                         <PlanSelection
                           phone={phone}
                           mode={phoneSelection}
@@ -1368,7 +1381,7 @@ function PlanBody({
                             <EnvelopeRow
                               key={r.id}
                               row={r}
-                              groupSort={REDESIGN_ENABLED && band ? groupOrder : undefined}
+                              groupSort={REDESIGN_ENABLED && band ? groupSort : undefined}
                               band={band && rowIndex === 0 ? g : undefined}
                               bandHeading={
                                 band && rowIndex === 0 && !singleBand ? groupHeading : undefined

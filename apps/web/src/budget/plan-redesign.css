@@ -950,6 +950,10 @@
         1fr
       );
   }
+  .plan-month-v2 .pgroup:not(.psingle) .plan-group-sort .cat-grip {
+    height: 28px;
+    min-height: 28px;
+  }
   .plan-month-v2 .ptable-zero .psingle .plan-group-sort {
     grid-column: 1;
     grid-row: 1;

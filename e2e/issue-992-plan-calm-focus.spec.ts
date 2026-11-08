@@ -203,7 +203,7 @@ for (const theme of ['light', 'dark'] as const) {
             for (const selector of [
               '.plan-filterbar',
               '.plan-menu-optionen summary',
-              '.plan-reference-add',
+              '.ptable thead .plan-add',
             ]) {
               await page.evaluate(() => window.scrollTo(0, 0));
               await expect(head).not.toHaveClass(/is-compact/);

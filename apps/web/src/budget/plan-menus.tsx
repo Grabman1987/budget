@@ -152,7 +152,7 @@ function PlanMenu({
   }, []);
   return (
     <details ref={ref} className={cx('plan-popover plan-menu', className)}>
-      <summary title={title} role="button">
+      <summary title={title} role={REDESIGN_ENABLED ? 'button' : undefined}>
         {label}
         <ChevronDown
           className="disclosure-chevron"

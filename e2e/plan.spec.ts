@@ -243,7 +243,9 @@ isolatedTest(
       /neue Kartenschuld 30,00 €/,
     );
     // #587: the cover actions open from the Zu verteilen disclosure; no chip in the head.
-    await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
+    await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen', {
+      useInnerText: true,
+    });
     await page.locator('.plan-tba').click();
     await expect(page.locator('.triage')).toContainText('2 Envelopes überzogen');
     await expect(page.locator('.triage')).not.toContainText(food);

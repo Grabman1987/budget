@@ -15,6 +15,7 @@ import type { BudgetMonthView, EnvelopeSummary } from './budget-api';
 import { setMonthSpan } from './month-span';
 import { isMonth } from '../nav/month';
 import { validatePlanFilterSearch } from './plan-filters';
+import { eur } from '../ledger/format';
 
 const flag = vi.hoisted(() => ({ enabled: true }));
 vi.mock('../shell/redesign-flag', () => ({
@@ -224,7 +225,7 @@ it('ON places quick actions in the lead and month close in the header', async ()
   ).not.toBeNull();
 });
 
-it('ON hides archived groups and separates advances without changing the month figures', async () => {
+it('ON hides only inactive archived groups and retains contact details and privacy', async () => {
   readData.groups.push({ id: 'archive', name: 'Synthetic archive', sortOrder: 1 });
   readData.categories.push(
     {
@@ -243,20 +244,20 @@ it('ON hides archived groups and separates advances without changing the month f
     },
   );
   readData.summary.envelopes.push(
-    envelope('hidden', { availableCents: 345 }),
+    envelope('hidden', {}),
     envelope('advance', { availableCents: -1234, activityCents: -1234 }),
   );
   const { container } = mount();
   await screen.findByTestId('to-be-assigned');
   expect(container.querySelector('#grp-archive')).toBeNull();
-  expect(container.querySelector('[data-category-id="advance"]')).toBeNull();
+  expect(container.querySelector('[data-category-id="advance"]')).not.toBeNull();
   const advances = container.querySelector<HTMLDetailsElement>('.plan-contact-advances')!;
   expect(advances.open).toBe(false);
   fireEvent.click(screen.getByRole('button', { name: 'Optionen' }));
   fireEvent.click(screen.getByRole('button', { name: 'Ausgeblendete zeigen' }));
   expect(container.querySelector('#grp-archive')).not.toBeNull();
   expect(container.querySelector('[data-category-id="hidden"]')).not.toBeNull();
-  expect(container.querySelector('[data-category-id="advance"]')).toBeNull();
+  expect(container.querySelector('[data-category-id="advance"]')).not.toBeNull();
   fireEvent.click(within(advances).getByText('Auslagen für Kontakte'));
   const contact = await screen.findByRole('link', { name: 'Synthetic contact' });
   expect(contact.getAttribute('href')).toBe('/konten/kontakte/synthetic-contact');
@@ -266,6 +267,70 @@ it('ON hides archived groups and separates advances without changing the month f
   expect(advances.textContent).not.toContain('12,34');
   act(() => setAmountsHidden(false));
   expect(screen.getByTestId('to-be-assigned').textContent).toBe('140,00 €');
+});
+
+it.each([
+  ['hidden', 5000, 0],
+  ['hidden', 0, -5000],
+  ['advance', 5000, 0],
+  ['advance', 0, -5000],
+] as const)(
+  'ON keeps a %s envelope with available %i and activity %i in the list totals',
+  async (kind, availableCents, activityCents) => {
+    readData.groups.push({ id: 'retained', name: 'Synthetic retained group', sortOrder: 1 });
+    readData.categories.push({
+      ...readData.categories[0]!,
+      id: 'retained',
+      name: 'Synthetic retained category',
+      groupId: 'retained',
+      kind: kind === 'advance' ? 'advance' : 'variable',
+      class: kind === 'advance' ? null : 'need',
+      hiddenAt: kind === 'hidden' ? '2026-09-01' : null,
+    });
+    readData.summary.envelopes.push(
+      envelope('retained', {
+        carryCents: availableCents - activityCents,
+        availableCents,
+        activityCents,
+      }),
+    );
+    readData.summary.availableCents += availableCents;
+    readData.summary.activityCents += activityCents;
+    const { container } = mount();
+    await waitFor(() =>
+      expect(container.querySelector('.pname[data-category-id="retained"]')).not.toBeNull(),
+    );
+    expect(container.querySelector('#grp-retained')).not.toBeNull();
+    const names = [...container.querySelectorAll<HTMLElement>('.ptable .pname[data-category-id]')];
+    const listed = names.map((name) => {
+      const row = readData.summary.envelopes.find(
+        (item) => item.categoryId === name.dataset['categoryId'],
+      )!;
+      const displayed = name.closest('tr')!;
+      expect(displayed.querySelector('.col-avail')!.textContent).toContain(eur(row.availableCents));
+      expect(displayed.querySelector('.col-act')!.textContent).toContain(eur(row.activityCents));
+      expect(displayed.querySelector('.col-assign')!.textContent).toContain(eur(row.assignedCents));
+      return row;
+    });
+    expect(listed).toHaveLength(readData.summary.envelopes.length);
+    for (const field of ['assignedCents', 'activityCents', 'availableCents'] as const)
+      expect(listed.reduce((sum, row) => sum + row[field], 0)).toBe(readData.summary[field]);
+    expect(readData.summary.availableCents).toBe(11500 + availableCents);
+    expect(screen.getByTestId('to-be-assigned').textContent).toBe('140,00 €');
+  },
+);
+
+it('ON keeps a new empty group visible, sortable and ready for categories', async () => {
+  readData.groups.push({ id: 'empty', name: 'Synthetic empty', sortOrder: 1 });
+  const { container } = mount();
+  await screen.findByRole('button', { name: 'Gruppe Synthetic empty verschieben' });
+  const group = container.querySelector('#grp-empty')!;
+  expect(group).not.toBeNull();
+  expect(
+    within(group as HTMLElement).getByRole('button', {
+      name: 'Kategorie in Synthetic empty anlegen',
+    }),
+  ).toBeTruthy();
 });
 
 it('ON leads with class assignments and keeps the literal cent derivation in the amount disclosure', async () => {
@@ -318,6 +383,9 @@ it('OFF retains the original compact head and original unadorned values', async 
   expect((await screen.findByTestId('to-be-assigned')).textContent).toBe('140,00 €');
   expect(screen.queryByRole('region', { name: 'Monatsbudget' })).toBeNull();
   expect(container.querySelector('.plan-row-state')).toBeNull();
+  expect(container.querySelector('.plan-menu-optionen > summary')!.hasAttribute('role')).toBe(
+    false,
+  );
   expect(screen.getByRole('button', { name: 'Geld verteilen' })).toBeTruthy();
   expect(
     screen.getByRole('button', { name: 'Synthetic cash decken' }).querySelector('svg'),

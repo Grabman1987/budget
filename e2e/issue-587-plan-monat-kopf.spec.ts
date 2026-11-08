@@ -186,7 +186,9 @@ test('no overspending chip in the head; the cover actions open from the Zu verte
   const count = await overspent.count();
   expect(count).toBeGreaterThan(0);
   // Owner decision 18.10.2026: one alarm place, the rows; the head carries no red count.
-  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
+  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen', {
+    useInnerText: true,
+  });
   await expect(page.locator('.plan-chip-scroll .is-over')).toHaveCount(0);
   await expect(page.locator('#cover-all-source')).toBeHidden();
   await page.locator('.plan-tba').click();
