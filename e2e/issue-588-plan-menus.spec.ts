@@ -10,6 +10,14 @@ import { redesignEnabled } from './plan-redesign-controls';
  */
 
 const EVIDENCE = 'docs/evidence/issue-588-plan-menus';
+async function openPlan(page: Page) {
+  const loaded = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === '/api/budget/2026-09' && response.ok(),
+  );
+  await page.goto('/plan/monat?monat=2026-09');
+  await loaded;
+}
+
 const menuSummary = (page: Page, name: string) =>
   page.locator(
     name === 'Optionen' ? '.plan-menu-optionen > summary' : '.plan-menu-verteilen > summary',
@@ -26,21 +34,27 @@ test('the old controls are gone; both menus are keyboard operable and named', as
   page,
   isMobile,
 }) => {
-  await page.goto('/plan/monat?monat=2026-09');
+  await openPlan(page);
   const on = await redesignEnabled(page);
   await expect(menuSummary(page, 'Verteilen')).toBeVisible();
   await expect(menuSummary(page, 'Optionen')).toBeVisible();
   await expect(page.getByText('Schnell zuweisen')).toHaveCount(0);
   await expect(page.getByLabel('Weitere Monatsaktionen')).toHaveCount(0);
   await expect(page.locator('.ptoolbar select')).toHaveCount(0);
-  if (!on)
+  if (on && page.viewportSize()!.width < 768) {
+    await menuSummary(page, 'Optionen').click();
+    await expect(
+      page.getByRole('link', { name: 'Monatsabschluss starten oder fortsetzen' }),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+  } else
     await expect(page.getByRole('link', { name: 'Monat abschließen', exact: true })).toBeVisible();
 
   // Enter opens, arrows walk, Esc closes and gives the focus back to the summary.
   const verteilen = menuSummary(page, 'Verteilen');
   await verteilen.focus();
   await page.keyboard.press('Enter');
-  const panel = page.getByRole('group', { name: 'Verteilen', exact: true });
+  const panel = page.getByRole('group', { name: /^(Geld verteilen|Verteilen)$/ });
   await expect(panel).toBeVisible();
   const items = panel.getByRole('button');
   await page.keyboard.press('ArrowDown');
@@ -96,7 +110,7 @@ test('the old controls are gone; both menus are keyboard operable and named', as
 });
 
 test('"Alle einklappen" and the month span work from "Optionen ▾"', async ({ page, isMobile }) => {
-  await page.goto('/plan/monat?monat=2026-09');
+  await openPlan(page);
   const on = await redesignEnabled(page);
   const optionen = menuSummary(page, 'Optionen');
   const phoneHeadings =
@@ -157,14 +171,14 @@ test('"Alle einklappen" and the month span work from "Optionen ▾"', async ({ p
 });
 
 for (const scheme of ['light', 'dark'] as const) {
-  test(`both menus open without overflow and pass Axe in ${scheme}`, async ({
-    page,
-    isMobile,
-  }, info) => {
-    await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
-    await page.goto('/plan/monat?monat=2026-09');
-    await page.evaluate(() => document.fonts.ready);
-    for (const name of ['Verteilen', 'Optionen']) {
+  for (const name of ['Verteilen', 'Optionen']) {
+    test(`${name} opens without overflow and passes Axe in ${scheme}`, async ({
+      page,
+      isMobile,
+    }, info) => {
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+      await openPlan(page);
+      await page.evaluate(() => document.fonts.ready);
       await menuSummary(page, name).click();
       const panel = page.locator('.plan-menu-panel:visible');
       await expect(panel).toBeVisible();
@@ -190,6 +204,6 @@ for (const scheme of ['light', 'dark'] as const) {
       }
       await page.keyboard.press('Escape');
       await expect(panel).toBeHidden();
-    }
-  });
+    });
+  }
 }

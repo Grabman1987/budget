@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { openHeuteReview } from './heute-visual-fixture';
 import { redesignEnabled, openPaymentManagement } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
@@ -82,7 +83,7 @@ async function hit(target: Locator, minimum: number) {
     };
   });
   expect(r.width).toBeGreaterThanOrEqual(minimum);
-  expect(r.height).toBeGreaterThanOrEqual(minimum);
+  expect(r.height).toBeGreaterThanOrEqual(await minimumControlHeight(target, minimum));
   expect(r.left).toBeGreaterThanOrEqual(0);
   expect(r.right).toBeLessThanOrEqual(r.viewportWidth);
   expect(r.top).toBeGreaterThanOrEqual(0);

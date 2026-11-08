@@ -1,3 +1,5 @@
+import { usePlanGroupOrder } from './plan-group-order';
+import { PlanContactAdvances } from './plan-contact-advances';
 import { AllocationBar } from '../reports/allocation-bar';
 import './plan-allocation-labels.css';
 import './plan-redesign.css';
@@ -214,6 +216,13 @@ function MonthFrame({
       actions={
         <>
           <span className="month-reference-income">Einnahmen {income}</span>
+          <AppLink
+            className="btn btn-ghost btn-sm plan-close"
+            to={`/monatsabschluss/${month}`}
+            search={{}}
+          >
+            Monat abschließen
+          </AppLink>
         </>
       }
     >
@@ -280,6 +289,11 @@ function PlanBody({
   const navigate = useNavigate();
   const legacyTriage = search.ansicht === 'triage' && search.filter === undefined;
   const filter = search.filter ?? (legacyTriage ? 'overspent' : 'all');
+  const filterChips = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if ((filter === 'attention' || filter === 'uncategorized') && filterChips.current)
+      filterChips.current.scrollLeft = 0;
+  }, [filter]);
   const nameQuery = search.q ?? '';
   const filterTuple = JSON.stringify([filter, nameQuery, legacyTriage]);
   const [capturedFilter, setCapturedFilter] = useState(filterTuple);
@@ -314,6 +328,7 @@ function PlanBody({
   );
   const phone = useIsPhone();
   const [distribute, setDistribute] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const [targetPreview, setTargetPreview] = useState(false);
   const [applyingTargets, setApplyingTargets] = useState(false);
   const [targetPreviewError, setTargetPreviewError] = useState(false);
@@ -442,8 +457,9 @@ function PlanBody({
   };
   const categoryTree = useQuery({
     ...categoriesQuery(),
-    enabled: categoryForm !== null || selected.size > 0 || open !== null,
+    enabled: REDESIGN_ENABLED || categoryForm !== null || selected.size > 0 || open !== null,
   });
+  const groupOrder = usePlanGroupOrder(categoryTree.data);
   useEffect(() => {
     if (!selected.size && !open && !phoneSelection) return;
     const escape = (event: KeyboardEvent) => {
@@ -542,8 +558,31 @@ function PlanBody({
   // Several months show the "Gruppen" layout; starting to distribute goes back to one month.
   const multi = months.length > 1 && !distribute;
   const shownView: PlanView = multi ? 'group' : view;
-  const unfilteredGroups = planGroups(shownView, rows, data, ctx);
-  const multiGroups = views ? planMulti(views) : [];
+  // Presentation only: the canonical rows continue to feed figures and existing money actions.
+  const displayView = (source: BudgetMonthView): BudgetMonthView =>
+    REDESIGN_ENABLED
+      ? {
+          ...source,
+          groups: [...source.groups].sort((a, b) => {
+            const rank = (id: string) => {
+              const index = groupOrder.order.findIndex((group) => group.id === id);
+              return index < 0 ? source.groups.length : index;
+            };
+            return rank(a.id) - rank(b.id);
+          }),
+          categories: showHidden
+            ? source.categories.map((category) => ({ ...category, hiddenAt: null }))
+            : source.categories,
+        }
+      : source;
+  const displayed = displayView(data);
+  const unfilteredGroups = planGroups(
+    shownView,
+    REDESIGN_ENABLED ? planRows(displayed) : rows,
+    displayed,
+    ctx,
+  );
+  const multiGroups = views ? planMulti(views.map(displayView)) : [];
   // Legacy triage's All segment exits triage; other layouts retain their original row universe.
   const filterRows =
     shownView === 'triage' ? rows : unfilteredGroups.flatMap((group) => group.rows);
@@ -575,12 +614,26 @@ function PlanBody({
   };
   const matchingIds = idsFor(filter);
   const narrowed = filter !== 'all' || Boolean(nameQuery.trim());
+  const hiddenGroupIds = new Set(
+    (multi ? (views ?? []) : [data]).flatMap((source) =>
+      source.categories.filter((category) => category.hiddenAt).map((category) => category.groupId),
+    ),
+  );
+  const keepGroup = (group: { key: string; rows: unknown[] }) =>
+    group.rows.length > 0 ||
+    (!narrowed &&
+      !(REDESIGN_ENABLED && shownView === 'group' && !showHidden && hiddenGroupIds.has(group.key)));
   const groups = unfilteredGroups
     .map((group) => ({ ...group, rows: group.rows.filter((row) => matchingIds.has(row.id)) }))
-    .filter((group) => !narrowed || group.rows.length > 0);
+    .filter(keepGroup);
   const visibleMultiGroups = multiGroups
     .map((group) => ({ ...group, rows: group.rows.filter((row) => matchingIds.has(row.id)) }))
-    .filter((group) => !narrowed || group.rows.length > 0);
+    .filter(keepGroup);
+  const visibleGroupIds = (multi ? visibleMultiGroups : groups).map((group) => group.key);
+  const groupSort = {
+    ...groupOrder,
+    handle: (id: string, name: string) => groupOrder.handle(id, name, visibleGroupIds),
+  };
   const collapsibleKeys = groups
     .filter(
       (g) => multi || shownView !== 'group' || g.rows.length !== 1 || (REDESIGN_ENABLED && phone),
@@ -810,19 +863,6 @@ function PlanBody({
       )}
     </section>
   );
-  const topbar = (
-    <PlanTopBar
-      data={data}
-      month={month}
-      unfunded={groupStatus(rows).need}
-      distributeBlock={distributeBlock}
-      onIncome={onIncome}
-      onDistribute={startDistribute}
-      coverControls={filter === 'overspent' ? null : coverControls}
-      monthIncome={monthIncome}
-      compactOnRestore={REDESIGN_ENABLED && Boolean(restoredPlan?.compactHead)}
-    />
-  );
   const distributeMenu = (
     <VerteilenMenu
       month={month}
@@ -853,6 +893,19 @@ function PlanBody({
       }
     />
   );
+  const topbar = (
+    <PlanTopBar
+      data={data}
+      month={month}
+      unfunded={groupStatus(rows).need}
+      distributeBlock={distributeBlock}
+      onIncome={onIncome}
+      onDistribute={startDistribute}
+      coverControls={filter === 'overspent' ? null : coverControls}
+      monthIncome={monthIncome}
+      compactOnRestore={REDESIGN_ENABLED && Boolean(restoredPlan?.compactHead)}
+    />
+  );
   const toolbar = (
     <div
       className={cx('plan-filterbar', REDESIGN_ENABLED && 'ptoolbar plan-calm-toolbar')}
@@ -872,7 +925,20 @@ function PlanBody({
         />
       </label>
       {REDESIGN_ENABLED ? (
-        <div className="plan-filter-chips" role="group" aria-label="Kategoriefilter">
+        <div
+          ref={filterChips}
+          className="plan-filter-chips"
+          role="group"
+          aria-label="Kategoriefilter"
+        >
+          {(filter === 'attention' || filter === 'uncategorized') && (
+            <button type="button" aria-pressed="true" onClick={() => changeFilter('all')}>
+              {filter === 'attention' ? 'Braucht Aufmerksamkeit' : 'Ohne Kategorie'}{' '}
+              <span>({counts[filter] ?? '…'})</span>
+              <span aria-hidden="true"> ×</span>
+              <span className="sr-only"> · Filter entfernen</span>
+            </button>
+          )}
           {(
             [
               ['all', 'Alle', counts.all],
@@ -957,6 +1023,11 @@ function PlanBody({
       )}
 
       <OptionenMenu
+        hiddenControl={
+          REDESIGN_ENABLED
+            ? { shown: showHidden, toggle: () => setShowHidden((value) => !value) }
+            : undefined
+        }
         filters={
           REDESIGN_ENABLED ? (
             <div role="group" aria-label="Weitere Filter" className="plan-menu-group">
@@ -1080,6 +1151,11 @@ function PlanBody({
           {filter === 'overspent' && (
             <div className="plan-filter-cover">{coverControls || <p>Nichts ist überzogen.</p>}</div>
           )}
+          {REDESIGN_ENABLED && (
+            <p className="sr-only" role="status" aria-live="polite">
+              {groupOrder.announcement}
+            </p>
+          )}
           <p className="sr-only" role="status">
             {filter === 'uncategorized'
               ? uncategorized.isError
@@ -1099,41 +1175,43 @@ function PlanBody({
           {narrowed && filter !== 'uncategorized' && matchingIds.size === 0 && (
             <p className="plan-filter-empty">Keine passende Kategorie.</p>
           )}
-          <div className={REDESIGN_ENABLED ? 'plan-distribution-actions' : 'ptoolbar'}>
-            {!REDESIGN_ENABLED && distributeMenu}
-            <span className="spacer" />
-            <div className="dist-actions">
-              {distribute && (
-                <>
-                  <span className="dist-left">noch {eur(tba)}</span>
-                  {Object.keys(sug).length > 0 && (
-                    <Button
-                      size="sm"
-                      onClick={(event) => {
-                        targetPreviewReturn.current = event.currentTarget;
-                        setTargetPreviewError(false);
-                        setTargetPreview(true);
-                      }}
-                    >
-                      Alle Ziele füllen
+          {(!REDESIGN_ENABLED || distribute) && (
+            <div className={REDESIGN_ENABLED ? 'plan-distribution-actions' : 'ptoolbar'}>
+              {!REDESIGN_ENABLED && distributeMenu}
+              <span className="spacer" />
+              <div className="dist-actions">
+                {distribute && (
+                  <>
+                    <span className="dist-left">noch {eur(tba)}</span>
+                    {Object.keys(sug).length > 0 && (
+                      <Button
+                        size="sm"
+                        onClick={(event) => {
+                          targetPreviewReturn.current = event.currentTarget;
+                          setTargetPreviewError(false);
+                          setTargetPreview(true);
+                        }}
+                      >
+                        Alle Ziele füllen
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => setDistribute(false)}>
+                      Fertig
                     </Button>
-                  )}
-                  <Button size="sm" variant="ghost" onClick={() => setDistribute(false)}>
-                    Fertig
-                  </Button>
-                </>
+                  </>
+                )}
+              </div>
+              {!REDESIGN_ENABLED && (
+                <AppLink
+                  className="btn btn-ghost btn-sm plan-close"
+                  to={`/monatsabschluss/${month}`}
+                  search={{}}
+                >
+                  Monat abschließen
+                </AppLink>
               )}
             </div>
-            {!REDESIGN_ENABLED && (
-              <AppLink
-                className="btn btn-ghost btn-sm plan-close"
-                to={`/monatsabschluss/${month}`}
-                search={{}}
-              >
-                Monat abschließen
-              </AppLink>
-            )}
-          </div>
+          )}
           {multi && filter !== 'uncategorized' && (
             <div className="plan-grid-head">
               <Button
@@ -1171,6 +1249,7 @@ function PlanBody({
                 groups={visibleMultiGroups}
                 collapsed={collapsed}
                 onToggle={toggleGroup}
+                groupSort={REDESIGN_ENABLED ? groupSort : undefined}
                 onAdd={(groupId) => setCategoryForm({ mode: 'edit', groupId })}
                 onOpen={inspect}
               />
@@ -1244,6 +1323,9 @@ function PlanBody({
                     };
                     const groupHeading = (
                       <div className="group-heading">
+                        {REDESIGN_ENABLED &&
+                          shownView === 'group' &&
+                          groupSort.handle(g.key, g.title)}
                         <PlanSelection
                           phone={phone}
                           mode={phoneSelection}
@@ -1301,6 +1383,9 @@ function PlanBody({
                       !band && (
                         <tr
                           key={g.key}
+                          {...(REDESIGN_ENABLED && shownView === 'group'
+                            ? groupOrder.dropTarget(g.key)
+                            : {})}
                           className={cx('pgroup', isCollapsed && 'is-collapsed')}
                           data-plan-class={
                             REDESIGN_ENABLED ? (g.rows[0]?.cls ?? undefined) : undefined
@@ -1351,6 +1436,7 @@ function PlanBody({
                             <EnvelopeRow
                               key={r.id}
                               row={r}
+                              groupSort={REDESIGN_ENABLED && band ? groupSort : undefined}
                               band={band && rowIndex === 0 ? g : undefined}
                               bandHeading={
                                 band && rowIndex === 0 && !singleBand ? groupHeading : undefined
@@ -1381,6 +1467,7 @@ function PlanBody({
               </table>
             </div>
           )}
+          {REDESIGN_ENABLED && <PlanContactAdvances />}
         </section>
       </div>
       {phone && phoneSelection && (
@@ -2270,6 +2357,7 @@ function EnvelopeRow({
   band,
   bandHeading,
   bandSummary,
+  groupSort,
   onAdd,
   ctx,
   suggestion,
@@ -2289,6 +2377,7 @@ function EnvelopeRow({
   band: PlanGroup | undefined;
   bandHeading: ReactNode | undefined;
   bandSummary: ReturnType<typeof groupStatus> | undefined;
+  groupSort?: ReturnType<typeof usePlanGroupOrder> | undefined;
   onAdd: () => void;
   ctx: PlanContext;
   suggestion: number | undefined;
@@ -2337,6 +2426,7 @@ function EnvelopeRow({
         credit && 'is-credit',
         selected && 'is-selected',
       )}
+      {...(band && groupSort ? groupSort.dropTarget(band.key) : {})}
       id={band ? `grp-${band.key}` : undefined}
       onClick={(event) => {
         if (
@@ -2350,6 +2440,7 @@ function EnvelopeRow({
       }}
     >
       <td className="col-name">
+        {band && groupSort?.handle(band.key, band.title)}
         {bandHeading && <div className="band-parent">{bandHeading}</div>}
         {bandSummary && (
           <div className="band-parent-totals">

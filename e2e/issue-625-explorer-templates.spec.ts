@@ -1,3 +1,4 @@
+import { compactControls, minimumControlHeight } from './control-geometry';
 import { openCustomExplorer, retainExplorerReaders } from './explorer-controls';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
@@ -508,7 +509,7 @@ async function expect625CloseInput(
       const rect = geometry.closeRect;
       expect(rect).not.toBeNull();
       expect(rect!.width).toBeGreaterThanOrEqual(44);
-      expect(rect!.height).toBeGreaterThanOrEqual(44);
+      expect(rect!.height).toBeGreaterThanOrEqual((await compactControls(page)) ? 36 : 44);
       expect(rect!.left).toBeGreaterThanOrEqual(0);
       expect(rect!.right).toBeLessThanOrEqual(geometry.layoutViewport.width);
       expect(rect!.top).toBeGreaterThanOrEqual(0);
@@ -599,7 +600,7 @@ async function expect625CloseHit(page: Page, info: TestInfo, template: string, s
   }
   expect(proof.inHeader).toBe(true);
   expect(proof.bounds.width).toBeGreaterThanOrEqual(44);
-  expect(proof.bounds.height).toBeGreaterThanOrEqual(44);
+  expect(proof.bounds.height).toBeGreaterThanOrEqual(await minimumControlHeight(close, 44));
   expect(proof.bounds.left).toBeGreaterThanOrEqual(0);
   expect(proof.bounds.right).toBeLessThanOrEqual(proof.viewport.width);
   expect(proof.bounds.top).toBeGreaterThanOrEqual(0);

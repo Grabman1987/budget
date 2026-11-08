@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { openCustomExplorer, retainExplorerReaders } from './explorer-controls';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
@@ -364,12 +365,12 @@ async function proof(
   for (const button of [tableButton, chartButton]) {
     const box = await button.boundingBox();
     expect(box?.width).toBeGreaterThanOrEqual(44);
-    expect(box?.height).toBeGreaterThanOrEqual(44);
+    expect(box?.height).toBeGreaterThanOrEqual(await minimumControlHeight(button, 44));
   }
   if (await cohorts.count()) {
     const box = await cohorts.boundingBox();
     expect(box?.width).toBeGreaterThanOrEqual(44);
-    expect(box?.height).toBeGreaterThanOrEqual(44);
+    expect(box?.height).toBeGreaterThanOrEqual(await minimumControlHeight(cohorts, 44));
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);

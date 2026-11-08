@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, schema } from '@budget/db';
 import { eq } from 'drizzle-orm';
@@ -102,7 +103,7 @@ async function hit(target: Locator, minimum: number) {
     };
   });
   expect(bounds.width).toBeGreaterThanOrEqual(minimum);
-  expect(bounds.height).toBeGreaterThanOrEqual(minimum);
+  expect(bounds.height).toBeGreaterThanOrEqual(await minimumControlHeight(target, minimum));
   expect(bounds.left).toBeGreaterThanOrEqual(0);
   expect(bounds.right).toBeLessThanOrEqual(bounds.viewportWidth);
   expect(bounds.top).toBeGreaterThanOrEqual(0);
@@ -207,7 +208,11 @@ async function scene(
       beforeGrid:
         element.closest('.plan')!.querySelector('.ptable')!.getBoundingClientRect().top -
         element.closest('.plan')!.getBoundingClientRect().top,
-      controls: [...element.querySelectorAll('input, .plan-filter-segments button, summary')]
+      controls: [
+        ...element.querySelectorAll(
+          'input, .plan-filter-segments button, .plan-filter-chips button, summary',
+        ),
+      ]
         .filter((control) => {
           const closed = control.closest('details:not([open])');
           return (
@@ -220,7 +225,7 @@ async function scene(
           return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right };
         }),
     }));
-    expect(initial.controls).toHaveLength(on ? 3 : 7);
+    expect(initial.controls).toHaveLength(on ? 8 : 7);
     expect(initial.scrollWidth).toBeLessThanOrEqual(initial.viewport.width);
     if (profile === 'desktop') {
       expect(initial.viewport).toEqual({ width: 1440, height: 900 });
@@ -238,7 +243,7 @@ async function scene(
     } else expect(initial.viewport.width).toBe(390);
     for (const target of await page
       .locator(
-        '.plan-filterbar input:visible, .plan-filter-segments button:visible, .plan-filterbar summary:visible',
+        '.plan-filterbar input:visible, .plan-filter-segments button:visible, .plan-filter-chips button:visible, .plan-filterbar summary:visible',
       )
       .all())
       await hit(target, profile === 'configured' ? 44 : 24);

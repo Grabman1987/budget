@@ -156,6 +156,7 @@ function PlanMenu({
   return (
     <details ref={ref} className={cx('plan-popover plan-menu', className)}>
       <summary
+        role={REDESIGN_ENABLED ? 'button' : undefined}
         title={title ?? (iconOnly ? label : undefined)}
         aria-label={iconOnly ? label : undefined}
       >
@@ -272,7 +273,7 @@ export function VerteilenMenu({
   const single = 'Nur bei einem Monat';
   return (
     <PlanMenu
-      label="Verteilen"
+      label={REDESIGN_ENABLED ? 'Geld verteilen' : 'Verteilen'}
       className="plan-menu-verteilen"
       title={distributeBlock ?? undefined}
     >
@@ -341,6 +342,7 @@ export function OptionenMenu({
   onToggleAll,
   readUtilities,
   filters,
+  hiddenControl,
 }: {
   month: string;
   view: PlanView;
@@ -355,6 +357,7 @@ export function OptionenMenu({
   /** Optional same-month read controls; no assignment actions or nested menu summaries. */
   readUtilities?: ReactNode;
   filters?: ReactNode;
+  hiddenControl?: { shown: boolean; toggle: () => void } | undefined;
 }) {
   const span = useStoredMonthSpan();
   const density = usePlanDensity();
@@ -416,6 +419,11 @@ export function OptionenMenu({
         </div>
       )}
       <div className="plan-menu-group">
+        {hiddenControl && (
+          <MenuAction pressed={hiddenControl.shown} onSelect={hiddenControl.toggle}>
+            Ausgeblendete zeigen
+          </MenuAction>
+        )}
         <MenuAction onSelect={onToggleAll}>
           {collapsed ? 'Alle ausklappen' : 'Alle einklappen'}
         </MenuAction>

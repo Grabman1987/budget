@@ -5,15 +5,22 @@ existing audited undo/redo callbacks, distribution and the options menu. The
 options menu retains attention and uncategorized filters, grouping, category-group
 creation and month close. Density is a browser preference under
 `budget.plan.density`, following the existing month-span preference.
+Active attention/uncategorized filters also appear as pressed, removable toolbar
+chips. The toolbar history expires or is dismissed with its toast, clears on later
+writes, and permits retry after a rejected undo without replacing newer feedback.
+The merged group ordering, hidden-group rules, contact advances, announcements and
+desktop month-close header link remain available.
 
 Rows show plain progress fills only on hover, focus or selection. Compact uses
-thin fills; Minimal omits them. Available amounts retain their signs and add an
+thin fills; Minimal intentionally hides progress bars entirely, including on hover,
+focus and selection. Status text and amounts remain visible. Available amounts retain their signs and add an
 icon without a border. Group headings use a thin separator. Financial writers,
 calculations and account figures are unchanged.
 
 All screenshots use disposable synthetic ledgers. Browser emulation is not
-physical-device acceptance. No existing Plan screenshot baseline assertions were
-affected; the evidence PNGs are review artifacts, not replacement baselines.
+physical-device acceptance. The four retained evidence PNGs show 1440 light, 1440 dark, 390 light and one
+undo state. They are review artifacts, not replacement baselines; any affected
+visual baselines are regenerated only through the CI snapshot workflow.
 
 ## Test changes
 
@@ -22,7 +29,9 @@ affected; the evidence PNGs are review artifacts, not replacement baselines.
 | `plan-density.test.tsx` | Preference persistence, cross-tab changes, invalid storage and unavailable storage. |
 | `plan-filters-589.test.ts` | Literal overfunded boundary against the resolved monthly goal, including excluded states. |
 | `plan-redesign.test.tsx` | Counted filters, density without writes, and keyboard navigation through the updated options menu. |
-| `use-category-writes.test.tsx` | Toolbar and toast share the audited undo/redo action; existing conflict and refresh assertions remain. |
+| `toast.test.tsx` | Verify the optional dismissal callback on expiry, replacement, Escape and unmount. |
+| `issue-1003-plan-tidy.spec.ts` | Preserve archive, group sorting, contact and money assertions while expecting the single calm toolbar. |
+| `use-category-writes.test.tsx` | Toolbar expiry/dismissal/replacement, later no-op/error writes, retry after rejection and stale async rejection; existing conflict and refresh assertions remain. |
 | `issue-1006-plan-calm-rows.spec.ts` | ON desktop/phone light/dark evidence, toolbar geometry, density persistence, multi-month icons, accessibility, bottom toast and real undo/redo. |
 | `issue-471-icons.spec.ts` | Remove the scale exception for the removed filter disclosure icon. |
 | `issue-587-plan-monat-kopf.spec.ts` | Reach distribution and month close through their retained menus. |
@@ -33,15 +42,19 @@ affected; the evidence PNGs are review artifacts, not replacement baselines.
 | `month-nav.spec.ts` | ON month count uses the toolbar; OFF still uses options. |
 | `plan-compact-grid.spec.ts` | Updated grouping/month-control locations and icon menu selector. |
 | `plan.spec.ts` | Start the existing waterfall assistant through the distribution menu. |
+| `issue-735-plan-activity.spec.ts` | Reach the ON month span in the toolbar while preserving activity month and return-state assertions. |
+| `issue-981-plan-grid.spec.ts` | Assert the approved thin separators and state icons; retain exact geometry, overflow, keyboard and no-write checks. |
+| `pace-marker.spec.ts` | Focus the category to reveal its progressive bar before checking the unchanged date marker. |
+| `plan-inspector.spec.ts` | Use the month heading for outside-click deselection because toolbar actions now preserve selection. |
 
 Independent review covered the complete implementation and test adaptations.
 Financial assertions, timeouts and tolerances were retained.
 
-## Local verification limits
+## Verification
 
-Chromium at 1440 and 390 passed the light/dark presentation, density and real
-undo/redo checks, including toast-action containment. The additional Windows
-WebKit run reached the existing 30-second limit during Axe/full-page screenshot
-work or reload/menu sequences. Traces did not show a financial assertion
-mismatch. Presentation, history and density now have separate focused cases; no timeout
-was increased. WebKit acceptance remains with the exact-head CI run.
+The fix passed 69 focused unit tests across eight files, typecheck, changed-file
+ESLint and Prettier. Chromium at 1440 and 390 passed the calm-row cases including
+expiry and removable filters (16 cases), and the merged sorting/archive/contact
+cases (14 cases); each spec ran separately with one worker. ON and OFF builds are
+checked separately. WebKit and complete regression acceptance remain with the
+exact-head CI run. No timeout, financial oracle or tolerance was relaxed.

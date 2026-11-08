@@ -124,6 +124,9 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   await source.getByLabel('Typ 1', { exact: true }).selectOption('reimbursement');
   await source.getByRole('button', { name: 'Zuordnung speichern' }).click();
   await expect(source).toContainText('PDF-Passwort hinterlegt');
+  await expect(toast(page)).toContainText('Gehaltsquelle gespeichert.');
+  await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).press('Escape');
+  await expect(toast(page)).toHaveCount(0);
   await inspectReport(page, info, 'payslip-source');
   await page.goto('/plan/monat/einnahmen?monat=2026-09');
   await expectIncomeHead(page, '2.975,00 €');

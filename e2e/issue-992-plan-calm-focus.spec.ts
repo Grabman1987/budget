@@ -153,7 +153,11 @@ for (const theme of ['light', 'dark'] as const) {
           await menu.locator('summary').click();
           const attention = menu.getByRole('button', { name: 'Braucht Aufmerksamkeit (2)' });
           await attention.click();
-          await expect(attention).toHaveAttribute('aria-pressed', 'true');
+          await expect(
+            page
+              .locator('.plan-filter-chips')
+              .getByRole('button', { name: /Braucht Aufmerksamkeit.*Filter entfernen/ }),
+          ).toHaveAttribute('aria-pressed', 'true');
           await expect(page).toHaveURL(/filter=attention/);
           await menu.locator('summary').press('Escape');
           await expect(page.locator('.prow:has(.pname)')).toHaveCount(2);
@@ -187,6 +191,7 @@ for (const theme of ['light', 'dark'] as const) {
               '.ptoolbar',
               '.ptoolbar .plan-menu-verteilen > summary',
               '.ptoolbar .plan-menu-optionen > summary',
+              '.ptable thead .plan-add',
             ]) {
               await page.evaluate(() => window.scrollTo(0, 0));
               await expect(head).not.toHaveClass(/is-compact/);

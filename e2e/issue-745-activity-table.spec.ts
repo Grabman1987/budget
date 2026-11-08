@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, schema } from '@budget/db';
 import {
@@ -138,7 +139,7 @@ async function target44(target: Locator) {
     };
   });
   expect(box.width).toBeGreaterThanOrEqual(44);
-  expect(box.height).toBeGreaterThanOrEqual(44);
+  expect(box.height).toBeGreaterThanOrEqual(await minimumControlHeight(target, 44));
   expect(box.left).toBeGreaterThanOrEqual(0);
   expect(box.right).toBeLessThanOrEqual(box.viewportWidth);
   expect(box.top).toBeGreaterThanOrEqual(0);

@@ -6,10 +6,13 @@ type Action = { label: 'Rückgängig' | 'Wiederholen'; run: () => void };
 const stores = new WeakMap<QueryClient, ReturnType<typeof createStore>>();
 function createStore() {
   let action: Action | null = null;
+  let revision = 0;
   const listeners = new Set<() => void>();
   return {
     snapshot: () => action,
+    revision: () => revision,
     set(next: Action | null) {
+      revision += 1;
       action = next;
       listeners.forEach((listener) => listener());
     },

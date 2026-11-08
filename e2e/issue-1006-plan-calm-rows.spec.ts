@@ -68,7 +68,7 @@ for (const theme of ['light', 'dark'] as const) {
       'Überfinanziert (0)',
       'Verfügbar (1)',
     ]);
-    await expect(page.getByRole('button', { name: 'Geld verteilen', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Geld verteilen', exact: true })).toHaveCount(1);
     const row = page.locator(`.prow:has([data-category-id="${ids[0]}"])`);
     await expect(row.locator('.spending-bar')).toHaveCSS('visibility', 'hidden');
     await expect(row.locator('.activity-link')).toHaveCSS('text-decoration-line', 'none');
@@ -166,3 +166,57 @@ for (const theme of ['light', 'dark'] as const) {
     expect(await (await request.get('/api/accounts')).json()).toEqual(accountsBefore);
   });
 }
+
+test('assignment undo expires with its toast and stays disabled after an unrelated preference change', async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  await openPlan(page, request, baseURL!, 'light');
+  await page.clock.install();
+  const toolbar = page.locator('.plan-calm-toolbar');
+  await toolbar.locator('.plan-menu-verteilen > summary').click();
+  await page.getByRole('button', { name: 'Leere füllen', exact: true }).click();
+  await expect(page.getByTestId('to-be-assigned')).toHaveText('970,00 €');
+  const undo = toolbar.getByRole('button', { name: 'Rückgängig', exact: true });
+  await expect(undo).toBeEnabled();
+  await page.clock.runFor(6001);
+  await expect(page.locator('.toast.is-open')).toHaveCount(0);
+  await expect(undo).toBeDisabled();
+  await toolbar.locator('.plan-menu-optionen > summary').click();
+  await toolbar.getByRole('button', { name: 'Minimal', exact: true }).click();
+  await expect(undo).toBeDisabled();
+  await expect(page.getByTestId('to-be-assigned')).toHaveText('970,00 €');
+});
+
+test('menu filters stay visible as removable pressed toolbar chips', async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  await openPlan(page, request, baseURL!, 'light');
+  const toolbar = page.locator('.plan-calm-toolbar');
+  for (const name of ['Braucht Aufmerksamkeit', 'Ohne Kategorie']) {
+    const filters = toolbar.getByRole('group', { name: 'Kategoriefilter' });
+    await filters.evaluate((element) => {
+      element.scrollLeft = element.scrollWidth;
+    });
+    await toolbar.locator('.plan-menu-optionen > summary').click();
+    await toolbar
+      .getByRole('group', { name: 'Weitere Filter' })
+      .getByRole('button', { name: new RegExp(name) })
+      .click();
+    const chip = toolbar
+      .getByRole('group', { name: 'Kategoriefilter' })
+      .getByRole('button', { name: new RegExp(name + '.*Filter entfernen') });
+    await expect(chip).toBeVisible();
+    await expect(chip).toHaveAttribute('aria-pressed', 'true');
+    await expect(chip).toBeInViewport();
+    await chip.click();
+    await expect(chip).toHaveCount(0);
+    await expect(toolbar.getByRole('button', { name: 'Alle (3)', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  }
+});

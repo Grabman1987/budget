@@ -20,6 +20,8 @@ export interface ToastOptions {
   /** e.g. "Rückgängig" */
   actionLabel?: string;
   onAction?: () => void;
+  /** Called once when this toast expires, is dismissed or is replaced. */
+  onDismiss?: () => void;
   /** Milliseconds until it disappears. Default 6000. */
   duration?: number;
 }
@@ -27,6 +29,8 @@ export interface ToastOptions {
 interface ToastApi {
   show: (options: ToastOptions) => void;
   dismiss: () => void;
+  /** Changes when feedback is shown or dismissed, including feedback from other writers. */
+  revision: () => number;
 }
 
 const ToastContext = createContext<ToastApi | null>(null);
@@ -63,13 +67,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const hovered = useRef(false);
   const focused = useRef(false);
   const seq = useRef(0);
+  const onDismiss = useRef<(() => void) | undefined>(undefined);
   const registered = useToastHosts();
 
   const dismiss = useCallback(() => {
+    seq.current += 1;
     clearTimeout(timer.current);
     hovered.current = false;
     focused.current = false;
     setOpen(false);
+    const notify = onDismiss.current;
+    onDismiss.current = undefined;
+    notify?.();
   }, []);
 
   const start = useCallback(() => {
@@ -79,6 +88,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const show = useCallback(
     (options: ToastOptions) => {
+      const notify = onDismiss.current;
+      onDismiss.current = options.onDismiss;
+      notify?.();
       duration.current = options.duration ?? DEFAULT_DURATION;
       seq.current += 1;
       setCurrent({ ...options, seq: seq.current, layers: getToastHosts() });
@@ -89,9 +101,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [start],
   );
 
-  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+      onDismiss.current?.();
+      onDismiss.current = undefined;
+    },
+    [],
+  );
 
-  const api = useMemo(() => ({ show, dismiss }), [show, dismiss]);
+  const revision = useCallback(() => seq.current, []);
+  const api = useMemo(() => ({ show, dismiss, revision }), [show, dismiss, revision]);
 
   const hold = (flag: { current: boolean }, on: boolean) => {
     flag.current = on;
@@ -133,8 +153,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 type="button"
                 onKeyDown={onActionKeyDown}
                 onClick={() => {
+                  const revision = seq.current;
                   current.onAction?.();
-                  dismiss();
+                  if (seq.current === revision) dismiss();
                 }}
               >
                 {current.actionLabel}

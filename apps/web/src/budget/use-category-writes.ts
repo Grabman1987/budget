@@ -38,69 +38,78 @@ export function useBudgetWrite() {
   const qc = useQueryClient();
   const toast = useToast();
   const history = planHistory(qc);
-  const offer = (message: string, label: 'Rückgängig' | 'Wiederholen', run: () => void) => {
+  const refresh = () =>
+    Promise.all(AFFECTED.map((queryKey) => qc.invalidateQueries({ queryKey: [...queryKey] })));
+
+  const offer = (message: string, label: 'Rückgängig' | 'Wiederholen', groupId: string) => {
     const action = {
       label,
       run: () => {
         if (history.snapshot() !== action) return;
         history.set(null);
         toast.dismiss();
-        run();
+        const revision = history.revision();
+        const toastRevision = toast.revision();
+        const current = () => history.revision() === revision && toast.revision() === toastRevision;
+        void (async () => {
+          try {
+            const undone = await undoGroup(groupId);
+            await refresh();
+            if (current() && label === 'Rückgängig')
+              offer('Rückgängig gemacht.', 'Wiederholen', undone.groupId);
+          } catch (error) {
+            // A later write owns the feedback; never resurrect an older action over it.
+            if (!current()) return;
+            offer(
+              `${label} nicht möglich. ${
+                error instanceof ApiError && error.code === 'undo_refused'
+                  ? 'Bitte prüfe den aktuellen Stand.'
+                  : errorText(error)
+              }`,
+              label,
+              groupId,
+            );
+          }
+        })();
       },
     };
-    history.set(action);
-    toast.show({ message, actionLabel: label, onAction: action.run });
-  };
-  const refresh = () =>
-    Promise.all(AFFECTED.map((queryKey) => qc.invalidateQueries({ queryKey: [...queryKey] })));
-
-  const failed = (action: 'Rückgängig' | 'Wiederholen', error: unknown) =>
     toast.show({
-      message: `${action} nicht möglich. ${
-        error instanceof ApiError && error.code === 'undo_refused'
-          ? 'Bitte prüfe den aktuellen Stand.'
-          : errorText(error)
-      }`,
+      message,
+      actionLabel: label,
+      onAction: action.run,
+      onDismiss: () => {
+        if (history.snapshot() === action) history.set(null);
+      },
     });
+    history.set(action);
+  };
 
   return async function write<T extends { groupId: string }>(
     run: () => Promise<T>,
     message: (result: T) => string,
   ): Promise<T | undefined> {
+    history.set(null);
+    toast.dismiss();
+    const revision = history.revision();
+    const toastRevision = toast.revision();
+    const current = () => history.revision() === revision && toast.revision() === toastRevision;
     try {
       const result = await run();
       await refresh();
+      if (!current()) return result;
       const hint =
         'toBeAssignedCents' in result && typeof result.toBeAssignedCents === 'number'
           ? overAssignmentHint(result.toBeAssignedCents)
           : undefined;
       // A stale quick-fill or an exhausted pool may produce no audit entries.
-      if ('changedCount' in result && result.changedCount === 0) {
+      if (!result.groupId || ('changedCount' in result && result.changedCount === 0)) {
         toast.show({ message: message(result) });
         return result;
       }
-      offer(
-        [message(result), hint].filter(Boolean).join(' · '),
-        'Rückgängig',
-        () =>
-          void undoGroup(result.groupId).then(
-            async (undone) => {
-              await refresh();
-              offer(
-                'Rückgängig gemacht.',
-                'Wiederholen',
-                () =>
-                  void undoGroup(undone.groupId).then(refresh, (error: unknown) =>
-                    failed('Wiederholen', error),
-                  ),
-              );
-            },
-            (error: unknown) => failed('Rückgängig', error),
-          ),
-      );
+      offer([message(result), hint].filter(Boolean).join(' · '), 'Rückgängig', result.groupId);
       return result;
     } catch (error) {
-      toast.show({ message: errorText(error) });
+      if (current()) toast.show({ message: errorText(error) });
       return undefined;
     }
   };
