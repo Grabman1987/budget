@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { categoryLineControl, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
@@ -37,7 +38,7 @@ async function saveWithin(dialog: Locator, top: number, height: number) {
   const bounds = (await save.boundingBox())!;
   expect(bounds.y).toBeGreaterThanOrEqual(top);
   expect(bounds.y + bounds.height).toBeLessThanOrEqual(top + height);
-  expect(bounds.height).toBeGreaterThanOrEqual(44);
+  expect(bounds.height).toBeGreaterThanOrEqual(await minimumControlHeight(save, 44));
   // The visible action must also receive a touch at its centre, not be covered by scrolling rows.
   expect(
     await save.evaluate((el) => {
@@ -89,9 +90,10 @@ test('capture keeps save visible with many lines, status, targets and both theme
     if (phone) {
       const bounds = (await dialog.boundingBox())!;
       expect(bounds.x).toBe(0);
-      expect(bounds.y).toBe(0);
+      const topInset = (await redesignLoaded(page)) ? 24 : 0;
+      expect(bounds.y).toBe(topInset);
       expect(bounds.width).toBe(390);
-      expect(bounds.height).toBe(height);
+      expect(bounds.height).toBe(height - topInset);
       const small = await dialog
         .locator('button, input:not([aria-hidden="true"]), select, textarea, summary')
         .evaluateAll((els) =>
@@ -165,5 +167,29 @@ test('desktop card stays bounded and phone save follows keyboard-sized visual vi
     await saveWithin(dialog, top!, height!);
     await dialog.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
     await expect(dialog.getByLabel('Betrag', { exact: true })).toHaveValue('120,00');
+  }
+  if (await redesignLoaded(page)) {
+    await page.evaluate(() => {
+      document.documentElement.style.setProperty('--mobile-safe-top', '47px');
+      document.documentElement.style.setProperty('--mobile-safe-bottom', '34px');
+    });
+    for (const top of [0, 80]) {
+      await page.evaluate((offsetTop) => {
+        Object.defineProperty(window.visualViewport!, 'offsetTop', {
+          configurable: true,
+          value: offsetTop,
+        });
+        window.visualViewport!.dispatchEvent(new Event('scroll'));
+      }, top);
+      // Only the portion of the notch still inside the panned viewport needs reserving.
+      const expectedTop = Math.max(47, top);
+      const bounds = (await dialog.boundingBox())!;
+      expect(bounds.y).toBe(expectedTop);
+      expect(bounds.y + bounds.height).toBe(top + 300);
+      await saveWithin(dialog, expectedTop, top + 300 - expectedTop - 34);
+      await expect(
+        dialog.getByRole('button', { name: 'Blatt schließen', exact: true }),
+      ).toBeHidden();
+    }
   }
 });

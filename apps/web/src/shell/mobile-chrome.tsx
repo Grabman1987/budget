@@ -12,6 +12,8 @@ import { MobileStatusLine } from './header-status';
 import { PrivacyButton } from './privacy-button';
 import { useFabVisible } from './use-fab-visible';
 import { REDESIGN_ENABLED } from './redesign-flag';
+import { InboxHeaderLink } from '../inbox/navigation';
+import { useInboxCount } from './inbox';
 
 /**
  * What the phone header shows, as in the prototype: the area name (the month switch and the strip
@@ -44,6 +46,7 @@ export function MobileHeader({
   onSearchChange?: (open: boolean) => void;
 }) {
   const identity = useShellIdentity();
+  const inbox = useInboxCount();
   const { pathname, search } = useLocation();
   const displayedTitle =
     REDESIGN_ENABLED &&
@@ -52,6 +55,7 @@ export function MobileHeader({
       ? 'Zielallokation und Stufen'
       : title;
   const showProfile = !REDESIGN_ENABLED || pathname === '/';
+  const compactHeute = REDESIGN_ENABLED && pathname === '/';
   const profileMenu = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const menu = profileMenu.current;
@@ -74,7 +78,7 @@ export function MobileHeader({
   }, [showProfile]);
   return (
     <>
-      <header className="m-head">
+      <header className={`m-head${compactHeute ? ' m-head-heute' : ''}`}>
         <div className="m-title">
           {asHeading ? (
             <h1 className="m-title-text">{displayedTitle}</h1>
@@ -83,6 +87,11 @@ export function MobileHeader({
           )}
         </div>
         <GlobalSearch mobile onOpenChange={onSearchChange} />
+        {compactHeute && (
+          <InboxHeaderLink className="m-review" aria-label={inbox.label}>
+            <span aria-hidden="true">{inbox.count ?? '…'}</span>
+          </InboxHeaderLink>
+        )}
         {showProfile && (
           <details className="m-profile" ref={profileMenu}>
             <summary
@@ -105,7 +114,7 @@ export function MobileHeader({
           </details>
         )}
       </header>
-      <MobileStatusLine />
+      {!compactHeute && <MobileStatusLine />}
     </>
   );
 }
@@ -120,7 +129,14 @@ export function TabBar({ area }: { area: AreaId | undefined }) {
           const Icon = a.icon;
           return (
             <AppLink key={a.id} to={a.to} aria-current={area === a.id ? 'page' : undefined}>
-              {Icon && <Icon className="icon" size={20} strokeWidth={1.5} aria-hidden="true" />}
+              {Icon && (
+                <Icon
+                  className="icon"
+                  size={REDESIGN_ENABLED ? 22 : 20}
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                />
+              )}
               {a.label}
             </AppLink>
           );

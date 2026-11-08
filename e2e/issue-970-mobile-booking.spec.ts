@@ -66,6 +66,11 @@ for (const mode of ['create', 'edit'] as const) {
     // and keep the amount focused, without scrolling or focusing the other fields into view.
     await page.setViewportSize({ width: 390, height: 430 });
     await amount.focus();
+    // Compact capture reclaims the handle and top gap while keeping the close button available.
+    await expect(dialog.getByRole('button', { name: 'Blatt schließen', exact: true })).toBeHidden();
+    await expect(dialog.getByRole('button', { name: 'Schließen', exact: true })).toBeInViewport({
+      ratio: 1,
+    });
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => {
         document.documentElement.dataset['theme'] = value;

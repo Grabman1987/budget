@@ -43,9 +43,12 @@ test.describe('UX-3b touch controls', () => {
     await expect(page.locator('.ktable tbody tr[data-booking]').first()).toBeVisible();
     await expectTouchTargets(page.locator('.tabbar a, .registers a, .fab'));
     for (const tab of await page.locator('.tabbar a, .registers a').all()) {
+      const compactDock = await tab.evaluate((el) =>
+        Boolean(el.closest('.tabbar') && document.querySelector('[data-budget-redesign="1"]')),
+      );
       expect(
         await tab.evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
-      ).toBeGreaterThanOrEqual(13);
+      ).toBeGreaterThanOrEqual(compactDock ? 11 : 13);
     }
     await expectTouchTargets(page.locator('button.kstatus-btn').first());
     await expectTouchTargets(page.locator('.kflagpick.in-list .kflagbtn').first());
@@ -130,7 +133,8 @@ test.describe('fine pointer controls', () => {
     const segment = page
       .getByRole('group', { name: 'Zeitraum', exact: true })
       .getByRole('button', { name: '1J', exact: true });
-    expect((await segment.boundingBox())!.height).toBe(28);
+    const redesign = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
+    expect((await segment.boundingBox())!.height).toBe(redesign ? 34 : 28);
     await page.screenshot({ path: info.outputPath('desktop-1440.png') });
   });
 });

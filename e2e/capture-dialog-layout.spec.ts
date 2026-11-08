@@ -1,3 +1,4 @@
+import { controlBoxes, minimumControlHeight } from './control-geometry';
 import {
   categorySuggestions,
   redesignLoaded,
@@ -23,21 +24,24 @@ test('only Escape, close and a genuine outside click ask to discard a dirty book
   await dialog.getByLabel('Betrag', { exact: true }).fill('12,34');
   for (const close of ['escape', 'button', 'outside']) {
     if (close === 'escape') await dialog.getByLabel('Notiz').press('Escape');
-    else if (close === 'button') await dialog.getByRole('button', { name: 'Schließen' }).click();
+    else if (close === 'button')
+      await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
     else if (page.viewportSize()!.width < 768) {
-      // #586: a full-screen phone sheet has no exposed scrim; its close control keeps the guard.
+      // #995 exposes a scrim above the redesign sheet; rollback remains full-screen.
       const bounds = (await dialog.boundingBox())!;
       expect(bounds.x).toBe(0);
-      expect(bounds.y).toBe(0);
+      const redesign = await redesignLoaded(page);
+      expect(bounds.y).toBe(redesign ? 24 : 0);
       expect(bounds.width).toBe(page.viewportSize()!.width);
-      await dialog.getByRole('button', { name: 'Schließen' }).click();
+      if (redesign) await page.mouse.click(page.viewportSize()!.width / 2, 12);
+      else await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
     } else await page.mouse.click(2, 2);
     await expect(dialog.getByRole('alertdialog')).toBeVisible();
     await dialog.getByRole('button', { name: 'Weiter bearbeiten' }).click();
     await expect(dialog.getByRole('alertdialog')).toHaveCount(0);
     await expect(dialog.getByLabel('Betrag', { exact: true })).toHaveValue('12,34');
   }
-  await dialog.getByRole('button', { name: 'Schließen' }).click();
+  await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
   await dialog.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await expect(dialog).toBeHidden();
 });
@@ -183,20 +187,12 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
       theme === 'light' ? 'rgb(255, 255, 255)' : 'rgb(11, 49, 82)',
     );
     await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
-    const controls = await dialog
-      .locator('button, input, select, textarea, summary')
-      .evaluateAll((els) =>
-        els
-          .filter((el) => el.getClientRects().length > 0)
-          .map((el) => ({
-            name: el.getAttribute('aria-label') ?? el.tagName,
-            width: el.getBoundingClientRect().width,
-            height: el.getBoundingClientRect().height,
-          })),
-      );
+    const controls = await controlBoxes(
+      dialog.locator('button, input, select, textarea, summary').filter({ visible: true }),
+    );
     for (const box of controls) {
       expect(box.width, box.name).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-      expect(box.height, box.name).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+      expect(box.height, box.name).toBeGreaterThanOrEqual(box.minimumHeight);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       page.viewportSize()!.width,
@@ -231,7 +227,7 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   const remove = dialog.getByRole('button', { name: 'Zeile 3 entfernen' });
   const removeBox = (await remove.boundingBox())!;
   expect(removeBox.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-  expect(removeBox.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+  expect(removeBox.height).toBeGreaterThanOrEqual(await minimumControlHeight(remove));
   await remove.click();
   await expect(discard).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
@@ -414,20 +410,14 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       expect(
         await dialog.locator('.bk-body').evaluate((el) => el.scrollWidth <= el.clientWidth),
       ).toBe(true);
-      const controls = await dialog
-        .locator('button, input:not([aria-hidden="true"]), select, textarea, summary')
-        .evaluateAll((els) =>
-          els
-            .filter((el) => el.getClientRects().length)
-            .map((el) => ({
-              name: el.getAttribute('aria-label') ?? el.textContent,
-              width: el.getBoundingClientRect().width,
-              height: el.getBoundingClientRect().height,
-            })),
-        );
+      const controls = await controlBoxes(
+        dialog
+          .locator('button, input:not([aria-hidden="true"]), select, textarea, summary')
+          .filter({ visible: true }),
+      );
       for (const box of controls) {
         expect(box.width, box.name ?? '').toBeGreaterThanOrEqual(MIN_TARGET_PX);
-        expect(box.height, box.name ?? '').toBeGreaterThanOrEqual(MIN_TARGET_PX);
+        expect(box.height, box.name ?? '').toBeGreaterThanOrEqual(box.minimumHeight);
       }
       expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
         [],

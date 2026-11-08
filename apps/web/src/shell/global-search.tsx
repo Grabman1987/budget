@@ -4,6 +4,7 @@ import {
   TitleBlock,
   setAmountsHidden,
   WideDialog,
+  MobileSheetContext,
 } from '@budget/ui';
 import { closeEntryMonth, matchesSearch, todayInVienna } from '@budget/domain';
 import type { GlobalSearchResult, SearchKind } from '@budget/db';
@@ -226,9 +227,11 @@ export function GlobalSearch({
         )}
       </button>
       <div className="search-overlay-host">
-        <WideDialog open={palette} onClose={() => changePalette(false)} title="Suchen">
-          {palette && <SearchResults sourceHref={source} onClose={() => changePalette(false)} />}
-        </WideDialog>
+        <MobileSheetContext.Provider value={false}>
+          <WideDialog open={palette} onClose={() => changePalette(false)} title="Suchen">
+            {palette && <SearchResults sourceHref={source} onClose={() => changePalette(false)} />}
+          </WideDialog>
+        </MobileSheetContext.Provider>
       </div>
       <KeyboardShortcuts open={help} onClose={() => setHelp(false)} />
     </>

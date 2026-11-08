@@ -64,6 +64,55 @@
   line-height: var(--lh-table);
   background: var(--surface);
 }
+/* Secondary ink dims checked rows without reducing text/control contrast via opacity. */
+.ktx.ktx-redesign tr.is-reconciled:not(.is-selected):not(:has(.kcat.is-none)) > td {
+  color: var(--ink-2);
+}
+.ktx.ktx-redesign tr[data-booking]:has(.kcat.is-none):not(.is-selected),
+.ktx.ktx-redesign tr[data-booking]:has(.kcat.is-none):not(.is-selected) > td {
+  background: var(--warning-soft);
+}
+.ktx.ktx-redesign .kcat.is-none {
+  color: var(--warning);
+}
+@media (max-width: 767px) {
+  .ktx.ktx-redesign.ktx-all .kname-s {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* Keep the warning on the second line; ancillary metadata yields its space. */
+  .ktx.ktx-redesign .kaccount-mobile-meta:has(.kcat.is-none) {
+    flex-wrap: nowrap;
+  }
+  .ktx.ktx-redesign .kaccount-mobile-meta > .kcat.is-none {
+    order: -1;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .ktx.ktx-redesign .kaccount-mobile-meta:has(.kcat.is-none) > [aria-hidden='true'] {
+    display: none;
+  }
+  .ktx.ktx-redesign .kaccount-mobile-meta:has(.kcat.is-none) > .kx-mobile-note {
+    display: none;
+  }
+  .ktx.ktx-redesign .kaccount-mobile-meta:has(.kcat.is-none) > .kmeta-account {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ktx.ktx-redesign .kaccount-mobile-meta .kcat-split-description {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
 .ktx-redesign thead th {
   height: 28px;
   border-bottom: 1px solid var(--rule-strong);
@@ -140,6 +189,11 @@
     padding: 0;
     min-height: 48px;
   }
+  /* Let missing-category text use spare amount-column space beside the details button.
+     Amounts keep their full width and right edge; both outer controls stay 44px. */
+  .ktx-redesign.ktx-all tr[data-booking]:not(.is-upcoming):has(.kcat.is-none) {
+    grid-template-columns: 44px minmax(0, 1fr) minmax(44px, max-content) 44px;
+  }
   .ktx-redesign.ktx-all tr[data-booking]:not([data-selection-mode='1']) .kx-check,
   .ktx-redesign.ktx-all tr[data-booking][data-selection-mode='1'] .kx-flag {
     display: none;
@@ -206,6 +260,52 @@
   min-height: 44px;
   display: flex;
   align-items: center;
+}
+
+/* Native phone list: quiet date groups and inset row separators, with the same row controls. */
+.kregister-day {
+  display: none;
+}
+@media (max-width: 767px) {
+  .ktx.ktx-redesign .kmonth,
+  .ktx.ktx-redesign .kregister-inline-date {
+    display: none;
+  }
+  .ktx.ktx-redesign .kregister-day {
+    display: block;
+  }
+  .ktx.ktx-redesign .kregister-day > th {
+    display: block;
+    padding: 12px 12px 4px;
+    border: 0;
+    background: var(--surface-2);
+    color: var(--ink-2);
+    font-size: var(--fs-meta);
+    font-weight: 500;
+    text-align: left;
+  }
+  .ktx.ktx-redesign .kname-btn > .kname-s {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ktx.ktx-redesign .kaccount-mobile-meta .kcat {
+    font-size: inherit;
+    line-height: inherit;
+  }
+  .ktx.ktx-redesign tr[data-booking]:not(.is-upcoming) {
+    position: relative;
+    border-bottom: 0;
+  }
+  .ktx.ktx-redesign tr[data-booking]:not(.is-upcoming)::after {
+    content: '';
+    position: absolute;
+    inset: auto 12px 0 48px;
+    height: 1px;
+    background: var(--rule);
+    pointer-events: none;
+  }
 }
 .register-day-totals dl > div {
   display: flex;

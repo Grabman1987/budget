@@ -230,9 +230,6 @@
   grid-column: 3;
   grid-row: 1 / span 2;
 }
-[data-budget-redesign='1'] .report-hub-v2 .report-hub-groups button {
-  min-height: 44px;
-}
 [data-budget-redesign='1'] .report-hub-v2 .report-hub-aliases,
 [data-budget-redesign='1'] .report-hub-v2 .report-hub-moved {
   display: flex;

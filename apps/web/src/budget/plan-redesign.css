@@ -128,42 +128,57 @@
 .plan-month-v2 .prow[data-plan-class] > .col-name {
   box-shadow: inset 2px 0 var(--plan-class);
 }
-.plan-month-v2 .prow[data-plan-state='met'] {
-  --plan-bar: var(--primary);
-}
-.plan-month-v2 .prow[data-plan-state='overfunded'] {
-  --plan-bar: var(--good);
-}
 .plan-month-v2 .prow[data-plan-state='open'] {
   --plan-bar: var(--warning);
 }
 .plan-month-v2 .prow[data-plan-state='overspent'] {
   --plan-bar: var(--red);
 }
-.plan-month-v2 .prow[data-plan-state='neutral'] {
-  --plan-bar: var(--ink-3);
-}
-.plan-month-v2 .prow .spending-bar {
+.plan.plan-month-v2 .ptable-zero .prow .spending-bar {
   background: color-mix(in srgb, var(--plan-bar) 15%, transparent);
 }
-.plan-month-v2 .prow .spending-bar .pbar-fill {
-  background-color: var(--plan-bar);
+.plan.plan-month-v2 .ptable-zero .prow .spending-bar .pbar-fill {
+  background: var(--plan-bar);
 }
-.plan-month-v2 .prow[data-plan-state='met'] .col-avail .pill {
-  background: var(--tint);
-  color: var(--primary);
+/* Fully covered categories keep an empty track; only missing money needs colour. */
+.plan.plan-month-v2
+  .ptable-zero
+  .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
+  .spending-bar {
+  background: var(--rule);
 }
-.plan-month-v2 .prow[data-plan-state='open'] .col-avail .pill {
+.plan.plan-month-v2
+  .ptable-zero
+  .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
+  .spending-bar
+  > .pbar-fill {
+  display: none;
+}
+.plan-month-v2
+  .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
+  > .col-name {
+  box-shadow: none;
+}
+.plan.plan-month-v2 .ptable-zero .prow[data-plan-state='open'] .col-avail .pill {
   background: var(--warning-soft);
   color: var(--warning);
 }
-.plan-month-v2 .prow[data-plan-state='overfunded'] .col-avail .pill {
-  background: var(--good-soft);
-  color: var(--on-good-soft);
-}
-.plan-month-v2 .prow[data-plan-state='neutral'] .col-avail .pill {
+.plan.plan-month-v2
+  .ptable-zero
+  .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
+  .col-avail
+  .pill {
   background: var(--quiet-soft);
   color: var(--ink-2);
+}
+@media (hover: hover) and (min-width: 768px) {
+  .plan.plan-month-v2 .ptable .prow:not(.is-selected):hover > td {
+    background: var(--tint);
+  }
+}
+/* A header height change must not masquerade as an opposite user scroll. */
+.plan-month-frame {
+  overflow-anchor: none;
 }
 .plan-month-v2 .prow[data-plan-state='overspent'] .col-avail .pill {
   background: var(--red-soft);
@@ -334,6 +349,7 @@
 .plan-month-frame .plan-month-v2 .plan-grid > .plan-topbar-v2 {
   grid-column: 1 / -1;
   position: sticky;
+  align-self: start;
   top: 64px;
   z-index: 20;
   box-sizing: border-box;
@@ -341,6 +357,9 @@
   border: 1px solid var(--card-border);
   border-radius: var(--radius-md);
   background-color: var(--ground);
+}
+.plan-month-frame .plan-month-v2 .plan-grid {
+  grid-template-rows: minmax(var(--plan-head-height, 0px), auto);
 }
 .plan-month-frame .plan-reference-lead-layout {
   display: flex;
@@ -418,6 +437,10 @@
   min-height: 56px;
   padding-block: var(--space-xs);
   background-color: var(--ground);
+  pointer-events: none;
+}
+.plan-month-frame .plan-topbar-v2.is-compact :is(button, summary, .plan-popover-content) {
+  pointer-events: auto;
 }
 .plan-month-frame .plan-topbar-v2.is-compact .plan-reference-lead-layout {
   display: block;
@@ -459,7 +482,7 @@
   font-size: var(--fs-body);
   line-height: var(--lh-body);
 }
-.plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls > .btn {
+.plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls > :is(.btn, .plan-menu-verteilen) {
   grid-column: 3;
   justify-self: end;
   min-height: var(--touch);
@@ -490,7 +513,10 @@
     max-width: 100%;
     white-space: normal;
   }
-  .plan-month-frame .plan-topbar-v2.is-compact .plan-lead-controls > .btn {
+  .plan-month-frame
+    .plan-topbar-v2.is-compact
+    .plan-lead-controls
+    > :is(.btn, .plan-menu-verteilen) {
     grid-column: 1;
     grid-row: 2;
     justify-self: center;
@@ -819,9 +845,12 @@
 }
 
 @media (max-width: 767px) {
-  /* Native scroll alignment must clear the compact two-row head and the phone action dock. */
+  /* Upward native scrolling expands the lead. Reserve its measured full height at
+     the root: WebKit's scrollIntoViewIfNeeded does not reliably use target margins. */
   html:has(.plan-month-frame .plan-month-v2) {
-    scroll-padding-block: calc(64px + 104px + var(--space-sm))
+    scroll-padding-block: calc(
+        64px + max(104px, var(--plan-scroll-head-height, 104px)) + var(--space-sm)
+      )
       calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + var(--space-lg));
   }
   /* The root supplies head/dock clearance; selection only adds its own action-bar height. */
@@ -866,4 +895,131 @@
     flex: 0 1 200px;
     min-width: var(--touch);
   }
+}
+.plan-month-frame .plan-lead-controls > .plan-menu-verteilen {
+  flex: none;
+}
+.plan-month-frame .plan-menu-verteilen > summary {
+  background: var(--primary);
+  color: var(--on-primary);
+  min-height: var(--touch);
+  white-space: nowrap;
+}
+.plan-month-frame .plan-menu-verteilen .plan-menu-panel {
+  color: var(--ink);
+  text-align: left;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.plan-month-v2 .plan-group-sort {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+.plan-month-v2 .plan-group-sort .cat-grip {
+  width: var(--touch);
+  height: var(--touch);
+  cursor: grab;
+}
+.plan-month-v2 .plan-group-step {
+  display: none;
+}
+.plan-month-v2 .plan-group-step button {
+  min-width: var(--touch);
+  min-height: var(--touch);
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+}
+.plan-month-v2 .plan-group-step button:disabled {
+  color: var(--ink-3);
+}
+@media (hover: hover) and (pointer: fine) {
+  .plan-month-v2 .plan-group-sort .cat-grip {
+    opacity: 0;
+  }
+  .plan-month-v2 .pgroup:hover .cat-grip,
+  .plan-month-v2 .pgroup:focus-within .cat-grip {
+    opacity: 1;
+  }
+}
+@media (min-width: 768px) {
+  .plan-month-frame .plan-month-v2 .ptable-zero .psingle:not(.is-empty) .col-name {
+    grid-template-columns: var(--touch) var(--touch) minmax(var(--touch), 1fr) var(--touch) minmax(
+        0,
+        1fr
+      );
+  }
+  .plan-month-v2 .pgroup:not(.psingle) .plan-group-sort .cat-grip {
+    height: 28px;
+    min-height: 28px;
+  }
+  .plan-month-v2 .pgroup:not(.psingle) .grp-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .plan-month-v2 .ptable-zero .psingle .plan-group-sort {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .plan-month-v2 .ptable-zero .psingle .plan-select {
+    grid-column: 2;
+  }
+  .plan.plan-month-v2 .ptable-zero .psingle .pname {
+    grid-column: 3;
+  }
+  .plan.plan-month-v2 .ptable-zero .psingle .plan-add {
+    grid-column: 4;
+  }
+  .plan-month-frame .plan-month-v2 .ptable-zero .psingle .spending-status {
+    grid-column: 5;
+    grid-row: 1;
+  }
+  .plan.plan-month-v2 .ptable-zero .psingle .spending-bar {
+    grid-column: 3 / -1;
+    grid-row: 2;
+  }
+}
+@media (max-width: 767px), (pointer: coarse) {
+  .plan-month-v2 .plan-group-sort .cat-grip {
+    opacity: 1;
+  }
+  .plan-month-v2 .plan-group-sort[data-open='true'] .plan-group-step {
+    display: inline-flex;
+  }
+  .plan-month-v2 .group-heading {
+    flex-wrap: wrap;
+  }
+}
+.plan-month-v2 .plan-contact-advances {
+  border-top: 1px solid var(--rule);
+  padding: var(--space-md);
+}
+.plan-contact-advances summary {
+  min-height: var(--touch);
+  align-content: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+.plan-contact-advances p {
+  color: var(--ink-2);
+}
+.plan-contact-advances ul {
+  list-style: none;
+  padding: 0;
+}
+.plan-contact-advances li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  border-top: 1px solid var(--rule);
+  font-variant-numeric: tabular-nums;
+}
+.plan-contact-advances a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
 }

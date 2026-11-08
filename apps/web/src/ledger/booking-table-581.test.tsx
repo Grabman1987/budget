@@ -120,6 +120,89 @@ function setup(
   return { ...view, onOpen };
 }
 
+it.each([false, true])(
+  'marks incomplete expense splits only ON (%s) and retains classified/transfer/contact/income splits',
+  (enabled) => {
+    flags.REDESIGN_ENABLED = enabled;
+    const assigned = {
+      ...booking.splits[0]!,
+      id: 'assigned',
+      categoryId: 'category',
+      categoryName: 'Synthetic category',
+      amountCents: -1000,
+    };
+    const remainder = { ...booking.splits[0]!, id: 'remainder', amountCents: -234 };
+    try {
+      const { container } = setup([
+        { ...booking, id: 'partial', status: 'reconciled', splits: [assigned, remainder] },
+        {
+          ...booking,
+          id: 'classified',
+          splits: [assigned, { ...remainder, categoryId: 'category' }],
+        },
+        {
+          ...booking,
+          id: 'transfer-split',
+          splits: [assigned, { ...remainder, transferId: 'transfer' }],
+        },
+        {
+          ...booking,
+          id: 'contact-split',
+          splits: [assigned, { ...remainder, contactId: 'contact' }],
+        },
+        {
+          ...booking,
+          id: 'income-split',
+          amountCents: 1234,
+          splits: [
+            { ...assigned, amountCents: 1000 },
+            { ...remainder, amountCents: 234 },
+          ],
+        },
+      ]);
+      expect(Boolean(container.querySelector('[data-booking="partial"] .kcat.is-none'))).toBe(
+        enabled,
+      );
+      for (const id of ['classified', 'transfer-split', 'contact-split', 'income-split'])
+        expect(container.querySelector(`[data-booking="${id}"] .kcat.is-none`)).toBeNull();
+    } finally {
+      flags.REDESIGN_ENABLED = false;
+    }
+  },
+);
+
+it.each(['account', 'all'] as const)(
+  'groups the redesign phone %s list by supplied dates without changing rows',
+  (variant) => {
+    flags.REDESIGN_ENABLED = true;
+    try {
+      const items = [
+        booking,
+        { ...booking, id: 'same-day' },
+        { ...booking, id: 'previous-day', date: '2026-10-01' },
+      ];
+      const { container, onOpen } = setup(items, variant);
+      const days = [...container.querySelectorAll('.kregister-day')];
+      expect(days.map((day) => day.getAttribute('data-day'))).toEqual(['2026-10-02', '2026-10-01']);
+      expect(
+        days.map((day) => day.parentElement?.querySelectorAll('[data-booking]').length),
+      ).toEqual([2, 1]);
+      expect(
+        [...container.querySelectorAll('[data-booking]')].map((row) =>
+          row.getAttribute('data-booking'),
+        ),
+      ).toEqual(items.map((item) => item.id));
+      expect(container.querySelectorAll('.kx-outgoing')).toHaveLength(3);
+      for (const amount of container.querySelectorAll('.kx-outgoing'))
+        expect(amount.textContent).toContain('−12,34 €');
+      fireEvent.click(container.querySelector('.kaccount-mobile-meta')!);
+      expect(onOpen).toHaveBeenCalledWith(booking);
+    } finally {
+      flags.REDESIGN_ENABLED = false;
+    }
+  },
+);
+
 it('uses the supplied closing day balance, one phone metadata line, and a final status column', () => {
   const { container } = setup([booking, { ...booking, id: 'earlier', balanceAfterCents: 100000 }]);
   const group = container.querySelector('.kaccount-day')!;
@@ -169,6 +252,33 @@ it('keeps reconciled category and status read-only and delegates the amount to d
   expect(onOpen).toHaveBeenCalledWith(locked);
   expect(screen.queryByLabelText('Betrag bearbeiten')).toBeNull();
 });
+
+it.each([false, true])(
+  'adds checked-row presentation only ON (%s) without changing lock or amounts',
+  (enabled) => {
+    flags.REDESIGN_ENABLED = enabled;
+    try {
+      const { container } = setup([
+        { ...booking, status: 'reconciled' },
+        { ...booking, id: 'confirmed' },
+        { ...booking, id: 'income', amountCents: 1234 },
+        { ...booking, id: 'transfer', transferId: 'synthetic-transfer' },
+      ]);
+      const checked = container.querySelector('[data-booking="sample"]')!;
+      expect(checked.classList.contains('is-reconciled')).toBe(enabled);
+      expect(checked.textContent).toContain('−12,34 €');
+      expect(checked.querySelector('.kcat.is-none')?.textContent).toContain('ohne Kategorie');
+      expect(within(checked as HTMLElement).getByRole('img', { name: 'geprüft' })).toBeTruthy();
+      expect(
+        container.querySelector('[data-booking="confirmed"]')!.classList.contains('is-reconciled'),
+      ).toBe(false);
+      expect(container.querySelector('[data-booking="income"] .kcat.is-none')).toBeNull();
+      expect(container.querySelector('[data-booking="transfer"] .kcat.is-none')).toBeNull();
+    } finally {
+      flags.REDESIGN_ENABLED = false;
+    }
+  },
+);
 
 it('does not add account day balances or phone metadata to Alle Buchungen', () => {
   const { container } = setup([booking], 'all');

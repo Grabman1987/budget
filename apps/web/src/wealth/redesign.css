@@ -1201,7 +1201,7 @@
 /* Leave room to scroll the last action above the existing phone dock and Undo toast. */
 @media (max-width: 767px) {
   [data-budget-redesign='1'] .sheet:has(> .wealth-redesign) {
-    padding-bottom: calc(240px + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 117px);
   }
   .wealth-redesign :is(a, button, summary, input, select) {
     scroll-margin-block: 100px 220px;

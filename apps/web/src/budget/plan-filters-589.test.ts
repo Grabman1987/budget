@@ -81,11 +81,21 @@ it('uses independent literal ID sets for every filter and retains the real hidde
   const visible = rows.filter((row) => !row.id.startsWith('hidden'));
   expect(filterPlanRows(visible, 'all').map((row) => row.id)).toEqual(['A', 'B', 'C', 'E']);
   expect(filterPlanRows(visible, 'underfunded').map((row) => row.id)).toEqual(['A']);
+  expect(filterPlanRows(visible, 'attention').map((row) => row.id)).toEqual(['A', 'E']);
   expect(filterPlanRows(visible, 'overspent').map((row) => row.id)).toEqual(['A', 'E']);
   expect(filterPlanRows(visible, 'available').map((row) => row.id)).toEqual(['B']);
   expect(filterPlanRows(visible, 'uncategorized')).toEqual([]);
   expect(filterPlanRows(rows, 'all').some((row) => row.id === 'hidden-empty')).toBe(false);
   expect(filterPlanRows(rows, 'available').map((row) => row.id)).toEqual(['B', 'hidden-balance']);
+});
+
+it('attention includes an unfunded positive balance and both overspending kinds once, in row order', () => {
+  const rows = planRows(fixture());
+  rows.find((row) => row.id === 'B')!.needCents = 100;
+  rows.find((row) => row.id === 'E')!.creditOverspentCents = 100;
+  expect(filterPlanRows(rows, 'attention').map((row) => row.id)).toEqual(['A', 'B', 'E']);
+  expect(validatePlanFilterSearch({ filter: 'attention' }).filter).toBe('attention');
+  expect(rows.find((row) => row.id === 'B')!.availableCents).toBe(200);
 });
 
 it('normalizes only presentation search and validates URL values without inventing a filter', () => {

@@ -250,9 +250,7 @@ test.describe('routes', () => {
     await expect(
       page.getByRole('group', { name: 'Berichtsgruppen' }).getByRole('button'),
     ).toHaveText(
-      redesign
-        ? ['Alle', 'Berichte', 'Auswertungen', 'Portfolio', 'Einnahmen und Ausgaben']
-        : ['Alle', 'Einnahmen/Ausgaben', 'Vermögen', 'Portfolio', 'Berichte'],
+      redesign ? [] : ['Alle', 'Einnahmen/Ausgaben', 'Vermögen', 'Portfolio', 'Berichte'],
     );
     await expect(page.locator('.report-hub-number')).toHaveText([
       '1',
@@ -393,7 +391,7 @@ test.describe('panel via route param', () => {
     await page.goto('/konten');
     await page.goto('/plan/monat');
     await openBookingPanel(page, testInfo);
-    await page.getByRole('button', { name: 'Schließen' }).click();
+    await page.getByRole('button', { name: 'Schließen', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
     await page.goBack();
     await expect(page).toHaveURL(/\/konten$/);
@@ -568,14 +566,15 @@ test.describe('phone shell', () => {
     await expect(page.locator('.topbar')).toBeHidden();
     const tabs = page.locator('.tabbar a');
     await expect(tabs).toHaveText(['Heute', 'Plan', 'Konten', 'Vermögen', 'Reports']);
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     const bar = await page.locator('.tabbar').boundingBox();
-    expect(Math.round(bar?.height ?? 0)).toBe(64);
+    // With no home indicator, ON reserves 44px targets plus 8px bottom padding.
+    expect(Math.round(bar?.height ?? 0)).toBe(redesign ? 52 : 64);
     const fab = await page.locator('.fab').boundingBox();
     expect(Math.round(fab?.width ?? 0)).toBe(58);
     expect(Math.round(fab?.height ?? 0)).toBe(58);
     // The header names the area; the month (with its switch) sits in the strip below.
     await expect(page.locator('.m-head .m-title-text')).toHaveText('Heute');
-    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     await expect(
       redesign
         ? page
