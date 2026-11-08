@@ -14,6 +14,16 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MobileHeader } from './mobile-chrome';
 
 const flag = vi.hoisted(() => ({ enabled: true }));
+const inbox = vi.hoisted(() => ({ count: 4 as number | undefined }));
+vi.mock('./inbox', () => ({
+  useInboxCount: () => ({
+    count: inbox.count,
+    label:
+      inbox.count === undefined
+        ? 'Prüfen, Anzahl noch nicht verfügbar'
+        : `Prüfen, ${inbox.count} offen`,
+  }),
+}));
 vi.mock('./redesign-flag', () => ({
   get REDESIGN_ENABLED() {
     return flag.enabled;
@@ -22,6 +32,7 @@ vi.mock('./redesign-flag', () => ({
 const clients: QueryClient[] = [];
 beforeEach(() => {
   flag.enabled = true;
+  inbox.count = 4;
   setAmountsHidden(false);
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query.includes('max-width'),
@@ -86,6 +97,21 @@ it('ON exposes the phone profile only on Heute and opens the grouped settings in
   );
   expect(screen.getByRole('button', { name: 'Suchen' })).toBeTruthy();
 });
+
+it.each([0, 4, undefined])(
+  'ON keeps the Heute review count %s accessible in the header',
+  async (count) => {
+    inbox.count = count;
+    mount('/');
+    const header = await screen.findByRole('banner');
+    const review = within(header).getByRole('link', {
+      name: count === undefined ? 'Prüfen, Anzahl noch nicht verfügbar' : `Prüfen, ${count} offen`,
+    });
+    expect(review.textContent).toBe(count === undefined ? '…' : String(count));
+    expect(review.getAttribute('href')).toMatch(/^\/konten\/pruefen/);
+    expect(document.querySelector('.m-status')).toBeNull();
+  },
+);
 
 it('ON removes the avatar on other pages but keeps a touch search entry', async () => {
   mount('/plan/monat');

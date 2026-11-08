@@ -18,7 +18,7 @@ export function ReportHub({ initialGroup }: { initialGroup?: HubGroup | undefine
   const [group, setGroup] = useState<HubGroup | undefined>(initialGroup);
   const [search, setSearch] = useState('');
   const [recent] = useState(recentReports);
-  const reports = matchingHubReports(search, group);
+  const reports = matchingHubReports(search, REDESIGN_ENABLED ? undefined : group);
   const row = (report: HubReport) => (
     <li key={report.id} value={report.no}>
       <AppLink to={`/reports/${report.id}`}>
@@ -80,26 +80,32 @@ export function ReportHub({ initialGroup }: { initialGroup?: HubGroup | undefine
             />
           </label>
         </div>
-        <div className="report-hub-groups" role="group" aria-label="Berichtsgruppen">
-          <button type="button" aria-pressed={!group} onClick={() => setGroup(undefined)}>
-            Alle
-          </button>
-          {HUB_GROUPS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              aria-pressed={group === item.id}
-              onClick={() => setGroup(item.id)}
-            >
-              {item.name}
+        {!REDESIGN_ENABLED && (
+          <div className="report-hub-groups" role="group" aria-label="Berichtsgruppen">
+            <button type="button" aria-pressed={!group} onClick={() => setGroup(undefined)}>
+              Alle
             </button>
-          ))}
-        </div>
+            {HUB_GROUPS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={group === item.id}
+                onClick={() => setGroup(item.id)}
+              >
+                {item.name}
+              </button>
+            ))}
+          </div>
+        )}
         <p className="sr-only" role="status">
           {reports.length} von 16 Berichten
         </p>
         {reports.length === 0 ? (
-          <p>Kein Bericht passt zu dieser Suche und Gruppe.</p>
+          <p>
+            {REDESIGN_ENABLED
+              ? 'Kein Bericht passt zu dieser Suche.'
+              : 'Kein Bericht passt zu dieser Suche und Gruppe.'}
+          </p>
         ) : REDESIGN_ENABLED ? (
           <div className="report-hub-columns">
             {HUB_GROUPS.map((item) => {

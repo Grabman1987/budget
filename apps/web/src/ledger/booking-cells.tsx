@@ -113,15 +113,43 @@ export function CategoryCell({
   const accounts = useQuery(accountsQuery());
   const investment =
     accounts.data?.accounts.find((a) => a.id === booking.accountId)?.role === 'investment';
+  const missingExpenseSplit = booking.splits.some(
+    (split) =>
+      split.amountCents < 0 &&
+      !split.categoryId &&
+      !split.transferId &&
+      !split.contactId &&
+      !split.incomeTypeId,
+  );
   const trades = useQuery({
     ...depotTradesQuery(),
-    enabled: investment && !booking.splits[0]?.categoryId,
+    enabled:
+      investment && (!booking.splits[0]?.categoryId || (REDESIGN_ENABLED && missingExpenseSplit)),
   });
   if (booking.splits.length > 1) {
+    const missingCategory =
+      REDESIGN_ENABLED &&
+      !booking.transferId &&
+      booking.amountCents <= 0 &&
+      booking.payeeSystemKind !== 'reconciliation_adjustment' &&
+      booking.payeeSystemKind !== 'manual_adjustment' &&
+      missingExpenseSplit &&
+      !(investment && trades.data?.trades.some((trade) => trade.bookingId === booking.id));
     return (
-      <span className="kcat">
-        <Split className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
-        Aufgeteilt ({booking.splits.length})
+      <span className={missingCategory ? 'kcat is-none' : 'kcat'}>
+        {missingCategory ? (
+          <TriangleAlert className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
+        ) : (
+          <Split className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
+        )}
+        {missingCategory ? (
+          <>
+            <span className="kcat-split-description">Aufgeteilt ({booking.splits.length}) · </span>
+            ohne Kategorie
+          </>
+        ) : (
+          <>Aufgeteilt ({booking.splits.length})</>
+        )}
       </span>
     );
   }
