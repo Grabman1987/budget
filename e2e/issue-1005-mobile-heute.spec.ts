@@ -27,7 +27,10 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(page.locator('.hv-revisions tbody tr').first()).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     const amounts = page.locator('.hv-revisions tbody .hv-task-amount');
-    await expect(page.getByRole('columnheader', { name: 'Betrag', exact: true })).toBeVisible();
+    const amountHeading = page.getByRole('columnheader', { name: 'Betrag', exact: true });
+    // Narrow rows retain accessible headings while the action moves below title and amount.
+    await expect(amountHeading).toHaveText('Betrag');
+    if (!isMobile) await expect(amountHeading).toBeVisible();
     expect(
       await amounts.evaluateAll((items) =>
         items.every((el) => getComputedStyle(el).whiteSpace === 'nowrap'),
@@ -52,6 +55,7 @@ for (const theme of ['light', 'dark'] as const) {
       const period = (await page.locator('.hv-head-phone .seg').boundingBox())!;
       expect(month.y).toBe(period.y);
       expect(month.x + month.width).toBeLessThanOrEqual(period.x);
+      await expect(page.locator('.hv-head-phone .month-name')).toHaveText('September 2026');
       await expect(page.locator('.hv-head-phone .seg')).toHaveCSS('height', '44px');
       expect(
         await page.locator('.hv-head-phone .seg').evaluate((el) => {
@@ -70,7 +74,7 @@ for (const theme of ['light', 'dark'] as const) {
             document.documentElement.style.setProperty('--mobile-safe-bottom', `${bottom}px`),
           safe,
         );
-        await expect(dock).toHaveCSS('height', safe ? '78px' : '64px');
+        await expect(dock).toHaveCSS('height', safe ? '78px' : '52px');
         const dockBox = (await dock.boundingBox())!;
         const links = await dock.getByRole('link').evaluateAll((items) =>
           items.map((el) => ({
@@ -162,17 +166,21 @@ for (const theme of ['light', 'dark'] as const) {
     isMobile,
   }) => {
     await page.emulateMedia({ colorScheme: theme });
+    if (isMobile) await page.setViewportSize({ width: 375, height: 844 });
     await openHeute(page);
     const controls = page.locator(isMobile ? '.hv-head-phone' : '.topbar .hv-head');
+    await expect(controls.locator('.month-name')).toHaveText('September 2026');
     await controls.getByRole('button', { name: 'Monat', exact: true }).click();
     await expect(page).toHaveURL(/period=month/);
     await controls.getByRole('button', { name: 'Vormonat', exact: true }).click();
     await expect(page).toHaveURL(/monat=2026-08/);
+    await expect(controls.locator('.month-name')).toHaveText('August 2026');
     await expect(controls.getByRole('button', { name: 'Bis Gehalt', exact: true })).toBeDisabled();
     const month = (await controls.locator('.month-switch').boundingBox())!;
     const period = (await controls.locator('.seg').boundingBox())!;
     expect(month.y + month.height / 2).toBe(period.y + period.height / 2);
     expect(month.x + month.width).toBeLessThanOrEqual(period.x);
+    expect(period.x + period.width).toBeLessThanOrEqual(page.viewportSize()!.width);
     await controls.getByRole('button', { name: 'Zum aktuellen Monat' }).click();
     await expect(page).toHaveURL(/monat=2026-09/);
     await page.locator(isMobile ? '.m-review' : '.topbar .review-pill').click();
@@ -181,3 +189,20 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(page).toHaveURL(/monat=2026-09/);
   });
 }
+
+test('full non-current month and return control fit the 375px phone header', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 844 });
+  await page.goto('/?monat=2025-09&period=month');
+  const controls = page.locator('.hv-head-phone');
+  await expect(controls.locator('.month-name')).toHaveText('September 2025');
+  await expect(controls.getByRole('button', { name: 'Zum aktuellen Monat' })).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  const layout = await page.evaluate(() => ({
+    width: document.documentElement.scrollWidth,
+    viewport: innerWidth,
+    overflow: [...document.querySelectorAll('main *')]
+      .filter((el) => el.getBoundingClientRect().right > innerWidth)
+      .map((el) => ({ class: el.className, right: el.getBoundingClientRect().right })),
+  }));
+  expect(layout.width, JSON.stringify(layout.overflow)).toBeLessThanOrEqual(layout.viewport);
+});

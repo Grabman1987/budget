@@ -5,17 +5,21 @@ test-impact and visual review by a separate Codex agent. No financial calculatio
 ledger writes, migrations or deployment configuration changed.
 
 The redesign phone header puts search, the accessible review counter and profile
-beside Heute. The abbreviated month retains its full accessible label. Month and
-period share a row at 390px, including the return-to-current-month control. The
+beside Heute. The month name is visible in full. Month and period share a row when
+they fit, with wrapping for long months at narrow widths or enlarged text. The
 segment paints a 36px track inside 44px touch targets. The lead uses the existing
 40px token, with a quiet dimension line. Existing cards retain one outer border.
 
-The dock uses 22px icons and the existing 11px label token. Its height is 64px
+The dock uses 22px icons and the existing 11px label token. Its height is 52px
 without a device bottom inset and 78px with the synthetic 34px home-indicator inset;
 every tab retains a 44px target. Task amounts have their own non-wrapping column.
 Task links reserve horizontal room for the floating capture button.
 
-## Evidence
+## Initial implementation evidence
+
+These captures predate the CI follow-up that restores full month names, reduces
+the no-inset dock to 52px, and uses word-boundary wrapping in the task title column.
+The 34px-inset dock shown here remains 78px tall.
 
 | Profile | Light | Dark |
 | --- | --- | --- |

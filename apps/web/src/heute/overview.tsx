@@ -30,7 +30,6 @@ const time = new Intl.DateTimeFormat('de-AT', {
   minute: '2-digit',
   timeZone: 'Europe/Vienna',
 });
-const compactMonth = new Intl.DateTimeFormat('de-AT', { month: 'short', year: 'numeric' });
 export type HeuteDetail =
   'pace' | 'forecast' | 'tasks' | 'due' | 'bookings' | 'wealth' | 'month' | 'metrics' | 'pinned';
 export const HEUTE_DETAILS: HeuteDetail[] = [
@@ -106,18 +105,7 @@ export function HeuteHeader({
             : 'Stand nicht verfügbar'}
         </span>
       </div>
-      <MonthSwitch
-        heading={
-          phone ? (
-            <span aria-label={monthLabel(month)} title={monthLabel(month)}>
-              {compactMonth.format(new Date(`${month}-01T12:00:00`))}
-            </span>
-          ) : (
-            monthLabel(month)
-          )
-        }
-        headingAs="span"
-      />
+      <MonthSwitch heading={monthLabel(month)} headingAs="span" />
       <Segmented
         label="Zeitraum"
         value={period}

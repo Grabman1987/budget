@@ -655,6 +655,13 @@ test('visible growing note, direct split and responsive account note column', as
   await expect(panel.locator('.kmore')).not.toHaveAttribute('open', '');
   await expect(note).toBeVisible();
   await expect(split).toBeVisible();
+  // Compare intrinsic heights only after the phone sheet's opening transform has settled.
+  await panel.evaluate(async (element) => {
+    const finite = element
+      .getAnimations({ subtree: true })
+      .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
+    await Promise.all(finite.map((animation) => animation.finished.catch(() => undefined)));
+  });
   const initialHeight = (await note.boundingBox())!.height;
   await note.fill(memo);
   expect((await note.boundingBox())!.height).toBeGreaterThan(initialHeight);

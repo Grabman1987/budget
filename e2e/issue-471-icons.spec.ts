@@ -12,6 +12,7 @@ async function expectVisibleIconScale(page: Page) {
       page.evaluate(() => {
         const redesign = document.querySelector('.app[data-budget-redesign="1"]') !== null;
         const redesignScales: Array<[string, number, number]> = [
+          ['.tabbar .icon', 22, 1.5],
           ['.area-page-menu > summary > .lucide-chevron-down', 16, 2],
           ['.wealth-investment > summary > .lucide-plus', 16, 2],
           ['.plan-reference-filters > summary > .lucide-chevron-down', 14, 2],
@@ -101,7 +102,8 @@ test('icon sizes, swatches and disclosure carets use their rendered styles', asy
     const css = getComputedStyle(svg);
     return { width: css.width, stroke: css.strokeWidth };
   });
-  expect(['16px', '20px', '24px']).toContain(navStyle.width);
+  if (isMobile && (await redesignLoaded(page))) expect(navStyle.width).toBe('22px');
+  else expect(['16px', '20px', '24px']).toContain(navStyle.width);
   expect(navStyle.stroke).toBe(navStyle.width === '16px' ? '1.75px' : '1.5px');
 
   const splitDisclosure = page.locator('[data-overview-section="split"]');

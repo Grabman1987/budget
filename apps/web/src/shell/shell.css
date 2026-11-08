@@ -541,7 +541,7 @@ a.btn {
   :root:has([data-budget-redesign='1']) {
     --mobile-safe-top: env(safe-area-inset-top, 0px);
     --mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
-    --tabbar-h: calc(44px + max(20px, var(--mobile-safe-bottom)));
+    --tabbar-h: calc(44px + max(8px, var(--mobile-safe-bottom)));
   }
   :root:has([data-budget-redesign='1']) .app {
     /* Keep compact page-specific header heights below the safe area. */
@@ -550,7 +550,7 @@ a.btn {
   :root:has([data-budget-redesign='1']) .tabbar {
     grid-template-columns: repeat(5, minmax(0, 1fr));
     max-width: 100vw;
-    padding: 0 max(12px, env(safe-area-inset-right)) max(20px, var(--mobile-safe-bottom))
+    padding: 0 max(12px, env(safe-area-inset-right)) max(8px, var(--mobile-safe-bottom))
       max(12px, env(safe-area-inset-left));
     border-top: 0;
     box-shadow: inset 0 1px 0 var(--rule);

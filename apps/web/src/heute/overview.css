@@ -830,6 +830,12 @@
     white-space: normal;
     overflow-wrap: anywhere;
   }
+  .hv-card-head h2 {
+    overflow-wrap: anywhere;
+  }
+}
+/* Keep full words and amounts readable beside the reserved FAB column. */
+@media (max-width: 399px) {
   .hv-revisions,
   .hv-revisions tbody {
     display: block;
@@ -855,9 +861,6 @@
   .hv-revisions td:last-child {
     grid-column: 2;
     text-align: left;
-  }
-  .hv-card-head h2 {
-    overflow-wrap: anywhere;
   }
 }
 
@@ -999,7 +1002,7 @@
 /* Compact phone controls: 36px painted segment inside 44px touch targets. */
 @media (max-width: 767px) {
   .hv-head-phone {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 4px;
     min-height: 44px;
   }
@@ -1034,8 +1037,8 @@
   }
   .hv-head-phone .seg button {
     position: relative;
-    min-width: 58px;
-    padding-inline: 6px;
+    min-width: 44px;
+    padding-inline: 0;
     font-size: var(--fs-label);
     white-space: nowrap;
     background: transparent;
@@ -1059,7 +1062,7 @@
   }
   .hv-lead-value {
     font-size: var(--fs-dimension);
-    line-height: var(--lh-dimension);
+    line-height: 1.1;
   }
   .hv-chain-bar {
     height: 1px;
@@ -1079,10 +1082,7 @@
     display: inline;
   }
 }
-@media (max-width: 359px) {
-  .hv-head-phone {
-    flex-wrap: wrap;
-  }
+@media (max-width: 399px) {
   .hv-revisions tr {
     grid-template-columns: 26px minmax(0, 1fr) auto;
   }
@@ -1100,7 +1100,7 @@
     margin-right: 64px;
   }
   .hv-revisions td:nth-child(2) {
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
   .hv-revisions td:last-child {
     padding-right: 64px;
