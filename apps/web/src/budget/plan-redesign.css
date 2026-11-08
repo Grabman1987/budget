@@ -135,10 +135,10 @@
   --plan-bar: var(--red);
 }
 .plan.plan-month-v2 .ptable-zero .prow .spending-bar {
-  background: color-mix(in srgb, var(--plan-bar) 15%, transparent);
+  background: color-mix(in srgb, var(--plan-bar, var(--line)) 15%, transparent);
 }
 .plan.plan-month-v2 .ptable-zero .prow .spending-bar .pbar-fill {
-  background: var(--plan-bar);
+  background: var(--plan-bar, var(--line));
 }
 .plan-month-v2
   .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])

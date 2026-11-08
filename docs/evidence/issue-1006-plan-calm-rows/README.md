@@ -28,8 +28,8 @@ affected; the evidence PNGs are review artifacts, not replacement baselines.
 | `issue-587-plan-monat-kopf.spec.ts` | Reach distribution and month close through their retained menus. |
 | `issue-588-plan-menus.spec.ts` | ON icon menu and toolbar month count; OFF keeps original controls. |
 | `issue-589-plan-filters.spec.ts` | Primary filters are inline; uncategorized remains in options. |
-| `issue-832-month-plan.spec.ts` | Measure and activate the distribution toolbar control instead of the removed duplicate lead button. |
-| `issue-992-plan-calm-focus.spec.ts` | Check hover-only plain bars and the relocated attention filter and toolbar actions. |
+| `issue-832-month-plan.spec.ts` | Measure and activate the distribution toolbar control instead of the removed duplicate lead button; scope the existing undo assertion to the toast now that toolbar undo is also available. |
+| `issue-992-plan-calm-focus.spec.ts` | Check hover-only plain bars, including the neutral fill fallback, and the relocated attention filter and toolbar actions. |
 | `month-nav.spec.ts` | ON month count uses the toolbar; OFF still uses options. |
 | `plan-compact-grid.spec.ts` | Updated grouping/month-control locations and icon menu selector. |
 | `plan.spec.ts` | Start the existing waterfall assistant through the distribution menu. |
@@ -43,5 +43,5 @@ Chromium at 1440 and 390 passed the light/dark presentation, density and real
 undo/redo checks, including toast-action containment. The additional Windows
 WebKit run reached the existing 30-second limit during Axe/full-page screenshot
 work or reload/menu sequences. Traces did not show a financial assertion
-mismatch. Presentation and history now have separate focused cases; no timeout
+mismatch. Presentation, history and density now have separate focused cases; no timeout
 was increased. WebKit acceptance remains with the exact-head CI run.

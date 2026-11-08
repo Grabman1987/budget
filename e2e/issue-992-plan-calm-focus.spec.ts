@@ -129,6 +129,10 @@ for (const theme of ['light', 'dark'] as const) {
             await row(0).hover();
             await expect(row(0).locator('.spending-bar')).toHaveCSS('visibility', 'visible');
             await expect(row(0).locator('.pbar-fill')).toHaveCSS('background-image', 'none');
+            await expect(row(0).locator('.pbar-fill')).not.toHaveCSS(
+              'background-color',
+              'rgba(0, 0, 0, 0)',
+            );
             await expect
               .poll(() => cell.evaluate((el) => getComputedStyle(el).backgroundColor))
               .not.toBe(initial);

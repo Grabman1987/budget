@@ -178,7 +178,10 @@ test('computed preview conflict refreshes and waits for explicit confirmation, t
   await fresh.click();
   await expect(preview).toBeHidden();
   expect(await assigned()).toBe(5_000);
-  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await page
+    .locator('.toast.is-open')
+    .getByRole('button', { name: 'Rückgängig', exact: true })
+    .click();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('180,00 €');
   expect(await assigned()).toBe(2_000);
 });
