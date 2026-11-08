@@ -250,9 +250,7 @@ test.describe('routes', () => {
     await expect(
       page.getByRole('group', { name: 'Berichtsgruppen' }).getByRole('button'),
     ).toHaveText(
-      redesign
-        ? ['Alle', 'Berichte', 'Auswertungen', 'Portfolio', 'Einnahmen und Ausgaben']
-        : ['Alle', 'Einnahmen/Ausgaben', 'Vermögen', 'Portfolio', 'Berichte'],
+      redesign ? [] : ['Alle', 'Einnahmen/Ausgaben', 'Vermögen', 'Portfolio', 'Berichte'],
     );
     await expect(page.locator('.report-hub-number')).toHaveText([
       '1',
