@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { expect, test } from '@playwright/test';
 import {
   openAccountCapture,
@@ -33,7 +34,7 @@ test('a visible toast does not cover the Speichern button of an open dialog', as
   await pickCategory(capture, 'Essen');
   // Only a confirmed booking can be checked against the bank.
   await capture.getByRole('button', { name: 'Vorgemerkt', exact: true }).click();
-  await capture.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(capture).click();
   await expect(page.getByRole('row', { name: new RegExp(payee) })).toBeVisible();
   await expect(balance(page)).toHaveText('480,00 €');
 
@@ -57,7 +58,7 @@ test('a visible toast does not cover the Speichern button of an open dialog', as
   await expect(edit.locator('.toast.is-open')).toHaveCount(0);
   await expect(toast(page)).toHaveCount(1);
 
-  await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(edit).click();
   // The booking is checked, so Speichern answers with the release prompt: proof the click landed.
   await expect(edit.getByRole('alert')).toContainText('geprüft');
 });

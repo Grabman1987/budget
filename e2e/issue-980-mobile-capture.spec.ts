@@ -31,7 +31,7 @@ for (const theme of ['light', 'dark'] as const) {
     const amount = dialog.getByLabel('Betrag', { exact: true });
     const payee = dialog.getByLabel('Empfänger', { exact: true });
     const category = dialog.getByLabel('Kategorie', { exact: true });
-    const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+    const save = dialog.getByRole('button', { name: 'Fertig', exact: true });
     const screenshot = async (state: string) => {
       await page.screenshot({ path: info.outputPath(`capture-${theme}-${state}.png`) });
       await expectScreenshot(page, `capture-${theme}-${state}.png`);
@@ -76,7 +76,7 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(payee).toHaveAttribute('placeholder', 'Empfänger wählen');
     await expect(category).toHaveAttribute('placeholder', 'Kategorie wählen');
     await expect(save).toBeDisabled();
-    await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toHaveCount(0);
+    await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toBeVisible();
     await screenshot('empty');
     const rowPositions = () =>
       dialog.locator('.bk-cols').evaluate((card) => {

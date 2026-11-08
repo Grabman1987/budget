@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { redesignLoaded, registerContext, MIN_TARGET_PX, pickCategory } from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
@@ -41,7 +42,7 @@ test('separates future captures and next weekly occurrence, projects cents and u
   const captured = page.waitForResponse(
     (r) => new URL(r.url()).pathname === '/api/bookings' && r.request().method() === 'POST',
   );
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(dialog).click();
   const captureResponse = await captured;
   expect(captureResponse.status()).toBe(201);
   const past = await captureResponse.json();

@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { inboxItem, insertTracked, openDatabase } from '@budget/db';
@@ -129,7 +130,7 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
   await editor.getByLabel('Kategorie', { exact: true }).fill('Essen');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(editor).click();
   await expect(editor).toBeHidden();
   await expect(panel).toBeVisible();
   await expect(

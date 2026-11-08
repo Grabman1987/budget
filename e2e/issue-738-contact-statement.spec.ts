@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { captureCloseControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
@@ -241,7 +242,7 @@ for (const profile of ['desktop', 'phone'] as const)
             r.request().method() === 'PATCH' &&
             new URL(r.url()).pathname === `/api/bookings/${older.id}`,
         );
-        await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+        await captureSaveControl(dialog).click();
         const refused = await refusal;
         expect(refused.status()).toBe(422);
         expect((await refused.json()).message).toBe(
@@ -266,7 +267,7 @@ for (const profile of ['desktop', 'phone'] as const)
         await expect(category).toBeEnabled();
         await category.fill('Synthetisches Geschenk');
         await dialog.getByRole('option', { name: /Synthetisches Geschenk/ }).click();
-        await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+        await captureSaveControl(dialog).click();
         await expect(dialog).not.toBeVisible();
         await expect(region.locator('.contacts-balance')).toHaveText('Schuldet dir 20,00 €');
         const changed = (await (await request.get(`${origin}/api/bookings/${source.id}`)).json())

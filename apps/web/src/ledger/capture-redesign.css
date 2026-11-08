@@ -1055,6 +1055,11 @@
   }
   .bkform-redesign .bk-header-done {
     justify-self: end;
+    transition: none;
+  }
+  .bkform-redesign .bk-header-done:disabled {
+    opacity: 1;
+    color: var(--ink-2);
   }
   .bkform-redesign .bk-editor-titlebar > .kflagpick {
     display: block;
@@ -1105,6 +1110,8 @@
   }
   .bkform-redesign {
     position: relative;
+    /* Keep targets stationary when pointerdown blurs the amount before click. */
+    padding-bottom: 52px;
   }
   .bkform-redesign .bk-amount-primary > .amount {
     position: static;
@@ -1125,9 +1132,6 @@
   .bkform-redesign .bk-amount-primary .amount-ops button {
     font-size: var(--fs-headline);
   }
-  .bkform-redesign:has(.bk-amount-primary .amount-box:focus-within) {
-    padding-bottom: 52px;
-  }
   .bkform-redesign .bk-amount-primary .amount-box:focus-within .amount-ops {
     display: grid;
   }
@@ -1141,14 +1145,14 @@
   }
 }
 
-/* While the amount keyboard is open, Fertig keeps save reachable and the key row
-   replaces the footer. Secondary header tools return when leaving the amount. */
+/* While the amount keyboard is open, Fertig keeps save reachable. A pointer
+   activation retains this geometry until click; blur then restores secondary tools. */
 @media (max-width: 767px) {
   .bk-focus-scope[data-compact-viewport]
-    .bkform-redesign:has(.bk-amount-primary .amount-box:focus-within)
+    .bkform-redesign:is(:has(.bk-amount-primary .amount-box:focus-within), [data-amount-pointer])
     .bk-foot,
   .bk-focus-scope[data-compact-viewport]
-    .bkform-redesign:has(.bk-amount-primary .amount-box:focus-within)
+    .bkform-redesign:is(:has(.bk-amount-primary .amount-box:focus-within), [data-amount-pointer])
     .bk-editor-titlebar
     > :is(.kflagpick, .bk-editor-receipt-actions, .kmore) {
     display: none;
@@ -1158,5 +1162,9 @@
   }
   .bk-focus-scope[data-compact-viewport] .bkform-redesign .bk-head {
     padding-bottom: 0;
+  }
+  .bk-focus-scope[data-compact-viewport] .bkform-redesign > .bk-save-reason {
+    min-height: 0;
+    padding: 4px 16px;
   }
 }

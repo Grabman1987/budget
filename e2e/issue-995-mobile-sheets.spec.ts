@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { captureCloseControl } from './ledger-helpers';
 import type { Locator, Page } from '@playwright/test';
 import { sampleTest as test, expect } from './sample';
@@ -51,7 +52,7 @@ for (const theme of ['light', 'dark']) {
       await expect(field).toBeFocused();
       await expect(field).toHaveAttribute('aria-activedescendant', active!);
       await expect(dialog.getByRole('listbox')).toBeVisible();
-      await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport({
+      await expect(captureSaveControl(dialog)).toBeInViewport({
         ratio: 1,
       });
     }

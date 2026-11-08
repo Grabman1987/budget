@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { captureCloseControl } from './ledger-helpers';
 import {
   redesignLoaded,
@@ -105,7 +106,7 @@ test('an income: Zu verteilen by default, income type, payee', async ({ page }, 
   await panel.getByLabel('Von (Zahler)').fill(`Firma ${tag}`);
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue('Zu verteilen');
   await panel.getByLabel('Einnahmeart').selectOption({ label: 'Gehalt' });
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
 
   const row = page.getByRole('row', { name: new RegExp(`Firma ${tag}`) });
   await expect(row).toContainText('Zu verteilen');
@@ -135,7 +136,7 @@ test('a transfer between accounts; to a tracking account it needs a category', a
   await panel.getByLabel('Betrag', { exact: true }).fill('200');
   // Between budget accounts the transfer is neutral: no category is asked for.
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveCount(0);
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(page.getByRole('row', { name: /Umbuchung nach/ })).toBeVisible();
   await expect(balance(page)).toHaveText('800,00 €');
 
@@ -143,10 +144,10 @@ test('a transfer between accounts; to a tracking account it needs a category', a
   await panel.getByRole('button', { name: 'Umbuchung' }).click();
   await panel.getByLabel('Nach Konto').selectOption({ label: depot });
   await panel.getByLabel('Betrag', { exact: true }).fill('100');
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(panel.getByRole('alert')).toContainText('brauchen eine Kategorie');
   await pickCategory(panel, `Cap C ${tag}`);
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
   await expect(balance(page)).toHaveText('700,00 €');
 });
@@ -292,7 +293,7 @@ test('a split with a contact share: the chain shows what is left, saving waits u
     await panel.locator('.kmore > summary').click();
   await (await categoryLineControl(panel)).click();
   const chain = panel.locator('.bk-lines > .kdiff');
-  const save = panel.getByRole('button', { name: 'Speichern', exact: true });
+  const save = captureSaveControl(panel);
 
   // Line 1: 30,00 for the category, line 2 (still empty) is Anna's share.
   const line1 = panel.getByRole('group', { name: 'Zeile 1', exact: true });
@@ -343,7 +344,7 @@ test('a transfer line in a split moves money to the other account', async ({ pag
   await line2.getByLabel('Kategorie 2').fill(spar);
   await line2.getByRole('option', { name: new RegExp(spar) }).click();
   await line2.getByLabel('Betrag 2').fill('20');
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(balance(page)).toHaveText('240,00 €');
   await expect(panel).toBeHidden();
   await openAccount(page, spar);
@@ -365,7 +366,7 @@ test('an income with a contact share (repayment) books through Auslagen', async 
   await panel.getByLabel('Kategorie', { exact: true }).fill('Anna Muster');
   await panel.getByRole('option', { name: /Anna Muster/ }).click();
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue(/Anna Muster/);
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   const row = page.getByRole('row', { name: new RegExp(`Anna ${tag}`) });
   await expect(row).toContainText('Auslagen');
   await expect(balance(page)).toHaveText('40,00 €');
@@ -447,7 +448,7 @@ test('the dialog is a centred card on the desktop and a sheet on the phone with 
       : wanted,
   );
   // The footer stays in view with the Speichern button.
-  await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
+  await expect(captureSaveControl(panel)).toBeInViewport();
 });
 
 test('the flag: popover with six colours and keys, first column of the table', async ({
@@ -522,7 +523,7 @@ test('the flag: popover with six colours and keys, first column of the table', a
   await (await captureFlagControl(edit, 'Markierung: Gelb')).click();
   await page.keyboard.press('0');
   await expect(await captureFlagControl(edit, 'Markierung: keine')).toBeVisible();
-  await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(edit).click();
   await expect(edit).toBeHidden();
   await expect(row.locator('.kflag-glyph.is-none')).toHaveCount(1);
   await expect(row.locator('.kflag-glyph:not(.is-none)')).toHaveCount(0);
@@ -559,7 +560,7 @@ test('the checkmark: a new booking starts pending and can be confirmed', async (
   await expect(editToggle).toHaveAttribute('aria-pressed', 'true');
   await expect(editToggle).toHaveAccessibleName('Bestätigt');
   await expect(editToggle).toHaveAttribute('title', 'Bestätigt');
-  await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(edit).click();
   await expect(edit).toBeHidden();
   await expect(row.getByRole('button', { name: 'bestätigt', exact: true })).toBeVisible();
   await row.getByRole('button', { name: /bearbeiten/ }).click();
@@ -678,7 +679,7 @@ test('visible growing note, direct split and responsive account note column', as
   await panel.getByLabel('Empfänger').fill(payee);
   await pickCategory(panel, `Cap A ${tag}`);
   await page.screenshot({ path: testInfo.outputPath(`dialog-${tag}.png`) });
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(panel).toBeHidden({ timeout: 30_000 });
   const row = page.getByRole('row', { name: new RegExp(payee) });
   await expect(row).toBeVisible({ timeout: 30_000 });

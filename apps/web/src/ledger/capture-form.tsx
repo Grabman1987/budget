@@ -220,7 +220,26 @@ export function CaptureForm({
   const isPhone = useIsPhone();
   const mobileRedesign = REDESIGN_ENABLED && isPhone;
   const amountInputEvent = useRef<InputEvent | null>(null);
-  const [amountInteracted, setAmountInteracted] = useState(false);
+  useEffect(() => {
+    if (!mobileRedesign) return;
+    let frame = 0;
+    const release = (event: PointerEvent | FocusEvent) => {
+      const form = formRef.current;
+      if (!form || form.dataset.amountPointer === undefined) return;
+      if ('pointerId' in event && form.dataset.amountPointer !== String(event.pointerId)) return;
+      frame = requestAnimationFrame(() => delete form.dataset.amountPointer);
+    };
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
+    window.addEventListener('blur', release);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('pointerup', release);
+      window.removeEventListener('pointercancel', release);
+      window.removeEventListener('blur', release);
+      if (formRef.current) delete formRef.current.dataset.amountPointer;
+    };
+  }, [mobileRedesign]);
   const [moreOpen, setMoreOpen] = useState(
     !REDESIGN_ENABLED && Boolean(draft.projectId || draft.flag),
   );
@@ -340,8 +359,7 @@ export function CaptureForm({
   const lineProblem = !lineValidation.ok ? lineValidation.errors.splits : undefined;
   const blocked = !isTransfer && Boolean(lineProblem);
   const showLineProblem =
-    blocked &&
-    (Boolean(draft.amount.trim() || errors.splits) || (mobileRedesign && amountInteracted));
+    blocked && (mobileRedesign || Boolean(draft.amount.trim() || errors.splits));
   const splitError = errors.splits === REMAINDER_SAVE_ERROR && !blocked ? undefined : errors.splits;
 
   const draftDirty = queued
@@ -491,7 +509,6 @@ export function CaptureForm({
 
   const save = async (andNew: boolean) => {
     if (saving.current) return;
-    setAmountInteracted(true);
     if (!editing && !from) return setErrors({ account: 'Bitte ein verfügbares Konto wählen.' });
     if (blocked) return setErrors({ splits: REMAINDER_SAVE_ERROR });
     const filled = {
@@ -567,7 +584,6 @@ export function CaptureForm({
         projectId: d.projectId,
       }));
       setErrors({});
-      setAmountInteracted(false);
       requestAnimationFrame(() =>
         formRef.current?.querySelector<HTMLElement>('.amount-input')?.focus(),
       );
@@ -947,7 +963,12 @@ export function CaptureForm({
       className={`bkform${isTransfer ? '' : ' bk-split-cols'}${REDESIGN_ENABLED ? ' bkform-redesign' : ''}`}
       data-redesign={REDESIGN_ENABLED ? 'booking-editor' : undefined}
       onPointerDown={(event) => {
-        event.currentTarget.dataset.touchFocus = String(event.pointerType === 'touch');
+        const form = event.currentTarget;
+        form.dataset.touchFocus = String(event.pointerType === 'touch');
+        if (mobileRedesign && document.activeElement?.closest('.bk-amount-primary')) {
+          // Keep compact controls stationary from pointerdown through the resulting click.
+          form.dataset.amountPointer = String(event.pointerId);
+        }
       }}
       onKeyDownCapture={(event) => {
         if (event.key === 'Tab') event.currentTarget.dataset.touchFocus = 'false';
@@ -990,6 +1011,11 @@ export function CaptureForm({
           {!isPhone && closeControl}
           {!editing && <ReceiptSection uploadOnly actionsHost={receiptActionsHost} />}
         </div>
+      )}
+      {mobileRedesign && showLineProblem && (
+        <p id="booking-save-reason" className="bk-save-reason" role="status">
+          {lineProblem}
+        </p>
       )}
       {!REDESIGN_ENABLED && kindHeader}
       <div className="bk-body kform">
@@ -1322,13 +1348,13 @@ export function CaptureForm({
           )}
         </div>
       )}
-      {showLineProblem && (
+      {!mobileRedesign && showLineProblem && (
         <p id="booking-save-reason" className="bk-save-reason" role="status">
           {lineProblem}
         </p>
       )}
       <div className="bk-foot">
-        {REDESIGN_ENABLED && !editing && (
+        {REDESIGN_ENABLED && !isPhone && !editing && (
           <Button variant="ghost" className="bk-cancel" onClick={requestClose}>
             Abbrechen
           </Button>
@@ -1356,18 +1382,20 @@ export function CaptureForm({
             </span>
           </Button>
         )}
-        {editing && (
-          <Button variant="ghost" className="bk-cancel" onClick={requestClose}>
+        {editing && !mobileRedesign && (
+          <Button variant="ghost" onClick={requestClose}>
             Abbrechen
           </Button>
         )}
-        <Button
-          type="submit"
-          disabled={busy || blocked}
-          aria-describedby={showLineProblem ? 'booking-save-reason' : undefined}
-        >
-          Speichern
-        </Button>
+        {!mobileRedesign && (
+          <Button
+            type="submit"
+            disabled={busy || blocked}
+            aria-describedby={showLineProblem ? 'booking-save-reason' : undefined}
+          >
+            Speichern
+          </Button>
+        )}
       </div>
     </form>
   );

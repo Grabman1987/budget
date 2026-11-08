@@ -9,6 +9,22 @@ for (const width of [390, 1440]) {
       await page.goto('/?panel=buchung');
       const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
       await expect(dialog.locator('.bkform-redesign')).toBeVisible();
+      if (width === 390) {
+        const done = dialog.getByRole('button', { name: 'Fertig', exact: true });
+        await expect(done).toBeDisabled();
+        await expect(done).toHaveAccessibleDescription('Jede Zeile braucht einen Betrag.');
+        await expect(dialog.locator('#booking-save-reason')).toBeInViewport({ ratio: 1 });
+        await expect(dialog.getByRole('button', { name: 'Abbrechen', exact: true })).toHaveCount(1);
+        await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toHaveCount(0);
+        await expect(
+          dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
+        ).toBeVisible();
+      } else {
+        await expect(dialog.getByRole('button', { name: 'Fertig', exact: true })).toHaveCount(0);
+        await expect(dialog.getByRole('button', { name: 'Schließen', exact: true })).toBeVisible();
+        await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeVisible();
+        await expect(dialog.locator('#booking-save-reason')).toHaveCount(0);
+      }
       const amount = dialog.getByLabel('Betrag', { exact: true });
       await amount.fill('12,50');
       await dialog.getByLabel('Empfänger', { exact: true }).fill('Musterladen');
@@ -83,6 +99,18 @@ for (const theme of ['light', 'dark'] as const) {
     const pannedKeys = (await keys.boundingBox())!;
     expect(pannedKeys.y).toBeGreaterThanOrEqual(40);
     expect(pannedKeys.y + pannedKeys.height).toBeLessThanOrEqual(430);
+    // Blurring the amount on pointerdown must not move the segment before click.
+    const transfer = dialog.getByRole('button', { name: 'Umbuchung', exact: true });
+    if (isMobile) await transfer.tap();
+    else await transfer.click();
+    await expect(dialog.getByLabel('Nach Konto', { exact: true })).toBeVisible();
+    await expect(keys).toBeHidden();
+    await expect(
+      dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
+    ).toBeVisible();
+    await expect(dialog.locator('.kmore > summary')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Ausgabe', exact: true }).click();
+    await amount.focus();
     await page.evaluate(() => {
       for (const key of ['offsetTop', 'height']) Reflect.deleteProperty(visualViewport!, key);
       visualViewport!.dispatchEvent(new Event('resize'));

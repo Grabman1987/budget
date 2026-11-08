@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import {
   redesignLoaded,
   bankPreviewControl,
@@ -85,7 +86,7 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
   const amount = dialog.getByLabel('Betrag', { exact: true });
   const date = dialog.getByLabel('Datum', { exact: true });
-  const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+  const save = captureSaveControl(dialog);
   await expect(amount).toBeFocused();
   await expect(date).toHaveValue('09.10.2026');
   await amount.fill('1.234,56+0,01');
@@ -278,24 +279,29 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
         ? []
         : [dialog.getByRole('button', { name: 'Abbrechen', exact: true })]),
       dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
-      dialog.getByRole('button', { name: 'Speichern', exact: true }),
+      ...(!phone ? [captureSaveControl(dialog)] : []),
       ...(phone ? [dialog.getByRole('button', { name: 'Blatt schließen', exact: true })] : []),
       dialog.getByRole('button', {
         name: (page.viewportSize()?.width ?? 1440) < 768 ? 'Abbrechen' : 'Datei anhängen',
         exact: true,
       }),
+      ...(phone ? [captureSaveControl(dialog)] : []),
     ]) {
       await page.keyboard.press('Tab');
       await expect(target).toBeFocused();
     }
     await page.keyboard.press('Shift+Tab');
     if (phone) {
+      await expect(dialog.getByRole('button', { name: 'Abbrechen', exact: true })).toBeFocused();
+      await page.keyboard.press('Shift+Tab');
       await expect(
         dialog.getByRole('button', { name: 'Blatt schließen', exact: true }),
       ).toBeFocused();
       await page.keyboard.press('Shift+Tab');
-    }
-    await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeFocused();
+      await expect(
+        dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
+      ).toBeFocused();
+    } else await expect(captureSaveControl(dialog)).toBeFocused();
   } else {
     await amount.press('Tab');
     await expect(dialog.getByLabel('Empfänger', { exact: true })).toBeFocused();
@@ -332,7 +338,7 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
     await expect(dialog.locator('.kmore > summary')).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(dialog.getByRole('button', { name: 'Speichern und neu' })).toBeFocused();
-    const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+    const save = captureSaveControl(dialog);
     await page.keyboard.press('Tab');
     await expect(save).toBeFocused();
     await page.keyboard.press('Tab');

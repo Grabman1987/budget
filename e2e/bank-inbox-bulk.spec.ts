@@ -1,4 +1,4 @@
-import { redesignLoaded, inboxFilters, bankSelection } from './ledger-helpers';
+import { redesignLoaded, inboxFilters, bankSelection, MIN_TARGET_PX } from './ledger-helpers';
 
 import { randomUUID } from 'node:crypto';
 import { createBooking, openDatabase, schema } from '@budget/db';
@@ -221,13 +221,19 @@ test('65 compact bank rows, prepared bulk confirmation, one undo, date controls 
       .locator(
         '.kinbox button, .kinbox summary, .kinbox .bank-select, .kinbox a.btn, .inbox-filters input, .inbox-filters select',
       )
-      .evaluateAll((nodes) =>
-        nodes
-          .filter(
-            (node) =>
-              node.getBoundingClientRect().height > 0 && node.getBoundingClientRect().height < 44,
-          )
-          .map((node) => node.textContent),
+      .evaluateAll(
+        (nodes, minimum) =>
+          nodes
+            .filter(
+              (node) =>
+                node.getBoundingClientRect().height > 0 &&
+                node.getBoundingClientRect().height < minimum,
+            )
+            .map((node) => ({
+              name: node.getAttribute('aria-label') ?? node.textContent,
+              height: node.getBoundingClientRect().height,
+            })),
+        MIN_TARGET_PX,
       );
     expect(smallTargets).toEqual([]);
     expect((await new AxeBuilder({ page }).include('.kinbox').analyze()).violations).toEqual([]);

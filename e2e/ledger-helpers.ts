@@ -132,6 +132,13 @@ export async function contactShareControl(scope: Locator) {
   });
 }
 
+/** Capture saves through the phone header or the retained desktop/OFF footer. */
+export function captureSaveControl(scope: Locator) {
+  return scope
+    .locator('.bkform')
+    .getByRole('button', { name: /^(Speichern|Fertig)$/, exact: true });
+}
+
 /** Capture keeps the same guarded close action in both responsive layouts. */
 export function captureCloseControl(scope: Locator) {
   return scope

@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { captureCloseControl } from './ledger-helpers';
 import {
   categorySuggestions,
@@ -169,23 +170,28 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   await expect(discard).toHaveCount(0);
   await (await captureFlagControl(dialog, 'Markierung: keine')).click();
   await dialog.getByRole('menuitemradio', { name: /Blau/ }).click();
-  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768)
-    await dialog.locator('.kmore > summary').click();
   await expect(discard).toHaveCount(0);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
-    const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+    const save = captureSaveControl(dialog);
+    const phone = (await redesignLoaded(page)) && page.viewportSize()!.width < 768;
     await expect(save).toHaveCSS(
       'background-color',
-      theme === 'light' ? 'rgb(23, 71, 166)' : 'rgb(208, 244, 255)',
+      phone ? 'rgba(0, 0, 0, 0)' : theme === 'light' ? 'rgb(23, 71, 166)' : 'rgb(208, 244, 255)',
     );
     await expect(save).toHaveCSS(
       'color',
-      theme === 'light' ? 'rgb(255, 255, 255)' : 'rgb(11, 49, 82)',
+      phone
+        ? theme === 'light'
+          ? 'rgb(23, 71, 166)'
+          : 'rgb(208, 244, 255)'
+        : theme === 'light'
+          ? 'rgb(255, 255, 255)'
+          : 'rgb(11, 49, 82)',
     );
-    await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
+    await expect(captureSaveControl(dialog)).toBeInViewport();
     const controls = await dialog
       .locator('button, input, select, textarea, summary')
       .evaluateAll((els) =>
@@ -241,7 +247,7 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
     page.viewportSize()!.width,
   );
   await accountSelect.selectOption(account.id);
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(dialog).click();
   await expect(dialog).toBeHidden({ timeout: 30000 });
   const stored = async () => {
     const response = await request.get(`/api/bookings?accountId=${account.id}`);
@@ -349,7 +355,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       await categorySuggestions(dialog, false);
     }
 
-    const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+    const save = captureSaveControl(dialog);
     if (scenario === 'percent' || scenario === 'amount' || scenario === 'several') {
       await (await contactShareControl(dialog)).click();
       await expect(save).toBeDisabled();
@@ -475,7 +481,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
     const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
     await expect(edit.getByRole('group', { name: /^Zeile \d+$/ })).toHaveCount(expected.length);
     await edit.getByLabel('Notiz').fill('Synthetische Rundlaufnotiz');
-    await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await captureSaveControl(edit).click();
     await expect(edit).toBeHidden();
     const after = (await (await request.get(`/api/bookings?accountId=${account.id}`)).json())
       .items[0];
@@ -517,7 +523,7 @@ test('cash capture confirms immediately while bank capture stays pending', async
   await expect(status).toHaveAttribute('aria-pressed', 'true');
   await dialog.getByRole('button', { name: 'Einnahme', exact: true }).click();
   await dialog.getByLabel('Betrag', { exact: true }).fill('12,34');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(dialog).click();
   await expect(dialog).toBeHidden();
   const result = await (await request.get(`/api/bookings?accountId=${cash.id}`)).json();
   expect(result.items).toHaveLength(1);

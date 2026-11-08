@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { expect, test } from '@playwright/test';
 import { again, balance, createAccount, openAccount, pickCategory, toast } from './ledger-helpers';
 
@@ -13,7 +14,7 @@ test('a saved booking toast leaves the mobile capture action reachable', async (
   await dialog.getByLabel('Betrag', { exact: true }).fill('20');
   await dialog.getByLabel('Empfänger').fill(`Toast shop ${tag}`);
   await pickCategory(dialog, 'Essen');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(dialog).click();
   await expect(dialog).toBeHidden();
   await expect(balance(page)).toHaveText('480,00 €');
   await expect(toast(page)).toContainText('Buchung gespeichert');

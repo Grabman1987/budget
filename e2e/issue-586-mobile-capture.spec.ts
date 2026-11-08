@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { captureCloseControl } from './ledger-helpers';
 import { categoryLineControl, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
@@ -34,7 +35,7 @@ async function addManyLines(dialog: Locator) {
 }
 
 async function saveWithin(dialog: Locator, top: number, height: number) {
-  const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+  const save = captureSaveControl(dialog);
   const bounds = (await save.boundingBox())!;
   expect(bounds.y).toBeGreaterThanOrEqual(top);
   expect(bounds.y + bounds.height).toBeLessThanOrEqual(top + height);
@@ -80,7 +81,7 @@ test('capture keeps save visible with many lines, status, targets and both theme
     );
   }
   await addManyLines(dialog);
-  await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
+  await expect(captureSaveControl(dialog)).toBeEnabled();
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
@@ -119,7 +120,7 @@ test('capture keeps save visible with many lines, status, targets and both theme
     await dialog.locator('.bk-body').evaluate((el) => (el.scrollTop = 0));
     await saveWithin(dialog, 0, height);
     await dialog.getByLabel('Betrag 6', { exact: true }).fill('19');
-    await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
+    await expect(captureSaveControl(dialog)).toBeDisabled();
     await saveWithin(dialog, 0, height);
     await dialog.getByLabel('Betrag 6', { exact: true }).fill('20');
   }

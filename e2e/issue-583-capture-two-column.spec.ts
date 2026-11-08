@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import {
   categorySuggestions,
   redesignLoaded,
@@ -64,7 +65,7 @@ test('save button stays readable through theme and availability changes', async 
     openingBalanceCents: 100000,
   });
   const dialog = await openNew(page, account.id);
-  const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+  const save = captureSaveControl(dialog);
   await dialog.getByLabel('Betrag', { exact: true }).fill('12');
   await choose(dialog, 'Kategorie', 'Essen', /^Essen/);
   await expect(save).toBeEnabled();
@@ -105,12 +106,23 @@ test('save button stays readable through theme and availability changes', async 
               }, 0);
             const ratio = () => {
               const style = getComputedStyle(button);
-              const backdrop = rgb(getComputedStyle(button.parentElement!).backgroundColor);
+              // The phone action is transparent; use the painted ancestor surface.
+              let surface = button.parentElement!;
+              while (
+                getComputedStyle(surface).backgroundColor === 'rgba(0, 0, 0, 0)' &&
+                surface.parentElement
+              )
+                surface = surface.parentElement;
+              const backdrop = rgb(getComputedStyle(surface).backgroundColor);
               const opacity = Number(style.opacity);
               const painted = (value: string) =>
                 rgb(value).map((channel, i) => channel * opacity + backdrop[i]! * (1 - opacity));
               const fg = luminance(painted(style.color));
-              const bg = luminance(painted(style.backgroundColor));
+              const bg = luminance(
+                style.backgroundColor === 'rgba(0, 0, 0, 0)'
+                  ? backdrop
+                  : painted(style.backgroundColor),
+              );
               return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
             };
             // Sample immediately and over several painted frames, without waiting for transitions.
@@ -245,7 +257,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
     const fresh = await box(dialog);
     expect(fresh.y).toBeGreaterThanOrEqual(0);
     expect(fresh.y + fresh.height).toBeLessThanOrEqual(900);
-    await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport({
+    await expect(captureSaveControl(dialog)).toBeInViewport({
       ratio: 1,
     });
   });

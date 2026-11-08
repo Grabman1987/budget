@@ -62,7 +62,9 @@ for (const mode of ['create', 'edit'] as const) {
       return;
     }
     await expect(amount).toHaveAttribute('inputmode', 'decimal');
-    await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toHaveCount(0);
+    if (mode === 'create')
+      await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toBeVisible();
+    else await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toHaveCount(0);
     // Browser emulation has no native software keyboard. Resize its visible area to 390×430
     // and keep the amount focused, without scrolling or focusing the other fields into view.
     await page.setViewportSize({ width: 390, height: 430 });
@@ -110,7 +112,7 @@ for (const mode of ['create', 'edit'] as const) {
     }
     if (mode === 'create') {
       await amount.press('Tab');
-      await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toHaveCount(0);
+      await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toBeVisible();
       await amount.press('Control+Enter');
       await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toBeVisible();
       await expect(dialog.getByRole('button', { name: 'Fertig', exact: true })).toBeDisabled();

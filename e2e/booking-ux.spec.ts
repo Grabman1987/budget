@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { captureCloseControl } from './ledger-helpers';
 import {
   historyChart,
@@ -73,7 +74,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
     );
     await row.getByRole('button', { name: /bearbeiten/ }).click();
     await edit.getByLabel('Datum', { exact: true }).fill('02.10.2026');
-    await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await captureSaveControl(edit).click();
     await expect(edit).toBeHidden();
   }
   await expect
@@ -103,7 +104,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
     'true',
   );
   await panel.getByLabel('Wiederholen').selectOption('weekly');
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(panel).toBeHidden();
   const payments = (await (await request.get('/api/expected')).json()).payments;
   expect(payments).toHaveLength(1);
@@ -183,7 +184,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   await panel.getByLabel('Wiederholen').selectOption('monthly');
   expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
   await page.screenshot({ path: info.outputPath('capture.png') });
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(panel).toBeHidden();
   const captured = (await (await request.get('/api/bookings')).json()).items.find(
     (booking: { payeeName: string }) => booking.payeeName === 'Kiosk Muster',
@@ -299,7 +300,7 @@ test('single payee suggestion selects its recent account and keeps capture contr
   await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(first.id);
   await expect(panel.getByLabel('Notiz')).toBeVisible();
   await expect(await categoryLineControl(panel)).toBeVisible();
-  await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
+  await expect(captureSaveControl(panel)).toBeInViewport();
   await panel.getByLabel('Betrag', { exact: true }).fill('12,50+3');
   await panel.getByLabel('Betrag', { exact: true }).press('Enter');
   await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('15,50');
