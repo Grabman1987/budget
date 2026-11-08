@@ -145,7 +145,11 @@ test('a transfer between accounts; to a tracking account it needs a category', a
   await panel.getByRole('button', { name: 'Umbuchung' }).click();
   await panel.getByLabel('Nach Konto').selectOption({ label: depot });
   await panel.getByLabel('Betrag', { exact: true }).fill('100');
-  await captureSaveControl(panel).click();
+  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768) {
+    await expect(captureSaveControl(panel)).toBeDisabled();
+    await expect(captureSaveControl(panel)).toHaveAccessibleDescription(/brauchen eine Kategorie/);
+    await panel.getByLabel('Betrag', { exact: true }).press('Control+Enter');
+  } else await captureSaveControl(panel).click();
   await expect(panel.getByRole('alert')).toContainText('brauchen eine Kategorie');
   await pickCategory(panel, `Cap C ${tag}`);
   await captureSaveControl(panel).click();
@@ -217,14 +221,19 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await expect(panel.getByRole('button', { name: 'Speichern und neu' })).toBeDisabled();
   await panel.getByLabel('Betrag', { exact: true }).fill('1,00');
   await panel.getByLabel('Datum', { exact: true }).fill('31.02.2026');
-  await panel.getByLabel('Empfänger').press('ArrowDown');
+  await panel.getByLabel('Empfänger', { exact: true }).press('ArrowDown');
   await expect(panel.getByRole('listbox')).toBeVisible();
   if (phoneRedesign) {
     await expect(panel.getByRole('button', { name: 'Speichern und neu' })).toBeDisabled();
-    await panel.getByLabel('Empfänger').press('Control+Shift+Enter');
+    await panel.getByLabel('Empfänger', { exact: true }).press('Control+Shift+Enter');
   } else await panel.getByRole('button', { name: 'Speichern und neu' }).click();
   await expect(panel.getByRole('alert').first()).toBeVisible();
   await expect(page.getByRole('row', { name: new RegExp(payee) })).toHaveCount(2);
+  if (phoneRedesign) {
+    await expect(panel.getByRole('listbox')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(panel.getByRole('listbox')).toBeHidden();
+  }
   await page.keyboard.press('Escape');
   await panel.getByRole('button', { name: 'Verwerfen' }).click();
 });

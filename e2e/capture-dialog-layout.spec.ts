@@ -294,14 +294,30 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       const accountField = dialog.getByLabel('Bezahlt von');
       await expect(accountField).toBeVisible();
       await expect(dialog.getByLabel('Datum', { exact: true })).toBeVisible();
-      await amount.press('Tab');
       const mobileRedesign = (await redesignLoaded(page)) && page.viewportSize()!.width < 768;
       if (mobileRedesign) {
-        for (const kind of ['Ausgabe', 'Einnahme', 'Umbuchung']) {
-          await expect(dialog.getByRole('button', { name: kind, exact: true })).toBeFocused();
-          await page.keyboard.press('Tab');
+        // Kind now precedes the amount; the focused amount also exposes its operator keys.
+        for (const name of [
+          'Geteilt durch',
+          'Mal',
+          'Minus',
+          'Plus',
+          'Umbuchung',
+          'Einnahme',
+          'Ausgabe',
+        ]) {
+          await page.keyboard.press('Shift+Tab');
+          await expect(dialog.getByRole('button', { name, exact: true })).toBeFocused();
         }
-      } else if (await redesignLoaded(page)) {
+        for (const kind of ['Einnahme', 'Umbuchung']) {
+          await page.keyboard.press('Tab');
+          await expect(dialog.getByRole('button', { name: kind, exact: true })).toBeFocused();
+        }
+        await page.keyboard.press('Tab');
+        await expect(amount).toBeFocused();
+      }
+      await amount.press('Tab');
+      if (!mobileRedesign && (await redesignLoaded(page))) {
         await expect(dialog.locator('.bk-status')).toBeFocused();
         await page.keyboard.press('Tab');
       }

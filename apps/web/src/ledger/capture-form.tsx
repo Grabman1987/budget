@@ -1456,7 +1456,7 @@ export function CaptureForm({
           aria-describedby={showSaveReason ? 'booking-save-reason' : undefined}
           onMouseDown={(event) => event.preventDefault()}
         >
-          <Check size={20} aria-hidden="true" />
+          <Check size={20} strokeWidth={1.5} aria-hidden="true" />
         </Button>
       )}
     </form>
