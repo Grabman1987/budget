@@ -356,6 +356,10 @@ export function HeuteOverview({
                     : `Tagesbudget bis Gehalt ≈ ${eur(data.dailyBudget.perDayCents, { cents: false })}/Tag`}
                 </span>
                 <span>{data.attention.pendingCount} Buchungen unbestätigt</span>
+                <span className="hv-mobile-stand">
+                  Stand {shortDay(data.stand.today)}
+                  {read.dataUpdatedAt ? `, ${time.format(read.dataUpdatedAt)}` : ''}
+                </span>
               </div>
             </>
           ) : (
@@ -553,6 +557,7 @@ function NextWork({
   const tasks: Array<{
     id: string;
     title: ReactNode;
+    amount?: ReactNode;
     label: string;
     to: string;
     search?: Record<string, string>;
@@ -561,18 +566,16 @@ function NextWork({
   if (assignment !== undefined && assignment !== 0)
     tasks.push({
       id: 'assignment',
-      title: (
-        <>
-          <b
-            className={assignment > 0 ? 'hv-available' : undefined}
-            data-testid="kennzahl-value"
-            data-kennzahl="zu-verteilen"
-          >
-            {assignment > 0 && <ArrowUp size={14} aria-hidden="true" />}
-            {eur(assignment)}
-          </b>{' '}
-          {assignment > 0 ? 'zu verteilen' : 'zu viel zugewiesen'}
-        </>
+      title: assignment > 0 ? 'zu verteilen' : 'zu viel zugewiesen',
+      amount: (
+        <b
+          className={assignment > 0 ? 'hv-available' : undefined}
+          data-testid="kennzahl-value"
+          data-kennzahl="zu-verteilen"
+        >
+          {assignment > 0 && <ArrowUp size={14} aria-hidden="true" />}
+          {eur(assignment)}
+        </b>
       ),
       label: 'Verteilen',
       to: '/plan/monat',
@@ -582,14 +585,10 @@ function NextWork({
   if (over.length)
     tasks.push({
       id: 'cover',
-      title: (
-        <>
-          {over.length} {over.length === 1 ? 'Kategorie überzogen' : 'Kategorien überzogen'} ·{' '}
-          {eur(
-            over.reduce((sum, item) => sum + item.cents, 0),
-            { cents: false },
-          )}
-        </>
+      title: `${over.length} ${over.length === 1 ? 'Kategorie überzogen' : 'Kategorien überzogen'}`,
+      amount: eur(
+        over.reduce((sum, item) => sum + item.cents, 0),
+        { cents: false },
       ),
       label: 'Decken',
       to: '/plan/monat',
@@ -662,6 +661,9 @@ function NextWork({
         <tr>
           <th scope="col">Rev.</th>
           <th scope="col">Aufgabe</th>
+          <th scope="col" className="hv-task-amount">
+            Betrag
+          </th>
           <th scope="col">Aktion</th>
         </tr>
       </thead>
@@ -675,6 +677,7 @@ function NextWork({
               />
             </td>
             <td>{task.title}</td>
+            <td className="hv-task-amount">{task.amount}</td>
             <td>
               <AppLink to={task.to} search={task.search}>
                 {task.label} →

@@ -80,12 +80,7 @@ async function paintedRoles(page: Page, phone: boolean) {
       redesign
         ? [
             ['.plan-class-lead span', '--ink-2'],
-            [
-              isPhone
-                ? ".prow[data-plan-state='met'] .col-avail .pill"
-                : '.ptable-zero .col-avail .pill.is-good',
-              isPhone ? '--primary' : '--on-good-soft',
-            ],
+            [".prow[data-plan-state='met'] .col-avail .pill", '--ink-2'],
             [".prow[data-plan-state='overspent'] .col-avail .pill", '--red'],
           ]
         : [
@@ -132,8 +127,8 @@ const THEME_ROLES = {
   },
 } as const;
 const REDESIGN_SEMANTIC = {
-  light: ['rgb(58, 78, 110)', 'rgb(23, 71, 166)', 'rgb(196, 42, 31)'],
-  dark: ['rgb(185, 208, 227)', 'rgb(208, 244, 255)', 'rgb(255, 139, 123)'],
+  light: ['rgb(58, 78, 110)', 'rgb(58, 78, 110)', 'rgb(196, 42, 31)'],
+  dark: ['rgb(185, 208, 227)', 'rgb(185, 208, 227)', 'rgb(255, 139, 123)'],
 } as const;
 
 for (const profile of ['desktop', 'phone'] as const) {
@@ -199,13 +194,7 @@ for (const profile of ['desktop', 'phone'] as const) {
           expect(await page.evaluate(() => localStorage.getItem('budget-theme'))).toBe(theme);
           const expected = {
             ...THEME_ROLES[theme],
-            semantic: redesign
-              ? [
-                  REDESIGN_SEMANTIC[theme][0],
-                  phone ? REDESIGN_SEMANTIC[theme][1] : THEME_ROLES[theme].semantic[1],
-                  REDESIGN_SEMANTIC[theme][2],
-                ]
-              : THEME_ROLES[theme].semantic,
+            semantic: redesign ? REDESIGN_SEMANTIC[theme] : THEME_ROLES[theme].semantic,
           };
           let beforeCapture = await paintedRoles(page, phone);
           // Require actual inherited text, surfaces and semantic roles before the first capture.

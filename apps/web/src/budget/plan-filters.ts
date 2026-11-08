@@ -3,6 +3,7 @@ import type { PlanRow } from './plan-model';
 
 export const PLAN_FILTERS = [
   'all',
+  'attention',
   'underfunded',
   'overspent',
   'available',
@@ -31,6 +32,10 @@ export function categoryNameMatches(name: string, query: string): boolean {
 /** The same row set drives each count and its list, including the hidden-category boundary. */
 export function filterPlanRows(rows: PlanRow[], filter: PlanFilter): PlanRow[] {
   switch (filter) {
+    case 'attention': {
+      const overspent = new Set(overspentEnvelopes({ envelopes: rows }));
+      return rows.filter((row) => row.needCents > 0 || overspent.has(row));
+    }
     case 'underfunded':
       return rows.filter((row) => row.needCents > 0);
     case 'overspent':
