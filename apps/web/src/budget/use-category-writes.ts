@@ -7,6 +7,7 @@ import { LEDGER_KEY } from '../ledger/queries';
 import { EXPECTED_KEY } from '../expected/api';
 import { fetchCategories } from './api';
 import { overAssignmentHint } from './plan-model';
+import { planHistory } from './plan-history';
 
 /** Categories feed the pick lists, the budget and the booking lists: a write refreshes all. */
 export const CATEGORIES_KEY = ['categories'] as const;
@@ -36,6 +37,20 @@ export const categoriesQuery = () =>
 export function useBudgetWrite() {
   const qc = useQueryClient();
   const toast = useToast();
+  const history = planHistory(qc);
+  const offer = (message: string, label: 'Rückgängig' | 'Wiederholen', run: () => void) => {
+    const action = {
+      label,
+      run: () => {
+        if (history.snapshot() !== action) return;
+        history.set(null);
+        toast.dismiss();
+        run();
+      },
+    };
+    history.set(action);
+    toast.show({ message, actionLabel: label, onAction: action.run });
+  };
   const refresh = () =>
     Promise.all(AFFECTED.map((queryKey) => qc.invalidateQueries({ queryKey: [...queryKey] })));
 
@@ -64,25 +79,25 @@ export function useBudgetWrite() {
         toast.show({ message: message(result) });
         return result;
       }
-      toast.show({
-        message: [message(result), hint].filter(Boolean).join(' · '),
-        actionLabel: 'Rückgängig',
-        onAction: () =>
+      offer(
+        [message(result), hint].filter(Boolean).join(' · '),
+        'Rückgängig',
+        () =>
           void undoGroup(result.groupId).then(
             async (undone) => {
               await refresh();
-              toast.show({
-                message: 'Rückgängig gemacht.',
-                actionLabel: 'Wiederholen',
-                onAction: () =>
+              offer(
+                'Rückgängig gemacht.',
+                'Wiederholen',
+                () =>
                   void undoGroup(undone.groupId).then(refresh, (error: unknown) =>
                     failed('Wiederholen', error),
                   ),
-              });
+              );
             },
             (error: unknown) => failed('Rückgängig', error),
           ),
-      });
+      );
       return result;
     } catch (error) {
       toast.show({ message: errorText(error) });

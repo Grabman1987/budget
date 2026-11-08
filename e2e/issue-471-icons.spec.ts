@@ -15,7 +15,6 @@ async function expectVisibleIconScale(page: Page) {
           ['.tabbar .icon', 22, 1.5],
           ['.area-page-menu > summary > .lucide-chevron-down', 16, 2],
           ['.wealth-investment > summary > .lucide-plus', 16, 2],
-          ['.plan-reference-filters > summary > .lucide-chevron-down', 14, 2],
           ['.year-reference-metric > summary > .lucide-chevron-down', 14, 2],
           ['.year-reference-period > button > .lucide-chevron-left', 16, 2],
           ['.year-reference-period > button > .lucide-chevron-right', 16, 2],

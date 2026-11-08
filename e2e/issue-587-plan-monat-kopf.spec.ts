@@ -40,11 +40,16 @@ test('"Zu verteilen" is green when positive, red only when negative, neutral at 
   page,
 }) => {
   const hero = page.locator('.plan-tba');
-  const send = page.getByRole('button', { name: 'Geld verteilen', includeHidden: true });
   const hint = page.getByTestId('distribute-hint');
 
   await withToBeAssigned(page, 12_345);
   await page.goto('/plan/monat?monat=2026-09');
+  const on = await redesignEnabled(page);
+  const send = page.getByRole('button', {
+    name: on ? 'Wasserfall-Assistent' : 'Geld verteilen',
+    includeHidden: true,
+  });
+  if (on) await page.locator('.plan-menu-verteilen > summary').click();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('123,45 €');
   await expect(hero).toHaveClass(/is-positive/);
   await expect(hero).not.toHaveClass(/is-negative/);
@@ -54,6 +59,7 @@ test('"Zu verteilen" is green when positive, red only when negative, neutral at 
   await page.unroute(monthRead);
   await withToBeAssigned(page, -5_000);
   await page.reload();
+  if (on) await page.locator('.plan-menu-verteilen > summary').click();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('−50,00 €');
   await expect(hero).toHaveClass(/is-negative/);
   await expect(send).toBeDisabled();
@@ -63,6 +69,7 @@ test('"Zu verteilen" is green when positive, red only when negative, neutral at 
   await page.unroute(monthRead);
   await withToBeAssigned(page, 0);
   await page.reload();
+  if (on) await page.locator('.plan-menu-verteilen > summary').click();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('0,00 €');
   await expect(hero).not.toHaveClass(/is-positive|is-negative/);
   await expect(send).toBeDisabled();
@@ -70,7 +77,7 @@ test('"Zu verteilen" is green when positive, red only when negative, neutral at 
   await expect(hint).toBeVisible();
 });
 
-test('Einnahmen link and "Monat abschließen" are visible without a menu', async ({ page }) => {
+test('Einnahmen and month close remain reachable from their current controls', async ({ page }) => {
   await page.goto('/plan/monat?monat=2026-09');
   const on = await redesignEnabled(page);
   const income =
@@ -82,7 +89,11 @@ test('Einnahmen link and "Monat abschließen" are visible without a menu', async
   if (on && page.viewportSize()!.width < 768) await page.locator('.plan-tba').click();
   await expect(income).toBeVisible();
   if (on && page.viewportSize()!.width < 768) await page.keyboard.press('Escape');
-  const close = page.getByRole('link', { name: 'Monat abschließen', exact: true });
+  if (on) await page.locator('.plan-menu-optionen > summary').click();
+  const close = page.getByRole('link', {
+    name: on ? 'Monatsabschluss starten oder fortsetzen' : 'Monat abschließen',
+    exact: true,
+  });
   await expect(close).toBeVisible();
   await close.click();
   await expect(page).toHaveURL(/\/monatsabschluss\/2026-09/);
@@ -122,7 +133,15 @@ for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
     await withToBeAssigned(page, 0);
     await page.goto('/plan/monat?monat=2026-09');
-    await expect(page.getByRole('link', { name: 'Monat abschließen', exact: true })).toBeVisible();
+    const on = await redesignEnabled(page);
+    if (on) await page.locator('.plan-menu-optionen > summary').click();
+    await expect(
+      page.getByRole('link', {
+        name: on ? 'Monatsabschluss starten oder fortsetzen' : 'Monat abschließen',
+        exact: true,
+      }),
+    ).toBeVisible();
+    if (on) await page.keyboard.press('Escape');
     await page.evaluate(() => document.fonts.ready);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -130,7 +149,11 @@ for (const scheme of ['light', 'dark'] as const) {
     const axe = await new AxeBuilder({ page }).include('main').analyze();
     expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
     if (isMobile) {
-      for (const selector of ['.plan-close', '.plan-topbar summary', '.plan-chip-scroll > .btn']) {
+      for (const selector of [
+        on ? '.plan-menu-optionen > summary' : '.plan-close',
+        '.plan-topbar summary',
+        on ? '.plan-menu-verteilen > summary' : '.plan-chip-scroll > .btn',
+      ]) {
         const heights = await page
           .locator(selector)
           .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));

@@ -16,18 +16,26 @@ import { paymentsPreviewQuery } from '../pages/payments-preview-report';
 import { goalsProgressReportQuery } from '../pages/goals-progress-report';
 import { expectedQuery } from '../expected/api';
 import { useBudgetWrite } from './use-category-writes';
+import { usePlanHistory } from './plan-history';
 
 let opened: OpenedDatabase;
 let client: QueryClient;
 const ID = 'synthetic-warning';
 function Workflow() {
   const write = useBudgetWrite();
+  const history = usePlanHistory();
   const queue = useQuery(inboxQuery());
   useQuery(paymentsPreviewQuery());
   useQuery(expectedQuery());
   useQuery(goalsProgressReportQuery());
   return (
     <>
+      <button disabled={history?.label !== 'Rückgängig'} onClick={() => history?.run()}>
+        Toolbar undo
+      </button>
+      <button disabled={history?.label !== 'Wiederholen'} onClick={() => history?.run()}>
+        Toolbar redo
+      </button>
       <span aria-label="Offene Aufgaben">{queue.data?.count}</span>
       <button
         onClick={() =>
@@ -91,6 +99,23 @@ afterEach(() => {
 });
 
 describe('shared budget write undo/redo feedback', () => {
+  it('exposes the same audited action to toolbar and toast without applying it twice', async () => {
+    expect(screen.getByRole('button', { name: 'Toolbar undo' }).hasAttribute('disabled')).toBe(
+      true,
+    );
+    await click('Erledigen');
+    await state(0);
+    await click('Toolbar undo');
+    await state(1);
+    await feedback('Rückgängig gemacht.');
+    expect(screen.getByRole('button', { name: 'Toolbar undo' }).hasAttribute('disabled')).toBe(
+      true,
+    );
+    await click('Toolbar redo');
+    await state(0);
+    expect(row().resolution).toBe('Vom Nutzer als erledigt markiert');
+    expect(vi.mocked(fetch).mock.calls.filter(([path]) => path === '/api/undo')).toHaveLength(2);
+  });
   it('shows rejected undo in German and preserves the later stored state', async () => {
     await click('Erledigen');
     await state(0);

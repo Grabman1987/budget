@@ -140,20 +140,6 @@
 .plan.plan-month-v2 .ptable-zero .prow .spending-bar .pbar-fill {
   background: var(--plan-bar);
 }
-/* Fully covered categories keep an empty track; only missing money needs colour. */
-.plan.plan-month-v2
-  .ptable-zero
-  .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
-  .spending-bar {
-  background: var(--rule);
-}
-.plan.plan-month-v2
-  .ptable-zero
-  .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
-  .spending-bar
-  > .pbar-fill {
-  display: none;
-}
 .plan-month-v2
   .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
   > .col-name {
@@ -541,31 +527,6 @@
 }
 /* Detail routes also load the legacy stylesheet; keep the ON geometry independent of load order. */
 @media (min-width: 768px) {
-  /* One frame joins the heading and categories, with rounding only at the outer corners. */
-  .plan.plan-month-v2 .ptable-zero :is(.pgroup, .prow) > td:first-child {
-    border-left: var(--stroke-hairline) solid var(--plan-class, var(--rule));
-    box-shadow: inset 1px 0 var(--plan-class, var(--rule));
-  }
-  .plan.plan-month-v2 .ptable-zero :is(.pgroup, .prow) > td:last-child {
-    border-right: var(--stroke-hairline) solid var(--rule);
-  }
-  .plan.plan-month-v2 .ptable-zero .pgroup > td {
-    border-top: var(--stroke-hairline) solid var(--rule);
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-  }
-  .plan.plan-month-v2
-    .ptable-zero
-    :is(.pgroup, .prow):is(:has(+ .pgroup-gap), :last-child)
-    > td:first-child {
-    border-bottom-left-radius: var(--radius-md);
-  }
-  .plan.plan-month-v2
-    .ptable-zero
-    :is(.pgroup, .prow):is(:has(+ .pgroup-gap), :last-child)
-    > td:last-child {
-    border-bottom-right-radius: var(--radius-md);
-  }
   .plan-month-frame .plan.plan-month-v2 .plan-lead-controls summary.plan-tba {
     display: flex;
     flex-direction: column;
@@ -791,16 +752,6 @@
     }
   }
 }
-.plan-month-frame .plan-reference-filters .plan-filter-segments {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-auto-flow: row;
-  border: 0;
-}
-.plan-month-frame .plan-reference-filters .plan-v2-view-menu {
-  right: auto;
-  left: 0;
-}
 .plan-month-frame .ptable-zero .spending-status {
   position: absolute;
   width: 1px;
@@ -824,14 +775,8 @@
   .plan-month-frame .plan-class-lead small {
     font-size: var(--fs-label);
   }
-  .plan-month-frame .plan-reference-add {
-    display: none;
-  }
   .plan-month-frame .plan-category-search {
     flex: 1;
-  }
-  .plan-month-frame .plan-reference-filters > summary {
-    padding-inline: var(--space-sm);
   }
 }
 
@@ -891,5 +836,186 @@
   .app[data-budget-redesign='1'] .plan-shell-topbar .global-search-launch {
     flex: 0 1 200px;
     min-width: var(--touch);
+  }
+}
+/* #1006: one toolbar above the worksheet and inspector; row detail is progressive. */
+.app:has(.plan-month-v2) ~ .toast {
+  width: max-content;
+}
+.app:has(.plan-month-v2) ~ .toast button {
+  flex-shrink: 0;
+}
+@media (max-width: 767px) {
+  .app:has(.plan-month-v2) ~ .toast {
+    bottom: calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + var(--space-sm));
+  }
+}
+.plan-month-frame .plan-month-v2 .plan-calm-toolbar {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--space-xs);
+  padding: 0;
+  min-width: 0;
+}
+.plan-month-frame .plan-month-v2 .plan-grid > .plan-main,
+.plan-month-frame .plan-month-v2 .plan-grid > .plan-inspector {
+  grid-row: 3;
+}
+.plan-month-frame .plan-calm-toolbar .plan-category-search {
+  flex: 1 1 140px;
+  min-width: 100px;
+  max-width: 200px;
+}
+.plan-month-frame .plan-calm-toolbar .plan-category-search input {
+  width: 100%;
+  min-height: var(--touch);
+}
+.plan-month-frame .plan-filter-chips,
+.plan-month-frame .plan-history {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.plan-month-frame .plan-filter-chips {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.plan-month-frame .plan-filter-chips button {
+  flex-shrink: 0;
+  min-height: var(--touch);
+  padding: var(--space-xs) var(--space-sm);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--fs-meta);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.plan-month-frame .plan-filter-chips button[aria-pressed='true'] {
+  background: var(--tint-2);
+  color: var(--ink);
+  box-shadow: inset 0 -2px var(--line);
+}
+.plan-month-frame .plan-filter-chips button.has-overspending {
+  color: var(--red);
+}
+.plan-month-frame .plan-filter-chips button:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: -2px;
+}
+.plan-month-frame .plan-history .btn,
+.plan-month-frame .plan-menu-optionen > summary {
+  min-width: var(--touch);
+  min-height: var(--touch);
+  padding: var(--space-xs);
+  justify-content: center;
+}
+.plan-month-frame .plan-calm-toolbar .month-reference-count {
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+.plan-month-frame .plan-calm-toolbar .plan-menu-optionen {
+  order: 0;
+}
+.plan-month-frame .plan-menu-optionen > summary::before {
+  display: none;
+}
+.plan-month-frame .plan-calm-toolbar .disclosure-chevron {
+  transform: none;
+}
+.plan-month-frame .plan-calm-toolbar .month-reference-count .seg button {
+  min-width: var(--touch);
+  min-height: var(--touch);
+  padding: 0;
+}
+.plan-month-frame .plan-distribution-actions:has(.dist-actions:empty) {
+  display: none;
+}
+.plan-month-frame .plan-month-v2 .ptable .activity-link {
+  text-decoration: none;
+  border-bottom: 0;
+}
+.plan-month-frame .plan-month-v2 .ptable .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  border: 0;
+  box-shadow: none;
+}
+.plan-month-frame .plan-month-v2 .ptable .pgroup:not(.prow) > td {
+  background: transparent;
+  border-top: 1px solid var(--rule);
+  border-bottom: 0;
+  padding-block: 0;
+}
+.plan-month-frame .plan-month-v2 .ptable .pgroup:not(.prow) {
+  background: transparent;
+  border-radius: 0;
+}
+.plan-month-frame .plan-month-v2 .ptable :is(.pgroup, .prow) > td {
+  border-inline: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.plan-month-frame .plan-month-v2 .ptable .pgroup-gap td {
+  height: var(--space-xs);
+}
+.plan-month-frame .plan-month-v2 .ptable .prow .spending-bar {
+  visibility: hidden;
+  height: var(--bar-progress);
+  background-image: none;
+}
+.plan-month-frame
+  .plan-month-v2
+  .ptable
+  .prow:is(:hover, :focus-within, .is-selected)
+  .spending-bar {
+  visibility: visible;
+}
+.plan-month-frame .plan-month-v2 .ptable .spending-bar .pbar-fill {
+  display: block;
+  background-image: none;
+}
+.plan-month-frame .plan-density-compact .ptable .prow .spending-bar {
+  height: 2px;
+}
+.plan-month-frame .plan-density-minimal .ptable .prow .spending-bar {
+  display: none;
+}
+@media (min-width: 768px) {
+  .plan-month-frame .plan-density-all .ptable .prow > td {
+    padding-block: var(--space-sm);
+  }
+  .plan-month-frame :is(.plan-density-compact, .plan-density-minimal) .ptable .prow > td {
+    padding-block: 0;
+  }
+}
+@media (max-width: 1179px) {
+  .plan-month-frame .plan-month-v2 .plan-calm-toolbar {
+    flex-wrap: wrap;
+  }
+  .plan-month-frame .plan-filter-chips {
+    order: 1;
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 767px) {
+  .plan-month-frame .plan-calm-toolbar .plan-category-search {
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .plan-month-frame .plan-calm-toolbar .plan-history {
+    margin-right: auto;
+  }
+  .plan-month-frame .plan-calm-toolbar .month-reference-count {
+    display: none;
+  }
+  .plan-month-frame .plan-month-v2 .plan-grid > .plan-inspector {
+    grid-row: auto;
   }
 }

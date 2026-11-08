@@ -1,5 +1,6 @@
 import { useAmountPrivacy, Button, ClassSwatch, cx } from '@budget/ui';
-import { ArrowLeftRight, ChevronDown } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown, CircleAlert, Check, Wallet } from 'lucide-react';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { useState } from 'react';
 import { currentMonth } from '../shell/use-month';
 import { eur } from '../ledger/format';
@@ -200,6 +201,14 @@ export function MultiTable({
                               )}
                               title={credit ? 'neue Kartenschuld' : undefined}
                             >
+                              {REDESIGN_ENABLED &&
+                                (cell.overspentCents > 0 ? (
+                                  <CircleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
+                                ) : cell.availableCents > 0 ? (
+                                  <Check size={16} strokeWidth={1.75} aria-hidden="true" />
+                                ) : (
+                                  <Wallet size={16} strokeWidth={1.75} aria-hidden="true" />
+                                ))}
                               {eur(cell.availableCents)}
                             </span>
                             {cell.overspentCents > 0 && (

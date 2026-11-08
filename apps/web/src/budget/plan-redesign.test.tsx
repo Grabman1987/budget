@@ -12,6 +12,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { PlanMonthPage } from './plan-page';
 import type { BudgetMonthView, EnvelopeSummary } from './budget-api';
+import { setPlanDensity } from './plan-density';
 import { setMonthSpan } from './month-span';
 import { isMonth } from '../nav/month';
 import { validatePlanFilterSearch } from './plan-filters';
@@ -124,6 +125,7 @@ beforeEach(() => {
   flag.enabled = true;
   setMonthSpan(1);
   localStorage.clear();
+  setPlanDensity('all');
   writes = [];
   vi.stubGlobal('scrollTo', () => {});
   vi.stubGlobal('matchMedia', () => ({
@@ -276,7 +278,7 @@ it('ON desktop keeps exact spending hints and moves the named cover action onto 
 it('ON attention filters via the URL, keeps matching groups and restores all rows without writes', async () => {
   const { container, router } = mount();
   await screen.findByRole('button', { name: 'Synthetic goal' });
-  const menu = container.querySelector<HTMLDetailsElement>('.plan-reference-filters')!;
+  const menu = container.querySelector<HTMLDetailsElement>('.plan-menu-optionen')!;
   menu.open = true;
   fireEvent.click(screen.getByRole('button', { name: 'Braucht Aufmerksamkeit (3)' }));
   await waitFor(() => expect(router.state.location.search.filter).toBe('attention'));
@@ -416,7 +418,7 @@ it('ON phone keeps month read utilities reachable through native menu keyboard n
   );
   mount();
   await screen.findByTestId('to-be-assigned');
-  const summary = screen.getByText('Optionen', { selector: 'summary' });
+  const summary = screen.getByLabelText('Optionen', { selector: 'summary' });
   const menu = summary.closest('details')!;
   summary.focus();
   fireEvent.keyDown(summary, { key: 'ArrowDown' });
@@ -436,7 +438,11 @@ it('ON phone keeps month read utilities reachable through native menu keyboard n
   fireEvent.keyDown(summary, { key: 'End' });
   expect(document.activeElement).toBe(pending);
   fireEvent.keyDown(pending, { key: 'Home' });
-  expect(document.activeElement).toBe(within(menu).getByRole('button', { name: 'Auswählen' }));
+  expect(document.activeElement).toBe(
+    within(within(menu).getByRole('group', { name: 'Dichte' })).getByRole('button', {
+      name: 'Alle',
+    }),
+  );
   fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
   expect(menu.open).toBe(false);
   expect(document.activeElement).toBe(summary);
@@ -447,4 +453,38 @@ it('ON phone keeps month read utilities reachable through native menu keyboard n
   );
   expect(document.querySelector<HTMLDetailsElement>('#inspector-income')!.open).toBe(true);
   expect(menu.open).toBe(false);
+});
+
+it('ON exposes counted primary filters and stores density without changing financial rows', async () => {
+  const { container, router } = mount();
+  await screen.findByRole('button', { name: 'Synthetic goal' });
+  const filters = screen.getByRole('group', { name: 'Kategoriefilter' });
+  expect(
+    within(filters)
+      .getAllByRole('button')
+      .map((button) => button.textContent),
+  ).toEqual([
+    'Alle (6)',
+    'Überzogen (2)',
+    'Unterfinanziert (1)',
+    'Überfinanziert (1)',
+    'Verfügbar (3)',
+  ]);
+  fireEvent.click(within(filters).getByRole('button', { name: 'Überfinanziert (1)' }));
+  await waitFor(() => expect(router.state.location.search.filter).toBe('overfunded'));
+  expect(
+    [...container.querySelectorAll('.pname')].map((el) => el.getAttribute('data-category-id')),
+  ).toEqual(['goal']);
+  fireEvent.click(within(filters).getByRole('button', { name: 'Alle (6)' }));
+  await waitFor(() => expect(container.querySelectorAll('.pname')).toHaveLength(6));
+  const options = container.querySelector<HTMLDetailsElement>('.plan-menu-optionen')!;
+  options.open = true;
+  fireEvent.click(
+    within(screen.getByRole('group', { name: 'Dichte' })).getByRole('button', { name: 'Minimal' }),
+  );
+  expect(localStorage.getItem('budget.plan.density')).toBe('minimal');
+  expect(container.querySelector('.plan-density-minimal')).not.toBeNull();
+  expect(container.querySelectorAll('.pname')).toHaveLength(6);
+  expect(screen.getByTestId('to-be-assigned').textContent).toBe('140,00 €');
+  expect(screen.getByRole('button', { name: 'Rückgängig' }).hasAttribute('disabled')).toBe(true);
 });
