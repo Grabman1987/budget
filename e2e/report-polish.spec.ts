@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { retainExplorerReaders } from './explorer-controls';
 import { retainBudgetCostInflationReaders } from './budget-cost-inflation-controls';
 import { redesignReportsOn } from './report-frame';
@@ -94,7 +95,9 @@ isolatedTest(
         await form
           .getByLabel('Zinssatz in Prozent')
           .evaluate((el) => el.getBoundingClientRect().height),
-      ).toBeGreaterThanOrEqual(44);
+      ).toBeGreaterThanOrEqual(
+        await minimumControlHeight(form.getByLabel('Zinssatz in Prozent'), 44),
+      );
       await inspectReport(page, info, `rate-${type}`);
       await form.getByRole('button', { name: 'Abbrechen', exact: true }).click();
     }
@@ -146,7 +149,9 @@ isolatedTest(
         .getByRole('button', { name: range, exact: true });
       await chip.click();
       await expect(chip).toHaveAttribute('aria-pressed', 'true');
-      expect((await chip.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect((await chip.boundingBox())!.height).toBeGreaterThanOrEqual(
+        await minimumControlHeight(chip, 44),
+      );
       await expect(chart.locator('[data-chart-point]')).toHaveCount(count);
     }
     // The 1.5-unit dot is smaller than a pixel on a phone, so the chart overlay takes the pointer; it selects the nearest point.

@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { redesignEnabled } from './plan-redesign-controls';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
@@ -21,7 +22,7 @@ async function hit(control: Locator) {
     };
   });
   expect(box.width).toBeGreaterThanOrEqual(44);
-  expect(box.height).toBeGreaterThanOrEqual(44);
+  expect(box.height).toBeGreaterThanOrEqual(await minimumControlHeight(control, 44));
   expect(box.left).toBeGreaterThanOrEqual(0);
   expect(box.right).toBeLessThanOrEqual(box.viewport);
   expect(box.center).toBe(true);

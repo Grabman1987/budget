@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, type Locator, type Page, type Request } from '@playwright/test';
 import { MIN_TARGET_PX } from '../../e2e/ledger-helpers';
+import { minimumControlHeight } from '../../e2e/control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 
 async function rect(locator: Locator) {
@@ -27,7 +28,7 @@ async function target(locator: Locator, name: TargetName) {
     const bounds = await rect(locator);
     expect(bounds).not.toBeNull();
     expect(bounds!.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-    expect(bounds!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    expect(bounds!.height).toBeGreaterThanOrEqual(await minimumControlHeight(locator));
   } catch (error) {
     // Callers supply only fixed control names; local native diagnostics never need raw errors.
     if (error instanceof Error) error.name = `S3Target${name}`;

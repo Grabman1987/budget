@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, schema } from '@budget/db';
 import { eq } from 'drizzle-orm';
@@ -102,7 +103,7 @@ async function hit(target: Locator, minimum: number) {
     };
   });
   expect(bounds.width).toBeGreaterThanOrEqual(minimum);
-  expect(bounds.height).toBeGreaterThanOrEqual(minimum);
+  expect(bounds.height).toBeGreaterThanOrEqual(await minimumControlHeight(target, minimum));
   expect(bounds.left).toBeGreaterThanOrEqual(0);
   expect(bounds.right).toBeLessThanOrEqual(bounds.viewportWidth);
   expect(bounds.top).toBeGreaterThanOrEqual(0);

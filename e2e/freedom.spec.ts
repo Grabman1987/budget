@@ -86,9 +86,7 @@ test('live sources, explicit scenario, original design and native drill-down lin
   await expect(page.getByRole('group', { name: 'Zeitraum', exact: true })).toHaveCount(0);
   for (const path of ['/vermoegen/nettovermoegen', '/vermoegen/portfolio']) {
     await page.goto(path);
-    if (await wealthRedesign(page))
-      await expect(page.getByRole('combobox', { name: 'Zeitraum', exact: true })).toBeVisible();
-    else await expect(page.getByRole('group', { name: 'Zeitraum', exact: true })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Zeitraum', exact: true })).toBeVisible();
   }
 });
 
