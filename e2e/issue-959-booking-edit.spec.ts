@@ -102,7 +102,8 @@ test('reconciled split editing keeps fields and cents readable and closes withou
         }
       }
       const close = captureCloseControl(dialog);
-      expect((await close.innerText()).trim()).toBe(width === 390 ? 'Abbrechen' : '');
+      await expect(close).toHaveAccessibleName('Schließen');
+      expect((await close.innerText()).trim()).toBe('');
       const closeBox = (await close.boundingBox())!;
       expect(closeBox.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
       expect(closeBox.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
