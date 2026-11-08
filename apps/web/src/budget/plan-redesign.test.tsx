@@ -120,7 +120,9 @@ const data: BudgetMonthView = {
 };
 let client: QueryClient;
 let writes: string[];
+let readData: BudgetMonthView;
 beforeEach(() => {
+  readData = structuredClone(data);
   flag.enabled = true;
   setMonthSpan(1);
   localStorage.clear();
@@ -135,7 +137,7 @@ beforeEach(() => {
     const url = new URL(input, 'http://localhost');
     const method = init?.method ?? 'GET';
     if (method !== 'GET') writes.push(`${method} ${url.pathname}`);
-    if (url.pathname === '/api/budget/2026-09') return Response.json(data);
+    if (url.pathname === '/api/budget/2026-09') return Response.json(readData);
     if (url.pathname === '/api/expected/income')
       return Response.json({
         receivedCents: 2500,
@@ -144,7 +146,19 @@ beforeEach(() => {
         byIncomeType: [],
       });
     if (url.pathname === '/api/accounts') return Response.json({ accounts: [] });
-    if (url.pathname === '/api/categories') return Response.json({ ...data, targets: [] });
+    if (url.pathname === '/api/categories') return Response.json({ ...readData, targets: [] });
+    if (url.pathname === '/api/contacts')
+      return Response.json({
+        contacts: [
+          {
+            id: 'synthetic-contact',
+            name: 'Synthetic contact',
+            receivableCents: 1234,
+            creditCents: 1234,
+            balanceCents: 0,
+          },
+        ],
+      });
     if (url.pathname === '/api/expected') return Response.json({ payments: [] });
     if (url.pathname === '/api/auth/status')
       return Response.json({
@@ -197,6 +211,62 @@ function mount() {
     ),
   };
 }
+
+it('ON places quick actions in the lead and month close in the header', async () => {
+  const { container } = mount();
+  const lead = await screen.findByRole('region', { name: 'Monatsbudget' });
+  const menu = within(lead).getByRole('button', { name: 'Geld verteilen' });
+  fireEvent.click(menu);
+  expect(within(lead).getByRole('button', { name: 'Alle Ziele füllen' })).toBeTruthy();
+  expect(container.querySelector('.ptoolbar')).toBeNull();
+  expect(
+    screen.getByRole('link', { name: 'Monat abschließen' }).closest('.plan-v2-page-head'),
+  ).not.toBeNull();
+});
+
+it('ON hides archived groups and separates advances without changing the month figures', async () => {
+  readData.groups.push({ id: 'archive', name: 'Synthetic archive', sortOrder: 1 });
+  readData.categories.push(
+    {
+      ...readData.categories[0]!,
+      id: 'hidden',
+      name: 'Synthetic hidden',
+      groupId: 'archive',
+      hiddenAt: '2026-09-01',
+    },
+    {
+      ...readData.categories[0]!,
+      id: 'advance',
+      name: 'Synthetic advance',
+      kind: 'advance',
+      class: null,
+    },
+  );
+  readData.summary.envelopes.push(
+    envelope('hidden', { availableCents: 345 }),
+    envelope('advance', { availableCents: -1234, activityCents: -1234 }),
+  );
+  const { container } = mount();
+  await screen.findByTestId('to-be-assigned');
+  expect(container.querySelector('#grp-archive')).toBeNull();
+  expect(container.querySelector('[data-category-id="advance"]')).toBeNull();
+  const advances = container.querySelector<HTMLDetailsElement>('.plan-contact-advances')!;
+  expect(advances.open).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: 'Optionen' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ausgeblendete zeigen' }));
+  expect(container.querySelector('#grp-archive')).not.toBeNull();
+  expect(container.querySelector('[data-category-id="hidden"]')).not.toBeNull();
+  expect(container.querySelector('[data-category-id="advance"]')).toBeNull();
+  fireEvent.click(within(advances).getByText('Auslagen für Kontakte'));
+  const contact = await screen.findByRole('link', { name: 'Synthetic contact' });
+  expect(contact.getAttribute('href')).toBe('/konten/kontakte/synthetic-contact');
+  expect(advances.textContent).toContain('Offen 12,34 € · Guthaben 12,34 €');
+  expect(advances.querySelector('.spending-bar')).toBeNull();
+  act(() => setAmountsHidden(true));
+  expect(advances.textContent).not.toContain('12,34');
+  act(() => setAmountsHidden(false));
+  expect(screen.getByTestId('to-be-assigned').textContent).toBe('140,00 €');
+});
 
 it('ON leads with class assignments and keeps the literal cent derivation in the amount disclosure', async () => {
   const { router } = mount();

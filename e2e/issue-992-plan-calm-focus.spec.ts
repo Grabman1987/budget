@@ -200,7 +200,11 @@ for (const theme of ['light', 'dark'] as const) {
           await expect(head).toHaveCSS('transition-duration', '0s');
           if (page.viewportSize()!.width < 768) {
             // Returning to toolbar controls expands the lead; clear its full measured height.
-            for (const selector of ['.ptoolbar', '.ptoolbar summary', '.ptoolbar .plan-close']) {
+            for (const selector of [
+              '.plan-filterbar',
+              '.plan-menu-optionen summary',
+              '.plan-reference-add',
+            ]) {
               await page.evaluate(() => window.scrollTo(0, 0));
               await expect(head).not.toHaveClass(/is-compact/);
               await page.evaluate(() => window.scrollTo(0, 400));

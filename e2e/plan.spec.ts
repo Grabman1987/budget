@@ -321,6 +321,8 @@ isolatedTest(
 
     // Geld verteilen: the target of Lebensmittel shows as a ghost value and is taken with one click.
     await page.getByRole('button', { name: 'Geld verteilen' }).click();
+    if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+      await page.getByRole('button', { name: 'Wasserfall-Assistent' }).click();
     await page.getByRole('button', { name: `Vorschlag 300,00 € für ${food} übernehmen` }).click();
     await expect(toast(page)).toContainText('300,00 € verteilt');
     await expect(available(page, food)).toHaveText('300,00 €');

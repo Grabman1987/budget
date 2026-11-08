@@ -427,9 +427,10 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
           .toBeLessThanOrEqual(compactTopbarMax);
       }
       expect((await bar.boundingBox())!.height).toBeLessThanOrEqual(compactTopbarMax);
-      await page.locator('.ptoolbar').scrollIntoViewIfNeeded();
+      const toolbarControl = page.locator(redesigned ? '.plan-filterbar' : '.ptoolbar');
+      await toolbarControl.scrollIntoViewIfNeeded();
       const topbar = (await bar.boundingBox())!;
-      const toolbar = (await page.locator('.ptoolbar').boundingBox())!;
+      const toolbar = (await toolbarControl.boundingBox())!;
       expect(toolbar.y).toBeGreaterThanOrEqual(topbar.y + topbar.height);
       await page.evaluate(() => window.scrollTo(0, 0));
       await enterPhoneSelection(page);

@@ -56,16 +56,33 @@ test('"Zu verteilen" is green when positive, red only when negative, neutral at 
   await page.reload();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('−50,00 €');
   await expect(hero).toHaveClass(/is-negative/);
-  await expect(send).toBeDisabled();
+  if (await redesignEnabled(page)) {
+    await expect(send).toBeEnabled();
+    await send.click();
+    await expect(page.getByRole('button', { name: 'Wasserfall-Assistent' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await page.keyboard.press('Escape');
+  } else await expect(send).toBeDisabled();
   await expect(hint).toHaveText('Zu viel zugewiesen');
-  await expect(send).toHaveAccessibleDescription('Zu viel zugewiesen');
+  if (!(await redesignEnabled(page)))
+    await expect(send).toHaveAccessibleDescription('Zu viel zugewiesen');
 
   await page.unroute(monthRead);
   await withToBeAssigned(page, 0);
   await page.reload();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('0,00 €');
   await expect(hero).not.toHaveClass(/is-positive|is-negative/);
-  await expect(send).toBeDisabled();
+  if (await redesignEnabled(page)) {
+    await expect(send).toBeEnabled();
+    await send.click();
+    await expect(page.getByRole('button', { name: 'Wasserfall-Assistent' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await page.keyboard.press('Escape');
+  } else await expect(send).toBeDisabled();
   await expect(hint).toHaveText('Nichts zu verteilen');
   await expect(hint).toBeVisible();
 });
@@ -82,7 +99,15 @@ test('Einnahmen link and "Monat abschließen" are visible without a menu', async
   if (on && page.viewportSize()!.width < 768) await page.locator('.plan-tba').click();
   await expect(income).toBeVisible();
   if (on && page.viewportSize()!.width < 768) await page.keyboard.press('Escape');
-  const close = page.getByRole('link', { name: 'Monat abschließen', exact: true });
+  if (on && page.viewportSize()!.width < 768)
+    await page.locator('.plan-menu-optionen > summary').click();
+  const close = page.getByRole('link', {
+    name:
+      on && page.viewportSize()!.width < 768
+        ? 'Monatsabschluss starten oder fortsetzen'
+        : 'Monat abschließen',
+    exact: true,
+  });
   await expect(close).toBeVisible();
   await close.click();
   await expect(page).toHaveURL(/\/monatsabschluss\/2026-09/);
@@ -122,7 +147,16 @@ for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
     await withToBeAssigned(page, 0);
     await page.goto('/plan/monat?monat=2026-09');
-    await expect(page.getByRole('link', { name: 'Monat abschließen', exact: true })).toBeVisible();
+    if ((await redesignEnabled(page)) && page.viewportSize()!.width < 768) {
+      await page.locator('.plan-menu-optionen > summary').click();
+      await expect(
+        page.getByRole('link', { name: 'Monatsabschluss starten oder fortsetzen' }),
+      ).toBeVisible();
+      await page.keyboard.press('Escape');
+    } else
+      await expect(
+        page.getByRole('link', { name: 'Monat abschließen', exact: true }),
+      ).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -132,7 +166,7 @@ for (const scheme of ['light', 'dark'] as const) {
     if (isMobile) {
       for (const selector of ['.plan-close', '.plan-topbar summary', '.plan-chip-scroll > .btn']) {
         const heights = await page
-          .locator(selector)
+          .locator(`${selector}:visible`)
           .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
         for (const h of heights) expect(h, selector).toBeGreaterThanOrEqual(44);
       }
