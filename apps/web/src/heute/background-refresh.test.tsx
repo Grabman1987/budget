@@ -430,6 +430,9 @@ it.each(['month', 'payday'] as const)(
     ).toContain('/heute/details/free');
     expect(primary.getAttribute('data-as-of')).toBe('2026-09-17');
     expect(screen.getAllByTestId('heute-lead-value')).toHaveLength(1);
+    expect(document.querySelector('.hv-head-phone .month-name')?.textContent).toBe(
+      'September 2026',
+    );
     expect(document.querySelector('.hv-aside .hv-tasks')).not.toBeNull();
     expect(document.querySelector('.hv-main .hv-forecast')).not.toBeNull();
     expect(card().querySelector('.heute-forecast-low')?.getAttribute('data-cents')).toBe('123456');
