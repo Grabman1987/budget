@@ -1,3 +1,5 @@
+import { captureSaveControl } from './ledger-helpers';
+import { captureCloseControl } from './ledger-helpers';
 import type { Locator, Page } from '@playwright/test';
 import { sampleTest as test, expect } from './sample';
 import { MIN_TARGET_PX } from './ledger-helpers';
@@ -50,9 +52,10 @@ for (const theme of ['light', 'dark']) {
       await expect(field).toBeFocused();
       await expect(field).toHaveAttribute('aria-activedescendant', active!);
       await expect(dialog.getByRole('listbox')).toBeVisible();
-      await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport({
-        ratio: 1,
-      });
+      await expect(dialog.locator('.bk-foot')).toHaveCount(0);
+      await captureSaveControl(dialog).scrollIntoViewIfNeeded();
+      await expect(captureSaveControl(dialog)).toBeInViewport({ ratio: 1 });
+      await field.scrollIntoViewIfNeeded();
     }
   });
 
@@ -134,7 +137,8 @@ for (const theme of ['light', 'dark']) {
       const box = (await dialog.boundingBox())!;
       expect(box.y).toBe(47);
       expect(box.y + box.height).toBe(844);
-      await expect(dialog.locator('.bk-foot')).toHaveCSS('padding-bottom', '8px');
+      await expect(dialog.locator('.bk-foot')).toHaveCount(0);
+      await expect(dialog.locator('.bk-form-actions')).toHaveCSS('padding-bottom', '8px');
       await page.screenshot({ path: info.outputPath(`sheet-${theme}.png`) });
       // Keyboard-sized capture reclaims decorative chrome, but never the notch or home area.
       await page.setViewportSize({ width: 390, height: 430 });
@@ -142,12 +146,11 @@ for (const theme of ['light', 'dark']) {
       const compact = (await dialog.boundingBox())!;
       expect(compact.y).toBe(47);
       expect(compact.y + compact.height).toBe(430);
-      const close = (await dialog
-        .getByRole('button', { name: 'Schließen', exact: true })
-        .boundingBox())!;
+      const close = (await captureCloseControl(dialog).boundingBox())!;
       expect(close.y).toBeGreaterThanOrEqual(47);
+      await dialog.getByLabel('Betrag', { exact: true }).focus();
       const save = (await dialog
-        .getByRole('button', { name: 'Speichern', exact: true })
+        .getByRole('button', { name: 'Buchung speichern', exact: true })
         .boundingBox())!;
       expect(save.y + save.height).toBeLessThanOrEqual(430 - 34);
       await page.setViewportSize({ width: 390, height: 844 });
@@ -156,7 +159,7 @@ for (const theme of ['light', 'dark']) {
     } else {
       await expect(dialog.getByRole('button', { name: 'Blatt schließen' })).toHaveCount(0);
       await page.screenshot({ path: info.outputPath(`dialog-${theme}.png`) });
-      await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
+      await captureCloseControl(dialog).click();
     }
     await expect(dialog).toBeHidden();
     await expect(opener).toBeFocused();
@@ -206,7 +209,7 @@ test('sheet swipes keep unsaved edits guarded and sideways drags open', async ({
   ).toBeVisible();
   await dialog.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
   await expect(dialog.getByLabel('Notiz', { exact: true })).toHaveValue('Synthetic unsaved note');
-  await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await captureCloseControl(dialog).click();
   await dialog.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await expect(dialog).toBeHidden();
   expect(writes).toEqual([]);

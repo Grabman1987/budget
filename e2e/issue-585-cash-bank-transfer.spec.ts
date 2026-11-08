@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, schema } from '@budget/db';
 import { expect, type Page, type TestInfo } from '@playwright/test';
@@ -97,7 +98,7 @@ test('cash/bank transfer capture persists both directions and explicit confirmat
             new URL(response.url()).pathname === '/api/bookings' &&
             response.request().method() === 'POST',
         );
-        await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+        await captureSaveControl(dialog).click();
         const response = await saved;
         expect(response.status()).toBe(201);
         const result = (await response.json()) as {

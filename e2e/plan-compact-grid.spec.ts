@@ -268,7 +268,9 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   await expect(firstCategory.locator('.col-avail')).toHaveText('−2,02 €');
   // #587: no overspending chip in the head; the two overspent rows carry the marking and the
   // Zu verteilen disclosure names the same count with its cover actions.
-  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
+  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen', {
+    useInnerText: true,
+  });
   await expect(page.locator('tr.prow.is-over')).toHaveCount(2);
   await page.locator('.plan-tba').click();
   await expect(page.getByRole('group', { name: 'Maßkette Zu verteilen' })).toBeVisible();
@@ -427,9 +429,10 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
           .toBeLessThanOrEqual(compactTopbarMax);
       }
       expect((await bar.boundingBox())!.height).toBeLessThanOrEqual(compactTopbarMax);
-      await page.locator('.ptoolbar').scrollIntoViewIfNeeded();
+      const toolbarControl = page.locator(redesigned ? '.plan-filterbar' : '.ptoolbar');
+      await toolbarControl.scrollIntoViewIfNeeded();
       const topbar = (await bar.boundingBox())!;
-      const toolbar = (await page.locator('.ptoolbar').boundingBox())!;
+      const toolbar = (await toolbarControl.boundingBox())!;
       expect(toolbar.y).toBeGreaterThanOrEqual(topbar.y + topbar.height);
       await page.evaluate(() => window.scrollTo(0, 0));
       await enterPhoneSelection(page);

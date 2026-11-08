@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase } from '../packages/db/src/client';
@@ -96,7 +97,7 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
       response.request().method() === 'PATCH' &&
       new URL(response.url()).pathname === `/api/bookings/${inboxBookingId}`,
   );
-  await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(editor).click();
   const saveResponse = await saved;
   expect(saveResponse.request().postDataJSON()).toMatchObject({
     splits: [{ categoryId: category.id }],

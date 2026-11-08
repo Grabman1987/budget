@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { redesignLoaded, pickCategory } from './ledger-helpers';
 import { openHeuteReview } from './heute-visual-fixture';
 import Database from 'better-sqlite3';
@@ -154,7 +155,7 @@ for (const [rhythm, date] of [
       (r) => new URL(r.url()).pathname === '/api/bookings' && r.request().method() === 'POST',
     );
     const start = performance.now();
-    await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await captureSaveControl(panel).click();
     const savedResponse = await saved;
     const postMs = performance.now() - start;
     await expect(panel).toBeHidden();
@@ -197,7 +198,7 @@ for (const [rhythm, date] of [
         r.request().method() === 'PATCH',
     );
     const patchStart = performance.now();
-    await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await captureSaveControl(edit).click();
     const patchResponse = await patched;
     const patchMs = performance.now() - patchStart;
     await expect(edit).toBeHidden();

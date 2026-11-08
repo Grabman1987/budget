@@ -1,3 +1,4 @@
+import { captureCloseControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -61,14 +62,16 @@ for (const mode of ['create', 'edit'] as const) {
       return;
     }
     await expect(amount).toHaveAttribute('inputmode', 'decimal');
-    await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toHaveCount(0);
+    if (mode === 'create')
+      await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toBeVisible();
+    else await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toHaveCount(0);
     // Browser emulation has no native software keyboard. Resize its visible area to 390×430
     // and keep the amount focused, without scrolling or focusing the other fields into view.
     await page.setViewportSize({ width: 390, height: 430 });
     await amount.focus();
     // Compact capture reclaims the handle and top gap while keeping the close button available.
     await expect(dialog.getByRole('button', { name: 'Blatt schließen', exact: true })).toBeHidden();
-    await expect(dialog.getByRole('button', { name: 'Schließen', exact: true })).toBeInViewport({
+    await expect(captureCloseControl(dialog)).toBeInViewport({
       ratio: 1,
     });
     for (const theme of ['light', 'dark']) {
@@ -90,7 +93,9 @@ for (const mode of ['create', 'edit'] as const) {
       for (const icon of await icons.all()) await expect(icon).toBeHidden();
       const boxes = await Promise.all(fields.map((field) => field.boundingBox()));
       for (let i = 1; i < boxes.length; i++) expect(boxes[i]!.y).toBeGreaterThan(boxes[i - 1]!.y);
-      await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport({
+      await expect(
+        dialog.getByRole('button', { name: 'Buchung speichern', exact: true }),
+      ).toBeInViewport({
         ratio: 1,
       });
       expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -109,7 +114,7 @@ for (const mode of ['create', 'edit'] as const) {
     }
     if (mode === 'create') {
       await amount.press('Tab');
-      await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toHaveCount(0);
+      await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toBeVisible();
       await amount.press('Control+Enter');
       await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toBeVisible();
       await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();

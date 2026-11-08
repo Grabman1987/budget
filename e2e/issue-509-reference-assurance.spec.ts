@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { openAccountCapture, categoryLineControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
@@ -113,13 +114,13 @@ for (const profile of [
       await panel.getByRole('option', { name: /^Synthetic509 Other/ }).click();
       await panel.getByLabel('Betrag 2', { exact: true }).fill('3');
       await expect(panel.getByText('Rest: 1,00 €', { exact: false })).toBeVisible();
-      await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
+      await expect(captureSaveControl(panel)).toBeDisabled();
       const beforeSave = await request.get(`/api/bookings?accountId=${a.id}`);
       expect(beforeSave.status()).toBe(200);
       expect((await beforeSave.json()).total).toBe(1);
       await panel.getByLabel('Betrag 2', { exact: true }).fill('4');
       await expect(panel.getByText('Rest: 0,00 €', { exact: false })).toBeVisible();
-      await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+      await captureSaveControl(panel).click();
       await expect(panel).toBeHidden();
       await expect(page.getByTestId('account-balance')).toHaveText('965,00 €');
       const splitUndo = page.waitForResponse(
@@ -146,7 +147,7 @@ for (const profile of [
           new URL(response.url()).pathname === '/api/bookings' &&
           response.request().method() === 'POST',
       );
-      await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+      await captureSaveControl(panel).click();
       const saved = await save;
       expect(saved.status()).toBe(201);
       const transfer = (await saved.json()) as {
