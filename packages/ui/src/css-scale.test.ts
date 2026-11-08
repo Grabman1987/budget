@@ -101,6 +101,23 @@ describe('DESIGN.md CSS scale', () => {
     ).toEqual([]);
   });
 
+  it('permits the owner-approved 11px phone tab labels only on the redesign dock', () => {
+    expect(
+      findScaleViolations(
+        ":root:has([data-budget-redesign='1']) .tabbar a { font-size: var(--fs-revision); }",
+        'shell.css',
+        tokens,
+      ),
+    ).toEqual([]);
+    expect(
+      findScaleViolations(
+        '.tabbar a { font-size: var(--fs-revision); } .registers a { font-size: var(--fs-revision); }',
+        'shell.css',
+        tokens,
+      ),
+    ).toHaveLength(2);
+  });
+
   it('checks wealth typography like every other file', () => {
     const css = '.sample { font-size: 11px; border-radius: 7px; }';
     expect(findScaleViolations(css, 'apps/web/src/wealth/debts.css', tokens)).toHaveLength(2);

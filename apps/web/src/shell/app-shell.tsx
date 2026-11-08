@@ -1,4 +1,4 @@
-import { ToastProvider, cx } from '@budget/ui';
+import { MobileSheetContext, ToastProvider, cx } from '@budget/ui';
 import { Outlet, useLocation } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { TITLE_ON_MOBILE_AREAS } from '../pages/area-head';
@@ -17,6 +17,7 @@ import { OfflineStatus } from './header-status';
 import { HeuteShellHead } from '../heute/overview';
 import { HeuteSourceReturn } from '../heute/return-context';
 import { REDESIGN_ENABLED } from './redesign-flag';
+import './mobile-sheets.css';
 
 const APP_NAME = 'Budget';
 
@@ -54,59 +55,61 @@ export function AppShell() {
   }, [title]);
 
   return (
-    <ToastProvider>
-      <div
-        className={cx('app', collapsed && 'is-collapsed')}
-        data-budget-redesign={REDESIGN_ENABLED ? '1' : undefined}
-        style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
-      >
-        <a
-          className="skip-link"
-          href="#main"
-          onClick={(event) => {
-            event.preventDefault();
-            main.current?.focus();
-          }}
+    <MobileSheetContext.Provider value={REDESIGN_ENABLED}>
+      <ToastProvider>
+        <div
+          className={cx('app', collapsed && 'is-collapsed')}
+          data-budget-redesign={REDESIGN_ENABLED ? '1' : undefined}
+          style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
         >
-          Zum Inhalt springen
-        </a>
-        <Sidebar
-          area={area}
-          sidebarWidth={sidebarWidth}
-          onSidebarWidthChange={setSidebarWidth}
-          collapsed={collapsed}
-        />
-        <div className="main">
-          <Topbar
-            leading={
-              REDESIGN_ENABLED && (pathname === '/' || pathname.startsWith('/heute/details/')) ? (
-                <HeuteShellHead />
-              ) : undefined
-            }
-            {...(REDESIGN_ENABLED && area === 'plan' ? { title: 'Plan' } : {})}
+          <a
+            className="skip-link"
+            href="#main"
+            onClick={(event) => {
+              event.preventDefault();
+              main.current?.focus();
+            }}
+          >
+            Zum Inhalt springen
+          </a>
+          <Sidebar
+            area={area}
+            sidebarWidth={sidebarWidth}
+            onSidebarWidthChange={setSidebarWidth}
             collapsed={collapsed}
-            onToggle={() => setCollapsed(!collapsed)}
-            onSearchChange={setSearchOpen}
           />
-          <MobileHeader
-            title={searching ? 'Suchen' : phoneTitle(page, title)}
-            asHeading={!(page && TITLE_ON_MOBILE_AREAS.has(page.area)) && !wealthPageHeading}
-            onSearchChange={setSearchOpen}
-          />
-          <OfflineStatus />
-          <main className="sheet" id="main" tabIndex={-1} ref={main}>
-            {(page?.area === 'heute' || page?.area === 'konten') && <QueueList />}
-            {REDESIGN_ENABLED && <HeuteSourceReturn />}
-            <Outlet />
-          </main>
+          <div className="main">
+            <Topbar
+              leading={
+                REDESIGN_ENABLED && (pathname === '/' || pathname.startsWith('/heute/details/')) ? (
+                  <HeuteShellHead />
+                ) : undefined
+              }
+              {...(REDESIGN_ENABLED && area === 'plan' ? { title: 'Plan' } : {})}
+              collapsed={collapsed}
+              onToggle={() => setCollapsed(!collapsed)}
+              onSearchChange={setSearchOpen}
+            />
+            <MobileHeader
+              title={searching ? 'Suchen' : phoneTitle(page, title)}
+              asHeading={!(page && TITLE_ON_MOBILE_AREAS.has(page.area)) && !wealthPageHeading}
+              onSearchChange={setSearchOpen}
+            />
+            <OfflineStatus />
+            <main className="sheet" id="main" tabIndex={-1} ref={main}>
+              {(page?.area === 'heute' || page?.area === 'konten') && <QueueList />}
+              {REDESIGN_ENABLED && <HeuteSourceReturn />}
+              <Outlet />
+            </main>
+          </div>
         </div>
-      </div>
-      <TabBar area={area} />
-      <PanelHost />
-      {/* Announces the new page to screen readers after client-side navigation. */}
-      <div className="sr-only" role="status" aria-live="polite">
-        {title}
-      </div>
-    </ToastProvider>
+        <TabBar area={area} />
+        <PanelHost />
+        {/* Announces the new page to screen readers after client-side navigation. */}
+        <div className="sr-only" role="status" aria-live="polite">
+          {title}
+        </div>
+      </ToastProvider>
+    </MobileSheetContext.Provider>
   );
 }

@@ -120,7 +120,14 @@ export function TabBar({ area }: { area: AreaId | undefined }) {
           const Icon = a.icon;
           return (
             <AppLink key={a.id} to={a.to} aria-current={area === a.id ? 'page' : undefined}>
-              {Icon && <Icon className="icon" size={20} strokeWidth={1.5} aria-hidden="true" />}
+              {Icon && (
+                <Icon
+                  className="icon"
+                  size={REDESIGN_ENABLED ? 24 : 20}
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                />
+              )}
               {a.label}
             </AppLink>
           );

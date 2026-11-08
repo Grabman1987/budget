@@ -20,7 +20,7 @@
 
 /* Shared touch controls: keep readable labels above compact page-specific styles. */
 @media screen and (pointer: coarse), screen and (max-width: 767px) {
-  .tabbar a,
+  :root:not(:has([data-budget-redesign='1'])) .tabbar a,
   .registers a,
   .registers button,
   .seg button {

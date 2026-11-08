@@ -171,6 +171,38 @@ it.each([false, true])(
   },
 );
 
+it.each(['account', 'all'] as const)(
+  'groups the redesign phone %s list by supplied dates without changing rows',
+  (variant) => {
+    flags.REDESIGN_ENABLED = true;
+    try {
+      const items = [
+        booking,
+        { ...booking, id: 'same-day' },
+        { ...booking, id: 'previous-day', date: '2026-10-01' },
+      ];
+      const { container, onOpen } = setup(items, variant);
+      const days = [...container.querySelectorAll('.kregister-day')];
+      expect(days.map((day) => day.getAttribute('data-day'))).toEqual(['2026-10-02', '2026-10-01']);
+      expect(
+        days.map((day) => day.parentElement?.querySelectorAll('[data-booking]').length),
+      ).toEqual([2, 1]);
+      expect(
+        [...container.querySelectorAll('[data-booking]')].map((row) =>
+          row.getAttribute('data-booking'),
+        ),
+      ).toEqual(items.map((item) => item.id));
+      expect(container.querySelectorAll('.kx-outgoing')).toHaveLength(3);
+      for (const amount of container.querySelectorAll('.kx-outgoing'))
+        expect(amount.textContent).toContain('−12,34 €');
+      fireEvent.click(container.querySelector('.kaccount-mobile-meta')!);
+      expect(onOpen).toHaveBeenCalledWith(booking);
+    } finally {
+      flags.REDESIGN_ENABLED = false;
+    }
+  },
+);
+
 it('uses the supplied closing day balance, one phone metadata line, and a final status column', () => {
   const { container } = setup([booking, { ...booking, id: 'earlier', balanceAfterCents: 100000 }]);
   const group = container.querySelector('.kaccount-day')!;

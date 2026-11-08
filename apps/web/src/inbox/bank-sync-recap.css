@@ -1,0 +1,38 @@
+.bank-sync-recap {
+  margin-block: 16px;
+  min-width: 0;
+}
+.bank-sync-recap > p {
+  color: var(--ink-2);
+}
+.bank-sync-recap ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.bank-sync-recap li {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-block: 12px;
+  border-bottom: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+}
+.bank-sync-recap li > div {
+  min-width: 0;
+}
+.bank-sync-recap h3,
+.bank-sync-recap p {
+  margin-block: 4px;
+}
+.bank-recap-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.bank-recap-actions .btn {
+  min-height: 44px;
+  white-space: normal;
+}

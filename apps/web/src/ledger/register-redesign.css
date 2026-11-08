@@ -256,6 +256,52 @@
   display: flex;
   align-items: center;
 }
+
+/* Native phone list: quiet date groups and inset row separators, with the same row controls. */
+.kregister-day {
+  display: none;
+}
+@media (max-width: 767px) {
+  .ktx.ktx-redesign .kmonth,
+  .ktx.ktx-redesign .kregister-inline-date {
+    display: none;
+  }
+  .ktx.ktx-redesign .kregister-day {
+    display: block;
+  }
+  .ktx.ktx-redesign .kregister-day > th {
+    display: block;
+    padding: 12px 12px 4px;
+    border: 0;
+    background: var(--surface-2);
+    color: var(--ink-2);
+    font-size: var(--fs-meta);
+    font-weight: 500;
+    text-align: left;
+  }
+  .ktx.ktx-redesign .kname-btn > .kname-s {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ktx.ktx-redesign .kaccount-mobile-meta .kcat {
+    font-size: inherit;
+    line-height: inherit;
+  }
+  .ktx.ktx-redesign tr[data-booking]:not(.is-upcoming) {
+    position: relative;
+    border-bottom: 0;
+  }
+  .ktx.ktx-redesign tr[data-booking]:not(.is-upcoming)::after {
+    content: '';
+    position: absolute;
+    inset: auto 12px 0 48px;
+    height: 1px;
+    background: var(--rule);
+    pointer-events: none;
+  }
+}
 .register-day-totals dl > div {
   display: flex;
   justify-content: space-between;

@@ -46,7 +46,7 @@ test('scenario and rate-change dialogs show their content', async ({
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
-    await dialog.getByRole('button', { name: 'Schließen' }).click();
+    await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
     await expect(dialog).toBeHidden();
   }
 });
