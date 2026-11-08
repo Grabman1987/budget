@@ -3,7 +3,7 @@ import { InlineBookingCell } from './inline-booking-cell';
 import type { BookingPatch } from './api';
 import { keepSplit } from './booking-model';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, CalendarDays, ChevronDown, Pencil } from 'lucide-react';
+import { ArrowDown, ArrowUp, CalendarDays, ChevronDown, Info, Pencil } from 'lucide-react';
 import { Fragment, useId, useState, type ReactNode } from 'react';
 import { CategoryCell, FlagCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
 import { BookingLegend } from './booking-legend';
@@ -26,6 +26,7 @@ import { lookupsQuery } from './queries';
 import type { BookingFlag, BookingSort, ListedBooking } from './types';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './register-redesign.css';
+import { BookingInspector } from './booking-inspector';
 
 export interface Selection {
   selected: ReadonlySet<string>;
@@ -71,6 +72,8 @@ export function BookingTable({
   showRunningBalance = false,
 }: BookingTableProps) {
   useAmountPrivacy();
+  // Mount the responsive overlay on first use, then retain it for native close/focus return.
+  const [inspected, setInspected] = useState<ListedBooking | null>();
   const classes = useCategoryClasses();
   const writes = useLedgerWrites();
   const lookups = useQuery(lookupsQuery());
@@ -192,6 +195,7 @@ export function BookingTable({
           showRunningBalance={showRunningBalance}
           {...(selection ? { selection } : {})}
           onOpen={onOpen}
+          onInspect={setInspected}
           categories={lookups.data?.categories ?? []}
           groups={lookups.data?.groups ?? []}
           onCategory={setCategory}
@@ -368,6 +372,7 @@ export function BookingTable({
                       blankCheck={!!selection}
                       runColumn={runColumn}
                       onOpen={onOpen}
+                      onInspect={setInspected}
                       categories={lookups.data?.categories ?? []}
                       groups={lookups.data?.groups ?? []}
                       onCategory={setCategory}
@@ -398,6 +403,9 @@ export function BookingTable({
           groups.map((group) => <tbody key={group.day}>{groupRows(group)}</tbody>)
         )}
       </table>
+      {REDESIGN_ENABLED && inspected !== undefined && (
+        <BookingInspector booking={inspected} onClose={() => setInspected(null)} />
+      )}
     </>
   );
 }
@@ -421,6 +429,7 @@ function Row({
   classes,
   selection,
   onOpen,
+  onInspect,
   categories,
   groups,
   onCategory,
@@ -438,6 +447,7 @@ function Row({
   classes: Map<string, SwatchKind>;
   selection?: Selection;
   onOpen: (b: ListedBooking) => void;
+  onInspect: (b: ListedBooking) => void;
   categories: { id: string; name: string; groupId: string | null }[];
   groups: { id: string; name: string }[];
   onCategory: (b: ListedBooking, categoryId: string | null) => void;
@@ -568,6 +578,18 @@ function Row({
             />
           )}
         </button>
+        {REDESIGN_ENABLED && !selectionMode && (
+          <button
+            type="button"
+            className="btn btn-ghost booking-inspect-trigger"
+            aria-label={`Buchungsdetails: ${label}`}
+            aria-haspopup="dialog"
+            disabled={selection?.disabled}
+            onClick={() => onInspect(b)}
+          >
+            <Info size={18} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+        )}
         {(variant === 'account' || REDESIGN_ENABLED) && !upcomingToday && (
           // Outside the labelled button so the row still reads its category and note; the button
           // covers it on the phone, so a tap anywhere in the cell opens the booking.
