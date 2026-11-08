@@ -1,4 +1,4 @@
-import { captureSaveControl } from './ledger-helpers';
+import { captureSaveControl, redesignLoaded } from './ledger-helpers';
 import {
   openAccountCapture,
   historyChart,
@@ -288,7 +288,11 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
     .click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await edit.getByLabel('Betrag', { exact: true }).fill('21,00');
-  await captureSaveControl(edit).click();
+  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768) {
+    await expect(captureSaveControl(edit)).toBeDisabled();
+    await expect(captureSaveControl(edit)).toHaveAccessibleDescription(/geprüft/);
+    await edit.getByLabel('Betrag', { exact: true }).press('Control+Enter');
+  } else await captureSaveControl(edit).click();
   await expect(edit.getByRole('alert')).toContainText('geprüft');
   await edit.getByLabel('Trotzdem ändern').check();
   await captureSaveControl(edit).click();

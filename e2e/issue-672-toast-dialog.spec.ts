@@ -1,4 +1,4 @@
-import { captureSaveControl } from './ledger-helpers';
+import { captureSaveControl, redesignLoaded } from './ledger-helpers';
 import { expect, test } from '@playwright/test';
 import {
   openAccountCapture,
@@ -58,7 +58,31 @@ test('a visible toast does not cover the Speichern button of an open dialog', as
   await expect(edit.locator('.toast.is-open')).toHaveCount(0);
   await expect(toast(page)).toHaveCount(1);
 
-  await captureSaveControl(edit).click();
-  // The booking is checked, so Speichern answers with the release prompt: proof the click landed.
-  await expect(edit.getByRole('alert')).toContainText('geprüft');
+  const save = captureSaveControl(edit);
+  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768) {
+    // Phone save exposes the existing lock guard before submitting a protected change.
+    await expect(save).toBeDisabled();
+    await expect(save).toHaveAccessibleDescription(/geprüft/);
+    await edit.getByLabel('Betrag', { exact: true }).press('Control+Enter');
+    await expect(edit.getByRole('alert')).toContainText('geprüft');
+    // A note is freely editable on a checked booking, so exercise a valid plain click too.
+    await edit.getByLabel('Betrag', { exact: true }).fill('20');
+    const note = `Synthetic toast note ${tag}`;
+    await edit.getByLabel('Notiz', { exact: true }).fill(note);
+    await expect(save).toBeEnabled();
+    await expect(toast(page)).toBeVisible();
+    await expect(toast(page)).toContainText('Kontostand geprüft');
+    await save.click();
+    await expect(edit).toBeHidden();
+    await expect(balance(page)).toHaveText('480,00 €');
+    await page
+      .getByRole('row', { name: new RegExp(payee) })
+      .getByRole('button', { name: /Betrag ändern/ })
+      .click();
+    await expect(edit.getByLabel('Notiz', { exact: true })).toHaveValue(note);
+  } else {
+    await save.click();
+    // The checked booking answers with the release prompt: proof the click landed.
+    await expect(edit.getByRole('alert')).toContainText('geprüft');
+  }
 });
