@@ -128,7 +128,7 @@ test('Today retains its desktop side column and the phone dock clears safe areas
     if (phone) {
       const dock = page.locator('.tabbar');
       await expect(dock).toHaveCSS('padding-bottom', '8px');
-      await expect(dock).toHaveCSS('height', '57px');
+      await expect(dock).toHaveCSS('height', '52px');
       for (const link of await dock.getByRole('link').all()) {
         expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
       }
@@ -147,7 +147,7 @@ test('Today retains its desktop side column and the phone dock clears safe areas
         document.documentElement.style.setProperty('--mobile-safe-bottom', '34px'),
       );
       await expect(dock).toHaveCSS('padding-bottom', '34px');
-      await expect(dock).toHaveCSS('height', '83px');
+      await expect(dock).toHaveCSS('height', '78px');
       await page.evaluate(() =>
         document.documentElement.style.removeProperty('--mobile-safe-bottom'),
       );

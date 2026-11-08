@@ -1,3 +1,4 @@
+import { controlBoxes } from './control-geometry';
 import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect as baseExpect } from './sample';
@@ -80,17 +81,12 @@ test('Today groups work, preserves its review destinations and distinguishes sel
       true,
     );
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-    const targets = await page
-      .locator(
+    const targets = await controlBoxes(
+      page.locator(
         '.heute-attention a, .heute-attention summary, .heute-upcoming a, .heute-upcoming button, .heute-view-preferences summary, .heute-view-preferences label',
-      )
-      .evaluateAll((elements) =>
-        elements.map((element) => {
-          const box = element.getBoundingClientRect();
-          return { width: box.width, height: box.height };
-        }),
-      );
-    expect(targets.filter((box) => box.width < 44 || box.height < 44)).toEqual([]);
+      ),
+    );
+    expect(targets.filter((box) => box.width < 44 || box.height < box.minimumHeight)).toEqual([]);
     await page.screenshot({
       path: info.outputPath(`heute-tasks-${info.project.name}-${theme}.png`),
       fullPage: false,

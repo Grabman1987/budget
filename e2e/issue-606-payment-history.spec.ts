@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { openPaymentManagement } from './plan-redesign-controls';
 import { withShellControls } from './shell-actions';
 import { writeFile } from 'node:fs/promises';
@@ -226,14 +227,14 @@ async function inspect(
   await expect(expanded).toHaveAttribute('aria-expanded', 'true');
   const box = await expanded.boundingBox();
   expect(box!.width).toBeGreaterThanOrEqual(44);
-  expect(box!.height).toBeGreaterThanOrEqual(44);
+  expect(box!.height).toBeGreaterThanOrEqual(await minimumControlHeight(expanded, 44));
   const link = page.getByRole('link', { name: /Buchung 20.08.2026/ });
   const linkedBox = await link.boundingBox();
   expect(linkedBox!.width).toBeGreaterThanOrEqual(44);
-  expect(linkedBox!.height).toBeGreaterThanOrEqual(44);
+  expect(linkedBox!.height).toBeGreaterThanOrEqual(await minimumControlHeight(link, 44));
   for (const control of await page.locator('.xp-occ-act button').all()) {
     const target = await control.boundingBox();
-    expect(target!.height).toBeGreaterThanOrEqual(44);
+    expect(target!.height).toBeGreaterThanOrEqual(await minimumControlHeight(control, 44));
     expect(target!.width).toBeGreaterThanOrEqual(44);
   }
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
@@ -439,8 +440,11 @@ for (const viewport of [
             },
           };
         });
+        const minimumHeights = await Promise.all(
+          (await row.locator('button,a').all()).map((control) => minimumControlHeight(control, 44)),
+        );
         const violations = (await new AxeBuilder({ page }).analyze()).violations;
-        proofs.push({ theme: value, geometry, axeViolations: violations });
+        proofs.push({ theme: value, geometry, minimumHeights, axeViolations: violations });
         await page.screenshot({
           path: info.outputPath(`legacy-currency-${viewport.width}-${value}.png`),
           fullPage: false,
@@ -492,9 +496,9 @@ for (const viewport of [
           }
         }
         expect(g.controls.length).toBeGreaterThan(0);
-        for (const control of g.controls) {
+        for (const [index, control] of g.controls.entries()) {
           expect(control.width).toBeGreaterThanOrEqual(44);
-          expect(control.height).toBeGreaterThanOrEqual(44);
+          expect(control.height).toBeGreaterThanOrEqual(proof.minimumHeights[index]!);
         }
         expect(proof.axeViolations).toEqual([]);
       }

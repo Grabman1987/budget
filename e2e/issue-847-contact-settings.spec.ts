@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -179,7 +180,7 @@ for (const theme of ['light', 'dark'] as const) {
           if (!(await target.isVisible())) continue;
           const box = await target.boundingBox();
           expect(box!.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-          expect(box!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+          expect(box!.height).toBeGreaterThanOrEqual(await minimumControlHeight(target));
         }
       expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
       await page.screenshot({

@@ -44,6 +44,12 @@ async function expectPhoneSelectionTargets(page: Page) {
 
 /** Keep separate parent/category bounds, including the ON category targets and bar spacing. */
 async function expectCompactBandContents(page: Page, phone: boolean) {
+  const wideTouch = !phone && (await page.evaluate(() => matchMedia('(pointer: coarse)').matches));
+  if (wideTouch) {
+    for (const action of await page.locator('.ptable-zero .group-heading .plan-add').all()) {
+      expect((await action.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+  }
   const bands = await page.locator('.ptable-zero .pgroup:not(.psingle)').evaluateAll((rows) =>
     rows.map((row) => {
       const child = row.nextElementSibling!;
@@ -107,7 +113,10 @@ async function expectCompactBandContents(page: Page, phone: boolean) {
       expect(band.categoryHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 40);
       expect(band.wholeHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 152 : 76);
     }
-    expect(band.parentHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 36);
+    // Wide touch keeps a 44px action plus the two row borders; fine-pointer rows stay compact.
+    expect(band.parentHeight, JSON.stringify(band)).toBeLessThanOrEqual(
+      phone ? 76 : band.redesigned && wideTouch ? 46 : 36,
+    );
     if (!phone) expect(band.nameRight, band.id).toBeLessThanOrEqual(band.statusLeft);
   }
 }

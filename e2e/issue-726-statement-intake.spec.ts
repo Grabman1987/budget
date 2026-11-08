@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { accountDocuments } from './ledger-helpers';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
@@ -131,7 +132,7 @@ for (const profile of ['desktop-layout', 'configured-profile'] as const)
         await save.evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
         const box = await save.boundingBox();
         expect(box!.width).toBeGreaterThanOrEqual(44);
-        expect(box!.height).toBeGreaterThanOrEqual(44);
+        expect(box!.height).toBeGreaterThanOrEqual(await minimumControlHeight(save, 44));
         expect(
           await save.evaluate((e) => {
             const r = e.getBoundingClientRect();

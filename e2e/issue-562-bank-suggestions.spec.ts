@@ -1,3 +1,4 @@
+import { controlBoxes } from './control-geometry';
 import { redesignLoaded, bankPreviewControl } from './ledger-helpers';
 import { randomUUID } from 'node:crypto';
 import AxeBuilder from '@axe-core/playwright';
@@ -157,16 +158,9 @@ test('three prepared bank rows are explicitly reviewed with progress and individ
       true,
     );
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-    const smallTargets = await page
-      .locator('.kinbox button, .kinbox summary, .kinbox .bank-select')
-      .evaluateAll((nodes) =>
-        nodes
-          .filter(
-            (node) =>
-              node.getBoundingClientRect().height > 0 && node.getBoundingClientRect().height < 44,
-          )
-          .map((node) => node.textContent),
-      );
+    const smallTargets = (
+      await controlBoxes(page.locator('.kinbox button, .kinbox summary, .kinbox .bank-select'))
+    ).filter((box) => box.height > 0 && box.height < box.minimumHeight);
     expect(smallTargets).toEqual([]);
     await page.screenshot({
       path: `test-results/issue-562-${info.project.name}-${theme}.png`,

@@ -1,8 +1,9 @@
+import { minimumControlHeight } from './control-geometry';
 import { randomUUID } from 'node:crypto';
 import { openDatabase, schema } from '@budget/db';
 import { expect, type Page, type APIRequestContext } from '@playwright/test';
 import { test } from './isolated-ledger';
-import { bankPreviewControl, toast, MIN_TARGET_PX } from './ledger-helpers';
+import { bankPreviewControl, toast } from './ledger-helpers';
 import { BankSync } from '../apps/server/src/bank-sync/service';
 import { bankSecretBox } from '../apps/server/src/bank-sync/secrets';
 import type { BankProvider } from '../apps/server/src/bank-sync/provider';
@@ -173,7 +174,9 @@ for (const theme of ['light', 'dark']) {
       const bounds = await recap
         .getByRole('link', { name: 'Neue Umsätze prüfen (2)' })
         .boundingBox();
-      expect(bounds!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+      expect(bounds!.height).toBeGreaterThanOrEqual(
+        await minimumControlHeight(recap.getByRole('link', { name: 'Neue Umsätze prüfen (2)' })),
+      );
       await page.screenshot({
         path: info.outputPath(`sync-recap-${info.project.name}-${theme}.png`),
         fullPage: true,
