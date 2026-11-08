@@ -291,7 +291,7 @@ it('ON attention filters via the URL, keeps matching groups and restores all row
 
 it('ON month lead collapses down, expands up away from the top, and ignores tiny scroll reversals', async () => {
   vi.stubGlobal('scrollY', 0);
-  mount();
+  const { unmount } = mount();
   const head = await screen.findByTestId('plan-topbar');
   vi.spyOn(head, 'getBoundingClientRect').mockReturnValue({ height: 180 } as DOMRect);
   const scroll = (y: number) => {
@@ -307,6 +307,9 @@ it('ON month lead collapses down, expands up away from the top, and ignores tiny
   expect(
     head.closest<HTMLElement>('.plan-grid')!.style.getPropertyValue('--plan-head-height'),
   ).toBe('180px');
+  expect(document.documentElement.style.getPropertyValue('--plan-scroll-head-height')).toBe(
+    '180px',
+  );
   scroll(262);
   expect(head.classList.contains('is-compact')).toBe(false);
   scroll(300);
@@ -316,6 +319,8 @@ it('ON month lead collapses down, expands up away from the top, and ignores tiny
   ).toBe('180px');
   scroll(0);
   expect(head.classList.contains('is-compact')).toBe(false);
+  unmount();
+  expect(document.documentElement.style.getPropertyValue('--plan-scroll-head-height')).toBe('');
 });
 
 it('ON phone separates a singleton group heading and its available sum from the member row', async () => {

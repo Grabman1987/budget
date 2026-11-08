@@ -201,7 +201,9 @@ for (const theme of ['light', 'dark'] as const) {
           if (page.viewportSize()!.width < 768) {
             // Returning to toolbar controls expands the lead; clear its full measured height.
             for (const selector of ['.ptoolbar', '.ptoolbar summary', '.ptoolbar .plan-close']) {
-              await page.evaluate(() => window.scrollTo(0, 600));
+              await page.evaluate(() => window.scrollTo(0, 0));
+              await expect(head).not.toHaveClass(/is-compact/);
+              await page.evaluate(() => window.scrollTo(0, 400));
               await expect(head).toHaveClass(/is-compact/);
               const target = page.locator(selector);
               await target.scrollIntoViewIfNeeded();

@@ -1584,12 +1584,15 @@ function PlanTopBar({
       const height = element.getBoundingClientRect().height;
       element.classList.toggle('is-compact', compact);
       grid.style.setProperty('--plan-head-height', `${height}px`);
+      document.documentElement.style.setProperty('--plan-scroll-head-height', `${height}px`);
     };
     measure();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(element);
+    return () => {
+      observer?.disconnect();
+      document.documentElement.style.removeProperty('--plan-scroll-head-height');
+    };
   }, [compact]);
   const setCompactMode = useCallback((next: boolean) => setCompact(next), []);
   const naturalTop = useCallback(() => {
