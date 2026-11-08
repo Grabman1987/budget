@@ -1,8 +1,20 @@
 import { X } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 import { cx } from './cx';
 import { useRegisterToastHost } from './toast-host';
 import { useIsPhone } from './use-media-query';
+
+/** Opt in at the app boundary; the rollback shell retains its existing dialogs. */
+export const MobileSheetContext = createContext(false);
 
 export interface PanelProps {
   open: boolean;
@@ -92,6 +104,9 @@ function Overlay({
 }: PanelProps & { variant: 'side' | 'bottom' | 'modal'; bare?: boolean; wide?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   const backdropDown = useRef(false);
+  const swipeEnabled = useContext(MobileSheetContext) && variant === 'bottom';
+  const swipeStart = useRef<{ id: number; x: number; y: number } | null>(null);
+  const suppressGripClick = useRef(false);
   const titleId = useId();
   // Toasts render inside the open dialog: everything outside a modal dialog is inert.
   const [toastHost, setToastHost] = useState<HTMLElement | null>(null);
@@ -101,6 +116,49 @@ function Overlay({
     if (beforeClose && !beforeClose()) return;
     onClose();
   };
+
+  const grip =
+    variant === 'bottom' &&
+    (swipeEnabled ? (
+      <button
+        type="button"
+        className="sheet-drag-handle"
+        aria-label="Blatt schließen"
+        onClick={(event) => {
+          if (event.detail === 0 || !suppressGripClick.current) requestClose();
+          suppressGripClick.current = false;
+        }}
+        onPointerDown={(event) => {
+          if (!event.isPrimary || event.button !== 0) return;
+          suppressGripClick.current = false;
+          swipeStart.current = { id: event.pointerId, x: event.clientX, y: event.clientY };
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerUp={(event) => {
+          const start = swipeStart.current;
+          swipeStart.current = null;
+          if (!start || start.id !== event.pointerId) return;
+          const distance = event.clientY - start.y;
+          suppressGripClick.current = Math.hypot(event.clientX - start.x, distance) > 8;
+          if (distance >= 64 && distance > Math.abs(event.clientX - start.x) * 1.5) {
+            // Suppress the compatibility click: each gesture asks the discard guard only once.
+            event.preventDefault();
+            requestClose();
+          }
+        }}
+        onPointerCancel={() => {
+          swipeStart.current = null;
+          suppressGripClick.current = true;
+        }}
+        onLostPointerCapture={() => {
+          swipeStart.current = null;
+        }}
+      >
+        <span className="sheet-grip" aria-hidden="true" />
+      </button>
+    ) : (
+      <span className="sheet-grip" aria-hidden="true" />
+    ));
 
   const returnTo = useRef<HTMLElement | null>(null);
   /** After the dialog closed: the native focus return, or ours where Safari gave none. */
@@ -136,6 +194,7 @@ function Overlay({
         variant === 'side' ? 'panel' : variant === 'modal' ? 'modal' : 'sheet-bottom',
         bare && 'is-bare',
         wide && (variant === 'modal' ? 'is-wide' : 'is-full'),
+        swipeEnabled && 'is-swipe-sheet',
       )}
       aria-labelledby={titleId}
       onClose={(event) => {
@@ -176,7 +235,7 @@ function Overlay({
       {/* Bare: the content draws its own head and footer; the title stays as the dialog's name. */}
       {bare && (
         <div className="overlay-inner">
-          {variant === 'bottom' && <span className="sheet-grip" aria-hidden="true" />}
+          {grip}
           <h2 id={titleId} className="sr-only">
             {title}
           </h2>
@@ -185,7 +244,7 @@ function Overlay({
       )}
       {!bare && open && (
         <div className="overlay-inner">
-          {variant === 'bottom' && <span className="sheet-grip" aria-hidden="true" />}
+          {grip}
           <div className="panel-head">
             <h2 id={titleId}>{title}</h2>
             {headAside}
@@ -205,7 +264,6 @@ function Overlay({
             className="panel-body"
             role={focusableBody ? 'region' : undefined}
             aria-labelledby={focusableBody ? titleId : undefined}
-            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll long dialog content.
             tabIndex={wide || focusableBody ? 0 : undefined}
           >
             {variant === 'side' && <div className="panel-graticule" aria-hidden="true" />}

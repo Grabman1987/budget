@@ -33,6 +33,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { Hono } from 'hono';
 import { filteredBookingCsv } from './booking-csv';
+import { readBookingInspector } from './booking-inspector';
 import { bookingNotePreview, notePreviewBody } from './booking-note-preview';
 import { ACTOR, ApiError, defined, errorAnswer, readBody, readQuery } from './http';
 import { bookingDeleteQuery, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
@@ -152,6 +153,8 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
       c.req.raw.signal,
     );
   });
+
+  app.get('/:id/inspector', (c) => c.json(readBookingInspector(db, c.req.param('id'), today())));
 
   app.get('/:id', (c) => {
     const [found] = read([c.req.param('id')]);

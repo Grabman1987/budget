@@ -454,7 +454,7 @@ test('instrument Back navigation asks once and honors keep or discard for quote 
   await expect(page).toHaveURL(new RegExp(`/instrument/${security.id}`));
   await expect(editPanel.getByLabel('Name', { exact: true })).toHaveValue(`${name} geändert`);
 
-  await editPanel.getByRole('button', { name: 'Schließen' }).click();
+  await editPanel.getByRole('button', { name: 'Schließen', exact: true }).click();
   await expect(editPanel.getByRole('alert')).toContainText('Ungespeicherte Angaben verwerfen?');
   await editPanel.getByRole('button', { name: 'Verwerfen' }).click();
   await expect(page).toHaveURL(new RegExp(`/instrument/${security.id}`));
