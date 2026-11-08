@@ -105,9 +105,9 @@ it('retains every no-filter legacy payload and independently reconciles each dis
   expect(cash).toEqual(cashflowReport(opened.db, today, '2026-08..2026-08'));
   expect(table).toEqual(incomeExpenseReport(opened.db, today));
   expect(income.income).toMatchObject({ earnedCents: 300003, capitalCents: 700 });
-  expect((await read<{ receivedCents: number }>('/expected/income?month=2026-08')).receivedCents).toBe(
-    income.income.earnedCents,
-  );
+  expect(
+    (await read<{ receivedCents: number }>('/expected/income?month=2026-08')).receivedCents,
+  ).toBe(income.income.earnedCents);
   expect(cash.totals).toMatchObject({
     incomeCents: 300003,
     consumptionCents: 29500,
