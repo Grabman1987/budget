@@ -20,6 +20,8 @@ import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
 import { BankError, type BankProvider, type BankBatch } from './provider';
 import { BankSync } from './service';
 import { bankSecretBox } from './secrets';
+import { bankRecapEntryIds, readBankSyncRecap } from './recap';
+import { createLedgerApi } from '../api/index';
 
 let opened: OpenedDatabase;
 let service: BankSync;
@@ -102,6 +104,102 @@ const nextDay = () => {
 };
 
 describe('bank sync workflow', () => {
+  it.each([false, true])(
+    'recaps exact new rows, not booking dates or old open work (immediate %s)',
+    async (immediate) => {
+      service.setPolicy(consentId, immediate);
+      await service.tick();
+      const first = service.status().connections[0]!.accounts[0]!.lastSyncAt!;
+      const firstIds = bankRecapEntryIds(opened.db, linkId, first)!;
+      expect(firstIds).toHaveLength(immediate ? 2 : 1);
+      nextDay();
+      vi.mocked(provider.transactions).mockResolvedValue(
+        batch([row, { ...row, reference: 'entry-new', amountCents: -2302 }]),
+      );
+      await service.tick();
+      const second = service.status().connections[0]!.accounts[0]!.lastSyncAt!;
+      const auditBefore = opened.db.select().from(schema.auditLog).all();
+      const balancesBefore = accountBalances(opened.db, '2026-10-02');
+      const secondIds = bankRecapEntryIds(opened.db, linkId, second)!;
+      expect(secondIds).toHaveLength(immediate ? 2 : 1);
+      expect(secondIds.some((id) => firstIds.includes(id))).toBe(false);
+      expect(readBankSyncRecap(opened.db, '2026-10-02').accounts).toMatchObject([
+        { sourceId: linkId, syncedAt: second, result: { fetched: 2, linked: 0, new: 1 }, open: 1 },
+      ]);
+      expect(opened.db.select().from(schema.auditLog).all()).toEqual(auditBefore);
+      expect(accountBalances(opened.db, '2026-10-02')).toEqual(balancesBefore);
+      expect(bankRecapEntryIds(opened.db, 'unknown-source', second)).toBeNull();
+      expect(bankRecapEntryIds(opened.db, linkId, '2026-01-01T00:00:00Z')).toBeNull();
+      // A repeat fetch has no new identities, even while older work is still open.
+      nextDay();
+      await service.tick();
+      expect(readBankSyncRecap(opened.db, '2026-10-03').accounts[0]).toMatchObject({
+        result: { new: 0 },
+        open: 0,
+      });
+      expect(bankRecapEntryIds(opened.db, linkId, first)).toEqual(firstIds);
+    },
+  );
+
+  it('keeps identical provider references on different accounts separate and filters before pagination', async () => {
+    await service.tick();
+    const candidate = candidates()[0]!;
+    // Provider references are scoped to accounts, not globally unique.
+    createBooking(
+      opened.db,
+      {
+        accountId: 'spar',
+        date: row.date,
+        amountCents: row.amountCents,
+        source: 'bank',
+        importKey: 'bank-sync:' + candidate.dedupeKey,
+        splits: [{ amountCents: row.amountCents }],
+      },
+      { actor: 'synthetic' },
+    );
+    const first = service.status().connections[0]!.accounts[0]!.lastSyncAt!;
+    expect(bankRecapEntryIds(opened.db, linkId, first)).toEqual([candidate.id]);
+    expect(readBankSyncRecap(opened.db, '2026-10-01').accounts[0]!.open).toBe(1);
+    nextDay();
+    vi.mocked(provider.transactions).mockResolvedValue(
+      batch([
+        row,
+        { ...row, reference: 'new-a', amountCents: -1401 },
+        { ...row, reference: 'new-b', amountCents: -1501 },
+      ]),
+    );
+    await service.tick();
+    const second = service.status().connections[0]!.accounts[0]!.lastSyncAt!;
+    const api = createLedgerApi({
+      db: opened.db,
+      today: () => '2026-10-02',
+      stepUp: async (_c, next) => next(),
+    });
+    const path = `/inbox?bankSource=${linkId}&bankRecap=${encodeURIComponent(second)}&limit=1`;
+    const page1 = (await (await api.request(path)).json()) as { entries: { id: string }[] };
+    expect(page1).toMatchObject({ count: 2, totalEntries: 2, next: 1 });
+    expect(page1).not.toHaveProperty('bankProgress');
+    const page2 = (await (await api.request(path + '&offset=1')).json()) as {
+      entries: { id: string }[];
+    };
+    expect(page2).toMatchObject({ count: 2, totalEntries: 2, next: null });
+    expect(page1.entries[0]!.id).not.toBe(page2.entries[0]!.id);
+    expect([page1.entries[0]!.id, page2.entries[0]!.id]).not.toContain(candidate.id);
+    expect((await api.request('/inbox?bankRecap=' + encodeURIComponent(second))).status).toBe(400);
+    expect(
+      (await api.request(`/inbox?bankSource=${linkId}&bankRecap=2026-01-01T00:00:00Z`)).status,
+    ).toBe(409);
+  });
+
+  it('reports missing historical provenance without guessing new rows', () => {
+    opened.db
+      .update(schema.bankSyncAccount)
+      .set({ lastSyncAt: '2026-09-01T12:00:00Z', lastResult: { fetched: 3, linked: 0, new: 3 } })
+      .where(eq(schema.bankSyncAccount.id, linkId))
+      .run();
+    expect(readBankSyncRecap(opened.db, '2026-10-01').accounts[0]).toMatchObject({ open: null });
+  });
+
   it('requires confirmation for a newly authorized connection without changing legacy policy', async () => {
     opened.db.delete(schema.appSetting).run();
     await service.start('Bank A', 'AT', 'new-owner-session');

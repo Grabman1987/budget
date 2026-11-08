@@ -24,6 +24,7 @@ import type { SessionRow } from '../auth/store';
 import { readBody } from './http';
 import { bankConfirmSchema } from './assignment-rules';
 import { eq } from 'drizzle-orm';
+import { readBankSyncRecap } from '../bank-sync/recap';
 
 const shortId = z.string().min(1).max(100);
 const revision = z.string().length(64);
@@ -97,6 +98,7 @@ export function bankSyncRoutes(
         : { configured: false, connections: [], accounts: [] },
     ),
   );
+  app.get('/recap', (c) => c.json(readBankSyncRecap(db, today())));
   app.post('/inbox/bulk', async (c) => {
     const input = await readBody(c, bulkSchema);
     const ctx = { actor: 'owner', groupId: randomUUID() };

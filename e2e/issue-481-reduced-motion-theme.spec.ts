@@ -80,7 +80,12 @@ async function paintedRoles(page: Page, phone: boolean) {
       redesign
         ? [
             ['.plan-class-lead span', '--ink-2'],
-            [".prow[data-plan-state='met'] .col-avail .pill", '--primary'],
+            [
+              isPhone
+                ? ".prow[data-plan-state='met'] .col-avail .pill"
+                : '.ptable-zero .col-avail .pill.is-good',
+              isPhone ? '--primary' : '--on-good-soft',
+            ],
             [".prow[data-plan-state='overspent'] .col-avail .pill", '--red'],
           ]
         : [
@@ -194,7 +199,13 @@ for (const profile of ['desktop', 'phone'] as const) {
           expect(await page.evaluate(() => localStorage.getItem('budget-theme'))).toBe(theme);
           const expected = {
             ...THEME_ROLES[theme],
-            semantic: redesign ? REDESIGN_SEMANTIC[theme] : THEME_ROLES[theme].semantic,
+            semantic: redesign
+              ? [
+                  REDESIGN_SEMANTIC[theme][0],
+                  phone ? REDESIGN_SEMANTIC[theme][1] : THEME_ROLES[theme].semantic[1],
+                  REDESIGN_SEMANTIC[theme][2],
+                ]
+              : THEME_ROLES[theme].semantic,
           };
           let beforeCapture = await paintedRoles(page, phone);
           // Require actual inherited text, surfaces and semantic roles before the first capture.

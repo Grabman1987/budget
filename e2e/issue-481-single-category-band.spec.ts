@@ -42,7 +42,7 @@ async function expectPhoneSelectionTargets(page: Page) {
   }
 }
 
-/** Measure the separate parent and first category at their original compact limits. */
+/** Keep separate parent/category bounds, including the ON category targets and bar spacing. */
 async function expectCompactBandContents(page: Page, phone: boolean) {
   const bands = await page.locator('.ptable-zero .pgroup:not(.psingle)').evaluateAll((rows) =>
     rows.map((row) => {
@@ -65,7 +65,7 @@ async function expectCompactBandContents(page: Page, phone: boolean) {
         Math.max(...items.map((box) => box.bottom)) - Math.min(...items.map((box) => box.top));
       const name = child.querySelector('.pname')!.getBoundingClientRect();
       const redesigned = row.closest('[data-budget-redesign="1"]') !== null;
-      // ON keeps the exact status for assistive technology and gives the name its track.
+      // ON puts the status below the name; check horizontal containment within the name cell.
       const status = child
         .querySelector(redesigned ? '.col-name' : '.spending-status')!
         .getBoundingClientRect();
@@ -101,8 +101,8 @@ async function expectCompactBandContents(page: Page, phone: boolean) {
       expect(band.barHeight, band.id).toBe(4);
       expect(phone ? band.rowPadding : band.bottomPadding, band.id).toBe(8);
       expect(band.categoryHeight, JSON.stringify(band)).toBeGreaterThanOrEqual(56);
-      expect(band.categoryHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 64);
-      expect(band.wholeHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 152 : 100);
+      expect(band.categoryHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 104);
+      expect(band.wholeHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 152 : 140);
     } else {
       expect(band.categoryHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 40);
       expect(band.wholeHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 152 : 76);

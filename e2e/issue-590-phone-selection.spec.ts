@@ -204,8 +204,9 @@ async function assertCompactBands(page: Page, phone: boolean, info: TestInfo, st
     expect(band.parentHeight).toBeGreaterThan(0);
     if (redesigned) {
       expect(band.categoryHeight).toBeGreaterThanOrEqual(56);
-      expect(band.categoryHeight).toBeLessThanOrEqual(phone ? 76 : 64);
-      expect(band.wholeHeight).toBeLessThanOrEqual(phone ? 152 : 100);
+      // Desktop retains the 44px name target and spacing below the spending bar.
+      expect(band.categoryHeight).toBeLessThanOrEqual(phone ? 76 : 104);
+      expect(band.wholeHeight).toBeLessThanOrEqual(phone ? 152 : 140);
     } else {
       expect(band.categoryHeight).toBeLessThanOrEqual(phone ? 76 : 40);
       expect(band.wholeHeight).toBeLessThanOrEqual(phone ? 152 : 76);
