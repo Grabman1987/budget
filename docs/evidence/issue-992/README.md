@@ -6,6 +6,36 @@ Fully covered categories have neutral empty tracks. Underfunded and overspent ca
 
 ## Verification
 
+### PR #996 iPhone toolbar clearance repair
+
+Merged `origin/main` at `2dfb7891`; the register-test conflict retains both the
+incomplete-split checks and the new phone date-group checks. Inspected both failed
+jobs in run `42427950185` using `gh run view --job <id> --log-failed`:
+`128570964809` failed the toolbar/header bound; `128575435749` failed the aggregate
+because of that browser shard.
+
+Classification: product defect. Scrolling back to the toolbar expands the month
+lead, but native scroll alignment reserved only its compact 104px height. The
+toolbar overlapped the expanded header by 31px. Phone toolbar actions now add the
+existing measured expanded-height difference as scroll margin. Fixed menu panels,
+desktop and OFF styling retain their previous rules.
+
+The original `plan-compact-grid.spec.ts` bound remains unchanged. The existing
+`issue-992-plan-calm-focus.spec.ts` scroll cases additionally check native alignment
+of the toolbar, distribution summary and month-close link after expansion in both
+themes. No financial oracle, tolerance, timeout or screenshot baseline changed.
+Independent local agent review approved the repair and merge resolution.
+
+Local repair validation: ON E2E build and separate OFF web build passed. The
+original compact-grid spec passed on desktop and phone Chromium; the added scroll
+regression passed in both phone Chromium themes. WebKit completed all new bounds
+in the dark case before timing out on the existing last-category click; other
+local attempts timed out before the bounds or failed the earlier disclosure check.
+Host memory fell below 100 MB. These are local limitations, not a WebKit pass.
+Each invocation ran one spec with `--workers=1`; the ignored local adapter omitted
+only unused global servers, retaining the isolated fixture and browser settings.
+Required CI remains the complete WebKit gate.
+
 ### PR #996 repair after #985
 
 Merged `origin/main` at `606b97cb` and retained the one-line category/hint layout,

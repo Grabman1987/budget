@@ -847,6 +847,14 @@
     scroll-padding-block: calc(64px + 104px + var(--space-sm))
       calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + var(--space-lg));
   }
+  /* Scrolling back to toolbar actions expands the lead. Add its measured extra height
+     to the root's compact clearance so the expanded header cannot cover the target. */
+  .plan-month-frame .plan-month-v2 .ptoolbar,
+  .plan-month-frame .plan-month-v2 .ptoolbar > .plan-menu > summary,
+  .plan-month-frame .plan-month-v2 .ptoolbar > .plan-close,
+  .plan-month-frame .plan-month-v2 .ptoolbar > .dist-actions > button {
+    scroll-margin-top: max(0px, calc(var(--plan-head-height, 104px) - 104px));
+  }
   /* The root supplies head/dock clearance; selection only adds its own action-bar height. */
   .plan-month-frame .plan-month-v2 .has-phone-selection :is(.pname, .plan-select-toggle) {
     scroll-margin-block: 0 var(--plan-selection-clearance, 0px);

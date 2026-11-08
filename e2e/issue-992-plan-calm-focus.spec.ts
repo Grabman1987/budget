@@ -198,6 +198,20 @@ for (const theme of ['light', 'dark'] as const) {
           await expect(head).toHaveCSS('pointer-events', 'none');
           await expect(head.locator('summary.plan-tba')).toHaveCSS('pointer-events', 'auto');
           await expect(head).toHaveCSS('transition-duration', '0s');
+          if (page.viewportSize()!.width < 768) {
+            // Returning to toolbar controls expands the lead; clear its full measured height.
+            for (const selector of ['.ptoolbar', '.ptoolbar summary', '.ptoolbar .plan-close']) {
+              await page.evaluate(() => window.scrollTo(0, 600));
+              await expect(head).toHaveClass(/is-compact/);
+              const target = page.locator(selector);
+              await target.scrollIntoViewIfNeeded();
+              await expect(head).not.toHaveClass(/is-compact/);
+              const headerBounds = (await head.boundingBox())!;
+              expect((await target.boundingBox())!.y).toBeGreaterThanOrEqual(
+                headerBounds.y + headerBounds.height,
+              );
+            }
+          }
           // The bottom clamp must not turn a collapse into an endless expand/collapse loop.
           await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
           const lastCategory = page.locator('.prow .pname').last();
