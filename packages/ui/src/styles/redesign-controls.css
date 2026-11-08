@@ -1,0 +1,95 @@
+/* Shared ON control geometry also reaches body-mounted dialogs and the component gallery. */
+:root:has([data-budget-redesign='1']) {
+  --control-height: 44px;
+  --control-small-height: 44px;
+  --field-height: 44px;
+  --segment-height: 44px;
+}
+
+/* Primitive specificity must also beat lazy-loaded page density rules. */
+:root:has([data-budget-redesign='1']) body .btn.btn {
+  height: var(--control-height);
+  min-height: var(--control-height);
+  border-radius: var(--radius-md);
+}
+:root:has([data-budget-redesign='1']) body .btn:is(.btn-sm, .btn-xs) {
+  height: var(--control-small-height);
+  min-height: var(--control-small-height);
+}
+:root:has([data-budget-redesign='1']) .btn.btn-ghost {
+  border-color: transparent;
+}
+:root:has([data-budget-redesign='1']) body :is(.input.input, .select.select) {
+  height: var(--field-height);
+  min-height: var(--field-height);
+  border: var(--stroke-hairline) solid var(--field);
+  border-radius: var(--radius-md);
+}
+:root:has([data-budget-redesign='1']) :is(.input, .select):focus {
+  box-shadow: none;
+}
+:root:has([data-budget-redesign='1']) body :is(.input, .select)[aria-invalid='true'] {
+  border-color: var(--red);
+}
+
+:root:has([data-budget-redesign='1']) body :is(.seg.seg, .price-history-ranges[role='group']) {
+  border: var(--stroke-hairline) solid var(--field);
+  border-radius: var(--radius-md);
+  padding: 1px;
+  gap: 2px;
+  background: var(--quiet-soft);
+}
+:root:has([data-budget-redesign='1']) .price-history-ranges[role='group'] {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+}
+:root:has([data-budget-redesign='1']) .seg-period button {
+  padding-inline: var(--space-xs);
+}
+:root:has([data-budget-redesign='1'])
+  body
+  :is(.seg.seg, .price-history-ranges[role='group'])
+  button {
+  height: var(--segment-height);
+  min-height: var(--segment-height);
+  border-radius: var(--radius-sm);
+}
+:root:has([data-budget-redesign='1'])
+  body
+  :is(.seg.seg, .price-history-ranges[role='group'])
+  button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--primary);
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--field);
+  font-weight: 650;
+}
+:root:has([data-budget-redesign='1']) :is(.btn, .seg button, .input, .select):focus-visible {
+  outline: var(--stroke-focus) solid var(--line);
+  outline-offset: 2px;
+}
+
+/* Shared shell controls must also win over unlayered route styles. */
+:root:has([data-budget-redesign='1']) :is(.global-search-launch, .hv-head .month-switch) {
+  border: var(--stroke-hairline) solid var(--field);
+  border-radius: var(--radius-md);
+}
+
+@media (pointer: fine) and (min-width: 1024px) {
+  :root:has([data-budget-redesign='1']) {
+    --control-height: 36px;
+    --control-small-height: 34px;
+    --field-height: 38px;
+    --segment-height: 34px;
+  }
+  :root:has([data-budget-redesign='1']) :is(.global-search-launch, .review-pill) {
+    height: var(--field-height);
+    min-height: var(--field-height);
+  }
+  :root:has([data-budget-redesign='1']) .month-switch .icon-btn,
+  :root:has([data-budget-redesign='1']) .topbar .icon-btn {
+    width: var(--control-height);
+    height: var(--control-height);
+    min-height: var(--control-height);
+  }
+}

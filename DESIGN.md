@@ -59,10 +59,12 @@ colors:
   dark-minus-ink: "#ff9d7a"
 redesign:
   rule: "#d3deec"
+  field: "#6786ac"
   rule-strong: "#6786ac"
   warning: "#8a5300"
   warning-soft: "#fff3d6"
   dark-rule: "#1f4d7c"
+  dark-field: "#4987bc"
   dark-rule-strong: "#4987bc"
   dark-warning: "#ffd37a"
   dark-warning-soft: "#473d2b"
@@ -364,11 +366,26 @@ Owner decision 1A (2026-10-14): signed amounts and direction series use `--plus-
 
 Red (`--red`, `--red-soft`, `--on-red`) remains exclusively for act-now states: current overspending, errors and destructive actions. Green `--good`, `--good-hover`, `--good-soft`, `--on-good` and `--on-good-soft` retain available-money and OK-status semantics. Primary blue remains structure/actions; neutral ink remains context. Historical quiet negatives and dashed debt outlines retain the Q2 exception.
 
-### Redesign role adapter (S2, production OFF)
+### Redesign role adapter (production ON)
 
 The separate `redesign` frontmatter block feeds `redesign-tokens.css` through the existing generator. It applies only while the existing trusted `data-budget-redesign="1"` marker is present. Its root bridge also supplies TabBar, PanelHost and body-mounted portals; the developer gallery uses the same build constant and marker without adopting the application grid. Root `data-theme`, system fallback and light print remain authoritative. The original colors, scales, primary/data/focus blue, surfaces, signed inks, card/floating shadows and OFF output stay unchanged.
 
-Current approved source: redesign README ETag `1793359769537665`, kit `1793359918618172`, shell `1793358068183923`, with their verified token dependencies (source review 2026-10-31). Draft quiet `line` maps to App `rule`; draft `field` is a strong boundary and maps to `rule-strong`, **never the input background**. Amber `warning` / `warning-soft` is distinct from signed orange and action red.
+Current approved source: redesign README ETag `1793359769537665`, kit `1793359918618172`, shell `1793358068183923`, with their verified token dependencies (source review 2026-10-31). The 08.11.2026 comparison with `design/claude-design-20261030/tokens/fig-tokens.css` and the redesign kits separates these roles:
+
+| Mockup role | App token | Light / dark | Use |
+| --- | --- | --- | --- |
+| Quiet `--line` | `--rule` | `#d3deec` / `#1f4d7c` | Row and surface separators |
+| `--field` | `--field` | `#6786ac` / `#4987bc` | 1 px control boundary, never the input background |
+| Strong structural boundary | `--rule-strong` | `#6786ac` / `#4987bc` | Meaningful structural lines; independent of controls |
+| Primary ink | `--line` | `#1747a6` / `#d2ecff` | Data and 2 px focus-visible rings |
+
+Field and strong-boundary colors intentionally still match the source and retain at least 3:1 contrast on normal surfaces. Finer controls come from their geometry and borderless secondary actions, without fading essential boundaries. Amber `warning` / `warning-soft` is distinct from signed orange and action red.
+
+**Owner decision 08.11.2026 (#1004):** the redesign inspector stays visible in the desktop side column wherever a page has one; there is no right-panel toggle in the header. The left navigation collapse control is separate. Existing phone disclosures and detail routes remain available. This supersedes older blanket prohibitions on desktop inspector columns.
+
+Shared buttons, fields and period segments have 8 px outer corners. Only `@media (pointer: fine) and (min-width: 1024px)` enables compact heights: buttons 36 px (small 34 px), fields and the complete segment 38 px. All other input modes retain at least 44 px hit areas, including wide touch screens. Secondary buttons have no visible border; keep one primary action per page and a primary submit within an open form. Period switches (Monat / Bis Gehalt, 1M … Alle, 1J / 3J / Max) share a quiet segment track and a visibly selected inset. Keyboard focus uses a 2 px ink ring with 2 px offset, also on fields, independent of the resting boundary.
+
+The phone dock uses `max(8px, env(safe-area-inset-bottom))` below its 49 px navigation row; an iPhone home-indicator inset remains authoritative. Heute task titles wrap at word boundaries, with compact revision/action gutters.
 
 Five opt-in budget presentation marks consume an already determined state, without deriving thresholds: target met blue/check, open amber/partial pie, overspent red/card, more than target green/up arrow, zero or paused secondary ink/dash. They do not replace RuleStatus or booking statuses. ON booking glyphs are pending secondary-ink circled c, confirmed blue double-check, reconciled secondary-ink lock. Existing status words, native controls, callbacks, permissions, reconciliation locks, audit and Undo stay unchanged. Keep a word or the existing accessible name beside every glyph; never rely on color alone. Owner reference-sheet/area acceptance and actual browser/portal/zoom evidence remain separate gates.
 

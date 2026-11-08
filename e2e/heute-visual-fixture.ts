@@ -10,6 +10,7 @@ import {
 import { seedDatabase } from '@budget/fixtures/seed';
 import { expect, type Browser, type Page } from '@playwright/test';
 import { SAMPLE_URL, STORAGE_STATE_SAMPLE } from '../playwright.config';
+import type { HeuteForecast35d } from '../apps/web/src/heute/api';
 
 /** Only shell visuals use this read model; behavior tests keep the real HTTP API. */
 export async function freezeHeuteVisual(page: Page) {
@@ -22,10 +23,30 @@ export async function freezeHeuteVisual(page: Page) {
     ensureDefaultRules(db);
     refreshOccurrences(db, '2026-09-17');
     matchOccurrences(db, '2026-09-17');
-    body = JSON.stringify(heute(db, { today: '2026-09-17', period: 'payday' }));
-    forecastBody = JSON.stringify(
-      liquidityReportView(db, '2026-09-17', { horizon: '35d', levers: [] }),
-    );
+    const forecast = liquidityReportView(db, '2026-09-17', { horizon: '35d', levers: [] });
+    const report = forecast.report;
+    const forecast35d = {
+      asOf: '2026-09-17',
+      horizon: '35d',
+      levers: [],
+      available: forecast.available,
+      report: report && {
+        startDay: report.startDay,
+        startCents: report.startCents,
+        horizon: report.horizon,
+        horizonDays: report.horizonDays,
+        points: report.points,
+        eventMarks: report.eventMarks,
+        low: report.low,
+        scheduledInflows: report.scheduledInflows,
+      },
+    } satisfies HeuteForecast35d;
+    // The ON overview consumes the saved forecast in the aggregate, like the HTTP reader.
+    body = JSON.stringify({
+      ...heute(db, { today: '2026-09-17', period: 'payday' }),
+      forecast35d,
+    });
+    forecastBody = JSON.stringify(forecast);
     paymentsBody = JSON.stringify({ payments: listExpectedPayments(db, '2026-09-17') });
   } finally {
     close();

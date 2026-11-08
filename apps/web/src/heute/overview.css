@@ -991,7 +991,15 @@
     padding-bottom: 72px;
   }
   .hv-revisions td:last-child {
-    padding-right: 64px;
+    padding-right: 48px;
+    padding-left: 4px;
+  }
+  .hv-revisions td:first-child {
+    padding-right: 4px;
+  }
+  .hv-revisions td:nth-child(2) {
+    overflow-wrap: break-word;
+    padding-right: 4px;
   }
   .hv-revisions td:last-child a {
     scroll-margin-block: 88px;
