@@ -273,6 +273,56 @@ it('ON desktop keeps exact spending hints and moves the named cover action onto 
   expect(within(inspector).getByRole('button', { name: 'Mit 7,00 € decken' })).toBeTruthy();
 });
 
+it('ON attention filters via the URL, keeps matching groups and restores all rows without writes', async () => {
+  const { container, router } = mount();
+  await screen.findByRole('button', { name: 'Synthetic goal' });
+  const menu = container.querySelector<HTMLDetailsElement>('.plan-reference-filters')!;
+  menu.open = true;
+  fireEvent.click(screen.getByRole('button', { name: 'Braucht Aufmerksamkeit (3)' }));
+  await waitFor(() => expect(router.state.location.search.filter).toBe('attention'));
+  expect(
+    [...container.querySelectorAll('.pname')].map((el) => el.getAttribute('data-category-id')),
+  ).toEqual(['open', 'cash', 'credit']);
+  expect(screen.getByRole('button', { name: 'Gruppe Synthetic group' })).toBeTruthy();
+  expect(screen.getByTestId('to-be-assigned').textContent).toBe('140,00 €');
+  fireEvent.click(screen.getByRole('button', { name: 'Alle (6)' }));
+  await waitFor(() => expect(container.querySelectorAll('.pname')).toHaveLength(6));
+});
+
+it('ON month lead collapses down, expands up away from the top, and ignores tiny scroll reversals', async () => {
+  vi.stubGlobal('scrollY', 0);
+  const { unmount } = mount();
+  const head = await screen.findByTestId('plan-topbar');
+  vi.spyOn(head, 'getBoundingClientRect').mockReturnValue({ height: 180 } as DOMRect);
+  const scroll = (y: number) => {
+    vi.stubGlobal('scrollY', y);
+    fireEvent.scroll(window);
+  };
+  scroll(300);
+  expect(head.classList.contains('is-compact')).toBe(true);
+  scroll(298);
+  expect(head.classList.contains('is-compact')).toBe(true);
+  scroll(260);
+  expect(head.classList.contains('is-compact')).toBe(false);
+  expect(
+    head.closest<HTMLElement>('.plan-grid')!.style.getPropertyValue('--plan-head-height'),
+  ).toBe('180px');
+  expect(document.documentElement.style.getPropertyValue('--plan-scroll-head-height')).toBe(
+    '180px',
+  );
+  scroll(262);
+  expect(head.classList.contains('is-compact')).toBe(false);
+  scroll(300);
+  expect(head.classList.contains('is-compact')).toBe(true);
+  expect(
+    head.closest<HTMLElement>('.plan-grid')!.style.getPropertyValue('--plan-head-height'),
+  ).toBe('180px');
+  scroll(0);
+  expect(head.classList.contains('is-compact')).toBe(false);
+  unmount();
+  expect(document.documentElement.style.getPropertyValue('--plan-scroll-head-height')).toBe('');
+});
+
 it('ON phone separates a singleton group heading and its available sum from the member row', async () => {
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: /max-width: (767|1179)px/.test(query),
