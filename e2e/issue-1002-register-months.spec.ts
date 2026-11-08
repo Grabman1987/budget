@@ -140,14 +140,19 @@ for (const theme of ['light', 'dark'])
     const categoryId = await seed(request, baseURL!, isolatedLedger.databasePath, 1);
     await page.goto(`/konten/buchungen?kategorie=${categoryId}`);
     await expect(page.locator('[data-booking]')).toHaveCount(2);
+    await page.evaluate((value) => {
+      document.documentElement.dataset['theme'] = value;
+    }, theme);
     const summary = page.getByRole('region', { name: 'Auswertung des aktuellen Filters' });
-    if (info.project.name !== 'desktop')
+    if (info.project.name !== 'desktop') {
+      await expect(page.locator('.kmonth-totals').first()).toBeVisible();
+      const path = info.outputPath(`register-collapsed-${theme}.png`);
+      await page.screenshot({ path, animations: 'disabled' });
+      await info.attach(`Register collapsed ${theme}`, { path, contentType: 'image/png' });
       await summary.getByRole('button', { name: 'Auswertung des Filters' }).click();
+    }
     await expect(summary.getByRole('img')).toBeVisible();
     {
-      await page.evaluate((value) => {
-        document.documentElement.dataset['theme'] = value;
-      }, theme);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );
