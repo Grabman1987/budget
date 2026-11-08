@@ -45,11 +45,21 @@ its width, touch, OFF, privacy behavior, focus and accessibility checks intact.
 The local smoke reached and passed the corrected S3 checks at 1440px and 390px,
 including desktop ON/OFF. It later failed the unchanged phone offline-forecast
 check when the offline fallback appeared; the full smoke is not claimed green.
+CI run `42504997183` subsequently passed that unchanged offline forecast, the
+installed-PWA ON/OFF cycle, and S3 at 1440px, 390px and 320px. Its gallery then
+reached the old focused-field border/shadow contract. The ON gallery now asserts
+the intended 2px solid outline, 2px offset, focus color and contrast; OFF keeps
+its existing border/shadow checks and phone targets retain the 44px floor.
+Focused gallery validation against a disposable local server passed all six ON
+Chromium cases (light/dark at 1440px, 390px and 320px). WebKit passed light 390px,
+then failed the unchanged initial gallery loading check; remaining WebKit cases
+require CI evidence. The temporary focused runner was removed after validation.
 
 ## Test-file rationale
 
 | File | Reason |
 | --- | --- |
+| `scripts/dev/redesign-s2-proof.ts` | Verify the ON keyboard-focus outline explicitly instead of the replaced border/shadow presentation, preserving OFF focus checks and phone geometry. |
 | `scripts/dev/redesign-s3-proof.ts` | Select the approved desktop control height in the ON/OFF shell smoke helper; preserve 44px touch/OFF targets, all widths and all behavior assertions. |
 | `e2e/bank-inbox-bulk.spec.ts` | Replace legacy desktop-only 44px minimum height with literal #1004 control heights using actual ON/pointer/viewport; retain touch, widths, containment and financial assertions. |
 | `e2e/bank-sync.spec.ts` | Replace legacy desktop-only 44px minimum height with literal #1004 control heights using actual ON/pointer/viewport; retain touch, widths, containment and financial assertions. |
