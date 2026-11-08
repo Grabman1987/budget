@@ -12,7 +12,9 @@ export interface GalleryProofOptions {
 }
 
 const ROLES =
-  'rule rule-strong warning warning-soft line primary ink-2 good red raised ground'.split(' ');
+  'rule rule-strong field warning warning-soft line primary ink-2 good red raised ground'.split(
+    ' ',
+  );
 const rgb = (value: string): number[] => {
   if (value.startsWith('#')) {
     const hex =
@@ -60,7 +62,7 @@ async function noOverflow(page: Page) {
   ).toBeLessThanOrEqual(0.5);
 }
 
-async function interactions(page: Page, expectedRule: string) {
+async function interactions(page: Page, expectedRule: string, on: boolean) {
   const field = page.getByRole('textbox', { name: 'Empfänger', exact: true });
   await field.focus();
   await field.press('Tab');
@@ -69,8 +71,18 @@ async function interactions(page: Page, expectedRule: string) {
   await next.press('Shift+Tab');
   await expect(field).toBeFocused();
   const focused = await styles(field);
-  expect(focused.border).toBe(color(focused.roles.line!));
-  expect(focused.shadow).not.toBe('none');
+  if (on) {
+    expect(focused.border).toBe(color(focused.roles.field!));
+    expect(focused.shadow).toBe('none');
+    await expect(field).toHaveCSS('outline-style', 'solid');
+    await expect(field).toHaveCSS('outline-width', '2px');
+    await expect(field).toHaveCSS('outline-offset', '2px');
+    await expect(field).toHaveCSS('outline-color', color(focused.roles.line!));
+    expect(contrast(focused.roles.line!, focused.background)).toBeGreaterThanOrEqual(3);
+  } else {
+    expect(focused.border).toBe(color(focused.roles.line!));
+    expect(focused.shadow).not.toBe('none');
+  }
   const register = page.getByRole('button', { name: 'Jahr', exact: true });
   await register.click();
   await expect(register).toHaveAttribute('aria-pressed', 'true');
@@ -254,7 +266,7 @@ async function gallery(browser: Browser, options: GalleryProofOptions, widths: r
             animations: 'disabled',
           });
         }
-        await interactions(page, sample.roles.rule!);
+        await interactions(page, sample.roles.rule!, on);
       } finally {
         await context.close();
       }

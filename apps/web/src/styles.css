@@ -14,6 +14,8 @@
 @import './budget/goals.css' layer(pages);
 @import './shell/precision.css' layer(pages);
 @import 'tailwindcss/utilities.css' layer(utilities);
+/* ON control geometry also overrides unlayered, lazy-loaded page styles. */
+@import '@budget/ui/redesign-controls.css';
 
 /* Utility classes used in packages/ui are scanned too. */
 @source '../../../packages/ui/src';

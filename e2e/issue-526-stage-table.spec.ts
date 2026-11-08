@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, schema, type PortfolioAllocationView, type TargetVersion } from '@budget/db';
 import type { ManagedTarget, TargetTier } from '@budget/domain';
@@ -314,10 +315,20 @@ for (const profile of ['desktop', 'phone'] as const)
         expect(geometry.tableScrollWidth).toBeLessThanOrEqual(geometry.tableClientWidth);
         expect(geometry.bodyScrollWidth).toBeLessThanOrEqual(geometry.bodyClientWidth);
         expect(geometry.controls.length).toBeGreaterThanOrEqual(42);
-        for (const box of geometry.controls) {
+        const minimumHeights = await Promise.all(
+          (
+            await panel(page)
+              .locator('.stage-grid')
+              .locator('input:not([type="radio"]),summary,button,label.stage-choose')
+              .filter({ visible: true })
+              .all()
+          ).map((control) => minimumControlHeight(control, 44)),
+        );
+        expect(minimumHeights).toHaveLength(geometry.controls.length);
+        for (const [index, box] of geometry.controls.entries()) {
           expect(Number.isFinite(box.x + box.y + box.width + box.height)).toBe(true);
           expect(box.width).toBeGreaterThanOrEqual(44);
-          expect(box.height).toBeGreaterThanOrEqual(44);
+          expect(box.height).toBeGreaterThanOrEqual(minimumHeights[index]!);
           expect(box.x).toBeGreaterThanOrEqual(geometry.body.x);
           expect(box.right).toBeLessThanOrEqual(geometry.body.right);
           if (profile === 'desktop') {

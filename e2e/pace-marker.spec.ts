@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { openHeuteReview, detectHeuteRedesign } from './heute-visual-fixture';
 import { openPaperView } from './report-frame';
 import { sampleTest as test, expect } from './sample';
@@ -64,7 +65,9 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
     await expect(chart.locator('path.pace-income-line, path.l-prev')).toHaveCount(2);
     await page.keyboard.press('Space');
     await expect(chart.locator('.pace-income-line, .l-prev')).toHaveCount(0);
-    expect((await toggle.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    expect((await toggle.boundingBox())!.height).toBeGreaterThanOrEqual(
+      await minimumControlHeight(toggle, 44),
+    );
     await expect(chart.locator('.l-today')).toHaveCount(1);
     await expect(chart.locator('text').filter({ hasText: /^heute$/ })).toHaveCount(1);
     const group = chart.locator('..');

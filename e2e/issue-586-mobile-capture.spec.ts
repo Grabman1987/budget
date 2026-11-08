@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { categoryLineControl, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
@@ -37,7 +38,7 @@ async function saveWithin(dialog: Locator, top: number, height: number) {
   const bounds = (await save.boundingBox())!;
   expect(bounds.y).toBeGreaterThanOrEqual(top);
   expect(bounds.y + bounds.height).toBeLessThanOrEqual(top + height);
-  expect(bounds.height).toBeGreaterThanOrEqual(44);
+  expect(bounds.height).toBeGreaterThanOrEqual(await minimumControlHeight(save, 44));
   // The visible action must also receive a touch at its centre, not be covered by scrolling rows.
   expect(
     await save.evaluate((el) => {
