@@ -866,7 +866,7 @@
 .plan-month-frame .plan-month-v2 .plan-grid > .plan-inspector {
   grid-row: 3;
 }
-.plan-month-frame .plan-month-v2 .pmulti-scroll {
+.plan-month-frame .plan.plan-month-v2 .pmulti-scroll:has(> .ptable-zero) {
   padding-inline-end: 0;
 }
 .plan-month-frame .plan-calm-toolbar .plan-category-search {
@@ -994,6 +994,12 @@
   display: none;
 }
 @media (min-width: 768px) {
+  .plan-month-frame .plan.plan-month-v2 .ptable .col-avail {
+    padding-inline: var(--space-xs);
+  }
+  .plan-month-frame .plan-month-v2 .ptable .col-avail .pill {
+    padding-inline: var(--space-xs);
+  }
   .plan-month-frame .plan-density-all .ptable .prow > td {
     padding-top: 0;
     padding-bottom: var(--space-sm);

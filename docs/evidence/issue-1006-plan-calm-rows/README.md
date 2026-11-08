@@ -58,3 +58,12 @@ expiry and removable filters (16 cases), and the merged sorting/archive/contact
 cases (14 cases); each spec ran separately with one worker. ON and OFF builds are
 checked separately. WebKit and complete regression acceptance remain with the
 exact-head CI run. No timeout, financial oracle or tolerance was relaxed.
+
+Geometry diagnosis: the first desktop probe reported five pixels of horizontal
+overflow. Removing legacy scroll padding alone did not fix it. A computed DOM
+measurement traced the overflow to the available-state icon plus pill/cell
+padding on a longer synthetic negative amount. Compact token-based padding keeps
+the existing 128px amount columns and zero-overflow assertion. The 768–1179px
+inspector row reset also preserves the original single-column layout at that range.
+The focused dark desktop geometry case then passed at both 1440 and 1280, including
+zero overflow, exact amount tracks, keyboard actions and no-write assertions.
