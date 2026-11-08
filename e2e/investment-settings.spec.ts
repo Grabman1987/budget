@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
@@ -44,7 +45,9 @@ test('average default, saved FIFO switch, reload, both themes and accessible con
     await page.screenshot({ path, fullPage: true });
     await test.info().attach(`investment settings ${scheme}`, { path, contentType: 'image/png' });
   }
-  expect((await select.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  expect((await select.boundingBox())?.height).toBeGreaterThanOrEqual(
+    await minimumControlHeight(select, 44),
+  );
   await select.selectOption('fifo');
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByText('Einstandskostenmethode gespeichert.')).toBeVisible();

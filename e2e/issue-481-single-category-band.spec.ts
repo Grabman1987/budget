@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import { compactControls } from './control-geometry';
 import { expect, type Browser, type Page } from '@playwright/test';
 import { sampleTest, SAMPLE_NOW, SAMPLE_URL } from './sample';
 import { STORAGE_STATE_SAMPLE } from '../playwright.config';
@@ -44,6 +45,19 @@ async function expectPhoneSelectionTargets(page: Page) {
 
 /** Keep separate parent/category bounds, including the ON category targets and bar spacing. */
 async function expectCompactBandContents(page: Page, phone: boolean) {
+  const fullSizeControls = !phone && !(await compactControls(page));
+  if (
+    fullSizeControls &&
+    (await page.evaluate(
+      () =>
+        document.querySelector('[data-budget-redesign="1"]') !== null ||
+        matchMedia('(pointer: coarse)').matches,
+    ))
+  ) {
+    for (const action of await page.locator('.ptable-zero .group-heading .plan-add').all()) {
+      expect((await action.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+  }
   const bands = await page.locator('.ptable-zero .pgroup:not(.psingle)').evaluateAll((rows) =>
     rows.map((row) => {
       const child = row.nextElementSibling!;
@@ -107,7 +121,10 @@ async function expectCompactBandContents(page: Page, phone: boolean) {
       expect(band.categoryHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 40);
       expect(band.wholeHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 152 : 76);
     }
-    expect(band.parentHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 36);
+    // Below 1024px or on touch, the action stays 44px plus the two row borders.
+    expect(band.parentHeight, JSON.stringify(band)).toBeLessThanOrEqual(
+      phone ? 76 : band.redesigned && fullSizeControls ? 46 : 36,
+    );
     if (!phone) expect(band.nameRight, band.id).toBeLessThanOrEqual(band.statusLeft);
   }
 }

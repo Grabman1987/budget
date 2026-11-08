@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { chartOptions, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
@@ -60,7 +61,9 @@ test('account history chart is collapsed by default, compact and remembered', as
   await expect(chart.locator('.l-forecast')).toBeAttached();
   await expect(page.getByTestId('balance-chart-today')).toBeVisible();
   for (const button of await control.getByRole('button').all()) {
-    expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(
+      await minimumControlHeight(button, 44),
+    );
     await button.click();
     await expect(chart).toBeVisible();
   }

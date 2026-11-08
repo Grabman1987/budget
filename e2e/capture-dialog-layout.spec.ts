@@ -1,3 +1,4 @@
+import { controlBoxes, minimumControlHeight } from './control-geometry';
 import {
   categorySuggestions,
   redesignLoaded,
@@ -186,20 +187,12 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
       theme === 'light' ? 'rgb(255, 255, 255)' : 'rgb(11, 49, 82)',
     );
     await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
-    const controls = await dialog
-      .locator('button, input, select, textarea, summary')
-      .evaluateAll((els) =>
-        els
-          .filter((el) => el.getClientRects().length > 0)
-          .map((el) => ({
-            name: el.getAttribute('aria-label') ?? el.tagName,
-            width: el.getBoundingClientRect().width,
-            height: el.getBoundingClientRect().height,
-          })),
-      );
+    const controls = await controlBoxes(
+      dialog.locator('button, input, select, textarea, summary').filter({ visible: true }),
+    );
     for (const box of controls) {
       expect(box.width, box.name).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-      expect(box.height, box.name).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+      expect(box.height, box.name).toBeGreaterThanOrEqual(box.minimumHeight);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       page.viewportSize()!.width,
@@ -234,7 +227,7 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   const remove = dialog.getByRole('button', { name: 'Zeile 3 entfernen' });
   const removeBox = (await remove.boundingBox())!;
   expect(removeBox.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-  expect(removeBox.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+  expect(removeBox.height).toBeGreaterThanOrEqual(await minimumControlHeight(remove));
   await remove.click();
   await expect(discard).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
@@ -417,20 +410,14 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       expect(
         await dialog.locator('.bk-body').evaluate((el) => el.scrollWidth <= el.clientWidth),
       ).toBe(true);
-      const controls = await dialog
-        .locator('button, input:not([aria-hidden="true"]), select, textarea, summary')
-        .evaluateAll((els) =>
-          els
-            .filter((el) => el.getClientRects().length)
-            .map((el) => ({
-              name: el.getAttribute('aria-label') ?? el.textContent,
-              width: el.getBoundingClientRect().width,
-              height: el.getBoundingClientRect().height,
-            })),
-        );
+      const controls = await controlBoxes(
+        dialog
+          .locator('button, input:not([aria-hidden="true"]), select, textarea, summary')
+          .filter({ visible: true }),
+      );
       for (const box of controls) {
         expect(box.width, box.name ?? '').toBeGreaterThanOrEqual(MIN_TARGET_PX);
-        expect(box.height, box.name ?? '').toBeGreaterThanOrEqual(MIN_TARGET_PX);
+        expect(box.height, box.name ?? '').toBeGreaterThanOrEqual(box.minimumHeight);
       }
       expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
         [],

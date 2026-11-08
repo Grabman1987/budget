@@ -192,27 +192,7 @@ function PortfolioBody({ register }: { register: PortfolioRegister }) {
                 Aktivitäten
               </Button>
             </div>
-            <label>
-              <span className="sr-only">Zeitraum</span>
-              <select
-                aria-label="Zeitraum"
-                value={period}
-                onChange={(event) =>
-                  void navigate({
-                    to: '.',
-                    search: ((prev: Record<string, unknown>) => ({
-                      ...prev,
-                      zeitraum: event.target.value,
-                    })) as never,
-                    replace: true,
-                  })
-                }
-              >
-                {['1M', '3M', 'YTD', '1J', '3J', 'Alles'].map((value) => (
-                  <option key={value}>{value}</option>
-                ))}
-              </select>
-            </label>
+            <ZeitraumSwitch />
           </>
         ) : register === 'allocation' && REDESIGN_ENABLED ? (
           <span className="wealth-grouping">

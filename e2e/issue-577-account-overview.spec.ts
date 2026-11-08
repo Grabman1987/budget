@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { overviewActions, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, reconcileAccount, schema } from '@budget/db';
@@ -169,7 +170,7 @@ async function contained(locator: Locator, minimum: number) {
   expect(metrics.top).toBeGreaterThanOrEqual(0);
   expect(metrics.bottom).toBeLessThanOrEqual(metrics.viewportHeight);
   expect(metrics.width).toBeGreaterThanOrEqual(minimum);
-  expect(metrics.height).toBeGreaterThanOrEqual(minimum);
+  expect(metrics.height).toBeGreaterThanOrEqual(await minimumControlHeight(locator, minimum));
   expect(metrics.owned, JSON.stringify(metrics)).toBe(true);
 }
 

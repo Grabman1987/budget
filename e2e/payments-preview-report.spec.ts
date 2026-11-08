@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { paymentView } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import type { PaymentsPreview } from '@budget/domain';
@@ -62,8 +63,11 @@ test('preview bookmark opens Plan payments, while the real twelve-month API stay
   const touch = await page.evaluate(
     () => matchMedia('(pointer: coarse), (max-width: 767px)').matches,
   );
-  // DESIGN's compact segmented control is 28px; the shared touch floor is 44px.
-  if (touch || redesign) expect((await contracts.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  // ON fields follow pointer-specific density; the OFF segment retains its 28px desktop size.
+  if (touch || redesign)
+    expect((await contracts.boundingBox())!.height).toBeGreaterThanOrEqual(
+      await minimumControlHeight(contracts, 44),
+    );
   else expect((await contracts.boundingBox())!.height).toBe(28);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
