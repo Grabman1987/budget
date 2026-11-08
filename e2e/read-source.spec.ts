@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 async function openSourceDetails(page: Page) {
@@ -176,7 +177,9 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   }
   expect(
     (await page.getByLabel('Verrechnungskonto', { exact: true }).boundingBox())?.height,
-  ).toBeGreaterThanOrEqual(44);
+  ).toBeGreaterThanOrEqual(
+    await minimumControlHeight(page.getByLabel('Verrechnungskonto', { exact: true }), 44),
+  );
 });
 test('unconfigured source cannot fetch', async ({ page }) => {
   await page.route('**/api/sources/crypto', (route) =>

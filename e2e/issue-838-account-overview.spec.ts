@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { overviewActions, redesignLoaded, MIN_TARGET_PX, toast } from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
@@ -131,7 +132,7 @@ async function target(locator: Locator) {
   const box = await locator.boundingBox();
   expect(box).not.toBeNull();
   expect(box!.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-  expect(box!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+  expect(box!.height).toBeGreaterThanOrEqual(await minimumControlHeight(locator));
 }
 
 for (const width of [1440, 390, 320]) {

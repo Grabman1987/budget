@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { openHeuteReview } from './heute-visual-fixture';
 import { forecastHorizon, redesignEnabled } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
@@ -60,7 +61,9 @@ test('Plan reaches liquidity and a payment keeps its account, due date and chose
   await expect(page.getByTestId('account-preview-range')).toContainText('16.06.2026');
   if (await redesignEnabled(page)) await page.locator('.account-chart-options > summary').click();
   const target = page.getByRole('combobox', { name: 'Kontovorschau Zeitraum' });
-  expect((await target.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  expect((await target.boundingBox())!.height).toBeGreaterThanOrEqual(
+    await minimumControlHeight(target, 44),
+  );
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;

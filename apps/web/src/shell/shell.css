@@ -607,6 +607,22 @@ a.btn {
   }
 }
 
+/* The page action leads when present; a closed form never changes the header hierarchy. */
+[data-budget-redesign='1'].app:has(
+    main :is(.btn-primary, .wealth-investment):not(dialog:not([open]) *, [hidden] *)
+  )
+  .topbar
+  .btn-primary {
+  background: transparent;
+  color: var(--ink);
+}
+[data-budget-redesign='1'].app:has(
+    main :is(.btn-primary, .wealth-investment):not(dialog:not([open]) *, [hidden] *)
+  )
+  .topbar
+  .btn-primary:hover {
+  background: var(--tint);
+}
 /* ---------- Header status ---------- */
 .review-pill,
 .offline-chip {

@@ -29,6 +29,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./styles.css": "./src/styles/index.css",
+    "./redesign-controls.css": "./src/styles/redesign-controls.css",
     "./tailwind-theme.css": "./src/styles/tailwind-theme.css"
   }
 }

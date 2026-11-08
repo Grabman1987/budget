@@ -76,6 +76,7 @@ for (const report of ['flow', 'savings'] as const) {
     await page.keyboard.press('Enter');
     await expect(details.first()).toHaveAttribute('open', '');
     await details.first().locator(':scope > summary').click();
+    await expect(details.first()).not.toHaveAttribute('open');
     await page.emulateMedia({ media: 'print' });
     for (const detail of await details.all()) await expect(detail).toHaveAttribute('open', '');
     await page.emulateMedia({ media: 'screen' });

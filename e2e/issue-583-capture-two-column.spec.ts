@@ -7,6 +7,7 @@ import {
 } from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
+import { controlBoxes } from './control-geometry';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
@@ -325,18 +326,13 @@ test('at most three suggestions in one line without overflow; Mehr and Notiz', a
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
-    const small = await dialog
-      .locator('button, input:not([aria-hidden="true"]), select, textarea, summary')
-      .evaluateAll((els) =>
-        els
-          .filter((el) => el.getClientRects().length)
-          .map((el) => ({
-            name: el.getAttribute('aria-label') ?? el.textContent,
-            width: el.getBoundingClientRect().width,
-            height: el.getBoundingClientRect().height,
-          }))
-          .filter((b) => b.width < 44 || b.height < 44),
-      );
+    const small = (
+      await controlBoxes(
+        dialog.locator(
+          'button:visible, input:not([aria-hidden="true"]):visible, select:visible, textarea:visible, summary:visible',
+        ),
+      )
+    ).filter((box) => box.width < 44 || box.height < box.minimumHeight);
     expect(small).toEqual([]);
     expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
       [],
