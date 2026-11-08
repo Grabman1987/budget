@@ -133,9 +133,12 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     expect(box!.y).toBeGreaterThanOrEqual(0);
     expect(box!.y + box!.height).toBeLessThanOrEqual(page.viewportSize()!.height + 1);
     if (page.viewportSize()!.width < 768) {
-      // #586: capture fills the visible phone viewport; other sheets retain their own caps.
-      expect(box!.y).toBe(0);
-      expect(box!.height).toBe(await page.evaluate(() => window.visualViewport!.height));
+      // #995: the redesign keeps a sheet inset; rollback retains its full-screen capture.
+      const topInset = (await redesignLoaded(page)) ? 24 : 0;
+      expect(box!.y).toBe(topInset);
+      expect(box!.height).toBe(
+        (await page.evaluate(() => window.visualViewport!.height)) - topInset,
+      );
       const small = await dialog
         .locator('button, input, textarea, select, summary')
         .evaluateAll((els) =>
@@ -276,6 +279,7 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
         : [dialog.getByRole('button', { name: 'Abbrechen', exact: true })]),
       dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
       dialog.getByRole('button', { name: 'Speichern', exact: true }),
+      ...(phone ? [dialog.getByRole('button', { name: 'Blatt schließen', exact: true })] : []),
       dialog.getByRole('button', {
         name: (page.viewportSize()?.width ?? 1440) < 768 ? 'Schließen' : 'Datei anhängen',
         exact: true,
@@ -285,6 +289,12 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
       await expect(target).toBeFocused();
     }
     await page.keyboard.press('Shift+Tab');
+    if (phone) {
+      await expect(
+        dialog.getByRole('button', { name: 'Blatt schließen', exact: true }),
+      ).toBeFocused();
+      await page.keyboard.press('Shift+Tab');
+    }
     await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeFocused();
   } else {
     await amount.press('Tab');

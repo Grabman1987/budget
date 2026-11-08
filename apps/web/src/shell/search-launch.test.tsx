@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MobileSheetContext } from '@budget/ui';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { GlobalSearch } from './global-search';
 const navigate = vi.fn();
@@ -47,6 +48,29 @@ it('returns focus to the field that opened the palette through the shortcut', as
   await waitFor(() => expect(document.activeElement).toBe(input));
   fireEvent.keyDown(input, { key: 'Escape' });
   await waitFor(() => expect(document.activeElement).toBe(source));
+});
+it('retains full-screen phone search inside the swipe-sheet shell', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: true,
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <MobileSheetContext.Provider value>
+        <GlobalSearch mobile />
+      </MobileSheetContext.Provider>
+    </QueryClientProvider>,
+  );
+  fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+  const dialog = screen.getByRole('dialog', { name: 'Suchen' });
+  expect(dialog.classList.contains('is-full')).toBe(true);
+  expect(dialog.classList.contains('is-swipe-sheet')).toBe(false);
+  expect(within(dialog).queryByRole('button', { name: 'Blatt schließen' })).toBeNull();
+  const input = within(dialog).getByRole('combobox', { name: 'Suchen' });
+  await waitFor(() => expect(document.activeElement).toBe(input));
+  fireEvent.keyDown(input, { key: 'Escape' });
+  expect(screen.queryByRole('dialog', { name: 'Suchen' })).toBeNull();
 });
 it('opens an overlay without navigation, limits the empty state and returns focus on Escape', async () => {
   render(

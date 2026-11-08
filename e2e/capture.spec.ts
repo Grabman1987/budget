@@ -672,7 +672,7 @@ test('visible growing note, direct split and responsive account note column', as
     note,
     split,
     panel.locator('.bk-status'),
-    panel.getByRole('button', { name: 'Schließen' }),
+    panel.getByRole('button', { name: 'Schließen', exact: true }),
   ]) {
     const box = (await control.boundingBox())!;
     expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
@@ -712,7 +712,7 @@ test('visible growing note, direct split and responsive account note column', as
   ).toHaveValue(memo);
   await page
     .getByRole('dialog', { name: 'Buchung bearbeiten' })
-    .getByRole('button', { name: 'Schließen' })
+    .getByRole('button', { name: 'Schließen', exact: true })
     .click();
   panel = await openCapture(page, testInfo);
   await (await categoryLineControl(panel)).click();

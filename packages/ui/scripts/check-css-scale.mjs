@@ -7,6 +7,8 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 const revisionLabels = new Set([
   ":root[data-theme='dark'] .tb-revision",
   ":root[data-theme='dark'] .ps-revision",
+  // Owner #995: native phone tabs use the existing 11px token with 44px touch targets.
+  ":root:has([data-budget-redesign='1']) .tabbar a",
 ]);
 
 // Only active registers get a 2px border; inactive tracks stay transparent and thin.

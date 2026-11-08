@@ -162,7 +162,7 @@ sampleTest(
         await expect.poll(() => region.evaluate((node) => node.scrollLeft)).toBeGreaterThan(0);
       }
     }
-    await page.getByRole('button', { name: 'Schließen' }).click();
+    await page.getByRole('button', { name: 'Schließen', exact: true }).click();
     await expect(firstRecipient).toHaveAttribute('aria-expanded', 'false');
   },
 );
