@@ -10,7 +10,7 @@ import { openPruefenPart, openPruefenSource } from './pruefen-part';
 
 test.describe.configure({ timeout: 120000 });
 
-async function expectIncomeHead(page: Page, budgetAmount: string) {
+async function expectIncomeHead(page: Page, budgetAmount: string, receivedAmount = '0,00 €') {
   const plan = page.url();
   const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   const header = page
@@ -23,12 +23,12 @@ async function expectIncomeHead(page: Page, budgetAmount: string) {
     await expect(page.locator('.xp-note')).toContainText(
       `Zählt für Zu verteilen: ${budgetAmount} im Planmonat September 2026.`,
     );
-    await expect(page.getByTestId('income-received')).toHaveText('0,00 €');
+    await expect(page.getByTestId('income-received')).toHaveText(receivedAmount);
     await page.goto('/plan/erwartet/einnahmen?monat=2026-09');
   }
   await expect(header).toHaveText(await page.getByTestId('income-received').innerText());
   if (redesign) {
-    await expect(page.getByTestId('income-received')).toHaveText('0,00 €');
+    await expect(page.getByTestId('income-received')).toHaveText(receivedAmount);
     await page.goto(plan);
   }
 }
@@ -129,7 +129,8 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   await expect(toast(page)).toHaveCount(0);
   await inspectReport(page, info, 'payslip-source');
   await page.goto('/plan/monat/einnahmen?monat=2026-09');
-  await expectIncomeHead(page, '2.975,00 €');
+  // received = booked household income (salary 2.875,00; the 100,00 refund split stays out)
+  await expectIncomeHead(page, '2.975,00 €', '2.875,00 €');
 
   await inspectReport(page, info, '609-income');
   await page.goto('/reports/gehalt?monat=2026-09');
