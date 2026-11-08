@@ -113,3 +113,11 @@ typecheck, changed-file ESLint/Prettier, CSS scale, and ON/OFF builds. Three
 refreshed synthetic PNGs were visually inspected. Exact-head CI remains the
 delivery gate; local Windows WebKit timing is recorded separately from passing
 behavioral evidence rather than changing timeouts.
+
+The first correction CI run exposed one additional Plan layout defect: at 768px,
+a long group title overlapped the add button after the sort handle consumed part
+of the name column. Desktop group titles now shrink and ellipsize inside their
+existing grid cell. The original narrow-desktop overlap assertions remain intact.
+Both themes pass the unchanged narrow-desktop Chromium checks. Local Windows
+WebKit passed the overlap assertions but reached the existing 30-second limit
+later in scroll-action checks; exact-head Linux CI verifies the complete cases.
