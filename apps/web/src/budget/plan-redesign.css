@@ -128,42 +128,57 @@
 .plan-month-v2 .prow[data-plan-class] > .col-name {
   box-shadow: inset 2px 0 var(--plan-class);
 }
-.plan-month-v2 .prow[data-plan-state='met'] {
-  --plan-bar: var(--primary);
-}
-.plan-month-v2 .prow[data-plan-state='overfunded'] {
-  --plan-bar: var(--good);
-}
 .plan-month-v2 .prow[data-plan-state='open'] {
   --plan-bar: var(--warning);
 }
 .plan-month-v2 .prow[data-plan-state='overspent'] {
   --plan-bar: var(--red);
 }
-.plan-month-v2 .prow[data-plan-state='neutral'] {
-  --plan-bar: var(--ink-3);
-}
-.plan-month-v2 .prow .spending-bar {
+.plan.plan-month-v2 .ptable-zero .prow .spending-bar {
   background: color-mix(in srgb, var(--plan-bar) 15%, transparent);
 }
-.plan-month-v2 .prow .spending-bar .pbar-fill {
-  background-color: var(--plan-bar);
+.plan.plan-month-v2 .ptable-zero .prow .spending-bar .pbar-fill {
+  background: var(--plan-bar);
 }
-.plan-month-v2 .prow[data-plan-state='met'] .col-avail .pill {
-  background: var(--tint);
-  color: var(--primary);
+/* Fully covered categories keep an empty track; only missing money needs colour. */
+.plan.plan-month-v2
+  .ptable-zero
+  .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
+  .spending-bar {
+  background: var(--rule);
 }
-.plan-month-v2 .prow[data-plan-state='open'] .col-avail .pill {
+.plan.plan-month-v2
+  .ptable-zero
+  .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
+  .spending-bar
+  > .pbar-fill {
+  display: none;
+}
+.plan-month-v2
+  .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
+  > .col-name {
+  box-shadow: none;
+}
+.plan.plan-month-v2 .ptable-zero .prow[data-plan-state='open'] .col-avail .pill {
   background: var(--warning-soft);
   color: var(--warning);
 }
-.plan-month-v2 .prow[data-plan-state='overfunded'] .col-avail .pill {
-  background: var(--good-soft);
-  color: var(--on-good-soft);
-}
-.plan-month-v2 .prow[data-plan-state='neutral'] .col-avail .pill {
+.plan.plan-month-v2
+  .ptable-zero
+  .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
+  .col-avail
+  .pill {
   background: var(--quiet-soft);
   color: var(--ink-2);
+}
+@media (hover: hover) and (min-width: 768px) {
+  .plan.plan-month-v2 .ptable .prow:not(.is-selected):hover > td {
+    background: var(--tint);
+  }
+}
+/* A header height change must not masquerade as an opposite user scroll. */
+.plan-month-frame {
+  overflow-anchor: none;
 }
 .plan-month-v2 .prow[data-plan-state='overspent'] .col-avail .pill {
   background: var(--red-soft);
@@ -334,6 +349,7 @@
 .plan-month-frame .plan-month-v2 .plan-grid > .plan-topbar-v2 {
   grid-column: 1 / -1;
   position: sticky;
+  align-self: start;
   top: 64px;
   z-index: 20;
   box-sizing: border-box;
@@ -341,6 +357,9 @@
   border: 1px solid var(--card-border);
   border-radius: var(--radius-md);
   background-color: var(--ground);
+}
+.plan-month-frame .plan-month-v2 .plan-grid {
+  grid-template-rows: minmax(var(--plan-head-height, 0px), auto);
 }
 .plan-month-frame .plan-reference-lead-layout {
   display: flex;
@@ -418,6 +437,10 @@
   min-height: 56px;
   padding-block: var(--space-xs);
   background-color: var(--ground);
+  pointer-events: none;
+}
+.plan-month-frame .plan-topbar-v2.is-compact :is(button, summary, .plan-popover-content) {
+  pointer-events: auto;
 }
 .plan-month-frame .plan-topbar-v2.is-compact .plan-reference-lead-layout {
   display: block;
@@ -819,9 +842,12 @@
 }
 
 @media (max-width: 767px) {
-  /* Native scroll alignment must clear the compact two-row head and the phone action dock. */
+  /* Upward native scrolling expands the lead. Reserve its measured full height at
+     the root: WebKit's scrollIntoViewIfNeeded does not reliably use target margins. */
   html:has(.plan-month-frame .plan-month-v2) {
-    scroll-padding-block: calc(64px + 104px + var(--space-sm))
+    scroll-padding-block: calc(
+        64px + max(104px, var(--plan-scroll-head-height, 104px)) + var(--space-sm)
+      )
       calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + var(--space-lg));
   }
   /* The root supplies head/dock clearance; selection only adds its own action-bar height. */

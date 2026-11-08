@@ -1,3 +1,4 @@
+import { minimumControlHeight, controlBoxes } from './control-geometry';
 import { accountDocuments } from './ledger-helpers';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
@@ -69,7 +70,7 @@ async function hit(button: Locator) {
     };
   });
   expect(geometry.width).toBeGreaterThanOrEqual(44);
-  expect(geometry.height).toBeGreaterThanOrEqual(44);
+  expect(geometry.height).toBeGreaterThanOrEqual(await minimumControlHeight(button));
   expect(geometry.left).toBeGreaterThanOrEqual(0);
   expect(geometry.right).toBeLessThanOrEqual(geometry.viewport.width);
   expect(geometry.top).toBeGreaterThanOrEqual(0);
@@ -281,25 +282,13 @@ for (const profile of ['desktop', 'phone'] as const)
         await expect(amountInput).toHaveValue(draftBeforePrivacy);
         // checkVisibility matches pinned Playwright visibility semantics for closed details.
         // Offscreen layout targets still require44px; viewport/hit ownership is proved by hit().
-        const controlGeometry = await dialog
-          .locator('button,input,select,summary,a.btn')
-          .evaluateAll((elements) =>
-            elements
-              .filter((element) => element.checkVisibility())
-              .map((element) => {
-                const rect = element.getBoundingClientRect();
-                return {
-                  tag: element.tagName,
-                  type: element.getAttribute('type'),
-                  width: rect.width,
-                  height: rect.height,
-                };
-              }),
-          );
+        const controlGeometry = await controlBoxes(
+          dialog.locator('button,input,select,summary,a.btn').filter({ visible: true }),
+        );
         expect(controlGeometry.length).toBeGreaterThan(0);
         for (const control of controlGeometry) {
           expect(control.width).toBeGreaterThanOrEqual(44);
-          expect(control.height).toBeGreaterThanOrEqual(44);
+          expect(control.height).toBeGreaterThanOrEqual(control.minimumHeight);
         }
         if (bonusFlow) {
           await dialog.getByLabel('Geprüfter Bonusbetrag', { exact: true }).fill('1,25');

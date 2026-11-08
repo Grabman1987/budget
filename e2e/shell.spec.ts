@@ -251,9 +251,7 @@ test.describe('routes', () => {
     await expect(
       page.getByRole('group', { name: 'Berichtsgruppen' }).getByRole('button'),
     ).toHaveText(
-      redesign
-        ? ['Alle', 'Berichte', 'Auswertungen', 'Portfolio', 'Einnahmen und Ausgaben']
-        : ['Alle', 'Einnahmen/Ausgaben', 'Vermögen', 'Portfolio', 'Berichte'],
+      redesign ? [] : ['Alle', 'Einnahmen/Ausgaben', 'Vermögen', 'Portfolio', 'Berichte'],
     );
     await expect(page.locator('.report-hub-number')).toHaveText([
       '1',
@@ -571,8 +569,8 @@ test.describe('phone shell', () => {
     await expect(tabs).toHaveText(['Heute', 'Plan', 'Konten', 'Vermögen', 'Reports']);
     const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     const bar = await page.locator('.tabbar').boundingBox();
-    // The emulated viewport has no bottom safe area: ON uses the compact 49px dock.
-    expect(Math.round(bar?.height ?? 0)).toBe(redesign ? 49 : 64);
+    // With no home indicator, ON reserves 44px targets plus 8px bottom padding.
+    expect(Math.round(bar?.height ?? 0)).toBe(redesign ? 52 : 64);
     const fab = await page.locator('.fab').boundingBox();
     expect(Math.round(fab?.width ?? 0)).toBe(58);
     expect(Math.round(fab?.height ?? 0)).toBe(58);

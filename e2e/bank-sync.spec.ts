@@ -1,3 +1,4 @@
+import { controlBoxes } from './control-geometry';
 import { redesignLoaded, bankDismissControl, bankPreviewControl } from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
@@ -256,15 +257,13 @@ test('connection cards explain limits and results, scope messages and deep-link 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    const small = await page
-      .locator(
-        '.source-connection button, .source-connection input, .source-connection select, .source-connection a.btn',
+    const small = (
+      await controlBoxes(
+        page.locator(
+          '.source-connection button, .source-connection input, .source-connection select, .source-connection a.btn',
+        ),
       )
-      .evaluateAll((nodes) =>
-        nodes
-          .filter((node) => node.getBoundingClientRect().height < 44)
-          .map((node) => node.textContent),
-      );
+    ).filter((box) => box.height < box.minimumHeight);
     expect(small).toEqual([]);
     expect((await new AxeBuilder({ page }).include('.data-sources').analyze()).violations).toEqual(
       [],

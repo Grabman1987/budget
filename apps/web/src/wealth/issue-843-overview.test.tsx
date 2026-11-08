@@ -103,7 +103,8 @@ it('leads with net worth, preserves signed selected basis and never invents a wo
   );
   expect(screen.getByRole('heading', { name: 'Investiert: Wert vs. eingezahlt' })).toBeTruthy();
   expect(screen.getByRole('table').textContent).toContain('Ist vs. Ziel');
-  expect(screen.queryByRole('button', { name: 'YTD' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'YTD' }).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.queryByRole('combobox', { name: 'Zeitraum' })).toBeNull();
   client.clear();
 });
 

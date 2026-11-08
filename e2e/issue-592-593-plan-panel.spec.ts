@@ -1,6 +1,6 @@
+import { minimumControlHeight } from './control-geometry';
 import { withShellControls } from './shell-actions';
 import { redesignEnabled } from './plan-redesign-controls';
-import { MIN_TARGET_PX } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
@@ -182,7 +182,7 @@ test('514 selected assignment preview is read-only, funds full target need and s
   }
   for (const control of [disclosure, preview.getByLabel('Vorschau für')]) {
     const box = await control.boundingBox();
-    expect(box!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    expect(box!.height).toBeGreaterThanOrEqual(await minimumControlHeight(control));
   }
   await togglePrivacy(page);
   await expect(category.locator('dd')).toHaveText(['••• €', '••• €', '••• €', '••• €']);

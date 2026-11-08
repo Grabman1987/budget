@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { openPruefenPart, openPruefenSource } from './pruefen-part';
 import { bankDismissControl, accountBankReview, bankPreviewControl } from './ledger-helpers';
 
@@ -198,7 +199,7 @@ test('bank candidates precede reminders and remain isolated review work in the a
           const rect = await action.boundingBox();
           expect(rect).not.toBeNull();
           expect(rect!.width).toBeGreaterThanOrEqual(44);
-          expect(rect!.height).toBeGreaterThanOrEqual(44);
+          expect(rect!.height).toBeGreaterThanOrEqual(await minimumControlHeight(action, 44));
           expect(
             await view.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
           ).toBe(true);

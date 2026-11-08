@@ -17,6 +17,7 @@ import {
 } from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
+import { minimumControlHeight } from './control-geometry';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
 /**
@@ -659,6 +660,13 @@ test('visible growing note, direct split and responsive account note column', as
   await expect(panel.locator('.kmore')).not.toHaveAttribute('open', '');
   await expect(note).toBeVisible();
   await expect(split).toBeVisible();
+  // Compare intrinsic heights only after the phone sheet's opening transform has settled.
+  await panel.evaluate(async (element) => {
+    const finite = element
+      .getAnimations({ subtree: true })
+      .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
+    await Promise.all(finite.map((animation) => animation.finished.catch(() => undefined)));
+  });
   const initialHeight = (await note.boundingBox())!.height;
   await note.fill(memo);
   expect((await note.boundingBox())!.height).toBeGreaterThan(initialHeight);
@@ -674,7 +682,7 @@ test('visible growing note, direct split and responsive account note column', as
   });
   for (const control of [note, split, panel.locator('.bk-status'), captureCloseControl(panel)]) {
     const box = (await control.boundingBox())!;
-    expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    expect(box.height).toBeGreaterThanOrEqual(await minimumControlHeight(control));
     expect(box.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
   }
   await panel.getByLabel('Betrag', { exact: true }).fill('5,00');
@@ -709,7 +717,9 @@ test('visible growing note, direct split and responsive account note column', as
   await expect(
     page.getByRole('dialog', { name: 'Buchung bearbeiten' }).getByLabel('Notiz'),
   ).toHaveValue(memo);
-  await captureCloseControl(page.getByRole('dialog', { name: 'Buchung bearbeiten' })).click();
+  const editor = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+  await editor.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
   panel = await openCapture(page, testInfo);
   await (await categoryLineControl(panel)).click();
   await expect(panel.getByRole('group', { name: 'Zeile 1', exact: true })).toBeVisible();

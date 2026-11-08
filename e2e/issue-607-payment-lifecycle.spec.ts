@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { openPaymentManagement } from './plan-redesign-controls';
 import { withShellControls } from './shell-actions';
 import { writeFile } from 'node:fs/promises';
@@ -285,7 +286,7 @@ async function target44(locator: Locator) {
   const box = await locator.boundingBox();
   expect(box).not.toBeNull();
   expect(box!.width).toBeGreaterThanOrEqual(44);
-  expect(box!.height).toBeGreaterThanOrEqual(44);
+  expect(box!.height).toBeGreaterThanOrEqual(await minimumControlHeight(locator, 44));
 }
 async function inspect(
   page: Page,

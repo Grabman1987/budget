@@ -81,7 +81,7 @@ for (const theme of ['light', 'dark']) {
     }, theme);
     const dock = page.locator('.tabbar');
     if (isMobile) {
-      await expect(dock).toHaveCSS('height', '83px');
+      await expect(dock).toHaveCSS('height', '78px');
       await expect(dock).toHaveCSS('padding-bottom', '34px');
       await expect(dock.locator('a[aria-current="page"]')).toHaveText('Konten');
       expect((await page.locator('.m-head').boundingBox())!.y).toBe(47);
@@ -106,10 +106,10 @@ for (const theme of ['light', 'dark']) {
         expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
         expect(box.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
         expect(box.fontSize).toBe('11px');
-        expect(box.iconWidth).toBe(24);
+        expect(box.iconWidth).toBe(22);
       }
       const fab = (await page.locator('.fab').boundingBox())!;
-      expect(fab.y + fab.height).toBeLessThanOrEqual(745);
+      expect(fab.y + fab.height).toBeLessThanOrEqual((await dock.boundingBox())!.y - 16);
       await expect(page.locator('.kregister-day').first()).toBeVisible();
     } else {
       await expect(dock).toBeHidden();

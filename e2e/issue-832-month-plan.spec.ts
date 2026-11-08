@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext } from '@playwright/test';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
@@ -48,7 +49,9 @@ test('ON long negative month amount never overlaps the distribution button', asy
       `Amount and distribution button must not overlap at ${width}px`,
     ).toBe(false);
     expect(action.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-    expect(action.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    expect(action.height).toBeGreaterThanOrEqual(
+      await minimumControlHeight(page.getByRole('button', { name: 'Geld verteilen', exact: true })),
+    );
     await page.locator('.plan-topbar-v2 .plan-tba').click();
     await expect(page.getByTestId('plan-topbar')).toHaveClass(/is-compact/);
     const compact = await page.getByTestId('plan-topbar').evaluate((head) => {
@@ -365,7 +368,7 @@ for (const theme of ['light', 'dark'] as const) {
         for (const control of [action, page.locator('.plan-tba')]) {
           const rect = await control.boundingBox();
           expect(rect!.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-          expect(rect!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+          expect(rect!.height).toBeGreaterThanOrEqual(await minimumControlHeight(control));
           expect(rect!.x).toBeGreaterThanOrEqual(-0.5);
           expect(rect!.x + rect!.width).toBeLessThanOrEqual(width + 0.5);
         }

@@ -141,7 +141,8 @@ test.describe('fine pointer controls', () => {
     const segment = page
       .getByRole('group', { name: 'Zeitraum', exact: true })
       .getByRole('button', { name: '1J', exact: true });
-    expect((await segment.boundingBox())!.height).toBe(28);
+    const redesign = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
+    expect((await segment.boundingBox())!.height).toBe(redesign ? 34 : 28);
     await page.screenshot({ path: info.outputPath('desktop-1440.png') });
   });
 });

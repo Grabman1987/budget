@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
@@ -89,7 +90,7 @@ async function hit(control: Locator) {
     };
   });
   expect(box.width).toBeGreaterThanOrEqual(44);
-  expect(box.height).toBeGreaterThanOrEqual(44);
+  expect(box.height).toBeGreaterThanOrEqual(await minimumControlHeight(control, 44));
   expect(box.left).toBeGreaterThanOrEqual(0);
   expect(box.right).toBeLessThanOrEqual(box.viewportWidth);
   expect(box.top).toBeGreaterThanOrEqual(0);
@@ -279,7 +280,7 @@ for (const profile of ['desktop', 'phone'] as const)
           return { width: r.width, height: r.height };
         });
         expect(linkSize.width).toBeGreaterThanOrEqual(44);
-        expect(linkSize.height).toBeGreaterThanOrEqual(44);
+        expect(linkSize.height).toBeGreaterThanOrEqual(await minimumControlHeight(link, 44));
         const parsedPayout = dialog
           .locator('.source-status')
           .getByText('Auszahlung', { exact: true })

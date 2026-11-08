@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { openHeuteReview } from './heute-visual-fixture';
 import { withShellControls } from './shell-actions';
 import { redesignLoaded } from './ledger-helpers';
@@ -229,7 +230,7 @@ async function inspect(page: Page, info: TestInfo, label: string) {
     for (const control of await page.locator('.account-reminder a').all()) {
       const box = (await control.boundingBox())!;
       expect(box.width).toBeGreaterThanOrEqual(44);
-      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(await minimumControlHeight(control, 44));
     }
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

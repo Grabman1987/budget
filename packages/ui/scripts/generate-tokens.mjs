@@ -192,7 +192,7 @@ ${declarations(light, '    ')}
 /** Only the trusted build marker enables these roles, including body-mounted floating layers. */
 export function generateRedesignTokensCss(designMd) {
   const input = parseFlat(designMd, 'redesign');
-  const roles = ['rule', 'rule-strong', 'warning', 'warning-soft'];
+  const roles = ['rule', 'field', 'rule-strong', 'warning', 'warning-soft'];
   const declarations = (dark, indent) =>
     roles
       .map((role) => {

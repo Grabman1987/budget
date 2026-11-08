@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { openPruefenSource } from './pruefen-part';
 import AxeBuilder from '@axe-core/playwright';
 import { inboxItem, insertTracked, openDatabase, receipt } from '@budget/db';
@@ -93,7 +94,7 @@ test('global inbox loads bounded API pages and keeps total and kind counts', asy
   ] as const) {
     const more = page.getByRole('button', { name: /Weitere anzeigen/ });
     const box = await more.boundingBox();
-    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(await minimumControlHeight(more, 44));
     const nextPage = inboxPageResponse(offset);
     if (offset === 100) await more.dblclick({ delay: 0 });
     else await more.click();

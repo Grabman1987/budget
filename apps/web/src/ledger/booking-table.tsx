@@ -504,6 +504,7 @@ function Row({
       }}
       className={cx(
         b.status === 'pending' && 'is-pending',
+        REDESIGN_ENABLED && b.status === 'reconciled' && 'is-reconciled',
         flashing && 'tx-flash',
         checked && 'is-selected',
         upcomingToday && 'is-upcoming',
@@ -601,7 +602,7 @@ function Row({
             </span>
             {variant === 'all' && (
               <>
-                <span>{b.accountName}</span>
+                <span className="kmeta-account">{b.accountName}</span>
                 <span aria-hidden="true"> · </span>
               </>
             )}
