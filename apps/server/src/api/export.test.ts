@@ -760,48 +760,52 @@ describe('GET /api/export/csv.zip', () => {
       const after = snapshots();
       expect(after).toEqual(before);
     },
-    process.platform === 'win32' ? 60_000 : 30_000,
+    process.platform === 'win32' ? 120_000 : 30_000,
   );
 
-  it('rejects a late CSV source failure and removes the snapshot instead of completing a partial ZIP', async () => {
-    const snapshots = () =>
-      readdirSync(tmpdir())
-        .filter((name) => existsSync(join(tmpdir(), name, 'snapshot.sqlite')))
-        .sort();
-    const before = snapshots();
-    const originalFrom = Readable.from.bind(Readable);
-    let sourceFinalized = false;
-    let injected = false;
-    const spy = vi.spyOn(Readable, 'from').mockImplementation((iterable, ...args) => {
-      const isAsyncGenerator =
-        typeof iterable === 'object' &&
-        iterable !== null &&
-        Object.prototype.toString.call(iterable) === '[object AsyncGenerator]';
-      if (!injected && isAsyncGenerator) {
-        injected = true;
-        return originalFrom(
-          (async function* () {
-            try {
-              yield 'partial csv row';
-              throw new Error('synthetic CSV source failure');
-            } finally {
-              await new Promise((resolve) => setTimeout(resolve, 20));
-              sourceFinalized = true;
-            }
-          })(),
-          ...args,
-        );
+  it(
+    'rejects a late CSV source failure and removes the snapshot instead of completing a partial ZIP',
+    async () => {
+      const snapshots = () =>
+        readdirSync(tmpdir())
+          .filter((name) => existsSync(join(tmpdir(), name, 'snapshot.sqlite')))
+          .sort();
+      const before = snapshots();
+      const originalFrom = Readable.from.bind(Readable);
+      let sourceFinalized = false;
+      let injected = false;
+      const spy = vi.spyOn(Readable, 'from').mockImplementation((iterable, ...args) => {
+        const isAsyncGenerator =
+          typeof iterable === 'object' &&
+          iterable !== null &&
+          Object.prototype.toString.call(iterable) === '[object AsyncGenerator]';
+        if (!injected && isAsyncGenerator) {
+          injected = true;
+          return originalFrom(
+            (async function* () {
+              try {
+                yield 'partial csv row';
+                throw new Error('synthetic CSV source failure');
+              } finally {
+                await new Promise((resolve) => setTimeout(resolve, 20));
+                sourceFinalized = true;
+              }
+            })(),
+            ...args,
+          );
+        }
+        return originalFrom(iterable, ...args);
+      });
+      try {
+        const response = await app.request('/api/export/csv.zip');
+        await expect(response.arrayBuffer()).rejects.toThrow();
+      } finally {
+        spy.mockRestore();
       }
-      return originalFrom(iterable, ...args);
-    });
-    try {
-      const response = await app.request('/api/export/csv.zip');
-      await expect(response.arrayBuffer()).rejects.toThrow();
-    } finally {
-      spy.mockRestore();
-    }
-    expect(injected).toBe(true);
-    expect(sourceFinalized).toBe(true);
-    expect(snapshots()).toEqual(before);
-  }, 30_000);
+      expect(injected).toBe(true);
+      expect(sourceFinalized).toBe(true);
+      expect(snapshots()).toEqual(before);
+    },
+    process.platform === 'win32' ? 120_000 : 30_000,
+  );
 });

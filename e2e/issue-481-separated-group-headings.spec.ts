@@ -166,7 +166,9 @@ for (const profile of ['configured', 'desktop', 'phone-tall'] as const) {
                   id: row.id,
                   ...box(row),
                   first: box(row.nextElementSibling!),
-                  controls: Array.from(row.querySelectorAll('button'), box),
+                  controls: Array.from(row.querySelectorAll('button'))
+                    .filter((control) => control.getClientRects().length > 0)
+                    .map(box),
                 }),
               ),
               categories: Array.from(

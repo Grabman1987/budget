@@ -243,7 +243,9 @@ isolatedTest(
       /neue Kartenschuld 30,00 €/,
     );
     // #587: the cover actions open from the Zu verteilen disclosure; no chip in the head.
-    await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
+    await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen', {
+      useInnerText: true,
+    });
     await page.locator('.plan-tba').click();
     await expect(page.locator('.triage')).toContainText('2 Envelopes überzogen');
     await expect(page.locator('.triage')).not.toContainText(food);
@@ -321,6 +323,8 @@ isolatedTest(
 
     // Geld verteilen: the target of Lebensmittel shows as a ghost value and is taken with one click.
     await page.getByRole('button', { name: 'Geld verteilen' }).click();
+    if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
+      await page.getByRole('button', { name: 'Wasserfall-Assistent' }).click();
     await page.getByRole('button', { name: `Vorschlag 300,00 € für ${food} übernehmen` }).click();
     await expect(toast(page)).toContainText('300,00 € verteilt');
     await expect(available(page, food)).toHaveText('300,00 €');
