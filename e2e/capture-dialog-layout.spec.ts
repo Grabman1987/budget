@@ -169,30 +169,30 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   await expect(amount).toHaveValue('19,99');
   await expect(receiver).toBeFocused();
   await expect(discard).toHaveCount(0);
-  await (await captureFlagControl(dialog, 'Markierung: keine')).click();
-  await dialog.getByRole('menuitemradio', { name: /Blau/ }).click();
+  const phone = (await redesignLoaded(page)) && page.viewportSize()!.width < 768;
+  if (phone) {
+    await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
+    await expect(dialog.getByLabel('Markierung', { exact: true })).toHaveCount(0);
+  } else {
+    await (await captureFlagControl(dialog, 'Markierung: keine')).click();
+    await dialog.getByRole('menuitemradio', { name: /Blau/ }).click();
+  }
   await expect(discard).toHaveCount(0);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
     const save = captureSaveControl(dialog);
-    const phone = (await redesignLoaded(page)) && page.viewportSize()!.width < 768;
     await expect(save).toHaveCSS(
       'background-color',
-      phone ? 'rgba(0, 0, 0, 0)' : theme === 'light' ? 'rgb(23, 71, 166)' : 'rgb(208, 244, 255)',
+      theme === 'light' ? 'rgb(23, 71, 166)' : 'rgb(208, 244, 255)',
     );
     await expect(save).toHaveCSS(
       'color',
-      phone
-        ? theme === 'light'
-          ? 'rgb(23, 71, 166)'
-          : 'rgb(208, 244, 255)'
-        : theme === 'light'
-          ? 'rgb(255, 255, 255)'
-          : 'rgb(11, 49, 82)',
+      theme === 'light' ? 'rgb(255, 255, 255)' : 'rgb(11, 49, 82)',
     );
-    await expect(captureSaveControl(dialog)).toBeInViewport();
+    await save.scrollIntoViewIfNeeded();
+    await expect(save).toBeInViewport();
     const controls = await controlBoxes(
       dialog.locator('button, input, select, textarea, summary').filter({ visible: true }),
     );

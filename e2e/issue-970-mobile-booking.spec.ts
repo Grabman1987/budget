@@ -93,7 +93,9 @@ for (const mode of ['create', 'edit'] as const) {
       for (const icon of await icons.all()) await expect(icon).toBeHidden();
       const boxes = await Promise.all(fields.map((field) => field.boundingBox()));
       for (let i = 1; i < boxes.length; i++) expect(boxes[i]!.y).toBeGreaterThan(boxes[i - 1]!.y);
-      await expect(dialog.getByRole('button', { name: 'Fertig', exact: true })).toBeInViewport({
+      await expect(
+        dialog.getByRole('button', { name: 'Buchung speichern', exact: true }),
+      ).toBeInViewport({
         ratio: 1,
       });
       expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -115,7 +117,7 @@ for (const mode of ['create', 'edit'] as const) {
       await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toBeVisible();
       await amount.press('Control+Enter');
       await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toBeVisible();
-      await expect(dialog.getByRole('button', { name: 'Fertig', exact: true })).toBeDisabled();
+      await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
     }
   });
 }

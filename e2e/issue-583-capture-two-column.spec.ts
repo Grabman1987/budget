@@ -312,20 +312,25 @@ test('at most three suggestions in one line without overflow; Mehr and Notiz', a
   await expect(more.locator('summary')).toHaveAccessibleName('Mehr');
   await more.locator('summary').click();
   await expect(more).toHaveAttribute('open', '');
-  await expect(more.getByLabel('Markierung', { exact: true })).toBeVisible();
-  // The flag shortcut stays first in the head, with its old name.
-  if (!(await redesignLoaded(page)))
-    await expect(dialog.locator('.bk-head').getByRole('button').first()).toHaveAccessibleName(
-      'Markierung: keine',
-    );
-  else await expect(await captureFlagControl(dialog, 'Markierung: keine')).toBeVisible();
+  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768) {
+    await expect(more.getByLabel('Markierung', { exact: true })).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
+  } else {
+    await expect(more.getByLabel('Markierung', { exact: true })).toBeVisible();
+    // The flag shortcut stays first in the head, with its old name.
+    if (!(await redesignLoaded(page)))
+      await expect(dialog.locator('.bk-head').getByRole('button').first()).toHaveAccessibleName(
+        'Markierung: keine',
+      );
+    else await expect(await captureFlagControl(dialog, 'Markierung: keine')).toBeVisible();
 
-  // Both flag controls show the same value.
-  await more.getByLabel('Markierung', { exact: true }).selectOption('blue');
-  await expect(await captureFlagControl(dialog, 'Markierung: Blau')).toBeVisible();
-  await (await captureFlagControl(dialog, 'Markierung: Blau')).click();
-  await dialog.getByRole('menuitemradio', { name: /Gelb/ }).click();
-  await expect(more.getByLabel('Markierung', { exact: true })).toHaveValue('yellow');
+    // Both flag controls show the same value.
+    await more.getByLabel('Markierung', { exact: true }).selectOption('blue');
+    await expect(await captureFlagControl(dialog, 'Markierung: Blau')).toBeVisible();
+    await (await captureFlagControl(dialog, 'Markierung: Blau')).click();
+    await dialog.getByRole('menuitemradio', { name: /Gelb/ }).click();
+    await expect(more.getByLabel('Markierung', { exact: true })).toHaveValue('yellow');
+  }
 
   // Phone and desktop: no horizontal page scroll, targets of 44 px, no Axe violation.
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(

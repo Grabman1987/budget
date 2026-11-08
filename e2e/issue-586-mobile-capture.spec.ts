@@ -1,5 +1,10 @@
 import { minimumControlHeight } from './control-geometry';
-import { categoryLineControl, redesignLoaded } from './ledger-helpers';
+import {
+  captureCloseControl,
+  captureSaveControl,
+  categoryLineControl,
+  redesignLoaded,
+} from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 
@@ -35,6 +40,8 @@ async function addManyLines(dialog: Locator) {
 
 async function saveWithin(dialog: Locator, top: number, height: number) {
   const save = captureSaveControl(dialog);
+  if ((await redesignLoaded(dialog.page())) && dialog.page().viewportSize()!.width < 768)
+    await save.scrollIntoViewIfNeeded();
   const bounds = (await save.boundingBox())!;
   expect(bounds.y).toBeGreaterThanOrEqual(top);
   expect(bounds.y + bounds.height).toBeLessThanOrEqual(top + height);
@@ -48,7 +55,7 @@ async function saveWithin(dialog: Locator, top: number, height: number) {
   ).toBe(true);
 }
 
-test('capture keeps save visible with many lines, status, targets and both themes', async ({
+test('capture keeps save reachable with many lines, status, targets and both themes', async ({
   page,
   request,
   baseURL,
@@ -115,7 +122,7 @@ test('capture keeps save visible with many lines, status, targets and both theme
       [],
     );
     await page.screenshot({ path: info.outputPath(`capture-${theme}.png`) });
-    // Scrolling the form and opening its additional fields cannot move the save action away.
+    // After scrolling back to the first row, the phone form action remains reachable at the end.
     await dialog.locator('.bk-body').evaluate((el) => (el.scrollTop = 0));
     await saveWithin(dialog, 0, height);
     await dialog.getByLabel('Betrag 6', { exact: true }).fill('19');
@@ -125,7 +132,7 @@ test('capture keeps save visible with many lines, status, targets and both theme
   }
 });
 
-test('desktop card stays bounded and phone save follows keyboard-sized visual viewport', async ({
+test('desktop card stays bounded and phone save is reachable in a keyboard-sized visual viewport', async ({
   page,
 }) => {
   // Browser emulation cannot open a physical iPhone keyboard. Exercise native layout resize,

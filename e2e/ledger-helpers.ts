@@ -132,18 +132,14 @@ export async function contactShareControl(scope: Locator) {
   });
 }
 
-/** Capture saves through the phone header or the retained desktop/OFF footer. */
+/** Capture saves at the end of the phone form or in the desktop/OFF footer. */
 export function captureSaveControl(scope: Locator) {
-  return scope
-    .locator('.bkform')
-    .getByRole('button', { name: /^(Speichern|Fertig)$/, exact: true });
+  return scope.locator('.bkform').getByRole('button', { name: 'Speichern', exact: true });
 }
 
 /** Capture keeps the same guarded close action in both responsive layouts. */
 export function captureCloseControl(scope: Locator) {
-  return scope
-    .locator('.bk-header-cancel')
-    .or(scope.getByRole('button', { name: 'Schließen', exact: true }));
+  return scope.getByRole('button', { name: 'Schließen', exact: true });
 }
 
 export async function captureFlagControl(scope: Locator, name: string | RegExp) {

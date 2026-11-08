@@ -62,7 +62,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
     const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
     await row.getByRole('button', { name: /bearbeiten/ }).click();
     await edit.getByLabel('Datum', { exact: true }).fill('02.10.2026');
-    await edit.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+    await captureCloseControl(edit).click();
     // A changed field asks before the dialog closes.
     await edit
       .getByRole('alertdialog', { name: 'Eingaben verwerfen?' })
@@ -259,7 +259,9 @@ test('single payee suggestion selects its recent account and keeps capture contr
   await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(recent.id);
   await panel.locator('.kmore > summary').scrollIntoViewIfNeeded();
   await expect(panel.locator('.kmore > summary')).toBeInViewport({ ratio: 1 });
-  await expect(await captureFlagControl(panel, 'Markierung: keine')).toBeVisible();
+  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768)
+    await expect(panel.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
+  else await expect(await captureFlagControl(panel, 'Markierung: keine')).toBeVisible();
   await expect(captureCloseControl(panel)).toBeVisible();
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => {
@@ -300,6 +302,7 @@ test('single payee suggestion selects its recent account and keeps capture contr
   await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(first.id);
   await expect(panel.getByLabel('Notiz')).toBeVisible();
   await expect(await categoryLineControl(panel)).toBeVisible();
+  await captureSaveControl(panel).scrollIntoViewIfNeeded();
   await expect(captureSaveControl(panel)).toBeInViewport();
   await panel.getByLabel('Betrag', { exact: true }).fill('12,50+3');
   await panel.getByLabel('Betrag', { exact: true }).press('Enter');

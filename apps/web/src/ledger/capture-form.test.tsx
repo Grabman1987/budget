@@ -59,6 +59,13 @@ vi.mock('../pwa/queue-store', () => ({
   saveChoices: async () => undefined,
 }));
 beforeEach(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
   flags.REDESIGN_ENABLED = false;
   flags.phone = false;
   create.mockReset();
@@ -117,7 +124,7 @@ it('shifts mobile keypad digits into cents and retains paste, validation and sav
   await user.click(screen.getByRole('button', { name: 'Geteilt durch' }));
   await user.keyboard('0');
   expect(amount.getAttribute('aria-invalid')).toBe('true');
-  await user.click(screen.getByRole('button', { name: 'Fertig' }));
+  await user.click(screen.getByRole('button', { name: 'Speichern' }));
   expect(create).not.toHaveBeenCalled();
   await user.clear(amount);
   await user.paste('12,50+3');
@@ -147,7 +154,7 @@ it('shifts mobile keypad digits into cents and retains paste, validation and sav
   await user.click(amount);
   await user.keyboard('1234');
   await user.click(screen.getByRole('button', { name: 'Einnahme' }));
-  await user.click(screen.getByRole('button', { name: 'Fertig' }));
+  await user.click(screen.getByRole('button', { name: 'Buchung speichern' }));
   await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
   expect(create.mock.calls[0]![0].input.amountCents).toBe(1234);
 });
@@ -174,16 +181,29 @@ it('explains the disabled phone save on open and retains save-and-new', async ()
   const amount = screen.getByLabelText('Betrag', { exact: true });
   expect(amount.getAttribute('inputmode')).toBe('decimal');
   expect(screen.getByText('Jede Zeile braucht einen Betrag.')).toBeTruthy();
-  expect((screen.getByRole('button', { name: 'Fertig' }) as HTMLButtonElement).disabled).toBe(true);
-  expect(screen.queryByRole('button', { name: 'Speichern' })).toBeNull();
-  expect(screen.getAllByRole('button', { name: 'Abbrechen' })).toHaveLength(1);
-  expect(screen.getByRole('button', { name: 'Fertig' }).getAttribute('aria-describedby')).toBe(
+  expect((screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement).disabled).toBe(
+    true,
+  );
+  expect(screen.queryByRole('button', { name: 'Fertig' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Abbrechen' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Schließen' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /^Markierung/ })).toBeNull();
+  expect(screen.queryByLabelText('Markierung')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Speichern' }).closest('.bk-body')).toBeTruthy();
+  expect(screen.getByText('Jede Zeile braucht einen Betrag.').className).toBe('bk-save-hint');
+  expect(screen.getByRole('button', { name: 'Speichern' }).getAttribute('aria-describedby')).toBe(
     'booking-save-reason',
   );
   fireEvent.blur(amount);
   expect(screen.getByText('Jede Zeile braucht einen Betrag.')).toBeTruthy();
+  fireEvent.change(amount, { target: { value: '12,34' } });
+  expect(screen.getByText('Jede Zeile einer Ausgabe braucht eine Kategorie.').className).toBe(
+    'bk-save-hint',
+  );
   fireEvent.keyDown(amount, { key: 'Enter', ctrlKey: true });
-  expect(screen.getByText('Jede Zeile braucht einen Betrag.')).toBeTruthy();
+  expect(screen.getByText('Jede Zeile einer Ausgabe braucht eine Kategorie.').className).toBe(
+    'bk-save-reason',
+  );
   expect(create).not.toHaveBeenCalled();
   fireEvent.change(amount, { target: { value: '12,34' } });
   expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();

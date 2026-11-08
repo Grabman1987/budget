@@ -782,13 +782,13 @@
 /* Phone capture prioritises the amount and category above the keyboard. */
 @media (max-width: 767px) {
   .bkform-redesign .bk-amount-primary {
-    order: -6;
+    order: -5;
     display: block;
     padding-block: 4px;
   }
   .bkform-redesign .bk-amount-primary .amount-box {
     display: flex;
-    justify-content: center;
+    justify-content: flex-end;
     min-height: 48px;
     border: 0;
     box-shadow: none;
@@ -805,7 +805,7 @@
     box-shadow: inset 0 -2px var(--line);
   }
   .bkform-redesign .bk-head {
-    order: -5;
+    order: -6;
     padding-block-end: 4px;
   }
   .bkform-redesign .bk-kind {
@@ -846,7 +846,7 @@
   .bkform-redesign .bk-body .field-row:not(.amount):not(.bk-contact-line .field-row) {
     grid-template-columns: 76px minmax(0, 1fr);
   }
-  .bkform-redesign .bk-mobile-status .bk-status {
+  .bkform-redesign .bk-status {
     justify-content: flex-start;
     border: 0;
     padding-inline: 0;
@@ -872,9 +872,9 @@
     flex-direction: column;
     flex-shrink: 0;
     min-width: 0;
-    padding: 8px 12px;
-    background: var(--surface);
-    border-radius: var(--radius-sheet);
+    padding: 8px 0;
+    background: transparent;
+    border-radius: 0;
   }
   .bkform-redesign .bk-body .bk-mobile-row-icon {
     display: none;
@@ -908,14 +908,15 @@
     box-shadow: none;
   }
   .bkform-redesign .bk-amount-primary .amount-input {
-    width: var(--capture-amount-width, 4ch);
-    max-width: calc(100% - 36px);
+    flex: 1;
+    width: 100%;
+    max-width: none;
     --fs-dimension: 44px;
     font-size: var(--fs-dimension);
     font-weight: 500;
     text-align: right;
     font-variant-numeric: tabular-nums;
-    caret-color: transparent;
+    caret-color: currentColor;
   }
   .bkform-redesign .bk-amount-primary .amount-box {
     gap: 4px;
@@ -941,10 +942,13 @@
   .bkform-redesign .bk-kind::before {
     content: '';
     position: absolute;
-    inset: 6px 0;
+    inset: 4px auto 4px 0;
+    width: calc(100% / 3);
     z-index: -1;
     border-radius: inherit;
     background: var(--quiet-soft);
+    transform: translateX(0);
+    transition: transform 200ms ease-out;
   }
   .bkform-redesign .bk-kind button {
     position: relative;
@@ -958,13 +962,17 @@
     background: transparent;
     box-shadow: none;
   }
-  .bkform-redesign .bk-kind button[aria-pressed='true']::before {
-    content: '';
-    position: absolute;
-    inset: 8px 2px;
-    z-index: -1;
-    border-radius: inherit;
-    background: var(--surface);
+  .bkform-redesign .bk-head[data-kind='income'] .bk-kind::before {
+    transform: translateX(100%);
+  }
+  .bkform-redesign .bk-head[data-kind='transfer'] .bk-kind::before {
+    transform: translateX(200%);
+  }
+  .bkform-redesign .bk-head[data-editing] .bk-kind::before {
+    width: 50%;
+  }
+  .bkform-redesign .bk-kind-fixed::before {
+    display: none;
   }
   .bkform-redesign .bk-body .combo.is-capture-overlay {
     display: contents;
@@ -1030,68 +1038,39 @@
   }
 }
 
-/* Capture's iOS controls share the existing sheet and amount parser. */
+/* Phone actions belong to the scrolling form; only the keyboard accessory floats. */
 @media (max-width: 767px) {
   .bkform-redesign .bk-editor-titlebar {
     display: grid;
-    grid-template-columns: minmax(88px, 1fr) auto minmax(88px, 1fr);
+    grid-template-columns: minmax(0, 1fr) 44px;
     gap: 0;
   }
   .bkform-redesign .bk-editor-titlebar h2 {
-    grid-column: 2;
+    grid-column: 1;
+    grid-row: 1;
     margin: 0;
     font-size: var(--fs-body);
   }
-  .bkform-redesign .bk-header-cancel,
-  .bkform-redesign .bk-header-done {
-    min-height: 44px;
-    padding-inline: 8px;
-    border: 0;
-    background: transparent;
-    color: var(--primary);
-  }
-  .bkform-redesign .bk-header-cancel {
-    justify-self: start;
-  }
-  .bkform-redesign .bk-header-done {
-    justify-self: end;
-    transition: none;
-  }
-  .bkform-redesign .bk-header-done:disabled {
-    opacity: 1;
-    color: var(--ink-2);
-  }
-  .bkform-redesign .bk-editor-titlebar > .kflagpick {
-    display: block;
-    grid-column: 1;
-    grid-row: 2;
-    justify-self: start;
-  }
-  .bkform-redesign .bk-editor-titlebar .kflagbtn {
-    width: 44px;
-    border: 0;
-    background: transparent;
-  }
-  .bkform-redesign .bk-editor-titlebar .kflagbtn::after {
-    display: none;
-  }
-  .bkform-redesign .bk-editor-titlebar .kflagmenu {
-    inset-inline: 0 auto;
+  .bkform-redesign .bk-editor-titlebar > .bk-close {
+    grid-column: 2;
+    grid-row: 1;
   }
   .bkform-redesign .bk-editor-receipt-actions {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 2;
-    justify-self: center;
   }
   .bkform-redesign .bk-editor-titlebar > .kmore {
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 2;
-    justify-self: end;
   }
-  .bkform-redesign .bk-mobile-status .bk-status {
+  .bkform-redesign .bk-status {
+    width: auto;
     background: transparent;
     color: var(--ink-2);
     box-shadow: none;
+  }
+  .bkform-redesign .bk-status[aria-pressed='true'] {
+    color: var(--good);
   }
   .bkform-redesign .chip {
     border-color: transparent;
@@ -1110,11 +1089,30 @@
   }
   .bkform-redesign {
     position: relative;
-    /* Keep targets stationary when pointerdown blurs the amount before click. */
+    padding-bottom: 0;
+  }
+  /* Keep targets stationary when pointerdown blurs the amount before click. */
+  .bkform-redesign:is(:has(.bk-amount-primary .amount-box:focus-within), [data-amount-pointer]) {
     padding-bottom: 52px;
   }
   .bkform-redesign .bk-amount-primary > .amount {
     position: static;
+  }
+  .bkform-redesign .bk-amount-measure-clip {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+  .bkform-redesign .bk-amount-measure {
+    position: absolute;
+    visibility: hidden;
+    pointer-events: none;
+    white-space: pre;
+    --fs-dimension: 44px;
+    font-size: var(--fs-dimension);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
   }
   .bkform-redesign .bk-amount-primary .amount-ops {
     display: none;
@@ -1124,7 +1122,7 @@
     grid-template-columns: repeat(4, minmax(44px, 1fr));
     grid-template-rows: 44px;
     gap: 4px;
-    padding: 4px 16px;
+    padding: 4px 64px 4px 16px;
     border: 0;
     border-top: 1px solid var(--rule);
     background: var(--surface);
@@ -1132,29 +1130,73 @@
   .bkform-redesign .bk-amount-primary .amount-ops button {
     font-size: var(--fs-headline);
   }
-  .bkform-redesign .bk-amount-primary .amount-box:focus-within .amount-ops {
+  .bkform-redesign .bk-keyboard-save {
+    display: none;
+    position: absolute;
+    inset: auto 16px 4px auto;
+    z-index: 3;
+    width: 44px;
+    min-height: 44px;
+    padding: 0;
+  }
+  .bkform-redesign:is(:has(.bk-amount-primary .amount-box:focus-within), [data-amount-pointer])
+    :is(.amount-ops, .bk-keyboard-save) {
     display: grid;
   }
   .bkform-redesign .bk-amount-primary .amount-hint.is-result {
     position: static;
-    text-align: center;
+    text-align: right;
   }
   .bkform-redesign .bk-amount-primary .amount:has(.is-result) .amount-input {
     padding-inline-end: 0;
-    caret-color: currentColor;
   }
-}
-
-/* While the amount keyboard is open, Fertig keeps save reachable. A pointer
-   activation retains this geometry until click; blur then restores secondary tools. */
-@media (max-width: 767px) {
-  .bk-focus-scope[data-compact-viewport]
-    .bkform-redesign:is(:has(.bk-amount-primary .amount-box:focus-within), [data-amount-pointer])
-    .bk-foot,
+  .bkform-redesign .bk-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding-block: 12px calc(8px + env(safe-area-inset-bottom));
+  }
+  .bkform-redesign .bk-form-actions .btn {
+    min-height: 44px;
+  }
+  .bkform-redesign .bk-form-actions > button[type='submit'] {
+    order: -1;
+  }
+  .bkform-redesign .bk-form-actions > .bk-save-new {
+    border: 0;
+    background: transparent;
+    padding-inline: 8px;
+  }
+  .bkform-redesign .bk-form-actions .bk-save-new-icon {
+    display: none;
+  }
+  .bkform-redesign .bk-form-actions .bk-save-new-label {
+    position: static;
+    width: auto;
+    height: auto;
+    clip-path: none;
+  }
+  .bkform-redesign :is(.bk-form-actions, .bk-keyboard-save).btn-primary,
+  .bkform-redesign .bk-form-actions > .btn-primary {
+    transition: none;
+  }
+  .bkform-redesign .bk-form-actions > .btn-primary:disabled,
+  .bkform-redesign .bk-keyboard-save:disabled {
+    opacity: 1;
+    color: var(--ink-2);
+    background: transparent;
+    border: 1px solid var(--rule);
+  }
+  .bkform-redesign .bk-save-hint {
+    color: var(--ink-2);
+    font-size: var(--fs-meta);
+    margin: 4px 0 0;
+  }
   .bk-focus-scope[data-compact-viewport]
     .bkform-redesign:is(:has(.bk-amount-primary .amount-box:focus-within), [data-amount-pointer])
     .bk-editor-titlebar
-    > :is(.kflagpick, .bk-editor-receipt-actions, .kmore) {
+    > :is(.bk-editor-receipt-actions, .kmore) {
     display: none;
   }
   .bk-focus-scope[data-compact-viewport] .bkform-redesign .bk-amount-primary {
@@ -1163,8 +1205,9 @@
   .bk-focus-scope[data-compact-viewport] .bkform-redesign .bk-head {
     padding-bottom: 0;
   }
-  .bk-focus-scope[data-compact-viewport] .bkform-redesign > .bk-save-reason {
-    min-height: 0;
-    padding: 4px 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bkform-redesign .bk-kind::before {
+    transition: none;
   }
 }

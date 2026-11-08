@@ -129,7 +129,7 @@ const geometry = (page: Page): Promise<Geometry> =>
     const h = window.innerHeight;
     const r = d.getBoundingClientRect();
     const inner = d.querySelector('.overlay-inner')?.getBoundingClientRect();
-    const close = d.querySelector<HTMLElement>('button[aria-label="Schließen"], .bk-header-cancel');
+    const close = d.querySelector<HTMLElement>('button[aria-label="Schließen"]');
     const cr = close?.getBoundingClientRect();
     const center = (b: DOMRect) => [b.left + b.width / 2, b.top + b.height / 2] as const;
     const at = (x: number, y: number) => document.elementFromPoint(x, y);
@@ -395,10 +395,12 @@ test.describe('behaviour', () => {
       await page.evaluate(() => getComputedStyle(document.documentElement).overflowY),
       'page scroll is locked while the sheet is open',
     ).toBe('hidden');
-    // Both the last input and the sticky save control remain reachable inside the sheet.
+    // Both the last input and the save control remain reachable inside the sheet.
     const lastInside = await page.evaluate(() => {
       const d = document.querySelector('dialog.overlay[open]') as HTMLElement;
-      const b = d.querySelector('.bk-foot button')?.getBoundingClientRect();
+      const b = d
+        .querySelector('.bk-form-actions button, .bk-foot button')
+        ?.getBoundingClientRect();
       const input = [...d.querySelectorAll('input')].at(-1)?.getBoundingClientRect();
       const r = d.getBoundingClientRect();
       return Boolean(
@@ -453,13 +455,14 @@ test.describe('behaviour', () => {
     });
     expect(rules['sheet']).toContain('safe-area-inset-bottom');
     expect(rules['full']).toContain('safe-area-inset-top');
+    await dialogOf(page, s).locator('.bk-form-actions, .bk-foot').scrollIntoViewIfNeeded();
     const gap = await page.evaluate(() => {
       const d = document.querySelector('dialog.overlay[open]') as HTMLElement;
-      const foot = d.querySelector('.bk-foot')?.getBoundingClientRect();
+      const foot = d.querySelector('.bk-form-actions, .bk-foot')?.getBoundingClientRect();
       const r = d.getBoundingClientRect();
       return foot ? r.bottom - foot.bottom : -1;
     });
-    expect(gap, 'the footer buttons end inside the sheet').toBeGreaterThanOrEqual(0);
+    expect(gap, 'the action buttons end inside the sheet').toBeGreaterThanOrEqual(0);
   });
 
   test('Esc closes the dialog (where a keyboard exists)', async ({ page }) => {

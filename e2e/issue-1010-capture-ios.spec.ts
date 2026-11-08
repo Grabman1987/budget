@@ -9,20 +9,25 @@ for (const width of [390, 1440]) {
       await page.goto('/?panel=buchung');
       const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
       await expect(dialog.locator('.bkform-redesign')).toBeVisible();
+      const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+      await expect(save).toBeDisabled();
+      await expect(dialog.getByRole('button', { name: 'Fertig', exact: true })).toHaveCount(0);
       if (width === 390) {
-        const done = dialog.getByRole('button', { name: 'Fertig', exact: true });
-        await expect(done).toBeDisabled();
-        await expect(done).toHaveAccessibleDescription('Jede Zeile braucht einen Betrag.');
-        await expect(dialog.locator('#booking-save-reason')).toBeInViewport({ ratio: 1 });
-        await expect(dialog.getByRole('button', { name: 'Abbrechen', exact: true })).toHaveCount(1);
-        await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toHaveCount(0);
-        await expect(
-          dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
-        ).toBeVisible();
+        await expect(save).toHaveAccessibleDescription('Jede Zeile braucht einen Betrag.');
+        await expect(dialog.locator('#booking-save-reason')).toHaveClass('bk-save-hint');
+        await expect(dialog.getByRole('button', { name: 'Abbrechen', exact: true })).toHaveCount(0);
+        await expect(dialog.locator('.bk-foot')).toHaveCount(0);
+        await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
+        await dialog.locator('.kmore > summary').click();
+        await expect(dialog.getByLabel('Markierung', { exact: true })).toHaveCount(0);
+        await dialog.locator('.kmore > summary').click();
+        await expect(dialog.locator('.bk-body .bk-form-actions')).toContainText(
+          'Speichern und neu',
+        );
+        await expect(save).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
       } else {
-        await expect(dialog.getByRole('button', { name: 'Fertig', exact: true })).toHaveCount(0);
         await expect(dialog.getByRole('button', { name: 'Schließen', exact: true })).toBeVisible();
-        await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeVisible();
+        await expect(dialog.getByRole('button', { name: 'Markierung: keine' })).toBeVisible();
         await expect(dialog.locator('#booking-save-reason')).toHaveCount(0);
       }
       const amount = dialog.getByLabel('Betrag', { exact: true });
@@ -37,21 +42,39 @@ for (const width of [390, 1440]) {
       await amount.focus();
       if (width === 390) {
         const header = dialog.locator('.bk-editor-titlebar');
-        const cancel = header.getByRole('button', { name: 'Abbrechen', exact: true });
-        const done = header.getByRole('button', { name: 'Fertig', exact: true });
+        const close = header.getByRole('button', { name: 'Schließen', exact: true });
         const heading = header.getByRole('heading');
-        const left = (await cancel.boundingBox())!;
-        const middle = (await heading.boundingBox())!;
-        const right = (await done.boundingBox())!;
-        expect(left.x + left.width).toBeLessThanOrEqual(middle.x);
-        expect(middle.x + middle.width).toBeLessThanOrEqual(right.x);
-        for (const name of ['Markierung: keine', 'Datei anhängen', 'Foto aufnehmen']) {
+        const left = (await heading.boundingBox())!;
+        const right = (await close.boundingBox())!;
+        expect(left.x + left.width).toBeLessThanOrEqual(right.x);
+        for (const name of ['Schließen', 'Datei anhängen', 'Foto aufnehmen']) {
           const icon = header.getByRole('button', { name, exact: true });
           await expect(icon).toBeVisible();
           const box = (await icon.boundingBox())!;
           expect(box.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
           expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
         }
+        const kinds = dialog.getByRole('group', { name: 'Art der Buchung' });
+        const kindBox = (await kinds.boundingBox())!;
+        expect(kindBox.y + kindBox.height).toBeLessThanOrEqual((await amount.boundingBox())!.y);
+        await expect(dialog.locator('.bk-cols')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+        await expect(save).toBeEnabled();
+        await expect(save).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+        await page.setViewportSize({ width, height: 430 });
+        await save.scrollIntoViewIfNeeded();
+        const before = (await save.boundingBox())!.y;
+        const scrolled = await dialog.locator('.bk-body').evaluate((el) => el.scrollTop);
+        expect(scrolled).toBeGreaterThan(0);
+        await dialog.locator('.bk-body').evaluate((el) => {
+          el.scrollTop = 0;
+        });
+        expect((await save.boundingBox())!.y).toBeGreaterThan(before);
+        await page.setViewportSize({ width, height: 900 });
+        await close.click();
+        await expect(
+          dialog.getByRole('alertdialog', { name: 'Eingaben verwerfen?' }),
+        ).toBeVisible();
+        await dialog.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
       }
       await amount.focus();
       await page.screenshot({ path: info.outputPath(`capture-${width}-${theme}.png`) });
@@ -72,7 +95,7 @@ for (const theme of ['light', 'dark'] as const) {
     const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
     const amount = dialog.getByLabel('Betrag', { exact: true });
     await amount.fill('12,50');
-    const done = dialog.getByRole('button', { name: 'Fertig', exact: true });
+    const done = dialog.getByRole('button', { name: 'Buchung speichern', exact: true });
     const plus = dialog.getByRole('button', { name: 'Plus', exact: true });
     if (isMobile) await plus.tap();
     else await plus.click();
@@ -122,3 +145,91 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(keys).toBeHidden();
   });
 }
+
+for (const width of [320, 390, 767]) {
+  test(`amount fits while typing and kind bubble slides at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/?panel=buchung');
+    const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
+    const amount = dialog.getByLabel('Betrag', { exact: true });
+    await page.evaluate(() => document.fonts.ready);
+    await amount.fill('');
+    for (const digit of '760123456789') {
+      await amount.pressSequentially(digit);
+      await expect
+        .poll(() =>
+          amount.evaluate((el: HTMLInputElement) => ({
+            scroll: el.scrollLeft,
+            fits: el.scrollWidth <= el.clientWidth,
+          })),
+        )
+        .toEqual({ scroll: 0, fits: true });
+    }
+    await expect(amount).toHaveValue('7601234567,89');
+    await amount.fill('123456789012345678901234567890,12');
+    await expect.poll(() => amount.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    expect(await amount.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeLessThan(
+      44,
+    );
+    expect(
+      await dialog.locator('.bk-body').evaluate((el) => el.scrollWidth <= el.clientWidth),
+    ).toBe(true);
+    await amount.fill('12,50+3,25');
+    await expect.poll(() => amount.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    const kinds = dialog.getByRole('group', { name: 'Art der Buchung' });
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    const bubble = () =>
+      kinds.evaluate((el) => {
+        const style = getComputedStyle(el, '::before');
+        return {
+          x: new DOMMatrixReadOnly(style.transform).m41,
+          duration: style.transitionDuration,
+        };
+      });
+    expect((await bubble()).duration).toBe('0.2s');
+    await kinds.getByRole('button', { name: 'Einnahme' }).click();
+    await expect(kinds.getByRole('button', { name: 'Einnahme' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    const segmentWidth = (await kinds.boundingBox())!.width / 3;
+    await expect.poll(async () => Math.round((await bubble()).x)).toBe(Math.round(segmentWidth));
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await kinds.getByRole('button', { name: 'Umbuchung' }).click();
+    expect((await bubble()).duration).toBe('0s');
+    expect(Math.round((await bubble()).x)).toBe(Math.round(segmentWidth * 2));
+    for (const button of await kinds.getByRole('button').all()) {
+      expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    }
+    await amount.fill('');
+    await expect(
+      dialog.getByRole('button', { name: 'Buchung speichern', exact: true }),
+    ).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
+  });
+}
+
+test('keyboard check saves a valid phone draft and Undo restores it', async ({
+  page,
+  isMobile,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/?panel=buchung');
+  const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
+  await dialog.getByRole('button', { name: 'Einnahme', exact: true }).click();
+  const amount = dialog.getByLabel('Betrag', { exact: true });
+  await amount.fill('1,23');
+  await page.setViewportSize({ width: 390, height: 430 });
+  const save = dialog.getByRole('button', { name: 'Buchung speichern', exact: true });
+  await expect(save).toBeEnabled();
+  await expect(save).toBeInViewport({ ratio: 1 });
+  const response = page.waitForResponse(
+    (r) => r.url().endsWith('/api/bookings') && r.request().method() === 'POST',
+  );
+  if (isMobile) await save.tap();
+  else await save.click();
+  expect((await response).ok()).toBe(true);
+  await expect(dialog).toBeHidden();
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Rückgängig' })).toBeVisible();
+});

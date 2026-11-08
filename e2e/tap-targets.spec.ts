@@ -97,20 +97,22 @@ test.describe('UX-3b touch controls', () => {
       ).toBeGreaterThanOrEqual(13);
     }
     const flag = await captureFlagControl(dialog, 'Markierung: keine');
-    await expect(flag).toHaveAccessibleName('Markierung: keine');
-    if (await dialog.locator('.bkform-redesign').count())
-      expect(await flag.evaluate((el) => getComputedStyle(el, '::after').display)).toBe('none');
-    else
+    if (await dialog.locator('.bkform-redesign').count()) {
+      await expect(flag).toHaveCount(0);
+      await expect(dialog.getByLabel('Markierung', { exact: true })).toHaveCount(0);
+    } else {
+      await expect(flag).toHaveAccessibleName('Markierung: keine');
       expect(await flag.evaluate((el) => getComputedStyle(el, '::after').content)).toContain(
         'Markierung',
       );
-    await flag.tap();
-    await expectTouchTargets(dialog.getByRole('menuitemradio'));
-    await page.keyboard.press('Escape');
-    await expect(flag).toBeFocused();
+      await flag.tap();
+      await expectTouchTargets(dialog.getByRole('menuitemradio'));
+      await page.keyboard.press('Escape');
+      await expect(flag).toBeFocused();
+    }
     const close = captureCloseControl(dialog);
     if (await dialog.locator('.bkform-redesign').count())
-      await expect(close).toHaveText('Abbrechen');
+      await expect(close).toHaveAccessibleName('Schließen');
     else
       expect(await close.evaluate((el) => getComputedStyle(el, '::after').content)).toContain(
         'Schließen',

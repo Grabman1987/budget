@@ -203,21 +203,26 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await expect(
     panel.getByLabel('Bezahlt von', { exact: true }).locator('option:checked'),
   ).toHaveText(account);
-  // Phone redesign explains the disabled header action immediately; desktop and OFF
-  // retain their after-input explanation. A footer click with
-  // an invalid date must still land while the payee suggestions are open.
+  // Phone redesign explains disabled save quietly; desktop and OFF keep after-input timing.
+  // Invalid dates remain refused while payee suggestions are open.
   await expect(panel.getByRole('button', { name: 'Speichern und neu' })).toBeDisabled();
-  if ((page.viewportSize()?.width ?? 1440) < 768 && (await redesignLoaded(page)))
-    await expect(panel.locator('.bk-save-reason')).toHaveText('Jede Zeile braucht einen Betrag.');
+  const phoneRedesign = (page.viewportSize()?.width ?? 1440) < 768 && (await redesignLoaded(page));
+  if (phoneRedesign)
+    await expect(panel.locator('.bk-save-hint')).toHaveText('Jede Zeile braucht einen Betrag.');
   else await expect(panel.locator('.bk-save-reason')).toHaveCount(0);
   await panel.getByLabel('Betrag', { exact: true }).fill('0');
-  await expect(panel.locator('.bk-save-reason')).toContainText('Jede Zeile braucht einen Betrag.');
+  await expect(panel.locator('#booking-save-reason')).toContainText(
+    'Jede Zeile braucht einen Betrag.',
+  );
   await expect(panel.getByRole('button', { name: 'Speichern und neu' })).toBeDisabled();
   await panel.getByLabel('Betrag', { exact: true }).fill('1,00');
   await panel.getByLabel('Datum', { exact: true }).fill('31.02.2026');
   await panel.getByLabel('Empfänger').press('ArrowDown');
   await expect(panel.getByRole('listbox')).toBeVisible();
-  await panel.getByRole('button', { name: 'Speichern und neu' }).click();
+  if (phoneRedesign) {
+    await expect(panel.getByRole('button', { name: 'Speichern und neu' })).toBeDisabled();
+    await panel.getByLabel('Empfänger').press('Control+Shift+Enter');
+  } else await panel.getByRole('button', { name: 'Speichern und neu' }).click();
   await expect(panel.getByRole('alert').first()).toBeVisible();
   await expect(page.getByRole('row', { name: new RegExp(payee) })).toHaveCount(2);
   await page.keyboard.press('Escape');
@@ -450,7 +455,8 @@ test('the dialog is a centred card on the desktop and a sheet on the phone with 
         : ['Betrag', 'Empfänger', 'Datum', 'Bezahlt von', 'Kategorie', 'Notiz']
       : wanted,
   );
-  // The footer stays in view with the Speichern button.
+  // The phone save action is reachable at the end of the scrolling form.
+  await captureSaveControl(panel).scrollIntoViewIfNeeded();
   await expect(captureSaveControl(panel)).toBeInViewport();
 });
 
@@ -465,6 +471,14 @@ test('the flag: popover with six colours and keys, first column of the table', a
   const panel = await openCapture(page, testInfo);
   // The flag button comes first in the head, before the kind of booking.
   const redesign = await redesignLoaded(page);
+  const viewport = page.viewportSize()!;
+  const phoneRedesign = redesign && viewport.width < 768;
+  if (phoneRedesign) {
+    await expect(panel.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
+    await expect(panel.getByLabel('Markierung', { exact: true })).toHaveCount(0);
+    // Capture's flag editing is now desktop-only; the register still offers it on phones.
+    await page.setViewportSize({ width: 1440, height: viewport.height });
+  }
   const head = redesign ? panel : panel.locator('.bk-head');
   if (!redesign)
     await expect(head.getByRole('button').first()).toHaveAccessibleName('Markierung: keine');
@@ -495,6 +509,7 @@ test('the flag: popover with six colours and keys, first column of the table', a
   await page.keyboard.press('Control+Enter');
   await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
 
+  if (phoneRedesign) await page.setViewportSize(viewport);
   // The table: the flag is the first column and shows a glyph with the colour name as text.
   if (!isPhone(testInfo)) {
     await expect(page.getByRole('columnheader').first()).toHaveText('Markierung');
@@ -521,6 +536,7 @@ test('the flag: popover with six colours and keys, first column of the table', a
   await expect(flagButton).toBeFocused();
 
   // Opened again: the flag is kept; "keine" (key 0) removes it.
+  if (phoneRedesign) await page.setViewportSize({ width: 1440, height: viewport.height });
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await (await captureFlagControl(edit, 'Markierung: Gelb')).click();
@@ -528,6 +544,7 @@ test('the flag: popover with six colours and keys, first column of the table', a
   await expect(await captureFlagControl(edit, 'Markierung: keine')).toBeVisible();
   await captureSaveControl(edit).click();
   await expect(edit).toBeHidden();
+  if (phoneRedesign) await page.setViewportSize(viewport);
   await expect(row.locator('.kflag-glyph.is-none')).toHaveCount(1);
   await expect(row.locator('.kflag-glyph:not(.is-none)')).toHaveCount(0);
 });
