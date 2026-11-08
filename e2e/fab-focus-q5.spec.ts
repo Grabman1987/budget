@@ -1,3 +1,4 @@
+import { controlBoxes } from './control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
 import type { Page } from '@playwright/test';
@@ -118,13 +119,8 @@ test('detail has one name, one return path and keyboard-only focus in both theme
         )
         .filter({ visible: true });
       await expect(returns).toHaveCount(1);
-      const targets = await returns.evaluateAll((links) =>
-        links.map((link) => {
-          const box = link.getBoundingClientRect();
-          return { width: box.width, height: box.height };
-        }),
-      );
-      expect(targets.every((box) => box.width >= 44 && box.height >= 44)).toBe(true);
+      const targets = await controlBoxes(returns);
+      expect(targets.every((box) => box.width >= 44 && box.height >= box.minimumHeight)).toBe(true);
       await expect(returns).toHaveAttribute(
         'href',
         new RegExp(`^${back.replace(/[?]/g, '\\?')}(?:\\?|$)`),

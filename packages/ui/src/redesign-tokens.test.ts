@@ -30,12 +30,14 @@ function contrast(a: string, b: string) {
 describe('S2 generated ON roles', () => {
   const light = {
     rule: '#d3deec',
+    field: '#6786ac',
     'rule-strong': '#6786ac',
     warning: '#8a5300',
     'warning-soft': '#fff3d6',
   };
   const dark = {
     rule: '#1f4d7c',
+    field: '#4987bc',
     'rule-strong': '#4987bc',
     warning: '#ffd37a',
     'warning-soft': '#473d2b',
@@ -82,7 +84,7 @@ describe('S2 generated ON roles', () => {
     );
   });
 
-  it('keeps amber text at AA contrast on normal and warning surfaces in both themes', () => {
+  it('keeps field boundaries, focus rings and text at AA contrast in both themes', () => {
     const blocks = roles(generated());
     expect(blocks).toHaveLength(4);
     for (const [index, block] of blocks.entries()) {
@@ -91,6 +93,15 @@ describe('S2 generated ON roles', () => {
       for (const role of ['ground', 'surface', 'surface-2']) {
         const background = colors[`${darkMode ? 'dark-' : ''}${role}`]!;
         expect(contrast(block.warning!, background), role).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(block.field!, background), `field on ${role}`).toBeGreaterThanOrEqual(3);
+        expect(
+          contrast(colors[`${darkMode ? 'dark-' : ''}line`]!, background),
+          `focus on ${role}`,
+        ).toBeGreaterThanOrEqual(3);
+        expect(
+          contrast(colors[`${darkMode ? 'dark-' : ''}ink`]!, background),
+          `text on ${role}`,
+        ).toBeGreaterThanOrEqual(4.5);
       }
       expect(contrast(block.warning!, block['warning-soft']!)).toBeGreaterThanOrEqual(4.5);
     }

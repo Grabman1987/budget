@@ -1,3 +1,4 @@
+import { minimumControlHeight, minimumControlWidth } from './control-geometry';
 import { withShellControls } from './shell-actions';
 import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
@@ -51,7 +52,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         // The head keeps its former height (~85 px) so the Zu-tun list stays on the first screen.
         expect((await head.boundingBox())!.height).toBeLessThanOrEqual(88);
       } else {
-        // Phone: touch targets of the month switch and the period switch.
+        // The actual pointer and width select compact desktop or full touch targets.
         for (const target of [
           head.getByRole('button', { name: 'Vormonat' }),
           head.getByRole('button', { name: 'Nächster Monat' }),
@@ -59,8 +60,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
           payday,
         ]) {
           const box = await target.boundingBox();
-          expect(box!.height).toBeGreaterThanOrEqual(44);
-          expect(box!.width).toBeGreaterThanOrEqual(44);
+          expect(box!.height).toBeGreaterThanOrEqual(await minimumControlHeight(target, 44));
+          expect(box!.width).toBeGreaterThanOrEqual(await minimumControlWidth(target, 44));
         }
       }
       expect(

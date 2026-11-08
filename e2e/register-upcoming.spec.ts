@@ -1,4 +1,5 @@
-import { redesignLoaded, registerContext, MIN_TARGET_PX, pickCategory } from './ledger-helpers';
+import { minimumControlHeight } from './control-geometry';
+import { redesignLoaded, registerContext, pickCategory } from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
 import Database from 'better-sqlite3';
@@ -123,8 +124,17 @@ test('separates future captures and next weekly occurrence, projects cents and u
       const actions = await scheduled.getByRole('button', { name: 'Jetzt buchen' }).boundingBox();
       const skip = await scheduled.getByRole('button', { name: 'Überspringen' }).boundingBox();
       const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-      if (redesign) expect(actions!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-      expect(actions!.height).toBeLessThanOrEqual(redesign ? Math.ceil(MIN_TARGET_PX) + 0.1 : 34);
+      if (redesign)
+        expect(actions!.height).toBeGreaterThanOrEqual(
+          await minimumControlHeight(scheduled.getByRole('button', { name: 'Jetzt buchen' })),
+        );
+      expect(actions!.height).toBeLessThanOrEqual(
+        redesign
+          ? Math.ceil(
+              await minimumControlHeight(scheduled.getByRole('button', { name: 'Jetzt buchen' })),
+            ) + 0.1
+          : 34,
+      );
       expect(Math.abs(actions!.y - skip!.y)).toBeLessThan(2);
     }
     if (info.project.name === 'mobile') {

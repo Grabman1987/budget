@@ -1,7 +1,8 @@
+import { minimumControlHeight } from './control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
-import { MIN_TARGET_PX, toast } from './ledger-helpers';
+import { toast } from './ledger-helpers';
 
 test.use({ ledgerToday: '2026-09-17' });
 
@@ -56,7 +57,7 @@ for (const theme of ['light', 'dark'] as const) {
       await jump.focus();
       await expect(jump).toBeFocused();
       const box = await jump.boundingBox();
-      expect(box!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+      expect(box!.height).toBeGreaterThanOrEqual(await minimumControlHeight(jump));
       await jump.press('Enter');
       await expect(page).toHaveURL(new RegExp(`#account-register-${account.id}$`));
       await page.getByText('Dokumente und Kontoauszüge', { exact: true }).click();

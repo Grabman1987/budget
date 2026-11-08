@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import { redesignLoaded } from './ledger-helpers';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
@@ -58,7 +59,7 @@ async function hit(control: Locator) {
     };
   });
   expect(box.width).toBeGreaterThanOrEqual(44);
-  expect(box.height).toBeGreaterThanOrEqual(44);
+  expect(box.height).toBeGreaterThanOrEqual(await minimumControlHeight(control, 44));
   expect(box.visible).toBe(true);
   expect(box.hit, JSON.stringify(box)).toBe(true);
 }
