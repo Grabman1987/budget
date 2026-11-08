@@ -1019,6 +1019,9 @@
     border: 0;
     background: transparent;
   }
+  .hv-head-phone .month-switch .month-now {
+    margin-left: 0;
+  }
   .hv-head-phone .seg {
     position: relative;
     border: 0;
@@ -1038,7 +1041,7 @@
   .hv-head-phone .seg button {
     position: relative;
     min-width: 44px;
-    padding-inline: 0;
+    padding-inline: 2px;
     font-size: var(--fs-label);
     white-space: nowrap;
     background: transparent;
