@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, type Locator, type Page, type Request } from '@playwright/test';
-import { MIN_TARGET_PX } from '../../e2e/ledger-helpers';
+import { captureCloseControl, MIN_TARGET_PX } from '../../e2e/ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 
 async function rect(locator: Locator) {
@@ -278,7 +278,7 @@ export async function verifyRedesignShell(
   await page.keyboard.press('n');
   const capture = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
   await expect(capture).toBeVisible();
-  await capture.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await captureCloseControl(capture).click();
   await expect(capture).toBeHidden();
   const navigation = page.getByRole('navigation', {
     name: phone ? 'Hauptnavigation' : 'Planliste',
