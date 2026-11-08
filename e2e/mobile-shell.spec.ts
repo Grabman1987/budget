@@ -159,7 +159,7 @@ test.describe('UX-3a phone shell', () => {
       const wealthOn =
         path === '/vermoegen/portfolio' &&
         (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-      // Wealth reserves 240px at the page end for the phone dock and Undo toast.
+      // Wealth retains its extra Undo clearance above the current dock and FAB size.
       expect(clearance, path).toBe(wealthOn ? 117 : 16);
       // The FAB is fixed: measure its slot before it hides on the way down (#468).
       const fabTop = await page.locator('.fab').evaluate((el) => el.getBoundingClientRect().top);

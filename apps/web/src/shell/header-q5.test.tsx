@@ -13,6 +13,7 @@ import { EMPTY_PROFILE } from '@budget/domain';
 import { Topbar } from './topbar';
 import { MobileHeader, TabBar } from './mobile-chrome';
 import { OfflineStatus } from './header-status';
+import { REDESIGN_ENABLED } from './redesign-flag';
 
 const queue = vi.hoisted(() => ({ items: [] as unknown[] }));
 vi.mock('../pwa/queue-ui', () => ({ useBookingQueue: () => queue }));
@@ -91,7 +92,9 @@ it('phone has title, search and avatar with no empty status line', async () => {
   const header = await screen.findByRole('banner');
   expect(within(header).getByText('Heute')).toBeTruthy();
   expect(within(header).getByRole('button', { name: 'Suchen' })).toBeTruthy();
-  expect(header.querySelectorAll(':scope > a, :scope > button, :scope > details')).toHaveLength(2);
+  expect(header.querySelectorAll(':scope > a, :scope > button, :scope > details')).toHaveLength(
+    REDESIGN_ENABLED ? 3 : 2,
+  );
   await waitFor(() => expect(document.querySelector('.m-status')).toBeNull());
   client.clear();
 });
@@ -107,11 +110,18 @@ it('keeps three queued writes separate from the one open review item', async () 
   client.clear();
 });
 
-it('phone puts open decisions in a linked status line below its header', async () => {
+it('phone keeps open decisions linked in its active header presentation', async () => {
   const client = await mount(4, true);
-  const link = await screen.findByRole('link', { name: '4 zu prüfen' });
-  expect(link.closest('header')).toBeNull();
-  expect(link.closest('.m-status')).toBeTruthy();
+  const link = await screen.findByRole('link', {
+    name: REDESIGN_ENABLED ? 'Prüfen, 4 offen' : '4 zu prüfen',
+  });
+  if (REDESIGN_ENABLED) {
+    expect(link.closest('header')).toBeTruthy();
+    expect(link.closest('.m-status')).toBeNull();
+  } else {
+    expect(link.closest('header')).toBeNull();
+    expect(link.closest('.m-status')).toBeTruthy();
+  }
   expect(link.getAttribute('href')).toMatch(/^\/konten\/pruefen/);
   client.clear();
 });

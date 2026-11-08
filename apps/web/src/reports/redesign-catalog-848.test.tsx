@@ -67,7 +67,10 @@ it('ON uses the approved identities and 3+2+3+8 groups; every legacy name retain
       source.name,
     ).toContain(hubReport(source.id)!.id);
   }
-  const rendered = render(<ReportHub />);
+  const rendered = render(<ReportHub initialGroup="portfolio" />);
+  expect(screen.queryByRole('group', { name: 'Berichtsgruppen' })).toBeNull();
+  for (const name of ['Alle', 'Berichte', 'Auswertungen', 'Portfolio', 'Einnahmen und Ausgaben'])
+    expect(screen.queryByRole('button', { name })).toBeNull();
   const rows = rendered.container.querySelectorAll('.report-hub-list > li');
   expect(rows).toHaveLength(16);
   expect([...rows].map((row) => row.querySelector('a')?.getAttribute('href'))).toEqual(
@@ -88,5 +91,7 @@ it('ON uses the approved identities and 3+2+3+8 groups; every legacy name retain
     '/reports/vermoegen-schulden',
   );
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'unbekannt' } });
-  expect(screen.getByText('Kein Bericht passt zu dieser Suche und Gruppe.')).toBeTruthy();
+  expect(screen.getByText('Kein Bericht passt zu dieser Suche.')).toBeTruthy();
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } });
+  expect(rendered.container.querySelectorAll('.report-hub-list > li')).toHaveLength(16);
 });

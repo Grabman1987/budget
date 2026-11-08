@@ -70,29 +70,36 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
       path: info.outputPath(`report-hub-${theme}.png`),
       animations: 'disabled',
     });
-    for (const [name, count] of (redesign
-      ? [
-          ['Berichte', 3],
-          ['Auswertungen', 2],
-          ['Portfolio', 3],
-          ['Einnahmen und Ausgaben', 8],
-        ]
-      : [
-          ['Einnahmen/Ausgaben', 8],
-          ['Vermögen', 1],
-          ['Portfolio', 3],
-          ['Berichte', 4],
-        ]) as [string, number][]) {
+    if (redesign) {
+      await expect(page.getByRole('group', { name: 'Berichtsgruppen' })).toHaveCount(0);
+      for (const name of [
+        'Alle',
+        'Berichte',
+        'Auswertungen',
+        'Portfolio',
+        'Einnahmen und Ausgaben',
+      ])
+        await expect(
+          page.locator('.report-hub').getByRole('button', { name, exact: true }),
+        ).toHaveCount(0);
+    } else {
+      for (const [name, count] of [
+        ['Einnahmen/Ausgaben', 8],
+        ['Vermögen', 1],
+        ['Portfolio', 3],
+        ['Berichte', 4],
+      ] as [string, number][]) {
+        await page
+          .getByRole('group', { name: 'Berichtsgruppen' })
+          .getByRole('button', { name, exact: true })
+          .click();
+        await expect(page.locator('.report-hub-list > li')).toHaveCount(count);
+      }
       await page
         .getByRole('group', { name: 'Berichtsgruppen' })
-        .getByRole('button', { name, exact: true })
+        .getByRole('button', { name: 'Alle', exact: true })
         .click();
-      await expect(page.locator('.report-hub-list > li')).toHaveCount(count);
     }
-    await page
-      .getByRole('group', { name: 'Berichtsgruppen' })
-      .getByRole('button', { name: 'Alle', exact: true })
-      .click();
     const search = page.getByRole('searchbox', {
       name: 'Berichte nach Name oder Frage suchen',
       exact: true,
@@ -100,6 +107,8 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
     await search.fill('Brutto');
     await expect(page.locator('.report-hub-list > li')).toHaveCount(1);
     await expect(page.locator('.report-hub-list strong')).toHaveText('Gehalt');
+    await search.clear();
+    await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
     await search.fill('Ausgabenanalyse');
     await page.locator('.report-hub-list > li > a').click();
     await expect(page).toHaveURL(/\/reports\/ausgaben$/);
