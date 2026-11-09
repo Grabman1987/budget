@@ -183,7 +183,7 @@ for (const theme of ['light', 'dark'] as const) {
     expect(period.x + period.width).toBeLessThanOrEqual(page.viewportSize()!.width);
     await controls.getByRole('button', { name: 'Zum aktuellen Monat' }).click();
     await expect(page).toHaveURL(/monat=2026-09/);
-    await page.locator(isMobile ? '.m-review' : '.topbar .review-pill').click();
+    await page.locator('.page-header .review-pill').click();
     await expect(page).toHaveURL(/\/konten\/pruefen/);
     await page.getByRole('link', { name: 'Zurück zur vorherigen Ansicht' }).click();
     await expect(page).toHaveURL(/monat=2026-09/);

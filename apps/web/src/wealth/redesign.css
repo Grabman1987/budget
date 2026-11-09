@@ -960,17 +960,6 @@
     scroll-behavior: auto;
   }
 }
-/* The title belongs to the existing desktop chrome; the area keeps its own h1 for landmarks. */
-[data-budget-redesign='1']:has(.wealth-redesign) .wealth-top-title {
-  order: -1;
-  font-size: var(--fs-headline);
-  font-weight: 650;
-  margin-right: auto;
-  white-space: nowrap;
-}
-[data-budget-redesign='1']:has(.wealth-redesign) .topbar-inner > .search {
-  flex: 0 1 300px;
-}
 [data-budget-redesign='1'] .sheet:has(> .wealth-redesign) {
   padding: 12px 28px 72px;
 }
