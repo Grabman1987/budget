@@ -125,3 +125,28 @@ it('returns focus to the opener on unmount', () => {
   expect(document.activeElement).toBe(opener);
   opener.remove();
 });
+
+it.each([
+  ['+20', 7000],
+  ['+20+5', 7500],
+  ['-5', 4500],
+  ['20', 2000],
+])(
+  '"%s" still assigns %i after the field blurs (AmountInput reformats on blur)',
+  (typed, cents) => {
+    const { onCommit } = mount();
+    const input = screen.getByLabelText('Neu zugewiesen');
+    fireEvent.change(input, { target: { value: typed } });
+    fireEvent.blur(input);
+    fireEvent.click(screen.getByRole('button', { name: 'Zuweisen' }));
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit).toHaveBeenCalledWith(cents);
+  },
+);
+
+it('a sign inserted before the untouched value stays absolute, like inline', () => {
+  const { onCommit } = mount();
+  fireEvent.change(screen.getByLabelText('Neu zugewiesen'), { target: { value: '+50,00' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Zuweisen' }));
+  expect(onCommit).toHaveBeenCalledWith(5000);
+});

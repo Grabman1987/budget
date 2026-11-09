@@ -96,6 +96,14 @@ test('phone Plan: Ansicht chip, fixed Verteilen and full-screen Zuweisen', async
   await expect(sheet).toHaveCount(0);
   await expect(page.getByTestId('to-be-assigned')).toHaveText('960,00 €');
   expect(writes).toEqual(['PUT /api/budget/2026-10/assigned']);
+  // A relative entry survives the blur caused by tapping the button: 20,00 + 7,50.
+  await page.locator(`.pname[data-category-id="${ids[2]}"]`).click();
+  const again = page.getByRole('dialog', { name: /^Zuweisen für / });
+  await again.getByLabel('Neu zugewiesen').fill('+7,50');
+  await again.getByRole('button', { name: 'Zuweisen', exact: true }).click();
+  await expect(again).toHaveCount(0);
+  await expect(page.getByTestId('to-be-assigned')).toHaveText('952,50 €');
+  expect(writes).toEqual(['PUT /api/budget/2026-10/assigned', 'PUT /api/budget/2026-10/assigned']);
   // Details still reaches the inspector.
   await page.locator(`.pname[data-category-id="${ids[2]}"]`).click();
   await page

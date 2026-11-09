@@ -212,6 +212,11 @@ for (const theme of ['light', 'dark'] as const) {
             // #1007: "Verteilen" is a fixed bottom button, always inside the viewport.
             const dock = (await page.locator('.plan-distribute-dock').boundingBox())!;
             expect(dock.y + dock.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+            const tabbar = (await page.locator('.tabbar').boundingBox())!;
+            const fab = (await page.locator('.fab').boundingBox())!;
+            expect(dock.y + dock.height).toBeLessThanOrEqual(tabbar.y);
+            // Side by side with the capture button, never underneath it.
+            expect(dock.x + dock.width).toBeLessThanOrEqual(fab.x);
           }
           // The bottom clamp must not turn a collapse into an endless expand/collapse loop.
           await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));

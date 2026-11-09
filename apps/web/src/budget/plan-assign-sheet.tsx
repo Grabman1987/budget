@@ -1,5 +1,5 @@
 import { AmountInput, Button } from '@budget/ui';
-import { cents, formatDecimal } from '@budget/domain';
+import { cents, formatDecimal, parseAmount } from '@budget/domain';
 import { useEffect, useRef, useState } from 'react';
 import { eur } from '../ledger/format';
 import { assignGhost } from './assign-cell';
@@ -124,8 +124,29 @@ export function PlanAssignSheet({
           showOperators
           value={text}
           onChange={(next) => {
+            // AmountInput reformats a valid entry on blur ("+20" -> "20,00"). A relative entry is
+            // then resolved to the absolute result, so tapping "Zuweisen" cannot lose its sign.
+            const previous = text.trim();
+            const parsedRest = parseAmount(previous.slice(1));
+            if (relative && /^[+\-−]/.test(previous) && parsedRest.ok) {
+              const whole = parseAmount(previous);
+              const reformatted = [parsedRest.cents, whole.ok ? whole.cents : null]
+                .filter((value): value is typeof parsedRest.cents => value !== null)
+                .map((value) => formatDecimal(value));
+              if (reformatted.includes(next)) {
+                const resolved = readAssign(previous, row.assignedCents, true);
+                if (resolved !== null) {
+                  setRelative(false);
+                  setText(formatDecimal(cents(resolved)));
+                  setInvalid(false);
+                  return;
+                }
+              }
+            }
             const signed = /^\s*[+\-−]/.test(next);
-            setRelative(signed && (!touched.current || text === '' || relative));
+            // Typed over the whole (selected) value, as inline; a sign inserted before it is absolute.
+            const replacing = text === '' || (!touched.current && !next.includes(text));
+            setRelative(signed && (replacing || relative));
             touched.current = true;
             setText(next);
             setInvalid(false);
