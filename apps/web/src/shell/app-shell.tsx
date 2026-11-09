@@ -1,4 +1,4 @@
-import { MobileSheetContext, ToastProvider, cx } from '@budget/ui';
+import { MobileSheetContext, ToastProvider, cx, useIsPhone } from '@budget/ui';
 import { Outlet, useLocation } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { TITLE_ON_MOBILE_AREAS } from '../pages/area-head';
@@ -45,8 +45,11 @@ export function AppShell() {
       analysis &&
       (pathname === '/vermoegen/nettovermoegen' || pathname === '/vermoegen/portfolio')
     );
+  const heuteControls = pathname === '/' || pathname.startsWith('/heute/details/');
   const kontenPageHeading = page?.area === 'konten' && !pathname.startsWith('/konten/kontakte');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [controlsInBody, setControlsInBody] = useState(false);
+  const phone = useIsPhone();
   const searching = searchOpen || pathname === '/suche';
   const area = searching ? undefined : page?.area;
   const main = useRef<HTMLElement>(null);
@@ -92,11 +95,8 @@ export function AppShell() {
                 mobileHeading={
                   !TITLE_ON_MOBILE_AREAS.has(page.area) && !wealthPageHeading && !kontenPageHeading
                 }
-                controls={
-                  pathname === '/' || pathname.startsWith('/heute/details/') ? (
-                    <HeuteShellHead />
-                  ) : undefined
-                }
+                controls={heuteControls ? <HeuteShellHead /> : undefined}
+                onControlsPlacement={(place) => setControlsInBody(place === 'body')}
                 collapsed={collapsed}
                 onToggle={() => setCollapsed(!collapsed)}
                 onSearchChange={setSearchOpen}
@@ -122,6 +122,11 @@ export function AppShell() {
               !kontenPageHeading && <MobileStatusLine />}
             <OfflineStatus />
             <main className="sheet" id="main" tabIndex={-1} ref={main}>
+              {REDESIGN_ENABLED && heuteControls && controlsInBody && !phone && (
+                <div className="page-controls-row">
+                  <HeuteShellHead />
+                </div>
+              )}
               {(page?.area === 'heute' || page?.area === 'konten') && <QueueList />}
               {REDESIGN_ENABLED && <HeuteSourceReturn />}
               <Outlet />

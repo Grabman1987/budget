@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useIsPhone } from '@budget/ui';
 import { PanelLeft, Plus } from 'lucide-react';
 import { GlobalSearch } from './global-search';
@@ -19,6 +19,7 @@ export function PageHeader({
   collapsed,
   onToggle,
   onSearchChange,
+  onControlsPlacement,
 }: {
   title: string;
   mobileTitle?: string | undefined;
@@ -28,8 +29,34 @@ export function PageHeader({
   collapsed: boolean;
   onToggle: () => void;
   onSearchChange: (open: boolean) => void;
+  /** Reports `body` when the page controls do not fit the header and must render in the page body. */
+  onControlsPlacement?: (place: 'header' | 'body') => void;
 }) {
   const phone = useIsPhone();
+  const slot = useRef<HTMLDivElement>(null);
+  const need = useRef(0);
+  const [fits, setFits] = useState(true);
+  const hasControls = controls !== undefined && controls !== null;
+  // Controls are never clipped: when the slot is too narrow they move to the page body.
+  useLayoutEffect(() => {
+    const el = slot.current;
+    if (!el || !hasControls || phone) return;
+    const check = () => {
+      if (fits) {
+        if (el.scrollWidth > el.clientWidth + 1) {
+          need.current = el.scrollWidth;
+          setFits(false);
+        }
+      } else if (el.clientWidth >= need.current) setFits(true);
+    };
+    check();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fits, hasControls, phone]);
+  const placement = hasControls && !phone && !fits ? 'body' : 'header';
+  useLayoutEffect(() => onControlsPlacement?.(placement), [placement, onControlsPlacement]);
   const inbox = useInboxCount();
   const detailTitle = phone && mobileTitle && mobileTitle !== title ? mobileTitle : undefined;
   const Title = phone && mobileHeading && !detailTitle ? 'h1' : 'p';
@@ -50,7 +77,9 @@ export function PageHeader({
           </button>
         )}
         <Title className={`page-header-title${detailTitle ? '' : ' m-title-text'}`}>{title}</Title>
-        <div className="page-header-controls">{!phone && controls}</div>
+        <div className="page-header-controls" ref={slot}>
+          {!phone && fits && controls}
+        </div>
         <div className="page-header-search">
           <GlobalSearch mobile={phone} compactLabel onOpenChange={onSearchChange} />
         </div>

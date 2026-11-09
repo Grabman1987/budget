@@ -127,3 +127,34 @@ test('shared utilities preserve page context and phone safe-area clearance', asy
     }
   }
 });
+
+test('Heute page controls are never clipped or hidden at desktop and tablet widths', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'Phone Heute renders its own body controls');
+  for (const width of [1440, 1280, 1024]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/?monat=2026-09');
+    await expect(page.getByTestId('heute-lead-value')).toBeVisible();
+    const head = page.locator('.page-header');
+    expect((await box(head)).height, `${width}: header height`).toBeLessThanOrEqual(65);
+    const container = page.locator('.hv-head:not(.hv-head-phone)').first();
+    const outer = await box(container);
+    const controls = container.locator('.month-switch button, .seg button');
+    expect(await controls.count()).toBeGreaterThanOrEqual(4);
+    for (const control of await controls.all()) {
+      await expect(control).toBeVisible();
+      const target = await box(control);
+      expect(target.x, `${width}: left`).toBeGreaterThanOrEqual(0);
+      expect(target.x + target.width, `${width}: right`).toBeLessThanOrEqual(width);
+      expect(target.x, `${width}: container left`).toBeGreaterThanOrEqual(outer.x - 0.5);
+      expect(target.x + target.width, `${width}: container right`).toBeLessThanOrEqual(
+        outer.x + outer.width + 0.5,
+      );
+    }
+    // Controls that are not in the header must not remain focusable-while-hidden inside it.
+    const inHeader = await head.locator('.page-header-controls .month-switch').count();
+    if (!inHeader) expect(await head.locator('.page-header-controls *').count()).toBe(0);
+  }
+});
