@@ -1,3 +1,4 @@
+import { captureCloseControl } from './ledger-helpers';
 import { minimumControlHeight } from './control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, schema } from '@budget/db';
@@ -348,7 +349,7 @@ async function scene(
   await expect(dialog.getByLabel('Datum', { exact: true })).toHaveValue('05.10.2026');
   await expect(dialog.getByLabel('Betrag', { exact: true })).toHaveValue('25,00');
   await expect(dialog.getByLabel('Notiz', { exact: true })).toHaveValue('745 gemeinsamer Ursprung');
-  await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await captureCloseControl(dialog).click();
   await expect(dialog).not.toBeVisible();
   await expect(open).toBeFocused();
   expect(await get<{ booking: unknown }>(page, `/api/bookings/${ids.purchaseId}`)).toEqual(

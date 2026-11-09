@@ -59,6 +59,13 @@ vi.mock('../pwa/queue-store', () => ({
   saveChoices: async () => undefined,
 }));
 beforeEach(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
   flags.REDESIGN_ENABLED = false;
   flags.phone = false;
   create.mockReset();
@@ -100,6 +107,25 @@ it('shifts mobile keypad digits into cents and retains paste, validation and sav
   }
   await user.keyboard('{Backspace}');
   expect(amount.value).toBe('1,23');
+  // Operator taps reuse the shared parser, keep the caret and do not shift expression digits.
+  for (const [operator, operand, expected] of [
+    ['Plus', '2,77', '4,00'],
+    ['Minus', '1', '3,00'],
+    ['Mal', '2', '6,00'],
+    ['Geteilt durch', '4', '1,50'],
+  ]) {
+    await user.click(screen.getByRole('button', { name: operator! }));
+    expect(document.activeElement).toBe(amount);
+    await user.keyboard(operand!);
+    await user.tab();
+    expect(amount.value).toBe(expected);
+    await user.click(amount);
+  }
+  await user.click(screen.getByRole('button', { name: 'Geteilt durch' }));
+  await user.keyboard('0');
+  expect(amount.getAttribute('aria-invalid')).toBe('true');
+  await user.click(screen.getByRole('button', { name: 'Speichern' }));
+  expect(create).not.toHaveBeenCalled();
   await user.clear(amount);
   await user.paste('12,50+3');
   await user.keyboard(',25');
@@ -124,57 +150,69 @@ it('shifts mobile keypad digits into cents and retains paste, validation and sav
   expect(amount.value).toBe('12,34');
   await user.clear(amount);
   expect(amount.getAttribute('aria-invalid')).toBe('false');
-  expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
+  expect(screen.getByText('Jede Zeile braucht einen Betrag.')).toBeTruthy();
   await user.click(amount);
   await user.keyboard('1234');
   await user.click(screen.getByRole('button', { name: 'Einnahme' }));
-  await user.click(screen.getByRole('button', { name: /^Speichern$/ }));
+  await user.click(screen.getByRole('button', { name: 'Buchung speichern' }));
   await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
   expect(create.mock.calls[0]![0].input.amountCents).toBe(1234);
 });
 
-it.each(['save'])(
-  'waits for amount %s before showing the mobile missing-line-amount error',
-  async (trigger) => {
-    flags.REDESIGN_ENABLED = true;
-    flags.phone = true;
-    render(
-      <QueryClientProvider
-        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-      >
-        <ToastProvider>
-          <CaptureForm
-            state={{ mode: 'create', accountId: 'giro' }}
-            onDone={vi.fn()}
-            dirtyRef={{ current: false }}
-            discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
-            requestClose={vi.fn()}
-          />
-        </ToastProvider>
-      </QueryClientProvider>,
-    );
-    await screen.findByRole('option', { name: 'Giro Muster' });
-    const amount = screen.getByLabelText('Betrag', { exact: true });
-    expect(amount.getAttribute('inputmode')).toBe('decimal');
-    expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
-    expect((screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement).disabled).toBe(
-      true,
-    );
-    fireEvent.blur(amount);
-    expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
-    void trigger;
-    fireEvent.keyDown(amount, { key: 'Enter', ctrlKey: true });
-    expect(screen.getByText('Jede Zeile braucht einen Betrag.')).toBeTruthy();
-    expect(create).not.toHaveBeenCalled();
-    fireEvent.change(amount, { target: { value: '12,34' } });
-    expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Einnahme' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Speichern und neu' }));
-    await waitFor(() => expect((amount as HTMLInputElement).value).toBe(''));
-    expect(create).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
-  },
-);
+it('explains the disabled phone save on open and retains save-and-new', async () => {
+  flags.REDESIGN_ENABLED = true;
+  flags.phone = true;
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <ToastProvider>
+        <CaptureForm
+          state={{ mode: 'create', accountId: 'giro' }}
+          onDone={vi.fn()}
+          dirtyRef={{ current: false }}
+          discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+          requestClose={vi.fn()}
+        />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByRole('option', { name: 'Giro Muster' });
+  const amount = screen.getByLabelText('Betrag', { exact: true });
+  expect(amount.getAttribute('inputmode')).toBe('decimal');
+  expect(screen.getByText('Jede Zeile braucht einen Betrag.')).toBeTruthy();
+  expect((screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement).disabled).toBe(
+    true,
+  );
+  expect(screen.queryByRole('button', { name: 'Fertig' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Abbrechen' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Schließen' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /^Markierung/ })).toBeNull();
+  expect(screen.queryByLabelText('Markierung')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Speichern' }).closest('.bk-body')).toBeTruthy();
+  expect(screen.getByText('Jede Zeile braucht einen Betrag.').className).toBe('bk-save-hint');
+  expect(screen.getByRole('button', { name: 'Speichern' }).getAttribute('aria-describedby')).toBe(
+    'booking-save-reason',
+  );
+  fireEvent.blur(amount);
+  expect(screen.getByText('Jede Zeile braucht einen Betrag.')).toBeTruthy();
+  fireEvent.change(amount, { target: { value: '12,34' } });
+  expect(screen.getByText('Jede Zeile einer Ausgabe braucht eine Kategorie.').className).toBe(
+    'bk-save-hint',
+  );
+  fireEvent.keyDown(amount, { key: 'Enter', ctrlKey: true });
+  expect(screen.getByText('Jede Zeile einer Ausgabe braucht eine Kategorie.').className).toBe(
+    'bk-save-reason',
+  );
+  expect(create).not.toHaveBeenCalled();
+  fireEvent.change(amount, { target: { value: '12,34' } });
+  expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Einnahme' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Speichern und neu' }));
+  await waitFor(() => expect((amount as HTMLInputElement).value).toBe(''));
+  expect(create).toHaveBeenCalledTimes(1);
+  expect(screen.getByText('Jede Zeile braucht einen Betrag.')).toBeTruthy();
+});
 it.each(['1.10.2026', '1.10.26', '01.10.', '1.10.'])(
   'saves the short German date %s as ISO through Ctrl+Enter',
   async (text) => {
