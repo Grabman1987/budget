@@ -290,14 +290,9 @@
 }
 [data-budget-redesign='1'] .report-hub-v2 .saved-explorer-chips {
   flex: 1;
-  flex-wrap: nowrap;
-  max-height: none;
-  overflow-x: auto;
-  overflow-y: hidden;
+  min-width: 0;
 }
-[data-budget-redesign='1'] .report-hub-v2 .saved-explorer-chips a {
-  flex: none;
-}
+
 [data-budget-redesign='1'] .report-hub-v2 .report-hub-list {
   border-top: 0;
 }
