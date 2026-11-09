@@ -3,6 +3,7 @@ import type {
   CashValuation,
   ValuationQuality,
   RegisterMonth,
+  RegisterMonthsKind,
 } from '@budget/domain';
 
 /** Shapes of the ledger API (`docs/api-ledger.md`); amounts are integer cents, days `YYYY-MM-DD`. */
@@ -165,6 +166,7 @@ export interface ListedBooking {
 
 export interface BookingPage {
   monthlyTotals?: RegisterMonth[];
+  monthlyKind?: RegisterMonthsKind;
   /** Local row transforms cannot re-evaluate the complete server filter. */
   nativeTotalsPending?: boolean;
   /** Complete-filter native totals; optional for previously saved offline DTOs. */

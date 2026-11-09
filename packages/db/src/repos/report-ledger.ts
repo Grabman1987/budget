@@ -44,16 +44,12 @@ export const incomeGroupOf = (typeId: string | null): IncomeGroup =>
  *   without a category;
  * - the app's own payees (opening balance, balance corrections) are left out.
  */
-export function overviewData(db: Executor, options?: { excludeTransfers: boolean }): OverviewData {
+export function overviewData(db: Executor): OverviewData {
   // One read and classification per request and database state (callers only filter and sum).
-  return memoizedShared(
-    db,
-    options?.excludeTransfers ? 'overviewDataWithoutTransfers' : 'overviewData',
-    () => readOverviewData(db, options?.excludeTransfers),
-  );
+  return memoizedShared(db, 'overviewData', () => readOverviewData(db));
 }
 
-function readOverviewData(db: Executor, excludeTransfers = false): OverviewData {
+function readOverviewData(db: Executor): OverviewData {
   assertEurBudgetAccounts(db);
   const onBudget = new Map(
     db
@@ -131,7 +127,6 @@ function readOverviewData(db: Executor, excludeTransfers = false): OverviewData 
     if (onBudget.get(r.accountId) !== true || r.payeeSystem !== null || r.date < r.openingDate)
       continue;
     const transferId = r.splitTransferId ?? r.bookingTransferId;
-    if (excludeTransfers && transferId !== null) continue;
     const partner =
       transferId === null
         ? null

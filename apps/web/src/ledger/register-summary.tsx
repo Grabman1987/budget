@@ -1,5 +1,5 @@
-import { registerPeriod, type RegisterMonth } from '@budget/domain';
-import { ChartSvg, Segmented, useAmountPrivacy, useIsPhone } from '@budget/ui';
+import { registerPeriod, type RegisterMonth, type RegisterMonthsKind } from '@budget/domain';
+import { ChartSvg, Segmented, maskMoneyText, useAmountPrivacy, useIsPhone } from '@budget/ui';
 import { useId, useState } from 'react';
 import { eur } from './format';
 
@@ -9,15 +9,27 @@ const ranges = [
   { value: '12', label: '12 M' },
   { value: 'all', label: 'Alle' },
 ] as const;
+/** Callers subscribe through useAmountPrivacy(); the mask is applied to every shown figure. */
 export const registerAmount = (value: number | null | undefined) =>
-  value == null ? 'nicht verfügbar' : eur(value);
+  value == null ? 'nicht verfügbar' : maskMoneyText(eur(value));
+
+export const registerScopeLabel = (kind: RegisterMonthsKind | undefined) =>
+  kind === 'balance'
+    ? 'Kontobewegung inkl. Umbuchungen'
+    : kind === 'filtered'
+      ? 'gefiltert, ohne Saldo'
+      : 'angezeigte Buchungen, ohne Saldo';
 
 /** The chart and KPIs share the complete-filter months used by the headings. */
 export function RegisterSummary({
   months,
+  kind,
+  today,
   pending,
 }: {
   months: readonly RegisterMonth[] | undefined;
+  kind?: RegisterMonthsKind | undefined;
+  today: string;
   pending: boolean;
 }) {
   const hidden = useAmountPrivacy();
@@ -25,7 +37,7 @@ export function RegisterSummary({
   const [expanded, setExpanded] = useState(false);
   const [range, setRange] = useState<'3' | '6' | '12' | 'all'>('6');
   const id = useId();
-  const period = registerPeriod(months ?? [], range);
+  const period = registerPeriod(months ?? [], range, today);
   const available = !!months && !pending;
   const values = period.months.map((row) => row.cents ?? 0);
   const low = Math.min(0, ...values),
@@ -66,8 +78,8 @@ export function RegisterSummary({
           ) : (
             <>
               <p className="kmeta">
-                {period.months[0]?.month} – {period.months.at(-1)?.month} · ohne Umbuchungen · EUR
-                je Buchungstag
+                {period.months[0]?.month} – {period.months.at(-1)?.month} ·{' '}
+                {registerScopeLabel(kind)}· bis heute, ohne Geplantes · EUR je Buchungstag
               </p>
               {hidden ? (
                 <p>Beträge ausgeblendet</p>
@@ -75,7 +87,7 @@ export function RegisterSummary({
                 <ChartSvg
                   width={340}
                   height={156}
-                  label={`Monatliche Buchungssummen: Einnahmen positiv, Ausgaben negativ. Gestrichelt: Durchschnitt ${registerAmount(period.averageCents)}. Exakte Beträge in der Monatstabelle.`}
+                  label={`Monatliche Buchungssummen (${registerScopeLabel(kind)}): Einnahmen positiv, Ausgaben negativ. Gestrichelt: Durchschnitt ${registerAmount(period.averageCents)}. Exakte Beträge in der Monatstabelle.`}
                   points={period.months.map((row, index) => ({
                     x: 30 + (index + 0.5) * step,
                     date: row.month,
@@ -131,6 +143,7 @@ export function RegisterSummary({
                     <tr>
                       <th scope="col">Monat</th>
                       <th scope="col">Summe</th>
+                      {kind === 'balance' && <th scope="col">Saldo Monatsende</th>}
                       <th scope="col">Buchungen</th>
                     </tr>
                   </thead>
@@ -139,6 +152,7 @@ export function RegisterSummary({
                       <tr key={row.month}>
                         <th scope="row">{row.month}</th>
                         <td>{registerAmount(row.cents)}</td>
+                        {kind === 'balance' && <td>{registerAmount(row.cumulativeCents)}</td>}
                         <td>{row.count}</td>
                       </tr>
                     ))}

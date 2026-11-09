@@ -2,19 +2,33 @@ import { addMonths } from '../date';
 
 export interface RegisterMonth {
   month: string;
+  /** Booking rows in that month (never split parts). */
   count: number;
+  /** Signed net movement of the shown rows: inflow positive, outflow negative. */
   cents: number | null;
+  /** Account balance at month end; `null` whenever the scope is not a plain single account. */
   cumulativeCents: number | null;
 }
+
+/**
+ * What the month figures mean: `balance` = one unfiltered EUR account (net change incl. transfers
+ * and balance at month end), `filtered` = a narrowed list (no balance), `rows` = several
+ * accounts (sum of the shown rows, no balance).
+ */
+export type RegisterMonthsKind = 'balance' | 'filtered' | 'rows';
 
 const safe = (value: bigint): number | null =>
   value > BigInt(Number.MAX_SAFE_INTEGER) || value < -BigInt(Number.MAX_SAFE_INTEGER)
     ? null
     : Number(value);
 
-/** Complete-filter signed EUR movements, newest first. Null never becomes zero. */
+/**
+ * Month rows, newest first, from per-row signed EUR movements. `endBalance` supplies the account
+ * balance at the end of a month (omit it for filtered / multi-account lists). Null never becomes 0.
+ */
 export function registerMonths(
   rows: ReadonlyArray<{ date: string; cents: number | null; count?: number }>,
+  endBalance?: (month: string) => number | null,
 ): RegisterMonth[] {
   const groups = new Map<string, { count: number; cents: bigint; missing: boolean }>();
   for (const row of rows) {
@@ -25,32 +39,34 @@ export function registerMonths(
     else group.cents += BigInt(row.cents);
     groups.set(month, group);
   }
-  let cumulative = 0n;
-  let missing = false;
   return [...groups]
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([month, group]) => {
-      cumulative += group.cents;
-      missing ||= group.missing;
-      return {
-        month,
-        count: group.count,
-        cents: group.missing ? null : safe(group.cents),
-        cumulativeCents: missing ? null : safe(cumulative),
-      };
-    });
+    .map(([month, group]) => ({
+      month,
+      count: group.count,
+      cents: group.missing ? null : safe(group.cents),
+      cumulativeCents: endBalance ? endBalance(month) : null,
+    }));
 }
 
-/** Calendar months, including zero months, ending at the newest matching booking. */
-export function registerPeriod(months: readonly RegisterMonth[], range: '3' | '6' | '12' | 'all') {
-  const newest = months[0]?.month;
-  const oldest = months.at(-1)?.month;
-  if (!newest || !oldest) return { months: [], count: 0, cents: 0, averageCents: 0 };
-  const from = range === 'all' ? oldest : addMonths(newest, 1 - Number(range));
-  const byMonth = new Map(months.map((row) => [row.month, row]));
+/**
+ * Calendar months, including zero months, ending at the CURRENT month (`today`), never at the newest
+ * booking. 'all' starts at the oldest month with data. Months after today are ignored.
+ */
+export function registerPeriod(
+  months: readonly RegisterMonth[],
+  range: '3' | '6' | '12' | 'all',
+  today: string,
+) {
+  const current = today.slice(0, 7);
+  const known = months.filter((row) => row.month <= current);
+  const oldest = known.at(-1)?.month;
+  if (!oldest) return { months: [], count: 0, cents: 0, averageCents: 0 };
+  const from = range === 'all' ? oldest : addMonths(current, 1 - Number(range));
+  const byMonth = new Map(known.map((row) => [row.month, row]));
   const selected: RegisterMonth[] = [];
-  for (let month = from; month <= newest; month = addMonths(month, 1))
-    selected.push(byMonth.get(month) ?? { month, count: 0, cents: 0, cumulativeCents: 0 });
+  for (let month = from; month <= current; month = addMonths(month, 1))
+    selected.push(byMonth.get(month) ?? { month, count: 0, cents: 0, cumulativeCents: null });
   const missing = selected.some((row) => row.cents === null);
   const sum = selected.reduce((total, row) => total + BigInt(row.cents ?? 0), 0n);
   const divisor = BigInt(selected.length);

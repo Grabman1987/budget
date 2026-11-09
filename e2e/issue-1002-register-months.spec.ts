@@ -77,7 +77,7 @@ test('complete filtered month sums, pagination, range and privacy', async ({
   await page.goto(`/konten/buchungen?kategorie=${categoryId}`);
   await expect(page.locator('[data-redesign="bookings"]')).toBeVisible();
   const heading = page.locator('.kmonth-totals').first();
-  await expect(heading).toContainText('Monat −51,51 € · bis hier −51,51 €');
+  await expect(heading).toContainText('Monat gefiltert −51,51 € · 51 Buchungen');
   await expect(page.locator('[data-booking]')).toHaveCount(50);
   await expect(page.locator('.kupcoming-toggle')).toHaveCount(0);
   await expect(
@@ -107,7 +107,7 @@ test('complete filtered month sums, pagination, range and privacy', async ({
   await page.getByRole('button', { name: 'Weitere Buchungen laden' }).scrollIntoViewIfNeeded();
   await expect(page.locator('[data-booking]')).toHaveCount(52);
   await expect(page.locator('.kmonth-totals').last()).toContainText(
-    'Monat −2,03 € · bis hier −53,54 €',
+    'Monat gefiltert −2,03 € · 1 Buchung',
   );
   await page.getByRole('button', { name: 'Status filtern: vorgemerkt', exact: true }).click();
   await expect(page.locator('[data-booking]')).toHaveCount(1);
@@ -124,7 +124,7 @@ test('complete filtered month sums, pagination, range and privacy', async ({
   if (phone) await summary.getByRole('button', { name: 'Auswertung des Filters' }).click();
   await expect(summary.locator('dl')).toContainText('••• €');
   await expect(summary.getByRole('img')).toHaveCount(0);
-  await expect(page.locator('.kmonth-sums')).toContainText('Monat ••• € · bis hier ••• €');
+  await expect(page.locator('.kmonth-sums')).toContainText('Monat gefiltert ••• €');
   await summary.getByText('Monatswerte · gestrichelt: Ø pro Monat', { exact: true }).click();
   await expect(summary.locator('table')).toContainText('••• €');
   expect(await summary.textContent()).not.toContain('−2,03');

@@ -308,6 +308,8 @@ export function BookingsPage() {
         REDESIGN_ENABLED ? (
           <RegisterSummary
             months={first?.monthlyTotals}
+            kind={first?.monthlyKind}
+            today={today}
             pending={list.isFetching || !!first?.nativeTotalsPending}
           />
         ) : undefined
@@ -370,6 +372,7 @@ export function BookingsPage() {
               <BookingTable
                 items={items}
                 monthlyTotals={first?.monthlyTotals}
+                monthlyKind={first?.monthlyKind}
                 monthlyTotalsPending={list.isFetching || first?.nativeTotalsPending}
                 caption="Alle Buchungen nach Tag"
                 variant="all"
