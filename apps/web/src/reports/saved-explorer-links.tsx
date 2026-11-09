@@ -18,13 +18,15 @@ export function SavedExplorerLinks() {
     saved.data.schemaVersion === 1
       ? saved.data.views
       : undefined;
-  // Redesign: an empty or still loading bookmark row is hidden; errors stay visible.
+  // Redesign: no empty bookmark block; only the entry point to create one stays. Errors stay visible.
   if (REDESIGN_ENABLED && !saved.isError && (!current || current.length === 0)) {
-    return saved.isSuccess && !saved.isFetching && !current ? (
-      <p role="status" className="saved-explorer-unavailable">
-        Gespeicherte Auswertungen sind nicht verfügbar. Die Daten bleiben erhalten.
+    if (saved.isFetching) return null;
+    return (
+      <p className="saved-explorer-create" role={current ? undefined : 'status'}>
+        {current ? null : 'Gespeicherte Auswertungen sind nicht verfügbar. '}
+        <AppLink to="/reports/explorer">Auswertung erstellen</AppLink>
       </p>
-    ) : null;
+    );
   }
   return (
     <section className="saved-explorer-links" aria-labelledby="saved-explorer-title">

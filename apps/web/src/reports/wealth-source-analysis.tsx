@@ -6,7 +6,14 @@ import { AppLink } from '../shell/app-link';
 import type { Period } from '@budget/domain';
 
 /** T3's complete original composition, account modes and history stay available from the report. */
-export function WealthSourceAnalysis({ fallbackPeriod = 'YTD' }: { fallbackPeriod?: Period }) {
+export function WealthSourceAnalysis({
+  fallbackPeriod = 'YTD',
+  dedupe = false,
+}: {
+  fallbackPeriod?: Period;
+  /** Only for reports whose upper block already shows the figure, delta and Maßkette. */
+  dedupe?: boolean;
+}) {
   const search = useSearch({ strict: false }) as { ansicht?: string };
   const [period] = useZeitraum(fallbackPeriod);
   return (
@@ -23,7 +30,7 @@ export function WealthSourceAnalysis({ fallbackPeriod = 'YTD' }: { fallbackPerio
       <p className="retained-networth-stand">
         <VermoegenStand />
       </p>
-      <NetWorthContent fallbackPeriod={fallbackPeriod} inReport dedupe />
+      <NetWorthContent fallbackPeriod={fallbackPeriod} inReport dedupe={dedupe} />
     </details>
   );
 }
