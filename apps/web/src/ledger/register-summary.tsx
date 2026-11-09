@@ -74,7 +74,7 @@ export function RegisterSummary({
             </div>
           </dl>
           {period.months.length === 0 ? (
-            <p>Keine Buchungen für diese Filter.</p>
+            <p>Keine Monatssummen für diese Filter.</p>
           ) : (
             <>
               <p className="kmeta">

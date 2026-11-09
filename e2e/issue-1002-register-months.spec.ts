@@ -114,7 +114,7 @@ test('complete filtered month sums, pagination, range and privacy', async ({
   await expect(summary.locator('dl')).toContainText('−2,03 €');
   await page.getByLabel('In Buchungen suchen').fill('no-match');
   await expect(page.locator('[data-booking]')).toHaveCount(0);
-  await expect(summary).toContainText('Keine Buchungen für diese Filter.');
+  await expect(summary).toContainText('Keine Monatssummen für diese Filter.');
   await page.getByLabel('In Buchungen suchen').fill('Synthetic');
   await expect(page.locator('[data-booking]')).toHaveCount(1);
   await page.evaluate(() => {
