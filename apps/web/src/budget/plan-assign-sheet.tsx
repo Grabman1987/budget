@@ -28,8 +28,11 @@ export function PlanAssignSheet({
   const opener = useRef<Element | null>(document.activeElement);
   const [text, setText] = useState(formatDecimal(cents(row.assignedCents)));
   const [invalid, setInvalid] = useState(false);
+  // A leading + / − is relative only when typed first into the untouched (selected) or emptied field, as inline.
+  const [relative, setRelative] = useState(false);
+  const touched = useRef(false);
   const ghost = assignGhost(row);
-  const value = readAssign(text, row.assignedCents, false);
+  const value = readAssign(text, row.assignedCents, relative);
   const hint = value === null ? undefined : assignGuard(value, row.assignedCents, tba).message;
 
   useEffect(() => {
@@ -42,8 +45,22 @@ export function PlanAssignSheet({
       input.focus();
       input.select();
     }
+    // Mobile keyboards do not resize 100dvh on iOS: keep the action bar above the keyboard.
+    const viewport = window.visualViewport;
+    const fit = () => {
+      element.style.setProperty(
+        '--plan-assign-height',
+        `${viewport?.height ?? window.innerHeight}px`,
+      );
+      element.style.setProperty('--plan-assign-top', `${viewport?.offsetTop ?? 0}px`);
+    };
+    fit();
+    viewport?.addEventListener('resize', fit);
+    viewport?.addEventListener('scroll', fit);
     const previous = opener.current;
     return () => {
+      viewport?.removeEventListener('resize', fit);
+      viewport?.removeEventListener('scroll', fit);
       if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
     };
   }, []);
@@ -63,12 +80,22 @@ export function PlanAssignSheet({
         onClose();
       }}
     >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Enter in the amount field assigns */}
       <form
         className="plan-assign-form"
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
           save();
+        }}
+        onKeyDown={(event) => {
+          // The amount field swallows Enter (it only evaluates); a complete amount also assigns.
+          if (
+            event.key === 'Enter' &&
+            event.target instanceof HTMLInputElement &&
+            event.target.classList.contains('amount-input')
+          )
+            save();
         }}
       >
         <header className="plan-assign-head">
@@ -97,6 +124,9 @@ export function PlanAssignSheet({
           showOperators
           value={text}
           onChange={(next) => {
+            const signed = /^\s*[+\-−]/.test(next);
+            setRelative(signed && (!touched.current || text === '' || relative));
+            touched.current = true;
             setText(next);
             setInvalid(false);
           }}

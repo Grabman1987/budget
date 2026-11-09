@@ -7,6 +7,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { setTimeout as contactDuration } from 'node:timers/promises';
 import { test } from './isolated-ledger';
+import { openDetailsFromPhoneSheet } from './plan-phone-sheet';
 
 test.use({ ledgerToday: '2026-10-02' });
 const MONTH = '2026-10';
@@ -297,6 +298,7 @@ test('phone mode preserves category/group/all identity and read-only exit; deskt
   if (phone) {
     await expect(page.locator('.ptable input[type="checkbox"]:visible')).toHaveCount(0);
     await nameButton(page, firstId).tap();
+    await openDetailsFromPhoneSheet(page);
     await expect(selectionBar(page)).toHaveCount(0);
     await page
       .getByRole('complementary', { name: 'Plan-Inspektor' })

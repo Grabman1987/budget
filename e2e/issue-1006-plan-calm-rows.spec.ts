@@ -224,14 +224,18 @@ test('menu filters stay visible as removable pressed toolbar chips', async ({
         .getByRole('group', { name: 'Weitere Filter' })
         .getByRole('button', { name: new RegExp(name) });
       await item.click();
-      await expect(toolbar.locator('.plan-menu-optionen > summary')).toContainText('Ansicht ·');
+      await expect(toolbar.locator('.plan-menu-optionen > summary')).toHaveAccessibleName(
+        /^Ansicht, Filter /,
+      );
       await toolbar.locator('.plan-menu-optionen > summary').click();
       await expect(item).toHaveAttribute('aria-pressed', 'true');
       await toolbar
         .getByRole('group', { name: 'Weitere Filter' })
         .getByRole('button', { name: /^Alle/ })
         .click();
-      await expect(toolbar.locator('.plan-menu-optionen > summary')).not.toContainText('·');
+      await expect(toolbar.locator('.plan-menu-optionen > summary')).toHaveAccessibleName(
+        'Ansicht',
+      );
       continue;
     }
     const filters = toolbar.getByRole('group', { name: 'Kategoriefilter' });

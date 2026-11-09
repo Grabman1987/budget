@@ -1033,13 +1033,8 @@ function PlanBody({
             ? { shown: showHidden, toggle: () => setShowHidden((value) => !value) }
             : undefined
         }
-        chipText={
-          phoneRedesign
-            ? filter === 'all'
-              ? 'Ansicht'
-              : `Ansicht · ${FILTER_LABEL[filter] ?? ''}`
-            : undefined
-        }
+        chipText={phoneRedesign ? 'Ansicht' : undefined}
+        chipDetail={phoneRedesign && filter !== 'all' ? FILTER_LABEL[filter] : undefined}
         filters={
           REDESIGN_ENABLED ? (
             <div role="group" aria-label="Weitere Filter" className="plan-menu-group">
@@ -1300,7 +1295,10 @@ function PlanBody({
                 <caption className="sr-only">
                   Envelopes mit Zugewiesen, Aktivität und Verfügbar
                 </caption>
-                <thead className={cx(phoneRedesign && !phoneSelection && 'sr-only')}>
+                <thead
+                  className={cx(phoneRedesign && !phoneSelection && 'sr-only')}
+                  inert={phoneRedesign && !phoneSelection ? true : undefined}
+                >
                   <tr>
                     <th className="tech col-name" scope="col">
                       <div className="group-heading">

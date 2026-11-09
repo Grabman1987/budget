@@ -3,6 +3,7 @@ import { openDatabase, schema } from '@budget/db';
 import { eq } from 'drizzle-orm';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
+import { openDetailsFromPhoneSheet } from './plan-phone-sheet';
 
 test.use({ ledgerToday: '2026-10-15' });
 
@@ -156,7 +157,9 @@ for (const theme of ['light', 'dark'] as const) {
           const phone = page.viewportSize()!.width < 768;
           // #1007: the phone shows the active filter on the "Ansicht" chip instead of a chip row.
           if (phone)
-            await expect(menu.locator('summary')).toContainText('Ansicht · Aufmerksamkeit');
+            await expect(menu.locator('summary')).toHaveAccessibleName(
+              'Ansicht, Filter Aufmerksamkeit',
+            );
           else
             await expect(
               page
@@ -193,12 +196,7 @@ for (const theme of ['light', 'dark'] as const) {
           await expect(head).toHaveCSS('transition-duration', '0s');
           if (page.viewportSize()!.width < 768) {
             // Returning to toolbar controls expands the lead; clear its full measured height.
-            for (const selector of [
-              '.ptoolbar',
-              '.ptoolbar .plan-menu-verteilen > summary',
-              '.ptoolbar .plan-menu-optionen > summary',
-              '.ptable thead .plan-add',
-            ]) {
+            for (const selector of ['.ptoolbar', '.ptoolbar .plan-menu-optionen > summary']) {
               await page.evaluate(() => window.scrollTo(0, 0));
               await expect(head).not.toHaveClass(/is-compact/);
               await page.evaluate(() => window.scrollTo(0, 400));
@@ -211,11 +209,15 @@ for (const theme of ['light', 'dark'] as const) {
                 headerBounds.y + headerBounds.height,
               );
             }
+            // #1007: "Verteilen" is a fixed bottom button, always inside the viewport.
+            const dock = (await page.locator('.plan-distribute-dock').boundingBox())!;
+            expect(dock.y + dock.height).toBeLessThanOrEqual(page.viewportSize()!.height);
           }
           // The bottom clamp must not turn a collapse into an endless expand/collapse loop.
           await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
           const lastCategory = page.locator('.prow .pname').last();
           await lastCategory.click();
+          await openDetailsFromPhoneSheet(page);
           const history = page.getByRole('link', { name: 'Verlauf und Buchungen' });
           await history.scrollIntoViewIfNeeded();
           await expect(history).toBeVisible();

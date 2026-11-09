@@ -22,6 +22,7 @@ function PlanMenu({
   className,
   iconOnly = false,
   chipText,
+  chipDetail,
   dock = false,
   children,
 }: {
@@ -35,6 +36,8 @@ function PlanMenu({
    * replaces the icon, otherwise it replaces the visible label.
    */
   chipText?: string | undefined;
+  /** Active filter shown after the chip text; truncated before the chip squeezes the search. */
+  chipDetail?: string | undefined;
   /** Fixed bottom action (phone): the panel opens upwards over the whole list area. */
   dock?: boolean;
   children: ReactNode;
@@ -167,7 +170,15 @@ function PlanMenu({
       <summary
         role={REDESIGN_ENABLED ? 'button' : undefined}
         title={title ?? (iconOnly ? label : undefined)}
-        aria-label={iconOnly || chipText ? label : undefined}
+        aria-label={
+          chipText && iconOnly
+            ? chipDetail
+              ? `${chipText}, Filter ${chipDetail}`
+              : chipText
+            : iconOnly || chipText
+              ? label
+              : undefined
+        }
       >
         {iconOnly ? (
           <>
@@ -175,6 +186,11 @@ function PlanMenu({
             {chipText ? (
               <>
                 <span aria-hidden="true">{chipText}</span>
+                {chipDetail && (
+                  <span className="plan-chip-detail" aria-hidden="true">
+                    · {chipDetail}
+                  </span>
+                )}
                 <ChevronDown
                   className="disclosure-chevron"
                   size={16}
@@ -370,6 +386,7 @@ export function OptionenMenu({
   filters,
   hiddenControl,
   chipText,
+  chipDetail,
 }: {
   month: string;
   view: PlanView;
@@ -387,6 +404,7 @@ export function OptionenMenu({
   hiddenControl?: { shown: boolean; toggle: () => void } | undefined;
   /** Phone (#1007): visible "Ansicht" chip instead of the three-dot icon. */
   chipText?: string | undefined;
+  chipDetail?: string | undefined;
 }) {
   const span = useStoredMonthSpan();
   const density = usePlanDensity();
@@ -396,6 +414,7 @@ export function OptionenMenu({
       className="plan-menu-optionen"
       iconOnly={REDESIGN_ENABLED}
       {...(chipText ? { chipText } : {})}
+      {...(chipDetail ? { chipDetail } : {})}
     >
       {REDESIGN_ENABLED && (
         <div role="group" aria-label="Dichte" className="plan-menu-group">
