@@ -1,6 +1,7 @@
 import type { Locator } from '@playwright/test';
 import { sampleTest as test, expect } from './sample';
 import { MIN_TARGET_PX } from './ledger-helpers';
+import { minimumControlHeight } from './control-geometry';
 
 test.setTimeout(120_000);
 
@@ -24,6 +25,7 @@ for (const theme of ['light', 'dark'] as const) {
     for (const width of widths) {
       await page.setViewportSize({ width, height: isMobile ? 844 : 900 });
       let reference: Awaited<ReturnType<typeof box>>[] | undefined;
+      let frame: { height: number; top: number; bottom: number } | undefined;
       for (const [title, url, ready] of pages) {
         await page.goto(url);
         if (ready) await expect(page.getByTestId(ready)).toBeVisible();
@@ -42,6 +44,23 @@ for (const theme of ['light', 'dark'] as const) {
           header.getByRole('link', { name: 'Buchung', exact: true }),
         ];
         const boxes = await Promise.all(elements.map(box));
+        // The whole bar keeps one height and the page body starts at the same offset everywhere.
+        const actualFrame = await page.evaluate(() => ({
+          height: document.querySelector('.page-header')!.getBoundingClientRect().height,
+          top: document.querySelector('main')!.getBoundingClientRect().top,
+          bottom: document.querySelector('.page-header')!.getBoundingClientRect().bottom,
+        }));
+        if (frame) {
+          expect(
+            Math.abs(actualFrame.height - frame.height),
+            `${title}: header height ${JSON.stringify([actualFrame, frame])}`,
+          ).toBe(0);
+          // On phones the linked status line (open items) sits between header and body on some pages.
+          if (!isMobile)
+            expect(Math.abs(actualFrame.top - frame.top), `${title}: content top`).toBe(0);
+          else
+            expect(Math.abs(actualFrame.bottom - frame.bottom), `${title}: header bottom`).toBe(0);
+        } else frame = actualFrame;
         if (reference) {
           boxes.forEach((actual, index) => {
             for (const key of ['x', 'y', 'width', 'height'] as const)
@@ -51,9 +70,11 @@ for (const theme of ['light', 'dark'] as const) {
               ).toBeLessThanOrEqual(0.5);
           });
         } else reference = boxes;
-        for (const target of boxes.slice(1)) {
-          expect(target.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-          expect(target.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+        for (const [index, target] of boxes.slice(1).entries()) {
+          if (index === 1) continue; // the action group only wraps the three controls
+          const minimum = await minimumControlHeight(elements[index + 1]!);
+          expect(target.width).toBeGreaterThanOrEqual(Math.min(minimum, MIN_TARGET_PX));
+          expect(target.height).toBeGreaterThanOrEqual(minimum);
           expect(target.x + target.width).toBeLessThanOrEqual(width);
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(

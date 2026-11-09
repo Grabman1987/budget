@@ -85,7 +85,9 @@ export function AppShell() {
             {REDESIGN_ENABLED && page && page.area !== 'einstellungen' ? (
               <PageHeader
                 title={searching ? 'Suchen' : areaById(page.area).label}
-                mobileTitle={searching ? 'Suchen' : phoneTitle(page, title)}
+                mobileTitle={
+                  searching ? 'Suchen' : kontenPageHeading ? undefined : phoneTitle(page, title)
+                }
                 showProfile={pathname === '/'}
                 mobileHeading={
                   !TITLE_ON_MOBILE_AREAS.has(page.area) && !wealthPageHeading && !kontenPageHeading

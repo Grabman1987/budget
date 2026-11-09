@@ -55,7 +55,7 @@ function RedesignKontenFrame({
   useEffect(() => {
     if (isPhone && !document.querySelector('dialog[open]'))
       phoneHeading.current?.focus({ preventScroll: true });
-  }, [isPhone, phoneTitle]);
+  }, [isPhone, phoneTitle, view]);
   const inHead = view === 'overview' || view === 'account';
   const menu = (
     <PageMenu
@@ -84,7 +84,9 @@ function RedesignKontenFrame({
       {view === 'account' && isPhone ? (
         phoneHead
       ) : (
-        <h1 className="sr-only">{view === 'account' ? 'Konten' : (phoneTitle ?? 'Konten')}</h1>
+        <h1 className="sr-only" ref={phoneHeading} tabIndex={-1}>
+          {view !== 'account' && isPhone ? (phoneTitle ?? 'Konten') : 'Konten'}
+        </h1>
       )}
       {inHead && (
         <div className="konten-view-bar">{!isPhone || view !== 'account' ? menu : null}</div>

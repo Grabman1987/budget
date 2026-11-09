@@ -79,7 +79,7 @@ export function MobileHeader({
 }
 
 /** Shared phone profile menu, including Escape and outside-click focus handling. */
-export function MobileProfile() {
+export function MobileProfile({ privacy = true }: { privacy?: boolean }) {
   const identity = useShellIdentity();
   const profileMenu = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
@@ -110,7 +110,7 @@ export function MobileProfile() {
         {identity.initials}
       </summary>
       <div className="m-profile-actions">
-        <PrivacyButton text />
+        {privacy && <PrivacyButton text />}
         <ThemeButton variant="side" />
         <AppLink
           className="btn btn-ghost"

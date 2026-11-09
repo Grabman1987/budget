@@ -453,8 +453,7 @@ test.describe('desktop shell', () => {
     const topbar = await page.locator('.topbar').boundingBox();
     const search = await page.locator('.search').boundingBox();
     expect(Math.round(sidebar?.width ?? 0)).toBe(236);
-    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-    expect(Math.round(topbar?.height ?? 0)).toBe(redesign ? 117 : 64);
+    expect(Math.round(topbar?.height ?? 0)).toBe(64);
     expect(Math.round(search?.width ?? 0)).toBeLessThanOrEqual(460);
     await expect(page.locator('.tabbar')).toBeHidden();
     await expect(page.locator('.m-head')).toBeHidden();

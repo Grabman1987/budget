@@ -21,7 +21,7 @@ export function PageHeader({
   onSearchChange,
 }: {
   title: string;
-  mobileTitle?: string;
+  mobileTitle?: string | undefined;
   showProfile?: boolean;
   mobileHeading?: boolean;
   controls?: ReactNode;
@@ -37,6 +37,18 @@ export function PageHeader({
   return (
     <header className={`page-header ${phone ? 'm-head' : 'topbar'}`}>
       <div className="page-header-row">
+        {!phone && (
+          <button
+            type="button"
+            className="icon-btn page-header-sidebar"
+            onClick={onToggle}
+            aria-label={collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'}
+            aria-expanded={!collapsed}
+            aria-controls="sidebar"
+          >
+            <PanelLeft size={16} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+        )}
         <Title className={`page-header-title${detailTitle ? '' : ' m-title-text'}`}>{title}</Title>
         <div className="page-header-controls">{!phone && controls}</div>
         <div className="page-header-search">
@@ -66,19 +78,10 @@ export function PageHeader({
             <span>Buchung</span>
           </PanelLink>
         </div>
-        {phone ? (
-          <div className="page-header-profile">{showProfile && <MobileProfile />}</div>
-        ) : (
-          <button
-            type="button"
-            className="icon-btn page-header-sidebar"
-            onClick={onToggle}
-            aria-label={collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'}
-            aria-expanded={!collapsed}
-            aria-controls="sidebar"
-          >
-            <PanelLeft size={16} strokeWidth={1.75} aria-hidden="true" />
-          </button>
+        {phone && (
+          <div className="page-header-profile">
+            {showProfile && <MobileProfile privacy={false} />}
+          </div>
         )}
       </div>
       {detailTitle && (

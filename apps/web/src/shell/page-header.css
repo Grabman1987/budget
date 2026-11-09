@@ -1,7 +1,7 @@
 /* Fixed utility columns are independent of the page body and its optional controls. */
 .app[data-budget-redesign='1'] .page-header {
   display: block;
-  height: auto;
+  height: 64px;
   min-height: 64px;
   padding: 0;
   background: var(--ground);
@@ -10,11 +10,11 @@
 }
 .page-header-row {
   display: grid;
-  grid-template-columns: 140px minmax(0, 1fr) 44px 200px 280px;
-  grid-auto-rows: 44px;
+  grid-template-columns: 44px 140px minmax(0, 1fr) 200px 280px;
+  grid-template-rows: 44px;
   align-items: center;
   gap: var(--space-sm);
-  min-height: 64px;
+  height: 64px;
   padding: 10px calc(var(--space-xl) + var(--space-xs));
 }
 .page-header .page-header-title {
@@ -29,6 +29,25 @@
 }
 .page-header-controls {
   min-width: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.page-header-controls > * {
+  min-width: 0;
+}
+.page-header-controls .hv-head-title {
+  min-width: 0;
+  overflow: hidden;
+}
+.page-header-controls .hv-head-title > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.page-header-controls .month-switch,
+.page-header-controls .seg {
+  flex-shrink: 0;
 }
 .page-header-search .global-search-launch {
   width: 100%;
@@ -53,13 +72,17 @@
     display: inline;
   }
 }
-/* Page controls occupy a separate fixed rail and never compress utility columns. */
-.page-header-controls:not(:empty) {
-  grid-row: 2;
-  grid-column: 1 / -1;
+.page-header-sidebar {
+  grid-column: 1;
+  grid-row: 1;
 }
 .page-header-title {
-  grid-column: 1;
+  grid-column: 2;
+  grid-row: 1;
+}
+.page-header-controls {
+  grid-column: 3;
+  grid-row: 1;
 }
 .page-header-search {
   grid-column: 4;
@@ -69,13 +92,9 @@
   grid-column: 5;
   grid-row: 1;
 }
-.page-header-sidebar {
-  grid-column: 3;
-  grid-row: 1;
-}
 @media (min-width: 768px) and (max-width: 1100px) {
   .page-header-row {
-    grid-template-columns: minmax(100px, 1fr) 0 44px 44px 140px;
+    grid-template-columns: 44px minmax(100px, 1fr) 0 44px 140px;
     padding-inline: var(--space-lg);
   }
   .page-header-search .global-search-launch {
@@ -100,9 +119,11 @@
 }
 @media (max-width: 767px) {
   .app[data-budget-redesign='1'] .page-header {
+    height: auto;
     min-height: 52px;
   }
   .page-header-row {
+    height: auto;
     grid-template-columns: minmax(0, 1fr) 44px 140px 44px;
     gap: var(--space-xs);
     min-height: 52px;
@@ -115,6 +136,9 @@
   }
   .page-header-controls {
     display: none;
+  }
+  .page-header .page-header-title {
+    grid-column: 1;
   }
   .page-header-search {
     grid-column: 2;
