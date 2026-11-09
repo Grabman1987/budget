@@ -48,3 +48,44 @@ it('propagates missing values and refuses unsafe totals without rounding money',
     registerPeriod(registerMonths([{ date: '2026-10-01', cents: -3 }]), '6', TODAY).averageCents,
   ).toBe(-1);
 });
+
+it('a month without bookings carries the previous month-end balance; unknown stays unknown', () => {
+  const months = registerMonths(
+    [
+      { date: '2026-08-02', cents: -302 },
+      { date: '2026-10-02', cents: 50 },
+    ],
+    (m) => (m === '2026-08' ? 1000 : 1050),
+  );
+  const window = registerPeriod(months, '3', TODAY).months;
+  expect(window.map((m) => m.cumulativeCents)).toEqual([1000, 1000, 1050]);
+  const filtered = registerPeriod(
+    registerMonths([{ date: '2026-08-02', cents: -302 }]),
+    '3',
+    TODAY,
+  );
+  expect(filtered.months.map((m) => m.cumulativeCents)).toEqual([null, null, null]);
+});
+
+it('pre-start months are flagged and excluded from the window count', () => {
+  const months = registerMonths([
+    { date: '2026-09-02', cents: 0, count: 4, beforeStart: true },
+    { date: '2026-10-02', cents: 50, count: 1 },
+  ]);
+  expect(months[1]).toMatchObject({ month: '2026-09', count: 4, beforeStart: true });
+  expect(registerPeriod(months, '3', TODAY).count).toBe(1);
+});
+
+it('Ø pro Monat and the Alle window ignore pre-start months', () => {
+  const months = registerMonths([
+    { date: '2026-07-02', cents: 0, count: 4, beforeStart: true },
+    { date: '2026-09-02', cents: -300, count: 1 },
+    { date: '2026-10-02', cents: -100, count: 1 },
+  ]);
+  const all = registerPeriod(months, 'all', TODAY);
+  expect(all.months.map((m) => m.month)).toEqual(['2026-09', '2026-10']);
+  expect(all).toMatchObject({ cents: -400, averageCents: -200 });
+  const six = registerPeriod(months, '6', TODAY);
+  expect(six.months.map((m) => m.month)).not.toContain('2026-07');
+  expect(six.averageCents).toBe(-80); // -400 over 5 months (July dropped)
+});

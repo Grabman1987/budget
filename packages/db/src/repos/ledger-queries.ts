@@ -479,12 +479,19 @@ export function queryBookings(
     : undefined;
   const monthlyKind: RegisterMonthsKind = filtered ? 'filtered' : accountRow ? 'balance' : 'rows';
   const toCents = (v: bigint): number | null => (v > bound || v < -bound ? null : Number(v));
-  // EUR groups by month; other currencies by day so each day uses its own rate.
-  const monthOrDay = sql<string>`CASE WHEN ${booking.currency} = 'EUR' THEN substr(${booking.date}, 1, 7) ELSE ${booking.date} END`;
+  // EUR groups by month; other currencies stay one group per booking so each is converted to EUR
+  // on its own (like sumEurCents) and the month equals the sum of the shown row values.
+  const monthOrDay = sql<string>`CASE WHEN ${booking.currency} = 'EUR' THEN substr(${booking.date}, 1, 7) ELSE ${booking.id} END`;
+  const groupDate = sql<string>`MIN(${booking.date})`;
   let monthlyTotals: RegisterMonth[] = [];
   if (query.nativeSummary !== false) {
     const upToToday = sql`${booking.date} <= ${today}`;
-    const rows: { date: string; cents: number | null; count: number }[] = [];
+    const rows: {
+      date: string;
+      cents: number | null;
+      count: number;
+      beforeStart?: boolean;
+    }[] = [];
     if (contributions) {
       // Category basis: report contributions are spending-positive; flip to outflow-negative.
       const byMonth = new Map<string, { count: number; cents: bigint }>();
@@ -518,6 +525,7 @@ export function queryBookings(
             .select({
               currency: booking.currency,
               day: monthOrDay,
+              date: groupDate,
               count: sql<number>`COUNT(DISTINCT ${booking.id})`.mapWith(Number),
               sum: sql<string>`CAST(SUM(${bookingSplit.amountCents}) AS TEXT)`,
             })
@@ -532,6 +540,7 @@ export function queryBookings(
             .select({
               currency: booking.currency,
               day: monthOrDay,
+              date: groupDate,
               count: sql<number>`COUNT(*)`.mapWith(Number),
               sum: sql<string>`CAST(SUM(${booking.amountCents}) AS TEXT)`,
             })
@@ -544,11 +553,11 @@ export function queryBookings(
       for (const g of grouped) {
         const cents = toCents(BigInt(g.sum));
         rows.push({
-          date: g.day.length === 7 ? `${g.day}-01` : g.day,
+          date: g.currency === 'EUR' ? `${g.day}-01` : g.date,
           cents:
             g.currency === 'EUR' || cents === null
               ? cents
-              : value(cents, g.currency, g.day).eurCents,
+              : value(cents, g.currency, g.date).eurCents,
           count: g.count,
         });
       }
@@ -580,9 +589,50 @@ export function queryBookings(
         run += BigInt(m.sum);
         ends.push({ month: m.month, balance: run });
       }
-      for (const r of rows) r.cents = 0;
+      // Count only bookings from the opening day on; earlier months are flagged "vor Start".
+      rows.length = 0;
+      const openingMonth = accountRow.openingDate.slice(0, 7);
+      const counts = db
+        .select({
+          month: sql<string>`substr(${booking.date}, 1, 7)`,
+          n: sql<number>`COUNT(*)`.mapWith(Number),
+        })
+        .from(booking)
+        .where(
+          and(
+            eq(booking.accountId, accountRow.id),
+            isNull(booking.deletedAt),
+            sql`${booking.date} <= ${today}`,
+            sql`${booking.date} >= ${accountRow.openingDate}`,
+          ),
+        )
+        .groupBy(sql`substr(${booking.date}, 1, 7)`)
+        .all();
+      const countOf = new Map(counts.map((c) => [c.month, c.n]));
       for (const m of perMonth)
-        rows.push({ date: `${m.month}-01`, cents: toCents(BigInt(m.sum)), count: 0 });
+        rows.push({
+          date: `${m.month}-01`,
+          cents: toCents(BigInt(m.sum)),
+          count: countOf.get(m.month) ?? 0,
+        });
+      const before = db
+        .select({
+          month: sql<string>`substr(${booking.date}, 1, 7)`,
+          n: sql<number>`COUNT(*)`.mapWith(Number),
+        })
+        .from(booking)
+        .where(
+          and(
+            eq(booking.accountId, accountRow.id),
+            isNull(booking.deletedAt),
+            sql`${booking.date} < ${accountRow.openingDate}`,
+            sql`substr(${booking.date}, 1, 7) < ${openingMonth}`,
+          ),
+        )
+        .groupBy(sql`substr(${booking.date}, 1, 7)`)
+        .all();
+      for (const m of before)
+        rows.push({ date: `${m.month}-01`, cents: 0, count: m.n, beforeStart: true });
       endBalance = (month) => {
         let balance = BigInt(accountRow.openingBalanceCents);
         for (const e of ends) if (e.month <= month) balance = e.balance;

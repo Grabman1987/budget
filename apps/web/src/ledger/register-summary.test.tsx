@@ -3,8 +3,8 @@ import { act, render, screen } from '@testing-library/react';
 import { setAmountsHidden } from '@budget/ui';
 import type { RegisterMonth } from '@budget/domain';
 import { afterEach, beforeAll, expect, it } from 'vitest';
-import { MonthSums } from './booking-table';
-import { RegisterSummary } from './register-summary';
+import { MonthSums, plannedCents } from './booking-table';
+import { RegisterSummary, categoryNetLabel } from './register-summary';
 
 const months: RegisterMonth[] = [
   { month: '2026-10', count: 2, cents: 2400, cumulativeCents: 101_900 },
@@ -64,4 +64,30 @@ it('anchors the window at today: a month without bookings still appears', () => 
   expect(container.textContent).toContain('2026-11');
   expect(container.textContent).toContain('gefiltert');
   expect(container.textContent).not.toContain('Saldo Monatsende');
+});
+
+it('marks months before the account start instead of showing a zero sum', () => {
+  const { container } = render(
+    <MonthSums
+      row={{ month: '2023-08', count: 3, cents: 0, cumulativeCents: null, beforeStart: true }}
+      kind="balance"
+    />,
+  );
+  expect(container.textContent).toBe('Vor Start · 3 Buchungen');
+});
+
+it('masks the category net line when amounts are hidden', () => {
+  expect(categoryNetLabel(false, -1_234_500)).toContain('12.345,00');
+  act(() => setAmountsHidden(true));
+  expect(categoryNetLabel(true, -1_234_500)).not.toMatch(/\d/);
+  expect(categoryNetLabel(true, -1_234_500)).toContain('Gruppe netto');
+});
+
+it('planned sum keeps schedule signs: outflows negative, inflows positive', () => {
+  const entry = (amountCents: number) =>
+    ({ schedule: { amountCents, currency: 'EUR' } }) as unknown as Parameters<
+      typeof plannedCents
+    >[0][number];
+  expect(plannedCents([entry(-1000), entry(400), entry(-1)])).toBe(-601);
+  expect(plannedCents([{ schedule: { amountCents: -5, currency: 'USD' } } as never])).toBeNull();
 });

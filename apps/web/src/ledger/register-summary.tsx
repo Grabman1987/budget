@@ -13,6 +13,10 @@ const ranges = [
 export const registerAmount = (value: number | null | undefined) =>
   value == null ? 'nicht verfügbar' : maskMoneyText(eur(value));
 
+/** "Kategorie netto ..." line; the amount honours the privacy mask. */
+export const categoryNetLabel = (group: boolean, cents: number) =>
+  `${group ? 'Gruppe' : 'Kategorie'} netto ${maskMoneyText(eur(cents))}`;
+
 export const registerScopeLabel = (kind: RegisterMonthsKind | undefined) =>
   kind === 'balance'
     ? 'Kontobewegung inkl. Umbuchungen'

@@ -15,7 +15,6 @@ import {
   valuedCurrency,
   shortDay,
   upcomingDate,
-  eur,
   monthName,
 } from './format';
 import { ScheduledRegisterRow } from './scheduled-register-row';
@@ -33,7 +32,7 @@ import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './register-redesign.css';
 import { BookingInspector } from './booking-inspector';
 import type { RegisterMonth, RegisterMonthsKind } from '@budget/domain';
-import { registerAmount } from './register-summary';
+import { categoryNetLabel, registerAmount } from './register-summary';
 
 export interface Selection {
   selected: ReadonlySet<string>;
@@ -525,7 +524,7 @@ function Row({
         </InlineBookingCell>
       )}
       {b.categorySpendingCents !== undefined && (
-        <small className="kmeta">Kategorie netto {eur(b.categorySpendingCents)}</small>
+        <small className="kmeta">{categoryNetLabel(false, b.categorySpendingCents)}</small>
       )}
     </>
   );
@@ -778,6 +777,7 @@ export function MonthSums({
 }) {
   useAmountPrivacy();
   const count = row ? ` · ${row.count} ${row.count === 1 ? 'Buchung' : 'Buchungen'}` : '';
+  if (row?.beforeStart) return <>Vor Start{count}</>;
   return (
     <>
       {kind === 'filtered' ? 'Monat gefiltert' : kind === 'rows' ? 'Monat (angezeigt)' : 'Monat'}{' '}
@@ -793,7 +793,7 @@ export function MonthSums({
 }
 
 /** Signed EUR total of the planned rows; unknown conversions make it unavailable, never 0. */
-function plannedCents(entries: readonly UpcomingEntry[]): number | null {
+export function plannedCents(entries: readonly UpcomingEntry[]): number | null {
   let total = 0n;
   for (const entry of entries) {
     const cents = entry.booking

@@ -8,6 +8,8 @@ export interface RegisterMonth {
   cents: number | null;
   /** Account balance at month end; `null` whenever the scope is not a plain single account. */
   cumulativeCents: number | null;
+  /** Month lies before the account's opening month: its bookings carry no balance or sum. */
+  beforeStart?: boolean;
 }
 
 /**
@@ -27,13 +29,27 @@ const safe = (value: bigint): number | null =>
  * balance at the end of a month (omit it for filtered / multi-account lists). Null never becomes 0.
  */
 export function registerMonths(
-  rows: ReadonlyArray<{ date: string; cents: number | null; count?: number }>,
+  rows: ReadonlyArray<{
+    date: string;
+    cents: number | null;
+    count?: number;
+    beforeStart?: boolean;
+  }>,
   endBalance?: (month: string) => number | null,
 ): RegisterMonth[] {
-  const groups = new Map<string, { count: number; cents: bigint; missing: boolean }>();
+  const groups = new Map<
+    string,
+    { count: number; cents: bigint; missing: boolean; beforeStart: boolean }
+  >();
   for (const row of rows) {
     const month = row.date.slice(0, 7);
-    const group = groups.get(month) ?? { count: 0, cents: 0n, missing: false };
+    const group = groups.get(month) ?? {
+      count: 0,
+      cents: 0n,
+      missing: false,
+      beforeStart: false,
+    };
+    if (row.beforeStart) group.beforeStart = true;
     group.count += row.count ?? 1;
     if (row.cents === null || !Number.isSafeInteger(row.cents)) group.missing = true;
     else group.cents += BigInt(row.cents);
@@ -45,7 +61,8 @@ export function registerMonths(
       month,
       count: group.count,
       cents: group.missing ? null : safe(group.cents),
-      cumulativeCents: endBalance ? endBalance(month) : null,
+      cumulativeCents: endBalance && !group.beforeStart ? endBalance(month) : null,
+      ...(group.beforeStart ? { beforeStart: true } : {}),
     }));
 }
 
@@ -60,13 +77,25 @@ export function registerPeriod(
 ) {
   const current = today.slice(0, 7);
   const known = months.filter((row) => row.month <= current);
-  const oldest = known.at(-1)?.month;
+  const oldest = known.findLast((row) => !row.beforeStart)?.month;
   if (!oldest) return { months: [], count: 0, cents: 0, averageCents: 0 };
   const from = range === 'all' ? oldest : addMonths(current, 1 - Number(range));
   const byMonth = new Map(known.map((row) => [row.month, row]));
   const selected: RegisterMonth[] = [];
-  for (let month = from; month <= current; month = addMonths(month, 1))
-    selected.push(byMonth.get(month) ?? { month, count: 0, cents: 0, cumulativeCents: null });
+  for (let month = from; month <= current; month = addMonths(month, 1)) {
+    // Months before the recording start neither count in the divisor nor define the window.
+    if (byMonth.get(month)?.beforeStart) continue;
+    selected.push(
+      byMonth.get(month) ?? {
+        month,
+        count: 0,
+        cents: 0,
+        // No activity: the month ends with the newest older month's balance (null when unknown).
+        cumulativeCents: known.find((row) => row.month < month)?.cumulativeCents ?? null,
+      },
+    );
+  }
+  if (!selected.length) return { months: [], count: 0, cents: 0, averageCents: 0 };
   const missing = selected.some((row) => row.cents === null);
   const sum = selected.reduce((total, row) => total + BigInt(row.cents ?? 0), 0n);
   const divisor = BigInt(selected.length);
@@ -74,7 +103,7 @@ export function registerPeriod(
   const rounded = ((sum < 0n ? -sum : sum) + divisor / 2n) / divisor;
   return {
     months: selected,
-    count: selected.reduce((total, row) => total + row.count, 0),
+    count: selected.reduce((total, row) => total + (row.beforeStart ? 0 : row.count), 0),
     cents: missing ? null : safe(sum),
     averageCents: missing ? null : safe(sum < 0n ? -rounded : rounded),
   };
