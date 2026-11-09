@@ -1482,13 +1482,3 @@
     margin-left: 0;
   }
 }
-
-/* Mockup match: net worth figure 48 px (smaller on phones so it never wraps). */
-.wealth-redesign .wealth-lead .wealth-figure {
-  font-size: 48px;
-}
-@media (max-width: 767px) {
-  .wealth-redesign .wealth-lead .wealth-figure {
-    font-size: 40px;
-  }
-}
