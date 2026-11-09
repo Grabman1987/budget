@@ -77,12 +77,14 @@ export function registerPeriod(
 ) {
   const current = today.slice(0, 7);
   const known = months.filter((row) => row.month <= current);
-  const oldest = known.at(-1)?.month;
+  const oldest = known.findLast((row) => !row.beforeStart)?.month;
   if (!oldest) return { months: [], count: 0, cents: 0, averageCents: 0 };
   const from = range === 'all' ? oldest : addMonths(current, 1 - Number(range));
   const byMonth = new Map(known.map((row) => [row.month, row]));
   const selected: RegisterMonth[] = [];
-  for (let month = from; month <= current; month = addMonths(month, 1))
+  for (let month = from; month <= current; month = addMonths(month, 1)) {
+    // Months before the recording start neither count in the divisor nor define the window.
+    if (byMonth.get(month)?.beforeStart) continue;
     selected.push(
       byMonth.get(month) ?? {
         month,
@@ -92,6 +94,8 @@ export function registerPeriod(
         cumulativeCents: known.find((row) => row.month < month)?.cumulativeCents ?? null,
       },
     );
+  }
+  if (!selected.length) return { months: [], count: 0, cents: 0, averageCents: 0 };
   const missing = selected.some((row) => row.cents === null);
   const sum = selected.reduce((total, row) => total + BigInt(row.cents ?? 0), 0n);
   const divisor = BigInt(selected.length);

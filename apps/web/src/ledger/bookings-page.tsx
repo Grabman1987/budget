@@ -4,6 +4,7 @@ import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import {
   useAmountPrivacy,
+  maskMoneyText,
   useIsPhone,
   BottomSheet,
   FormDialog,
@@ -57,6 +58,14 @@ import {
 } from './types';
 
 /** Alle Buchungen: filters in the URL, search, day groups, multi-select with bulk edit and undo. */
+/** EUR sum of a non-EUR account for the summary line; amounts honour the privacy mask. */
+export function ksumEurText(sumEurCents: number | null | undefined) {
+  if (sumEurCents == null) return 'EUR: Kurs fehlt';
+  return Number.isSafeInteger(sumEurCents)
+    ? maskMoneyText(eur(sumEurCents, { sign: true }))
+    : 'EUR: nicht darstellbar';
+}
+
 export function BookingsPage() {
   useAmountPrivacy();
   const search = useSearch({ strict: false }) as BookingsSearch;
@@ -215,17 +224,13 @@ export function BookingsPage() {
             : first.categorySpendingCents !== undefined
               ? `${categoryNetLabel(!!search.kategoriegruppe, first.categorySpendingCents)} (Ausgaben − Erstattungen)`
               : first.nativeTotals
-                ? `${REDESIGN_ENABLED ? 'Kontobewegungen (ganze Buchungen)' : 'Summe'} ${first.nativeTotals.length ? first.nativeTotals.map((total) => (total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents, total.currency, true))).join(' · ') : eur(0)}`
+                ? `${REDESIGN_ENABLED ? 'Kontobewegungen (ganze Buchungen)' : 'Summe'} ${first.nativeTotals.length ? first.nativeTotals.map((total) => (total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents, total.currency, true))).join(' · ') : maskMoneyText(eur(0))}`
                 : 'Summe nicht verfügbar'}
           {!first.nativeTotalsPending && filteredAccount && filteredAccount.currency !== 'EUR' && (
             <>
               {' '}
               ·{' '}
-              {first.sumEurCents == null
-                ? 'EUR: Kurs fehlt'
-                : Number.isSafeInteger(first.sumEurCents)
-                  ? eur(first.sumEurCents, { sign: true })
-                  : 'EUR: nicht darstellbar'}{' '}
+              {ksumEurText(first.sumEurCents)}{' '}
               · EUR je Buchungstag, Kurse in der Tabelle
             </>
           )}

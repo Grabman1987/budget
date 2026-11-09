@@ -75,3 +75,17 @@ it('pre-start months are flagged and excluded from the window count', () => {
   expect(months[1]).toMatchObject({ month: '2026-09', count: 4, beforeStart: true });
   expect(registerPeriod(months, '3', TODAY).count).toBe(1);
 });
+
+it('Ø pro Monat and the Alle window ignore pre-start months', () => {
+  const months = registerMonths([
+    { date: '2026-07-02', cents: 0, count: 4, beforeStart: true },
+    { date: '2026-09-02', cents: -300, count: 1 },
+    { date: '2026-10-02', cents: -100, count: 1 },
+  ]);
+  const all = registerPeriod(months, 'all', TODAY);
+  expect(all.months.map((m) => m.month)).toEqual(['2026-09', '2026-10']);
+  expect(all).toMatchObject({ cents: -400, averageCents: -200 });
+  const six = registerPeriod(months, '6', TODAY);
+  expect(six.months.map((m) => m.month)).not.toContain('2026-07');
+  expect(six.averageCents).toBe(-80); // -400 over 5 months (July dropped)
+});
