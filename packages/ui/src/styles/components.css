@@ -496,7 +496,7 @@
   font-weight: 650;
 }
 @media (prefers-reduced-motion: reduce) {
-  .seg-slide .seg-thumb {
+  .seg-slide .seg-thumb[data-animate] {
     transition: none;
   }
 }
