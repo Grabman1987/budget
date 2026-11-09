@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useIsPhone } from '@budget/ui';
-import { PanelLeft, Plus } from 'lucide-react';
+import { ClipboardCheck, PanelLeft, Plus } from 'lucide-react';
 import { GlobalSearch } from './global-search';
 import { PrivacyButton } from './privacy-button';
 import { InboxHeaderLink } from '../inbox/navigation';
@@ -86,14 +86,22 @@ export function PageHeader({
         <div className="page-header-actions topbar-actions">
           <PrivacyButton />
           <InboxHeaderLink className="review-pill" aria-label={inbox.label}>
-            <span className="page-header-review-label">Prüfen</span>
+            {!phone && <span className="page-header-review-label">Prüfen</span>}
             {inbox.count !== undefined && inbox.count > 0 && (
               <span>{phone ? inbox.count : ` · ${inbox.count}`}</span>
             )}
-            {!inbox.count && (
+            {inbox.count === undefined && (
               <span className="page-header-review-fallback" aria-hidden="true">
-                {inbox.count ?? '…'}
+                …
               </span>
+            )}
+            {inbox.count === 0 && (
+              <ClipboardCheck
+                className="page-header-review-icon"
+                size={16}
+                strokeWidth={1.75}
+                aria-hidden="true"
+              />
             )}
           </InboxHeaderLink>
           <PanelLink

@@ -66,11 +66,20 @@
   justify-content: center;
   white-space: nowrap;
 }
-.page-header-review-fallback {
+.page-header .page-header-booking {
+  padding-inline: var(--space-md);
+  white-space: nowrap;
+}
+.page-header .page-header-booking > svg {
+  flex: none;
+}
+.page-header-review-fallback,
+.page-header-review-icon {
   display: none;
 }
 @media (max-width: 1100px) {
-  .page-header-review-fallback {
+  .page-header-review-fallback,
+  .page-header-review-icon {
     display: inline;
   }
 }

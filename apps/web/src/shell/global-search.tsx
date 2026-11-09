@@ -207,7 +207,11 @@ export function GlobalSearch({
         type="button"
         className={mobile ? 'icon-btn global-search-trigger' : 'search global-search-launch'}
         aria-label={
-          mobile ? 'Suchen' : compact ? 'Suchen: Seiten, Reports, Buchungen, Aktionen' : undefined
+          mobile
+            ? 'Suchen'
+            : compact || compactLabel
+              ? 'Suchen: Seiten, Reports, Buchungen, Aktionen'
+              : undefined
         }
         aria-keyshortcuts="Control+k Meta+k"
         onClick={() => open()}
