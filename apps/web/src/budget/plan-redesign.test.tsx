@@ -12,9 +12,11 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { PlanMonthPage } from './plan-page';
 import type { BudgetMonthView, EnvelopeSummary } from './budget-api';
+import { setPlanDensity } from './plan-density';
 import { setMonthSpan } from './month-span';
 import { isMonth } from '../nav/month';
 import { validatePlanFilterSearch } from './plan-filters';
+import { eur } from '../ledger/format';
 
 const flag = vi.hoisted(() => ({ enabled: true }));
 vi.mock('../shell/redesign-flag', () => ({
@@ -120,10 +122,13 @@ const data: BudgetMonthView = {
 };
 let client: QueryClient;
 let writes: string[];
+let readData: BudgetMonthView;
 beforeEach(() => {
+  readData = structuredClone(data);
   flag.enabled = true;
   setMonthSpan(1);
   localStorage.clear();
+  setPlanDensity('all');
   writes = [];
   vi.stubGlobal('scrollTo', () => {});
   vi.stubGlobal('matchMedia', () => ({
@@ -135,7 +140,7 @@ beforeEach(() => {
     const url = new URL(input, 'http://localhost');
     const method = init?.method ?? 'GET';
     if (method !== 'GET') writes.push(`${method} ${url.pathname}`);
-    if (url.pathname === '/api/budget/2026-09') return Response.json(data);
+    if (url.pathname === '/api/budget/2026-09') return Response.json(readData);
     if (url.pathname === '/api/expected/income')
       return Response.json({
         receivedCents: 2500,
@@ -144,7 +149,19 @@ beforeEach(() => {
         byIncomeType: [],
       });
     if (url.pathname === '/api/accounts') return Response.json({ accounts: [] });
-    if (url.pathname === '/api/categories') return Response.json({ ...data, targets: [] });
+    if (url.pathname === '/api/categories') return Response.json({ ...readData, targets: [] });
+    if (url.pathname === '/api/contacts')
+      return Response.json({
+        contacts: [
+          {
+            id: 'synthetic-contact',
+            name: 'Synthetic contact',
+            receivableCents: 1234,
+            creditCents: 1234,
+            balanceCents: 0,
+          },
+        ],
+      });
     if (url.pathname === '/api/expected') return Response.json({ payments: [] });
     if (url.pathname === '/api/auth/status')
       return Response.json({
@@ -198,6 +215,127 @@ function mount() {
   };
 }
 
+it('ON places quick actions in the toolbar and month close in the header', async () => {
+  const { container } = mount();
+  await screen.findByRole('region', { name: 'Monatsbudget' });
+  const toolbar = container.querySelector<HTMLElement>('.plan-calm-toolbar')!;
+  const menu = within(toolbar).getByRole('button', { name: 'Geld verteilen' });
+  fireEvent.click(menu);
+  expect(within(toolbar).getByRole('button', { name: 'Alle Ziele füllen' })).toBeTruthy();
+  expect(container.querySelectorAll('.ptoolbar')).toHaveLength(1);
+  expect(
+    screen.getByRole('link', { name: 'Monat abschließen' }).closest('.plan-v2-page-head'),
+  ).not.toBeNull();
+});
+
+it('ON hides only inactive archived groups and retains contact details and privacy', async () => {
+  readData.groups.push({ id: 'archive', name: 'Synthetic archive', sortOrder: 1 });
+  readData.categories.push(
+    {
+      ...readData.categories[0]!,
+      id: 'hidden',
+      name: 'Synthetic hidden',
+      groupId: 'archive',
+      hiddenAt: '2026-09-01',
+    },
+    {
+      ...readData.categories[0]!,
+      id: 'advance',
+      name: 'Synthetic advance',
+      kind: 'advance',
+      class: null,
+    },
+  );
+  readData.summary.envelopes.push(
+    envelope('hidden', {}),
+    envelope('advance', { availableCents: -1234, activityCents: -1234 }),
+  );
+  const { container } = mount();
+  await screen.findByTestId('to-be-assigned');
+  expect(container.querySelector('#grp-archive')).toBeNull();
+  expect(container.querySelector('[data-category-id="advance"]')).not.toBeNull();
+  const advances = container.querySelector<HTMLDetailsElement>('.plan-contact-advances')!;
+  expect(advances.open).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: 'Optionen' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ausgeblendete zeigen' }));
+  expect(container.querySelector('#grp-archive')).not.toBeNull();
+  expect(container.querySelector('[data-category-id="hidden"]')).not.toBeNull();
+  expect(container.querySelector('[data-category-id="advance"]')).not.toBeNull();
+  fireEvent.click(within(advances).getByText('Auslagen für Kontakte'));
+  const contact = await screen.findByRole('link', { name: 'Synthetic contact' });
+  expect(contact.getAttribute('href')).toBe('/konten/kontakte/synthetic-contact');
+  expect(advances.textContent).toContain('Offen 12,34 € · Guthaben 12,34 €');
+  expect(advances.querySelector('.spending-bar')).toBeNull();
+  act(() => setAmountsHidden(true));
+  expect(advances.textContent).not.toContain('12,34');
+  act(() => setAmountsHidden(false));
+  expect(screen.getByTestId('to-be-assigned').textContent).toBe('140,00 €');
+});
+
+it.each([
+  ['hidden', 5000, 0],
+  ['hidden', 0, -5000],
+  ['advance', 5000, 0],
+  ['advance', 0, -5000],
+] as const)(
+  'ON keeps a %s envelope with available %i and activity %i in the list totals',
+  async (kind, availableCents, activityCents) => {
+    readData.groups.push({ id: 'retained', name: 'Synthetic retained group', sortOrder: 1 });
+    readData.categories.push({
+      ...readData.categories[0]!,
+      id: 'retained',
+      name: 'Synthetic retained category',
+      groupId: 'retained',
+      kind: kind === 'advance' ? 'advance' : 'variable',
+      class: kind === 'advance' ? null : 'need',
+      hiddenAt: kind === 'hidden' ? '2026-09-01' : null,
+    });
+    readData.summary.envelopes.push(
+      envelope('retained', {
+        carryCents: availableCents - activityCents,
+        availableCents,
+        activityCents,
+      }),
+    );
+    readData.summary.availableCents += availableCents;
+    readData.summary.activityCents += activityCents;
+    const { container } = mount();
+    await waitFor(() =>
+      expect(container.querySelector('.pname[data-category-id="retained"]')).not.toBeNull(),
+    );
+    expect(container.querySelector('#grp-retained')).not.toBeNull();
+    const names = [...container.querySelectorAll<HTMLElement>('.ptable .pname[data-category-id]')];
+    const listed = names.map((name) => {
+      const row = readData.summary.envelopes.find(
+        (item) => item.categoryId === name.dataset['categoryId'],
+      )!;
+      const displayed = name.closest('tr')!;
+      expect(displayed.querySelector('.col-avail')!.textContent).toContain(eur(row.availableCents));
+      expect(displayed.querySelector('.col-act')!.textContent).toContain(eur(row.activityCents));
+      expect(displayed.querySelector('.col-assign')!.textContent).toContain(eur(row.assignedCents));
+      return row;
+    });
+    expect(listed).toHaveLength(readData.summary.envelopes.length);
+    for (const field of ['assignedCents', 'activityCents', 'availableCents'] as const)
+      expect(listed.reduce((sum, row) => sum + row[field], 0)).toBe(readData.summary[field]);
+    expect(readData.summary.availableCents).toBe(11500 + availableCents);
+    expect(screen.getByTestId('to-be-assigned').textContent).toBe('140,00 €');
+  },
+);
+
+it('ON keeps a new empty group visible, sortable and ready for categories', async () => {
+  readData.groups.push({ id: 'empty', name: 'Synthetic empty', sortOrder: 1 });
+  const { container } = mount();
+  await screen.findByRole('button', { name: 'Gruppe Synthetic empty verschieben' });
+  const group = container.querySelector('#grp-empty')!;
+  expect(group).not.toBeNull();
+  expect(
+    within(group as HTMLElement).getByRole('button', {
+      name: 'Kategorie in Synthetic empty anlegen',
+    }),
+  ).toBeTruthy();
+});
+
 it('ON leads with class assignments and keeps the literal cent derivation in the amount disclosure', async () => {
   const { router } = mount();
   const lead = await screen.findByRole('region', { name: 'Monatsbudget' });
@@ -248,6 +386,9 @@ it('OFF retains the original compact head and original unadorned values', async 
   expect((await screen.findByTestId('to-be-assigned')).textContent).toBe('140,00 €');
   expect(screen.queryByRole('region', { name: 'Monatsbudget' })).toBeNull();
   expect(container.querySelector('.plan-row-state')).toBeNull();
+  expect(container.querySelector('.plan-menu-optionen > summary')!.hasAttribute('role')).toBe(
+    false,
+  );
   expect(screen.getByRole('button', { name: 'Geld verteilen' })).toBeTruthy();
   expect(
     screen.getByRole('button', { name: 'Synthetic cash decken' }).querySelector('svg'),
@@ -276,7 +417,7 @@ it('ON desktop keeps exact spending hints and moves the named cover action onto 
 it('ON attention filters via the URL, keeps matching groups and restores all rows without writes', async () => {
   const { container, router } = mount();
   await screen.findByRole('button', { name: 'Synthetic goal' });
-  const menu = container.querySelector<HTMLDetailsElement>('.plan-reference-filters')!;
+  const menu = container.querySelector<HTMLDetailsElement>('.plan-menu-optionen')!;
   menu.open = true;
   fireEvent.click(screen.getByRole('button', { name: 'Braucht Aufmerksamkeit (3)' }));
   await waitFor(() => expect(router.state.location.search.filter).toBe('attention'));
@@ -285,8 +426,13 @@ it('ON attention filters via the URL, keeps matching groups and restores all row
   ).toEqual(['open', 'cash', 'credit']);
   expect(screen.getByRole('button', { name: 'Gruppe Synthetic group' })).toBeTruthy();
   expect(screen.getByTestId('to-be-assigned').textContent).toBe('140,00 €');
-  fireEvent.click(screen.getByRole('button', { name: 'Alle (6)' }));
+  const chip = within(screen.getByRole('group', { name: 'Kategoriefilter' })).getByRole('button', {
+    name: /Braucht Aufmerksamkeit.*Filter entfernen/,
+  });
+  expect(chip.getAttribute('aria-pressed')).toBe('true');
+  fireEvent.click(chip);
   await waitFor(() => expect(container.querySelectorAll('.pname')).toHaveLength(6));
+  expect(router.state.location.search.filter).toBeUndefined();
 });
 
 it('ON month lead collapses down, expands up away from the top, and ignores tiny scroll reversals', async () => {
@@ -416,7 +562,7 @@ it('ON phone keeps month read utilities reachable through native menu keyboard n
   );
   mount();
   await screen.findByTestId('to-be-assigned');
-  const summary = screen.getByText('Optionen', { selector: 'summary' });
+  const summary = screen.getByLabelText('Optionen', { selector: 'summary' });
   const menu = summary.closest('details')!;
   summary.focus();
   fireEvent.keyDown(summary, { key: 'ArrowDown' });
@@ -436,7 +582,11 @@ it('ON phone keeps month read utilities reachable through native menu keyboard n
   fireEvent.keyDown(summary, { key: 'End' });
   expect(document.activeElement).toBe(pending);
   fireEvent.keyDown(pending, { key: 'Home' });
-  expect(document.activeElement).toBe(within(menu).getByRole('button', { name: 'Auswählen' }));
+  expect(document.activeElement).toBe(
+    within(within(menu).getByRole('group', { name: 'Dichte' })).getByRole('button', {
+      name: 'Alle',
+    }),
+  );
   fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
   expect(menu.open).toBe(false);
   expect(document.activeElement).toBe(summary);
@@ -447,4 +597,54 @@ it('ON phone keeps month read utilities reachable through native menu keyboard n
   );
   expect(document.querySelector<HTMLDetailsElement>('#inspector-income')!.open).toBe(true);
   expect(menu.open).toBe(false);
+});
+
+it('ON exposes counted primary filters and stores density without changing financial rows', async () => {
+  const { container, router } = mount();
+  await screen.findByRole('button', { name: 'Synthetic goal' });
+  const filters = screen.getByRole('group', { name: 'Kategoriefilter' });
+  expect(
+    within(filters)
+      .getAllByRole('button')
+      .map((button) => button.textContent),
+  ).toEqual([
+    'Alle (6)',
+    'Überzogen (2)',
+    'Unterfinanziert (1)',
+    'Überfinanziert (1)',
+    'Verfügbar (3)',
+  ]);
+  fireEvent.click(within(filters).getByRole('button', { name: 'Überfinanziert (1)' }));
+  await waitFor(() => expect(router.state.location.search.filter).toBe('overfunded'));
+  expect(
+    [...container.querySelectorAll('.pname')].map((el) => el.getAttribute('data-category-id')),
+  ).toEqual(['goal']);
+  fireEvent.click(within(filters).getByRole('button', { name: 'Alle (6)' }));
+  await waitFor(() => expect(container.querySelectorAll('.pname')).toHaveLength(6));
+  const options = container.querySelector<HTMLDetailsElement>('.plan-menu-optionen')!;
+  options.open = true;
+  fireEvent.click(
+    within(screen.getByRole('group', { name: 'Dichte' })).getByRole('button', { name: 'Minimal' }),
+  );
+  expect(localStorage.getItem('budget.plan.density')).toBe('minimal');
+  expect(container.querySelector('.plan-density-minimal')).not.toBeNull();
+  expect(container.querySelectorAll('.pname')).toHaveLength(6);
+  expect(screen.getByTestId('to-be-assigned').textContent).toBe('140,00 €');
+  expect(screen.getByRole('button', { name: 'Rückgängig' }).hasAttribute('disabled')).toBe(true);
+});
+
+it('ON keeps the uncategorized menu filter visible and removable in the toolbar', async () => {
+  const { container, router } = mount();
+  await screen.findByTestId('to-be-assigned');
+  container.querySelector<HTMLDetailsElement>('.plan-menu-optionen')!.open = true;
+  fireEvent.click(screen.getByRole('button', { name: /^Ohne Kategorie/ }));
+  await waitFor(() => expect(router.state.location.search.filter).toBe('uncategorized'));
+  const chip = within(screen.getByRole('group', { name: 'Kategoriefilter' })).getByRole('button', {
+    name: /Ohne Kategorie.*Filter entfernen/,
+  });
+  expect(chip.getAttribute('aria-pressed')).toBe('true');
+  fireEvent.click(chip);
+  await waitFor(() => expect(router.state.location.search.filter).toBeUndefined());
+  expect(container.querySelectorAll('.pname')).toHaveLength(6);
+  expect(writes).toEqual([]);
 });

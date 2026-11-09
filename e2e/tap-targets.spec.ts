@@ -1,3 +1,4 @@
+import { captureCloseControl } from './ledger-helpers';
 import { captureFlagControl } from './ledger-helpers';
 import type { Locator } from '@playwright/test';
 import { sampleTest as test, expect } from './sample';
@@ -96,17 +97,26 @@ test.describe('UX-3b touch controls', () => {
       ).toBeGreaterThanOrEqual(13);
     }
     const flag = await captureFlagControl(dialog, 'Markierung: keine');
-    expect(await flag.evaluate((el) => getComputedStyle(el, '::after').content)).toContain(
-      'Markierung',
-    );
-    await flag.tap();
-    await expectTouchTargets(dialog.getByRole('menuitemradio'));
-    await page.keyboard.press('Escape');
-    await expect(flag).toBeFocused();
-    const close = dialog.getByRole('button', { name: 'Schließen', exact: true });
-    expect(await close.evaluate((el) => getComputedStyle(el, '::after').content)).toContain(
-      'Schließen',
-    );
+    if (await dialog.locator('.bkform-redesign').count()) {
+      await expect(flag).toHaveCount(0);
+      await expect(dialog.getByLabel('Markierung', { exact: true })).toHaveCount(0);
+    } else {
+      await expect(flag).toHaveAccessibleName('Markierung: keine');
+      expect(await flag.evaluate((el) => getComputedStyle(el, '::after').content)).toContain(
+        'Markierung',
+      );
+      await flag.tap();
+      await expectTouchTargets(dialog.getByRole('menuitemradio'));
+      await page.keyboard.press('Escape');
+      await expect(flag).toBeFocused();
+    }
+    const close = captureCloseControl(dialog);
+    if (await dialog.locator('.bkform-redesign').count())
+      await expect(close).toHaveAccessibleName('Schließen');
+    else
+      expect(await close.evaluate((el) => getComputedStyle(el, '::after').content)).toContain(
+        'Schließen',
+      );
     await page.screenshot({ path: info.outputPath('phone-390-dialog.png') });
     await close.tap();
     await expect(dialog).not.toBeVisible();

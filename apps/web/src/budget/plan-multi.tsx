@@ -1,5 +1,7 @@
+import type { usePlanGroupOrder } from './plan-group-order';
 import { useAmountPrivacy, Button, ClassSwatch, cx } from '@budget/ui';
-import { ArrowLeftRight, ChevronDown } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown, CircleAlert, Check, Wallet } from 'lucide-react';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { useState } from 'react';
 import { currentMonth } from '../shell/use-month';
 import { eur } from '../ledger/format';
@@ -29,6 +31,7 @@ export function MultiTable({
   onToggle,
   onOpen,
   onAdd,
+  groupSort,
 }: {
   months: string[];
   views: BudgetMonthView[];
@@ -37,6 +40,7 @@ export function MultiTable({
   onToggle: (key: string) => void;
   onOpen: (id: string, month: string) => void;
   onAdd: (groupId: string) => void;
+  groupSort?: ReturnType<typeof usePlanGroupOrder> | undefined;
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
@@ -105,10 +109,12 @@ export function MultiTable({
                 : []),
               <tr
                 key={g.key}
+                {...groupSort?.dropTarget(g.key)}
                 className={cx('pgroup', isCollapsed && 'is-collapsed')}
                 id={`grp-${g.key}`}
               >
                 <td className="col-name">
+                  {groupSort?.handle(g.key, g.title)}
                   <button
                     type="button"
                     className="grp-toggle"
@@ -200,6 +206,14 @@ export function MultiTable({
                               )}
                               title={credit ? 'neue Kartenschuld' : undefined}
                             >
+                              {REDESIGN_ENABLED &&
+                                (cell.overspentCents > 0 ? (
+                                  <CircleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
+                                ) : cell.availableCents > 0 ? (
+                                  <Check size={16} strokeWidth={1.75} aria-hidden="true" />
+                                ) : (
+                                  <Wallet size={16} strokeWidth={1.75} aria-hidden="true" />
+                                ))}
                               {eur(cell.availableCents)}
                             </span>
                             {cell.overspentCents > 0 && (

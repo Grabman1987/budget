@@ -273,8 +273,15 @@ sampleTest(
       const page = await context.newPage();
       await page.clock.setFixedTime(new Date(SAMPLE_NOW));
       await page.goto('/plan/monat?monat=2026-08');
-      await page.locator('.plan-menu-optionen summary').click();
-      await page.getByRole('button', { name: '2 Monate', exact: true }).click();
+      if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+        await page
+          .getByRole('group', { name: 'Sichtbare Monate' })
+          .getByRole('button', { name: '2', exact: true })
+          .click();
+      } else {
+        await page.locator('.plan-menu-optionen summary').click();
+        await page.getByRole('button', { name: '2 Monate', exact: true }).click();
+      }
       const row = page.locator('.ptable-multi tbody .prow', {
         has: page.locator('.pname[data-category-id="cat-miete"]'),
       });

@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { categoryLineControl } from './ledger-helpers';
 import { test as ledgerTest, expect } from '@playwright/test';
 import { MAIN_URL } from '../playwright.config';
@@ -37,7 +38,7 @@ ledgerTest(
     await dialog.getByLabel('Kategorie 2', { exact: true }).fill('Essen');
     await dialog.getByRole('option', { name: /^Essen/ }).click();
     expect(writes).toEqual([]);
-    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await captureSaveControl(dialog).click();
     await expect(dialog).toBeHidden();
     expect(writes.some((url) => url.includes('/api/bookings'))).toBe(true);
     const bookings = await page.request.get(`/api/bookings?accountId=${account.id}`);

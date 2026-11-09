@@ -67,6 +67,8 @@ let sent: { url: string; body: Record<string, unknown> }[];
 let allocationReads: number;
 let statement: Statement;
 let rejectAllocation: boolean;
+let requiresAdoption: boolean;
+let locked: boolean;
 const dialogMethods = ['showModal', 'close'].map(
   (name) => [name, Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name)] as const,
 );
@@ -74,6 +76,8 @@ beforeEach(() => {
   sent = [];
   allocationReads = 0;
   rejectAllocation = false;
+  requiresAdoption = false;
+  locked = false;
   statement = structuredClone(base);
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
     configurable: true,
@@ -96,6 +100,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
     if (init?.method === 'POST') {
       sent.push({ url, body: JSON.parse(init.body as string) });
+      if (url.endsWith('/adopt')) requiresAdoption = false;
       return new Response(JSON.stringify({ groupId: 'example-group' }));
     }
     if (url.endsWith('/allocations')) {
@@ -106,11 +111,25 @@ beforeEach(() => {
         JSON.stringify({
           receiptSplitId: paid.splitId,
           amountCents: 1001,
+          requiresAdoption,
+          locked,
           allocations: base.receipts[0]!.allocations,
           outlays: [{ ...first, remainingCents: 1001 }, second],
         }),
       );
     }
+    if (url.includes('/bookings/'))
+      return new Response(
+        JSON.stringify({
+          booking: {
+            id: second.bookingId,
+            date: second.date,
+            status: locked ? 'reconciled' : 'confirmed',
+            transferId: null,
+            splits: [{ id: second.splitId, categoryId: 'category-example', amountCents: -2002 }],
+          },
+        }),
+      );
     if (url.includes('/accounts'))
       return new Response(
         JSON.stringify({
@@ -172,7 +191,8 @@ it('keeps the recorded amount and submits an exact allocation to a later outlay'
   const dialog = within(screen.getByRole('dialog', { name: 'Rückzahlung neu zuordnen' }));
   const firstInput = await dialog.findByRole('textbox', { name: /Zuordnung Auslage 1/ });
   fireEvent.change(firstInput, { target: { value: '0' } });
-  expect(disabled(dialog.getByRole('button', { name: 'Zuordnung speichern' }))).toBe(true);
+  expect(disabled(dialog.getByRole('button', { name: 'Zuordnung speichern' }))).toBe(false);
+  expect(dialog.getByText(/Verbleibendes Kontaktguthaben/).textContent).toContain('10,01');
   fireEvent.change(dialog.getByRole('textbox', { name: /Zuordnung Auslage 2/ }), {
     target: { value: '10,01' },
   });
@@ -267,5 +287,70 @@ it('retains selectable outlays and cents when recording a new targeted repayment
   expect(sent[0]?.body).toMatchObject({
     amountCents: 2002,
     allocations: [{ outlaySplitId: second.splitId, amountCents: 2002 }],
+  });
+});
+
+it('offers floating receipts and retains their entire amount as credit with explicit lock confirmation', async () => {
+  statement.receipts[0]!.recorded = false;
+  locked = true;
+  show();
+  openAllocation();
+  const dialog = within(screen.getByRole('dialog', { name: 'Rückzahlung neu zuordnen' }));
+  fireEvent.change(await dialog.findByRole('textbox', { name: /Zuordnung Auslage 1/ }), {
+    target: { value: '0' },
+  });
+  const save = dialog.getByRole('button', { name: 'Zuordnung speichern' });
+  expect(disabled(save)).toBe(true);
+  fireEvent.click(dialog.getByRole('checkbox', { name: /Zuordnung auch bei abgeglichenen/ }));
+  expect(disabled(save)).toBe(false);
+  fireEvent.click(save);
+  await waitFor(() => expect(sent).toHaveLength(1));
+  expect(sent[0]?.body).toEqual({ allocations: [], unlock: true });
+});
+
+it('requires an explicit audited adoption before editing a legacy repayment', async () => {
+  requiresAdoption = true;
+  show();
+  openAllocation();
+  const dialog = within(screen.getByRole('dialog', { name: 'Rückzahlung neu zuordnen' }));
+  const adopt = await dialog.findByRole('button', { name: 'Bisherige Zuordnung übernehmen' });
+  expect(disabled(dialog.getByRole('button', { name: 'Zuordnung speichern' }))).toBe(true);
+  expect(sent).toEqual([]);
+  fireEvent.click(adopt);
+  await waitFor(() =>
+    expect(disabled(dialog.getByRole('button', { name: 'Zuordnung speichern' }))).toBe(false),
+  );
+  expect(sent).toEqual([
+    {
+      url: '/api/contacts/contact-example/settlements/receipt-example/adopt',
+      body: {},
+    },
+  ]);
+});
+
+it('waives the open share on a locked partially settled outlay without changing its category', async () => {
+  locked = true;
+  statement.outlays[1] = { ...second, categoryId: 'category-example', remainingCents: 1001 };
+  statement.receipts[0]!.allocations = [{ outlaySplitId: second.splitId, amountCents: 1001 }];
+  show();
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Spätere Beispielauslage als Geschenk übernehmen' }),
+  );
+  const dialog = within(screen.getByRole('dialog', { name: 'Auslage als Geschenk übernehmen' }));
+  expect(dialog.getByRole('heading', { name: 'Geschenk an Kontakt' })).toBeTruthy();
+  const category = await dialog.findByLabelText('Eigene Geschenkkategorie');
+  await waitFor(() => expect((category as HTMLSelectElement).value).toBe('category-example'));
+  expect((category as HTMLSelectElement).disabled).toBe(true);
+  const save = dialog.getByRole('button', { name: 'Als Geschenk übernehmen' });
+  expect(disabled(save)).toBe(true);
+  fireEvent.click(
+    await dialog.findByRole('checkbox', { name: /Zuordnung auch bei abgeglichenen/ }),
+  );
+  expect(disabled(save)).toBe(false);
+  fireEvent.click(save);
+  await waitFor(() => expect(sent).toHaveLength(1));
+  expect(sent[0]).toEqual({
+    url: '/api/contacts/contact-example/outlays/second-outlay/waive',
+    body: { amountCents: 1001, categoryId: 'category-example', unlock: true },
   });
 });

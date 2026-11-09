@@ -19,7 +19,9 @@ unchanged. Audited credit settings retain prior uses/allocations for historical
 as-of statements and reciprocal references to the correction bookings. The whole
 decision, its corrections and provenance share one Undo group; partial and forced
 Undo cannot detach a correction. Reconciled source, affected outlay and correction
-bookings retain their locks. Free/category choices and reallocation preserve
+bookings retain their bank locks; the #978 owner override allows audited allocation-only
+changes through CLI `--unlock` or UI confirmation, without editing bank facts.
+Free/category choices and reallocation preserve
 current Zu verteilen; only an explicit gift adds income. Normal subsequent month
 carry continues to use the existing budget rules for the reopened category spending.
 

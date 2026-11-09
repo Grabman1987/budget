@@ -23,6 +23,30 @@ describe('Toast', () => {
     vi.useRealTimers();
   });
 
+  it('notifies dismissal once on expiry, replacement, Escape and unmount', () => {
+    const onDismiss = vi.fn();
+    const { unmount } = render(
+      <ToastProvider>
+        <Trigger options={{ message: 'Done', actionLabel: 'Undo', onDismiss }} />
+      </ToastProvider>,
+    );
+    const show = () => fireEvent.click(screen.getByRole('button', { name: 'go' }));
+    show();
+    act(() => vi.advanceTimersByTime(6000));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    show();
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    show();
+    expect(onDismiss).toHaveBeenCalledTimes(2);
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Undo' }), { key: 'Escape' });
+    expect(onDismiss).toHaveBeenCalledTimes(3);
+    act(() => vi.advanceTimersByTime(6000));
+    expect(onDismiss).toHaveBeenCalledTimes(3);
+    show();
+    unmount();
+    expect(onDismiss).toHaveBeenCalledTimes(4);
+  });
+
   it('mounts an empty polite, atomic status region before any toast is shown', () => {
     render(
       <ToastProvider>

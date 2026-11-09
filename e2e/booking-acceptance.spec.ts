@@ -1,3 +1,4 @@
+import { captureCloseControl, captureSaveControl } from './ledger-helpers';
 import {
   redesignLoaded,
   bankPreviewControl,
@@ -85,7 +86,7 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
   const amount = dialog.getByLabel('Betrag', { exact: true });
   const date = dialog.getByLabel('Datum', { exact: true });
-  const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+  const save = captureSaveControl(dialog);
   await expect(amount).toBeFocused();
   await expect(date).toHaveValue('09.10.2026');
   await amount.fill('1.234,56+0,01');
@@ -112,12 +113,14 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     await page.evaluate((t) => {
       document.documentElement.dataset['theme'] = t;
     }, theme);
+    await save.scrollIntoViewIfNeeded();
     await expect(save).toBeInViewport({ ratio: 1 });
     // A default category adds Available and suggestion rows; Mehr remains in the body scroller.
     await dialog
       .locator('.kmore > summary')
       .evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
     await expect(dialog.locator('.kmore > summary')).toBeInViewport({ ratio: 1 });
+    await save.scrollIntoViewIfNeeded();
     await expect(save).toBeInViewport({ ratio: 1 });
     await dialog.locator('.bk-body').evaluate((el) => {
       el.scrollTop = 0;
@@ -156,9 +159,10 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
     await evidence(page, info, `booking-${theme}`, dialog);
   }
-  // Expanded content scrolls inside the sheet; the save action stays visible.
+  // Expanded content and the phone save action remain reachable in the body scroller.
   await dialog.locator('.kmore > summary').click();
   await dialog.getByLabel('Notiz').fill('Synthetische Abnahme');
+  await save.scrollIntoViewIfNeeded();
   await expect(save).toBeInViewport({ ratio: 1 });
   await evidence(page, info, 'booking-dark-expanded', dialog);
   await save.click();
@@ -234,11 +238,7 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   if (await redesignLoaded(page)) {
     const phone = page.viewportSize()!.width < 768;
     const targets = [
-      ...(phone
-        ? ['Ausgabe', 'Einnahme', 'Umbuchung'].map((name) =>
-            dialog.getByRole('button', { name, exact: true }),
-          )
-        : [dialog.getByRole('button', { name: 'Vorgemerkt', exact: true })]),
+      ...(!phone ? [dialog.getByRole('button', { name: 'Vorgemerkt', exact: true })] : []),
       dialog.getByLabel('Empfänger', { exact: true }),
       ...(phone
         ? [
@@ -277,25 +277,47 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
       ...((page.viewportSize()?.width ?? 1440) < 768
         ? []
         : [dialog.getByRole('button', { name: 'Abbrechen', exact: true })]),
+      ...(phone ? [captureSaveControl(dialog)] : []),
       dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
-      dialog.getByRole('button', { name: 'Speichern', exact: true }),
+      ...(!phone ? [captureSaveControl(dialog)] : []),
       ...(phone ? [dialog.getByRole('button', { name: 'Blatt schließen', exact: true })] : []),
-      dialog.getByRole('button', {
-        name: (page.viewportSize()?.width ?? 1440) < 768 ? 'Schließen' : 'Datei anhängen',
-        exact: true,
-      }),
+      dialog.getByRole('button', { name: 'Datei anhängen', exact: true }),
+      ...(phone
+        ? [
+            dialog.getByRole('button', { name: 'Foto aufnehmen', exact: true }),
+            dialog.locator('.kmore > summary'),
+            captureCloseControl(dialog),
+            ...['Ausgabe', 'Einnahme', 'Umbuchung'].map((name) =>
+              dialog.getByRole('button', { name, exact: true }),
+            ),
+            amount,
+          ]
+        : []),
     ]) {
       await page.keyboard.press('Tab');
       await expect(target).toBeFocused();
     }
     await page.keyboard.press('Shift+Tab');
     if (phone) {
-      await expect(
+      for (const target of [
+        ...['Geteilt durch', 'Mal', 'Minus', 'Plus'].map((name) =>
+          dialog.getByRole('button', { name, exact: true }),
+        ),
+        dialog.getByRole('button', { name: 'Umbuchung', exact: true }),
+        dialog.getByRole('button', { name: 'Einnahme', exact: true }),
+        dialog.getByRole('button', { name: 'Ausgabe', exact: true }),
+        captureCloseControl(dialog),
+        dialog.locator('.kmore > summary'),
+        dialog.getByRole('button', { name: 'Foto aufnehmen', exact: true }),
+        dialog.getByRole('button', { name: 'Datei anhängen', exact: true }),
         dialog.getByRole('button', { name: 'Blatt schließen', exact: true }),
-      ).toBeFocused();
-      await page.keyboard.press('Shift+Tab');
-    }
-    await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeFocused();
+        dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
+        captureSaveControl(dialog),
+      ]) {
+        await expect(target).toBeFocused();
+        await page.keyboard.press('Shift+Tab');
+      }
+    } else await expect(captureSaveControl(dialog)).toBeFocused();
   } else {
     await amount.press('Tab');
     await expect(dialog.getByLabel('Empfänger', { exact: true })).toBeFocused();
@@ -332,7 +354,7 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
     await expect(dialog.locator('.kmore > summary')).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(dialog.getByRole('button', { name: 'Speichern und neu' })).toBeFocused();
-    const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+    const save = captureSaveControl(dialog);
     await page.keyboard.press('Tab');
     await expect(save).toBeFocused();
     await page.keyboard.press('Tab');

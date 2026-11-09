@@ -1,4 +1,4 @@
-import { redesignLoaded } from './ledger-helpers';
+import { captureCloseControl, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { PDF, PNG } from '../apps/server/src/receipts/testing';
@@ -98,7 +98,7 @@ test('capture receipt first, link, attach PDF, remove and undo', async ({
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
   }
-  await editor.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await captureCloseControl(editor).click();
   const receiptIds = (
     await (await request.get(`${MAIN_URL}/api/receipts?bookingId=${booking.id}`)).json()
   ).receipts.map((r: { id: string }) => r.id);

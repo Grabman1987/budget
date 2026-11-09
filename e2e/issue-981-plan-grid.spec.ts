@@ -127,11 +127,19 @@ for (const theme of ['light', 'dark'] as const)
             Array(3).fill({ width: 128, align: 'right', figures: 'tabular-nums' }),
           );
           expect(row.underlines).toEqual(['none', 'none', 'none']);
-          expect(row.arrows).toBe(0);
+          expect(row.arrows).toBe(1);
         }
         await info.attach(`plan-grid-geometry-${width}-${theme}`, {
           body: JSON.stringify(rows),
           contentType: 'application/json',
+        });
+        const separatorColor = await page.locator('.plan-month-frame').evaluate((element) => {
+          const probe = document.createElement('span');
+          probe.style.color = 'var(--rule)';
+          element.append(probe);
+          const color = getComputedStyle(probe).color;
+          probe.remove();
+          return color;
         });
         const frame = await page
           .locator('.ptable-zero tbody > tr:not(.pgroup-gap)')
@@ -155,24 +163,23 @@ for (const theme of ['light', 'dark'] as const)
                 bottomLeft: start.borderBottomLeftRadius,
                 bottomRight: end.borderBottomRightRadius,
                 groupEnd,
-                header: row.classList.contains('pgroup'),
+                header: row.classList.contains('pgroup') && !row.classList.contains('prow'),
                 topWidth: start.borderTopWidth,
                 topColor: start.borderTopColor,
-                frameColor: end.borderRightColor,
               };
             }),
           );
         for (const row of frame) {
-          expect(row.leftWidth).toBe('1px');
-          expect(row.leftAccent).toContain('1px 0px 0px 0px inset');
-          expect(row.rightWidth).toBe('1px');
+          expect(row.leftWidth).toBe('0px');
+          expect(row.leftAccent).toBe('none');
+          expect(row.rightWidth).toBe('0px');
           expect(row.leftHeight).toBeCloseTo(row.rowHeight, 1);
           expect(row.nextGap).toBe(0);
-          expect(row.bottomLeft).toBe(row.groupEnd ? '8px' : '0px');
-          expect(row.bottomRight).toBe(row.groupEnd ? '8px' : '0px');
+          expect(row.bottomLeft).toBe('0px');
+          expect(row.bottomRight).toBe('0px');
           if (row.header) {
             expect(row.topWidth).toBe('1px');
-            expect(row.topColor).toBe(row.frameColor);
+            expect(row.topColor).toBe(separatorColor);
           }
         }
         const parent = page.locator('.ptable-zero .pgroup:not(.prow)').first();
@@ -181,11 +188,11 @@ for (const theme of ['light', 'dark'] as const)
         await expect(toggle).toHaveAttribute('aria-expanded', 'false');
         await expect(parent.locator('td:first-child')).toHaveCSS(
           'border-bottom-left-radius',
-          '8px',
+          '0px',
         );
         await expect(parent.locator('td:last-child')).toHaveCSS(
           'border-bottom-right-radius',
-          '8px',
+          '0px',
         );
         await toggle.click();
         await expect(toggle).toHaveAttribute('aria-expanded', 'true');

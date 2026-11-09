@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { pickCategory } from './ledger-helpers';
@@ -49,7 +50,7 @@ test('offline capture survives reload, edits/deletes locally and sends on reconn
 }, info) => {
   const { accountId, panel } = await prepare(page, info);
   await context.setOffline(true);
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(panel).toBeHidden();
   await expect(waiting(page)).toContainText('12,50 €');
   expect(await bookings(page, accountId)).toEqual([]);
@@ -61,7 +62,7 @@ test('offline capture survives reload, edits/deletes locally and sends on reconn
   await waiting(page).getByRole('button', { name: 'Bearbeiten' }).click();
   const edit = page.getByRole('dialog', { name: 'Wartende Buchung bearbeiten' });
   await edit.getByLabel('Betrag', { exact: true }).fill('13,75');
-  await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(edit).click();
   await expect(edit).toBeHidden();
   await expect(waiting(page)).toContainText('13,75 €');
   // Capture also works after a cold offline restart, using form choices without balances.
@@ -70,7 +71,7 @@ test('offline capture survives reload, edits/deletes locally and sends on reconn
   await next.getByLabel('Bezahlt von', { exact: true }).selectOption(accountId);
   await next.getByLabel('Betrag', { exact: true }).fill('2,00');
   await pickCategory(next, 'Essen');
-  await next.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(next).click();
   await expect(waiting(page).locator('li')).toHaveCount(2);
   await waiting(page).locator('li').last().getByRole('button', { name: 'Löschen' }).click();
   await expect(waiting(page).locator('li')).toHaveCount(1);
@@ -114,7 +115,7 @@ test('lost POST response retries the same key with no duplicate booking', async 
     } else if (!recovered) await route.abort('failed');
     else await route.continue();
   });
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(waiting(page)).toContainText('Serverempfang unklar');
   await expect(waiting(page).getByRole('button', { name: 'Bearbeiten' })).toBeDisabled();
   recovered = true;
@@ -131,7 +132,7 @@ test('closed-account conflict and expired session retain the capture until retry
 }, info) => {
   const { accountId, panel } = await prepare(page, info);
   await context.setOffline(true);
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(waiting(page)).toContainText('Queue shop');
   const close = await page.request.post(`/api/accounts/${accountId}/close`, {
     headers: { origin: MAIN_URL },

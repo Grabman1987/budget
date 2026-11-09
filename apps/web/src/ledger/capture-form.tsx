@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -219,8 +220,53 @@ export function CaptureForm({
   const saving = useRef(false);
   const isPhone = useIsPhone();
   const mobileRedesign = REDESIGN_ENABLED && isPhone;
+  const amountMeasure = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    if (!mobileRedesign) return;
+    const input = formRef.current?.querySelector<HTMLInputElement>(
+      '.bk-amount-primary .amount-input',
+    );
+    const measure = amountMeasure.current;
+    if (!input || !measure) return;
+    const fit = () => {
+      const width = measure.getBoundingClientRect().width;
+      const available = input.clientWidth - 4; // Leave space for the native caret.
+      if (width > 0 && available > 0) {
+        const base = Number.parseFloat(getComputedStyle(measure).fontSize);
+        input.style.fontSize = `${base * Math.min(1, available / width)}px`;
+        input.scrollLeft = 0;
+      }
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(input);
+    observer.observe(measure);
+    return () => {
+      observer.disconnect();
+      input.style.removeProperty('font-size');
+    };
+  }, [mobileRedesign, draft.amount]);
   const amountInputEvent = useRef<InputEvent | null>(null);
-  const [amountInteracted, setAmountInteracted] = useState(false);
+  useEffect(() => {
+    if (!mobileRedesign) return;
+    let frame = 0;
+    const release = (event: PointerEvent | FocusEvent) => {
+      const form = formRef.current;
+      if (!form || form.dataset.amountPointer === undefined) return;
+      if ('pointerId' in event && form.dataset.amountPointer !== String(event.pointerId)) return;
+      frame = requestAnimationFrame(() => delete form.dataset.amountPointer);
+    };
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
+    window.addEventListener('blur', release);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('pointerup', release);
+      window.removeEventListener('pointercancel', release);
+      window.removeEventListener('blur', release);
+      if (formRef.current) delete formRef.current.dataset.amountPointer;
+    };
+  }, [mobileRedesign]);
   const [moreOpen, setMoreOpen] = useState(
     !REDESIGN_ENABLED && Boolean(draft.projectId || draft.flag),
   );
@@ -340,8 +386,7 @@ export function CaptureForm({
   const lineProblem = !lineValidation.ok ? lineValidation.errors.splits : undefined;
   const blocked = !isTransfer && Boolean(lineProblem);
   const showLineProblem =
-    blocked &&
-    (Boolean(draft.amount.trim() || errors.splits) || (mobileRedesign && amountInteracted));
+    blocked && (mobileRedesign || Boolean(draft.amount.trim() || errors.splits));
   const splitError = errors.splits === REMAINDER_SAVE_ERROR && !blocked ? undefined : errors.splits;
 
   const draftDirty = queued
@@ -491,7 +536,6 @@ export function CaptureForm({
 
   const save = async (andNew: boolean) => {
     if (saving.current) return;
-    setAmountInteracted(true);
     if (!editing && !from) return setErrors({ account: 'Bitte ein verfügbares Konto wählen.' });
     if (blocked) return setErrors({ splits: REMAINDER_SAVE_ERROR });
     const filled = {
@@ -567,7 +611,6 @@ export function CaptureForm({
         projectId: d.projectId,
       }));
       setErrors({});
-      setAmountInteracted(false);
       requestAnimationFrame(() =>
         formRef.current?.querySelector<HTMLElement>('.amount-input')?.focus(),
       );
@@ -691,7 +734,7 @@ export function CaptureForm({
   const shownStatus = manualPair ? bankStatus : effectiveStatus;
   const bankAccount = manualPair?.cashSide === 'from' ? to : from;
   const cashAccount = manualPair?.cashSide === 'from' ? from : to;
-  const moreSummary = [draft.projectId && 'Projekt', draft.flag && 'Markierung']
+  const moreSummary = [draft.projectId && 'Projekt', !mobileRedesign && draft.flag && 'Markierung']
     .filter(Boolean)
     .join(', ');
   const statusControl = (id?: string, describedBy?: string) =>
@@ -831,10 +874,7 @@ export function CaptureForm({
         </span>
       </summary>
       <div className="kform">
-        {REDESIGN_ENABLED && isPhone && !isTransfer && (
-          <FlagPicker title="Markieren" value={draft.flag} onChange={(flag) => set('flag', flag)} />
-        )}
-        {!isTransfer && (
+        {!isTransfer && !mobileRedesign && (
           <Field label="Markierung">
             {({ id }) => (
               <Select
@@ -876,7 +916,7 @@ export function CaptureForm({
   );
   const closeControl = <DialogClose onClick={requestClose} />;
   const kindHeader = (
-    <div className="bk-head">
+    <div className="bk-head" data-kind={draft.kind} data-editing={editing ? 'true' : undefined}>
       {!REDESIGN_ENABLED && !isTransfer && (
         <FlagPicker title="Markieren" value={draft.flag} onChange={(flag) => set('flag', flag)} />
       )}
@@ -899,7 +939,7 @@ export function CaptureForm({
   const amountField = (
     <AmountInput
       label="Betrag"
-      showOperators={false}
+      showOperators={mobileRedesign}
       value={draft.amount}
       onChange={(value) => {
         const event = amountInputEvent.current;
@@ -930,6 +970,80 @@ export function CaptureForm({
     />
   );
 
+  // Phone buttons advertise the same validation used by save(), without changing its writer.
+  const phoneProblem = (() => {
+    if (!mobileRedesign) return undefined;
+    if (!editing && !from) return 'Bitte ein verfügbares Konto wählen.';
+    if (lineProblem) return lineProblem;
+    const { name, known } = typedPayee();
+    const planned = name === '' ? null : (known?.id ?? 'new-payee');
+    const filled = { ...lineDraft, date: parsedDate ?? '', accountId, status: effectiveStatus };
+    const options = { advanceCategoryId, trackingAccountIds };
+    if (editing) {
+      const result = buildPatch(editing, filled, planned, unlock, options);
+      if (!result.ok) return Object.values(result.errors).find(Boolean);
+      return locked && !unlock && touchesLocked(result.value) ? LOCKED : undefined;
+    }
+    const result = buildCreate(filled, planned, {
+      ...options,
+      requireCategory: true,
+      transferNeedsCategory: needsCategory,
+    });
+    return result.ok ? undefined : Object.values(result.errors).find(Boolean);
+  })();
+  const saveBlocked = mobileRedesign ? Boolean(phoneProblem) : blocked;
+  const saveReason = mobileRedesign ? phoneProblem : lineProblem;
+  const showSaveReason = mobileRedesign ? Boolean(phoneProblem) : showLineProblem;
+
+  const saveButton = (
+    <Button
+      type="submit"
+      disabled={busy || saveBlocked}
+      aria-describedby={showSaveReason ? 'booking-save-reason' : undefined}
+    >
+      Speichern
+    </Button>
+  );
+  const formActions = (
+    <div className={mobileRedesign ? 'bk-form-actions' : 'bk-foot'}>
+      {mobileRedesign && saveButton}
+      {REDESIGN_ENABLED && !isPhone && !editing && (
+        <Button variant="ghost" className="bk-cancel" onClick={requestClose}>
+          Abbrechen
+        </Button>
+      )}
+      {editing && (
+        <div className="bk-foot-extra">
+          <Button variant="ghost" onClick={() => void remove()} disabled={busy}>
+            <Trash2 size={16} strokeWidth={1.75} aria-hidden="true" />
+            Löschen
+          </Button>
+        </div>
+      )}
+      {!editing && !queued && (
+        <Button
+          variant="ghost"
+          className={REDESIGN_ENABLED ? 'bk-save-new' : undefined}
+          disabled={busy || saveBlocked}
+          onClick={() => void save(true)}
+        >
+          {REDESIGN_ENABLED && (
+            <Plus className="bk-save-new-icon" size={16} strokeWidth={1.75} aria-hidden="true" />
+          )}
+          <span className={REDESIGN_ENABLED ? 'bk-save-new-label' : undefined}>
+            Speichern und neu
+          </span>
+        </Button>
+      )}
+      {editing && !mobileRedesign && (
+        <Button variant="ghost" onClick={requestClose}>
+          Abbrechen
+        </Button>
+      )}
+      {!mobileRedesign && saveButton}
+    </div>
+  );
+
   return (
     // Keyboard flow is handled once for all fields of the form.
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
@@ -950,7 +1064,12 @@ export function CaptureForm({
       className={`bkform${isTransfer ? '' : ' bk-split-cols'}${REDESIGN_ENABLED ? ' bkform-redesign' : ''}`}
       data-redesign={REDESIGN_ENABLED ? 'booking-editor' : undefined}
       onPointerDown={(event) => {
-        event.currentTarget.dataset.touchFocus = String(event.pointerType === 'touch');
+        const form = event.currentTarget;
+        form.dataset.touchFocus = String(event.pointerType === 'touch');
+        if (mobileRedesign && document.activeElement?.closest('.bk-amount-primary')) {
+          // Keep compact controls stationary from pointerdown through the resulting click.
+          form.dataset.amountPointer = String(event.pointerId);
+        }
       }}
       onKeyDownCapture={(event) => {
         if (event.key === 'Tab') event.currentTarget.dataset.touchFocus = 'false';
@@ -964,10 +1083,9 @@ export function CaptureForm({
     >
       {REDESIGN_ENABLED && (
         <div className="bk-editor-titlebar">
-          {isPhone && closeControl}
           <h2>{editing ? 'Buchung bearbeiten' : 'Buchung erfassen'}</h2>
           <div className="bk-editor-receipt-actions" ref={setReceiptActionsHost} />
-          {!isTransfer && !isPhone && (
+          {!isTransfer && !mobileRedesign && (
             <FlagPicker
               title="Markieren"
               value={draft.flag}
@@ -975,7 +1093,7 @@ export function CaptureForm({
             />
           )}
           {moreFields}
-          {!isPhone && closeControl}
+          {closeControl}
           {!editing && <ReceiptSection uploadOnly actionsHost={receiptActionsHost} />}
         </div>
       )}
@@ -994,8 +1112,11 @@ export function CaptureForm({
         {locked && (
           <div className="kdiff is-ok" role="note">
             <span>
-              Diese Buchung ist <strong>geprüft</strong>. Nur Markierung und Notiz sind frei; alles
-              andere braucht deine Freigabe.
+              Diese Buchung ist <strong>geprüft</strong>.{' '}
+              {mobileRedesign
+                ? 'Nur die Notiz ist frei; alles andere'
+                : 'Nur Markierung und Notiz sind frei; alles andere'}{' '}
+              braucht deine Freigabe.
             </span>
             <label className="kcheck">
               <input
@@ -1009,17 +1130,11 @@ export function CaptureForm({
         )}
         <div className="bk-cols">
           <div className="bk-col-head">
+            {mobileRedesign && kindHeader}
             {REDESIGN_ENABLED ? (
               <div
                 className="bk-amount-primary"
                 data-kind={draft.kind}
-                style={
-                  mobileRedesign
-                    ? ({
-                        '--capture-amount-width': `${Math.max(4, draft.amount.length)}ch`,
-                      } as React.CSSProperties)
-                    : undefined
-                }
                 onInputCapture={(event) => {
                   amountInputEvent.current = event.nativeEvent as InputEvent;
                 }}
@@ -1036,12 +1151,18 @@ export function CaptureForm({
                 }}
               >
                 {amountField}
+                {mobileRedesign && (
+                  <span className="bk-amount-measure-clip" aria-hidden="true">
+                    <span className="bk-amount-measure" ref={amountMeasure}>
+                      {draft.amount || '0,00'}
+                    </span>
+                  </span>
+                )}
                 {!isTransfer && !mobileRedesign && statusControl()}
               </div>
             ) : (
               amountField
             )}
-            {mobileRedesign && kindHeader}
             {!isTransfer && (
               <div className="bk-payee">
                 {mobileRedesign && (
@@ -1244,6 +1365,16 @@ export function CaptureForm({
           ) : (
             <ReceiptSection bookingId={editing.id} />
           ))}
+        {mobileRedesign && showSaveReason && (
+          <p
+            id="booking-save-reason"
+            className={errors.splits ? 'bk-save-reason' : 'bk-save-hint'}
+            role="status"
+          >
+            {saveReason}
+          </p>
+        )}
+        {mobileRedesign && formActions}
         <p className={REDESIGN_ENABLED ? 'khint sr-only' : 'khint'} aria-hidden="true">
           {CAPTURE_SHORTCUT_HINT}
         </p>
@@ -1310,53 +1441,24 @@ export function CaptureForm({
           )}
         </div>
       )}
-      {showLineProblem && (
+      {!mobileRedesign && showLineProblem && (
         <p id="booking-save-reason" className="bk-save-reason" role="status">
           {lineProblem}
         </p>
       )}
-      <div className="bk-foot">
-        {REDESIGN_ENABLED && !editing && (
-          <Button variant="ghost" className="bk-cancel" onClick={requestClose}>
-            Abbrechen
-          </Button>
-        )}
-        {editing && (
-          <div className="bk-foot-extra">
-            <Button variant="ghost" onClick={() => void remove()} disabled={busy}>
-              <Trash2 size={16} strokeWidth={1.75} aria-hidden="true" />
-              Löschen
-            </Button>
-          </div>
-        )}
-        {!editing && !queued && (
-          <Button
-            variant="ghost"
-            className={REDESIGN_ENABLED ? 'bk-save-new' : undefined}
-            disabled={busy || blocked}
-            onClick={() => void save(true)}
-          >
-            {REDESIGN_ENABLED && (
-              <Plus className="bk-save-new-icon" size={16} strokeWidth={1.75} aria-hidden="true" />
-            )}
-            <span className={REDESIGN_ENABLED ? 'bk-save-new-label' : undefined}>
-              Speichern und neu
-            </span>
-          </Button>
-        )}
-        {editing && (
-          <Button variant="ghost" onClick={requestClose}>
-            Abbrechen
-          </Button>
-        )}
+      {!mobileRedesign && formActions}
+      {mobileRedesign && (
         <Button
+          className="bk-keyboard-save"
           type="submit"
-          disabled={busy || blocked}
-          aria-describedby={showLineProblem ? 'booking-save-reason' : undefined}
+          aria-label="Buchung speichern"
+          disabled={busy || saveBlocked}
+          aria-describedby={showSaveReason ? 'booking-save-reason' : undefined}
+          onMouseDown={(event) => event.preventDefault()}
         >
-          Speichern
+          <Check size={20} strokeWidth={1.5} aria-hidden="true" />
         </Button>
-      </div>
+      )}
     </form>
   );
 }

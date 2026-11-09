@@ -221,10 +221,8 @@ test('inspector discloses month figures and reuses category writes, quick values
   });
   // Phone mode persists until explicitly ended; desktop keeps its original outside-click check.
   if (page.viewportSize()!.width < 768) await exitPhoneSelection(page);
-  // Any toolbar control outside the selection is an outside click: Optionen ▾ (opened, then closed).
-  const optionen = page.locator('.plan-menu summary', { hasText: 'Optionen' });
-  await optionen.click();
-  await optionen.click();
+  // Toolbar actions retain the selection; the page heading is outside the working grid.
+  await page.getByRole('heading', { name: 'Oktober 2026', exact: true }).click();
   await expect(inspector.locator('.inspector-section[open]')).toHaveCount(2);
   await expect(inspector.locator('.inspector-section[open] > summary')).toHaveText([
     'Monatsaufstellung',

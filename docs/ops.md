@@ -1230,7 +1230,7 @@ node /app/migrate-cli.js bank-inbox apply --file /data/migration/decisions.json
 
 ### 12.11 Contact allocation and credit decisions (operator task)
 
-`contact-allocate --file <json> [--dry-run] [--details]` applies explicit owner decisions
+`contact-allocate --file <json> [--dry-run] [--details] [--unlock]` applies explicit owner decisions
 by contact, receipt split and outlay split IDs. It calls the same allocation and credit
 writers as the contact statement. No names are resolved or historical categories guessed.
 Use an owner-approved file in operator-controlled storage; real IDs and financial data
@@ -1248,6 +1248,11 @@ Synthetic file shape:
 ```json
 {
   "entries": [
+    {
+      "action": "adopt",
+      "contactId": "example-contact",
+      "receiptSplitId": "example-repayment-split"
+    },
     {
       "action": "reallocate",
       "contactId": "example-contact",
@@ -1286,13 +1291,50 @@ Synthetic file shape:
 }
 ```
 
+`adopt` explicitly records the current settlement and its category-return baseline
+for a legacy repayment. It changes no bank or budget figures and guesses no category.
+Allocated legacy cents without a proven category inflow are recorded separately as
+unreturned, never as money already refunded. Releasing them creates no negative
+category correction; a later explicit category allocation can record its return on
+the decision date. Other receipts retain their own original state.
+Run it before reallocating a pre-model recorded repayment (`adoption_required`).
+Floating receipts without settlement rows are adopted within `reallocate` itself.
+Adoption and later changes remain auditable and undoable, including restoration of
+unrecorded historical statements. Adoption must not be undone before a dependent edit.
+
+`waive` accepts `contactId`, `outlaySplitId`, positive integer `amountCents` and an
+optional `categoryId`. It records “Geschenk an Kontakt” on the run date as a zero-cash
+booking. Only the outstanding portion may be waived. A shared purchase retains its
+original category (a conflicting category is refused); a standalone Auslagen share
+requires an explicit expense category. For example:
+
+```json
+{"entries":[{"action":"waive","contactId":"example-contact","outlaySplitId":"example-outlay","amountCents":299,"categoryId":"example-expense-category"}]}
+```
+
+A 1,001-cent share with 701 cents repaid and 299 cents waived leaves 1 cent owed.
+The source bank amount, date, account and status remain unchanged. Existing ordinary
+category spending is not charged twice. Historical statements before the decision
+retain the original claim. Waivers create no income; existing envelope carry rules
+apply to a newly categorized standalone Auslagen share. The current net-worth model
+excludes contact claims, so this zero-cash waiver does not change that account-based
+figure (see SPEC).
+
 `reallocate` replaces the chosen repayment's allocation with the submitted outlay IDs
-and positive integer-cent amounts. Already identical allocations are `unchanged`.
+and positive integer-cent amounts. Partial allocations or `allocations: []` deliberately
+leave credit while outlays remain open. Existing automatic uses are released and
+later purchases are pinned so the same cents are not silently consumed again.
+Already identical allocations without releasable automatic uses are `unchanged`.
 `credit` chooses a portion of one credit source: `category` requires a live expense
 `categoryId`, `gift` may specify an open EUR budget `accountId`, and `free` has no
 category. Gifts default to the source account when no account is specified. The same
 writer can release the necessary automatic credit uses before applying the choice.
-Reconciled bookings remain locked; this command has no implicit unlock option.
+Without `--unlock`, a reconciled affected booking refuses with `reconciled_locked`.
+`--unlock` authorizes only allocation/credit/adoption/waiver changes in this run and
+records the decision under `contacts.allocation-unlock.<group-id>` in the same audit
+group. It never changes bank amount, date, account or reconciliation status. Undo/redo
+of that group retains this bounded authorization; bank edits and source dependencies
+remain guarded. The UI requires explicit confirmation for the same override.
 Balances and net worth stay unchanged. The existing SPEC rules determine category
 returns and the explicit gift's income/Zu verteilen effect.
 
@@ -1302,7 +1344,8 @@ the current state and use `undo-group` to reverse a run before intentionally ret
 it. Invalid file structure, unknown fields, invalid dates and non-integer cents are
 rejected before any entries run. Per-entry refusal codes are `unknown_contact`,
 `invalid_receipt`, `invalid_outlay`, `future_decision`, `reconciled_locked`,
-`invalid_allocation`, `invalid_credit_choice`, `conflict` and `not_found`.
+`adoption_required`, `invalid_adoption`, `invalid_waiver`, `invalid_allocation`,
+`invalid_credit_choice`, `conflict` and `not_found`.
 Any skipped entry sets exit code 3. Output contains entry positions, actions, counts,
 codes and group IDs; `--details` adds fixed explanations without names, amounts,
 submitted IDs or raw database errors.
@@ -1310,6 +1353,7 @@ submitted IDs or raw database errors.
 ```bash
 node /app/migrate-cli.js contact-allocate --file /data/migration/contact-decisions.json --dry-run --details
 node /app/migrate-cli.js contact-allocate --file /data/migration/contact-decisions.json --details
+node /app/migrate-cli.js contact-allocate --file /data/migration/contact-decisions.json --unlock --dry-run --details
 node /app/migrate-cli.js undo-group --group <group-id> --dry-run
 node /app/migrate-cli.js undo-group --group <group-id>
 ```

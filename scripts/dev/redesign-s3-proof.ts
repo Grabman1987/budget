@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, type Locator, type Page, type Request } from '@playwright/test';
-import { MIN_TARGET_PX } from '../../e2e/ledger-helpers';
+import { captureCloseControl, MIN_TARGET_PX } from '../../e2e/ledger-helpers';
 import { minimumControlHeight } from '../../e2e/control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 
@@ -279,7 +279,7 @@ export async function verifyRedesignShell(
   await page.keyboard.press('n');
   const capture = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
   await expect(capture).toBeVisible();
-  await capture.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await captureCloseControl(capture).click();
   await expect(capture).toBeHidden();
   const navigation = page.getByRole('navigation', {
     name: phone ? 'Hauptnavigation' : 'Planliste',
@@ -395,12 +395,20 @@ export async function verifyRedesignShell(
       const control = dialog.getByRole('button', { name, exact: true });
       await control.focus();
       await expect(control).toBeFocused();
-      const bounds = await rect(control);
-      const clip = await rect(dialog.locator('.global-search-popup'));
-      expect(bounds.y).toBeGreaterThanOrEqual(Math.max(0, clip.y) - 0.5);
-      expect(bounds.y + bounds.height).toBeLessThanOrEqual(
-        Math.min(viewport.height, clip.y + clip.height) + 0.5,
-      );
+      // WebKit can finish native focus scrolling after activeElement has changed.
+      // Retry the same clipping bounds; a permanently hidden target still fails.
+      await expect
+        .poll(() =>
+          control.evaluate((element) => {
+            const bounds = element.getBoundingClientRect();
+            const clip = element.closest('.global-search-popup')!.getBoundingClientRect();
+            return (
+              bounds.top >= Math.max(0, clip.top) - 0.5 &&
+              bounds.bottom <= Math.min(innerHeight, clip.bottom) + 0.5
+            );
+          }),
+        )
+        .toBe(true);
     }
     await input.focus();
     await input.fill('Wiederkehrende Zahlungen');
