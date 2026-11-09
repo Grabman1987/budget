@@ -37,7 +37,7 @@ import {
   upcoming,
   versionSuggestions,
 } from './expected';
-import { monthIncomeBooked } from './month-reports';
+import { monthIncomeBooked, monthIncomeReport } from './month-reports';
 import { INCOME_TYPES } from '../schema';
 import { forecastInputs, loadFacts, scheduled } from './rule-inputs';
 import { readPaymentLifecycles } from './expected-lifecycle-invariants';
@@ -468,6 +468,111 @@ describe('monthIncomeBooked', () => {
       }),
     ]);
     expect(monthIncomeBooked(db, TODAY, '2026-04').receivedCents).toBe(0);
+  });
+});
+
+describe('monthIncomeBooked follow-ups (#1020)', () => {
+  const split = (amountCents: number, incomeTypeId: string) => ({
+    categoryId: null,
+    amountCents,
+    incomeTypeId,
+  });
+  const book = (
+    date: string,
+    amountCents: number,
+    splits: Array<Record<string, unknown>> = [split(amountCents, INCOME_TYPES.salary.id)],
+  ) =>
+    createBooking(
+      db,
+      { accountId: 'giro', date, amountCents, payeeId: 'p1', splits: splits as never },
+      ctx,
+    );
+  const expectPayment = (name: string, typeId: string, amountCents: number, dueDay = 1) =>
+    createExpectedPayment(
+      db,
+      { name, kind: 'inflow', accountId: 'giro', payeeId: 'p1', incomeTypeId: typeId, dueDay },
+      { validFrom: '2026-01-01', amountCents },
+      ctx,
+      TODAY,
+    );
+  const sameAsReport = (month: string) => {
+    const got = monthIncomeBooked(db, TODAY, month);
+    const report = monthIncomeReport(db, TODAY, month).income;
+    expect(got.receivedCents).toBe(report.earnedCents);
+    expect(
+      got.byIncomeType
+        .filter((t) => t.receivedCents !== 0)
+        .map((t) => [t.incomeTypeId, t.receivedCents]),
+    ).toEqual(report.types.map((t) => [t.typeId, t.cents]));
+    return got;
+  };
+
+  it('keeps expected capital and refund lines with status, but out of the totals', () => {
+    expectPayment('Gehalt', INCOME_TYPES.salary.id, 200_000);
+    expectPayment('Zinsen', INCOME_TYPES.capital.id, 5_000, 2);
+    expectPayment('Rückerstattung', INCOME_TYPES.refund.id, 1_000, 3);
+    matchOccurrences(db, TODAY);
+    const income = monthIncomeBooked(db, TODAY, '2026-03');
+    expect(income.byPayment.map((l) => l.name).sort()).toEqual([
+      'Gehalt',
+      'Rückerstattung',
+      'Zinsen',
+    ]);
+    expect(income.byPayment.find((l) => l.name === 'Zinsen')?.status).toBe('missed');
+    expect(income.expectedCents).toBe(200_000);
+    expect(income.byIncomeType.map((t) => t.incomeTypeId)).toEqual([INCOME_TYPES.salary.id]);
+  });
+
+  it('treats a reversal (-300 against +1000) exactly like the report', () => {
+    book('2026-03-05', 100_000, [split(100_000, INCOME_TYPES.side.id)]);
+    book('2026-03-06', -30_000, [split(-30_000, INCOME_TYPES.side.id)]);
+    const got = sameAsReport('2026-03');
+    // The ledger counts only positive income splits; the outflow is spending, so +1000 stays.
+    expect(got.receivedCents).toBe(100_000);
+    expect(got.byIncomeType[0]).toMatchObject({ receivedCents: 100_000 });
+  });
+
+  it('leaves a booking after today out of total and line, like the report', () => {
+    expectPayment('Gehalt', INCOME_TYPES.salary.id, 200_000, 25);
+    const early = book('2026-03-10', 50_000, [split(50_000, INCOME_TYPES.side.id)]);
+    const late = book('2026-03-28', 200_000);
+    const occ = db
+      .select()
+      .from(expectedOccurrence)
+      .where(eq(expectedOccurrence.dueDate, '2026-03-25'))
+      .all()[0]!;
+    linkOccurrence(db, occ.id, late, ctx);
+    expect(early).toBeTruthy();
+    const got = sameAsReport('2026-03');
+    expect(got.receivedCents).toBe(50_000);
+    expect(got.byPayment[0]?.receivedCents).toBe(0);
+    expect(got.byPayment.reduce((a, l) => a + l.receivedCents, 0)).toBeLessThanOrEqual(
+      got.receivedCents,
+    );
+  });
+
+  it('counts only the income splits of a linked booking, not its contact part', () => {
+    expectPayment('Gehalt', INCOME_TYPES.salary.id, 100_000, 10);
+    const id = book('2026-03-10', 130_000, [
+      split(100_000, INCOME_TYPES.salary.id),
+      { categoryId: 'auslagen', contactId: 'k1', amountCents: 30_000 },
+    ]);
+    const occ = db
+      .select()
+      .from(expectedOccurrence)
+      .where(eq(expectedOccurrence.dueDate, '2026-03-10'))
+      .all()[0]!;
+    linkOccurrence(db, occ.id, id, ctx);
+    const got = sameAsReport('2026-03');
+    expect(got.receivedCents).toBe(100_000);
+    expect(got.byPayment[0]?.receivedCents).toBe(100_000);
+  });
+
+  it('matches the report for a past month and a future month is empty', () => {
+    book('2026-02-10', 80_000, [split(80_000, INCOME_TYPES.side.id)]);
+    book('2026-02-12', 3_000, [split(3_000, INCOME_TYPES.capital.id)]);
+    sameAsReport('2026-02');
+    expect(monthIncomeBooked(db, TODAY, '2026-05').receivedCents).toBe(0);
   });
 });
 

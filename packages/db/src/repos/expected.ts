@@ -1261,6 +1261,8 @@ export interface MonthIncomeLine {
   status: OccurrenceRow['status'];
   expectedCents: number;
   receivedCents: number;
+  /** The linked booking, if any. */
+  bookingId: string | null;
 }
 
 export interface MonthIncome {
@@ -1293,6 +1295,7 @@ export function monthIncome(db: Executor, month: string): MonthIncome {
     status: r.status,
     expectedCents: r.amountCents,
     receivedCents: r.bookedAmountCents ?? 0,
+    bookingId: r.bookingId,
   }));
   const types = new Map<string, MonthIncome['byIncomeType'][number]>();
   for (const line of byPayment) {
