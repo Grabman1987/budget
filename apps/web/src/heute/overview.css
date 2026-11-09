@@ -9,28 +9,6 @@
   padding: 10px 28px 28px;
   row-gap: 12px;
 }
-.topbar:has(.hv-head) {
-  background: var(--ground);
-  backdrop-filter: none;
-}
-.topbar:has(.hv-head) .topbar-inner {
-  max-width: none;
-  padding-inline: 28px;
-  gap: 8px;
-}
-.topbar:has(.hv-head) .search {
-  flex: none;
-  width: 44px;
-}
-.topbar:has(.hv-head) .global-search-launch {
-  width: 44px;
-  min-width: 44px;
-  padding: 0;
-  justify-content: center;
-}
-.topbar:has(.hv-head) .global-search-launch .kbd {
-  display: none;
-}
 .hv-head {
   display: flex;
   align-items: center;
@@ -518,12 +496,6 @@
   .hv-head .seg button {
     min-width: 70px;
   }
-  .topbar:has(.hv-head) .topbar-inner {
-    padding-inline: 16px;
-  }
-  .topbar:has(.hv-head) .topbar-actions {
-    gap: 4px;
-  }
 }
 @media (max-width: 767px) {
   .sheet:has(> .heute-screen),
@@ -698,15 +670,6 @@
   .hv-source-note a {
     min-height: 44px;
   }
-}
-
-.topbar:has(.hv-head) .global-search-launch > span:not(.kbd) {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 .hv-head .month-switch .icon-btn {
   width: 44px;

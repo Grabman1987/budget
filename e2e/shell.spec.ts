@@ -452,7 +452,8 @@ test.describe('desktop shell', () => {
     const topbar = await page.locator('.topbar').boundingBox();
     const search = await page.locator('.search').boundingBox();
     expect(Math.round(sidebar?.width ?? 0)).toBe(236);
-    expect(Math.round(topbar?.height ?? 0)).toBe(64);
+    const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+    expect(Math.round(topbar?.height ?? 0)).toBe(redesign ? 117 : 64);
     expect(Math.round(search?.width ?? 0)).toBeLessThanOrEqual(460);
     await expect(page.locator('.tabbar')).toBeHidden();
     await expect(page.locator('.m-head')).toBeHidden();
@@ -616,7 +617,7 @@ test.describe('phone shell', () => {
     const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     await (
       redesign
-        ? page.locator('.konten-review-count')
+        ? page.locator('.page-header .review-pill')
         : page.locator('.m-status').getByRole('link', { name: '4 zu prüfen' })
     ).click();
     await expect(page).toHaveURL(/\/konten\/pruefen/);

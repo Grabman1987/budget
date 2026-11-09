@@ -8,12 +8,14 @@ import { useCaptureShortcut } from './capture-shortcut';
 import { PanelHost } from './panel-host';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
+import { PageHeader } from './page-header';
+import { areaById } from '../nav/areas';
 import { useStoredFlag } from './use-stored-flag';
 import { useSidebarWidth } from './use-sidebar-width';
 import { QueueList } from '../pwa/queue-ui';
 import { useStorageProtection } from '../pwa/storage-protection';
 import { usePrivacyShortcut } from './privacy-button';
-import { OfflineStatus } from './header-status';
+import { MobileStatusLine, OfflineStatus } from './header-status';
 import { HeuteShellHead } from '../heute/overview';
 import { HeuteSourceReturn } from '../heute/return-context';
 import { REDESIGN_ENABLED } from './redesign-flag';
@@ -43,6 +45,7 @@ export function AppShell() {
       analysis &&
       (pathname === '/vermoegen/nettovermoegen' || pathname === '/vermoegen/portfolio')
     );
+  const kontenPageHeading = page?.area === 'konten' && !pathname.startsWith('/konten/kontakte');
   const [searchOpen, setSearchOpen] = useState(false);
   const searching = searchOpen || pathname === '/suche';
   const area = searching ? undefined : page?.area;
@@ -79,22 +82,42 @@ export function AppShell() {
             collapsed={collapsed}
           />
           <div className="main">
-            <Topbar
-              leading={
-                REDESIGN_ENABLED && (pathname === '/' || pathname.startsWith('/heute/details/')) ? (
-                  <HeuteShellHead />
-                ) : undefined
-              }
-              {...(REDESIGN_ENABLED && area === 'plan' ? { title: 'Plan' } : {})}
-              collapsed={collapsed}
-              onToggle={() => setCollapsed(!collapsed)}
-              onSearchChange={setSearchOpen}
-            />
-            <MobileHeader
-              title={searching ? 'Suchen' : phoneTitle(page, title)}
-              asHeading={!(page && TITLE_ON_MOBILE_AREAS.has(page.area)) && !wealthPageHeading}
-              onSearchChange={setSearchOpen}
-            />
+            {REDESIGN_ENABLED && page && page.area !== 'einstellungen' ? (
+              <PageHeader
+                title={searching ? 'Suchen' : areaById(page.area).label}
+                mobileTitle={searching ? 'Suchen' : phoneTitle(page, title)}
+                showProfile={pathname === '/'}
+                mobileHeading={
+                  !TITLE_ON_MOBILE_AREAS.has(page.area) && !wealthPageHeading && !kontenPageHeading
+                }
+                controls={
+                  pathname === '/' || pathname.startsWith('/heute/details/') ? (
+                    <HeuteShellHead />
+                  ) : undefined
+                }
+                collapsed={collapsed}
+                onToggle={() => setCollapsed(!collapsed)}
+                onSearchChange={setSearchOpen}
+              />
+            ) : (
+              <>
+                <Topbar
+                  collapsed={collapsed}
+                  onToggle={() => setCollapsed(!collapsed)}
+                  onSearchChange={setSearchOpen}
+                />
+                <MobileHeader
+                  title={searching ? 'Suchen' : phoneTitle(page, title)}
+                  asHeading={!(page && TITLE_ON_MOBILE_AREAS.has(page.area)) && !wealthPageHeading}
+                  onSearchChange={setSearchOpen}
+                />
+              </>
+            )}
+            {REDESIGN_ENABLED &&
+              page &&
+              page.area !== 'einstellungen' &&
+              pathname !== '/' &&
+              !kontenPageHeading && <MobileStatusLine />}
             <OfflineStatus />
             <main className="sheet" id="main" tabIndex={-1} ref={main}>
               {(page?.area === 'heute' || page?.area === 'konten') && <QueueList />}

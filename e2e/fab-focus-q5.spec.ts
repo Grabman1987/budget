@@ -143,14 +143,10 @@ test('detail has one name, one return path and keyboard-only focus in both theme
         await page.evaluate(() => document.fonts.ready);
         const badge = page.getByTestId('account-review-badge');
         if (phoneAccount) {
-          for (const next of [
-            page.locator('#global-search-mobile'),
-            page.locator('.konten-review-count'),
-            badge,
-          ]) {
-            await page.keyboard.press('Tab');
-            await expect(next).toBeFocused();
-          }
+          // The account heading and page menu now precede the account body;
+          // global utilities remain in the shared header above that heading.
+          await page.keyboard.press('Tab');
+          await expect(badge).toBeFocused();
         } else if (!redesign) await page.keyboard.press('Tab');
         await expect(badge).toBeFocused();
         await expect(focus).toHaveCSS('outline-width', '2px');

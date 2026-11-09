@@ -145,7 +145,9 @@ test.describe('phone layout', () => {
     }
     const header = page.locator('.m-head');
     const menu = header.locator('.m-profile summary');
-    const toggle = header.getByRole('button', { name: 'Beträge verbergen', exact: true });
+    const toggle = header
+      .locator('.m-profile')
+      .getByRole('button', { name: 'Beträge verbergen', exact: true });
     await expect(toggle).toBeHidden();
     const box = await menu.boundingBox();
     expect(box!.width).toBeGreaterThanOrEqual(44);

@@ -1,19 +1,14 @@
 import { ChevronLeft, Info } from 'lucide-react';
 import { useEffect, useSyncExternalStore, useCallback, useRef, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
 import { PageFrame, type PageFrameProps } from '../pages/placeholder-page';
 import { PageMenu } from '../nav/page-menu';
 import { areaById } from '../nav/areas';
 import { AppLink } from '../shell/app-link';
 import { MobileStatusLine } from '../shell/header-status';
-import { useInboxCount } from '../shell/inbox';
-import { InboxHeaderLink } from '../inbox/navigation';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { useIsPhone } from '@budget/ui';
 import './konten-frame.css';
 import { longDay } from './format';
-
-type Slots = { desktop: Element | null; phone: Element | null; header: Element | null };
 
 type KontenFrameProps = PageFrameProps & {
   view: 'overview' | 'account' | 'bookings' | 'inbox';
@@ -51,18 +46,12 @@ function RedesignKontenFrame({
   children,
   ...props
 }: KontenFrameProps) {
-  const slots: Slots = {
-    desktop: useDomSlot('.topbar-inner'),
-    phone: useDomSlot('.m-head .m-title'),
-    header: useDomSlot('.m-head'),
-  };
-  const inbox = useInboxCount();
   const isPhone = useIsPhone();
   const phoneHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    if (isPhone && slots.phone && !document.querySelector('dialog[open]'))
+    if (isPhone && !document.querySelector('dialog[open]'))
       phoneHeading.current?.focus({ preventScroll: true });
-  }, [isPhone, slots.phone, phoneTitle]);
+  }, [isPhone, phoneTitle]);
   const inHead = view === 'overview' || view === 'account';
   const menu = (
     <PageMenu
@@ -70,12 +59,6 @@ function RedesignKontenFrame({
       current={props.meta.register ?? ''}
       iconOnly={inHead && isPhone}
     />
-  );
-  const desktopHead = (
-    <div className="konten-desktop-heading">
-      <h1>Konten</h1>
-      {inHead && (!isPhone || !slots.phone) && menu}
-    </div>
   );
   const phoneHead = (
     <div className={`konten-phone-heading${view === 'account' ? ' is-account' : ''}`}>
@@ -94,15 +77,14 @@ function RedesignKontenFrame({
     <div
       className={`konten-frame konten-frame-${view}${view === 'inbox' ? ' inbox-redesign' : ''}`}
     >
-      {slots.desktop ? createPortal(desktopHead, slots.desktop) : desktopHead}
-      {slots.phone && createPortal(phoneHead, slots.phone)}
-      {slots.header &&
-        createPortal(
-          <InboxHeaderLink className="konten-review-count" aria-label={inbox.label}>
-            {inbox.count ?? '?'}
-          </InboxHeaderLink>,
-          slots.header,
-        )}
+      {view === 'account' && isPhone ? (
+        phoneHead
+      ) : (
+        <h1 className="sr-only">{view === 'account' ? 'Konten' : (phoneTitle ?? 'Konten')}</h1>
+      )}
+      {inHead && (
+        <div className="konten-view-bar">{!isPhone || view !== 'account' ? menu : null}</div>
+      )}
       {!inHead && (
         <div className="konten-view-bar">
           {menu}
