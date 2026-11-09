@@ -59,6 +59,20 @@
 .hv-head-phone {
   display: none;
 }
+/* ON, desktop/tablet: compact 34px segments (outer 38px) keep the 64px header. */
+@media (min-width: 768px) {
+  .hv-head .seg-slide {
+    --seg-pad: 1px;
+  }
+  .hv-head .seg.seg.seg-slide {
+    padding: var(--seg-pad);
+  }
+  .hv-head .seg-slide button {
+    height: 34px;
+    min-height: 34px;
+    padding-inline: 12px;
+  }
+}
 .hv-top,
 .hv-grid {
   display: grid;
@@ -985,9 +999,62 @@
   .hv-head-phone .month-switch .month-now {
     margin-left: 0;
   }
-  .hv-head-phone .seg-slide button {
+  :root:not(:has([data-budget-redesign='1'])) .hv-head-phone .seg {
+    position: relative;
+    border: 0;
+    padding: 0 2px;
+    gap: 0;
+    isolation: isolate;
+  }
+  :root:not(:has([data-budget-redesign='1'])) .hv-head-phone .seg::before {
+    content: '';
+    position: absolute;
+    inset: 4px 0;
+    border-radius: var(--radius-md);
+    background: var(--quiet-soft);
+    box-shadow: inset 0 0 0 1px var(--rule);
+    z-index: -1;
+  }
+  :root:not(:has([data-budget-redesign='1'])) .hv-head-phone .seg button {
+    position: relative;
     min-width: 44px;
-    padding-inline: 12px;
+    min-width: 44px;
+    padding-inline: 2px;
+    font-size: var(--fs-label);
+    white-space: nowrap;
+    background: transparent;
+    color: var(--ink-2);
+  }
+  :root:not(:has([data-budget-redesign='1'])) .hv-head-phone .seg button[aria-pressed='true'] {
+    color: var(--ink);
+    font-weight: 650;
+  }
+  :root:not(:has([data-budget-redesign='1']))
+    .hv-head-phone
+    .seg
+    button[aria-pressed='true']::before {
+    content: '';
+    position: absolute;
+    inset: 6px 0;
+    background: var(--surface);
+    border-radius: var(--radius-xs);
+    box-shadow: var(--card-shadow);
+    z-index: -1;
+  }
+  /* ON: the global 44px touch floor sizes the buttons, so the track outline is an inset shadow
+     (no border or padding) and the control is exactly 44px tall. */
+  .hv-head-phone .seg-slide {
+    --seg-pad: 0px;
+    --seg-gap: 0px;
+  }
+  .hv-head-phone .seg.seg.seg-slide {
+    padding: 0;
+    border: 0;
+    box-shadow: inset 0 0 0 var(--stroke-hairline) var(--rule-strong);
+  }
+  .hv-head-phone .seg-slide button {
+    min-width: 0;
+    padding-inline: 2px;
     font-size: var(--fs-label);
   }
   .heute-screen {
@@ -1114,5 +1181,22 @@
 @media (min-width: 980px) {
   [data-heute-detail='wealth'] .heute-explanation > :is([role='status'], [role='alert']) {
     grid-column: 1 / -1;
+  }
+}
+
+/* ON, touch tablets: same 44px control as the phone. */
+@media (min-width: 768px) and (pointer: coarse) {
+  .hv-head .seg-slide {
+    --seg-pad: 0px;
+    --seg-gap: 0px;
+  }
+  .hv-head .seg.seg.seg-slide {
+    padding: 0;
+    border: 0;
+    box-shadow: inset 0 0 0 var(--stroke-hairline) var(--rule-strong);
+  }
+  .hv-head .seg-slide button {
+    height: 44px;
+    min-height: 44px;
   }
 }

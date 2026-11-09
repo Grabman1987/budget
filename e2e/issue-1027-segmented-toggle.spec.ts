@@ -66,7 +66,9 @@ test.describe('Heute Zeitraum toggle at 390', () => {
       );
       await expectPillUnderSelected(group);
       await expectLabelsUnclipped(group);
-      await expect(group).toHaveCSS('border-top-width', '1px');
+      // Visible track outline (inset shadow on the phone) and one 44px row with the month switch.
+      await expect(group).not.toHaveCSS('box-shadow', 'none');
+      expect((await box(group)).height).toBe(44);
     });
   }
 });
@@ -115,4 +117,16 @@ test.describe('capture sheet header at 390', () => {
     const kindBox = await box(kinds);
     expect(kindBox.y).toBeLessThan(head.y + head.height + 40);
   });
+});
+
+test('Heute toggle stays compact in the 64px desktop header', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/?monat=2026-09&period=month');
+  await settle(page);
+  const group = page.locator('.page-header').getByRole('group', { name: 'Zeitraum' });
+  await expect(group).toBeVisible();
+  expect((await box(page.locator('.page-header'))).height).toBe(64);
+  expect((await box(group)).height).toBeLessThanOrEqual(40);
+  await expectPillUnderSelected(group);
+  await expectLabelsUnclipped(group);
 });

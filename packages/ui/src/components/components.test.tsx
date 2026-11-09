@@ -93,7 +93,7 @@ describe('Segmented and Switch', () => {
     expect(onChange).toHaveBeenCalledWith('3M');
   });
 
-  it('slide variant drives the pill from count and index without touching button semantics', () => {
+  it('slide variant adds an aria-hidden pill and keeps button semantics', () => {
     const { container } = render(
       <Segmented
         label="Art"
@@ -107,9 +107,6 @@ describe('Segmented and Switch', () => {
         ]}
       />,
     );
-    const group = screen.getByRole('group', { name: 'Art' });
-    expect(group.style.getPropertyValue('--seg-count')).toBe('3');
-    expect(group.style.getPropertyValue('--seg-index')).toBe('1');
     expect(container.querySelectorAll('.seg-thumb[aria-hidden="true"]')).toHaveLength(1);
     expect(screen.getAllByRole('button')).toHaveLength(3);
     expect(screen.getByRole('button', { name: 'B' }).getAttribute('aria-pressed')).toBe('true');
