@@ -442,14 +442,18 @@
   min-width: 0;
   font-size: var(--fs-table);
 }
-.ktx.ktx-redesign td.kc-run,
-.ktx.ktx-redesign td.kc-run > span {
+.ktx.ktx-redesign td.kc-run {
   color: var(--ink-3);
   font-weight: 400;
 }
 .ktx.ktx-redesign td.kc-run > .kdispo {
   margin-inline-start: 4px;
   white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .ktx.ktx-redesign td.kc-run > .kdispo {
+    display: none;
+  }
 }
 .ktx.ktx-redesign .kcol-run.has-dispo {
   width: 188px;
@@ -466,11 +470,12 @@
     height: 38px;
   }
   .ktx.ktx-redesign
+    tr:not(.is-upcoming)
     :is(.kname-btn, .kcat-btn, .kcell-edit, .kflagbtn, .kstatus-btn, .kinline .input, .select-sm) {
     min-height: 38px;
     height: 38px;
   }
-  .ktx.ktx-redesign :is(.kflagbtn, .kstatus-btn) {
+  .ktx.ktx-redesign tr:not(.is-upcoming) :is(.kflagbtn, .kstatus-btn) {
     min-width: 38px;
   }
   .ktx.ktx-redesign .kbooking-edit-mark,
