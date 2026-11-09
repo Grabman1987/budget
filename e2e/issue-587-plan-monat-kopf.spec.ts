@@ -40,16 +40,11 @@ test('"Zu verteilen" is green when positive, red only when negative, neutral at 
   page,
 }) => {
   const hero = page.locator('.plan-tba');
+  const send = page.getByRole('button', { name: 'Geld verteilen', includeHidden: true });
   const hint = page.getByTestId('distribute-hint');
 
   await withToBeAssigned(page, 12_345);
   await page.goto('/plan/monat?monat=2026-09');
-  const on = await redesignEnabled(page);
-  const send = page.getByRole('button', {
-    name: on ? 'Wasserfall-Assistent' : 'Geld verteilen',
-    includeHidden: true,
-  });
-  if (on) await page.locator('.plan-menu-verteilen > summary').click();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('123,45 €');
   await expect(hero).toHaveClass(/is-positive/);
   await expect(hero).not.toHaveClass(/is-negative/);
@@ -59,7 +54,6 @@ test('"Zu verteilen" is green when positive, red only when negative, neutral at 
   await page.unroute(monthRead);
   await withToBeAssigned(page, -5_000);
   await page.reload();
-  if (on) await page.locator('.plan-menu-verteilen > summary').click();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('−50,00 €');
   await expect(hero).toHaveClass(/is-negative/);
   if (await redesignEnabled(page)) {
@@ -78,7 +72,6 @@ test('"Zu verteilen" is green when positive, red only when negative, neutral at 
   await page.unroute(monthRead);
   await withToBeAssigned(page, 0);
   await page.reload();
-  if (on) await page.locator('.plan-menu-verteilen > summary').click();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('0,00 €');
   await expect(hero).not.toHaveClass(/is-positive|is-negative/);
   if (await redesignEnabled(page)) {

@@ -852,6 +852,10 @@
   .app:has(.plan-month-v2) ~ .toast {
     bottom: calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + var(--space-sm));
   }
+  /* The selection bar owns that band; its buttons must stay reachable under feedback. */
+  .app:has(.plan-month-v2):has(.plan-selection-bar) ~ .toast {
+    bottom: calc(88px + env(safe-area-inset-bottom));
+  }
 }
 .plan-month-frame .plan-month-v2 .plan-calm-toolbar {
   grid-column: 1 / -1;
@@ -865,9 +869,6 @@
 .plan-month-frame .plan-month-v2 .plan-grid > .plan-main,
 .plan-month-frame .plan-month-v2 .plan-grid > .plan-inspector {
   grid-row: 3;
-}
-.plan-month-frame .plan.plan-month-v2 .pmulti-scroll:has(> .ptable-zero) {
-  padding-inline-end: 0;
 }
 .plan-month-frame .plan-calm-toolbar .plan-category-search {
   flex: 1 1 140px;
@@ -1021,12 +1022,24 @@
   }
 }
 @media (max-width: 767px) {
+  /* Two touch rows (search, history, options / distribute, filters) keep the first category above the selection bar. */
   .plan-month-frame .plan-calm-toolbar .plan-category-search {
-    flex-basis: 100%;
+    flex: 1 1 0;
     max-width: none;
+    order: 0;
   }
   .plan-month-frame .plan-calm-toolbar .plan-history {
-    margin-right: auto;
+    order: 1;
+  }
+  .plan-month-frame .plan-calm-toolbar .plan-menu-optionen {
+    order: 2;
+  }
+  .plan-month-frame .plan-calm-toolbar .plan-menu-verteilen {
+    order: 3;
+  }
+  .plan-month-frame .plan-calm-toolbar .plan-filter-chips {
+    order: 4;
+    flex: 1 1 120px;
   }
   .plan-month-frame .plan-calm-toolbar .month-reference-count {
     display: none;

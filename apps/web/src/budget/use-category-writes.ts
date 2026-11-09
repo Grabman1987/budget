@@ -60,15 +60,12 @@ export function useBudgetWrite() {
           } catch (error) {
             // A later write owns the feedback; never resurrect an older action over it.
             if (!current()) return;
-            offer(
-              `${label} nicht möglich. ${
-                error instanceof ApiError && error.code === 'undo_refused'
-                  ? 'Bitte prüfe den aktuellen Stand.'
-                  : errorText(error)
-              }`,
-              label,
-              groupId,
-            );
+            // A refusal is final (the stored state changed): plain message, no retry button.
+            if (error instanceof ApiError && error.code === 'undo_refused') {
+              toast.show({ message: `${label} nicht möglich. Bitte prüfe den aktuellen Stand.` });
+              return;
+            }
+            offer(`${label} nicht möglich. ${errorText(error)}`, label, groupId);
           }
         })();
       },
