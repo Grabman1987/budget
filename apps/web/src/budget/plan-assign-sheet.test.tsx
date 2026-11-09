@@ -126,6 +126,9 @@ it('returns focus to the opener on unmount', () => {
   opener.remove();
 });
 
+const field = () => screen.getByLabelText('Neu zugewiesen') as HTMLInputElement;
+const assign = () => fireEvent.click(screen.getByRole('button', { name: 'Zuweisen' }));
+
 it.each([
   ['+20', 7000],
   ['+20+5', 7500],
@@ -135,14 +138,73 @@ it.each([
   '"%s" still assigns %i after the field blurs (AmountInput reformats on blur)',
   (typed, cents) => {
     const { onCommit } = mount();
-    const input = screen.getByLabelText('Neu zugewiesen');
-    fireEvent.change(input, { target: { value: typed } });
-    fireEvent.blur(input);
-    fireEvent.click(screen.getByRole('button', { name: 'Zuweisen' }));
+    fireEvent.change(field(), { target: { value: typed } });
+    fireEvent.blur(field());
+    assign();
     expect(onCommit).toHaveBeenCalledTimes(1);
     expect(onCommit).toHaveBeenCalledWith(cents);
   },
 );
+
+it('deleting the + of "+20,00" makes it absolute again', () => {
+  const { onCommit } = mount();
+  fireEvent.change(field(), { target: { value: '+20,00' } });
+  fireEvent.change(field(), { target: { value: '20,00' } });
+  assign();
+  expect(onCommit).toHaveBeenCalledWith(2000);
+});
+
+it('deleting the - of "-5,00" makes it absolute again', () => {
+  const { onCommit } = mount();
+  fireEvent.change(field(), { target: { value: '-5,00' } });
+  fireEvent.change(field(), { target: { value: '5,00' } });
+  assign();
+  expect(onCommit).toHaveBeenCalledWith(500);
+});
+
+it('refuses "-60" (below zero) after blur', () => {
+  const { onCommit } = mount();
+  fireEvent.change(field(), { target: { value: '-60' } });
+  fireEvent.blur(field());
+  assign();
+  expect(onCommit).not.toHaveBeenCalled();
+});
+
+it('"+0" after blur keeps the current amount', () => {
+  const { onCommit } = mount();
+  fireEvent.change(field(), { target: { value: '+0' } });
+  fireEvent.blur(field());
+  assign();
+  expect(onCommit).toHaveBeenCalledWith(5000);
+});
+
+it('"+20" blurred, then "+5" appended, is absolute 75,00', () => {
+  const { onCommit } = mount();
+  fireEvent.change(field(), { target: { value: '+20' } });
+  fireEvent.blur(field());
+  expect(field().value).toBe('70,00');
+  fireEvent.change(field(), { target: { value: '70,00+5' } });
+  assign();
+  expect(onCommit).toHaveBeenCalledWith(7500);
+});
+
+it('Enter without blur assigns "+20" once as 70,00', () => {
+  const { onCommit } = mount();
+  fireEvent.change(field(), { target: { value: '+20' } });
+  fireEvent.keyDown(field(), { key: 'Enter' });
+  expect(onCommit).toHaveBeenCalledTimes(1);
+  expect(onCommit).toHaveBeenCalledWith(7000);
+});
+
+it('blur, Enter and click commit exactly once', () => {
+  const { onCommit } = mount();
+  fireEvent.change(field(), { target: { value: '+20' } });
+  fireEvent.blur(field());
+  fireEvent.keyDown(field(), { key: 'Enter' });
+  assign();
+  expect(onCommit).toHaveBeenCalledTimes(1);
+  expect(onCommit).toHaveBeenCalledWith(7000);
+});
 
 it('a sign inserted before the untouched value stays absolute, like inline', () => {
   const { onCommit } = mount();

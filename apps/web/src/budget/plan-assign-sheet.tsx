@@ -1,5 +1,5 @@
 import { AmountInput, Button } from '@budget/ui';
-import { cents, formatDecimal, parseAmount } from '@budget/domain';
+import { cents, formatDecimal } from '@budget/domain';
 import { useEffect, useRef, useState } from 'react';
 import { eur } from '../ledger/format';
 import { assignGhost } from './assign-cell';
@@ -31,6 +31,8 @@ export function PlanAssignSheet({
   // A leading + / − is relative only when typed first into the untouched (selected) or emptied field, as inline.
   const [relative, setRelative] = useState(false);
   const touched = useRef(false);
+  const blurring = useRef(false);
+  const committed = useRef(false);
   const ghost = assignGhost(row);
   const value = readAssign(text, row.assignedCents, relative);
   const hint = value === null ? undefined : assignGuard(value, row.assignedCents, tba).message;
@@ -66,7 +68,9 @@ export function PlanAssignSheet({
   }, []);
 
   const save = () => {
+    if (committed.current) return;
     if (value === null) return setInvalid(true);
+    committed.current = true;
     onCommit(value);
     onClose();
   };
@@ -119,22 +123,25 @@ export function PlanAssignSheet({
             <dd>{eur(row.availableCents)}</dd>
           </div>
         </dl>
-        <AmountInput
-          label="Neu zugewiesen"
-          showOperators
-          value={text}
-          onChange={(next) => {
-            // AmountInput reformats a valid entry on blur ("+20" -> "20,00"). A relative entry is
-            // then resolved to the absolute result, so tapping "Zuweisen" cannot lose its sign.
-            const previous = text.trim();
-            const parsedRest = parseAmount(previous.slice(1));
-            if (relative && /^[+\-−]/.test(previous) && parsedRest.ok) {
-              const whole = parseAmount(previous);
-              const reformatted = [parsedRest.cents, whole.ok ? whole.cents : null]
-                .filter((value): value is typeof parsedRest.cents => value !== null)
-                .map((value) => formatDecimal(value));
-              if (reformatted.includes(next)) {
-                const resolved = readAssign(previous, row.assignedCents, true);
+        <div
+          className="plan-assign-amount"
+          onBlurCapture={() => {
+            blurring.current = true;
+          }}
+          onBlur={() => {
+            blurring.current = false;
+          }}
+        >
+          <AmountInput
+            label="Neu zugewiesen"
+            showOperators
+            value={text}
+            onChange={(next) => {
+              // AmountInput reformats a valid entry when the field really loses focus ("+20" ->
+              // "20,00"). Only that blur (flag set for the duration of its event) resolves a
+              // relative entry to the absolute result; keystrokes and pastes never do.
+              if (blurring.current && relative && /^\s*[+\-−]/.test(text)) {
+                const resolved = readAssign(text, row.assignedCents, true);
                 if (resolved !== null) {
                   setRelative(false);
                   setText(formatDecimal(cents(resolved)));
@@ -142,16 +149,16 @@ export function PlanAssignSheet({
                   return;
                 }
               }
-            }
-            const signed = /^\s*[+\-−]/.test(next);
-            // Typed over the whole (selected) value, as inline; a sign inserted before it is absolute.
-            const replacing = text === '' || (!touched.current && !next.includes(text));
-            setRelative(signed && (replacing || relative));
-            touched.current = true;
-            setText(next);
-            setInvalid(false);
-          }}
-        />
+              const signed = /^\s*[+\-−]/.test(next);
+              // Typed over the whole (selected) value, as inline; a sign inserted before it is absolute.
+              const replacing = text === '' || (!touched.current && !next.includes(text));
+              setRelative(signed && (replacing || relative));
+              touched.current = true;
+              setText(next);
+              setInvalid(false);
+            }}
+          />
+        </div>
         {invalid && (
           <p className="plan-assign-note is-error" role="alert">
             Dieser Betrag ist nicht möglich.
