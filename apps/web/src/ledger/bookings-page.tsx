@@ -227,12 +227,7 @@ export function BookingsPage() {
                 ? `${REDESIGN_ENABLED ? 'Kontobewegungen (ganze Buchungen)' : 'Summe'} ${first.nativeTotals.length ? first.nativeTotals.map((total) => (total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents, total.currency, true))).join(' · ') : maskMoneyText(eur(0))}`
                 : 'Summe nicht verfügbar'}
           {!first.nativeTotalsPending && filteredAccount && filteredAccount.currency !== 'EUR' && (
-            <>
-              {' '}
-              ·{' '}
-              {ksumEurText(first.sumEurCents)}{' '}
-              · EUR je Buchungstag, Kurse in der Tabelle
-            </>
+            <> · {ksumEurText(first.sumEurCents)} · EUR je Buchungstag, Kurse in der Tabelle</>
           )}
         </p>
       )}
