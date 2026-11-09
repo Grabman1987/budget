@@ -1,3 +1,4 @@
+import { captureCloseControl } from './ledger-helpers';
 import { redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
@@ -212,7 +213,7 @@ test('inline writes keep exact cents, undo and reconciled locks', async ({
     await row.getByRole('button', { name: / bearbeiten · / }).click();
     const dialog = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
+    await captureCloseControl(dialog).click();
   }
   await post(request, baseURL!, `/accounts/${account.id}/reconciliation`, {
     date: '2026-10-17',

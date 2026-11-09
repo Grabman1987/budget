@@ -1,3 +1,4 @@
+import { captureCloseControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page } from '@playwright/test';
 import { openDatabase, schema } from '@budget/db';
@@ -154,7 +155,7 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
     });
   }
   await blocked.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
-  await edit.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await captureCloseControl(edit).click();
   await expect(edit).not.toBeVisible();
 
   await page.locator(`tr[data-booking="${linked.id}"] .kname-btn`).click();
@@ -165,7 +166,7 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
   ).toHaveCount(0);
   await expect.poll(readRows).toEqual(before);
   await blocked.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
-  await edit.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await captureCloseControl(edit).click();
   await expect(edit).not.toBeVisible();
   if (info.project.name !== 'desktop')
     await page.getByRole('button', { name: 'Auswählen', exact: true }).click();

@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -78,7 +79,7 @@ test('new captures use booking month and existing stored values survive dialog e
       fullPage: true,
     });
   }
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(panel).toBeHidden();
   await expect(balance(page)).toHaveText('2.000,01 €');
   const budget = async (month: string) =>
@@ -100,7 +101,7 @@ test('new captures use booking month and existing stored values survive dialog e
   panel = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await expect(panel.getByLabel('Budgetmonat')).toHaveCount(0);
   await panel.getByLabel('Notiz').fill('Muster erhalten');
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(panel).toBeHidden();
   const read = async () => (await (await request.get('/api/bookings/' + stored.id)).json()).booking;
   expect(await read()).toMatchObject({ incomeNextMonth: true, memo: 'Muster erhalten' });

@@ -1,3 +1,4 @@
+import { captureCloseControl } from './ledger-helpers';
 import { expect, test, type Page, type Request } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -226,7 +227,7 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
         'Synthetic continuation',
       );
       await expect(dialog.getByLabel('Bezahlt von', { exact: true })).toHaveValue(account.id);
-      await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
+      await captureCloseControl(dialog).click();
       const discard = dialog.getByRole('alertdialog', { name: 'Eingaben verwerfen?', exact: true });
       await expect(discard).toBeVisible();
       await discard.getByRole('button', { name: 'Verwerfen', exact: true }).click();

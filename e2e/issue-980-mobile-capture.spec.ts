@@ -72,11 +72,11 @@ for (const theme of ['light', 'dark'] as const) {
       ).toBe(true);
     };
     await expect(amount).toHaveAttribute('inputmode', 'decimal');
-    await expect(amount).toHaveCSS('caret-color', 'rgba(0, 0, 0, 0)');
+    await expect(amount).not.toHaveCSS('caret-color', 'rgba(0, 0, 0, 0)');
     await expect(payee).toHaveAttribute('placeholder', 'Empfänger wählen');
     await expect(category).toHaveAttribute('placeholder', 'Kategorie wählen');
     await expect(save).toBeDisabled();
-    await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toHaveCount(0);
+    await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toBeVisible();
     await screenshot('empty');
     const rowPositions = () =>
       dialog.locator('.bk-cols').evaluate((card) => {

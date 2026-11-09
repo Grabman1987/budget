@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { redesignLoaded, pickCategory } from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
@@ -57,7 +58,7 @@ test('collapses "Kommend" to one row with hover-only actions and a full, keyboar
   await dialog.getByLabel('Empfänger', { exact: true }).fill('Wöchentlich Muster');
   await pickCategory(dialog, category.name);
   await dialog.getByLabel('Wiederholen', { exact: true }).selectOption('weekly');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(dialog).click();
   await expect(dialog).toBeHidden();
 
   await page.goto(`/konten/${account.id}`);

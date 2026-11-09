@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import {
   openAccountCapture,
   redesignLoaded,
@@ -555,7 +556,7 @@ for (const profile of ['configured', 'desktop1440'] as const) {
           const saved = page.waitForResponse(
             (r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/bookings',
           );
-          await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+          await captureSaveControl(dialog).click();
           const response = await saved;
           expect(response.status()).toBe(201);
           const id = ((await response.json()) as { id: string }).id;

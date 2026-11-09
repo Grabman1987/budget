@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { categoryLineControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, schema } from '@budget/db';
@@ -150,7 +151,7 @@ async function scene(
         response.request().method() === 'POST' &&
         new URL(response.url()).pathname === '/api/bookings',
     );
-    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await captureSaveControl(dialog).click();
     const response = await saved;
     expect(response.status()).toBe(201);
     const result = (await response.json()) as { groupId: string; bookings: Stored[] };
@@ -208,8 +209,11 @@ async function scene(
       { exact: true },
     ),
   ).toBeVisible();
-  for (const name of ['Speichern', 'Speichern und neu'])
-    await expect(dialog.getByRole('button', { name, exact: true })).toBeDisabled();
+  for (const control of [
+    captureSaveControl(dialog),
+    dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
+  ])
+    await expect(control).toBeDisabled();
   // The real Ctrl+Enter save handler must refuse the incomplete split as well.
   await dialog.getByLabel('Notiz', { exact: true }).press('Control+Enter');
   await expect(
@@ -231,7 +235,7 @@ async function scene(
       'aria-invalid',
       'true',
     );
-  await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
+  await expect(captureSaveControl(dialog)).toBeEnabled();
   await dialog.getByRole('button', { name: 'Zeile 2 entfernen', exact: true }).click();
   await expect(head).toHaveValue('10,00');
   await expect(dialog.getByRole('group', { name: /^Zeile \d+$/ })).toHaveCount(1);
@@ -245,7 +249,7 @@ async function scene(
     'aria-invalid',
     'true',
   );
-  await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
+  await expect(captureSaveControl(dialog)).toBeEnabled();
   await picture(page, dialog, 'one-after', info);
   const single = await saveAndUndo(dialog, [
     { categoryId: ids.categories[0]!.id, amountCents: -1000 },
@@ -262,7 +266,7 @@ async function scene(
   await expect(odd.locator('input.amount-input')).toHaveCount(4);
   await expect(odd.getByLabel('Betrag', { exact: true })).toHaveValue('10,00');
   await expect(odd.getByText('Rest: 0,00 €', { exact: false })).toBeVisible();
-  await expect(odd.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
+  await expect(captureSaveControl(odd)).toBeEnabled();
   await picture(page, odd, 'three-exact-334-333-333', info);
   const oddCents = await saveAndUndo(odd, [
     { categoryId: ids.categories[0]!.id, amountCents: -334 },
