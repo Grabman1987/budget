@@ -46,7 +46,7 @@ import { LoadOlder } from './load-older';
 import { BookingViews } from './booking-views';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './bookings-redesign.css';
-import { RegisterSummary } from './register-summary';
+import { RegisterSummary, categoryNetLabel } from './register-summary';
 import {
   BOOKING_FLAGS,
   BOOKING_STATUSES,
@@ -213,7 +213,7 @@ export function BookingsPage() {
           {first.nativeTotalsPending
             ? 'Summe wird aktualisiert …'
             : first.categorySpendingCents !== undefined
-              ? `${search.kategoriegruppe ? 'Gruppe' : 'Kategorie'} netto ${eur(first.categorySpendingCents)} (Ausgaben − Erstattungen)`
+              ? `${categoryNetLabel(!!search.kategoriegruppe, first.categorySpendingCents)} (Ausgaben − Erstattungen)`
               : first.nativeTotals
                 ? `${REDESIGN_ENABLED ? 'Kontobewegungen (ganze Buchungen)' : 'Summe'} ${first.nativeTotals.length ? first.nativeTotals.map((total) => (total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents, total.currency, true))).join(' · ') : eur(0)}`
                 : 'Summe nicht verfügbar'}

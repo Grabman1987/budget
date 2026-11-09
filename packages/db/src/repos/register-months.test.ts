@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it } from 'vitest';
+import { fxRate } from '../schema';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import { createBooking, createTransfer } from './bookings';
 import { queryBookings } from './ledger-queries';
@@ -63,4 +64,43 @@ it('hidden upcoming bookings are excluded and the cutoff is today, not the newes
     { month: '2026-11', count: 1, cents: -100, cumulativeCents: 99_900 },
   ]);
   expect(queryBookings(opened.db, {}, TODAY).monthlyKind).toBe('rows');
+});
+
+it('non-EUR: converts each booking on its own so the month equals sumEurCents', () => {
+  opened.db
+    .insert(fxRate)
+    .values([{ date: '2026-10-05', currency: 'USD', rateMicro: 500_000 }])
+    .run();
+  for (const amountCents of [3, 3, 3]) {
+    createBooking(
+      opened.db,
+      {
+        accountId: 'usd',
+        date: '2026-10-05',
+        amountCents,
+        status: 'confirmed',
+        splits: [{ categoryId: 'essen', amountCents }],
+      },
+      testCtx,
+    );
+  }
+  const page = queryBookings(opened.db, { accountId: 'usd' }, TODAY);
+  const [oct] = page.monthlyTotals ?? [];
+  expect(page.sumEurCents).not.toBeNull();
+  expect(oct?.cents).toBe(page.sumEurCents);
+  expect(oct?.count).toBe(3);
+});
+
+it('bookings before the opening month are flagged "vor Start", not counted as a zero month', () => {
+  book('2023-08-15', -100);
+  book('2023-10-02', -250);
+  const page = queryBookings(opened.db, { accountId: 'giro' }, TODAY);
+  const months = page.monthlyTotals ?? [];
+  expect(months.find((m) => m.month === '2023-08')).toMatchObject({
+    count: 1,
+    beforeStart: true,
+    cumulativeCents: null,
+  });
+  expect(months.find((m) => m.month === '2023-10')).toMatchObject({ count: 1, cents: -250 });
+  expect(months.find((m) => m.month === '2023-10')?.beforeStart).toBeUndefined();
 });
