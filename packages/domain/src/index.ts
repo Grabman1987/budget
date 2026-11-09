@@ -63,6 +63,7 @@ export {
 
 export * from './invest/funding-plan';
 export * from './ledger/bookings-search';
+export * from './ledger/register-months';
 export * from './ledger/booking-views';
 export * from './wealth/strategy-trend';
 export * from './wealth/strategy-plan';
