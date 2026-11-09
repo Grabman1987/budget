@@ -19,8 +19,8 @@
   },
   "dependencies": {
     "@budget/domain": "*",
-    "d3-shape": "^3.2.0",
-    "lucide-react": "^1.65.0"
+    "d3-shape": "^3.2.1",
+    "lucide-react": "^1.70.0"
   },
   "peerDependencies": {
     "react": "^19.3.1",

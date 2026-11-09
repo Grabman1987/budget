@@ -14,10 +14,10 @@
     "@budget/import-pp": "*",
     "@budget/import-ynab": "*",
     "@budget/market": "*",
-    "@hono/node-server": "^2.1.5",
+    "@hono/node-server": "^2.1.6",
     "@simplewebauthn/server": "^14.0.3",
-    "hono": "^4.13.14",
-    "pdfjs-dist": "^6.4.299",
+    "hono": "^4.13.16",
+    "pdfjs-dist": "^6.5.438",
     "yazl": "^3.3.1",
     "zod": "^4.6.7"
   },
