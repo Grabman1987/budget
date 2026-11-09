@@ -33,6 +33,27 @@ const correctionSchema = z.object({
 });
 const contactCreditRecordSchema = z.object({
   bookingId: idSchema,
+  adoptedRepayments: z
+    .array(
+      z.object({
+        receiptSplitId: idSchema,
+        date: z.string(),
+        previouslyRecorded: z.boolean(),
+        allocations: z.array(z.object({ outlaySplitId: idSchema, amountCents: centsSchema })),
+        creditCents: z.number().int().safe().nonnegative(),
+        // Allocated legacy cents without a proven category inflow; not booked money.
+        unreturnedRefunds: z.array(refundSchema),
+      }),
+    )
+    .optional(),
+  waiver: z
+    .object({
+      outlaySplitId: idSchema,
+      receiptSplitId: idSchema,
+      amountCents: centsSchema,
+      categoryId: idSchema,
+    })
+    .optional(),
   decision: z
     .object({
       debitSplitId: idSchema,
@@ -80,10 +101,14 @@ export type ContactCreditRecord = z.infer<typeof contactCreditRecordSchema>;
 export function contactRefundTotals(
   record: ContactCreditRecord,
   kind: 'refunds' | 'repaymentRefunds',
+  includeUnreturned = true,
 ) {
   const totals = new Map<string, number>();
   for (const r of [
     ...(record[kind] ?? []),
+    ...(kind === 'repaymentRefunds' && includeUnreturned
+      ? (record.adoptedRepayments ?? []).flatMap((a) => a.unreturnedRefunds)
+      : []),
     ...(
       record[kind === 'refunds' ? 'refundCorrections' : 'repaymentRefundCorrections'] ?? []
     ).flatMap((c) => c.entries),
@@ -158,6 +183,7 @@ export function assertContactCreditRecords(
       !record.decision &&
       !record.uses?.length &&
       !record.repayments?.length &&
+      !record.waiver &&
       !record.adjustmentFor &&
       !record.explicitUses &&
       !record.useHistory?.length &&
@@ -168,6 +194,63 @@ export function assertContactCreditRecords(
     if (!row || row.deletedAt !== null)
       throw new BookingInvariantError('Contact credit and its booking must be undone together');
     const parts = db.select().from(bookingSplit).where(eq(bookingSplit.bookingId, row.id)).all();
+    if (record.waiver) {
+      const w = record.waiver;
+      const target = db
+        .select()
+        .from(bookingSplit)
+        .where(eq(bookingSplit.id, w.outlaySplitId))
+        .get();
+      const source =
+        target && db.select().from(booking).where(eq(booking.id, target.bookingId)).get();
+      const receipt = parts.find((p) => p.id === w.receiptSplitId);
+      const settlement = db
+        .select()
+        .from(contactSettlement)
+        .where(eq(contactSettlement.receiptSplitId, w.receiptSplitId))
+        .get();
+      const allocations = settlement
+        ? db
+            .select()
+            .from(contactAllocation)
+            .where(eq(contactAllocation.settlementId, settlement.id))
+            .all()
+            .filter((a) => !a.deletedAt)
+        : [];
+      const original =
+        target?.categoryId &&
+        db.select().from(category).where(eq(category.id, target.categoryId)).get();
+      const counter = parts.find((p) => p.id !== w.receiptSplitId);
+      const counterCategory = counter?.categoryId
+        ? db.select().from(category).where(eq(category.id, counter.categoryId)).get()
+        : undefined;
+      if (
+        !source ||
+        source.deletedAt ||
+        row.amountCents !== 0 ||
+        row.accountId !== source.accountId ||
+        row.date < source.date ||
+        !target?.contactId ||
+        target.amountCents >= 0 ||
+        receipt?.contactId !== target.contactId ||
+        receipt.amountCents !== w.amountCents ||
+        parts.length !== 2 ||
+        counter?.contactId ||
+        counter?.amountCents !== -w.amountCents ||
+        (original && original.kind !== 'advance'
+          ? counterCategory?.kind !== 'advance' || w.categoryId !== original.id
+          : counter?.categoryId !== w.categoryId) ||
+        !settlement ||
+        settlement.deletedAt ||
+        settlement.creditCents !== 0 ||
+        allocations.length !== 1 ||
+        allocations[0]?.outlaySplitId !== w.outlaySplitId ||
+        allocations[0]?.amountCents !== w.amountCents
+      )
+        throw new BookingInvariantError(
+          'Contact waiver must retain its source share and exact settlement',
+        );
+    }
     if (record.adjustmentFor) {
       const parent = records.find((r) => r.bookingId === record.adjustmentFor!.bookingId);
       const corrections =

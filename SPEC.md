@@ -1,5 +1,30 @@
 # Budget — Specification
 
+Owner contact-allocation directive (2026-11-07, #978): repayment allocations are
+owner decisions, including on reconciled bookings; bank amount, date, account and
+reconciliation status remain unchanged. The operator explicitly adopts pre-model
+settlements from their current allocations before reallocating them. Floating
+receipts without settlement rows can be pinned in the same audited action.
+Reallocation may retain any unallocated cents as credit even while claims remain
+open, and can reopen previously settled outlays. No legacy category is guessed.
+CLI `--unlock` and the UI's explicit confirmation authorize only these contact
+decisions for that audit group, including their Undo/redo, never general bank edits.
+
+“Geschenk an Kontakt” waives all or part of the currently outstanding share through
+a dated zero-cash settlement. For a shared category purchase the gross category
+expense already exists and remains unchanged; a standalone Auslagen share needs
+an explicitly selected expense category. No income is created. Prior month carry
+is preserved; category spending and subsequent carry follow the existing envelope
+rules. Example: a synthetic 1,001-cent share with a 701-cent repayment has 300 cents
+open; waiving 299 leaves exactly 1 cent. Account balances remain unchanged.
+Owner valuation decision (2026-11-07, #978): keep the existing account/holdings
+net-worth model, which excludes derived contact claims (PRODUCT decision
+01.10.2026). Paying an outlay already reduces net worth until actual repayment.
+Waiving it as a gift to the contact therefore leaves net worth unchanged: it only
+removes the waived receivable from the contact statement and keeps the expense
+in its category. This resolves the earlier waiver/net-worth acceptance question;
+no central valuation change is required. See [operator contract](docs/ops.md#1211-contact-allocation-and-credit-decisions-operator-task).
+
 Owner assignment decision (2026-11-07, #982), superseding the previous
 "Schranken" rule: explicit assignment, moving from "Zu verteilen", single-category
 cover from "Zu verteilen", and goal funding ("Ziele füllen") may make or leave

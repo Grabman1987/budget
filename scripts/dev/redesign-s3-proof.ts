@@ -395,12 +395,20 @@ export async function verifyRedesignShell(
       const control = dialog.getByRole('button', { name, exact: true });
       await control.focus();
       await expect(control).toBeFocused();
-      const bounds = await rect(control);
-      const clip = await rect(dialog.locator('.global-search-popup'));
-      expect(bounds.y).toBeGreaterThanOrEqual(Math.max(0, clip.y) - 0.5);
-      expect(bounds.y + bounds.height).toBeLessThanOrEqual(
-        Math.min(viewport.height, clip.y + clip.height) + 0.5,
-      );
+      // WebKit can finish native focus scrolling after activeElement has changed.
+      // Retry the same clipping bounds; a permanently hidden target still fails.
+      await expect
+        .poll(() =>
+          control.evaluate((element) => {
+            const bounds = element.getBoundingClientRect();
+            const clip = element.closest('.global-search-popup')!.getBoundingClientRect();
+            return (
+              bounds.top >= Math.max(0, clip.top) - 0.5 &&
+              bounds.bottom <= Math.min(innerHeight, clip.bottom) + 0.5
+            );
+          }),
+        )
+        .toBe(true);
     }
     await input.focus();
     await input.fill('Wiederkehrende Zahlungen');
