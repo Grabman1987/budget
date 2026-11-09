@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { auditLog, booking, contact } from '../schema';
+import { appSetting, auditLog, booking, contact } from '../schema';
 import { createBooking, getBooking, updateBooking } from './bookings';
 import { budgetSummary } from './budget';
 import { getContactStatement, settleContact } from './contacts';
@@ -59,6 +59,77 @@ const purchase = (amountCents: number, categoryId = 'essen', date = '2026-09-02'
 };
 
 describe('contact-allocate input', () => {
+  it('leaves an already adopted --unlock run unchanged, including its audit', () => {
+    const paid = receipt('k1', 701);
+    const before = opened.sqlite.serialize();
+    const result = applyContactAllocations(
+      opened.db,
+      parseContactAllocateFile({
+        entries: [
+          { action: 'adopt', contactId: 'k1', receiptSplitId: paid },
+          { action: 'reallocate', contactId: 'k1', receiptSplitId: paid, allocations: [] },
+        ],
+      }),
+      operator,
+      { today: TODAY, unlock: true },
+    );
+    expect(result.map((o) => [o.status, o.groupId])).toEqual([
+      ['unchanged', ''],
+      ['unchanged', ''],
+    ]);
+    expect(opened.sqlite.serialize().equals(before)).toBe(true);
+  });
+  it('adopts, unlocks, reopens and waives in one audited run with byte-identical dry-run and Undo', () => {
+    const first = purchase(1001, 'auslagen', '2026-09-01');
+    const paid = receipt('k1', 701, '2026-09-02');
+    const source = statement().movements.find((m) => m.splitId === paid)!;
+    opened.db
+      .delete(appSetting)
+      .where(eq(appSetting.id, `contacts.credit.${source.bookingId}`))
+      .run();
+    updateBooking(opened.db, source.bookingId, { status: 'reconciled' }, testCtx);
+    updateBooking(opened.db, first.bookingId, { status: 'reconciled' }, testCtx);
+    const input = parseContactAllocateFile({
+      entries: [
+        { action: 'adopt', contactId: 'k1', receiptSplitId: paid },
+        { action: 'reallocate', contactId: 'k1', receiptSplitId: paid, allocations: [] },
+        {
+          action: 'waive',
+          contactId: 'k1',
+          outlaySplitId: first.id,
+          amountCents: 1001,
+          categoryId: 'essen',
+        },
+      ],
+    });
+    expect(
+      applyContactAllocations(opened.db, input, operator, { today: TODAY }).map((o) => o.reason),
+    ).toEqual(['reconciled_locked', 'reconciled_locked', 'reconciled_locked']);
+    const before = opened.sqlite.serialize();
+    const preview = applyContactAllocations(opened.db, input, operator, {
+      today: TODAY,
+      dryRun: true,
+      unlock: true,
+    });
+    expect(preview.map((o) => [o.status, o.groupId])).toEqual([
+      ['updated', ''],
+      ['updated', ''],
+      ['updated', ''],
+    ]);
+    expect(opened.sqlite.serialize().equals(before)).toBe(true);
+    const applied = applyContactAllocations(opened.db, input, operator, {
+      today: TODAY,
+      unlock: true,
+    });
+    expect(applied.map((o) => o.status)).toEqual(['updated', 'updated', 'updated']);
+    expect(new Set(applied.map((o) => o.groupId)).size).toBe(1);
+    expect(statement().balanceCents).toBe(-701);
+    expect(statement().creditCents).toBe(701);
+    undoAuditGroups(opened.db, [applied[0]!.groupId], operator);
+    expect(statement().balanceCents).toBe(300);
+    expect(getBooking(opened.db, source.bookingId)?.status).toBe('reconciled');
+    expect(getBooking(opened.db, first.bookingId)?.status).toBe('reconciled');
+  });
   it('accepts empty batches and all explicit credit choices', () => {
     expect(parseContactAllocateFile({ entries: [] })).toEqual({ entries: [] });
     expect(

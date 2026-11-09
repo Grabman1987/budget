@@ -5,6 +5,8 @@ import {
   getContactStatement,
   getContactRepaymentAllocation,
   reallocateContactRepayment,
+  adoptContactRepayment,
+  waiveContactOutlay,
   listContactStatements,
   schema,
   settleContact,
@@ -154,6 +156,7 @@ export function contactRoutes(db: Db, today: () => string): Hono {
           choice: z.enum(['free', 'category', 'gift']),
           categoryId: z.string().min(1).max(100).optional(),
           accountId: z.string().min(1).max(100).optional(),
+          unlock: z.boolean().optional(),
         })
         .strict(),
     );
@@ -164,6 +167,7 @@ export function contactRoutes(db: Db, today: () => string): Hono {
         { ...defined(input), receiptSplitId: c.req.param('splitId') },
         audit(),
         today(),
+        { unlock: input.unlock ?? false },
       ),
       201,
     );
@@ -174,7 +178,9 @@ export function contactRoutes(db: Db, today: () => string): Hono {
   app.post('/:id/settlements/:splitId/allocations', async (c) => {
     const input = await readBody(
       c,
-      z.object({ allocations: receipt.shape.allocations.unwrap() }).strict(),
+      z
+        .object({ allocations: receipt.shape.allocations.unwrap(), unlock: z.boolean().optional() })
+        .strict(),
     );
     return c.json(
       reallocateContactRepayment(
@@ -184,7 +190,42 @@ export function contactRoutes(db: Db, today: () => string): Hono {
         input,
         audit(),
         today(),
+        { unlock: input.unlock ?? false },
       ),
+    );
+  });
+  app.post('/:id/settlements/:splitId/adopt', async (c) => {
+    const input = await readBody(c, z.object({ unlock: z.boolean().optional() }).strict());
+    return c.json(
+      adoptContactRepayment(db, c.req.param('id'), c.req.param('splitId'), audit(), today(), {
+        unlock: input.unlock ?? false,
+      }),
+    );
+  });
+  app.post('/:id/outlays/:splitId/waive', async (c) => {
+    const input = await readBody(
+      c,
+      z
+        .object({
+          amountCents: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+          categoryId: z.string().min(1).max(100).optional(),
+          unlock: z.boolean().optional(),
+        })
+        .strict(),
+    );
+    return c.json(
+      waiveContactOutlay(
+        db,
+        c.req.param('id'),
+        c.req.param('splitId'),
+        defined(input),
+        audit(),
+        today(),
+        {
+          unlock: input.unlock ?? false,
+        },
+      ),
+      201,
     );
   });
   app.post('/:id/outlays/:splitId/gift', async (c) => {

@@ -21,11 +21,22 @@ import { getContactStatement } from './contacts';
 import { BookingInvariantError, EntityNotFoundError, ReconciledLockedError } from './errors';
 import { assertLedgerInvariants } from './invariants';
 import { runInTransaction, type Executor } from './types';
+import {
+  recordContactAllocationUnlock,
+  type ContactAllocationOptions,
+} from './contact-allocation-lock';
 
-export function assertContactAllocationUnlocked(db: Executor, bookingId: string) {
+export function assertContactAllocationUnlocked(
+  db: Executor,
+  bookingId: string,
+  options: ContactAllocationOptions = {},
+  ctx?: GroupedContext,
+) {
   const row = getBooking(db, bookingId);
   if (!row) throw new EntityNotFoundError('booking', bookingId);
-  if (row.status === 'reconciled') throw new ReconciledLockedError([bookingId]);
+  if (row.status === 'reconciled' && !options.unlock) throw new ReconciledLockedError([bookingId]);
+  if (row.status === 'reconciled' && options.unlock && ctx)
+    recordContactAllocationUnlock(db, ctx, bookingId);
   if (row.transferId || row.splits.some((s) => s.transferId) || row.originalAmountCents !== null)
     throw new BookingInvariantError(
       'Diese Kontaktzuordnung ist mit einer anderen Buchung verknüpft.',
@@ -41,9 +52,10 @@ function replaceRefunds(
   refunds: { categoryId: string; amountCents: number }[],
   ctx: GroupedContext,
   date: string,
+  options: ContactAllocationOptions = {},
 ) {
-  const row = assertContactAllocationUnlocked(db, record.bookingId);
-  const current = contactRefundTotals(record, kind);
+  const row = assertContactAllocationUnlocked(db, record.bookingId, options, ctx);
+  const current = contactRefundTotals(record, kind, false);
   const desired = new Map(refunds.map((r) => [r.categoryId, r.amountCents]));
   const entries = [...new Set([...current.keys(), ...desired.keys()])]
     .map((categoryId) => ({
@@ -84,12 +96,23 @@ export function releaseContactCredit(
   ctx: GroupedContext,
   today: string,
   date = today,
+  options: ContactAllocationOptions = {},
 ) {
   if (amountCents === 0) return [];
   const statement = getContactStatement(db, contactId, today);
   const source = statement.movements.find((m) => m.splitId === receiptSplitId && m.amountCents > 0);
   if (!source) throw new EntityNotFoundError('contact receipt', receiptSplitId);
-  assertContactAllocationUnlocked(db, source.bookingId);
+  assertContactAllocationUnlocked(db, source.bookingId, options, ctx);
+  for (const receipt of statement.receipts.slice(
+    statement.receipts.findIndex((r) => r.receiptSplitId === receiptSplitId) + 1,
+  )) {
+    if (
+      !receipt.recorded &&
+      receipt.allocatable &&
+      !statement.movements.find((m) => m.splitId === receipt.receiptSplitId)?.creditOnly
+    )
+      adoptContactRepayment(db, contactId, receipt.receiptSplitId, ctx, today, options, date);
+  }
   const records = contactCreditRecords(db);
   const usesByBooking = new Map<string, typeof statement.creditUses>();
   const bookingUses = (bookingId: string) => {
@@ -147,7 +170,7 @@ export function releaseContactCredit(
         uses: bookingUses(outlay.bookingId),
       };
     }
-    assertContactAllocationUnlocked(db, outlay.bookingId);
+    assertContactAllocationUnlocked(db, outlay.bookingId, options, ctx);
     const released = Math.min(use.amountCents, needed);
     needed -= released;
     const next = {
@@ -175,7 +198,7 @@ export function releaseContactCredit(
     const stored = records.find((r) => r.bookingId === bookingId);
     const record = { ...stored, bookingId, uses: stored?.uses ?? bookingUses(bookingId) };
     if (record.uses && !record.explicitUses && !changed.has(record.bookingId)) {
-      assertContactAllocationUnlocked(db, record.bookingId);
+      assertContactAllocationUnlocked(db, record.bookingId, options, ctx);
       saveContactCreditRecord(
         db,
         {
@@ -212,6 +235,7 @@ export function releaseContactCredit(
         [...totals].map(([categoryId, amountCents]) => ({ categoryId, amountCents })),
         ctx,
         date,
+        options,
       ),
     );
     const original = records.find((r) => r.bookingId === record.bookingId);
@@ -246,13 +270,93 @@ function repayment(db: Executor, contactId: string, receiptSplitId: string, toda
     )
     .get();
   const source = statement.movements.find((m) => m.splitId === receiptSplitId && m.amountCents > 0);
-  if (!saved || !source) throw new EntityNotFoundError('contact settlement', receiptSplitId);
+  if (!source || source.creditOnly)
+    throw new EntityNotFoundError('contact settlement', receiptSplitId);
   const record = contactCreditRecords(db).find((r) => r.bookingId === source.bookingId);
-  if (!record?.repayments?.includes(receiptSplitId))
-    throw new BookingInvariantError(
-      'Die ursprüngliche Kategorie dieser Rückzahlung ist nicht belegt.',
-    );
+  if (record?.waiver) throw new BookingInvariantError('Ein Geschenk ist keine Bankrückzahlung.');
   return { statement, saved, source, record };
+}
+
+/** Explicitly adopt only the current settlement facts; no cash or historical categories change. */
+export function adoptContactRepayment(
+  db: Executor,
+  contactId: string,
+  receiptSplitId: string,
+  ctx: AuditContext,
+  today: string,
+  options: ContactAllocationOptions = {},
+  effectiveDate = today,
+) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const { statement, saved, source, record } = repayment(tx, contactId, receiptSplitId, today);
+    if (record?.repayments?.includes(receiptSplitId))
+      return { bookingId: source.bookingId, groupId: grouped.groupId, adopted: false };
+    assertContactAllocationUnlocked(tx, source.bookingId, options, grouped);
+    const current = statement.receipts.find((r) => r.receiptSplitId === receiptSplitId)!;
+    const refunds = new Map<string, number>();
+    for (const a of current.allocations) {
+      const outlay = statement.outlays.find((o) => o.splitId === a.outlaySplitId)!;
+      assertContactAllocationUnlocked(tx, outlay.bookingId, options, grouped);
+      if (outlay.categoryId)
+        refunds.set(outlay.categoryId, (refunds.get(outlay.categoryId) ?? 0) + a.amountCents);
+    }
+    if (!saved) {
+      const previous = tx
+        .select()
+        .from(contactSettlement)
+        .where(eq(contactSettlement.receiptSplitId, receiptSplitId))
+        .get();
+      const id = previous?.id ?? randomUUID();
+      if (previous)
+        updateTracked(
+          tx,
+          contactSettlement,
+          [id],
+          { deletedAt: null, creditCents: current.creditCents },
+          grouped,
+        );
+      else
+        insertTracked(
+          tx,
+          contactSettlement,
+          {
+            id,
+            contactId,
+            bookingId: source.bookingId,
+            receiptSplitId,
+            creditCents: current.creditCents,
+          },
+          grouped,
+        );
+      for (const a of current.allocations)
+        insertTracked(tx, contactAllocation, { id: randomUUID(), settlementId: id, ...a }, grouped);
+    }
+    saveContactCreditRecord(
+      tx,
+      {
+        bookingId: source.bookingId,
+        repayments: [...(record?.repayments ?? []), receiptSplitId],
+        adoptedRepayments: [
+          ...(record?.adoptedRepayments ?? []),
+          {
+            receiptSplitId,
+            date: effectiveDate,
+            previouslyRecorded: !!saved,
+            allocations: current.allocations,
+            creditCents: current.creditCents,
+            unreturnedRefunds: [...refunds].map(([categoryId, amountCents]) => ({
+              categoryId,
+              amountCents,
+            })),
+          },
+        ],
+      },
+      grouped,
+    );
+    assertLedgerInvariants(tx, [source.bookingId]);
+    return { bookingId: source.bookingId, groupId: grouped.groupId, adopted: true };
+  });
 }
 
 export function getContactRepaymentAllocation(
@@ -261,7 +365,7 @@ export function getContactRepaymentAllocation(
   receiptSplitId: string,
   today: string,
 ) {
-  const { statement, source } = repayment(db, contactId, receiptSplitId, today);
+  const { statement, source, saved, record } = repayment(db, contactId, receiptSplitId, today);
   const allocations = statement.receipts.find(
     (r) => r.receiptSplitId === receiptSplitId,
   )!.allocations;
@@ -290,6 +394,10 @@ export function getContactRepaymentAllocation(
     retainedCreditCents,
     allocations,
     outlays,
+    requiresAdoption: !!saved && !record?.repayments?.includes(receiptSplitId),
+    locked: statement.movements
+      .map((o) => o.bookingId)
+      .some((id) => getBooking(db, id)?.status === 'reconciled'),
   };
 }
 
@@ -300,19 +408,44 @@ export function reallocateContactRepayment(
   input: { allocations: ContactAllocation[] },
   ctx: AuditContext,
   today: string,
+  options: ContactAllocationOptions = {},
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    const { statement, saved, source, record } = repayment(tx, contactId, receiptSplitId, today);
+    if (!repayment(tx, contactId, receiptSplitId, today).saved)
+      adoptContactRepayment(tx, contactId, receiptSplitId, grouped, today, options);
+    const before = getContactStatement(tx, contactId, today);
+    const laterReceiptIds = before.receipts
+      .slice(before.receipts.findIndex((r) => r.receiptSplitId === receiptSplitId) + 1)
+      .filter(
+        (r) =>
+          !r.recorded &&
+          r.allocatable &&
+          !before.movements.find((m) => m.splitId === r.receiptSplitId)?.creditOnly,
+      )
+      .map((r) => r.receiptSplitId);
+    // Freeze inferred later receipts too: reopening must never move somebody else's payment.
+    for (const id of laterReceiptIds)
+      adoptContactRepayment(tx, contactId, id, grouped, today, options);
+    const state = repayment(tx, contactId, receiptSplitId, today);
+    const { statement, source } = state;
+    const saved = state.saved!;
+    const record = state.record;
+    if (!record?.repayments?.includes(receiptSplitId))
+      throw new BookingInvariantError(
+        'Die ältere Rückzahlung muss zuerst ausdrücklich übernommen werden (adoption_required).',
+      );
     if (record.allocationHistory?.some((h) => h.date > today))
       throw new BookingInvariantError(
         'Die Entscheidung darf nicht vor einer späteren Kontaktzuordnung liegen.',
       );
-    const cash = assertContactAllocationUnlocked(tx, source.bookingId);
+    const cash = assertContactAllocationUnlocked(tx, source.bookingId, options, grouped);
     const preview = getContactRepaymentAllocation(tx, contactId, receiptSplitId, today);
     let plan;
     try {
-      plan = allocateContactReceipt(preview.outlays, preview.amountCents, input.allocations);
+      plan = allocateContactReceipt(preview.outlays, preview.amountCents, input.allocations, {
+        retainCredit: true,
+      });
       plan.creditCents += preview.retainedCreditCents;
     } catch {
       throw new BookingInvariantError(
@@ -326,7 +459,7 @@ export function reallocateContactRepayment(
         .where(eq(bookingSplit.id, a.outlaySplitId))
         .get();
       if (!target) throw new EntityNotFoundError('contact outlay', a.outlaySplitId);
-      assertContactAllocationUnlocked(tx, target.bookingId);
+      assertContactAllocationUnlocked(tx, target.bookingId, options, grouped);
     }
     const used = statement.creditUses
       .filter(
@@ -335,7 +468,50 @@ export function reallocateContactRepayment(
           statement.outlays.some((o) => o.splitId === u.outlaySplitId && !o.creditSourceSplitId),
       )
       .reduce((s, u) => s + u.amountCents, 0);
-    const touched = releaseContactCredit(tx, contactId, receiptSplitId, used, grouped, today);
+    const touched = releaseContactCredit(
+      tx,
+      contactId,
+      receiptSplitId,
+      used,
+      grouped,
+      today,
+      today,
+      options,
+    );
+    // Pin later purchases even when the receipt had no surplus before this edit.
+    // Otherwise released settlement cents would silently close a later outlay again.
+    const latestRecords = contactCreditRecords(tx);
+    for (const bookingId of new Set(
+      statement.outlays
+        .filter((o) => o.date >= source.date && !o.creditSourceSplitId)
+        .map((o) => o.bookingId),
+    )) {
+      const stored = latestRecords.find((r) => r.bookingId === bookingId);
+      if (stored?.explicitUses) continue;
+      assertContactAllocationUnlocked(tx, bookingId, options, grouped);
+      const parts = tx
+        .select()
+        .from(bookingSplit)
+        .where(eq(bookingSplit.bookingId, bookingId))
+        .all();
+      const uses = [
+        ...new Set(parts.map((p) => p.contactId).filter((id): id is string => !!id)),
+      ].flatMap((id) =>
+        getContactStatement(tx, id, today).creditUses.filter((u) =>
+          parts.some((p) => p.id === u.outlaySplitId),
+        ),
+      );
+      saveContactCreditRecord(
+        tx,
+        {
+          bookingId,
+          explicitUses: true,
+          uses,
+          useHistory: [...(stored?.useHistory ?? []), { date: today, uses, explicitUses: false }],
+        },
+        grouped,
+      );
+    }
     for (const old of tx
       .select()
       .from(contactAllocation)
@@ -384,6 +560,15 @@ export function reallocateContactRepayment(
           totals.set(target.categoryId, (totals.get(target.categoryId) ?? 0) + a.amountCents);
       }
     }
+    const adoptedRepayments = record.adoptedRepayments?.map((a) =>
+      a.receiptSplitId === receiptSplitId ? { ...a, unreturnedRefunds: [] } : a,
+    );
+    // Other adopted receipts retain their unreturned legacy categories. Only the
+    // chosen receipt opts into category restoration; never reverse a phantom inflow.
+    for (const a of adoptedRepayments ?? [])
+      for (const r of a.unreturnedRefunds)
+        totals.set(r.categoryId, (totals.get(r.categoryId) ?? 0) - r.amountCents);
+    for (const [id, amount] of totals) if (!amount) totals.delete(id);
     if (
       totals.size &&
       !tx.select().from(account).where(eq(account.id, cash.accountId)).get()?.onBudget
@@ -397,12 +582,14 @@ export function reallocateContactRepayment(
         [...totals].map(([categoryId, amountCents]) => ({ categoryId, amountCents })),
         grouped,
         today,
+        options,
       ),
     );
     saveContactCreditRecord(
       tx,
       {
         bookingId: cash.id,
+        ...(adoptedRepayments ? { adoptedRepayments } : {}),
         allocationHistory: [
           ...(record.allocationHistory ?? []),
           {

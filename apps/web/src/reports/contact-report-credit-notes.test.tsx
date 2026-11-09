@@ -87,7 +87,15 @@ const statement: ContactReportStatement = {
   creditUses: [],
   movements: [movement],
   outlays: [],
-  receipts: [{ receiptSplitId: 'receipt', creditCents: 5000, allocations: [], recorded: true }],
+  receipts: [
+    {
+      receiptSplitId: 'receipt',
+      creditCents: 5000,
+      allocations: [],
+      recorded: true,
+      allocatable: true,
+    },
+  ],
   closedThroughSplitId: null,
 };
 function show(view = overview, person = statement) {
