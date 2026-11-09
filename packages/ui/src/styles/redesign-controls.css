@@ -34,7 +34,7 @@
 
 :root:has([data-budget-redesign='1'])
   body
-  :is(.seg.seg, .price-history-ranges[role='group']):not(.bk-kind, .hv-head-phone .seg) {
+  :is(.seg.seg, .price-history-ranges[role='group']):not(.bk-kind, .seg-slide) {
   border: var(--stroke-hairline) solid var(--field);
   border-radius: var(--radius-md);
   padding: 1px;
@@ -51,7 +51,7 @@
 }
 :root:has([data-budget-redesign='1'])
   body
-  :is(.seg.seg, .price-history-ranges[role='group']):not(.bk-kind, .hv-head-phone .seg)
+  :is(.seg.seg, .price-history-ranges[role='group']):not(.bk-kind, .seg-slide)
   button {
   height: var(--segment-height);
   min-height: var(--segment-height);
@@ -59,7 +59,7 @@
 }
 :root:has([data-budget-redesign='1'])
   body
-  :is(.seg.seg, .price-history-ranges[role='group']):not(.bk-kind, .hv-head-phone .seg)
+  :is(.seg.seg, .price-history-ranges[role='group']):not(.bk-kind, .seg-slide)
   button[aria-pressed='true'] {
   background: var(--surface);
   color: var(--primary);

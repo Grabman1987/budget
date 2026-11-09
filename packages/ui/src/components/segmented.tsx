@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { cx } from './cx';
 
 export interface SegmentedOption<T extends string> {
@@ -16,6 +17,8 @@ export interface SegmentedProps<T extends string> {
   /** Segments share the width equally (dialogs, mobile). */
   stretch?: boolean;
   className?: string;
+  /** Selected segment is a filled pill that slides to the new selection. */
+  slide?: boolean;
 }
 
 /** Segmented switch: 8 px frame with 4 px padding, active segment as ink fill. */
@@ -26,9 +29,21 @@ export function Segmented<T extends string>({
   label,
   stretch = false,
   className,
+  slide = false,
 }: SegmentedProps<T>) {
+  const index = options.findIndex((option) => option.value === value);
   return (
-    <div role="group" aria-label={label} className={cx('seg', stretch && 'seg-stretch', className)}>
+    <div
+      role="group"
+      aria-label={label}
+      className={cx('seg', stretch && 'seg-stretch', slide && 'seg-slide', className)}
+      style={
+        slide
+          ? ({ '--seg-count': options.length, '--seg-index': Math.max(index, 0) } as CSSProperties)
+          : undefined
+      }
+    >
+      {slide && index >= 0 && <span className="seg-thumb" aria-hidden="true" />}
       {options.map((option) => (
         <button
           key={option.value}

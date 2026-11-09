@@ -858,6 +858,9 @@ export function CaptureForm({
     />
   );
 
+  const hasMoreEntries =
+    (!isTransfer && !mobileRedesign) ||
+    ((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0;
   const moreFields = (
     <details className="kmore" open={moreOpen} onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
       <summary>
@@ -930,6 +933,7 @@ export function CaptureForm({
           value={draft.kind}
           onChange={changeKind}
           stretch
+          slide={REDESIGN_ENABLED}
           className="bk-kind"
         />
       )}
@@ -1092,7 +1096,7 @@ export function CaptureForm({
               onChange={(flag) => set('flag', flag)}
             />
           )}
-          {moreFields}
+          {hasMoreEntries && moreFields}
           {closeControl}
           {!editing && <ReceiptSection uploadOnly actionsHost={receiptActionsHost} />}
         </div>

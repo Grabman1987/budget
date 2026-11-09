@@ -453,6 +453,59 @@
   }
 }
 
+/* Sliding pill: pure CSS geometry from the option count and index, so nothing is measured
+   and nothing can be mispositioned before layout, font load or sheet animation settle.
+   Equal columns make the pill width exact; the thumb sits inside the padding box, which is
+   where the grid columns start. */
+.seg-slide {
+  --seg-pad: 4px;
+  --seg-gap: 2px;
+}
+.seg.seg.seg-slide {
+  position: relative;
+  grid-auto-columns: 1fr;
+  padding: var(--seg-pad);
+  gap: var(--seg-gap);
+  border: var(--stroke-hairline) solid var(--rule-strong);
+  background: var(--quiet-soft);
+}
+.seg-slide .seg-thumb {
+  --seg-col: calc(
+    (100% - 2 * var(--seg-pad) - (var(--seg-count) - 1) * var(--seg-gap)) / var(--seg-count)
+  );
+  position: absolute;
+  top: var(--seg-pad);
+  bottom: var(--seg-pad);
+  left: calc(var(--seg-pad) + var(--seg-index) * (var(--seg-col) + var(--seg-gap)));
+  width: var(--seg-col);
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--rule-strong);
+  pointer-events: none;
+  transition: left 200ms ease-out;
+}
+.seg-slide button {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+.seg-slide button[aria-pressed='true'],
+.seg-slide button:not(:disabled):not([aria-pressed='true']):hover {
+  background: transparent;
+}
+.seg-slide button[aria-pressed='true'] {
+  color: var(--ink);
+  font-weight: 650;
+}
+@media (prefers-reduced-motion: reduce) {
+  .seg-slide .seg-thumb {
+    transition: none;
+  }
+}
+
 /* ---------- Switch ---------- */
 .switch {
   display: inline-flex;

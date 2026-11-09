@@ -746,11 +746,6 @@
   .bkform-redesign :is(.bk-editor-titlebar, .bk-body, .bk-foot) {
     background: var(--ground);
   }
-  .bkform-redesign .bk-kind button[aria-pressed='true'] {
-    background: var(--surface);
-    color: var(--ink);
-    box-shadow: inset 0 0 0 1px var(--rule-strong);
-  }
 }
 
 /* Contact-share feedback moves with its controls into the note column. */
@@ -809,8 +804,8 @@
     padding-block-end: 4px;
   }
   .bkform-redesign .bk-kind {
+    --seg-pad: 0px;
     min-height: 44px;
-    padding: 0;
   }
   .bkform-redesign .bk-kind button {
     padding-inline: 8px;
@@ -932,47 +927,8 @@
   .bkform-redesign .bk-amount-primary .amount-input::placeholder {
     color: inherit;
   }
-  .bkform-redesign .bk-kind {
-    position: relative;
-    isolation: isolate;
-    border: 0;
-    background: transparent;
-    border-radius: var(--radius-pill);
-  }
-  .bkform-redesign .bk-kind::before {
-    content: '';
-    position: absolute;
-    inset: 4px auto 4px 0;
-    width: calc(100% / 3);
-    z-index: -1;
-    border-radius: inherit;
-    background: var(--quiet-soft);
-    transform: translateX(0);
-    transition: transform 200ms ease-out;
-  }
   .bkform-redesign .bk-kind button {
-    position: relative;
-    background: transparent;
-    box-shadow: none;
-    border: 0;
     font-size: var(--fs-meta);
-    border-radius: var(--radius-pill);
-  }
-  .bkform-redesign .bk-kind button[aria-pressed='true'] {
-    background: transparent;
-    box-shadow: none;
-  }
-  .bkform-redesign .bk-head[data-kind='income'] .bk-kind::before {
-    transform: translateX(100%);
-  }
-  .bkform-redesign .bk-head[data-kind='transfer'] .bk-kind::before {
-    transform: translateX(200%);
-  }
-  .bkform-redesign .bk-head[data-editing] .bk-kind::before {
-    width: 50%;
-  }
-  .bkform-redesign .bk-kind-fixed::before {
-    display: none;
   }
   .bkform-redesign .bk-body .combo.is-capture-overlay {
     display: contents;
@@ -1042,25 +998,26 @@
 @media (max-width: 767px) {
   .bkform-redesign .bk-editor-titlebar {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-columns: minmax(0, 1fr) auto 44px;
     gap: 0;
   }
   .bkform-redesign .bk-editor-titlebar h2 {
     grid-column: 1;
     grid-row: 1;
     margin: 0;
+    text-align: start;
     font-size: var(--fs-body);
   }
   .bkform-redesign .bk-editor-titlebar > .bk-close {
-    grid-column: 2;
+    grid-column: 3;
     grid-row: 1;
   }
   .bkform-redesign .bk-editor-receipt-actions {
-    grid-column: 1;
-    grid-row: 2;
+    grid-column: 2;
+    grid-row: 1;
   }
   .bkform-redesign .bk-editor-titlebar > .kmore {
-    grid-column: 2;
+    grid-column: 3;
     grid-row: 2;
   }
   .bkform-redesign .bk-status {
@@ -1204,10 +1161,5 @@
   }
   .bk-focus-scope[data-compact-viewport] .bkform-redesign .bk-head {
     padding-bottom: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .bkform-redesign .bk-kind::before {
-    transition: none;
   }
 }
