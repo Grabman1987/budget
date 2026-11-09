@@ -5,6 +5,7 @@ import {
   createBooking,
   createEntity,
   createTestDatabase,
+  INCOME_TYPES,
   schema,
   type Db,
 } from '@budget/db';
@@ -232,7 +233,7 @@ describe('occurrences, refresh, link, unlink, missed', () => {
     expect((await call('POST', '/expected/occurrences/nope/missed')).status).toBe(404);
   });
 
-  it('income of a month: received against expected', async () => {
+  it('income of a month: booked household income against expected', async () => {
     await call('POST', '/expected', {
       ...rent,
       name: 'Gehalt',
@@ -242,24 +243,36 @@ describe('occurrences, refresh, link, unlink, missed', () => {
       dateShift: 'before',
       amountCents: 300_000,
     });
-    createBooking(
-      db,
-      {
-        accountId: 'giro',
-        date: '2026-03-31',
-        amountCents: 300_000,
-        payeeId: 'p1',
-        splits: [{ categoryId: null, amountCents: 300_000 }],
-      },
-      { actor: 'tester' },
-    );
+    const book = (amountCents: number, incomeTypeId: string, date = '2026-03-31') =>
+      createBooking(
+        db,
+        {
+          accountId: 'giro',
+          date,
+          amountCents,
+          payeeId: 'p1',
+          splits: [{ categoryId: null, amountCents, incomeTypeId }],
+        },
+        { actor: 'tester' },
+      );
+    book(300_000, INCOME_TYPES.salary.id);
+    book(12_345, INCOME_TYPES.side.id, '2026-03-15');
+    book(5_000, INCOME_TYPES.capital.id, '2026-03-20');
+    book(700, INCOME_TYPES.refund.id, '2026-03-21');
     await call('POST', '/expected/refresh');
     const income = await call('GET', '/expected/income?month=2026-03');
+    // received = booked household income (salary + side); capital and refund stay out
     expect(income.body).toMatchObject({
       month: '2026-03',
       expectedCents: 300_000,
-      receivedCents: 300_000,
+      receivedCents: 312_345,
     });
+    expect(income.body.byIncomeType.map((t: any) => t.incomeTypeId)).not.toContain(
+      INCOME_TYPES.capital.id,
+    );
+    expect(income.body.byIncomeType.map((t: any) => t.incomeTypeId)).not.toContain(
+      INCOME_TYPES.refund.id,
+    );
     expect(income.body.byPayment[0]).toMatchObject({
       name: 'Gehalt',
       dueDate: '2026-03-31',
