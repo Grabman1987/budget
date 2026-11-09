@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import {
   categorySuggestions,
   redesignLoaded,
@@ -7,6 +8,7 @@ import {
 } from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
+import { controlBoxes } from './control-geometry';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
@@ -64,7 +66,7 @@ test('save button stays readable through theme and availability changes', async 
     openingBalanceCents: 100000,
   });
   const dialog = await openNew(page, account.id);
-  const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+  const save = captureSaveControl(dialog);
   await dialog.getByLabel('Betrag', { exact: true }).fill('12');
   await choose(dialog, 'Kategorie', 'Essen', /^Essen/);
   await expect(save).toBeEnabled();
@@ -105,12 +107,23 @@ test('save button stays readable through theme and availability changes', async 
               }, 0);
             const ratio = () => {
               const style = getComputedStyle(button);
-              const backdrop = rgb(getComputedStyle(button.parentElement!).backgroundColor);
+              // The phone action is transparent; use the painted ancestor surface.
+              let surface = button.parentElement!;
+              while (
+                getComputedStyle(surface).backgroundColor === 'rgba(0, 0, 0, 0)' &&
+                surface.parentElement
+              )
+                surface = surface.parentElement;
+              const backdrop = rgb(getComputedStyle(surface).backgroundColor);
               const opacity = Number(style.opacity);
               const painted = (value: string) =>
                 rgb(value).map((channel, i) => channel * opacity + backdrop[i]! * (1 - opacity));
               const fg = luminance(painted(style.color));
-              const bg = luminance(painted(style.backgroundColor));
+              const bg = luminance(
+                style.backgroundColor === 'rgba(0, 0, 0, 0)'
+                  ? backdrop
+                  : painted(style.backgroundColor),
+              );
               return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
             };
             // Sample immediately and over several painted frames, without waiting for transitions.
@@ -245,7 +258,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
     const fresh = await box(dialog);
     expect(fresh.y).toBeGreaterThanOrEqual(0);
     expect(fresh.y + fresh.height).toBeLessThanOrEqual(900);
-    await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport({
+    await expect(captureSaveControl(dialog)).toBeInViewport({
       ratio: 1,
     });
   });
@@ -299,20 +312,25 @@ test('at most three suggestions in one line without overflow; Mehr and Notiz', a
   await expect(more.locator('summary')).toHaveAccessibleName('Mehr');
   await more.locator('summary').click();
   await expect(more).toHaveAttribute('open', '');
-  await expect(more.getByLabel('Markierung', { exact: true })).toBeVisible();
-  // The flag shortcut stays first in the head, with its old name.
-  if (!(await redesignLoaded(page)))
-    await expect(dialog.locator('.bk-head').getByRole('button').first()).toHaveAccessibleName(
-      'Markierung: keine',
-    );
-  else await expect(await captureFlagControl(dialog, 'Markierung: keine')).toBeVisible();
+  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768) {
+    await expect(more.getByLabel('Markierung', { exact: true })).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
+  } else {
+    await expect(more.getByLabel('Markierung', { exact: true })).toBeVisible();
+    // The flag shortcut stays first in the head, with its old name.
+    if (!(await redesignLoaded(page)))
+      await expect(dialog.locator('.bk-head').getByRole('button').first()).toHaveAccessibleName(
+        'Markierung: keine',
+      );
+    else await expect(await captureFlagControl(dialog, 'Markierung: keine')).toBeVisible();
 
-  // Both flag controls show the same value.
-  await more.getByLabel('Markierung', { exact: true }).selectOption('blue');
-  await expect(await captureFlagControl(dialog, 'Markierung: Blau')).toBeVisible();
-  await (await captureFlagControl(dialog, 'Markierung: Blau')).click();
-  await dialog.getByRole('menuitemradio', { name: /Gelb/ }).click();
-  await expect(more.getByLabel('Markierung', { exact: true })).toHaveValue('yellow');
+    // Both flag controls show the same value.
+    await more.getByLabel('Markierung', { exact: true }).selectOption('blue');
+    await expect(await captureFlagControl(dialog, 'Markierung: Blau')).toBeVisible();
+    await (await captureFlagControl(dialog, 'Markierung: Blau')).click();
+    await dialog.getByRole('menuitemradio', { name: /Gelb/ }).click();
+    await expect(more.getByLabel('Markierung', { exact: true })).toHaveValue('yellow');
+  }
 
   // Phone and desktop: no horizontal page scroll, targets of 44 px, no Axe violation.
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
@@ -325,18 +343,13 @@ test('at most three suggestions in one line without overflow; Mehr and Notiz', a
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
-    const small = await dialog
-      .locator('button, input:not([aria-hidden="true"]), select, textarea, summary')
-      .evaluateAll((els) =>
-        els
-          .filter((el) => el.getClientRects().length)
-          .map((el) => ({
-            name: el.getAttribute('aria-label') ?? el.textContent,
-            width: el.getBoundingClientRect().width,
-            height: el.getBoundingClientRect().height,
-          }))
-          .filter((b) => b.width < 44 || b.height < 44),
-      );
+    const small = (
+      await controlBoxes(
+        dialog.locator(
+          'button:visible, input:not([aria-hidden="true"]):visible, select:visible, textarea:visible, summary:visible',
+        ),
+      )
+    ).filter((box) => box.width < 44 || box.height < box.minimumHeight);
     expect(small).toEqual([]);
     expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
       [],

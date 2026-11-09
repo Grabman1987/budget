@@ -1,3 +1,4 @@
+import { controlBoxes } from './control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect } from './sample';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
@@ -64,15 +65,14 @@ test('one review pill on desktop; three phone header items and linked status bel
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    const small = await page
-      .locator(isMobile ? '.m-head, .m-status' : '.topbar')
-      .evaluateAll((regions) =>
-        regions
-          .flatMap((region) => [...region.querySelectorAll('a, button, summary')])
-          .filter((el) => el.getClientRects().length)
-          .map((el) => el.getBoundingClientRect())
-          .filter((box) => box.width < 44 || box.height < 44),
-      );
+    const small = (
+      await controlBoxes(
+        page
+          .locator(isMobile ? '.m-head, .m-status' : '.topbar')
+          .locator('a, button, summary')
+          .filter({ visible: true }),
+      )
+    ).filter((box) => box.width < box.minimumWidth || box.height < box.minimumHeight);
     expect(small).toEqual([]);
     await page.screenshot({ path: info.outputPath(`header-${theme}.png`) });
   }

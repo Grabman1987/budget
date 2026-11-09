@@ -1,3 +1,4 @@
+import { controlBoxes } from './control-geometry';
 import { forecastHorizon } from './plan-redesign-controls';
 import AxeBuilder from '@axe-core/playwright';
 import { expect as baseExpect } from '@playwright/test';
@@ -214,13 +215,9 @@ isolatedTest(
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );
-      const undersized = await pauseCard
-        .locator('button, input, select')
-        .evaluateAll((nodes) =>
-          nodes
-            .map((node) => (node as HTMLElement).getBoundingClientRect().height)
-            .filter((height) => height < 44),
-        );
+      const undersized = (await controlBoxes(pauseCard.locator('button, input, select'))).filter(
+        (box) => box.height < box.minimumHeight,
+      );
       expect(undersized).toEqual([]);
       await page.screenshot({
         fullPage: true,

@@ -1,3 +1,4 @@
+import type { OverviewData } from '@budget/domain';
 import {
   addDays,
   addMonths,
@@ -43,7 +44,7 @@ import {
   type ReportProject,
   type ReportProjectScope,
 } from './report-project-scope';
-import { upcoming } from './expected';
+import { monthIncome, upcoming, type MonthIncome as ExpectedMonthIncome } from './expected';
 import { availableSection, occurrencesBetween, paceOfMonth, type Heute } from './heute';
 import type { HeuteUnavailable } from './heute';
 import { netWorthAsOf, netWorthDaily } from './portfolio';
@@ -121,13 +122,24 @@ function frame(db: Executor, today: string, month: string): Frame {
 const monthsFrom = (f: Frame, from: string): string[] =>
   monthsBetween(from < f.firstMonth ? f.firstMonth : from, f.month);
 
-/** Income splits of the budget accounts up to `asOf`, with their type. */
-function incomeFacts(
+/** Counted income splits (typed, not contact write-offs) up to `asOf`, from `fromMonth` on. */
+function incomeSplits(
   db: Executor,
-  f: Frame,
+  asOf: string,
   fromMonth: string,
   scope?: ReportProjectScope,
-): IncomeFact[] {
+): OverviewData['splits'] {
+  return projectOverviewData(db, scope).splits.filter(
+    (s) =>
+      s.kind === 'income' &&
+      s.incomeTypeId !== null &&
+      s.incomeGroup !== 'unclassified' &&
+      s.date <= asOf &&
+      monthOf(s.date) >= fromMonth,
+  );
+}
+
+function toIncomeFacts(db: Executor, splits: OverviewData['splits']): IncomeFact[] {
   const types = new Map(
     db
       .select()
@@ -135,15 +147,8 @@ function incomeFacts(
       .all()
       .map((t) => [t.id, t]),
   );
-  return projectOverviewData(db, scope).splits.flatMap((s): IncomeFact[] => {
-    if (
-      s.kind !== 'income' ||
-      s.incomeTypeId === null ||
-      s.incomeGroup === 'unclassified' ||
-      s.date > f.asOf ||
-      monthOf(s.date) < fromMonth
-    )
-      return [];
+  return splits.flatMap((s): IncomeFact[] => {
+    if (s.incomeTypeId === null) return [];
     const type = types.get(s.incomeTypeId);
     return [
       {
@@ -156,6 +161,16 @@ function incomeFacts(
       },
     ];
   });
+}
+
+/** Income splits of the budget accounts up to `asOf`, with their type. */
+function incomeFacts(
+  db: Executor,
+  f: Pick<Frame, 'asOf'>,
+  fromMonth: string,
+  scope?: ReportProjectScope,
+): IncomeFact[] {
+  return toIncomeFacts(db, incomeSplits(db, f.asOf, fromMonth, scope));
 }
 
 /** Spending per category in a month, positive cents (refunds net); categories without class are left out. */
@@ -710,5 +725,62 @@ function onePagerInRange(db: Executor, today: string, month: string): OnePager {
     pace,
     findings,
     expectedIncomeProgress,
+  };
+}
+
+/**
+ * Plan income card: the expected inflows of the month against the household income actually booked
+ * (income splits, with or without a linked expected payment). Capital and refund income are left out
+ * of the totals and the per-type rows on both sides, but their expected payments stay in
+ * `byPayment` so that their status remains visible. A month after `today` has nothing received yet.
+ * Line `receivedCents` is the counted income of the linked booking (same splits as the report).
+ */
+export function monthIncomeBooked(db: Executor, today: string, month: string): ExpectedMonthIncome {
+  const base = monthIncome(db, month);
+  const keep = (id: string | null) => !ownIncomeTypes.has(id ?? '');
+  const splits =
+    month > monthOf(today)
+      ? []
+      : incomeSplits(db, month === monthOf(today) ? today : lastDayOfMonth(month), month);
+  const monthSplits = splits.filter((s) => monthOf(s.date) === month);
+  const received = new Map<string, number>();
+  for (const s of monthSplits)
+    if (s.bookingId !== undefined && !ownIncomeTypes.has(s.incomeTypeId ?? ''))
+      received.set(s.bookingId, (received.get(s.bookingId) ?? 0) + s.amountCents);
+  const byPayment = base.byPayment.map((l) => ({
+    ...l,
+    receivedCents:
+      l.bookingId === null || !keep(l.incomeTypeId) ? 0 : (received.get(l.bookingId) ?? 0),
+  }));
+  const booked = monthIncomeOf(toIncomeFacts(db, monthSplits), month);
+  const types = new Map<string, ExpectedMonthIncome['byIncomeType'][number]>();
+  for (const l of byPayment.filter((p) => keep(p.incomeTypeId))) {
+    const e = types.get(l.incomeTypeId ?? '') ?? {
+      incomeTypeId: l.incomeTypeId,
+      name: l.incomeTypeName,
+      expectedCents: 0,
+      receivedCents: 0,
+    };
+    e.expectedCents += l.expectedCents;
+    types.set(l.incomeTypeId ?? '', e);
+  }
+  for (const b of booked.types) {
+    const e = types.get(b.typeId ?? '') ?? {
+      incomeTypeId: b.typeId,
+      name: b.name,
+      expectedCents: 0,
+      receivedCents: 0,
+    };
+    e.receivedCents += b.cents;
+    types.set(b.typeId ?? '', e);
+  }
+  return {
+    month,
+    expectedCents: byPayment
+      .filter((l) => keep(l.incomeTypeId))
+      .reduce((a, l) => a + l.expectedCents, 0),
+    receivedCents: booked.earnedCents,
+    byIncomeType: [...types.values()].sort((a, b) => (a.name ?? '￿').localeCompare(b.name ?? '￿')),
+    byPayment,
   };
 }

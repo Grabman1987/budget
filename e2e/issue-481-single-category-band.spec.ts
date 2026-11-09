@@ -1,4 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
+import { compactControls } from './control-geometry';
+import { redesignEnabled } from './plan-redesign-controls';
 import { expect, type Browser, type Page } from '@playwright/test';
 import { sampleTest, SAMPLE_NOW, SAMPLE_URL } from './sample';
 import { STORAGE_STATE_SAMPLE } from '../playwright.config';
@@ -44,6 +46,19 @@ async function expectPhoneSelectionTargets(page: Page) {
 
 /** Keep separate parent/category bounds, including the ON category targets and bar spacing. */
 async function expectCompactBandContents(page: Page, phone: boolean) {
+  const fullSizeControls = !phone && !(await compactControls(page));
+  if (
+    fullSizeControls &&
+    (await page.evaluate(
+      () =>
+        document.querySelector('[data-budget-redesign="1"]') !== null ||
+        matchMedia('(pointer: coarse)').matches,
+    ))
+  ) {
+    for (const action of await page.locator('.ptable-zero .group-heading .plan-add').all()) {
+      expect((await action.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+  }
   const bands = await page.locator('.ptable-zero .pgroup:not(.psingle)').evaluateAll((rows) =>
     rows.map((row) => {
       const child = row.nextElementSibling!;
@@ -107,7 +122,10 @@ async function expectCompactBandContents(page: Page, phone: boolean) {
       expect(band.categoryHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 40);
       expect(band.wholeHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 152 : 76);
     }
-    expect(band.parentHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 36);
+    // Below 1024px or on touch, the action stays 44px plus the two row borders.
+    expect(band.parentHeight, JSON.stringify(band)).toBeLessThanOrEqual(
+      phone ? 76 : band.redesigned && fullSizeControls ? 46 : 36,
+    );
     if (!phone) expect(band.nameRight, band.id).toBeLessThanOrEqual(band.statusLeft);
   }
 }
@@ -720,11 +738,19 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
     ).toBeChecked();
   }
   if (info.project.name === 'desktop') {
-    const options = page
-      .locator('details.plan-menu')
-      .filter({ has: page.locator('summary', { hasText: 'Optionen' }) });
-    await options.locator('summary').click();
-    await options.getByRole('button', { name: '2 Monate', exact: true }).click();
+    if (await redesignEnabled(page)) {
+      // The month span moved from the Optionen menu into the Plan toolbar (#1006).
+      await page
+        .getByRole('group', { name: 'Sichtbare Monate' })
+        .getByRole('button', { name: '2', exact: true })
+        .click();
+    } else {
+      const options = page
+        .locator('details.plan-menu')
+        .filter({ has: page.locator('summary', { hasText: 'Optionen' }) });
+      await options.locator('summary').click();
+      await options.getByRole('button', { name: '2 Monate', exact: true }).click();
+    }
     await expect(page.locator('.ptable-multi .prow')).toHaveCount(3);
     await expect(page.locator('.ptable-multi .psingle')).toHaveCount(0);
     await page.getByRole('button', { name: 'Alle einklappen', exact: true }).click();

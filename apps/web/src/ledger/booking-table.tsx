@@ -15,11 +15,15 @@ import {
   valuedCurrency,
   shortDay,
   upcomingDate,
-  eur,
   monthName,
 } from './format';
 import { ScheduledRegisterRow } from './scheduled-register-row';
-import { upcomingEntries, upcomingSummary, type UpcomingModel } from './upcoming-register';
+import {
+  upcomingEntries,
+  upcomingSummary,
+  type UpcomingEntry,
+  type UpcomingModel,
+} from './upcoming-register';
 import { flashRows, useFlashing } from './flash';
 import { useLedgerWrites } from './mutations';
 import { lookupsQuery } from './queries';
@@ -27,6 +31,8 @@ import type { BookingFlag, BookingSort, ListedBooking } from './types';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './register-redesign.css';
 import { BookingInspector } from './booking-inspector';
+import type { RegisterMonth, RegisterMonthsKind } from '@budget/domain';
+import { categoryNetLabel, registerAmount } from './register-summary';
 
 export interface Selection {
   selected: ReadonlySet<string>;
@@ -38,6 +44,9 @@ export interface Selection {
 }
 
 export interface BookingTableProps {
+  monthlyTotals?: readonly RegisterMonth[] | undefined;
+  monthlyTotalsPending?: boolean | undefined;
+  monthlyKind?: RegisterMonthsKind | undefined;
   items: ReadonlyArray<ListedBooking>;
   caption: string;
   /** Alle Buchungen: account column, day groups with day sums. Einzelkonto: running balance. */
@@ -70,6 +79,9 @@ export function BookingTable({
   upcoming,
   showTodayBalance = true,
   showRunningBalance = false,
+  monthlyTotals,
+  monthlyTotalsPending,
+  monthlyKind,
 }: BookingTableProps) {
   useAmountPrivacy();
   // Mount the responsive overlay on first use, then retain it for native close/focus return.
@@ -147,9 +159,23 @@ export function BookingTable({
       {REDESIGN_ENABLED &&
         (groups.indexOf(group) === 0 ||
           groups[groups.indexOf(group) - 1]?.day.slice(0, 7) !== group.day.slice(0, 7)) && (
-          <tr className="kmonth">
+          <tr className={`kmonth${all ? ' kmonth-totals' : ''}`}>
             <th scope="rowgroup" colSpan={columns}>
-              {monthName(group.day)} {group.day.slice(0, 4)}
+              <span>
+                {monthName(group.day)} {group.day.slice(0, 4)}
+              </span>
+              {all && (
+                <span className="kmonth-sums">
+                  {monthlyTotalsPending ? (
+                    'Summen werden aktualisiert …'
+                  ) : (
+                    <MonthSums
+                      row={monthlyTotals?.find((row) => row.month === group.day.slice(0, 7))}
+                      kind={monthlyKind}
+                    />
+                  )}
+                </span>
+              )}
             </th>
           </tr>
         )}
@@ -214,7 +240,7 @@ export function BookingTable({
     <>
       {REDESIGN_ENABLED && (
         <div className="redesign-register-toolbar">
-          {upcoming && (
+          {upcoming && upcoming.count > 0 && (
             <button
               type="button"
               className="kupcoming-toggle"
@@ -347,6 +373,13 @@ export function BookingTable({
                       {upcomingSummary(upcoming.count, entries[0])}
                     </button>
                   </th>
+                </tr>
+              )}
+              {upcoming.open && entries.length > 0 && (
+                <tr className="kupcoming-sum" data-testid="register-planned-sum">
+                  <td colSpan={columns}>
+                    Geplant (nicht in den Monatssummen): {registerAmount(plannedCents(entries))}
+                  </td>
                 </tr>
               )}
               {upcoming.open &&
@@ -491,7 +524,7 @@ function Row({
         </InlineBookingCell>
       )}
       {b.categorySpendingCents !== undefined && (
-        <small className="kmeta">Kategorie netto {eur(b.categorySpendingCents)}</small>
+        <small className="kmeta">{categoryNetLabel(false, b.categorySpendingCents)}</small>
       )}
     </>
   );
@@ -732,4 +765,46 @@ function Row({
       </td>
     </tr>
   );
+}
+
+/** Month figures of the register: sum of the shown rows, plus the balance only for a whole account. */
+export function MonthSums({
+  row,
+  kind,
+}: {
+  row: RegisterMonth | undefined;
+  kind: RegisterMonthsKind | undefined;
+}) {
+  useAmountPrivacy();
+  const count = row ? ` · ${row.count} ${row.count === 1 ? 'Buchung' : 'Buchungen'}` : '';
+  if (row?.beforeStart) return <>Vor Start{count}</>;
+  return (
+    <>
+      {kind === 'filtered' ? 'Monat gefiltert' : kind === 'rows' ? 'Monat (angezeigt)' : 'Monat'}{' '}
+      {registerAmount(row?.cents)}
+      {kind === 'balance' && row?.cumulativeCents != null && (
+        <>
+          {' · '}Saldo Monatsende {registerAmount(row.cumulativeCents)}
+        </>
+      )}
+      {count}
+    </>
+  );
+}
+
+/** Signed EUR total of the planned rows; unknown conversions make it unavailable, never 0. */
+export function plannedCents(entries: readonly UpcomingEntry[]): number | null {
+  let total = 0n;
+  for (const entry of entries) {
+    const cents = entry.booking
+      ? (entry.booking.amountValuation?.eurCents ?? null)
+      : entry.schedule.currency === 'EUR'
+        ? entry.schedule.amountCents
+        : null;
+    if (cents === null || !Number.isSafeInteger(cents)) return null;
+    total += BigInt(cents);
+  }
+  return total > BigInt(Number.MAX_SAFE_INTEGER) || total < -BigInt(Number.MAX_SAFE_INTEGER)
+    ? null
+    : Number(total);
 }

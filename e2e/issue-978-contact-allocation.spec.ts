@@ -132,3 +132,118 @@ test('targeted repayments and consumed credit choices preserve cash and support 
     true,
   );
 });
+
+test('owner confirms locked reallocation, keeps credit and waives an exact contact share', async ({
+  page,
+  request,
+  isolatedLedger,
+}) => {
+  const post = async (path: string, data: unknown) => {
+    const response = await request.post(`/api${path}`, {
+      data,
+      headers: { origin: isolatedLedger.origin },
+    });
+    expect(response.ok(), await response.text()).toBe(true);
+    return response.json();
+  };
+  const group = (await post('/categories/groups', { name: 'Beispielgruppe' })).group;
+  const category = (
+    await post('/categories', {
+      name: 'Beispiel Haushalt',
+      groupId: group.id,
+      class: 'want',
+      kind: 'variable',
+    })
+  ).category;
+  const account = (
+    await post('/accounts', {
+      name: 'Beispielkonto',
+      type: 'checking',
+      onBudget: true,
+      openingDate: '2026-09-01',
+      openingBalanceCents: 500000,
+    })
+  ).account;
+  const contact = (await post('/contacts', { name: 'Beispielkontakt' })).contact;
+  const contactPath = `/contacts/${contact.id}`;
+  const statement = async () => (await request.get(`/api${contactPath}`)).json();
+  const purchase = (date: string, amountCents: number, memo: string) =>
+    post('/bookings', {
+      type: 'booking',
+      accountId: account.id,
+      date,
+      amountCents: -amountCents,
+      splits: [{ categoryId: category.id, contactId: contact.id, amountCents: -amountCents, memo }],
+    });
+  const first = await purchase('2026-09-01', 1001, 'Abgeglichene Beispielauslage');
+  await post(`${contactPath}/settlements`, {
+    accountId: account.id,
+    date: '2026-09-02',
+    amountCents: 701,
+  });
+  await purchase('2026-10-01', 501, 'Weitere Beispielauslage');
+  await post(`/accounts/${account.id}/reconciliation`, {
+    date: '2026-09-01',
+    statementBalanceCents: 498999,
+  });
+  const bankBefore = (await (await request.get(`/api/bookings/${first.id}`)).json()).booking;
+  const accountsBefore = await (await request.get('/api/accounts')).json();
+  expect(accountsBefore.netWorthEurCents).toBe(499199);
+  expect(
+    accountsBefore.accounts.find((item: { id: string }) => item.id === account.id).balanceCents,
+  ).toBe(499199);
+  await page.goto(`/konten/kontakte/${contact.id}`);
+  const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
+  await sheet.getByText('Zuordnung', { exact: true }).click();
+  await sheet.getByRole('button', { name: 'Zuordnung ändern' }).click();
+  const allocation = page.getByRole('dialog', { name: 'Rückzahlung neu zuordnen' });
+  await allocation.getByRole('textbox', { name: /Zuordnung Auslage 1/ }).fill('0');
+  await expect(allocation).toContainText('Verbleibendes Kontaktguthaben: 7,01');
+  await expect(allocation.getByRole('button', { name: 'Zuordnung speichern' })).toBeDisabled();
+  await allocation.getByRole('checkbox', { name: /Zuordnung auch bei abgeglichenen/ }).check();
+  await allocation.getByRole('button', { name: 'Zuordnung speichern' }).click();
+  await expect(page.locator('.toast.is-open')).toContainText('Rückzahlung neu zugeordnet.');
+  let current = await statement();
+  expect(
+    current.outlays.map((outlay: { remainingCents: number }) => outlay.remainingCents),
+  ).toEqual([1001, 501]);
+  expect(current.creditCents).toBe(701);
+  await sheet
+    .getByRole('button', { name: 'Abgeglichene Beispielauslage als Geschenk übernehmen' })
+    .click();
+  const gift = page.getByRole('dialog', { name: 'Auslage als Geschenk übernehmen' });
+  await expect(gift.getByRole('heading', { name: 'Geschenk an Kontakt' })).toBeVisible();
+  await gift.getByRole('textbox', { name: 'Geschenkbetrag' }).fill('5,01');
+  await expect(gift.getByLabel('Eigene Geschenkkategorie')).toHaveValue(category.id);
+  await expect(gift.getByLabel('Eigene Geschenkkategorie')).toBeDisabled();
+  await expect(gift.getByRole('button', { name: 'Als Geschenk übernehmen' })).toBeDisabled();
+  await gift.getByRole('checkbox', { name: /Zuordnung auch bei abgeglichenen/ }).check();
+  await gift.getByRole('button', { name: 'Als Geschenk übernehmen' }).click();
+  await expect(page.locator('.toast.is-open')).toContainText(
+    'Auslage als eigenes Geschenk übernommen.',
+  );
+  current = await statement();
+  expect(
+    current.outlays.map((outlay: { remainingCents: number }) => outlay.remainingCents),
+  ).toEqual([500, 501]);
+  expect(current.creditCents).toBe(701);
+  expect((await (await request.get(`/api/bookings/${first.id}`)).json()).booking).toEqual(
+    bankBefore,
+  );
+  const accountsAfter = await (await request.get('/api/accounts')).json();
+  expect(accountsAfter.netWorthEurCents).toBe(499199);
+  expect(
+    accountsAfter.accounts.find((item: { id: string }) => item.id === account.id).balanceCents,
+  ).toBe(499199);
+  await page
+    .locator('.toast.is-open')
+    .getByRole('button', { name: 'Rückgängig', exact: true })
+    .click();
+  await expect(page.locator('.toast.is-open')).toContainText('Rückgängig gemacht.');
+  expect(
+    (await statement()).outlays.map((outlay: { remainingCents: number }) => outlay.remainingCents),
+  ).toEqual([1001, 501]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+});

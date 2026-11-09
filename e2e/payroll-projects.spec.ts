@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
 import { inspectReport } from './spending-helpers';
@@ -175,7 +176,7 @@ test('project P&L through the real API, retaining archived attribution and mobil
     bookingDialog.getByLabel('Projekt', { exact: true }).locator('option:checked'),
   ).toHaveText('Synthetisches Nebenprojekt · archiviert');
   await bookingDialog.getByLabel('Notiz', { exact: true }).fill('Synthetische Änderung');
-  await bookingDialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(bookingDialog).click();
   await expect(bookingDialog).not.toBeVisible();
   const retained = await (await request.get(`/api/bookings?ids=${incomeBooking.id}`)).json();
   expect(retained.items[0].projectId).toBe(projectId);

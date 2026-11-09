@@ -1,3 +1,4 @@
+import { controlBoxes } from './control-geometry';
 import { redesignLoaded, inboxFilters, bankSelection } from './ledger-helpers';
 
 import { randomUUID } from 'node:crypto';
@@ -217,18 +218,13 @@ test('65 compact bank rows, prepared bulk confirmation, one undo, date controls 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    const smallTargets = await page
-      .locator(
-        '.kinbox button, .kinbox summary, .kinbox .bank-select, .kinbox a.btn, .inbox-filters input, .inbox-filters select',
+    const smallTargets = (
+      await controlBoxes(
+        page.locator(
+          '.kinbox button, .kinbox summary, .kinbox .bank-select, .kinbox a.btn, .inbox-filters input, .inbox-filters select',
+        ),
       )
-      .evaluateAll((nodes) =>
-        nodes
-          .filter(
-            (node) =>
-              node.getBoundingClientRect().height > 0 && node.getBoundingClientRect().height < 44,
-          )
-          .map((node) => node.textContent),
-      );
+    ).filter((box) => box.height > 0 && box.height < box.minimumHeight);
     expect(smallTargets).toEqual([]);
     expect((await new AxeBuilder({ page }).include('.kinbox').analyze()).violations).toEqual([]);
     await page.screenshot({

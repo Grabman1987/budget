@@ -56,21 +56,38 @@ test('"Zu verteilen" is green when positive, red only when negative, neutral at 
   await page.reload();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('−50,00 €');
   await expect(hero).toHaveClass(/is-negative/);
-  await expect(send).toBeDisabled();
+  if (await redesignEnabled(page)) {
+    await expect(send).toBeEnabled();
+    await send.click();
+    await expect(page.getByRole('button', { name: 'Wasserfall-Assistent' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await page.keyboard.press('Escape');
+  } else await expect(send).toBeDisabled();
   await expect(hint).toHaveText('Zu viel zugewiesen');
-  await expect(send).toHaveAccessibleDescription('Zu viel zugewiesen');
+  if (!(await redesignEnabled(page)))
+    await expect(send).toHaveAccessibleDescription('Zu viel zugewiesen');
 
   await page.unroute(monthRead);
   await withToBeAssigned(page, 0);
   await page.reload();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('0,00 €');
   await expect(hero).not.toHaveClass(/is-positive|is-negative/);
-  await expect(send).toBeDisabled();
+  if (await redesignEnabled(page)) {
+    await expect(send).toBeEnabled();
+    await send.click();
+    await expect(page.getByRole('button', { name: 'Wasserfall-Assistent' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await page.keyboard.press('Escape');
+  } else await expect(send).toBeDisabled();
   await expect(hint).toHaveText('Nichts zu verteilen');
   await expect(hint).toBeVisible();
 });
 
-test('Einnahmen link and "Monat abschließen" are visible without a menu', async ({ page }) => {
+test('Einnahmen and month close remain reachable from their current controls', async ({ page }) => {
   await page.goto('/plan/monat?monat=2026-09');
   const on = await redesignEnabled(page);
   const income =
@@ -82,7 +99,15 @@ test('Einnahmen link and "Monat abschließen" are visible without a menu', async
   if (on && page.viewportSize()!.width < 768) await page.locator('.plan-tba').click();
   await expect(income).toBeVisible();
   if (on && page.viewportSize()!.width < 768) await page.keyboard.press('Escape');
-  const close = page.getByRole('link', { name: 'Monat abschließen', exact: true });
+  if (on && page.viewportSize()!.width < 768)
+    await page.locator('.plan-menu-optionen > summary').click();
+  const close = page.getByRole('link', {
+    name:
+      on && page.viewportSize()!.width < 768
+        ? 'Monatsabschluss starten oder fortsetzen'
+        : 'Monat abschließen',
+    exact: true,
+  });
   await expect(close).toBeVisible();
   await close.click();
   await expect(page).toHaveURL(/\/monatsabschluss\/2026-09/);
@@ -122,7 +147,17 @@ for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
     await withToBeAssigned(page, 0);
     await page.goto('/plan/monat?monat=2026-09');
-    await expect(page.getByRole('link', { name: 'Monat abschließen', exact: true })).toBeVisible();
+    const on = await redesignEnabled(page);
+    if ((await redesignEnabled(page)) && page.viewportSize()!.width < 768) {
+      await page.locator('.plan-menu-optionen > summary').click();
+      await expect(
+        page.getByRole('link', { name: 'Monatsabschluss starten oder fortsetzen' }),
+      ).toBeVisible();
+      await page.keyboard.press('Escape');
+    } else
+      await expect(
+        page.getByRole('link', { name: 'Monat abschließen', exact: true }),
+      ).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -130,9 +165,13 @@ for (const scheme of ['light', 'dark'] as const) {
     const axe = await new AxeBuilder({ page }).include('main').analyze();
     expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
     if (isMobile) {
-      for (const selector of ['.plan-close', '.plan-topbar summary', '.plan-chip-scroll > .btn']) {
+      for (const selector of [
+        on ? '.plan-menu-optionen > summary' : '.plan-close',
+        '.plan-topbar summary',
+        on ? '.plan-menu-verteilen > summary' : '.plan-chip-scroll > .btn',
+      ]) {
         const heights = await page
-          .locator(selector)
+          .locator(`${selector}:visible`)
           .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
         for (const h of heights) expect(h, selector).toBeGreaterThanOrEqual(44);
       }
@@ -152,7 +191,9 @@ test('no overspending chip in the head; the cover actions open from the Zu verte
   const count = await overspent.count();
   expect(count).toBeGreaterThan(0);
   // Owner decision 18.10.2026: one alarm place, the rows; the head carries no red count.
-  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
+  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen', {
+    useInnerText: true,
+  });
   await expect(page.locator('.plan-chip-scroll .is-over')).toHaveCount(0);
   await expect(page.locator('#cover-all-source')).toBeHidden();
   await page.locator('.plan-tba').click();

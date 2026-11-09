@@ -4,6 +4,7 @@ import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import {
   useAmountPrivacy,
+  maskMoneyText,
   useIsPhone,
   BottomSheet,
   FormDialog,
@@ -46,6 +47,7 @@ import { LoadOlder } from './load-older';
 import { BookingViews } from './booking-views';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './bookings-redesign.css';
+import { RegisterSummary, categoryNetLabel } from './register-summary';
 import {
   BOOKING_FLAGS,
   BOOKING_STATUSES,
@@ -56,6 +58,14 @@ import {
 } from './types';
 
 /** Alle Buchungen: filters in the URL, search, day groups, multi-select with bulk edit and undo. */
+/** EUR sum of a non-EUR account for the summary line; amounts honour the privacy mask. */
+export function ksumEurText(sumEurCents: number | null | undefined) {
+  if (sumEurCents == null) return 'EUR: Kurs fehlt';
+  return Number.isSafeInteger(sumEurCents)
+    ? maskMoneyText(eur(sumEurCents, { sign: true }))
+    : 'EUR: nicht darstellbar';
+}
+
 export function BookingsPage() {
   useAmountPrivacy();
   const search = useSearch({ strict: false }) as BookingsSearch;
@@ -183,6 +193,47 @@ export function BookingsPage() {
         : { sortierung: key, richtung: key === 'date' ? 'desc' : 'asc' },
     );
 
+  const filters = (
+    <section aria-labelledby="filter-title">
+      <h2 className="sr-only" id="filter-title">
+        Filter
+      </h2>
+      <fieldset className="kbulk-readonly-surface" disabled={pending}>
+        <legend className="sr-only">Buchungsfilter</legend>
+        <FilterRow
+          sortValue={`${sortKey}-${direction}`}
+          onSortValue={(value) => {
+            const [key, dir] = value.split('-');
+            setSearch({ sortierung: key, richtung: dir });
+          }}
+          search={search}
+          setSearch={setSearch}
+          accounts={accounts.data?.accounts ?? []}
+          lookups={lookups.data}
+        />
+        {!REDESIGN_ENABLED && (
+          <BookingStatusChips value={filter.status} onChange={(status) => setSearch({ status })} />
+        )}
+      </fieldset>
+
+      {first && (
+        <p className="ksum" aria-live="polite">
+          {first.nativeTotalsPending ? 'Anzahl wird aktualisiert …' : pluralBookings(first.total)} ·{' '}
+          {first.nativeTotalsPending
+            ? 'Summe wird aktualisiert …'
+            : first.categorySpendingCents !== undefined
+              ? `${categoryNetLabel(!!search.kategoriegruppe, first.categorySpendingCents)} (Ausgaben − Erstattungen)`
+              : first.nativeTotals
+                ? `${REDESIGN_ENABLED ? 'Kontobewegungen (ganze Buchungen)' : 'Summe'} ${first.nativeTotals.length ? first.nativeTotals.map((total) => (total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents, total.currency, true))).join(' · ') : maskMoneyText(eur(0))}`
+                : 'Summe nicht verfügbar'}
+          {!first.nativeTotalsPending && filteredAccount && filteredAccount.currency !== 'EUR' && (
+            <> · {ksumEurText(first.sumEurCents)} · EUR je Buchungstag, Kurse in der Tabelle</>
+          )}
+        </p>
+      )}
+    </section>
+  );
+
   const headerTools = (
     <div className="kbar kbookings-bar">
       {REDESIGN_ENABLED && (
@@ -206,14 +257,16 @@ export function BookingsPage() {
           </span>
         </Button>
       )}
-      <Button
-        size="sm"
-        disabled={pending}
-        onClick={() => setPanel({ mode: 'create', accountId: search.konto })}
-      >
-        <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
-        <span className={REDESIGN_ENABLED ? 'sr-only' : undefined}>Buchung erfassen</span>
-      </Button>
+      {!REDESIGN_ENABLED && (
+        <Button
+          size="sm"
+          disabled={pending}
+          onClick={() => setPanel({ mode: 'create', accountId: search.konto })}
+        >
+          <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
+          <span className={REDESIGN_ENABLED ? 'sr-only' : undefined}>Buchung erfassen</span>
+        </Button>
+      )}
       <details className="kregister-actions">
         <summary aria-label="Weitere Buchungsaktionen">
           <MoreHorizontal size={20} strokeWidth={1.5} aria-hidden="true" />
@@ -245,7 +298,22 @@ export function BookingsPage() {
       meta={KONTEN_BUCHUNGEN_META}
       view="bookings"
       sourceDay={today}
-      headerTools={headerTools}
+      headerTools={
+        <>
+          {REDESIGN_ENABLED && filters}
+          {headerTools}
+        </>
+      }
+      headerSummary={
+        REDESIGN_ENABLED ? (
+          <RegisterSummary
+            months={first?.monthlyTotals}
+            kind={first?.monthlyKind}
+            today={today}
+            pending={list.isFetching || !!first?.nativeTotalsPending}
+          />
+        ) : undefined
+      }
     >
       <div
         className={REDESIGN_ENABLED ? 'kview bookings-redesign' : 'kview'}
@@ -257,59 +325,7 @@ export function BookingsPage() {
           </AppLink>
         )}
         {!REDESIGN_ENABLED && headerTools}
-        <section aria-labelledby="filter-title">
-          <h2 className="sr-only" id="filter-title">
-            Filter
-          </h2>
-          <fieldset className="kbulk-readonly-surface" disabled={pending}>
-            <legend className="sr-only">Buchungsfilter</legend>
-            <FilterRow
-              sortValue={`${sortKey}-${direction}`}
-              onSortValue={(value) => {
-                const [key, dir] = value.split('-');
-                setSearch({ sortierung: key, richtung: dir });
-              }}
-              search={search}
-              setSearch={setSearch}
-              accounts={accounts.data?.accounts ?? []}
-              lookups={lookups.data}
-            />
-            <BookingStatusChips
-              value={filter.status}
-              onChange={(status) => setSearch({ status })}
-            />
-          </fieldset>
-
-          {first && (
-            <p className="ksum" aria-live="polite">
-              {first.nativeTotalsPending
-                ? 'Anzahl wird aktualisiert …'
-                : pluralBookings(first.total)}{' '}
-              ·{' '}
-              {first.nativeTotalsPending
-                ? 'Summe wird aktualisiert …'
-                : first.categorySpendingCents !== undefined
-                  ? `${search.kategoriegruppe ? 'Gruppe' : 'Kategorie'} netto ${eur(first.categorySpendingCents)} (Ausgaben − Erstattungen)`
-                  : first.nativeTotals
-                    ? `Summe ${first.nativeTotals.length ? first.nativeTotals.map((total) => (total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents, total.currency, true))).join(' · ') : eur(0)}`
-                    : 'Summe nicht verfügbar'}
-              {!first.nativeTotalsPending &&
-                filteredAccount &&
-                filteredAccount.currency !== 'EUR' && (
-                  <>
-                    {' '}
-                    ·{' '}
-                    {first.sumEurCents == null
-                      ? 'EUR: Kurs fehlt'
-                      : Number.isSafeInteger(first.sumEurCents)
-                        ? eur(first.sumEurCents, { sign: true })
-                        : 'EUR: nicht darstellbar'}{' '}
-                    · EUR je Buchungstag, Kurse in der Tabelle
-                  </>
-                )}
-            </p>
-          )}
-        </section>
+        {!REDESIGN_ENABLED && filters}
         {list.isPending && <LoadingNote what="Buchungen" />}
         {list.isError && (
           <ErrorNote what="Buchungen" error={list.error} onRetry={() => void list.refetch()} />
@@ -355,6 +371,9 @@ export function BookingsPage() {
               <legend className="sr-only">Buchungen</legend>
               <BookingTable
                 items={items}
+                monthlyTotals={first?.monthlyTotals}
+                monthlyKind={first?.monthlyKind}
+                monthlyTotalsPending={list.isFetching || first?.nativeTotalsPending}
                 caption="Alle Buchungen nach Tag"
                 variant="all"
                 showRunningBalance={!!filteredAccount}
@@ -522,13 +541,21 @@ function FilterRow({
           </div>
           <Button
             variant="ghost"
+            aria-label={`Filter (${keys.length})`}
             aria-haspopup="dialog"
             aria-expanded={open}
             onClick={() => setOpen(true)}
           >
-            Filter ({keys.length}) <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+            {REDESIGN_ENABLED ? 'Filter' : `Filter (${keys.length})`}{' '}
+            <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
           </Button>
         </div>
+        {REDESIGN_ENABLED && (
+          <BookingStatusChips
+            value={filterFromSearch(search).status}
+            onChange={(status) => setSearch({ status })}
+          />
+        )}
         {chips.length > 0 && (
           <div className="kfilter-chips" role="group" aria-label="Aktive Filter">
             {chips}

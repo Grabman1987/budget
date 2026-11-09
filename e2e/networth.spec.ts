@@ -147,10 +147,7 @@ test('the Zeitraum switch updates the URL, the figures and travels to Portfolio'
 
   await (await wealthAreaNavigation(page)).getByRole('link', { name: 'Portfolio' }).click();
   await expect(page).toHaveURL(/vermoegen\/portfolio\?zeitraum=3M/);
-  if (await wealthRedesign(page))
-    await expect(page.getByRole('combobox', { name: 'Zeitraum', exact: true })).toHaveValue('3M');
-  else
-    await expect(page.getByRole('button', { name: '3M' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '3M' })).toHaveAttribute('aria-pressed', 'true');
 
   await ready(page, `${PATH}?zeitraum=1J`);
   await expect(page.getByRole('button', { name: '1J' })).toHaveAttribute('aria-pressed', 'true');

@@ -49,6 +49,7 @@ export function allocateContactReceipt(
   outlays: readonly OpenContactOutlay[],
   amountCents: number,
   chosen?: readonly ContactAllocation[],
+  options: { retainCredit?: boolean } = {},
 ): { allocations: ContactAllocation[]; creditCents: number } {
   money(amountCents);
   const open = [...outlays].sort((a, b) => a.date.localeCompare(b.date));
@@ -78,11 +79,11 @@ export function allocateContactReceipt(
   }
   const allocated = allocations.reduce((s, a) => s + a.amountCents, 0);
   money(allocated);
-  if (allocated !== applied)
+  if (allocated > applied || (!options.retainCredit && allocated !== applied))
     throw new Error(
       'Allocate the receipt up to the open balance; retain only the excess as credit',
     );
-  return { allocations, creditCents: amountCents - applied };
+  return { allocations, creditCents: amountCents - allocated };
 }
 
 /** Replay actual movements. Saved allocation and credit are validated, never silently replaced. */

@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, schema } from '@budget/db';
 import { eq } from 'drizzle-orm';
@@ -102,7 +103,7 @@ async function hit(target: Locator, minimum: number) {
     };
   });
   expect(bounds.width).toBeGreaterThanOrEqual(minimum);
-  expect(bounds.height).toBeGreaterThanOrEqual(minimum);
+  expect(bounds.height).toBeGreaterThanOrEqual(await minimumControlHeight(target, minimum));
   expect(bounds.left).toBeGreaterThanOrEqual(0);
   expect(bounds.right).toBeLessThanOrEqual(bounds.viewportWidth);
   expect(bounds.top).toBeGreaterThanOrEqual(0);
@@ -147,11 +148,10 @@ async function scene(
   await page.evaluate((value) => {
     document.documentElement.dataset['theme'] = value;
   }, theme);
-  const filterMenu = page.locator('.plan-reference-filters');
+  const filterMenu = page.locator('.plan-menu-optionen');
   const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   const openFilters = async () => {
-    if (on && !(await filterMenu.evaluate((el) => (el as HTMLDetailsElement).open)))
-      await filterMenu.locator('summary').click();
+    await expect(page.getByRole('group', { name: 'Kategoriefilter', exact: true })).toBeVisible();
   };
   const closeFilters = async () => {
     if (on) {
@@ -161,7 +161,9 @@ async function scene(
       await expect(filterMenu).not.toHaveAttribute('open');
     }
   };
-  const filters = page.getByRole('group', { name: 'Kategoriefilter', exact: true });
+  const filters = on
+    ? page.locator('.plan-filter-chips, .plan-menu-optionen')
+    : page.getByRole('group', { name: 'Kategoriefilter', exact: true });
   if (part === 'controls') {
     await openFilters();
     await expect(filters.getByRole('button', { name: 'Alle (3)', exact: true })).toHaveAttribute(
@@ -173,9 +175,11 @@ async function scene(
     ).toBeVisible();
     await expect(filters.getByRole('button', { name: 'Überzogen (1)', exact: true })).toBeVisible();
     await expect(filters.getByRole('button', { name: 'Verfügbar (1)', exact: true })).toBeVisible();
+    if (on) await filterMenu.locator('summary').click();
     await expect(
       filters.getByRole('button', { name: 'Ohne Kategorie (1)', exact: true }),
     ).toBeVisible();
+    await closeFilters();
     const phoneReadUtilities =
       (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     const readOptions = page.locator('.plan-menu-optionen > summary');
@@ -204,7 +208,11 @@ async function scene(
       beforeGrid:
         element.closest('.plan')!.querySelector('.ptable')!.getBoundingClientRect().top -
         element.closest('.plan')!.getBoundingClientRect().top,
-      controls: [...element.querySelectorAll('input, .plan-filter-segments button, summary')]
+      controls: [
+        ...element.querySelectorAll(
+          'input, .plan-filter-segments button, .plan-filter-chips button, summary',
+        ),
+      ]
         .filter((control) => {
           const closed = control.closest('details:not([open])');
           return (
@@ -217,7 +225,7 @@ async function scene(
           return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right };
         }),
     }));
-    expect(initial.controls).toHaveLength(on ? 3 : 7);
+    expect(initial.controls).toHaveLength(on ? 8 : 7);
     expect(initial.scrollWidth).toBeLessThanOrEqual(initial.viewport.width);
     if (profile === 'desktop') {
       expect(initial.viewport).toEqual({ width: 1440, height: 900 });
@@ -235,13 +243,14 @@ async function scene(
     } else expect(initial.viewport.width).toBe(390);
     for (const target of await page
       .locator(
-        '.plan-filterbar input:visible, .plan-filter-segments button:visible, .plan-filterbar summary:visible',
+        '.plan-filterbar input:visible, .plan-filter-segments button:visible, .plan-filter-chips button:visible, .plan-filterbar summary:visible',
       )
       .all())
       await hit(target, profile === 'configured' ? 44 : 24);
     if (on) {
       await openFilters();
-      for (const control of await filters.getByRole('button').all()) await hit(control, 44);
+      for (const control of await filters.getByRole('button').filter({ visible: true }).all())
+        await hit(control, 44);
       await filterMenu.locator('summary').press('Escape');
     }
     const options = page.locator('.plan-menu-optionen > summary');
@@ -325,6 +334,7 @@ async function scene(
     'aria-pressed',
     'true',
   );
+  if (on) await filterMenu.locator('summary').click();
   await filters.getByRole('button', { name: 'Ohne Kategorie (1)', exact: true }).click();
   await closeFilters();
   const missing = page.getByRole('region', { name: 'Buchungen ohne Kategorie' });

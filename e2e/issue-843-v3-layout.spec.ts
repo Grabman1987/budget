@@ -33,7 +33,7 @@ for (const [name, route, heading] of pages) {
     );
     if (name === 'uebersicht') {
       await expect(page.getByTestId('wealth-compact-chart')).toBeVisible();
-      await expect(page.locator('main .seg-period')).toHaveCount(0);
+      await expect(page.getByRole('group', { name: 'Zeitraum', exact: true })).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Als Nächstes' })).toBeVisible();
     }
     if (process.env['WEALTH_EVIDENCE_DIR']) {

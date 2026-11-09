@@ -14,10 +14,12 @@ import {
   contactAllocation,
   contactSettlement,
   payee,
+  auditLog,
 } from '../schema';
 import { BookingInvariantError, ConflictError, ReconciledLockedError } from './errors';
 import { memoizedShared } from './request-memo';
 import type { Executor } from './types';
+import { CONTACT_UNLOCK_PREFIX } from './contact-allocation-lock';
 
 /** Check only the changed identity: legacy contacts are not renamed or merged implicitly. */
 export function assertContactName(tx: Executor, id: string) {
@@ -149,6 +151,15 @@ export function savedContactSettlements(
       ),
     )
     .all()
+    .filter(
+      ({ settlement: s }) =>
+        !asOf ||
+        !records
+          .find((r) => r.bookingId === s.bookingId)
+          ?.adoptedRepayments?.some(
+            (a) => a.receiptSplitId === s.receiptSplitId && !a.previouslyRecorded && a.date > asOf,
+          ),
+    )
     .map(({ settlement: s }) => {
       const record = records.find((r) => r.bookingId === s.bookingId);
       const historical = asOf
@@ -213,7 +224,9 @@ export function assertContactSettlementInvariants(tx: Executor): void {
   const creditRecords = contactCreditRecords(tx);
   for (const s of tx.select().from(contactSettlement).all()) {
     const modeled = creditRecords.some(
-      (r) => r.bookingId === s.bookingId && r.repayments?.includes(s.receiptSplitId),
+      (r) =>
+        r.bookingId === s.bookingId &&
+        (r.repayments?.includes(s.receiptSplitId) || r.waiver?.receiptSplitId === s.receiptSplitId),
     );
     const cash = tx.select().from(booking).where(eq(booking.id, s.bookingId)).get();
     const parts = tx
@@ -222,8 +235,41 @@ export function assertContactSettlementInvariants(tx: Executor): void {
       .where(eq(bookingSplit.bookingId, s.bookingId))
       .all();
     const live = s.deletedAt === null;
-    if (live !== (cash?.deletedAt === null))
-      throw new BookingInvariantError('Contact receipt and settlement must be undone together');
+    if (live !== (cash?.deletedAt === null)) {
+      // Adoption adds metadata to pre-existing cash. Undo must be able to remove only
+      // that metadata; the immutable audit records prove this was not a cash settlement.
+      const adoption =
+        !live &&
+        tx
+          .select()
+          .from(auditLog)
+          .where(
+            and(
+              eq(auditLog.entityType, 'app_setting'),
+              eq(auditLog.entityId, `contacts.credit.${s.bookingId}`),
+            ),
+          )
+          .all()
+          .some((entry) => {
+            const snapshot = entry.afterJson
+              ? (JSON.parse(entry.afterJson) as { value?: string })
+              : null;
+            const record =
+              snapshot?.value &&
+              parseContactCreditRecord({
+                id: `contacts.credit.${s.bookingId}`,
+                value: snapshot.value,
+              });
+            return (
+              record &&
+              record.adoptedRepayments?.some(
+                (a) => a.receiptSplitId === s.receiptSplitId && !a.previouslyRecorded,
+              )
+            );
+          });
+      if (!adoption)
+        throw new BookingInvariantError('Contact receipt and settlement must be undone together');
+    }
     if (!live) continue;
     const cashAccount =
       cash && tx.select().from(account).where(eq(account.id, cash.accountId)).get();
@@ -357,6 +403,7 @@ export function assertContactBookingWrite(
     !settlement &&
     !allocated &&
     !creditRecord?.decision &&
+    !creditRecord?.waiver &&
     !creditRecord?.adjustmentFor &&
     !creditRecord?.explicitUses &&
     !creditRecord?.useHistory?.length &&
@@ -392,8 +439,75 @@ export function assertContactUndoDependencies(
         return record ? [record] : [];
       }),
     )
-    .filter((r) => r.decision || r.explicitUses || r.targetedRepayments?.length || r.adjustmentFor);
+    .filter(
+      (r) =>
+        r.decision ||
+        r.waiver ||
+        r.adoptedRepayments?.length ||
+        r.explicitUses ||
+        r.targetedRepayments?.length ||
+        r.adjustmentFor,
+    );
+  const unlocked = new Set<string>();
+  for (const e of entries.filter(
+    (e) => e.entityType === 'app_setting' && e.entityId.startsWith(CONTACT_UNLOCK_PREFIX),
+  )) {
+    for (const snapshot of [e.before, e.after]) {
+      if (typeof snapshot?.value !== 'string') continue;
+      const marker = JSON.parse(snapshot.value) as {
+        allocationOnly?: boolean;
+        bookingIds?: unknown[];
+      };
+      if (marker.allocationOnly === true)
+        for (const id of marker.bookingIds ?? []) if (typeof id === 'string') unlocked.add(id);
+    }
+  }
+  // An allocation authorization never grants permission to undo bank facts.
+  if (
+    unlocked.size &&
+    entries.some(
+      (e) =>
+        e.entityType === 'booking' && [e.before, e.after].some((s) => s && s.amount_cents !== 0),
+    )
+  )
+    unlocked.clear();
   if (records.length) {
+    for (const record of records) {
+      for (const adopted of record.adoptedRepayments ?? []) {
+        if (contactCreditRecords(tx).some((r) => r.repayments?.includes(adopted.receiptSplitId)))
+          continue;
+        const settlement = tx
+          .select()
+          .from(contactSettlement)
+          .where(
+            and(
+              eq(contactSettlement.receiptSplitId, adopted.receiptSplitId),
+              isNull(contactSettlement.deletedAt),
+            ),
+          )
+          .get();
+        if (!settlement) continue;
+        const allocations = tx
+          .select()
+          .from(contactAllocation)
+          .where(
+            and(
+              eq(contactAllocation.settlementId, settlement.id),
+              isNull(contactAllocation.deletedAt),
+            ),
+          )
+          .all();
+        const canonical = (rows: { outlaySplitId: string; amountCents: number }[]) =>
+          JSON.stringify(rows.map((a) => [a.outlaySplitId, a.amountCents]).sort());
+        if (
+          settlement.creditCents !== adopted.creditCents ||
+          canonical(allocations) !== canonical(adopted.allocations)
+        )
+          throw new BookingInvariantError(
+            'Undo the later allocation before undoing repayment adoption',
+          );
+      }
+    }
     const bookingIds = new Set(records.map((r) => r.bookingId));
     for (const record of records) {
       if (record.adjustmentFor) bookingIds.add(record.adjustmentFor.bookingId);
@@ -415,7 +529,9 @@ export function assertContactUndoDependencies(
             if (typeof snapshot?.booking_id === 'string') bookingIds.add(snapshot.booking_id);
     }
     const locked = [...bookingIds].filter(
-      (id) => tx.select().from(booking).where(eq(booking.id, id)).get()?.status === 'reconciled',
+      (id) =>
+        !unlocked.has(id) &&
+        tx.select().from(booking).where(eq(booking.id, id)).get()?.status === 'reconciled',
     );
     if (locked.length) throw new ReconciledLockedError(locked);
   }

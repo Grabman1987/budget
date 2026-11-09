@@ -1,4 +1,4 @@
-import { Button, useAmountPrivacy, privateAmount } from '@budget/ui';
+import { Button, Segmented, useAmountPrivacy, privateAmount } from '@budget/ui';
 import { accountsQuery } from '../ledger/queries';
 import { freedomSumCents } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
@@ -252,18 +252,13 @@ export function WealthOverview() {
           <section className="wealth-sheet wealth-course" aria-labelledby="wealth-course-title">
             <div className="wealth-section-head">
               <h2 id="wealth-course-title">Investiert: Wert vs. eingezahlt</h2>
-              <label>
-                <span className="sr-only">Zeitraum</span>
-                <select
-                  aria-label="Zeitraum"
-                  value={period}
-                  onChange={(event) => setPeriod(event.target.value as typeof period)}
-                >
-                  {ZEITRAUM_VALUES.map((value) => (
-                    <option key={value}>{value}</option>
-                  ))}
-                </select>
-              </label>
+              <Segmented
+                label="Zeitraum"
+                className="seg-period"
+                value={period}
+                onChange={setPeriod}
+                options={ZEITRAUM_VALUES.map((value) => ({ value, label: value }))}
+              />
               <AppLink to="/reports/peinzahlungen" search={{ zeitraum: period }}>
                 Ganze Auswertung →
               </AppLink>

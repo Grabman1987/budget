@@ -1,3 +1,5 @@
+import { captureSaveControl } from './ledger-helpers';
+import { captureCloseControl } from './ledger-helpers';
 import {
   redesignLoaded,
   captureFlagControl,
@@ -15,6 +17,7 @@ import {
 } from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
+import { minimumControlHeight } from './control-geometry';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
 /**
@@ -104,7 +107,7 @@ test('an income: Zu verteilen by default, income type, payee', async ({ page }, 
   await panel.getByLabel('Von (Zahler)').fill(`Firma ${tag}`);
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue('Zu verteilen');
   await panel.getByLabel('Einnahmeart').selectOption({ label: 'Gehalt' });
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
 
   const row = page.getByRole('row', { name: new RegExp(`Firma ${tag}`) });
   await expect(row).toContainText('Zu verteilen');
@@ -134,7 +137,7 @@ test('a transfer between accounts; to a tracking account it needs a category', a
   await panel.getByLabel('Betrag', { exact: true }).fill('200');
   // Between budget accounts the transfer is neutral: no category is asked for.
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveCount(0);
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(page.getByRole('row', { name: /Umbuchung nach/ })).toBeVisible();
   await expect(balance(page)).toHaveText('800,00 €');
 
@@ -142,10 +145,14 @@ test('a transfer between accounts; to a tracking account it needs a category', a
   await panel.getByRole('button', { name: 'Umbuchung' }).click();
   await panel.getByLabel('Nach Konto').selectOption({ label: depot });
   await panel.getByLabel('Betrag', { exact: true }).fill('100');
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768) {
+    await expect(captureSaveControl(panel)).toBeDisabled();
+    await expect(captureSaveControl(panel)).toHaveAccessibleDescription(/brauchen eine Kategorie/);
+    await panel.getByLabel('Betrag', { exact: true }).press('Control+Enter');
+  } else await captureSaveControl(panel).click();
   await expect(panel.getByRole('alert')).toContainText('brauchen eine Kategorie');
   await pickCategory(panel, `Cap C ${tag}`);
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
   await expect(balance(page)).toHaveText('700,00 €');
 });
@@ -200,21 +207,33 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await expect(
     panel.getByLabel('Bezahlt von', { exact: true }).locator('option:checked'),
   ).toHaveText(account);
-  // An untouched empty amount disables saving without an immediate error. After input,
-  // an invalid amount explains why saving is blocked. A footer click with
-  // an invalid date must still land while the payee suggestions are open.
+  // Phone redesign explains disabled save quietly; desktop and OFF keep after-input timing.
+  // Invalid dates remain refused while payee suggestions are open.
   await expect(panel.getByRole('button', { name: 'Speichern und neu' })).toBeDisabled();
-  await expect(panel.locator('.bk-save-reason')).toHaveCount(0);
+  const phoneRedesign = (page.viewportSize()?.width ?? 1440) < 768 && (await redesignLoaded(page));
+  if (phoneRedesign)
+    await expect(panel.locator('.bk-save-hint')).toHaveText('Jede Zeile braucht einen Betrag.');
+  else await expect(panel.locator('.bk-save-reason')).toHaveCount(0);
   await panel.getByLabel('Betrag', { exact: true }).fill('0');
-  await expect(panel.locator('.bk-save-reason')).toContainText('Jede Zeile braucht einen Betrag.');
+  await expect(panel.locator('#booking-save-reason')).toContainText(
+    'Jede Zeile braucht einen Betrag.',
+  );
   await expect(panel.getByRole('button', { name: 'Speichern und neu' })).toBeDisabled();
   await panel.getByLabel('Betrag', { exact: true }).fill('1,00');
   await panel.getByLabel('Datum', { exact: true }).fill('31.02.2026');
-  await panel.getByLabel('Empfänger').press('ArrowDown');
+  await panel.getByLabel('Empfänger', { exact: true }).press('ArrowDown');
   await expect(panel.getByRole('listbox')).toBeVisible();
-  await panel.getByRole('button', { name: 'Speichern und neu' }).click();
+  if (phoneRedesign) {
+    await expect(panel.getByRole('button', { name: 'Speichern und neu' })).toBeDisabled();
+    await panel.getByLabel('Empfänger', { exact: true }).press('Control+Shift+Enter');
+  } else await panel.getByRole('button', { name: 'Speichern und neu' }).click();
   await expect(panel.getByRole('alert').first()).toBeVisible();
   await expect(page.getByRole('row', { name: new RegExp(payee) })).toHaveCount(2);
+  if (phoneRedesign) {
+    await expect(panel.getByRole('listbox')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(panel.getByRole('listbox')).toBeHidden();
+  }
   await page.keyboard.press('Escape');
   await panel.getByRole('button', { name: 'Verwerfen' }).click();
 });
@@ -291,7 +310,7 @@ test('a split with a contact share: the chain shows what is left, saving waits u
     await panel.locator('.kmore > summary').click();
   await (await categoryLineControl(panel)).click();
   const chain = panel.locator('.bk-lines > .kdiff');
-  const save = panel.getByRole('button', { name: 'Speichern', exact: true });
+  const save = captureSaveControl(panel);
 
   // Line 1: 30,00 for the category, line 2 (still empty) is Anna's share.
   const line1 = panel.getByRole('group', { name: 'Zeile 1', exact: true });
@@ -342,7 +361,7 @@ test('a transfer line in a split moves money to the other account', async ({ pag
   await line2.getByLabel('Kategorie 2').fill(spar);
   await line2.getByRole('option', { name: new RegExp(spar) }).click();
   await line2.getByLabel('Betrag 2').fill('20');
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(balance(page)).toHaveText('240,00 €');
   await expect(panel).toBeHidden();
   await openAccount(page, spar);
@@ -364,7 +383,7 @@ test('an income with a contact share (repayment) books through Auslagen', async 
   await panel.getByLabel('Kategorie', { exact: true }).fill('Anna Muster');
   await panel.getByRole('option', { name: /Anna Muster/ }).click();
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue(/Anna Muster/);
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   const row = page.getByRole('row', { name: new RegExp(`Anna ${tag}`) });
   await expect(row).toContainText('Auslagen');
   await expect(balance(page)).toHaveText('40,00 €');
@@ -445,8 +464,9 @@ test('the dialog is a centred card on the desktop and a sheet on the phone with 
         : ['Betrag', 'Empfänger', 'Datum', 'Bezahlt von', 'Kategorie', 'Notiz']
       : wanted,
   );
-  // The footer stays in view with the Speichern button.
-  await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
+  // The phone save action is reachable at the end of the scrolling form.
+  await captureSaveControl(panel).scrollIntoViewIfNeeded();
+  await expect(captureSaveControl(panel)).toBeInViewport();
 });
 
 test('the flag: popover with six colours and keys, first column of the table', async ({
@@ -460,6 +480,14 @@ test('the flag: popover with six colours and keys, first column of the table', a
   const panel = await openCapture(page, testInfo);
   // The flag button comes first in the head, before the kind of booking.
   const redesign = await redesignLoaded(page);
+  const viewport = page.viewportSize()!;
+  const phoneRedesign = redesign && viewport.width < 768;
+  if (phoneRedesign) {
+    await expect(panel.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
+    await expect(panel.getByLabel('Markierung', { exact: true })).toHaveCount(0);
+    // Capture's flag editing is now desktop-only; the register still offers it on phones.
+    await page.setViewportSize({ width: 1440, height: viewport.height });
+  }
   const head = redesign ? panel : panel.locator('.bk-head');
   if (!redesign)
     await expect(head.getByRole('button').first()).toHaveAccessibleName('Markierung: keine');
@@ -490,6 +518,7 @@ test('the flag: popover with six colours and keys, first column of the table', a
   await page.keyboard.press('Control+Enter');
   await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
 
+  if (phoneRedesign) await page.setViewportSize(viewport);
   // The table: the flag is the first column and shows a glyph with the colour name as text.
   if (!isPhone(testInfo)) {
     await expect(page.getByRole('columnheader').first()).toHaveText('Markierung');
@@ -516,13 +545,15 @@ test('the flag: popover with six colours and keys, first column of the table', a
   await expect(flagButton).toBeFocused();
 
   // Opened again: the flag is kept; "keine" (key 0) removes it.
+  if (phoneRedesign) await page.setViewportSize({ width: 1440, height: viewport.height });
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await (await captureFlagControl(edit, 'Markierung: Gelb')).click();
   await page.keyboard.press('0');
   await expect(await captureFlagControl(edit, 'Markierung: keine')).toBeVisible();
-  await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(edit).click();
   await expect(edit).toBeHidden();
+  if (phoneRedesign) await page.setViewportSize(viewport);
   await expect(row.locator('.kflag-glyph.is-none')).toHaveCount(1);
   await expect(row.locator('.kflag-glyph:not(.is-none)')).toHaveCount(0);
 });
@@ -558,7 +589,7 @@ test('the checkmark: a new booking starts pending and can be confirmed', async (
   await expect(editToggle).toHaveAttribute('aria-pressed', 'true');
   await expect(editToggle).toHaveAccessibleName('Bestätigt');
   await expect(editToggle).toHaveAttribute('title', 'Bestätigt');
-  await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(edit).click();
   await expect(edit).toBeHidden();
   await expect(row.getByRole('button', { name: 'bestätigt', exact: true })).toBeVisible();
   await row.getByRole('button', { name: /bearbeiten/ }).click();
@@ -675,21 +706,16 @@ test('visible growing note, direct split and responsive account note column', as
       .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
     await Promise.all(finite.map((animation) => animation.finished.catch(() => undefined)));
   });
-  for (const control of [
-    note,
-    split,
-    panel.locator('.bk-status'),
-    panel.getByRole('button', { name: 'Schließen', exact: true }),
-  ]) {
+  for (const control of [note, split, panel.locator('.bk-status'), captureCloseControl(panel)]) {
     const box = (await control.boundingBox())!;
-    expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    expect(box.height).toBeGreaterThanOrEqual(await minimumControlHeight(control));
     expect(box.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
   }
   await panel.getByLabel('Betrag', { exact: true }).fill('5,00');
   await panel.getByLabel('Empfänger').fill(payee);
   await pickCategory(panel, `Cap A ${tag}`);
   await page.screenshot({ path: testInfo.outputPath(`dialog-${tag}.png`) });
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(panel).toBeHidden({ timeout: 30_000 });
   const row = page.getByRole('row', { name: new RegExp(payee) });
   await expect(row).toBeVisible({ timeout: 30_000 });
@@ -717,10 +743,9 @@ test('visible growing note, direct split and responsive account note column', as
   await expect(
     page.getByRole('dialog', { name: 'Buchung bearbeiten' }).getByLabel('Notiz'),
   ).toHaveValue(memo);
-  await page
-    .getByRole('dialog', { name: 'Buchung bearbeiten' })
-    .getByRole('button', { name: 'Schließen', exact: true })
-    .click();
+  const editor = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+  await editor.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
   panel = await openCapture(page, testInfo);
   await (await categoryLineControl(panel)).click();
   await expect(panel.getByRole('group', { name: 'Zeile 1', exact: true })).toBeVisible();

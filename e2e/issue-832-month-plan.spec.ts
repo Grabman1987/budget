@@ -1,3 +1,4 @@
+import { minimumControlHeight } from './control-geometry';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext } from '@playwright/test';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
@@ -37,9 +38,7 @@ test('ON long negative month amount never overlaps the distribution button', asy
     await page.evaluate(() => document.fonts.ready);
     await page.evaluate(() => window.scrollTo(0, 0));
     const value = (await amount.boundingBox())!;
-    const action = (await page
-      .getByRole('button', { name: 'Geld verteilen', exact: true })
-      .boundingBox())!;
+    const action = (await page.locator('.plan-menu-verteilen > summary').boundingBox())!;
     expect(
       value.x < action.x + action.width &&
         value.x + value.width > action.x &&
@@ -48,14 +47,18 @@ test('ON long negative month amount never overlaps the distribution button', asy
       `Amount and distribution button must not overlap at ${width}px`,
     ).toBe(false);
     expect(action.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-    expect(action.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    expect(action.height).toBeGreaterThanOrEqual(
+      await minimumControlHeight(page.getByRole('button', { name: 'Geld verteilen', exact: true })),
+    );
     await page.locator('.plan-topbar-v2 .plan-tba').click();
     await expect(page.getByTestId('plan-topbar')).toHaveClass(/is-compact/);
     const compact = await page.getByTestId('plan-topbar').evaluate((head) => {
       const headRect = head.getBoundingClientRect();
       const summary = head.querySelector('.plan-tba')!;
       const summaryRect = summary.getBoundingClientRect();
-      const actionRect = head.querySelector('.plan-lead-controls > .btn')!.getBoundingClientRect();
+      const actionRect = document
+        .querySelector('.plan-menu-verteilen > summary')!
+        .getBoundingClientRect();
       const amount = summary.querySelector('strong')!;
       const amountRect = amount.getBoundingClientRect();
       const amountStyle = getComputedStyle(amount);
@@ -178,7 +181,10 @@ test('computed preview conflict refreshes and waits for explicit confirmation, t
   await fresh.click();
   await expect(preview).toBeHidden();
   expect(await assigned()).toBe(5_000);
-  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await page
+    .locator('.toast.is-open')
+    .getByRole('button', { name: 'Rückgängig', exact: true })
+    .click();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('180,00 €');
   expect(await assigned()).toBe(2_000);
 });
@@ -361,11 +367,13 @@ for (const theme of ['light', 'dark'] as const) {
             : 0;
           expect(first!.y + first!.height).toBeLessThanOrEqual(initial.height - bottomChrome + 0.5);
         }
-        const action = page.getByRole('button', { name: 'Geld verteilen', exact: true });
+        const action = on
+          ? page.locator('.plan-menu-verteilen > summary')
+          : page.getByRole('button', { name: 'Geld verteilen', exact: true });
         for (const control of [action, page.locator('.plan-tba')]) {
           const rect = await control.boundingBox();
           expect(rect!.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
-          expect(rect!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+          expect(rect!.height).toBeGreaterThanOrEqual(await minimumControlHeight(control));
           expect(rect!.x).toBeGreaterThanOrEqual(-0.5);
           expect(rect!.x + rect!.width).toBeLessThanOrEqual(width + 0.5);
         }
@@ -391,8 +399,8 @@ for (const theme of ['light', 'dark'] as const) {
             const labelRect = label.getBoundingClientRect();
             const amountRect = summary.querySelector('strong')!.getBoundingClientRect();
             const labelVisible = getComputedStyle(label).position !== 'absolute';
-            const actionRect = head
-              .querySelector('.plan-lead-controls > .btn')!
+            const actionRect = document
+              .querySelector('.plan-menu-verteilen > summary')!
               .getBoundingClientRect();
             const style = getComputedStyle(head);
             return {
@@ -441,9 +449,12 @@ for (const theme of ['light', 'dark'] as const) {
               stickyGeometry.actionBottom <= stickyGeometry.summaryTop,
           ).toBe(true);
           await expect(page.getByTestId('to-be-assigned')).toBeInViewport();
+          // Distribution now lives in the worksheet toolbar; it remains reachable after scrolling.
+          await action.scrollIntoViewIfNeeded();
           await expect(action).toBeInViewport();
           await row.evaluate((node) => node.scrollIntoView({ block: 'center' }));
           await expect(row).toBeInViewport();
+          await action.scrollIntoViewIfNeeded();
           await expect(action).toBeInViewport();
           await page.evaluate(() => window.scrollTo(0, 0));
         }

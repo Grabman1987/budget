@@ -1,4 +1,12 @@
-import { addDays, daysBetween, todayInVienna, type CashValuation } from '@budget/domain';
+import {
+  addDays,
+  daysBetween,
+  todayInVienna,
+  registerMonths,
+  type RegisterMonth,
+  type RegisterMonthsKind,
+  type CashValuation,
+} from '@budget/domain';
 import { cashValuer } from './cash-valuation';
 import { reportTables } from './report-tables';
 import {
@@ -262,6 +270,8 @@ export interface ListedBooking {
 }
 
 export interface BookingPage {
+  monthlyTotals?: RegisterMonth[];
+  monthlyKind?: RegisterMonthsKind;
   nativeTotals?: { currency: string; count: number; cents: number | null }[];
   categorySpendingCents?: number;
   items: ListedBooking[];
@@ -411,15 +421,18 @@ export function queryBookings(
     .where(base)
     .get() as { total: number; sum: number };
 
-  const categorySpendingCents = contributions
+  // One id/date read serves the category net and the month aggregation of that basis.
+  const spendingRows = contributions
     ? db
-        .select({ id: booking.id })
+        .select({ id: booking.id, date: booking.date })
         .from(booking)
         .innerJoin(account, eq(account.id, booking.accountId))
         .leftJoin(payee, eq(payee.id, booking.payeeId))
         .where(base)
         .all()
-        .reduce((sum, b) => sum + (contributions.get(b.id) ?? 0), 0)
+    : [];
+  const categorySpendingCents = contributions
+    ? spendingRows.reduce((sum, b) => sum + (contributions.get(b.id) ?? 0), 0)
     : undefined;
 
   const nativeGroups = new Map<string, { count: number; cents: bigint; unsafe: boolean }>();
@@ -447,6 +460,187 @@ export function queryBookings(
       cents:
         value.unsafe || value.cents > bound || value.cents < -bound ? null : Number(value.cents),
     }));
+
+  // Month figures: SQL GROUP BY month on the exact list predicate (before cursor/limit). Future-dated
+  // rows (the hidden "Kommend" part) never count. Sign: inflow positive, outflow negative.
+  const filtered = !!(
+    query.text?.trim() ||
+    query.categoryId ||
+    query.categoryGroupId ||
+    query.payeeId ||
+    query.status ||
+    query.flag ||
+    query.ids ||
+    query.from ||
+    (query.to && query.to < today)
+  );
+  const accountRow = query.accountId
+    ? db.select().from(account).where(eq(account.id, query.accountId)).get()
+    : undefined;
+  const monthlyKind: RegisterMonthsKind = filtered ? 'filtered' : accountRow ? 'balance' : 'rows';
+  const toCents = (v: bigint): number | null => (v > bound || v < -bound ? null : Number(v));
+  // EUR groups by month; other currencies stay one group per booking so each is converted to EUR
+  // on its own (like sumEurCents) and the month equals the sum of the shown row values.
+  const monthOrDay = sql<string>`CASE WHEN ${booking.currency} = 'EUR' THEN substr(${booking.date}, 1, 7) ELSE ${booking.id} END`;
+  const groupDate = sql<string>`MIN(${booking.date})`;
+  let monthlyTotals: RegisterMonth[] = [];
+  if (query.nativeSummary !== false) {
+    const upToToday = sql`${booking.date} <= ${today}`;
+    const rows: {
+      date: string;
+      cents: number | null;
+      count: number;
+      beforeStart?: boolean;
+    }[] = [];
+    if (contributions) {
+      // Category basis: report contributions are spending-positive; flip to outflow-negative.
+      const byMonth = new Map<string, { count: number; cents: bigint }>();
+      for (const r of spendingRows) {
+        if (r.date > today) continue;
+        const m = r.date.slice(0, 7);
+        const g = byMonth.get(m) ?? { count: 0, cents: 0n };
+        g.count += 1;
+        g.cents -= BigInt(contributions.get(r.id) ?? 0);
+        byMonth.set(m, g);
+      }
+      for (const [m, g] of byMonth)
+        rows.push({ date: `${m}-01`, cents: toCents(g.cents), count: g.count });
+    } else {
+      const splitFilter =
+        query.categoryId === 'none'
+          ? and(
+              isNull(bookingSplit.categoryId),
+              isNull(bookingSplit.transferId),
+              isNull(booking.transferId),
+            )
+          : query.categoryId
+            ? and(
+                eq(bookingSplit.categoryId, query.categoryId),
+                isNull(bookingSplit.transferId),
+                isNull(booking.transferId),
+              )
+            : undefined;
+      const grouped = splitFilter
+        ? db
+            .select({
+              currency: booking.currency,
+              day: monthOrDay,
+              date: groupDate,
+              count: sql<number>`COUNT(DISTINCT ${booking.id})`.mapWith(Number),
+              sum: sql<string>`CAST(SUM(${bookingSplit.amountCents}) AS TEXT)`,
+            })
+            .from(booking)
+            .innerJoin(account, eq(account.id, booking.accountId))
+            .leftJoin(payee, eq(payee.id, booking.payeeId))
+            .innerJoin(bookingSplit, eq(bookingSplit.bookingId, booking.id))
+            .where(and(base, upToToday, splitFilter))
+            .groupBy(booking.currency, monthOrDay)
+            .all()
+        : db
+            .select({
+              currency: booking.currency,
+              day: monthOrDay,
+              date: groupDate,
+              count: sql<number>`COUNT(*)`.mapWith(Number),
+              sum: sql<string>`CAST(SUM(${booking.amountCents}) AS TEXT)`,
+            })
+            .from(booking)
+            .innerJoin(account, eq(account.id, booking.accountId))
+            .leftJoin(payee, eq(payee.id, booking.payeeId))
+            .where(and(base, upToToday))
+            .groupBy(booking.currency, monthOrDay)
+            .all();
+      for (const g of grouped) {
+        const cents = toCents(BigInt(g.sum));
+        rows.push({
+          date: g.currency === 'EUR' ? `${g.day}-01` : g.date,
+          cents:
+            g.currency === 'EUR' || cents === null
+              ? cents
+              : value(cents, g.currency, g.date).eurCents,
+          count: g.count,
+        });
+      }
+    }
+    let endBalance: ((month: string) => number | null) | undefined;
+    if (monthlyKind === 'balance' && accountRow?.currency === 'EUR') {
+      // Balance at month end = opening balance + every booking since the opening day. The month
+      // net IS the balance delta (transfers included), so it replaces the grouped list sums.
+      const perMonth = db
+        .select({
+          month: sql<string>`substr(${booking.date}, 1, 7)`,
+          sum: sql<string>`CAST(SUM(${booking.amountCents}) AS TEXT)`,
+        })
+        .from(booking)
+        .where(
+          and(
+            eq(booking.accountId, accountRow.id),
+            isNull(booking.deletedAt),
+            sql`${booking.date} >= ${accountRow.openingDate}`,
+            sql`${booking.date} <= ${today}`,
+          ),
+        )
+        .groupBy(sql`substr(${booking.date}, 1, 7)`)
+        .orderBy(asc(sql`substr(${booking.date}, 1, 7)`))
+        .all();
+      const ends: { month: string; balance: bigint }[] = [];
+      let run = BigInt(accountRow.openingBalanceCents);
+      for (const m of perMonth) {
+        run += BigInt(m.sum);
+        ends.push({ month: m.month, balance: run });
+      }
+      // Count only bookings from the opening day on; earlier months are flagged "vor Start".
+      rows.length = 0;
+      const openingMonth = accountRow.openingDate.slice(0, 7);
+      const counts = db
+        .select({
+          month: sql<string>`substr(${booking.date}, 1, 7)`,
+          n: sql<number>`COUNT(*)`.mapWith(Number),
+        })
+        .from(booking)
+        .where(
+          and(
+            eq(booking.accountId, accountRow.id),
+            isNull(booking.deletedAt),
+            sql`${booking.date} <= ${today}`,
+            sql`${booking.date} >= ${accountRow.openingDate}`,
+          ),
+        )
+        .groupBy(sql`substr(${booking.date}, 1, 7)`)
+        .all();
+      const countOf = new Map(counts.map((c) => [c.month, c.n]));
+      for (const m of perMonth)
+        rows.push({
+          date: `${m.month}-01`,
+          cents: toCents(BigInt(m.sum)),
+          count: countOf.get(m.month) ?? 0,
+        });
+      const before = db
+        .select({
+          month: sql<string>`substr(${booking.date}, 1, 7)`,
+          n: sql<number>`COUNT(*)`.mapWith(Number),
+        })
+        .from(booking)
+        .where(
+          and(
+            eq(booking.accountId, accountRow.id),
+            isNull(booking.deletedAt),
+            sql`${booking.date} < ${accountRow.openingDate}`,
+            sql`substr(${booking.date}, 1, 7) < ${openingMonth}`,
+          ),
+        )
+        .groupBy(sql`substr(${booking.date}, 1, 7)`)
+        .all();
+      for (const m of before)
+        rows.push({ date: `${m.month}-01`, cents: 0, count: m.n, beforeStart: true });
+      endBalance = (month) => {
+        let balance = BigInt(accountRow.openingBalanceCents);
+        for (const e of ends) if (e.month <= month) balance = e.balance;
+        return toCents(balance);
+      };
+    }
+    monthlyTotals = registerMonths(rows, endBalance);
+  }
 
   const after: SQL | undefined = (() => {
     if (!query.cursor) return undefined;
@@ -626,7 +820,7 @@ export function queryBookings(
   });
   const last = page.at(-1);
   return {
-    ...(query.nativeSummary !== false ? { nativeTotals } : {}),
+    ...(query.nativeSummary !== false ? { nativeTotals, monthlyTotals, monthlyKind } : {}),
     ...(categorySpendingCents !== undefined ? { categorySpendingCents } : {}),
     items,
     nextCursor: rows.length > limit && last ? encodeCursor(last.sortValue, last.booking.id) : null,

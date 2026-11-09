@@ -36,6 +36,9 @@ import {
 } from './contact-invariants';
 import { BookingInvariantError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
+import type { ContactAllocationOptions } from './contact-allocation-lock';
+export { adoptContactRepayment } from './contact-reallocation';
+export { waiveContactOutlay } from './contact-waiver';
 
 export function getContactStatement(
   db: Executor,
@@ -105,6 +108,14 @@ export function getContactStatement(
     asOf,
     currency: 'EUR' as const,
     ...statement,
+    receipts: statement.receipts.map((r) => ({
+      ...r,
+      allocatable: !records.some(
+        (record) =>
+          record.waiver?.receiptSplitId === r.receiptSplitId ||
+          record.decision?.creditSplitId === r.receiptSplitId,
+      ),
+    })),
     creditChoices,
   };
 }
@@ -193,6 +204,7 @@ export function chooseContactCredit(
   },
   ctx: AuditContext,
   today: string,
+  options: ContactAllocationOptions = {},
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
@@ -213,7 +225,7 @@ export function chooseContactCredit(
       .where(eq(bookingSplit.id, input.receiptSplitId))
       .get()!;
     const source = getBooking(tx, sourceSplit.bookingId)!;
-    assertContactAllocationUnlocked(tx, source.id);
+    assertContactAllocationUnlocked(tx, source.id, options, grouped);
     if (input.date < source.date)
       throw new BookingInvariantError('Die Entscheidung darf nicht vor der Rückzahlung liegen.');
     const touched = releaseContactCredit(
@@ -224,6 +236,7 @@ export function chooseContactCredit(
       grouped,
       today,
       input.date,
+      options,
     );
     const available = getContactStatement(tx, contactId, input.date).credits.find(
       (c) => c.receiptSplitId === input.receiptSplitId && !c.targetOutlaySplitId,

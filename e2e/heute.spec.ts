@@ -1,3 +1,4 @@
+import { captureSaveControl } from './ledger-helpers';
 import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import { test as isolatedTest } from './isolated-ledger';
 import { sampleTest as test, expect as baseExpect } from './sample';
@@ -952,7 +953,7 @@ ledgerTest(
           response.url().endsWith('/api/bookings') && response.request().method() === 'POST',
       );
       let refresh = refreshed();
-      await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+      await captureSaveControl(panel).click();
       liveBookingGroup = (await (await written).json()).groupId;
       let data: Heute = await (await refresh).json();
       await assertFresh(data, 7930, '79,30 €');

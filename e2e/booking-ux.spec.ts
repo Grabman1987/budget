@@ -1,3 +1,5 @@
+import { captureSaveControl } from './ledger-helpers';
+import { captureCloseControl } from './ledger-helpers';
 import {
   historyChart,
   redesignLoaded,
@@ -60,7 +62,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
     const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
     await row.getByRole('button', { name: /bearbeiten/ }).click();
     await edit.getByLabel('Datum', { exact: true }).fill('02.10.2026');
-    await edit.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+    await captureCloseControl(edit).click();
     // A changed field asks before the dialog closes.
     await edit
       .getByRole('alertdialog', { name: 'Eingaben verwerfen?' })
@@ -72,7 +74,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
     );
     await row.getByRole('button', { name: /bearbeiten/ }).click();
     await edit.getByLabel('Datum', { exact: true }).fill('02.10.2026');
-    await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await captureSaveControl(edit).click();
     await expect(edit).toBeHidden();
   }
   await expect
@@ -102,7 +104,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
     'true',
   );
   await panel.getByLabel('Wiederholen').selectOption('weekly');
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(panel).toBeHidden();
   const payments = (await (await request.get('/api/expected')).json()).payments;
   expect(payments).toHaveLength(1);
@@ -182,7 +184,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   await panel.getByLabel('Wiederholen').selectOption('monthly');
   expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
   await page.screenshot({ path: info.outputPath('capture.png') });
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await captureSaveControl(panel).click();
   await expect(panel).toBeHidden();
   const captured = (await (await request.get('/api/bookings')).json()).items.find(
     (booking: { payeeName: string }) => booking.payeeName === 'Kiosk Muster',
@@ -257,8 +259,10 @@ test('single payee suggestion selects its recent account and keeps capture contr
   await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(recent.id);
   await panel.locator('.kmore > summary').scrollIntoViewIfNeeded();
   await expect(panel.locator('.kmore > summary')).toBeInViewport({ ratio: 1 });
-  await expect(await captureFlagControl(panel, 'Markierung: keine')).toBeVisible();
-  await expect(panel.getByTitle('Schließen')).toBeVisible();
+  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768)
+    await expect(panel.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
+  else await expect(await captureFlagControl(panel, 'Markierung: keine')).toBeVisible();
+  await expect(captureCloseControl(panel)).toBeVisible();
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => {
       document.documentElement.dataset['theme'] = t;
@@ -298,7 +302,8 @@ test('single payee suggestion selects its recent account and keeps capture contr
   await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(first.id);
   await expect(panel.getByLabel('Notiz')).toBeVisible();
   await expect(await categoryLineControl(panel)).toBeVisible();
-  await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
+  await captureSaveControl(panel).scrollIntoViewIfNeeded();
+  await expect(captureSaveControl(panel)).toBeInViewport();
   await panel.getByLabel('Betrag', { exact: true }).fill('12,50+3');
   await panel.getByLabel('Betrag', { exact: true }).press('Enter');
   await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('15,50');
@@ -321,7 +326,7 @@ test('single payee suggestion selects its recent account and keeps capture contr
     expect(await panel.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`booking-polish-${theme}.png`) });
   }
-  await panel.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await captureCloseControl(panel).click();
   await panel.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await expect(panel).toBeHidden();
   const { id } = await post('/bookings', {

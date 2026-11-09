@@ -1,5 +1,5 @@
 import { cx } from '@budget/ui';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, Ellipsis } from 'lucide-react';
 import type { QuickAssignMode } from '@budget/domain';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { AppLink } from '../shell/app-link';
@@ -7,6 +7,7 @@ import { MONTH_SPANS, setMonthSpan, useStoredMonthSpan } from './month-span';
 import { useQuickAssign } from './quick-assign-actions';
 import type { PlanView } from './plan-model';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { setPlanDensity, usePlanDensity } from './plan-density';
 
 /**
  * The two Plan › Monat toolbar menus (#588): "Verteilen ▾" and "Optionen ▾". Native disclosure
@@ -19,12 +20,14 @@ function PlanMenu({
   label,
   title,
   className,
+  iconOnly = false,
   children,
 }: {
   label: string;
   /** Tooltip of the summary, e.g. why nothing can be distributed. */
   title?: string | undefined;
   className?: string;
+  iconOnly?: boolean;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDetailsElement>(null);
@@ -152,14 +155,27 @@ function PlanMenu({
   }, []);
   return (
     <details ref={ref} className={cx('plan-popover plan-menu', className)}>
-      <summary title={title}>
-        {label}
-        <ChevronDown
-          className="disclosure-chevron"
-          size={16}
-          strokeWidth={1.75}
-          aria-hidden="true"
-        />
+      <summary
+        role={REDESIGN_ENABLED ? 'button' : undefined}
+        title={title ?? (iconOnly ? label : undefined)}
+        aria-label={iconOnly ? label : undefined}
+      >
+        {iconOnly ? (
+          <>
+            <span className="sr-only">{label}</span>
+            <Ellipsis size={20} strokeWidth={1.5} aria-hidden="true" />
+          </>
+        ) : (
+          <>
+            {label}
+            <ChevronDown
+              className="disclosure-chevron"
+              size={16}
+              strokeWidth={1.75}
+              aria-hidden="true"
+            />
+          </>
+        )}
       </summary>
       <div className="plan-menu-panel" role="group" aria-label={label}>
         {children}
@@ -257,7 +273,7 @@ export function VerteilenMenu({
   const single = 'Nur bei einem Monat';
   return (
     <PlanMenu
-      label="Verteilen"
+      label={REDESIGN_ENABLED ? 'Geld verteilen' : 'Verteilen'}
       className="plan-menu-verteilen"
       title={distributeBlock ?? undefined}
     >
@@ -325,6 +341,8 @@ export function OptionenMenu({
   onView,
   onToggleAll,
   readUtilities,
+  filters,
+  hiddenControl,
 }: {
   month: string;
   view: PlanView;
@@ -338,10 +356,36 @@ export function OptionenMenu({
   onToggleAll: () => void;
   /** Optional same-month read controls; no assignment actions or nested menu summaries. */
   readUtilities?: ReactNode;
+  filters?: ReactNode;
+  hiddenControl?: { shown: boolean; toggle: () => void } | undefined;
 }) {
   const span = useStoredMonthSpan();
+  const density = usePlanDensity();
   return (
-    <PlanMenu label="Optionen" className="plan-menu-optionen">
+    <PlanMenu label="Optionen" className="plan-menu-optionen" iconOnly={REDESIGN_ENABLED}>
+      {REDESIGN_ENABLED && (
+        <div role="group" aria-label="Dichte" className="plan-menu-group">
+          <span className="plan-menu-heading" aria-hidden="true">
+            Dichte
+          </span>
+          {(
+            [
+              ['all', 'Alle'],
+              ['compact', 'Kompakt'],
+              ['minimal', 'Minimal'],
+            ] as const
+          ).map(([value, label]) => (
+            <MenuAction
+              key={value}
+              pressed={density === value}
+              onSelect={() => setPlanDensity(value)}
+            >
+              {label}
+            </MenuAction>
+          ))}
+        </div>
+      )}
+      {filters}
       {phone && onSelectionMode && (
         <MenuAction pressed={selectionMode} onSelect={onSelectionMode}>
           {selectionMode ? 'Auswahl beenden' : 'Auswählen'}
@@ -362,7 +406,7 @@ export function OptionenMenu({
           </MenuAction>
         ))}
       </div>
-      {!phone && (
+      {!phone && !REDESIGN_ENABLED && (
         <div role="group" aria-label="Anzahl Monate" className="plan-menu-group">
           <span className="plan-menu-heading" aria-hidden="true">
             Monate
@@ -375,6 +419,11 @@ export function OptionenMenu({
         </div>
       )}
       <div className="plan-menu-group">
+        {hiddenControl && (
+          <MenuAction pressed={hiddenControl.shown} onSelect={hiddenControl.toggle}>
+            Ausgeblendete zeigen
+          </MenuAction>
+        )}
         <MenuAction onSelect={onToggleAll}>
           {collapsed ? 'Alle ausklappen' : 'Alle einklappen'}
         </MenuAction>

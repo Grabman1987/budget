@@ -49,7 +49,7 @@ import { applyRestructure, parseRestructureFile } from './operator-restructure';
  *   node migrate-cli.js payslips --file <json> [--dry-run] [--details] [--replace]
  *   node migrate-cli.js instrument-facts --file <json> [--dry-run]
  *   node migrate-cli.js owner-config --file <json> [--dry-run] [--details]
- *   node migrate-cli.js contact-allocate --file <json> [--dry-run] [--details]
+ *   node migrate-cli.js contact-allocate --file <json> [--dry-run] [--details] [--unlock]
  *   node migrate-cli.js restructure --file <json> [--dry-run] [--details]
  *   node migrate-cli.js owner-trades --file <json> [--dry-run] [--details]
  *   node migrate-cli.js bank-inbox list [--source <bankSyncAccountId>] [--out <file>]
@@ -583,7 +583,7 @@ try {
         db,
         file,
         { actor: 'operator' },
-        { dryRun, today: ctx.today },
+        { dryRun, today: ctx.today, unlock: args.includes('--unlock') },
       );
       for (const outcome of outcomes) {
         console.log(
