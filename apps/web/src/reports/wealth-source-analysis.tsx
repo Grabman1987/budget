@@ -23,7 +23,7 @@ export function WealthSourceAnalysis({ fallbackPeriod = 'YTD' }: { fallbackPerio
       <p className="retained-networth-stand">
         <VermoegenStand />
       </p>
-      <NetWorthContent fallbackPeriod={fallbackPeriod} inReport />
+      <NetWorthContent fallbackPeriod={fallbackPeriod} inReport dedupe />
     </details>
   );
 }

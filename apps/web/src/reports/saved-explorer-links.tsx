@@ -1,6 +1,7 @@
 import { maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Bookmark } from 'lucide-react';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { AppLink } from '../shell/app-link';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { savedExplorerViewsQuery } from './explorer-view-api';
@@ -17,6 +18,14 @@ export function SavedExplorerLinks() {
     saved.data.schemaVersion === 1
       ? saved.data.views
       : undefined;
+  // Redesign: an empty or still loading bookmark row is hidden; errors stay visible.
+  if (REDESIGN_ENABLED && !saved.isError && (!current || current.length === 0)) {
+    return saved.isSuccess && !saved.isFetching && !current ? (
+      <p role="status" className="saved-explorer-unavailable">
+        Gespeicherte Auswertungen sind nicht verfügbar. Die Daten bleiben erhalten.
+      </p>
+    ) : null;
+  }
   return (
     <section className="saved-explorer-links" aria-labelledby="saved-explorer-title">
       <h2 id="saved-explorer-title">Meine Auswertungen</h2>
