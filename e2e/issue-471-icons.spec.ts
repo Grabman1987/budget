@@ -15,7 +15,6 @@ async function expectVisibleIconScale(page: Page) {
           ['.tabbar .icon', 22, 1.5],
           ['.area-page-menu > summary > .lucide-chevron-down', 16, 2],
           ['.wealth-investment > summary > .lucide-plus', 16, 2],
-          ['.plan-reference-filters > summary > .lucide-chevron-down', 14, 2],
           ['.year-reference-metric > summary > .lucide-chevron-down', 14, 2],
           ['.year-reference-period > button > .lucide-chevron-left', 16, 2],
           ['.year-reference-period > button > .lucide-chevron-right', 16, 2],
@@ -130,11 +129,19 @@ test('icon sizes, swatches and disclosure carets use their rendered styles', asy
     has: page.locator('summary', { hasText: 'Optionen' }),
   });
   const chevron = menu.locator('summary .disclosure-chevron');
-  const closed = await chevron.evaluate((el) => getComputedStyle(el).transform);
-  expect(closed).not.toBe('none');
+  const redesignedPlan = await redesignLoaded(page);
+  if (redesignedPlan) {
+    await expect(chevron).toHaveCount(0);
+    await expect(menu.locator('summary .lucide-ellipsis')).toHaveCSS('width', '20px');
+    await expect(menu.locator('summary .lucide-ellipsis')).toHaveCSS('stroke-width', '1.5px');
+  } else {
+    const closed = await chevron.evaluate((el) => getComputedStyle(el).transform);
+    expect(closed).not.toBe('none');
+  }
   await menu.locator('summary').click();
   await expect(menu).toHaveAttribute('open', '');
-  expect(await chevron.evaluate((el) => getComputedStyle(el).transform)).toBe('none');
+  if (!redesignedPlan)
+    expect(await chevron.evaluate((el) => getComputedStyle(el).transform)).toBe('none');
   const selected = menu.locator('.plan-menu-selected:visible').first();
   await expect(selected).toBeVisible();
   expect(

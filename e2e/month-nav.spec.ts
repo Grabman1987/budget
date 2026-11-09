@@ -4,6 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { type APIRequestContext, type Page } from '@playwright/test';
 import { expect, sampleTest as test } from './sample';
 import { test as isolatedTest } from './isolated-ledger';
+import { redesignEnabled } from './plan-redesign-controls';
 
 /**
  * Month navigation on the seeded sample server ("today" is 17.09.2026): the month switch on Heute,
@@ -127,12 +128,13 @@ test.describe('Plan › Monat with several months', () => {
     test.skip(info.project.name === 'mobile', 'the phone always shows one month');
     await page.goto('/plan/monat?monat=2026-09');
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
-    // #588: the month span lives in Optionen ▾, which closes after every choice.
-    const optionen = page.locator('.plan-menu summary', { hasText: 'Optionen' });
-    const span = page.getByRole('group', { name: 'Anzahl Monate' });
+    // ON keeps the month span in the toolbar; OFF retains the disclosure.
+    const on = await redesignEnabled(page);
+    const optionen = page.locator('.plan-menu-optionen > summary');
+    const span = page.getByRole('group', { name: on ? 'Sichtbare Monate' : 'Anzahl Monate' });
     const pick = async (name: string) => {
-      await optionen.click();
-      await span.getByRole('button', { name, exact: true }).click();
+      if (!on) await optionen.click();
+      await span.getByRole('button', { name: on ? name.slice(0, 1) : name, exact: true }).click();
     };
     await pick('2 Monate');
     const table = page.locator('.ptable-multi');
@@ -158,11 +160,10 @@ test.describe('Plan › Monat with several months', () => {
     await expect(table.locator('thead th.pm-head')).toHaveCount(3);
     await page.reload();
     await expect(page.locator('.ptable-multi thead th.pm-head')).toHaveCount(3);
-    await optionen.click();
-    await expect(span.getByRole('button', { name: '3 Monate' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    if (!on) await optionen.click();
+    await expect(
+      span.getByRole('button', { name: on ? '3' : '3 Monate', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.press('Escape');
 
     await pick('1 Monat');
@@ -180,8 +181,10 @@ test.describe('Plan › Monat with several months', () => {
     ).toBeVisible();
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
     // Open the menu first: a closed menu would hide the group and make the count trivially 0.
-    await page.locator('.plan-menu summary', { hasText: 'Optionen' }).click();
+    await page.locator('.plan-menu-optionen > summary').click();
     await expect(page.getByRole('group', { name: 'Anzahl Monate' })).toHaveCount(0);
+    if (await redesignEnabled(page))
+      await expect(page.getByRole('group', { name: 'Sichtbare Monate' })).toBeHidden();
     await expect(page.getByRole('group', { name: 'Ansicht', exact: true })).toBeVisible();
   });
 });

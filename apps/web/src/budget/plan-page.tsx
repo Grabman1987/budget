@@ -102,6 +102,9 @@ import {
 import { BUDGET_KEY, categoriesQuery, useBudgetWrite } from './use-category-writes';
 import { CategoryPanel, type PanelState } from './category-panel';
 import { PlanPageFrame } from './plan-page-frame';
+import { usePlanDensity } from './plan-density';
+import { usePlanHistory } from './plan-history';
+import { Undo2, Redo2, CircleAlert, Wallet } from 'lucide-react';
 import { MonthSwitch } from '../shell/month-switch';
 
 /** `05.10.` of `2026-10-05`. */
@@ -197,7 +200,6 @@ function MonthFrame({
   income: ReactNode;
   children: ReactNode;
 }) {
-  const span = useMonthSpan();
   if (!REDESIGN_ENABLED)
     return (
       <PageFrame meta={PLAN_MONAT} income={income}>
@@ -213,21 +215,6 @@ function MonthFrame({
       period={<MonthSwitch heading={monthLabel(month)} />}
       actions={
         <>
-          <div className="month-reference-count">
-            <span>Monate</span>
-            <div className="seg" role="group" aria-label="Sichtbare Monate">
-              {([1, 2, 3] as const).map((count) => (
-                <button
-                  key={count}
-                  type="button"
-                  aria-pressed={span === count}
-                  onClick={() => setMonthSpan(count)}
-                >
-                  {count}
-                </button>
-              ))}
-            </div>
-          </div>
           <span className="month-reference-income">Einnahmen {income}</span>
           <AppLink
             className="btn btn-ghost btn-sm plan-close"
@@ -266,6 +253,9 @@ function PlanBody({
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
+  const density = usePlanDensity();
+  const history = usePlanHistory();
+  const span = useMonthSpan();
   const qc = useQueryClient();
   const [previewChanged, setPreviewChanged] = useState(false);
   const computedAssign = async (items: Array<{ categoryId: string; assignedCents: number }>) => {
@@ -299,6 +289,11 @@ function PlanBody({
   const navigate = useNavigate();
   const legacyTriage = search.ansicht === 'triage' && search.filter === undefined;
   const filter = search.filter ?? (legacyTriage ? 'overspent' : 'all');
+  const filterChips = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if ((filter === 'attention' || filter === 'uncategorized') && filterChips.current)
+      filterChips.current.scrollLeft = 0;
+  }, [filter]);
   const nameQuery = search.q ?? '';
   const filterTuple = JSON.stringify([filter, nameQuery, legacyTriage]);
   const [capturedFilter, setCapturedFilter] = useState(filterTuple);
@@ -500,7 +495,7 @@ function PlanBody({
         event.target instanceof Element &&
         event.target.isConnected &&
         !event.target.closest(
-          '.plan-inspector, .prow, .pgroup, .plan-select, dialog, .toast, .quick-assign-actions, .plan-menu-verteilen, .m-profile',
+          '.plan-inspector, .prow, .pgroup, .plan-select, dialog, .toast, .quick-assign-actions, .plan-menu-verteilen, .plan-calm-toolbar, .m-profile',
         )
       )
         clearSelection();
@@ -609,6 +604,7 @@ function PlanBody({
     all: idsFor('all').size,
     attention: idsFor('attention').size,
     underfunded: idsFor('underfunded').size,
+    overfunded: idsFor('overfunded').size,
     overspent: idsFor('overspent').size,
     available: idsFor('available').size,
     uncategorized:
@@ -905,11 +901,189 @@ function PlanBody({
       distributeBlock={distributeBlock}
       onIncome={onIncome}
       onDistribute={startDistribute}
-      distributeMenu={distributeMenu}
       coverControls={filter === 'overspent' ? null : coverControls}
       monthIncome={monthIncome}
       compactOnRestore={REDESIGN_ENABLED && Boolean(restoredPlan?.compactHead)}
     />
+  );
+  const toolbar = (
+    <div
+      className={cx('plan-filterbar', REDESIGN_ENABLED && 'ptoolbar plan-calm-toolbar')}
+      aria-label="Kategorien filtern"
+    >
+      <label className="plan-category-search" htmlFor="plan-category-search">
+        <span className="sr-only">Kategorie suchen</span>
+        <TextInput
+          id="plan-category-search"
+          type="search"
+          placeholder="Kategorie suchen"
+          value={nameQuery}
+          disabled={filter === 'uncategorized'}
+          aria-describedby={filter === 'uncategorized' ? 'plan-filter-scope' : undefined}
+          maxLength={100}
+          onChange={(event) => changeFilter(filter, event.target.value)}
+        />
+      </label>
+      {REDESIGN_ENABLED ? (
+        <div
+          ref={filterChips}
+          className="plan-filter-chips"
+          role="group"
+          aria-label="Kategoriefilter"
+        >
+          {(filter === 'attention' || filter === 'uncategorized') && (
+            <button type="button" aria-pressed="true" onClick={() => changeFilter('all')}>
+              {filter === 'attention' ? 'Braucht Aufmerksamkeit' : 'Ohne Kategorie'}{' '}
+              <span>({counts[filter] ?? '…'})</span>
+              <span aria-hidden="true"> ×</span>
+              <span className="sr-only"> · Filter entfernen</span>
+            </button>
+          )}
+          {(
+            [
+              ['all', 'Alle', counts.all],
+              ['overspent', 'Überzogen', counts.overspent],
+              ['underfunded', 'Unterfinanziert', counts.underfunded],
+              ['overfunded', 'Überfinanziert', counts.overfunded],
+              ['available', 'Verfügbar', counts.available],
+            ] as const
+          ).map(([value, label, count]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={filter === value}
+              className={cx(value === 'overspent' && count > 0 && 'has-overspending')}
+              onClick={() => changeFilter(value)}
+            >
+              {label} <span>({count})</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="seg plan-filter-segments" role="group" aria-label="Kategoriefilter">
+          {(
+            [
+              ['all', 'Alle', counts.all],
+              ['underfunded', 'Unterfinanziert', counts.underfunded],
+              ['overspent', 'Überzogen', counts.overspent],
+              ['available', 'Verfügbar', counts.available],
+              ['uncategorized', 'Ohne Kategorie', counts.uncategorized],
+            ] as const
+          ).map(([value, label, count]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={filter === value}
+              className={cx(value === 'overspent' && (count ?? 0) > 0 && 'has-overspending')}
+              onClick={() => changeFilter(value)}
+            >
+              {label} ({count ?? '…'})
+            </button>
+          ))}
+        </div>
+      )}
+      {REDESIGN_ENABLED && (
+        <>
+          <div className="month-reference-count">
+            <span>Monate</span>
+            <div className="seg" role="group" aria-label="Sichtbare Monate">
+              {([1, 2, 3] as const).map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  aria-pressed={span === count}
+                  onClick={() => setMonthSpan(count)}
+                >
+                  {count}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="plan-history" role="group" aria-label="Änderungen">
+            {(
+              [
+                ['Rückgängig', Undo2],
+                ['Wiederholen', Redo2],
+              ] as const
+            ).map(([label, Icon]) => (
+              <Button
+                key={label}
+                variant="ghost"
+                aria-label={label}
+                title={label}
+                disabled={history?.label !== label}
+                onClick={() => history?.run()}
+              >
+                <Icon size={20} strokeWidth={1.5} aria-hidden="true" />
+              </Button>
+            ))}
+          </div>
+          {distributeMenu}
+        </>
+      )}
+
+      <OptionenMenu
+        hiddenControl={
+          REDESIGN_ENABLED
+            ? { shown: showHidden, toggle: () => setShowHidden((value) => !value) }
+            : undefined
+        }
+        filters={
+          REDESIGN_ENABLED ? (
+            <div role="group" aria-label="Weitere Filter" className="plan-menu-group">
+              {(
+                [
+                  ['attention', 'Braucht Aufmerksamkeit', counts.attention],
+                  ['uncategorized', 'Ohne Kategorie', counts.uncategorized],
+                ] as const
+              ).map(([value, label, count]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className="plan-menu-item"
+                  aria-pressed={filter === value}
+                  onClick={() => changeFilter(value)}
+                >
+                  {label} ({count ?? '?'})
+                </button>
+              ))}
+              <button
+                type="button"
+                className="plan-menu-item"
+                onClick={() => setCategoryForm({ mode: 'group' })}
+              >
+                + Kategoriegruppe
+              </button>
+            </div>
+          ) : undefined
+        }
+        readUtilities={
+          REDESIGN_ENABLED ? (
+            <PlanReadUtilities
+              summary={s}
+              month={month}
+              unfunded={groupStatus(rows).need}
+              onUnderfunded={() => {
+                clearSelection();
+                focusIncomeInspector();
+              }}
+            />
+          ) : undefined
+        }
+        month={month}
+        view={shownView}
+        multi={multi}
+        phone={phone}
+        selectionMode={phoneSelection}
+        onSelectionMode={() => (phoneSelection ? clearSelection(true) : startPhoneSelection())}
+        collapsed={collapsed.size > 0}
+        onView={(next) => {
+          if (legacyTriage) changeFilter('all');
+          setView(next);
+        }}
+        onToggleAll={() => setCollapsed(collapsed.size ? new Set() : new Set(collapsibleKeys))}
+      />
+    </div>
   );
   return (
     <div
@@ -947,6 +1121,7 @@ function PlanBody({
       }}
       className={cx(
         'plan-grid',
+        REDESIGN_ENABLED && `plan-density-${density}`,
         multi && 'is-wide',
         phone && phoneSelection && 'has-phone-selection',
       )}
@@ -960,6 +1135,7 @@ function PlanBody({
       }
     >
       {REDESIGN_ENABLED && topbar}
+      {REDESIGN_ENABLED && toolbar}
       <div className="plan-main">
         {previewChanged && (
           <p role="alert">
@@ -971,128 +1147,7 @@ function PlanBody({
           <h2 className="sr-only" id="table-title">
             Envelopes im Monat
           </h2>
-          <div className="plan-filterbar" aria-label="Kategorien filtern">
-            <label className="plan-category-search" htmlFor="plan-category-search">
-              <span className="sr-only">Kategorie suchen</span>
-              <TextInput
-                id="plan-category-search"
-                type="search"
-                placeholder="Kategorie suchen"
-                value={nameQuery}
-                disabled={filter === 'uncategorized'}
-                aria-describedby={filter === 'uncategorized' ? 'plan-filter-scope' : undefined}
-                maxLength={100}
-                onChange={(event) => changeFilter(filter, event.target.value)}
-              />
-            </label>
-            {REDESIGN_ENABLED ? (
-              <details className="plan-v2-view plan-reference-filters">
-                <summary>
-                  Ansicht <ChevronDown size={14} aria-hidden="true" />
-                </summary>
-                <div className="plan-v2-view-menu">
-                  {' '}
-                  <div
-                    className="seg plan-filter-segments"
-                    role="group"
-                    aria-label="Kategoriefilter"
-                  >
-                    {(
-                      [
-                        ['all', 'Alle', counts.all],
-                        ['attention', 'Braucht Aufmerksamkeit', counts.attention],
-                        ['underfunded', 'Unterfinanziert', counts.underfunded],
-                        ['overspent', 'Überzogen', counts.overspent],
-                        ['available', 'Verfügbar', counts.available],
-                        ['uncategorized', 'Ohne Kategorie', counts.uncategorized],
-                      ] as const
-                    ).map(([value, label, count]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        aria-pressed={filter === value}
-                        className={cx(
-                          value === 'overspent' && (count ?? 0) > 0 && 'has-overspending',
-                        )}
-                        onClick={() => changeFilter(value)}
-                      >
-                        {label} ({count ?? '…'})
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </details>
-            ) : (
-              <div className="seg plan-filter-segments" role="group" aria-label="Kategoriefilter">
-                {(
-                  [
-                    ['all', 'Alle', counts.all],
-                    ['underfunded', 'Unterfinanziert', counts.underfunded],
-                    ['overspent', 'Überzogen', counts.overspent],
-                    ['available', 'Verfügbar', counts.available],
-                    ['uncategorized', 'Ohne Kategorie', counts.uncategorized],
-                  ] as const
-                ).map(([value, label, count]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={filter === value}
-                    className={cx(value === 'overspent' && (count ?? 0) > 0 && 'has-overspending')}
-                    onClick={() => changeFilter(value)}
-                  >
-                    {label} ({count ?? '…'})
-                  </button>
-                ))}
-              </div>
-            )}
-            {REDESIGN_ENABLED && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="plan-reference-add"
-                onClick={() => setCategoryForm({ mode: 'group' })}
-              >
-                + Kategoriegruppe
-              </Button>
-            )}
-
-            <OptionenMenu
-              hiddenControl={
-                REDESIGN_ENABLED
-                  ? { shown: showHidden, toggle: () => setShowHidden((value) => !value) }
-                  : undefined
-              }
-              readUtilities={
-                REDESIGN_ENABLED ? (
-                  <PlanReadUtilities
-                    summary={s}
-                    month={month}
-                    unfunded={groupStatus(rows).need}
-                    onUnderfunded={() => {
-                      clearSelection();
-                      focusIncomeInspector();
-                    }}
-                  />
-                ) : undefined
-              }
-              month={month}
-              view={shownView}
-              multi={multi}
-              phone={phone}
-              selectionMode={phoneSelection}
-              onSelectionMode={() =>
-                phoneSelection ? clearSelection(true) : startPhoneSelection()
-              }
-              collapsed={collapsed.size > 0}
-              onView={(next) => {
-                if (legacyTriage) changeFilter('all');
-                setView(next);
-              }}
-              onToggleAll={() =>
-                setCollapsed(collapsed.size ? new Set() : new Set(collapsibleKeys))
-              }
-            />
-          </div>
+          {!REDESIGN_ENABLED && toolbar}
           {filter === 'overspent' && (
             <div className="plan-filter-cover">{coverControls || <p>Nichts ist überzogen.</p>}</div>
           )}
@@ -1121,7 +1176,7 @@ function PlanBody({
             <p className="plan-filter-empty">Keine passende Kategorie.</p>
           )}
           {(!REDESIGN_ENABLED || distribute) && (
-            <div className="ptoolbar">
+            <div className={REDESIGN_ENABLED ? 'plan-distribution-actions' : 'ptoolbar'}>
               {!REDESIGN_ENABLED && distributeMenu}
               <span className="spacer" />
               <div className="dist-actions">
@@ -1629,7 +1684,6 @@ function PlanTopBar({
   coverControls,
   monthIncome,
   compactOnRestore = false,
-  distributeMenu,
 }: {
   data: BudgetMonthView;
   month: string;
@@ -1640,7 +1694,6 @@ function PlanTopBar({
   coverControls: React.ReactNode;
   monthIncome?: MonthIncome | undefined;
   compactOnRestore?: boolean;
-  distributeMenu: ReactNode;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const head = useRef<HTMLElement>(null);
@@ -1885,7 +1938,6 @@ function PlanTopBar({
               controls={
                 <>
                   {tbaControl}
-                  {distributeMenu}
                   {hint}
                 </>
               }
@@ -2525,8 +2577,11 @@ function EnvelopeRow({
                 over ? 'is-bad' : r.availableCents > 0 && 'is-good',
               )}
             >
+              {REDESIGN_ENABLED && <AvailableIcon row={r} />}
               {eur(r.availableCents)}
-              {over && <ArrowLeftRight size={16} strokeWidth={1.75} aria-hidden="true" />}
+              {!REDESIGN_ENABLED && over && (
+                <ArrowLeftRight size={16} strokeWidth={1.75} aria-hidden="true" />
+              )}
             </button>
           ) : REDESIGN_ENABLED && over ? (
             <span className="plan-available-action">
@@ -2535,6 +2590,7 @@ function EnvelopeRow({
                 id={`plan-available-${r.id}`}
                 title={credit ? 'neue Kartenschuld' : undefined}
               >
+                {REDESIGN_ENABLED && <AvailableIcon row={r} />}
                 {eur(r.availableCents)}
               </span>
               <button
@@ -2552,6 +2608,7 @@ function EnvelopeRow({
                 className={cx('pill', over ? 'is-bad' : r.availableCents > 0 && 'is-good')}
                 title={credit ? 'neue Kartenschuld' : undefined}
               >
+                {REDESIGN_ENABLED && <AvailableIcon row={r} />}
                 {eur(r.availableCents)}
               </span>
               {over && (
@@ -2570,4 +2627,9 @@ function EnvelopeRow({
       </td>
     </tr>
   );
+}
+
+function AvailableIcon({ row }: { row: PlanRow }) {
+  const Icon = row.overspentCents > 0 ? CircleAlert : row.availableCents > 0 ? Check : Wallet;
+  return <Icon size={16} strokeWidth={1.75} aria-hidden="true" />;
 }

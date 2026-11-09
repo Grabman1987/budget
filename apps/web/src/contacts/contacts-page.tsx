@@ -69,6 +69,7 @@ export interface Statement {
     allocations: ContactAllocation[];
     creditCents: number;
     recorded: boolean;
+    allocatable?: boolean;
   }[];
   closedThroughSplitId: string | null;
 }
@@ -934,6 +935,29 @@ export function ContactWriteOffDialog({
   );
 }
 
+function ContactUnlockConfirmation({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled: boolean;
+}) {
+  return (
+    <label className="contact-select-outlay">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      Zuordnung auch bei abgeglichenen Buchungen ändern. Betrag, Datum und Konto bleiben
+      unverändert.
+    </label>
+  );
+}
+
 function ContactGiftDialog({
   statement,
   outlay,
@@ -949,7 +973,8 @@ function ContactGiftDialog({
 }) {
   useAmountPrivacy();
   const [amount, setAmount] = useState(decimal(outlay.remainingCents));
-  const [categoryId, setCategoryId] = useState('');
+  const [categoryId, setCategoryId] = useState(outlay.categoryId ?? '');
+  const [unlock, setUnlock] = useState(false);
   const [busy, setBusy] = useState(false);
   const write = useContactWrite();
   const source = useQuery({
@@ -969,20 +994,8 @@ function ContactGiftDialog({
   const parsed = parseAmount(amount);
   const amountCents = parsed.ok ? parsed.cents : 0;
   const booking = source.data?.booking;
-  const allocated = statement.receipts.some(
-    (receipt) =>
-      receipt.recorded &&
-      receipt.allocations.some(
-        (a) =>
-          a.outlaySplitId === outlay.splitId ||
-          booking?.splits.some((s) => s.id === a.outlaySplitId),
-      ),
-  );
-  const blocked =
-    allocated ||
-    booking?.status === 'reconciled' ||
-    !!booking?.transferId ||
-    booking?.splits.some((s) => s.transferId);
+  const blocked = !!booking?.transferId || booking?.splits.some((s) => s.transferId);
+  const locked = booking?.status === 'reconciled';
   const valid =
     ready &&
     !!booking &&
@@ -991,6 +1004,7 @@ function ContactGiftDialog({
     lookups.isSuccess &&
     !lookups.isFetching &&
     !blocked &&
+    (!locked || unlock) &&
     outlay.date <= todayInVienna() &&
     amountCents > 0 &&
     amountCents <= outlay.remainingCents &&
@@ -1012,8 +1026,8 @@ function ContactGiftDialog({
             () =>
               request(
                 'POST',
-                `${contactUrl(statement.contact.id)}/outlays/${encodeURIComponent(outlay.splitId)}/gift`,
-                { amountCents, categoryId },
+                `${contactUrl(statement.contact.id)}/outlays/${encodeURIComponent(outlay.splitId)}/waive`,
+                { amountCents, categoryId, ...(unlock ? { unlock: true } : {}) },
               ),
             'Auslage als eigenes Geschenk übernommen.',
           ).then((ok) => {
@@ -1022,25 +1036,16 @@ function ContactGiftDialog({
           });
         }}
       >
-        <h2>Auslage als Geschenk übernehmen</h2>
+        <h2>Geschenk an Kontakt</h2>
         <p>
           {maskMoneyText(outlay.memo?.trim() || 'Auslage')} · {statement.contact.name}
         </p>
         <p>
-          Datum bleibt {longDay(booking?.date ?? outlay.date)}. Der Bankbetrag bleibt gleich. Nur
-          der gewählte Kontaktanteil wird deine eigene Ausgabe.
+          Betrag, Datum und Konto der Bankbuchung bleiben gleich. Der gewählte offene Kontaktanteil
+          entfällt als Forderung. Die Ausgabe bleibt in ihrer Kategorie.
         </p>
-        {allocated && (
-          <p role="status">
-            Diese Buchung ist bereits einer Rückzahlung zugeordnet. Zuerst die zugehörige
-            Rückzahlung rückgängig machen.
-          </p>
-        )}
-        {booking?.status === 'reconciled' && (
-          <p role="status">
-            Die Ursprungsbuchung ist abgeglichen und gesperrt. Bitte dort den bestehenden
-            Entsperrweg verwenden.
-          </p>
+        {locked && (
+          <ContactUnlockConfirmation checked={unlock} onChange={setUnlock} disabled={busy} />
         )}
         {blocked && (
           <Button variant="ghost" onClick={onOpenSource}>
@@ -1053,6 +1058,7 @@ function ContactGiftDialog({
             <Select
               id={id}
               value={categoryId}
+              disabled={!!outlay.categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
               required
             >
@@ -1097,6 +1103,8 @@ interface RepaymentAllocation {
   receiptSplitId: string;
   amountCents: number;
   retainedCreditCents?: number;
+  requiresAdoption?: boolean;
+  locked?: boolean;
   allocations: ContactAllocation[];
   outlays: OpenContactOutlay[];
 }
@@ -1114,6 +1122,7 @@ function ContactAllocationDialog({
 }) {
   const [chosen, setChosen] = useState<Record<string, string> | null>(null);
   const [busy, setBusy] = useState(false);
+  const [unlock, setUnlock] = useState(false);
   const write = useContactWrite();
   const url = `${contactUrl(contactId)}/settlements/${encodeURIComponent(receiptSplitId)}/allocations`;
   const preview = useQuery({
@@ -1123,6 +1132,8 @@ function ContactAllocationDialog({
   });
   const sourceReady = ready && preview.isSuccess && !preview.isFetching;
   const open = preview.data?.outlays ?? [];
+  const lockConfirmed = !preview.data?.locked || unlock;
+  const canSave = sourceReady && lockConfirmed && !preview.data?.requiresAdoption;
   const values =
     chosen ??
     Object.fromEntries(
@@ -1143,11 +1154,9 @@ function ContactAllocationDialog({
       if (!value.ok || value.cents < 0) throw new Error('Invalid allocation amount');
       return value.cents ? [{ outlaySplitId: outlay.splitId, amountCents: value.cents }] : [];
     });
-    creditCents = allocateContactReceipt(
-      open,
-      preview.data?.amountCents ?? 0,
-      allocations,
-    ).creditCents;
+    creditCents = allocateContactReceipt(open, preview.data?.amountCents ?? 0, allocations, {
+      retainCredit: true,
+    }).creditCents;
   } catch {
     allocationError =
       'Die Anteile müssen zur Rückzahlung passen und dürfen die verfügbare Auslage nicht übersteigen.';
@@ -1158,10 +1167,10 @@ function ContactAllocationDialog({
         className="contacts-form"
         onSubmit={(event) => {
           event.preventDefault();
-          if (!sourceReady || allocationError || busy) return;
+          if (!canSave || allocationError || busy) return;
           setBusy(true);
           void write(
-            () => request('POST', url, { allocations }),
+            () => request('POST', url, { allocations, ...(unlock ? { unlock: true } : {}) }),
             'Rückzahlung neu zugeordnet.',
           ).then((ok) => {
             setBusy(false);
@@ -1186,6 +1195,34 @@ function ContactAllocationDialog({
         )}
         {sourceReady && preview.data && (
           <>
+            {preview.data.locked && (
+              <ContactUnlockConfirmation checked={unlock} onChange={setUnlock} disabled={busy} />
+            )}
+            {preview.data.requiresAdoption && (
+              <div>
+                <p>
+                  Diese ältere Rückzahlung braucht eine protokollierte Übernahme ihrer bisherigen
+                  Zuordnung. Dabei bewegt sich kein Geld.
+                </p>
+                <Button
+                  disabled={busy || !lockConfirmed}
+                  onClick={() => {
+                    setBusy(true);
+                    void write(
+                      () =>
+                        request(
+                          'POST',
+                          url.replace(/allocations$/, 'adopt'),
+                          unlock ? { unlock: true } : {},
+                        ),
+                      'Bisherige Zuordnung übernommen.',
+                    ).then(() => setBusy(false));
+                  }}
+                >
+                  Bisherige Zuordnung übernehmen
+                </Button>
+              </div>
+            )}
             <p>
               {preview.data.retainedCreditCents ? 'Neu zuordenbarer Anteil' : 'Rückzahlung'}:{' '}
               <strong>{eur(preview.data.amountCents)}</strong>
@@ -1238,7 +1275,7 @@ function ContactAllocationDialog({
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             Abbrechen
           </Button>
-          <Button type="submit" disabled={!sourceReady || !!allocationError || busy}>
+          <Button type="submit" disabled={!canSave || !!allocationError || busy}>
             Zuordnung speichern
           </Button>
         </div>
@@ -1307,6 +1344,7 @@ function CreditChoiceFields({
 
 function ContactCredits({ statement }: { statement: Statement }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [unlock, setUnlock] = useState(false);
   const [amount, setAmount] = useState('');
   const [choice, setChoice] = useState<'free' | 'category' | 'gift'>('free');
   const [categoryId, setCategoryId] = useState('');
@@ -1358,6 +1396,7 @@ function ContactCredits({ statement }: { statement: Statement }) {
                 variant="ghost"
                 onClick={() => {
                   setSelected(c.receiptSplitId);
+                  setUnlock(false);
                   setAmount(decimal(c.availableCents));
                   setChoice(c.categoryId ? 'category' : 'free');
                   setCategoryId(c.categoryId ?? '');
@@ -1392,6 +1431,7 @@ function ContactCredits({ statement }: { statement: Statement }) {
                       date: todayInVienna(),
                       amountCents: parsed.cents,
                       choice,
+                      ...(unlock ? { unlock: true } : {}),
                       ...(choice === 'category' ? { categoryId } : {}),
                       ...(choice === 'gift' ? { accountId: accountId || cash[0]?.id } : {}),
                     },
@@ -1411,6 +1451,7 @@ function ContactCredits({ statement }: { statement: Statement }) {
                 werden wieder offen.
               </p>
             )}
+            <ContactUnlockConfirmation checked={unlock} onChange={setUnlock} disabled={busy} />
             <CreditChoiceFields
               choice={choice}
               onChoice={setChoice}

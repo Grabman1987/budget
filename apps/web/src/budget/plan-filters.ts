@@ -5,6 +5,7 @@ export const PLAN_FILTERS = [
   'all',
   'attention',
   'underfunded',
+  'overfunded',
   'overspent',
   'available',
   'uncategorized',
@@ -38,6 +39,14 @@ export function filterPlanRows(rows: PlanRow[], filter: PlanFilter): PlanRow[] {
     }
     case 'underfunded':
       return rows.filter((row) => row.needCents > 0);
+    case 'overfunded':
+      return rows.filter(
+        (row) =>
+          row.overspentCents === 0 &&
+          row.needCents === 0 &&
+          row.target &&
+          row.assignedCents > row.goalCents,
+      );
     case 'overspent':
       return overspentEnvelopes({ envelopes: rows });
     case 'available':

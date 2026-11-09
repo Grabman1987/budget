@@ -200,7 +200,7 @@ export function ContactMovementTable({
                           'Zuordnung nicht protokolliert'
                         )}
                       </p>
-                      {repayment.recorded && onAllocate && (
+                      {repayment.allocatable !== false && onAllocate && (
                         <Button variant="ghost" onClick={() => onAllocate(movement.splitId)}>
                           Zuordnung ändern
                         </Button>

@@ -121,33 +121,18 @@ for (const theme of ['light', 'dark'] as const) {
           page.locator(`.prow:has([data-category-id="${ids[index]}"])`);
         if (area === 'plan') {
           await expect(page.locator('.prow:has(.pname)')).toHaveCount(18);
-          const styles = await page.locator('.prow:has(.pname)').evaluateAll((rows) =>
-            rows.map((row) => {
-              const bar = row.querySelector('.spending-bar')!;
-              const probe = document.createElement('span');
-              probe.style.backgroundColor = 'var(--rule)';
-              bar.append(probe);
-              const neutral =
-                getComputedStyle(bar).backgroundColor === getComputedStyle(probe).backgroundColor;
-              probe.remove();
-              return {
-                id: row.querySelector('.pname')!.getAttribute('data-category-id'),
-                fill: getComputedStyle(bar.querySelector('.pbar-fill')!).display,
-                neutral,
-              };
-            }),
-          );
-          for (const index of [0, 1, 4])
-            expect(styles.find((row) => row.id === ids[index])).toMatchObject({
-              fill: 'none',
-              neutral: true,
-            });
-          for (const index of [2, 3])
-            expect(styles.find((row) => row.id === ids[index])!.fill).not.toBe('none');
+          for (const index of [0, 1, 2, 3, 4])
+            await expect(row(index).locator('.spending-bar')).toHaveCSS('visibility', 'hidden');
           if (info.project.name === 'desktop') {
             const cell = row(0).locator('td').first();
             const initial = await cell.evaluate((el) => getComputedStyle(el).backgroundColor);
             await row(0).hover();
+            await expect(row(0).locator('.spending-bar')).toHaveCSS('visibility', 'visible');
+            await expect(row(0).locator('.pbar-fill')).toHaveCSS('background-image', 'none');
+            await expect(row(0).locator('.pbar-fill')).not.toHaveCSS(
+              'background-color',
+              'rgba(0, 0, 0, 0)',
+            );
             await expect
               .poll(() => cell.evaluate((el) => getComputedStyle(el).backgroundColor))
               .not.toBe(initial);
@@ -164,11 +149,15 @@ for (const theme of ['light', 'dark'] as const) {
           ).toEqual([]);
         }
         if (area === 'attention') {
-          const menu = page.locator('.plan-reference-filters');
+          const menu = page.locator('.plan-menu-optionen');
           await menu.locator('summary').click();
           const attention = menu.getByRole('button', { name: 'Braucht Aufmerksamkeit (2)' });
           await attention.click();
-          await expect(attention).toHaveAttribute('aria-pressed', 'true');
+          await expect(
+            page
+              .locator('.plan-filter-chips')
+              .getByRole('button', { name: /Braucht Aufmerksamkeit.*Filter entfernen/ }),
+          ).toHaveAttribute('aria-pressed', 'true');
           await expect(page).toHaveURL(/filter=attention/);
           await menu.locator('summary').press('Escape');
           await expect(page.locator('.prow:has(.pname)')).toHaveCount(2);
@@ -181,9 +170,7 @@ for (const theme of ['light', 'dark'] as const) {
           await page.screenshot({ path: info.outputPath(`attention-${theme}.png`) });
           await page.reload();
           await expect(page.locator('.prow:has(.pname)')).toHaveCount(2);
-          await menu.locator('summary').click();
-          await menu.getByRole('button', { name: 'Alle (18)', exact: true }).click();
-          await menu.locator('summary').press('Escape');
+          await page.getByRole('button', { name: 'Alle (18)', exact: true }).click();
           await expect(page.locator('.prow:has(.pname)')).toHaveCount(18);
         }
         if (area === 'scroll') {
@@ -201,8 +188,9 @@ for (const theme of ['light', 'dark'] as const) {
           if (page.viewportSize()!.width < 768) {
             // Returning to toolbar controls expands the lead; clear its full measured height.
             for (const selector of [
-              '.plan-filterbar',
-              '.plan-menu-optionen summary',
+              '.ptoolbar',
+              '.ptoolbar .plan-menu-verteilen > summary',
+              '.ptoolbar .plan-menu-optionen > summary',
               '.ptable thead .plan-add',
             ]) {
               await page.evaluate(() => window.scrollTo(0, 0));

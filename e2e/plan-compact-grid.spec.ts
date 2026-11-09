@@ -4,9 +4,7 @@ import { test } from './isolated-ledger';
 
 /** Phone-only equivalents for the owner-approved explicit selection controls. */
 async function enterPhoneSelection(page: Page) {
-  const options = page.locator('details.plan-menu').filter({
-    has: page.locator('summary', { hasText: 'Optionen' }),
-  });
+  const options = page.locator('.plan-menu-optionen');
   await options.locator('summary').click();
   await options.getByRole('button', { name: 'Auswählen', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Kategorienauswahl', exact: true })).toBeVisible();
@@ -359,10 +357,8 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   await categoryDialog.getByRole('button', { name: 'Schließen', exact: true }).click();
   // #588: "Ansicht" moved into Optionen ▾; "Nur Überzogene" is no longer a menu entry, the
   // link from Heute (?ansicht=triage) still opens the same view with the same two rows.
-  const optionen = page.locator('.plan-menu summary', { hasText: 'Optionen' });
-  const optionenMenu = page
-    .locator('details.plan-menu')
-    .filter({ has: page.locator('summary', { hasText: 'Optionen' }) });
+  const optionen = page.locator('.plan-menu-optionen > summary');
+  const optionenMenu = page.locator('.plan-menu-optionen');
   const inOptionen = (name: string) =>
     optionenMenu.locator('.plan-menu-panel').getByRole('button', { name, exact: true });
   const triageUrl = new URL(page.url());
@@ -372,8 +368,15 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   await optionen.click();
   await inOptionen('Gruppen').click();
   if (desktop) {
-    await optionen.click();
-    await inOptionen('2 Monate').click();
+    if (redesigned)
+      await page
+        .getByRole('group', { name: 'Sichtbare Monate' })
+        .getByRole('button', { name: '2', exact: true })
+        .click();
+    else {
+      await optionen.click();
+      await inOptionen('2 Monate').click();
+    }
     await expect(page.locator('.ptable-multi .prow')).toHaveCount(18);
     await expect(page.getByTestId('tba-2026-11')).toBeVisible();
     await page
@@ -382,7 +385,13 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
       .click();
     await page.locator('.rail-btn').filter({ hasText: 'Laufender Monat' }).click();
     await optionen.click();
-    await expect(inOptionen('1 Monat')).toHaveAttribute('aria-pressed', 'true');
+    await expect(
+      redesigned
+        ? page
+            .getByRole('group', { name: 'Sichtbare Monate' })
+            .getByRole('button', { name: '1', exact: true })
+        : inOptionen('1 Monat'),
+    ).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
     await inOptionen('Gruppen').click();
   }
