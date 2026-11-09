@@ -21,6 +21,8 @@ function PlanMenu({
   title,
   className,
   iconOnly = false,
+  chipText,
+  dock = false,
   children,
 }: {
   label: string;
@@ -28,6 +30,13 @@ function PlanMenu({
   title?: string | undefined;
   className?: string;
   iconOnly?: boolean;
+  /**
+   * Phone chip (#1007): short visible text; the accessible name stays `label`. With `iconOnly` it
+   * replaces the icon, otherwise it replaces the visible label.
+   */
+  chipText?: string | undefined;
+  /** Fixed bottom action (phone): the panel opens upwards over the whole list area. */
+  dock?: boolean;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDetailsElement>(null);
@@ -71,7 +80,7 @@ function PlanMenu({
       const top = Math.max(
         Number.parseFloat(rootStyle.scrollPaddingTop) || 176,
         (head?.getBoundingClientRect().bottom ?? 0) + 8,
-        summary.getBoundingClientRect().bottom + 4,
+        dock ? 0 : summary.getBoundingClientRect().bottom + 4,
       );
       panel.style.setProperty(
         '--plan-action-menu-top',
@@ -152,22 +161,34 @@ function PlanMenu({
       observer?.disconnect();
       panel?.style.removeProperty('--plan-action-menu-top');
     };
-  }, []);
+  }, [dock]);
   return (
     <details ref={ref} className={cx('plan-popover plan-menu', className)}>
       <summary
         role={REDESIGN_ENABLED ? 'button' : undefined}
         title={title ?? (iconOnly ? label : undefined)}
-        aria-label={iconOnly ? label : undefined}
+        aria-label={iconOnly || chipText ? label : undefined}
       >
         {iconOnly ? (
           <>
             <span className="sr-only">{label}</span>
-            <Ellipsis size={20} strokeWidth={1.5} aria-hidden="true" />
+            {chipText ? (
+              <>
+                <span aria-hidden="true">{chipText}</span>
+                <ChevronDown
+                  className="disclosure-chevron"
+                  size={16}
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                />
+              </>
+            ) : (
+              <Ellipsis size={20} strokeWidth={1.5} aria-hidden="true" />
+            )}
           </>
         ) : (
           <>
-            {label}
+            {chipText ?? label}
             <ChevronDown
               className="disclosure-chevron"
               size={16}
@@ -257,6 +278,7 @@ export function VerteilenMenu({
   onDistribute,
   onFillTargets,
   cover,
+  dock = false,
 }: {
   month: string;
   /** Several months side by side: the quick-assign calls act on one month only. */
@@ -268,13 +290,17 @@ export function VerteilenMenu({
   onDistribute: () => void;
   onFillTargets: () => void;
   cover: CoverAction | null;
+  /** Phone (#1007): the menu is the fixed bottom "Verteilen" button. */
+  dock?: boolean;
 }) {
   const quick = useQuickAssign(month);
   const single = 'Nur bei einem Monat';
   return (
     <PlanMenu
       label={REDESIGN_ENABLED ? 'Geld verteilen' : 'Verteilen'}
-      className="plan-menu-verteilen"
+      className={cx('plan-menu-verteilen', dock && 'plan-menu-dock')}
+      chipText={dock ? 'Verteilen' : undefined}
+      dock={dock}
       title={distributeBlock ?? undefined}
     >
       <MenuAction
@@ -343,6 +369,7 @@ export function OptionenMenu({
   readUtilities,
   filters,
   hiddenControl,
+  chipText,
 }: {
   month: string;
   view: PlanView;
@@ -358,11 +385,18 @@ export function OptionenMenu({
   readUtilities?: ReactNode;
   filters?: ReactNode;
   hiddenControl?: { shown: boolean; toggle: () => void } | undefined;
+  /** Phone (#1007): visible "Ansicht" chip instead of the three-dot icon. */
+  chipText?: string | undefined;
 }) {
   const span = useStoredMonthSpan();
   const density = usePlanDensity();
   return (
-    <PlanMenu label="Optionen" className="plan-menu-optionen" iconOnly={REDESIGN_ENABLED}>
+    <PlanMenu
+      label="Optionen"
+      className="plan-menu-optionen"
+      iconOnly={REDESIGN_ENABLED}
+      {...(chipText ? { chipText } : {})}
+    >
       {REDESIGN_ENABLED && (
         <div role="group" aria-label="Dichte" className="plan-menu-group">
           <span className="plan-menu-heading" aria-hidden="true">

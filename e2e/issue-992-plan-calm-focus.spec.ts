@@ -153,11 +153,16 @@ for (const theme of ['light', 'dark'] as const) {
           await menu.locator('summary').click();
           const attention = menu.getByRole('button', { name: 'Braucht Aufmerksamkeit (2)' });
           await attention.click();
-          await expect(
-            page
-              .locator('.plan-filter-chips')
-              .getByRole('button', { name: /Braucht Aufmerksamkeit.*Filter entfernen/ }),
-          ).toHaveAttribute('aria-pressed', 'true');
+          const phone = page.viewportSize()!.width < 768;
+          // #1007: the phone shows the active filter on the "Ansicht" chip instead of a chip row.
+          if (phone)
+            await expect(menu.locator('summary')).toContainText('Ansicht · Aufmerksamkeit');
+          else
+            await expect(
+              page
+                .locator('.plan-filter-chips')
+                .getByRole('button', { name: /Braucht Aufmerksamkeit.*Filter entfernen/ }),
+            ).toHaveAttribute('aria-pressed', 'true');
           await expect(page).toHaveURL(/filter=attention/);
           await menu.locator('summary').press('Escape');
           await expect(page.locator('.prow:has(.pname)')).toHaveCount(2);
@@ -170,6 +175,7 @@ for (const theme of ['light', 'dark'] as const) {
           await page.screenshot({ path: info.outputPath(`attention-${theme}.png`) });
           await page.reload();
           await expect(page.locator('.prow:has(.pname)')).toHaveCount(2);
+          if (phone) await menu.locator('summary').click();
           await page.getByRole('button', { name: 'Alle (18)', exact: true }).click();
           await expect(page.locator('.prow:has(.pname)')).toHaveCount(18);
         }
