@@ -169,6 +169,8 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
   await expect(forecast.locator('path.l-forecast')).toHaveCSS('stroke-width', '1px');
   await page.goto('/plan/monat?monat=2026-09');
   const marks = page.locator('.pbar-tick');
+  // Calm rows reveal their progress details on focus as well as hover.
+  await marks.first().locator('..').locator('..').locator('.pname').focus();
   await expect(marks.first()).toBeVisible();
   await expect(marks.first().locator('..').locator('..').locator('.pname')).toHaveAttribute(
     'title',

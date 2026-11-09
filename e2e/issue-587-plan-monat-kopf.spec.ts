@@ -87,7 +87,7 @@ test('"Zu verteilen" is green when positive, red only when negative, neutral at 
   await expect(hint).toBeVisible();
 });
 
-test('Einnahmen link and "Monat abschließen" are visible without a menu', async ({ page }) => {
+test('Einnahmen and month close remain reachable from their current controls', async ({ page }) => {
   await page.goto('/plan/monat?monat=2026-09');
   const on = await redesignEnabled(page);
   const income =
@@ -147,6 +147,7 @@ for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
     await withToBeAssigned(page, 0);
     await page.goto('/plan/monat?monat=2026-09');
+    const on = await redesignEnabled(page);
     if ((await redesignEnabled(page)) && page.viewportSize()!.width < 768) {
       await page.locator('.plan-menu-optionen > summary').click();
       await expect(
@@ -164,7 +165,11 @@ for (const scheme of ['light', 'dark'] as const) {
     const axe = await new AxeBuilder({ page }).include('main').analyze();
     expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
     if (isMobile) {
-      for (const selector of ['.plan-close', '.plan-topbar summary', '.plan-chip-scroll > .btn']) {
+      for (const selector of [
+        on ? '.plan-menu-optionen > summary' : '.plan-close',
+        '.plan-topbar summary',
+        on ? '.plan-menu-verteilen > summary' : '.plan-chip-scroll > .btn',
+      ]) {
         const heights = await page
           .locator(`${selector}:visible`)
           .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));

@@ -68,6 +68,38 @@ function fixture(month = '2026-10'): BudgetMonthView {
   };
 }
 
+it('overfunded uses the resolved monthly goal and excludes open, overspent and untargeted rows', () => {
+  const base = planRows(fixture())[0]!;
+  const target = {
+    id: 'synthetic-target',
+    categoryId: base.id,
+    kind: 'keep_balance' as const,
+    amountCents: 10000,
+    everyMonths: 1,
+    targetDate: null,
+    dueDay: null,
+    validFrom: '2026-10',
+  };
+  const row = {
+    ...base,
+    target,
+    carryCents: 9000,
+    goalCents: 1000,
+    assignedCents: 1001,
+    needCents: 0,
+    overspentCents: 0,
+  };
+  expect(filterPlanRows([row], 'overfunded').map((r) => r.id)).toEqual(['A']);
+  for (const values of [
+    { assignedCents: 1000 },
+    { target: null },
+    { needCents: 1 },
+    { overspentCents: 1 },
+  ])
+    expect(filterPlanRows([{ ...row, ...values }], 'overfunded')).toEqual([]);
+  expect(validatePlanFilterSearch({ filter: 'overfunded' }).filter).toBe('overfunded');
+});
+
 it('uses independent literal ID sets for every filter and retains the real hidden-category boundary', () => {
   const rows = planRows(fixture());
   expect(rows.map((row) => row.id)).toEqual([

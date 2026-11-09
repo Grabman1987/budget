@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { compactControls } from './control-geometry';
+import { redesignEnabled } from './plan-redesign-controls';
 import { expect, type Browser, type Page } from '@playwright/test';
 import { sampleTest, SAMPLE_NOW, SAMPLE_URL } from './sample';
 import { STORAGE_STATE_SAMPLE } from '../playwright.config';
@@ -737,11 +738,19 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
     ).toBeChecked();
   }
   if (info.project.name === 'desktop') {
-    const options = page
-      .locator('details.plan-menu')
-      .filter({ has: page.locator('summary', { hasText: 'Optionen' }) });
-    await options.locator('summary').click();
-    await options.getByRole('button', { name: '2 Monate', exact: true }).click();
+    if (await redesignEnabled(page)) {
+      // The month span moved from the Optionen menu into the Plan toolbar (#1006).
+      await page
+        .getByRole('group', { name: 'Sichtbare Monate' })
+        .getByRole('button', { name: '2', exact: true })
+        .click();
+    } else {
+      const options = page
+        .locator('details.plan-menu')
+        .filter({ has: page.locator('summary', { hasText: 'Optionen' }) });
+      await options.locator('summary').click();
+      await options.getByRole('button', { name: '2 Monate', exact: true }).click();
+    }
     await expect(page.locator('.ptable-multi .prow')).toHaveCount(3);
     await expect(page.locator('.ptable-multi .psingle')).toHaveCount(0);
     await page.getByRole('button', { name: 'Alle einklappen', exact: true }).click();

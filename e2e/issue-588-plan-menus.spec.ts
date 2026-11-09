@@ -19,26 +19,29 @@ async function openPlan(page: Page) {
 }
 
 const menuSummary = (page: Page, name: string) =>
-  page.locator('.plan-menu summary', { hasText: new RegExp(name, 'i') });
+  page.locator(
+    name === 'Optionen' ? '.plan-menu-optionen > summary' : '.plan-menu-verteilen > summary',
+  );
 /** The panel of one menu only (both panels exist in the DOM). */
 const menuPanel = (page: Page, name: string) =>
-  page
-    .locator('details.plan-menu', {
-      has: page.locator('summary', { hasText: new RegExp(name, 'i') }),
-    })
-    .locator('.plan-menu-panel');
+  page.locator(
+    name === 'Optionen'
+      ? '.plan-menu-optionen .plan-menu-panel'
+      : '.plan-menu-verteilen .plan-menu-panel',
+  );
 
 test('the old controls are gone; both menus are keyboard operable and named', async ({
   page,
   isMobile,
 }) => {
   await openPlan(page);
+  const on = await redesignEnabled(page);
   await expect(menuSummary(page, 'Verteilen')).toBeVisible();
   await expect(menuSummary(page, 'Optionen')).toBeVisible();
   await expect(page.getByText('Schnell zuweisen')).toHaveCount(0);
   await expect(page.getByLabel('Weitere Monatsaktionen')).toHaveCount(0);
   await expect(page.locator('.ptoolbar select')).toHaveCount(0);
-  if ((await redesignEnabled(page)) && page.viewportSize()!.width < 768) {
+  if (on && page.viewportSize()!.width < 768) {
     await menuSummary(page, 'Optionen').click();
     await expect(
       page.getByRole('link', { name: 'Monatsabschluss starten oder fortsetzen' }),
@@ -88,8 +91,10 @@ test('the old controls are gone; both menus are keyboard operable and named', as
   );
   await expect(page.getByText('Nur Überzogene')).toHaveCount(0);
   if (!isMobile) {
-    const months = page.getByRole('group', { name: 'Anzahl Monate' });
-    await expect(months.getByRole('button')).toHaveText(['1 Monat', '2 Monate', '3 Monate']);
+    const months = page.getByRole('group', { name: on ? 'Sichtbare Monate' : 'Anzahl Monate' });
+    await expect(months.getByRole('button')).toHaveText(
+      on ? ['1', '2', '3'] : ['1 Monat', '2 Monate', '3 Monate'],
+    );
   }
   await expect(
     page.getByRole('link', { name: 'Monatsabschluss starten oder fortsetzen' }),
@@ -106,6 +111,7 @@ test('the old controls are gone; both menus are keyboard operable and named', as
 
 test('"Alle einklappen" and the month span work from "Optionen ▾"', async ({ page, isMobile }) => {
   await openPlan(page);
+  const on = await redesignEnabled(page);
   const optionen = menuSummary(page, 'Optionen');
   const phoneHeadings =
     isMobile && (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
@@ -152,15 +158,15 @@ test('"Alle einklappen" and the month span work from "Optionen ▾"', async ({ p
   await expect(firstChild).toBeVisible();
   await expect(categoryRows).toHaveCount(36);
   if (isMobile) return;
-  await optionen.click();
-  await page.getByRole('button', { name: '2 Monate', exact: true }).click();
+  const months = page.getByRole('group', { name: on ? 'Sichtbare Monate' : 'Anzahl Monate' });
+  if (!on) await optionen.click();
+  await months.getByRole('button', { name: on ? '2' : '2 Monate', exact: true }).click();
   await expect(page.locator('.plan-grid.is-wide')).toBeVisible();
-  await optionen.click();
-  await expect(page.getByRole('button', { name: '2 Monate', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await page.getByRole('button', { name: '1 Monat', exact: true }).click();
+  if (!on) await optionen.click();
+  await expect(
+    months.getByRole('button', { name: on ? '2' : '2 Monate', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await months.getByRole('button', { name: on ? '1' : '1 Monat', exact: true }).click();
   await expect(page.locator('.plan-grid.is-wide')).toHaveCount(0);
 });
 

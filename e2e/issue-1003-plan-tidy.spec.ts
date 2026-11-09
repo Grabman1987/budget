@@ -128,7 +128,8 @@ for (const scenario of [
         page.getByRole('button', { name: 'Kategorie in Synthetic empty anlegen', exact: true }),
       ).toBeVisible();
       await expect(page.locator(`#grp-${emptyGroup.id}`)).toBeVisible();
-      await expect(page.locator('.ptoolbar')).toHaveCount(0);
+      await expect(page.locator('.ptoolbar')).toHaveCount(1);
+      await expect(page.locator('.plan-calm-toolbar')).toBeVisible();
       await expect(page.locator('.plan-v2-page-head .plan-close')).toHaveAttribute(
         'href',
         '/monatsabschluss/2026-10',
@@ -159,7 +160,10 @@ for (const scenario of [
         ).toHaveAttribute('aria-live', 'polite');
         const reordered = await (await request.get('/api/categories')).json();
         expect(reordered.categories).toEqual(treeBefore.categories);
-        await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+        await page
+          .locator('.toast.is-open')
+          .getByRole('button', { name: 'Rückgängig', exact: true })
+          .click();
         await expect.poll(groupIds).toEqual(initialOrder);
       }
       if (scenario === 'pointer' && info.project.name !== 'desktop') {
@@ -181,7 +185,10 @@ for (const scenario of [
         expect((await groupIds()).indexOf(`grp-${groups[0]!.id}`)).toBeGreaterThan(
           (await groupIds()).indexOf(`grp-${groups[1]!.id}`),
         );
-        await page.getByRole('button', { name: 'Rückgängig', exact: true }).tap();
+        await page
+          .locator('.toast.is-open')
+          .getByRole('button', { name: 'Rückgängig', exact: true })
+          .tap();
         await expect.poll(groupIds).toEqual(initialOrder);
       }
       if (scenario === 'pointer' && info.project.name === 'desktop') {
@@ -191,7 +198,10 @@ for (const scenario of [
         expect((await groupIds()).indexOf(`grp-${groups[0]!.id}`)).toBeGreaterThan(
           (await groupIds()).indexOf(`grp-${groups[1]!.id}`),
         );
-        await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+        await page
+          .locator('.toast.is-open')
+          .getByRole('button', { name: 'Rückgängig', exact: true })
+          .click();
         await expect.poll(groupIds).toEqual(initialOrder);
         await handle(1).hover();
         await handle(1).dragTo(page.locator(`#grp-${groups[0]!.id}`));
