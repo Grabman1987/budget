@@ -41,9 +41,17 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   await page.goto(`/konten/${account.id}`);
   const row = page.locator(`[data-booking="${id}"]`);
   await expect(row.getByRole('button', { name: 'bestätigt', exact: true })).toBeVisible();
-  await expect(row.locator('.kflagbtn:not(.has-flag)')).toBeVisible();
+  const emptyFlag = row.locator('.kflagbtn:not(.has-flag)');
+  await expect(emptyFlag).toBeAttached();
   await page.mouse.move(0, 0);
-  await expect(row.locator('.kflagbtn:not(.has-flag)')).toHaveCSS('opacity', '0.4');
+  // Mouse: the empty flag appears on row hover or focus (#1008); touch keeps it visible.
+  const hoverOnly = info.project.name === 'desktop';
+  await expect(emptyFlag).toHaveCSS('opacity', hoverOnly ? '0' : '0.4');
+  if (hoverOnly) {
+    await row.hover();
+    await expect(emptyFlag).toHaveCSS('opacity', '1');
+    await page.mouse.move(0, 0);
+  }
   if (info.project.name === 'desktop') {
     await row.getByRole('button', { name: /Datum ändern/ }).click();
     await row.getByLabel('Datum bearbeiten').fill('2026-10-02');

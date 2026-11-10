@@ -53,6 +53,7 @@ import { setMonthSpan, useIsPhone, useMonthSpan } from './month-span';
 import { MultiTable } from './plan-multi';
 import { ActivityLink } from './activity-link';
 import { PlanUncategorizedRows } from './plan-uncategorized';
+import { PlanAssignSheet } from './plan-assign-sheet';
 import {
   categoryNameMatches,
   filterPlanRows,
@@ -400,6 +401,9 @@ function PlanBody({
     window.history.replaceState(state, '');
   }, [filterTuple]);
   const selectionReturn = useRef<string | null>(null);
+  // #1007: on the phone a tap on a category opens the full-screen "Zuweisen" instead of the inspector.
+  const phoneRedesign = REDESIGN_ENABLED && phone;
+  const [assignId, setAssignId] = useState<string | null>(null);
   const selectionBar = useRef<HTMLElement>(null);
   const [selectionHeight, setSelectionHeight] = useState(0);
   const [selectionTopbarHeight, setSelectionTopbarHeight] = useState(44);
@@ -872,6 +876,7 @@ function PlanBody({
         .map((r) => r.id)}
       selectedIds={selectedIds}
       distributeBlock={distributeBlock}
+      dock={phoneRedesign}
       onDistribute={startDistribute}
       onFillTargets={() => {
         targetPreviewReturn.current = document.querySelector<HTMLElement>(
@@ -924,7 +929,7 @@ function PlanBody({
           onChange={(event) => changeFilter(filter, event.target.value)}
         />
       </label>
-      {REDESIGN_ENABLED ? (
+      {REDESIGN_ENABLED && phone ? null : REDESIGN_ENABLED ? (
         <div
           ref={filterChips}
           className="plan-filter-chips"
@@ -982,7 +987,7 @@ function PlanBody({
           ))}
         </div>
       )}
-      {REDESIGN_ENABLED && (
+      {REDESIGN_ENABLED && !phone && (
         <>
           <div className="month-reference-count">
             <span>Monate</span>
@@ -1028,14 +1033,25 @@ function PlanBody({
             ? { shown: showHidden, toggle: () => setShowHidden((value) => !value) }
             : undefined
         }
+        chipText={phoneRedesign ? 'Ansicht' : undefined}
+        chipDetail={phoneRedesign && filter !== 'all' ? FILTER_LABEL[filter] : undefined}
         filters={
           REDESIGN_ENABLED ? (
             <div role="group" aria-label="Weitere Filter" className="plan-menu-group">
-              {(
-                [
-                  ['attention', 'Braucht Aufmerksamkeit', counts.attention],
-                  ['uncategorized', 'Ohne Kategorie', counts.uncategorized],
-                ] as const
+              {(phone
+                ? ([
+                    ['all', 'Alle', counts.all],
+                    ['overspent', 'Überzogen', counts.overspent],
+                    ['underfunded', 'Unterfinanziert', counts.underfunded],
+                    ['overfunded', 'Überfinanziert', counts.overfunded],
+                    ['available', 'Verfügbar', counts.available],
+                    ['attention', 'Braucht Aufmerksamkeit', counts.attention],
+                    ['uncategorized', 'Ohne Kategorie', counts.uncategorized],
+                  ] as const)
+                : ([
+                    ['attention', 'Braucht Aufmerksamkeit', counts.attention],
+                    ['uncategorized', 'Ohne Kategorie', counts.uncategorized],
+                  ] as const)
               ).map(([value, label, count]) => (
                 <button
                   key={value}
@@ -1047,6 +1063,23 @@ function PlanBody({
                   {label} ({count ?? '?'})
                 </button>
               ))}
+              {phone &&
+                (
+                  [
+                    ['Rückgängig', Undo2],
+                    ['Wiederholen', Redo2],
+                  ] as const
+                ).map(([label, Icon]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className="plan-menu-item"
+                    aria-disabled={history?.label !== label || undefined}
+                    onClick={() => history?.label === label && history.run()}
+                  >
+                    <Icon size={16} strokeWidth={1.75} aria-hidden="true" /> {label}
+                  </button>
+                ))}
               <button
                 type="button"
                 className="plan-menu-item"
@@ -1262,7 +1295,10 @@ function PlanBody({
                 <caption className="sr-only">
                   Envelopes mit Zugewiesen, Aktivität und Verfügbar
                 </caption>
-                <thead>
+                <thead
+                  className={cx(phoneRedesign && !phoneSelection && 'sr-only')}
+                  inert={phoneRedesign && !phoneSelection ? true : undefined}
+                >
                   <tr>
                     <th className="tech col-name" scope="col">
                       <div className="group-heading">
@@ -1284,15 +1320,19 @@ function PlanBody({
                         >
                           <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
                         </button>
-                        <span>Kategoriegruppe</span>
-                        <Button
-                          variant="ghost"
-                          className="plan-add"
-                          aria-label="Gruppe anlegen"
-                          onClick={() => setCategoryForm({ mode: 'group' })}
-                        >
-                          +
-                        </Button>
+                        {!phoneRedesign && (
+                          <>
+                            <span>Kategoriegruppe</span>
+                            <Button
+                              variant="ghost"
+                              className="plan-add"
+                              aria-label="Gruppe anlegen"
+                              onClick={() => setCategoryForm({ mode: 'group' })}
+                            >
+                              +
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </th>
                     <th className="tech col-num" scope="col">
@@ -1459,6 +1499,7 @@ function PlanBody({
                               onSelect={() => toggleSelected(r.id)}
                               onCover={() => inspect(r.id)}
                               onInspect={() => inspect(r.id)}
+                              onAssign={phoneRedesign ? () => setAssignId(r.id) : undefined}
                             />
                           ))),
                     ];
@@ -1470,6 +1511,20 @@ function PlanBody({
           {REDESIGN_ENABLED && <PlanContactAdvances />}
         </section>
       </div>
+      {phoneRedesign && <div className="plan-distribute-dock">{distributeMenu}</div>}
+      {phoneRedesign && assignId && byId.get(assignId) && (
+        <PlanAssignSheet
+          key={assignId}
+          row={byId.get(assignId)!}
+          tba={tba}
+          onCommit={(value) => setAssigned(byId.get(assignId)!, value)}
+          onDetails={() => {
+            setAssignId(null);
+            inspect(assignId);
+          }}
+          onClose={() => setAssignId(null)}
+        />
+      )}
       {phone && phoneSelection && (
         <section ref={selectionBar} className="plan-selection-bar" aria-label="Kategorienauswahl">
           <div className="plan-selection-head">
@@ -1673,6 +1728,15 @@ function focusIncomeInspector() {
     window.requestAnimationFrame(() => section?.querySelector('summary')?.focus());
   });
 }
+
+const FILTER_LABEL: Partial<Record<PlanFilter, string>> = {
+  overspent: 'Überzogen',
+  underfunded: 'Unterfinanziert',
+  overfunded: 'Überfinanziert',
+  available: 'Verfügbar',
+  attention: 'Aufmerksamkeit',
+  uncategorized: 'Ohne Kategorie',
+};
 
 function PlanTopBar({
   data,
@@ -2372,6 +2436,7 @@ function EnvelopeRow({
   onSelect,
   onCover,
   onInspect,
+  onAssign,
 }: {
   row: PlanRow;
   band: PlanGroup | undefined;
@@ -2393,6 +2458,8 @@ function EnvelopeRow({
   onSelect: () => void;
   onCover: () => void;
   onInspect: () => void;
+  /** Phone (#1007): the name and row open the full-screen "Zuweisen". */
+  onAssign?: (() => void) | undefined;
 }) {
   useAmountPrivacy();
   const cash = isCashOver(r);
@@ -2403,7 +2470,8 @@ function EnvelopeRow({
   const assignment = assignGhost(r);
   const phone = useIsPhone();
   const hold = usePhoneSelectionHold(phone, ctx.month, onHold);
-  const openRow = () => (phone && phoneSelection ? onSelect() : onInspect());
+  const openRow = () =>
+    phone && phoneSelection ? onSelect() : phone && onAssign ? onAssign() : onInspect();
   const ghost = suggestion !== undefined && (
     <button
       type="button"

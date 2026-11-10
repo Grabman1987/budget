@@ -34,6 +34,15 @@ for (const profile of ['desktop', 'phone'] as const)
             document.documentElement.dataset['theme'] = value;
           }, theme);
           await page.locator('.pname[data-category-id="cat-miete"]').click();
+          // #1007: on a phone the category opens "Zuweisen"; its Details button opens the inspector.
+          if (
+            page.viewportSize()!.width < 768 &&
+            (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+          )
+            await page
+              .getByRole('dialog', { name: /^Zuweisen für / })
+              .getByRole('button', { name: 'Details', exact: true })
+              .click();
           const inspector = page.getByRole('complementary', { name: 'Plan-Inspektor' });
           await expect(
             inspector.getByRole('heading', { name: 'Miete', exact: true }),

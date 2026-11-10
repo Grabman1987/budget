@@ -430,3 +430,66 @@
     height: 44px;
   }
 }
+
+/* #1008: one header voice, category icon, quiet Saldo column, larger status marks. */
+.ktx.ktx-redesign thead th.kc-date {
+  font-size: var(--fs-label);
+  letter-spacing: inherit;
+  color: inherit;
+}
+.ktx.ktx-redesign .kcat > .cat-icon {
+  flex: none;
+  min-width: 0;
+  font-size: var(--fs-table);
+}
+.ktx.ktx-redesign td.kc-run {
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.ktx.ktx-redesign td.kc-run > .kdispo {
+  margin-inline-start: 4px;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .ktx.ktx-redesign td.kc-run > .kdispo {
+    display: none;
+  }
+}
+.ktx.ktx-redesign .kcol-run.has-dispo {
+  width: 188px;
+}
+.ktx.ktx-redesign .kstatus-btn .booking-status-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Mouse and trackpad: 38px rows; pen and flag appear on hover or keyboard focus.
+   Touch keeps the 44px targets and the always-reachable controls. */
+@media (min-width: 768px) and (hover: hover) {
+  .ktx.ktx-redesign tr[data-booking]:not(.is-upcoming) > td {
+    height: 38px;
+  }
+  .ktx.ktx-redesign
+    tr:not(.is-upcoming)
+    :is(.kname-btn, .kcat-btn, .kcell-edit, .kflagbtn, .kstatus-btn, .kinline .input, .select-sm) {
+    min-height: 38px;
+    height: 38px;
+  }
+  .ktx.ktx-redesign tr:not(.is-upcoming) :is(.kflagbtn, .kstatus-btn) {
+    min-width: 38px;
+  }
+  .ktx.ktx-redesign .kbooking-edit-mark,
+  .ktx.ktx-redesign .kcat-edit {
+    opacity: 0;
+  }
+  .ktx.ktx-redesign tr:is(:hover, :focus-within) :is(.kbooking-edit-mark, .kcat-edit) {
+    opacity: 1;
+  }
+  .ktx.ktx-redesign .kflagpick.in-list .kflagbtn:not(.has-flag) {
+    opacity: 0;
+  }
+  .ktx.ktx-redesign tr:is(:hover, :focus-within) .kflagpick.in-list .kflagbtn:not(.has-flag),
+  .ktx.ktx-redesign .kflagpick.in-list .kflagbtn[aria-expanded='true'] {
+    opacity: 1;
+  }
+}
