@@ -78,9 +78,9 @@ test('compact account head, fixed desktop table and ten two-line phone bookings'
     await expect(page.locator('.ktx-account')).toHaveCSS('table-layout', 'fixed');
     for (const row of await rows.all()) {
       const box = (await row.boundingBox())!;
-      expect(box.height).toBeGreaterThanOrEqual(redesign ? 44 : 36);
-      // A 44px target plus the collapsed 1px row separator.
-      expect(box.height).toBeLessThanOrEqual(redesign ? 45 : 40);
+      expect(box.height).toBeGreaterThanOrEqual(redesign ? 38 : 36);
+      // #1008: compact 38px mouse rows plus the collapsed 1px row separator.
+      expect(box.height).toBeLessThanOrEqual(redesign ? 40 : 40);
     }
   }
   for (const theme of ['light', 'dark']) {
