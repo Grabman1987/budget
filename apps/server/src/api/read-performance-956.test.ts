@@ -50,6 +50,7 @@ afterEach(() => {
 
 // These are the literal response byte digests captured from the stock main API,
 // not expectations computed by the optimized financial/read implementation.
+// Only /profile changed on purpose (#812): it now also carries the six-null `risk` object.
 it.each(baseline.responses)(
   'preserves all stock response bytes for $path',
   async ({ path, bytes, sha256 }) => {
