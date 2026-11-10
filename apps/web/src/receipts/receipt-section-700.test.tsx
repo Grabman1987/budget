@@ -2,7 +2,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@budget/ui';
 import { ApiError } from '../api/http';
 import type * as Http from '../api/http';
@@ -58,10 +58,14 @@ const pick = (name = 'synthetic.png', type = 'image/png') =>
     new File(['synthetic'], name, { type }),
   );
 
+afterEach(() => vi.unstubAllGlobals());
 beforeEach(() => {
   store.rows.clear();
   store.fail = false;
   http.post.mockReset();
+  // jsdom lacks IndexedDB/Web Locks; the in-memory store fake stands in for both.
+  vi.stubGlobal('indexedDB', {});
+  vi.stubGlobal('navigator', { onLine: true, locks: {} });
 });
 
 it('shows an uncertain file after a lost response and retries it with the same key and bytes', async () => {
@@ -187,4 +191,39 @@ it('an invalid (empty) file gets a plain message and no unsaved-storage alert', 
   expect(await screen.findByText(/Ungültige Datei/)).toBeTruthy();
   expect(screen.queryByTestId('receipt-unsaved')).toBeNull();
   expect(http.post).not.toHaveBeenCalled();
+});
+
+it('without device storage the section renders and uploads directly without a queue', async () => {
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({ groupId: GROUP }));
+  vi.stubGlobal('fetch', fetchMock);
+  vi.stubGlobal('navigator', { onLine: true, locks: undefined });
+  const unhandled = vi.fn();
+  process.on('unhandledRejection', unhandled);
+  try {
+    view('booking-1');
+    await pick();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [url, init] = fetchMock.mock.calls[0] as [string, { body: FormData }];
+    expect(url).toBe('/api/receipts');
+    expect(init.body.get('bookingId')).toBe('booking-1');
+    expect(store.rows.size).toBe(0);
+    expect(http.post).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('receipt-intent')).toBeNull();
+    window.dispatchEvent(new Event('online'));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(unhandled).not.toHaveBeenCalled();
+  } finally {
+    process.off('unhandledRejection', unhandled);
+    vi.unstubAllGlobals();
+  }
+});
+
+it('a throwing intent store on mount leaves the section rendered', async () => {
+  const spy = vi.spyOn(await import('../pwa/receipt-store'), 'listReceiptIntents');
+  spy.mockImplementation(() => {
+    throw new Error('sync storage failure');
+  });
+  view();
+  expect(await screen.findByLabelText('Belegdatei auswählen')).toBeTruthy();
+  spy.mockRestore();
 });
