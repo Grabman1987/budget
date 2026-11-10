@@ -77,9 +77,10 @@ test('desktop opens the same immediate filter dialog', async ({ page }, info) =>
   test.skip(info.project.name !== 'desktop', 'Desktop filter dialog');
   await page.goto('/konten/buchungen');
   await page.getByRole('button', { name: /^Filter \(/ }).click();
-  await expect(page.getByLabel('Konto', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Status', { exact: true })).toBeVisible();
-  await page.getByLabel('Status', { exact: true }).selectOption('pending');
+  const dialog = page.getByRole('dialog', { name: 'Buchungen filtern' });
+  await expect(dialog.getByLabel('Konto', { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel('Status', { exact: true })).toBeVisible();
+  await dialog.getByLabel('Status', { exact: true }).selectOption('pending');
   await expect(page).toHaveURL(/status=pending/);
   await page.screenshot({ path: info.outputPath('ledger-desktop.png') });
 });
