@@ -61,7 +61,11 @@ export function readModelCache(
     if (hit && hit.stamp === stamp && now() - hit.storedAt < MAX_AGE_MS) {
       entries.delete(key);
       entries.set(key, hit);
-      return new Response(hit.body, { status: 200, headers: { 'content-type': hit.contentType } });
+      // A replayed body is still a private API response: never let a browser or proxy store it.
+      return new Response(hit.body, {
+        status: 200,
+        headers: { 'content-type': hit.contentType, 'cache-control': 'no-store' },
+      });
     }
     drop(key);
     await next();

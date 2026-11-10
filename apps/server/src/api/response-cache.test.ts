@@ -220,7 +220,9 @@ describe('readModelCache', () => {
     const first = await (await app.request('/api/accounts')).text();
     const reads = selected.mock.calls.length;
     expect(reads).toBeGreaterThan(0);
-    expect(await (await app.request('/api/accounts')).text()).toBe(first);
+    const replay = await app.request('/api/accounts');
+    expect(replay.headers.get('cache-control')).toBe('no-store');
+    expect(await replay.text()).toBe(first);
     expect(selected.mock.calls.length).toBe(reads);
     sqliteOf(db).prepare('insert into app_setting (id, value) values (?, ?)').run('x', 'v');
     await app.request('/api/accounts');
