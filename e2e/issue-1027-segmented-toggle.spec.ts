@@ -119,7 +119,8 @@ test.describe('capture sheet header at 390', () => {
   });
 });
 
-test('Heute toggle stays compact in the 64px desktop header', async ({ page }) => {
+test('Heute toggle stays compact in the 64px desktop header', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'touch projects use the 44px control');
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/?monat=2026-09&period=month');
   await settle(page);

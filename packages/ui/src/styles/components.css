@@ -460,6 +460,7 @@
 }
 .seg.seg.seg-slide {
   position: relative;
+  isolation: isolate;
   padding: var(--seg-pad);
   gap: var(--seg-gap);
   border: var(--stroke-hairline) solid var(--rule-strong);
