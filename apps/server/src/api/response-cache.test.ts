@@ -205,6 +205,28 @@ describe('readModelCache', () => {
     }
   });
 
+  it('serves the account list from memory until the database changes', async () => {
+    const { db } = createTestDatabase();
+    const app = new Hono().route(
+      '/api',
+      createLedgerApi({
+        db,
+        today: () => '2026-03-18',
+        bankSync: null,
+        stepUp: async (_c, next) => next(),
+      }),
+    );
+    const selected = vi.spyOn(db, 'select');
+    const first = await (await app.request('/api/accounts')).text();
+    const reads = selected.mock.calls.length;
+    expect(reads).toBeGreaterThan(0);
+    expect(await (await app.request('/api/accounts')).text()).toBe(first);
+    expect(selected.mock.calls.length).toBe(reads);
+    sqliteOf(db).prepare('insert into app_setting (id, value) values (?, ?)').run('x', 'v');
+    await app.request('/api/accounts');
+    expect(selected.mock.calls.length).toBeGreaterThan(reads);
+  });
+
   it('keys the answer by query string', async () => {
     const { app, computed } = setup();
     await app.request('/api/heute?period=month');

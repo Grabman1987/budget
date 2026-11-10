@@ -8,6 +8,13 @@ import type { MiddlewareHandler } from 'hono';
 const CACHEABLE =
   /^\/(heute|portfolio|reports|overview|report-tables|networth-history|assets-debts-history|wealth|cashflow|budget|rules|inflation-basket|liquidity|accounts\/series|goals\/report|projects\/report)(\/|$)/;
 
+/**
+ * The account list also qualifies: it derives only from the database and the day, and replays the
+ * audit log (`accountReviewChronology`), the dominant cost on a real ledger (#956). The inbox badge
+ * stays uncached by design (see response-cache.test.ts).
+ */
+const CACHEABLE_EXACT = /^\/accounts$/;
+
 const MAX_ENTRY_BYTES = 4 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 24 * 1024 * 1024;
 /** Safety net for anything that depends on the wall clock beyond the day. */
@@ -43,7 +50,9 @@ export function readModelCache(
     entries.delete(key);
   };
   return async (c, next) => {
-    if (c.req.method !== 'GET' || !CACHEABLE.test(c.req.path.replace(/^\/api/, ''))) return next();
+    const route = c.req.path.replace(/^\/api/, '');
+    if (c.req.method !== 'GET' || !(CACHEABLE.test(route) || CACHEABLE_EXACT.test(route)))
+      return next();
     // Path and query only: the in-process warm-up (`api/warm.ts`) asks without host and `/api`.
     const url = new URL(c.req.url);
     const key = `${today()}|${url.pathname.replace(/^\/api(?=\/)/, '')}${url.search}`;
