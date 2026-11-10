@@ -8,6 +8,7 @@ import {
   useReopenContact,
   type IdentityContact,
 } from '../contacts/contact-identity';
+import { ContactMergeDialog } from '../contacts/contact-merge';
 import { ContactRenameDialog, NewContact } from '../contacts/contacts-page';
 import { lookupsQuery } from '../ledger/queries';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
@@ -25,12 +26,18 @@ export function ContactSettingsPage() {
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   const [aliasFor, setAliasFor] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<IdentityContact | null>(null);
+  const [merging, setMerging] = useState<{ id: string; name: string } | null>(null);
   const [view, setView] = useState<'active' | 'archived'>('active');
   const reopen = useReopenContact();
   const all = contacts.data?.contacts ?? [];
   const shown = all.filter((c) => Boolean(c.archived) === (view === 'archived'));
   const identityRow = (contact: IdentityContact) => (
     <>
+      {contact.mergedIntoId && (
+        <small>
+          Zusammengeführt mit {all.find((c) => c.id === contact.mergedIntoId)?.name ?? 'einem Kontakt'}
+        </small>
+      )}
       {(contact.aliases?.length ?? 0) > 0 && (
         <small>Aliase: {contact.aliases?.map((a) => a.alias).join(', ')}</small>
       )}
@@ -45,7 +52,7 @@ export function ContactSettingsPage() {
       >
         Aliase
       </Button>
-      {contact.archived ? (
+      {contact.mergedIntoId ? null : contact.archived ? (
         <Button
           variant="ghost"
           aria-label={`${contact.name} wieder öffnen`}
@@ -54,13 +61,22 @@ export function ContactSettingsPage() {
           Wieder öffnen
         </Button>
       ) : (
-        <Button
-          variant="ghost"
-          aria-label={`${contact.name} archivieren`}
-          onClick={() => setArchiving(contact)}
-        >
-          Archivieren
-        </Button>
+        <>
+          <Button
+            variant="ghost"
+            aria-label={`${contact.name} zusammenführen`}
+            onClick={() => setMerging(contact)}
+          >
+            Zusammenführen
+          </Button>
+          <Button
+            variant="ghost"
+            aria-label={`${contact.name} archivieren`}
+            onClick={() => setArchiving(contact)}
+          >
+            Archivieren
+          </Button>
+        </>
       )}
     </>
   );
@@ -86,6 +102,7 @@ export function ContactSettingsPage() {
     <>
       <ContactAliasDialog contactId={aliasFor} onClose={() => setAliasFor(null)} />
       <ContactArchiveDialog contact={archiving} onClose={() => setArchiving(null)} />
+      <ContactMergeDialog source={merging} onClose={() => setMerging(null)} />
     </>
   );
   if (REDESIGN_ENABLED)

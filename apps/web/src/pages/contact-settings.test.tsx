@@ -325,3 +325,38 @@ it('explains blockers, archives a contact into the Archiviert filter and reopens
   fireEvent.click(screen.getByRole('button', { name: 'Aktiv' }));
   expect(await screen.findByRole('button', { name: 'Freund umbenennen' })).toBeTruthy();
 });
+
+it('#871 merges a contact through preview and confirm, shows the plain union and offers Undo', async () => {
+  const view = await mount();
+  const before = await (await view.call(`/bookings/${view.bookingId}`)).json();
+  const lookups = (await (await view.call('/lookups')).json()) as {
+    contacts: { id: string; name: string }[];
+  };
+  const zero = lookups.contacts.find((c) => c.name === 'Synthetic zero')!;
+  fireEvent.click(await screen.findByRole('button', { name: 'Synthetic zero zusammenführen' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Kontakte zusammenführen' });
+  // Confirm needs a preview first.
+  const confirm = within(dialog).getByRole('button', { name: 'Zusammenführen bestätigen' });
+  expect((confirm as HTMLButtonElement).disabled).toBe(true);
+  await userEvent
+    .setup()
+    .selectOptions(within(dialog).getByRole('combobox', { name: 'Zusammenführen mit' }), 'Freund');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Vorschau anzeigen' }));
+  const preview = await within(dialog).findByRole('region', {
+    name: 'Vorschau der Zusammenführung',
+  });
+  expect(within(preview).getByText(/„Synthetic zero“ wird ein Alias des Ziels/)).toBeTruthy();
+  expect(view.writes).toEqual([`POST /api/contacts/${zero.id}/merge/preview`]);
+  fireEvent.click(confirm);
+  await screen.findByText('Kontakte zusammengeführt.');
+  expect(view.writes.at(-1)).toBe(`POST /api/contacts/${zero.id}/merge`);
+  expect(await (await view.call(`/bookings/${view.bookingId}`)).json()).toEqual(before);
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: 'Synthetic zero zusammenführen' })).toBeNull(),
+  );
+  const toast = screen.getByText('Kontakte zusammengeführt.').closest('.toast')!;
+  fireEvent.click(within(toast as HTMLElement).getByRole('button', { name: 'Rückgängig' }));
+  await screen.findByRole('button', { name: 'Synthetic zero zusammenführen' });
+  expect(view.writes.at(-1)).toBe('POST /api/undo');
+  expect(await (await view.call(`/bookings/${view.bookingId}`)).json()).toEqual(before);
+});
