@@ -275,3 +275,27 @@
     display: none;
   }
 }
+
+/* Redesign: bookmarks as one single row; report rows separated by a hairline with chevron. */
+[data-budget-redesign='1'] .report-hub-v2 .saved-explorer-links {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+[data-budget-redesign='1'] .report-hub-v2 .saved-explorer-links h2 {
+  flex: none;
+  font-size: var(--fs-table);
+  color: var(--ink-2);
+}
+[data-budget-redesign='1'] .report-hub-v2 .saved-explorer-chips {
+  flex: 1;
+  min-width: 0;
+}
+
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-list {
+  border-top: 0;
+}
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-list > li {
+  border-bottom: 1px solid var(--rule);
+}
