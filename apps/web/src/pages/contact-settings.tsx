@@ -35,7 +35,8 @@ export function ContactSettingsPage() {
     <>
       {contact.mergedIntoId && (
         <small>
-          Zusammengeführt mit {all.find((c) => c.id === contact.mergedIntoId)?.name ?? 'einem Kontakt'}
+          Zusammengeführt mit{' '}
+          {all.find((c) => c.id === contact.mergedIntoId)?.name ?? 'einem Kontakt'}
         </small>
       )}
       {(contact.aliases?.length ?? 0) > 0 && (
