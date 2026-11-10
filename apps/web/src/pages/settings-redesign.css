@@ -490,7 +490,9 @@
 .settings-redesign .settings-source-details .payslip-upload {
   margin-block: var(--space-md);
 }
-.settings-redesign .settings-source-details :is(input, select, textarea, button, .btn),
+.settings-redesign
+  .settings-source-details
+  :is(input:not([type='checkbox'], [type='radio'], [type='file']), select, textarea, button, .btn),
 .settings-redesign .settings-source-details .payslip-password-details summary,
 .settings-redesign .settings-source-details .check-row {
   min-height: 44px;
