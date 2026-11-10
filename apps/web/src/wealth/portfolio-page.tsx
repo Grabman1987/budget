@@ -31,6 +31,7 @@ import { TradePanel } from './trade-panel';
 import './portfolio.css';
 import { PortfolioAllocation } from './allocation-section';
 import { PortfolioOverview } from './portfolio-overview';
+import { PortfolioRiskContext } from './portfolio-risk-context';
 import { PortfolioClassHistories } from './portfolio-class-histories';
 import { PortfolioMetrics } from './portfolio-metrics';
 import {
@@ -258,6 +259,7 @@ function PortfolioBody({ register }: { register: PortfolioRegister }) {
               </Button>
               <Button onClick={() => trade('neu', undefined)}>Handel erfassen</Button>
             </div>
+            <PortfolioRiskContext />
           </>
         )}
         {register === 'positions' && REDESIGN_ENABLED && (
