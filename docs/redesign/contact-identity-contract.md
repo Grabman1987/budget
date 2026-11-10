@@ -63,12 +63,26 @@ refuse (the data would be lost); Undo of the operations (section 5) is the norma
 empty. `alias_norm` = lowercase, NFKC-normalised, whitespace-collapsed (same function for
 `assertContactName` so a name and an alias cannot collide either).
 
-Rejected alternative for merge: rewriting `booking_split.contact_id` / `payee.contact_id` /
-`expected.contact_id` to the survivor. It would edit reconciled bookings, break byte-for-byte
-history and make Undo a mass revert. Proposed instead: **pointer merge** (M3). The merged contact
-keeps its id and rows; reads resolve `COALESCE(merged_into_id, id)` through one shared resolver
-used by `getContactStatement`, `listContactStatements`, lookups and search (no shadow
-calculation: one function in `repos/contacts.ts`, all readers call it).
+Rejected alternative for merge: rewriting `booking_split.contact_id` (and settlements) to the
+survivor. It would edit reconciled bookings, break byte-for-byte history and make Undo a mass
+revert. Proposed: **pointer merge** (M3) with one resolver in `repos/contacts.ts` (no shadow
+calculation; every reader calls it):
+
+- `root(id) = merged_into_id ?? id`; the target of a merge must itself be a root, and a root
+  that has merged sources cannot be merged away in v1 (so no chains).
+- Identity set `U(r) = {r} ∪ {c : merged_into_id = r}`.
+- `getContactStatement(r)`: movements = `booking_split` rows with `contact_id ∈ U(r)`,
+  settlements = `contact_settlement` rows with `contact_id ∈ U(r)`; allocations are reached via
+  `settlement_id` and the outlay split id (no contact column), so a source settlement allocated
+  to a target outlay (and the reverse) is valid after the merge because both resolve to `r`
+  (`contactStatement` in `@budget/domain` receives one identity). Before the merge,
+  cross-identity allocation stays refused as today. Calling it with a merged source id returns
+  the root's statement with `resolvedFromId`.
+- `listContactStatements`: rows only for roots (merged sources excluded from the list, history
+  mode and `contactTotals`), so the merged identity is counted exactly once.
+- Soft delete (`deleted_at`, `softDeleteEntity`) stays a separate existing state: a deleted
+  contact is invisible and has no statement. Delete of a root with merged sources, and merge or
+  archive of a deleted contact, are refused. Archived and merged contacts are not deleted.
 
 ## 4. Synthetic worked example
 
@@ -101,46 +115,68 @@ netting stays the existing explicit "use credit" allocation.
 ### 5.2 Archive / reopen (#870)
 
 - Archive sets `archived_at`; reopen clears it. Both are audited updates on `contact`.
-- Allowed only when receivable = 0, credit = 0, no open outlay, no active `expected` row or
-  payee default pointing at the contact (those are listed in the refusal). Otherwise 409 with
-  the blocking items. Archived contacts: hidden from new-booking pickers and reminders, shown in
-  history, statements and reports, and still receive Undo of old actions.
-- Reopen is always allowed. Creating a contact with the name of an archived contact is allowed
-  only after reopen or explicit choice (open decision 3).
-- Undo of archive = reopen to the exact prior `archived_at` (NULL). Undo refused if the contact
-  was edited, merged or has gained a blocking item since.
+- Allowed only when receivable = 0, credit = 0, no open outlay, and no live reference from
+  `expected.contact_id`, `payee.contact_id`, `account.contact_id` (receivable account) or
+  `payslip.employer_contact_id`. Otherwise 409 listing each blocker. Archived contacts are
+  hidden from new-booking pickers and reminders, but stay in history, statements and reports.
+- Writers given an archived contact (booking split, expected, payee, import, queued offline
+  entry) are refused with 409 `contact_archived` (user reopens first); a replayed offline entry
+  surfaces this through the existing offline conflict handling and is not rewritten.
+- Undo of archive = reopen to the prior `archived_at`. Refused if the contact was edited,
+  merged or gained a blocker since. Reopen is always allowed.
 
 ### 5.3 Merge (#871)
 
-- Input: `sourceId` (merged away), `targetId` (survivor), optional alias carry-over, plus the
-  preview token from a mandatory `preview` step (counts per table, balances before/after per
-  contact in cents, conflicts). Commit without a matching, fresh preview is refused.
-- Effects in one transaction: set `source.merged_into_id = target`; set `source.archived_at`;
-  add the source name as an alias of the target (so searches and imports still resolve it).
-  Nothing else is written. Booking IDs, split amounts, dates, status, allocations and credit
-  records stay byte-identical; locked and reconciled history is not touched, hence no unlock
-  is needed.
-- Refused when: source or target already merged or archived, source = target, either has a
-  pending credit decision in progress, source is the owner of a receivable `account` and the
-  target already has one (two receivable accounts cannot be silently unified; owner decides),
-  payslip employer or expected rows exist on both sides with conflicting shares (listed), or
-  the preview is stale (any contact, allocation, split or alias row changed after it).
-- Chains: merging into an already merged contact is refused; target must be a root.
-  Un-merge happens only through Undo, never as a separate operation.
-- Undo: restores `merged_into_id`, `archived_at` and the alias to the exact prior values.
-  Refused when, after the merge, anything was booked or allocated through the survivor in a way
-  that attributes rows to the merged identity (new splits referencing `source.id` are
-  impossible; the pickers hide it) or when an allocation/settlement between the two identities
-  was created. Otherwise Undo is unconditional with exact restore.
+- Input: `sourceId`, `targetId`, preview token from a mandatory `preview` step (counts per
+  table, receivable/credit cents per contact before/after, conflicts). Commit without a fresh
+  matching token is refused.
+- Effects in one audit group: set `source.merged_into_id` and `source.archived_at`, add the
+  source name as target alias, and **repoint configuration rows** `payee.contact_id`,
+  `expected.contact_id` and `account.contact_id` (only if the target has no receivable account)
+  from source to target. Justification: these decide where future writes land; leaving them
+  would keep creating source-owned data. They are plans/config, not booked facts. Historical
+  rows (`booking_split`, `contact_settlement`, `contact_allocation`, `payslip` incl. its
+  `employer_contact_id`, credit `app_setting` records) are **left and resolved**: ids, amounts,
+  dates, status stay byte-identical; reconciled history is untouched, so no unlock is needed.
+  The payee merge (`repos/payees.ts` `mergePayees`) rewrites bookings; contacts must not,
+  because splits carry money and are reconciled.
+- Write-time resolution (no writer creates new data under a merged id): every write path
+  resolves `root(id)` before validation: booking/split create and edit, expected create/edit,
+  payee create/patch, assignment rules, CSV/bank imports (`apps/server/src/imports/commit.ts`
+  look contacts up by name or alias, so they land on the root) and queued offline requests
+  (they replay as normal API calls). The response reports `resolvedContactId` for the UI.
+  Archived-but-not-merged ids are refused (5.2).
+- Refused when: source or target already merged, archived or deleted, source = target, source
+  has merged sources, target is not a root, both own a receivable account, or the token is
+  stale.
+- Undo: restores `merged_into_id`, `archived_at`, the alias and the repointed config rows to
+  their exact prior values. Refused (query evaluated inside the Undo transaction) when any of
+  these exists: a `booking_split`, `contact_settlement`, `payee`, `expected`, `account` or
+  `payslip` row with `contact_id = source.id` created or changed after the merge audit entry
+  (audit_log entries of those entity types, later than the merge entry, whose after-snapshot
+  holds the source id); a `contact_allocation` whose settlement and outlay resolve to different
+  pre-merge identities and was created after the merge; any repointed row changed since.
+  Un-merge exists only through Undo.
 
 ## 6. Conflict and concurrency rules
 
-- Optimistic check: every metadata write sends the entity `updated_at` (or version) read by
-  the form; a mismatch returns 409 `stale` with the current row; no silent overwrite.
+- Stale edit: `updateEntity` has no version check today. Metadata writes (name, note, alias,
+  archive) gain an `expectedUpdatedAt` body field, compared with `updated_at` inside the same
+  transaction; mismatch is 409 `stale` with the current row. API-contract addition, no schema
+  change.
+- Merge preview token: stateless, not stored. HMAC (server secret) over canonical JSON of
+  `sourceId`, `targetId`, both contact rows' `updated_at`, alias sets, receivable/credit cents of
+  both, and per referencing table (`booking_split`, `contact_settlement`, `payee`, `expected`,
+  `account`, `payslip`) the row count and max `updated_at` for `contact_id ∈ U`, plus an expiry
+  (10 minutes). Commit recomputes it; any difference is 409 `stale_preview`.
+- Name rule: today `assertContactName` is exact-match among active contacts and checks only the
+  changed identity. New checks (create, rename, alias add) compare `alias_norm` of the label
+  against active names and aliases. Legacy near-duplicates ("Kontakt A" and "kontakt  a") stay
+  untouched and valid until one is renamed; M1 does not enforce on existing names, and a
+  read-only report lists them as merge candidates (never auto-merged).
 - Alias/name collision, archive blockers and merge refusals are 409 with machine-readable
-  reasons (German UI text).
-- No partial merge: on any failed check the transaction rolls back; audit group is not written.
-- Invalid input (empty, over 200 chars, only whitespace, alias equal to own name) is 422.
+  reasons (German UI text). No partial merge: failure rolls back, no audit group is written.
+- Invalid input (empty, over 200 chars, whitespace only, alias equal to own name) is 422.
 - Single owner, no auth change: same `ACTOR` and session rules as existing contact routes.
 
 ## 7. Audit and Undo semantics (summary)
@@ -152,7 +188,7 @@ netting stays the existing explicit "use credit" allocation.
 | remove alias | 1 `delete` | alias back | label now taken |
 | archive | 1 `update` | `archived_at` NULL | contact edited/merged since, new blocker |
 | reopen | 1 `update` | prior `archived_at` | contact edited since |
-| merge | 2 `update` `contact` + 1 `insert` alias | all three, exactly | allocation between identities exists, rows changed since |
+| merge | 1 `update` `contact` + 1 `insert` alias + `update` per repointed payee/expected/account row | all of them, exactly | any row under the source id created or changed since (query in 5.3) |
 
 Entries are only undone as a whole group (like split/credit entries today); a single merge
 entry is refused. `force` is never offered for merge. Undo writes `undo` entries as today.
@@ -163,8 +199,9 @@ Per step (M1–M3): additive only; reversible by the rollback script; applied fi
 copy of a database (synthetic fixture in CI, owner copy outside the repo for the owner preview).
 §53-style checks, run before and after each step and after rollback, with equal results:
 
-- row counts of every table; `contact` / `booking_split` / `contact_settlement` /
-  `contact_allocation` content hash (excluding the new column);
+- row counts of every table, `audit_log` included (after = before + exactly the new group;
+  after rollback = before), and `contact_alias` content; `contact`,
+  `booking_split`, `contact_settlement`, `contact_allocation` content hash (excluding new columns);
 - per-contact receivable and credit cents from `listContactStatements` (history on);
 - sum over all contacts, net worth, account balances, Zu-verteilen totals unchanged.
 
@@ -203,16 +240,22 @@ Migration approval is a separate owner decision (this document does not request 
 
 1. Merge strategy: pointer (`merged_into_id`, history untouched) vs rewriting references.
    Recommend pointer.
-2. Archive blockers: block while receivable, credit or expected rows exist. Recommend block;
-   no "archive with open amount".
-3. Name reuse of an archived or merged contact name: recommend allowed only via reopen, and
-   merged names live on as aliases of the survivor (not free for new contacts).
-4. Alias scope: global unique among active names and aliases. Recommend global unique.
-5. Two receivable accounts on a merge: recommend refuse; owner resolves the account first.
-6. Credit and receivable on merge: recommend sum without netting; netting only via the
-   existing allocation action.
-7. Un-merge: recommend Undo only (with the refusals above), no separate un-merge feature.
-8. Migration order and approval: M1 alias, M2 archive, M3 merge, each its own reviewed
-   migration with rollback and copy test. Recommend this order; #871 last.
-9. Preview freshness for merge: recommend a preview token invalid after any contact-related
-   write, shown with before/after cents per contact.
+2. Archive blockers: block while receivable, credit, expected, payee, receivable-account or
+   payslip-employer references exist. Recommend block.
+3. Name reuse of an archived or merged contact name: only via reopen; merged names live on as
+   aliases of the survivor.
+4. Alias scope: globally unique (normalised) among active names and aliases.
+5. Two receivable accounts on a merge: refuse; owner resolves the account first.
+6. Credit and receivable on merge: sum without netting; netting only via the existing
+   allocation action.
+7. Un-merge: Undo only, with the refusals above.
+8. Config rows (payee, expected, account) on merge: repoint in the same audit group; history
+   left and resolved. Recommend this split. (new)
+9. Writers given a merged id resolve to the root silently; given an archived id they are
+   refused with 409. Recommend this. (new)
+10. Legacy near-duplicate names: tolerated, listed as merge candidates, never auto-merged. (new)
+11. Root with merged sources cannot be merged again in v1 (no chains). Recommend refuse. (new)
+12. Migration order: M1 alias, M2 archive, M3 merge, each its own reviewed migration with
+    rollback and copy test; #871 last.
+13. Merge preview: stateless HMAC token over the listed fields, 10-minute expiry, before/after
+    cents per contact.
