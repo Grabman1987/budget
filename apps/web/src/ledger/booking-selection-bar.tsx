@@ -9,6 +9,7 @@ import { LEDGER_KEY } from './queries';
 import { ErrorNote, LoadingNote } from './states';
 import { MoreHorizontal } from 'lucide-react';
 import { BookingNoteDialog } from './booking-note-dialog';
+import { BookingFieldDialog, type BookingFieldKind } from './booking-field-dialog';
 
 export interface BulkOutcome {
   action: 'update' | 'delete';
@@ -36,6 +37,7 @@ export function BookingSelectionBar({
 }) {
   useAmountPrivacy();
   const [noteOpen, setNoteOpen] = useState(false);
+  const [fieldOpen, setFieldOpen] = useState<BookingFieldKind | null>(null);
   const ordered = [...ids].sort(),
     key = ordered.join('|');
   const query = useQuery({
@@ -119,6 +121,15 @@ export function BookingSelectionBar({
           }
         />
       )}
+      {visible && fieldOpen && (
+        <BookingFieldDialog
+          key={`${fieldOpen}:${key}`}
+          kind={fieldOpen}
+          ids={ordered}
+          onClose={() => setFieldOpen(null)}
+          onConfirm={(value, preview) => onApply(value, preview.selection, preview.revision)}
+        />
+      )}
       {visible && (
         <>
           <div className="kselection-reserve" style={{ height }} aria-hidden="true" />
@@ -168,6 +179,8 @@ export function BookingSelectionBar({
             <fieldset className="kbulk-controls" disabled={locked}>
               <legend className="sr-only">Sammeländerung</legend>
               <Button onClick={() => setNoteOpen(true)}>Notiz ändern</Button>
+              <Button onClick={() => setFieldOpen('date')}>Datum ändern</Button>
+              <Button onClick={() => setFieldOpen('payee')}>Empfänger ändern</Button>
               <Select
                 className="select-sm"
                 aria-label="Kategorie für die Auswahl setzen"
