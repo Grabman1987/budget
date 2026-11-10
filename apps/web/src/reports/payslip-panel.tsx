@@ -14,7 +14,12 @@ import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { eur } from '../ledger/format';
 import type { PayrollData } from './payroll-projects-api';
-import { PayslipIntakeDetail, PayslipUpload, type PayslipUploadResult } from './payslip-intake';
+import {
+  PayslipIntakeDetail,
+  PayslipUpload,
+  type PayslipHandoff,
+  type PayslipUploadResult,
+} from './payslip-intake';
 
 export function PayslipPanel({
   initial,
@@ -396,7 +401,13 @@ export function PayslipPanel({
   );
 }
 
-export function PayslipUploadDialog({ onClose }: { onClose: () => void }) {
+export function PayslipUploadDialog({
+  onClose,
+  handoff,
+}: {
+  onClose: () => void;
+  handoff?: PayslipHandoff | undefined;
+}) {
   const [busy, setBusy] = useState(false);
   const [uploaded, setUploaded] = useState<PayslipUploadResult>();
   const blocker = useBlocker({
@@ -410,7 +421,9 @@ export function PayslipUploadDialog({ onClose }: { onClose: () => void }) {
   return (
     <WideDialog open title="Gehaltszettel hochladen" onClose={onClose} beforeClose={() => !busy}>
       <div className="pp-upload-form payslip-review-dialog">
-        {!uploaded && <PayslipUpload onBusyChange={setBusy} onUploaded={setUploaded} />}
+        {!uploaded && (
+          <PayslipUpload onBusyChange={setBusy} onUploaded={setUploaded} handoff={handoff} />
+        )}
         {uploaded && (
           <>
             {uploaded.dropboxCopy === 'saved' && <p role="status">In Dropbox abgelegt</p>}

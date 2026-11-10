@@ -1,12 +1,6 @@
 import { captureSaveControl } from './ledger-helpers';
 import { captureCloseControl } from './ledger-helpers';
-import {
-  historyChart,
-  redesignLoaded,
-  captureFlagControl,
-  categoryLineControl,
-  pickCategory,
-} from './ledger-helpers';
+import { historyChart, redesignLoaded, categoryLineControl, pickCategory } from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
@@ -41,17 +35,9 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   await page.goto(`/konten/${account.id}`);
   const row = page.locator(`[data-booking="${id}"]`);
   await expect(row.getByRole('button', { name: 'bestätigt', exact: true })).toBeVisible();
-  const emptyFlag = row.locator('.kflagbtn:not(.has-flag)');
-  await expect(emptyFlag).toBeAttached();
+  // The flag control is retired (#1040): no hover flag in the register.
+  await expect(row.locator('.kflagbtn, .kflag')).toHaveCount(0);
   await page.mouse.move(0, 0);
-  // Mouse: the empty flag appears on row hover or focus (#1008); touch keeps it visible.
-  const hoverOnly = info.project.name === 'desktop';
-  await expect(emptyFlag).toHaveCSS('opacity', hoverOnly ? '0' : '0.4');
-  if (hoverOnly) {
-    await row.hover();
-    await expect(emptyFlag).toHaveCSS('opacity', '1');
-    await page.mouse.move(0, 0);
-  }
   if (info.project.name === 'desktop') {
     await row.getByRole('button', { name: /Datum ändern/ }).click();
     await row.getByLabel('Datum bearbeiten').fill('2026-10-02');
@@ -270,9 +256,7 @@ test('single payee suggestion selects its recent account and keeps capture contr
     await panel.locator('.kmore > summary').scrollIntoViewIfNeeded();
     await expect(panel.locator('.kmore > summary')).toBeInViewport({ ratio: 1 });
   }
-  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768)
-    await expect(panel.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
-  else await expect(await captureFlagControl(panel, 'Markierung: keine')).toBeVisible();
+  await expect(panel.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
   await expect(captureCloseControl(panel)).toBeVisible();
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => {

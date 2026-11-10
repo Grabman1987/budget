@@ -209,6 +209,57 @@ describe('Ariva historic-quotes page', () => {
     ]);
   });
 
+  it('reads an index page (close column in points) and checks the exchange it shows', async () => {
+    const usd = { currency: 'USD' };
+    expect(
+      parseArivaHtml(data('ariva-index-points.html'), usd, '2026-11-01', '2026-11-30', '72'),
+    ).toEqual([
+      { date: '2026-11-05', priceMicro: 10_100_500_000 },
+      { date: '2026-11-06', priceMicro: 10_250_750_000 },
+    ]);
+    // Without verification the indication page parses as before; with it, a different exchange fails.
+    expect(
+      parseArivaHtml(data('ariva-index-points-indication.html'), usd, '2026-11-01', '2026-11-30'),
+    ).toHaveLength(2);
+    expect(
+      await kindOf(() =>
+        parseArivaHtml(
+          data('ariva-index-points-indication.html'),
+          usd,
+          '2026-11-01',
+          '2026-11-30',
+          '72',
+        ),
+      ),
+    ).toBe('parse');
+    expect(
+      await kindOf(() =>
+        parseArivaHtml(data('ariva-historic.html'), REF, '2024-01-01', '2024-01-31', '72'),
+      ),
+    ).toBe('parse');
+  });
+
+  it('refuses a verified security without an exchange and a page that shows another one', async () => {
+    const verified = arivaSource({
+      enabled: true,
+      now: NOW,
+      minIntervalMs: 0,
+      verifyExchange: () => true,
+      fetch: async () => new Response(data('ariva-index-points-indication.html')),
+    });
+    const index = ref({ currency: 'USD', quoteExchange: '72' });
+    expect(await kindOf(() => verified.history(index, '2024-01-03', '2024-01-07'))).toBe('parse');
+    expect(
+      await kindOf(() =>
+        verified.history(
+          { ...index, quoteExchange: null, quoteUrl: PAGE },
+          '2024-01-03',
+          '2024-01-07',
+        ),
+      ),
+    ).toBe('not_configured');
+  });
+
   it('keeps the selected EUR exchange when Ariva redirects away the query parameter', async () => {
     const requests: Array<{ url: string; cookie: string | null }> = [];
     const on = arivaSource({

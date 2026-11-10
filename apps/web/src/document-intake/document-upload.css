@@ -1,0 +1,31 @@
+.document-upload-dialog {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 560px);
+  min-width: 0;
+}
+.document-upload-dialog .btn,
+.document-upload-dialog .input,
+.document-upload-dialog select {
+  min-height: 44px;
+}
+.document-upload-drop {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 16px;
+  border: 1px dashed var(--rule);
+  border-radius: 8px;
+}
+.document-upload-drop[data-over='true'] {
+  border-style: solid;
+}
+.document-upload-next {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.document-upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

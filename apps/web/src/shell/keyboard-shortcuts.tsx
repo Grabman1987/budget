@@ -1,8 +1,7 @@
 import { WideDialog } from '@budget/ui';
-import { CAPTURE_SHORTCUT_HINT, FLAG_KEY, FLAG_LABEL } from '../ledger/labels';
-import { BOOKING_FLAGS } from '../ledger/types';
+import { CAPTURE_SHORTCUT_HINT } from '../ledger/labels';
 
-/** Lists existing keyboard flows; flag keys and capture copy share their original sources. */
+/** Lists existing keyboard flows; capture copy shares their original sources. */
 export function KeyboardShortcuts({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <WideDialog open={open} onClose={onClose} title="Tastenkürzel">
@@ -24,11 +23,6 @@ export function KeyboardShortcuts({ open, onClose }: { open: boolean; onClose: (
         <dd>Vorherigen / nächsten Report öffnen</dd>
         <dt>Buchung erfassen</dt>
         <dd>{CAPTURE_SHORTCUT_HINT}</dd>
-        <dt>Markierungen (geöffnete Auswahl)</dt>
-        <dd>
-          {BOOKING_FLAGS.map((flag) => `${FLAG_KEY[flag]} ${FLAG_LABEL[flag]}`).join(' · ')} · 0 /
-          Entf / Rücktaste: keine
-        </dd>
         <dt>Tab / Umschalt Tab</dt>
         <dd>Nächstes / vorheriges Bedienelement</dd>
         <dt>Diagramme: ← / → · Pos1 / Ende</dt>

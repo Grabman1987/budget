@@ -96,9 +96,13 @@ test('596 native selected total, protected skips and one exact Undo', async ({
   const response = page.waitForResponse(
     (r) => r.url().endsWith('/api/bookings/bulk') && r.request().method() === 'POST',
   );
+  // The flag bulk action is retired (#1040); the status action takes the same bulk path.
+  await expect(
+    bar.getByRole('combobox', { name: 'Markierung für die Auswahl setzen' }),
+  ).toHaveCount(0);
   await bar
-    .getByRole('combobox', { name: 'Markierung für die Auswahl setzen' })
-    .selectOption('orange');
+    .getByRole('combobox', { name: 'Status für die Auswahl setzen' })
+    .selectOption('confirmed');
   const result = await (await response).json();
   expect(result.changed).toEqual([a.id, b.id]);
   expect(

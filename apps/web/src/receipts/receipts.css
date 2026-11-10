@@ -68,3 +68,55 @@
   color: var(--ink);
   padding-inline: 12px;
 }
+.receipt-intents {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.receipt-intent {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--raised);
+}
+.receipt-intent[data-tone='uncertain'] {
+  border-color: var(--warning);
+}
+.receipt-intent[data-tone='failed'] {
+  border-color: var(--red);
+}
+.receipt-intent-state {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+.receipt-intent .receipt-hint {
+  margin: 0 0 8px;
+}
+.receipt-attached {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 8px var(--gutter, 16px) 0;
+}
+.receipt-attached > li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--touch);
+  padding-inline: 12px 4px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md, 8px);
+  max-width: 100%;
+}
+.receipt-attached .receipt-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.receipt-attached .btn {
+  min-height: 44px;
+  min-width: 44px;
+}

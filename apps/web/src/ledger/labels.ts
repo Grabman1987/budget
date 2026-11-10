@@ -3,7 +3,7 @@ import { apiErrorText } from '../api/error-text';
 import { ApiError } from '../api/http';
 import type { BulkResult, BulkSkipReason } from './api';
 import { pluralBookings } from './format';
-import type { AccountRow, AccountType, BookingFlag, BookingStatus } from './types';
+import type { AccountRow, AccountType, BookingStatus } from './types';
 
 /** German (de-AT) names of the ledger vocabulary (glossary in PRODUCT.md). */
 export const CAPTURE_SHORTCUT_HINT =
@@ -29,26 +29,7 @@ export const STATUS_LABEL: Record<BookingStatus, string> = {
   reconciled: 'geprüft',
 };
 
-export const FLAG_LABEL: Record<BookingFlag, string> = {
-  red: 'Rot',
-  orange: 'Orange',
-  yellow: 'Gelb',
-  green: 'Grün',
-  blue: 'Blau',
-  purple: 'Violett',
-};
-
 export type AccountGroupId = 'budget' | 'cards' | 'loans' | 'investments';
-
-/** Key that picks a flag in the flag popover (1 to 6; 0 removes the flag). */
-export const FLAG_KEY: Record<BookingFlag, string> = {
-  red: '1',
-  orange: '2',
-  yellow: '3',
-  green: '4',
-  blue: '5',
-  purple: '6',
-};
 
 export interface AccountGroup {
   id: AccountGroupId;

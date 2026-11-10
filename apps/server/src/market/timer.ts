@@ -1,4 +1,4 @@
-import { ensureBenchmarkInstruments } from '@budget/db';
+import { ensureBenchmarkInstruments, ensureSignalInstrument } from '@budget/db';
 import {
   lastMarketRun,
   lastSuccessfulMarketRun,
@@ -70,18 +70,24 @@ export async function refreshMarket(
     });
   try {
     ensureBenchmarkInstruments(db);
+    ensureSignalInstrument(db);
     const fx = await refreshFx(db, sources, { today });
-    const prices = await refreshPrices(db, sources, { today });
+    const prices = await refreshPrices(db, sources, { today, now: clock() });
     const cpi = await refreshCpi(db, sources, { today });
     const failed = [...fx.failed, ...prices.failed];
+    const conflictClasses = prices.conflicts > 0 ? ['conflict'] : [];
     const priceRows = priceRowsOf(prices);
     const fxRows = fx.bySource.ecb.rows;
     log(
-      failed.length === 0 ? 'ok' : priceRows + fxRows === 0 ? 'failed' : 'partial',
+      failed.length + prices.conflicts === 0
+        ? 'ok'
+        : priceRows + fxRows === 0
+          ? 'failed'
+          : 'partial',
       priceRows,
       fxRows,
-      failed.flatMap((f) => f.errors),
-      failed.length,
+      [...failed.flatMap((f) => f.errors), ...conflictClasses],
+      failed.length + prices.conflicts,
     );
     return { prices, fx, cpi };
   } catch (error) {

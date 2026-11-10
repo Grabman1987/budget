@@ -30,8 +30,7 @@
   }
 
   /* Existing accessible names also label the booking header on devices without hover tooltips. */
-  .bk-close,
-  .kflagpick:not(.in-list) .kflagbtn {
+  .bk-close {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -41,8 +40,7 @@
     flex: none;
   }
 
-  .bk-close::after,
-  .kflagpick:not(.in-list) .kflagbtn::after {
+  .bk-close::after {
     content: attr(aria-label);
     font-size: var(--fs-body);
   }
@@ -53,12 +51,12 @@
 }
 
 @media screen and (max-width: 767px) {
-  /* Reserve the selection control's 44 px without letting it overlap the neighbouring flag. */
+  /* Reserve the selection control's 44 px without letting it overlap the payee. */
   .ktx-all tr[data-booking] {
-    grid-template-columns: var(--touch) auto minmax(0, 1fr) auto;
+    grid-template-columns: var(--touch) minmax(0, 1fr) auto;
   }
   .ktx-all tr[data-booking]:has(.kfx-money:not(:empty)) {
-    grid-template-columns: var(--touch) auto minmax(0, 1fr);
+    grid-template-columns: var(--touch) minmax(0, 1fr);
   }
 }
 

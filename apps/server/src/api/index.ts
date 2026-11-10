@@ -4,6 +4,7 @@ import { displaySettingsRoutes } from './display-settings';
 import { explorerViewsRoutes } from './explorer-views';
 import { payrollRoutes, projectRoutes } from './payroll-projects';
 import { assignmentRoutes } from './assignment-rules';
+import { documentIntakeRoutes } from './document-intake';
 import { payslipIntakeRoutes } from './payslip-intake';
 import { incomeMonthRoutes } from './income-month';
 import { bankSyncFromEnv } from '../bank-sync/config';
@@ -14,7 +15,13 @@ import { readSourceRoutes } from './read-source';
 import { searchRoutes } from './search';
 import { inboxRoutes } from './inbox';
 import { contactRoutes } from './contacts';
-import { namedNotes, runWithValuationNotes, sqliteOf, type Db } from '@budget/db';
+import {
+  namedNotes,
+  runWithValuationNotes,
+  sqliteOf,
+  storedStrategyEvidenceProvider,
+  type Db,
+} from '@budget/db';
 import { receiptDirectory } from '../receipts/files';
 import { receiptRoutes } from './receipts';
 import { readModelCache } from './response-cache';
@@ -118,7 +125,7 @@ export function createLedgerApi({
   bankSync = bankSyncFromEnv(db),
   jobs,
   receiptsDir = receiptDirectory(sqliteOf(db).name),
-  strategyEvidence,
+  strategyEvidence = storedStrategyEvidenceProvider(db),
 }: LedgerApiOptions): LedgerApi {
   const api = new Hono();
   api.use('*', readModelCache(db, today));
@@ -154,6 +161,7 @@ export function createLedgerApi({
   api.route('/payslips', payrollRoutes(db, today));
   api.route('/payslip-intake', payslipIntakeRoutes(db, receiptsDir));
   api.route('/statement-intake', statementIntakeRoutes(db, receiptsDir));
+  api.route('/document-intake', documentIntakeRoutes(db));
   api.route('/statement-settlements', statementSettlementRoutes(db, receiptsDir));
   api.route('/projects', projectRoutes(db, today));
   api.route('/income-month-rules', incomeMonthRoutes(db));

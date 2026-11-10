@@ -121,7 +121,6 @@
   font-weight: 500;
   text-transform: uppercase;
 }
-.ktx-redesign .kcol-flag,
 .ktx-redesign .kcol-status {
   width: 44px;
 }
@@ -142,10 +141,10 @@
   padding-inline: 8px;
   border-bottom: 1px solid var(--rule);
 }
-.ktx-redesign :is(.kname-btn, .kcat-btn, .kcell-edit, .kflagbtn, .kstatus-btn) {
+.ktx-redesign :is(.kname-btn, .kcat-btn, .kcell-edit, .kstatus-btn) {
   min-height: 44px;
 }
-.ktx-redesign :is(.kflagbtn, .kstatus-btn) {
+.ktx-redesign .kstatus-btn {
   min-width: 44px;
 }
 .ktx-redesign .kmonth > th {
@@ -182,25 +181,34 @@
   }
   .ktx-redesign.ktx-all tr[data-booking]:not(.is-upcoming) {
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) minmax(44px, 30%) 44px;
-    grid-template-areas: 'flag payee amount status';
+    grid-template-columns: minmax(0, 1fr) minmax(44px, 30%) 44px;
+    grid-template-areas: 'payee amount status';
     align-items: center;
     gap: 0 4px;
-    padding: 0;
+    padding: 0 0 0 var(--space-sm);
     min-height: 48px;
   }
   /* Let missing-category text use spare amount-column space beside the details button.
      Amounts keep their full width and right edge; both outer controls stay 44px. */
   .ktx-redesign.ktx-all tr[data-booking]:not(.is-upcoming):has(.kcat.is-none) {
+    grid-template-columns: minmax(0, 1fr) minmax(44px, max-content) 44px;
+  }
+  /* Selection mode adds the checkbox as its own leading column (no inset then). */
+  .ktx-redesign.ktx-all tr[data-booking][data-selection-mode='1']:not(.is-upcoming) {
+    grid-template-columns: 44px minmax(0, 1fr) minmax(44px, 30%) 44px;
+    grid-template-areas: 'check payee amount status';
+    padding: 0;
+  }
+  .ktx-redesign.ktx-all
+    tr[data-booking][data-selection-mode='1']:not(.is-upcoming):has(.kcat.is-none) {
     grid-template-columns: 44px minmax(0, 1fr) minmax(44px, max-content) 44px;
   }
-  .ktx-redesign.ktx-all tr[data-booking]:not([data-selection-mode='1']) .kx-check,
-  .ktx-redesign.ktx-all tr[data-booking][data-selection-mode='1'] .kx-flag {
+  .ktx-redesign.ktx-all tr[data-booking]:not([data-selection-mode='1']) .kx-check {
     display: none;
   }
   .ktx-redesign.ktx-all tr[data-booking][data-selection-mode='1'] .kx-check {
     display: flex;
-    grid-area: flag;
+    grid-area: check;
     min-width: 44px;
     min-height: 44px;
     align-items: center;
@@ -319,7 +327,6 @@
   font-family: var(--font-tech);
 }
 /* Override the legacy account colgroup without changing its OFF widths. */
-.ktx.ktx-redesign .kcol-flag,
 .ktx.ktx-redesign .kcol-status {
   width: 44px;
 }
@@ -405,8 +412,9 @@
 }
 @media (max-width: 767px) {
   .ktx.ktx-redesign tr.is-upcoming {
-    grid-template-columns: 44px minmax(0, 1fr) minmax(44px, 30%) 44px;
-    grid-template-areas: 'flag payee amount status' '. cat acct status' '. date run status';
+    grid-template-columns: minmax(0, 1fr) minmax(44px, 30%) 44px;
+    grid-template-areas: 'payee amount status' 'cat acct status' 'date run status';
+    padding-inline-start: var(--space-sm);
   }
   .ktx.ktx-redesign tr.is-upcoming .kx-amount:empty {
     display: none;
@@ -425,7 +433,7 @@
     padding-block: 0;
   }
   .ktx.ktx-redesign
-    :is(.kname-btn, .kcat-btn, .kcell-edit, .kflagbtn, .kstatus-btn, .kinline .input, .select-sm) {
+    :is(.kname-btn, .kcat-btn, .kcell-edit, .kstatus-btn, .kinline .input, .select-sm) {
     min-height: 44px;
     height: 44px;
   }
@@ -463,7 +471,7 @@
   height: 20px;
 }
 
-/* Mouse and trackpad: 38px rows; pen and flag appear on hover or keyboard focus.
+/* Mouse and trackpad: 38px rows; pen appears on hover or keyboard focus.
    Touch keeps the 44px targets and the always-reachable controls. */
 @media (min-width: 768px) and (hover: hover) {
   .ktx.ktx-redesign tr[data-booking]:not(.is-upcoming) > td {
@@ -471,11 +479,11 @@
   }
   .ktx.ktx-redesign
     tr:not(.is-upcoming)
-    :is(.kname-btn, .kcat-btn, .kcell-edit, .kflagbtn, .kstatus-btn, .kinline .input, .select-sm) {
+    :is(.kname-btn, .kcat-btn, .kcell-edit, .kstatus-btn, .kinline .input, .select-sm) {
     min-height: 38px;
     height: 38px;
   }
-  .ktx.ktx-redesign tr:not(.is-upcoming) :is(.kflagbtn, .kstatus-btn) {
+  .ktx.ktx-redesign tr:not(.is-upcoming) .kstatus-btn {
     min-width: 38px;
   }
   .ktx.ktx-redesign .kbooking-edit-mark,
@@ -483,13 +491,6 @@
     opacity: 0;
   }
   .ktx.ktx-redesign tr:is(:hover, :focus-within) :is(.kbooking-edit-mark, .kcat-edit) {
-    opacity: 1;
-  }
-  .ktx.ktx-redesign .kflagpick.in-list .kflagbtn:not(.has-flag) {
-    opacity: 0;
-  }
-  .ktx.ktx-redesign tr:is(:hover, :focus-within) .kflagpick.in-list .kflagbtn:not(.has-flag),
-  .ktx.ktx-redesign .kflagpick.in-list .kflagbtn[aria-expanded='true'] {
     opacity: 1;
   }
 }

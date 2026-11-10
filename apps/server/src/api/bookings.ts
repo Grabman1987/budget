@@ -34,7 +34,14 @@ import { z } from 'zod';
 import { Hono } from 'hono';
 import { filteredBookingCsv } from './booking-csv';
 import { readBookingInspector } from './booking-inspector';
-import { bookingNotePreview, notePreviewBody } from './booking-note-preview';
+import {
+  bookingFieldPreview,
+  bookingNotePreview,
+  datePreviewBody,
+  notePreviewBody,
+  payeePreviewBody,
+  type BookingFieldChange,
+} from './booking-note-preview';
 import { ACTOR, ApiError, defined, errorAnswer, readBody, readQuery } from './http';
 import { bookingDeleteQuery, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
 
@@ -449,23 +456,65 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
     const body = await readBody(c, notePreviewBody);
     return c.json(runInTransaction(db, (tx) => bookingNotePreview(tx, body.ids, body.memo)));
   });
+  const fieldPreview = (tx: Executor, ids: string[], change: BookingFieldChange) => {
+    if (
+      change.field === 'payeeId' &&
+      change.payeeId !== null &&
+      !tx
+        .select({ id: payee.id })
+        .from(payee)
+        .where(and(eq(payee.id, change.payeeId), isNull(payee.deletedAt)))
+        .get()
+    )
+      throw new ApiError(400, 'unknown_payee', 'Der Empfänger existiert nicht.');
+    return bookingFieldPreview(tx, ids, change);
+  };
+  app.post('/date-preview', async (c) => {
+    const body = await readBody(c, datePreviewBody);
+    return c.json(
+      runInTransaction(db, (tx) => fieldPreview(tx, body.ids, { field: 'date', date: body.date })),
+    );
+  });
+  app.post('/payee-preview', async (c) => {
+    const body = await readBody(c, payeePreviewBody);
+    return c.json(
+      runInTransaction(db, (tx) =>
+        fieldPreview(tx, body.ids, { field: 'payeeId', payeeId: body.payeeId }),
+      ),
+    );
+  });
   app.post('/bulk', async (c) => {
     const body = await readBody(c, bulkBody);
     const ctx = audit();
-    if (body.action === 'update' && body.set.memo !== undefined) {
-      const memo = body.set.memo;
+    const change: BookingFieldChange | null =
+      body.action !== 'update'
+        ? null
+        : body.set.memo !== undefined
+          ? { field: 'memo', memo: body.set.memo }
+          : body.set.date !== undefined
+            ? { field: 'date', date: body.set.date }
+            : body.set.payeeId !== undefined
+              ? { field: 'payeeId', payeeId: body.set.payeeId }
+              : null;
+    if (change) {
+      const patch: BookingPatch =
+        change.field === 'memo'
+          ? { memo: change.memo }
+          : change.field === 'date'
+            ? { date: change.date }
+            : { payeeId: change.payeeId };
       const result = runInTransaction(db, (tx) => {
-        const preview = bookingNotePreview(tx, body.ids, memo);
+        const preview = fieldPreview(tx, body.ids, change);
         if (!body.previewRevision || preview.revision !== body.previewRevision)
           throw new ApiError(
             409,
             'stale_note_preview',
-            'Die Auswahl wurde geändert. Bitte die Notizänderung erneut prüfen.',
+            'Die Auswahl wurde geändert. Bitte die Änderung erneut prüfen.',
           );
         // Only exclusions acknowledged in this exact preview are skipped. Any writer failure
         // rolls back every eligible row and its audit entries, without per-row catch/continue.
         for (const id of preview.changed)
-          updateBooking(tx, id, { memo }, ctx, { unlockReconciled: false });
+          updateBooking(tx, id, patch, ctx, { unlockReconciled: false });
         return {
           changed: preview.changed,
           skipped: [
