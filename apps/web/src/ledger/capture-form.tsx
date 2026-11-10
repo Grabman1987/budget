@@ -180,7 +180,21 @@ export function CaptureForm({
   const toast = useToast();
   const [attached, setAttached] = useState<AttachedReceipt[]>([]);
   const attachedRef = useRef<AttachedReceipt[]>([]);
-  const attach = (file: AttachedReceipt) => {
+  // Save is held back while a file is still uploading, so a late result cannot reach the next
+  // booking; the draft scope additionally ignores any result that belongs to a previous draft.
+  const [uploading, setUploading] = useState(false);
+  const uploadingRef = useRef(false);
+  const onUploadBusy = (value: boolean) => {
+    uploadingRef.current = value;
+    setUploading(value);
+  };
+  const [draftScope, setDraftScope] = useState(0);
+  const draftScopeRef = useRef(0);
+  const attach = (file: AttachedReceipt, scope = draftScopeRef.current) => {
+    if (scope !== draftScopeRef.current) {
+      toast.show({ message: 'Beleg bleibt unter Prüfen.' });
+      return;
+    }
     if (attachedRef.current.some((r) => r.id === file.id)) return;
     attachedRef.current = [...attachedRef.current, file];
     setAttached(attachedRef.current);
@@ -207,7 +221,8 @@ export function CaptureForm({
     [],
   );
   const linkAttached = async (bookingId: string | undefined) => {
-    // Snapshot at submit time: files attached or removed during the save never reach another booking.
+    // Snapshot at submit time: the ids attached when Save was pressed are the only ones linked;
+    // a file arriving while the create request runs stays in Prüfen (and is ignored by the next draft).
     const files = attachedRef.current;
     attachedRef.current = [];
     setAttached([]);
@@ -220,8 +235,9 @@ export function CaptureForm({
       }
       try {
         await request('POST', `/api/receipts/${encodeURIComponent(file.id)}/links`, { bookingId });
-      } catch {
-        failed = true;
+      } catch (error) {
+        // 404: the receipt is gone (e.g. its upload was undone); nothing left to link or report.
+        if (!(error instanceof ApiError && error.status === 404)) failed = true;
       }
     }
     void qc.invalidateQueries({ queryKey: [...LEDGER_KEY, 'receipts'] });
@@ -620,7 +636,7 @@ export function CaptureForm({
   };
 
   const save = async (andNew: boolean) => {
-    if (saving.current) return;
+    if (saving.current || uploadingRef.current) return;
     if (!editing && !from) return setErrors({ account: 'Bitte ein verfügbares Konto wählen.' });
     if (blocked) return setErrors({ splits: REMAINDER_SAVE_ERROR });
     const filled = {
@@ -682,6 +698,8 @@ export function CaptureForm({
       remember(accountId, draft.categoryId || null);
       if (!andNew) return onDone();
       // The next booking keeps the context (kind, account, date, payee and its category).
+      draftScopeRef.current++;
+      setDraftScope(draftScopeRef.current);
       setStatusChosen(false);
       setBankIntent(null);
       categoryRequest.current++;
@@ -1066,8 +1084,10 @@ export function CaptureForm({
   const saveButton = (
     <Button
       type="submit"
-      disabled={busy || saveBlocked}
-      aria-describedby={showSaveReason ? 'booking-save-reason' : undefined}
+      disabled={busy || saveBlocked || uploading}
+      aria-describedby={
+        showSaveReason ? 'booking-save-reason' : uploading ? 'booking-upload-reason' : undefined
+      }
     >
       Speichern
     </Button>
@@ -1092,7 +1112,7 @@ export function CaptureForm({
         <Button
           variant="ghost"
           className={REDESIGN_ENABLED ? 'bk-save-new' : undefined}
-          disabled={busy || saveBlocked}
+          disabled={busy || saveBlocked || uploading}
           onClick={() => void save(true)}
         >
           {REDESIGN_ENABLED && (
@@ -1156,7 +1176,13 @@ export function CaptureForm({
           {hasMoreEntries && moreFields}
           {closeControl}
           {!editing && (
-            <ReceiptSection uploadOnly actionsHost={receiptActionsHost} onAttached={attach} />
+            <ReceiptSection
+              uploadOnly
+              actionsHost={receiptActionsHost}
+              scope={draftScope}
+              onAttached={attach}
+              onBusyChange={onUploadBusy}
+            />
           )}
         </div>
       )}
@@ -1431,6 +1457,11 @@ export function CaptureForm({
           ) : (
             <ReceiptSection bookingId={editing.id} />
           ))}
+        {uploading && (
+          <p id="booking-upload-reason" className="bk-save-hint" role="status">
+            Beleg wird hochgeladen … Speichern ist gleich möglich.
+          </p>
+        )}
         {mobileRedesign && showSaveReason && (
           <p
             id="booking-save-reason"
@@ -1518,8 +1549,10 @@ export function CaptureForm({
           className="bk-keyboard-save"
           type="submit"
           aria-label="Buchung speichern"
-          disabled={busy || saveBlocked}
-          aria-describedby={showSaveReason ? 'booking-save-reason' : undefined}
+          disabled={busy || saveBlocked || uploading}
+          aria-describedby={
+            showSaveReason ? 'booking-save-reason' : uploading ? 'booking-upload-reason' : undefined
+          }
           onMouseDown={(event) => event.preventDefault()}
         >
           <Check size={20} strokeWidth={1.5} aria-hidden="true" />

@@ -45,12 +45,18 @@ export function ReceiptSection({
   actionsHost,
   uploadOnly = false,
   onAttached,
+  onBusyChange,
+  scope = 0,
 }: {
   bookingId?: string;
   actionsHost?: Element | null;
   uploadOnly?: boolean;
   /** Fires once per file the server acknowledged (upload-only capture shows it until the save). */
-  onAttached?: (file: AttachedReceipt) => void;
+  onAttached?: (file: AttachedReceipt, scope: number) => void;
+  /** Reports upload activity so the capture dialog can hold its save back. */
+  onBusyChange?: (busy: boolean) => void;
+  /** Identifies the draft an upload started in; echoed back with the result. */
+  scope?: number;
 }) {
   const heading = useId(),
     uploadId = useId(),
@@ -62,10 +68,15 @@ export function ReceiptSection({
     [unsaved, setUnsaved] = useState<File | null>(null);
   const intents = useReceiptIntents(bookingId);
   const names = useRef(new Map<string, string>());
+  const scopeRef = useRef(scope);
+  useEffect(() => {
+    scopeRef.current = scope;
+  }, [scope]);
   const receipts = useQuery({ ...receiptQuery(bookingId), enabled: !uploadOnly });
   const unlinked = useQuery({ ...receiptQuery(), enabled: Boolean(bookingId) });
   const write = useBudgetWrite(),
     toast = useToast();
+  useEffect(() => onBusyChange?.(busy), [busy, onBusyChange]);
   // Back online: deliver waiting files (each keeps its own key), then show the new states.
   useEffect(() => {
     const onOnline = () => void sendReceiptQueue().then(intents.refresh, intents.refresh);
@@ -78,6 +89,7 @@ export function ReceiptSection({
       toast.show({ message: 'Ein Beleg darf höchstens 15 MB groß sein.' });
       return;
     }
+    const startScope = scopeRef.current;
     setBusy(true);
     setUnsaved(null);
     let intent: ReceiptIntent;
@@ -97,10 +109,10 @@ export function ReceiptSection({
       return;
     }
     names.current.set(intent.id, file.name);
-    await send(intent.id);
+    await send(intent.id, startScope);
     setBusy(false);
   };
-  const send = async (id: string) => {
+  const send = async (id: string, startScope = scopeRef.current) => {
     let handled = false;
     const sent = await write(
       async () => {
@@ -121,11 +133,15 @@ export function ReceiptSection({
     );
     const receipt = sent && 'receipt' in sent ? sent.receipt : undefined;
     if (receipt && onAttached)
-      onAttached({
-        id: receipt.id,
-        name: names.current.get(id) ?? intents.items.find((i) => i.id === id)?.filename ?? 'Beleg',
-        sizeBytes: receipt.sizeBytes,
-      });
+      onAttached(
+        {
+          id: receipt.id,
+          name:
+            names.current.get(id) ?? intents.items.find((i) => i.id === id)?.filename ?? 'Beleg',
+          sizeBytes: receipt.sizeBytes,
+        },
+        startScope,
+      );
     await intents.refresh();
   };
   const retry = async (id: string) => {

@@ -23,6 +23,7 @@ vi.mock('../shell/redesign-flag', () => flags);
 
 const create = vi.hoisted(() => vi.fn());
 const patch = vi.hoisted(() => vi.fn());
+const lateScope = vi.hoisted(() => ({ value: 0 }));
 const http = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('../api/http', async (original) => ({
   ...(await original<typeof Http>()),
@@ -33,15 +34,41 @@ vi.mock('../receipts/receipt-section', async (original) => ({
   ...(await original<typeof ReceiptModule>()),
   ReceiptSection: ({
     onAttached,
+    onBusyChange,
+    scope = 0,
   }: {
-    onAttached?: (file: { id: string; name: string; sizeBytes: number }) => void;
+    onAttached?: (file: { id: string; name: string; sizeBytes: number }, scope: number) => void;
+    onBusyChange?: (busy: boolean) => void;
+    scope?: number;
   }) => (
-    <button
-      type="button"
-      onClick={() => onAttached?.({ id: 'receipt-1', name: 'beleg.pdf', sizeBytes: 2048 })}
-    >
-      Datei anhängen
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => onAttached?.({ id: 'receipt-1', name: 'beleg.pdf', sizeBytes: 2048 }, scope)}
+      >
+        Datei anhängen
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          lateScope.value = scope;
+          onBusyChange?.(true);
+        }}
+      >
+        Upload starten
+      </button>
+      <button type="button" onClick={() => onBusyChange?.(false)}>
+        Upload beenden
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onAttached?.({ id: 'receipt-late', name: 'spaet.pdf', sizeBytes: 1024 }, lateScope.value)
+        }
+      >
+        Spätes Ergebnis
+      </button>
+    </>
   ),
 }));
 vi.mock('./mutations', () => ({
@@ -1019,4 +1046,33 @@ it('discards a removed attachment and links nothing; cancelling leaves the rest 
   fireEvent.click(screen.getByRole('button', { name: 'Datei anhängen' }));
   second.unmount();
   expect(http.request).toHaveBeenCalledTimes(1);
+});
+
+it('holds Save back while an upload runs and ignores a result from the previous draft', async () => {
+  create.mockResolvedValue({ bookings: [{ id: 'booking-new' }], groupId: 'g' });
+  renderCreate();
+  await screen.findByRole('option', { name: 'Bargeld Muster' });
+  fireEvent.click(screen.getByRole('button', { name: 'Einnahme' }));
+  fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
+    target: { value: '12,34' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Upload starten' }));
+  const saveNew = screen.getByRole('button', { name: 'Speichern und neu' }) as HTMLButtonElement;
+  const save = screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement;
+  expect(saveNew.disabled).toBe(true);
+  expect(save.disabled).toBe(true);
+  expect(save.getAttribute('aria-describedby')).toBe('booking-upload-reason');
+  fireEvent.keyDown(screen.getByLabelText('Betrag', { exact: true }), {
+    key: 'Enter',
+    ctrlKey: true,
+  });
+  expect(create).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Upload beenden' }));
+  await waitFor(() => expect(saveNew.disabled).toBe(false));
+  fireEvent.click(saveNew);
+  await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+  // The upload of the previous draft reports late: it must not become a chip of the next one.
+  fireEvent.click(await screen.findByRole('button', { name: 'Spätes Ergebnis' }));
+  expect(screen.queryByTestId('attached-receipt')).toBeNull();
+  expect(http.request).not.toHaveBeenCalled();
 });
