@@ -60,14 +60,21 @@ for (const theme of ['light', 'dark'] as const) {
   test(`calm Plan toolbar presentation (${theme})`, async ({ page, request, baseURL }, info) => {
     const { ids } = await openPlan(page, request, baseURL!, theme);
     const toolbar = page.locator('.plan-calm-toolbar');
+    const phone = page.viewportSize()!.width < 768;
     const filters = toolbar.getByRole('group', { name: 'Kategoriefilter' });
-    await expect(filters.getByRole('button')).toHaveText([
-      'Alle (3)',
-      'Überzogen (0)',
-      'Unterfinanziert (1)',
-      'Überfinanziert (0)',
-      'Verfügbar (1)',
-    ]);
+    if (phone) {
+      // #1007: the filter block is one "Ansicht" chip; its menu holds the same filters.
+      await expect(toolbar.locator('.plan-menu-optionen > summary')).toContainText('Ansicht');
+      await expect(filters).toHaveCount(0);
+    } else {
+      await expect(filters.getByRole('button')).toHaveText([
+        'Alle (3)',
+        'Überzogen (0)',
+        'Unterfinanziert (1)',
+        'Überfinanziert (0)',
+        'Verfügbar (1)',
+      ]);
+    }
     await expect(page.getByRole('button', { name: 'Geld verteilen', exact: true })).toHaveCount(1);
     const row = page.locator(`.prow:has([data-category-id="${ids[0]}"])`);
     await expect(row.locator('.spending-bar')).toHaveCSS('visibility', 'hidden');
@@ -113,10 +120,18 @@ for (const theme of ['light', 'dark'] as const) {
   }, info) => {
     const { accountsBefore } = await openPlan(page, request, baseURL!, theme);
     const toolbar = page.locator('.plan-calm-toolbar');
-    await toolbar.locator('.plan-menu-verteilen > summary').click();
+    const phone = page.viewportSize()!.width < 768;
+    await page.locator('.plan-menu-verteilen > summary').click();
     await page.getByRole('button', { name: 'Leere füllen', exact: true }).click();
     await expect(page.getByTestId('to-be-assigned')).toHaveText('970,00 €');
-    const history = toolbar.getByRole('group', { name: 'Änderungen' });
+    // Phone: undo and redo live in the "Ansicht" menu (#1007).
+    const history = phone
+      ? page.locator('.plan-menu-optionen .plan-menu-panel')
+      : toolbar.getByRole('group', { name: 'Änderungen' });
+    const openHistory = async () => {
+      if (phone) await toolbar.locator('.plan-menu-optionen > summary').click();
+    };
+    await openHistory();
     await history.getByRole('button', { name: 'Rückgängig', exact: true }).click();
     await expect(page.getByTestId('to-be-assigned')).toHaveText('980,00 €');
     await expect(page.locator('.toast.is-open')).toContainText('Rückgängig gemacht.');
@@ -129,6 +144,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.screenshot({
       path: info.outputPath(`plan-${page.viewportSize()!.width}-${theme}-undo.png`),
     });
+    await openHistory();
     await history.getByRole('button', { name: 'Wiederholen', exact: true }).click();
     await expect(page.getByTestId('to-be-assigned')).toHaveText('970,00 €');
     expect(await (await request.get('/api/accounts')).json()).toEqual(accountsBefore);
@@ -175,10 +191,13 @@ test('assignment undo expires with its toast and stays disabled after an unrelat
   await openPlan(page, request, baseURL!, 'light');
   await page.clock.install();
   const toolbar = page.locator('.plan-calm-toolbar');
-  await toolbar.locator('.plan-menu-verteilen > summary').click();
+  await page.locator('.plan-menu-verteilen > summary').click();
   await page.getByRole('button', { name: 'Leere füllen', exact: true }).click();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('970,00 €');
-  const undo = toolbar.getByRole('button', { name: 'Rückgängig', exact: true });
+  // Phone: undo sits in the "Ansicht" menu (#1007).
+  const undo = (
+    page.viewportSize()!.width < 768 ? page.locator('.plan-menu-optionen') : toolbar
+  ).getByRole('button', { name: 'Rückgängig', exact: true, includeHidden: true });
   await expect(undo).toBeEnabled();
   await page.clock.runFor(6001);
   await expect(page.locator('.toast.is-open')).toHaveCount(0);
@@ -196,7 +215,29 @@ test('menu filters stay visible as removable pressed toolbar chips', async ({
 }) => {
   await openPlan(page, request, baseURL!, 'light');
   const toolbar = page.locator('.plan-calm-toolbar');
+  const phone = page.viewportSize()!.width < 768;
   for (const name of ['Braucht Aufmerksamkeit', 'Ohne Kategorie']) {
+    if (phone) {
+      // #1007: no chip row; the "Ansicht" chip names the active filter and the menu marks it.
+      await toolbar.locator('.plan-menu-optionen > summary').click();
+      const item = toolbar
+        .getByRole('group', { name: 'Weitere Filter' })
+        .getByRole('button', { name: new RegExp(name) });
+      await item.click();
+      await expect(toolbar.locator('.plan-menu-optionen > summary')).toHaveAccessibleName(
+        /^Ansicht, /,
+      );
+      await toolbar.locator('.plan-menu-optionen > summary').click();
+      await expect(item).toHaveAttribute('aria-pressed', 'true');
+      await toolbar
+        .getByRole('group', { name: 'Weitere Filter' })
+        .getByRole('button', { name: /^Alle/ })
+        .click();
+      await expect(toolbar.locator('.plan-menu-optionen > summary')).toHaveAccessibleName(
+        'Ansicht',
+      );
+      continue;
+    }
     const filters = toolbar.getByRole('group', { name: 'Kategoriefilter' });
     await filters.evaluate((element) => {
       element.scrollLeft = element.scrollWidth;

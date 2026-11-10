@@ -39,7 +39,9 @@ beforeAll(() => {
   seed.close();
   // Match the production read connection, not the fixture insertion counter.
   opened = openDatabase(file);
-});
+  // Migrating and seeding the synthetic ledger exceeds the 10 s default hook timeout on
+  // loaded Windows runners (#906); the timed assertions live in the tests, not here.
+}, 60_000);
 afterAll(() => {
   opened.close();
   rmSync(directory, { recursive: true, force: true });

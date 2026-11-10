@@ -222,3 +222,60 @@ for (const width of [390, 1440]) {
     expect(writes).toEqual([]);
   });
 }
+
+test('payee category suggestion survives categories that load after the pick', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route('**/api/payees', (route) =>
+    route.fulfill({
+      json: {
+        payees: [
+          {
+            id: 'capture-lag',
+            name: 'Musterladen Spaet',
+            defaultCategoryId: null,
+            systemKind: null,
+          },
+        ],
+      },
+    }),
+  );
+  await page.route('**/api/bookings?*', (route) => {
+    if (new URL(route.request().url()).searchParams.get('payeeId') !== 'capture-lag')
+      return route.continue();
+    return route.fulfill({
+      json: {
+        items: [
+          {
+            id: 'capture-lag-booking',
+            accountId: 'acc-giro',
+            amountCents: -500,
+            transferId: null,
+            splits: [
+              {
+                categoryId: 'cat-lebensmittel',
+                amountCents: -500,
+                contactId: null,
+                transferId: null,
+              },
+            ],
+          },
+        ],
+        total: 1,
+        nextCursor: null,
+        sumCents: -500,
+      },
+    });
+  });
+  // The history answer beats the category lists: the suggestion must wait for them.
+  for (const glob of ['**/api/lookups', '**/api/budget/**'])
+    await page.route(glob, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      await route.fallback();
+    });
+  await page.goto('/?panel=buchung');
+  const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
+  const category = dialog.getByRole('combobox', { name: 'Kategorie', exact: true });
+  await dialog.getByRole('combobox', { name: 'Empfänger', exact: true }).fill('Musterladen Spaet');
+  await dialog.getByRole('option', { name: 'Musterladen Spaet', exact: true }).click();
+  await expect(category).toHaveValue('Lebensmittel');
+});

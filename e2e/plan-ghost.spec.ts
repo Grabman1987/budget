@@ -174,7 +174,12 @@ test('ghosts, selected quick assignment and capped empty-fill share grouped undo
   await expect(assigned('Testziel')).toHaveText(shown('400,01 €'));
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(assigned('Testziel')).toHaveText(shown('≈ 400,01 €'));
-  await page.locator('.plan-menu summary', { hasText: /verteilen/i }).click();
+  // #1007: the phone's fixed "Verteilen" can sit under a feedback toast; open it by keyboard.
+  const verteilen = page.locator('.plan-menu summary', { hasText: /verteilen/i });
+  if (page.viewportSize()!.width < 768) {
+    await verteilen.focus();
+    await page.keyboard.press('Enter');
+  } else await verteilen.click();
   await page
     .locator('.plan-menu-panel')
     .getByRole('button', { name: 'Leere füllen', exact: true })

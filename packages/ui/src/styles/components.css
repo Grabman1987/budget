@@ -453,6 +453,55 @@
   }
 }
 
+/* Sliding pill: placed by Segmented from the selected button's offsets (see segmented.tsx). */
+.seg-slide {
+  --seg-pad: 4px;
+  --seg-gap: 2px;
+}
+.seg.seg.seg-slide {
+  position: relative;
+  isolation: isolate;
+  padding: var(--seg-pad);
+  gap: var(--seg-gap);
+  border: var(--stroke-hairline) solid var(--rule-strong);
+  background: var(--quiet-soft);
+}
+.seg-slide .seg-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--rule-strong);
+  pointer-events: none;
+}
+.seg-slide .seg-thumb[data-animate] {
+  transition: transform 200ms ease-out;
+}
+.seg-slide button {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+.seg-slide button[aria-pressed='true'],
+.seg-slide button:not(:disabled):not([aria-pressed='true']):hover {
+  background: transparent;
+}
+.seg-slide button[aria-pressed='true'] {
+  color: var(--ink);
+  font-weight: 650;
+}
+@media (prefers-reduced-motion: reduce) {
+  .seg-slide .seg-thumb[data-animate] {
+    transition: none;
+  }
+}
+
 /* ---------- Switch ---------- */
 .switch {
   display: inline-flex;

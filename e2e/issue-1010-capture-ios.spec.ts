@@ -18,9 +18,7 @@ for (const width of [390, 1440]) {
         await expect(dialog.getByRole('button', { name: 'Abbrechen', exact: true })).toHaveCount(0);
         await expect(dialog.locator('.bk-foot')).toHaveCount(0);
         await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
-        await dialog.locator('.kmore > summary').click();
         await expect(dialog.getByLabel('Markierung', { exact: true })).toHaveCount(0);
-        await dialog.locator('.kmore > summary').click();
         await expect(dialog.locator('.bk-body .bk-form-actions')).toContainText(
           'Speichern und neu',
         );
@@ -131,7 +129,6 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(
       dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
     ).toBeVisible();
-    await expect(dialog.locator('.kmore > summary')).toBeVisible();
     await dialog.getByRole('button', { name: 'Ausgabe', exact: true }).click();
     await amount.focus();
     await page.evaluate(() => {
@@ -178,26 +175,24 @@ for (const width of [320, 390, 767]) {
     await expect.poll(() => amount.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     const kinds = dialog.getByRole('group', { name: 'Art der Buchung' });
     await page.emulateMedia({ reducedMotion: 'no-preference' });
-    const bubble = () =>
-      kinds.evaluate((el) => {
-        const style = getComputedStyle(el, '::before');
-        return {
-          x: new DOMMatrixReadOnly(style.transform).m41,
-          duration: style.transitionDuration,
-        };
-      });
-    expect((await bubble()).duration).toBe('0.2s');
+    const thumb = kinds.locator('.seg-thumb');
+    const duration = () => thumb.evaluate((el) => getComputedStyle(el).transitionDuration);
+    const underSelected = async () => {
+      const pill = (await thumb.boundingBox())!;
+      const selected = (await kinds.locator('button[aria-pressed="true"]').boundingBox())!;
+      return Math.abs(pill.x - selected.x) <= 1 && Math.abs(pill.width - selected.width) <= 1;
+    };
+    expect(await duration()).toBe('0.2s');
     await kinds.getByRole('button', { name: 'Einnahme' }).click();
     await expect(kinds.getByRole('button', { name: 'Einnahme' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
-    const segmentWidth = (await kinds.boundingBox())!.width / 3;
-    await expect.poll(async () => Math.round((await bubble()).x)).toBe(Math.round(segmentWidth));
+    await expect.poll(underSelected).toBe(true);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await kinds.getByRole('button', { name: 'Umbuchung' }).click();
-    expect((await bubble()).duration).toBe('0s');
-    expect(Math.round((await bubble()).x)).toBe(Math.round(segmentWidth * 2));
+    expect(await duration()).toBe('0s');
+    await expect.poll(underSelected).toBe(true);
     for (const button of await kinds.getByRole('button').all()) {
       expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
     }

@@ -116,10 +116,13 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     await save.scrollIntoViewIfNeeded();
     await expect(save).toBeInViewport({ ratio: 1 });
     // A default category adds Available and suggestion rows; Mehr remains in the body scroller.
-    await dialog
-      .locator('.kmore > summary')
-      .evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
-    await expect(dialog.locator('.kmore > summary')).toBeInViewport({ ratio: 1 });
+    // Mehr only exists where it has entries (phone without projects has none).
+    if ((await dialog.locator('.kmore > summary').count()) > 0) {
+      await dialog
+        .locator('.kmore > summary')
+        .evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+      await expect(dialog.locator('.kmore > summary')).toBeInViewport({ ratio: 1 });
+    }
     await save.scrollIntoViewIfNeeded();
     await expect(save).toBeInViewport({ ratio: 1 });
     await dialog.locator('.bk-body').evaluate((el) => {
@@ -160,7 +163,8 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     await evidence(page, info, `booking-${theme}`, dialog);
   }
   // Expanded content and the phone save action remain reachable in the body scroller.
-  await dialog.locator('.kmore > summary').click();
+  if ((await dialog.locator('.kmore > summary').count()) > 0)
+    await dialog.locator('.kmore > summary').click();
   await dialog.getByLabel('Notiz').fill('Synthetische Abnahme');
   await save.scrollIntoViewIfNeeded();
   await expect(save).toBeInViewport({ ratio: 1 });
@@ -262,6 +266,11 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
       if (!(await calendar.evaluate((node) => document.activeElement === node))) break;
     }
     await expect(dialog.getByLabel('Wiederholen')).toBeFocused();
+    // Mehr is rendered only when it has entries (none on the phone sample without projects).
+    const moreStop =
+      (await dialog.locator('.kmore > summary').count()) > 0
+        ? [dialog.locator('.kmore > summary')]
+        : [];
     for (const target of [
       ...(phone
         ? [dialog.getByRole('button', { name: 'Vorgemerkt', exact: true })]
@@ -286,7 +295,7 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
       ...(phone
         ? [
             dialog.getByRole('button', { name: 'Foto aufnehmen', exact: true }),
-            dialog.locator('.kmore > summary'),
+            ...moreStop,
             captureCloseControl(dialog),
             ...['Ausgabe', 'Einnahme', 'Umbuchung'].map((name) =>
               dialog.getByRole('button', { name, exact: true }),
@@ -308,7 +317,7 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
         dialog.getByRole('button', { name: 'Einnahme', exact: true }),
         dialog.getByRole('button', { name: 'Ausgabe', exact: true }),
         captureCloseControl(dialog),
-        dialog.locator('.kmore > summary'),
+        ...moreStop,
         dialog.getByRole('button', { name: 'Foto aufnehmen', exact: true }),
         dialog.getByRole('button', { name: 'Datei anhängen', exact: true }),
         dialog.getByRole('button', { name: 'Blatt schließen', exact: true }),

@@ -93,6 +93,25 @@ describe('Segmented and Switch', () => {
     expect(onChange).toHaveBeenCalledWith('3M');
   });
 
+  it('slide variant adds an aria-hidden pill and keeps button semantics', () => {
+    const { container } = render(
+      <Segmented
+        label="Art"
+        value="b"
+        slide
+        onChange={() => undefined}
+        options={[
+          { value: 'a', label: 'A' },
+          { value: 'b', label: 'B' },
+          { value: 'c', label: 'C' },
+        ]}
+      />,
+    );
+    expect(container.querySelectorAll('.seg-thumb[aria-hidden="true"]')).toHaveLength(1);
+    expect(screen.getAllByRole('button')).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'B' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('switch toggles and exposes aria-checked', async () => {
     const onChange = vi.fn();
     render(<Switch label="Automatisch" checked={false} onChange={onChange} />);

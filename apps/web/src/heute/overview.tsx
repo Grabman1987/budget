@@ -16,6 +16,7 @@ import { eur, longDay, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { ValuationSourceHint } from '../ledger/valuation-hint';
 import { AppLink } from '../shell/app-link';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { MonthSwitch } from '../shell/month-switch';
 import { useMonth } from '../shell/use-month';
 import { PAYDAY_ONLY_THIS_MONTH, useBalancePeriod } from './use-balance-period';
@@ -130,6 +131,7 @@ export function HeuteHeader({
       <MonthSwitch heading={monthLabel(month)} headingAs="span" />
       <Segmented
         label="Zeitraum"
+        slide={REDESIGN_ENABLED}
         value={period}
         onChange={setPeriod}
         options={[

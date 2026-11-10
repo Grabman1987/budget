@@ -307,13 +307,19 @@ test('at most three suggestions in one line without overflow; Mehr and Notiz', a
   const note = dialog.getByLabel('Notiz');
   await expect(note).toBeVisible();
   const more = dialog.locator('details.kmore');
-  await expect(more).not.toHaveAttribute('open', /.*/);
-  await expect(more.locator('summary')).toHaveText('Mehr');
-  await expect(more.locator('summary')).toHaveAccessibleName('Mehr');
-  await more.locator('summary').click();
-  await expect(more).toHaveAttribute('open', '');
-  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768) {
-    await expect(more.getByLabel('Markierung', { exact: true })).toHaveCount(0);
+  const phoneRedesign = (await redesignLoaded(page)) && page.viewportSize()!.width < 768;
+  const noMore = phoneRedesign && (await more.count()) === 0;
+  if (!noMore) {
+    await expect(more).not.toHaveAttribute('open', /.*/);
+    await expect(more.locator('summary')).toHaveText('Mehr');
+    await expect(more.locator('summary')).toHaveAccessibleName('Mehr');
+    await more.locator('summary').click();
+    await expect(more).toHaveAttribute('open', '');
+  }
+  if (phoneRedesign) {
+    // The phone renders Mehr only when it has entries (projects); never an empty menu.
+    if (noMore) await expect(more).toHaveCount(0);
+    else await expect(more.getByLabel('Markierung', { exact: true })).toHaveCount(0);
     await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
   } else {
     await expect(more.getByLabel('Markierung', { exact: true })).toBeVisible();

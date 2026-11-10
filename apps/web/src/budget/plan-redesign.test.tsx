@@ -562,7 +562,7 @@ it('ON phone keeps month read utilities reachable through native menu keyboard n
   );
   mount();
   await screen.findByTestId('to-be-assigned');
-  const summary = screen.getByLabelText('Optionen', { selector: 'summary' });
+  const summary = screen.getByLabelText('Ansicht', { selector: 'summary' });
   const menu = summary.closest('details')!;
   summary.focus();
   fireEvent.keyDown(summary, { key: 'ArrowDown' });
