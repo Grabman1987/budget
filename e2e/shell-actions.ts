@@ -13,7 +13,7 @@ export interface ShellControls {
 export async function openShellControls(page: Page, touch = false): Promise<ShellControls> {
   const activate = (control: Locator) => (touch ? control.tap() : control.click());
   await page.locator('.app').waitFor({ state: 'visible' });
-  await page.locator('.m-head').waitFor({ state: 'attached' });
+  await page.locator('.m-head, .topbar').first().waitFor({ state: 'attached' });
   if (!(await page.locator('.m-head').isVisible())) {
     return {
       kind: 'desktop',
@@ -30,7 +30,10 @@ export async function openShellControls(page: Page, touch = false): Promise<Shel
     const openedHere = (await container.getAttribute('open')) === null;
     if (openedHere) await activate(avatar);
     await expect(container).toHaveAttribute('open', '');
-    const privacy = container.getByRole('button', { name: 'Beträge verbergen', exact: true });
+    // Privacy lives once in the shared header actions; the profile menu keeps theme and settings.
+    const privacy = page
+      .locator('.m-head')
+      .getByRole('button', { name: 'Beträge verbergen', exact: true });
     const theme = container.getByTitle('Hell/Dunkel umschalten', { exact: true });
     return {
       kind: 'avatar',

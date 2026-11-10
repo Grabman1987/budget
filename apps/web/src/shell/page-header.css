@@ -1,0 +1,190 @@
+/* Fixed utility columns are independent of the page body and its optional controls. */
+.app[data-budget-redesign='1'] .page-header {
+  display: block;
+  height: 64px;
+  min-height: 64px;
+  padding: 0;
+  background: var(--ground);
+  border-bottom: var(--stroke-hairline) solid var(--rule);
+  backdrop-filter: none;
+}
+.page-header-row {
+  display: grid;
+  grid-template-columns: 44px 140px minmax(0, 1fr) 200px 280px;
+  grid-template-rows: 44px;
+  align-items: center;
+  gap: var(--space-sm);
+  height: 64px;
+  padding: 10px calc(var(--space-xl) + var(--space-xs));
+}
+.page-header .page-header-title {
+  margin: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  font-size: var(--fs-headline);
+  line-height: var(--lh-headline);
+  font-weight: 650;
+  white-space: nowrap;
+}
+.page-header-controls {
+  min-width: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.page-header-controls > * {
+  min-width: 0;
+}
+/* The Stand text only appears in the body variant; the header keeps the heading and switches. */
+.page-header-controls .hv-head-title > span {
+  display: none;
+}
+.page-controls-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.page-header-controls .month-switch,
+.page-header-controls .seg {
+  flex-shrink: 0;
+}
+.page-header-search .global-search-launch {
+  width: 100%;
+  max-width: none;
+  padding-right: var(--space-md);
+}
+.page-header .page-header-actions {
+  display: grid;
+  grid-template-columns: 44px 110px 110px;
+  gap: var(--space-sm);
+  margin: 0;
+}
+.page-header .review-pill {
+  justify-content: center;
+  white-space: nowrap;
+}
+.page-header .page-header-booking {
+  padding-inline: var(--space-md);
+  white-space: nowrap;
+}
+.page-header .page-header-booking > svg {
+  flex: none;
+}
+.page-header-review-fallback,
+.page-header-review-icon {
+  display: none;
+}
+@media (max-width: 1100px) {
+  .page-header-review-fallback,
+  .page-header-review-icon {
+    display: inline;
+  }
+}
+.page-header-sidebar {
+  grid-column: 1;
+  grid-row: 1;
+}
+.page-header-title {
+  grid-column: 2;
+  grid-row: 1;
+}
+.page-header-controls {
+  grid-column: 3;
+  grid-row: 1;
+}
+.page-header-search {
+  grid-column: 4;
+  grid-row: 1;
+}
+.page-header-actions {
+  grid-column: 5;
+  grid-row: 1;
+}
+@media (min-width: 768px) and (max-width: 1100px) {
+  .page-header-row {
+    grid-template-columns: 44px minmax(100px, 1fr) 0 44px 140px;
+    padding-inline: var(--space-lg);
+  }
+  .page-header-search .global-search-launch {
+    padding: 0;
+  }
+  .page-header-search .global-search-launch > span {
+    display: none;
+  }
+  .page-header .page-header-actions {
+    grid-template-columns: repeat(3, 44px);
+    gap: var(--space-xs);
+  }
+  .page-header .review-pill,
+  .page-header .page-header-booking {
+    width: 44px;
+    padding: 0;
+  }
+  .page-header-review-label,
+  .page-header-booking > span {
+    display: none;
+  }
+}
+@media (max-width: 767px) {
+  .app[data-budget-redesign='1'] .page-header {
+    height: auto;
+    min-height: 52px;
+  }
+  .page-header-row {
+    height: auto;
+    grid-template-columns: minmax(0, 1fr) 44px 140px 44px;
+    gap: var(--space-xs);
+    min-height: 52px;
+    padding: var(--space-xs) max(var(--space-lg), env(safe-area-inset-right)) var(--space-xs)
+      max(var(--space-lg), env(safe-area-inset-left));
+  }
+  .page-header .page-header-title {
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
+  }
+  .page-header-controls {
+    display: none;
+  }
+  .page-header .page-header-title {
+    grid-column: 1;
+  }
+  .page-header-search {
+    grid-column: 2;
+  }
+  .page-header .page-header-actions {
+    grid-column: 3;
+    grid-template-columns: repeat(3, 44px);
+    gap: var(--space-xs);
+  }
+  .page-header .review-pill,
+  .page-header .page-header-booking {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    padding: 0;
+  }
+  .page-header-review-label,
+  .page-header-booking > span {
+    display: none;
+  }
+  .page-header .page-header-profile {
+    grid-column: 4;
+    grid-row: 1;
+  }
+  .page-header .page-header-detail-title {
+    margin: 0;
+    padding: var(--space-sm) var(--space-lg);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: var(--fs-display);
+    line-height: var(--lh-display);
+  }
+}
+@media print {
+  .app[data-budget-redesign='1'] .page-header {
+    display: none;
+  }
+}

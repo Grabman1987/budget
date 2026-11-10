@@ -221,7 +221,8 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   }
   const opener = page
     .getByRole('link', { name: /^(Buchung|Buchung erfassen)$/ })
-    .filter({ visible: true });
+    .filter({ visible: true })
+    .first();
   await opener.focus();
   await opener.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });

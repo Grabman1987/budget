@@ -17,23 +17,6 @@
 .account-check-mark:is([data-review-state='due'], [data-review-state='unreviewed']) {
   color: var(--warning);
 }
-.konten-desktop-heading {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  order: -2;
-  margin-inline-end: auto;
-  flex-shrink: 0;
-}
-.konten-desktop-heading h1 {
-  margin: 0;
-  font-size: var(--fs-headline);
-  line-height: var(--lh-headline);
-  font-weight: 650;
-}
-.konten-desktop-heading .area-page-menu {
-  margin: 0;
-}
 .konten-frame .konten-view-bar {
   display: flex;
   align-items: center;
@@ -94,47 +77,14 @@
 .konten-phone-heading h1:focus {
   outline: none;
 }
-.konten-phone-heading,
-.konten-review-count {
-  display: none;
-}
 [data-budget-redesign='1']:has(.konten-frame) .sheet {
   max-width: none;
   padding: 12px 28px 72px;
   row-gap: 10px;
 }
-[data-budget-redesign='1']:has(.konten-frame) .topbar-inner {
-  max-width: none;
-  padding-inline: 28px;
-  gap: 12px;
-}
-[data-budget-redesign='1']:has(.konten-frame) .topbar .global-search-launch {
-  margin-inline-start: 0;
-  flex: 0 1 200px;
-}
-[data-budget-redesign='1']:has(.konten-frame) .global-search-launch > span:not(.kbd) {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-[data-budget-redesign='1']:has(.konten-frame) .global-search-launch::after {
-  content: 'Suchen';
-  font-size: var(--fs-table);
-}
-[data-budget-redesign='1']:has(.konten-frame) .global-search-launch > .kbd {
-  display: none;
-}
 @media (max-width: 767px) {
   [data-budget-redesign='1']:has(.konten-frame) .sheet {
     padding: 0 16px calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 16px);
-  }
-  [data-budget-redesign='1']:has(.konten-frame) .m-head {
-    align-items: center;
-    height: 52px;
-    padding: 4px 16px;
-    gap: 4px;
   }
   [data-budget-redesign='1']:has(.konten-frame) .main > .m-status {
     display: none;
@@ -146,6 +96,9 @@
     display: flex;
     align-items: center;
     min-width: 0;
+    /* The open views menu must stack above the account actions that follow the heading. */
+    position: relative;
+    z-index: 35;
   }
   .konten-phone-heading h1 {
     margin: 0;
@@ -159,6 +112,11 @@
   .konten-phone-heading .area-page-menu {
     margin: 0;
   }
+  /* The icon-only menu sits at the right edge; open its list towards the screen. */
+  .app[data-budget-redesign='1'] .konten-phone-heading .area-page-menu > nav {
+    inset-inline-start: auto;
+    inset-inline-end: 0;
+  }
   .konten-phone-heading .area-page-menu > summary {
     width: 44px;
     min-width: 44px;
@@ -168,29 +126,6 @@
     gap: 0;
     border: 0;
     background: none;
-  }
-  .konten-review-count {
-    display: inline-grid;
-    place-items: center;
-    min-width: 44px;
-    height: 44px;
-    position: relative;
-    border: 0;
-    border-radius: 50%;
-    font-family: var(--font-tech);
-    font-weight: 650;
-    text-decoration: none;
-  }
-  .konten-review-count::before {
-    content: '';
-    position: absolute;
-    inset: 3px;
-    border: 1px solid var(--primary);
-    border-radius: 50%;
-  }
-  [data-budget-redesign='1']:has(.konten-frame) .m-head .global-search-trigger {
-    border-color: transparent;
-    background: transparent;
   }
   .konten-phone-heading.is-account > .icon-btn {
     margin-inline-start: -12px;
@@ -216,21 +151,11 @@
   }
 }
 
-/* Keep every header action reachable when the sidebar leaves a tablet-sized column. */
-@media (min-width: 768px) and (max-width: 1100px) {
-  [data-budget-redesign='1']:has(.konten-frame) .topbar {
-    height: auto;
-    min-height: 64px;
-  }
-  [data-budget-redesign='1']:has(.konten-frame) .topbar-inner {
-    flex-wrap: wrap;
-    padding-block: 8px;
-  }
-  [data-budget-redesign='1']:has(.konten-frame) .topbar .global-search-launch {
-    flex: 0 0 44px;
-    min-width: 44px;
-  }
-  [data-budget-redesign='1']:has(.konten-frame) .global-search-launch::after {
-    display: none;
+.konten-phone-heading {
+  display: none;
+}
+@media (max-width: 767px) {
+  .konten-phone-heading {
+    display: flex;
   }
 }
