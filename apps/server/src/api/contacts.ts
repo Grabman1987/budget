@@ -159,7 +159,9 @@ export function contactRoutes(db: Db, today: () => string): Hono {
   app.post('/:id/merge', async (c) => {
     const input = await readBody(
       c,
-      z.object({ targetId: z.string().min(1).max(100), token: z.string().min(1).max(200) }).strict(),
+      z
+        .object({ targetId: z.string().min(1).max(100), token: z.string().min(1).max(200) })
+        .strict(),
     );
     const ctx = audit();
     const row = commitContactMerge(db, c.req.param('id'), input.targetId, input.token, ctx, {

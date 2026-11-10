@@ -40,7 +40,8 @@ const facts = () => ({
   splits: q('SELECT id, booking_id, contact_id, amount_cents FROM booking_split ORDER BY id'),
   settlements: q('SELECT id, contact_id, credit_cents FROM contact_settlement ORDER BY id'),
 });
-const groups = () => (q('SELECT count(DISTINCT group_id) AS n FROM audit_log')[0] as { n: number }).n;
+const groups = () =>
+  (q('SELECT count(DISTINCT group_id) AS n FROM audit_log')[0] as { n: number }).n;
 
 it('requires a session, previews read-only, commits with the token and undoes as one group', async () => {
   signedIn = false;
@@ -98,6 +99,8 @@ it('answers conflicts as 409 with machine-readable reasons and writes nothing', 
   const refused = await call('POST', '/contacts/ka/merge', { targetId: 'ka', token: 'x.y' });
   expect(refused.status).toBe(409);
   expect(refused.body).toMatchObject({ error: 'merge_conflict', reasons: ['same_contact'] });
-  expect((await call('POST', '/contacts/missing/merge/preview', { targetId: 'ka' })).status).toBe(404);
+  expect((await call('POST', '/contacts/missing/merge/preview', { targetId: 'ka' })).status).toBe(
+    404,
+  );
   expect(groups()).toBe(g0);
 });
