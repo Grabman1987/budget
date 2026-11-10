@@ -68,3 +68,27 @@
   color: var(--ink);
   padding-inline: 12px;
 }
+.receipt-intents {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.receipt-intent {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--raised);
+}
+.receipt-intent[data-tone='uncertain'] {
+  border-color: var(--warning);
+}
+.receipt-intent[data-tone='failed'] {
+  border-color: var(--red);
+}
+.receipt-intent-state {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+.receipt-intent .receipt-hint {
+  margin: 0 0 8px;
+}
