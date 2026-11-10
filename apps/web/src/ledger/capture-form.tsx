@@ -325,6 +325,14 @@ export function CaptureForm({
         : (offlineChoices?.categories ?? []),
     [budget.data, lookups.data, offlineChoices],
   );
+  // Async payee-history callbacks must see the categories and kind of the latest render, not the
+  // ones captured when the payee was picked (they may still be loading then).
+  const allRef = useRef(all);
+  const kindRef = useRef(draft.kind);
+  useLayoutEffect(() => {
+    allRef.current = all;
+    kindRef.current = draft.kind;
+  });
   // Archived categories are not offered; the field still names the one an old booking has.
   const pickable = useMemo(() => categoriesFor(all, draft.kind), [all, draft.kind]);
   useEffect(() => {
@@ -401,6 +409,35 @@ export function CaptureForm({
     dirtyRef.current = dirty;
   }, [dirty, dirtyRef]);
 
+  /** Applies a payee-suggested category to a draft, only where it is still allowed and valid. */
+  const withPayeeCategory = (
+    d: typeof draft,
+    fallback: string | null | undefined,
+  ): typeof draft => {
+    if (d.splitOn || d.kind === 'transfer' || d.contactId) return d;
+    const next = categoryFromPayee(d.categoryId, appliedByPayee.current, fallback);
+    if (next === undefined || !categoriesFor(allRef.current, d.kind, '').some((c) => c.id === next))
+      return d;
+    appliedByPayee.current = next;
+    return {
+      ...d,
+      categoryId: next,
+      ...(d.lines?.length === 1 && d.lines[0]?.type === 'category'
+        ? { lines: [{ ...d.lines[0], categoryId: next }] }
+        : {}),
+    };
+  };
+  // A history answer that arrives before the categories are loaded waits for them.
+  const pendingCategory = useRef<{ request: number; ids: string[] } | null>(null);
+  useEffect(() => {
+    const pending = pendingCategory.current;
+    if (!pending || !all.length) return;
+    pendingCategory.current = null;
+    if (pending.request !== categoryRequest.current || categoryChosen.current) return;
+    const id = pending.ids.find((c) => categoriesFor(all, kindRef.current).some((i) => i.id === c));
+    if (id) setDraft((d) => withPayeeCategory(d, id));
+  }, [all]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /**
    * The payee's default category is applied when a payee is chosen (list pick or leaving the
    * field), not while typing: "Spar" on the way to "Sparkasse" must not set anything.
@@ -411,20 +448,7 @@ export function CaptureForm({
     const request = ++categoryRequest.current;
     const applyCategory = (fallback: string | null | undefined) => {
       if (request !== categoryRequest.current || categoryChosen.current) return;
-      setDraft((d) => {
-        if (d.splitOn || d.kind === 'transfer' || d.contactId) return d;
-        const next = categoryFromPayee(d.categoryId, appliedByPayee.current, fallback);
-        if (next === undefined || !categoriesFor(all, d.kind, '').some((c) => c.id === next))
-          return d;
-        appliedByPayee.current = next;
-        return {
-          ...d,
-          categoryId: next,
-          ...(d.lines?.length === 1 && d.lines[0]?.type === 'category'
-            ? { lines: [{ ...d.lines[0], categoryId: next }] }
-            : {}),
-        };
-      });
+      setDraft((d) => withPayeeCategory(d, fallback));
     };
     applyCategory(payee?.defaultCategoryId);
     const suggestAccount =
@@ -466,9 +490,17 @@ export function CaptureForm({
         if (!cursor) applyAccount(page.items[0]?.accountId);
         if (!suggestCategory || request !== categoryRequest.current || categoryChosen.current)
           return;
-        const category = page.items
-          .map((booking) => recentPayeeCategory(booking, draft.kind))
-          .find((id) => id && categoriesFor(all, draft.kind).some((item) => item.id === id));
+        const ids = page.items
+          .map((booking) => recentPayeeCategory(booking, kindRef.current))
+          .filter((id): id is string => Boolean(id));
+        if (!allRef.current.length) {
+          pendingCategory.current = { request, ids };
+          return;
+        }
+        const category = ids.find(
+          (id) =>
+            id && categoriesFor(allRef.current, kindRef.current).some((item) => item.id === id),
+        );
         if (category) return applyCategory(category);
         cursor = page.nextCursor ?? undefined;
       } while (cursor);
@@ -858,6 +890,9 @@ export function CaptureForm({
     />
   );
 
+  const hasMoreEntries =
+    (!isTransfer && !mobileRedesign) ||
+    ((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0;
   const moreFields = (
     <details className="kmore" open={moreOpen} onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
       <summary>
@@ -930,6 +965,7 @@ export function CaptureForm({
           value={draft.kind}
           onChange={changeKind}
           stretch
+          slide={REDESIGN_ENABLED}
           className="bk-kind"
         />
       )}
@@ -1092,7 +1128,7 @@ export function CaptureForm({
               onChange={(flag) => set('flag', flag)}
             />
           )}
-          {moreFields}
+          {hasMoreEntries && moreFields}
           {closeControl}
           {!editing && <ReceiptSection uploadOnly actionsHost={receiptActionsHost} />}
         </div>

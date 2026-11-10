@@ -127,6 +127,8 @@ export interface MonthIncomeLine {
   status: OccurrenceStatus;
   expectedCents: number;
   receivedCents: number;
+  /** The linked booking, if any. */
+  bookingId: string | null;
 }
 
 export interface MonthIncome {

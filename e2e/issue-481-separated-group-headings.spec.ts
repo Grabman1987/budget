@@ -5,6 +5,7 @@ import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 import { STORAGE_STATE_SAMPLE } from '../playwright.config';
 import { sampleTest, SAMPLE_NOW, SAMPLE_URL } from './sample';
 import { test } from './isolated-ledger';
+import { openDetailsFromPhoneSheet } from './plan-phone-sheet';
 
 // Literal membership from the synthetic source, independent of rendered row counts.
 const multiGroups = [
@@ -265,6 +266,7 @@ for (const profile of ['configured', 'desktop', 'phone-tall'] as const) {
           await expect(table.locator('.pname')).toHaveCount(36);
           await nameButton(page, 'cat-miete').focus();
           await page.keyboard.press('Enter');
+          await openDetailsFromPhoneSheet(page);
           const inspector = page.getByRole('complementary', { name: 'Plan-Inspektor' });
           await expect(
             inspector.getByRole('heading', { name: 'Miete', exact: true }),
@@ -387,6 +389,7 @@ test('real parent literals, independent first category, assignment and undo surv
   });
   if (page.viewportSize()!.width < 768) {
     await nameButton(page, ids[0]!).click();
+    await openDetailsFromPhoneSheet(page);
     const inspector = page.getByRole('complementary', { name: 'Plan-Inspektor' });
     await expect(
       inspector.getByRole('heading', { name: 'Erster Posten', exact: true }),

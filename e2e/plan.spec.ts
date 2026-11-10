@@ -4,6 +4,7 @@ import { test as isolatedTest } from './isolated-ledger';
 import { MAIN_URL } from '../playwright.config';
 import { shiftMonth } from '../apps/web/src/nav/month';
 import { eur } from '../apps/web/src/ledger/format';
+import { openDetailsFromPhoneSheet } from './plan-phone-sheet';
 
 /**
  * Plan › Monat end to end on the real server: assign inline, cover cash overspending from the
@@ -284,6 +285,7 @@ isolatedTest(
 
     // Read details on their own page; input opens a form dialog.
     await row(page, cafe).getByRole('button', { name: cafe, exact: true }).first().click();
+    await openDetailsFromPhoneSheet(page);
     await page.getByRole('link', { name: 'Verlauf und Buchungen' }).click();
     await expect(page).toHaveURL(/\/plan\/monat\/envelope\//);
     await page.getByRole('button', { name: 'Zuweisen oder verschieben' }).click();

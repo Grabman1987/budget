@@ -57,14 +57,17 @@ for (const theme of ['light', 'dark'] as const) {
       expect(month.x + month.width).toBeLessThanOrEqual(period.x);
       await expect(page.locator('.hv-head-phone .month-name')).toHaveText('September 2026');
       await expect(page.locator('.hv-head-phone .seg')).toHaveCSS('height', '44px');
-      expect(
-        await page.locator('.hv-head-phone .seg').evaluate((el) => {
-          const style = getComputedStyle(el, '::before');
-          return (
-            el.getBoundingClientRect().height - parseFloat(style.top) - parseFloat(style.bottom)
-          );
-        }),
-      ).toBe(36);
+      {
+        // The sliding pill fills the selected segment, inside the 44px control.
+        const group = page.locator('.hv-head-phone .seg');
+        const pill = (await group.locator('.seg-thumb').boundingBox())!;
+        const selected = (await group.locator('button[aria-pressed="true"]').boundingBox())!;
+        expect(Math.abs(pill.x - selected.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(pill.width - selected.width)).toBeLessThanOrEqual(1);
+        expect(pill.height).toBeGreaterThanOrEqual(36);
+        expect(pill.y).toBeGreaterThanOrEqual(period.y);
+        expect(pill.y + pill.height).toBeLessThanOrEqual(period.y + period.height);
+      }
       await expect(page.locator('.hv-chain-bar')).toHaveCSS('height', '1px');
 
       const dock = page.locator('.tabbar');
