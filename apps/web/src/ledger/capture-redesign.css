@@ -349,6 +349,12 @@
   .bkform-redesign .bk-context-fields .bk-date-input {
     align-items: stretch;
   }
+  /* The redesign field height (smaller than --touch) would leave the date input and the account
+     select 6px shorter than the calendar and repeat buttons: one control row, one height. */
+  .bkform-redesign .bk-context-fields .field-row :is(input.input, select.select) {
+    height: var(--touch);
+    min-height: var(--touch);
+  }
   .bkform-redesign .bk-context-fields :is(.bk-calendar, .bk-repeat-native) {
     flex: 0 0 var(--touch);
     width: var(--touch);

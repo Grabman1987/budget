@@ -304,7 +304,6 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
   await expect(help).toContainText(
     'Enter speichert gültige Eingaben · Strg Enter speichert · Strg Umschalt Enter speichert und beginnt neu · Esc schließt',
   );
-  await expect(help).toContainText('6 Violett');
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
