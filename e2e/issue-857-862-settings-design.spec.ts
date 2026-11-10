@@ -180,3 +180,27 @@ test('settings entry follows the desktop profile and the Heute phone avatar', as
     await expect(page.getByLabel('Name', { exact: true })).toBeVisible();
   }
 });
+
+test('connections: opened source forms fit 390px and keep 44px targets', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/einstellungen/datenquellen');
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) !== '1') {
+    await expect(page.locator('.settings-connections-v2')).toHaveCount(0);
+    return;
+  }
+  await page.waitForLoadState('networkidle');
+  for (const name of ['Bank', 'Krypto', 'Gehaltszettel']) {
+    const card = page.getByRole('region', { name, exact: true });
+    await card.getByRole('button', { name: /^(Prüfen|Verwalten)$/ }).click();
+    await expect(card.locator('.settings-source-details')).toBeVisible();
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  const small = await page.$$eval(
+    '.settings-source-details :is(button, select, input:not([type=file]):not([type=checkbox]):not(.sr-only), .btn)',
+    (nodes) =>
+      nodes
+        .map((node) => node.getBoundingClientRect())
+        .filter((box) => box.width > 0 && box.height > 0 && box.height < 43.5).length,
+  );
+  expect(small, 'controls under 44px in opened source cards').toBe(0);
+});
