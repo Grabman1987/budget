@@ -25,7 +25,7 @@ for (const width of [390, 1440]) {
         await expect(save).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
       } else {
         await expect(dialog.getByRole('button', { name: 'Schließen', exact: true })).toBeVisible();
-        await expect(dialog.getByRole('button', { name: 'Markierung: keine' })).toBeVisible();
+        await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
         await expect(dialog.locator('#booking-save-reason')).toHaveCount(0);
       }
       const amount = dialog.getByLabel('Betrag', { exact: true });

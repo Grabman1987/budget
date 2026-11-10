@@ -92,3 +92,31 @@
 .receipt-intent .receipt-hint {
   margin: 0 0 8px;
 }
+.receipt-attached {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 8px var(--gutter, 16px) 0;
+}
+.receipt-attached > li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--touch);
+  padding-inline: 12px 4px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md, 8px);
+  max-width: 100%;
+}
+.receipt-attached .receipt-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.receipt-attached .btn {
+  min-height: 44px;
+  min-width: 44px;
+}

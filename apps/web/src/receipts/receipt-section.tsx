@@ -2,7 +2,7 @@ import { Button, SectionHead, useToast } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Paperclip, Camera, Loader2 } from 'lucide-react';
+import { Paperclip, Camera, Loader2, X } from 'lucide-react';
 import { ApiError, request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { nativeCurrency } from '../ledger/format';
@@ -24,6 +24,11 @@ interface Receipt {
   mime: string;
   sizeBytes: number;
 }
+export interface AttachedReceipt {
+  id: string;
+  name: string;
+  sizeBytes: number;
+}
 const path = (id: string) => `/api/receipts/${encodeURIComponent(id)}`;
 const receiptQuery = (bookingId?: string) => ({
   queryKey: [...LEDGER_KEY, 'receipts', bookingId ?? null],
@@ -39,10 +44,13 @@ export function ReceiptSection({
   bookingId,
   actionsHost,
   uploadOnly = false,
+  onAttached,
 }: {
   bookingId?: string;
   actionsHost?: Element | null;
   uploadOnly?: boolean;
+  /** Fires once per file the server acknowledged (upload-only capture shows it until the save). */
+  onAttached?: (file: AttachedReceipt) => void;
 }) {
   const heading = useId(),
     uploadId = useId(),
@@ -53,6 +61,7 @@ export function ReceiptSection({
     [linking, setLinking] = useState<string | null>(null),
     [unsaved, setUnsaved] = useState<File | null>(null);
   const intents = useReceiptIntents(bookingId);
+  const names = useRef(new Map<string, string>());
   const receipts = useQuery({ ...receiptQuery(bookingId), enabled: !uploadOnly });
   const unlinked = useQuery({ ...receiptQuery(), enabled: Boolean(bookingId) });
   const write = useBudgetWrite(),
@@ -87,12 +96,13 @@ export function ReceiptSection({
       setBusy(false);
       return;
     }
+    names.current.set(intent.id, file.name);
     await send(intent.id);
     setBusy(false);
   };
   const send = async (id: string) => {
     let handled = false;
-    await write(
+    const sent = await write(
       async () => {
         const reply = await retryReceiptIntent(id);
         // Row already sent or cancelled (e.g. in another tab): nothing left to deliver here.
@@ -109,6 +119,13 @@ export function ReceiptSection({
             ? 'Beleg angehängt.'
             : 'Beleg unter Prüfen gespeichert.',
     );
+    const receipt = sent && 'receipt' in sent ? sent.receipt : undefined;
+    if (receipt && onAttached)
+      onAttached({
+        id: receipt.id,
+        name: names.current.get(id) ?? intents.items.find((i) => i.id === id)?.filename ?? 'Beleg',
+        sizeBytes: receipt.sizeBytes,
+      });
     await intents.refresh();
   };
   const retry = async (id: string) => {
@@ -369,5 +386,36 @@ function BookingPicker({ busy, onLink }: { busy: boolean; onLink: (id: string) =
       )}
       {bookings.data?.items.length === 0 && <EmptyNote>Keine passende Buchung gefunden.</EmptyNote>}
     </div>
+  );
+}
+
+/** Files attached in the capture dialog before the booking exists (already in Prüfen). */
+export function AttachedReceipts({
+  items,
+  onRemove,
+}: {
+  items: AttachedReceipt[];
+  onRemove: (id: string) => void;
+}) {
+  if (!items.length) return null;
+  return (
+    <ul className="receipt-attached" aria-label="Angehängte Belege">
+      {items.map((r) => (
+        <li key={r.id} data-testid="attached-receipt">
+          <Paperclip size={16} strokeWidth={1.75} aria-hidden="true" />
+          <span className="receipt-name">
+            {r.name}
+            <small> · {Math.max(1, Math.ceil(r.sizeBytes / 1024))} KB</small>
+          </span>
+          <Button
+            variant="ghost"
+            aria-label={`Beleg ${r.name} entfernen`}
+            onClick={() => onRemove(r.id)}
+          >
+            <X size={16} strokeWidth={1.75} aria-hidden="true" />
+          </Button>
+        </li>
+      ))}
+    </ul>
   );
 }

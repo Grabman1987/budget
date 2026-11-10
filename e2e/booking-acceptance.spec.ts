@@ -3,7 +3,6 @@ import {
   redesignLoaded,
   bankPreviewControl,
   toast,
-  captureFlagControl,
   categoryLineControl,
   contactShareControl,
 } from './ledger-helpers';
@@ -360,18 +359,16 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
     await expect(await categoryLineControl(dialog)).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(dialog.getByLabel('Notiz')).toBeFocused();
-    await page.keyboard.press('Tab');
-    await expect(dialog.locator('.kmore > summary')).toBeFocused();
+    // Mehr only exists while there is a project to pick (the flag entry is retired).
+    if ((await dialog.locator('.kmore > summary').count()) > 0) {
+      await page.keyboard.press('Tab');
+      await expect(dialog.locator('.kmore > summary')).toBeFocused();
+    }
     await page.keyboard.press('Tab');
     await expect(dialog.getByRole('button', { name: 'Speichern und neu' })).toBeFocused();
     const save = captureSaveControl(dialog);
     await page.keyboard.press('Tab');
     await expect(save).toBeFocused();
-    await page.keyboard.press('Tab');
-    await expect(await captureFlagControl(dialog, 'Markierung: keine')).toBeFocused();
-    await page.keyboard.press('Shift+Tab');
-    await expect(save).toBeFocused();
-    await page.keyboard.press('Tab');
     for (const name of ['Ausgabe', 'Einnahme', 'Umbuchung', 'Schließen']) {
       await page.keyboard.press('Tab');
       await expect(dialog.getByRole('button', { name, exact: true })).toBeFocused();

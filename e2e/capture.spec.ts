@@ -2,7 +2,6 @@ import { captureSaveControl } from './ledger-helpers';
 import { captureCloseControl } from './ledger-helpers';
 import {
   redesignLoaded,
-  captureFlagControl,
   categoryLineControl,
   again,
   MIN_TARGET_PX,
@@ -478,39 +477,10 @@ test('the flag: popover with six colours and keys, first column of the table', a
   await openAccount(page, account);
 
   const panel = await openCapture(page, testInfo);
-  // The flag button comes first in the head, before the kind of booking.
-  const redesign = await redesignLoaded(page);
-  const viewport = page.viewportSize()!;
-  const phoneRedesign = redesign && viewport.width < 768;
-  if (phoneRedesign) {
-    await expect(panel.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
-    await expect(panel.getByLabel('Markierung', { exact: true })).toHaveCount(0);
-    // Capture's flag editing is now desktop-only; the register still offers it on phones.
-    await page.setViewportSize({ width: 1440, height: viewport.height });
-  }
-  const head = redesign ? panel : panel.locator('.bk-head');
-  if (!redesign)
-    await expect(head.getByRole('button').first()).toHaveAccessibleName('Markierung: keine');
-  await captureFlagControl(panel, /^Markierung/);
-  await head.getByRole('button', { name: /^Markierung/ }).click();
-  const menu = panel.getByRole('menu', { name: 'Markierung wählen' });
-  await expect(menu.getByRole('menuitemradio')).toHaveText([
-    /Rot/,
-    /Orange/,
-    /Gelb/,
-    /Grün/,
-    /Blau/,
-    /Violett/,
-    /keine/,
-  ]);
-  // Esc closes the popover only; the dialog stays.
-  await page.keyboard.press('Escape');
-  await expect(menu).toBeHidden();
-  await expect(panel).toBeVisible();
-  await head.getByRole('button', { name: /^Markierung/ }).click();
-  await page.keyboard.press('3');
-  await expect(menu).toBeHidden();
-  await expect(head.getByRole('button', { name: 'Markierung: Gelb' })).toBeFocused();
+  // The flag is retired in the capture dialog on every viewport; the register keeps it.
+  await expect(panel.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
+  await expect(panel.getByLabel('Markierung', { exact: true })).toHaveCount(0);
+  await expect(panel.getByTitle('Markieren')).toHaveCount(0);
 
   await panel.getByLabel('Betrag', { exact: true }).fill('9,00');
   await panel.getByLabel('Empfänger').fill(`Kiosk ${tag}`);
@@ -518,13 +488,16 @@ test('the flag: popover with six colours and keys, first column of the table', a
   await page.keyboard.press('Control+Enter');
   await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
 
-  if (phoneRedesign) await page.setViewportSize(viewport);
   // The table: the flag is the first column and shows a glyph with the colour name as text.
   if (!isPhone(testInfo)) {
     await expect(page.getByRole('columnheader').first()).toHaveText('Markierung');
   }
   const row = page.getByRole('row', { name: new RegExp(`Kiosk ${tag}`) });
   const flagButton = row.getByRole('button', { name: /Markierung ändern/ });
+  // The flag is set in the register now (the dialog no longer offers it).
+  await flagButton.focus();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('3');
   await expect(flagButton).toHaveAccessibleName(/aktuell Gelb/);
   await expect(row.locator('.kflag-glyph.is-yellow')).toBeVisible();
 
@@ -544,18 +517,14 @@ test('the flag: popover with six colours and keys, first column of the table', a
   await expect(page.getByRole('menu', { name: 'Markierung wählen' })).toBeHidden();
   await expect(flagButton).toBeFocused();
 
-  // Opened again: the flag is kept; "keine" (key 0) removes it.
-  if (phoneRedesign) await page.setViewportSize({ width: 1440, height: viewport.height });
+  // Opened again: no flag control, and saving keeps the stored flag.
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
-  await (await captureFlagControl(edit, 'Markierung: Gelb')).click();
-  await page.keyboard.press('0');
-  await expect(await captureFlagControl(edit, 'Markierung: keine')).toBeVisible();
+  await expect(edit.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
+  await edit.getByLabel('Notiz').fill('Notiz geändert');
   await captureSaveControl(edit).click();
   await expect(edit).toBeHidden();
-  if (phoneRedesign) await page.setViewportSize(viewport);
-  await expect(row.locator('.kflag-glyph.is-none')).toHaveCount(1);
-  await expect(row.locator('.kflag-glyph:not(.is-none)')).toHaveCount(0);
+  await expect(row.locator('.kflag-glyph.is-yellow')).toBeVisible();
 });
 
 test('the checkmark: a new booking starts pending and can be confirmed', async ({

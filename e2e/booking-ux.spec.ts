@@ -1,12 +1,6 @@
 import { captureSaveControl } from './ledger-helpers';
 import { captureCloseControl } from './ledger-helpers';
-import {
-  historyChart,
-  redesignLoaded,
-  captureFlagControl,
-  categoryLineControl,
-  pickCategory,
-} from './ledger-helpers';
+import { historyChart, redesignLoaded, categoryLineControl, pickCategory } from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
@@ -270,9 +264,7 @@ test('single payee suggestion selects its recent account and keeps capture contr
     await panel.locator('.kmore > summary').scrollIntoViewIfNeeded();
     await expect(panel.locator('.kmore > summary')).toBeInViewport({ ratio: 1 });
   }
-  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768)
-    await expect(panel.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
-  else await expect(await captureFlagControl(panel, 'Markierung: keine')).toBeVisible();
+  await expect(panel.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
   await expect(captureCloseControl(panel)).toBeVisible();
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => {

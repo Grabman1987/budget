@@ -4,7 +4,6 @@ import { controlBoxes, minimumControlHeight } from './control-geometry';
 import {
   categorySuggestions,
   redesignLoaded,
-  captureFlagControl,
   categoryLineControl,
   contactShareControl,
   MIN_TARGET_PX,
@@ -169,14 +168,9 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   await expect(amount).toHaveValue('19,99');
   await expect(receiver).toBeFocused();
   await expect(discard).toHaveCount(0);
-  const phone = (await redesignLoaded(page)) && page.viewportSize()!.width < 768;
-  if (phone) {
-    await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
-    await expect(dialog.getByLabel('Markierung', { exact: true })).toHaveCount(0);
-  } else {
-    await (await captureFlagControl(dialog, 'Markierung: keine')).click();
-    await dialog.getByRole('menuitemradio', { name: /Blau/ }).click();
-  }
+  // The flag is retired in the capture dialog on every viewport.
+  await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
+  await expect(dialog.getByLabel('Markierung', { exact: true })).toHaveCount(0);
   await expect(discard).toHaveCount(0);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {

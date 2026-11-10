@@ -332,11 +332,30 @@
   .bkform-redesign .bk-context-fields {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: end;
+    /* Both cells are one Field (label row + control row): top-aligned labels, equal control rows. */
+    align-items: start;
     gap: 12px;
   }
   .bkform-redesign .bk-account-row {
     display: block;
+  }
+  .bkform-redesign .bk-context-fields .field-row {
+    margin-bottom: 0;
+  }
+  .bkform-redesign .bk-context-fields :is(.bk-date-input, .bk-calendar, .bk-repeat-native) {
+    height: var(--touch);
+    box-sizing: border-box;
+  }
+  .bkform-redesign .bk-context-fields .bk-date-input {
+    align-items: stretch;
+  }
+  .bkform-redesign .bk-context-fields :is(.bk-calendar, .bk-repeat-native) {
+    flex: 0 0 var(--touch);
+    width: var(--touch);
+  }
+  .bkform-redesign .bk-context-fields .bk-repeat-native .select {
+    height: var(--touch);
+    width: var(--touch);
   }
   .bkform-redesign .bk-col-lines {
     grid-area: lines;
