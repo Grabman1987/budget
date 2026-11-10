@@ -98,7 +98,7 @@ export function HeuteHeader({
   return (
     <div className={`hv-head${phone ? ' hv-head-phone' : ''}`}>
       <div className="hv-head-title">
-        <h1 className={phone ? 'sr-only' : undefined}>Heute</h1>
+        <h1 className="sr-only">Heute</h1>
         <span title="Berechnung zum angezeigten Stichtag; Uhrzeit des erfolgreichen Abrufs">
           {data
             ? `Stand ${shortDay(data.stand.today)}${updatedAt ? `, ${time.format(updatedAt)}` : ''}`
