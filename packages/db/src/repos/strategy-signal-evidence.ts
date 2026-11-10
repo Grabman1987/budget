@@ -8,8 +8,10 @@ import {
   type StrategyTrendClose,
   type StrategyTrendSession,
 } from '@budget/domain';
-import { asc, eq, min } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 import { price, priceAudit, security } from '../schema';
+import { SIGNAL_INDEX_ID } from './signal-index-id';
 import { strategyConfiguration, type StrategyEvidence } from './portfolio-strategy';
 import type { Executor } from './types';
 
@@ -20,7 +22,7 @@ import type { Executor } from './types';
  * were compared on 10.11.2026 (docs/portfolio-trend-strategy.md).
  */
 export const SIGNAL_INDEX = {
-  id: 'signal-ndx-usd-price-index',
+  id: SIGNAL_INDEX_ID,
   name: 'Nasdaq-100 Kursindex (USD), Signalreihe',
   symbol: '^NDX',
   currency: 'USD',
@@ -79,12 +81,14 @@ const nextMonth = (month: string) => {
 const previousMonth = (month: string) =>
   monthOf(new Date(Date.parse(`${month}-01T00:00:00.000Z`) - 86_400_000).toISOString());
 
+type PriceSource = typeof price.$inferSelect.source;
 interface StoredClose {
   date: string;
   priceMicro: number;
-  source: 'ariva' | 'yfinance';
+  source: PriceSource;
+  currency: string;
   completedAt: string;
-  observedAt: string;
+  observedAt: string | null;
 }
 
 /**
@@ -114,45 +118,54 @@ export function storedStrategyEvidence(db: Executor, asOf: string): StrategyEvid
   )
     return unavailable('signal_instrument_identity_mismatch');
 
-  const observed = new Map(
-    db
-      .select({ date: priceAudit.date, at: min(priceAudit.ts) })
-      .from(priceAudit)
-      .where(eq(priceAudit.securityId, SIGNAL_INDEX.id))
-      .groupBy(priceAudit.date)
-      .all()
-      .map((row) => [row.date, row.at] as const),
-  );
-  const rows: StoredClose[] = [];
+  // First observation (the insert audit row) and any later change per date.
+  const observed = new Map<string, string>();
+  const changed = new Set<string>();
+  for (const row of db
+    .select()
+    .from(priceAudit)
+    .where(eq(priceAudit.securityId, SIGNAL_INDEX.id))
+    .all()) {
+    if (row.oldPriceMicro !== null) changed.add(row.date);
+    else if (!observed.has(row.date) || row.ts < observed.get(row.date)!)
+      observed.set(row.date, row.ts);
+  }
+  const all: StoredClose[] = [];
   for (const row of db
     .select()
     .from(price)
     .where(eq(price.securityId, SIGNAL_INDEX.id))
     .orderBy(asc(price.date))
     .all()) {
-    if (row.source !== 'ariva' && row.source !== 'yfinance') return unavailable('untrusted_source');
-    if (row.currency !== SIGNAL_INDEX.currency) return unavailable('currency_mismatch');
     const completedAt = usEquitySessionCompletedAt(row.date);
     const observedAt = observed.get(row.date) ?? null;
+    // Not yet completed or not yet known at the as-of time: ignored, never looked ahead.
     if (completedAt > asOf || (observedAt !== null && observedAt > asOf)) continue;
-    if (observedAt === null) return unavailable('observation_time_missing');
-    if (observedAt < completedAt) return unavailable('observed_before_session_end');
-    rows.push({
+    all.push({
       date: row.date,
       priceMicro: row.priceMicro,
       source: row.source,
+      currency: row.currency,
       completedAt,
       observedAt,
     });
   }
-  if (rows.length === 0) return unavailable('no_completed_sessions');
+  if (all.length === 0) return unavailable('no_completed_sessions');
 
   // Start at the first session of a month so every month of the list is provably complete.
-  let first = Math.max(0, rows.length - SIGNAL_INDEX.maxSessions);
+  let first = Math.max(0, all.length - SIGNAL_INDEX.maxSessions);
   const monthStart = (date: string) => usEquityScheduledSessions(monthOf(date))?.[0] === date;
-  while (first < rows.length && !monthStart(rows[first]!.date)) first++;
-  const used = rows.slice(first);
+  while (first < all.length && !monthStart(all[first]!.date)) first++;
+  const used = all.slice(first);
   if (used.length < SIGNAL_INDEX.minSessions) return unavailable('insufficient_history');
+  // Row-level checks only on the evidence window; older stored rows cannot poison it.
+  for (const row of used) {
+    if (row.source !== 'ariva' && row.source !== 'yfinance') return unavailable('untrusted_source');
+    if (row.currency !== SIGNAL_INDEX.currency) return unavailable('currency_mismatch');
+    if (row.observedAt === null) return unavailable('observation_time_missing');
+    if (row.observedAt < row.completedAt) return unavailable('observed_before_session_end');
+    if (changed.has(row.date)) return unavailable('close_changed_after_capture');
+  }
   const latest = used.at(-1)!.date;
 
   // Veto: stored sessions must equal the published schedule from the first to the newest session.
@@ -187,13 +200,13 @@ export function storedStrategyEvidence(db: Executor, asOf: string): StrategyEvid
     completedAt: row.completedAt,
   }));
   const sourceId = [...new Set(used.slice(-SIGNAL_INDEX.minSessions).map((row) => row.source))]
-    .map((source) => SOURCE_LABEL[source])
+    .map((source) => SOURCE_LABEL[source as 'ariva' | 'yfinance'])
     .sort()
     .join('+');
   const closes: StrategyTrendClose[] = used.map((row) => ({
     sessionDate: row.date,
     closedAt: row.completedAt,
-    observedAt: row.observedAt,
+    observedAt: row.observedAt!,
     sourceId,
     indexId: SIGNAL_INDEX.indexId,
     closeUnits: row.priceMicro,
@@ -220,14 +233,14 @@ export function storedStrategyEvidence(db: Executor, asOf: string): StrategyEvid
   const months: StrategyMonthCalendar[] = [];
   for (const month of [monthOf(latest), nextMonth(monthOf(latest))]) {
     const scheduled = usEquityScheduledSessions(month);
-    if (scheduled)
-      months.push({
-        id: US_EQUITY_CALENDAR_ID,
-        sourceId: US_EQUITY_CALENDAR_SOURCE_ID,
-        month,
-        verifiedComplete: true,
-        sessions: scheduled,
-      });
+    if (!scheduled) return unavailable('holiday_table_out_of_range');
+    months.push({
+      id: US_EQUITY_CALENDAR_ID,
+      sourceId: US_EQUITY_CALENDAR_SOURCE_ID,
+      month,
+      verifiedComplete: true,
+      sessions: scheduled,
+    });
   }
   return { status: 'verified', verifiedIndex: 'nasdaq-100-usd-price-index', input, months };
 }
@@ -237,3 +250,80 @@ export const storedStrategyEvidenceProvider =
   (db: Executor) =>
   async (asOf: string): Promise<StrategyEvidence> =>
     storedStrategyEvidence(db, asOf);
+
+/**
+ * Store fetched closes of the signal series (inside the market run's transaction).
+ * - A session that is not completed at `nowIso` is never stored (partial same-day bar).
+ * - An identical stored close is left alone (no audit noise), so the refetch window heals
+ *   omitted days without rewriting anything.
+ * - A stored close first observed before its session ended is a poisoned capture and is replaced
+ *   (its audit trail is dropped, the new insert is audited).
+ * - Any other difference is a conflict: the stored close is kept, an audit row records the
+ *   disagreement once, and the evidence stays unavailable (`close_changed_after_capture`) until
+ *   an operator corrects the stored close. Manual closes are never touched.
+ */
+export function storeSignalCloses(
+  tx: Executor,
+  quotes: readonly { date: string; priceMicro: number }[],
+  source: 'ariva' | 'yfinance',
+  nowIso: string,
+): { rows: number; conflicts: number } {
+  let rows = 0,
+    conflicts = 0;
+  for (const q of quotes) {
+    const completedAt = usEquitySessionCompletedAt(q.date);
+    if (completedAt > nowIso) continue;
+    const key = and(eq(price.securityId, SIGNAL_INDEX.id), eq(price.date, q.date));
+    const trailKey = and(eq(priceAudit.securityId, SIGNAL_INDEX.id), eq(priceAudit.date, q.date));
+    const existing = tx.select().from(price).where(key).get();
+    const audit = (oldPrice: number | null, oldSource: PriceSource | null) =>
+      tx
+        .insert(priceAudit)
+        .values({
+          id: randomUUID(),
+          securityId: SIGNAL_INDEX.id,
+          date: q.date,
+          oldPriceMicro: oldPrice,
+          newPriceMicro: q.priceMicro,
+          oldSource,
+          newSource: source,
+          ts: nowIso,
+        })
+        .run();
+    if (!existing) {
+      tx.insert(price)
+        .values({
+          securityId: SIGNAL_INDEX.id,
+          date: q.date,
+          priceMicro: q.priceMicro,
+          currency: SIGNAL_INDEX.currency,
+          source,
+        })
+        .run();
+      audit(null, null);
+      rows++;
+      continue;
+    }
+    if (existing.source === 'manual' || existing.priceMicro === q.priceMicro) continue;
+    const trail = tx.select().from(priceAudit).where(trailKey).all();
+    const firstSeen = trail
+      .filter((a) => a.oldPriceMicro === null)
+      .map((a) => a.ts)
+      .sort()[0];
+    if (firstSeen === undefined || firstSeen < completedAt) {
+      tx.delete(priceAudit).where(trailKey).run();
+      tx.update(price)
+        .set({ priceMicro: q.priceMicro, currency: SIGNAL_INDEX.currency, source })
+        .where(key)
+        .run();
+      audit(null, null);
+      rows++;
+    } else {
+      // Counted on every run while unresolved; the audit row is written once.
+      if (!trail.some((a) => a.oldPriceMicro !== null && a.newPriceMicro === q.priceMicro))
+        audit(existing.priceMicro, existing.source);
+      conflicts++;
+    }
+  }
+  return { rows, conflicts };
+}

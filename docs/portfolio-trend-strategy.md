@@ -231,6 +231,19 @@ Sessions and calendar:
 - `sourceId` shows who delivered the latest 220 closes (`ariva:72`, `yfinance:^NDX`
   or both joined by `+`); `observedAt` per close is the data timestamp.
 
+Capture integrity (signal series only):
+
+- A session that is not completed at the run clock is never stored (no partial bar).
+- Every run refetches the evidence window (about the last 260 stored sessions); identical
+  closes are skipped without audit noise, so omitted days are backfilled.
+- A close first stored before its session ended is a poisoned capture and is replaced.
+- Any other differing refetched value is a conflict: the stored close is kept, one audit
+  row records it, the run protocol counts it (`conflict`, run `partial`) and the evidence
+  is `close_changed_after_capture` until an operator corrects the stored close. Row checks
+  (source, currency, observation time) apply only to the evidence window.
+- The series is hidden from the user-facing security list (`listSecurities`); exports and
+  price reads still contain it.
+
 Not covered: a cross-check between the two sources at runtime, early-close times,
 and an automatic first capture directly when the strategy is saved (it happens in the
 next nightly or manual market run).

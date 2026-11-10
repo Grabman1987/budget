@@ -117,3 +117,4 @@ export * from './instrument-history';
 export * from './networth-composition';
 export * from './portfolio-strategy';
 export * from './strategy-signal-evidence';
+export * from './signal-index-id';

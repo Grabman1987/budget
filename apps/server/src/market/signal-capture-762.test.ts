@@ -1,5 +1,6 @@
 import {
   createTestDatabase,
+  ensureSignalInstrument,
   lastMarketRun,
   saveStrategyConfiguration,
   SIGNAL_INDEX,
@@ -29,16 +30,22 @@ const TODAY = '2026-11-09';
 const AS_OF = '2026-11-10T12:00:00.000Z';
 const ALL = scheduledSessionsThrough('2025-01', '2026-12-31');
 
-const enable = () =>
+const enable = () => {
   saveStrategyConfiguration(
     opened.db,
     { config: strategyTestConfiguration(), revision: strategyConfiguration(opened.db).revision },
     '2026-09-30',
     { actor: 'test', groupId: 'config' },
   );
+  ensureSignalInstrument(opened.db);
+};
 
 /** A source that only knows the signal series; synthetic closes, nothing from the network. */
-function fakeSource(id: 'ariva' | 'yfinance', mode: 'ok' | 'fail' | 'empty') {
+function fakeSource(
+  id: 'ariva' | 'yfinance',
+  mode: 'ok' | 'fail' | 'empty',
+  valueOf: (date: string) => number = (date) => (10_000 + ALL.indexOf(date)) * 1_000_000,
+) {
   const calls: Array<{ from: string; to: string }> = [];
   const source: QuoteSource = {
     id,
@@ -47,9 +54,9 @@ function fakeSource(id: 'ariva' | 'yfinance', mode: 'ok' | 'fail' | 'empty') {
       calls.push({ from, to });
       if (mode === 'fail') throw new MarketError('timeout');
       if (mode === 'empty') return [];
-      return ALL.filter((d) => d >= from && d <= to).map((date, i) => ({
+      return ALL.filter((d) => d >= from && d <= to).map((date) => ({
         date,
-        priceMicro: (10_000 + i) * 1_000_000,
+        priceMicro: valueOf(date),
       }));
     },
   };
@@ -107,9 +114,10 @@ describe('signal series capture in the market run', () => {
     const evidence = storedStrategyEvidence(opened.db, AS_OF);
     expect(evidence.status).toBe('verified');
     expect(evidence.status === 'verified' && evidence.input.source.sourceId).toBe('ariva:72');
-    // A second run asks only for what is new.
+    // A second run refetches the evidence window (heals gaps), still ending at the new day.
     await refreshMarket(opened.db, sourcesOf(ariva.source, yahoo.source), '2026-11-10');
-    expect(ariva.calls[1]).toEqual({ from: '2026-11-10', to: '2026-11-10' });
+    expect(ariva.calls[1]).toMatchObject({ to: '2026-11-10' });
+    expect(ariva.calls[1]!.from < '2026-11-01').toBe(true);
   });
 
   it('falls back to Yahoo when Ariva fails or answers with nothing, and says which delivered', async () => {
@@ -172,5 +180,94 @@ describe('signal series capture in the market run', () => {
       reason: 'session_gap',
       missingSessions: ['2026-07-15'],
     });
+  });
+
+  it('never stores a session that is not completed yet (partial same-day bar)', async () => {
+    enable();
+    const ariva = fakeSource('ariva', 'ok');
+    // 09.11. 15:00 UTC: the US session of the 9th is still running.
+    await refreshPrices(opened.db, sourcesOf(ariva.source, fakeSource('yfinance', 'ok').source), {
+      today: TODAY,
+      now: new Date('2026-11-09T15:00:00.000Z'),
+    });
+    expect(
+      opened.sqlite
+        .prepare('SELECT max(date) AS d FROM price WHERE security_id = ?')
+        .get(SIGNAL_INDEX.id),
+    ).toEqual({ d: '2026-11-06' });
+  });
+
+  it('heals omitted days on the next run without rewriting identical closes', async () => {
+    enable();
+    const sparse = fakeSource('ariva', 'ok');
+    const omit: QuoteSource = {
+      ...sparse.source,
+      history: async (ref, from, to) =>
+        (await sparse.source.history(ref, from, to)).filter((q) => q.date !== '2026-07-15'),
+    };
+    const yahoo = fakeSource('yfinance', 'fail').source;
+    await refreshPrices(opened.db, sourcesOf(omit, yahoo), { today: TODAY });
+    const before = opened.sqlite.prepare('SELECT count(*) AS n FROM price_audit').get() as {
+      n: number;
+    };
+    const full = fakeSource('ariva', 'ok');
+    await refreshPrices(opened.db, sourcesOf(full.source, yahoo), { today: TODAY });
+    expect(full.calls[0]!.from < '2026-07-15').toBe(true);
+    const after = opened.sqlite.prepare('SELECT count(*) AS n FROM price_audit').get() as {
+      n: number;
+    };
+    expect(after.n).toBe(before.n + 1);
+    pinObservation();
+    expect(storedStrategyEvidence(opened.db, AS_OF).status).toBe('verified');
+  });
+
+  it('keeps a differing stored close, records the conflict once and blocks the evidence', async () => {
+    enable();
+    const yahoo = fakeSource('yfinance', 'fail').source;
+    await refreshPrices(opened.db, sourcesOf(fakeSource('ariva', 'ok').source, yahoo), {
+      today: TODAY,
+    });
+    pinObservation();
+    expect(storedStrategyEvidence(opened.db, AS_OF).status).toBe('verified');
+    const changed = fakeSource(
+      'ariva',
+      'ok',
+      (d) => (10_000 + ALL.indexOf(d)) * 1_000_000 + (d === '2026-08-12' ? 1 : 0),
+    );
+    const one = await refreshPrices(opened.db, sourcesOf(changed.source, yahoo), { today: TODAY });
+    const two = await refreshPrices(opened.db, sourcesOf(changed.source, yahoo), { today: TODAY });
+    expect([one.conflicts, two.conflicts]).toEqual([1, 1]);
+    expect(
+      opened.sqlite
+        .prepare('SELECT count(*) AS n FROM price_audit WHERE old_price_micro IS NOT NULL')
+        .get(),
+    ).toEqual({ n: 1 });
+    expect(storedStrategyEvidence(opened.db, AS_OF)).toMatchObject({
+      reason: 'close_changed_after_capture',
+    });
+  });
+
+  it('replaces a close that was captured before its session ended', async () => {
+    enable();
+    const yahoo = fakeSource('yfinance', 'fail').source;
+    await refreshPrices(opened.db, sourcesOf(fakeSource('ariva', 'ok').source, yahoo), {
+      today: TODAY,
+    });
+    pinObservation();
+    opened.sqlite
+      .prepare('UPDATE price_audit SET ts = ? WHERE security_id = ? AND date = ?')
+      .run('2026-11-06T15:00:00.000Z', SIGNAL_INDEX.id, '2026-11-06');
+    expect(storedStrategyEvidence(opened.db, AS_OF)).toMatchObject({
+      reason: 'observed_before_session_end',
+    });
+    const fixed = fakeSource(
+      'ariva',
+      'ok',
+      (d) => (10_000 + ALL.indexOf(d)) * 1_000_000 + (d === '2026-11-06' ? 5 : 0),
+    );
+    const run = await refreshPrices(opened.db, sourcesOf(fixed.source, yahoo), { today: TODAY });
+    expect(run.conflicts).toBe(0);
+    pinObservation();
+    expect(storedStrategyEvidence(opened.db, AS_OF).status).toBe('verified');
   });
 });

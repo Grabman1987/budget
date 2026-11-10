@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import { price, priceAudit, security } from '../schema';
+import { listSecurities } from './securities';
 import { SIGNAL_INDEX, storedStrategyEvidence } from './strategy-signal-evidence';
 import {
   scheduledSessionsThrough,
@@ -143,5 +144,60 @@ describe('stored signal evidence', () => {
   it('is unavailable instead of guessing when the holiday table ends', () => {
     seed(scheduledSessionsThrough('2028-01', '2028-12-29'));
     expect(reason('2029-01-03T12:00:00.000Z')).toBe('holiday_table_out_of_range');
+  });
+
+  it('is not stale on a Monday or after a holiday while the last completed session is stored', () => {
+    seed(scheduledSessionsThrough('2025-11', '2026-11-06'));
+    // Monday 09.11. noon: Friday 06.11. is the newest completed session.
+    expect(reason('2026-11-09T12:00:00.000Z')).toBe('verified');
+    opened.db.delete(priceAudit).run();
+    opened.db.delete(price).run();
+    seedSignalCloses(opened.db, scheduledSessionsThrough('2025-11', '2026-11-25'));
+    // Friday 27.11. noon, Thanksgiving (26.11.) in between: Wednesday 25.11. is the newest.
+    expect(reason('2026-11-27T12:00:00.000Z')).toBe('verified');
+  });
+
+  it('dates session ends correctly across the US daylight-saving change', () => {
+    seed();
+    const e = evidence();
+    const closed = (day: string) =>
+      e.status === 'verified' ? e.input.closes.find((c) => c.sessionDate === day)?.closedAt : null;
+    expect(closed('2026-03-06')).toBe('2026-03-06T21:00:00.000Z');
+    expect(closed('2026-03-09')).toBe('2026-03-09T20:00:00.000Z');
+  });
+
+  it('checks source, currency and observation only inside the evidence window', () => {
+    // An old manual row far outside the last 260 sessions cannot poison the evidence.
+    seed(['2023-01-03', '2023-01-04'].concat(sessions()), (date) =>
+      date.startsWith('2023') ? { source: 'manual', withAudit: false } : {},
+    );
+    expect(reason()).toBe('verified');
+  });
+
+  it('is unavailable when a stored close of the window was changed afterwards', () => {
+    seed();
+    opened.db
+      .insert(priceAudit)
+      .values({
+        id: 'change',
+        securityId: SIGNAL_INDEX.id,
+        date: '2026-08-12',
+        oldPriceMicro: 1,
+        newPriceMicro: 2,
+        oldSource: 'ariva',
+        newSource: 'yfinance',
+      })
+      .run();
+    expect(reason()).toBe('close_changed_after_capture');
+  });
+
+  it('hides the signal series from the user-facing security list', () => {
+    seed();
+    expect(listSecurities(opened.db).map((s) => s.id)).not.toContain(SIGNAL_INDEX.id);
+  });
+
+  it('is unavailable when the next month is outside the holiday table', () => {
+    seed(scheduledSessionsThrough('2027-12', '2028-12-29'));
+    expect(reason('2028-12-30T12:00:00.000Z')).toBe('holiday_table_out_of_range');
   });
 });
