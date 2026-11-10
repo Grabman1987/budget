@@ -29,3 +29,9 @@ version.
 
 PATCH `/api/profile` semantics: `family` is a partial object (omitted field = unchanged, `null` =
 clear); an empty `family` object is rejected with 400.
+
+## Out of scope in V1
+
+Recurring support obligations are represented only by the owner's existing scheduled payments and
+budget lines. The `support` answer is a yes/no flag that is not counted separately and carries no
+amount, so nothing is counted twice. No dedicated support-obligation criterion exists.

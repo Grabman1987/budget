@@ -67,7 +67,7 @@ const QUESTIONS: Record<RiskQuestionKey, QuestionText> = {
   },
 };
 
-const LEVEL_TEXT: Record<RiskLevel, string> = {
+export const LEVEL_TEXT: Record<RiskLevel, string> = {
   low: 'niedrig',
   medium: 'mittel',
   high: 'hoch',
