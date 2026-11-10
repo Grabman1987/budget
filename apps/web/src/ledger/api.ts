@@ -302,10 +302,27 @@ export interface BookingNotePreview {
 export const readNotePreview = (ids: string[], memo: string | null) =>
   request<BookingNotePreview>('POST', '/api/bookings/note-preview', { ids, memo });
 
+export interface BookingFieldPreview {
+  ids: string[];
+  selection: BulkSelection;
+  changed: string[];
+  unchanged: string[];
+  skipped: BulkResult['skipped'];
+  /** Cents moving out of (negative) and into (positive) a month; only for date changes. */
+  monthShifts: { month: string; currency: string; deltaCents: number }[];
+  revision: string;
+}
+export const readDatePreview = (ids: string[], date: string) =>
+  request<BookingFieldPreview>('POST', '/api/bookings/date-preview', { ids, date });
+export const readPayeePreview = (ids: string[], payeeId: string | null) =>
+  request<BookingFieldPreview>('POST', '/api/bookings/payee-preview', { ids, payeeId });
+
 export const bulkUpdateBookings = (
   ids: string[],
   set: {
     memo?: string | null;
+    date?: string;
+    payeeId?: string | null;
     categoryId?: string | null;
     flag?: BookingFlag | null;
     status?: 'pending' | 'confirmed';

@@ -129,8 +129,8 @@ it('moves only eligible dates, reports skips and month shifts, and undoes everyt
     ]),
   );
   expect(p.monthShifts).toEqual([
-    { month: '2026-09', deltaCents: 1000 },
-    { month: '2026-10', deltaCents: -1000 },
+    { month: '2026-09', currency: 'EUR', deltaCents: 1000 },
+    { month: '2026-10', currency: 'EUR', deltaCents: -1000 },
   ]);
   expect(auditRows()).toEqual(auditBefore);
 

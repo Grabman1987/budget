@@ -52,17 +52,21 @@ export function bookingFieldPreview(tx: Executor, requested: string[], change: B
   const shifts = new Map<string, number>();
   if (change.field === 'date')
     for (const id of changed) {
-      const b = source[ids.indexOf(id)]!;
+      const b = source[ids.indexOf(id)]!,
+        key = (month: string) => `${b.currency}|${month}`;
       const from = b.date.slice(0, 7),
         to = change.date.slice(0, 7);
       if (from === to) continue;
-      shifts.set(from, (shifts.get(from) ?? 0) - b.amountCents);
-      shifts.set(to, (shifts.get(to) ?? 0) + b.amountCents);
+      shifts.set(key(from), (shifts.get(key(from)) ?? 0) - b.amountCents);
+      shifts.set(key(to), (shifts.get(key(to)) ?? 0) + b.amountCents);
     }
   const monthShifts = [...shifts]
     .filter(([, deltaCents]) => deltaCents !== 0)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, deltaCents]) => ({ month, deltaCents }));
+    .sort(([a], [b]) => a.split('|')[1]!.localeCompare(b.split('|')[1]!) || a.localeCompare(b))
+    .map(([key, deltaCents]) => {
+      const [currency, month] = key.split('|') as [string, string];
+      return { month, currency, deltaCents };
+    });
   // Includes Undo and unrelated writes: a conservative ABA/retry fence, like delete-preview.
   const head =
     tx.get<{ ordinal: string; id: string }>(
