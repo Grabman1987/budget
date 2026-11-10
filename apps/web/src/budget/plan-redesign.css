@@ -140,14 +140,6 @@
 .plan.plan-month-v2 .ptable-zero .prow .spending-bar .pbar-fill {
   background: var(--plan-bar, var(--line));
 }
-/* #992: fully covered rows keep an empty, colourless track; colour only where money is missing or overspent. */
-.plan.plan-month-v2
-  .ptable-zero
-  .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
-  .spending-bar
-  .pbar-fill {
-  background: transparent;
-}
 .plan-month-v2
   .prow:is([data-plan-state='met'], [data-plan-state='overfunded'], [data-plan-state='neutral'])
   > .col-name {
