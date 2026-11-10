@@ -15,7 +15,13 @@ import { readSourceRoutes } from './read-source';
 import { searchRoutes } from './search';
 import { inboxRoutes } from './inbox';
 import { contactRoutes } from './contacts';
-import { namedNotes, runWithValuationNotes, sqliteOf, type Db } from '@budget/db';
+import {
+  namedNotes,
+  runWithValuationNotes,
+  sqliteOf,
+  storedStrategyEvidenceProvider,
+  type Db,
+} from '@budget/db';
 import { receiptDirectory } from '../receipts/files';
 import { receiptRoutes } from './receipts';
 import { readModelCache } from './response-cache';
@@ -119,7 +125,7 @@ export function createLedgerApi({
   bankSync = bankSyncFromEnv(db),
   jobs,
   receiptsDir = receiptDirectory(sqliteOf(db).name),
-  strategyEvidence,
+  strategyEvidence = storedStrategyEvidenceProvider(db),
 }: LedgerApiOptions): LedgerApi {
   const api = new Hono();
   api.use('*', readModelCache(db, today));

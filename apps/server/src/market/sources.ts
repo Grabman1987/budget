@@ -1,4 +1,4 @@
-import { fxSeries, priceSeries, type Db } from '@budget/db';
+import { fxSeries, isSignalInstrument, priceSeries, type Db } from '@budget/db';
 import {
   arivaSource,
   coingeckoSource,
@@ -57,7 +57,12 @@ export function createMarketSources(
     };
   }
   return {
-    quotes: arivaSource({ ...http, enabled: env['BUDGET_ARIVA'] !== '0' }),
+    quotes: arivaSource({
+      ...http,
+      enabled: env['BUDGET_ARIVA'] !== '0',
+      // The signal index must come from exactly the configured exchange, never Ariva's fallback.
+      verifyExchange: (ref) => isSignalInstrument(ref.id),
+    }),
     moreQuotes: [coingeckoSource(http), cryptocalcSource(http)],
     fallbackQuotes: yahooChartSource(http),
     fx: ecbSource(http),
