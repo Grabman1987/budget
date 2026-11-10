@@ -1,6 +1,6 @@
 import { MobileSheetContext, ToastProvider, cx, useIsPhone } from '@budget/ui';
 import { Outlet, useLocation } from '@tanstack/react-router';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { TITLE_ON_MOBILE_AREAS } from '../pages/area-head';
 import { MobileHeader, TabBar, phoneTitle } from './mobile-chrome';
 import { useActivePage } from './page-meta';
@@ -16,7 +16,8 @@ import { QueueList } from '../pwa/queue-ui';
 import { useStorageProtection } from '../pwa/storage-protection';
 import { usePrivacyShortcut } from './privacy-button';
 import { MobileStatusLine, OfflineStatus } from './header-status';
-import { HeuteShellHead } from '../heute/overview';
+import { restoreControlsFocus } from './controls-focus';
+import { HeuteShellHead, HeuteStandLine } from '../heute/overview';
 import { HeuteSourceReturn } from '../heute/return-context';
 import { REDESIGN_ENABLED } from './redesign-flag';
 import './mobile-sheets.css';
@@ -53,6 +54,10 @@ export function AppShell() {
   const searching = searchOpen || pathname === '/suche';
   const area = searching ? undefined : page?.area;
   const main = useRef<HTMLElement>(null);
+  const controlsRow = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (controlsInBody) restoreControlsFocus(controlsRow.current);
+  }, [controlsInBody]);
   const title = page?.title ?? APP_NAME;
   useCaptureShortcut();
 
@@ -95,7 +100,7 @@ export function AppShell() {
                 mobileHeading={
                   !TITLE_ON_MOBILE_AREAS.has(page.area) && !wealthPageHeading && !kontenPageHeading
                 }
-                controls={heuteControls ? <HeuteShellHead /> : undefined}
+                controls={heuteControls ? <HeuteShellHead showStand={false} /> : undefined}
                 onControlsPlacement={(place) => setControlsInBody(place === 'body')}
                 collapsed={collapsed}
                 onToggle={() => setCollapsed(!collapsed)}
@@ -123,10 +128,11 @@ export function AppShell() {
             <OfflineStatus />
             <main className="sheet" id="main" tabIndex={-1} ref={main}>
               {REDESIGN_ENABLED && heuteControls && controlsInBody && !phone && (
-                <div className="page-controls-row">
+                <div className="page-controls-row" ref={controlsRow}>
                   <HeuteShellHead />
                 </div>
               )}
+              {REDESIGN_ENABLED && heuteControls && !controlsInBody && !phone && <HeuteStandLine />}
               {(page?.area === 'heute' || page?.area === 'konten') && <QueueList />}
               {REDESIGN_ENABLED && <HeuteSourceReturn />}
               <Outlet />
