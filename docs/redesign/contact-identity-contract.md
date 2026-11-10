@@ -75,8 +75,11 @@ calculation; every reader calls it):
   settlements = `contact_settlement` rows with `contact_id ∈ U(r)`; allocations are reached via
   `settlement_id` and the outlay split id (no contact column), so a source settlement allocated
   to a target outlay (and the reverse) is valid after the merge because both resolve to `r`
-  (`contactStatement` in `@budget/domain` receives one identity). Before the merge,
-  cross-identity allocation stays refused as today. Calling it with a merged source id returns
+  (`contactStatement` in `@budget/domain` receives one identity). Resolver change: the
+  allocation validation (`assertContactSettlementInvariants`, `contact-invariants.ts`, and the
+  statement allocation checks) compares the contact of the settlement and of the outlay split
+  each via `root()`, never by raw id. Before the merge, cross-identity allocation stays refused
+  as today. Calling it with a merged source id returns
   the root's statement with `resolvedFromId`.
 - `listContactStatements`: rows only for roots (merged sources excluded from the list, history
   mode and `contactTotals`), so the merged identity is counted exactly once.
@@ -142,7 +145,7 @@ netting stays the existing explicit "use credit" allocation.
   because splits carry money and are reconciled.
 - Write-time resolution (no writer creates new data under a merged id): every write path
   resolves `root(id)` before validation: booking/split create and edit, expected create/edit,
-  payee create/patch, assignment rules, CSV/bank imports (`apps/server/src/imports/commit.ts`
+  payee create/patch, assignment rules, payslip intake (`employer_contact_id`), CSV/bank imports (`apps/server/src/imports/commit.ts`
   look contacts up by name or alias, so they land on the root) and queued offline requests
   (they replay as normal API calls). The response reports `resolvedContactId` for the UI.
   Archived-but-not-merged ids are refused (5.2).
@@ -152,7 +155,7 @@ netting stays the existing explicit "use credit" allocation.
 - Undo: restores `merged_into_id`, `archived_at`, the alias and the repointed config rows to
   their exact prior values. Refused (query evaluated inside the Undo transaction) when any of
   these exists: a `booking_split`, `contact_settlement`, `payee`, `expected`, `account` or
-  `payslip` row with `contact_id = source.id` created or changed after the merge audit entry
+  `payslip` row (column `employer_contact_id`) with the source id created or changed after the merge audit entry
   (audit_log entries of those entity types, later than the merge entry, whose after-snapshot
   holds the source id); a `contact_allocation` whose settlement and outlay resolve to different
   pre-merge identities and was created after the merge; any repointed row changed since.
