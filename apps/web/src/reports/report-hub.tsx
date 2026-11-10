@@ -46,21 +46,23 @@ export function ReportHub({ initialGroup }: { initialGroup?: HubGroup | undefine
   );
   return (
     <div className={`report-hub${REDESIGN_ENABLED ? ' report-hub-v2' : ''}`}>
-      <section className="report-hub-recent" aria-labelledby="recent-reports-title">
-        <h2 id="recent-reports-title">Zuletzt geöffnet</h2>
-        {recent.length === 0 ? (
-          <p>Noch kein Bericht in dieser Sitzung geöffnet.</p>
-        ) : (
-          <nav aria-label="Zuletzt geöffnete Berichte">
-            {recent.map((report) => (
-              <AppLink key={report.id} to={`/reports/${report.id}`}>
-                <span>{report.name}</span>
-                <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
-              </AppLink>
-            ))}
-          </nav>
-        )}
-      </section>
+      {(!REDESIGN_ENABLED || recent.length > 0) && (
+        <section className="report-hub-recent" aria-labelledby="recent-reports-title">
+          <h2 id="recent-reports-title">Zuletzt geöffnet</h2>
+          {recent.length === 0 ? (
+            <p>Noch kein Bericht in dieser Sitzung geöffnet.</p>
+          ) : (
+            <nav aria-label="Zuletzt geöffnete Berichte">
+              {recent.map((report) => (
+                <AppLink key={report.id} to={`/reports/${report.id}`}>
+                  <span>{report.name}</span>
+                  <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
+                </AppLink>
+              ))}
+            </nav>
+          )}
+        </section>
+      )}
       <SavedExplorerLinks />
       <section className="report-hub-catalog" aria-labelledby="report-catalog-title">
         <div className="report-hub-search">

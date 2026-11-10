@@ -119,7 +119,7 @@
 .wealth-redesign .wealth-thin-chain {
   display: flex;
   gap: 3px;
-  height: 10px;
+  height: 4px;
   border-top: 1px solid var(--primary);
   padding-top: 2px;
 }
@@ -136,7 +136,14 @@
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   gap: 14px;
-  align-items: start;
+  align-items: stretch;
+}
+.wealth-redesign .wealth-overview-work > .wealth-sheet {
+  display: flex;
+  flex-direction: column;
+}
+.wealth-redesign .wealth-overview-work .wealth-all-done {
+  margin-block: auto;
 }
 .wealth-redesign .wealth-sheet {
   min-width: 0;
@@ -312,6 +319,7 @@
   border-top: 1px solid var(--rule-strong);
 }
 .wealth-redesign .wealth-table a {
+  text-decoration: none;
   font-weight: 600;
   font-size: var(--fs-meta);
 }
@@ -719,7 +727,7 @@
     display: block;
   }
   .wealth-redesign .wealth-thin-chain {
-    height: 7px;
+    height: 4px;
   }
   .wealth-redesign .wealth-sheet {
     padding: 12px;
@@ -766,7 +774,7 @@
     text-align: left;
     color: var(--ink-2);
   }
-  .wealth-redesign .wealth-composition .wealth-table td:nth-child(4) {
+  .wealth-redesign .wealth-composition .wealth-table .wealth-target-cell {
     display: none;
   }
   .wealth-redesign .wealth-composition .wealth-table td:last-child a {
