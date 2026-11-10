@@ -1,13 +1,21 @@
 import { Button, SectionHead, useToast } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Paperclip, Camera, Loader2 } from 'lucide-react';
-import { ApiError, notifyApiWrite, request } from '../api/http';
+import { ApiError, request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { nativeCurrency } from '../ledger/format';
 import { bookingsQuery, LEDGER_KEY } from '../ledger/queries';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
+import {
+  cancelReceiptIntent,
+  enqueueReceipt,
+  retryReceiptIntent,
+  sendReceiptQueue,
+} from '../pwa/receipt-queue';
+import type { ReceiptIntent } from '../pwa/receipt-store';
+import { ReceiptIntentList, useReceiptIntents } from './receipt-intents';
 import './receipts.css';
 
 interface Receipt {
@@ -42,11 +50,19 @@ export function ReceiptSection({
   const picker = useRef<HTMLInputElement>(null),
     camera = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false),
-    [linking, setLinking] = useState<string | null>(null);
+    [linking, setLinking] = useState<string | null>(null),
+    [unsaved, setUnsaved] = useState<File | null>(null);
+  const intents = useReceiptIntents(bookingId);
   const receipts = useQuery({ ...receiptQuery(bookingId), enabled: !uploadOnly });
   const unlinked = useQuery({ ...receiptQuery(), enabled: Boolean(bookingId) });
   const write = useBudgetWrite(),
     toast = useToast();
+  // Back online: deliver waiting files (each keeps its own key), then show the new states.
+  useEffect(() => {
+    const onOnline = () => void sendReceiptQueue().then(intents.refresh, intents.refresh);
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [intents.refresh]);
   const upload = async (file: File | undefined) => {
     if (!file || busy) return;
     if (file.size > 15 * 1024 * 1024) {
@@ -54,33 +70,44 @@ export function ReceiptSection({
       return;
     }
     setBusy(true);
+    setUnsaved(null);
+    let intent: ReceiptIntent;
+    try {
+      // The durable intent (and its Idempotency-Key) exists before any network attempt.
+      intent = await enqueueReceipt(file, bookingId);
+    } catch {
+      // Storage full/unavailable: nothing was saved. The selection stays in memory for a retry.
+      setUnsaved(file);
+      toast.show({ message: 'Beleg nicht gespeichert: Gerätespeicher voll oder nicht verfügbar.' });
+      setBusy(false);
+      return;
+    }
+    await send(intent.id);
+    setBusy(false);
+  };
+  const send = async (id: string) => {
     await write(
       async () => {
-        const data = new FormData();
-        data.set('file', file);
-        if (bookingId) data.set('bookingId', bookingId);
-        let response: Response;
-        try {
-          response = await fetch('/api/receipts', {
-            method: 'POST',
-            credentials: 'same-origin',
-            body: data,
-          });
-        } catch {
-          throw new ApiError(0, 'network');
-        }
-        const result = (await response.json().catch(() => ({}))) as {
-          groupId: string;
-          error?: string;
-          message?: string;
-        };
-        if (!response.ok)
-          throw new ApiError(response.status, result.error ?? 'unknown', result.message);
-        notifyApiWrite();
-        return result;
+        const reply = await retryReceiptIntent(id);
+        if (!reply) throw new ApiError(0, 'network');
+        return reply;
       },
       () => (bookingId ? 'Beleg angehängt.' : 'Beleg unter Prüfen gespeichert.'),
     );
+    await intents.refresh();
+  };
+  const retry = async (id: string) => {
+    if (busy) return;
+    setBusy(true);
+    await send(id);
+    setBusy(false);
+  };
+  const cancel = async (id: string) => {
+    if (busy) return;
+    setBusy(true);
+    await cancelReceiptIntent(id).catch(() => false);
+    await intents.refresh();
+    toast.show({ message: 'Beleg von diesem Gerät verworfen. Die Buchung bleibt unverändert.' });
     setBusy(false);
   };
   const change = async (run: () => Promise<{ groupId: string }>, message: string) => {
@@ -142,6 +169,17 @@ export function ReceiptSection({
       </Button>
     </div>
   );
+  const list = (
+    <ReceiptIntentList
+      items={intents.items}
+      busy={busy}
+      unsaved={unsaved}
+      onRetry={(id) => void retry(id)}
+      onCancel={(id) => void cancel(id)}
+      onRetryUnsaved={() => void upload(unsaved ?? undefined)}
+      onDiscardUnsaved={() => setUnsaved(null)}
+    />
+  );
   if (uploadOnly)
     return (
       <section
@@ -154,6 +192,7 @@ export function ReceiptSection({
           Neue Belege werden zunächst unter Prüfen gespeichert und können einer gespeicherten
           Buchung zugeordnet werden.
         </p>
+        {list}
       </section>
     );
   return (
@@ -164,6 +203,7 @@ export function ReceiptSection({
         JPEG, PNG, WebP, HEIC/HEIF oder PDF · höchstens 15 MB.{' '}
         {busy ? 'Wird gespeichert …' : 'HEIC/HEIF und PDF behalten ihre Metadaten.'}
       </p>
+      {list}
       {receipts.isPending && <LoadingNote what="Belege" />}
       {receipts.isError && (
         <ErrorNote what="Belege" error={receipts.error} onRetry={() => void receipts.refetch()} />
