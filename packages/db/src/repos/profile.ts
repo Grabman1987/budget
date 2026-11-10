@@ -2,6 +2,10 @@ import {
   EMPTY_PROFILE,
   isPlausibleBirthDate,
   isRegionCode,
+  isRiskAnswer,
+  RISK_QUESTION_KEYS,
+  EMPTY_RISK_ANSWERS,
+  type RiskAnswers,
   PROFILE_HOUSEHOLD_MAX,
   PROFILE_INITIALS_MAX,
   PROFILE_NAME_MAX,
@@ -12,7 +16,8 @@ import { withGroup, type AuditContext } from './audit';
 import { createEntity, getEntity, updateEntity } from './entities';
 import { runInTransaction, type Executor } from './types';
 
-const KEY: Record<keyof Profile, string> = {
+const RISK_PREFIX = 'profile.risk.';
+const KEY: Record<Exclude<keyof Profile, 'risk'>, string> = {
   name: 'profile.name',
   initials: 'profile.initials',
   birthDate: 'profile.birth_date',
@@ -22,7 +27,7 @@ const KEY: Record<keyof Profile, string> = {
 
 export class ProfileValidationError extends Error {
   constructor(
-    readonly field: keyof Profile,
+    readonly field: keyof Profile | `risk.${string}`,
     message: string,
   ) {
     super(message);
@@ -31,7 +36,7 @@ export class ProfileValidationError extends Error {
 
 /** The stored profile; keys that were never saved fall back to the generic empty value. */
 export function getProfile(db: Executor): Profile {
-  const value = (key: keyof Profile) => getEntity(db, appSetting, KEY[key])?.value;
+  const value = (key: keyof typeof KEY) => getEntity(db, appSetting, KEY[key])?.value;
   const household = Number(value('household'));
   const region = value('region');
   return {
@@ -40,10 +45,25 @@ export function getProfile(db: Executor): Profile {
     birthDate: value('birthDate') ?? EMPTY_PROFILE.birthDate,
     household: Number.isInteger(household) && household > 0 ? household : null,
     region: isRegionCode(region) ? region : null,
+    risk: getRisk(db),
   };
 }
 
-const serialize = (key: keyof Profile, patch: Partial<Profile>, today: string): string => {
+/** Stored answers; unknown or invalid stored values read as "no answer". */
+function getRisk(db: Executor): RiskAnswers {
+  const risk: Record<string, string | null> = { ...EMPTY_RISK_ANSWERS };
+  for (const key of RISK_QUESTION_KEYS) {
+    const stored = getEntity(db, appSetting, RISK_PREFIX + key)?.value;
+    risk[key] = stored !== undefined && isRiskAnswer(key, stored) ? stored : null;
+  }
+  return risk as unknown as RiskAnswers;
+}
+
+const serialize = (
+  key: keyof typeof KEY,
+  patch: Partial<Omit<Profile, 'risk'>>,
+  today: string,
+): string => {
   switch (key) {
     case 'name': {
       const name = (patch.name ?? '').trim();
@@ -93,21 +113,31 @@ const serialize = (key: keyof Profile, patch: Partial<Profile>, today: string): 
  */
 export function saveProfile(
   db: Executor,
-  patch: Partial<Profile>,
+  patch: Partial<Omit<Profile, 'risk'>> & { risk?: Partial<RiskAnswers> },
   ctx: AuditContext,
   today: string,
 ): Profile {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    for (const key of Object.keys(KEY) as (keyof Profile)[]) {
-      if (!(key in patch)) continue;
-      const value = serialize(key, patch, today);
-      const current = getEntity(tx, appSetting, KEY[key]);
+    const write = (id: string, value: string) => {
+      const current = getEntity(tx, appSetting, id);
       if (!current) {
-        if (value !== '') createEntity(tx, appSetting, { id: KEY[key], value }, grouped);
+        if (value !== '') createEntity(tx, appSetting, { id, value }, grouped);
       } else if (current.value !== value) {
-        updateEntity(tx, appSetting, KEY[key], { value }, grouped);
+        updateEntity(tx, appSetting, id, { value }, grouped);
       }
+    };
+    for (const key of Object.keys(KEY) as (keyof typeof KEY)[]) {
+      if (!(key in patch)) continue;
+      write(KEY[key], serialize(key, patch, today));
+    }
+    // Risk answers may be patched per question; an omitted question stays as it is.
+    for (const key of RISK_QUESTION_KEYS) {
+      const answer = patch.risk?.[key];
+      if (answer === undefined) continue;
+      if (answer !== null && !isRiskAnswer(key, answer))
+        throw new ProfileValidationError(`risk.${key}`, 'Risikoprofil: ungültige Antwort.');
+      write(RISK_PREFIX + key, answer ?? '');
     }
     return getProfile(tx);
   });
