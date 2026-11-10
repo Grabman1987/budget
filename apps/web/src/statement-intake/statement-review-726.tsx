@@ -430,6 +430,14 @@ function AccountStatements({
   }, [handoff, readyAccount]);
   return (
     <div className="statement-intake-726">
+      {handoff && !accounts.isPending && !readyAccount && (
+        <div role="alert">
+          <p>Das gewählte Konto ist nicht verfügbar. Die Datei wurde nicht gespeichert.</p>
+          <Button variant="ghost" onClick={() => onHandoffClose?.()}>
+            Schließen
+          </Button>
+        </div>
+      )}
       {!handoff && (
         <Button
           variant="ghost"

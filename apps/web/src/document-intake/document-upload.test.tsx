@@ -10,11 +10,19 @@ const statement = vi.fn(),
   payslip = vi.fn(),
   receipt = vi.fn();
 vi.mock('../budget/use-category-writes', () => ({
-  useBudgetWrite: () => async (run: () => Promise<unknown>) => run(),
+  useBudgetWrite: () => async (run: () => Promise<unknown>) => {
+    // Like the real helper: a failed write is reported, not thrown.
+    try {
+      await run();
+    } catch {
+      // reported elsewhere
+    }
+  },
 }));
 vi.mock('../receipts/receipt-section', () => ({
   postReceipt: (file: File) => {
     receipt(file);
+    if (failReceipt) return Promise.reject(new Error('synthetic failure'));
     return Promise.resolve({ groupId: 'synthetic-group' });
   },
 }));
@@ -32,10 +40,12 @@ vi.mock('../reports/payslip-panel', () => ({
 }));
 
 const ACCOUNT = 'synthetic-card-account';
+let failReceipt = false;
 let result: Classification;
 let classifyBodies: FormData[];
 beforeEach(() => {
   classifyBodies = [];
+  failReceipt = false;
   // jsdom has no showModal and no matchMedia (desktop layout).
   HTMLDialogElement.prototype.showModal ??= function showModal(this: HTMLDialogElement) {
     this.setAttribute('open', '');
@@ -163,4 +173,26 @@ it('files an unreadable document as a receipt and offers a password for encrypte
   await waitFor(() => expect(receipt).toHaveBeenCalledWith(file));
   expect(statement).not.toHaveBeenCalled();
   expect(payslip).not.toHaveBeenCalled();
+});
+
+it('keeps the dialog and the file when saving the receipt fails, and closes on success', async () => {
+  result = {
+    type: 'receipt',
+    confidence: 'unknown',
+    hints: { mime: 'application/pdf' },
+    needsPassword: false,
+  };
+  renderButton();
+  const file = pdf();
+  const user = await pick(file);
+  await screen.findByText(/Erkannt: Beleg/);
+  failReceipt = true;
+  await user.click(screen.getByRole('button', { name: 'Weiter' }));
+  await waitFor(() => expect(receipt).toHaveBeenCalledTimes(1));
+  expect(await screen.findByRole('button', { name: 'Weiter' })).toBeTruthy();
+  failReceipt = false;
+  await user.click(screen.getByRole('button', { name: 'Weiter' }));
+  await waitFor(() => expect(receipt).toHaveBeenCalledTimes(2));
+  expect(receipt).toHaveBeenLastCalledWith(file);
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Weiter' })).toBeNull());
 });

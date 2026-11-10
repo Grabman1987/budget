@@ -124,13 +124,21 @@ export function DocumentUploadButton({
     if (!file || busy) return;
     if (target === 'receipt') {
       setBusy(true);
+      let saved = false;
       await write(
-        () => postReceipt(file),
+        async () => {
+          const reply = await postReceipt(file);
+          saved = true;
+          return reply;
+        },
         () => 'Beleg unter Prüfen gespeichert.',
       );
       setBusy(false);
-      setOpen(false);
-      reset();
+      // On failure the write helper reports it; keep the dialog and the file for a retry.
+      if (saved) {
+        setOpen(false);
+        reset();
+      }
       return;
     }
     const typed = password;

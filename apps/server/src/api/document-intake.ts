@@ -5,7 +5,7 @@ import { RECEIPT_LIMIT, sanitizedFilename } from '../receipts/files';
 import { classifyDocument } from '../document-intake/classify';
 import { ApiError } from './http';
 
-const MAX_PASSWORD = 1024;
+const MAX_PASSWORD = 256;
 /**
  * Read-only document type detection for the central upload. It stores nothing and starts no
  * pipeline; the client then sends the same file to the existing receipt, statement or payslip
