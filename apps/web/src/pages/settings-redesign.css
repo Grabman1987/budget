@@ -462,6 +462,55 @@
     padding-inline: 12px;
   }
 }
+/* Source forms live inside the card's detail group: drop the legacy nested card chrome (#859). */
+.settings-redesign .settings-source-details .data-source-section {
+  max-width: none;
+  padding-top: 0;
+  border-top: 0;
+}
+.settings-redesign .settings-source-details .data-source-section > :is(h2, h3, header) {
+  margin-block: 0 var(--space-sm);
+  font-size: var(--fs-table);
+}
+.settings-redesign .settings-source-details .source-connection {
+  margin-block: var(--space-md);
+  padding: var(--space-lg);
+  border-color: var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  box-shadow: none;
+}
+.settings-redesign .settings-source-details .bank-connect {
+  padding-block: var(--space-md);
+}
+.settings-redesign .settings-source-details .source-mapping {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+}
+.settings-redesign .settings-source-details .payslip-upload {
+  margin-block: var(--space-md);
+}
+.settings-redesign
+  .settings-source-details
+  :is(input:not([type='checkbox'], [type='radio'], [type='file']), select, textarea, button, .btn),
+.settings-redesign .settings-source-details .payslip-password-details summary,
+.settings-redesign .settings-source-details .check-row {
+  min-height: 44px;
+}
+.settings-redesign .settings-source-details :is(input, select, textarea) {
+  max-width: 100%;
+}
+.settings-redesign .settings-source-details :is(.bank-picker, .payslip-password) {
+  max-width: none;
+}
+@media (max-width: 767px) {
+  .settings-redesign .settings-source-details .source-connection {
+    padding: var(--space-md);
+  }
+  .settings-redesign .settings-source-details .bank-candidate {
+    width: 100%;
+  }
+}
 .settings-redesign .settings-class-group select {
   max-width: 240px;
 }
