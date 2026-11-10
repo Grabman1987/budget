@@ -108,3 +108,45 @@
     font-weight: 600;
   }
 }
+
+.risk-profile {
+  margin: 8px 0 14px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.risk-profile legend {
+  padding: 0;
+  font-weight: 600;
+  color: var(--ink);
+}
+.risk-results {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.risk-result {
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sheet);
+  background: var(--surface);
+}
+.risk-result[data-level='unknown'] {
+  border-style: dashed;
+}
+.risk-result p,
+.risk-warning,
+.risk-basis {
+  margin: 4px 0 0;
+}
+.risk-basis {
+  color: var(--ink-2);
+}
+.risk-profile .select {
+  width: 100%;
+  min-height: 44px;
+}
+/* The hint carries the question text, so the compact settings layout must keep it. */
+.settings-redesign .risk-profile .profile-grid .field-hint {
+  display: block;
+}
