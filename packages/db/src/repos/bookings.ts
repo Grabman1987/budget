@@ -2,7 +2,7 @@ import { bookingIncomeDefault } from './income-month';
 import { contactStatement } from '@budget/domain';
 import { actualContactMovements, savedContactSettlements } from './contact-invariants';
 import { contactCreditRecords, saveContactCreditRecord } from './contact-credit';
-import { assertContactActive } from './contact-label';
+import { assertContactActive, resolveContactForWrite } from './contact-label';
 import { ensureAdvanceCategory } from './categories';
 import { manualTransferStatus, type ManualBankStatus } from '@budget/domain';
 import { assertContactBookingWrite, assertContactSettlementInvariants } from './contact-invariants';
@@ -339,6 +339,12 @@ function insertBooking(
   ctx: GroupedContext,
   contactModel = false,
 ): string {
+  input = {
+    ...input,
+    splits: input.splits.map((s) =>
+      s.contactId ? { ...s, contactId: resolveContactForWrite(tx, s.contactId) } : s,
+    ),
+  };
   assertDate(input.date);
   assertProjectAssignment(tx, input.projectId);
   assertSplits(input.amountCents, input.splits);
@@ -884,7 +890,13 @@ function updateBookingImpl(
     const amountChanged = amount !== cur.amountCents;
     let nextSplits: SplitInput[];
     if (patch.splits) {
-      nextSplits = patch.splits;
+      // New contact references resolve to the merge target; ones the booking already had stay.
+      const had = new Set(curSplits.flatMap((old) => (old.contactId ? [old.contactId] : [])));
+      nextSplits = patch.splits.map((s) =>
+        s.contactId && !had.has(s.contactId)
+          ? { ...s, contactId: resolveContactForWrite(tx, s.contactId) }
+          : s,
+      );
     } else if (amountChanged && curSplits.length === 1) {
       nextSplits = [{ ...curSplits[0]!, amountCents: amount }];
     } else if (amountChanged) {

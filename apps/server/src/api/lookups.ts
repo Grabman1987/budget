@@ -118,6 +118,7 @@ export function lookupRoutes(db: Db): Hono {
           id: contact.id,
           name: contact.name,
           archivedAt: contact.archivedAt,
+          mergedIntoId: contact.mergedIntoId,
           updatedAt: contact.updatedAt,
         })
         .from(contact)
@@ -128,6 +129,7 @@ export function lookupRoutes(db: Db): Hono {
           id: c.id,
           name: c.name,
           archived: c.archivedAt !== null,
+          mergedIntoId: c.mergedIntoId,
           updatedAt: c.updatedAt,
           aliases: listContactAliases(db, c.id).map((a) => ({
             id: a.id,

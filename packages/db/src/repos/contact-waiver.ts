@@ -1,3 +1,4 @@
+import { resolveContactForWrite } from './contact-label';
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { category, contactAllocation, contactSettlement } from '../schema';
@@ -24,6 +25,7 @@ export function waiveContactOutlay(
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
+    contactId = resolveContactForWrite(tx, contactId);
     const outlay = getContactStatement(tx, contactId, today).outlays.find(
       (o) => o.splitId === outlaySplitId && !o.creditSourceSplitId,
     );
