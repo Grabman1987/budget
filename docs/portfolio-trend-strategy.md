@@ -234,12 +234,19 @@ Sessions and calendar:
 Capture integrity (signal series only):
 
 - A session that is not completed at the run clock is never stored (no partial bar).
+- Closes are normalised to 2 decimals (half away from zero) before storing and comparing, so Yahoo's
+  float precision and Ariva's 2 decimals are the same close.
 - Every run refetches the evidence window (about the last 260 stored sessions); identical
   closes are skipped without audit noise, so omitted days are backfilled.
 - A close first stored before its session ended is a poisoned capture and is replaced.
 - Any other differing refetched value is a conflict: the stored close is kept, one audit
   row records it, the run protocol counts it (`conflict`, run `partial`) and the evidence
-  is `close_changed_after_capture` until an operator corrects the stored close. Row checks
+  is `close_changed_after_capture` until an operator corrects the stored close. One inbox item
+  per session names the date, both values and both sources (it is not closed automatically).
+  A stored non-manual close without any audit trail counts as a conflict too. No app tool
+  resolves it: a manual price would be rejected as untrusted, so the operator deletes the
+  `price` and `price_audit` rows of that session and the next run refetches it, then resolves
+  the inbox item. Row checks
   (source, currency, observation time) apply only to the evidence window.
 - The series is hidden from the user-facing security list (`listSecurities`); exports and
   price reads still contain it.

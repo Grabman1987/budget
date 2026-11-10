@@ -232,11 +232,19 @@ describe('signal series capture in the market run', () => {
     const changed = fakeSource(
       'ariva',
       'ok',
-      (d) => (10_000 + ALL.indexOf(d)) * 1_000_000 + (d === '2026-08-12' ? 1 : 0),
+      (d) => (10_000 + ALL.indexOf(d)) * 1_000_000 + (d === '2026-08-12' ? 10_000 : 0),
     );
     const one = await refreshPrices(opened.db, sourcesOf(changed.source, yahoo), { today: TODAY });
     const two = await refreshPrices(opened.db, sourcesOf(changed.source, yahoo), { today: TODAY });
     expect([one.conflicts, two.conflicts]).toEqual([1, 1]);
+    // One inbox item for the session, not one per night.
+    expect(
+      opened.sqlite
+        .prepare(
+          "SELECT count(*) AS n, min(detail) AS d FROM inbox_item WHERE kind = 'stale_value' AND ref_id = ?",
+        )
+        .get(`${SIGNAL_INDEX.id}:2026-08-12`),
+    ).toMatchObject({ n: 1, d: expect.stringContaining('2026-08-12') });
     expect(
       opened.sqlite
         .prepare('SELECT count(*) AS n FROM price_audit WHERE old_price_micro IS NOT NULL')
@@ -269,5 +277,66 @@ describe('signal series capture in the market run', () => {
     expect(run.conflicts).toBe(0);
     pinObservation();
     expect(storedStrategyEvidence(opened.db, AS_OF).status).toBe('verified');
+  });
+
+  it('treats float-precision Yahoo values as identical to 2-decimal Ariva closes', async () => {
+    enable();
+    const dead = fakeSource('ariva', 'fail').source;
+    await refreshPrices(opened.db, sourcesOf(fakeSource('ariva', 'ok').source, dead), {
+      today: TODAY,
+    });
+    const floaty = fakeSource(
+      'yfinance',
+      'ok',
+      (d) => (10_000 + ALL.indexOf(d)) * 1_000_000 + 3_456,
+    );
+    const audits = () => opened.sqlite.prepare('SELECT count(*) AS n FROM price_audit').get();
+    const before = audits();
+    const run = await refreshPrices(
+      opened.db,
+      sourcesOf(fakeSource('ariva', 'fail').source, floaty.source),
+      {
+        today: TODAY,
+      },
+    );
+    expect(run.conflicts).toBe(0);
+    expect(audits()).toEqual(before);
+    pinObservation();
+    expect(storedStrategyEvidence(opened.db, AS_OF).status).toBe('verified');
+    // A genuine difference of one hundredth is a conflict.
+    const real = fakeSource(
+      'yfinance',
+      'ok',
+      (d) => (10_000 + ALL.indexOf(d)) * 1_000_000 + (d === '2026-11-06' ? 10_000 : 0),
+    );
+    const diff = await refreshPrices(
+      opened.db,
+      sourcesOf(fakeSource('ariva', 'fail').source, real.source),
+      {
+        today: TODAY,
+      },
+    );
+    expect(diff.conflicts).toBe(1);
+  });
+
+  it('treats a differing stored close without any audit trail as a conflict, not an overwrite', async () => {
+    enable();
+    const dead = fakeSource('yfinance', 'fail').source;
+    await refreshPrices(opened.db, sourcesOf(fakeSource('ariva', 'ok').source, dead), {
+      today: TODAY,
+    });
+    opened.sqlite
+      .prepare('DELETE FROM price_audit WHERE security_id = ? AND date = ?')
+      .run(SIGNAL_INDEX.id, '2026-11-06');
+    const other = fakeSource(
+      'ariva',
+      'ok',
+      (d) => (10_000 + ALL.indexOf(d)) * 1_000_000 + (d === '2026-11-06' ? 20_000 : 0),
+    );
+    const run = await refreshPrices(opened.db, sourcesOf(other.source, dead), { today: TODAY });
+    expect(run.conflicts).toBe(1);
+    expect(
+      opened.sqlite.prepare('SELECT price_micro AS p FROM price WHERE date = ?').get('2026-11-06'),
+    ).toEqual({ p: (10_000 + ALL.indexOf('2026-11-06')) * 1_000_000 });
   });
 });

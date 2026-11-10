@@ -12,6 +12,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { price, priceAudit, security } from '../schema';
 import { SIGNAL_INDEX_ID } from './signal-index-id';
+import { openStaleValueItem } from './market';
 import { strategyConfiguration, type StrategyEvidence } from './portfolio-strategy';
 import type { Executor } from './types';
 
@@ -251,6 +252,9 @@ export const storedStrategyEvidenceProvider =
   async (asOf: string): Promise<StrategyEvidence> =>
     storedStrategyEvidence(db, asOf);
 
+/** Index points to 2 decimals (10_000 micro), half away from zero. */
+export const normaliseIndexClose = (micro: number): number => Math.round(micro / 10_000) * 10_000;
+
 /**
  * Store fetched closes of the signal series (inside the market run's transaction).
  * - A session that is not completed at `nowIso` is never stored (partial same-day bar).
@@ -258,8 +262,8 @@ export const storedStrategyEvidenceProvider =
  *   omitted days without rewriting anything.
  * - A stored close first observed before its session ended is a poisoned capture and is replaced
  *   (its audit trail is dropped, the new insert is audited).
- * - Any other difference is a conflict: the stored close is kept, an audit row records the
- *   disagreement once, and the evidence stays unavailable (`close_changed_after_capture`) until
+ * - Any other difference (also a stored close without any audit trail) is a conflict: the stored
+ *   close is kept, an audit row and one inbox item per session record the disagreement, and the evidence stays unavailable (`close_changed_after_capture`) until
  *   an operator corrects the stored close. Manual closes are never touched.
  */
 export function storeSignalCloses(
@@ -270,7 +274,9 @@ export function storeSignalCloses(
 ): { rows: number; conflicts: number } {
   let rows = 0,
     conflicts = 0;
-  for (const q of quotes) {
+  for (const raw of quotes) {
+    // Index closes are normalised to 2 decimals: Ariva delivers 2, Yahoo full float precision.
+    const q = { date: raw.date, priceMicro: normaliseIndexClose(raw.priceMicro) };
     const completedAt = usEquitySessionCompletedAt(q.date);
     if (completedAt > nowIso) continue;
     const key = and(eq(price.securityId, SIGNAL_INDEX.id), eq(price.date, q.date));
@@ -304,13 +310,14 @@ export function storeSignalCloses(
       rows++;
       continue;
     }
-    if (existing.source === 'manual' || existing.priceMicro === q.priceMicro) continue;
+    if (existing.source === 'manual' || normaliseIndexClose(existing.priceMicro) === q.priceMicro)
+      continue;
     const trail = tx.select().from(priceAudit).where(trailKey).all();
     const firstSeen = trail
       .filter((a) => a.oldPriceMicro === null)
       .map((a) => a.ts)
       .sort()[0];
-    if (firstSeen === undefined || firstSeen < completedAt) {
+    if (firstSeen !== undefined && firstSeen < completedAt) {
       tx.delete(priceAudit).where(trailKey).run();
       tx.update(price)
         .set({ priceMicro: q.priceMicro, currency: SIGNAL_INDEX.currency, source })
@@ -322,6 +329,17 @@ export function storeSignalCloses(
       // Counted on every run while unresolved; the audit row is written once.
       if (!trail.some((a) => a.oldPriceMicro !== null && a.newPriceMicro === q.priceMicro))
         audit(existing.priceMicro, existing.source);
+      const points = (micro: number) => (micro / 1_000_000).toFixed(2);
+      openStaleValueItem(tx, {
+        title: 'Signalreihe Nasdaq-100: abweichender Schlusskurs',
+        detail:
+          `Sitzung ${q.date}: gespeichert ${points(existing.priceMicro)} (${existing.source}), ` +
+          `neu abgerufen ${points(q.priceMicro)} (${source}). Der gespeicherte Wert bleibt, ` +
+          'die Strategie-Signale sind gesperrt, bis der Eintrag bereinigt ist.',
+        refType: 'security',
+        // Per session, so the next successful price run does not close it automatically.
+        refId: `${SIGNAL_INDEX.id}:${q.date}`,
+      });
       conflicts++;
     }
   }
