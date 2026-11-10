@@ -109,3 +109,12 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* Report tables: hairline baseline, right-aligned tabular figures. */
+[data-budget-redesign='1'] .rf-table :is(th, td) {
+  border-bottom-color: var(--rule);
+}
+[data-budget-redesign='1'] .rf-table :is(.n, td.num, th.num) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
