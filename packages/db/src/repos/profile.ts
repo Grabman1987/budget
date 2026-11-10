@@ -59,7 +59,11 @@ function getRisk(db: Executor): RiskAnswers {
   return risk as unknown as RiskAnswers;
 }
 
-const serialize = (key: keyof typeof KEY, patch: Partial<Omit<Profile, 'risk'>>, today: string): string => {
+const serialize = (
+  key: keyof typeof KEY,
+  patch: Partial<Omit<Profile, 'risk'>>,
+  today: string,
+): string => {
   switch (key) {
     case 'name': {
       const name = (patch.name ?? '').trim();
