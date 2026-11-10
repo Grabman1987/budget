@@ -188,7 +188,8 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   await panel.getByLabel('Betrag', { exact: true }).fill('2,03');
   await panel.getByLabel('Empfänger', { exact: true }).fill('Kiosk Muster');
   await pickCategory(panel, category.name);
-  await panel.locator('.kmore > summary').click();
+  if ((await panel.locator('.kmore > summary').count()) > 0)
+    await panel.locator('.kmore > summary').click();
   await panel.getByLabel('Wiederholen').selectOption('monthly');
   expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
   await page.screenshot({ path: info.outputPath('capture.png') });
@@ -265,8 +266,10 @@ test('single payee suggestion selects its recent account and keeps capture contr
   await panel.getByLabel('Empfänger', { exact: true }).press('Enter');
   await expect(panel.getByLabel('Empfänger', { exact: true })).toHaveValue('Laden Beispiel');
   await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(recent.id);
-  await panel.locator('.kmore > summary').scrollIntoViewIfNeeded();
-  await expect(panel.locator('.kmore > summary')).toBeInViewport({ ratio: 1 });
+  if ((await panel.locator('.kmore > summary').count()) > 0) {
+    await panel.locator('.kmore > summary').scrollIntoViewIfNeeded();
+    await expect(panel.locator('.kmore > summary')).toBeInViewport({ ratio: 1 });
+  }
   if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768)
     await expect(panel.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
   else await expect(await captureFlagControl(panel, 'Markierung: keine')).toBeVisible();
@@ -318,13 +321,16 @@ test('single payee suggestion selects its recent account and keeps capture contr
   await panel.getByLabel('Datum', { exact: true }).fill('04.10.2026');
   await panel.getByLabel('Datum', { exact: true }).press('Tab');
   await expect(panel.getByLabel('Datum', { exact: true })).toHaveValue('04.10.2026');
-  await panel.locator('.kmore > summary').click();
+  if ((await panel.locator('.kmore > summary').count()) > 0)
+    await panel.locator('.kmore > summary').click();
   await panel.getByLabel('Wiederholen').selectOption('monthly');
   await panel.getByLabel('Notiz').fill('Synthetische Notiz');
   await expect(panel.getByLabel('Wiederholen')).toHaveValue('monthly');
-  await panel.locator('.kmore > summary').click();
+  if ((await panel.locator('.kmore > summary').count()) > 0)
+    await panel.locator('.kmore > summary').click();
   await expect(panel.getByLabel('Notiz')).toBeVisible();
-  await panel.locator('.kmore > summary').click();
+  if ((await panel.locator('.kmore > summary').count()) > 0)
+    await panel.locator('.kmore > summary').click();
   await expect(panel.getByLabel('Notiz')).toHaveValue('Synthetische Notiz');
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => {

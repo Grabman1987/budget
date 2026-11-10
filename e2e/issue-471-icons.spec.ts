@@ -238,13 +238,18 @@ test('labelled booking status and capture caret remain usable on phone and deskt
   await expectStatusContentInsideButton(status, redesigned);
 
   const more = dialog.locator('details.kmore');
-  const caret = more.locator(redesigned ? '.lucide-ellipsis' : '.disclosure-chevron');
-  if (redesigned) await expect(caret).toBeVisible();
-  else expect(await caret.evaluate((el) => getComputedStyle(el).transform)).not.toBe('none');
-  await more.locator('summary').click();
-  await expect(more).toHaveAttribute('open', '');
-  if (redesigned) await expect(caret).toBeVisible();
-  else expect(await caret.evaluate((el) => getComputedStyle(el).transform)).toBe('none');
+  if (redesigned && isMobile && (await more.count()) === 0) {
+    // The phone renders no empty "…" menu when there is nothing to put in it.
+    await expect(dialog.locator('.lucide-ellipsis')).toHaveCount(0);
+  } else {
+    const caret = more.locator(redesigned ? '.lucide-ellipsis' : '.disclosure-chevron');
+    if (redesigned) await expect(caret).toBeVisible();
+    else expect(await caret.evaluate((el) => getComputedStyle(el).transform)).not.toBe('none');
+    await more.locator('summary').click();
+    await expect(more).toHaveAttribute('open', '');
+    if (redesigned) await expect(caret).toBeVisible();
+    else expect(await caret.evaluate((el) => getComputedStyle(el).transform)).toBe('none');
+  }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
