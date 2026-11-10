@@ -51,7 +51,7 @@ it('upgrades a synthetic database COPY without changing old rows, round-trips an
   writeFileSync(join(m, 'meta/_journal.json'), JSON.stringify(journal));
   const source = openDatabase(join(d, 'original.sqlite'));
   migrateDatabase(source.db, m);
-  seedBasics(source.db);
+  seedBasics(source.db, { predecessorSchema: true });
   source.sqlite.pragma('wal_checkpoint(TRUNCATE)');
   copyFileSync(source.sqlite.name, join(d, 'copy.sqlite'));
   source.close();
