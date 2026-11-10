@@ -56,8 +56,7 @@ export const detailNames: Record<HeuteDetail, string> = {
   pinned: 'Angepinnte Kategorien',
 };
 
-/** Same cached query as the page; the shell does not invent a source clock. */
-export function HeuteShellHead() {
+function useShellRead() {
   const [month] = useMonth();
   const { period, setPeriod, paydayAvailable } = useBalancePeriod();
   const read = useQuery(heuteQuery(month, period));
@@ -69,14 +68,38 @@ export function HeuteShellHead() {
     read.data.stand.period === period
       ? read.data
       : undefined;
+  return { data, updatedAt: read.dataUpdatedAt, period, setPeriod, paydayAvailable };
+}
+
+/** Same cached query as the page; the shell does not invent a source clock. */
+export function HeuteShellHead({ showStand = true }: { showStand?: boolean }) {
+  const { data, updatedAt, period, setPeriod, paydayAvailable } = useShellRead();
   return (
     <HeuteHeader
       data={data}
-      updatedAt={read.dataUpdatedAt}
+      updatedAt={updatedAt}
       period={period}
       setPeriod={setPeriod}
       paydayAvailable={paydayAvailable}
+      showStand={showStand}
     />
+  );
+}
+
+const STAND_TITLE = 'Berechnung zum angezeigten Stichtag; Uhrzeit des erfolgreichen Abrufs';
+function standText(data: Heute | undefined, updatedAt: number) {
+  return data
+    ? `Stand ${shortDay(data.stand.today)}${updatedAt ? `, ${time.format(updatedAt)}` : ''}`
+    : 'Stand nicht verfügbar';
+}
+
+/** Data-freshness line at the top of the Heute body while the controls sit in the 64px header. */
+export function HeuteStandLine() {
+  const { data, updatedAt } = useShellRead();
+  return (
+    <p className="page-stand-line" title={STAND_TITLE}>
+      {standText(data, updatedAt)}
+    </p>
   );
 }
 
@@ -87,6 +110,7 @@ export function HeuteHeader({
   setPeriod,
   paydayAvailable,
   phone = false,
+  showStand = true,
 }: {
   data: Heute | undefined;
   updatedAt: number;
@@ -94,17 +118,15 @@ export function HeuteHeader({
   setPeriod: (value: HeutePeriod) => void;
   paydayAvailable: boolean;
   phone?: boolean;
+  /** False when the Stand line renders elsewhere (top of the body) so it appears once. */
+  showStand?: boolean;
 }) {
   const [month] = useMonth();
   return (
     <div className={`hv-head${phone ? ' hv-head-phone' : ''}`}>
       <div className="hv-head-title">
         <h1 className="sr-only">Heute</h1>
-        <span title="Berechnung zum angezeigten Stichtag; Uhrzeit des erfolgreichen Abrufs">
-          {data
-            ? `Stand ${shortDay(data.stand.today)}${updatedAt ? `, ${time.format(updatedAt)}` : ''}`
-            : 'Stand nicht verfügbar'}
-        </span>
+        {showStand && <span title={STAND_TITLE}>{standText(data, updatedAt)}</span>}
       </div>
       <MonthSwitch heading={monthLabel(month)} headingAs="span" />
       <Segmented

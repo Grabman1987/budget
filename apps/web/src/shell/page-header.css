@@ -37,15 +37,17 @@
 .page-header-controls > * {
   min-width: 0;
 }
-/* The Stand text only appears in the body variant; the header keeps the heading and switches. */
-.page-header-controls .hv-head-title > span {
-  display: none;
-}
 .page-controls-row {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
   min-height: 44px;
+}
+.page-stand-line {
+  margin: 0 0 var(--space-xs);
+  color: var(--ink-2);
+  font-size: var(--fs-label);
+  white-space: nowrap;
 }
 .page-header-controls .month-switch,
 .page-header-controls .seg {

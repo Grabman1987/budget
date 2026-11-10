@@ -158,3 +158,54 @@ test('Heute page controls are never clipped or hidden at desktop and tablet widt
     if (!inHeader) expect(await head.locator('.page-header-controls *').count()).toBe(0);
   }
 });
+
+test('Heute shows the Stand line once in the body at every desktop width', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'Phone Heute renders its own header controls');
+  for (const width of [1440, 1280, 1024]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/?monat=2026-09');
+    await expect(page.getByTestId('heute-lead-value')).toBeVisible();
+    // The phone header and lead foot carry their own Stand text, hidden on desktop.
+    const stand = page.getByText(/^Stand (\d|nicht verfügbar)/).filter({ visible: true });
+    await expect(stand, `${width}: Stand once`).toHaveCount(1);
+    await expect(stand).toBeVisible();
+    await expect(stand).toHaveAttribute('title', /Stichtag/);
+    expect((await box(page.locator('.page-header'))).height, `${width}: header`).toBe(64);
+    const standBox = await box(stand);
+    expect(standBox.y, `${width}: Stand sits in the body`).toBeGreaterThanOrEqual(
+      (await box(page.locator('.page-header'))).height - 1,
+    );
+  }
+});
+
+test('Heute controls keep keyboard focus when they move between header and body', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'Phone Heute renders its own header controls');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/?monat=2026-09');
+  await expect(page.getByTestId('heute-lead-value')).toBeVisible();
+  const prev = page.locator('.month-switch button').first();
+  await prev.focus();
+  const index = await page.evaluate(() => {
+    const root = document.activeElement!.closest('.page-header-controls, .page-controls-row')!;
+    return Array.from(root.querySelectorAll('button')).indexOf(document.activeElement as never);
+  });
+  for (const width of [1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const active = document.activeElement;
+          const root = active?.closest('.page-header-controls, .page-controls-row');
+          return root ? Array.from(root.querySelectorAll('button')).indexOf(active as never) : -1;
+        }),
+      )
+      .toBe(index);
+    expect((await box(page.locator('.page-header'))).height).toBe(64);
+  }
+});

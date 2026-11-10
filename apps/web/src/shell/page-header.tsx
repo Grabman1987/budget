@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useIsPhone } from '@budget/ui';
 import { ClipboardCheck, PanelLeft, Plus } from 'lucide-react';
 import { GlobalSearch } from './global-search';
@@ -7,6 +7,7 @@ import { InboxHeaderLink } from '../inbox/navigation';
 import { useInboxCount } from './inbox';
 import { PanelLink } from './panel-link';
 import { MobileProfile } from './mobile-chrome';
+import { captureControlsFocus, restoreControlsFocus } from './controls-focus';
 import './page-header.css';
 
 /** One shell rail for every main area; optional controls never size the utility slots. */
@@ -36,6 +37,10 @@ export function PageHeader({
   const slot = useRef<HTMLDivElement>(null);
   const need = useRef(0);
   const [fits, setFits] = useState(true);
+  const fitsRef = useRef(true);
+  useEffect(() => {
+    fitsRef.current = fits;
+  }, [fits]);
   const hasControls = controls !== undefined && controls !== null;
   // Controls are never clipped: when the slot is too narrow they move to the page body.
   useLayoutEffect(() => {
@@ -45,16 +50,50 @@ export function PageHeader({
       if (fits) {
         if (el.scrollWidth > el.clientWidth + 1) {
           need.current = el.scrollWidth;
+          captureControlsFocus();
           setFits(false);
         }
-      } else if (el.clientWidth >= need.current) setFits(true);
+      } else if (el.clientWidth >= need.current) {
+        captureControlsFocus();
+        setFits(true);
+      }
     };
     check();
     if (typeof ResizeObserver === 'undefined') return;
+    // The slot clips its content, so the content itself must be watched as well: a longer month
+    // name changes its natural width without changing the slot.
     const observer = new ResizeObserver(check);
-    observer.observe(el);
-    return () => observer.disconnect();
+    const watch = () => {
+      observer.observe(el);
+      el.querySelectorAll('*').forEach((node) => observer.observe(node));
+    };
+    watch();
+    const mutations =
+      typeof MutationObserver === 'undefined'
+        ? undefined
+        : new MutationObserver(() => {
+            watch();
+            check();
+          });
+    mutations?.observe(el, { childList: true, subtree: true, characterData: true });
+    return () => {
+      observer.disconnect();
+      mutations?.disconnect();
+    };
   }, [fits, hasControls, phone]);
+  // Web fonts change the natural control width after the first measurement; retry once.
+  useEffect(() => {
+    let live = true;
+    void document.fonts?.ready.then(() => {
+      if (live && !fitsRef.current) setFits(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  useLayoutEffect(() => {
+    if (fits) restoreControlsFocus(slot.current);
+  }, [fits]);
   const placement = hasControls && !phone && !fits ? 'body' : 'header';
   useLayoutEffect(() => onControlsPlacement?.(placement), [placement, onControlsPlacement]);
   const inbox = useInboxCount();
