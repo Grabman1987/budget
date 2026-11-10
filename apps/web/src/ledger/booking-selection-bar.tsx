@@ -4,10 +4,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { readBulkSelection, type BulkResult, type BulkSelection } from './api';
 import type { BulkSet } from './cache';
 import { longDay, nativeCurrency } from './format';
-import { FLAG_LABEL, SKIP_REASON_LABEL } from './labels';
+import { SKIP_REASON_LABEL } from './labels';
 import { LEDGER_KEY } from './queries';
 import { ErrorNote, LoadingNote } from './states';
-import { BOOKING_FLAGS } from './types';
 import { MoreHorizontal } from 'lucide-react';
 import { BookingNoteDialog } from './booking-note-dialog';
 
@@ -198,25 +197,6 @@ export function BookingSelectionBar({
                 <option value="">Status</option>
                 <option value="pending">Vorgemerkt</option>
                 <option value="confirmed">Bestätigt</option>
-              </Select>
-              <Select
-                className="select-sm"
-                aria-label="Markierung für die Auswahl setzen"
-                value=""
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value === 'none') apply({ flag: null });
-                  else if (BOOKING_FLAGS.includes(value as (typeof BOOKING_FLAGS)[number]))
-                    apply({ flag: value as (typeof BOOKING_FLAGS)[number] });
-                }}
-              >
-                <option value="">Markierung</option>
-                <option value="none">Markierung entfernen</option>
-                {BOOKING_FLAGS.map((flag) => (
-                  <option key={flag} value={flag}>
-                    {FLAG_LABEL[flag]}
-                  </option>
-                ))}
               </Select>
               <Select
                 className="select-sm"

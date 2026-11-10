@@ -1204,10 +1204,7 @@ export function CaptureForm({
         {locked && (
           <div className="kdiff is-ok" role="note">
             <span>
-              Diese Buchung ist <strong>geprüft</strong>.{' '}
-              {mobileRedesign
-                ? 'Nur die Notiz ist frei; alles andere'
-                : 'Nur Markierung und Notiz sind frei; alles andere'}{' '}
+              Diese Buchung ist <strong>geprüft</strong>. Nur die Notiz ist frei; alles andere{' '}
               braucht deine Freigabe.
             </span>
             <label className="kcheck">

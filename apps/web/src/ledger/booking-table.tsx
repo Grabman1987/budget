@@ -5,10 +5,8 @@ import { keepSplit } from './booking-model';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, CalendarDays, ChevronDown, Info, Pencil } from 'lucide-react';
 import { Fragment, useId, useState, type ReactNode } from 'react';
-import { CategoryCell, FlagCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
+import { CategoryCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
 import { BookingLegend } from './booking-legend';
-import { FlagGlyph } from './flag-picker';
-import { FLAG_LABEL } from './labels';
 import {
   dayHeading,
   nativeCurrency,
@@ -27,7 +25,7 @@ import {
 import { flashRows, useFlashing } from './flash';
 import { useLedgerWrites } from './mutations';
 import { lookupsQuery } from './queries';
-import type { BookingFlag, BookingSort, ListedBooking } from './types';
+import type { BookingSort, ListedBooking } from './types';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './register-redesign.css';
 import { BookingInspector } from './booking-inspector';
@@ -100,12 +98,6 @@ export function BookingTable({
       patch: { splits: [keepSplit(b.splits[0], categoryId, b.amountCents)] },
     });
   };
-  // A flag is saved at once, with the usual undo toast.
-  const setFlag = (b: ListedBooking, flag: BookingFlag | null) => {
-    if (selection?.disabled || selection?.mode) return;
-    if ((b.flag ?? null) === flag) return;
-    writes.patch.mutate({ id: b.id, patch: { flag } });
-  };
   const all = variant === 'all';
   const sectionId = useId();
   const showUpcoming = upcoming?.open === true && upcoming.count > 0;
@@ -114,7 +106,7 @@ export function BookingTable({
   const runColumn = !all || showRunningBalance || showUpcoming;
   const dispo = REDESIGN_ENABLED && overdraftLimitCents ? overdraftLimitCents : null;
   const columns =
-    (selection ? 1 : 0) + 7 + (runColumn ? 1 : 0) + (REDESIGN_ENABLED ? (all ? 2 : 1) : 0);
+    (selection ? 1 : 0) + 6 + (runColumn ? 1 : 0) + (REDESIGN_ENABLED ? (all ? 2 : 1) : 0);
   const head = (label: string, key?: BookingSort, numeric = false): ReactNode => (
     <th
       className={cx('tech', numeric && 'kc-num', key === 'date' && 'kc-date')}
@@ -230,7 +222,6 @@ export function BookingTable({
           categories={lookups.data?.categories ?? []}
           groups={lookups.data?.groups ?? []}
           onCategory={setCategory}
-          onFlag={setFlag}
           onPatch={(patch) =>
             selection?.disabled || selection?.mode
               ? Promise.reject(new Error('Bitte die laufende Auswahl zuerst beenden.'))
@@ -310,7 +301,6 @@ export function BookingTable({
         {(!all || REDESIGN_ENABLED) && (
           <colgroup>
             {selection && <col className="kcol-select" />}
-            <col className="kcol-flag" />
             <col className="kcol-date" />
             <col />
             {all && <col className="kcol-account" />}
@@ -338,9 +328,6 @@ export function BookingTable({
                 />
               </th>
             )}
-            <th className="kc-flag" scope="col">
-              <span className="sr-only">Markierung</span>
-            </th>
             {head('Datum', 'date')}
             {head('Empfänger', 'payee')}
             {all && head('Konto', 'account')}
@@ -417,7 +404,6 @@ export function BookingTable({
                       categories={lookups.data?.categories ?? []}
                       groups={lookups.data?.groups ?? []}
                       onCategory={setCategory}
-                      onFlag={setFlag}
                       onPatch={(patch) => writes.patch.mutateAsync({ id: entry.id, patch })}
                       busy={writes.patch.isPending}
                     />
@@ -474,7 +460,6 @@ function Row({
   categories,
   groups,
   onCategory,
-  onFlag,
   onPatch,
   busy,
   upcomingToday,
@@ -493,7 +478,6 @@ function Row({
   categories: { id: string; name: string; groupId: string | null }[];
   groups: { id: string; name: string }[];
   onCategory: (b: ListedBooking, categoryId: string | null) => void;
-  onFlag: (b: ListedBooking, flag: BookingFlag | null) => void;
   onPatch: (patch: BookingPatch) => Promise<unknown>;
   busy: boolean;
   upcomingToday?: string;
@@ -543,8 +527,7 @@ function Row({
     // Individual cell controls handle keyboard access; the rest of the row opens the dialog.
     <tr
       onClick={(e) => {
-        if (!(e.target as HTMLElement).closest('button, input, select, .kflagmenu, .kinline'))
-          onOpen(b);
+        if (!(e.target as HTMLElement).closest('button, input, select, .kinline')) onOpen(b);
       }}
       className={cx(
         b.status === 'pending' && 'is-pending',
@@ -568,23 +551,6 @@ function Row({
           />
         </td>
       )}
-      <td className="kc-flag kx-flag">
-        {selectionMode ? (
-          <span
-            className="kflag"
-            role="img"
-            aria-label={b.flag ? `Markierung ${FLAG_LABEL[b.flag]}` : 'Keine Markierung'}
-          >
-            <FlagGlyph flag={b.flag} size={16} />
-          </span>
-        ) : (
-          <FlagCell
-            booking={b}
-            label={label}
-            onChange={(flag) => onFlag(b, flag === '' ? null : flag)}
-          />
-        )}
-      </td>
       <td className="kc-date kx-date">
         {selectionMode ? (
           <span>{upcomingToday ? upcomingDate(b.date, upcomingToday) : shortDay(b.date)}</span>

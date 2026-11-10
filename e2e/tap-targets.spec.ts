@@ -51,9 +51,8 @@ test.describe('UX-3b touch controls', () => {
       ).toBeGreaterThanOrEqual(compactDock ? 11 : 13);
     }
     await expectTouchTargets(page.locator('button.kstatus-btn').first());
-    await expectTouchTargets(page.locator('.kflagpick.in-list .kflagbtn').first());
     const selectableId = await page
-      .locator('tr[data-booking]:has(button.kflagbtn)')
+      .locator('tr[data-booking]:has(button.kstatus-btn)')
       .first()
       .getAttribute('data-booking');
     await page.getByRole('button', { name: 'Auswählen', exact: true }).click();

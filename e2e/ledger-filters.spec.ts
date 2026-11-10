@@ -35,18 +35,19 @@ test('phone search and filter sheet immediately update, retain, remove and reset
   await trigger.click();
   await expect(sheet.getByLabel('Status', { exact: true })).toHaveValue('pending');
   await sheet.getByLabel('Status', { exact: true }).selectOption('pending');
-  await sheet.getByLabel('Markierung', { exact: true }).selectOption('none');
+  // The flag filter is retired (#1040).
+  await expect(sheet.getByLabel('Markierung', { exact: true })).toHaveCount(0);
   await sheet.getByLabel('Von', { exact: true }).fill('2026-09-01');
   await sheet.getByRole('button', { name: 'Fertig', exact: true }).click();
   await expect(page).toHaveURL(/status=pending/);
-  await expect(page.getByRole('button', { name: 'Filter (3)', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Filter (2)', exact: true })).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'Status: vorgemerkt entfernen', exact: true }).click();
   await expect(page).not.toHaveURL(/status=/);
-  await expect(page.getByRole('button', { name: 'Filter (2)', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Filter (1)', exact: true })).toBeVisible();
   await search.fill('Muster');
   await expect(page).toHaveURL(/q=Muster/);
-  await page.getByRole('button', { name: 'Filter (2)', exact: true }).click();
+  await page.getByRole('button', { name: 'Filter (1)', exact: true }).click();
   await sheet.getByRole('button', { name: 'Zurücksetzen', exact: true }).click();
   await expect(page).not.toHaveURL(/markierung=|von=/);
   await sheet.getByRole('button', { name: 'Fertig', exact: true }).click();

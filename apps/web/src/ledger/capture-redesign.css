@@ -403,9 +403,6 @@
   .bkform-redesign .bk-editor-titlebar > .bk-close {
     order: -1;
   }
-  .bkform-redesign .bk-editor-titlebar > .kflagpick {
-    display: none;
-  }
   .bkform-redesign .bk-editor-receipt-actions .receipt-actions {
     gap: 0;
   }
@@ -656,9 +653,6 @@
 }
 .bkform-redesign .bk-line + .bk-line {
   padding-block-start: 8px;
-}
-.bkform-redesign .bk-editor-titlebar > .kflagpick:has(.kflagbtn[aria-expanded='true']) {
-  z-index: 30;
 }
 .bkform-redesign .bk-repeat-native {
   height: 44px;

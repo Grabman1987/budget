@@ -468,7 +468,7 @@ test('the dialog is a centred card on the desktop and a sheet on the phone with 
   await expect(captureSaveControl(panel)).toBeInViewport();
 });
 
-test('the flag: popover with six colours and keys, first column of the table', async ({
+test('no flag UI in the register or dialog; editing keeps a stored flag', async ({
   page,
 }, testInfo) => {
   const tag = testInfo.project.name;
@@ -477,7 +477,6 @@ test('the flag: popover with six colours and keys, first column of the table', a
   await openAccount(page, account);
 
   const panel = await openCapture(page, testInfo);
-  // The flag is retired in the capture dialog on every viewport; the register keeps it.
   await expect(panel.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
   await expect(panel.getByLabel('Markierung', { exact: true })).toHaveCount(0);
   await expect(panel.getByTitle('Markieren')).toHaveCount(0);
@@ -488,43 +487,30 @@ test('the flag: popover with six colours and keys, first column of the table', a
   await page.keyboard.press('Control+Enter');
   await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
 
-  // The table: the flag is the first column and shows a glyph with the colour name as text.
-  if (!isPhone(testInfo)) {
-    await expect(page.getByRole('columnheader').first()).toHaveText('Markierung');
-  }
+  // The register has no flag column, glyph or button (#1040).
   const row = page.getByRole('row', { name: new RegExp(`Kiosk ${tag}`) });
-  const flagButton = row.getByRole('button', { name: /Markierung ändern/ });
-  // The flag is set in the register now (the dialog no longer offers it).
-  await flagButton.focus();
-  await page.keyboard.press('Enter');
-  await page.keyboard.press('3');
-  await expect(flagButton).toHaveAccessibleName(/aktuell Gelb/);
-  await expect(row.locator('.kflag-glyph.is-yellow')).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Markierung' })).toHaveCount(0);
+  await expect(row.getByRole('button', { name: /Markierung/ })).toHaveCount(0);
 
-  // Editable in the table: the same popover, saved at once, with undo, by keyboard.
-  await flagButton.focus();
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('menu', { name: 'Markierung wählen' })).toBeVisible();
-  await page.keyboard.press('5');
-  await expect(flagButton).toHaveAccessibleName(/aktuell Blau/);
-  await expect(toast(page)).toContainText('Buchung geändert');
-  await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
-  await expect(flagButton).toHaveAccessibleName(/aktuell Gelb/);
-  // Esc closes the popover only.
-  await flagButton.click();
-  await expect(page.getByRole('menu', { name: 'Markierung wählen' })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('menu', { name: 'Markierung wählen' })).toBeHidden();
-  await expect(flagButton).toBeFocused();
+  // Pre-flag the booking through the API (the UI cannot set it any more); an edit must keep it.
+  const id = await row.getAttribute('data-booking');
+  const origin = new URL(page.url()).origin;
+  const flagged = await page.request.patch(`/api/bookings/${id}`, {
+    headers: { origin },
+    data: { flag: 'yellow' },
+  });
+  expect(flagged.ok(), await flagged.text()).toBe(true);
+  await page.reload();
 
-  // Opened again: no flag control, and saving keeps the stored flag.
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await expect(edit.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
   await edit.getByLabel('Notiz').fill('Notiz geändert');
   await captureSaveControl(edit).click();
   await expect(edit).toBeHidden();
-  await expect(row.locator('.kflag-glyph.is-yellow')).toBeVisible();
+  const stored = await (await page.request.get(`/api/bookings/${id}`)).json();
+  expect(stored.booking.flag).toBe('yellow');
+  expect(stored.booking.memo).toBe('Notiz geändert');
 });
 
 test('the checkmark: a new booking starts pending and can be confirmed', async ({
