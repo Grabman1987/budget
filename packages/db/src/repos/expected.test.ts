@@ -568,6 +568,30 @@ describe('monthIncomeBooked follow-ups (#1020)', () => {
     expect(got.byPayment[0]?.receivedCents).toBe(100_000);
   });
 
+  it('keeps a second income type separate and a booking in the neighbouring month out', () => {
+    expectPayment('Gehalt', INCOME_TYPES.salary.id, 200_000, 25);
+    expectPayment('Nebenjob', INCOME_TYPES.side.id, 40_000, 20);
+    const side = book('2026-03-20', 40_000, [split(40_000, INCOME_TYPES.side.id)]);
+    const early = book('2026-02-27', 200_000);
+    const find = (due: string) =>
+      db.select().from(expectedOccurrence).where(eq(expectedOccurrence.dueDate, due)).all()[0]!;
+    linkOccurrence(db, find('2026-03-20').id, side, ctx);
+    linkOccurrence(db, find('2026-03-25').id, early, ctx);
+    const got = sameAsReport('2026-03');
+    expect(got.receivedCents).toBe(40_000);
+    expect(got.expectedCents).toBe(240_000);
+    expect(got.byIncomeType.map((t) => [t.incomeTypeId, t.expectedCents, t.receivedCents])).toEqual(
+      expect.arrayContaining([
+        [INCOME_TYPES.side.id, 40_000, 40_000],
+        [INCOME_TYPES.salary.id, 200_000, 0],
+      ]),
+    );
+    const salary = got.byPayment.find((l) => l.name === 'Gehalt')!;
+    expect(salary.bookingId).toBe(early);
+    expect(salary.receivedCents).toBe(0);
+    expect(got.byPayment.find((l) => l.name === 'Nebenjob')?.receivedCents).toBe(40_000);
+  });
+
   it('matches the report for a past month and a future month is empty', () => {
     book('2026-02-10', 80_000, [split(80_000, INCOME_TYPES.side.id)]);
     book('2026-02-12', 3_000, [split(3_000, INCOME_TYPES.capital.id)]);

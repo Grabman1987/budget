@@ -88,6 +88,7 @@ function setup(
   items: ListedBooking[] = [booking],
   variant: 'account' | 'all' = 'account',
   upcoming?: UpcomingModel,
+  overdraftLimitCents?: number | null,
 ) {
   const client = new QueryClient({ defaultOptions: { queries: { enabled: false } } });
   client.setQueryData(lookupsQuery().queryKey, {
@@ -114,6 +115,7 @@ function setup(
         variant={variant}
         onOpen={onOpen}
         {...(upcoming ? { upcoming } : {})}
+        {...(overdraftLimitCents !== undefined ? { overdraftLimitCents } : {})}
       />
     </QueryClientProvider>,
   );
@@ -371,4 +373,24 @@ it('dismisses the compact register context with Escape or an outside press and r
   fireEvent.pointerDown(document.body);
   expect(menu.open).toBe(false);
   flags.REDESIGN_ENABLED = false;
+});
+
+it('shows the Dispo hint behind the balance only for a positive limit, and masks it', () => {
+  flags.REDESIGN_ENABLED = true;
+  const dispo = (limit: number | null) =>
+    setup([booking], 'account', undefined, limit).container.querySelector('.kdispo');
+  expect(dispo(150_000)?.textContent).toContain('1.500,00');
+  document.body.replaceChildren();
+  expect(dispo(null)).toBeNull();
+  document.body.replaceChildren();
+  expect(dispo(0)).toBeNull();
+  document.body.replaceChildren();
+  try {
+    act(() => setAmountsHidden(true));
+    const hidden = dispo(150_000);
+    expect(hidden?.textContent).not.toContain('1.500');
+    expect(hidden?.textContent).toContain('•••');
+  } finally {
+    act(() => setAmountsHidden(false));
+  }
 });

@@ -8,6 +8,7 @@ import { accountsQuery, lookupsQuery } from './queries';
 import { depotTradesQuery } from './depot-queries';
 import type { BookingFlag, BookingStatus, ListedBooking } from './types';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { CategoryIcon } from '../budget/category-icon';
 
 const STATUS_ICON = { pending: Clock, confirmed: Check, reconciled: CircleCheck } as const;
 
@@ -111,6 +112,7 @@ export function CategoryCell({
   showClass?: boolean;
 }) {
   const accounts = useQuery(accountsQuery());
+  const lookups = useQuery({ ...lookupsQuery(), enabled: REDESIGN_ENABLED });
   const investment =
     accounts.data?.accounts.find((a) => a.id === booking.accountId)?.role === 'investment';
   const missingExpenseSplit = booking.splits.some(
@@ -195,6 +197,12 @@ export function CategoryCell({
   return (
     <span className="kcat">
       {showClass && kind && <ClassSwatch kind={kind} />}
+      {REDESIGN_ENABLED && (
+        <CategoryIcon
+          icon={lookups.data?.categories.find((c) => c.id === only.categoryId)?.icon ?? null}
+          name={only.categoryName}
+        />
+      )}
       {only.categoryName}
     </span>
   );
