@@ -59,6 +59,8 @@ export interface BookingTableProps {
   showTodayBalance?: boolean;
   /** Alle Buchungen may show a Saldo column only for an explicit single account. */
   showRunningBalance?: boolean;
+  /** Overdraft limit of a single checking account; shown in brackets behind the balance. */
+  overdraftLimitCents?: number | null;
 }
 
 const canEditCategory = (b: ListedBooking) =>
@@ -79,6 +81,7 @@ export function BookingTable({
   upcoming,
   showTodayBalance = true,
   showRunningBalance = false,
+  overdraftLimitCents = null,
   monthlyTotals,
   monthlyTotalsPending,
   monthlyKind,
@@ -109,6 +112,7 @@ export function BookingTable({
   // Retain the projected-row balance marker when Kommend is open. Historical All rows
   // show a balance value only for an explicit single account.
   const runColumn = !all || showRunningBalance || showUpcoming;
+  const dispo = REDESIGN_ENABLED && overdraftLimitCents ? overdraftLimitCents : null;
   const columns =
     (selection ? 1 : 0) + 7 + (runColumn ? 1 : 0) + (REDESIGN_ENABLED ? (all ? 2 : 1) : 0);
   const head = (label: string, key?: BookingSort, numeric = false): ReactNode => (
@@ -218,6 +222,7 @@ export function BookingTable({
           variant={variant}
           classes={classes}
           runColumn={runColumn}
+          dispoCents={dispo}
           showRunningBalance={showRunningBalance}
           {...(selection ? { selection } : {})}
           onOpen={onOpen}
@@ -314,7 +319,9 @@ export function BookingTable({
             {REDESIGN_ENABLED && <col className="kcol-note" />}
             {REDESIGN_ENABLED && <col className="kcol-money" />}
             <col className="kcol-money" />
-            {runColumn && <col className="kcol-money" />}
+            {runColumn && (
+              <col className={cx('kcol-money', 'kcol-run', dispo !== null && 'has-dispo')} />
+            )}
             <col className="kcol-status" />
           </colgroup>
         )}
@@ -404,6 +411,7 @@ export function BookingTable({
                       projectedBalance={upcoming.balances.get(entry.id) ?? null}
                       blankCheck={!!selection}
                       runColumn={runColumn}
+                      dispoCents={dispo}
                       onOpen={onOpen}
                       onInspect={setInspected}
                       categories={lookups.data?.categories ?? []}
@@ -473,6 +481,7 @@ function Row({
   projectedBalance,
   blankCheck,
   runColumn,
+  dispoCents = null,
   showRunningBalance = false,
 }: {
   booking: ListedBooking;
@@ -492,6 +501,8 @@ function Row({
   /** Upcoming rows cannot be selected but keep the checkbox column aligned. */
   blankCheck?: boolean;
   runColumn: boolean;
+  /** Overdraft limit shown behind the balance (redesign, single checking account). */
+  dispoCents?: number | null;
   showRunningBalance?: boolean;
 }) {
   useAmountPrivacy();
@@ -734,6 +745,13 @@ function Row({
                 ? ''
                 : valuedCurrency(b.balanceAfterCents, b.currency, b.balanceValuation)}
           </span>
+          {dispoCents !== null &&
+            (upcomingToday ? projectedBalance != null : b.balanceAfterCents !== null) && (
+              <span className="kdispo" title="Dispo-Rahmen">
+                {' '}
+                ({nativeCurrency(dispoCents, b.currency)})
+              </span>
+            )}
         </td>
       )}
       <td className="kc-status kx-status">

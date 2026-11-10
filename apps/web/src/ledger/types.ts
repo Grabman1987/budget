@@ -200,6 +200,8 @@ export interface BookingFilter {
 
 export interface Category {
   hiddenAt?: string | null;
+  /** Stored emoji; null falls back to the name-derived display emoji. */
+  icon?: string | null;
   id: string;
   name: string;
   groupId: string | null;
