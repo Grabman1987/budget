@@ -157,9 +157,7 @@ for (const theme of ['light', 'dark'] as const) {
           const phone = page.viewportSize()!.width < 768;
           // #1007: the phone shows the active filter on the "Ansicht" chip instead of a chip row.
           if (phone)
-            await expect(menu.locator('summary')).toHaveAccessibleName(
-              'Ansicht, Aufmerksamkeit',
-            );
+            await expect(menu.locator('summary')).toHaveAccessibleName('Ansicht, Aufmerksamkeit');
           else
             await expect(
               page
