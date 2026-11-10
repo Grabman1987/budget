@@ -11,7 +11,7 @@ import { profileQuery } from '../shell/use-profile';
  */
 export function PortfolioRiskContext() {
   const query = useQuery(profileQuery());
-  if (!query.data) return null;
+  if (!query.data?.risk) return null;
   const result = classifyRiskProfile(query.data.risk);
   const text = (level: keyof typeof LEVEL_TEXT) =>
     level === 'unknown' ? 'nicht erfasst' : LEVEL_TEXT[level];
