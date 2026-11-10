@@ -64,7 +64,14 @@ function seedConfig() {
   createEntity(
     opened.db,
     expectedPayment,
-    { id: 'eb', name: 'Plan B', accountId: 'giro', dueDay: 5, startDate: '2026-01-01', contactId: 'kb' },
+    {
+      id: 'eb',
+      name: 'Plan B',
+      accountId: 'giro',
+      dueDay: 5,
+      startDate: '2026-01-01',
+      contactId: 'kb',
+    },
     testCtx,
   );
   createEntity(
@@ -112,7 +119,9 @@ describe('#871 contact merge (pointer, no netting)', () => {
     const { preview } = merge('kb', 'ka');
     expect(groups()).toBe(g0 + 1);
     expect(facts()).toEqual(factsBefore); // ids, cents, statuses, splits: byte-identical
-    expect(sql("SELECT merged_into_id AS m, archived_at AS a FROM contact WHERE id = 'kb'")[0]).toEqual({
+    expect(
+      sql("SELECT merged_into_id AS m, archived_at AS a FROM contact WHERE id = 'kb'")[0],
+    ).toEqual({
       m: 'ka',
       a: expect.any(String),
     });
@@ -140,27 +149,38 @@ describe('#871 contact merge (pointer, no netting)', () => {
   it('never nets a credit against an open receivable: refused, nothing written', () => {
     createEntity(opened.db, contact, { id: 'kc', name: 'Kontakt C' }, testCtx);
     // Credit 500 dated before A's open 12 000 outlay: the union statement would net it.
-    settleContact(opened.db, 'kc', { accountId: 'giro', date: '2026-03-12', amountCents: 500 }, testCtx);
+    settleContact(
+      opened.db,
+      'kc',
+      { accountId: 'giro', date: '2026-03-12', amountCents: 500 },
+      testCtx,
+    );
     const p = previewContactMerge(opened.db, 'kc', 'ka', options);
     expect(p.conflicts).toEqual(['would_net']);
     expect(p.token).toBeNull();
     const before = { f: facts(), t: touched(), g: groups() };
-    expect(() =>
-      commitContactMerge(opened.db, 'kc', 'ka', 'x.y', ctx(), options),
-    ).toThrow(ContactMergeConflictError);
+    expect(() => commitContactMerge(opened.db, 'kc', 'ka', 'x.y', ctx(), options)).toThrow(
+      ContactMergeConflictError,
+    );
     expect({ f: facts(), t: touched(), g: groups() }).toEqual(before);
   });
 
   it('sums credit and receivable when no netting happens (credit after all outlays)', () => {
     createEntity(opened.db, contact, { id: 'kc', name: 'Kontakt C' }, testCtx);
-    settleContact(opened.db, 'kc', { accountId: 'giro', date: '2026-09-01', amountCents: 500 }, testCtx);
+    settleContact(
+      opened.db,
+      'kc',
+      { accountId: 'giro', date: '2026-09-01', amountCents: 500 },
+      testCtx,
+    );
     const { preview } = merge('kc', 'ka');
     expect(preview.after).toEqual({ receivableCents: 4500, creditCents: 500 });
     expect(money('ka')).toEqual([4500, 500]);
   });
 
   it('refuses each conflict and leaves nothing behind', () => {
-    const reasons = (s: string, t: string) => previewContactMerge(opened.db, s, t, options).conflicts;
+    const reasons = (s: string, t: string) =>
+      previewContactMerge(opened.db, s, t, options).conflicts;
     expect(reasons('ka', 'ka')).toContain('same_contact');
     createEntity(opened.db, contact, { id: 'kc', name: 'Kontakt C' }, testCtx);
     merge('kc', 'ka');
@@ -196,7 +216,13 @@ describe('#871 contact merge (pointer, no netting)', () => {
   it('refuses a stale, expired or forged token without writing', () => {
     const p = previewContactMerge(opened.db, 'kb', 'ka', options);
     const before = { f: facts(), t: touched(), g: groups() };
-    updateEntity(opened.db, payee, createEntity(opened.db, payee, { name: 'Neu', contactId: 'ka' }, testCtx).id, { name: 'Neu 2' }, testCtx);
+    updateEntity(
+      opened.db,
+      payee,
+      createEntity(opened.db, payee, { name: 'Neu', contactId: 'ka' }, testCtx).id,
+      { name: 'Neu 2' },
+      testCtx,
+    );
     const afterChange = { t: touched(), g: groups() };
     expect(() => commitContactMerge(opened.db, 'kb', 'ka', p.token!, ctx(), options)).toThrow(
       StalePreviewError,
@@ -261,7 +287,9 @@ describe('#871 contact merge (pointer, no netting)', () => {
     expect(t.payees).toEqual(before.t.payees);
     expect(t.expected).toEqual(before.t.expected);
     expect(t.accounts).toEqual(before.t.accounts);
-    expect(sql('SELECT count(*) AS n FROM contact_alias WHERE deleted_at IS NULL')).toEqual([{ n: 0 }]);
+    expect(sql('SELECT count(*) AS n FROM contact_alias WHERE deleted_at IS NULL')).toEqual([
+      { n: 0 },
+    ]);
     expect(money('ka')).toEqual([4500, 0]);
     expect(money('kb')).toEqual([0, 0]);
     expect(listed()).toEqual(['ka', 'kb']);

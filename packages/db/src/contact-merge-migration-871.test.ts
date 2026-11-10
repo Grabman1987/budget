@@ -22,7 +22,8 @@ function predecessorFolder(root: string): string {
   journal.entries = journal.entries.filter((e) => e.tag < TAG);
   expect(journal.entries.at(-1)?.tag).toBe('0051_contact_archive');
   writeFileSync(join(folder, 'meta', '_journal.json'), JSON.stringify(journal));
-  for (const e of journal.entries) copyFileSync(join(source, `${e.tag}.sql`), join(folder, `${e.tag}.sql`));
+  for (const e of journal.entries)
+    copyFileSync(join(source, `${e.tag}.sql`), join(folder, `${e.tag}.sql`));
   return folder;
 }
 
@@ -38,15 +39,15 @@ const tableNames = (o: OpenedDatabase) =>
 const dump = (o: OpenedDatabase, skipColumn?: string) =>
   Object.fromEntries(
     tableNames(o).map((name) => {
-      const columns = (
-        o.sqlite.prepare(`PRAGMA table_info("${name}")`).all() as { name: string }[]
-      )
+      const columns = (o.sqlite.prepare(`PRAGMA table_info("${name}")`).all() as { name: string }[])
         .map((c) => c.name)
         .filter((c) => c !== skipColumn);
       return [
         name,
         o.sqlite
-          .prepare(`SELECT ${columns.map((c) => `"${c}"`).join(', ')} FROM "${name}" ORDER BY rowid`)
+          .prepare(
+            `SELECT ${columns.map((c) => `"${c}"`).join(', ')} FROM "${name}" ORDER BY rowid`,
+          )
           .all(),
       ];
     }),
@@ -61,7 +62,7 @@ it('#871 migration 0052 on a copy of a genuine 0051 database: data preserved, ro
   let opened: OpenedDatabase | undefined;
   try {
     const path = join(root, 'predecessor.sqlite');
-    opened = openDatabase(path);
+    const db = (opened = openDatabase(path));
     migrateDatabase(opened.db, predecessorFolder(root));
     expect(columns(opened, 'contact')).not.toContain('merged_into_id');
     // Synthetic rows through raw SQL only (nothing of the application layer touches 0052).
@@ -81,11 +82,18 @@ it('#871 migration 0052 on a copy of a genuine 0051 database: data preserved, ro
     expect(applied(opened)).toBe(beforeMigrations + 1);
     expect(columns(opened, 'contact')).toContain('merged_into_id');
     expect(dump(opened, 'merged_into_id')).toEqual(before);
-    expect(opened.sqlite.prepare('SELECT count(*) AS n FROM contact WHERE merged_into_id IS NOT NULL').get()).toEqual({ n: 0 });
+    expect(
+      opened.sqlite
+        .prepare('SELECT count(*) AS n FROM contact WHERE merged_into_id IS NOT NULL')
+        .get(),
+    ).toEqual({ n: 0 });
     expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);
     expect(opened.sqlite.pragma('integrity_check')).toEqual([{ integrity_check: 'ok' }]);
 
-    const rollback = readFileSync(join(defaultMigrationsFolder(), 'rollback', `${TAG}.sql`), 'utf8');
+    const rollback = readFileSync(
+      join(defaultMigrationsFolder(), 'rollback', `${TAG}.sql`),
+      'utf8',
+    );
     const run = (o: OpenedDatabase) => o.sqlite.transaction(() => o.sqlite.exec(rollback))();
 
     // Rollback on unused data is exact; forward again restores the column.
@@ -99,7 +107,7 @@ it('#871 migration 0052 on a copy of a genuine 0051 database: data preserved, ro
     // A merged contact refuses the downgrade atomically (bytes unchanged).
     opened.sqlite.exec("UPDATE contact SET merged_into_id = 'ka' WHERE id = 'kb'");
     let bytes = opened.sqlite.serialize();
-    expect(() => run(opened)).toThrow();
+    expect(() => run(db)).toThrow();
     expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
     // ...and so does audited merge intent although the pointer is gone (undone merge).
     opened.sqlite.exec(`
@@ -108,7 +116,7 @@ it('#871 migration 0052 on a copy of a genuine 0051 database: data preserved, ro
         VALUES ('au2', 'synthetic', 'update', 'contact', 'kb', '{"merged_into_id":"ka"}', 'g2');
     `);
     bytes = opened.sqlite.serialize();
-    expect(() => run(opened)).toThrow();
+    expect(() => run(db)).toThrow();
     expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
   } finally {
     opened?.close();

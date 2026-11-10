@@ -291,7 +291,9 @@ function computePreview(
     sourceId,
     targetId,
     rows: [source, target].map((r) => [r.id, r.updatedAt, r.archivedAt, r.mergedIntoId]),
-    aliases: [sourceId, targetId].map((id) => listContactAliases(tx, id).map((a) => [a.id, a.updatedAt])),
+    aliases: [sourceId, targetId].map((id) =>
+      listContactAliases(tx, id).map((a) => [a.id, a.updatedAt]),
+    ),
     cents: [preview.source, preview.target].map((s) => [s.receivableCents, s.creditCents]),
     stamps: [sourceId, targetId].map((id) => referenceStamps(tx, id)),
     config: [sourceConfig, targetConfig],
@@ -420,7 +422,9 @@ export function assertContactMergeUndo(
     if (partial)
       throw new AuditError('Eine Zusammenführung kann nur als Ganzes rückgängig gemacht werden.');
     const sourceId = merge.entityId;
-    const position = tx.get<{ r: number }>(sql`select rowid as r from audit_log where id = ${merge.id}`);
+    const position = tx.get<{ r: number }>(
+      sql`select rowid as r from audit_log where id = ${merge.id}`,
+    );
     if (!position) continue;
     const refuse = (what: string): never => {
       throw new AuditError(

@@ -59,7 +59,7 @@ it('requires a session, previews read-only, commits with the token and undoes as
   expect(groups()).toBe(g0);
 
   // No token, wrong token: refused without a write.
-  expect((await call('POST', '/contacts/kb/merge', { targetId: 'ka' })).status).toBe(422);
+  expect((await call('POST', '/contacts/kb/merge', { targetId: 'ka' })).status).toBe(400);
   const forged = await call('POST', '/contacts/kb/merge', { targetId: 'ka', token: '1.abc' });
   expect(forged.status).toBe(409);
   expect(forged.body.error).toBe('stale_preview');
