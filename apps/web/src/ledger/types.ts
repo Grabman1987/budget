@@ -215,7 +215,13 @@ export interface Lookups {
   categories: Category[];
   projects: { id: string; name: string; archivedAt?: string | null }[];
   incomeTypes: { id: string; name: string }[];
-  contacts: { id: string; name: string }[];
+  contacts: {
+    id: string;
+    name: string;
+    archived?: boolean;
+    updatedAt?: string;
+    aliases?: { id: string; alias: string; updatedAt: string }[];
+  }[];
   institutions: { id: string; name: string; kind: string }[];
 }
 

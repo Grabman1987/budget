@@ -7,6 +7,7 @@ import {
   assertPaymentLifecycleUndo,
 } from './expected-lifecycle-invariants';
 import { assertContactName, assertContactUndoDependencies } from './contact-invariants';
+import { assertContactIdentityUndo, assertContactIdentityUndoBefore } from './contact-identity';
 import { isDuplicatePayslip } from '@budget/domain';
 import { assertReceiptUndo } from './receipts';
 import {
@@ -637,6 +638,7 @@ export function undo(
   return runInTransaction(db, (tx) => {
     const originals = loadTarget(tx, target);
     assertStatementUndoTarget(tx, originals, 'auditId' in target);
+    assertContactIdentityUndoBefore(tx, originals);
     // Protocol state cannot be replayed by undo: callbacks are one-shot and remote consent is external.
     if (
       originals.some((entry) =>
@@ -874,6 +876,7 @@ export function undo(
     }
     assertLedgerInvariants(tx, touched);
     assertContactUndoDependencies(tx, originals);
+    assertContactIdentityUndo(tx, originals);
     assertReceiptUndo(tx, originals);
     assertStatementSettlementInvariants(tx);
     if (

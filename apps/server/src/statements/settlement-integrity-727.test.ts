@@ -161,7 +161,7 @@ it('upgrades only a genuine through45 synthetic COPY, round-trips empty46 rollba
   writeFileSync(join(migrations, 'meta/_journal.json'), JSON.stringify(journal));
   const original = open(join(dir, 'original.sqlite'));
   migrateDatabase(original.db, migrations);
-  seedBasics(original.db);
+  seedBasics(original.db, { predecessorSchema: true });
   const oldTables = tableNames(original),
     oldRows = rows(original);
   expect(oldTables).toContain('statement_intake');

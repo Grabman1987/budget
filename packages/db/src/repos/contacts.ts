@@ -26,6 +26,7 @@ import {
 } from './bookings';
 import { ensureAdvanceCategory } from './categories';
 import { contactCreditRecords, saveContactCreditRecord } from './contact-credit';
+import { listContactAliases } from './contact-label';
 import { assertContactAllocationUnlocked, releaseContactCredit } from './contact-reallocation';
 import { assertLedgerInvariants } from './invariants';
 export { getContactRepaymentAllocation, reallocateContactRepayment } from './contact-reallocation';
@@ -104,7 +105,17 @@ export function getContactStatement(
       : [];
   });
   return {
-    contact: { id: row.id, name: row.name, note: row.note },
+    contact: {
+      id: row.id,
+      name: row.name,
+      note: row.note,
+      archivedAt: row.archivedAt,
+      aliases: listContactAliases(db, row.id).map((a) => ({
+        id: a.id,
+        alias: a.alias,
+        updatedAt: a.updatedAt,
+      })),
+    },
     asOf,
     currency: 'EUR' as const,
     ...statement,
@@ -131,6 +142,7 @@ export function listContactStatements(db: Executor, asOf: string, history = fals
       const s = getContactStatement(db, c.id, asOf, records);
       return {
         ...s.contact,
+        updatedAt: c.updatedAt,
         balanceCents: s.balanceCents,
         creditCents: s.creditCents,
         receivableCents: s.outlays.reduce((sum, o) => sum + o.remainingCents, 0),

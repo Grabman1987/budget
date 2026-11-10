@@ -1,4 +1,9 @@
 import {
+  addContactAlias,
+  archiveContact,
+  assertFresh,
+  removeContactAlias,
+  reopenContact,
   createEntity,
   chooseContactCredit,
   convertContactOutlayToGift,
@@ -15,6 +20,7 @@ import {
   type Db,
 } from '@budget/db';
 import { randomUUID } from 'node:crypto';
+import { and, eq, isNull } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { contactTotals } from '@budget/domain';
@@ -26,6 +32,7 @@ const day = z
     const d = new Date(`${v}T00:00:00Z`);
     return Number.isFinite(d.getTime()) && d.toISOString().startsWith(v);
   }, 'Invalid date');
+const expectedAt = z.string().min(1).max(40).optional();
 const query = z.object({ asOf: day.optional(), history: z.enum(['0', '1']).optional() });
 const receipt = z
   .object({
@@ -79,11 +86,66 @@ export function contactRoutes(db: Db, today: () => string): Hono {
     return c.json(getContactStatement(db, c.req.param('id'), q.asOf ?? today()));
   });
   app.patch('/:id', async (c) => {
-    const input = await readBody(c, z.object({ name: z.string().trim().min(1).max(200) }).strict());
+    const input = await readBody(
+      c,
+      z.object({ name: z.string().trim().min(1).max(200), expectedUpdatedAt: expectedAt }).strict(),
+    );
     const ctx = audit();
-    const row = updateEntity(db, schema.contact, c.req.param('id'), input, ctx);
+    const row = db.transaction((tx) => {
+      const current = tx
+        .select()
+        .from(schema.contact)
+        .where(and(eq(schema.contact.id, c.req.param('id')), isNull(schema.contact.deletedAt)))
+        .get();
+      if (current) assertFresh(current, input.expectedUpdatedAt);
+      return updateEntity(tx, schema.contact, c.req.param('id'), { name: input.name }, ctx);
+    });
     return c.json({ contact: row, groupId: ctx.groupId });
   });
+  app.post('/:id/aliases', async (c) => {
+    const input = await readBody(
+      c,
+      z
+        .object({ alias: z.string().trim().min(1).max(200), expectedUpdatedAt: expectedAt })
+        .strict(),
+    );
+    const ctx = audit();
+    const alias = addContactAlias(
+      db,
+      c.req.param('id'),
+      input.alias,
+      ctx,
+      defined<{ expectedUpdatedAt?: string }>({ expectedUpdatedAt: input.expectedUpdatedAt }),
+    );
+    return c.json({ alias, groupId: ctx.groupId }, 201);
+  });
+  app.delete('/:id/aliases/:aliasId', (c) => {
+    const q = readQuery(c, z.object({ expectedUpdatedAt: expectedAt }).strict());
+    const ctx = audit();
+    removeContactAlias(
+      db,
+      c.req.param('id'),
+      c.req.param('aliasId'),
+      ctx,
+      defined<{ expectedUpdatedAt?: string }>({ expectedUpdatedAt: q.expectedUpdatedAt }),
+    );
+    return c.json({ groupId: ctx.groupId });
+  });
+  for (const [path, run] of [
+    ['archive', archiveContact],
+    ['reopen', reopenContact],
+  ] as const)
+    app.post(`/:id/${path}`, async (c) => {
+      const input = await readBody(c, z.object({ expectedUpdatedAt: expectedAt }).strict());
+      const ctx = audit();
+      const row = run(
+        db,
+        c.req.param('id'),
+        ctx,
+        defined<{ expectedUpdatedAt?: string }>({ expectedUpdatedAt: input.expectedUpdatedAt }),
+      );
+      return c.json({ contact: row, groupId: ctx.groupId });
+    });
   app.post('/:id/settlements', async (c) => {
     const input = await readBody(c, receipt);
     if (input.date > today())

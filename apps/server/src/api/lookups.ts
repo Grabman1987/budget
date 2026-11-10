@@ -1,4 +1,5 @@
 import {
+  listContactAliases,
   category,
   categoryGroup,
   contact,
@@ -113,11 +114,27 @@ export function lookupRoutes(db: Db): Hono {
         .orderBy(asc(incomeType.sortOrder))
         .all(),
       contacts: db
-        .select({ id: contact.id, name: contact.name })
+        .select({
+          id: contact.id,
+          name: contact.name,
+          archivedAt: contact.archivedAt,
+          updatedAt: contact.updatedAt,
+        })
         .from(contact)
         .where(isNull(contact.deletedAt))
         .orderBy(asc(contact.name))
-        .all(),
+        .all()
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          archived: c.archivedAt !== null,
+          updatedAt: c.updatedAt,
+          aliases: listContactAliases(db, c.id).map((a) => ({
+            id: a.id,
+            alias: a.alias,
+            updatedAt: a.updatedAt,
+          })),
+        })),
       institutions: db
         .select({ id: institution.id, name: institution.name, kind: institution.kind })
         .from(institution)

@@ -77,7 +77,7 @@ const META = PAGES.find((p) => p.path === '/konten/kontakte')!;
 const contactUrl = (id: string) => `/api/contacts/${encodeURIComponent(id)}`;
 const decimal = (value: number) => formatDecimal(cents(value));
 
-function useContactWrite() {
+export function useContactWrite() {
   const qc = useQueryClient();
   const toast = useToast();
   const refresh = () => qc.invalidateQueries();

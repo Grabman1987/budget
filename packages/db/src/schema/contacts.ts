@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, index, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { check, index, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { contact } from './accounts';
 import { booking } from './bookings';
 import { cents, id, timestamps } from './common';
@@ -39,5 +39,29 @@ export const contactAllocation = sqliteTable(
   (t) => [
     check('contact_allocation_amount_chk', sql`${t.amountCents} > 0`),
     index('contact_allocation_settlement_idx').on(t.settlementId),
+  ],
+);
+
+/**
+ * Alternative labels of a contact (#870). `alias_norm` is the lowercase, NFKC-normalised,
+ * whitespace-collapsed form (`normalizeContactLabel`); it is unique among active aliases. Aliases
+ * only help search and name lookups: display name and every booking stay as they are.
+ */
+export const contactAlias = sqliteTable(
+  'contact_alias',
+  {
+    id: id(),
+    contactId: text('contact_id')
+      .notNull()
+      .references(() => contact.id),
+    alias: text('alias').notNull(),
+    aliasNorm: text('alias_norm').notNull(),
+    ...timestamps(),
+  },
+  (t) => [
+    uniqueIndex('contact_alias_norm_active_uq')
+      .on(t.aliasNorm)
+      .where(sql`${t.deletedAt} IS NULL`),
+    index('contact_alias_contact_idx').on(t.contactId),
   ],
 );
