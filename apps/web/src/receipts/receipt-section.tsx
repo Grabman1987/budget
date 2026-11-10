@@ -26,6 +26,31 @@ const receiptQuery = (bookingId?: string) => ({
     ),
 });
 
+/** The one receipt upload call, shared with the central document upload. */
+export async function postReceipt(file: File, bookingId?: string) {
+  const data = new FormData();
+  data.set('file', file);
+  if (bookingId) data.set('bookingId', bookingId);
+  let response: Response;
+  try {
+    response = await fetch('/api/receipts', {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: data,
+    });
+  } catch {
+    throw new ApiError(0, 'network');
+  }
+  const result = (await response.json().catch(() => ({}))) as {
+    groupId: string;
+    error?: string;
+    message?: string;
+  };
+  if (!response.ok) throw new ApiError(response.status, result.error ?? 'unknown', result.message);
+  notifyApiWrite();
+  return result;
+}
+
 /** Attach to a saved booking, or capture first into the inbox. All writes use shared undo toasts. */
 export function ReceiptSection({
   bookingId,
@@ -55,30 +80,7 @@ export function ReceiptSection({
     }
     setBusy(true);
     await write(
-      async () => {
-        const data = new FormData();
-        data.set('file', file);
-        if (bookingId) data.set('bookingId', bookingId);
-        let response: Response;
-        try {
-          response = await fetch('/api/receipts', {
-            method: 'POST',
-            credentials: 'same-origin',
-            body: data,
-          });
-        } catch {
-          throw new ApiError(0, 'network');
-        }
-        const result = (await response.json().catch(() => ({}))) as {
-          groupId: string;
-          error?: string;
-          message?: string;
-        };
-        if (!response.ok)
-          throw new ApiError(response.status, result.error ?? 'unknown', result.message);
-        notifyApiWrite();
-        return result;
-      },
+      () => postReceipt(file, bookingId),
       () => (bookingId ? 'Beleg angehängt.' : 'Beleg unter Prüfen gespeichert.'),
     );
     setBusy(false);
