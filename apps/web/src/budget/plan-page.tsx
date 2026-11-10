@@ -1511,9 +1511,7 @@ function PlanBody({
           {REDESIGN_ENABLED && <PlanContactAdvances />}
         </section>
       </div>
-      {phoneRedesign && !phoneSelection && (
-        <div className="plan-distribute-dock">{distributeMenu}</div>
-      )}
+      {phoneRedesign && <div className="plan-distribute-dock">{distributeMenu}</div>}
       {phoneRedesign && assignId && byId.get(assignId) && (
         <PlanAssignSheet
           key={assignId}

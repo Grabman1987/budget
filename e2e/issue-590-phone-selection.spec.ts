@@ -602,6 +602,7 @@ test('trusted native hold/release enters selection, real cancel and movement can
       targetIsOriginalCategory: boolean;
       targetIsExactOverlay: boolean;
       overlayUnderPoint: boolean;
+      targetIsSelectionToggle: boolean;
     };
   }[] = [];
   const protocolAcknowledgments: {
@@ -786,6 +787,9 @@ test('trusted native hold/release enters selection, real cancel and movement can
                     ? original.hasPointerCapture(event.pointerId)
                     : false,
                 targetIsOriginalCategory: element !== null && original.contains(element),
+                // The selection toggles mount under the held finger as the list reflows (#1007).
+                targetIsSelectionToggle:
+                  element !== null && element.closest('.plan-select-toggle') !== null,
                 targetIsExactOverlay:
                   element !== null && element === document.querySelector('.plan-selection-bar'),
                 overlayUnderPoint:
@@ -861,7 +865,8 @@ test('trusted native hold/release enters selection, real cancel and movement can
     expect(up?.coordinates).toEqual({ x: point.x, y: point.y });
     expect(
       (up?.origin.targetIsOriginalCategory && up.category === down?.category) ||
-        (up?.origin.targetIsExactOverlay && up.origin.overlayUnderPoint),
+        (up?.origin.targetIsExactOverlay && up.origin.overlayUnderPoint) ||
+        up?.origin.targetIsSelectionToggle,
     ).toBe(true);
     await expect
       .poll(

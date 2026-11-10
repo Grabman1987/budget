@@ -173,7 +173,7 @@ function PlanMenu({
         aria-label={
           chipText && iconOnly
             ? chipDetail
-              ? `${chipText}, Filter ${chipDetail}`
+              ? `${chipText}, ${chipDetail}`
               : chipText
             : iconOnly || chipText
               ? label
@@ -182,7 +182,9 @@ function PlanMenu({
       >
         {iconOnly ? (
           <>
-            <span className="sr-only">{label}</span>
+            <span className="sr-only" aria-hidden={chipText ? true : undefined}>
+              {label}
+            </span>
             {chipText ? (
               <>
                 <span aria-hidden="true">{chipText}</span>

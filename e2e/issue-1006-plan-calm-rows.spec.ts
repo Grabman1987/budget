@@ -225,7 +225,7 @@ test('menu filters stay visible as removable pressed toolbar chips', async ({
         .getByRole('button', { name: new RegExp(name) });
       await item.click();
       await expect(toolbar.locator('.plan-menu-optionen > summary')).toHaveAccessibleName(
-        /^Ansicht, Filter /,
+        /^Ansicht, /,
       );
       await toolbar.locator('.plan-menu-optionen > summary').click();
       await expect(item).toHaveAttribute('aria-pressed', 'true');

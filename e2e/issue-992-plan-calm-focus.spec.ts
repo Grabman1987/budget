@@ -158,7 +158,7 @@ for (const theme of ['light', 'dark'] as const) {
           // #1007: the phone shows the active filter on the "Ansicht" chip instead of a chip row.
           if (phone)
             await expect(menu.locator('summary')).toHaveAccessibleName(
-              'Ansicht, Filter Aufmerksamkeit',
+              'Ansicht, Aufmerksamkeit',
             );
           else
             await expect(
