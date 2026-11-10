@@ -3,9 +3,10 @@
 Status: draft implementation for #762, not a live or fully integrated strategy.
 The redesign savings page includes optional settings, daily/monthly projections,
 constrained contribution routing and separate rebalancing confirmation. Pure
-calculations and persistence are exercised with synthetic evidence. A trusted
-production index/calendar adapter is still required: the default provider returns
-an explicit unavailable state, never synthetic sessions or an inferred signal.
+calculations and persistence are exercised with synthetic evidence. The server
+reads the signal index from stored closes (see "Signal series" below); without a
+complete, current, correctly identified series it returns an explicit unavailable
+state, never synthetic sessions or an inferred signal.
 
 This owner-requested optional strategy supplements the existing investment
 features. Reuse the explicit account universe, dated asset-class exposures and
@@ -169,9 +170,10 @@ requests only project data. An unavailable daily feed does not rewrite a retaine
 binding decision. Signal evidence is accepted only from the injected server
 provider, never from an HTTP payload or browser. The provider must establish the
 canonical unlevered Nasdaq-100 USD price-index identity, completed session
-timestamps and full verified monthly calendars. No such adapter exists in the
-current repository; production signals and initial binding allocations therefore
-remain unavailable. The execution calendar is separately optional, and its absent
+timestamps and full verified monthly calendars. `storedStrategyEvidence`
+(`packages/db/src/repos/strategy-signal-evidence.ts`) does this from stored
+closes; production signals and initial binding allocations therefore
+remain unavailable until the series is captured. The execution calendar is separately optional, and its absent
 or exhausted coverage leaves the planning date visible and provisional.
 
 Remaining full-feature delivery includes selecting/connecting that trusted
@@ -180,3 +182,56 @@ live verification and owner/device acceptance. Do not call the feature complete
 based on the synthetic provider tests. Adjacent
 #544/#548 own existing portfolio navigation and savings history; #550/#551 own
 net-worth composition. This feature must not duplicate or overwrite that work.
+
+## Signal series (evidence provider, #762)
+
+Owner decision 10.11.2026: Ariva is the primary source of the unlevered Nasdaq-100
+USD price index, Yahoo the fallback. No schema change: the series is a system
+`security` row (`signal-ndx-usd-price-index`, kind `other`, currency `USD`, excluded
+from allocations) with ordinary `price` rows, captured by the nightly market run
+(02:30 Vienna) through the existing Ariva and Yahoo adapters. Each stored close
+names its source (`price.source`); the time it was first stored is the first
+`price_audit` row and becomes `observedAt`. Nothing is created or fetched until the
+strategy configuration is saved with `enabled: true`; the first run then backfills
+430 days (about 290 sessions). A failed source falls through to the next one; when
+all fail, the usual run-protocol entry and `stale_value` inbox item appear.
+
+Identifiers (checked read-only on 10.11.2026):
+
+| Source | Identifier | Notes |
+| --- | --- | --- |
+| Ariva | `https://www.ariva.de/us-tech-100-index/kurse/historische-kurse`, `boerse_id=72` ("Indizes Nasdaq") | Ariva's page for ISIN US6311011026, header "Schluss (Pkt)". The default exchange of that page (216, "Ariva Indikation") is a different, slightly deviating series; the adapter therefore verifies the selected exchange and fails on a mismatch. The similarly named Ariva product with ISIN DE000A4AJC49 is not the index. |
+| Yahoo | `^NDX` | `meta.currency` USD, `instrumentType` INDEX, exchange "Nasdaq GIDS"; unadjusted close. |
+
+Verification: for the sessions 03.11.-09.11.2026 the closes of Ariva exchange 72
+equal Yahoo `^NDX` to the cent (e.g. 09.11.: 27907.63); Ariva exchange 216 differed by
+about 0.03 %. The Ariva page shows points without a currency, so USD is pinned by the
+configured instrument and the verified exchange, not read from the page. The
+provider rejects the evidence if symbol, currency, quote page, exchange, leverage,
+kind or allocation flag of the row differ from these constants, and rejects
+manual/imported closes, closes in another currency, and closes without a recorded
+observation time or observed before the session ended.
+
+Sessions and calendar:
+
+- Session dates are the dates of stored completed closes, never a weekday guess.
+  `completedAt` is the regular 16:00 America/New_York close (early closes at 13:00
+  are not modelled; the later time is the conservative bound).
+- A published holiday table (`us-equity-calendar.ts`; 2026-2028 from the official NYSE
+  page, 2025 by rule plus the 09.01.2025 closing) is used only as a veto and for
+  the unobserved rest of the running month: stored sessions must equal the
+  scheduled ones from the first stored month start to the newest session (a missing
+  scheduled day is a gap, an unscheduled day is rejected), and the next
+  monthly signal dates (penultimate/last session) come from the table because they
+  lie in the future. Years outside the table yield "unavailable" instead of a guess;
+  the table needs a yearly update.
+- At least 220 sessions are needed; the newest scheduled session must be stored
+  within 30 hours after its close, else the state is `stale`. Rows completed or
+  first observed after the as-of time are ignored (no look-ahead).
+- `sourceId` shows who delivered the latest 220 closes (`ariva:72`, `yfinance:^NDX`
+  or both joined by `+`); `observedAt` per close is the data timestamp.
+
+Not covered: a cross-check between the two sources at runtime, early-close times,
+and an automatic first capture directly when the strategy is saved (it happens in the
+next nightly or manual market run).
+
