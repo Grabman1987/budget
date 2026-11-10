@@ -338,13 +338,16 @@ function insertBooking(
   transferId: string | null,
   ctx: GroupedContext,
   contactModel = false,
+  /** Contact settlement bookings carry the exact owner chosen by their caller (#871). */
+  resolveContacts = true,
 ): string {
-  input = {
-    ...input,
-    splits: input.splits.map((s) =>
-      s.contactId ? { ...s, contactId: resolveContactForWrite(tx, s.contactId) } : s,
-    ),
-  };
+  if (resolveContacts)
+    input = {
+      ...input,
+      splits: input.splits.map((s) =>
+        s.contactId ? { ...s, contactId: resolveContactForWrite(tx, s.contactId) } : s,
+      ),
+    };
   assertDate(input.date);
   assertProjectAssignment(tx, input.projectId);
   assertSplits(input.amountCents, input.splits);
@@ -569,7 +572,7 @@ export function createContactSettlementBooking(
 ): string {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    const id = insertBooking(tx, input, null, grouped);
+    const id = insertBooking(tx, input, null, grouped, false, false);
     assertLedgerInvariants(tx, [id], false);
     return id;
   });
@@ -891,6 +894,8 @@ function updateBookingImpl(
     let nextSplits: SplitInput[];
     if (patch.splits) {
       // New contact references resolve to the merge target; ones the booking already had stay.
+      // A booking that already carries the source id may add another split under it: the identity
+      // statement is the union of both ids, so totals are equal either way (#871, pinned by test).
       const had = new Set(curSplits.flatMap((old) => (old.contactId ? [old.contactId] : [])));
       nextSplits = patch.splits.map((s) =>
         s.contactId && !had.has(s.contactId)

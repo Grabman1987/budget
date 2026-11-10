@@ -64,11 +64,12 @@ export function resolveContactForWrite<T extends string | null | undefined>(
 export function assertContactActive(tx: Executor, contactId: string | null | undefined): void {
   if (!contactId) return;
   const row = tx
-    .select({ archivedAt: contact.archivedAt })
+    .select({ archivedAt: contact.archivedAt, mergedIntoId: contact.mergedIntoId })
     .from(contact)
     .where(eq(contact.id, contactId))
     .get();
-  if (row?.archivedAt) throw new ContactArchivedError(contactId);
+  // A merged source is archived by the merge but its identity is live: writers resolve it (#871).
+  if (row?.archivedAt && !row.mergedIntoId) throw new ContactArchivedError(contactId);
 }
 
 export function listContactAliases(db: Executor, contactId?: string) {

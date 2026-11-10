@@ -5,7 +5,13 @@ import { undo } from './audit';
 import { createBooking } from './bookings';
 import { seedIdentityContacts } from './contact-identity-fixture';
 import { commitContactMerge, previewContactMerge } from './contact-merge';
-import { getContactStatement, listContactStatements, settleContact } from './contacts';
+import {
+  chooseContactCredit,
+  getContactStatement,
+  listContactStatements,
+  settleContact,
+} from './contacts';
+import { waiveContactOutlay } from './contact-waiver';
 import { createEntity, updateEntity } from './entities';
 import { AuditError, ContactMergeConflictError, StalePreviewError } from './errors';
 import { seedBasics, testCtx } from './test-helpers';
@@ -320,5 +326,165 @@ describe('#871 contact merge (pointer, no netting)', () => {
     expect(() => undo(opened.db, { groupId }, ctx())).toThrow(AuditError);
     expect(groups()).toBe(g);
     expect(sql("SELECT merged_into_id AS m FROM contact WHERE id = 'kb'")).toEqual([{ m: 'ka' }]);
+  });
+
+  const outlayOf = (contactId: string, cents: number, date = '2026-04-01') =>
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date,
+        amountCents: -cents,
+        splits: [{ categoryId: 'auslagen', contactId, amountCents: -cents }],
+      },
+      testCtx,
+    );
+  const splitOf = (bookingId: string) =>
+    (sql('SELECT id FROM booking_split WHERE booking_id = ?', bookingId)[0] as { id: string }).id;
+  /** kc owns a credit of 10 000 (receipt dated before everything else), kd is empty. */
+  function creditSource() {
+    createEntity(opened.db, contact, { id: 'kc', name: 'Kontakt C' }, testCtx);
+    createEntity(opened.db, contact, { id: 'kd', name: 'Kontakt D' }, testCtx);
+    settleContact(
+      opened.db,
+      'kc',
+      { accountId: 'giro', date: '2026-03-12', amountCents: 10_000 },
+      testCtx,
+    );
+    return getContactStatement(opened.db, 'kc', ASOF).receipts[0]!.receiptSplitId;
+  }
+  const refused = (groupId: string) => {
+    expect(() => undo(opened.db, { groupId }, ctx())).toThrow(AuditError);
+    expect(sql('SELECT id FROM contact WHERE merged_into_id IS NOT NULL')).toHaveLength(1);
+  };
+
+  it('Undo is refused after the target chose to free the source-owned credit (10 000)', () => {
+    const receiptSplitId = creditSource();
+    const { groupId } = merge('kc', 'kd');
+    expect(money('kd')).toEqual([0, 10_000]);
+    chooseContactCredit(
+      opened.db,
+      'kd',
+      { receiptSplitId, amountCents: 10_000, date: ASOF, choice: 'free' },
+      testCtx,
+      ASOF,
+    );
+    refused(groupId);
+  });
+
+  it('Undo is refused after a new target outlay consumed the source credit (2 000 of 10 000)', () => {
+    creditSource();
+    const { groupId } = merge('kc', 'kd');
+    outlayOf('kd', 2_000);
+    expect(money('kd')).toEqual([0, 8_000]);
+    refused(groupId);
+  });
+
+  it('after a merge a payment of the target settles the source outlay (by design); Undo is then refused', () => {
+    createEntity(opened.db, contact, { id: 'kc', name: 'Kontakt C' }, testCtx);
+    createEntity(opened.db, contact, { id: 'kd', name: 'Kontakt D' }, testCtx);
+    outlayOf('kc', 1_000, '2026-04-01');
+    const { groupId, preview } = merge('kc', 'kd');
+    expect(preview.after).toEqual({ receivableCents: 1_000, creditCents: 0 });
+    settleContact(
+      opened.db,
+      'kd',
+      { accountId: 'giro', date: '2026-04-05', amountCents: 1_000 },
+      testCtx,
+    );
+    expect(money('kd')).toEqual([0, 0]);
+    refused(groupId);
+  });
+
+  it('a later settlement named with the source id (writer resolves) also blocks Undo', () => {
+    createEntity(opened.db, contact, { id: 'kc', name: 'Kontakt C' }, testCtx);
+    outlayOf('kc', 1_000);
+    const { groupId } = merge('kc', 'kb');
+    settleContact(
+      opened.db,
+      'kc',
+      { accountId: 'giro', date: '2026-04-05', amountCents: 400 },
+      testCtx,
+    );
+    expect(money('kb')).toEqual([600, 0]);
+    refused(groupId);
+  });
+
+  it('waives a source-owned outlay after the merge (1 000) and Undo of the waiver restores it', () => {
+    createEntity(opened.db, contact, { id: 'kc', name: 'Kontakt C' }, testCtx);
+    const outlay = splitOf(outlayOf('kc', 1_000));
+    merge('kc', 'ka');
+    expect(money('ka')).toEqual([5_500, 0]);
+    const waived = waiveContactOutlay(
+      opened.db,
+      'ka',
+      outlay,
+      { amountCents: 1_000, categoryId: 'miete' },
+      testCtx,
+      ASOF,
+    );
+    expect(money('ka')).toEqual([4_500, 0]);
+    undo(opened.db, { groupId: waived.groupId }, ctx());
+    expect(money('ka')).toEqual([5_500, 0]);
+  });
+
+  it('refuses a single-entry Undo of any entry of a merge group (alias, repointed rows)', () => {
+    seedConfig();
+    const { groupId } = merge('kb', 'ka');
+    for (const type of ['contact_alias', 'payee', 'expected_payment', 'account']) {
+      const entry = sql(
+        'SELECT id FROM audit_log WHERE group_id = ? AND entity_type = ?',
+        groupId,
+        type,
+      )[0] as { id: string };
+      expect(() => undo(opened.db, { auditId: entry.id }, ctx())).toThrow(AuditError);
+    }
+    expect(sql("SELECT merged_into_id AS m FROM contact WHERE id = 'kb'")).toEqual([{ m: 'ka' }]);
+  });
+
+  it('an Undo entry that restores a row under the source id blocks Undo of the merge', () => {
+    const { groupId } = merge('kb', 'ka');
+    sql(
+      `INSERT INTO audit_log (id, actor, action, entity_type, entity_id, after_json, group_id)
+       VALUES ('late-undo', 'x', 'undo', 'payee', 'px', '{"contact_id":"kb"}', 'late-undo-group')`,
+    );
+    expect(() => undo(opened.db, { groupId }, ctx())).toThrow(AuditError);
+  });
+
+  it('an allocation or credit record change with equal cents invalidates the token', () => {
+    const allocation = previewContactMerge(opened.db, 'kb', 'ka', options);
+    sql(
+      "UPDATE contact_allocation SET updated_at = '2031-01-01T00:00:00.000Z' WHERE settlement_id IN (SELECT id FROM contact_settlement WHERE contact_id = 'kb')",
+    );
+    expect(() =>
+      commitContactMerge(opened.db, 'kb', 'ka', allocation.token!, ctx(), options),
+    ).toThrow(StalePreviewError);
+    const record = previewContactMerge(opened.db, 'kb', 'ka', options);
+    sql("INSERT INTO app_setting (id, value) VALUES ('contacts.credit.synthetic', '{}')");
+    expect(() => commitContactMerge(opened.db, 'kb', 'ka', record.token!, ctx(), options)).toThrow(
+      StalePreviewError,
+    );
+  });
+
+  it('refuses a target credit that would net against the source outlay (symmetric would_net)', () => {
+    createEntity(opened.db, contact, { id: 'kc', name: 'Kontakt C' }, testCtx);
+    settleContact(
+      opened.db,
+      'kc',
+      { accountId: 'giro', date: '2026-03-12', amountCents: 500 },
+      testCtx,
+    );
+    expect(previewContactMerge(opened.db, 'ka', 'kc', options).conflicts).toEqual(['would_net']);
+  });
+
+  it('mixed reconciled and open bookings: merge then Undo leaves every fact identical', () => {
+    sql(
+      "UPDATE booking SET status = 'reconciled' WHERE id = (SELECT booking_id FROM booking_split WHERE contact_id = 'kb' LIMIT 1)",
+    );
+    const before = facts();
+    const { groupId } = merge('kb', 'ka');
+    expect(facts()).toEqual(before);
+    undo(opened.db, { groupId }, ctx());
+    expect(facts()).toEqual(before);
   });
 });

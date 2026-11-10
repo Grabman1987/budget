@@ -1,7 +1,8 @@
-import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import {
   account,
+  appSetting,
   booking,
   bookingSplit,
   contact,
@@ -297,6 +298,39 @@ function computePreview(
     cents: [preview.source, preview.target].map((s) => [s.receivableCents, s.creditCents]),
     stamps: [sourceId, targetId].map((id) => referenceStamps(tx, id)),
     config: [sourceConfig, targetConfig],
+    // Allocations and credit records may change with equal cents: stamp their exact content.
+    allocations: createHash('sha256')
+      .update(
+        JSON.stringify(
+          tx
+            .select({
+              id: contactAllocation.id,
+              settlementId: contactAllocation.settlementId,
+              outlaySplitId: contactAllocation.outlaySplitId,
+              amountCents: contactAllocation.amountCents,
+              deletedAt: contactAllocation.deletedAt,
+              updatedAt: contactAllocation.updatedAt,
+            })
+            .from(contactAllocation)
+            .innerJoin(contactSettlement, eq(contactSettlement.id, contactAllocation.settlementId))
+            .where(inArray(contactSettlement.contactId, [sourceId, targetId]))
+            .orderBy(contactAllocation.id)
+            .all(),
+        ),
+      )
+      .digest('hex'),
+    creditRecords: createHash('sha256')
+      .update(
+        JSON.stringify(
+          tx
+            .select()
+            .from(appSetting)
+            .where(sql`${appSetting.id} like 'contacts.credit.%'`)
+            .orderBy(appSetting.id)
+            .all(),
+        ),
+      )
+      .digest('hex'),
   };
   return { preview, fingerprint };
 }
@@ -412,6 +446,16 @@ export function assertContactMergeUndo(
   entries: readonly UndoEntry[],
   partial: boolean,
 ): void {
+  const whole = 'Eine Zusammenführung kann nur als Ganzes rückgängig gemacht werden.';
+  if (partial)
+    for (const entry of entries) {
+      if (!entry.groupId) continue;
+      // Any entry of a merge group (alias, repointed payee/expected/account) is refused alone.
+      const inMerge = tx.get<{ n: number }>(
+        sql`select count(*) as n from audit_log where group_id = ${entry.groupId} and entity_type = 'contact' and json_extract(after_json, '$.merged_into_id') is not null and json_extract(before_json, '$.merged_into_id') is null`,
+      );
+      if (inMerge && inMerge.n > 0) throw new AuditError(whole);
+    }
   for (const merge of entries) {
     if (
       merge.entityType !== 'contact' ||
@@ -419,29 +463,35 @@ export function assertContactMergeUndo(
       merge.after?.['merged_into_id'] == null
     )
       continue;
-    if (partial)
-      throw new AuditError('Eine Zusammenführung kann nur als Ganzes rückgängig gemacht werden.');
     const sourceId = merge.entityId;
+    const targetId = String(merge.after['merged_into_id']);
     const position = tx.get<{ r: number }>(
       sql`select rowid as r from audit_log where id = ${merge.id}`,
     );
     if (!position) continue;
     const refuse = (what: string): never => {
       throw new AuditError(
-        `Rückgängig nicht möglich: Seit der Zusammenführung wurde ${what} unter dem alten Kontakt angelegt oder geändert.`,
+        `Rückgängig nicht möglich: Seit der Zusammenführung wurde ${what} angelegt oder geändert. Die Zusammenführung bleibt bestehen.`,
       );
     };
+    const later = sql`rowid > ${position.r} and coalesce(group_id, '') <> ${merge.groupId ?? ''}`;
+    // Configuration rows under the source id (undo entries included: they restore such a row).
     for (const [entityType, column] of SOURCE_COLUMNS) {
+      const members = entityType === 'booking_split' || entityType === 'contact_settlement';
+      const ids = members ? [sourceId, targetId] : [sourceId];
       const hit = tx.get<{ n: number }>(
-        sql`select count(*) as n from audit_log where rowid > ${position.r} and entity_type = ${entityType} and coalesce(group_id, '') <> ${merge.groupId ?? ''} and action <> 'undo' and json_extract(after_json, ${'$.' + column}) = ${sourceId}`,
+        sql`select count(*) as n from audit_log where ${later} and entity_type = ${entityType} and json_extract(coalesce(after_json, before_json), ${'$.' + column}) in (${sql.join(
+          ids.map((id) => sql`${id}`),
+          sql`, `,
+        )})`,
       );
-      if (hit && hit.n > 0) refuse('Daten');
+      if (hit && hit.n > 0) refuse('ein Betrag oder Eintrag unter dem alten oder neuen Kontakt');
     }
-    // An allocation created since the merge that ties the source to another identity.
-    const later = tx.all<{ settlement_id: string; outlay_split_id: string }>(
-      sql`select json_extract(after_json, '$.settlement_id') as settlement_id, json_extract(after_json, '$.outlay_split_id') as outlay_split_id from audit_log where rowid > ${position.r} and entity_type = 'contact_allocation' and after_json is not null`,
+    // Any allocation touching either identity member: rows may now link source and target.
+    const allocations = tx.all<{ settlement_id: string; outlay_split_id: string }>(
+      sql`select json_extract(coalesce(after_json, before_json), '$.settlement_id') as settlement_id, json_extract(coalesce(after_json, before_json), '$.outlay_split_id') as outlay_split_id from audit_log where ${later} and entity_type = 'contact_allocation'`,
     );
-    for (const a of later) {
+    for (const a of allocations) {
       const owner = tx
         .select({ contactId: contactSettlement.contactId })
         .from(contactSettlement)
@@ -452,8 +502,25 @@ export function assertContactMergeUndo(
         .from(bookingSplit)
         .where(eq(bookingSplit.id, a.outlay_split_id))
         .get()?.contactId;
-      if (owner && outlay && owner !== outlay && (owner === sourceId || outlay === sourceId))
+      if ([owner, outlay].some((id) => id === sourceId || id === targetId))
         refuse('eine Zuordnung');
+    }
+    // Credit decisions and uses (app_setting `contacts.credit.<bookingId>`) of those bookings.
+    const records = tx.all<{ id: string }>(
+      sql`select entity_id as id from audit_log where ${later} and entity_type = 'app_setting' and entity_id like 'contacts.credit.%'`,
+    );
+    for (const record of records) {
+      const hit = tx
+        .select({ id: bookingSplit.id })
+        .from(bookingSplit)
+        .where(
+          and(
+            eq(bookingSplit.bookingId, record.id.slice('contacts.credit.'.length)),
+            inArray(bookingSplit.contactId, [sourceId, targetId]),
+          ),
+        )
+        .get();
+      if (hit) refuse('ein Guthaben oder eine Gutschrift');
     }
   }
 }

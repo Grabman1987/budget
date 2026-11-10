@@ -57,7 +57,13 @@ export function ContactMergeDialog({
   );
 }
 
-function MergeForm({ source, onClose }: { source: { id: string; name: string }; onClose: () => void }) {
+function MergeForm({
+  source,
+  onClose,
+}: {
+  source: { id: string; name: string };
+  onClose: () => void;
+}) {
   const lookups = useQuery(lookupsQuery());
   const write = useContactWrite();
   const [targetId, setTargetId] = useState('');
@@ -83,6 +89,9 @@ function MergeForm({ source, onClose }: { source: { id: string; name: string }; 
     ].filter(Boolean);
     if (moved.length) parts.push(`Künftig verknüpft mit dem Ziel: ${moved.join(', ')}.`);
     parts.push(`„${p.newAlias}“ wird ein Alias des Ziels.`);
+    parts.push(
+      'Nach dem Zusammenführen gleichen künftige Zahlungen des zusammengeführten Kontakts offene Beträge beider Kontakte aus. Sobald danach Zahlungen oder Gutschriften erfasst sind, lässt sich die Zusammenführung nicht mehr rückgängig machen.',
+    );
     return parts;
   };
   const showPreview = async () => {
@@ -205,9 +214,7 @@ function MergeForm({ source, onClose }: { source: { id: string; name: string }; 
             )}
           </div>
         )}
-        {target && !preview && (
-          <p className="tech">Zuerst die Vorschau prüfen, dann bestätigen.</p>
-        )}
+        {target && !preview && <p className="tech">Zuerst die Vorschau prüfen, dann bestätigen.</p>}
       </div>
       <div className="bk-foot">
         <Button variant="ghost" onClick={onClose}>

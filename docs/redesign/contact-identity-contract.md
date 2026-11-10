@@ -149,6 +149,10 @@ netting stays the existing explicit "use credit" allocation.
   look contacts up by name or alias, so they land on the root) and queued offline requests
   (they replay as normal API calls). The response reports `resolvedContactId` for the UI.
   Archived-but-not-merged ids are refused (5.2).
+- After a merge the identity is one statement: a later payment of the merged contact is allocated
+  first-in-first-out over open outlays of both ids (by design, shown in the preview text). Undo is
+  therefore refused once anything was written after the merge under either id that touches splits,
+  settlements, allocations or credit records (fail closed).
 - Refused when: source or target already merged, archived or deleted, source = target, source
   has merged sources, target is not a root, both own a receivable account, or the token is
   stale.

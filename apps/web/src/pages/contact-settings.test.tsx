@@ -346,6 +346,9 @@ it('#871 merges a contact through preview and confirm, shows the plain union and
     name: 'Vorschau der Zusammenführung',
   });
   expect(within(preview).getByText(/„Synthetic zero“ wird ein Alias des Ziels/)).toBeTruthy();
+  expect(
+    within(preview).getByText(/künftige Zahlungen des zusammengeführten Kontakts/),
+  ).toBeTruthy();
   expect(view.writes).toEqual([`POST /api/contacts/${zero.id}/merge/preview`]);
   fireEvent.click(confirm);
   await screen.findByText('Kontakte zusammengeführt.');
