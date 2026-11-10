@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Paperclip, Camera, Loader2, X } from 'lucide-react';
-import { ApiError, request } from '../api/http';
+import { ApiError, notifyApiWrite, request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { nativeCurrency } from '../ledger/format';
 import { bookingsQuery, LEDGER_KEY } from '../ledger/queries';
@@ -15,7 +15,7 @@ import {
   sendReceiptQueue,
 } from '../pwa/receipt-queue';
 import type { ReceiptIntent } from '../pwa/receipt-store';
-import { ReceiptIntentList, useReceiptIntents } from './receipt-intents';
+import { ReceiptIntentList, receiptQueueSupported, useReceiptIntents } from './receipt-intents';
 import './receipts.css';
 
 interface Receipt {
@@ -39,7 +39,7 @@ const receiptQuery = (bookingId?: string) => ({
     ),
 });
 
-/** The one receipt upload call, shared with the central document upload. */
+/** The one direct receipt upload call, shared with the central document upload. */
 export async function postReceipt(file: File, bookingId?: string) {
   const data = new FormData();
   data.set('file', file);
@@ -56,6 +56,7 @@ export async function postReceipt(file: File, bookingId?: string) {
   }
   const result = (await response.json().catch(() => ({}))) as {
     groupId: string;
+    receipt?: { id: string; sizeBytes: number };
     error?: string;
     message?: string;
   };
@@ -104,7 +105,12 @@ export function ReceiptSection({
   useEffect(() => onBusyChange?.(busy), [busy, onBusyChange]);
   // Back online: deliver waiting files (each keeps its own key), then show the new states.
   useEffect(() => {
-    const onOnline = () => void sendReceiptQueue().then(intents.refresh, intents.refresh);
+    const onOnline = () => {
+      if (!receiptQueueSupported()) return;
+      void sendReceiptQueue()
+        .catch(() => undefined)
+        .then(intents.refresh);
+    };
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
   }, [intents.refresh]);
@@ -117,6 +123,20 @@ export function ReceiptSection({
     const startScope = scopeRef.current;
     setBusy(true);
     setUnsaved(null);
+    if (!receiptQueueSupported()) {
+      // No device storage/locks (old or private browser): previous direct upload, no queue.
+      const sent = await write(
+        () => postReceipt(file, bookingId),
+        () => (bookingId ? 'Beleg angehängt.' : 'Beleg unter Prüfen gespeichert.'),
+      );
+      if (sent?.receipt && onAttached)
+        onAttached(
+          { id: sent.receipt.id, name: file.name, sizeBytes: sent.receipt.sizeBytes },
+          startScope,
+        );
+      setBusy(false);
+      return;
+    }
     let intent: ReceiptIntent;
     try {
       // The durable intent (and its Idempotency-Key) exists before any network attempt.

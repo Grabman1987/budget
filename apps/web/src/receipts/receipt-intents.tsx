@@ -55,17 +55,22 @@ export function receiptIntentState(item: Pick<ReceiptIntent, 'uncertain' | 'reas
   }
 }
 
+/** True when the device queue can work at all; otherwise uploads use the direct path. */
+export const receiptQueueSupported = () =>
+  typeof navigator !== 'undefined' && Boolean(navigator.locks) && typeof indexedDB !== 'undefined';
+
 /** Device-local receipt files for this target; call refresh() after every action. */
 export function useReceiptIntents(bookingId?: string) {
   const [items, setItems] = useState<ReceiptIntent[]>([]);
-  const read = useCallback(
-    () =>
-      listReceiptIntents().then(
-        (rows) => rows.filter((row) => (row.bookingId ?? null) === (bookingId ?? null)),
-        () => [],
-      ),
-    [bookingId],
-  );
+  const read = useCallback(async (): Promise<ReceiptIntent[]> => {
+    // Unsupported/private storage throws synchronously (no locks, no IndexedDB): show no list.
+    try {
+      const rows = await listReceiptIntents();
+      return rows.filter((row) => (row.bookingId ?? null) === (bookingId ?? null));
+    } catch {
+      return [];
+    }
+  }, [bookingId]);
   const refresh = useCallback(async () => setItems(await read()), [read]);
   useEffect(() => {
     let live = true;
