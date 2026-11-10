@@ -1,3 +1,4 @@
+import { EMPTY_FAMILY, type FamilySituation } from './family';
 import { EMPTY_RISK_ANSWERS, type RiskAnswers } from './risk';
 
 /**
@@ -35,6 +36,8 @@ export interface Profile {
   region: RegionCode | null;
   /** Voluntary risk questionnaire answers (see `risk.ts`); `null` = no answer. */
   risk: RiskAnswers;
+  /** Voluntary family situation (see `family.ts`); `null` = not given. */
+  family: FamilySituation;
 }
 
 export const EMPTY_PROFILE: Profile = {
@@ -44,6 +47,7 @@ export const EMPTY_PROFILE: Profile = {
   household: null,
   region: null,
   risk: EMPTY_RISK_ANSWERS,
+  family: EMPTY_FAMILY,
 };
 
 /** Fallbacks shown in the shell while no profile is filled in. */

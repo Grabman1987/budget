@@ -18,6 +18,7 @@ import {
   isRiskAnswer,
   REGIONS,
   todayInVienna,
+  type FamilySituation,
   type Profile,
   type RegionCode,
   type RiskAnswers,
@@ -29,6 +30,7 @@ import { ApiError, request } from '../api/http';
 import { errorText } from '../ledger/labels';
 import { PROFILE_META } from '../nav/pages';
 import { PROFILE_KEY, PROFILE_PATH, profileQuery } from '../shell/use-profile';
+import { FamilySituationSection } from './family-situation-section';
 import { RiskProfileSection } from './risk-profile-section';
 import { PageFrame } from './placeholder-page';
 import './profile-settings.css';
@@ -46,6 +48,7 @@ interface Draft {
   household: string;
   region: string;
   risk: RiskAnswers;
+  family: FamilySituation;
 }
 
 const draftOf = (p: Profile): Draft => ({
@@ -56,10 +59,14 @@ const draftOf = (p: Profile): Draft => ({
   household: p.household === null ? '' : String(p.household),
   region: p.region ?? '',
   risk: p.risk,
+  family: p.family,
 });
 
 const sameRisk = (a: RiskAnswers, b: RiskAnswers) =>
   (Object.keys(a) as RiskQuestionKey[]).every((k) => a[k] === b[k]);
+
+const sameFamily = (a: FamilySituation, b: FamilySituation) =>
+  (Object.keys(a) as (keyof FamilySituation)[]).every((k) => a[k] === b[k]);
 
 const sameProfile = (a: Profile, b: Profile) =>
   a.name === b.name &&
@@ -67,7 +74,8 @@ const sameProfile = (a: Profile, b: Profile) =>
   a.birthDate === b.birthDate &&
   a.household === b.household &&
   a.region === b.region &&
-  sameRisk(a.risk, b.risk);
+  sameRisk(a.risk, b.risk) &&
+  sameFamily(a.family, b.family);
 
 type Errors = Partial<Record<'birthDate' | 'household', string>>;
 
@@ -184,6 +192,7 @@ function ProfileForm({ saved }: { saved: Profile }) {
     household,
     region: draft.region === '' ? null : (draft.region as RegionCode),
     risk: draft.risk,
+    family: draft.family,
   };
   const dirty =
     body.name !== baseline.name ||
@@ -191,7 +200,8 @@ function ProfileForm({ saved }: { saved: Profile }) {
     body.birthDate !== baseline.birthDate ||
     body.household !== baseline.household ||
     body.region !== baseline.region ||
-    !sameRisk(body.risk, baseline.risk);
+    !sameRisk(body.risk, baseline.risk) ||
+    !sameFamily(body.family, baseline.family);
   const stale = REDESIGN_ENABLED && !sameProfile(baseline, saved);
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
@@ -229,6 +239,7 @@ function ProfileForm({ saved }: { saved: Profile }) {
         household: result.household,
         region: result.region,
         risk: result.risk,
+        family: result.family,
       };
       client.setQueryData(PROFILE_KEY, profile);
       setEdit(undefined);
@@ -359,6 +370,11 @@ function ProfileForm({ saved }: { saved: Profile }) {
             risk: { ...d.risk, [key]: isRiskAnswer(key, value) ? value : null },
           }))
         }
+      />
+      <FamilySituationSection
+        family={draft.family}
+        disabled={busy}
+        onChange={(patch) => setDraft((d) => ({ ...d, family: { ...d.family, ...patch } }))}
       />
       {error && (
         <p className="field-error" role="alert">

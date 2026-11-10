@@ -3,6 +3,14 @@ import {
   isPlausibleBirthDate,
   isRegionCode,
   isRiskAnswer,
+  EMPTY_FAMILY,
+  FAMILY_CHOICE_KEYS,
+  FAMILY_COUNT_KEYS,
+  isFamilyChoice,
+  isFamilyConsistent,
+  isFamilyCount,
+  type FamilyCountKey,
+  type FamilySituation,
   RISK_QUESTION_KEYS,
   EMPTY_RISK_ANSWERS,
   type RiskAnswers,
@@ -17,7 +25,9 @@ import { createEntity, getEntity, updateEntity } from './entities';
 import { runInTransaction, type Executor } from './types';
 
 const RISK_PREFIX = 'profile.risk.';
-const KEY: Record<Exclude<keyof Profile, 'risk'>, string> = {
+const FAMILY_PREFIX = 'profile.family.';
+type Nested = 'risk' | 'family';
+const KEY: Record<Exclude<keyof Profile, Nested>, string> = {
   name: 'profile.name',
   initials: 'profile.initials',
   birthDate: 'profile.birth_date',
@@ -27,7 +37,7 @@ const KEY: Record<Exclude<keyof Profile, 'risk'>, string> = {
 
 export class ProfileValidationError extends Error {
   constructor(
-    readonly field: keyof Profile | `risk.${string}`,
+    readonly field: keyof Profile | `risk.${string}` | `family.${string}`,
     message: string,
   ) {
     super(message);
@@ -46,6 +56,7 @@ export function getProfile(db: Executor): Profile {
     household: Number.isInteger(household) && household > 0 ? household : null,
     region: isRegionCode(region) ? region : null,
     risk: getRisk(db),
+    family: getFamily(db),
   };
 }
 
@@ -59,9 +70,23 @@ function getRisk(db: Executor): RiskAnswers {
   return risk as unknown as RiskAnswers;
 }
 
+/** Stored family facts; invalid or contradictory stored values read as "not given". */
+function getFamily(db: Executor): FamilySituation {
+  const family: Record<string, string | number | null> = { ...EMPTY_FAMILY };
+  for (const key of FAMILY_CHOICE_KEYS) {
+    const stored = getEntity(db, appSetting, FAMILY_PREFIX + key)?.value;
+    family[key] = stored !== undefined && isFamilyChoice(key, stored) ? stored : null;
+  }
+  for (const key of FAMILY_COUNT_KEYS) {
+    family[key] = storedCount(db, key);
+  }
+  const typed = family as unknown as FamilySituation;
+  return isFamilyConsistent(typed) ? typed : { ...typed, children: null };
+}
+
 const serialize = (
   key: keyof typeof KEY,
-  patch: Partial<Omit<Profile, 'risk'>>,
+  patch: Partial<Omit<Profile, Nested>>,
   today: string,
 ): string => {
   switch (key) {
@@ -113,7 +138,10 @@ const serialize = (
  */
 export function saveProfile(
   db: Executor,
-  patch: Partial<Omit<Profile, 'risk'>> & { risk?: Partial<RiskAnswers> },
+  patch: Partial<Omit<Profile, Nested>> & {
+    risk?: Partial<RiskAnswers>;
+    family?: Partial<FamilySituation>;
+  },
   ctx: AuditContext,
   today: string,
 ): Profile {
@@ -139,6 +167,39 @@ export function saveProfile(
         throw new ProfileValidationError(`risk.${key}`, 'Risikoprofil: ungültige Antwort.');
       write(RISK_PREFIX + key, answer ?? '');
     }
+    // Family facts are patched per field; an omitted field stays as it is, null clears it.
+    for (const key of FAMILY_CHOICE_KEYS) {
+      const answer = patch.family?.[key];
+      if (answer === undefined) continue;
+      if (answer !== null && !isFamilyChoice(key, answer))
+        throw new ProfileValidationError(`family.${key}`, 'Familie: ungültige Angabe.');
+      write(FAMILY_PREFIX + key, answer ?? '');
+    }
+    for (const key of FAMILY_COUNT_KEYS) {
+      const count = patch.family?.[key];
+      if (count === undefined) continue;
+      if (count !== null && !isFamilyCount(count))
+        throw new ProfileValidationError(`family.${key}`, 'Familie: ungültige Anzahl.');
+      write(FAMILY_PREFIX + key, count === null ? '' : String(count));
+    }
+    if (
+      patch.family &&
+      !isFamilyConsistent({
+        dependants: storedCount(tx, 'dependants'),
+        children: storedCount(tx, 'children'),
+      })
+    )
+      throw new ProfileValidationError(
+        'family.children',
+        'Familie: Kinder können nicht mehr sein als unterhaltsberechtigte Personen.',
+      );
     return getProfile(tx);
   });
+}
+
+/** A stored count before the consistency fallback of `getFamily`. */
+function storedCount(db: Executor, key: FamilyCountKey): number | null {
+  const stored = getEntity(db, appSetting, FAMILY_PREFIX + key)?.value;
+  const n = stored === undefined || stored === '' ? NaN : Number(stored);
+  return isFamilyCount(n) ? n : null;
 }

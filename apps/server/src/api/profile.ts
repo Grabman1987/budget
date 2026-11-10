@@ -1,5 +1,7 @@
 import { getProfile, ProfileValidationError, saveProfile, type Db } from '@budget/db';
 import {
+  FAMILY_OPTIONS,
+  PROFILE_DEPENDANTS_MAX,
   PROFILE_HOUSEHOLD_MAX,
   PROFILE_INITIALS_MAX,
   PROFILE_NAME_MAX,
@@ -26,6 +28,24 @@ const riskBody = z.strictObject(
   ),
 );
 
+const choice = <K extends keyof typeof FAMILY_OPTIONS>(k: K) =>
+  z
+    .enum(FAMILY_OPTIONS[k] as unknown as [string, ...string[]])
+    .nullable()
+    .optional();
+const count = z.int().min(0).max(PROFILE_DEPENDANTS_MAX).nullable().optional();
+
+/** Omitted = unchanged, `null` = clear; an empty object is a mistake, not a no-op. */
+const familyBody = z
+  .strictObject({
+    partnership: choice('partnership'),
+    partnerIncome: choice('partnerIncome'),
+    dependants: count,
+    children: count,
+    support: choice('support'),
+  })
+  .refine((f) => Object.keys(f).length > 0, { message: 'Mindestens ein Feld angeben.' });
+
 /** All fields optional; an empty string / `null` clears a value. */
 const profileBody = z.strictObject({
   name: z.string().max(PROFILE_NAME_MAX).optional(),
@@ -37,6 +57,7 @@ const profileBody = z.strictObject({
   household: z.int().min(1).max(PROFILE_HOUSEHOLD_MAX).nullable().optional(),
   region: z.enum(regionCodes).nullable().optional(),
   risk: riskBody.optional(),
+  family: familyBody.optional(),
 });
 
 /** Einstellungen › Profil: owner name, initials, birth date, household and region (app_setting). */

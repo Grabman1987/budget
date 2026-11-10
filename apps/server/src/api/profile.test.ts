@@ -36,6 +36,13 @@ describe('profile API', () => {
         lossReaction: null,
         acceptableLoss: null,
       },
+      family: {
+        partnership: null,
+        partnerIncome: null,
+        dependants: null,
+        children: null,
+        support: null,
+      },
     });
     const res = await patch({
       name: 'Beispiel Person',
@@ -98,6 +105,50 @@ describe('profile API', () => {
     expect(await (await app.request('/')).json()).toMatchObject({ risk: { horizon: null } });
   });
 
+  it('stores family facts per field, audits and undoes them, keeps omitted ones', async () => {
+    const first = await patch({ family: { partnership: 'partner', dependants: 0 } });
+    expect(first.status).toBe(200);
+    const firstGroup = ((await first.json()) as { groupId: string }).groupId;
+    await patch({ family: { dependants: 2, children: 1, support: 'some' } });
+    expect(await (await app.request('/')).json()).toMatchObject({
+      family: {
+        partnership: 'partner',
+        partnerIncome: null,
+        dependants: 2,
+        children: 1,
+        support: 'some',
+      },
+    });
+    const cleared = await patch({ family: { children: null } });
+    expect(cleared.status).toBe(200);
+    const clearedGroup = ((await cleared.json()) as { groupId: string }).groupId;
+    expect(await (await app.request('/')).json()).toMatchObject({
+      family: { dependants: 2, children: null },
+    });
+    const audit = opened.sqlite
+      .prepare("SELECT action FROM audit_log WHERE entity_id LIKE 'profile.family.%'")
+      .all();
+    expect(audit.length).toBeGreaterThanOrEqual(5);
+    // Undo is conflict-protected: the first save was changed afterwards.
+    expect(() => undo(opened.db, { groupId: firstGroup }, { actor: 'test' })).toThrow(/changed/);
+    undo(opened.db, { groupId: clearedGroup }, { actor: 'test' });
+    expect(await (await app.request('/')).json()).toMatchObject({
+      family: { partnership: 'partner', dependants: 2, children: 1 },
+    });
+  });
+
+  it('rejects invalid family input', async () => {
+    expect((await patch({ family: {} })).status).toBe(400);
+    expect((await patch({ family: { partnership: 'married' } })).status).toBe(400);
+    expect((await patch({ family: { dependants: -1 } })).status).toBe(400);
+    expect((await patch({ family: { dependants: 11 } })).status).toBe(400);
+    expect((await patch({ family: { dependants: 1.5 } })).status).toBe(400);
+    expect((await patch({ family: { childName: 'x' } })).status).toBe(400);
+    expect((await patch({ family: 'none' })).status).toBe(400);
+    expect((await patch({ family: { dependants: 1, children: 2 } })).status).toBe(422);
+    expect(await (await app.request('/')).json()).toMatchObject({ family: { dependants: null } });
+  });
+
   it('rejects invalid values', async () => {
     expect((await patch({})).status).toBe(400);
     expect((await patch({ unknown: 1 })).status).toBe(400);
@@ -134,7 +185,7 @@ describe('profile API behind the session guard', () => {
         app.request('/api/profile', {
           method: 'PATCH',
           headers: { origin, 'content-type': 'application/json' },
-          body: JSON.stringify({ risk: { horizon: 'gt15' } }),
+          body: JSON.stringify({ risk: { horizon: 'gt15' }, family: { dependants: 0 } }),
         });
       expect((await write('https://budget.example')).status).toBe(401);
       expect((await app.request('/api/profile')).status).toBe(401);
