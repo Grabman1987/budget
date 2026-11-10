@@ -94,6 +94,7 @@ export function ReceiptIntentList({
   onRetryUnsaved: () => void;
   onDiscardUnsaved: () => void;
 }) {
+  const [confirming, setConfirming] = useState<string | null>(null);
   if (!items.length && !unsaved) return null;
   return (
     <div className="receipt-intents" role="region" aria-label="Belegdateien auf diesem Gerät">
@@ -148,11 +149,36 @@ export function ReceiptIntentList({
                 variant="ghost"
                 disabled={busy}
                 aria-label={`Beleg ${item.filename} von diesem Gerät verwerfen`}
-                onClick={() => onCancel(item.id)}
+                onClick={() =>
+                  state.tone === 'uncertain' ? setConfirming(item.id) : onCancel(item.id)
+                }
               >
                 Verwerfen
               </Button>
             </div>
+            {confirming === item.id && (
+              <div role="alert" data-testid="receipt-cancel-confirm">
+                <p className="receipt-hint">
+                  Die Datei ist möglicherweise schon beim Server angekommen und liegt dann unter
+                  „Prüfen“. Wirklich nur die Kopie auf diesem Gerät verwerfen?
+                </p>
+                <div className="receipt-actions">
+                  <Button
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => {
+                      setConfirming(null);
+                      onCancel(item.id);
+                    }}
+                  >
+                    Trotzdem verwerfen
+                  </Button>
+                  <Button variant="ghost" onClick={() => setConfirming(null)}>
+                    Abbrechen
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         );
       })}

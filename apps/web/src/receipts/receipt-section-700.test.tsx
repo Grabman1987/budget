@@ -106,7 +106,11 @@ it('cancel removes only the local file and never sends again', async () => {
   view('booking-1');
   await pick();
   const row = await screen.findByTestId('receipt-intent');
-  await userEvent.click(within(row).getByRole('button', { name: /verwerfen/i }));
+  await userEvent.click(within(row).getByRole('button', { name: /von diesem Gerät verwerfen/i }));
+  const confirm = await screen.findByTestId('receipt-cancel-confirm');
+  expect(confirm.textContent).toContain('möglicherweise schon beim Server angekommen');
+  expect(store.rows.size).toBe(1);
+  await userEvent.click(within(confirm).getByRole('button', { name: 'Trotzdem verwerfen' }));
   await waitFor(() => expect(screen.queryByTestId('receipt-intent')).toBeNull());
   expect(store.rows.size).toBe(0);
   expect(http.post).toHaveBeenCalledTimes(1);
@@ -146,6 +150,41 @@ it('discarding an unsaved selection drops it without any write', async () => {
   await pick();
   const alert = await screen.findByTestId('receipt-unsaved');
   await userEvent.click(within(alert).getByRole('button', { name: 'Verwerfen' }));
+  expect(screen.queryByTestId('receipt-unsaved')).toBeNull();
+  expect(http.post).not.toHaveBeenCalled();
+});
+
+it('cancelling a failed (non-uncertain) intent needs no confirmation', async () => {
+  http.post.mockRejectedValueOnce(new ApiError(422, 'invalid_receipt'));
+  view();
+  await pick();
+  const row = await screen.findByTestId('receipt-intent');
+  await userEvent.click(within(row).getByRole('button', { name: /von diesem Gerät verwerfen/i }));
+  await waitFor(() => expect(store.rows.size).toBe(0));
+  expect(screen.queryByTestId('receipt-cancel-confirm')).toBeNull();
+});
+
+it('retrying an already removed intent shows a neutral message, not a network error', async () => {
+  http.post.mockRejectedValueOnce(new ApiError(0, 'network'));
+  view();
+  await pick();
+  const row = await screen.findByTestId('receipt-intent');
+  store.rows.clear(); // removed or sent in another tab
+  await userEvent.click(within(row).getByRole('button', { name: /erneut senden/i }));
+  expect(
+    await screen.findByText('Dieser Beleg wurde bereits gesendet oder verworfen.'),
+  ).toBeTruthy();
+  await waitFor(() => expect(screen.queryByTestId('receipt-intent')).toBeNull());
+  expect(http.post).toHaveBeenCalledTimes(1);
+});
+
+it('an invalid (empty) file gets a plain message and no unsaved-storage alert', async () => {
+  view();
+  await userEvent.upload(
+    screen.getByLabelText('Belegdatei auswählen'),
+    new File([], 'empty.png', { type: 'image/png' }),
+  );
+  expect(await screen.findByText(/Ungültige Datei/)).toBeTruthy();
   expect(screen.queryByTestId('receipt-unsaved')).toBeNull();
   expect(http.post).not.toHaveBeenCalled();
 });

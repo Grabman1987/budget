@@ -75,7 +75,12 @@ export function ReceiptSection({
     try {
       // The durable intent (and its Idempotency-Key) exists before any network attempt.
       intent = await enqueueReceipt(file, bookingId);
-    } catch {
+    } catch (error) {
+      if (error instanceof ApiError) {
+        toast.show({ message: 'Ungültige Datei: Sie ist leer oder das Ziel ist ungültig.' });
+        setBusy(false);
+        return;
+      }
       // Storage full/unavailable: nothing was saved. The selection stays in memory for a retry.
       setUnsaved(file);
       toast.show({ message: 'Beleg nicht gespeichert: Gerätespeicher voll oder nicht verfügbar.' });
@@ -86,13 +91,23 @@ export function ReceiptSection({
     setBusy(false);
   };
   const send = async (id: string) => {
+    let handled = false;
     await write(
       async () => {
         const reply = await retryReceiptIntent(id);
-        if (!reply) throw new ApiError(0, 'network');
+        // Row already sent or cancelled (e.g. in another tab): nothing left to deliver here.
+        if (!reply) {
+          handled = true;
+          return { groupId: '' };
+        }
         return reply;
       },
-      () => (bookingId ? 'Beleg angehängt.' : 'Beleg unter Prüfen gespeichert.'),
+      () =>
+        handled
+          ? 'Dieser Beleg wurde bereits gesendet oder verworfen.'
+          : bookingId
+            ? 'Beleg angehängt.'
+            : 'Beleg unter Prüfen gespeichert.',
     );
     await intents.refresh();
   };
@@ -105,9 +120,13 @@ export function ReceiptSection({
   const cancel = async (id: string) => {
     if (busy) return;
     setBusy(true);
-    await cancelReceiptIntent(id).catch(() => false);
+    const removed = await cancelReceiptIntent(id).catch(() => false);
     await intents.refresh();
-    toast.show({ message: 'Beleg von diesem Gerät verworfen. Die Buchung bleibt unverändert.' });
+    toast.show({
+      message: removed
+        ? 'Beleg von diesem Gerät verworfen. Die Buchung bleibt unverändert.'
+        : 'Dieser Beleg wurde bereits übertragen oder entfernt.',
+    });
     setBusy(false);
   };
   const change = async (run: () => Promise<{ groupId: string }>, message: string) => {
