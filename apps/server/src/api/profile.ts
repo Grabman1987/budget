@@ -3,6 +3,8 @@ import {
   PROFILE_HOUSEHOLD_MAX,
   PROFILE_INITIALS_MAX,
   PROFILE_NAME_MAX,
+  RISK_QUESTIONS,
+  RISK_QUESTION_KEYS,
   REGIONS,
 } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
@@ -11,6 +13,18 @@ import { z } from 'zod';
 import { ACTOR, ApiError, defined, readBody } from './http';
 
 const regionCodes = REGIONS.map((r) => r.code) as [string, ...string[]];
+
+const riskBody = z.strictObject(
+  Object.fromEntries(
+    RISK_QUESTION_KEYS.map((k) => [
+      k,
+      z
+        .enum(RISK_QUESTIONS[k].options as unknown as [string, ...string[]])
+        .nullable()
+        .optional(),
+    ]),
+  ),
+);
 
 /** All fields optional; an empty string / `null` clears a value. */
 const profileBody = z.strictObject({
@@ -22,6 +36,7 @@ const profileBody = z.strictObject({
   birthDate: z.string().max(10).optional(),
   household: z.int().min(1).max(PROFILE_HOUSEHOLD_MAX).nullable().optional(),
   region: z.enum(regionCodes).nullable().optional(),
+  risk: riskBody.optional(),
 });
 
 /** Einstellungen › Profil: owner name, initials, birth date, household and region (app_setting). */

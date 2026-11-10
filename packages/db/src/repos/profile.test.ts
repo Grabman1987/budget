@@ -4,6 +4,23 @@ import { undo } from './audit';
 import { getProfile, ProfileValidationError, saveProfile } from './profile';
 
 describe('profile settings', () => {
+  it('reads unknown stored risk answers as no answer', () => {
+    const opened = createTestDatabase();
+    try {
+      const ctx = { actor: 't', groupId: 'r' };
+      saveProfile(opened.db, { risk: { horizon: '3to7' } }, ctx, '2026-10-02');
+      opened.sqlite.exec(
+        "UPDATE app_setting SET value = 'bogus' WHERE id = 'profile.risk.horizon'",
+      );
+      expect(getProfile(opened.db).risk.horizon).toBeNull();
+      expect(() =>
+        saveProfile(opened.db, { risk: { horizon: 'x' as never } }, { actor: 't' }, '2026-10-02'),
+      ).toThrow(ProfileValidationError);
+    } finally {
+      opened.close();
+    }
+  });
+
   it('saves, audits and undoes a whole save as one group', () => {
     const opened = createTestDatabase();
     try {
