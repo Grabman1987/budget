@@ -288,7 +288,10 @@ it('rejects oversized notes and mixed-field note writes', async () => {
   const before = getBooking(opened.db, id),
     auditBefore = auditRows();
   expect((await post('note-preview', { ids: [id], memo: 'x'.repeat(501) })).status).toBe(400);
-  for (const set of [{ memo: 'x', flag: 'blue' }, { memo: 'x', date: '2026-10-03' }])
+  for (const set of [
+    { memo: 'x', flag: 'blue' },
+    { memo: 'x', date: '2026-10-03' },
+  ])
     expect((await post('bulk', { action: 'update', ids: [id], set })).status).toBe(400);
   expect(getBooking(opened.db, id)).toEqual(before);
   expect(auditRows()).toEqual(auditBefore);
