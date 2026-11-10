@@ -1,4 +1,4 @@
-import { BENCHMARKS } from '@budget/db';
+import { BENCHMARKS, isSignalInstrument, signalCaptureActive, SIGNAL_INDEX } from '@budget/db';
 import {
   cpiFetchedAt,
   foreignCurrencies,
@@ -129,7 +129,10 @@ export async function refreshPrices(
     protectedManual: 0,
     failed: [],
   };
+  const signalActive = signalCaptureActive(db);
   for (const row of trackedSecurities(db)) {
+    // The strategy's signal series is fetched only while the strategy is explicitly enabled.
+    if (isSignalInstrument(row.id) && !signalActive) continue;
     result.tracked++;
     const last = lastQuotedDay(db, row.id);
     const benchmark = BENCHMARKS.some((b) => b.id === row.id);
@@ -146,7 +149,7 @@ export async function refreshPrices(
       ? addDays(last, 1)
       : benchmark && firstAccountDay
         ? addDays(firstAccountDay, -3)
-        : addDays(today, -BACKFILL_DAYS);
+        : addDays(today, isSignalInstrument(row.id) ? -SIGNAL_INDEX.backfillDays : -BACKFILL_DAYS);
     if (from > today) {
       result.upToDate++;
       continue;
