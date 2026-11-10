@@ -57,7 +57,8 @@ for (const width of [390, 1280, 1440, 1920, 2560]) {
         for (const grid of main.querySelectorAll<HTMLElement>('*')) {
           if (getComputedStyle(grid).display !== 'grid') continue;
           const boxes = [...grid.children]
-            .filter((el) => getComputedStyle(el).position !== 'absolute')
+            // Fixed docks (Plan phone "Verteilen") float over the grid by design.
+            .filter((el) => !['absolute', 'fixed'].includes(getComputedStyle(el).position))
             .map((el) => el.getBoundingClientRect())
             .filter((r) => r.width > 0 && r.height > 0);
           boxes.forEach((a, i) => {

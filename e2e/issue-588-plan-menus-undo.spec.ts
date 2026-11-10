@@ -104,7 +104,11 @@ test('"Verteilen ▾" actions book like the quick-assign calls and each undo res
   const item = (name: string) =>
     page.locator('.plan-menu-panel').getByRole('button', { name, exact: true });
   const run = async (name: string) => {
-    await verteilen.click();
+    // #1007: the phone's fixed "Verteilen" can sit under a feedback toast; open it by keyboard.
+    if (page.viewportSize()!.width < 768) {
+      await verteilen.focus();
+      await page.keyboard.press('Enter');
+    } else await verteilen.click();
     await item(name).click();
   };
   await expect(assigned('Testziel')).toHaveText(shown('≈ 400,01 €'));

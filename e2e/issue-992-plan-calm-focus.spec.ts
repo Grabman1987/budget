@@ -3,6 +3,7 @@ import { openDatabase, schema } from '@budget/db';
 import { eq } from 'drizzle-orm';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
+import { openDetailsFromPhoneSheet } from './plan-phone-sheet';
 
 test.use({ ledgerToday: '2026-10-15' });
 
@@ -153,11 +154,16 @@ for (const theme of ['light', 'dark'] as const) {
           await menu.locator('summary').click();
           const attention = menu.getByRole('button', { name: 'Braucht Aufmerksamkeit (2)' });
           await attention.click();
-          await expect(
-            page
-              .locator('.plan-filter-chips')
-              .getByRole('button', { name: /Braucht Aufmerksamkeit.*Filter entfernen/ }),
-          ).toHaveAttribute('aria-pressed', 'true');
+          const phone = page.viewportSize()!.width < 768;
+          // #1007: the phone shows the active filter on the "Ansicht" chip instead of a chip row.
+          if (phone)
+            await expect(menu.locator('summary')).toHaveAccessibleName('Ansicht, Aufmerksamkeit');
+          else
+            await expect(
+              page
+                .locator('.plan-filter-chips')
+                .getByRole('button', { name: /Braucht Aufmerksamkeit.*Filter entfernen/ }),
+            ).toHaveAttribute('aria-pressed', 'true');
           await expect(page).toHaveURL(/filter=attention/);
           await menu.locator('summary').press('Escape');
           await expect(page.locator('.prow:has(.pname)')).toHaveCount(2);
@@ -170,6 +176,7 @@ for (const theme of ['light', 'dark'] as const) {
           await page.screenshot({ path: info.outputPath(`attention-${theme}.png`) });
           await page.reload();
           await expect(page.locator('.prow:has(.pname)')).toHaveCount(2);
+          if (phone) await menu.locator('summary').click();
           await page.getByRole('button', { name: 'Alle (18)', exact: true }).click();
           await expect(page.locator('.prow:has(.pname)')).toHaveCount(18);
         }
@@ -187,12 +194,7 @@ for (const theme of ['light', 'dark'] as const) {
           await expect(head).toHaveCSS('transition-duration', '0s');
           if (page.viewportSize()!.width < 768) {
             // Returning to toolbar controls expands the lead; clear its full measured height.
-            for (const selector of [
-              '.ptoolbar',
-              '.ptoolbar .plan-menu-verteilen > summary',
-              '.ptoolbar .plan-menu-optionen > summary',
-              '.ptable thead .plan-add',
-            ]) {
+            for (const selector of ['.ptoolbar', '.ptoolbar .plan-menu-optionen > summary']) {
               await page.evaluate(() => window.scrollTo(0, 0));
               await expect(head).not.toHaveClass(/is-compact/);
               await page.evaluate(() => window.scrollTo(0, 400));
@@ -205,11 +207,20 @@ for (const theme of ['light', 'dark'] as const) {
                 headerBounds.y + headerBounds.height,
               );
             }
+            // #1007: "Verteilen" is a fixed bottom button, always inside the viewport.
+            const dock = (await page.locator('.plan-distribute-dock').boundingBox())!;
+            expect(dock.y + dock.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+            const tabbar = (await page.locator('.tabbar').boundingBox())!;
+            const fab = (await page.locator('.fab').boundingBox())!;
+            expect(dock.y + dock.height).toBeLessThanOrEqual(tabbar.y);
+            // Side by side with the capture button, never underneath it.
+            expect(dock.x + dock.width).toBeLessThanOrEqual(fab.x);
           }
           // The bottom clamp must not turn a collapse into an endless expand/collapse loop.
           await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
           const lastCategory = page.locator('.prow .pname').last();
           await lastCategory.click();
+          await openDetailsFromPhoneSheet(page);
           const history = page.getByRole('link', { name: 'Verlauf und Buchungen' });
           await history.scrollIntoViewIfNeeded();
           await expect(history).toBeVisible();

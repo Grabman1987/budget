@@ -320,16 +320,24 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     // the lead chain; its fold contract is the first-row check above and P1's phone bound.
     if (!redesigned) expect(dimensions.visible).toBeGreaterThanOrEqual(14);
   }
+  // #1007: the phone table head is gone; "Alle ein-/ausklappen" lives in the Optionen menu.
+  const phoneMenu = redesigned && page.viewportSize()!.width < 768;
+  const toggleAll = async (name: 'Alle ausklappen' | 'Alle einklappen') => {
+    if (phoneMenu) {
+      await page.locator('.plan-menu-optionen > summary').click();
+      await page.locator('.plan-menu-optionen').getByRole('button', { name, exact: true }).click();
+    } else await page.getByRole('button', { name, exact: true }).click();
+  };
   const firstGroup = page.getByRole('button', { name: 'Gruppe Mustergruppe 1', exact: true });
   await firstGroup.focus();
   await page.keyboard.press('Enter');
   await expect(firstGroup).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('.ptable .prow')).toHaveCount(9);
-  await page.getByRole('button', { name: 'Alle ausklappen', exact: true }).click();
+  await toggleAll('Alle ausklappen');
   await expect(page.locator('.ptable .prow')).toHaveCount(18);
-  await page.getByRole('button', { name: 'Alle einklappen', exact: true }).click();
+  await toggleAll('Alle einklappen');
   await expect(page.locator('.ptable .prow')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Alle ausklappen', exact: true }).click();
+  await toggleAll('Alle ausklappen');
   await page
     .getByRole('button', { name: 'Kategorie in Mustergruppe 1 anlegen', exact: true })
     .click();

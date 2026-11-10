@@ -131,9 +131,15 @@ test('icon sizes, swatches and disclosure carets use their rendered styles', asy
   const chevron = menu.locator('summary .disclosure-chevron');
   const redesignedPlan = await redesignLoaded(page);
   if (redesignedPlan) {
-    await expect(chevron).toHaveCount(0);
-    await expect(menu.locator('summary .lucide-ellipsis')).toHaveCSS('width', '20px');
-    await expect(menu.locator('summary .lucide-ellipsis')).toHaveCSS('stroke-width', '1.5px');
+    if (page.viewportSize()!.width < 768) {
+      // #1007: the phone shows an "Ansicht" chip with a disclosure chevron instead of the dots icon.
+      await expect(chevron).toHaveCount(1);
+      await expect(menu.locator('summary .lucide-ellipsis')).toHaveCount(0);
+    } else {
+      await expect(chevron).toHaveCount(0);
+      await expect(menu.locator('summary .lucide-ellipsis')).toHaveCSS('width', '20px');
+      await expect(menu.locator('summary .lucide-ellipsis')).toHaveCSS('stroke-width', '1.5px');
+    }
   } else {
     const closed = await chevron.evaluate((el) => getComputedStyle(el).transform);
     expect(closed).not.toBe('none');
