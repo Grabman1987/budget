@@ -57,6 +57,8 @@ export const contact = sqliteTable('contact', {
   id: id(),
   name: text('name').notNull(),
   note: text('note'),
+  /** Set while the contact is archived (#870): hidden from pickers, kept in history and reports. */
+  archivedAt: text('archived_at'),
   ...timestamps(),
 });
 

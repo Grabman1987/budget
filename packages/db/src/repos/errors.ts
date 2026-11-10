@@ -65,6 +65,51 @@ export class ConflictError extends Error {
   override readonly name = 'ConflictError';
 }
 
+/** A contact name or alias is taken (normalised) by another active contact or alias. */
+export class ContactLabelTakenError extends ConflictError {
+  constructor(
+    readonly ownerContactId: string,
+    readonly ownerName: string,
+    readonly kind: 'name' | 'alias',
+  ) {
+    super(
+      kind === 'name'
+        ? `Der Name gehört bereits zum Kontakt „${ownerName}“.`
+        : `Der Name ist bereits ein Alias des Kontakts „${ownerName}“.`,
+    );
+  }
+}
+
+/** A writer named an archived contact (#870): the owner reopens it first. */
+export class ContactArchivedError extends Error {
+  override readonly name = 'ContactArchivedError';
+  constructor(readonly contactId: string) {
+    super('Der Kontakt ist archiviert. Bitte zuerst wieder öffnen.');
+  }
+}
+
+export interface ContactBlocker {
+  kind: 'receivable' | 'credit' | 'expected' | 'payee' | 'account' | 'payslip';
+  /** Cents for receivable/credit, the number of live rows otherwise. */
+  count: number;
+}
+
+/** Archiving is refused while the contact still carries open money or live configuration. */
+export class ContactBlockedError extends Error {
+  override readonly name = 'ContactBlockedError';
+  constructor(readonly blockers: ContactBlocker[]) {
+    super('Der Kontakt kann nicht archiviert werden, solange noch etwas offen oder verknüpft ist.');
+  }
+}
+
+/** The row changed since the client read it (`expectedUpdatedAt` differs). */
+export class StaleError extends Error {
+  override readonly name = 'StaleError';
+  constructor(readonly current: unknown) {
+    super('Der Eintrag wurde inzwischen geändert. Bitte neu laden.');
+  }
+}
+
 /** A category write breaks a rule of the category system (class, kind, card, stage, icon, merge). */
 export class CategoryRuleError extends Error {
   override readonly name = 'CategoryRuleError';

@@ -2,6 +2,7 @@ import { bookingIncomeDefault } from './income-month';
 import { contactStatement } from '@budget/domain';
 import { actualContactMovements, savedContactSettlements } from './contact-invariants';
 import { contactCreditRecords, saveContactCreditRecord } from './contact-credit';
+import { assertContactActive } from './contact-label';
 import { ensureAdvanceCategory } from './categories';
 import { manualTransferStatus, type ManualBankStatus } from '@budget/domain';
 import { assertContactBookingWrite, assertContactSettlementInvariants } from './contact-invariants';
@@ -240,8 +241,11 @@ function assertSplitRefs(
   tx: Executor,
   splits: readonly SplitInput[],
   allowSharedCategories = false,
+  /** Contacts the booking already carried: history of an archived contact stays editable. */
+  existingContactIds: ReadonlySet<string> = new Set(),
 ): void {
   for (const s of splits) {
+    if (s.contactId && !existingContactIds.has(s.contactId)) assertContactActive(tx, s.contactId);
     const categoryId = s.categoryId ?? null;
     if (categoryId === null) {
       if (s.contactId)
@@ -899,7 +903,12 @@ function updateBookingImpl(
           curSplits.some(
             (old) => old.contactId === split.contactId && old.categoryId === split.categoryId,
           );
-        assertSplitRefs(tx, [split], sharedCategory);
+        assertSplitRefs(
+          tx,
+          [split],
+          sharedCategory,
+          new Set(curSplits.flatMap((old) => (old.contactId ? [old.contactId] : []))),
+        );
       }
     }
     const fx = normalizeFx({ ...cur, ...patch, amountCents: amount });

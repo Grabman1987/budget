@@ -17,6 +17,7 @@ import {
   auditLog,
 } from '../schema';
 import { BookingInvariantError, ConflictError, ReconciledLockedError } from './errors';
+import { assertNoActiveAlias, normalizeContactLabel } from './contact-label';
 import { memoizedShared } from './request-memo';
 import type { Executor } from './types';
 import { CONTACT_UNLOCK_PREFIX } from './contact-allocation-lock';
@@ -33,6 +34,8 @@ export function assertContactName(tx: Executor, id: string) {
       .get()
   )
     throw new ConflictError('Ein aktiver Kontakt mit diesem Namen ist bereits vorhanden.');
+  // An alias of any contact owns its label: a name cannot collide with it (#870).
+  assertNoActiveAlias(tx, normalizeContactLabel(row.name));
 }
 
 /** A zero booking with contact shares reclassifies money already held, never earned cash. */

@@ -46,6 +46,8 @@ export * from './heute';
 export * from './planning-accuracy';
 
 export * from './contacts';
+export * from './contact-identity';
+export * from './contact-label';
 export * from './portfolio-positions';
 export * from './global-search';
 export * from './inbox';
