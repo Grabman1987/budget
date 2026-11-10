@@ -45,6 +45,7 @@ import { AppLink } from '../shell/app-link';
 import { DepotBody } from './depot-page';
 import { useStoredFlag } from '../shell/use-stored-flag';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { DocumentUploadButton } from '../document-intake/document-upload';
 import './account-redesign.css';
 import { AccountCheckMark } from './account-check-mark';
 import { KontenMenu } from './konten-menu';
@@ -125,6 +126,7 @@ export function AccountPage({ id }: { id: string }) {
           <details className="account-documents-redesign">
             <summary>Dokumente und Kontoauszüge</summary>
             <section aria-label="Dokumente und Kontoauszüge">
+              <DocumentUploadButton key={`upload-${account.id}`} accountId={account.id} />
               <AccountStatementIntake key={account.id} accountId={account.id} />
             </section>
           </details>

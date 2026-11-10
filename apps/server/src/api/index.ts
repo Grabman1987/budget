@@ -4,6 +4,7 @@ import { displaySettingsRoutes } from './display-settings';
 import { explorerViewsRoutes } from './explorer-views';
 import { payrollRoutes, projectRoutes } from './payroll-projects';
 import { assignmentRoutes } from './assignment-rules';
+import { documentIntakeRoutes } from './document-intake';
 import { payslipIntakeRoutes } from './payslip-intake';
 import { incomeMonthRoutes } from './income-month';
 import { bankSyncFromEnv } from '../bank-sync/config';
@@ -154,6 +155,7 @@ export function createLedgerApi({
   api.route('/payslips', payrollRoutes(db, today));
   api.route('/payslip-intake', payslipIntakeRoutes(db, receiptsDir));
   api.route('/statement-intake', statementIntakeRoutes(db, receiptsDir));
+  api.route('/document-intake', documentIntakeRoutes(db));
   api.route('/statement-settlements', statementSettlementRoutes(db, receiptsDir));
   api.route('/projects', projectRoutes(db, today));
   api.route('/income-month-rules', incomeMonthRoutes(db));

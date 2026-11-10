@@ -64,6 +64,7 @@ import {
 import './inbox.css';
 import './inbox-redesign.css';
 import { ReceiptSection } from '../receipts/receipt-section';
+import { DocumentUploadButton } from '../document-intake/document-upload';
 import { TradePanel } from '../wealth/trade-panel';
 import type { SavingsExecutionProposal } from '../wealth/savings-api';
 const META = PAGES.find((p) => p.path === '/konten/pruefen')!;
@@ -290,6 +291,7 @@ export function InboxWorkflow({
     <>
       {REDESIGN_ENABLED ? (
         <div className="inbox-redesign" data-redesign="inbox">
+          <DocumentUploadButton />
           {body}
         </div>
       ) : (
