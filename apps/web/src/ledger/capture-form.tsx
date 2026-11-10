@@ -349,7 +349,9 @@ export function CaptureForm({
           closedAt,
         })),
       categories: all.map((c) => ({ ...c, availableCents: null })),
-      contacts: lookups.data.contacts.map(({ id, name }) => ({ id, name })),
+      contacts: lookups.data.contacts
+        .filter((c) => !c.archived)
+        .map(({ id, name }) => ({ id, name })),
       incomeTypes: lookups.data.incomeTypes.map(({ id, name }) => ({ id, name })),
       projects: lookups.data.projects.map(({ id, name, archivedAt }) => ({
         id,
@@ -380,7 +382,13 @@ export function CaptureForm({
   const advanceCategoryId =
     budget.data?.categories.find((c) => c.kind === 'advance' && !c.hiddenAt)?.id ??
     lookups.data?.categories.find((c) => c.kind === 'advance')?.id;
-  const contacts = lookups.data?.contacts ?? offlineChoices?.contacts ?? [];
+  // Archived contacts leave the pick list; a booking being edited keeps its own.
+  const keptContactIds = new Set(
+    editing?.splits.flatMap((x) => (x.contactId ? [x.contactId] : [])),
+  );
+  const contacts = (lookups.data?.contacts ?? offlineChoices?.contacts ?? []).filter(
+    (c) => !('archived' in c && c.archived) || keptContactIds.has(c.id),
+  );
   const trackingAccountIds = useMemo(
     () => new Set(open.filter((a) => !a.onBudget).map((a) => a.id)),
     [open],

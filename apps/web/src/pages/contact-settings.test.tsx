@@ -262,3 +262,66 @@ it('distinguishes empty from failed metadata, offers existing retry, and retains
   fireEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
   await screen.findByRole('button', { name: 'Synthetic kept draft umbenennen' });
 });
+
+it('adds, rejects a duplicate and removes aliases with Undo, without any booking read or change', async () => {
+  const view = await mount();
+  const before = await (await view.call(`/bookings/${view.bookingId}`)).json();
+  fireEvent.click(await screen.findByRole('button', { name: 'Aliase von Freund bearbeiten' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Aliase' });
+  expect(within(dialog).getByText('Noch keine Aliase.')).toBeTruthy();
+  const user = userEvent.setup();
+  await user.type(within(dialog).getByRole('textbox', { name: 'Neuer Alias' }), '  Kumpel  ');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Alias hinzufügen' }));
+  await within(dialog).findByRole('button', { name: 'Alias Kumpel entfernen' });
+  expect(view.writes).toEqual(['POST /api/contacts/k1/aliases']);
+  expect(screen.getByText('Aliase: Kumpel')).toBeTruthy();
+  // The same label of another contact is refused and shown in German; nothing is written.
+  await user.type(within(dialog).getByRole('textbox', { name: 'Neuer Alias' }), 'synthetic  ZERO');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Alias hinzufügen' }));
+  await screen.findByText(/gehört bereits zum Kontakt/);
+  expect(
+    within(dialog).queryByRole('button', { name: 'Alias synthetic ZERO entfernen' }),
+  ).toBeNull();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Alias Kumpel entfernen' }));
+  await waitFor(() => expect(within(dialog).getByText('Noch keine Aliase.')).toBeTruthy());
+  const toast = screen.getByText('Alias entfernt.').closest('.toast')!;
+  fireEvent.click(within(toast as HTMLElement).getByRole('button', { name: 'Rückgängig' }));
+  await within(dialog).findByRole('button', { name: 'Alias Kumpel entfernen' });
+  expect(view.writes.at(-1)).toBe('POST /api/undo');
+  expect(await (await view.call(`/bookings/${view.bookingId}`)).json()).toEqual(before);
+});
+
+it('explains blockers, archives a contact into the Archiviert filter and reopens it with Undo available', async () => {
+  const view = await mount();
+  const lookups = (await (await view.call('/lookups')).json()) as {
+    contacts: { id: string; name: string }[];
+  };
+  const zero = lookups.contacts.find((c) => c.name === 'Synthetic zero')!;
+  // A live payee link blocks archiving and is explained.
+  expect((await view.call('/payees', 'POST', { name: 'Zahler', contactId: zero.id })).status).toBe(
+    201,
+  );
+  await view.router.invalidate();
+  fireEvent.click(await screen.findByRole('button', { name: 'Synthetic zero archivieren' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Kontakt archivieren' });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Archivieren' }));
+  await within(dialog).findByText(/Zahlungsempfänger ist noch mit dem Kontakt verknüpft/);
+  expect(screen.getByText('Synthetic zero', { exact: true })).toBeTruthy();
+  // Freund has closed history only: archived, hidden from the active list, kept in the filter.
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Freund archivieren' }));
+  const confirm = await screen.findByRole('dialog', { name: 'Kontakt archivieren' });
+  fireEvent.click(within(confirm).getByRole('button', { name: 'Archivieren' }));
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: 'Freund umbenennen' })).toBeNull(),
+  );
+  expect(view.writes.filter((w) => w.includes('/archive'))).toHaveLength(2);
+  fireEvent.click(screen.getByRole('button', { name: 'Archiviert' }));
+  expect(await screen.findByRole('button', { name: 'Freund wieder öffnen' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Freund archivieren' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Freund wieder öffnen' }));
+  await screen.findByText('Keine archivierten Kontakte.');
+  expect(view.writes.at(-1)).toBe('POST /api/contacts/k1/reopen');
+  fireEvent.click(screen.getByRole('button', { name: 'Aktiv' }));
+  expect(await screen.findByRole('button', { name: 'Freund umbenennen' })).toBeTruthy();
+});
