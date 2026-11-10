@@ -20,7 +20,8 @@ it('counts removable filters including deep links, but keeps search and sorting 
       bis: '2026-09-30',
       q: 'Muster',
     }),
-  ).toEqual(['buchung', 'konto', 'kategorie', 'empfaenger', 'status', 'markierung', 'von', 'bis']);
+    // A stale 'markierung' (old link, saved view) is ignored: the flag filter is retired (#1040).
+  ).toEqual(['buchung', 'konto', 'kategorie', 'empfaenger', 'status', 'von', 'bis']);
   expect(activeFilterKeys({ konto: '', status: undefined })).toEqual([]);
 });
 
@@ -74,6 +75,14 @@ describe('validateBookingsSearch', () => {
     });
     expect(hasFilter(search)).toBe(true);
     expect(hasFilter(validateBookingsSearch({ sortierung: 'payee' }))).toBe(false);
+  });
+
+  it('ignores a stale flag filter from an old link or saved view without failing (#1040)', () => {
+    const search = validateBookingsSearch({ markierung: 'red', status: 'pending' });
+    expect(filterFromSearch(search)).toMatchObject({ status: 'pending' });
+    expect(filterFromSearch(search).flag).toBeUndefined();
+    expect(activeFilterKeys(search)).toEqual(['status']);
+    expect(hasFilter(validateBookingsSearch({ markierung: 'red' }))).toBe(false);
   });
 });
 

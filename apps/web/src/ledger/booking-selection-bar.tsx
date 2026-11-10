@@ -4,12 +4,12 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { readBulkSelection, type BulkResult, type BulkSelection } from './api';
 import type { BulkSet } from './cache';
 import { longDay, nativeCurrency } from './format';
-import { FLAG_LABEL, SKIP_REASON_LABEL } from './labels';
+import { SKIP_REASON_LABEL } from './labels';
 import { LEDGER_KEY } from './queries';
 import { ErrorNote, LoadingNote } from './states';
-import { BOOKING_FLAGS } from './types';
 import { MoreHorizontal } from 'lucide-react';
 import { BookingNoteDialog } from './booking-note-dialog';
+import { BookingFieldDialog, type BookingFieldKind } from './booking-field-dialog';
 
 export interface BulkOutcome {
   action: 'update' | 'delete';
@@ -37,6 +37,7 @@ export function BookingSelectionBar({
 }) {
   useAmountPrivacy();
   const [noteOpen, setNoteOpen] = useState(false);
+  const [fieldOpen, setFieldOpen] = useState<BookingFieldKind | null>(null);
   const ordered = [...ids].sort(),
     key = ordered.join('|');
   const query = useQuery({
@@ -120,6 +121,15 @@ export function BookingSelectionBar({
           }
         />
       )}
+      {visible && fieldOpen && (
+        <BookingFieldDialog
+          key={`${fieldOpen}:${key}`}
+          kind={fieldOpen}
+          ids={ordered}
+          onClose={() => setFieldOpen(null)}
+          onConfirm={(value, preview) => onApply(value, preview.selection, preview.revision)}
+        />
+      )}
       {visible && (
         <>
           <div className="kselection-reserve" style={{ height }} aria-hidden="true" />
@@ -169,6 +179,8 @@ export function BookingSelectionBar({
             <fieldset className="kbulk-controls" disabled={locked}>
               <legend className="sr-only">Sammeländerung</legend>
               <Button onClick={() => setNoteOpen(true)}>Notiz ändern</Button>
+              <Button onClick={() => setFieldOpen('date')}>Datum ändern</Button>
+              <Button onClick={() => setFieldOpen('payee')}>Empfänger ändern</Button>
               <Select
                 className="select-sm"
                 aria-label="Kategorie für die Auswahl setzen"
@@ -198,25 +210,6 @@ export function BookingSelectionBar({
                 <option value="">Status</option>
                 <option value="pending">Vorgemerkt</option>
                 <option value="confirmed">Bestätigt</option>
-              </Select>
-              <Select
-                className="select-sm"
-                aria-label="Markierung für die Auswahl setzen"
-                value=""
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value === 'none') apply({ flag: null });
-                  else if (BOOKING_FLAGS.includes(value as (typeof BOOKING_FLAGS)[number]))
-                    apply({ flag: value as (typeof BOOKING_FLAGS)[number] });
-                }}
-              >
-                <option value="">Markierung</option>
-                <option value="none">Markierung entfernen</option>
-                {BOOKING_FLAGS.map((flag) => (
-                  <option key={flag} value={flag}>
-                    {FLAG_LABEL[flag]}
-                  </option>
-                ))}
               </Select>
               <Select
                 className="select-sm"

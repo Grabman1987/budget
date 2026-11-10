@@ -57,18 +57,8 @@ it.each([false, true])(
       [...container.querySelectorAll('thead th')].map((node) => node.textContent?.trim()),
     ).toEqual(
       enabled
-        ? [
-            'Markierung',
-            'Datum',
-            'Empfänger',
-            'Kategorie',
-            'Notiz',
-            'Ausgang',
-            'Eingang',
-            'Saldo',
-            'Status',
-          ]
-        : ['Markierung', 'Datum', 'Empfänger', 'Notiz', 'Kategorie', 'Betrag', 'Saldo', 'Status'],
+        ? ['Datum', 'Empfänger', 'Kategorie', 'Notiz', 'Ausgang', 'Eingang', 'Saldo', 'Status']
+        : ['Datum', 'Empfänger', 'Notiz', 'Kategorie', 'Betrag', 'Saldo', 'Status'],
     );
     if (enabled) {
       expect(container.querySelector('.kmonth')?.textContent).toBe('Oktober 2026');
@@ -83,6 +73,14 @@ it.each([false, true])(
     flags.REDESIGN_ENABLED = false;
   },
 );
+
+it.each([false, true])('shows no flag column or flag control (redesign %s)', (enabled) => {
+  flags.REDESIGN_ENABLED = enabled;
+  const { container } = setup([{ ...booking, flag: 'red' }]);
+  expect(container.querySelector('.kc-flag, .kx-flag, .kcol-flag, .kflagbtn, .kflag')).toBeNull();
+  expect(screen.queryByText(/Markierung/)).toBeNull();
+  flags.REDESIGN_ENABLED = false;
+});
 
 function setup(
   items: ListedBooking[] = [booking],
@@ -214,7 +212,7 @@ it('uses the supplied closing day balance, one phone metadata line, and a final 
     '02.10. · ohne Kategorie',
   );
   expect(container.querySelector('thead th:last-child')!.textContent).toBe('Status');
-  expect(container.querySelector('colgroup')!.children).toHaveLength(8);
+  expect(container.querySelector('colgroup')!.children).toHaveLength(7);
   expect(container.querySelector('[data-booking] td:last-child')!.className).toContain('kx-status');
 });
 

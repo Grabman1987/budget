@@ -2,7 +2,6 @@ import { captureSaveControl } from './ledger-helpers';
 import {
   categorySuggestions,
   redesignLoaded,
-  captureFlagControl,
   categoryLineControl,
   contactShareControl,
 } from './ledger-helpers';
@@ -14,8 +13,8 @@ import { expect, test, type Locator, type Page, type TestInfo } from '@playwrigh
 
 /**
  * Issue #583: the capture dialog is a wide two-column card on desktop (head left, booking lines
- * right), the note is always visible, "Mehr" holds Projekt and Markierung and is open exactly
- * when one of them is filled, and at most three category suggestions sit in one line.
+ * right), the note is always visible, "Mehr" holds Projekt and is open exactly
+ * when it is filled, and at most three category suggestions sit in one line.
  */
 
 const desktop = (info: TestInfo) => info.project.name === 'desktop';
@@ -252,6 +251,26 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       expect(notiz!.height).toBeLessThan(60);
     }
     expect(await dialog.locator('details.kmore').getByLabel('Notiz').count()).toBe(0);
+    // Datum and Konto (#1038): labels on one line; date input, calendar, repeat and account
+    // select share one control row (same top and height).
+    if (await redesignLoaded(page)) {
+      const rect = async (locator: Locator) => (await locator.boundingBox())!;
+      const [dateLabel, accountLabel] = await Promise.all([
+        rect(dialog.locator('label[for]', { hasText: /^Datum$/ })),
+        rect(dialog.locator('label[for]', { hasText: /^Konto$/ })),
+      ]);
+      expect(Math.abs(dateLabel.y - accountLabel.y)).toBeLessThanOrEqual(1);
+      const controls = await Promise.all([
+        rect(dialog.getByLabel('Datum', { exact: true })),
+        rect(dialog.getByLabel('Datum im Kalender').locator('..')),
+        rect(dialog.locator('.bk-repeat-native')),
+        rect(dialog.getByLabel('Konto', { exact: true })),
+      ]);
+      for (const control of controls) {
+        expect(Math.abs(control.y - controls[0]!.y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(control.height - controls[0]!.height)).toBeLessThanOrEqual(1);
+      }
+    }
     // No scrolling: the body shows everything and the card stays inside the viewport.
     const body = dialog.locator('.bk-body');
     expect(await body.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
@@ -303,40 +322,20 @@ test('at most three suggestions in one line without overflow; Mehr and Notiz', a
     expect(chip.height).toBeGreaterThanOrEqual(44);
   }
 
-  // The note is a visible textarea; Mehr is closed and offers Projekt and Markierung.
+  // The note is a visible textarea; Mehr is closed and offers Projekt (when projects exist).
   const note = dialog.getByLabel('Notiz');
   await expect(note).toBeVisible();
   const more = dialog.locator('details.kmore');
-  const phoneRedesign = (await redesignLoaded(page)) && page.viewportSize()!.width < 768;
-  const noMore = phoneRedesign && (await more.count()) === 0;
-  if (!noMore) {
+  // Mehr is rendered only when it has entries (projects); the flag entry is retired everywhere.
+  if ((await more.count()) > 0) {
     await expect(more).not.toHaveAttribute('open', /.*/);
     await expect(more.locator('summary')).toHaveText('Mehr');
     await expect(more.locator('summary')).toHaveAccessibleName('Mehr');
     await more.locator('summary').click();
     await expect(more).toHaveAttribute('open', '');
   }
-  if (phoneRedesign) {
-    // The phone renders Mehr only when it has entries (projects); never an empty menu.
-    if (noMore) await expect(more).toHaveCount(0);
-    else await expect(more.getByLabel('Markierung', { exact: true })).toHaveCount(0);
-    await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
-  } else {
-    await expect(more.getByLabel('Markierung', { exact: true })).toBeVisible();
-    // The flag shortcut stays first in the head, with its old name.
-    if (!(await redesignLoaded(page)))
-      await expect(dialog.locator('.bk-head').getByRole('button').first()).toHaveAccessibleName(
-        'Markierung: keine',
-      );
-    else await expect(await captureFlagControl(dialog, 'Markierung: keine')).toBeVisible();
-
-    // Both flag controls show the same value.
-    await more.getByLabel('Markierung', { exact: true }).selectOption('blue');
-    await expect(await captureFlagControl(dialog, 'Markierung: Blau')).toBeVisible();
-    await (await captureFlagControl(dialog, 'Markierung: Blau')).click();
-    await dialog.getByRole('menuitemradio', { name: /Gelb/ }).click();
-    await expect(more.getByLabel('Markierung', { exact: true })).toHaveValue('yellow');
-  }
+  await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
+  await expect(dialog.getByLabel('Markierung', { exact: true })).toHaveCount(0);
 
   // Phone and desktop: no horizontal page scroll, targets of 44 px, no Axe violation.
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
@@ -367,7 +366,7 @@ test('at most three suggestions in one line without overflow; Mehr and Notiz', a
     });
 });
 
-test('Mehr is open on load exactly when Markierung or Projekt is filled', async ({
+test('Mehr is open on load exactly when Projekt is filled', async ({
   page,
   request,
   baseURL,
@@ -396,7 +395,8 @@ test('Mehr is open on load exactly when Markierung or Projekt is filled', async 
     )['id'] as unknown as string;
   const cases = [
     { extra: {}, day: '2026-02-01', open: false },
-    { extra: { flag: 'red' }, day: '2026-02-02', open: true },
+    // A stored flag no longer opens Mehr: the dialog has no flag entry.
+    { extra: { flag: 'red' }, day: '2026-02-02', open: false },
     { extra: { projectId: project.id }, day: '2026-02-03', open: true },
   ];
   for (const { extra, day, open } of cases) {

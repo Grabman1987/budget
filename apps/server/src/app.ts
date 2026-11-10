@@ -145,6 +145,8 @@ export function createApp({ webDir, database, auth, ledger, buildRevision }: App
       return receiptLimit(c, next);
     if (c.req.method === 'POST' && c.req.path === '/api/statement-intake/upload')
       return receiptLimit(c, next);
+    if (c.req.method === 'POST' && c.req.path === '/api/document-intake/classify')
+      return receiptLimit(c, next);
     if (importsEnabled && c.req.path === '/api/imports/ynab') return uploadLimit(c, next);
     if (importsEnabled && c.req.path.startsWith('/api/imports/')) return importLimit(c, next);
     return apiLimit(c, next);

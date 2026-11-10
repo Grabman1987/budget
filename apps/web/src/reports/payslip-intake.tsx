@@ -18,7 +18,7 @@ import {
   WideDialog,
 } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ApiError, notifyApiWrite, request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { AccountOptions } from '../ledger/account-options';
@@ -119,12 +119,20 @@ export type PayslipUploadResult = {
   passwordRemember?: RememberResult;
   automation?: PayslipAutomationOutcome;
 };
+export type PayslipHandoff = {
+  file: File;
+  password?: string | undefined;
+  remember?: boolean | undefined;
+};
 export function PayslipUpload({
   onBusyChange,
   onUploaded,
+  handoff,
 }: {
   onBusyChange?: (busy: boolean) => void;
   onUploaded?: (result: PayslipUploadResult) => void;
+  /** Central document upload: the same File goes through this normal upload. */
+  handoff?: PayslipHandoff | undefined;
 } = {}) {
   const picker = useRef<HTMLInputElement>(null),
     [busy, setBusy] = useState(false),
@@ -150,7 +158,7 @@ export function PayslipUpload({
     }
     void upload(file);
   }
-  async function upload(file?: File) {
+  async function upload(file?: File, typedPassword = password, typedRemember = remember) {
     if (!file || busy) return;
     setBusy(true);
     onBusyChange?.(true);
@@ -162,9 +170,9 @@ export function PayslipUpload({
       const body = new FormData();
       body.set('file', file);
       body.set('automation', 'eligible');
-      if (password) {
-        body.set('password', password);
-        if (remember) body.set('remember', '1');
+      if (typedPassword) {
+        body.set('password', typedPassword);
+        if (typedRemember) body.set('remember', '1');
       }
       const response = await fetch(PATH + '/upload', {
         method: 'POST',
@@ -225,6 +233,14 @@ export function PayslipUpload({
       onBusyChange?.(false);
     }
   }
+  const handedOff = useRef(false);
+  useEffect(() => {
+    if (!handoff || handedOff.current) return;
+    handedOff.current = true;
+    void upload(handoff.file, handoff.password ?? '', Boolean(handoff.remember));
+    // Runs once per mounted instance; `upload` only reads current state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoff]);
   return (
     <div
       className="payslip-upload"
