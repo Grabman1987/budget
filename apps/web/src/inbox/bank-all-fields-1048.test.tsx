@@ -79,11 +79,13 @@ describe('bank split model', () => {
 type Sent = { path: string; method: string; body: unknown };
 let sent: Sent[];
 let suggestions: unknown[];
+let candidate: unknown;
 
 beforeEach(() => {
   flags.REDESIGN_ENABLED = true;
   sent = [];
   suggestions = [];
+  candidate = { ...line, currency: 'EUR', memo: 'Shop A' };
   vi.stubGlobal('matchMedia', (media: string) => ({
     matches: false,
     media,
@@ -110,7 +112,7 @@ beforeEach(() => {
     if (path.includes('/matches')) return Response.json({ merge: [], link: [], transfers: [] });
     if (path.includes('/assignment-rules/candidates/'))
       return Response.json({
-        candidate: { ...line, currency: 'EUR', memo: 'Shop A' },
+        candidate,
         suggestions,
         cleanup: { cleaned: 'Shop A', payeeId: null },
         candidateRevision: 'a'.repeat(64),
@@ -196,6 +198,22 @@ describe('Alle Felder in the bank confirmation', () => {
 
   it('keeps the OFF build dialog unchanged (rollback path)', async () => {
     flags.REDESIGN_ENABLED = false;
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <BankCandidate id="synthetic-0" />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
+    await screen.findByLabelText('Kategorie');
+    expect(screen.queryByText('Alle Felder')).toBeNull();
+    client.clear();
+  });
+
+  it('keeps the previous dialog when the bank facts are incomplete', async () => {
+    candidate = { id: 'synthetic-0' };
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={client}>

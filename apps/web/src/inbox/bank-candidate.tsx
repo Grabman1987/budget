@@ -275,9 +275,14 @@ function BankCandidateForm({
     fields.splitOn,
   ]);
   const candidate = review.data?.candidate;
-  const line = candidate
-    ? { accountId: candidate.accountId, date: candidate.date, amountCents: candidate.amountCents }
-    : undefined;
+  // Only complete bank facts enable "Alle Felder"; a partial candidate keeps the previous dialog.
+  const line =
+    candidate &&
+    typeof candidate.accountId === 'string' &&
+    typeof candidate.date === 'string' &&
+    Number.isSafeInteger(candidate.amountCents)
+      ? { accountId: candidate.accountId, date: candidate.date, amountCents: candidate.amountCents }
+      : undefined;
   const extras = line
     ? bankConfirmExtras(
         line,
