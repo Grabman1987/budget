@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   addReceipt,
   bookedBalance,
+  ConflictError,
   createEntity,
   createTestDatabase,
   listReceipts,
@@ -22,6 +23,8 @@ import { bankConfirmSchema } from '../api/assignment-rules';
 
 // #1048: optional "Alle Felder" values on the bank confirmation. Synthetic data only.
 let opened: OpenedDatabase;
+// Signed bank amount of the synthetic row; the income tests switch it before setup.
+let bankAmount = -1201;
 let service: BankSync;
 const consentId = randomUUID();
 const linkId = randomUUID();
@@ -44,7 +47,7 @@ beforeEach(async () => {
         {
           reference: 'entry-a',
           date: '2026-09-30',
-          amountCents: -1201,
+          amountCents: bankAmount,
           currency: 'EUR',
           memo: 'Shop A',
         },
@@ -219,6 +222,206 @@ describe('bank confirmation with all fields (#1048)', () => {
   });
 });
 
+describe('confirming again after Undo (#1048 B1)', () => {
+  const columns = (bookingId: string) => {
+    const b = opened.db
+      .select()
+      .from(schema.booking)
+      .where(eq(schema.booking.id, bookingId))
+      .get()!;
+    return {
+      memo: b.memo,
+      projectId: b.projectId,
+      payeeId: b.payeeId,
+      flag: b.flag,
+      status: b.status,
+      amountCents: b.amountCents,
+      date: b.date,
+      deletedAt: b.deletedAt,
+    };
+  };
+  // What the create path yields for a plain confirmation with category "essen".
+  const created = {
+    memo: 'Shop A',
+    projectId: null,
+    payeeId: null,
+    flag: null,
+    status: 'confirmed',
+    amountCents: -1201,
+    date: '2026-09-30',
+    deletedAt: null,
+  };
+
+  it('restores exactly what a first confirmation creates, without undone extras', () => {
+    const receipt = addReceipt(
+      opened.db,
+      { sha256: 'e'.repeat(64), mime: 'image/png', sizeBytes: 10, originalFilename: 'beleg.png' },
+      undefined,
+      { actor: 'owner' },
+    ).receipt;
+    const id = candidateId();
+    const first = service.confirm(id, null, {
+      actions: { payeeId: 'p1', flag: 'blue' },
+      memo: 'Alt',
+      projectId: 'proj',
+      splits: [
+        { categoryId: 'reise', amountCents: -1000 },
+        { categoryId: 'miete', amountCents: -201 },
+      ],
+      receiptIds: [receipt.id],
+    });
+    undo(opened.db, { groupId: first.groupId }, { actor: 'owner' });
+    const again = service.confirm(id, 'essen');
+    // The undone booking is reused (same import key), so the tombstone must not leak.
+    expect(again.bookingId).toBe(first.bookingId);
+    expect(columns(again.bookingId)).toEqual(created);
+    expect(splitsOf(again.bookingId)).toEqual([['essen', -1201]]);
+    expect(listReceipts(opened.db, again.bookingId)).toEqual([]);
+    expect(listReceipts(opened.db).map((r) => r.id)).toContain(receipt.id);
+    expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(98799);
+  });
+
+  it('treats an explicit null or blank note like the create path (bank text)', () => {
+    const id = candidateId();
+    const fresh = service.confirm(id, 'essen', { memo: null });
+    expect(columns(fresh.bookingId).memo).toBe('Shop A');
+    undo(opened.db, { groupId: fresh.groupId }, { actor: 'owner' });
+    const again = service.confirm(id, 'essen', { memo: null });
+    expect(columns(again.bookingId)).toEqual(created);
+    undo(opened.db, { groupId: again.groupId }, { actor: 'owner' });
+    const blank = service.confirm(id, 'essen', { memo: '   ' });
+    expect(columns(blank.bookingId)).toEqual(created);
+  });
+});
+
+describe('failed confirmations with all fields roll back completely (#1048)', () => {
+  const receiptOf = (sha: string) =>
+    addReceipt(
+      opened.db,
+      { sha256: sha.repeat(64), mime: 'image/png', sizeBytes: 10, originalFilename: 'b.png' },
+      undefined,
+      { actor: 'owner' },
+    ).receipt;
+  const nothingWritten = (receiptId: string) => {
+    expect(live()).toHaveLength(0);
+    expect(open()).toBe(true);
+    expect(listReceipts(opened.db).map((r) => r.id)).toContain(receiptId);
+  };
+  const extras = (receiptId: string) => ({
+    actions: { payeeId: null },
+    memo: 'Notiz',
+    projectId: 'proj',
+    splits: [
+      { categoryId: 'essen', amountCents: -1000 },
+      { categoryId: 'reise', amountCents: -201 },
+    ],
+    receiptIds: [receiptId],
+  });
+
+  it('on an unknown receipt', () => {
+    const kept = receiptOf('1');
+    expect(() =>
+      service.confirm(candidateId(), null, {
+        ...extras(kept.id),
+        receiptIds: [kept.id, 'missing-receipt'],
+      }),
+    ).toThrow();
+    nothingWritten(kept.id);
+  });
+
+  it('on an archived project', () => {
+    const kept = receiptOf('2');
+    createEntity(
+      opened.db,
+      schema.project,
+      { id: 'archived', name: 'Projekt B', archivedAt: '2026-01-01T00:00:00Z' },
+      { actor: 'owner' },
+    );
+    expect(() =>
+      service.confirm(candidateId(), null, { ...extras(kept.id), projectId: 'archived' }),
+    ).toThrow('Projekt ist nicht aktiv');
+    nothingWritten(kept.id);
+  });
+
+  it('on an unknown category in a split line', () => {
+    const kept = receiptOf('3');
+    expect(() =>
+      service.confirm(candidateId(), null, {
+        ...extras(kept.id),
+        splits: [
+          { categoryId: 'missing-category', amountCents: -1000 },
+          { categoryId: 'reise', amountCents: -201 },
+        ],
+      }),
+    ).toThrow();
+    nothingWritten(kept.id);
+  });
+
+  it('on a stale candidate revision', () => {
+    const kept = receiptOf('4');
+    expect(() =>
+      service.confirm(candidateId(), null, {
+        ...extras(kept.id),
+        candidateRevision: 'c'.repeat(64),
+      }),
+    ).toThrow(ConflictError);
+    nothingWritten(kept.id);
+  });
+
+  it('refuses a retry after success (409) and links a repeated receipt id once', () => {
+    const kept = receiptOf('5');
+    const id = candidateId();
+    const result = service.confirm(id, null, {
+      ...extras(kept.id),
+      receiptIds: [kept.id, kept.id],
+    });
+    expect(
+      opened.db
+        .select()
+        .from(schema.bookingReceipt)
+        .where(eq(schema.bookingReceipt.bookingId, result.bookingId))
+        .all(),
+    ).toHaveLength(1);
+    expect(() => service.confirm(id, null, extras(kept.id))).toThrow(
+      new ConflictError('Dieser Bankumsatz wurde bereits bearbeitet.'),
+    );
+    expect(live()).toHaveLength(1);
+  });
+});
+
+describe('income bank line with split lines (#1048)', () => {
+  beforeAll(() => {
+    bankAmount = 5000;
+  });
+  afterAll(() => {
+    bankAmount = -1201;
+  });
+  it('stores positive split lines that sum to the bank amount', () => {
+    expect(() =>
+      service.confirm(candidateId(), null, {
+        actions: { payeeId: null },
+        splits: [
+          { categoryId: null, amountCents: 3001 },
+          { categoryId: 'reise', amountCents: 2000 },
+        ],
+      }),
+    ).toThrow('Die Aufteilung ergibt nicht den Bankbetrag.');
+    expect(live()).toHaveLength(0);
+    const result = service.confirm(candidateId(), null, {
+      actions: { payeeId: null },
+      splits: [
+        { categoryId: null, amountCents: 3001 },
+        { categoryId: 'reise', amountCents: 1999 },
+      ],
+    });
+    expect(live()[0]).toMatchObject({ amountCents: 5000, status: 'confirmed' });
+    expect(splitsOf(result.bookingId)).toEqual([
+      [null, 3001],
+      ['reise', 1999],
+    ]);
+  });
+});
+
 describe('bank confirm request schema (#1048)', () => {
   const lines = [
     { categoryId: 'essen', amountCents: -1000 },
@@ -245,6 +448,23 @@ describe('bank confirm request schema (#1048)', () => {
           ],
         },
         splits: lines,
+      }).success,
+    ).toBe(false);
+  });
+  it('limits notes to the booking API length (500)', () => {
+    expect(bankConfirmSchema.safeParse({ categoryId: null, memo: 'x'.repeat(500) }).success).toBe(
+      true,
+    );
+    expect(bankConfirmSchema.safeParse({ categoryId: null, memo: 'x'.repeat(501) }).success).toBe(
+      false,
+    );
+    expect(
+      bankConfirmSchema.safeParse({
+        categoryId: null,
+        splits: [
+          { categoryId: 'essen', amountCents: -1000, memo: 'x'.repeat(501) },
+          { categoryId: null, amountCents: -201 },
+        ],
       }).success,
     ).toBe(false);
   });

@@ -8,8 +8,8 @@ import {
   useToast,
 } from '@budget/ui';
 import { X } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { request } from '../api/http';
 import type { AttachedReceipt } from '../receipts/receipt-section';
 import { BankAllFieldsSection } from './bank-all-fields';
@@ -138,6 +138,7 @@ export function BankCandidate({
             description={description}
             onClose={() => setOpen(false)}
             onBusy={setBusy}
+            open={open}
           />
         </FormDialog>
       )}
@@ -155,6 +156,7 @@ function BankCandidateForm({
   description,
   onClose,
   onBusy,
+  open = true,
 }: {
   id: string;
   onConfirmed?: ((bookingId: string) => void) | undefined;
@@ -162,6 +164,7 @@ function BankCandidateForm({
   description?: string | undefined;
   onClose: () => void;
   onBusy: (busy: boolean) => void;
+  open?: boolean;
 }) {
   useAmountPrivacy();
   const lookups = useQuery(lookupsQuery()),
@@ -195,6 +198,18 @@ function BankCandidateForm({
     [attached, setAttached] = useState<AttachedReceipt[]>([]),
     [uploading, setUploading] = useState(false);
   const toast = useToast();
+  const qc = useQueryClient();
+  // Receipts attached here are already stored in Prüfen; say so whenever the dialog closes
+  // without linking them (Abbrechen, Escape, merge or transfer), as the booking form does.
+  const attachedRef = useRef(attached);
+  useEffect(() => {
+    attachedRef.current = attached;
+  }, [attached]);
+  useEffect(() => {
+    if (!open && attachedRef.current.length)
+      toast.show({ message: 'Beleg bleibt unter Prüfen, bis du die Buchung bestätigst.' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
   useEffect(() => onBusy(busy), [busy, onBusy]);
   const matches = useQuery({
     queryKey: [...LEDGER_KEY, 'bank-matches', id],
@@ -388,12 +403,17 @@ function BankCandidateForm({
                           { bookingId: selected },
                         ),
                       () =>
-                        action === 'merge'
+                        (action === 'merge'
                           ? 'Bankumsatz mit Buchung zusammengeführt.'
-                          : 'Als Umbuchung verbunden.',
+                          : 'Als Umbuchung verbunden.') +
+                        // One toast keeps its Undo action; unlinked receipts are named in it.
+                        (attachedRef.current.length ? ' Beleg bleibt unter Prüfen.' : ''),
                     )
                       .then((result) => {
-                        if (result) onClose();
+                        if (!result) return;
+                        attachedRef.current = [];
+                        setAttached([]);
+                        onClose();
                       })
                       .finally(() => setBusy(false));
                   }}
@@ -521,13 +541,17 @@ function BankCandidateForm({
               onRemoveReceipt={(receiptId) => {
                 setAttached((list) => list.filter((r) => r.id !== receiptId));
                 // Same as the booking form: a removed attachment is discarded, not left in Prüfen.
-                void request('DELETE', `/api/receipts/${encodeURIComponent(receiptId)}`).then(
-                  () => toast.show({ message: 'Beleg verworfen.' }),
-                  () =>
-                    toast.show({
-                      message: 'Beleg konnte nicht verworfen werden und bleibt unter Prüfen.',
-                    }),
-                );
+                void request('DELETE', `/api/receipts/${encodeURIComponent(receiptId)}`)
+                  .then(
+                    () => toast.show({ message: 'Beleg verworfen.' }),
+                    () =>
+                      toast.show({
+                        message: 'Beleg konnte nicht verworfen werden und bleibt unter Prüfen.',
+                      }),
+                  )
+                  .finally(
+                    () => void qc.invalidateQueries({ queryKey: [...LEDGER_KEY, 'receipts'] }),
+                  );
               }}
               onUploadBusy={setUploading}
               busy={busy}
@@ -591,6 +615,9 @@ function BankCandidateForm({
                 )
                   onConfirmed?.(result.bookingId);
                 if (result) {
+                  if (attachedRef.current.length)
+                    void qc.invalidateQueries({ queryKey: [...LEDGER_KEY, 'receipts'] });
+                  attachedRef.current = [];
                   setAttached([]);
                   onClose();
                 }

@@ -24,6 +24,10 @@ export interface BankAllFields {
   splits: SplitDraft[];
 }
 
+/** Same cap as the confirm API; the form says so instead of failing on the server. */
+export const MAX_BANK_SPLIT_LINES = 50;
+export const TOO_MANY_LINES = `Höchstens ${MAX_BANK_SPLIT_LINES} Zeilen.`;
+
 export const emptyBankFields = (): BankAllFields => ({
   memo: '',
   projectId: '',
@@ -77,6 +81,7 @@ export function bankSplitLines(
   line: BankLine,
   splits: ReadonlyArray<SplitDraft>,
 ): { ok: true; lines: BankSplitLine[] } | { ok: false; error: string } {
+  if (splits.length > MAX_BANK_SPLIT_LINES) return { ok: false, error: TOO_MANY_LINES };
   const built = buildCreate(bankDraft(line, splits), null);
   if (!built.ok)
     return { ok: false, error: built.errors.splits ?? 'Die Aufteilung ist nicht vollständig.' };

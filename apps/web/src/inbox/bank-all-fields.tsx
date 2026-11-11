@@ -11,6 +11,8 @@ import {
   type AttachedReceipt,
 } from '../receipts/receipt-section';
 import {
+  MAX_BANK_SPLIT_LINES,
+  TOO_MANY_LINES,
   bankSplitRest,
   fillRest,
   startSplit,
@@ -57,7 +59,8 @@ export function BankAllFieldsSection({
   busy: boolean;
 }) {
   useAmountPrivacy();
-  const restId = useId();
+  const restId = useId(),
+    limitId = useId();
   const set = (patch: Partial<BankAllFields>) => onChange({ ...value, ...patch });
   const setLine = (key: string, patch: Partial<BankAllFields['splits'][number]>) =>
     set({ splits: value.splits.map((s) => (s.key === key ? { ...s, ...patch } : s)) });
@@ -171,10 +174,17 @@ export function BankAllFieldsSection({
               Rest: {eur(rest)}
               {splitError ? ` · ${splitError}` : ''}
             </p>
+            {value.splits.length >= MAX_BANK_SPLIT_LINES && (
+              <p id={limitId} className="kmeta">
+                {TOO_MANY_LINES}
+              </p>
+            )}
             <div className="bank-split-actions">
               <Button
                 variant="ghost"
                 size="sm"
+                disabled={value.splits.length >= MAX_BANK_SPLIT_LINES}
+                aria-describedby={value.splits.length >= MAX_BANK_SPLIT_LINES ? limitId : undefined}
                 onClick={() => set({ splits: [...value.splits, newSplit()] })}
               >
                 <Plus size={16} strokeWidth={1.75} aria-hidden="true" />

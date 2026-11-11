@@ -91,7 +91,8 @@ export const bankConfirmSchema = z
     candidateRevision: z.string().length(64).optional(),
     actions: assignmentActionsSchema.optional(),
     // Optional "Alle Felder" additions (#1048). Omitted fields keep the previous behavior.
-    memo: z.string().max(4096).nullable().optional(),
+    // Same limit as the booking API; blank means "not given" (the bank text stays).
+    memo: z.string().max(500).nullable().optional(),
     projectId: z.string().min(1).max(100).nullable().optional(),
     /** Cent-exact manual split lines; the server checks they sum to the bank amount. */
     splits: z
@@ -100,7 +101,7 @@ export const bankConfirmSchema = z
           .object({
             categoryId: z.string().min(1).max(100).nullable(),
             amountCents: z.number().int().safe(),
-            memo: z.string().max(4096).nullable().optional(),
+            memo: z.string().max(500).nullable().optional(),
           })
           .strict(),
       )

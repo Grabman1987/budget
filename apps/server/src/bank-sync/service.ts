@@ -1164,14 +1164,15 @@ export class BankSync {
       // single-category line (the schema refuses them together with a rule or category).
       const patch = {
         ...assigned,
-        ...(options.memo !== undefined ? { memo: options.memo } : {}),
+        // A blank note means "not given": the bank text stays, as on the create path.
+        ...(options.memo?.trim() ? { memo: options.memo.trim() } : {}),
         ...(options.projectId !== undefined ? { projectId: options.projectId } : {}),
         ...(options.splits
           ? {
               splits: options.splits.map(
                 ({ memo, ...s }): NonNullable<BookingPatch['splits']>[number] => ({
                   ...s,
-                  ...(memo != null ? { memo } : {}),
+                  ...(memo?.trim() ? { memo: memo.trim() } : {}),
                 }),
               ),
             }
@@ -1211,11 +1212,17 @@ export class BankSync {
             ctx,
           );
         restoreBooking(tx, existing.id, ctx);
+        // The undone tombstone keeps its old columns. Set every column the create path sets so a
+        // re-confirmation yields the same booking as a first confirmation (#1048 B1).
         updateBooking(
           tx,
           existing.id,
           {
             ...patch,
+            memo: patch.memo ?? row.memo,
+            payeeId: patch.payeeId === undefined ? review.cleanup.payeeId : patch.payeeId,
+            flag: patch.flag ?? null,
+            projectId: patch.projectId ?? null,
             date: row.date,
             amountCents: row.amountCents,
             status: 'confirmed',

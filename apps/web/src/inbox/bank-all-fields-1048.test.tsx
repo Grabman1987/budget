@@ -68,6 +68,14 @@ describe('bank split model', () => {
     });
   });
 
+  it('caps split lines at 50 with a form message', () => {
+    const many = Array.from({ length: 51 }, () => newSplit({ categoryId: 'a', amount: '1' }));
+    expect(bankSplitLines({ ...line, amountCents: -5100 }, many)).toEqual({
+      ok: false,
+      error: 'Höchstens 50 Zeilen.',
+    });
+  });
+
   it('adds nothing to the request while all fields stay untouched', () => {
     expect(bankConfirmExtras(line, emptyBankFields(), [])).toEqual({ ok: true, extras: {} });
     expect(
@@ -273,6 +281,18 @@ describe('Alle Felder in the bank confirmation', () => {
         { categoryId: 'reise', amountCents: -201 },
       ],
     });
+    client.clear();
+  });
+
+  it('stops adding split lines at the cap and says why', async () => {
+    const { client, details } = await openDialog();
+    details.open = true;
+    fireEvent.click(within(details).getByRole('button', { name: 'Aufteilen' }));
+    const add = within(details).getByRole('button', { name: 'Zeile hinzufügen' });
+    for (let i = 2; i < 50; i++) fireEvent.click(add);
+    expect(within(details).getAllByTestId('bank-split-line')).toHaveLength(50);
+    expect((add as HTMLButtonElement).disabled).toBe(true);
+    expect(within(details).getByText('Höchstens 50 Zeilen.')).toBeTruthy();
     client.clear();
   });
 
