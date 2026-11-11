@@ -104,6 +104,56 @@ trades, all FX rates) through the ORM and re-deriving the same budget several ti
 No migration and no new index were needed: no statement was slow on its own (the largest takes
 about 25 ms for 7k rows), the cost was repeated reading and mapping.
 
+## Heute and positions (#956, 2026-11)
+
+Production (2026-11-11, one owner session, browser timings): `GET /api/heute` 6.9 s, `GET
+/api/portfolio/positions` 6.4 s, every other read under 2 s. Measured on a production-shaped
+synthetic ledger (`scripts/perf/heute-fixture-956.ts`: 30 accounts, 10k bookings, 6.25k trades,
+36 securities, 121k prices over 13 years, 21.6k FX rates over 23 years, 15k audit entries with
+full row snapshots):
+
+```bash
+npx tsx scripts/perf/heute-positions-956.ts --database data/heute-956.sqlite --create
+npx tsx scripts/perf/heute-positions-956.ts --database data/heute-956.sqlite --samples 9 [--capture|--compare digests.json]
+```
+
+Causes, in order of weight:
+
+1. **Positions waits for Heute.** All handlers run synchronously on one Node thread. The sidebar
+   asks for positions once the account list answered, so it queues behind Heute; its own server
+   time was 0.3 s of the 3.5 s burst. Fixing Heute fixes most of the positions latency.
+2. **Whole price and rate histories, read repeatedly.** One Heute request read all FX rates 10 times
+   (`rateTable`, `ratesAsOf`), scanned all 121k prices twice (`valuationSeries` for the month
+   change), and searched the unsorted rate list linearly for every position of each of the ~15
+   valuation days. Positions sorted the whole price table to find the latest quote per security.
+   These costs grow with the imported history, not with the visible window.
+3. **Audit log replayed twice.** The account review chronology ran for Heute's reminders and again
+   inside the inbox count.
+
+Changes: rates are read once per request and shared (`rateTable`, `ratesAsOf`, per-currency binary
+search instead of the linear scan); a valuation window reads only the prices in the window plus the
+latest one before it (the only ones `pickPrice` can choose); positions finds the latest quote per
+security with an index-backed `max(date)` join; `valuationSeries` reuses the request's trade read;
+`accountReminders` is memoized per request. No index and no migration: none of the slow statements
+lacked an index; the cost was reading and mapping rows that cannot affect the answer.
+
+Server time per request, fresh read-model cache, Linux, 2 vCPU, Node 22 (median / min of 9, ms):
+
+| Endpoint | Before | After |
+| --- | ---: | ---: |
+| Heute (Monat) | 2932 / 2125 | 1308 / 1108 |
+| Heute (bis Gehalt) | 2044 / 1753 | 1285 / 1182 |
+| Positionen | 388 / 305 | 108 / 97 |
+| Depots | 2160 / 1972 | 818 / 705 |
+| Gesamtübersicht 1 J | 1039 / 935 | 314 / 270 |
+| Heute page burst (positions answered) | 3522 | 2502 |
+
+All 15 measured responses stay byte-identical (`heute-positions-956.test.ts` holds the digests
+captured on the stock main and a row budget: Heute reads under 5k price rows and the rate table at
+most once; positions under 1k price rows). On the small #956 fixture (3 years of prices, no audit
+log) Heute is unchanged; the remaining Heute time is the audit replays (account review chronology
+and goal lifecycle, about a third), 13 month-end valuations, the Finanz-Check and the budget facts.
+
 ## CI flakes
 
 - `e2e/shell.spec.ts` route sweep (`main` landmark within 5 s on `/reports/finanzcheck`,
