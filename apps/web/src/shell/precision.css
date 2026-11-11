@@ -14,8 +14,42 @@
   position: relative;
   isolation: isolate;
 }
-/* Grid ink per theme. --grid-line in tokens.css (pinned byte-identical for OFF) stays the faint
-   legacy value; the visible ground grid uses these. Light 14 %, dark 14 % (minor lines 50 %). */
+/* OFF build (unchanged): drafting grid, 8 px minor and 40 px major lines, only in the top right,
+   fading into the sheet. */
+.app:not([data-budget-redesign='1']) .main::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: 0;
+  width: min(760px, 70%);
+  height: 420px;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--grid-line) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--grid-line) 45%, transparent) 1px,
+      transparent 1px
+    );
+  background-size:
+    40px 40px,
+    40px 40px,
+    8px 8px,
+    8px 8px;
+  background-position: right -1px top -1px;
+  mask-image: radial-gradient(
+    ellipse 100% 100% at 100% 0%,
+    #000 0%,
+    rgba(0, 0, 0, 0.5) 38%,
+    transparent 72%
+  );
+}
+/* Grid ink per theme, only consumed by the ON build (the OFF build keeps its corner accent above).
+   --grid-line in tokens.css is pinned byte-identical for OFF and stays the faint legacy value;
+   the visible ground grid uses --grid-ink: 14 % in light and dark, minor lines at 50 %. */
 :root,
 :root[data-theme='light'] {
   --grid-ink: rgba(23, 71, 166, 0.14);
@@ -32,7 +66,7 @@
 /* Drafting grid (owner decision 2026-11-11): 8 px minor and 40 px major lines over the whole main
    surface, no mask. The pseudo-element spans the full height of .main, so long pages scroll over
    one continuous grid. Cards, panels, dialogs and tables are opaque and never show it. */
-.main::before {
+.app[data-budget-redesign='1'] .main::before {
   content: '';
   position: absolute;
   z-index: -1;
@@ -55,13 +89,13 @@
   background-position: 0 0;
 }
 @media print {
-  .main::before {
+  .app[data-budget-redesign='1'] .main::before {
     display: none;
   }
 }
-/* Lead blocks (Heute, Konten overview) carry the key figure: opaque so it never sits on the grid. */
-.hv-lead,
-.account-overview-577 .overview-lead {
+/* Heute lead block carries the key figure: opaque so it never sits on the grid (ON only). The
+   Konten and Vermögen leads get their card in their own stylesheets. */
+.app[data-budget-redesign='1'] .hv-lead {
   padding: 14px 16px 12px;
   background: var(--surface);
   border: 1px solid var(--card-border);
@@ -70,13 +104,17 @@
 }
 /* Phone: no top padding, the compact Heute header keeps the figure within its height budget. */
 @media (max-width: 767px) {
-  .hv-lead {
+  .app[data-budget-redesign='1'] .hv-lead {
     padding: 0 12px 10px;
   }
 }
 .topbar {
-  background: var(--ground);
+  background: color-mix(in srgb, var(--ground) 80%, transparent);
   border-bottom-color: var(--card-border);
+}
+/* ON: a solid bar, text never sits on the (blurred) grid. */
+.app[data-budget-redesign='1'] .topbar {
+  background: var(--ground);
 }
 .search input {
   background: var(--surface);

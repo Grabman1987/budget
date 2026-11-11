@@ -303,8 +303,12 @@
   margin-inline-end: auto;
 }
 .account-overview-redesign .overview-lead {
-  padding-block: 4px 8px;
-  border-bottom: 1px solid var(--rule-strong);
+  /* Opaque card: the key figure never sits on the drafting grid. */
+  padding: 14px 16px 12px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
 }
 .account-overview-redesign .overview-lead-links {
   gap: 4px 16px;
@@ -497,7 +501,6 @@
   .account-overview-redesign .overview-lead {
     grid-column: 1;
     grid-row: 1;
-    border-bottom: 0;
   }
   .account-overview-redesign .overview-bookings-link {
     margin-inline-end: 0;
@@ -585,8 +588,8 @@
   align-content: start;
   align-items: end;
   column-gap: 40px;
-  padding: 0 44px 12px 0;
-  border: 0;
+  padding: 14px 44px 12px 16px;
+  border: 1px solid var(--card-border);
 }
 .account-overview-redesign .overview-lead h2 {
   grid-area: label;
@@ -659,7 +662,7 @@
 @media (max-width: 767px) {
   .account-overview-redesign .overview-lead {
     display: block;
-    padding: 0 0 8px;
+    padding: 6px 12px 8px;
     min-height: 0;
   }
   .account-overview-redesign .overview-lead h2 {

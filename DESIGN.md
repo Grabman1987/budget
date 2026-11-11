@@ -314,7 +314,7 @@ Dokument und im Prototyp. [Inventar und Umsetzungsstand](docs/no-side-panels-100
 
 **Creative North Star: "Das Konstruktionsblatt"**
 
-Die Finanz-App ist ein technisches Zeichenblatt, keine Kachelwand. Jede Zahl ist ein Maß: Sie sitzt als Maßtext auf einer Maßlinie mit Schrägstrich-Maßbegrenzung und lässt sich in ihre Maßkette zerlegen, bis hinunter zur einzelnen Buchung. Die Blaupause steckt in der Haltung (Linienarten, Schriftfeld, Planliste, Revisionstabelle, Detailausschnitte) und im Grund (Owner decision 2026-11-11): Das Zeichenraster (8 px fein, 40 px kräftiger) deckt in beiden Modi die gesamte App-Fläche. Karten, Panels, Dialoge und Tabellen bleiben deckend, sodass nie Text direkt auf dem Raster steht; Druckblätter (One-Pager, Jahresreport, Berichtstabellen) bleiben rasterfrei.
+Die Finanz-App ist ein technisches Zeichenblatt, keine Kachelwand. Jede Zahl ist ein Maß: Sie sitzt als Maßtext auf einer Maßlinie mit Schrägstrich-Maßbegrenzung und lässt sich in ihre Maßkette zerlegen, bis hinunter zur einzelnen Buchung. Die Blaupause steckt in der Haltung (Linienarten, Schriftfeld, Planliste, Revisionstabelle, Detailausschnitte) und im Grund (Owner decision 2026-11-11): Das Zeichenraster (8 px fein, 40 px kräftiger) deckt in beiden Modi die gesamte App-Fläche. Kennzahlen, Karten, Panels, Dialoge und Tabellen bleiben deckend, sodass Zahlen, Tabellen und Fließtext nie direkt auf dem Raster stehen; Seitenüberschriften, Stand-Zeilen und Werkzeugleisten dürfen darauf stehen. Das Raster gehört zum Redesign-Build (`data-budget-redesign="1"`); der OFF-Build bleibt unverändert. Druckblätter (One-Pager, Jahresreport, Berichtstabellen) bleiben rasterfrei.
 
 **Präzisionsschicht (Entscheidung 02.10.2026, „Architect / Precision Fintech“):** Ein kühler Slate-Grund (`ground`), darauf weiße Karten (`surface`) mit Haarlinienrand (`card-border`) und einlagigem, weichem Schatten (`card-shadow`); die Seitenleiste ist ein ruhiges Eisblau (`ground-2`) mit der Kontenhierarchie unter der Planliste. Grün ist das Signal für vorhandenes Geld: die Hero-Kennzahl in Waldgrün (`good`, Schrift weiß) und positive Restbeträge als Mint-Pillen (`good-soft` mit `on-good-soft`); ausgeschöpfte Beträge sind neutralgraue Pillen (`quiet-soft`). Plan › Monat hat drei Spalten: Seitenleiste, Stückliste als Karte und rechts einen Inspektor (Monatsüberblick, 50/30/20, Wasserfall). Die Mockups in `design/screens` sind damit keine Prüfreferenz mehr; eigene Vergleichsbilder sichern den Stand.
 
@@ -348,7 +348,7 @@ Eine einzige Tuschfamilie in Blau auf glattem Grund, mit genau einer Fremdtinte:
 - **Rotstift** (`red`, dunkel `dark-red`): Handlungsbedarf und nichts sonst. Überzogene Envelopes (Betrag und Balken), die dringende Revision (Dreieck, Titel, Schaltfläche „Decken“), Feldfehler, ein negativer Leitmaß-Wert. Hintergrundtönung `--red-soft` nur im Revisionsdreieck.
 
 ### Neutral
-- **Zeichenfilm** (`ground`, kühles Slate) / **Preußischblau** (`dark-ground`): App-Grund unter den Karten, überzogen vom sichtbaren Zeichenraster über die ganze Fläche (Tinte `--grid-ink` in `precision.css`, 14 % Alpha in beiden Modi, 8 px / 40 px, ohne Maske); Text steht nie direkt darauf.
+- **Zeichenfilm** (`ground`, kühles Slate) / **Preußischblau** (`dark-ground`): App-Grund unter den Karten, überzogen vom sichtbaren Zeichenraster über die ganze Fläche (Tinte `--grid-ink` in `precision.css`, 14 % Alpha in beiden Modi, 8 px / 40 px, ohne Maske); Kennzahlen, Tabellen und Fließtext stehen nie direkt darauf.
 - **Karte** (`surface`, dunkel `dark-surface`) mit **Kartenkopf** (`surface-2`): Arbeitsflächen (Schriftfeld, Stückliste, Revisionen, Inspektor), Rand `card-border`, Schatten `card-shadow`.
 - **Waldgrün** (`good`, dunkel `dark-good`) mit `on-good`: nur die Hero-Kennzahl „Zu verteilen“, wenn Geld auf einen Job wartet. **Mint** (`good-soft` / `on-good-soft`): positive Restbeträge und erfüllte Zustände als Pille oder Statuszeile. **Neutral** (`quiet-soft`): ausgeschöpfte Beträge.
 - **Planschrank** (`ground-2`): Seitenleiste und mobile Tab-Leiste.
@@ -630,7 +630,7 @@ Je Konto: Quelle (Bank-Sync PSD2, API nur lesen, Datei-Import, manuell), Schalte
 - **Do** pflege beide Modi gleichwertig über dieselben Rollen-Properties.
 
 ### Don't:
-- **Don't** lasse Text direkt auf dem Zeichenraster stehen: Karten, Panels, Dialoge und Tabellen sind deckend (`surface`), das Raster bleibt App-Grund. Kein Raster auf Druckblättern (One-Pager, Jahresreport, Berichtstabellen).
+- **Don't** lasse Kennzahlen, Tabellen oder Fließtext direkt auf dem Zeichenraster stehen: Kennzahlen-Blöcke, Karten, Panels, Dialoge und Tabellen sind deckend (`surface`), das Raster bleibt App-Grund. Seitenüberschriften, Stand-Zeilen und Werkzeugleisten dürfen auf dem Raster stehen. Kein Raster auf Druckblättern (One-Pager, Jahresreport, Berichtstabellen).
 - **Don't** verwende Schraffur außerhalb von Balken und Diagrammflächen, und nie für Schulden.
 - **Don't** setze die Höhenkote außerhalb von Diagrammen und Maßen ein.
 - **Don't** verwende Rot für etwas anderes als Handlungsbedarf, Grün für etwas anderes als vorhandenes Geld oder Erfüllung, und keine weitere Signalfarbe.
