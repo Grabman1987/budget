@@ -512,3 +512,6 @@ button {
 .app.is-collapsed .sidebar-foot {
   margin-top: auto;
 }
+.app[data-budget-redesign='1'] .main::before {
+  display: none;
+}
