@@ -498,7 +498,7 @@ function BankCandidateForm({
               )}
             </>
           )}
-          {line && review.data && !review.data.existingTransfer && (
+          {REDESIGN_ENABLED && line && review.data && !review.data.existingTransfer && (
             <BankAllFieldsSection
               line={line}
               value={fields}

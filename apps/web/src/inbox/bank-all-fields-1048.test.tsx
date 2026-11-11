@@ -194,6 +194,22 @@ describe('Alle Felder in the bank confirmation', () => {
     client.clear();
   });
 
+  it('keeps the OFF build dialog unchanged (rollback path)', async () => {
+    flags.REDESIGN_ENABLED = false;
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <BankCandidate id="synthetic-0" />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
+    await screen.findByLabelText('Kategorie');
+    expect(screen.queryByText('Alle Felder')).toBeNull();
+    client.clear();
+  });
+
   it('keeps the previous request when the section stays untouched', async () => {
     const { client } = await openDialog();
     fireEvent.change(screen.getByLabelText('Kategorie'), { target: { value: 'essen' } });
