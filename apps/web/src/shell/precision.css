@@ -68,6 +68,12 @@
   border-radius: 12px;
   box-shadow: var(--card-shadow);
 }
+/* Phone: no top padding, the compact Heute header keeps the figure within its height budget. */
+@media (max-width: 767px) {
+  .hv-lead {
+    padding: 0 12px 10px;
+  }
+}
 .topbar {
   background: var(--ground);
   border-bottom-color: var(--card-border);
