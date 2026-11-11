@@ -64,23 +64,29 @@
 }
 
 /* Drafting grid (owner decision 2026-11-11): 8 px minor and 40 px major lines over the whole main
-   surface, no mask fade. One 40 px SVG tile is used as an alpha mask over a --grid-ink fill: a single
-   cheap tiled layer even on tall pages. The pseudo-element spans the full height of .main, so long
-   pages scroll over one continuous grid. Cards, panels, dialogs and tables are opaque and never
-   show it. */
+   surface, no mask. The pseudo-element spans the full height of .main, so long pages scroll over
+   one continuous grid. Cards, panels, dialogs and tables are opaque and never show it. */
 .app[data-budget-redesign='1'] .main::before {
   content: '';
   position: absolute;
   z-index: -1;
   inset: 0;
   pointer-events: none;
-  background: var(--grid-ink);
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Cpath d='M8 0V40M16 0V40M24 0V40M32 0V40M0 8H40M0 16H40M0 24H40M0 32H40' stroke='%23000' stroke-opacity='.5' stroke-width='1' fill='none' shape-rendering='crispEdges'/%3E%3Cpath d='M.5 0V40M0 .5H40' stroke='%23000' stroke-width='1' fill='none' shape-rendering='crispEdges'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Cpath d='M8 0V40M16 0V40M24 0V40M32 0V40M0 8H40M0 16H40M0 24H40M0 32H40' stroke='%23000' stroke-opacity='.5' stroke-width='1' fill='none' shape-rendering='crispEdges'/%3E%3Cpath d='M.5 0V40M0 .5H40' stroke='%23000' stroke-width='1' fill='none' shape-rendering='crispEdges'/%3E%3C/svg%3E");
-  -webkit-mask-size: 40px 40px;
-  mask-size: 40px 40px;
-  -webkit-mask-position: 0 0;
-  mask-position: 0 0;
+  background-image:
+    linear-gradient(var(--grid-ink) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-ink) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--grid-ink) 50%, transparent) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--grid-ink) 50%, transparent) 1px,
+      transparent 1px
+    );
+  background-size:
+    40px 40px,
+    40px 40px,
+    8px 8px,
+    8px 8px;
+  background-position: 0 0;
 }
 @media print {
   .app[data-budget-redesign='1'] .main::before {
