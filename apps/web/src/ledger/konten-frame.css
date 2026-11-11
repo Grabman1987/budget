@@ -137,7 +137,8 @@
 }
 
 [data-budget-redesign='1']:has(.konten-frame) .main {
-  background: var(--ground);
+  /* Colour only: the drafting grid is the image layer of .main (precision.css). */
+  background-color: var(--ground);
 }
 
 @media (max-width: 767px) {

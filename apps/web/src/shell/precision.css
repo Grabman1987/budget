@@ -64,14 +64,10 @@
 }
 
 /* Drafting grid (owner decision 2026-11-11): 8 px minor and 40 px major lines over the whole main
-   surface, no mask. The pseudo-element spans the full height of .main, so long pages scroll over
-   one continuous grid. Cards, panels, dialogs and tables are opaque and never show it. */
-.app[data-budget-redesign='1'] .main::before {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  pointer-events: none;
+   surface, no mask. It is the background of .main itself (no pseudo-element), so it spans the full
+   height of long pages as one continuous layer. Cards, panels, dialogs and tables are opaque and
+   never show it. */
+.app[data-budget-redesign='1'] .main {
   background-image:
     linear-gradient(var(--grid-ink) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-ink) 1px, transparent 1px),
@@ -89,8 +85,8 @@
   background-position: 0 0;
 }
 @media print {
-  .app[data-budget-redesign='1'] .main::before {
-    display: none;
+  .app[data-budget-redesign='1'] .main {
+    background-image: none;
   }
 }
 /* Heute lead block carries the key figure: opaque so it never sits on the grid (ON only). The
