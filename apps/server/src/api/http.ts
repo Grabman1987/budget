@@ -4,7 +4,11 @@ import {
   BookingInvariantError,
   CategoryRuleError,
   ConflictError,
+  ContactArchivedError,
+  ContactBlockedError,
+  ContactLabelTakenError,
   EntityNotFoundError,
+  StaleError,
   MissingFxRateError,
   ReconciledLockedError,
 } from '@budget/db';
@@ -97,6 +101,28 @@ export function errorAnswer(error: unknown): ErrorAnswer {
       409,
     );
   }
+  if (error instanceof ContactLabelTakenError)
+    return answer(
+      {
+        error: 'label_taken',
+        message: error.message,
+        ownerContactId: error.ownerContactId,
+        kind: error.kind,
+      },
+      409,
+    );
+  if (error instanceof ContactArchivedError)
+    return answer(
+      { error: 'contact_archived', message: error.message, contactId: error.contactId },
+      409,
+    );
+  if (error instanceof ContactBlockedError)
+    return answer(
+      { error: 'contact_blocked', message: error.message, blockers: error.blockers },
+      409,
+    );
+  if (error instanceof StaleError)
+    return answer({ error: 'stale', message: error.message, current: error.current }, 409);
   if (error instanceof ConflictError)
     return answer({ error: 'conflict', message: error.message }, 409);
   if (error instanceof AuditError)

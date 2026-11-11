@@ -183,7 +183,9 @@ export function PaymentForm({
           {pick(
             'contactId',
             'Kontakt',
-            (lookups?.contacts ?? []).map((c) => ({ value: c.id, label: c.name })),
+            (lookups?.contacts ?? [])
+              .filter((c) => !c.archived || c.id === draft.contactId)
+              .map((c) => ({ value: c.id, label: c.name })),
             'Kein Kontakt',
           )}
           {text('sharePercent', 'Anteil Kontakt in %', { inputMode: 'decimal', placeholder: '0' })}

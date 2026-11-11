@@ -27,7 +27,7 @@ export function ContactSelect({
   label: string;
   value: string;
   onChange: (contactId: string) => void;
-  contacts: ReadonlyArray<{ id: string; name: string }>;
+  contacts: ReadonlyArray<{ id: string; name: string; aliases?: { alias: string }[] }>;
   noneLabel: string;
   hint?: ReactNode;
   error?: string | undefined;
@@ -65,8 +65,11 @@ export function ContactSelect({
   const create = async () => {
     const trimmed = name.trim();
     if (trimmed === '' || busy) return;
+    const key = trimmed.toLocaleLowerCase('de-AT');
     const same = contacts.find(
-      (c) => c.name.toLocaleLowerCase('de-AT') === trimmed.toLocaleLowerCase('de-AT'),
+      (c) =>
+        c.name.toLocaleLowerCase('de-AT') === key ||
+        c.aliases?.some((a) => a.alias.toLocaleLowerCase('de-AT') === key),
     );
     if (same) {
       onChange(same.id);

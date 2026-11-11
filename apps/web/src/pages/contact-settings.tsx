@@ -2,6 +2,12 @@ import { SettingsReadStamp } from './settings-read-stamp';
 import { Button, FormDialog } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import {
+  ContactAliasDialog,
+  ContactArchiveDialog,
+  useReopenContact,
+  type IdentityContact,
+} from '../contacts/contact-identity';
 import { ContactRenameDialog, NewContact } from '../contacts/contacts-page';
 import { lookupsQuery } from '../ledger/queries';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
@@ -17,6 +23,71 @@ export function ContactSettingsPage() {
   const contacts = useQuery(lookupsQuery());
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  const [aliasFor, setAliasFor] = useState<string | null>(null);
+  const [archiving, setArchiving] = useState<IdentityContact | null>(null);
+  const [view, setView] = useState<'active' | 'archived'>('active');
+  const reopen = useReopenContact();
+  const all = contacts.data?.contacts ?? [];
+  const shown = all.filter((c) => Boolean(c.archived) === (view === 'archived'));
+  const identityRow = (contact: IdentityContact) => (
+    <>
+      {(contact.aliases?.length ?? 0) > 0 && (
+        <small>Aliase: {contact.aliases?.map((a) => a.alias).join(', ')}</small>
+      )}
+    </>
+  );
+  const identityActions = (contact: IdentityContact) => (
+    <>
+      <Button
+        variant="ghost"
+        aria-label={`Aliase von ${contact.name} bearbeiten`}
+        onClick={() => setAliasFor(contact.id)}
+      >
+        Aliase
+      </Button>
+      {contact.archived ? (
+        <Button
+          variant="ghost"
+          aria-label={`${contact.name} wieder öffnen`}
+          onClick={() => void reopen(contact)}
+        >
+          Wieder öffnen
+        </Button>
+      ) : (
+        <Button
+          variant="ghost"
+          aria-label={`${contact.name} archivieren`}
+          onClick={() => setArchiving(contact)}
+        >
+          Archivieren
+        </Button>
+      )}
+    </>
+  );
+  const viewFilter = (
+    <div className="settings-row-actions" role="group" aria-label="Kontakte anzeigen">
+      <Button
+        variant={view === 'active' ? 'primary' : 'ghost'}
+        aria-pressed={view === 'active'}
+        onClick={() => setView('active')}
+      >
+        Aktiv
+      </Button>
+      <Button
+        variant={view === 'archived' ? 'primary' : 'ghost'}
+        aria-pressed={view === 'archived'}
+        onClick={() => setView('archived')}
+      >
+        Archiviert
+      </Button>
+    </div>
+  );
+  const identityDialogs = (
+    <>
+      <ContactAliasDialog contactId={aliasFor} onClose={() => setAliasFor(null)} />
+      <ContactArchiveDialog contact={archiving} onClose={() => setArchiving(null)} />
+    </>
+  );
   if (REDESIGN_ENABLED)
     return (
       <PageFrame meta={CONTACT_SETTINGS_META}>
@@ -41,19 +112,29 @@ export function ContactSettingsPage() {
           )}
           {contacts.data &&
             !contacts.isError &&
-            (contacts.data.contacts.length === 0 ? (
+            (all.length === 0 ? (
               <EmptyNote>Noch keine Kontakte angelegt.</EmptyNote>
             ) : (
               <div className="settings-surface" role="region" aria-label="Kontakt-Stammdaten">
-                {contacts.data.contacts.map((contact) => (
+                {viewFilter}
+                {shown.length === 0 && (
+                  <EmptyNote>
+                    {view === 'archived'
+                      ? 'Keine archivierten Kontakte.'
+                      : 'Keine aktiven Kontakte.'}
+                  </EmptyNote>
+                )}
+                {shown.map((contact) => (
                   <div className="settings-row" key={contact.id}>
                     <div>
                       <strong>{contact.name}</strong>
                       <small>
                         ID: <span>{contact.id}</span>
                       </small>
+                      {identityRow(contact)}
                     </div>
                     <div className="settings-row-actions">
+                      {identityActions(contact)}
                       <Button
                         variant="ghost"
                         aria-label={`${contact.name} umbenennen`}
@@ -92,6 +173,7 @@ export function ContactSettingsPage() {
           )}
         </FormDialog>
         <ContactRenameDialog contact={renaming} onClose={() => setRenaming(null)} />
+        {identityDialogs}
       </PageFrame>
     );
   return (
@@ -122,7 +204,7 @@ export function ContactSettingsPage() {
         {contacts.data &&
           !contacts.isFetching &&
           !contacts.isError &&
-          (contacts.data.contacts.length === 0 ? (
+          (all.length === 0 ? (
             <EmptyNote>Noch keine Kontakte angelegt.</EmptyNote>
           ) : (
             <table className="contacts-table">
@@ -134,33 +216,35 @@ export function ContactSettingsPage() {
                 </tr>
               </thead>
               <tbody>
-                {contacts.data.contacts.map((contact) => (
-                  <tr key={contact.id}>
-                    <td>
-                      <strong>{contact.name}</strong>
-                      <p className="tech">
-                        ID: <span>{contact.id}</span>
-                      </p>
-                    </td>
-                    <td>
-                      <Button
-                        variant="ghost"
-                        aria-label={`${contact.name} umbenennen`}
-                        onClick={() => setRenaming(contact)}
-                      >
-                        Umbenennen
-                      </Button>
-                      <AppLink
-                        className="btn btn-ghost"
-                        aria-label={`Verlauf öffnen ${contact.name}`}
-                        to={`/konten/kontakte/${encodeURIComponent(contact.id)}`}
-                        search={(previous) => ({ ...previous, verlauf: 1 })}
-                      >
-                        Verlauf öffnen
-                      </AppLink>
-                    </td>
-                  </tr>
-                ))}
+                {all
+                  .filter((c) => !c.archived)
+                  .map((contact) => (
+                    <tr key={contact.id}>
+                      <td>
+                        <strong>{contact.name}</strong>
+                        <p className="tech">
+                          ID: <span>{contact.id}</span>
+                        </p>
+                      </td>
+                      <td>
+                        <Button
+                          variant="ghost"
+                          aria-label={`${contact.name} umbenennen`}
+                          onClick={() => setRenaming(contact)}
+                        >
+                          Umbenennen
+                        </Button>
+                        <AppLink
+                          className="btn btn-ghost"
+                          aria-label={`Verlauf öffnen ${contact.name}`}
+                          to={`/konten/kontakte/${encodeURIComponent(contact.id)}`}
+                          search={(previous) => ({ ...previous, verlauf: 1 })}
+                        >
+                          Verlauf öffnen
+                        </AppLink>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           ))}
