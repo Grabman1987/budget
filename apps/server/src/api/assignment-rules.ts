@@ -90,9 +90,40 @@ export const bankConfirmSchema = z
     revision: z.string().length(64).optional(),
     candidateRevision: z.string().length(64).optional(),
     actions: assignmentActionsSchema.optional(),
+    // Optional "Alle Felder" additions (#1048). Omitted fields keep the previous behavior.
+    memo: z.string().max(4096).nullable().optional(),
+    projectId: z.string().min(1).max(100).nullable().optional(),
+    /** Cent-exact manual split lines; the server checks they sum to the bank amount. */
+    splits: z
+      .array(
+        z
+          .object({
+            categoryId: z.string().min(1).max(100).nullable(),
+            amountCents: z.number().int().safe(),
+            memo: z.string().max(4096).nullable().optional(),
+          })
+          .strict(),
+      )
+      .min(2)
+      .max(50)
+      .optional(),
+    /** Receipts already stored in Prüfen, linked in the same audited confirmation. */
+    receiptIds: z.array(z.string().min(1).max(128)).max(20).optional(),
   })
   .strict()
   .refine(
     (v) => !v.ruleId || (!v.actions && !!v.revision),
     'Regelversion oder manuelle Zuordnung wählen.',
+  )
+  .refine(
+    // Manual split lines replace any rule: a rule, a single category or a split template conflict.
+    (v) =>
+      !v.splits ||
+      (!v.ruleId &&
+        v.categoryId === null &&
+        v.actions?.categoryId == null &&
+        !v.actions?.splits &&
+        !v.actions?.incomeTypeId &&
+        !v.actions?.transferAccountId),
+    'Eigene Aufteilung ersetzt Regel und Kategorie.',
   );

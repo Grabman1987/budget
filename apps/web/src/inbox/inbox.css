@@ -332,3 +332,78 @@
 .bank-candidate-dialog .icon-btn {
   min-height: 44px;
 }
+
+/* #1048: collapsed "Alle Felder" inside the bank confirmation dialog. */
+.bank-all-fields {
+  border-top: 1px solid var(--rule);
+  min-width: 0;
+}
+.bank-all-fields > summary {
+  min-height: var(--touch);
+  padding: var(--space-sm) 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+.bank-all-fields-body {
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.bank-all-fields-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-sm);
+  margin: 0;
+}
+.bank-all-fields-facts dt {
+  color: var(--ink-2);
+  font-size: var(--fs-label);
+}
+.bank-all-fields-facts dd {
+  margin: 0;
+  font-family: var(--font-tech);
+}
+.bank-split {
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.bank-split legend {
+  padding: 0;
+  font-weight: 600;
+}
+.bank-split-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 160px) auto;
+  align-items: end;
+  gap: var(--space-sm);
+}
+.bank-split-line select {
+  max-width: 100%;
+}
+.bank-split-line-actions,
+.bank-split-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+.bank-all-fields .btn,
+.bank-all-fields .icon-btn {
+  min-width: var(--touch);
+  min-height: var(--touch);
+}
+.bank-split-rest {
+  margin: 0;
+  font-family: var(--font-tech);
+}
+.bank-all-fields-label {
+  font-size: var(--fs-label);
+}
+@media (max-width: 767px) {
+  .bank-split-line {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

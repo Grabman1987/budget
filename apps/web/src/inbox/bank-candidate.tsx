@@ -1,8 +1,19 @@
-import { Button, Field, FormDialog, Select, maskMoneyText, useAmountPrivacy } from '@budget/ui';
+import {
+  Button,
+  Field,
+  FormDialog,
+  Select,
+  maskMoneyText,
+  useAmountPrivacy,
+  useToast,
+} from '@budget/ui';
 import { X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { request } from '../api/http';
+import type { AttachedReceipt } from '../receipts/receipt-section';
+import { BankAllFieldsSection } from './bank-all-fields';
+import { bankConfirmExtras, emptyBankFields, type BankAllFields } from './bank-all-fields-model';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { eur, shortDay } from '../ledger/format';
 import { LEDGER_KEY, lookupsQuery, payeesQuery } from '../ledger/queries';
@@ -180,6 +191,10 @@ function BankCandidateForm({
     [busy, setBusy] = useState(false);
   const [mergeId, setMerge] = useState(''),
     [transferId, setTransfer] = useState('');
+  const [fields, setFields] = useState<BankAllFields>(emptyBankFields),
+    [attached, setAttached] = useState<AttachedReceipt[]>([]),
+    [uploading, setUploading] = useState(false);
+  const toast = useToast();
   useEffect(() => onBusy(busy), [busy, onBusy]);
   const matches = useQuery({
     queryKey: [...LEDGER_KEY, 'bank-matches', id],
@@ -197,7 +212,8 @@ function BankCandidateForm({
     !first.unavailable
       ? first.id
       : selected;
-  const rule = review.data?.suggestions.find((r) => r.id === ruleId);
+  // Precedence (#1048): manual split lines replace a rule; choosing a rule again ends them.
+  const rule = fields.splitOn ? undefined : review.data?.suggestions.find((r) => r.id === ruleId);
   const recipient = payeeId ?? review.data?.cleanup.payeeId ?? '';
   const mergeRows = [...(matches.data?.merge ?? []), ...(matches.data?.link ?? [])];
   const merge = mergeRows.find((row) => row.id === mergeId) ?? mergeRows[0];
@@ -231,7 +247,7 @@ function BankCandidateForm({
               candidateRevision,
               label: `Mit Buchung ${shortDay(merge.date)} zusammenführen`,
             }
-          : rule && !rule.unavailable && !categoryId && payeeId === undefined
+          : rule && !rule.unavailable && !categoryId && payeeId === undefined && !fields.splitOn
             ? {
                 action: 'rule',
                 ruleId: rule.id,
@@ -256,7 +272,33 @@ function BankCandidateForm({
     categoryId,
     payeeId,
     bulkSafe,
+    fields.splitOn,
   ]);
+  const candidate = review.data?.candidate;
+  const line = candidate
+    ? { accountId: candidate.accountId, date: candidate.date, amountCents: candidate.amountCents }
+    : undefined;
+  const extras = line
+    ? bankConfirmExtras(
+        line,
+        fields,
+        attached.map((r) => r.id),
+      )
+    : undefined;
+  const categoryOptions = (
+    <>
+      <option value="">Später zuordnen / Zu verteilen</option>
+      {categoryGroups.map((g) => (
+        <optgroup key={g.id} label={g.name}>
+          {g.categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </>
+  );
   return (
     <form className="bkform bank-candidate-dialog" onSubmit={(event) => event.preventDefault()}>
       <div className="bk-head">
@@ -388,7 +430,11 @@ function BankCandidateForm({
                       id={id}
                       disabled={busy}
                       value={ruleId ?? ''}
-                      onChange={(e) => setSelected(e.target.value || null)}
+                      onChange={(e) => {
+                        setSelected(e.target.value || null);
+                        if (e.target.value)
+                          setFields((f) => ({ ...f, splitOn: false, splits: [] }));
+                      }}
                     >
                       <option value="">Manuell zuordnen</option>
                       {review.data.suggestions.map((r) => (
@@ -436,28 +482,51 @@ function BankCandidateForm({
                   </Select>
                 )}
               </Field>
-              <Field label="Kategorie">
-                {({ id }) => (
-                  <Select
-                    id={id}
-                    value={categoryId}
-                    disabled={busy}
-                    onChange={(e) => setCategory(e.target.value)}
-                  >
-                    <option value="">Später zuordnen / Zu verteilen</option>
-                    {categoryGroups.map((g) => (
-                      <optgroup key={g.id} label={g.name}>
-                        {g.categories.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </Select>
-                )}
-              </Field>
+              {!fields.splitOn && (
+                <Field label="Kategorie">
+                  {({ id }) => (
+                    <Select
+                      id={id}
+                      value={categoryId}
+                      disabled={busy}
+                      onChange={(e) => setCategory(e.target.value)}
+                    >
+                      {categoryOptions}
+                    </Select>
+                  )}
+                </Field>
+              )}
             </>
+          )}
+          {line && review.data && !review.data.existingTransfer && (
+            <BankAllFieldsSection
+              line={line}
+              value={fields}
+              onChange={setFields}
+              categoryOptions={categoryOptions}
+              categoryId={categoryId}
+              projects={(lookups.data?.projects ?? []).filter((p) => !p.archivedAt)}
+              ruleActive={Boolean(rule)}
+              onSplitManually={() => setSelected(null)}
+              splitError={extras && !extras.ok ? extras.error : undefined}
+              attached={attached}
+              onAttach={(file) =>
+                setAttached((list) => (list.some((r) => r.id === file.id) ? list : [...list, file]))
+              }
+              onRemoveReceipt={(receiptId) => {
+                setAttached((list) => list.filter((r) => r.id !== receiptId));
+                // Same as the booking form: a removed attachment is discarded, not left in Prüfen.
+                void request('DELETE', `/api/receipts/${encodeURIComponent(receiptId)}`).then(
+                  () => toast.show({ message: 'Beleg verworfen.' }),
+                  () =>
+                    toast.show({
+                      message: 'Beleg konnte nicht verworfen werden und bleibt unter Prüfen.',
+                    }),
+                );
+              }}
+              onUploadBusy={setUploading}
+              busy={busy}
+            />
           )}
         </div>
       </div>
@@ -466,7 +535,14 @@ function BankCandidateForm({
           Abbrechen
         </Button>
         <Button
-          disabled={busy || review.isPending || review.isError || !!rule?.unavailable}
+          disabled={
+            busy ||
+            uploading ||
+            review.isPending ||
+            review.isError ||
+            !!rule?.unavailable ||
+            (extras !== undefined && !extras.ok)
+          }
           size="sm"
           onClick={() => {
             setBusy(true);
@@ -475,25 +551,44 @@ function BankCandidateForm({
                 request<{ groupId: string; bookingId: string }>(
                   'POST',
                   '/api/bank-sync/candidates/' + encodeURIComponent(id) + '/confirm',
-                  rule
-                    ? {
-                        categoryId: null,
-                        ruleId: rule.id,
-                        revision: rule.revision,
-                        candidateRevision: review.data?.candidateRevision,
-                      }
-                    : {
-                        categoryId: categoryId || null,
-                        candidateRevision: review.data?.candidateRevision,
-                        actions: { categoryId: categoryId || null, payeeId: recipient || null },
-                      },
+                  {
+                    ...(rule
+                      ? {
+                          categoryId: null,
+                          ruleId: rule.id,
+                          revision: rule.revision,
+                          candidateRevision: review.data?.candidateRevision,
+                        }
+                      : extras?.ok && extras.extras.splits
+                        ? {
+                            categoryId: null,
+                            candidateRevision: review.data?.candidateRevision,
+                            actions: { payeeId: recipient || null },
+                          }
+                        : {
+                            categoryId: categoryId || null,
+                            candidateRevision: review.data?.candidateRevision,
+                            actions: { categoryId: categoryId || null, payeeId: recipient || null },
+                          }),
+                    // Untouched "Alle Felder" add nothing, so the request stays as before.
+                    ...(extras?.ok ? extras.extras : {}),
+                  },
                 ),
               () => 'Bankumsatz als Buchung bestätigt.',
             )
               .then((result) => {
-                if (result && (rule?.actions.categoryId || rule?.actions.splits || categoryId))
+                if (
+                  result &&
+                  (rule?.actions.categoryId ||
+                    rule?.actions.splits ||
+                    categoryId ||
+                    (extras?.ok && extras.extras.splits))
+                )
                   onConfirmed?.(result.bookingId);
-                if (result) onClose();
+                if (result) {
+                  setAttached([]);
+                  onClose();
+                }
               })
               .finally(() => setBusy(false));
           }}
