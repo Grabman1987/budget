@@ -75,6 +75,7 @@ import { CategoryCombobox } from './category-picker';
 import { Combobox } from './combobox';
 import { SplitEditor, captureLines } from './split-editor';
 import { AccountOptions } from './account-options';
+import { ProjectField } from './project-field';
 
 import {
   AttachedReceipts,
@@ -988,25 +989,11 @@ export function CaptureForm({
         </span>
       </summary>
       <div className="kform">
-        {((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0 && (
-          <Field label="Projekt">
-            {({ id }) => (
-              <Select
-                id={id}
-                value={draft.projectId}
-                onChange={(e) => set('projectId', e.target.value)}
-              >
-                <option value="">kein Projekt</option>
-                {(lookups.data?.projects ?? offlineChoices?.projects ?? []).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                    {p.archivedAt ? ' · archiviert' : ''}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-        )}
+        <ProjectField
+          projects={lookups.data?.projects ?? offlineChoices?.projects ?? []}
+          value={draft.projectId}
+          onChange={(projectId) => set('projectId', projectId)}
+        />
       </div>
     </details>
   );
