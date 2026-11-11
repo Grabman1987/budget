@@ -413,7 +413,7 @@
       "**Do** pflege beide Modi gleichwertig über dieselben Rollen-Properties."
     ],
     "donts": [
-      "**Don't** lasse Kennzahlen, Tabellen oder Fließtext direkt auf dem Zeichenraster stehen: Kennzahlen-Blöcke, Karten, Panels, Dialoge und Tabellen sind deckend, das Raster ist App-Grund (Seitenüberschriften, Stand-Zeilen und Werkzeugleisten dürfen darauf stehen) und fehlt auf Druckblättern; das Gradnetz (`graticule`) steht weiterhin nur hinter Diagrammen und im Kopfdetail des Seitenpanels.",
+      "**Don't** lasse Kennzahlen, Tabellen oder Fließtext direkt auf dem Zeichenraster stehen: Kennzahlen-Blöcke, Karten, Panels, Dialoge und Tabellen sind deckend (`surface`; die klebende Plan-Kopfleiste deckt mit `ground`), das Raster ist App-Grund (Seitenüberschriften, Stand-Zeilen und Werkzeugleisten dürfen darauf stehen) und fehlt auf Druckblättern; das Gradnetz (`graticule`) steht weiterhin nur hinter Diagrammen und im Kopfdetail des Seitenpanels.",
       "**Don't** verwende Schraffur außerhalb von Balken und Diagrammflächen, und nie für Schulden.",
       "**Don't** setze die Höhenkote außerhalb von Diagrammen und Maßen ein.",
       "**Don't** verwende Rot für etwas anderes als Handlungsbedarf, und keine weitere Nicht-Blau-Farbe.",

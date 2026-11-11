@@ -14,9 +14,9 @@
   position: relative;
   isolation: isolate;
 }
-/* OFF build (unchanged): drafting grid, 8 px minor and 40 px major lines, only in the top right,
-   fading into the sheet. */
-.app:not([data-budget-redesign='1']) .main::before {
+/* Drafting grid: 8 px minor and 40 px major lines. OFF build (unchanged): only in the top right,
+   fading into the sheet. The ON build widens it to the whole surface below. */
+.main::before {
   content: '';
   position: absolute;
   z-index: -1;
@@ -63,12 +63,13 @@
   }
 }
 
-/* Drafting grid (owner decision 2026-11-11): 8 px minor and 40 px major lines over the whole main
-   surface, no mask. It is the background of .main itself (no pseudo-element), so it spans the full
-   height of long pages as one continuous layer. Cards, panels, dialogs and tables are opaque and
-   never show it. */
-.app[data-budget-redesign='1'] .main {
-  background-image:
+/* ON drafting grid (owner decision 2026-11-11): 8 px minor and 40 px major lines over the whole main
+   surface, no mask. The pseudo-element spans the full height of .main, so long pages scroll over
+   one continuous grid. Key figures, cards, panels, dialogs and tables are opaque and never show it.
+   The image is shared through custom properties: Konten draws it as the .main background instead
+   (konten-frame.css). */
+.app[data-budget-redesign='1'] {
+  --drafting-grid:
     linear-gradient(var(--grid-ink) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-ink) 1px, transparent 1px),
     linear-gradient(color-mix(in srgb, var(--grid-ink) 50%, transparent) 1px, transparent 1px),
@@ -77,16 +78,23 @@
       color-mix(in srgb, var(--grid-ink) 50%, transparent) 1px,
       transparent 1px
     );
-  background-size:
-    40px 40px,
-    40px 40px,
-    8px 8px,
-    8px 8px;
+  --drafting-grid-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
+}
+.app[data-budget-redesign='1'] .main::before {
+  inset: 0;
+  width: auto;
+  height: auto;
+  background-image: var(--drafting-grid);
+  background-size: var(--drafting-grid-size);
   background-position: 0 0;
+  mask-image: none;
+  /* A full-height leaf box would be picked as the scroll anchor; content loading above the
+     viewport would then push focused targets out of view. */
+  overflow-anchor: none;
 }
 @media print {
-  .app[data-budget-redesign='1'] .main {
-    background-image: none;
+  .app[data-budget-redesign='1'] .main::before {
+    display: none;
   }
 }
 /* Heute lead block carries the key figure: opaque so it never sits on the grid (ON only). The

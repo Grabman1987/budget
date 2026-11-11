@@ -630,7 +630,7 @@ Je Konto: Quelle (Bank-Sync PSD2, API nur lesen, Datei-Import, manuell), Schalte
 - **Do** pflege beide Modi gleichwertig über dieselben Rollen-Properties.
 
 ### Don't:
-- **Don't** lasse Kennzahlen, Tabellen oder Fließtext direkt auf dem Zeichenraster stehen: Kennzahlen-Blöcke, Karten, Panels, Dialoge und Tabellen sind deckend (`surface`), das Raster bleibt App-Grund. Seitenüberschriften, Stand-Zeilen und Werkzeugleisten dürfen auf dem Raster stehen. Kein Raster auf Druckblättern (One-Pager, Jahresreport, Berichtstabellen).
+- **Don't** lasse Kennzahlen, Tabellen oder Fließtext direkt auf dem Zeichenraster stehen: Kennzahlen-Blöcke, Karten, Panels, Dialoge und Tabellen sind deckend (`surface`; die klebende Plan-Kopfleiste deckt mit `ground`), das Raster bleibt App-Grund. Seitenüberschriften, Stand-Zeilen und Werkzeugleisten dürfen auf dem Raster stehen. Kein Raster auf Druckblättern (One-Pager, Jahresreport, Berichtstabellen).
 - **Don't** verwende Schraffur außerhalb von Balken und Diagrammflächen, und nie für Schulden.
 - **Don't** setze die Höhenkote außerhalb von Diagrammen und Maßen ein.
 - **Don't** verwende Rot für etwas anderes als Handlungsbedarf, Grün für etwas anderes als vorhandenes Geld oder Erfüllung, und keine weitere Signalfarbe.
