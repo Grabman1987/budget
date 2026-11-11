@@ -14,23 +14,37 @@
   position: relative;
   isolation: isolate;
 }
-/* Drafting grid: 8 px minor and 40 px major lines, only in the top right, fading into the sheet. */
+/* Grid ink per theme. --grid-line in tokens.css (pinned byte-identical for OFF) stays the faint
+   legacy value; the visible ground grid uses these. Light 14 %, dark 14 % (minor lines 50 %). */
+:root,
+:root[data-theme='light'] {
+  --grid-ink: rgba(23, 71, 166, 0.14);
+}
+:root[data-theme='dark'] {
+  --grid-ink: rgba(210, 236, 255, 0.14);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --grid-ink: rgba(210, 236, 255, 0.14);
+  }
+}
+
+/* Drafting grid (owner decision 2026-11-11): 8 px minor and 40 px major lines over the whole main
+   surface, no mask. The pseudo-element spans the full height of .main, so long pages scroll over
+   one continuous grid. Cards, panels, dialogs and tables are opaque and never show it. */
 .main::before {
   content: '';
   position: absolute;
   z-index: -1;
-  top: 0;
-  right: 0;
-  width: min(760px, 70%);
-  height: 420px;
+  inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
-    linear-gradient(color-mix(in srgb, var(--grid-line) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(var(--grid-ink) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-ink) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--grid-ink) 50%, transparent) 1px, transparent 1px),
     linear-gradient(
       90deg,
-      color-mix(in srgb, var(--grid-line) 45%, transparent) 1px,
+      color-mix(in srgb, var(--grid-ink) 50%, transparent) 1px,
       transparent 1px
     );
   background-size:
@@ -38,16 +52,24 @@
     40px 40px,
     8px 8px,
     8px 8px;
-  background-position: right -1px top -1px;
-  mask-image: radial-gradient(
-    ellipse 100% 100% at 100% 0%,
-    #000 0%,
-    rgba(0, 0, 0, 0.5) 38%,
-    transparent 72%
-  );
+  background-position: 0 0;
+}
+@media print {
+  .main::before {
+    display: none;
+  }
+}
+/* Lead blocks (Heute, Konten overview) carry the key figure: opaque so it never sits on the grid. */
+.hv-lead,
+.account-overview-577 .overview-lead {
+  padding: 14px 16px 12px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
 }
 .topbar {
-  background: color-mix(in srgb, var(--ground) 80%, transparent);
+  background: var(--ground);
   border-bottom-color: var(--card-border);
 }
 .search input {

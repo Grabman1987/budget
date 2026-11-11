@@ -139,9 +139,6 @@
 [data-budget-redesign='1']:has(.konten-frame) .main {
   background: var(--ground);
 }
-[data-budget-redesign='1']:has(.konten-frame) .main::before {
-  display: none;
-}
 
 @media (max-width: 767px) {
   .app[data-budget-redesign='1'] .konten-phone-heading .area-page-menu > summary {

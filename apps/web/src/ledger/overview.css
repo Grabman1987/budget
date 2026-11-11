@@ -685,9 +685,12 @@
   .account-overview-redesign .overview-review-track {
     display: none;
   }
+  /* Opaque so the account rows never sit directly on the drafting grid. */
   .account-overview-redesign .overview-accounts {
     border: 0;
-    background: transparent;
+    background: var(--surface);
+    border-radius: 12px;
+    padding-inline: 12px;
   }
   .account-overview-redesign .overview-table > tbody > .overview-account-row {
     grid-template-columns: minmax(0, 1fr) 60px max-content 44px;
