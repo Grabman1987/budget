@@ -180,6 +180,9 @@ it('shows loading source dates and reads only VPI reference metadata on settings
   expect(payslip.queryByText(/Letzter Erfolg:/)).toBeNull();
   expect(screen.queryByText(/Letzter Erfolg: Nicht verfügbar/)).toBeNull();
   expect(payslip.queryByText(/Letzter Scanversuch: Nicht verfügbar/)).toBeNull();
+  // The collapsed Kurse body must not report an unavailable run or "no run yet" while pending.
+  expect(screen.getByText(/Letzter Lauf: Wird geladen … · Status: Wird geladen …/)).toBeTruthy();
+  expect(screen.queryByText(/Letzter Lauf: Nicht verfügbar/)).toBeNull();
   await act(async () => release());
   await waitFor(() => expect(view.client.isFetching()).toBe(0));
   expect(paths).toContain('/api/inflation-basket/reference');
