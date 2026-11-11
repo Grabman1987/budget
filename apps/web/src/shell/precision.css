@@ -112,10 +112,6 @@
   background: color-mix(in srgb, var(--ground) 80%, transparent);
   border-bottom-color: var(--card-border);
 }
-/* ON: a solid bar, text never sits on the (blurred) grid. */
-.app[data-budget-redesign='1'] .topbar {
-  background: var(--ground);
-}
 .search input {
   background: var(--surface);
   border-color: var(--card-border);
