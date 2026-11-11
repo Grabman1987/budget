@@ -48,7 +48,6 @@ import {
   account,
   assetClass,
   booking,
-  fxRate,
   holding,
   institution,
   price,
@@ -63,6 +62,7 @@ import {
   valuationSeries,
   valuationProvenanceCollector,
   type ValuationProvenance,
+  rateTable,
 } from './portfolio';
 import { MissingFxRateError } from './errors';
 import { investmentPreferences } from './investment-preferences';
@@ -259,15 +259,9 @@ function load(db: Executor): Loaded {
   return { securities, accountInstitution, accountCurrency, institutions, classNames };
 }
 
+/** Rates on or before `asOf`, per currency ascending: the request-shared `rateTable`. */
 export function ratesAsOf(db: Executor, asOf: string): RateTable {
-  const table = new Map<string, { date: string; rateMicro: number }[]>();
-  const rows = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
-  for (const row of rows.sort((a, b) => a.date.localeCompare(b.date))) {
-    const list = table.get(row.currency) ?? [];
-    list.push({ date: row.date, rateMicro: row.rateMicro });
-    table.set(row.currency, list);
-  }
-  return table;
+  return rateTable(db, asOf);
 }
 
 function centsInEur(cents: number, currency: string, day: string, rates: RateTable): number {

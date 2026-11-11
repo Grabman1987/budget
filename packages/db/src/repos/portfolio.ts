@@ -21,6 +21,7 @@ import {
   type CashFlow,
   type DatedPrice,
   type DatedRate,
+  latestOnOrBefore,
   type DailyValuationObservation,
   type IncompleteValuation,
   type PositionCostInput,
@@ -31,7 +32,21 @@ import {
   type ValuationQuality,
   type ValuationSeries,
 } from '@budget/domain';
-import { and, desc, eq, gt, inArray, isNotNull, isNull, lte, max, min, sql } from 'drizzle-orm';
+import {
+  and,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  max,
+  min,
+  sql,
+} from 'drizzle-orm';
 import {
   account,
   booking,
@@ -102,15 +117,26 @@ export interface CurrentValuationSources {
 
 type Rates = { currency: string; date: string; rateMicro: number; source: string }[];
 
-function selectedRate(rates: Rates, currency: string, asOf: string): Rates[number] | undefined {
-  let best: Rates[number] | undefined;
-  for (const row of rates)
-    if (row.currency === currency && row.date <= asOf && (!best || row.date > best.date))
-      best = row;
-  return best;
+/**
+ * Every stored rate per currency, ascending by date, with its source; built once per request.
+ * Dates are unique per currency (primary key), so the latest rate on or before a day is the same
+ * row a scan over the rows up to that day would select.
+ */
+type SourcedRateTable = ReadonlyMap<string, ReadonlyArray<DatedRate & { source: string }>>;
+
+function selectedRate(
+  rates: SourcedRateTable,
+  currency: string,
+  asOf: string,
+): (DatedRate & { source: string }) | undefined {
+  return latestOnOrBefore(rates.get(currency) ?? [], asOf);
 }
 
-function rateSource(rates: Rates, currency: string, asOf: string): ValuationSource['fx'] {
+function rateSource(
+  rates: SourcedRateTable,
+  currency: string,
+  asOf: string,
+): ValuationSource['fx'] {
   if (currency === 'EUR') return { kind: 'identity', date: null, source: null };
   const best = selectedRate(rates, currency, asOf);
   return best
@@ -118,7 +144,11 @@ function rateSource(rates: Rates, currency: string, asOf: string): ValuationSour
     : { kind: 'missing', date: null, source: null };
 }
 
-function rateOrMissing(rates: Rates, currency: string, asOf: string): number | undefined {
+function rateOrMissing(
+  rates: SourcedRateTable,
+  currency: string,
+  asOf: string,
+): number | undefined {
   return currency === 'EUR' ? 1_000_000 : selectedRate(rates, currency, asOf)?.rateMicro;
 }
 
@@ -187,10 +217,20 @@ function valuationTrades(db: Executor) {
   );
 }
 
-/** The stored rates on or before a day (all rates are read once per request). */
-function fxRatesUpTo(db: Executor, asOf: string): Rates {
-  return memoizedShared(db, 'fxRates', () => db.select().from(fxRate).all()).filter(
-    (r) => r.date <= asOf,
+/** All stored rows of `fx_rate`, read once per request. */
+function fxRateRows(db: Executor): Rates {
+  return memoizedShared(db, 'fxRates', () => db.select().from(fxRate).all());
+}
+
+/**
+ * All stored rates with their source, for `selectedRate` lookups on or before a day: the latest
+ * rate on or before `asOf` in the whole table is the one the rows up to `asOf` would give.
+ */
+function fxRateLookup(db: Executor): SourcedRateTable {
+  return memoizedShared(
+    db,
+    'fxRateTable',
+    () => toRateTable(fxRateRows(db), true) as SourcedRateTable,
   );
 }
 
@@ -246,7 +286,7 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean) 
     const found = latestPrice(securityId);
     if (found) pricesBySecurity.set(securityId, [found]);
   }
-  const rates: Rates = fxRatesUpTo(db, asOf);
+  const rates = fxRateLookup(db);
 
   // Rows of each position (account x security), in the order they were read.
   const keys = new Map<string, { accountId: string; securityId: string }>();
@@ -337,8 +377,7 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean) 
         });
         continue;
       }
-      const eur =
-        basis === null ? null : costInEur(basis, accountCurrency, toRateTable(rates), asOf);
+      const eur = basis === null ? null : costInEur(basis, accountCurrency, rates, asOf);
       if (eur === null) {
         missingPricePositions.push({ accountId, securityId, unitsE8: units });
         continue;
@@ -597,7 +636,7 @@ function computeNetWorthValuation(
       if (manualAccounts.has(row.accountId) && !manualValues.has(row.accountId))
         manualValues.set(row.accountId, row.valueCents);
     }
-  const rates: Rates = fxRatesUpTo(db, asOf);
+  const rates = fxRateLookup(db);
   const byAccount: Record<string, number | null> = {};
   const missingFxByAccount = new Map<string, Set<string>>();
   const addMissing = (accountId: string, currency: string) => {
@@ -811,8 +850,14 @@ function toRateTable(rows: Rates, includeSources = false): RateTable {
   return table;
 }
 
+/** Rates on or before `to`, per currency ascending; shared (read-only) within one request. */
 export function rateTable(db: Executor, to: string, includeSources = false): RateTable {
-  return toRateTable(db.select().from(fxRate).where(lte(fxRate.date, to)).all(), includeSources);
+  return memoizedShared(db, `rateTable|${to}|${includeSources ? 'sources' : 'plain'}`, () =>
+    toRateTable(
+      fxRateRows(db).filter((r) => r.date <= to),
+      includeSources,
+    ),
+  );
 }
 
 export type ValuationProvenanceRun = Omit<DailyValuationObservation, 'day'> & {
@@ -942,6 +987,51 @@ type MutablePosition = PositionInput & {
 };
 
 /**
+ * The prices a daily valuation from `from` to `to` can use, per security: every stored price in
+ * the window and the latest one before it. `dailyValuation` values a day only with the latest
+ * price on or before that day (`pickPrice` without backfill), so older prices can never be chosen
+ * and are not read. Shared read-only within one request (`dailyValuation` sorts a copy).
+ */
+function pricesForWindow(db: Executor, from: string, to: string, withSource: boolean) {
+  return memoizedShared(db, `pricesForWindow|${from}|${to}|${withSource ? 'src' : 'plain'}`, () => {
+    const before = db
+      .select({ securityId: price.securityId, date: max(price.date).as('before_date') })
+      .from(price)
+      .where(lt(price.date, from))
+      .groupBy(price.securityId)
+      .as('before');
+    const rows = [
+      ...db
+        .select()
+        .from(price)
+        .innerJoin(
+          before,
+          and(eq(price.securityId, before.securityId), eq(price.date, before.date)),
+        )
+        .all()
+        .map((r) => r.price),
+      ...db
+        .select()
+        .from(price)
+        .where(and(gte(price.date, from), lte(price.date, to)))
+        .all(),
+    ];
+    const bySecurity = new Map<string, DatedPrice[]>();
+    for (const p of rows) {
+      const list = bySecurity.get(p.securityId) ?? [];
+      list.push({
+        date: p.date,
+        priceMicro: p.priceMicro,
+        currency: p.currency,
+        ...(withSource ? { source: p.source } : {}),
+      });
+      bySecurity.set(p.securityId, list);
+    }
+    return bySecurity as ReadonlyMap<string, ReadonlyArray<DatedPrice>>;
+  });
+}
+
+/**
  * Daily market value of positions (account x security, C10) from `from` to `to`: units (latest
  * snapshot plus later trades) x price carried forward x ECB rate of that day, one rounding per
  * position and day. Equals `holdingValuesAsOf` on every day (property-tested); the rows are read
@@ -971,24 +1061,8 @@ export function valuationSeries(
     .where(and(lte(holding.asOf, filter.to), isNull(holding.deletedAt)))
     .all()
     .filter((r) => wantSecurity(r.securityId) && wantAccount(r.accountId));
-  const trades = db
-    .select({
-      securityId: trade.securityId,
-      accountId: trade.accountId,
-      date: trade.date,
-      kind: trade.kind,
-      unitsE8: trade.unitsE8,
-      amountCents: trade.amountCents,
-      feeCents: trade.feeCents,
-      taxCents: trade.taxCents,
-      currency: account.currency,
-    })
-    .from(trade)
-    .innerJoin(account, eq(account.id, trade.accountId))
-    .where(isNull(trade.deletedAt))
-    .orderBy(trade.date, trade.id)
-    .all()
-    .filter((r) => wantSecurity(r.securityId));
+  // The same live trades (with account currency, booking order) the holding valuation reads.
+  const trades = valuationTrades(db).filter((r) => wantSecurity(r.securityId));
   const priceTrades = new Map<string, typeof trades>();
   for (const t of trades) {
     const list = priceTrades.get(t.securityId) ?? [];
@@ -1002,18 +1076,12 @@ export function valuationSeries(
       .all()
       .map((a) => [a.id, a.currency]),
   );
-  const pricesBySecurity = new Map<string, DatedPrice[]>();
-  for (const p of db.select().from(price).where(lte(price.date, filter.to)).all()) {
-    if (!wantSecurity(p.securityId)) continue;
-    const list = pricesBySecurity.get(p.securityId) ?? [];
-    list.push({
-      date: p.date,
-      priceMicro: p.priceMicro,
-      currency: p.currency,
-      ...(options.observe ? { source: p.source } : {}),
-    });
-    pricesBySecurity.set(p.securityId, list);
-  }
+  const pricesBySecurity = pricesForWindow(
+    db,
+    filter.from,
+    filter.to,
+    options.observe !== undefined,
+  );
 
   const positions = new Map<string, MutablePosition>();
   const at = (accountId: string, securityId: string): MutablePosition => {
