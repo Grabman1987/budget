@@ -347,6 +347,7 @@ async function expectFinanzcheckMatrixFocus(page: Page) {
   const bounds = await heading.boundingBox();
   if (!bounds) throw new Error('Focused Finanzcheck heading has no layout bounds');
   const topbar = page.locator('.topbar');
+  console.log('FCPOS', bounds.y, JSON.stringify(await page.evaluate(() => [scrollY, document.documentElement.scrollHeight, [...document.querySelectorAll('.finanzcheck-report > *, .redesign-report-head, .redesign-report-detail')].map((e) => e.tagName + '.' + String((e as HTMLElement).className).slice(0, 18) + ':' + Math.round(e.getBoundingClientRect().height))])));
   const bar = (await topbar.isVisible()) ? await topbar.boundingBox() : null;
   expect(bounds.y).toBeGreaterThanOrEqual(bar ? bar.y + bar.height : 0);
   expect(bounds.y + bounds.height).toBeLessThanOrEqual(page.viewportSize()!.height);
