@@ -104,8 +104,31 @@ export function normalizeWageRead(parsed: ParsedPayrollDocument) {
 
 export type WageReadOutcome =
   | { status: 'stored'; readId: string; lineCount: number; issues: string[] }
-  | { status: 'skipped'; reason: string }
+  /** `recorded`: a `skipped` reading (with audit entries) was written for it. */
+  | { status: 'skipped'; reason: string; recorded: boolean }
   | { status: 'unchanged' };
+
+/** Constraint or validation errors of the data; everything else is a programming error. */
+const isDataError = (error: unknown) =>
+  error instanceof Error &&
+  (error.name === 'SqliteError' || error.name === 'ZodError' || error.name === 'RangeError') &&
+  (error.name !== 'SqliteError' ||
+    String((error as { code?: unknown }).code).startsWith('SQLITE_CONSTRAINT'));
+const logged = new Set<string>();
+/**
+ * A programming error surfaces outside production. In production the payslip write still goes
+ * on: the reading records the error class and it is logged once per class, without any content.
+ */
+function errorMarker(error: unknown): string | null {
+  if (isDataError(error)) return null;
+  if (process.env['NODE_ENV'] !== 'production') throw error;
+  const name = error instanceof Error ? error.constructor.name || 'Error' : 'Unknown';
+  if (!logged.has(name)) {
+    logged.add(name);
+    console.error(`Gehaltszeilen übersprungen (${name}).`);
+  }
+  return `error:${name}`;
+}
 
 /**
  * Store the wage lines and the statutory split of a parse result for one payslip, inside its own
@@ -131,25 +154,34 @@ export function storePayslipWageRead(
     origin: source.origin,
     parserVersion: safeInt(parsed.parserVersion) ? parsed.parserVersion : 0,
   };
-  const skip = (reason: string): WageReadOutcome => {
+  const skip = (reason: string, marker: string | null = null): WageReadOutcome => {
+    let recorded = false;
     try {
       runInTransaction(tx, (inner) => {
         if (existing) return;
         insertTracked(
           inner,
           payslipWageRead,
-          { id: randomUUID(), ...header, lineCheck: 'skipped', issues: JSON.stringify([reason]) },
+          {
+            id: randomUUID(),
+            ...header,
+            lineCheck: 'skipped',
+            issues: JSON.stringify(marker ? [reason, marker] : [reason]),
+          },
           grouped,
         );
+        recorded = true;
       });
-    } catch {
-      // Even the record of the skip must not fail the caller's write.
+    } catch (error) {
+      // Even the record of the skip must not fail the caller's write (data errors only).
+      errorMarker(error);
+      recorded = false;
     }
-    return { status: 'skipped', reason };
+    return { status: 'skipped', reason, recorded };
   };
-  const normal = normalizeWageRead(parsed);
-  if (!normal) return skip('amount_invalid');
   try {
+    const normal = normalizeWageRead(parsed);
+    if (!normal) return skip('amount_invalid');
     return runInTransaction(tx, (inner) => {
       if (existing)
         updateTracked(
@@ -190,8 +222,8 @@ export function storePayslipWageRead(
         issues: normal.issues,
       };
     });
-  } catch {
-    return skip('write_failed');
+  } catch (error) {
+    return skip('write_failed', errorMarker(error));
   }
 }
 
@@ -330,6 +362,7 @@ export function applyPayslipWageReread(
   return runInTransaction(db, (tx) => {
     const written: string[] = [],
       skipped: string[] = [];
+    let audited = false;
     for (const { payslip: planned, parsed } of writes) {
       const current = tx
         .select()
@@ -356,8 +389,10 @@ export function applyPayslipWageReread(
           )
         : null;
       (stored?.status === 'stored' ? written : skipped).push(planned.id);
+      if (stored?.status === 'stored' || (stored?.status === 'skipped' && stored.recorded))
+        audited = true;
     }
-    return { groupId: written.length ? grouped.groupId : null, written, skipped };
+    return { groupId: audited ? grouped.groupId : null, written, skipped };
   });
 }
 

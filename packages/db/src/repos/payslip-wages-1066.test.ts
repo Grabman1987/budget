@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { parsePayrollDocument, type ParsedPayrollDocument } from '@budget/domain';
 import { createTestDatabase } from '../client';
 import { contact } from '../schema';
@@ -330,6 +330,137 @@ describe('wage repositories (#1066)', () => {
       undo(opened.db, { groupId: groupId! }, { actor: 'owner' });
       expect(listPayslipWageReads(opened.db)).toEqual([]);
     } finally {
+      opened.close();
+    }
+  });
+
+  it.each([false, true])(
+    '#1082 follow-up 1: undo of a header edit after a re-read restores the old reading (force %s)',
+    (force) => {
+      const opened = createTestDatabase();
+      try {
+        const slip = savePayslip(
+          opened.db,
+          { ...parsed.draft!, lines: parsed.draft!.lines },
+          { actor: 'test' },
+        );
+        applyPayslipWageReread(opened.db, [{ payslip: { ...slip, receiptId: null }, parsed }], {
+          actor: 'owner',
+        });
+        const r1 = listPayslipWageReads(opened.db)[0]!.id;
+        const edited = savePayslip(
+          opened.db,
+          { ...parsed.draft!, grossCents: 330_000, netCents: 210_000 },
+          { actor: 'owner', groupId: 'synthetic-edit' },
+          slip.id,
+        );
+        applyPayslipWageReread(opened.db, [{ payslip: { ...edited, receiptId: null }, parsed }], {
+          actor: 'owner',
+        });
+        const r2 = listPayslipWageReads(opened.db)[0]!.id;
+        expect(r2).not.toBe(r1);
+        // R2 describes the edited totals; the undo restores the old totals, so R1 comes back and
+        // R2 is retired in the same undo group: a reading never contradicts its payslip.
+        const undone = undo(
+          opened.db,
+          { groupId: 'synthetic-edit' },
+          { actor: 'owner' },
+          { force },
+        );
+        expect(listPayslips(opened.db)[0]).toMatchObject({
+          grossCents: 320_000,
+          netCents: 200_000,
+        });
+        expect(listPayslipWageReads(opened.db).map((r) => [r.id, r.lines.length])).toEqual([
+          [r1, 3],
+        ]);
+        // Redo brings the edit and R2 back.
+        undo(opened.db, { groupId: undone.groupId }, { actor: 'owner' }, { force });
+        expect(listPayslips(opened.db)[0]).toMatchObject({ grossCents: 330_000 });
+        expect(listPayslipWageReads(opened.db).map((r) => [r.id, r.lines.length])).toEqual([
+          [r2, 3],
+        ]);
+      } finally {
+        opened.close();
+      }
+    },
+  );
+
+  it('#1082 follow-up 2: a re-read that only records skipped readings returns its group', () => {
+    const opened = createTestDatabase();
+    try {
+      const slip = savePayslip(
+        opened.db,
+        { ...parsed.draft!, lines: parsed.draft!.lines },
+        { actor: 'test' },
+      );
+      const result = applyPayslipWageReread(
+        opened.db,
+        [
+          {
+            payslip: { ...slip, receiptId: null },
+            parsed: { ...parsed, wageLines: [{ ...parsed.wageLines![0]!, amountCents: 1.5 }] },
+          },
+        ],
+        { actor: 'owner' },
+      );
+      expect(result).toEqual({ groupId: expect.any(String), written: [], skipped: [slip.id] });
+      expect(
+        opened.sqlite
+          .prepare('SELECT entity_type FROM audit_log WHERE group_id = ?')
+          .all(result.groupId),
+      ).toEqual([{ entity_type: 'payslip_wage_read' }]);
+    } finally {
+      opened.close();
+    }
+  });
+
+  it('#1082 follow-up 3: programming errors surface outside production; production records and logs once', () => {
+    const opened = createTestDatabase();
+    const broken = (): ParsedPayrollDocument => ({
+      ...parsed,
+      wageLines: [
+        Object.defineProperty({ ...parsed.wageLines![0]! }, 'label', {
+          get() {
+            throw new TypeError('synthetic programming error Lohnart 810');
+          },
+        }),
+      ],
+    });
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const slip = savePayslip(
+        opened.db,
+        { ...parsed.draft!, lines: parsed.draft!.lines },
+        { actor: 'test' },
+      );
+      const other = savePayslip(
+        opened.db,
+        { ...parsed.draft!, month: '2027-04', lines: parsed.draft!.lines },
+        { actor: 'test' },
+      );
+      const store = (id: string) =>
+        storePayslipWageRead(
+          opened.db,
+          id,
+          broken(),
+          { origin: 'reread', receiptId: null },
+          { actor: 'owner' },
+        );
+      expect(() => store(slip.id)).toThrow(TypeError);
+      expect(listPayslipWageReads(opened.db)).toEqual([]);
+      vi.stubEnv('NODE_ENV', 'production');
+      expect(store(slip.id)).toEqual({ status: 'skipped', reason: 'write_failed', recorded: true });
+      expect(store(other.id)).toMatchObject({ status: 'skipped' });
+      expect(listPayslipWageReads(opened.db).map((r) => r.issues)).toEqual([
+        '["write_failed","error:TypeError"]',
+        '["write_failed","error:TypeError"]',
+      ]);
+      // Logged once per error class, without document content.
+      expect(log.mock.calls).toEqual([['Gehaltszeilen übersprungen (TypeError).']]);
+    } finally {
+      vi.unstubAllEnvs();
+      log.mockRestore();
       opened.close();
     }
   });
