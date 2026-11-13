@@ -32,11 +32,13 @@ import {
 
 /**
  * `unmapped`: a compensation line without component (counted in `paid.unmapped`).
+ * `mapping_conflict`: a reimbursement line the owner mapped to pay; never pay (counted in
+ * `paid.unmapped`, the month is not comparable).
  * `unknown_line` / `memo_line`: lines the parser could not place or memo lines, listed with their
  * printed amount for review; they are no compensation and are not counted as such (an unknown
  * line inside the gross shows up as `paid.unreconciled`).
  */
-export type UnmappedReason = 'unmapped' | 'unknown_line' | 'memo_line';
+export type UnmappedReason = 'unmapped' | 'mapping_conflict' | 'unknown_line' | 'memo_line';
 /** Why a month is not comparable apart from being a gap. */
 export type MonthIssue = 'unmapped' | 'line_check' | 'gross_unknown' | 'no_wage_lines';
 export interface UnmappedItem {
@@ -69,7 +71,8 @@ export interface BackPayItem {
  * its gross plus its reimbursements.
  * - components: lines assigned to a component (a legacy 13th/14th payslip: its gross as special);
  * - `unmapped`: compensation lines without a component;
- * - `unreconciled`: gross − all compensation lines (may be negative; non-zero blocks the month);
+ * - `unreconciled`: (gross − all compensation lines) + (reimbursements − reimbursement lines), both
+ *   from `payrollTotals`; may be negative; any non-zero part blocks the month (`line_check`);
  * - `undecomposed`: the gross of a payslip without wage lines (except a 13th/14th payslip).
  */
 export type PaidCents = ComponentCents & {
@@ -187,7 +190,8 @@ export function payslipComponents(
     const owner = ownerRule(l, slip.employerContactId, rules)?.component;
     return owner !== 'benefit_in_kind' && owner !== 'reimbursement';
   }).length;
-  let compensation = 0;
+  let compensation = 0,
+    reimbursementLines = 0;
   for (const line of slip.wage.lines) {
     if (line.section === 'unknown' || line.section === 'memo') {
       unmapped.push({
@@ -203,8 +207,11 @@ export function payslipComponents(
       singleEarningLine: earningLines === 1,
     });
     if (component === 'none') continue;
-    if (line.section !== 'reimbursement') compensation += line.amountCents;
-    if (component === 'unmapped') {
+    if (line.section === 'reimbursement') reimbursementLines += line.amountCents;
+    else compensation += line.amountCents;
+    // A reimbursement line is never pay: an owner mapping to a pay component is a conflict.
+    const conflict = line.section === 'reimbursement' && component !== 'reimbursement';
+    if (component === 'unmapped' || conflict) {
       paid.unmapped += line.amountCents;
       issues.add('unmapped');
       unmapped.push({
@@ -212,7 +219,7 @@ export function payslipComponents(
         code: line.code,
         label: line.label,
         amountCents: line.amountCents,
-        reason: 'unmapped',
+        reason: conflict ? 'mapping_conflict' : 'unmapped',
       });
       continue;
     }
@@ -229,11 +236,18 @@ export function payslipComponents(
     } else if (component === 'base' && line.code && !baseCodes.includes(line.code))
       baseCodes.push(line.code);
   }
+  // Anchored on the payslip's totals (`payrollTotals`) for every line check, `no_gross` included:
+  // the gross and the reimbursements the stored payslip shows, against what the lines explain.
+  const grossResidual = totals.grossCents - compensation;
+  const reimbursementResidual = totals.reimbursementsCents - reimbursementLines;
+  paid.unreconciled = grossResidual + reimbursementResidual;
   if (slip.wage.lineCheck === 'no_gross') issues.add('gross_unknown');
-  else {
-    paid.unreconciled = totals.grossCents - compensation;
-    if (slip.wage.lineCheck !== 'ok' || paid.unreconciled !== 0) issues.add('line_check');
-  }
+  if (
+    slip.wage.lineCheck === 'gross_mismatch' ||
+    grossResidual !== 0 ||
+    reimbursementResidual !== 0
+  )
+    issues.add('line_check');
   return result();
 }
 

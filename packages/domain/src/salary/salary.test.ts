@@ -54,7 +54,12 @@ function slip(
   extras: Extra[] = [],
   o: Partial<
     Pick<SalaryPayslip, 'kind' | 'specialType' | 'id' | 'svCents' | 'taxCents' | 'grossCents'>
-  > & { lineCheck?: 'ok' | 'gross_mismatch' | 'no_gross'; legacyEarningCents?: number } = {},
+  > & {
+    lineCheck?: 'ok' | 'gross_mismatch' | 'no_gross';
+    legacyEarningCents?: number;
+    /** Legacy reimbursement total, independent of the wage lines (default: equal to them). */
+    legacyReimbursementCents?: number;
+  } = {},
 ): SalaryPayslip {
   const lines: SalaryWageLine[] = [
     ...(base
@@ -83,9 +88,9 @@ function slip(
     lines
       .filter((l) => l.section === 'earning' || l.section === 'benefit_in_kind')
       .reduce((n, l) => n + l.amountCents, 0);
-  const reimbursed = lines
-    .filter((l) => l.section === 'reimbursement')
-    .reduce((n, l) => n + l.amountCents, 0);
+  const reimbursed =
+    o.legacyReimbursementCents ??
+    lines.filter((l) => l.section === 'reimbursement').reduce((n, l) => n + l.amountCents, 0);
   // Integer arithmetic only (exact percent of whole cents, rounded half away from zero).
   const sv = o.svCents ?? Number(divRound(BigInt(gross) * 18n, 100n)),
     tax = o.taxCents ?? Number(divRound(BigInt(gross) * 10n, 100n));
@@ -1209,6 +1214,21 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
     });
   });
 
+  it('blocker 2: year sums keep the cents of excluded months in paid', () => {
+    const slips = [slip('2030-05', 400_000), special('2030-06', 400_000, 'salary14')];
+    const [year] = salaryYears(salaryMonthlySeries({ payslips: slips, rules }));
+    expect(year!.paid).toMatchObject({ base: 400_000, special: 400_000 });
+    expect(year!.development.cents).toEqual({
+      base: 400_000,
+      special: 0,
+      variable: 0,
+      total: 400_000,
+    });
+    expect(year!.development.excluded.map((e) => [e.month, e.reasons, paidTotal(e.cents)])).toEqual(
+      [['2030-06', ['gap'], 400_000]],
+    );
+  });
+
   it('blocker 3: edge levels stay out of the real series', () => {
     const series = salaryMonthlySeries({
       payslips: [slip('2030-01', 400_000), slip('2030-02', 400_000), slip('2030-03', 200_000)],
@@ -1582,6 +1602,90 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
     });
   });
 
+  it('sixth review blocker: reimbursements are anchored on payrollTotals as well', () => {
+    // A: a legacy reimbursement line the wage lines do not show.
+    const a = slip('2030-01', 300_000, [], { legacyReimbursementCents: 2_500 });
+    // B: a wage reimbursement line without a legacy line.
+    const b = slip('2030-02', 300_000, [reimbursement(2_500)], { legacyReimbursementCents: 0 });
+    const [ma, mb] = salaryMonthlySeries({ payslips: [a, b], rules });
+    expect(ma).toMatchObject({
+      comparable: false,
+      issues: ['line_check'],
+      paid: { base: 300_000, reimbursement: 0, unreconciled: 2_500 },
+    });
+    expect(paidTotal(ma!.paid)).toBe(302_500);
+    expect(mb).toMatchObject({
+      comparable: false,
+      issues: ['line_check'],
+      paid: { base: 300_000, reimbursement: 2_500, unreconciled: -2_500 },
+    });
+    expect(paidTotal(mb!.paid)).toBe(300_000);
+    // Equal on both sides: comparable, nothing unreconciled.
+    const [same] = salaryMonthlySeries({
+      payslips: [slip('2030-03', 300_000, [reimbursement(2_500)])],
+      rules,
+    });
+    expect(same).toMatchObject({
+      comparable: true,
+      paid: { reimbursement: 2_500, unreconciled: 0 },
+    });
+  });
+
+  it('sixth review major 1: no_gross is anchored on the stored gross too', () => {
+    const [m] = salaryMonthlySeries({
+      payslips: [slip('2030-01', 280_000, [], { grossCents: 300_000, lineCheck: 'no_gross' })],
+      rules,
+    });
+    expect(m).toMatchObject({
+      comparable: false,
+      issues: ['gross_unknown', 'line_check'],
+      paid: { base: 280_000, unreconciled: 20_000 },
+    });
+    expect(paidTotal(m!.paid)).toBe(300_000);
+  });
+
+  it('sixth review major 2: a reimbursement line mapped to pay never enters development', () => {
+    const owner: WageComponentRule[] = [
+      ...rules,
+      { employerContactId: null, wageCode: '1260', labelNorm: null, component: 'base' },
+    ];
+    const [m] = salaryMonthlySeries({
+      payslips: [slip('2030-01', 300_000, [reimbursement(2_500)])],
+      rules: owner,
+    });
+    expect(m).toMatchObject({
+      comparable: false,
+      issues: ['unmapped'],
+      paid: { base: 300_000, reimbursement: 0, unmapped: 2_500, unreconciled: 0 },
+      developmentCents: 300_000,
+    });
+    expect(m!.unmapped).toEqual([
+      {
+        payslipId: 'p-2030-01',
+        code: '1260',
+        label: 'Telearbeit',
+        amountCents: 2_500,
+        reason: 'mapping_conflict',
+      },
+    ]);
+    expect(paidTotal(m!.paid)).toBe(302_500);
+  });
+
+  it('a legacy 13th/14th payslip with a legacy earning line: paid only, anchored on payrollTotals', () => {
+    const legacy14: SalaryPayslip = {
+      ...special('2030-06', 400_000, 'salary14'),
+      lines: [{ section: 'earning', label: 'Nachverrechnung', amountCents: 5_000 }],
+      wage: null,
+    };
+    const [june] = salaryMonthlySeries({ payslips: [slip('2030-06', 400_000), legacy14], rules });
+    expect(june).toMatchObject({
+      comparable: false,
+      issues: ['no_wage_lines'],
+      paid: { base: 400_000, special: 405_000 },
+    });
+    expect(paidTotal(june!.paid)).toBe(805_000);
+  });
+
   it('minor: ratios out of the safe range are null', () => {
     expect(ratioBp(Number.MAX_SAFE_INTEGER, 1)).toBeNull();
     expect(ratioBp(1.5, 1)).toBeNull();
@@ -1655,7 +1759,7 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
         earn({ code: '777', label: 'Sonderleistung', section: 'earning', cents: int(1, 50_000) });
       if (r() < 0.2)
         extras.push({ code: '9770', label: 'MA-Vorsorge', section: 'memo', cents: int(1, 9_000) });
-      let lineCheck: 'ok' | 'gross_mismatch' = 'ok';
+      let lineCheck: 'ok' | 'gross_mismatch' | 'no_gross' = 'ok';
       if (!clean && r() < 0.06) {
         // A line the parser could not place, inside the printed gross.
         const cents = int(1, 30_000);
@@ -1663,15 +1767,20 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
         gross += cents;
         lineCheck = 'gross_mismatch';
       }
+      if (!clean && lineCheck === 'ok' && r() < 0.05) lineCheck = 'no_gross';
       // A legacy earning line (manual capture) belongs to the stored gross by `payrollTotals`.
       const legacyEarning = r() < 0.06 ? int(1, 20_000) : 0;
+      // The legacy reimbursement total may differ from the wage lines (independent sources).
+      const legacyReimbursed = !clean && r() < 0.08 ? int(0, 9_000) : reimbursed;
       const regular = slip(month, base, extras, {
         grossCents: gross,
         lineCheck,
         legacyEarningCents: legacyEarning,
+        legacyReimbursementCents: legacyReimbursed,
       });
-      if (!clean && r() < 0.05) add({ ...regular, wage: null }, gross + legacyEarning, reimbursed);
-      else add(regular, gross + legacyEarning, reimbursed);
+      if (!clean && r() < 0.05)
+        add({ ...regular, wage: null }, gross + legacyEarning, legacyReimbursed);
+      else add(regular, gross + legacyEarning, legacyReimbursed);
       const mm = month.slice(5);
       if ((mm === '06' || mm === '11') && r() < 0.8) {
         const type = mm === '06' ? 'salary14' : 'salary13';
@@ -1753,14 +1862,16 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
       const r = generator(seed ^ 0x5eed);
       const changed = slips.map((p) => {
         if (!p.wage) return p;
-        let extra = 0;
+        let extra = 0,
+          reimbursed = 0;
         const lines = p.wage.lines.map((l) => {
           if (!['1260', '820', '777', '830', '9770'].includes(l.code ?? '')) return l;
           const delta = 1 + Math.floor(r() * 5_000);
-          if (l.section !== 'reimbursement' && l.section !== 'memo') extra += delta;
+          if (l.section === 'reimbursement') reimbursed += delta;
+          else if (l.section !== 'memo') extra += delta;
           return { ...l, amountCents: l.amountCents + delta };
         });
-        if (r() < 0.3)
+        if (r() < 0.3) {
           lines.push({
             code: '1260',
             label: 'Telearbeit',
@@ -1768,6 +1879,8 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
             referenceMonth: null,
             amountCents: 777,
           });
+          reimbursed += 777;
+        }
         if (r() < 0.3) {
           lines.push({
             code: '820',
@@ -1778,8 +1891,19 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
           });
           extra += 999;
         }
-        // The printed gross moves with the earning lines, as on a real payslip.
-        return { ...p, grossCents: p.grossCents + extra, wage: { ...p.wage, lines } };
+        // The printed gross moves with the earning lines and the stored reimbursements with the
+        // reimbursement lines, as on a real payslip (both sides of the anchor change together).
+        return {
+          ...p,
+          grossCents: p.grossCents + extra,
+          lines: reimbursed
+            ? [
+                ...p.lines,
+                { section: 'reimbursement' as const, label: 'Telearbeit', amountCents: reimbursed },
+              ]
+            : p.lines,
+          wage: { ...p.wage, lines },
+        };
       });
       expect([seed, developmentView(changed)]).toEqual([seed, developmentView(slips)]);
     }
@@ -1881,6 +2005,20 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
       count('bonusSlip', slips.filter((p) => p.specialType === 'other').length);
       count('legacyRegular', slips.filter((p) => !p.wage && p.kind === 'regular').length);
       count('legacySpecial', slips.filter((p) => !p.wage && p.kind === 'special').length);
+      count('noGross', slips.filter((p) => p.wage?.lineCheck === 'no_gross').length);
+      count(
+        'reimbursementDivergence',
+        slips.filter(
+          (p) =>
+            p.wage &&
+            p.wage.lines
+              .filter((l) => l.section === 'reimbursement')
+              .reduce((n, l) => n + l.amountCents, 0) !==
+              p.lines
+                .filter((l) => l.section === 'reimbursement')
+                .reduce((n, l) => n + l.amountCents, 0),
+        ).length,
+      );
       count(
         'legacyEarningLine',
         slips.filter((p) => p.lines.some((l) => l.section === 'earning')).length,
@@ -1891,7 +2029,7 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
       count('certainStep', baseSalarySteps(s).filter((x) => !x.uncertain).length);
       count('yearChange', salaryYears(s).filter((y) => y.development.change).length);
     }
-    expect(Object.keys(c)).toHaveLength(16);
+    expect(Object.keys(c)).toHaveLength(18);
     expect(Object.entries(c).filter(([, n]) => n < 10)).toEqual([]);
   });
 });
