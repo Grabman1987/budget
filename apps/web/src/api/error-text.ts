@@ -13,6 +13,8 @@ const CODE_TEXT: Record<string, string> = {
   stale: 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.',
   contact_archived: 'Der Kontakt ist archiviert. Bitte zuerst wieder öffnen.',
   contact_blocked: 'Der Kontakt kann nicht archiviert werden, solange noch etwas offen ist.',
+  stale_preview: 'Die Vorschau ist nicht mehr aktuell. Bitte die Zusammenführung neu prüfen.',
+  merge_conflict: 'Die Kontakte können nicht zusammengeführt werden.',
   label_taken: 'Dieser Name wird schon verwendet.',
   undo_refused: 'Rückgängig machen ist nicht mehr möglich.',
   valuation_unavailable: 'Die Bewertung ist gerade nicht möglich: Es fehlt ein Wechselkurs.',
