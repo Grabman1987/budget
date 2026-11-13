@@ -3,7 +3,8 @@ import { z } from 'zod';
 import type { Db } from '@budget/db';
 import { RECEIPT_LIMIT, sanitizedFilename } from '../receipts/files';
 import { classifyDocument } from '../document-intake/classify';
-import { ApiError } from './http';
+import { findReceiptMatches } from '../document-intake/receipt-matches';
+import { ApiError, readQuery } from './http';
 
 const MAX_PASSWORD = 256;
 /**
@@ -52,6 +53,20 @@ export function documentIntakeRoutes(db: Db) {
         password || undefined,
       ),
     );
+  });
+  // Read-only lookup behind the editable receipt proposal; the owner changes the values freely.
+  api.get('/receipt-matches', (c) => {
+    const query = readQuery(
+      c,
+      z
+        .object({
+          totalCents: z.coerce.number().int().positive().max(1_000_000_000),
+          date: z.iso.date(),
+          payee: z.string().max(80).optional(),
+        })
+        .strict(),
+    );
+    return c.json({ matches: findReceiptMatches(db, query) });
   });
   return api;
 }

@@ -20,8 +20,8 @@ vi.mock('../budget/use-category-writes', () => ({
   },
 }));
 vi.mock('../receipts/receipt-section', () => ({
-  postReceipt: (file: File) => {
-    receipt(file);
+  postReceipt: (file: File, bookingId?: string) => {
+    receipt(file, bookingId);
     if (failReceipt) return Promise.reject(new Error('synthetic failure'));
     return Promise.resolve({ groupId: 'synthetic-group' });
   },
@@ -43,8 +43,10 @@ const ACCOUNT = 'synthetic-card-account';
 let failReceipt = false;
 let result: Classification;
 let classifyBodies: FormData[];
+let matchQueries: string[];
 beforeEach(() => {
   classifyBodies = [];
+  matchQueries = [];
   failReceipt = false;
   // jsdom has no showModal and no matchMedia (desktop layout).
   HTMLDialogElement.prototype.showModal ??= function showModal(this: HTMLDialogElement) {
@@ -67,6 +69,20 @@ beforeEach(() => {
     if (path === '/api/document-intake/classify') {
       classifyBodies.push(init?.body as FormData);
       return Response.json(result);
+    }
+    if (path === '/api/document-intake/receipt-matches') {
+      matchQueries.push(new URL(String(input), 'http://localhost').search);
+      return Response.json({
+        matches: [
+          {
+            id: 'synthetic-booking',
+            date: '2026-10-06',
+            amountCents: -1240,
+            accountId: 'a',
+            payee: 'Muster Markt',
+          },
+        ],
+      });
     }
     if (path === '/api/accounts')
       return Response.json({
@@ -197,4 +213,52 @@ it('renders an icon-only trigger with an accessible name when compact', async ()
   const button = screen.getByRole('button', { name: 'Neues Dokument hochladen' });
   expect(button.textContent).toBe('');
   expect(button.className).toContain('icon-btn');
+});
+
+it('shows an editable receipt proposal and attaches the receipt to the chosen booking', async () => {
+  result = {
+    type: 'receipt',
+    confidence: 'unknown',
+    hints: { mime: 'application/pdf' },
+    needsPassword: false,
+    receipt: { totalCents: 1240, date: '2026-10-07', payee: 'Muster Markt' },
+  };
+  renderButton();
+  const file = pdf();
+  const user = await pick(file);
+  await screen.findByText(/Erkannt: Beleg/);
+  expect((screen.getByLabelText('Betrag') as HTMLInputElement).value).toBe('12,40');
+  expect((screen.getByLabelText('Belegdatum') as HTMLInputElement).value).toBe('07.10.2026');
+  expect((screen.getByLabelText('Zahlungsempfänger') as HTMLInputElement).value).toBe(
+    'Muster Markt',
+  );
+  const match = await screen.findByRole('radio', { name: /Muster Markt/ });
+  expect(matchQueries[0]).toContain('totalCents=1240');
+  expect(matchQueries[0]).toContain('date=2026-10-07');
+  await user.click(match);
+  await user.click(screen.getByRole('button', { name: 'Weiter' }));
+  await waitFor(() => expect(receipt).toHaveBeenCalledWith(file, 'synthetic-booking'));
+  expect(
+    (await screen.findByRole('region', { name: 'Ergebnis des Uploads' })).textContent,
+  ).toContain('an die gewählte Buchung angehängt');
+});
+
+it('files the receipt alone when no booking is chosen and re-queries after an edit', async () => {
+  result = {
+    type: 'receipt',
+    confidence: 'unknown',
+    hints: { mime: 'application/pdf' },
+    needsPassword: false,
+    receipt: { totalCents: 1240, date: '2026-10-07', payee: null },
+  };
+  renderButton();
+  const file = pdf();
+  const user = await pick(file);
+  await screen.findByRole('radio', { name: /Muster Markt/ });
+  const amount = screen.getByLabelText('Betrag');
+  await user.clear(amount);
+  await user.type(amount, '13,50');
+  await waitFor(() => expect(matchQueries.some((q) => q.includes('totalCents=1350'))).toBe(true));
+  await user.click(screen.getByRole('button', { name: 'Weiter' }));
+  await waitFor(() => expect(receipt).toHaveBeenCalledWith(file, undefined));
 });

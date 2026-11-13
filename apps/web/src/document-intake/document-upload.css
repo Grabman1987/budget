@@ -53,3 +53,31 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+.document-proposal,
+.document-proposal-matches {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+.document-proposal-matches {
+  padding: 8px 16px 12px;
+}
+.document-proposal-note {
+  margin: 0;
+}
+.document-proposal-match {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  overflow-wrap: anywhere;
+}
+.document-proposal-match input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}

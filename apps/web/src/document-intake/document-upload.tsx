@@ -8,7 +8,9 @@ import { accountsQuery } from '../ledger/queries';
 import { PayslipUploadDialog } from '../reports/payslip-panel';
 import { postReceipt } from '../receipts/receipt-section';
 import { AccountStatementIntake } from '../statement-intake/statement-review-726';
+import type { ReceiptProposal } from '@budget/domain';
 import { DocumentOutcome } from './document-outcome';
+import { proposalToEdit, ReceiptProposalPanel, type ReceiptEdit } from './receipt-proposal';
 import './document-upload.css';
 
 export type DetectedType =
@@ -18,6 +20,8 @@ export type Classification = {
   confidence: 'certain' | 'probable' | 'unknown';
   hints: { period?: string; accountHint?: string; mime: string };
   needsPassword: boolean;
+  /** Receipt PDFs only: values read from the text layer. */
+  receipt?: ReceiptProposal;
 };
 /** What the owner can choose; unreadable documents are offered as receipts only. */
 export type Target = 'card_statement' | 'bank_statement' | 'payslip' | 'receipt';
@@ -90,7 +94,8 @@ export function DocumentUploadButton({
     [target, setTarget] = useState<Target>('receipt'),
     [account, setAccount] = useState(accountId ?? ''),
     [password, setPassword] = useState(''),
-    [done, setDone] = useState<string | null>(null);
+    [done, setDone] = useState<{ label: string; lines: string[] } | null>(null),
+    [edit, setEdit] = useState<ReceiptEdit | null>(null);
   const [route, setRoute] = useState<Route | null>(null);
   const accounts = useQuery({ ...accountsQuery(), enabled: open });
   const write = useBudgetWrite();
@@ -102,6 +107,7 @@ export function DocumentUploadButton({
     setTarget('receipt');
     setAccount(accountId ?? '');
     setDone(null);
+    setEdit(null);
   };
   async function inspect(next: File, typed = '') {
     if (busy) return;
@@ -116,6 +122,7 @@ export function DocumentUploadButton({
       const found = await classify(next, typed);
       setResult(found);
       setTarget(found.type === 'unreadable' ? 'receipt' : found.type);
+      setEdit(found.receipt ? proposalToEdit(found.receipt) : null);
       // A typed password that still does not open the PDF is reported, not silently re-asked.
       if (typed && found.needsPassword) setError('Passwort falsch. Bitte erneut eingeben.');
     } catch (cause) {
@@ -134,9 +141,10 @@ export function DocumentUploadButton({
     if (target === 'receipt') {
       setBusy(true);
       let saved = false;
+      const attachTo = edit?.bookingId || undefined;
       await write(
         async () => {
-          const reply = await postReceipt(file);
+          const reply = await postReceipt(file, attachTo);
           saved = true;
           return reply;
         },
@@ -144,7 +152,15 @@ export function DocumentUploadButton({
       );
       setBusy(false);
       // On failure the write helper reports it; keep the dialog and the file for a retry.
-      if (saved) setDone(LABEL.receipt);
+      if (saved)
+        setDone({
+          label: LABEL.receipt,
+          lines: [
+            attachTo
+              ? 'Beleg an die gewählte Buchung angehängt.'
+              : 'Als Beleg unter Prüfen abgelegt. Es wurde nichts gebucht.',
+          ],
+        });
       return;
     }
     const typed = password,
@@ -243,8 +259,8 @@ export function DocumentUploadButton({
           {done && (
             <>
               <DocumentOutcome
-                typeLabel={done}
-                lines={['Als Beleg unter Prüfen abgelegt. Es wurde nichts gebucht.']}
+                typeLabel={done.label}
+                lines={done.lines}
                 onNavigate={() => {
                   setOpen(false);
                   reset();
@@ -333,6 +349,9 @@ export function DocumentUploadButton({
                     </Select>
                   )}
                 </Field>
+              )}
+              {target === 'receipt' && edit && (
+                <ReceiptProposalPanel value={edit} onChange={setEdit} disabled={busy} />
               )}
               <p className="document-upload-next">{NEXT[target]}</p>
               <div className="document-upload-actions">
