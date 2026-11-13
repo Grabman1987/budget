@@ -80,6 +80,7 @@ describe('trade confirmation reader (#1057)', () => {
       totalCents: 10_000,
       booking: { accountHint: '1234', valueDate: '2026-11-11', signedCents: -10_000 },
       currency: 'EUR',
+      complete: true,
       verified: true,
       reasons: [],
     });
@@ -491,6 +492,103 @@ describe('trade confirmation reader: review findings (#1058)', () => {
       booking: { signedCents: -123_456_000_000 },
       verified: true,
       reasons: [],
+    });
+  });
+
+  it('sums costs exactly and refuses unsafe totals', () => {
+    expect(
+      reasons(
+        buyOrder({
+          costs: [
+            'Fremdkostenzuschlag -50.000.000.000.000,00 EUR',
+            'Fremdkostenzuschlag -50.000.000.000.000,00 EUR',
+            'GESAMT -1,00 EUR',
+          ],
+        }),
+      ),
+    ).toEqual(['amount_unsafe']);
+  });
+
+  it('checks tax signs per kind', () => {
+    expect(
+      reasons(
+        buyOrder({
+          costs: ['Kapitalertragsteuer 1,00 EUR', 'GESAMT -999,00 EUR'],
+          booking: `${IBAN} 2026-11-04 -999,00 EUR`,
+        }),
+      ),
+    ).toEqual(['cost_sign_implausible']);
+    // A tax refund on a sale is allowed (variant not verified against a sample).
+    expect(
+      reasons(
+        buyOrder({
+          sentence: 'Market-Order Verkauf am 02.11.2026, um 10:15 Uhr an der Beispiel Exchange.',
+          row: 'Synthetic Industrials AG 10 Stk. 52,35 EUR 523,50 EUR',
+          positionTotal: '523,50 EUR',
+          costs: [
+            'Fremdkostenzuschlag -1,00 EUR',
+            'Kapitalertragsteuer 2,00 EUR',
+            'GESAMT 524,50 EUR',
+          ],
+          booking: `${IBAN} 2026-11-04 524,50 EUR`,
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it('flags unknown lines before the booking header and among the footer sentences', () => {
+    expect(
+      reasons(
+        buyOrder({
+          costs: ['Fremdkostenzuschlag -1,00 EUR', 'GESAMT -1.001,00 EUR', 'Sonderposten 5,00 EUR'],
+        }),
+      ),
+    ).toEqual(['unrecognized_table_line']);
+    const footerRow = savingsPlan().replace(
+      'Dieses Dokument wurde',
+      'Sonderposten 5,00 EUR\nDieses Dokument wurde',
+    );
+    expect(reasons(footerRow)).toEqual(['unrecognized_table_line']);
+  });
+
+  it('refuses a coarse price: 10.000 × 0,05 for 500,00', () => {
+    expect(tradeValueConsistent('10000', '0.05', 50_000)).toBe('imprecise');
+    expect(
+      reasons(
+        buyOrder({
+          row: 'Synthetic Industrials AG 10.000 Stk. 0,05 EUR 500,00 EUR',
+          positionTotal: '500,00 EUR',
+          costs: undefined,
+          booking: `${IBAN} 2026-11-04 -500,00 EUR`,
+        }),
+      ),
+    ).toEqual(['price_precision_insufficient']);
+  });
+
+  it('keeps every parsed value of a consistent low-price row but does not verify it', () => {
+    // Fail-safe: 9,560229 × 5,23 = 49,9999977, yet the printed price rounding (5,28 ct) exceeds
+    // 0,1 % of 50,00 €, so the arithmetic cannot be verified; the owner confirms manually.
+    expect(
+      parseTradeConfirmation(
+        savingsPlan({
+          row: 'Synthetic World Equity UCITS ETF (Acc) 9,560229 Stk. 5,23 EUR 50,00 EUR',
+          positionTotal: '50,00 EUR',
+          booking: `${IBAN} 2026-11-11 -50,00 EUR`,
+        }),
+        SHA,
+      ),
+    ).toMatchObject({
+      kind: 'savings_plan',
+      instrument: { name: 'Synthetic World Equity UCITS ETF (Acc)', isin: ISIN },
+      quantity: '9.560229',
+      unitsE8: 956_022_900,
+      price: { value: '5.23', currency: 'EUR' },
+      amountCents: 5_000,
+      totalCents: 5_000,
+      booking: { accountHint: '1234', valueDate: '2026-11-11', signedCents: -5_000 },
+      complete: true,
+      verified: false,
+      reasons: ['price_precision_insufficient'],
     });
   });
 });

@@ -59,6 +59,13 @@ export type TradeConfirmation = {
     signedCents: number;
   } | null;
   currency: string | null;
+  /**
+   * Every value needed for a trade proposal was read (kind, dates, ids, depot, venue, instrument,
+   * quantity in 1e-8 units, price, amount, total, booking, currency). Says nothing about whether
+   * the figures agree: a complete but unverified result is still offered for manual review.
+   */
+  complete: boolean;
+  /** Complete and every cross-check passed (`reasons` is empty); only then may automation act. */
   verified: boolean;
   reasons: string[];
 };
@@ -195,6 +202,7 @@ export function parseTradeConfirmation(text: string, sha256: string): TradeConfi
     totalCents: null,
     booking: null,
     currency: null,
+    complete: false,
     verified: false,
     reasons: [],
   };
@@ -391,10 +399,10 @@ export function parseTradeConfirmation(text: string, sha256: string): TradeConfi
       const iban = row[1]!.replace(/ /g, '');
       doc.booking = { accountHint: iban.slice(-4), valueDate, signedCents };
       currencies.add(row[4]!);
-      // Only footer sentences may follow; table-like leftovers carry digits before the first
-      // sentence end (the footer wording itself is not verified against more than one sample).
+      // Only the footer sentences may follow and they carry no digits; any digit means a table-like
+      // leftover (fail-safe: a footer printing digits is left unverified, never misread).
       const tail = body.slice(row[0].length).trim();
-      if (/\d/.test(/^.*?(?:\.(?= |$)|$)/.exec(tail)![0])) issue('unrecognized_table_line');
+      if (/\d/.test(tail)) issue('unrecognized_table_line');
       if (new RegExp(String.raw`\d{4}-\d{2}-\d{2} ${AMOUNT} ${CURRENCY}\b`).test(tail))
         issue('booking_ambiguous');
       if (doc.executionDate && valueDate < doc.executionDate) issue('value_date_before_execution');
@@ -405,20 +413,24 @@ export function parseTradeConfirmation(text: string, sha256: string): TradeConfi
   if (currencies.size > 1) issue('currency_mixed');
   doc.currency = currencies.size === 1 ? [...currencies][0]! : null;
   if (doc.kind && doc.amountCents !== null) {
-    let costs = 0;
+    // Exact sum: huge offsetting values must not cancel out through float rounding.
+    let costsExact = 0n;
     for (const cost of doc.costs) {
-      costs += cost.cents;
+      costsExact += BigInt(cost.cents);
       // Costs reduce cash: a positive fee is implausible for any kind and a positive tax only
       // fits a sale (a tax refund; allowed, but not verified against a sample).
       if (cost.cents > 0 && (doc.kind !== 'sell' || cost.kind !== 'tax'))
         issue('cost_sign_implausible');
     }
-    const net = (doc.kind === 'sell' ? doc.amountCents : -doc.amountCents) + costs;
-    if (!Number.isSafeInteger(costs) || !Number.isSafeInteger(net)) {
+    const netExact = BigInt(doc.kind === 'sell' ? doc.amountCents : -doc.amountCents) + costsExact;
+    const safe = (v: bigint) =>
+      v <= BigInt(Number.MAX_SAFE_INTEGER) && v >= BigInt(Number.MIN_SAFE_INTEGER);
+    if (!safe(costsExact) || !safe(netExact)) {
       issue('amount_unsafe');
-      doc.verified = false;
-      return doc;
+      return finish(doc);
     }
+    const costs = Number(costsExact),
+      net = Number(netExact);
     doc.totalCents = Math.abs(net);
     // Not verified against a sample: the cost table total may be printed as the settlement
     // total or as the sum of the cost lines; both are accepted, anything else is a reason.
@@ -427,6 +439,29 @@ export function parseTradeConfirmation(text: string, sha256: string): TradeConfi
     if (doc.kind === 'sell' ? net <= 0 : net >= 0) issue('settlement_sign_mismatch');
     if (doc.booking && doc.booking.signedCents !== net) issue('booking_total_mismatch');
   }
-  doc.verified = doc.reasons.length === 0;
+  return finish(doc);
+}
+
+/**
+ * Low-price rows (e.g. 9,560229 × 5,23 for 50,00 €) are fail-safe: the printed price rounding
+ * exceeds 0,1 % of the amount, so they stay `complete` but not `verified` for manual review.
+ */
+function finish(doc: TradeConfirmation): TradeConfirmation {
+  doc.complete =
+    doc.kind !== null &&
+    doc.documentDate !== null &&
+    doc.executionDate !== null &&
+    doc.executionId !== null &&
+    (doc.kind !== 'savings_plan' || doc.planId !== null) &&
+    doc.depotHint !== null &&
+    doc.venue !== null &&
+    doc.instrument !== null &&
+    doc.unitsE8 !== null &&
+    doc.price !== null &&
+    doc.amountCents !== null &&
+    doc.totalCents !== null &&
+    doc.booking !== null &&
+    doc.currency !== null;
+  doc.verified = doc.complete && doc.reasons.length === 0;
   return doc;
 }
