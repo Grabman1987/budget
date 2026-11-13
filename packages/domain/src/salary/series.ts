@@ -1,4 +1,11 @@
-import { monthsBetween } from '../date';
+/**
+ * Salary series (#1066), cash basis: every amount counts in the month it was paid in, for every
+ * sum (year, year to date, same month of the previous year); money is never moved between months
+ * and the series never extends to reference months. Back pay (a reference month other than the
+ * payment month) is a "Nachzahlung" sub-component of its mapped component: part of the paid sums,
+ * left out of the monthly base level that drives steps, partial months and the real index.
+ */
+import { addMonths, monthsBetween } from '../date';
 import { payrollTotals } from '../reports/payroll-projects';
 import { classifyWageLine } from './classify';
 import { changeBp } from './math';
@@ -20,42 +27,56 @@ export interface UnmappedItem {
   amountCents: number;
   reason: UnmappedReason;
 }
-/** A line paid in a later month for an earlier reference month (back pay, Nachzahlung). */
+/**
+ * A line printed with a reference month other than its payment month (back pay, Nachzahlung).
+ * It stays in its payment month for every sum; it is only left out of the base salary level.
+ */
 export interface BackPayItem {
   payslipId: string;
+  code: string | null;
   referenceMonth: string;
   component: SalaryComponent;
   amountCents: number;
 }
+/**
+ * One payment month. Cash basis: every amount stays in the month it was paid in, for all sums
+ * (year, year to date, same month); money is never moved between months and the series never
+ * extends to reference months. Back pay is a sub-component of its mapped component
+ * (`backPayCents`, shown as "Nachzahlung"): included in `components`, excluded from
+ * `baseLevelCents`, the monthly base level used for steps, partial months and real development.
+ */
 export interface SalaryMonth {
   month: string;
-  /**
-   * No regular payslip for this month: a gap for every comparison, never filled or extrapolated.
-   * Special payslips of such a month are still reported in its components.
-   */
+  /** No regular payslip for this month: a gap for every comparison, never filled or extrapolated. */
   isGap: boolean;
   payslipIds: string[];
-  /**
-   * Components attributed to this month: back pay counts for its reference month. Used by every
-   * comparison, step and index.
-   */
+  /** Components as paid in this month, back pay included. */
   components: ComponentCents;
-  /** Components as paid in this month (back pay included where it was paid). */
-  paidComponents: ComponentCents;
-  /** Back pay paid in this month for earlier months (shown as "Nachzahlung"). */
+  /** The back-pay part of each component (included in `components`). */
+  backPayCents: ComponentCents;
   backPay: BackPayItem[];
-  /** Base + special + variable of `components` (benefits in kind, reimbursements outside). */
+  /** Base without back pay: the monthly base salary level. */
+  baseLevelCents: number;
+  /** Codes of the month's base lines that are not back pay. */
+  baseCodes: string[];
+  /** Base + special + variable as paid (benefits in kind and reimbursements outside). */
   developmentCents: number;
   hasSpecial: boolean;
   hasVariable: boolean;
+  hasBackPay: boolean;
   /** Some compensation is not assigned to a component: excluded from every comparison. */
   hasUnmapped: boolean;
   unmapped: UnmappedItem[];
   /**
-   * Base below both adjacent months, each of them comparable (one on each side): an entry or
-   * unpaid days, never a cut. With fewer than two such neighbours the level counts as real.
+   * Base level below both adjacent months, each of them comparable (one on each side): an entry
+   * or unpaid days, never a cut. With fewer than two such neighbours the level counts as real.
    */
   partialBase: boolean;
+  /**
+   * The month's base level rests on this single month at the start or end of the series or
+   * directly beside a gap/unmapped month: amounts cannot tell it from a real change.
+   */
+  edgeLevel: boolean;
   /** Legacy totals of the month's payslips (`payrollTotals`), as paid. */
   grossCents: number;
   salaryNetCents: number;
@@ -63,18 +84,26 @@ export interface SalaryMonth {
   comparable: boolean;
 }
 
-const addInto = (target: ComponentCents, source: ComponentCents, sign = 1) => {
-  for (const key of SALARY_COMPONENTS) target[key] += sign * source[key];
+const addInto = (target: ComponentCents, source: ComponentCents) => {
+  for (const key of SALARY_COMPONENTS) target[key] += source[key];
 };
 
 /** Components (as paid), back pay and unassigned compensation of one payslip. */
 export function payslipComponents(
   slip: SalaryPayslip,
   rules: readonly WageComponentRule[],
-): { components: ComponentCents; unmapped: UnmappedItem[]; backPay: BackPayItem[] } {
+): {
+  components: ComponentCents;
+  backPayCents: ComponentCents;
+  unmapped: UnmappedItem[];
+  backPay: BackPayItem[];
+  baseCodes: string[];
+} {
   const components = zeroComponents(),
+    backPayCents = zeroComponents(),
     unmapped: UnmappedItem[] = [],
-    backPay: BackPayItem[] = [];
+    backPay: BackPayItem[] = [],
+    baseCodes: string[] = [];
   const special =
     slip.kind === 'special' && (slip.specialType === 'salary13' || slip.specialType === 'salary14');
   if (!slip.wage) {
@@ -91,7 +120,7 @@ export function payslipComponents(
         amountCents: slip.grossCents,
         reason: 'no_wage_lines',
       });
-    return { components, unmapped, backPay };
+    return { components, backPayCents, unmapped, backPay, baseCodes };
   }
   if (slip.wage.lineCheck !== 'ok')
     unmapped.push({
@@ -115,22 +144,22 @@ export function payslipComponents(
       continue;
     }
     components[component] += line.amountCents;
-    if (line.referenceMonth && line.referenceMonth < slip.month)
+    if (line.referenceMonth && line.referenceMonth !== slip.month) {
+      backPayCents[component] += line.amountCents;
       backPay.push({
         payslipId: slip.id,
+        code: line.code,
         referenceMonth: line.referenceMonth,
         component,
         amountCents: line.amountCents,
       });
+    } else if (component === 'base' && line.code && !baseCodes.includes(line.code))
+      baseCodes.push(line.code);
   }
-  return { components, unmapped, backPay };
+  return { components, backPayCents, unmapped, backPay, baseCodes };
 }
 
-/**
- * Monthly series per component from the first to the last month (or the given range), including
- * reference months of back pay. Payslips count in their billing month; back pay is attributed to
- * its reference month in `components` and kept where it was paid in `paidComponents`.
- */
+/** Monthly series per component (cash basis) from the first to the last payslip month. */
 export function salaryMonthlySeries(input: {
   payslips: readonly SalaryPayslip[];
   rules: readonly WageComponentRule[];
@@ -138,21 +167,23 @@ export function salaryMonthlySeries(input: {
   to?: string;
 }): SalaryMonth[] {
   const slips = [...input.payslips].sort((a, b) => a.month.localeCompare(b.month));
-  const read = new Map(slips.map((s) => [s.id, payslipComponents(s, input.rules)]));
-  const referenced = [...read.values()].flatMap((r) => r.backPay.map((b) => b.referenceMonth));
-  const from = input.from ?? [slips[0]?.month, ...referenced].filter(Boolean).sort()[0];
+  const from = input.from ?? slips[0]?.month;
   const to = input.to ?? slips.at(-1)?.month;
   if (!from || !to || from > to) return [];
   const months: SalaryMonth[] = monthsBetween(from, to).map((month) => {
     const own = slips.filter((s) => s.month === month);
-    const paid = zeroComponents(),
+    const components = zeroComponents(),
+      backPayCents = zeroComponents(),
       unmapped: UnmappedItem[] = [],
-      backPay: BackPayItem[] = [];
+      backPay: BackPayItem[] = [],
+      baseCodes: string[] = [];
     for (const slip of own) {
-      const r = read.get(slip.id)!;
-      addInto(paid, r.components);
+      const r = payslipComponents(slip, input.rules);
+      addInto(components, r.components);
+      addInto(backPayCents, r.backPayCents);
       unmapped.push(...r.unmapped);
       backPay.push(...r.backPay);
+      for (const code of r.baseCodes) if (!baseCodes.includes(code)) baseCodes.push(code);
     }
     const totals = payrollTotals(own);
     const isGap = !own.some((s) => s.kind === 'regular');
@@ -160,77 +191,130 @@ export function salaryMonthlySeries(input: {
       month,
       isGap,
       payslipIds: own.map((s) => s.id),
-      components: { ...paid },
-      paidComponents: paid,
+      components,
+      backPayCents,
       backPay,
-      developmentCents: 0,
-      hasSpecial: false,
-      hasVariable: false,
+      baseLevelCents: components.base - backPayCents.base,
+      baseCodes,
+      developmentCents: developmentOf(components),
+      hasSpecial: components.special !== 0,
+      hasVariable: components.variable !== 0,
+      hasBackPay: backPay.length > 0,
       hasUnmapped: unmapped.length > 0,
       unmapped,
       partialBase: false,
+      edgeLevel: false,
       grossCents: totals.grossCents,
       salaryNetCents: totals.salaryNetCents,
       comparable: !isGap && unmapped.length === 0,
     };
   });
-  const byMonth = new Map(months.map((m) => [m.month, m]));
-  for (const m of months)
-    for (const item of m.backPay) {
-      m.components[item.component] -= item.amountCents;
-      const target = byMonth.get(item.referenceMonth);
-      // A reference month before the requested range keeps the amount where it was paid.
-      if (target) target.components[item.component] += item.amountCents;
-      else m.components[item.component] += item.amountCents;
-    }
-  for (const m of months) {
-    m.developmentCents = developmentOf(m.components);
-    m.hasSpecial = m.components.special !== 0;
-    m.hasVariable = m.components.variable !== 0;
-  }
   months.forEach((m, i) => {
     const before = months[i - 1],
       after = months[i + 1];
     m.partialBase =
       m.comparable &&
-      m.components.base > 0 &&
+      m.baseLevelCents > 0 &&
       before?.comparable === true &&
       after?.comparable === true &&
-      m.components.base < before.components.base &&
-      m.components.base < after.components.base;
+      m.baseLevelCents < before.baseLevelCents &&
+      m.baseLevelCents < after.baseLevelCents;
   });
+  for (const run of levelRuns(months)) if (run.edge) for (const m of run.months) m.edgeLevel = true;
   return months;
 }
 
+const isLevel = (m: SalaryMonth) => m.comparable && !m.partialBase && m.baseLevelCents > 0;
+/**
+ * Runs of calendar-consecutive level months with the same base level. A run of one month whose
+ * calendar neighbour is missing (series start/end, gap, unmapped) is an `edge` run.
+ */
+function levelRuns(months: readonly SalaryMonth[]) {
+  const runs: { months: SalaryMonth[]; edge: boolean }[] = [];
+  months.forEach((m, i) => {
+    if (!isLevel(m)) return;
+    const previous = months[i - 1];
+    const last = runs.at(-1);
+    if (
+      last &&
+      previous &&
+      last.months.at(-1) === previous &&
+      previous.baseLevelCents === m.baseLevelCents
+    )
+      last.months.push(m);
+    else runs.push({ months: [m], edge: false });
+  });
+  const index = new Map(months.map((m, i) => [m, i]));
+  for (const run of runs) {
+    if (run.months.length !== 1) continue;
+    const i = index.get(run.months[0]!)!;
+    run.edge = [months[i - 1], months[i + 1]].some((n) => !n || !n.comparable);
+  }
+  return runs;
+}
+
 export interface BaseStep {
+  /** First month at the new level. */
   effectiveMonth: string;
-  /** Last comparable month before the step. */
+  /** Last month at the old level. */
   previousMonth: string;
   oldCents: number;
   newCents: number;
   deltaCents: number;
   deltaBp: number;
+  /**
+   * `edge`: the old or new level rests on one month at the series start/end or beside a gap or
+   * unmapped month. Reported, but left out of raise statistics and anchors.
+   */
+  uncertain: 'edge' | null;
+  /**
+   * Information only: the earliest reference month of back pay on a base code of the new level,
+   * paid within the effective month and the three months after it.
+   */
+  retroactiveFrom: string | null;
 }
-/** Months that carry a reliable base salary level. */
-export const baseLevelMonths = (series: readonly SalaryMonth[]) =>
-  series.filter((m) => m.comparable && !m.partialBase && m.components.base > 0);
+/** Months that carry a reliable base salary level (comparable, not partial, base > 0). */
+export const baseLevelMonths = (series: readonly SalaryMonth[]) => series.filter(isLevel);
 
-/** Every change of the monthly base salary between consecutive reliable months. */
+/** Every change of the monthly base level between consecutive level runs. */
 export function baseSalarySteps(series: readonly SalaryMonth[]): BaseStep[] {
-  const levels = baseLevelMonths(series);
+  const runs = levelRuns(series);
   const steps: BaseStep[] = [];
-  for (let i = 1; i < levels.length; i++) {
-    const before = levels[i - 1]!,
-      after = levels[i]!;
-    if (before.components.base === after.components.base) continue;
+  for (let i = 1; i < runs.length; i++) {
+    const before = runs[i - 1]!,
+      after = runs[i]!;
+    const old = before.months.at(-1)!,
+      next = after.months[0]!;
+    if (old.baseLevelCents === next.baseLevelCents) continue;
+    const window = series.filter(
+      (m) => m.month >= next.month && m.month <= addMonths(next.month, 3),
+    );
+    const retro = window
+      .flatMap((m) => m.backPay)
+      .filter(
+        (b) =>
+          b.component === 'base' &&
+          b.code !== null &&
+          next.baseCodes.includes(b.code) &&
+          b.referenceMonth < next.month,
+      )
+      .map((b) => b.referenceMonth)
+      .sort()[0];
     steps.push({
-      effectiveMonth: after.month,
-      previousMonth: before.month,
-      oldCents: before.components.base,
-      newCents: after.components.base,
-      deltaCents: after.components.base - before.components.base,
-      deltaBp: changeBp(before.components.base, after.components.base)!,
+      effectiveMonth: next.month,
+      previousMonth: old.month,
+      oldCents: old.baseLevelCents,
+      newCents: next.baseLevelCents,
+      deltaCents: next.baseLevelCents - old.baseLevelCents,
+      deltaBp: changeBp(old.baseLevelCents, next.baseLevelCents)!,
+      uncertain: before.edge || after.edge ? 'edge' : null,
+      retroactiveFrom: retro ?? null,
     });
   }
   return steps;
+}
+
+/** First month of the first base level supported by at least two months (real-index anchor). */
+export function baseSalaryAnchor(series: readonly SalaryMonth[]): string | null {
+  return levelRuns(series).find((r) => r.months.length >= 2)?.months[0]?.month ?? null;
 }

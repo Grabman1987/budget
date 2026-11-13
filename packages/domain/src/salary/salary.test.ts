@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { monthsBetween } from '../date';
 import { divRound, changeBp } from './math';
 import {
+  baseSalaryAnchor,
   baseSalarySteps,
   baseSalaryValues,
   classifyWageLine,
@@ -156,7 +157,7 @@ describe('component classifier (#1066)', () => {
       classifyWageLine(earning('1'), { ...regular, kind: 'special', specialType: 'other' }, []),
     ).toBe('unmapped');
     expect(classifyWageLine({ ...earning('820'), section: 'benefit_in_kind' }, regular, [])).toBe(
-      'benefit_in_kind',
+      'unmapped',
     );
     expect(classifyWageLine(earning('1'), regular, [])).toBe('unmapped');
     expect(classifyWageLine({ ...earning('1'), section: 'deduction' }, regular, rules)).toBe(
@@ -226,6 +227,8 @@ describe('salary series, steps and comparisons: scenario A (#1066)', () => {
         newCents: 315_000,
         deltaCents: 15_000,
         deltaBp: 500,
+        uncertain: null,
+        retroactiveFrom: null,
       },
       {
         effectiveMonth: '2030-10',
@@ -234,6 +237,8 @@ describe('salary series, steps and comparisons: scenario A (#1066)', () => {
         newCents: 330_750,
         deltaCents: 15_750,
         deltaBp: 500,
+        uncertain: null,
+        retroactiveFrom: null,
       },
     ]);
   });
@@ -358,13 +363,17 @@ describe('salary series, steps and comparisons: scenario A (#1066)', () => {
       deltaGrossCents: 47_250,
       deltaNetCents: 34_020,
       netPerGrossBp: 7_200,
+      reason: null,
     });
     // Without January there are only two clean months after the raise: not determinable.
     const short = salaryMonthlySeries({
       payslips: slips.filter((s) => s.month !== '2031-01'),
       rules,
     });
-    expect(lastRaiseNetEffect(short)).toBeNull();
+    expect(lastRaiseNetEffect(short)).toMatchObject({
+      netPerGrossBp: null,
+      reason: 'too_few_months',
+    });
   });
 });
 
@@ -415,16 +424,17 @@ describe('gaps, unmapped wage types and partial months: scenario B (#1066)', () 
         newCents: 310_000,
         deltaCents: 10_000,
         deltaBp: 333,
+        uncertain: null,
+        retroactiveFrom: null,
       },
     ]);
   });
 
   it('compares year to date only on months comparable in both years', () => {
-    const ytd = yearToDate(series, '2031')!;
-    expect(ytd.months).toEqual(['01', '02']);
-    expect(ytd.current.base).toBe(620_000);
-    expect(ytd.previous.base).toBe(450_000);
-    expect(ytd.change.base).toEqual({ deltaCents: 170_000, deltaBp: 3_778 });
+    // 2031-01/02 have comparable months a year before, but 2030-01 rests on one month at the
+    // series start (edge) and 2030-02 is partial: no like-for-like month is left.
+    expect(series.find((m) => m.month === '2030-01')?.edgeLevel).toBe(true);
+    expect(yearToDate(series, '2031')).toBeNull();
     expect(salaryYears(series).map((y) => [y.year, y.complete, y.excludedMonths.length])).toEqual([
       ['2030', false, 8],
       ['2031', false, 2],
@@ -615,6 +625,7 @@ describe('review blockers of PR #1082', () => {
       rules,
     });
     expect(first.filter((m) => m.partialBase)).toEqual([]);
+    // One month of evidence at the series start: reported, but marked uncertain.
     expect(baseSalarySteps(first)).toEqual([
       {
         effectiveMonth: '2030-01',
@@ -623,13 +634,17 @@ describe('review blockers of PR #1082', () => {
         newCents: 420_000,
         deltaCents: 20_000,
         deltaBp: 500,
+        uncertain: 'edge',
+        retroactiveFrom: null,
       },
     ]);
+    // Anchor rule: the first level supported by at least two months.
+    expect(baseSalaryAnchor(first)).toBe('2030-01');
     expect(
       realDevelopment({
         values: baseSalaryValues(first),
         index: index(['2029-12', '2030-01', '2030-02']),
-        startMonth: '2029-12',
+        startMonth: baseSalaryAnchor(first)!,
       }),
     ).not.toBeNull();
     const afterGap = salaryMonthlySeries({
@@ -642,9 +657,11 @@ describe('review blockers of PR #1082', () => {
       rules,
     });
     expect(afterGap.filter((m) => m.partialBase)).toEqual([]);
-    expect(baseSalarySteps(afterGap).map((x) => [x.effectiveMonth, x.deltaCents])).toEqual([
-      ['2029-12', -20_000],
-      ['2030-01', 20_000],
+    expect(
+      baseSalarySteps(afterGap).map((x) => [x.effectiveMonth, x.deltaCents, x.uncertain]),
+    ).toEqual([
+      ['2029-12', -20_000, 'edge'],
+      ['2030-01', 20_000, 'edge'],
     ]);
     // Two comparable neighbours, one on each side, both higher: partial.
     const middle = salaryMonthlySeries({
@@ -702,46 +719,6 @@ describe('review blockers of PR #1082', () => {
         attributable: { svCents: 14_000, taxCents: 30_000, netCents: 56_000 },
       },
     ]);
-  });
-
-  it('4: back pay counts for its reference month; the payment month shows it separately', () => {
-    const backPay = (referenceMonth: string): Extra => ({
-      code: '105',
-      label: 'Grundgehalt',
-      section: 'earning',
-      cents: 10_000,
-      referenceMonth,
-    });
-    const series = salaryMonthlySeries({
-      payslips: [
-        slip('2029-12', 400_000),
-        slip('2030-01', 400_000),
-        slip('2030-02', 400_000),
-        slip('2030-03', 410_000, [backPay('2030-01'), backPay('2030-02')]),
-        slip('2030-04', 410_000),
-      ],
-      rules,
-    });
-    expect(baseSalarySteps(series)).toEqual([
-      {
-        effectiveMonth: '2030-01',
-        previousMonth: '2029-12',
-        oldCents: 400_000,
-        newCents: 410_000,
-        deltaCents: 10_000,
-        deltaBp: 250,
-      },
-    ]);
-    const march = series.find((m) => m.month === '2030-03')!;
-    expect(march.components.base).toBe(410_000);
-    expect(march.paidComponents.base).toBe(430_000);
-    expect(march.backPay).toEqual([
-      { payslipId: 'p-2030-03', referenceMonth: '2030-01', component: 'base', amountCents: 10_000 },
-      { payslipId: 'p-2030-03', referenceMonth: '2030-02', component: 'base', amountCents: 10_000 },
-    ]);
-    const january = series.find((m) => m.month === '2030-01')!;
-    expect(january.components.base).toBe(410_000);
-    expect(january.paidComponents.base).toBe(400_000);
   });
 
   it('5: a benefit in kind only through the owner mapping, never from a label', () => {
@@ -838,5 +815,235 @@ describe('review blockers of PR #1082', () => {
       startMonth: '2030-01',
     })!;
     expect(result.points[1]!.realIndexMicro).toBeNull();
+  });
+});
+
+describe('money re-review of PR #1082: cash basis, edges, raise effect', () => {
+  const backPay = (referenceMonth: string, cents = 10_000): Extra => ({
+    code: '105',
+    label: 'Grundgehalt',
+    section: 'earning',
+    cents,
+    referenceMonth,
+  });
+  const sumCheck = (slips: SalaryPayslip[], year: string) => {
+    const y = salaryYears(salaryMonthlySeries({ payslips: slips, rules })).find(
+      (r) => r.year === year,
+    )!;
+    const own = slips.filter((p) => p.month.startsWith(year));
+    const reimbursed = own.flatMap((p) => p.lines).filter((l) => l.section === 'reimbursement');
+    return {
+      components:
+        y.components.base +
+        y.components.special +
+        y.components.variable +
+        y.components.benefit_in_kind,
+      gross: own.reduce((n, p) => n + p.grossCents, 0),
+      reimbursement: y.components.reimbursement,
+      reimbursed: reimbursed.reduce((n, l) => n + l.amountCents, 0),
+    };
+  };
+
+  it('blocker: back pay stays in its payment month; no month is added', () => {
+    const slips = monthsBetween('2030-01', '2030-12').map((m) =>
+      m === '2030-01' ? slip(m, 400_000, [backPay('2029-12')]) : slip(m, 400_000),
+    );
+    const series = salaryMonthlySeries({ payslips: slips, rules });
+    expect(series.map((m) => m.month)).toEqual(monthsBetween('2030-01', '2030-12'));
+    expect(series[0]).toMatchObject({
+      components: { base: 410_000 },
+      backPayCents: { base: 10_000 },
+      baseLevelCents: 400_000,
+      backPay: [
+        {
+          payslipId: 'p-2030-01',
+          code: '105',
+          referenceMonth: '2029-12',
+          component: 'base',
+          amountCents: 10_000,
+        },
+      ],
+    });
+    expect(series.every((m) => m.baseLevelCents === 400_000)).toBe(true);
+    expect(baseSalarySteps(series)).toEqual([]);
+    const [year] = salaryYears(series);
+    expect(year).toMatchObject({ year: '2030', complete: true, components: { base: 4_810_000 } });
+    expect(sumCheck(slips, '2030')).toEqual({
+      components: 4_810_000,
+      gross: 4_810_000,
+      reimbursement: 0,
+      reimbursed: 0,
+    });
+  });
+
+  it('blocker: a retroactive raise is one step in its payment month, retroactive from January', () => {
+    const slips = [
+      slip('2030-01', 400_000),
+      slip('2030-02', 400_000),
+      slip('2030-03', 410_000, [backPay('2030-01'), backPay('2030-02')]),
+      slip('2030-04', 410_000),
+    ];
+    const series = salaryMonthlySeries({ payslips: slips, rules });
+    expect(baseSalarySteps(series)).toEqual([
+      {
+        effectiveMonth: '2030-03',
+        previousMonth: '2030-02',
+        oldCents: 400_000,
+        newCents: 410_000,
+        deltaCents: 10_000,
+        deltaBp: 250,
+        uncertain: null,
+        retroactiveFrom: '2030-01',
+      },
+    ]);
+    expect(series.map((m) => [m.month, m.components.base, m.baseLevelCents])).toEqual([
+      ['2030-01', 400_000, 400_000],
+      ['2030-02', 400_000, 400_000],
+      ['2030-03', 430_000, 410_000],
+      ['2030-04', 410_000, 410_000],
+    ]);
+    expect(sumCheck(slips, '2030')).toMatchObject({ components: 1_640_000, gross: 1_640_000 });
+  });
+
+  it('sum check: yearly components equal the gross of the year as paid (scenario A)', () => {
+    const slips = scenarioA();
+    for (const year of ['2029', '2030']) {
+      const c = sumCheck(slips, year);
+      expect(c.components).toBe(c.gross);
+      expect(c.reimbursement).toBe(c.reimbursed);
+    }
+  });
+
+  it('major: steps that rest on one month at an edge or beside a gap are uncertain', () => {
+    const steps = (bases: [string, number][]) =>
+      baseSalarySteps(
+        salaryMonthlySeries({ payslips: bases.map(([m, b]) => slip(m, b)), rules }),
+      ).map((x) => [x.effectiveMonth, x.deltaCents, x.deltaBp, x.uncertain]);
+    expect(
+      steps([
+        ['2030-01', 200_000],
+        ['2030-02', 400_000],
+        ['2030-03', 400_000],
+      ]),
+    ).toEqual([['2030-02', 200_000, 10_000, 'edge']]);
+    expect(
+      steps([
+        ['2030-01', 400_000],
+        ['2030-02', 400_000],
+        ['2030-03', 200_000],
+      ]),
+    ).toEqual([['2030-03', -200_000, -5_000, 'edge']]);
+    expect(
+      steps([
+        ['2030-01', 400_000],
+        ['2030-02', 400_000],
+        ['2030-04', 420_000],
+        ['2030-05', 420_000],
+      ]),
+    ).toEqual([['2030-04', 20_000, 500, null]]);
+    expect(
+      steps([
+        ['2030-01', 400_000],
+        ['2030-02', 400_000],
+        ['2030-04', 300_000],
+        ['2030-06', 420_000],
+        ['2030-07', 420_000],
+      ]),
+    ).toEqual([
+      ['2030-04', -100_000, -2_500, 'edge'],
+      ['2030-06', 120_000, 4_000, 'edge'],
+    ]);
+  });
+
+  it('major: the raise effect needs identical non-base components, else a reason', () => {
+    const before = monthsBetween('2030-01', '2030-03').map((m) => slip(m, 400_000));
+    const same = monthsBetween('2030-04', '2030-06').map((m) => slip(m, 420_000));
+    expect(
+      lastRaiseNetEffect(salaryMonthlySeries({ payslips: [...before, ...same], rules })),
+    ).toEqual({
+      effectiveMonth: '2030-04',
+      beforeMonths: ['2030-01', '2030-02', '2030-03'],
+      afterMonths: ['2030-04', '2030-05', '2030-06'],
+      deltaGrossCents: 60_000,
+      deltaNetCents: 43_200,
+      netPerGrossBp: 7_200,
+      reason: null,
+    });
+    const withBenefit = monthsBetween('2030-04', '2030-06').map((m) =>
+      slip(m, 420_000, [benefit(20_000)]),
+    );
+    expect(
+      lastRaiseNetEffect(salaryMonthlySeries({ payslips: [...before, ...withBenefit], rules })),
+    ).toEqual({
+      effectiveMonth: '2030-04',
+      beforeMonths: [],
+      afterMonths: [],
+      deltaGrossCents: null,
+      deltaNetCents: null,
+      netPerGrossBp: null,
+      reason: 'components_differ',
+    });
+    expect(lastRaiseNetEffect(salaryMonthlySeries({ payslips: before, rules }))).toMatchObject({
+      netPerGrossBp: null,
+      reason: 'no_step',
+    });
+  });
+
+  it('a benefit-in-kind section alone decides nothing; owner rule ties are deterministic', () => {
+    const line: SalaryWageLine = {
+      code: '820',
+      label: 'Sachbezug',
+      section: 'benefit_in_kind',
+      referenceMonth: null,
+      amountCents: 1,
+    };
+    const regular = { kind: 'regular', specialType: null, employerContactId: 'emp' } as const;
+    expect(classifyWageLine(line, regular, [])).toBe('unmapped');
+    const tie: WageComponentRule[] = [
+      {
+        employerContactId: null,
+        wageCode: '820',
+        labelNorm: null,
+        component: 'base',
+        updatedAt: '2030-01-01T00:00:00.000Z',
+      },
+      {
+        employerContactId: null,
+        wageCode: '820',
+        labelNorm: null,
+        component: 'variable',
+        updatedAt: '2030-02-01T00:00:00.000Z',
+      },
+    ];
+    expect(classifyWageLine(line, regular, tie)).toBe('variable');
+    expect(classifyWageLine(line, regular, [...tie].reverse())).toBe('variable');
+    // Employer + code beats code beats label.
+    const specific: WageComponentRule[] = [
+      { employerContactId: null, wageCode: null, labelNorm: 'sachbezug', component: 'special' },
+      { employerContactId: null, wageCode: '820', labelNorm: null, component: 'variable' },
+      { employerContactId: 'emp', wageCode: '820', labelNorm: null, component: 'benefit_in_kind' },
+    ];
+    expect(classifyWageLine(line, regular, specific)).toBe('benefit_in_kind');
+    expect(classifyWageLine(line, regular, specific.slice(0, 2))).toBe('variable');
+  });
+
+  it('year to date leaves out partial and edge-uncertain months', () => {
+    const slips = [
+      slip('2029-12', 300_000),
+      slip('2030-01', 300_000),
+      slip('2030-02', 150_000), // partial
+      slip('2030-03', 300_000),
+      slip('2031-01', 310_000),
+      slip('2031-02', 310_000),
+      slip('2031-03', 310_000),
+    ];
+    const series = salaryMonthlySeries({ payslips: slips, rules });
+    // February 2030 is partial; March 2030 rests on one month beside a gap (edge).
+    expect(yearToDate(series, '2031')).toMatchObject({ months: ['01'] });
+    // Without December 2029, January 2030 rests on one month at the series start: excluded too.
+    const edge = salaryMonthlySeries({ payslips: slips.slice(1), rules });
+    expect(series.find((m) => m.month === '2030-01')?.edgeLevel).toBe(false);
+    expect(edge.find((m) => m.month === '2030-01')?.edgeLevel).toBe(true);
+    expect(yearToDate(edge, '2031')).toBeNull();
   });
 });

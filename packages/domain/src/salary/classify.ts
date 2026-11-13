@@ -13,8 +13,10 @@ import {
  *
  * Order: the most specific owner mapping first (employer before every employer, code and label
  * before code before label). Only a line without a mapping falls back to the explicit evidence:
- * the reimbursement section, a payslip explicitly marked as 13th/14th salary, or the
- * benefit-in-kind section (never derived from a label). Document types and labels decide nothing.
+ * the reimbursement section or a payslip explicitly marked as 13th/14th salary. A benefit in kind
+ * comes only from an owner mapping (no parser emits a structural benefit-in-kind section today;
+ * a line in that section without a mapping is unmapped). Document types and labels decide nothing.
+ * Equally specific mappings: the most recently updated wins, then the first given.
  */
 export type LineComponent = SalaryComponent | 'unmapped' | 'none';
 
@@ -37,7 +39,6 @@ export function classifyWageLine(
     (slip.specialType === 'salary13' || slip.specialType === 'salary14')
   )
     return 'special';
-  if (line.section === 'benefit_in_kind') return 'benefit_in_kind';
   return 'unmapped';
 }
 function ownerRule(
@@ -57,7 +58,10 @@ function ownerRule(
       (rule.employerContactId !== null ? 4 : 0) +
       (rule.wageCode !== null ? 2 : 0) +
       (rule.labelNorm !== null ? 1 : 0);
-    if (score > bestScore) {
+    if (
+      score > bestScore ||
+      (score === bestScore && (rule.updatedAt ?? '') > (best?.updatedAt ?? ''))
+    ) {
       best = rule;
       bestScore = score;
     }

@@ -118,9 +118,12 @@ export function realDevelopment(input: {
   return { startMonth: input.startMonth, points, years };
 }
 
-/** Base salary per reliable month: the lead figure for the real comparison. */
+/**
+ * Base salary level (without back pay) per reliable month: the lead figure for the real
+ * comparison. Anchor it at `baseSalaryAnchor`: the first level supported by at least two months.
+ */
 export const baseSalaryValues = (series: readonly SalaryMonth[]): MonthValue[] =>
-  baseLevelMonths(series).map((m) => ({ month: m.month, cents: m.components.base }));
+  baseLevelMonths(series).map((m) => ({ month: m.month, cents: m.baseLevelCents }));
 /** Development total (base + special + variable) per comparable month. */
 export const developmentValues = (series: readonly SalaryMonth[]): MonthValue[] =>
   series.filter((m) => m.comparable).map((m) => ({ month: m.month, cents: m.developmentCents }));

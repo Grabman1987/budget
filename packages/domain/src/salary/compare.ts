@@ -81,25 +81,31 @@ export function salaryYears(series: readonly SalaryMonth[]): SalaryYear[] {
 
 export interface YearToDate {
   year: string;
-  /** Calendar months (MM) compared: comparable in both years, up to the last one of `year`. */
+  /** Calendar months (MM) compared: like for like in both years. */
   months: string[];
   current: ComponentCents;
   previous: ComponentCents;
   change: ComponentDeltas;
 }
+/** Comparable, not a partial month and not resting on a single edge month. */
+const likeForLike = (m: SalaryMonth) => m.comparable && !m.partialBase && !m.edgeLevel;
 /**
  * Year to date like for like: the same calendar months of `year` and the year before, restricted
- * to months that are comparable in both. Null when no such month exists.
+ * to months that are like for like in both (comparable, not partial, not an edge level). Null when
+ * no such month exists. Amounts are as paid (cash basis).
  */
 export function yearToDate(series: readonly SalaryMonth[], year: string): YearToDate | null {
   const prior = String(Number(year) - 1);
   const byMonth = new Map(series.map((m) => [m.month, m]));
-  const current = series.filter((m) => yearOf(m.month) === year && m.comparable);
+  const current = series.filter((m) => yearOf(m.month) === year && likeForLike(m));
   const last = current.at(-1)?.month.slice(5);
   if (!last) return null;
   const pairs = current
     .map((m) => [m, byMonth.get(`${prior}-${m.month.slice(5)}`)] as const)
-    .filter((p): p is readonly [SalaryMonth, SalaryMonth] => p[1]?.comparable === true);
+    .filter(
+      (p): p is readonly [SalaryMonth, SalaryMonth] =>
+        p[1] !== undefined && likeForLike(p[0]) && likeForLike(p[1]),
+    );
   if (!pairs.length) return null;
   const now = sumMonths(pairs.map((p) => p[0])),
     before = sumMonths(pairs.map((p) => p[1]));
@@ -237,37 +243,62 @@ export function deductionRateByYear(payslips: readonly SalaryPayslip[]): Deducti
   });
 }
 
+export type RaiseNetReason = 'no_step' | 'too_few_months' | 'components_differ' | 'no_increase';
 export interface RaiseNetEffect {
-  effectiveMonth: string;
+  /** The last certain base step; null without one. */
+  effectiveMonth: string | null;
   beforeMonths: string[];
   afterMonths: string[];
-  /** Sums over the three months after minus the three months before. */
-  deltaGrossCents: number;
-  deltaNetCents: number;
+  /** Base level over the three months after minus the three months before. */
+  deltaGrossCents: number | null;
+  /** Net salary (without reimbursements) over the same months, after minus before. */
+  deltaNetCents: number | null;
   /** Additional net per additional gross unit, in basis points (5 500 = 0,55 € per €). */
-  netPerGrossBp: number;
+  netPerGrossBp: number | null;
+  /** Why no figure could be derived; null when it could. */
+  reason: RaiseNetReason | null;
 }
 /**
- * Net per additional gross unit of the last base step: three like-for-like months before and after
- * it (comparable, no special or variable pay, no partial base, base at the old/new level). Null
- * when there is no step, too few such months, or the gross did not rise.
+ * Net per additional gross unit of the last certain base step (never an `edge` step). Uses the
+ * three level months before and after it without special pay, variable pay or back pay, and only
+ * when their benefits in kind and reimbursements are identical: then the gross difference is the
+ * base difference and the net difference belongs to it. Otherwise no figure, with a reason.
  */
-export function lastRaiseNetEffect(series: readonly SalaryMonth[]): RaiseNetEffect | null {
-  const step = baseSalarySteps(series).at(-1);
-  if (!step) return null;
-  const plain = baseLevelMonths(series).filter((m) => !m.hasSpecial && !m.hasVariable);
+export function lastRaiseNetEffect(series: readonly SalaryMonth[]): RaiseNetEffect {
+  const step = baseSalarySteps(series)
+    .filter((s) => s.uncertain === null)
+    .at(-1);
+  const none = (reason: RaiseNetReason): RaiseNetEffect => ({
+    effectiveMonth: step?.effectiveMonth ?? null,
+    beforeMonths: [],
+    afterMonths: [],
+    deltaGrossCents: null,
+    deltaNetCents: null,
+    netPerGrossBp: null,
+    reason,
+  });
+  if (!step) return none('no_step');
+  const plain = baseLevelMonths(series).filter(
+    (m) => !m.hasSpecial && !m.hasVariable && !m.hasBackPay,
+  );
   const before = plain
-    .filter((m) => m.month < step.effectiveMonth && m.components.base === step.oldCents)
+    .filter((m) => m.month < step.effectiveMonth && m.baseLevelCents === step.oldCents)
     .slice(-3);
   const after = plain
-    .filter((m) => m.month >= step.effectiveMonth && m.components.base === step.newCents)
+    .filter((m) => m.month >= step.effectiveMonth && m.baseLevelCents === step.newCents)
     .slice(0, 3);
-  if (before.length < 3 || after.length < 3) return null;
+  if (before.length < 3 || after.length < 3) return none('too_few_months');
+  const months = [...before, ...after];
+  const same = (read: (m: SalaryMonth) => number) =>
+    months.every((m) => read(m) === read(months[0]!));
+  if (!same((m) => m.components.benefit_in_kind) || !same((m) => m.components.reimbursement))
+    return none('components_differ');
   const sum = (ms: SalaryMonth[], read: (m: SalaryMonth) => number) =>
     ms.reduce((n, m) => n + read(m), 0);
-  const deltaGrossCents = sum(after, (m) => m.grossCents) - sum(before, (m) => m.grossCents);
+  const deltaGrossCents =
+    sum(after, (m) => m.baseLevelCents) - sum(before, (m) => m.baseLevelCents);
   const deltaNetCents = sum(after, (m) => m.salaryNetCents) - sum(before, (m) => m.salaryNetCents);
-  if (deltaGrossCents <= 0) return null;
+  if (deltaGrossCents <= 0) return none('no_increase');
   return {
     effectiveMonth: step.effectiveMonth,
     beforeMonths: before.map((m) => m.month),
@@ -275,5 +306,6 @@ export function lastRaiseNetEffect(series: readonly SalaryMonth[]): RaiseNetEffe
     deltaGrossCents,
     deltaNetCents,
     netPerGrossBp: ratioBp(deltaNetCents, deltaGrossCents)!,
+    reason: null,
   };
 }

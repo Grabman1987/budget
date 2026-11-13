@@ -53,6 +53,8 @@ export interface WageComponentRule {
   wageCode: string | null;
   labelNorm: string | null;
   component: SalaryComponent;
+  /** Tie-break between equally specific rules: the newest wins. */
+  updatedAt?: string | null;
 }
 
 /** Normalised wage label for owner mappings: NFKC, lowercase, no leading `*`, single blanks. */
