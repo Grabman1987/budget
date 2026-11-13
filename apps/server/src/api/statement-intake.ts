@@ -21,6 +21,7 @@ import {
 } from '@budget/db';
 import { digest, RECEIPT_LIMIT, sanitizedFilename, storeReceipt } from '../receipts/files';
 import { extractStatement, readStatementSource } from '../statements/service';
+import { rememberedPayslipPassword } from '../payslips/password';
 import { ACTOR, ApiError, readBody, readQuery } from './http';
 import {
   automateRetainedStatement,
@@ -35,6 +36,27 @@ const cas = z
   })
   .strict();
 const password = z.string().max(1024).optional();
+/**
+ * Same resolution order as payslip intake and classification: the typed password, then the
+ * remembered app password, then the server secret. The password that opened the file is returned
+ * so follow-up steps (automation) reuse it; it is never logged or sent back.
+ */
+async function extractWithKnownPasswords(db: Db, bytes: Buffer, typed?: string) {
+  let proposal = await extractStatement(bytes, typed || undefined),
+    opened = typed || undefined;
+  if (proposal.extraction !== 'password_required') return { proposal, password: opened };
+  const fallbacks = [rememberedPayslipPassword(db), process.env['PAYSLIP_PDF_PASSWORD']].filter(
+    (p, i, all): p is string => Boolean(p) && p !== typed && all.indexOf(p) === i,
+  );
+  for (const candidate of fallbacks) {
+    const next = await extractStatement(bytes, candidate);
+    if (next.extraction === 'password_required') continue;
+    proposal = next;
+    opened = candidate;
+    break;
+  }
+  return { proposal, password: opened };
+}
 export function statementIntakeRoutes(db: Db, dir: string) {
   const api = new Hono();
   const available = async (id: string) => {
@@ -204,7 +226,7 @@ export function statementIntakeRoutes(db: Db, dir: string) {
         201,
       );
     }
-    const proposal = await extractStatement(bytes, pw);
+    const { proposal, password: effective } = await extractWithKnownPasswords(db, bytes, pw);
     await storeReceipt(dir, bytes);
     const staged = stageStatementIntake(
       db,
@@ -229,7 +251,7 @@ export function statementIntakeRoutes(db: Db, dir: string) {
             sha256: staged.intake.sha256,
             accountId: staged.intake.accountId,
           },
-          pw,
+          effective,
         );
     return c.json(
       {
@@ -255,7 +277,7 @@ export function statementIntakeRoutes(db: Db, dir: string) {
     } catch {
       throw new ApiError(409, 'conflict', 'Abrechnungsquelle fehlt oder ist beschädigt.');
     }
-    const proposal = await extractStatement(bytes, body.password);
+    const { proposal } = await extractWithKnownPasswords(db, bytes, body.password);
     // Repository rechecks the tuple in its write transaction after the asynchronous worker.
     return c.json(mutateStatementIntake(db, id, body, 'reparse', { proposal }, { actor: ACTOR }));
   });

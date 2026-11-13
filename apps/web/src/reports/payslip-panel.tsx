@@ -14,6 +14,7 @@ import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { eur } from '../ledger/format';
 import type { PayrollData } from './payroll-projects-api';
+import { DocumentOutcome, payslipOutcomeLines } from '../document-intake/document-outcome';
 import {
   PayslipIntakeDetail,
   PayslipUpload,
@@ -438,6 +439,13 @@ export function PayslipUploadDialog({
             )}
             {uploaded.passwordRemember === 'not_opened' && (
               <p role="status">Passwort nicht gemerkt: Es hat dieses PDF nicht geöffnet.</p>
+            )}
+            {handoff?.typeLabel && (
+              <DocumentOutcome
+                typeLabel={handoff.typeLabel}
+                lines={payslipOutcomeLines(uploaded)}
+                onNavigate={onClose}
+              />
             )}
             <PayslipIntakeDetail id={uploaded.id} inline duplicate={uploaded.duplicate} />
           </>

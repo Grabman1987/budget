@@ -123,6 +123,8 @@ export type PayslipHandoff = {
   file: File;
   password?: string | undefined;
   remember?: boolean | undefined;
+  /** Detected type shown in the closing summary (central upload only). */
+  typeLabel?: string | undefined;
 };
 export function PayslipUpload({
   onBusyChange,

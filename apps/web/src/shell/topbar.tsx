@@ -6,6 +6,7 @@ import { useInboxCount } from './inbox';
 import { PrivacyButton } from './privacy-button';
 import { useLocation } from '@tanstack/react-router';
 import { REDESIGN_ENABLED } from './redesign-flag';
+import { DocumentUploadButton } from '../document-intake/document-upload';
 
 /**
  * Desktop top bar. The bar spans the window, its content (`.topbar-inner`) is as wide as the page
@@ -43,6 +44,7 @@ export function Topbar({
         <GlobalSearch compact={settings} onOpenChange={onSearchChange} />
         <div className="topbar-actions">
           <PrivacyButton />
+          {REDESIGN_ENABLED && <DocumentUploadButton compact label="Neues Dokument hochladen" />}
           <InboxHeaderLink className="review-pill" aria-label={inbox.label}>
             Prüfen{inbox.count !== undefined && inbox.count > 0 ? ` · ${inbox.count}` : ''}
           </InboxHeaderLink>
