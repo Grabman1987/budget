@@ -84,13 +84,21 @@ const pages = [
   ['/einstellungen/profil', 'einstellungen'],
 ] as const;
 
-it.each(
-  pages.flatMap(([path, area]) => [[path, area, false] as const, [path, area, true] as const]),
-)(
-  'redesign ON renders exactly one global upload action on %s (%s, phone: %s)',
-  async (path, area, phone) => {
-    await mount(path, area, phone);
-    expect(screen.getAllByRole('button', { name: NAME })).toHaveLength(1);
+it.each(pages)(
+  'redesign ON desktop: exactly one upload action, in the header, on %s (%s)',
+  async (path, area) => {
+    await mount(path, area, false);
+    const found = screen.getAllByRole('button', { name: NAME });
+    expect(found).toHaveLength(1);
+    expect(found[0]!.closest('header.topbar')).not.toBeNull();
+  },
+);
+
+it.each(pages)(
+  'redesign ON phone: the header carries no upload action on %s (%s)',
+  async (path, area) => {
+    await mount(path, area, true);
+    expect(screen.queryByRole('button', { name: NAME })).toBeNull();
   },
 );
 

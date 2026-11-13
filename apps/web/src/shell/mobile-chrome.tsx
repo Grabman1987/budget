@@ -1,7 +1,6 @@
 import { Plus } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useLocation } from '@tanstack/react-router';
-import { useIsPhone } from '@budget/ui';
 import { MAIN_AREAS, areaById, type AreaId } from '../nav/areas';
 import type { PageMeta } from '../nav/pages';
 import { AppLink } from './app-link';
@@ -15,7 +14,6 @@ import { useFabVisible } from './use-fab-visible';
 import { REDESIGN_ENABLED } from './redesign-flag';
 import { InboxHeaderLink } from '../inbox/navigation';
 import { useInboxCount } from './inbox';
-import { DocumentUploadButton } from '../document-intake/document-upload';
 
 /**
  * What the phone header shows, as in the prototype: the area name (the month switch and the strip
@@ -47,7 +45,6 @@ export function MobileHeader({
   asHeading: boolean;
   onSearchChange?: (open: boolean) => void;
 }) {
-  const phone = useIsPhone();
   const inbox = useInboxCount();
   const { pathname, search } = useLocation();
   const displayedTitle =
@@ -69,9 +66,6 @@ export function MobileHeader({
           )}
         </div>
         <GlobalSearch mobile onOpenChange={onSearchChange} />
-        {REDESIGN_ENABLED && phone && (
-          <DocumentUploadButton compact label="Neues Dokument hochladen" />
-        )}
         {compactHeute && (
           <InboxHeaderLink className="m-review" aria-label={inbox.label}>
             <span aria-hidden="true">{inbox.count ?? '…'}</span>

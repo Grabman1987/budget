@@ -103,7 +103,7 @@ export function PageHeader({
   const DetailTitle = mobileHeading ? 'h1' : 'p';
   return (
     <header className={`page-header ${phone ? 'm-head' : 'topbar'}`}>
-      <div className="page-header-row" data-profile={phone && showProfile ? 'true' : 'false'}>
+      <div className="page-header-row">
         {!phone && (
           <button
             type="button"
@@ -123,9 +123,13 @@ export function PageHeader({
         <div className="page-header-search">
           <GlobalSearch mobile={phone} compactLabel onOpenChange={onSearchChange} />
         </div>
+        {!phone && (
+          <div className="page-header-upload">
+            <DocumentUploadButton compact label="Neues Dokument hochladen" />
+          </div>
+        )}
         <div className="page-header-actions topbar-actions">
           <PrivacyButton />
-          <DocumentUploadButton compact label="Neues Dokument hochladen" />
           <InboxHeaderLink className="review-pill" aria-label={inbox.label}>
             {!phone && <span className="page-header-review-label">Prüfen</span>}
             {inbox.count !== undefined && inbox.count > 0 && (
@@ -156,9 +160,9 @@ export function PageHeader({
             <span>Buchung</span>
           </PanelLink>
         </div>
-        {phone && showProfile && (
+        {phone && (
           <div className="page-header-profile">
-            <MobileProfile privacy={false} />
+            {showProfile && <MobileProfile privacy={false} />}
           </div>
         )}
       </div>

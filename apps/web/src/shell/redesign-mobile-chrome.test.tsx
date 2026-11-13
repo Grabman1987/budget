@@ -166,15 +166,3 @@ it('OFF retains its existing avatar entry on other pages and its original settin
     '/einstellungen',
   );
 });
-
-it('ON offers the global document upload in the phone header, OFF does not', async () => {
-  mount('/plan/monat');
-  const header = await screen.findByRole('banner');
-  const upload = within(header).getByRole('button', { name: 'Neues Dokument hochladen' });
-  expect(upload.className).toContain('icon-btn');
-  cleanup();
-  flag.enabled = false;
-  mount('/plan/monat');
-  const off = await screen.findByRole('banner');
-  expect(within(off).queryByRole('button', { name: 'Neues Dokument hochladen' })).toBeNull();
-});
