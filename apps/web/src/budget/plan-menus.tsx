@@ -324,12 +324,6 @@ export function VerteilenMenu({
       dock={dock}
       title={distributeBlock ?? undefined}
     >
-      {REDESIGN_ENABLED && onGuided && (
-        <>
-          <MenuAction onSelect={onGuided}>Schritt für Schritt verteilen</MenuAction>
-          <hr className="plan-menu-sep" />
-        </>
-      )}
       <MenuAction
         disabled={quick.busy || multi || !emptyIds.length}
         reason={
@@ -359,6 +353,10 @@ export function VerteilenMenu({
       >
         Wasserfall-Assistent
       </MenuAction>
+      {/* #1055: the guided routine sits next to the waterfall assistant it walks through. */}
+      {REDESIGN_ENABLED && onGuided && (
+        <MenuAction onSelect={onGuided}>Schritt für Schritt verteilen</MenuAction>
+      )}
       {cover && (
         <>
           <hr className="plan-menu-sep" />
