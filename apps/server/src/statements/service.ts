@@ -51,15 +51,6 @@ export function statementPasswordCandidates(db: Db, typed?: string): (string | u
   );
   return list.length ? list : [undefined];
 }
-/** Text extraction trying each candidate until one does not report a password error. */
-export async function extractStatementTextWith(bytes: Buffer, candidates: (string | undefined)[]) {
-  let result: { text?: string; error?: string } = { error: 'pdf' };
-  for (const candidate of candidates) {
-    result = await extractStatementText(bytes, candidate);
-    if (result.text !== undefined || result.error !== 'password') break;
-  }
-  return result;
-}
 /** Extraction with the request-local password only (callers add the fallbacks). */
 export async function extractStatement(
   bytes: Buffer,
