@@ -1,4 +1,11 @@
-import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
+import { useSyncExternalStore } from 'react';
+import {
+  infiniteQueryOptions,
+  queryOptions,
+  useQueryClient,
+  type InfiniteData,
+  type QueryClient,
+} from '@tanstack/react-query';
 import { request } from '../api/http';
 import type { InboxPeriod, InboxSegment, InboxTaskSource } from '@budget/domain';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -162,5 +169,50 @@ export const inboxCountQuery = () =>
     queryFn: () => request<{ asOf: string; count: number }>('GET', '/api/inbox/count'),
     refetchInterval: 60_000,
   });
+const isGlobalPagesKey = (key: readonly unknown[]) =>
+  key[0] === INBOX_KEY[0] &&
+  key[1] === INBOX_KEY[1] &&
+  key[2] === 'pages' &&
+  key[5] === null && // no bank source scope
+  !key.includes('bank-account');
+
+/**
+ * One data state for the header and the Prüfen parts: whenever the unscoped queue (page 0 carries
+ * the segment totals) has loaded, its total is written into the count query, so the two can
+ * never contradict each other. Registered once per client.
+ */
+const synced = new WeakSet<QueryClient>();
+export function syncInboxCount(client: QueryClient): void {
+  if (synced.has(client)) return;
+  synced.add(client);
+  client.getQueryCache().subscribe((event) => {
+    if (event.type !== 'updated' || event.action.type !== 'success') return;
+    const { queryKey, state } = event.query;
+    if (!isGlobalPagesKey(queryKey)) return;
+    const first = (state.data as InfiniteData<InboxPage> | undefined)?.pages[0];
+    if (!first?.segments) return;
+    client.setQueryData(inboxCountQuery().queryKey, {
+      asOf: first.asOf,
+      count: first.segments.umsaetze + first.segments.aufgaben,
+    });
+  });
+}
+
+/**
+ * True while an invalidated inbox query (count or queue) is being refetched after a write: the
+ * numbers on screen belong to the previous data state and must not be shown as final.
+ * Routine polling does not set this.
+ */
+export function useInboxRefreshing(): boolean {
+  const client = useQueryClient();
+  return useSyncExternalStore(
+    (notify) => client.getQueryCache().subscribe(notify),
+    () =>
+      client
+        .getQueryCache()
+        .findAll({ queryKey: INBOX_KEY, fetchStatus: 'fetching' })
+        .some((query) => query.state.isInvalidated),
+  );
+}
 export const resolveInbox = (id: string) =>
   request<{ groupId: string }>('POST', `/api/inbox/${encodeURIComponent(id)}/resolve`, {});

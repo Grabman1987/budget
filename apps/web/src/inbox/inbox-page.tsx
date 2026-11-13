@@ -57,6 +57,7 @@ import {
   INBOX_PAGE_SIZE,
   resolveInbox,
   readSourceMovementsQuery,
+  useInboxRefreshing,
   type InboxEntry,
   type InboxEnvelope,
   type InboxKind,
@@ -591,6 +592,8 @@ function PaginatedInboxBodyContent({
       loadingNextPage.current = false;
     }
   };
+  // Numbers from before a write stay visible but are marked as not final until the queue is re-read.
+  const refreshing = useInboxRefreshing();
   const pages = queue.data?.pages ?? [];
   const entries = pages.flatMap((page) => page.entries);
   const firstPage = pages[0];
@@ -687,18 +690,18 @@ function PaginatedInboxBodyContent({
       {segmentCounts && (
         <InboxHeaderItem slot="inbox-segments">
           <Segmented<InboxSegment>
-            className="inbox-segments"
+            className={`inbox-segments${refreshing ? ' inbox-counts-stale' : ''}`}
             label="Teil von Prüfen"
             stretch
             value={segmentCounts.shown}
             options={[
               {
                 value: 'umsaetze',
-                label: `Umsätze${REDESIGN_ENABLED ? '' : ' ·'} ${segmentCounts.counts.umsaetze}`,
+                label: `Umsätze${REDESIGN_ENABLED ? '' : ' ·'} ${segmentCounts.counts.umsaetze}${refreshing ? ' …' : ''}`,
               },
               {
                 value: 'aufgaben',
-                label: `Aufgaben${REDESIGN_ENABLED ? '' : ' ·'} ${segmentCounts.counts.aufgaben}`,
+                label: `Aufgaben${REDESIGN_ENABLED ? '' : ' ·'} ${segmentCounts.counts.aufgaben}${refreshing ? ' …' : ''}`,
               },
             ]}
             onChange={(teil) =>
@@ -717,6 +720,7 @@ function PaginatedInboxBodyContent({
           />
         </InboxHeaderItem>
       )}
+      {segmentCounts && <InboxCountRule refreshing={refreshing} />}
       {REDESIGN_ENABLED ? (
         <>
           {!isPhone && <InboxHeaderItem slot="inbox-sort">{sortControl}</InboxHeaderItem>}
@@ -754,6 +758,7 @@ function PaginatedInboxBodyContent({
               )}
               <h2 className={REDESIGN_ENABLED ? 'sr-only' : undefined}>
                 Offene Aufgaben · {segmentCounts.counts.aufgaben}
+                {refreshing ? ' (wird aktualisiert …)' : ''}
               </h2>
               <p className={REDESIGN_ENABLED ? 'sr-only' : undefined}>
                 Der Zeitraum gilt für Plan, Gehaltszettel und Weitere Aufgaben. Kontoprüfungen und
@@ -786,6 +791,7 @@ function PaginatedInboxBodyContent({
           count={firstPage?.count}
           bankProgress={firstPage?.bankProgress}
           segmentCounts={segmentCounts}
+          countsRefreshing={refreshing}
           readSourceSummaries={
             segmentCounts?.shown === 'umsaetze' || firstPage?.taskSources
               ? undefined
@@ -815,6 +821,28 @@ function PaginatedInboxBodyContent({
   );
 }
 
+/**
+ * What the Prüfen number contains. Crypto movements are listed separately (Aufgaben, "Bewegungen in
+ * Datenquellen", from the same queue response) and are not part of it.
+ */
+function InboxCountRule({ refreshing }: { refreshing: boolean }) {
+  return (
+    <div className="inbox-count-rule">
+      <p role="status" className="inbox-counts-status">
+        {refreshing ? 'Zahlen werden aktualisiert …' : ''}
+      </p>
+      <details>
+        <summary>Was zählt bei Prüfen?</summary>
+        <p>
+          Die Zahl bei „Prüfen“ ist die Summe aus Umsätzen und Aufgaben. Kryptobewegungen zur
+          Prüfung werden getrennt unter Aufgaben, bei den Datenquellen, mit eigener Anzahl
+          aufgeführt und sind in dieser Zahl nicht enthalten.
+        </p>
+      </details>
+    </div>
+  );
+}
+
 /** Overspent categories are no Prüfen work, even if an old or mocked response still carries them. */
 type TaskEntry = Exclude<InboxEntry, InboxEnvelope>;
 
@@ -826,6 +854,7 @@ function InboxBodyContent({
   countsByKind,
   countsByCause,
   segmentCounts,
+  countsRefreshing = false,
   detailView = false,
   groupByTitle = false,
   accountScoped = false,
@@ -852,6 +881,8 @@ function InboxBodyContent({
   countsByCause?: Record<string, number> | undefined;
   /** Konten › Prüfen: open work per part and the part shown. */
   segmentCounts?: { shown: InboxSegment; counts: Record<InboxSegment, number> } | undefined;
+  /** The numbers shown belong to the state before a write; they are marked as not final. */
+  countsRefreshing?: boolean;
   detailView?: boolean;
   groupByTitle?: boolean;
   accountScoped?: boolean;
@@ -950,15 +981,16 @@ function InboxBodyContent({
               ? 'Bewegungen zu prüfen'
               : 'Offene Entscheidungen'
         }
-        aside={
-          REDESIGN_ENABLED && search.bankRecap && count !== undefined
-            ? `${count} offen`
-            : segmentCounts
-              ? `${segmentCounts.counts[segmentCounts.shown]} offen`
-              : count !== undefined
-                ? `${count} offen`
-                : undefined
-        }
+        aside={(() => {
+          const open =
+            REDESIGN_ENABLED && search.bankRecap && count !== undefined
+              ? count
+              : segmentCounts
+                ? segmentCounts.counts[segmentCounts.shown]
+                : count;
+          if (open === undefined) return undefined;
+          return countsRefreshing ? `${open} offen · wird aktualisiert …` : `${open} offen`;
+        })()}
       />
       {!REDESIGN_ENABLED && reviewProgress}
       {pending && <LoadingNote what="Aufgaben" />}
