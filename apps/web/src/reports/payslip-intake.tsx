@@ -352,6 +352,7 @@ const SECTION_GROUPS: { sections: string[]; heading: string }[] = [
   { sections: ['tax_adjustment', 'sv_adjustment'], heading: 'Korrekturen' },
 ];
 /** Parsed lines grouped by section: label left, amount right in tabular figures. */
+const KNOWN_SECTIONS = SECTION_GROUPS.flatMap((g) => g.sections);
 function PayslipLines({
   lines,
 }: {
@@ -359,7 +360,14 @@ function PayslipLines({
 }) {
   return (
     <>
-      {SECTION_GROUPS.map(({ sections, heading }) => {
+      {[
+        ...SECTION_GROUPS,
+        // Any section this view does not know is still shown, never dropped.
+        {
+          sections: lines.filter((l) => !KNOWN_SECTIONS.includes(l.section)).map((l) => l.section),
+          heading: 'Weitere Zeilen',
+        },
+      ].map(({ sections, heading }) => {
         const rows = lines.filter((l) => sections.includes(l.section));
         if (!rows.length) return null;
         return (
@@ -786,13 +794,9 @@ export function PayslipIntakeDetail({
     </>
   );
   const confirmSentence = selectedMatch
-    ? splitPreview?.status === 'locked'
-      ? 'Diese Auszahlung ist geprüft. Sie wird nur verknüpft; ihre Aufteilung bleibt erhalten.'
-      : splitPreview?.status === 'unavailable'
-        ? 'Die Auszahlung wird nur verknüpft; bestehende Korrekturen und Zuordnungen bleiben erhalten.'
-        : splitAccepted
-          ? 'Die nachgewiesene ursprüngliche Auszahlung wird aufgeteilt und verknüpft.'
-          : 'Die vorhandene Buchung wird verknüpft. Ihre Zuordnung bleibt erhalten.'
+    ? splitAccepted
+      ? 'Die nachgewiesene ursprüngliche Auszahlung wird aufgeteilt und verknüpft.'
+      : 'Die vorhandene Buchung wird verknüpft. Ihre Zuordnung bleibt erhalten.'
     : payoutAccount?.type === 'cash'
       ? 'Die neue Bargeldauszahlung wird sofort bestätigt.'
       : 'Die neue Auszahlung wird vorgemerkt. Gehalt und steuerfreie Erstattungen werden getrennt zugeordnet.';
@@ -842,7 +846,25 @@ export function PayslipIntakeDetail({
               </dd>
             </div>
           </dl>
-          {pending && <p className="panel-sub">{confirmSentence}</p>}
+          {!data.matches.length && (
+            <p>
+              Keine Gehaltsbuchung im Zeitfenster gefunden. Nach der Bestätigung wird die Auszahlung
+              auf dem gewählten Konto gebucht.
+            </p>
+          )}
+          {splitPreview?.status === 'locked' && (
+            <p className="panel-sub">
+              Diese Auszahlung ist geprüft. Sie wird nur verknüpft; ihre Aufteilung bleibt erhalten.
+            </p>
+          )}
+          {splitPreview?.status === 'unavailable' && (
+            <p className="panel-sub">
+              Eine unveränderte ursprüngliche Zuordnung ist nicht vollständig nachgewiesen. Die
+              Auszahlung wird nur verknüpft; bestehende Korrekturen und Zuordnungen bleiben
+              erhalten.
+            </p>
+          )}
+          <p>{confirmSentence}</p>
         </section>
       )}
       {data && (

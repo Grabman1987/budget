@@ -23,8 +23,17 @@ dialog.overlay.modal.is-wide:has(.payslip-review-layout) {
 .payslip-review-dialog {
   width: 100%;
 }
+/* The review owns its body padding, so the sticky bar needs no knowledge of the dialog's own:
+   --payslip-pad is the one value for the side padding and the bar's bleed. */
+dialog.overlay .panel-body:has(.payslip-review-layout) {
+  padding: 20px 0 0;
+  /* A focused field is never hidden behind the sticky bar. */
+  scroll-padding-bottom: 96px;
+}
 .payslip-review-layout {
+  --payslip-pad: 24px;
   min-width: 0;
+  padding-inline: var(--payslip-pad);
 }
 .payslip-document-review {
   display: grid;
@@ -180,16 +189,15 @@ dialog.overlay.modal.is-wide:has(.payslip-review-layout) {
 /* Sticky bar over the full dialog width (the body pads 24 px sideways and 32 px at the bottom). */
 .payslip-review-actions {
   position: sticky;
-  /* The sticky edge is the scrollport minus its 32 px bottom padding; reach the real edge. */
-  bottom: -32px;
+  bottom: 0;
   z-index: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px 16px;
-  margin: 16px -24px -32px;
-  padding: 12px 24px;
+  margin: 16px calc(-1 * var(--payslip-pad)) 0;
+  padding: 12px var(--payslip-pad);
   border-top: 1px solid var(--rule-strong);
   background: var(--ground);
   overflow-wrap: normal;
@@ -206,7 +214,7 @@ dialog.overlay.modal.is-wide:has(.payslip-review-layout) {
   white-space: nowrap;
   overflow-wrap: normal;
 }
-@media (max-width: 600px) {
+@media (max-width: 767px) {
   .payslip-review-summary dl {
     grid-template-columns: minmax(0, 1fr);
   }

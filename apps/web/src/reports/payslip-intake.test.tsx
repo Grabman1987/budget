@@ -560,3 +560,107 @@ it('lays the review out as grouped lines, one summary block and one action bar',
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
 });
+
+const intakeWith = (over: Record<string, unknown>, lines: unknown[] = []) => ({
+  id: 'intake',
+  receiptId: 'receipt',
+  status: 'pending',
+  matches: [],
+  payoutAccountId: 'a',
+  proposedPayoutDate: '2026-09-30',
+  proposedPayeeId: null,
+  selectedExpectedOccurrenceId: null,
+  expectedPayouts: [],
+  payees: [],
+  accounts: [account('a', 'Giro A')],
+  parsed: {
+    documentType: 'payslip',
+    periodSource: 'content',
+    differenceCents: 0,
+    warnings: [],
+    draft: {
+      month: '2026-09',
+      kind: 'regular',
+      grossCents: 400000,
+      svCents: 70000,
+      taxCents: 50000,
+      netCents: 280000,
+      lines,
+    },
+  },
+  ...over,
+});
+const renderIntake = (body: unknown) => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) =>
+      String(url).includes('pdf-preview')
+        ? new Response(null, { status: 503 })
+        : Response.json(body),
+    ),
+  );
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <ToastProvider>
+        <PayslipIntakeDetail id="intake" inline />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+};
+
+it('states in the summary that no booking was found and what confirming does', async () => {
+  renderIntake(intakeWith({}));
+  const summary = within(await screen.findByRole('region', { name: 'Zusammenfassung' }));
+  expect(
+    summary.getByText(
+      'Keine Gehaltsbuchung im Zeitfenster gefunden. Nach der Bestätigung wird die Auszahlung auf dem gewählten Konto gebucht.',
+    ),
+  ).toBeTruthy();
+  expect(summary.getByText(/Die neue Auszahlung wird vorgemerkt/)).toBeTruthy();
+});
+
+it.each([
+  ['locked', /Diese Auszahlung ist geprüft/],
+  [
+    'unavailable',
+    /Eine unveränderte ursprüngliche Zuordnung ist nicht vollständig nachgewiesen\. Die Auszahlung wird nur verknüpft/,
+  ],
+])('keeps the %s split note in the summary, also for a confirmed intake', async (status, text) => {
+  renderIntake(
+    intakeWith({
+      status: 'confirmed',
+      matches: [
+        {
+          id: 'm',
+          date: '2026-09-30',
+          amountCents: 280000,
+          differenceCents: 0,
+          exact: true,
+          splitPreview: { status },
+        },
+      ],
+    }),
+  );
+  const summary = within(await screen.findByRole('region', { name: 'Zusammenfassung' }));
+  expect(summary.getByText(text)).toBeTruthy();
+  expect(summary.getByText(/Die vorhandene Buchung wird verknüpft/)).toBeTruthy();
+});
+
+it('renders every parsed line exactly once, unknown sections under "Weitere Zeilen"', async () => {
+  const lines = [
+    { section: 'earning', label: 'Zeile Bezug', amountCents: 100 },
+    { section: 'deduction', label: 'Zeile Abzug', amountCents: 200 },
+    { section: 'reimbursement', label: 'Zeile Erstattung', amountCents: 300 },
+    { section: 'tax_adjustment', label: 'Zeile Steuer', amountCents: 400 },
+    { section: 'sv_adjustment', label: 'Zeile SV', amountCents: 500 },
+    { section: 'something_new', label: 'Zeile Unbekannt', amountCents: 600 },
+  ];
+  renderIntake(intakeWith({}, lines));
+  await screen.findByRole('table', { name: 'Weitere Zeilen' });
+  for (const line of lines) expect(screen.getAllByText(line.label)).toHaveLength(1);
+  expect(
+    within(screen.getByRole('table', { name: 'Weitere Zeilen' })).getByText('Zeile Unbekannt'),
+  ).toBeTruthy();
+});
