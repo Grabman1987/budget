@@ -142,6 +142,7 @@
   }
   .page-header-row {
     height: auto;
+    /* The profile column is always reserved: title and actions keep one geometry on every page. */
     grid-template-columns: minmax(0, 1fr) 44px 92px 44px;
     gap: var(--space-xs);
     min-height: 52px;

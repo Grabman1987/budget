@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@budget/ui';
 import { CaptureForm } from './capture-form';
@@ -124,6 +124,15 @@ beforeEach(() => {
 });
 
 afterEach(cleanup);
+beforeEach(() => {
+  // jsdom has no showModal.
+  HTMLDialogElement.prototype.showModal ??= function showModal(this: HTMLDialogElement) {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close ??= function close(this: HTMLDialogElement) {
+    this.removeAttribute('open');
+  };
+});
 async function mount(redesign: boolean, phone: boolean) {
   flags.REDESIGN_ENABLED = redesign;
   flags.phone = phone;
@@ -156,4 +165,17 @@ it('redesign desktop and old UI: the capture form has no upload entry', async ()
   cleanup();
   await mount(false, true);
   expect(screen.queryByRole('button', { name: 'Dokument hochladen' })).toBeNull();
+});
+
+it('keeps the typed capture draft while "Dokument hochladen" is opened and closed', async () => {
+  await mount(true, true);
+  const amount = screen.getByLabelText('Betrag', { exact: true }) as HTMLInputElement;
+  fireEvent.change(amount, { target: { value: '12,40' } });
+  expect(amount.value).toBe('12,40');
+  fireEvent.click(screen.getByRole('button', { name: 'Dokument hochladen' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Dokument hochladen' });
+  fireEvent.click(within(dialog).getByRole('button', { name: /schließen/i }));
+  expect((screen.getByLabelText('Betrag', { exact: true }) as HTMLInputElement).value).toBe(
+    '12,40',
+  );
 });

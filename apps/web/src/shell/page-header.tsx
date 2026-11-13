@@ -163,9 +163,9 @@ export function PageHeader({
             </PanelLink>
           )}
         </div>
-        {phone && (
+        {phone && showProfile && (
           <div className="page-header-profile">
-            {showProfile && <MobileProfile privacy={false} />}
+            <MobileProfile privacy={false} />
           </div>
         )}
       </div>

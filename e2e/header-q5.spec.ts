@@ -29,7 +29,8 @@ test('one review pill on desktop; three phone header items and linked status bel
       await expect(
         header.locator('.page-header-actions > button, .page-header-actions > a'),
       ).toHaveCount(2);
-      await expect(header.locator('.page-header-profile')).toHaveCount(1);
+      // The profile wrapper exists only where a profile control is shown (Heute); Reports has none.
+      await expect(header.locator('.page-header-profile')).toHaveCount(0);
       await expect(header.locator('.m-profile')).toHaveCount(0);
     } else {
       await expect(
