@@ -14,6 +14,8 @@ export type PlanFilter = (typeof PLAN_FILTERS)[number];
 export interface PlanFilterSearch {
   filter?: PlanFilter | undefined;
   q?: string | undefined;
+  /** Guided routine on Plan › Monat (#1055): "verteilen" opens "Geld verteilen". */
+  ablauf?: 'verteilen' | undefined;
 }
 
 /** Bound the shareable presentation state; financial rows still come from the budget API. */
@@ -23,6 +25,7 @@ export function validatePlanFilterSearch(search: Record<string, unknown>): PlanF
       ? (search['filter'] as PlanFilter)
       : undefined,
     q: typeof search['q'] === 'string' ? search['q'].slice(0, 100) : undefined,
+    ...(search['ablauf'] === 'verteilen' ? { ablauf: 'verteilen' as const } : {}),
   };
 }
 
