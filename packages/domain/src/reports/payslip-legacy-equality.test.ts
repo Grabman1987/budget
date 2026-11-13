@@ -36,8 +36,7 @@ const cases: [string, () => ParsedPayrollDocument][] = [
   ['label layout', () => parsePayrollDocument(labelText(), 'synthetic-202609.pdf', empty)],
   [
     'label layout with an unmapped wage type',
-    () =>
-      parsePayrollDocument(labelText(['840 Sonderleistung Y 50,00']), 'synthetic.pdf', empty),
+    () => parsePayrollDocument(labelText(['840 Sonderleistung Y 50,00']), 'synthetic.pdf', empty),
   ],
   [
     'label layout with an owner mapping',

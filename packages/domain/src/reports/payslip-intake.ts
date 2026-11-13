@@ -6,11 +6,26 @@ import {
   classifyWageLabel,
   detectPeriod,
   finishPayslip,
+  isBenefitInKindLabel,
   normalize,
+  payoutEffect,
   printedCents,
+  quantityAndRate,
+  type PayslipWageLine,
+  type StatutorySplit,
+  type WageLineDraft,
+  type WageLineIssue,
+  type WageLineSection,
 } from './payslip-text';
 
 export { printedCents };
+export {
+  WAGE_LINE_SECTIONS,
+  type PayslipWageLine,
+  type StatutorySplit,
+  type WageLineIssue,
+  type WageLineSection,
+} from './payslip-text';
 /** Raise when the parser learns something new; pending scanned intakes are then read once more. */
 export const PAYSLIP_PARSER_VERSION = 3;
 
@@ -41,6 +56,12 @@ export type ParsedPayrollDocument = {
   unmappedWageTypes?: { code: string; label: string; amountCents: number }[];
   /** Parser version that produced this result; absent on results from before versioning. */
   parserVersion?: number;
+  /** #1066: every printed wage line; absent on letters and on results from before #1066. */
+  wageLines?: PayslipWageLine[];
+  /** #1066: statutory deductions split by current/special part; null when not readable. */
+  statutorySplit?: StatutorySplit | null;
+  /** #1066: set when the wage lines do not reconcile with the gross. */
+  wageLineIssue?: WageLineIssue;
 };
 
 const isCalendarDay = (value: string): boolean => {
@@ -113,6 +134,9 @@ export const austrianPayrollAdapter: PayslipAdapter = {
       sawTax = false;
     const unmappedWageTypes: NonNullable<ParsedPayrollDocument['unmappedWageTypes']> = [];
     const lines: PayslipInput['lines'] = [];
+    const wageLines: WageLineDraft[] = [];
+    const split = { svCurrentCents: 0, svSpecialCents: 0, taxCurrentCents: 0, taxOtherCents: 0 };
+    let splitReadable = true;
     for (const row of text.split(/\r?\n/)) {
       const amounts = [...row.matchAll(AMOUNT)];
       if (!amounts.length) continue;
@@ -135,11 +159,17 @@ export const austrianPayrollAdapter: PayslipAdapter = {
       if (!code && /^(sv[-\s]?dn|sozialversicherung)/.test(plain) && !adjustment) {
         sv += amount;
         sawSv = true;
+        if (SPECIAL_PART.test(plain)) split.svSpecialCents += amount;
+        else if (CURRENT_PART.test(plain)) split.svCurrentCents += amount;
+        else splitReadable = false;
         continue;
       }
       if (!code && /^(lst|lohnsteuer)/.test(plain) && !adjustment) {
         tax += amount;
         sawTax = true;
+        if (SPECIAL_PART.test(plain) || /sonstig/.test(plain)) split.taxOtherCents += amount;
+        else if (CURRENT_PART.test(plain)) split.taxCurrentCents += amount;
+        else splitReadable = false;
         continue;
       }
       let section: (typeof lines)[number]['section'] | undefined = code
@@ -154,6 +184,20 @@ export const austrianPayrollAdapter: PayslipAdapter = {
           section = 'sv_adjustment';
         else if (/sonstige.*abzuge|betriebsratsumlage/.test(plain)) section = 'deduction';
       }
+      const wageSection: WageLineSection =
+        section === 'earning'
+          ? isBenefitInKindLabel(plain)
+            ? 'benefit_in_kind'
+            : 'earning'
+          : (section ?? (classifyWageLabel(plain) === 'info' ? 'memo' : 'unknown'));
+      wageLines.push({
+        code: code ?? null,
+        label: description.slice(0, 160),
+        section: wageSection,
+        referenceMonth: null,
+        ...quantityAndRate(amounts.map((a) => a[0])),
+        amountCents: payoutEffect(wageSection, amount),
+      });
       if (section === 'earning') continue; // Already included in the printed Brutto total.
       if (section) lines.push({ section, label: description.slice(0, 160), amountCents: amount });
       else if (code || /aufrollung/.test(plain)) {
@@ -180,9 +224,15 @@ export const austrianPayrollAdapter: PayslipAdapter = {
       lines,
       warnings,
       unmappedWageTypes,
+      wageLines,
+      statutorySplit: splitReadable && (sawSv || sawTax) ? split : null,
     });
   },
 };
+
+/** Statutory rows of the special-payment part ("SZ", "Sonderzahlung") and of the current part. */
+const SPECIAL_PART = /\bsz\b|sonderz/;
+const CURRENT_PART = /laufend|\blfd\b/;
 
 /** Most specific layout first; the label-driven adapter is the general fallback. */
 export const defaultPayslipAdapters: PayslipAdapter[] = [lgvPayrollAdapter, austrianPayrollAdapter];

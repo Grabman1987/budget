@@ -100,6 +100,62 @@ export function classifyWageLabel(plain: string): WageKind | undefined {
   return undefined;
 }
 
+/**
+ * Every printed wage line of a payroll run (#1066), kept beside the legacy draft. `section` is the
+ * parser's reading, not the owner's salary component: `benefit_in_kind` is an earning inside the
+ * printed gross that is not paid out (Sachbezug), `memo` an information or employer line outside
+ * the payout, `unknown` a line the parser could not place.
+ */
+export const WAGE_LINE_SECTIONS = [
+  'earning',
+  'benefit_in_kind',
+  'reimbursement',
+  'deduction',
+  'tax_adjustment',
+  'sv_adjustment',
+  'memo',
+  'unknown',
+] as const;
+export type WageLineSection = (typeof WAGE_LINE_SECTIONS)[number];
+/**
+ * `amountCents` is the signed effect on the payout: earnings, benefits in kind and reimbursements
+ * are positive, deductions and statutory corrections negative when they lower the payout. Memo and
+ * unknown lines carry the printed value. `quantity`/`rate` are the printed texts, only when the
+ * row shows both unambiguously; `referenceMonth` only when printed in front of the wage type.
+ */
+export interface PayslipWageLine {
+  order: number;
+  code: string | null;
+  label: string;
+  section: WageLineSection;
+  referenceMonth: string | null;
+  quantity: string | null;
+  rate: string | null;
+  amountCents: number;
+}
+export type WageLineDraft = Omit<PayslipWageLine, 'order'>;
+/** Statutory deductions split into current and special-payment parts; their sums equal sv/tax. */
+export interface StatutorySplit {
+  svCurrentCents: number;
+  svSpecialCents: number;
+  taxCurrentCents: number;
+  taxOtherCents: number;
+}
+/** Why the wage lines do not reconcile with the printed gross; the upload is never refused for it. */
+export type WageLineIssue = 'gross_mismatch' | 'no_gross';
+/** Sachbezug: a taxable earning in kind inside the printed gross. */
+export const isBenefitInKindLabel = (plain: string) => /sachbezug/.test(plain);
+/** Payout effect of a legacy line amount (deductions and corrections are stored as charges). */
+export const payoutEffect = (section: WageLineSection, legacyAmount: number) =>
+  section === 'deduction' || section === 'tax_adjustment' || section === 'sv_adjustment'
+    ? -legacyAmount
+    : legacyAmount;
+/** Printed quantity and rate when a row shows exactly three amounts (quantity, rate, amount). */
+export const quantityAndRate = (texts: string[]) =>
+  texts.length === 3
+    ? { quantity: texts[0]!.trim(), rate: texts[1]!.trim() }
+    : { quantity: null, rate: null };
+
 /** Common tail of all payslip layouts: draft, sum check and limits. */
 export function finishPayslip(input: {
   documentType: ParsedPayrollDocument['documentType'];
@@ -113,6 +169,8 @@ export function finishPayslip(input: {
   lines: PayslipInput['lines'];
   warnings: string[];
   unmappedWageTypes?: NonNullable<ParsedPayrollDocument['unmappedWageTypes']>;
+  wageLines?: WageLineDraft[];
+  statutorySplit?: StatutorySplit | null;
 }): ParsedPayrollDocument {
   const { month, gross, net, warnings, documentType } = input;
   const draft: PayslipInput | null =
@@ -143,5 +201,40 @@ export function finishPayslip(input: {
     differenceCents,
     warnings: [...new Set(warnings)],
     ...(input.unmappedWageTypes?.length ? { unmappedWageTypes: input.unmappedWageTypes } : {}),
+    // #1066 additions; appended after every legacy field, which stays exactly as before.
+    ...(input.wageLines
+      ? wageLineFields(draft, input.wageLines, input.sv, input.tax, input.statutorySplit ?? null)
+      : {}),
+  };
+}
+
+/**
+ * Number the lines and check the invariant: earnings plus benefits in kind equal the gross as the
+ * layout defines it (printed gross without reimbursements). A miss is reported, never thrown.
+ */
+function wageLineFields(
+  draft: PayslipInput | null,
+  lines: WageLineDraft[],
+  sv: number,
+  tax: number,
+  split: StatutorySplit | null,
+): Pick<ParsedPayrollDocument, 'wageLines' | 'statutorySplit' | 'wageLineIssue'> {
+  const wageLines = lines.map((line, order) => ({ order, ...line }));
+  const earned = wageLines
+    .filter((l) => l.section === 'earning' || l.section === 'benefit_in_kind')
+    .reduce((n, l) => n + l.amountCents, 0);
+  const issue: WageLineIssue | null = !draft
+    ? 'no_gross'
+    : earned !== draft.grossCents
+      ? 'gross_mismatch'
+      : null;
+  const consistent =
+    split &&
+    split.svCurrentCents + split.svSpecialCents === sv &&
+    split.taxCurrentCents + split.taxOtherCents === tax;
+  return {
+    wageLines,
+    statutorySplit: consistent ? split : null,
+    ...(issue ? { wageLineIssue: issue } : {}),
   };
 }
