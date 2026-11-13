@@ -151,3 +151,33 @@ export function passTotals(
     externalCents: assignedCents - startAssignedCents - (added - taken),
   };
 }
+
+export interface IntendedAssignment {
+  categoryId: string;
+  /** The absolute assigned amount the write set. */
+  assignedCents: number;
+}
+
+/**
+ * A write that was still in flight when the pass was left (reload, navigation): it counts only
+ * when the read model shows exactly the assignments it intended; otherwise it is dropped.
+ */
+export function pendingApplied(
+  items: readonly IntendedAssignment[],
+  assignedOf: (categoryId: string) => number | undefined,
+): boolean {
+  return (
+    items.length > 0 && items.every((item) => assignedOf(item.categoryId) === item.assignedCents)
+  );
+}
+
+/** Net change of the assigned amounts of `ids` between two read models (rows missing count 0). */
+export function assignedDelta(
+  before: ReadonlyArray<{ categoryId: string; assignedCents: number }>,
+  after: ReadonlyArray<{ categoryId: string; assignedCents: number }>,
+  ids: readonly string[],
+): number {
+  const sum = (rows: typeof before) =>
+    rows.reduce((total, row) => total + (ids.includes(row.categoryId) ? row.assignedCents : 0), 0);
+  return sum(after) - sum(before);
+}

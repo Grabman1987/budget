@@ -1,6 +1,8 @@
 import { expect, it } from 'vitest';
 import {
+  assignedDelta,
   coverFromToBeAssigned,
+  pendingApplied,
   distributionFill,
   distributionGaps,
   distributionPass,
@@ -136,4 +138,40 @@ it('fills needs top-down from "Zu verteilen" and keeps the rest unassigned', () 
   expect(rich.totalCents).toBe(97_550);
   expect(rich.leftCents).toBe(2_450);
   expect(distributionFill(rows, -500)).toEqual({ items: [], totalCents: 0, leftCents: 0 });
+});
+
+it('counts a write left in flight only when the read model shows exactly its assignments', () => {
+  const now = new Map([
+    ['rent', 80_000],
+    ['food', 22_550],
+  ]);
+  const of = (id: string) => now.get(id);
+  expect(pendingApplied([{ categoryId: 'rent', assignedCents: 80_000 }], of)).toBe(true);
+  expect(
+    pendingApplied(
+      [
+        { categoryId: 'rent', assignedCents: 80_000 },
+        { categoryId: 'food', assignedCents: 22_000 },
+      ],
+      of,
+    ),
+  ).toBe(false);
+  expect(pendingApplied([{ categoryId: 'gone', assignedCents: 0 }], of)).toBe(false);
+  expect(pendingApplied([], of)).toBe(false);
+});
+
+it('measures what a write moved from the assignments of the touched rows', () => {
+  const before = [
+    { categoryId: 'food', assignedCents: 10_000 },
+    { categoryId: 'fun', assignedCents: 0 },
+    { categoryId: 'rent', assignedCents: 5_000 },
+  ];
+  const after = [
+    { categoryId: 'food', assignedCents: 12_340 },
+    { categoryId: 'fun', assignedCents: 0 },
+    { categoryId: 'rent', assignedCents: 9_000 },
+  ];
+  expect(assignedDelta(before, after, ['food', 'fun'])).toBe(2_340);
+  expect(assignedDelta(before, after, ['rent'])).toBe(4_000);
+  expect(assignedDelta(before, [], ['food'])).toBe(-10_000);
 });

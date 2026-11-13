@@ -1,11 +1,14 @@
 import { Button, DimensionChain, cx, useAmountPrivacy } from '@budget/ui';
 import {
+  assignedDelta,
   coverFromToBeAssigned,
   distributionFill,
   distributionGaps,
   distributionPass,
   passTotals,
+  pendingApplied,
   takeBackPlan,
+  type IntendedAssignment,
   type PassWrite,
 } from '@budget/domain';
 import { useQueryClient } from '@tanstack/react-query';
@@ -19,7 +22,7 @@ import { errorText } from '../ledger/labels';
 import type { WriteResult } from '../ledger/types';
 import { monthLabel } from '../nav/month';
 import { AppLink } from '../shell/app-link';
-import { coverAll, moveMoney, type BudgetMonthView } from './budget-api';
+import { budgetQuery, coverAll, type BudgetMonthView } from './budget-api';
 import { freeCoverCents, isCard, planRows, type PlanRow } from './plan-model';
 import { planMonthTerms, planRowState } from './plan-presentation';
 import { STAGES } from './labels';
@@ -39,8 +42,13 @@ import './distribute-flow.css';
 const STEPS = ['Eingang prüfen', 'Lücken', 'Zuweisen', 'Rest und Zusammenfassung'] as const;
 
 interface LogEntry extends PassWrite {
+  id: string;
   text: string;
   groupId?: string;
+  /** Stored before the write is sent; resolved on its answer or reconciled on reopen. */
+  pending?: boolean;
+  /** The absolute assignments the write intends (reconciliation of a pending entry). */
+  items: IntendedAssignment[];
 }
 
 interface Saved {
@@ -65,6 +73,10 @@ type Action =
 const storageKey = (month: string) => `budget.geld-verteilen.${month}`;
 const KINDS = new Set(['assign', 'cover', 'take']);
 
+const isItem = (item: unknown): item is IntendedAssignment =>
+  typeof (item as IntendedAssignment)?.categoryId === 'string' &&
+  Number.isSafeInteger((item as IntendedAssignment)?.assignedCents);
+
 function readSaved(month: string): Saved | null {
   try {
     const raw = window.sessionStorage.getItem(storageKey(month));
@@ -73,6 +85,7 @@ function readSaved(month: string): Saved | null {
     if (
       value.month !== month ||
       typeof value.startedAt !== 'string' ||
+      Number.isNaN(Date.parse(value.startedAt)) ||
       typeof value.step !== 'number' ||
       typeof value.reached !== 'number' ||
       typeof value.startAssignedCents !== 'number' ||
@@ -89,9 +102,12 @@ function readSaved(month: string): Saved | null {
       log: value.log
         .filter(
           (entry): entry is LogEntry =>
-            typeof entry?.text === 'string' &&
+            typeof entry?.id === 'string' &&
+            typeof entry.text === 'string' &&
             KINDS.has(entry.kind) &&
-            Number.isSafeInteger(entry.cents),
+            Number.isSafeInteger(entry.cents) &&
+            Array.isArray(entry.items) &&
+            entry.items.every(isItem),
         )
         .slice(-50),
     };
@@ -100,14 +116,50 @@ function readSaved(month: string): Saved | null {
   }
 }
 
-function writeSaved(month: string, saved: Saved | null) {
+/** Writes or clears this pass only; a stored pass with another start marker is left alone. */
+function writeSaved(month: string, saved: Saved | null, startedAt?: string) {
   try {
+    const raw = window.sessionStorage.getItem(storageKey(month));
+    const owner = raw ? (JSON.parse(raw) as Partial<Saved>).startedAt : undefined;
+    const mine = saved?.startedAt ?? startedAt;
+    if (owner && mine && owner !== mine) return;
     if (saved) window.sessionStorage.setItem(storageKey(month), JSON.stringify(saved));
     else window.sessionStorage.removeItem(storageKey(month));
   } catch {
     // Blocked storage: the flow still works, it just does not resume after a reload.
   }
 }
+
+/**
+ * A write still in flight when the pass was left (reload) counts only if the read model shows
+ * exactly its intended assignments; otherwise it is dropped from the pass.
+ */
+function reconcile(saved: Saved | null, data: BudgetMonthView): Saved | null {
+  if (!saved || !saved.log.some((entry) => entry.pending)) return saved;
+  const assigned = new Map(data.summary.envelopes.map((e) => [e.categoryId, e.assignedCents]));
+  return {
+    ...saved,
+    log: saved.log.flatMap((entry) => {
+      if (!entry.pending) return [entry];
+      if (!pendingApplied(entry.items, (id) => assigned.get(id))) return [];
+      // Counted, but its audit group is unknown: the flow's undo does not offer it.
+      return [
+        {
+          id: entry.id,
+          text: entry.text,
+          kind: entry.kind,
+          cents: entry.cents,
+          items: entry.items,
+        },
+      ];
+    }),
+  };
+}
+
+const newId = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random()}`;
 
 /** Flow-specific wording; everything else uses the shared error text. */
 function failureText(error: unknown) {
@@ -142,7 +194,7 @@ export function DistributeFlow({
   const tba = s.toBeAssignedCents;
   const [saved, setSaved] = useState<Saved>(
     () =>
-      readSaved(month) ?? {
+      reconcile(readSaved(month), data) ?? {
         month,
         startedAt: new Date().toISOString(),
         step: 1,
@@ -160,15 +212,44 @@ export function DistributeFlow({
   const heading = useRef<HTMLHeadingElement>(null);
   const moved = useRef(false);
 
+  const startedAt = saved.startedAt;
+  const mounted = useRef(true);
   useEffect(() => writeSaved(month, saved), [month, saved]);
   // Leaving the flow inside the app (Plan, another month, another page) ends the pass. A reload
-  // does not unmount, so the stored pass resumes; a write still in flight keeps it as well.
-  useEffect(
-    () => () => {
-      if (!busyRef.current) writeSaved(month, null);
-    },
-    [month],
-  );
+  // does not unmount, so the stored pass resumes; a write still in flight keeps it as well and
+  // clears it when its answer arrives (see `perform`).
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      if (!busyRef.current) writeSaved(month, null, startedAt);
+    };
+  }, [month, startedAt]);
+  // "Rückgängig" in the toast undid the flow's last write: it leaves the pass as well.
+  // The toast's undo first clears the action, then offers "Wiederholen" once the undo landed.
+  const seenHistory = useRef(history);
+  const toastUndo = useRef(false);
+  useEffect(() => {
+    const previous = seenHistory.current;
+    seenHistory.current = history;
+    if (history === null) {
+      toastUndo.current = flowAction !== null && previous === flowAction;
+      return;
+    }
+    const undone = toastUndo.current && history.label === 'Wiederholen';
+    toastUndo.current = false;
+    if (!undone) return;
+    setFlowAction(null);
+    setSaved((prev) => {
+      const last = [...prev.log].reverse().find((entry) => !entry.undone && entry.groupId);
+      return last
+        ? {
+            ...prev,
+            log: prev.log.map((entry) => (entry === last ? { ...entry, undone: true } : entry)),
+          }
+        : prev;
+    });
+  }, [history, flowAction]);
   useEffect(() => {
     if (moved.current) heading.current?.focus();
     moved.current = false;
@@ -181,7 +262,7 @@ export function DistributeFlow({
     setSaved((prev) => ({ ...prev, step, reached: Math.max(prev.reached, step) }));
   };
   const finish = () => {
-    writeSaved(month, null);
+    writeSaved(month, null, startedAt);
     onClose();
   };
 
@@ -196,8 +277,9 @@ export function DistributeFlow({
   const takeBack = takeBackPlan(rows, -tba);
   const cover = coverFromToBeAssigned(gaps.overspent, tba);
   const pass = distributionPass(tba);
-  const totals = passTotals(saved.log, saved.startAssignedCents, s.assignedCents);
-  const lastEntry = [...saved.log].reverse().find((entry) => !entry.undone && entry.groupId);
+  const settled = saved.log.filter((entry) => !entry.pending);
+  const totals = passTotals(settled, saved.startAssignedCents, s.assignedCents);
+  const lastEntry = [...settled].reverse().find((entry) => !entry.undone && entry.groupId);
   const canUndo =
     Boolean(lastEntry) &&
     flowAction !== null &&
@@ -208,7 +290,11 @@ export function DistributeFlow({
     text: string;
     kind: PassWrite['kind'];
     cents: number;
-    run: () => Promise<WriteResult & { missingCents?: number }>;
+    /** Intended absolute assignments (pending reconciliation). */
+    items: IntendedAssignment[];
+    /** Cover-all: measure the moved amount on these rows in the refetched read model. */
+    measure?: string[];
+    run: () => Promise<WriteResult>;
   };
   /** Builds the existing write from the current read model, so a retry never reuses stale sums. */
   const operation = (action: Exclude<Action, { kind: 'undo' }>): Plan | null => {
@@ -218,20 +304,19 @@ export function DistributeFlow({
         const items = fill.items.filter((i) => action.kind === 'fillAll' || i.row.id === action.id);
         if (!items.length) return null;
         const cents = items.reduce((sum, i) => sum + i.addCents, 0);
+        const intended = items.map((i) => ({
+          categoryId: i.row.id,
+          assignedCents: i.row.assignedCents + i.addCents,
+        }));
         return {
           kind: 'assign',
           cents,
+          items: intended,
           text:
             action.kind === 'fillAll'
               ? `${eur(cents)} nach Plan zugewiesen`
               : `${items[0]!.row.name}: ${eur(cents)} zugewiesen`,
-          run: () =>
-            assign(
-              items.map((i) => ({
-                categoryId: i.row.id,
-                assignedCents: i.row.assignedCents + i.addCents,
-              })),
-            ),
+          run: () => assign(intended),
         };
       }
       case 'take':
@@ -241,30 +326,36 @@ export function DistributeFlow({
         );
         if (!moves.length) return null;
         const cents = moves.reduce((sum, m) => sum + m.takeCents, 0);
+        const intended = moves.map((m) => ({
+          categoryId: m.row.id,
+          assignedCents: m.row.assignedCents - m.takeCents,
+        }));
         return {
           kind: 'take',
           cents,
+          items: intended,
           text:
             action.kind === 'takeAll'
               ? `${eur(cents)} zurückgenommen`
               : `${moves[0]!.row.name}: ${eur(cents)} zurückgenommen`,
-          run: () =>
-            assign(
-              moves.map((m) => ({
-                categoryId: m.row.id,
-                assignedCents: m.row.assignedCents - m.takeCents,
-              })),
-            ),
+          run: () => assign(intended),
         };
       }
       case 'cover': {
         const item = cover.items.find((i) => i.row.id === action.id);
         if (!item) return null;
+        // Moving from "Zu verteilen" is an assignment (same repo write as a move from null), so the
+        // capped cover uses the guarded assignment with the current preview basis: a stale
+        // "Zu verteilen" is refused with 409 instead of overdrawing it.
+        const intended = [
+          { categoryId: item.row.id, assignedCents: item.row.assignedCents + item.coverCents },
+        ];
         return {
           kind: 'cover',
           cents: item.coverCents,
+          items: intended,
           text: `${item.row.name}: ${eur(item.coverCents)} aus „Zu verteilen“ gedeckt`,
-          run: () => moveMoney(month, null, item.row.id, item.coverCents),
+          run: () => assign(intended),
         };
       }
       case 'coverAll':
@@ -273,7 +364,12 @@ export function DistributeFlow({
         return {
           kind: 'cover',
           cents: cover.totalCents,
-          text: `${cover.count} überzogen · ${eur(cover.totalCents)} aus „Zu verteilen“ gedeckt`,
+          items: gaps.overspent.map((row) => ({
+            categoryId: row.id,
+            assignedCents: row.assignedCents + row.overspentCents,
+          })),
+          measure: gaps.overspent.map((row) => row.id),
+          text: `${cover.count} überzogen aus „Zu verteilen“ gedeckt`,
           run: () => coverAll(month, null),
         };
     }
@@ -286,6 +382,20 @@ export function DistributeFlow({
     busyRef.current = true;
     setBusy(true);
     setFailure(null);
+    // Stored before the request leaves, so a reload mid-write can reconcile it on reopen.
+    const id = newId();
+    const pendingEntry: LogEntry = {
+      id,
+      text: plan.text,
+      kind: plan.kind,
+      cents: plan.cents,
+      items: plan.items,
+      pending: true,
+    };
+    const withPending = { ...saved, log: [...saved.log, pendingEntry].slice(-50) };
+    writeSaved(month, withPending);
+    setSaved(withPending);
+    const before = data.summary.envelopes;
     let caught: unknown = null;
     const done = await write(
       async () => {
@@ -298,22 +408,43 @@ export function DistributeFlow({
       },
       () => plan.text,
     );
-    busyRef.current = false;
-    setBusy(false);
-    if (done) {
-      setFlowAction(planHistory(qc).snapshot());
-      // A capped cover reports what stayed open; the log keeps only what actually moved.
-      const cents = Math.max(0, plan.cents - Math.max(0, done.missingCents ?? 0));
-      setSaved((prev) => ({
-        ...prev,
-        log: [
-          ...prev.log,
-          { text: plan.text, kind: plan.kind, cents, groupId: done.groupId },
-        ].slice(-50),
-      }));
-    } else {
-      setFailure({ action, text: `${plan.text} – fehlgeschlagen. ${failureText(caught)}` });
+    let cents: number | null = plan.cents;
+    if (done && plan.measure) {
+      // Cover-all may stop at the server's cap: log what the refetched read model shows moved.
+      try {
+        const fresh = await qc.fetchQuery({ ...budgetQuery(month), staleTime: 0 });
+        cents = assignedDelta(before, fresh.summary.envelopes, plan.measure);
+      } catch {
+        cents = null; // stays pending; the next open reconciles it against the read model
+      }
     }
+    busyRef.current = false;
+    if (!mounted.current) {
+      // The flow was left in the app while this write ran: the pass ends now.
+      writeSaved(month, null, startedAt);
+      return;
+    }
+    setBusy(false);
+    const settle = (log: LogEntry[]) =>
+      done
+        ? log.map((entry) =>
+            entry.id !== id
+              ? entry
+              : cents === null
+                ? entry
+                : {
+                    id,
+                    text: plan.measure ? `${eur(cents)} · ${plan.text}` : plan.text,
+                    kind: plan.kind,
+                    cents,
+                    items: plan.items,
+                    groupId: done.groupId,
+                  },
+          )
+        : log.filter((entry) => entry.id !== id);
+    setSaved((prev) => ({ ...prev, log: settle(prev.log) }));
+    if (done) setFlowAction(planHistory(qc).snapshot());
+    else setFailure({ action, text: `${plan.text} – fehlgeschlagen. ${failureText(caught)}` });
   };
 
   /** Undoes only this flow's last write (its audit group); the log changes after it resolved. */
@@ -431,7 +562,7 @@ export function DistributeFlow({
               </div>
               {monthIncome && (
                 <div>
-                  <dt>Davon erwartete Zahlungen (zugeordnet)</dt>
+                  <dt>Erwartete Zahlungen (Einnahmen-Übersicht)</dt>
                   <dd data-testid="distribute-expected">
                     erhalten {eur(monthIncome.receivedCents)} von erwartet{' '}
                     {eur(monthIncome.expectedCents)}
@@ -685,7 +816,7 @@ export function DistributeFlow({
                 className="btn btn-ghost"
                 to="/"
                 search={{}}
-                onClick={() => writeSaved(month, null)}
+                onClick={() => writeSaved(month, null, startedAt)}
               >
                 Zu Heute
               </AppLink>

@@ -54,19 +54,22 @@ const CATEGORIES = [
 ] as const;
 
 function view(summary: Partial<BudgetMonthView['summary']>, extra: EnvelopeSummary[] = []) {
+  const replaced = new Set(extra.map((e) => e.categoryId));
   const envelopes = [
-    envelope('fun', { needCents: 5_000 }),
-    envelope('rent', { needCents: 80_000 }),
-    envelope('food', {
-      assignedCents: 10_000,
-      activityCents: -12_340,
-      availableCents: -2_340,
-      overspentCents: 2_340,
-      cashOverspentCents: 2_340,
-      needCents: 12_550,
-    }),
-    envelope('card', { needCents: 9_900 }),
-    envelope('spare', { assignedCents: 20_000, availableCents: 20_000, freeCents: 15_000 }),
+    ...[
+      envelope('fun', { needCents: 5_000 }),
+      envelope('rent', { needCents: 80_000 }),
+      envelope('food', {
+        assignedCents: 10_000,
+        activityCents: -12_340,
+        availableCents: -2_340,
+        overspentCents: 2_340,
+        cashOverspentCents: 2_340,
+        needCents: 12_550,
+      }),
+      envelope('card', { needCents: 9_900 }),
+      envelope('spare', { assignedCents: 20_000, availableCents: 20_000, freeCents: 15_000 }),
+    ].filter((e) => !replaced.has(e.categoryId)),
     ...extra,
   ];
   return {
@@ -118,6 +121,8 @@ let assign: ReturnType<typeof vi.fn>;
 let onClose: ReturnType<typeof vi.fn>;
 let posts: Array<{ path: string; body: unknown }>;
 let undoAnswer: () => Response;
+let coverAnswer: () => Response;
+let readView: BudgetMonthView | null;
 beforeEach(() => {
   sessionStorage.clear();
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -125,19 +130,17 @@ beforeEach(() => {
   onClose = vi.fn();
   posts = [];
   undoAnswer = () => Response.json({ groupId: 'synthetic-undo' });
+  coverAnswer = () =>
+    Response.json({ groupId: 'synthetic-move', coveredCount: 2, openCount: 0, missingCents: 0 });
+  readView = null;
   // Existing write endpoints (move, cover-all, undo); reads are not needed by the flow itself.
   vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
     const path = new URL(input, 'http://localhost').pathname;
-    if ((init?.method ?? 'GET') === 'GET') return Response.json({});
+    if ((init?.method ?? 'GET') === 'GET')
+      return Response.json(path === '/api/budget/2026-10' && readView ? readView : {});
     posts.push({ path, body: JSON.parse(String(init?.body ?? 'null')) });
     if (path === '/api/undo') return undoAnswer();
-    if (path === '/api/budget/2026-10/move')
-      return Response.json({
-        groupId: 'synthetic-move',
-        coveredCount: 2,
-        openCount: 0,
-        missingCents: 0,
-      });
+    if (path === '/api/budget/2026-10/move') return coverAnswer();
     return Response.json({ error: 'unexpected_test_request' }, { status: 404 });
   });
 });
@@ -192,7 +195,7 @@ it('step 1 shows received income, expected income apart and the uncovered carry-
   expect(screen.getByText(/nie als verfügbares Geld verteilt/)).toBeTruthy();
   // Two income figures, each labelled with its basis.
   expect(screen.getByText('Gebuchte Einnahmen im Budgetmonat')).toBeTruthy();
-  expect(screen.getByText('Davon erwartete Zahlungen (zugeordnet)')).toBeTruthy();
+  expect(screen.getByText('Erwartete Zahlungen (Einnahmen-Übersicht)')).toBeTruthy();
 });
 
 it('step 2 orders overspent and underfunded envelopes by waterfall with amounts needed', () => {
@@ -388,11 +391,10 @@ it('covers from "Zu verteilen" only up to what is there; count and sum use the s
     /danach bleiben 62,40 € ungedeckt/,
   );
   fireEvent.click(within(block).getByRole('button'));
-  await waitFor(() => expect(posts).toHaveLength(1));
-  expect(posts[0]).toEqual({
-    path: '/api/budget/2026-10/move',
-    body: { fromId: null, toId: 'food', amountCents: 100 },
-  });
+  // The guarded assignment (preview basis) of the Zuweisen step, never an unguarded move.
+  await waitFor(() => expect(assign).toHaveBeenCalledTimes(1));
+  expect(assign).toHaveBeenLastCalledWith([{ categoryId: 'food', assignedCents: 10_100 }]);
+  expect(posts).toEqual([]);
 
   cleanup();
   sessionStorage.clear();
@@ -541,4 +543,153 @@ it('a refused undo says so and offers no retry', async () => {
 it('keeps only the known guided routine in the Plan search', () => {
   expect(validatePlanFilterSearch({ ablauf: 'verteilen' }).ablauf).toBe('verteilen');
   expect('ablauf' in validatePlanFilterSearch({ ablauf: 'other' })).toBe(false);
+});
+
+const credit = () =>
+  envelope('fun', {
+    needCents: 5_000,
+    activityCents: -4_000,
+    availableCents: -4_000,
+    overspentCents: 4_000,
+    creditOverspentCents: 4_000,
+  });
+
+it('a stale basis on a capped cover writes nothing, explains, and keeps "Zu verteilen"', async () => {
+  assign.mockRejectedValueOnce(new ApiError(409, 'plan_preview_changed'));
+  render(flow(view({ toBeAssignedCents: 100 }, [credit()])));
+  next();
+  next();
+  fireEvent.click(
+    screen.getByRole('button', { name: '1,00 € an Synthetic food aus „Zu verteilen“ decken' }),
+  );
+  expect((await screen.findByRole('alert')).textContent).toMatch(
+    /fehlgeschlagen\. Der Plan hat sich inzwischen geändert/,
+  );
+  expect(posts).toEqual([]);
+  expect(screen.getByTestId('distribute-tba').textContent).toBe('1,00 €');
+  next();
+  expect(screen.getByTestId('distribute-summary').querySelector('dd')!.textContent).toBe('0,00 €');
+});
+
+it('a failed cover stays retryable; a double click writes once', async () => {
+  assign.mockRejectedValueOnce(new Error('synthetic offline'));
+  render(flow(view({ toBeAssignedCents: 100 }, [credit()])));
+  next();
+  next();
+  const button = screen.getByRole('button', {
+    name: '1,00 € an Synthetic food aus „Zu verteilen“ decken',
+  });
+  fireEvent.click(button);
+  fireEvent.click(button);
+  const alert = await screen.findByRole('alert');
+  expect(assign).toHaveBeenCalledTimes(1);
+  expect(alert.textContent).toMatch(
+    /^Synthetic food: 1,00 € aus „Zu verteilen“ gedeckt – fehlgeschlagen/,
+  );
+  fireEvent.click(within(alert).getByRole('button', { name: 'Erneut versuchen' }));
+  await waitFor(() => expect(assign).toHaveBeenCalledTimes(2));
+  expect(assign).toHaveBeenLastCalledWith([{ categoryId: 'food', assignedCents: 10_100 }]);
+});
+
+it('cover-all logs what the refetched read model shows was covered, not the plan', async () => {
+  coverAnswer = () =>
+    Response.json({
+      groupId: 'synthetic-move',
+      coveredCount: 1,
+      openCount: 1,
+      missingCents: 4_000,
+    });
+  // The answer reports 40,00 € open, yet the cap let only 20,00 € reach food: the log follows
+  // the read model (+20,00 €), never plan minus missing (23,40 €).
+  readView = view({ toBeAssignedCents: 5_000, assignedCents: 202_000 }, [
+    credit(),
+    envelope('food', {
+      assignedCents: 12_000,
+      activityCents: -12_340,
+      availableCents: -340,
+      overspentCents: 340,
+      cashOverspentCents: 340,
+      needCents: 10_550,
+    }),
+  ]);
+  render(flow(view({ toBeAssignedCents: 7_000 }, [credit()])));
+  next();
+  next();
+  fireEvent.click(screen.getByRole('button', { name: 'Alle überzogenen decken · 63,40 €' }));
+  await waitFor(() => expect(posts).toHaveLength(1));
+  expect(posts[0]).toEqual({
+    path: '/api/budget/2026-10/move',
+    body: { coverAll: true, fromId: null },
+  });
+  next();
+  await waitFor(() =>
+    expect(screen.getByTestId('distribute-summary').querySelector('dd')!.textContent).toBe(
+      '20,00 €',
+    ),
+  );
+});
+
+it('a write in flight when the pass is left is reconciled on reopen', async () => {
+  // 2.000,00 € assigned at start; rent +800,00 € is still in flight when the page reloads.
+  assign.mockImplementationOnce(() => new Promise(() => {}));
+  render(flow(view({ assignedCents: 200_000 })));
+  next();
+  next();
+  fireEvent.click(screen.getByRole('button', { name: '800,00 € an Synthetic rent zuweisen' }));
+  await waitFor(() => expect(assign).toHaveBeenCalledTimes(1));
+  const after = () =>
+    view({ assignedCents: 280_000, toBeAssignedCents: 18_500 }, [
+      envelope('rent', { assignedCents: 80_000, availableCents: 80_000 }),
+    ]);
+  const summary = () =>
+    [...screen.getByTestId('distribute-summary').querySelectorAll('div')]
+      .map((d) => d.textContent)
+      .slice(0, 2);
+  const stored = { ...sessionStorage };
+  reload(() => render(flow(after())));
+  next();
+  expect(summary()).toEqual([
+    'In diesem Durchgang zugewiesen800,00 €',
+    'Zu verteilen jetzt185,00 €',
+  ]);
+
+  // The same pending write that never landed (rent unchanged) is dropped, not counted.
+  cleanup();
+  for (const [key, value] of Object.entries(stored)) sessionStorage.setItem(key, value);
+  render(flow(view({ assignedCents: 200_000 })));
+  next();
+  expect(summary()).toEqual(['In diesem Durchgang zugewiesen0,00 €', 'Zu verteilen jetzt985,00 €']);
+});
+
+it("a toast undo of the flow's write removes it from the pass", async () => {
+  render(flow(view({})));
+  next();
+  next();
+  fireEvent.click(screen.getByRole('button', { name: '50,00 € an Synthetic fun zuweisen' }));
+  await screen.findByText('Synthetic fun: 50,00 € zugewiesen');
+  fireEvent.click(await screen.findByRole('button', { name: 'Rückgängig' }));
+  await waitFor(() =>
+    expect(posts).toEqual([{ path: '/api/undo', body: { groupId: 'synthetic-group' } }]),
+  );
+  next();
+  expect(
+    await screen.findByText('Synthetic fun: 50,00 € zugewiesen (rückgängig gemacht)'),
+  ).toBeTruthy();
+  expect(screen.getByTestId('distribute-summary').querySelector('dd')!.textContent).toBe('0,00 €');
+});
+
+it('rejects a stored pass with a broken start marker', () => {
+  sessionStorage.setItem(
+    'budget.geld-verteilen.2026-10',
+    JSON.stringify({
+      month: '2026-10',
+      startedAt: 'not-a-date',
+      step: 4,
+      reached: 4,
+      startAssignedCents: 1,
+      log: [],
+    }),
+  );
+  render(flow(view({})));
+  expect(stepTitle()).toBe('1. Eingang prüfen');
 });
