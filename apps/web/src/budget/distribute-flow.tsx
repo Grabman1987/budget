@@ -1,18 +1,29 @@
 import { Button, DimensionChain, cx, useAmountPrivacy } from '@budget/ui';
-import { distributionFill, distributionGaps, distributionPass, takeBackPlan } from '@budget/domain';
+import {
+  coverFromToBeAssigned,
+  distributionFill,
+  distributionGaps,
+  distributionPass,
+  passTotals,
+  takeBackPlan,
+  type PassWrite,
+} from '@budget/domain';
+import { useQueryClient } from '@tanstack/react-query';
 import { Check, Undo2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { ApiError } from '../api/http';
 import type { MonthIncome } from '../expected/api';
+import { undoGroup } from '../ledger/api';
 import { eur } from '../ledger/format';
 import { errorText } from '../ledger/labels';
 import type { WriteResult } from '../ledger/types';
 import { monthLabel } from '../nav/month';
 import { AppLink } from '../shell/app-link';
-import { coverAll, type BudgetMonthView } from './budget-api';
+import { coverAll, moveMoney, type BudgetMonthView } from './budget-api';
 import { freeCoverCents, isCard, planRows, type PlanRow } from './plan-model';
 import { planMonthTerms, planRowState } from './plan-presentation';
 import { STAGES } from './labels';
-import { usePlanHistory } from './plan-history';
+import { planHistory, usePlanHistory } from './plan-history';
 import { useBudgetWrite } from './use-category-writes';
 import '../month-close/month-close.css';
 import './distribute-flow.css';
@@ -20,17 +31,26 @@ import './distribute-flow.css';
 /**
  * Guided "Geld verteilen" (#1055, routine PR04): Eingang prüfen → Lücken → Zuweisen → Rest.
  * Every figure comes from the budget read model and the shared domain functions in
- * `@budget/domain` (`distributionGaps`, `distributionFill`, `takeBackPlan`, `distributionPass`);
- * every write is the existing assignment or cover call with its audited undo group.
+ * `@budget/domain` (`distributionGaps`, `distributionFill`, `coverFromToBeAssigned`,
+ * `takeBackPlan`, `distributionPass`, `passTotals`); every write is an existing assignment, move
+ * or cover call with its audited undo group.
  */
 
 const STEPS = ['Eingang prüfen', 'Lücken', 'Zuweisen', 'Rest und Zusammenfassung'] as const;
 
+interface LogEntry extends PassWrite {
+  text: string;
+  groupId?: string;
+}
+
 interface Saved {
+  month: string;
+  /** Start marker of this pass; a stored state of another month or shape is never resumed. */
+  startedAt: string;
   step: number;
   reached: number;
   startAssignedCents: number;
-  log: string[];
+  log: LogEntry[];
 }
 
 type Action =
@@ -38,9 +58,12 @@ type Action =
   | { kind: 'fillAll' }
   | { kind: 'take'; id: string }
   | { kind: 'takeAll' }
-  | { kind: 'cover' };
+  | { kind: 'cover'; id: string }
+  | { kind: 'coverAll' }
+  | { kind: 'undo' };
 
 const storageKey = (month: string) => `budget.geld-verteilen.${month}`;
+const KINDS = new Set(['assign', 'cover', 'take']);
 
 function readSaved(month: string): Saved | null {
   try {
@@ -48,6 +71,8 @@ function readSaved(month: string): Saved | null {
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<Saved>;
     if (
+      value.month !== month ||
+      typeof value.startedAt !== 'string' ||
       typeof value.step !== 'number' ||
       typeof value.reached !== 'number' ||
       typeof value.startAssignedCents !== 'number' ||
@@ -56,10 +81,19 @@ function readSaved(month: string): Saved | null {
       return null;
     const step = Math.min(4, Math.max(1, Math.trunc(value.step)));
     return {
+      month,
+      startedAt: value.startedAt,
       step,
       reached: Math.min(4, Math.max(step, Math.trunc(value.reached))),
       startAssignedCents: Math.trunc(value.startAssignedCents),
-      log: value.log.filter((entry): entry is string => typeof entry === 'string').slice(-50),
+      log: value.log
+        .filter(
+          (entry): entry is LogEntry =>
+            typeof entry?.text === 'string' &&
+            KINDS.has(entry.kind) &&
+            Number.isSafeInteger(entry.cents),
+        )
+        .slice(-50),
     };
   } catch {
     return null;
@@ -73,6 +107,13 @@ function writeSaved(month: string, saved: Saved | null) {
   } catch {
     // Blocked storage: the flow still works, it just does not resume after a reload.
   }
+}
+
+/** Flow-specific wording; everything else uses the shared error text. */
+function failureText(error: unknown) {
+  if (error instanceof ApiError && error.code === 'plan_preview_changed')
+    return 'Der Plan hat sich inzwischen geändert. Die Vorschläge sind neu berechnet – bitte prüfen und erneut bestätigen.';
+  return error ? errorText(error) : 'Das hat nicht geklappt. Versuch es noch einmal.';
 }
 
 export function DistributeFlow({
@@ -95,25 +136,46 @@ export function DistributeFlow({
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
+  const qc = useQueryClient();
   const history = usePlanHistory();
   const s = data.summary;
   const tba = s.toBeAssignedCents;
   const [saved, setSaved] = useState<Saved>(
-    () => readSaved(month) ?? { step: 1, reached: 1, startAssignedCents: s.assignedCents, log: [] },
+    () =>
+      readSaved(month) ?? {
+        month,
+        startedAt: new Date().toISOString(),
+        step: 1,
+        reached: 1,
+        startAssignedCents: s.assignedCents,
+        log: [],
+      },
   );
   const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<{ action: Action; text: string } | null>(null);
+  // Synchronous guard against double submits (state updates land a render later).
+  const busyRef = useRef(false);
+  const [failure, setFailure] = useState<{ action: Action | null; text: string } | null>(null);
+  /** The history action of this flow's last write: the flow's undo acts only on that. */
+  const [flowAction, setFlowAction] = useState<unknown>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const moved = useRef(false);
 
   useEffect(() => writeSaved(month, saved), [month, saved]);
+  // Leaving the flow inside the app (Plan, another month, another page) ends the pass. A reload
+  // does not unmount, so the stored pass resumes; a write still in flight keeps it as well.
+  useEffect(
+    () => () => {
+      if (!busyRef.current) writeSaved(month, null);
+    },
+    [month],
+  );
   useEffect(() => {
     if (moved.current) heading.current?.focus();
     moved.current = false;
   }, [saved.step]);
 
   const go = (step: number) => {
-    if (busy) return;
+    if (busyRef.current) return;
     moved.current = true;
     setFailure(null);
     setSaved((prev) => ({ ...prev, step, reached: Math.max(prev.reached, step) }));
@@ -132,42 +194,45 @@ export function DistributeFlow({
   const gaps = distributionGaps(rows);
   const fill = distributionFill(rows, tba);
   const takeBack = takeBackPlan(rows, -tba);
-  const pass = distributionPass(saved.startAssignedCents, s.assignedCents, tba);
-  const cashOverspent = gaps.overspent.filter((row) => row.cashOverspentCents > 0);
+  const cover = coverFromToBeAssigned(gaps.overspent, tba);
+  const pass = distributionPass(tba);
+  const totals = passTotals(saved.log, saved.startAssignedCents, s.assignedCents);
+  const lastEntry = [...saved.log].reverse().find((entry) => !entry.undone && entry.groupId);
+  const canUndo =
+    Boolean(lastEntry) &&
+    flowAction !== null &&
+    history === flowAction &&
+    history?.label === 'Rückgängig';
 
-  const describe = (action: Action): string => {
-    switch (action.kind) {
-      case 'fill': {
-        const item = fill.items.find((i) => i.row.id === action.id);
-        return item ? `${item.row.name}: ${eur(item.addCents)} zugewiesen` : 'Zuweisung';
-      }
-      case 'fillAll':
-        return `${eur(fill.totalCents)} nach Plan zugewiesen`;
-      case 'take': {
-        const move = takeBack.moves.find((m) => m.row.id === action.id);
-        return move ? `${move.row.name}: ${eur(move.takeCents)} zurückgenommen` : 'Zurücknahme';
-      }
-      case 'takeAll':
-        return `${eur(takeBack.takenCents)} zurückgenommen`;
-      case 'cover':
-        return 'Überzogene aus „Zu verteilen“ gedeckt';
-    }
+  type Plan = {
+    text: string;
+    kind: PassWrite['kind'];
+    cents: number;
+    run: () => Promise<WriteResult & { missingCents?: number }>;
   };
-
   /** Builds the existing write from the current read model, so a retry never reuses stale sums. */
-  const operation = (action: Action): (() => Promise<WriteResult>) | null => {
+  const operation = (action: Exclude<Action, { kind: 'undo' }>): Plan | null => {
     switch (action.kind) {
       case 'fill':
       case 'fillAll': {
         const items = fill.items.filter((i) => action.kind === 'fillAll' || i.row.id === action.id);
         if (!items.length) return null;
-        return () =>
-          assign(
-            items.map((i) => ({
-              categoryId: i.row.id,
-              assignedCents: i.row.assignedCents + i.addCents,
-            })),
-          );
+        const cents = items.reduce((sum, i) => sum + i.addCents, 0);
+        return {
+          kind: 'assign',
+          cents,
+          text:
+            action.kind === 'fillAll'
+              ? `${eur(cents)} nach Plan zugewiesen`
+              : `${items[0]!.row.name}: ${eur(cents)} zugewiesen`,
+          run: () =>
+            assign(
+              items.map((i) => ({
+                categoryId: i.row.id,
+                assignedCents: i.row.assignedCents + i.addCents,
+              })),
+            ),
+        };
       }
       case 'take':
       case 'takeAll': {
@@ -175,50 +240,121 @@ export function DistributeFlow({
           (m) => action.kind === 'takeAll' || m.row.id === action.id,
         );
         if (!moves.length) return null;
-        return () =>
-          assign(
-            moves.map((m) => ({
-              categoryId: m.row.id,
-              assignedCents: m.row.assignedCents - m.takeCents,
-            })),
-          );
+        const cents = moves.reduce((sum, m) => sum + m.takeCents, 0);
+        return {
+          kind: 'take',
+          cents,
+          text:
+            action.kind === 'takeAll'
+              ? `${eur(cents)} zurückgenommen`
+              : `${moves[0]!.row.name}: ${eur(cents)} zurückgenommen`,
+          run: () =>
+            assign(
+              moves.map((m) => ({
+                categoryId: m.row.id,
+                assignedCents: m.row.assignedCents - m.takeCents,
+              })),
+            ),
+        };
       }
-      case 'cover':
-        return cashOverspent.length && tba > 0 ? () => coverAll(month, null) : null;
+      case 'cover': {
+        const item = cover.items.find((i) => i.row.id === action.id);
+        if (!item) return null;
+        return {
+          kind: 'cover',
+          cents: item.coverCents,
+          text: `${item.row.name}: ${eur(item.coverCents)} aus „Zu verteilen“ gedeckt`,
+          run: () => moveMoney(month, null, item.row.id, item.coverCents),
+        };
+      }
+      case 'coverAll':
+        // Only offered when "Zu verteilen" covers every overspent row in full.
+        if (!cover.coversAll) return null;
+        return {
+          kind: 'cover',
+          cents: cover.totalCents,
+          text: `${cover.count} überzogen · ${eur(cover.totalCents)} aus „Zu verteilen“ gedeckt`,
+          run: () => coverAll(month, null),
+        };
     }
   };
 
   const perform = async (action: Action) => {
-    const run = operation(action);
-    if (busy || !run) return;
-    const text = describe(action);
+    if (action.kind === 'undo') return undo();
+    const plan = operation(action);
+    if (busyRef.current || !plan) return;
+    busyRef.current = true;
     setBusy(true);
     setFailure(null);
     let caught: unknown = null;
     const done = await write(
       async () => {
         try {
-          return await run();
+          return await plan.run();
         } catch (error) {
           caught = error;
           throw error;
         }
       },
-      () => text,
+      () => plan.text,
     );
+    busyRef.current = false;
     setBusy(false);
     if (done) {
-      setSaved((prev) => ({ ...prev, log: [...prev.log, text].slice(-50) }));
+      setFlowAction(planHistory(qc).snapshot());
+      // A capped cover reports what stayed open; the log keeps only what actually moved.
+      const cents = Math.max(0, plan.cents - Math.max(0, done.missingCents ?? 0));
+      setSaved((prev) => ({
+        ...prev,
+        log: [
+          ...prev.log,
+          { text: plan.text, kind: plan.kind, cents, groupId: done.groupId },
+        ].slice(-50),
+      }));
     } else {
-      const reason = caught ? errorText(caught) : 'Unbekannter Fehler.';
-      setFailure({ action, text: `${text} – fehlgeschlagen. ${reason}` });
+      setFailure({ action, text: `${plan.text} – fehlgeschlagen. ${failureText(caught)}` });
     }
   };
 
-  const undo = () => {
-    if (history?.label !== 'Rückgängig' || busy) return;
-    history.run();
-    setSaved((prev) => ({ ...prev, log: [...prev.log, 'Letzte Änderung rückgängig gemacht'] }));
+  /** Undoes only this flow's last write (its audit group); the log changes after it resolved. */
+  const undo = async () => {
+    const entry = lastEntry;
+    if (busyRef.current || !entry?.groupId || !canUndo) return;
+    busyRef.current = true;
+    setBusy(true);
+    setFailure(null);
+    let caught: unknown = null;
+    const done = await write(
+      async () => {
+        try {
+          return await undoGroup(entry.groupId!);
+        } catch (error) {
+          caught = error;
+          throw error;
+        }
+      },
+      () => `Rückgängig gemacht: ${entry.text}`,
+    );
+    busyRef.current = false;
+    setBusy(false);
+    setFlowAction(null);
+    if (done) {
+      setSaved((prev) => ({
+        ...prev,
+        log: prev.log.map((item) => (item === entry ? { ...item, undone: true } : item)),
+      }));
+    } else if (caught instanceof ApiError && caught.code === 'undo_refused') {
+      setFailure({
+        action: null,
+        text: 'Rückgängig ist nicht mehr möglich: der Stand hat sich seither geändert. Bitte prüfe die Zahlen.',
+      });
+    } else {
+      setFlowAction(planHistory(qc).snapshot());
+      setFailure({
+        action: { kind: 'undo' },
+        text: `Rückgängig fehlgeschlagen. ${failureText(caught)}`,
+      });
+    }
   };
 
   const step = saved.step;
@@ -290,12 +426,12 @@ export function DistributeFlow({
             />
             <dl className="distribute-facts">
               <div>
-                <dt>Eingegangen im Monat</dt>
+                <dt>Gebuchte Einnahmen im Budgetmonat</dt>
                 <dd data-testid="distribute-income">{eur(s.incomeCents)}</dd>
               </div>
               {monthIncome && (
                 <div>
-                  <dt>Erwartete Zahlungen</dt>
+                  <dt>Davon erwartete Zahlungen (zugeordnet)</dt>
                   <dd data-testid="distribute-expected">
                     erhalten {eur(monthIncome.receivedCents)} von erwartet{' '}
                     {eur(monthIncome.expectedCents)}
@@ -310,8 +446,9 @@ export function DistributeFlow({
               )}
             </dl>
             <p className="distribute-note">
-              Erwartete Einnahmen zählen erst, wenn sie gebucht sind. Sie werden nie als verfügbares
-              Geld verteilt.
+              „Zu verteilen“ rechnet mit den gebuchten Einnahmen. Die Zeile der erwarteten Zahlungen
+              zeigt nur, wie weit sie schon eingegangen sind: erwartete Einnahmen zählen erst, wenn
+              sie gebucht sind, und werden nie als verfügbares Geld verteilt.
             </p>
             {s.uncoveredCents !== 0 && (
               <p className="distribute-note">
@@ -383,26 +520,56 @@ export function DistributeFlow({
                 )}
                 {takeBack.missingCents > 0 && (
                   <p className="distribute-alert" data-testid="distribute-missing">
-                    Freies Guthaben reicht nicht: es fehlen weiterhin {eur(takeBack.missingCents)}.
-                    Geld kommt nur durch Einnahmen oder Umbuchungen auf ein Budget-Konto.
+                    {takeBack.reason === 'assigned'
+                      ? `Zurücknehmen geht nur bis zur Zuweisung dieses Monats: es fehlen weiterhin ${eur(takeBack.missingCents)}. Den Rest musst du bei anderen Kategorien zurücknehmen oder durch eine Einnahme decken.`
+                      : `Freies Guthaben reicht nicht: es fehlen weiterhin ${eur(takeBack.missingCents)}. Geld kommt nur durch Einnahmen oder Umbuchungen auf ein Budget-Konto.`}
                   </p>
                 )}
               </>
             ) : (
               <>
-                {cashOverspent.length > 0 && tba > 0 && (
-                  <div className="distribute-row-action">
+                {cover.count > 0 && tba > 0 && (
+                  <div className="distribute-row-action" data-testid="distribute-cover">
                     <p>
-                      {cashOverspent.length} überzogen · {eur(gaps.overspentCents)} zu decken.
-                      Decken nimmt das Geld aus „Zu verteilen“.
+                      {cover.count} überzogen · {eur(cover.totalCents)} zu decken. Decken nimmt das
+                      Geld aus „Zu verteilen“.
                     </p>
-                    <Button
-                      variant="ghost"
-                      disabled={busy}
-                      onClick={() => void perform({ kind: 'cover' })}
-                    >
-                      Überzogene aus „Zu verteilen“ decken
-                    </Button>
+                    {cover.coversAll ? (
+                      <Button
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={() => void perform({ kind: 'coverAll' })}
+                      >
+                        Alle überzogenen decken · {eur(cover.totalCents)}
+                      </Button>
+                    ) : (
+                      <>
+                        <ul className="distribute-list">
+                          {cover.items.map((item) => (
+                            <li key={item.row.id}>
+                              <span className="distribute-name">{item.row.name}</span>
+                              <span className="distribute-meta">
+                                fehlt {eur(item.row.overspentCents)}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={busy}
+                                aria-label={`${eur(item.coverCents)} an ${item.row.name} aus „Zu verteilen“ decken`}
+                                onClick={() => void perform({ kind: 'cover', id: item.row.id })}
+                              >
+                                {eur(item.coverCents)} decken
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="distribute-alert" data-testid="distribute-uncovered-rest">
+                          „Zu verteilen“ reicht nicht für alle: danach bleiben{' '}
+                          {eur(cover.uncoveredCents)} ungedeckt. Geld kommt nur durch Einnahmen oder
+                          Umbuchungen auf ein Budget-Konto.
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
                 {fill.items.length > 0 ? (
@@ -442,8 +609,8 @@ export function DistributeFlow({
                 )}
               </>
             )}
-            {history?.label === 'Rückgängig' && (
-              <Button variant="ghost" disabled={busy} onClick={undo}>
+            {lastEntry && (
+              <Button variant="ghost" disabled={busy || !canUndo} onClick={() => void undo()}>
                 <Undo2 size={16} strokeWidth={1.75} aria-hidden="true" /> Letzte Änderung rückgängig
               </Button>
             )}
@@ -455,8 +622,20 @@ export function DistributeFlow({
             <dl className="distribute-facts" data-testid="distribute-summary">
               <div>
                 <dt>In diesem Durchgang zugewiesen</dt>
-                <dd>{eur(pass.assignedInPassCents)}</dd>
+                <dd>{eur(totals.assignedCents)}</dd>
               </div>
+              {totals.takenBackCents > 0 && (
+                <div>
+                  <dt>In diesem Durchgang zurückgenommen</dt>
+                  <dd>{eur(totals.takenBackCents)}</dd>
+                </div>
+              )}
+              {totals.externalCents !== 0 && (
+                <div>
+                  <dt>Weitere Änderungen außerhalb dieses Ablaufs</dt>
+                  <dd>{eur(totals.externalCents, { sign: true })}</dd>
+                </div>
+              )}
               <div className={cx(pass.state === 'over' && 'is-negative')}>
                 <dt>Zu verteilen jetzt</dt>
                 <dd>{eur(pass.remainingCents)}</dd>
@@ -493,7 +672,9 @@ export function DistributeFlow({
                 <h4>Änderungen in diesem Durchgang</h4>
                 <ol className="distribute-log">
                   {saved.log.map((entry, index) => (
-                    <li key={`${index}-${entry}`}>{entry}</li>
+                    <li key={`${index}-${entry.text}`}>
+                      {entry.undone ? `${entry.text} (rückgängig gemacht)` : entry.text}
+                    </li>
                   ))}
                 </ol>
               </>
@@ -515,9 +696,15 @@ export function DistributeFlow({
         {failure && (
           <div className="distribute-failure" role="alert">
             <p>{failure.text}</p>
-            <Button variant="ghost" disabled={busy} onClick={() => void perform(failure.action)}>
-              Erneut versuchen
-            </Button>
+            {failure.action && (
+              <Button
+                variant="ghost"
+                disabled={busy}
+                onClick={() => failure.action && void perform(failure.action)}
+              >
+                Erneut versuchen
+              </Button>
+            )}
           </div>
         )}
       </section>

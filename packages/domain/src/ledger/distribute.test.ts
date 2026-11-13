@@ -1,5 +1,12 @@
 import { expect, it } from 'vitest';
-import { distributionFill, distributionGaps, distributionPass, takeBackPlan } from './distribute';
+import {
+  coverFromToBeAssigned,
+  distributionFill,
+  distributionGaps,
+  distributionPass,
+  passTotals,
+  takeBackPlan,
+} from './distribute';
 
 const row = (
   id: string,
@@ -8,7 +15,7 @@ const row = (
   needCents: number,
   overspentCents = 0,
   isCard = false,
-) => ({ id, stage, sortOrder, needCents, overspentCents, isCard });
+) => ({ id, stage, sortOrder, needCents, overspentCents, availableCents: -overspentCents, isCard });
 
 it('lists overspent and underfunded envelopes in waterfall priority with their totals', () => {
   const gaps = distributionGaps([
@@ -40,26 +47,74 @@ it('takes an over-assignment back from free money, lowest priority first, never 
   ]);
   expect(plan.takenCents).toBe(12_000);
   expect(plan.missingCents).toBe(0);
+  expect(plan.reason).toBeNull();
 
   const short = takeBackPlan(rows.slice(1, 2), 3_000);
   expect(short.moves.map((m) => m.takeCents)).toEqual([1_500]);
   expect(short.takenCents).toBe(1_500);
   expect(short.missingCents).toBe(1_500);
-  expect(takeBackPlan(rows, -500)).toEqual({ moves: [], takenCents: 0, missingCents: 0 });
+  expect(short.reason).toBe('free');
+  expect(takeBackPlan(rows, -500)).toEqual({
+    moves: [],
+    takenCents: 0,
+    missingCents: 0,
+    reason: null,
+  });
+  // Assigned 100,00 €, free 250,00 € (carry), over 200,00 €: limited by the assignment.
+  const capped = takeBackPlan(
+    [{ id: 'trip', stage: 6, sortOrder: 0, assignedCents: 10_000, freeCents: 25_000 }],
+    20_000,
+  );
+  expect(capped.moves.map((m) => m.takeCents)).toEqual([10_000]);
+  expect(capped).toMatchObject({ takenCents: 10_000, missingCents: 10_000, reason: 'assigned' });
 });
 
-it('reports the net assignment of the pass and the remaining state', () => {
-  expect(distributionPass(120_000, 245_050, 4_950)).toEqual({
-    assignedInPassCents: 125_050,
-    remainingCents: 4_950,
-    state: 'left',
+it('reports the remaining state of "Zu verteilen"', () => {
+  expect(distributionPass(4_950).state).toBe('left');
+  expect(distributionPass(0).state).toBe('balanced');
+  expect(distributionPass(-1_234)).toEqual({ remainingCents: -1_234, state: 'over' });
+});
+
+it("sums only the flow's own successful writes; take-backs stay apart; undone writes drop out", () => {
+  const totals = passTotals(
+    [
+      { kind: 'assign', cents: 80_000 },
+      { kind: 'cover', cents: 2_340 },
+      { kind: 'take', cents: 1_500 },
+      { kind: 'assign', cents: 5_000, undone: true },
+    ],
+    200_000,
+    290_840,
+  );
+  expect(totals).toEqual({
+    assignedCents: 82_340,
+    takenBackCents: 1_500,
+    externalCents: 10_000,
   });
-  expect(distributionPass(50_000, 50_000, 0).state).toBe('balanced');
-  expect(distributionPass(50_000, 40_000, -1_234)).toEqual({
-    assignedInPassCents: -10_000,
-    remainingCents: -1_234,
-    state: 'over',
+  // Opened with 2.000,00 € assigned, +300,00 € assigned elsewhere: nothing by this flow.
+  expect(passTotals([], 200_000, 230_000)).toEqual({
+    assignedCents: 0,
+    takenBackCents: 0,
+    externalCents: 30_000,
   });
+});
+
+it('covers overspending from "Zu verteilen" only up to what is there, same rows for count and sum', () => {
+  const rows = [row('food', 2, 0, 0, 2_340), row('cardcat', 3, 1, 0, 4_000)];
+  const short = coverFromToBeAssigned(rows, 100);
+  expect(short.items.map((i) => [i.row.id, i.coverCents])).toEqual([['food', 100]]);
+  expect(short).toMatchObject({
+    count: 2,
+    totalCents: 6_340,
+    coveredCents: 100,
+    uncoveredCents: 6_240,
+    coversAll: false,
+  });
+  const exact = coverFromToBeAssigned(rows, 6_340);
+  expect(exact.items.map((i) => i.coverCents)).toEqual([2_340, 4_000]);
+  expect(exact).toMatchObject({ coveredCents: 6_340, uncoveredCents: 0, coversAll: true });
+  expect(coverFromToBeAssigned(rows, 0)).toMatchObject({ items: [], coversAll: false });
+  expect(coverFromToBeAssigned([], 5_000)).toMatchObject({ count: 0, coversAll: false });
 });
 
 it('fills needs top-down from "Zu verteilen" and keeps the rest unassigned', () => {
