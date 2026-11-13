@@ -14,6 +14,7 @@ import { useFabVisible } from './use-fab-visible';
 import { REDESIGN_ENABLED } from './redesign-flag';
 import { InboxHeaderLink } from '../inbox/navigation';
 import { useInboxCount } from './inbox';
+import { DocumentUploadButton } from '../document-intake/document-upload';
 
 /**
  * What the phone header shows, as in the prototype: the area name (the month switch and the strip
@@ -66,6 +67,7 @@ export function MobileHeader({
           )}
         </div>
         <GlobalSearch mobile onOpenChange={onSearchChange} />
+        {REDESIGN_ENABLED && <DocumentUploadButton compact label="Neues Dokument hochladen" />}
         {compactHeute && (
           <InboxHeaderLink className="m-review" aria-label={inbox.label}>
             <span aria-hidden="true">{inbox.count ?? '…'}</span>

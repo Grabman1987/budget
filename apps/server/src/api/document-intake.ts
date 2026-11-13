@@ -4,7 +4,7 @@ import type { Db } from '@budget/db';
 import { RECEIPT_LIMIT, sanitizedFilename } from '../receipts/files';
 import { classifyDocument } from '../document-intake/classify';
 import { findReceiptMatches } from '../document-intake/receipt-matches';
-import { ApiError, readQuery } from './http';
+import { ApiError, readBody } from './http';
 
 const MAX_PASSWORD = 256;
 /**
@@ -54,19 +54,29 @@ export function documentIntakeRoutes(db: Db) {
       ),
     );
   });
-  // Read-only lookup behind the editable receipt proposal; the owner changes the values freely.
-  api.get('/receipt-matches', (c) => {
-    const query = readQuery(
+  // Read-only lookup behind the editable receipt proposal. POST keeps the amount, date and
+  // payee out of URLs and logs; nothing is written.
+  api.post('/receipt-matches', async (c) => {
+    const body = await readBody(
       c,
       z
         .object({
-          totalCents: z.coerce.number().int().positive().max(1_000_000_000),
+          totalCents: z
+            .number()
+            .int()
+            .min(-1_000_000_000)
+            .max(1_000_000_000)
+            .refine((n) => n !== 0),
+          currency: z
+            .string()
+            .regex(/^[A-Z]{3}$/)
+            .default('EUR'),
           date: z.iso.date(),
           payee: z.string().max(80).optional(),
         })
         .strict(),
     );
-    return c.json({ matches: findReceiptMatches(db, query) });
+    return c.json({ matches: findReceiptMatches(db, body) });
   });
   return api;
 }

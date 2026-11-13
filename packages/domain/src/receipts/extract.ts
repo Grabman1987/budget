@@ -6,25 +6,37 @@ import { parseAmount } from '../money';
  * No OCR, no network, no guessing: an ambiguous total stays empty.
  */
 export type ReceiptProposal = {
-  /** Positive integer cents. */
+  /** Signed integer cents: positive for an invoice or till slip, negative for a credit note. */
   totalCents: number | null;
+  /** ISO 4217 code printed next to the total; EUR when none is printed. */
+  currency: string;
   /** ISO day (YYYY-MM-DD). */
   date: string | null;
   /** First plausible issuer line, trimmed. */
   payee: string | null;
 };
 
+/** Longer lines are not receipt lines; skipping them bounds regex work on hostile input. */
+const MAX_LINE = 200;
+const SIGN = '[-\u2212]';
 const AMOUNT = String.raw`(\d{1,3}(?:\.\d{3})+,\d{2}|\d+,\d{2})`;
-// Strongest labels first; the lowest-numbered tier present in the document wins.
-const TOTAL_TIERS: RegExp[] = [
-  /zu\s+zahlen|zahlbetrag|rechnungsbetrag|gesamtbetrag|endbetrag|total\s+eur|amount\s+due/i,
-  /\bgesamt\b|\bsumme\b|\btotal\b|\bbrutto\b/i,
-];
-const NOT_TOTAL =
-  /zwischensumme|nettosumme|\bnetto\b|mwst|ust\b|steuer|rabatt|r[üu]ckgeld|bar\b|gegeben/i;
-const DATE_LABEL = /rechnungsdatum|belegdatum|\bdatum\b|date/i;
+const AMOUNT_SIGNED = new RegExp(
+  String.raw`(?<![\d.,])(${SIGN}\s?)?${AMOUNT}(\s?${SIGN})?(?![\d,])`,
+  'g',
+);
+// Gross wording wins; plain "Gesamt/Total" is next; a bare "Summe" only when no tax is shown.
+const GROSS =
+  /zu\s+zahlen|zahlbetrag|rechnungsbetrag|gesamtbetrag|endbetrag|total\s+eur|amount\s+due|\binkl\b\.?|\bbrutto\b/i;
+const TOTAL = /\bgesamt\b|\btotal\b/i;
+const SUM = /\bsumme\b/i;
+const NET_OR_PART = /zwischensumme|nettosumme|\bnetto\b|\bnet\b|davon|enthalten/i;
+const CASH_OR_TAX = /rabatt|r[üu]ckgeld|gegeben|\bbar\b|\bmwst\b|\bust\b|steuer/i;
+const TAX_HINT = /\bnetto\b|\bmwst\b|\bust\b|steuer/i;
+const CURRENCY = /\b(EUR|USD|CHF|GBP)\b|(€)|(\$)|(£)/;
+const DATE_LABEL = /\b(?:rechnungsdatum|belegdatum|datum|date)\b/i;
 const NOISE =
   /^(rechnung|beleg|kassenbon|kassabon|quittung|lieferschein|seite|page|invoice|receipt|danke|vielen dank)\b/i;
+const TOTAL_TIERS = [GROSS, TOTAL, SUM];
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -36,32 +48,44 @@ function validDay(d: number, m: number, y: number): string | null {
 
 function datesIn(line: string): string[] {
   const found: string[] = [];
-  for (const m of line.matchAll(/\b(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})\b/g)) {
-    const year = m[3]!.length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
-    const day = validDay(Number(m[1]), Number(m[2]), year);
+  for (const m of line.matchAll(/(?<![\d.])(\d{1,2})\.(\d{1,2})\.(\d{4})(?!\d)/g)) {
+    const day = validDay(Number(m[1]), Number(m[2]), Number(m[3]));
+    if (day) found.push(day);
+  }
+  for (const m of line.matchAll(/(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)/g)) {
+    const day = validDay(Number(m[3]), Number(m[2]), Number(m[1]));
     if (day) found.push(day);
   }
   return found;
 }
 
-function totalCents(lines: string[]): number | null {
-  for (const tier of TOTAL_TIERS) {
-    const hits: number[] = [];
+function totalOf(lines: string[]): { cents: number | null; currency: string } {
+  const taxShown = lines.some((line) => TAX_HINT.test(line));
+  for (const [index, tier] of TOTAL_TIERS.entries()) {
+    if (index === 2 && taxShown) break; // net or gross cannot be told apart
+    const hits: { cents: number; currency: string }[] = [];
     for (const line of lines) {
-      if (!tier.test(line) || NOT_TOTAL.test(line)) continue;
-      const amounts = [...line.matchAll(new RegExp(AMOUNT, 'g'))].map((m) => m[1]!);
+      if (!tier.test(line) || NET_OR_PART.test(line)) continue;
+      if (!(index === 0 && GROSS.test(line)) && CASH_OR_TAX.test(line)) continue;
+      const found = [...line.matchAll(AMOUNT_SIGNED)].at(-1);
+      if (!found) continue;
       // The printed total is the last amount of its line ("Gesamt 3 Artikel 12,50 EUR").
-      const printed = amounts.at(-1);
-      if (!printed) continue;
-      const parsed = parseAmount(printed);
-      if (parsed.ok && parsed.cents > 0) hits.push(parsed.cents);
+      const parsed = parseAmount(found[2]!);
+      if (!parsed.ok || parsed.cents <= 0) continue;
+      const negative = Boolean(found[1] || found[3]);
+      const code = CURRENCY.exec(line);
+      const currency = code ? (code[1] ?? (code[2] ? 'EUR' : code[3] ? 'USD' : 'GBP')) : 'EUR';
+      hits.push({ cents: negative ? -parsed.cents : parsed.cents, currency });
     }
     if (hits.length) {
       // Repeated identical totals are fine; conflicting ones are ambiguous.
-      return new Set(hits).size === 1 ? hits[0]! : null;
+      const first = hits[0]!;
+      return hits.every((h) => h.cents === first.cents && h.currency === first.currency)
+        ? { cents: first.cents, currency: first.currency }
+        : { cents: null, currency: 'EUR' };
     }
   }
-  return null;
+  return { cents: null, currency: 'EUR' };
 }
 
 function documentDate(lines: string[]): string | null {
@@ -98,6 +122,12 @@ export function extractReceiptProposal(text: string): ReceiptProposal {
   const lines = text
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter(Boolean);
-  return { totalCents: totalCents(lines), date: documentDate(lines), payee: payee(lines) };
+    .filter((line) => line && line.length <= MAX_LINE);
+  const total = totalOf(lines);
+  return {
+    totalCents: total.cents,
+    currency: total.currency,
+    date: documentDate(lines),
+    payee: payee(lines),
+  };
 }

@@ -4,7 +4,13 @@ import { useQuery } from '@tanstack/react-query';
 import { eur, longDay } from '../ledger/format';
 
 /** What the owner sees and may correct; nothing here is saved until "Weiter". */
-export type ReceiptEdit = { amount: string; date: string; payee: string; bookingId: string };
+export type ReceiptEdit = {
+  amount: string;
+  currency: string;
+  date: string;
+  payee: string;
+  bookingId: string;
+};
 type Match = {
   id: string;
   date: string;
@@ -15,24 +21,36 @@ type Match = {
 
 export const proposalToEdit = (proposal: ReceiptProposal): ReceiptEdit => ({
   amount: proposal.totalCents === null ? '' : formatDecimal(cents(proposal.totalCents)),
+  currency: proposal.currency,
   date: proposal.date ?? '',
   payee: proposal.payee ?? '',
   bookingId: '',
 });
 
-/** Positive cents of the edited amount, or null while it is empty or not a valid amount. */
+/** Signed cents of the edited amount (negative = credit note), or null while empty or invalid. */
 export function editedCents(value: ReceiptEdit): number | null {
   const parsed = parseAmount(value.amount);
-  return parsed.ok && parsed.cents > 0 ? parsed.cents : null;
+  return parsed.ok && parsed.cents !== 0 ? parsed.cents : null;
 }
 const validDate = (day: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(day) && !Number.isNaN(Date.parse(day));
 
-async function loadMatches(totalCents: number, date: string, payee: string): Promise<Match[]> {
-  const query = new URLSearchParams({ totalCents: String(totalCents), date });
-  if (payee.trim()) query.set('payee', payee.trim().slice(0, 80));
-  const response = await fetch(`/api/document-intake/receipt-matches?${query}`, {
+async function loadMatches(
+  totalCents: number,
+  currency: string,
+  date: string,
+  payee: string,
+): Promise<Match[]> {
+  const response = await fetch('/api/document-intake/receipt-matches', {
+    method: 'POST',
     credentials: 'same-origin',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      totalCents,
+      currency,
+      date,
+      ...(payee.trim() ? { payee: payee.trim().slice(0, 80) } : {}),
+    }),
   });
   if (!response.ok) throw new Error('matches');
   return ((await response.json()) as { matches: Match[] }).matches;
@@ -54,8 +72,15 @@ export function ReceiptProposalPanel({
   const total = editedCents(value);
   const lookup = total !== null && validDate(value.date);
   const matches = useQuery({
-    queryKey: ['document-intake', 'receipt-matches', total, value.date, value.payee],
-    queryFn: () => loadMatches(total!, value.date, value.payee),
+    queryKey: [
+      'document-intake',
+      'receipt-matches',
+      total,
+      value.currency,
+      value.date,
+      value.payee,
+    ],
+    queryFn: () => loadMatches(total!, value.currency, value.date, value.payee),
     enabled: lookup,
     retry: false,
   });

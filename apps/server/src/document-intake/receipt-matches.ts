@@ -1,4 +1,5 @@
-import { listBookings, listPayees, type Db } from '@budget/db';
+import { listBookings, listPayees, schema, type Db } from '@budget/db';
+import { and, eq, isNull } from 'drizzle-orm';
 import { addDays, daysBetween } from '@budget/domain';
 
 export const MATCH_WINDOW_DAYS = 5;
@@ -33,20 +34,42 @@ function similarity(a: string | undefined, b: string | null): number {
 }
 
 /**
- * Existing live bookings that could belong to a receipt: the same outgoing amount, booked within
- * five days of the document date, transfers excluded. Read-only; ranked by payee similarity,
+ * Existing live bookings that could belong to a receipt: the same amount (an invoice matches an outgoing booking, a credit note an incoming one) and currency, booked within
+ * five days of the document date, transfers and bookings that already have a receipt excluded. Read-only; ranked by payee similarity,
  * then by date distance. Nothing is linked here.
  */
 export function findReceiptMatches(
   db: Db,
-  input: { totalCents: number; date: string; payee?: string | undefined },
+  input: {
+    /** Signed like the extractor: positive invoice, negative credit note. */
+    totalCents: number;
+    /** Document currency; must equal the booking's account currency. */
+    currency: string;
+    date: string;
+    payee?: string | undefined;
+  },
 ): ReceiptMatch[] {
+  const receipted = new Set(
+    db
+      .select({ id: schema.bookingReceipt.bookingId })
+      .from(schema.bookingReceipt)
+      .innerJoin(schema.receipt, eq(schema.receipt.id, schema.bookingReceipt.receiptId))
+      .where(and(isNull(schema.bookingReceipt.deletedAt), isNull(schema.receipt.deletedAt)))
+      .all()
+      .map((row) => row.id),
+  );
   const names = new Map(listPayees(db).map((row) => [row.id, row.name]));
   return listBookings(db, {
     from: addDays(input.date, -MATCH_WINDOW_DAYS),
     to: addDays(input.date, MATCH_WINDOW_DAYS),
   })
-    .filter((row) => row.transferId === null && row.amountCents === -input.totalCents)
+    .filter(
+      (row) =>
+        row.transferId === null &&
+        row.amountCents === -input.totalCents &&
+        row.currency === input.currency &&
+        !receipted.has(row.id),
+    )
     .map((row) => ({
       match: {
         id: row.id,

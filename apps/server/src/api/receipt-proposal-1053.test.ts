@@ -11,6 +11,7 @@ import { createAuth } from '../auth/routes';
 import { AuthStore } from '../auth/store';
 import { syntheticColumnarPayslipPdf } from '../payslips/testing';
 import { createBooking } from '@budget/db';
+import { PNG } from '../receipts/testing';
 
 const origin = 'http://localhost:3000',
   token = 'synthetic-statement-session';
@@ -79,8 +80,13 @@ async function classify(bytes: Buffer) {
   form.set('file', new File([new Uint8Array(bytes)], 'synthetic.pdf', { type: 'application/pdf' }));
   return app.request('/api/document-intake/classify', { method: 'POST', headers, body: form });
 }
-const matches = (query: string) =>
-  app.request('/api/document-intake/receipt-matches?' + query, { headers });
+const matches = (body: unknown, extra: Record<string, string> = headers) =>
+  app.request('/api/document-intake/receipt-matches', {
+    method: 'POST',
+    headers: { ...extra, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+const base = { totalCents: 1240, currency: 'EUR', date: '2026-10-07' };
 
 it('proposes total, date and payee for a receipt PDF without storing or booking anything', async () => {
   const bytes = await syntheticColumnarPayslipPdf(
@@ -92,6 +98,7 @@ it('proposes total, date and payee for a receipt PDF without storing or booking 
   expect(body.type).toBe('receipt');
   expect(body.receipt).toEqual({
     totalCents: 1240,
+    currency: 'EUR',
     date: '2026-10-07',
     payee: 'Muster Markt GmbH',
   });
@@ -101,11 +108,16 @@ it('proposes total, date and payee for a receipt PDF without storing or booking 
 it('leaves unprinted fields empty instead of guessing', async () => {
   const bytes = await syntheticColumnarPayslipPdf(lines('Synthetic till slip'), '');
   const body = (await (await classify(bytes)).json()) as { receipt?: unknown };
-  expect(body.receipt).toEqual({ totalCents: null, date: null, payee: 'Synthetic till slip' });
+  expect(body.receipt).toEqual({
+    totalCents: null,
+    currency: 'EUR',
+    date: null,
+    payee: 'Synthetic till slip',
+  });
 });
 
 it('lists only outgoing bookings with the same amount within five days', async () => {
-  const res = await matches('totalCents=1240&date=2026-10-07&payee=Muster%20Markt');
+  const res = await matches({ ...base, payee: 'Muster Markt' });
   expect(res.status).toBe(200);
   const { matches: found } = (await res.json()) as {
     matches: { date: string; amountCents: number }[];
@@ -113,15 +125,39 @@ it('lists only outgoing bookings with the same amount within five days', async (
   expect(found.map((row) => [row.date, row.amountCents])).toEqual([['2026-10-06', -1240]]);
 });
 
-it('validates the query', async () => {
-  expect((await matches('totalCents=0&date=2026-10-07')).status).toBe(400);
-  expect((await matches('totalCents=1240&date=07.10.2026')).status).toBe(400);
-  expect((await matches('totalCents=1240&date=2026-10-07&x=1')).status).toBe(400);
-  const anonymous = await app.request(
-    '/api/document-intake/receipt-matches?totalCents=1&date=2026-10-07',
-    {
-      headers: { origin },
-    },
+it('matches a credit note against incoming bookings only', async () => {
+  const res = await matches({ ...base, totalCents: -1240 });
+  const { matches: found } = (await res.json()) as { matches: { amountCents: number }[] };
+  expect(found.map((row) => row.amountCents)).toEqual([1240]);
+});
+
+it('requires the same currency and skips bookings that already have a receipt', async () => {
+  expect(
+    ((await (await matches({ ...base, currency: 'USD' })).json()) as { matches: unknown[] })
+      .matches,
+  ).toEqual([]);
+  const target = opened.db
+    .select()
+    .from(schema.booking)
+    .all()
+    .find((b) => b.date === '2026-10-06')!;
+  const form = new FormData();
+  form.set('file', new File([new Uint8Array(PNG)], 'synthetic.png', { type: 'image/png' }));
+  form.set('bookingId', target.id);
+  expect((await app.request('/api/receipts', { method: 'POST', headers, body: form })).status).toBe(
+    201,
   );
-  expect(anonymous.status).toBe(401);
+  expect(((await (await matches(base)).json()) as { matches: unknown[] }).matches).toEqual([]);
+});
+
+it('validates the body, rejects the old query form and requires authentication', async () => {
+  expect((await matches({ ...base, totalCents: 0 })).status).toBe(400);
+  expect((await matches({ ...base, date: '07.10.2026' })).status).toBe(400);
+  expect((await matches({ ...base, x: 1 })).status).toBe(400);
+  const old = await app.request(
+    '/api/document-intake/receipt-matches?totalCents=1240&date=2026-10-07',
+    { headers },
+  );
+  expect(old.status).toBeGreaterThanOrEqual(400);
+  expect((await matches(base, { origin })).status).toBe(401);
 });

@@ -1,4 +1,4 @@
-import { createTestDatabase, type OpenedDatabase } from '@budget/db';
+import { accounts, createTestDatabase, type OpenedDatabase } from '@budget/db';
 import type { StatementIntakeView } from '@budget/domain';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -90,13 +90,13 @@ afterEach(() => {
   opened.close();
   rmSync(dir, { recursive: true, force: true });
 });
-async function upload(bytes: Buffer, password?: string) {
+async function upload(bytes: Buffer, password?: string, accountId = 'giro') {
   const form = new FormData();
   form.set(
     'file',
     new File([new Uint8Array(bytes)], 'synthetic-statement.pdf', { type: 'application/pdf' }),
   );
-  form.set('accountId', 'giro');
+  form.set('accountId', accountId);
   if (password) form.set('password', password);
   return app.request('/api/statement-intake/upload', { method: 'POST', headers, body: form });
 }
@@ -124,4 +124,36 @@ it('still reports a missing password when no candidate opens the PDF', async () 
   vi.stubEnv('PAYSLIP_PDF_PASSWORD', 'synthetic-server-secret');
   const bytes = await syntheticColumnarPayslipPdf(rows, 'synthetic-other-secret');
   expect((await read(await upload(bytes))).extraction).toBe('password_required');
+});
+
+it('re-runs automation on a retained encrypted statement with the remembered password', async () => {
+  const bytes = await syntheticColumnarPayslipPdf(rows, 'synthetic-remembered-secret');
+  accounts.create(
+    opened.db,
+    {
+      id: 'card',
+      name: 'Synthetic card',
+      type: 'credit_card',
+      role: 'budget',
+      onBudget: true,
+      openingDate: '2026-01-01',
+      openingBalanceCents: 0,
+    },
+    { actor: 'tester' },
+  );
+  const first = ((await (await upload(bytes, undefined, 'card')).json()) as ApiJson).intake;
+  expect(first.proposal.extraction).toBe('password_required');
+  rememberPayslipPassword(opened.db, 'synthetic-remembered-secret');
+  const res = await app.request('/api/statement-intake/' + first.id + '/automate', {
+    method: 'POST',
+    headers: { ...headers, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      revision: first.revision,
+      sha256: first.sha256,
+      accountId: first.accountId,
+    }),
+  });
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as { automation: { reasons: string[] } };
+  expect(body.automation.reasons).not.toContain('source_extraction_unavailable');
 });

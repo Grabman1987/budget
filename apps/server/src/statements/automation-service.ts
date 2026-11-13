@@ -12,7 +12,11 @@ import {
   readStatementAutomationOutcome,
   type Db,
 } from '@budget/db';
-import { extractStatementText, readStatementSource } from './service';
+import {
+  extractStatementTextWith,
+  readStatementSource,
+  statementPasswordCandidates,
+} from './service';
 
 const review = (intakeId: string, reasons: string[]): StatementAutomationOutcome => ({
   intakeId,
@@ -51,6 +55,7 @@ export async function automateRetainedStatement(
   cas: StatementCas,
   password?: string,
 ): Promise<StatementAutomationOutcome> {
+  const candidates = statementPasswordCandidates(db, password);
   const priorResult = readStatementAutomationOutcome(db, intakeId);
   if (priorResult) return unchangedStatementAutomation(db, intakeId);
   const preparation = prepareStatementAutomation(db, intakeId, cas);
@@ -74,7 +79,7 @@ export async function automateRetainedStatement(
       preparation.source.sha256,
       preparation.source.sizeBytes,
     );
-    const extracted = await extractStatementText(bytes, password);
+    const extracted = await extractStatementTextWith(bytes, candidates);
     if (!extracted.text || extracted.error)
       return review(intakeId, ['source_extraction_unavailable']);
     currentText = extracted.text;
@@ -88,7 +93,7 @@ export async function automateRetainedStatement(
     try {
       const source = preparation.previous;
       const bytes = await readStatementSource(dir, source.sha256, source.sizeBytes);
-      const extracted = await extractStatementText(bytes, password);
+      const extracted = await extractStatementTextWith(bytes, candidates);
       if (extracted.text && !extracted.error && source.accountId === preparation.source.accountId) {
         const prior = parseCardDocument(extracted.text, source.sha256, context);
         const f = prior.summary.fields;

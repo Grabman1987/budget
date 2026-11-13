@@ -3,8 +3,8 @@
 One **Dokument hochladen** action replaces choosing between three separate
 uploads. It appears with the redesign on the account and depot pages (inside
 "Dokumente und Kontoauszüge", with that account as context) and on Prüfen.
-A compact icon button "Neues Dokument hochladen" in the top bar (redesign on, desktop widths) opens
-the same dialog from every page, without account context. With the redesign off the existing
+A compact icon button "Neues Dokument hochladen" in the top bar (redesign on) and in the phone
+header opens the same dialog from every page, without account context. With the redesign off the existing
 buttons are unchanged.
 
 ## Flow
@@ -47,9 +47,9 @@ returned. Images are only offered as receipts. A typed password that does not op
 
 For a receipt PDF with a text layer, classification adds a proposal (`extractReceiptProposal` in
 `packages/domain`): total as integer cents (labelled lines only; conflicting totals stay empty),
-document date and an issuer line. The dialog shows them as editable fields and lists live outgoing
-bookings with the same amount within five days (`GET /api/document-intake/receipt-matches`,
-read-only, ranked by payee similarity). Choosing one attaches the receipt in the same upload
+document date, currency and an issuer line (a credit note yields a negative total; a gross total beats a net "Summe"; an undecidable total stays empty). The dialog shows them as editable fields and lists live outgoing
+bookings with the same amount and currency within five days that have no receipt yet (`POST
+/api/document-intake/receipt-matches` with a JSON body, read-only, ranked by payee similarity). Choosing one attaches the receipt in the same upload
 (`bookingId`); otherwise it is filed under Prüfen. Nothing is booked. No OCR, no external service.
 
 ## Detection rules (deterministic, in this order)

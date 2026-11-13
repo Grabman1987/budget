@@ -71,7 +71,9 @@ beforeEach(() => {
       return Response.json(result);
     }
     if (path === '/api/document-intake/receipt-matches') {
-      matchQueries.push(new URL(String(input), 'http://localhost').search);
+      expect(init?.method).toBe('POST');
+      expect(String(input)).not.toContain('?');
+      matchQueries.push(String(init?.body));
       return Response.json({
         matches: [
           {
@@ -221,7 +223,7 @@ it('shows an editable receipt proposal and attaches the receipt to the chosen bo
     confidence: 'unknown',
     hints: { mime: 'application/pdf' },
     needsPassword: false,
-    receipt: { totalCents: 1240, date: '2026-10-07', payee: 'Muster Markt' },
+    receipt: { totalCents: 1240, currency: 'EUR', date: '2026-10-07', payee: 'Muster Markt' },
   };
   renderButton();
   const file = pdf();
@@ -233,8 +235,8 @@ it('shows an editable receipt proposal and attaches the receipt to the chosen bo
     'Muster Markt',
   );
   const match = await screen.findByRole('radio', { name: /Muster Markt/ });
-  expect(matchQueries[0]).toContain('totalCents=1240');
-  expect(matchQueries[0]).toContain('date=2026-10-07');
+  expect(matchQueries[0]).toContain('"totalCents":1240');
+  expect(matchQueries[0]).toContain('"date":"2026-10-07"');
   await user.click(match);
   await user.click(screen.getByRole('button', { name: 'Weiter' }));
   await waitFor(() => expect(receipt).toHaveBeenCalledWith(file, 'synthetic-booking'));
@@ -249,7 +251,7 @@ it('files the receipt alone when no booking is chosen and re-queries after an ed
     confidence: 'unknown',
     hints: { mime: 'application/pdf' },
     needsPassword: false,
-    receipt: { totalCents: 1240, date: '2026-10-07', payee: null },
+    receipt: { totalCents: 1240, currency: 'EUR', date: '2026-10-07', payee: null },
   };
   renderButton();
   const file = pdf();
@@ -258,7 +260,7 @@ it('files the receipt alone when no booking is chosen and re-queries after an ed
   const amount = screen.getByLabelText('Betrag');
   await user.clear(amount);
   await user.type(amount, '13,50');
-  await waitFor(() => expect(matchQueries.some((q) => q.includes('totalCents=1350'))).toBe(true));
+  await waitFor(() => expect(matchQueries.some((q) => q.includes('"totalCents":1350'))).toBe(true));
   await user.click(screen.getByRole('button', { name: 'Weiter' }));
   await waitFor(() => expect(receipt).toHaveBeenCalledWith(file, undefined));
 });

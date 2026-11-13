@@ -84,9 +84,41 @@ export function DocumentUploadButton({
   /** Icon-only trigger for the top bar; the accessible name stays `label`. */
   compact?: boolean | undefined;
 }) {
-  const picker = useRef<HTMLInputElement>(null);
+  // The flow (queries, write helper, hand-off dialogs) mounts on first use only, so a trigger in
+  // shared chrome costs nothing until the owner opens it, and the hand-off survives closing.
   const [open, setOpen] = useState(false),
-    [busy, setBusy] = useState(false),
+    [mounted, setMounted] = useState(false);
+  const start = () => {
+    setMounted(true);
+    setOpen(true);
+  };
+  return (
+    <>
+      {compact ? (
+        <button type="button" className="icon-btn" aria-label={label} title={label} onClick={start}>
+          <FileUp size={16} strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      ) : (
+        <Button variant="ghost" onClick={start}>
+          {label}
+        </Button>
+      )}
+      {mounted && <UploadFlow accountId={accountId} open={open} setOpen={setOpen} />}
+    </>
+  );
+}
+
+function UploadFlow({
+  accountId,
+  open,
+  setOpen,
+}: {
+  accountId: string | undefined;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
+  const picker = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false),
     [over, setOver] = useState(false),
     [error, setError] = useState('');
   const [file, setFile] = useState<File | null>(null),
@@ -178,30 +210,6 @@ export function DocumentUploadButton({
   const detected = result && result.type !== 'unreadable' ? LABEL[result.type] : null;
   return (
     <>
-      {compact ? (
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label={label}
-          title={label}
-          onClick={() => {
-            reset();
-            setOpen(true);
-          }}
-        >
-          <FileUp size={16} strokeWidth={1.75} aria-hidden="true" />
-        </button>
-      ) : (
-        <Button
-          variant="ghost"
-          onClick={() => {
-            reset();
-            setOpen(true);
-          }}
-        >
-          {label}
-        </Button>
-      )}
       <WideDialog
         open={open}
         title="Dokument hochladen"

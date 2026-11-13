@@ -102,7 +102,7 @@ export async function classifyDocument(
     };
   }
   const proposal = extractReceiptProposal(text);
-  const hasProposal = Object.values(proposal).some((value) => value !== null);
+  const hasProposal = [proposal.totalCents, proposal.date, proposal.payee].some((v) => v !== null);
   return {
     type: 'receipt',
     confidence: 'unknown',
