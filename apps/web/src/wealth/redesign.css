@@ -79,7 +79,12 @@
   align-items: flex-end;
   gap: 40px;
   min-height: 98px;
-  padding: 0 0 4px;
+  padding: 14px 16px;
+  /* Opaque card: the key figure never sits on the drafting grid. */
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
 }
 .wealth-redesign .wealth-lead h2,
 .wealth-redesign .wealth-savings-lead h2 {
@@ -352,6 +357,11 @@
   color: var(--ink-2);
   flex-wrap: wrap;
   margin: 0;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
 }
 .wealth-redesign .wealth-details {
   font-size: var(--fs-meta);
@@ -466,6 +476,11 @@
   flex-wrap: wrap;
   align-items: center;
   margin: 6px 0 16px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
 }
 .wealth-redesign .wealth-savings-lead h2 {
   width: 100%;
@@ -703,7 +718,6 @@
   .wealth-redesign .wealth-lead {
     display: block;
     min-height: 0;
-    padding-bottom: 0;
   }
   .wealth-redesign .wealth-figure {
     font-size: var(--fs-dimension);

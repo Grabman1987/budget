@@ -14,7 +14,8 @@
   position: relative;
   isolation: isolate;
 }
-/* Drafting grid: 8 px minor and 40 px major lines, only in the top right, fading into the sheet. */
+/* Drafting grid: 8 px minor and 40 px major lines. OFF build (unchanged): only in the top right,
+   fading into the sheet. The ON build widens it to the whole surface below. */
 .main::before {
   content: '';
   position: absolute;
@@ -46,9 +47,78 @@
     transparent 72%
   );
 }
+/* Grid ink per theme, only consumed by the ON build (the OFF build keeps its corner accent above).
+   --grid-line in tokens.css is pinned byte-identical for OFF and stays the faint legacy value;
+   the visible ground grid uses --grid-ink: 14 % in light and dark, minor lines at 50 %. */
+:root,
+:root[data-theme='light'] {
+  --grid-ink: rgba(23, 71, 166, 0.14);
+}
+:root[data-theme='dark'] {
+  --grid-ink: rgba(210, 236, 255, 0.14);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --grid-ink: rgba(210, 236, 255, 0.14);
+  }
+}
+
+/* ON drafting grid (owner decision 2026-11-11): 8 px minor and 40 px major lines over the whole main
+   surface, no mask. The pseudo-element spans the full height of .main, so long pages scroll over
+   one continuous grid. Key figures, cards, panels, dialogs and tables are opaque and never show it.
+   The image is shared through custom properties: Konten draws it as the .main background instead
+   (konten-frame.css). */
+.app[data-budget-redesign='1'] {
+  --drafting-grid:
+    linear-gradient(var(--grid-ink) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-ink) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--grid-ink) 50%, transparent) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--grid-ink) 50%, transparent) 1px,
+      transparent 1px
+    );
+  --drafting-grid-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
+}
+.app[data-budget-redesign='1'] .main::before {
+  inset: 0;
+  width: auto;
+  height: auto;
+  background-image: var(--drafting-grid);
+  background-size: var(--drafting-grid-size);
+  background-position: 0 0;
+  mask-image: none;
+  /* A full-height leaf box would be picked as the scroll anchor; content loading above the
+     viewport would then push focused targets out of view. */
+  overflow-anchor: none;
+}
+@media print {
+  .app[data-budget-redesign='1'] .main::before {
+    display: none;
+  }
+}
+/* Heute lead block carries the key figure: opaque so it never sits on the grid (ON only). The
+   Konten and Vermögen leads get their card in their own stylesheets. */
+.app[data-budget-redesign='1'] .hv-lead {
+  padding: 14px 16px 12px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+/* Phone: no top padding, the compact Heute header keeps the figure within its height budget. */
+@media (max-width: 767px) {
+  .app[data-budget-redesign='1'] .hv-lead {
+    padding: 0 12px 10px;
+  }
+}
 .topbar {
   background: color-mix(in srgb, var(--ground) 80%, transparent);
   border-bottom-color: var(--card-border);
+}
+/* ON: a solid bar, text never sits on the (blurred) grid. */
+.app[data-budget-redesign='1'] .topbar {
+  background: var(--ground);
 }
 .search input {
   background: var(--surface);
