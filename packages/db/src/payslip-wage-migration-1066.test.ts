@@ -164,8 +164,25 @@ it('#1066 migration 0053 on a populated 0052 database: additive only, rollback e
     bytes = opened.sqlite.serialize();
     expect(() => run(db)).toThrow();
     expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
+    // A live owner mapping refuses; so does a soft-deleted reading (retained history).
     opened.sqlite.exec(`
       DELETE FROM audit_log WHERE id = 'au3';
+      INSERT INTO wage_component_mapping (id, wage_code, mapping_key, component)
+        VALUES ('m1', '105', '|105|', 'base');
+    `);
+    bytes = opened.sqlite.serialize();
+    expect(() => run(db)).toThrow();
+    expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
+    opened.sqlite.exec(`
+      DELETE FROM wage_component_mapping;
+      INSERT INTO payslip_wage_read (id, payslip_id, origin, parser_version, line_check, deleted_at)
+        VALUES ('w2', 'p1', 'reread', 3, 'skipped', '2030-05-01T00:00:00.000Z');
+    `);
+    bytes = opened.sqlite.serialize();
+    expect(() => run(db)).toThrow();
+    expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
+    opened.sqlite.exec(`
+      DELETE FROM payslip_wage_read;
       INSERT INTO __drizzle_migrations (hash, created_at) VALUES ('synthetic-later', 9999999999999);
     `);
     bytes = opened.sqlite.serialize();

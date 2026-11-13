@@ -22,7 +22,8 @@ export const WAGE_LINE_SECTIONS = [
   'unknown',
 ] as const;
 export const WAGE_READ_ORIGINS = ['intake', 'reread'] as const;
-export const WAGE_LINE_CHECKS = ['ok', 'gross_mismatch', 'no_gross'] as const;
+/** `skipped`: the lines could not be stored; the reading records why and a re-read may replace it. */
+export const WAGE_LINE_CHECKS = ['ok', 'gross_mismatch', 'no_gross', 'skipped'] as const;
 export const SALARY_COMPONENTS = [
   'base',
   'special',
@@ -47,6 +48,8 @@ export const payslipWageRead = sqliteTable(
     origin: text('origin', { enum: WAGE_READ_ORIGINS }).notNull(),
     parserVersion: integer('parser_version').notNull(),
     lineCheck: text('line_check', { enum: WAGE_LINE_CHECKS }).notNull(),
+    /** JSON array of normalisation or skip reasons (e.g. `label_truncated`); null when none. */
+    issues: text('issues'),
     svCurrentCents: cents('sv_current_cents'),
     svSpecialCents: cents('sv_special_cents'),
     taxCurrentCents: cents('tax_current_cents'),

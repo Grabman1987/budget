@@ -378,7 +378,12 @@ export class PayslipIntakeService {
     dryRun: boolean;
     actor: string;
   }): Promise<{ dryRun: boolean; groupId: string | null; items: WageRereadPlanItem[] }> {
-    const read = new Set(listPayslipWageReads(this.db).map((r) => r.payslipId));
+    // A `skipped` reading records why lines could not be stored; a re-read may replace it.
+    const read = new Set(
+      listPayslipWageReads(this.db)
+        .filter((r) => r.lineCheck !== 'skipped')
+        .map((r) => r.payslipId),
+    );
     const planned: { item: WageRereadPlanItem; parsed: ParsedPayrollDocument | null }[] = [];
     const slips = listPayslips(this.db);
     for (const slip of slips) {

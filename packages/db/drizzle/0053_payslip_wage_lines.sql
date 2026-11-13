@@ -30,6 +30,7 @@ CREATE TABLE `payslip_wage_read` (
 	`origin` text NOT NULL,
 	`parser_version` integer NOT NULL,
 	`line_check` text NOT NULL,
+	`issues` text,
 	`sv_current_cents` integer,
 	`sv_special_cents` integer,
 	`tax_current_cents` integer,
@@ -40,7 +41,7 @@ CREATE TABLE `payslip_wage_read` (
 	FOREIGN KEY (`payslip_id`) REFERENCES `payslip`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`receipt_id`) REFERENCES `receipt`(`id`) ON UPDATE no action ON DELETE no action,
 	CONSTRAINT "payslip_wage_read_origin_chk" CHECK("payslip_wage_read"."origin" IN ('intake', 'reread')),
-	CONSTRAINT "payslip_wage_read_check_chk" CHECK("payslip_wage_read"."line_check" IN ('ok', 'gross_mismatch', 'no_gross')),
+	CONSTRAINT "payslip_wage_read_check_chk" CHECK("payslip_wage_read"."line_check" IN ('ok', 'gross_mismatch', 'no_gross', 'skipped')),
 	CONSTRAINT "payslip_wage_read_split_chk" CHECK(("payslip_wage_read"."sv_current_cents" IS NULL) = ("payslip_wage_read"."sv_special_cents" IS NULL) AND ("payslip_wage_read"."sv_current_cents" IS NULL) = ("payslip_wage_read"."tax_current_cents" IS NULL) AND ("payslip_wage_read"."sv_current_cents" IS NULL) = ("payslip_wage_read"."tax_other_cents" IS NULL))
 );
 --> statement-breakpoint

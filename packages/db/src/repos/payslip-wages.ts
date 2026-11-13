@@ -11,9 +11,9 @@ import { and, asc, eq, isNull } from 'drizzle-orm';
 import {
   contact,
   payslip,
-  payslipIntake,
   payslipWageLine,
   payslipWageRead,
+  WAGE_LINE_SECTIONS,
   wageComponentMapping,
 } from '../schema';
 import { listPayslips } from './payroll-projects';
@@ -38,9 +38,81 @@ const liveRead = (db: Executor, payslipId: string) =>
     .where(and(eq(payslipWageRead.payslipId, payslipId), isNull(payslipWageRead.deletedAt)))
     .get();
 
+const SECTIONS: readonly string[] = WAGE_LINE_SECTIONS;
+const lineCheckOf = (issue: unknown): 'ok' | 'gross_mismatch' | 'no_gross' =>
+  issue === 'gross_mismatch' || issue === 'no_gross' ? issue : 'ok';
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+const nowIso = () => new Date().toISOString();
+const safeInt = (n: unknown): n is number => typeof n === 'number' && Number.isSafeInteger(n);
+const text160 = (value: string) => Array.from(value.trim()).slice(0, 160).join('');
+const shortText = (value: unknown) =>
+  typeof value === 'string' && value.trim() ? Array.from(value.trim()).slice(0, 32).join('') : null;
+
 /**
- * Store the wage lines and the statutory split of a parse result for one payslip. Returns null
- * (and writes nothing) when the result has no wage lines or the payslip already has a reading.
+ * Bring parsed wage lines into the stored shape: labels trimmed and cut to 160 characters, the
+ * order renumbered 0…n−1, an invalid reference month or section dropped, each with a reason.
+ * Returns null when an amount is not an integer number of cents (nothing is stored then).
+ */
+export function normalizeWageRead(parsed: ParsedPayrollDocument) {
+  const issues = new Set<string>();
+  const lines = [];
+  for (const [order, line] of (parsed.wageLines ?? []).entries()) {
+    if (!safeInt(line.amountCents)) return null;
+    let label = text160(typeof line.label === 'string' ? line.label : '');
+    if (typeof line.label === 'string' && Array.from(line.label.trim()).length > 160)
+      issues.add('label_truncated');
+    const code = shortText(line.code);
+    if (!label) {
+      label = code ? `Lohnart ${code}` : 'Ohne Bezeichnung';
+      issues.add('label_missing');
+    }
+    if (line.order !== order) issues.add('order_renumbered');
+    let referenceMonth: string | null = null;
+    if (line.referenceMonth != null) {
+      if (typeof line.referenceMonth === 'string' && MONTH.test(line.referenceMonth))
+        referenceMonth = line.referenceMonth;
+      else issues.add('reference_month_dropped');
+    }
+    const section = SECTIONS.includes(line.section) ? line.section : 'unknown';
+    if (section !== line.section) issues.add('section_unknown');
+    lines.push({
+      lineOrder: order,
+      wageCode: code,
+      label,
+      section,
+      referenceMonth,
+      quantityText: shortText(line.quantity),
+      rateText: shortText(line.rate),
+      amountCents: line.amountCents,
+    });
+  }
+  const split = parsed.statutorySplit ?? null;
+  const splitValid =
+    split !== null &&
+    [split.svCurrentCents, split.svSpecialCents, split.taxCurrentCents, split.taxOtherCents].every(
+      safeInt,
+    );
+  if (split && !splitValid) issues.add('split_dropped');
+  return {
+    lines,
+    split: splitValid ? split : null,
+    lineCheck: lineCheckOf(parsed.wageLineIssue),
+    parserVersion: safeInt(parsed.parserVersion) ? parsed.parserVersion : 0,
+    issues: [...issues],
+  };
+}
+
+export type WageReadOutcome =
+  | { status: 'stored'; readId: string; lineCount: number; issues: string[] }
+  | { status: 'skipped'; reason: string }
+  | { status: 'unchanged' };
+
+/**
+ * Store the wage lines and the statutory split of a parse result for one payslip, inside its own
+ * savepoint. It never throws for the data: lines are normalised first; if they still cannot be
+ * stored, a `skipped` reading records the reason and the caller's write (e.g. a payslip confirm)
+ * goes on. `unchanged`: no wage lines in the result, or the payslip already has a reading. A
+ * `skipped` reading is replaced by the next successful one.
  */
 export function storePayslipWageRead(
   tx: Executor,
@@ -48,48 +120,95 @@ export function storePayslipWageRead(
   parsed: ParsedPayrollDocument,
   source: { origin: 'intake' | 'reread'; receiptId: string | null },
   ctx: AuditContext,
-): { readId: string; lineCount: number } | null {
-  if (!parsed.wageLines || liveRead(tx, payslipId)) return null;
+): WageReadOutcome {
+  if (!parsed.wageLines) return { status: 'unchanged' };
+  const existing = liveRead(tx, payslipId);
+  if (existing && existing.lineCheck !== 'skipped') return { status: 'unchanged' };
   const grouped = withGroup(ctx);
-  const split = parsed.statutorySplit ?? null;
-  const readId = randomUUID();
-  insertTracked(
-    tx,
-    payslipWageRead,
-    {
-      id: readId,
-      payslipId,
-      receiptId: source.receiptId,
-      origin: source.origin,
-      parserVersion: parsed.parserVersion ?? 0,
-      lineCheck: parsed.wageLineIssue ?? 'ok',
-      svCurrentCents: split?.svCurrentCents ?? null,
-      svSpecialCents: split?.svSpecialCents ?? null,
-      taxCurrentCents: split?.taxCurrentCents ?? null,
-      taxOtherCents: split?.taxOtherCents ?? null,
-    },
-    grouped,
-  );
-  if (parsed.wageLines.length)
-    insertManyTracked(
-      tx,
-      payslipWageLine,
-      parsed.wageLines.map((line) => ({
-        id: randomUUID(),
+  const header = {
+    payslipId,
+    receiptId: source.receiptId,
+    origin: source.origin,
+    parserVersion: safeInt(parsed.parserVersion) ? parsed.parserVersion : 0,
+  };
+  const skip = (reason: string): WageReadOutcome => {
+    try {
+      runInTransaction(tx, (inner) => {
+        if (existing) return;
+        insertTracked(
+          inner,
+          payslipWageRead,
+          { id: randomUUID(), ...header, lineCheck: 'skipped', issues: JSON.stringify([reason]) },
+          grouped,
+        );
+      });
+    } catch {
+      // Even the record of the skip must not fail the caller's write.
+    }
+    return { status: 'skipped', reason };
+  };
+  const normal = normalizeWageRead(parsed);
+  if (!normal) return skip('amount_invalid');
+  try {
+    return runInTransaction(tx, (inner) => {
+      if (existing)
+        updateTracked(
+          inner,
+          payslipWageRead,
+          [existing.id],
+          { deletedAt: nowIso() },
+          grouped,
+          'delete',
+        );
+      const readId = randomUUID();
+      insertTracked(
+        inner,
+        payslipWageRead,
+        {
+          id: readId,
+          ...header,
+          lineCheck: normal.lineCheck,
+          issues: normal.issues.length ? JSON.stringify(normal.issues) : null,
+          svCurrentCents: normal.split?.svCurrentCents ?? null,
+          svSpecialCents: normal.split?.svSpecialCents ?? null,
+          taxCurrentCents: normal.split?.taxCurrentCents ?? null,
+          taxOtherCents: normal.split?.taxOtherCents ?? null,
+        },
+        grouped,
+      );
+      if (normal.lines.length)
+        insertManyTracked(
+          inner,
+          payslipWageLine,
+          normal.lines.map((line) => ({ id: randomUUID(), readId, payslipId, ...line })),
+          grouped,
+        );
+      return {
+        status: 'stored' as const,
         readId,
-        payslipId,
-        lineOrder: line.order,
-        wageCode: line.code,
-        label: line.label,
-        section: line.section,
-        referenceMonth: line.referenceMonth,
-        quantityText: line.quantity,
-        rateText: line.rate,
-        amountCents: line.amountCents,
-      })),
-      grouped,
-    );
-  return { readId, lineCount: parsed.wageLines.length };
+        lineCount: normal.lines.length,
+        issues: normal.issues,
+      };
+    });
+  } catch {
+    return skip('write_failed');
+  }
+}
+
+/** Soft-delete the live reading of a payslip and its lines (header edited or payslip deleted). */
+export function retirePayslipWageRead(tx: Executor, payslipId: string, ctx: AuditContext) {
+  const read = liveRead(tx, payslipId);
+  if (!read) return false;
+  const grouped = withGroup(ctx);
+  for (const line of tx
+    .select()
+    .from(payslipWageLine)
+    .where(and(eq(payslipWageLine.readId, read.id), isNull(payslipWageLine.deletedAt)))
+    .orderBy(asc(payslipWageLine.lineOrder))
+    .all())
+    updateTracked(tx, payslipWageLine, [line.id], { deletedAt: nowIso() }, grouped, 'delete');
+  updateTracked(tx, payslipWageRead, [read.id], { deletedAt: nowIso() }, grouped, 'delete');
+  return true;
 }
 
 export type PayslipWageReadRow = typeof payslipWageRead.$inferSelect & {
@@ -115,20 +234,27 @@ export function listPayslipWageReads(db: Executor): PayslipWageReadRow[] {
 }
 
 /**
- * Input of the salary development module: every live payslip with its legacy fields, the document
- * type of its confirmed intake (bonus payroll runs) and its wage reading when it has one.
+ * Input of the salary development module: every live payslip with its legacy fields, its employer
+ * resolved through contact merges (#871) and its wage reading when it has a usable one (a
+ * `skipped` reading counts as none).
  */
 export function listSalaryPayslips(db: Executor): SalaryPayslip[] {
-  const reads = new Map(listPayslipWageReads(db).map((r) => [r.payslipId, r]));
-  const bonus = new Set(
-    db
-      .select({ payslipId: payslipIntake.payslipId, parsedJson: payslipIntake.parsedJson })
-      .from(payslipIntake)
-      .where(and(eq(payslipIntake.status, 'confirmed'), isNull(payslipIntake.deletedAt)))
-      .all()
-      .filter((r) => (JSON.parse(r.parsedJson) as ParsedPayrollDocument).documentType === 'bonus')
-      .map((r) => r.payslipId),
+  const reads = new Map(
+    listPayslipWageReads(db)
+      .filter((r) => r.lineCheck !== 'skipped')
+      .map((r) => [r.payslipId, r]),
   );
+  const merged = new Map(
+    db
+      .select({ id: contact.id, mergedIntoId: contact.mergedIntoId })
+      .from(contact)
+      .all()
+      .map((c) => [c.id, c.mergedIntoId]),
+  );
+  const resolve = (id: string | null) => {
+    for (let hop = 0; id && merged.get(id) && hop < 16; hop++) id = merged.get(id)!;
+    return id;
+  };
   const employers = new Map(
     db
       .select({ id: payslip.id, employerContactId: payslip.employerContactId })
@@ -138,30 +264,32 @@ export function listSalaryPayslips(db: Executor): SalaryPayslip[] {
   );
   return listPayslips(db).map((p) => {
     const read = reads.get(p.id);
+    const lineCheck = read?.lineCheck;
     return {
       ...p,
-      employerContactId: employers.get(p.id) ?? null,
-      documentType: bonus.has(p.id) ? ('bonus' as const) : null,
-      wage: read
-        ? {
-            lineCheck: read.lineCheck,
-            split:
-              read.svCurrentCents === null
-                ? null
-                : {
-                    svCurrentCents: read.svCurrentCents,
-                    svSpecialCents: read.svSpecialCents!,
-                    taxCurrentCents: read.taxCurrentCents!,
-                    taxOtherCents: read.taxOtherCents!,
-                  },
-            lines: read.lines.map((l) => ({
-              code: l.wageCode,
-              label: l.label,
-              section: l.section,
-              amountCents: l.amountCents,
-            })),
-          }
-        : null,
+      employerContactId: resolve(employers.get(p.id) ?? null),
+      wage:
+        read && lineCheck && lineCheck !== 'skipped'
+          ? {
+              lineCheck,
+              split:
+                read.svCurrentCents === null
+                  ? null
+                  : {
+                      svCurrentCents: read.svCurrentCents,
+                      svSpecialCents: read.svSpecialCents!,
+                      taxCurrentCents: read.taxCurrentCents!,
+                      taxOtherCents: read.taxOtherCents!,
+                    },
+              lines: read.lines.map((l) => ({
+                code: l.wageCode,
+                label: l.label,
+                section: l.section,
+                referenceMonth: l.referenceMonth,
+                amountCents: l.amountCents,
+              })),
+            }
+          : null,
     };
   });
 }
@@ -177,7 +305,15 @@ export interface WageRereadWrite {
   /** The stored header the plan was made against; the write is skipped if it changed since. */
   payslip: Pick<
     CapturedPayslip,
-    'id' | 'month' | 'grossCents' | 'svCents' | 'taxCents' | 'netCents' | 'receiptId'
+    | 'id'
+    | 'month'
+    | 'kind'
+    | 'specialType'
+    | 'grossCents'
+    | 'svCents'
+    | 'taxCents'
+    | 'netCents'
+    | 'receiptId'
   >;
   parsed: ParsedPayrollDocument;
 }
@@ -207,6 +343,8 @@ export function applyPayslipWageReread(
         current.svCents === planned.svCents &&
         current.taxCents === planned.taxCents &&
         current.netCents === planned.netCents &&
+        current.kind === planned.kind &&
+        current.specialType === planned.specialType &&
         current.receiptId === planned.receiptId;
       const stored = unchanged
         ? storePayslipWageRead(
@@ -217,7 +355,7 @@ export function applyPayslipWageReread(
             grouped,
           )
         : null;
-      (stored ? written : skipped).push(planned.id);
+      (stored?.status === 'stored' ? written : skipped).push(planned.id);
     }
     return { groupId: written.length ? grouped.groupId : null, written, skipped };
   });
@@ -256,14 +394,14 @@ export function saveWageComponentMapping(
     throw new BookingInvariantError('Die Lohnart-Nummer besteht aus bis zu 8 Ziffern.');
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    if (
-      input.employerContactId &&
-      !tx
-        .select()
-        .from(contact)
-        .where(and(eq(contact.id, input.employerContactId), isNull(contact.deletedAt)))
-        .get()
-    )
+    const employer = input.employerContactId
+      ? tx
+          .select()
+          .from(contact)
+          .where(and(eq(contact.id, input.employerContactId), isNull(contact.deletedAt)))
+          .get()
+      : null;
+    if (input.employerContactId && (!employer || employer.mergedIntoId))
       throw new BookingInvariantError('Der Arbeitgeber ist nicht mehr verfügbar.');
     const key = mappingKey(input.employerContactId, code, labelNorm);
     const existing = tx
@@ -317,4 +455,52 @@ export function deleteWageComponentMapping(db: Executor, id: string, ctx: AuditC
     );
     return { groupId: grouped.groupId };
   });
+}
+
+/**
+ * Contact merge (#871): the source employer's mappings move to the target. Where the target already
+ * maps the same wage code/label, the target's mapping is kept and the source's is retired.
+ */
+export function planWageMappingMerge(tx: Executor, sourceId: string, targetId: string) {
+  const live = (employer: string) =>
+    tx
+      .select()
+      .from(wageComponentMapping)
+      .where(
+        and(
+          eq(wageComponentMapping.employerContactId, employer),
+          isNull(wageComponentMapping.deletedAt),
+        ),
+      )
+      .orderBy(asc(wageComponentMapping.id))
+      .all();
+  const targetKeys = new Set(live(targetId).map((m) => m.mappingKey));
+  const rows = live(sourceId).map((m) => {
+    const key = mappingKey(targetId, m.wageCode, m.labelNorm);
+    return { row: m, key, keepTarget: targetKeys.has(key) };
+  });
+  return {
+    rows,
+    moves: rows.filter((r) => !r.keepTarget).length,
+    keptTarget: rows.filter((r) => r.keepTarget).length,
+  };
+}
+export function mergeWageMappings(
+  tx: Executor,
+  sourceId: string,
+  targetId: string,
+  ctx: AuditContext,
+) {
+  const grouped = withGroup(ctx);
+  const plan = planWageMappingMerge(tx, sourceId, targetId);
+  for (const { row, key, keepTarget } of plan.rows)
+    updateTracked(
+      tx,
+      wageComponentMapping,
+      [row.id],
+      keepTarget ? { deletedAt: nowIso() } : { employerContactId: targetId, mappingKey: key },
+      grouped,
+      keepTarget ? 'delete' : 'update',
+    );
+  return { moves: plan.moves, keptTarget: plan.keptTarget };
 }

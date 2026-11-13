@@ -177,8 +177,11 @@ describe(
       expect(listPayslipWageReads(opened.db)).toEqual([]);
 
       const before = fullDump();
+      const bytes = opened.sqlite.serialize();
       const dry = await service().rereadWageLines({ dryRun: true, actor: 'owner' });
       expect(fullDump()).toEqual(before);
+      // The dry run leaves the database byte-identical.
+      expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
       const byId = new Map(dry.items.map((i) => [i.payslipId, i]));
       expect(dry.groupId).toBeNull();
       expect(byId.get(first)).toEqual({
@@ -216,8 +219,11 @@ describe(
         [first, 'reread', 7],
       ]);
 
+      const settled = opened.sqlite.serialize();
       const again = await service().rereadWageLines({ dryRun: false, actor: 'owner' });
       expect(again.groupId).toBeNull();
+      // Idempotent: the second run writes nothing at all.
+      expect(opened.sqlite.serialize().equals(settled)).toBe(true);
       expect(again.items.find((i) => i.payslipId === first)?.outcome).toBe('already_read');
 
       undo(opened.db, { groupId: run.groupId! }, { actor: 'owner' });

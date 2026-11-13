@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "28cb7bd6-9a9a-4cdd-8cf1-d18d71a176a0",
+  "id": "926a9b2f-4c58-41ea-bc99-f122c6226c62",
   "prevId": "c5198f5b-514a-4c9a-875f-83a5af2c76fb",
   "tables": {
     "plan_snapshot": {
@@ -9262,6 +9262,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "issues": {
+          "name": "issues",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "sv_current_cents": {
           "name": "sv_current_cents",
           "type": "integer",
@@ -9351,7 +9358,7 @@
         },
         "payslip_wage_read_check_chk": {
           "name": "payslip_wage_read_check_chk",
-          "value": "\"payslip_wage_read\".\"line_check\" IN ('ok', 'gross_mismatch', 'no_gross')"
+          "value": "\"payslip_wage_read\".\"line_check\" IN ('ok', 'gross_mismatch', 'no_gross', 'skipped')"
         },
         "payslip_wage_read_split_chk": {
           "name": "payslip_wage_read_split_chk",

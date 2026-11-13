@@ -508,6 +508,9 @@ function revertEntry(db: Executor, entry: AuditEntry, ctx: GroupedContext, force
         ? current === null
         : current !== null && snapshotsEqual(current, entry.after);
     if (!unchanged) {
+      // #1066: a reading and its lines only exist together.
+      if (['payslip_wage_read', 'payslip_wage_line'].includes(entry.entityType))
+        throw new AuditError('Gehaltszeilen nur als gesamte Aktion rückgängig machen.');
       if (['security_asset_exposure', 'security_exposure_version'].includes(entry.entityType))
         throw new AuditError(
           'Diese Klassenzuordnung wurde später verändert. Bitte zuerst die jüngere Aktion rückgängig machen.',
@@ -688,6 +691,9 @@ export function undo(
           .get()
       )
         throw new AuditError('Gehaltszettel-Aufnahme nur als gesamte Aktion rückgängig machen.');
+      // #1066: a reading and its lines only exist together.
+      if (['payslip_wage_read', 'payslip_wage_line'].includes(entry.entityType))
+        throw new AuditError('Gehaltszeilen nur als gesamte Aktion rückgängig machen.');
       if (['security_asset_exposure', 'security_exposure_version'].includes(entry.entityType))
         throw new AuditError('Klassenzuordnung nur als gesamte Aktion rückgängig machen.');
       if (entry.entityType === 'app_setting' && entry.entityId.startsWith('contacts.credit.'))

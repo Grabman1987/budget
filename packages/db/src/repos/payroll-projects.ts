@@ -32,6 +32,7 @@ import { createEntity, getEntity, listEntities, softDeleteEntity, updateEntity }
 import { withGroup, type AuditContext } from './audit';
 import { BookingInvariantError, EntityNotFoundError } from './errors';
 import { getReceipt } from './receipts';
+import { retirePayslipWageRead } from './payslip-wages';
 import { runInTransaction, type Executor } from './types';
 
 export function listPayslips(db: Executor): CapturedPayslip[] {
@@ -112,6 +113,7 @@ export function savePayslip(
       }
     }
     const { lines, ...header } = input;
+    const previous = id ? getEntity(tx, payslip, id) : undefined;
     const saved = id
       ? updateEntity(tx, payslip, id, header, grouped)
       : createEntity(tx, payslip, header, grouped);
@@ -120,6 +122,15 @@ export function savePayslip(
     lines.forEach((line, sortOrder) =>
       createEntity(tx, payslipLine, { ...line, payslipId: saved.id, sortOrder }, grouped),
     );
+    // #1066: a reading describes the stored totals; once they change it is retired (a re-read
+    // can then rebuild it from the document).
+    if (
+      previous &&
+      (
+        ['month', 'kind', 'specialType', 'grossCents', 'svCents', 'taxCents', 'netCents'] as const
+      ).some((key) => previous[key] !== saved[key])
+    )
+      retirePayslipWageRead(tx, saved.id, grouped);
     return saved;
   });
 }
@@ -129,6 +140,7 @@ export function deletePayslip(db: Executor, id: string, ctx: AuditContext) {
     softDeleteEntity(tx, payslip, id, grouped);
     for (const line of listEntities(tx, payslipLine).filter((l) => l.payslipId === id))
       softDeleteEntity(tx, payslipLine, line.id, grouped);
+    retirePayslipWageRead(tx, id, grouped);
   });
 }
 
