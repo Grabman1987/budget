@@ -131,17 +131,29 @@ export function isinCheckDigitValid(isin: string): boolean {
 
 /**
  * Quantity × average price against the printed amount. The average price is itself printed
- * rounded, so the tolerance is one cent or, when larger, the amount's half cent plus the price
- * rounding (half a unit of its last printed digit) times the quantity. Exact integer arithmetic.
+ * rounded, so the bound is the amount's half cent plus the price rounding (half a unit of its
+ * last printed digit) times the quantity, at least one cent. That bound is only trusted while it
+ * stays within max(1 ct, 0,1 % of the amount); a coarser price is `imprecise`, never accepted.
+ * Worst case accepted: 0,1 % of the amount. Examples: 0,339443 × 294,60 for 100,00 € accepts
+ * 1 ct (bound 0,67 ct); 1.000 × 10,00 for 10.000,00 € accepts 5,005 € (bound 500,5 ct, cap
+ * 10,00 €). Exact integer arithmetic throughout.
  */
-export function tradeValueConsistent(quantity: string, price: string, amountCents: number) {
+export function tradeValueConsistent(
+  quantity: string,
+  price: string,
+  amountCents: number,
+): 'ok' | 'mismatch' | 'imprecise' {
   const q = scaled(quantity),
     p = scaled(price);
   const unit = 10n ** BigInt(q.scale + p.scale); // one cent in the comparison scale
-  const diff = q.digits * p.digits * 100n - BigInt(amountCents) * unit;
+  const amount = BigInt(amountCents);
+  const diff = q.digits * p.digits * 100n - amount * unit;
   const twiceDiff = 2n * (diff < 0n ? -diff : diff);
-  const rounding = unit + 100n * q.digits; // 2 × (half cent + quantity × half price unit)
-  return twiceDiff <= (rounding > 2n * unit ? rounding : 2n * unit);
+  const twiceBound = unit + 100n * q.digits; // 2 × (half cent + quantity × half price unit)
+  // 1000 × twice the cap: max(1 ct, amount / 1000) doubled and scaled.
+  const capTimes1000 = 2000n * unit > 2n * amount * unit ? 2000n * unit : 2n * amount * unit;
+  if (1000n * twiceBound > capTimes1000) return 'imprecise';
+  return twiceDiff <= (twiceBound > 2n * unit ? twiceBound : 2n * unit) ? 'ok' : 'mismatch';
 }
 
 /** Cheap, bounded signature check for the document classifier. */
@@ -198,19 +210,20 @@ export function parseTradeConfirmation(text: string, sha256: string): TradeConfi
   const currencies = new Set<string>();
 
   // Header block: label/value pairs; each label must be printed exactly once.
-  const header = (label: string, value: string, required: boolean) => {
+  // Every value pattern needs a digit, so a bare label never captures the next label or title.
+  const header = (label: string, code: string, value: string, required: boolean) => {
     const { match, count } = unique(flat, String.raw`\b${label} (${value})(?= |$)`);
-    if (count > 1) issue(`header_${label.toLowerCase()}_ambiguous`);
-    else if (!match && required) issue(`header_${label.toLowerCase()}_missing`);
+    if (count > 1) issue(`header_${code}_ambiguous`);
+    else if (!match && required) issue(`header_${code}_missing`);
     return match?.[1] ?? null;
   };
-  const printedDate = header('DATUM', DATE, true);
+  const printedDate = header('DATUM', 'date', DATE, true);
   doc.documentDate = printedDate ? isoFromDeAt(printedDate) : null;
-  if (printedDate && !doc.documentDate) issue('header_datum_invalid');
-  doc.executionId = header('AUSFÜHRUNG', ID, true);
-  doc.planId = header('SPARPLAN', ID, false);
-  doc.orderId = header('ORDER', ID, false);
-  const depot = header('DEPOT', '[0-9A-Z]{4,34}', true);
+  if (printedDate && !doc.documentDate) issue('header_date_invalid');
+  doc.executionId = header('AUSFÜHRUNG', 'execution', ID, true);
+  doc.planId = header('SPARPLAN', 'plan', ID, false);
+  doc.orderId = header('ORDER', 'order', ID, false);
+  const depot = header('DEPOT', 'depot', '(?=[A-Z]*\\d)[0-9A-Z]{4,34}', true);
   doc.depotHint = depot ? depot.slice(-4) : null;
 
   // Title; "SPARPLAN <id>" is the header field, not the title suffix.
@@ -302,16 +315,17 @@ export function parseTradeConfirmation(text: string, sha256: string): TradeConfi
       }
       if (doc.unitsE8 === null) issue('quantity_precision_unavailable');
       doc.price = { value: decimalString(price!), currency: priceCurrency! };
+      if (scaled(doc.price.value).scale < 2) issue('price_precision_insufficient');
       doc.amountCents = printedCents(amount!);
       currencies.add(currency!);
       if (doc.amountCents === null || doc.amountCents <= 0) issue('position_amount_invalid');
       if (q.digits === 0n || scaled(doc.price.value).digits === 0n) issue('quantity_or_price_zero');
       if (priceCurrency !== currency) issue('price_currency_differs');
-      else if (
-        doc.amountCents !== null &&
-        !tradeValueConsistent(doc.quantity, doc.price.value, doc.amountCents)
-      )
-        issue('quantity_price_amount_mismatch');
+      else if (doc.amountCents !== null && doc.amountCents > 0) {
+        const value = tradeValueConsistent(doc.quantity, doc.price.value, doc.amountCents);
+        if (value === 'imprecise') issue('price_precision_insufficient');
+        if (value === 'mismatch') issue('quantity_price_amount_mismatch');
+      }
     }
     const total = new RegExp(`^ GESAMT (${AMOUNT}) (${CURRENCY})(?: |$)`).exec(
       afterTable.slice(totalAt),
@@ -377,11 +391,11 @@ export function parseTradeConfirmation(text: string, sha256: string): TradeConfi
       const iban = row[1]!.replace(/ /g, '');
       doc.booking = { accountHint: iban.slice(-4), valueDate, signedCents };
       currencies.add(row[4]!);
-      if (
-        new RegExp(String.raw`\d{4}-\d{2}-\d{2} ${AMOUNT} ${CURRENCY}\b`).test(
-          body.slice(row[0].length),
-        )
-      )
+      // Only footer sentences may follow; table-like leftovers carry digits before the first
+      // sentence end (the footer wording itself is not verified against more than one sample).
+      const tail = body.slice(row[0].length).trim();
+      if (/\d/.test(/^.*?(?:\.(?= |$)|$)/.exec(tail)![0])) issue('unrecognized_table_line');
+      if (new RegExp(String.raw`\d{4}-\d{2}-\d{2} ${AMOUNT} ${CURRENCY}\b`).test(tail))
         issue('booking_ambiguous');
       if (doc.executionDate && valueDate < doc.executionDate) issue('value_date_before_execution');
     }
@@ -391,8 +405,20 @@ export function parseTradeConfirmation(text: string, sha256: string): TradeConfi
   if (currencies.size > 1) issue('currency_mixed');
   doc.currency = currencies.size === 1 ? [...currencies][0]! : null;
   if (doc.kind && doc.amountCents !== null) {
-    const costs = doc.costs.reduce((sum, c) => sum + c.cents, 0);
+    let costs = 0;
+    for (const cost of doc.costs) {
+      costs += cost.cents;
+      // Costs reduce cash: a positive fee is implausible for any kind and a positive tax only
+      // fits a sale (a tax refund; allowed, but not verified against a sample).
+      if (cost.cents > 0 && (doc.kind !== 'sell' || cost.kind !== 'tax'))
+        issue('cost_sign_implausible');
+    }
     const net = (doc.kind === 'sell' ? doc.amountCents : -doc.amountCents) + costs;
+    if (!Number.isSafeInteger(costs) || !Number.isSafeInteger(net)) {
+      issue('amount_unsafe');
+      doc.verified = false;
+      return doc;
+    }
     doc.totalCents = Math.abs(net);
     // Not verified against a sample: the cost table total may be printed as the settlement
     // total or as the sum of the cost lines; both are accepted, anything else is a reason.

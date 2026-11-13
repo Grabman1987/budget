@@ -19,7 +19,7 @@ const doc = (o: {
   row: string;
   isin?: string;
   positionTotal: string;
-  costs?: string[];
+  costs?: string[] | undefined;
   booking: string;
 }) =>
   [
@@ -285,10 +285,212 @@ describe('trade confirmation reader (#1057)', () => {
   it('checks ISIN digits and value tolerance with exact arithmetic', () => {
     expect(isinCheckDigitValid('IE00SYNTH008')).toBe(true);
     expect(isinCheckDigitValid('IE00SYNTH009')).toBe(false);
-    expect(tradeValueConsistent('0.339443', '294.60', 10_000)).toBe(true);
-    expect(tradeValueConsistent('0.339443', '294.60', 10_002)).toBe(false);
-    // 100 units at a price printed to the cent: rounding allows up to 50 cents.
-    expect(tradeValueConsistent('100', '10.00', 100_049)).toBe(true);
-    expect(tradeValueConsistent('100', '10.00', 100_051)).toBe(false);
+    expect(tradeValueConsistent('0.339443', '294.60', 10_000)).toBe('ok');
+    expect(tradeValueConsistent('0.339443', '294.60', 10_002)).toBe('mismatch');
+    // 100 units at a price printed to the cent: rounding allows up to 50,5 cents.
+    expect(tradeValueConsistent('100', '10.00', 100_049)).toBe('ok');
+    expect(tradeValueConsistent('100', '10.00', 100_051)).toBe('mismatch');
+    // 1.000 × 10,00: bound 500,5 ct is within 0,1 % of 10.000,00 €.
+    expect(tradeValueConsistent('1000', '10.00', 1_000_500)).toBe('ok');
+    expect(tradeValueConsistent('1000', '10.00', 1_000_501)).toBe('mismatch');
+    // 100 × 1,00 €: the price rounding (50,5 ct) exceeds 0,1 % of the amount.
+    expect(tradeValueConsistent('100', '1.00', 10_000)).toBe('imprecise');
+  });
+});
+
+const buyOrder = (overrides: Partial<Parameters<typeof doc>[0]> = {}) =>
+  doc({
+    title: 'WERTPAPIERABRECHNUNG',
+    header: ['DATUM 02.11.2026', 'AUSFÜHRUNG 0a0b-1c1d', 'DEPOT 0123456789'],
+    sentence: 'Market-Order Kauf am 02.11.2026, um 10:15 Uhr an der Beispiel Exchange.',
+    row: 'Synthetic Industrials AG 5 Stk. 200,00 EUR 1.000,00 EUR',
+    isin: 'LU00SYNTH024',
+    positionTotal: '1.000,00 EUR',
+    costs: ['Fremdkostenzuschlag -1,00 EUR', 'GESAMT -1.001,00 EUR'],
+    booking: `${IBAN} 2026-11-04 -1.001,00 EUR`,
+    ...overrides,
+  });
+const reasons = (text: string) => {
+  const parsed = parseTradeConfirmation(text, SHA);
+  expect(parsed.verified).toBe(parsed.reasons.length === 0);
+  return parsed.reasons;
+};
+
+describe('trade confirmation reader: review findings (#1058)', () => {
+  it('never reads a header value across into the title', () => {
+    const parsed = parseTradeConfirmation(
+      savingsPlan({
+        header: ['DATUM 09.11.2026', 'AUSFÜHRUNG 1a2b-3c4d', 'SPARPLAN 9f8e-7d6c', 'DEPOT'],
+      }),
+      SHA,
+    );
+    expect(parsed.depotHint).toBeNull();
+    expect(parsed.verified).toBe(false);
+    expect(parsed.reasons).toEqual(['header_depot_missing']);
+  });
+
+  it('refuses a price printed without decimals', () => {
+    const parsed = parseTradeConfirmation(
+      buyOrder({
+        row: 'Synthetic Industrials AG 100 Stk. 1 EUR 149,00 EUR',
+        positionTotal: '149,00 EUR',
+        costs: undefined,
+        booking: `${IBAN} 2026-11-04 -149,00 EUR`,
+      }),
+      SHA,
+    );
+    expect(parsed.verified).toBe(false);
+    expect(parsed.reasons).toEqual(['price_precision_insufficient']);
+  });
+
+  it('refuses a price whose printed rounding exceeds 0,1 % of the amount', () => {
+    expect(
+      reasons(
+        buyOrder({
+          row: 'Synthetic Industrials AG 100 Stk. 1,00 EUR 100,40 EUR',
+          positionTotal: '100,40 EUR',
+          costs: undefined,
+          booking: `${IBAN} 2026-11-04 -100,40 EUR`,
+        }),
+      ),
+    ).toEqual(['price_precision_insufficient']);
+  });
+
+  it('flags settlement, cost total, currency and price currency inconsistencies', () => {
+    expect(
+      reasons(
+        buyOrder({
+          sentence: 'Market-Order Verkauf am 02.11.2026, um 10:15 Uhr an der Beispiel Exchange.',
+          row: 'Synthetic Industrials AG 1 Stk. 1,00 EUR 1,00 EUR',
+          positionTotal: '1,00 EUR',
+          costs: ['Fremdkostenzuschlag -1,00 EUR', 'GESAMT 0,00 EUR'],
+          booking: `${IBAN} 2026-11-04 0,00 EUR`,
+        }),
+      ),
+    ).toEqual(['settlement_sign_mismatch']);
+    expect(
+      reasons(buyOrder({ costs: ['Fremdkostenzuschlag -1,00 EUR', 'GESAMT -5,00 EUR'] })),
+    ).toEqual(['cost_total_mismatch']);
+    expect(reasons(savingsPlan({ booking: `${IBAN} 2026-11-11 -100,00 USD` }))).toEqual([
+      'currency_mixed',
+    ]);
+    expect(
+      reasons(
+        savingsPlan({
+          row: 'Synthetic World Equity UCITS ETF (Acc) 0,339443 Stk. 294,60 USD 100,00 EUR',
+        }),
+      ),
+    ).toEqual(['price_currency_differs']);
+  });
+
+  it('flags implausible cost signs', () => {
+    expect(
+      reasons(
+        buyOrder({
+          costs: ['Fremdkostenzuschlag 1,00 EUR', 'GESAMT -999,00 EUR'],
+          booking: `${IBAN} 2026-11-04 -999,00 EUR`,
+        }),
+      ),
+    ).toEqual(['cost_sign_implausible']);
+  });
+
+  it('flags a missing, repeated or extended booking block', () => {
+    const lines = savingsPlan().split('\n');
+    const at = lines.indexOf('BUCHUNG');
+    expect(reasons([...lines.slice(at, at + 3), ...lines.slice(0, at)].join('\n'))).toEqual([
+      'booking_missing',
+    ]);
+    expect(
+      reasons(
+        savingsPlan({
+          booking: `${IBAN} 2026-11-11 -100,00 EUR\n${IBAN} 2026-11-12 -100,00 EUR`,
+        }),
+      ),
+    ).toEqual(['unrecognized_table_line', 'booking_ambiguous']);
+    expect(
+      reasons(savingsPlan({ booking: `${IBAN} 2026-11-11 -100,00 EUR\nSonderposten 5,00 EUR` })),
+    ).toEqual(['unrecognized_table_line']);
+    expect(reasons(savingsPlan({ booking: `${IBAN} 2026-11-08 -100,00 EUR` }))).toEqual([
+      'value_date_before_execution',
+    ]);
+  });
+
+  it('flags missing or repeated header labels and kind/title/plan mismatches', () => {
+    expect(
+      reasons(
+        savingsPlan({ header: ['DATUM 09.11.2026', 'SPARPLAN 9f8e-7d6c', 'DEPOT 0123456789'] }),
+      ),
+    ).toEqual(['header_execution_missing']);
+    expect(
+      reasons(
+        savingsPlan({
+          header: [
+            'DATUM 09.11.2026',
+            'AUSFÜHRUNG 1a2b-3c4d',
+            'SPARPLAN 9f8e-7d6c',
+            'DEPOT 0123456789',
+            'DEPOT 9876543210',
+          ],
+        }),
+      ),
+    ).toEqual(['header_depot_ambiguous']);
+    expect(reasons(savingsPlan({ title: 'WERTPAPIERABRECHNUNG' }))).toEqual([
+      'title_kind_mismatch',
+    ]);
+    expect(
+      reasons(
+        savingsPlan({ header: ['DATUM 09.11.2026', 'AUSFÜHRUNG 1a2b-3c4d', 'DEPOT 0123456789'] }),
+      ),
+    ).toEqual(['plan_id_missing']);
+    expect(
+      reasons(
+        savingsPlan({
+          title: 'WERTPAPIERABRECHNUNG',
+          sentence: 'Ausführung von Round up am 09.11.2026 an der Beispiel Exchange.',
+        }),
+      ),
+    ).toEqual(['plan_id_unexpected']);
+  });
+
+  it('reads a U+2212 minus, a long quantity and a large position exactly', () => {
+    expect(
+      parseTradeConfirmation(savingsPlan({ booking: `${IBAN} 2026-11-11 \u2212100,00 EUR` }), SHA),
+    ).toMatchObject({
+      booking: { signedCents: -10_000 },
+      verified: true,
+      reasons: [],
+    });
+    expect(
+      parseTradeConfirmation(
+        savingsPlan({
+          row: 'Synthetic World Equity UCITS ETF (Acc) 0,3394430001 Stk. 294,60 EUR 100,00 EUR',
+        }),
+        SHA,
+      ),
+    ).toMatchObject({
+      quantity: '0.3394430001',
+      unitsE8: null,
+      verified: false,
+      reasons: ['quantity_precision_unavailable'],
+    });
+    expect(
+      parseTradeConfirmation(
+        buyOrder({
+          row: 'Synthetic Industrials AG 1.000.000 Stk. 1.234,56 EUR 1.234.560.000,00 EUR',
+          positionTotal: '1.234.560.000,00 EUR',
+          costs: undefined,
+          booking: `${IBAN} 2026-11-04 -1.234.560.000,00 EUR`,
+        }),
+        SHA,
+      ),
+    ).toMatchObject({
+      quantity: '1000000',
+      unitsE8: 100_000_000_000_000,
+      amountCents: 123_456_000_000,
+      totalCents: 123_456_000_000,
+      booking: { signedCents: -123_456_000_000 },
+      verified: true,
+      reasons: [],
+    });
   });
 });
