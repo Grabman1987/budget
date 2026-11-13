@@ -3,7 +3,19 @@
   gap: 12px;
   min-width: 0;
 }
+/* Keep report labels and source controls measurable above the shared drafting grid. */
+[data-budget-redesign='1']
+  :is(
+    .report-catalog-head,
+    .r6-saved-strip,
+    .r8-body-disclosure,
+    .r4-source,
+    .saved-explorer-create
+  ) {
+  background-color: var(--ground);
+}
 [data-budget-redesign='1'] .redesign-report-head {
+  background: var(--surface);
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px 32px;
@@ -103,6 +115,7 @@
   gap: 4px 16px;
 }
 [data-budget-redesign='1'] .redesign-report-detail {
+  background: var(--surface);
   border-block: 1px solid var(--rule);
   padding-inline: 12px;
   font-size: var(--fs-table);

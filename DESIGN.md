@@ -63,11 +63,15 @@ redesign:
   rule-strong: "#6786ac"
   warning: "#8a5300"
   warning-soft: "#fff3d6"
+  ink-3: "#4d6a89"
+  red: "#c42a1f"
   dark-rule: "#1f4d7c"
   dark-field: "#4987bc"
   dark-rule-strong: "#4987bc"
   dark-warning: "#ffd37a"
   dark-warning-soft: "#473d2b"
+  dark-ink-3: "#a4c8e2"
+  dark-red: "#ff9586"
 typography:
   dimension:
     fontFamily: "Archivo, Segoe UI, system-ui, sans-serif"
