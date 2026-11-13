@@ -4,6 +4,8 @@ import {
   parseCardDocument,
   parsePayrollDocument,
   parseStatementText,
+  extractReceiptProposal,
+  type ReceiptProposal,
 } from '@budget/domain';
 import { digest, receiptMime } from '../receipts/files';
 import { extractPayslipText } from '../payslips/service';
@@ -17,6 +19,8 @@ export type DocumentClassification = {
   /** Non-sensitive facts only: no amounts, names, references or passwords. */
   hints: { period?: string; accountHint?: string; mime: string };
   needsPassword: boolean;
+  /** Editable proposal read from a receipt PDF's text layer; present only if something was found. */
+  receipt?: ReceiptProposal;
 };
 
 /**
@@ -97,5 +101,13 @@ export async function classifyDocument(
       needsPassword: false,
     };
   }
-  return { type: 'receipt', confidence: 'unknown', hints: { mime }, needsPassword: false };
+  const proposal = extractReceiptProposal(text);
+  const hasProposal = [proposal.totalCents, proposal.date, proposal.payee].some((v) => v !== null);
+  return {
+    type: 'receipt',
+    confidence: 'unknown',
+    hints: { mime },
+    needsPassword: false,
+    ...(hasProposal ? { receipt: proposal } : {}),
+  };
 }

@@ -145,7 +145,7 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   const upload = page.getByRole('dialog', { name: 'Gehaltszettel hochladen' });
   await expect(upload).toBeVisible();
   const chooserReady = page.waitForEvent('filechooser');
-  await upload.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
+  await upload.getByRole('button', { name: 'Gehaltszettel: PDF auswählen', exact: true }).click();
   const chooser = await chooserReady;
   expect(chooser.isMultiple()).toBe(false);
   // Exercise the real button before selecting bytes: direct setInputFiles misses picker freezes.
@@ -243,7 +243,9 @@ for (const intakeMethod of ['chooser', 'drop'] as const) {
     const bytes = await syntheticPayslipPdf();
     if (intakeMethod === 'chooser') {
       const chooserReady = page.waitForEvent('filechooser');
-      await upload.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
+      await upload
+        .getByRole('button', { name: 'Gehaltszettel: PDF auswählen', exact: true })
+        .click();
       await (
         await chooserReady
       ).setFiles({

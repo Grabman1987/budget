@@ -43,7 +43,9 @@ test('phone FAB follows scroll direction, including reduced motion, and clears t
         page.locator(path.startsWith('/?') ? (redesign ? '.heute-screen' : '.heute') : '.kview'),
       ).toBeVisible();
       await scroll(page, 300);
-      await expect(fab).toBeHidden();
+      // Redesign (owner decision 13.11.2026): the + is the only phone capture entry and stays.
+      if (redesign) await expect(fab).toBeVisible();
+      else await expect(fab).toBeHidden();
       const reached = await page.evaluate(() => window.scrollY);
       expect(reached).toBeGreaterThanOrEqual(48);
       // The compact ON account list can end before 300px; move up from the reached position.
@@ -54,7 +56,8 @@ test('phone FAB follows scroll direction, including reduced motion, and clears t
         expect(await fab.evaluate((el) => el.getAnimations().length)).toBe(0);
       }
       await scroll(page, await page.evaluate(() => document.documentElement.scrollHeight));
-      await expect(fab).toBeHidden();
+      if (redesign) await expect(fab).toBeVisible();
+      else await expect(fab).toBeHidden();
       await scroll(page, await page.evaluate(() => window.scrollY - 1));
       await expect(fab).toBeVisible();
       await expect(amount).toBeVisible();
@@ -150,7 +153,6 @@ test('detail has one name, one return path and keyboard-only focus in both theme
             header.locator('.page-header-search button'),
             header.getByRole('button', { name: 'Beträge verbergen' }),
             header.locator('.review-pill'),
-            header.getByRole('link', { name: 'Buchung', exact: true }),
           ]) {
             await page.keyboard.press('Tab');
             await expect(next).toBeFocused();

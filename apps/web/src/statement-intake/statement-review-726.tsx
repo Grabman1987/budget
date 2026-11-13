@@ -14,6 +14,7 @@ import { Button, Field, Select, TextInput, WideDialog, useAmountPrivacy } from '
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBlocker } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
+import { DocumentOutcome, statementOutcomeLines } from '../document-intake/document-outcome';
 import { ApiError, notifyApiWrite, request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { errorText } from '../ledger/labels';
@@ -63,7 +64,12 @@ const fromView = (view: StatementIntakeView): Draft => {
 };
 
 /** The keyed boundary prevents a previous account's dialog/draft from migrating to another account. */
-export type StatementHandoff = { file: File; password?: string | undefined };
+export type StatementHandoff = {
+  file: File;
+  password?: string | undefined;
+  /** Detected type shown in the closing summary (central upload only). */
+  typeLabel?: string | undefined;
+};
 export function AccountStatementIntake({
   accountId,
   handoff,
@@ -521,6 +527,18 @@ function AccountStatements({
                   suggested={automation?.suggestedCardHints ?? []}
                   onBusy={setAutomationBusy}
                   onDirty={setAutomationDirty}
+                />
+              )}
+              {handoff?.typeLabel && current && !conflict && (
+                <DocumentOutcome
+                  typeLabel={handoff.typeLabel}
+                  lines={statementOutcomeLines(automation)}
+                  onNavigate={() => {
+                    if (!mayDiscard()) return;
+                    setOpen(false);
+                    setPassword('');
+                    onHandoffClose?.();
+                  }}
                 />
               )}
               {automation && <StatementAutomationResult outcome={automation} />}

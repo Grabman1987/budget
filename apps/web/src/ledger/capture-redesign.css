@@ -1182,3 +1182,7 @@
     padding-bottom: 0;
   }
 }
+.bk-editor-document-row {
+  display: flex;
+  padding: 0 var(--space-lg);
+}

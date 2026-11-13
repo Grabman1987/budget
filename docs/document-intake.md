@@ -3,7 +3,9 @@
 One **Dokument hochladen** action replaces choosing between three separate
 uploads. It appears with the redesign on the account and depot pages (inside
 "Dokumente und Kontoauszüge", with that account as context) and on Prüfen.
-With the redesign off the existing buttons are unchanged.
+A compact icon button "Neues Dokument hochladen" in the top bar (redesign on) and in the phone
+header opens the same dialog from every page, without account context. With the redesign off the existing
+buttons are unchanged.
 
 ## Flow
 
@@ -27,6 +29,28 @@ With the redesign off the existing buttons are unchanged.
      `POST /api/payslip-intake/upload` with the existing automation flag. With
      payroll source set up and an unambiguous result the payout is booked or
      linked (undoable); otherwise it waits under Prüfen.
+
+## Result summary (#1053)
+
+After the flow the dialog shows what was detected, what was created or matched and what waits
+under Prüfen, with a link to `/konten/pruefen`. Receipts end in the central dialog ("Fertig");
+statements and payslips show the same block above the result of their own review dialog.
+
+## Passwords
+
+Statement upload and reparse use the typed password first, then the remembered payroll password,
+then the server secret, like classification and payslip intake. A password is never logged or
+returned. Images are only offered as receipts. A typed password that does not open the PDF shows
+"Passwort falsch".
+
+## Receipt proposal (#1053)
+
+For a receipt PDF with a text layer, classification adds a proposal (`extractReceiptProposal` in
+`packages/domain`): total as integer cents (labelled lines only; conflicting totals stay empty),
+document date, currency and an issuer line (a credit note yields a negative total; a gross total beats a net "Summe"; an undecidable total stays empty). The dialog shows them as editable fields and lists live outgoing
+bookings with the same amount and currency within five days that have no receipt yet (`POST
+/api/document-intake/receipt-matches` with a JSON body, read-only, ranked by payee similarity). Choosing one attaches the receipt in the same upload
+(`bookingId`); otherwise it is filed under Prüfen. Nothing is booked. No OCR, no external service.
 
 ## Detection rules (deterministic, in this order)
 

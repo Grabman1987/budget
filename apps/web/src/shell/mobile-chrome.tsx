@@ -152,7 +152,8 @@ export function TabBar({ area }: { area: AreaId | undefined }) {
           className="fab"
           panel="buchung"
           aria-label="Buchung erfassen"
-          hidden={!fabVisible}
+          // Redesign: the + is the only capture entry on the phone, so it never hides on scroll.
+          hidden={!REDESIGN_ENABLED && !fabVisible}
         >
           <Plus size={24} strokeWidth={1.5} aria-hidden="true" />
         </PanelLink>

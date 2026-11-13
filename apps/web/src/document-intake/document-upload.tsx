@@ -1,4 +1,5 @@
 import { Button, Field, Select, TextInput, WideDialog } from '@budget/ui';
+import { FileUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { ApiError } from '../api/http';
@@ -7,6 +8,9 @@ import { accountsQuery } from '../ledger/queries';
 import { PayslipUploadDialog } from '../reports/payslip-panel';
 import { postReceipt } from '../receipts/receipt-section';
 import { AccountStatementIntake } from '../statement-intake/statement-review-726';
+import type { ReceiptProposal } from '@budget/domain';
+import { DocumentOutcome } from './document-outcome';
+import { proposalToEdit, ReceiptProposalPanel, type ReceiptEdit } from './receipt-proposal';
 import './document-upload.css';
 
 export type DetectedType =
@@ -16,6 +20,8 @@ export type Classification = {
   confidence: 'certain' | 'probable' | 'unknown';
   hints: { period?: string; accountHint?: string; mime: string };
   needsPassword: boolean;
+  /** Receipt PDFs only: values read from the text layer. */
+  receipt?: ReceiptProposal;
 };
 /** What the owner can choose; unreadable documents are offered as receipts only. */
 export type Target = 'card_statement' | 'bank_statement' | 'payslip' | 'receipt';
@@ -60,8 +66,8 @@ async function classify(file: File, password: string): Promise<Classification> {
 }
 
 type Route =
-  | { kind: 'statement'; accountId: string; file: File; password: string }
-  | { kind: 'payslip'; file: File; password: string };
+  | { kind: 'statement'; accountId: string; file: File; password: string; typeLabel: string }
+  | { kind: 'payslip'; file: File; password: string; typeLabel: string };
 
 /**
  * One upload for every document kind. The server only classifies; "Weiter" then hands the same
@@ -70,21 +76,58 @@ type Route =
 export function DocumentUploadButton({
   accountId,
   label = 'Dokument hochladen',
+  compact = false,
 }: {
   /** Account context: pre-selects the account for statements. */
   accountId?: string | undefined;
   label?: string | undefined;
+  /** Icon-only trigger for the top bar; the accessible name stays `label`. */
+  compact?: boolean | undefined;
+}) {
+  // The flow (queries, write helper, hand-off dialogs) mounts on first use only, so a trigger in
+  // shared chrome costs nothing until the owner opens it, and the hand-off survives closing.
+  const [open, setOpen] = useState(false),
+    [mounted, setMounted] = useState(false);
+  const start = () => {
+    setMounted(true);
+    setOpen(true);
+  };
+  return (
+    <>
+      {compact ? (
+        <button type="button" className="icon-btn" aria-label={label} title={label} onClick={start}>
+          <FileUp size={16} strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      ) : (
+        <Button variant="ghost" onClick={start}>
+          {label}
+        </Button>
+      )}
+      {mounted && <UploadFlow accountId={accountId} open={open} setOpen={setOpen} />}
+    </>
+  );
+}
+
+function UploadFlow({
+  accountId,
+  open,
+  setOpen,
+}: {
+  accountId: string | undefined;
+  open: boolean;
+  setOpen: (open: boolean) => void;
 }) {
   const picker = useRef<HTMLInputElement>(null);
-  const [open, setOpen] = useState(false),
-    [busy, setBusy] = useState(false),
+  const [busy, setBusy] = useState(false),
     [over, setOver] = useState(false),
     [error, setError] = useState('');
   const [file, setFile] = useState<File | null>(null),
     [result, setResult] = useState<Classification | null>(null),
     [target, setTarget] = useState<Target>('receipt'),
     [account, setAccount] = useState(accountId ?? ''),
-    [password, setPassword] = useState('');
+    [password, setPassword] = useState(''),
+    [done, setDone] = useState<{ label: string; lines: string[] } | null>(null),
+    [edit, setEdit] = useState<ReceiptEdit | null>(null);
   const [route, setRoute] = useState<Route | null>(null);
   const accounts = useQuery({ ...accountsQuery(), enabled: open });
   const write = useBudgetWrite();
@@ -95,6 +138,8 @@ export function DocumentUploadButton({
     setPassword('');
     setTarget('receipt');
     setAccount(accountId ?? '');
+    setDone(null);
+    setEdit(null);
   };
   async function inspect(next: File, typed = '') {
     if (busy) return;
@@ -109,6 +154,9 @@ export function DocumentUploadButton({
       const found = await classify(next, typed);
       setResult(found);
       setTarget(found.type === 'unreadable' ? 'receipt' : found.type);
+      setEdit(found.receipt ? proposalToEdit(found.receipt) : null);
+      // A typed password that still does not open the PDF is reported, not silently re-asked.
+      if (typed && found.needsPassword) setError('Passwort falsch. Bitte erneut eingeben.');
     } catch (cause) {
       setResult(null);
       setError(
@@ -125,9 +173,10 @@ export function DocumentUploadButton({
     if (target === 'receipt') {
       setBusy(true);
       let saved = false;
+      const attachTo = edit?.bookingId || undefined;
       await write(
         async () => {
-          const reply = await postReceipt(file);
+          const reply = await postReceipt(file, attachTo);
           saved = true;
           return reply;
         },
@@ -135,31 +184,32 @@ export function DocumentUploadButton({
       );
       setBusy(false);
       // On failure the write helper reports it; keep the dialog and the file for a retry.
-      if (saved) {
-        setOpen(false);
-        reset();
-      }
+      if (saved)
+        setDone({
+          label: LABEL.receipt,
+          lines: [
+            attachTo
+              ? 'Beleg an die gewählte Buchung angehängt.'
+              : 'Als Beleg unter Prüfen abgelegt. Es wurde nichts gebucht.',
+          ],
+        });
       return;
     }
-    const typed = password;
-    if (target === 'payslip') setRoute({ kind: 'payslip', file, password: typed });
-    else setRoute({ kind: 'statement', accountId: account, file, password: typed });
+    const typed = password,
+      typeLabel = LABEL[target];
+    if (target === 'payslip') setRoute({ kind: 'payslip', file, password: typed, typeLabel });
+    else setRoute({ kind: 'statement', accountId: account, file, password: typed, typeLabel });
     setOpen(false);
     reset();
   }
   const needsAccount = isStatement(target) && !account;
+  // Statements and payslips are PDF-only; a photo can only be filed as a receipt.
+  const targets = (Object.keys(LABEL) as Target[]).filter(
+    (key) => key === 'receipt' || result?.hints.mime === 'application/pdf',
+  );
   const detected = result && result.type !== 'unreadable' ? LABEL[result.type] : null;
   return (
     <>
-      <Button
-        variant="ghost"
-        onClick={() => {
-          reset();
-          setOpen(true);
-        }}
-      >
-        {label}
-      </Button>
       <WideDialog
         open={open}
         title="Dokument hochladen"
@@ -170,7 +220,7 @@ export function DocumentUploadButton({
         }}
       >
         <div className="document-upload-dialog" aria-busy={busy}>
-          {!result && (
+          {!result && !done && (
             <div
               className="document-upload-drop"
               data-over={over}
@@ -214,7 +264,32 @@ export function DocumentUploadButton({
             </div>
           )}
           {error && <p role="alert">{error}</p>}
-          {result && file && (
+          {done && (
+            <>
+              <DocumentOutcome
+                typeLabel={done.label}
+                lines={done.lines}
+                onNavigate={() => {
+                  setOpen(false);
+                  reset();
+                }}
+              />
+              <div className="document-upload-actions">
+                <Button
+                  onClick={() => {
+                    setOpen(false);
+                    reset();
+                  }}
+                >
+                  Fertig
+                </Button>
+                <Button variant="ghost" onClick={reset}>
+                  Weiteres Dokument
+                </Button>
+              </div>
+            </>
+          )}
+          {result && file && !done && (
             <>
               <p role="status">
                 {detected
@@ -249,7 +324,7 @@ export function DocumentUploadButton({
                     disabled={busy}
                     onChange={(event) => setTarget(event.target.value as Target)}
                   >
-                    {(Object.keys(LABEL) as Target[]).map((key) => (
+                    {targets.map((key) => (
                       <option key={key} value={key}>
                         {LABEL[key]}
                       </option>
@@ -283,6 +358,9 @@ export function DocumentUploadButton({
                   )}
                 </Field>
               )}
+              {target === 'receipt' && edit && (
+                <ReceiptProposalPanel value={edit} onChange={setEdit} disabled={busy} />
+              )}
               <p className="document-upload-next">{NEXT[target]}</p>
               <div className="document-upload-actions">
                 <Button disabled={busy || needsAccount} onClick={() => void proceed()}>
@@ -299,14 +377,14 @@ export function DocumentUploadButton({
       {route?.kind === 'statement' && (
         <AccountStatementIntake
           accountId={route.accountId}
-          handoff={{ file: route.file, password: route.password }}
+          handoff={{ file: route.file, password: route.password, typeLabel: route.typeLabel }}
           onHandoffClose={() => setRoute(null)}
         />
       )}
       {route?.kind === 'payslip' && (
         <PayslipUploadDialog
           onClose={() => setRoute(null)}
-          handoff={{ file: route.file, password: route.password }}
+          handoff={{ file: route.file, password: route.password, typeLabel: route.typeLabel }}
         />
       )}
     </>

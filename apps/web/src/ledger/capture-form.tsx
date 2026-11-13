@@ -38,6 +38,7 @@ import {
 } from 'react';
 import { ApiError, request } from '../api/http';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { DocumentUploadButton } from '../document-intake/document-upload';
 import './capture-redesign.css';
 import { budgetQuery } from '../budget/budget-api';
 import {
@@ -1182,6 +1183,12 @@ export function CaptureForm({
         </div>
       )}
       {!REDESIGN_ENABLED && kindHeader}
+      {mobileRedesign && !editing && (
+        // The phone header has no room for a global upload action; the + sheet carries it.
+        <div className="bk-editor-document-row">
+          <DocumentUploadButton label="Dokument hochladen" />
+        </div>
+      )}
       {REDESIGN_ENABLED && !editing && (
         <AttachedReceipts items={attached} onRemove={(id) => void detach(id)} />
       )}
