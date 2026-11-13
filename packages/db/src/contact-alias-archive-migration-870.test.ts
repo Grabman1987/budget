@@ -31,7 +31,8 @@ it('#870 migrates 0050/0051 on a copied fixture database: counts, content and st
     seedBasics(original.db);
     seedIdentityContacts(original.db);
     // Bring the fixture to the predecessor schema (empty new structures: rollback is allowed).
-    run(original, '0052_contact_merge'); // later migrations are rolled back first
+    run(original, '0053_payslip_wage_lines'); // later migrations are rolled back first
+    run(original, '0052_contact_merge');
     run(original, '0051_contact_archive');
     run(original, '0050_contact_alias');
     const tables = (opened: OpenedDatabase) =>
@@ -98,6 +99,7 @@ it('#870 migrates 0050/0051 on a copied fixture database: counts, content and st
     ]);
 
     // Rollback of both steps on the unused copy is exact, then forward again.
+    run(copy, '0053_payslip_wage_lines');
     run(copy, '0052_contact_merge');
     run(copy, '0051_contact_archive');
     run(copy, '0050_contact_alias');
@@ -117,6 +119,7 @@ it('#870 migrates 0050/0051 on a copied fixture database: counts, content and st
     };
     refuses('0050_contact_alias'); // 0051 is still applied: never cross a later migration
     archiveContact(copy.db, 'kb', ctx());
+    run(copy, '0053_payslip_wage_lines');
     run(copy, '0052_contact_merge');
     refuses('0051_contact_archive'); // archived contact
     migrateDatabase(copy.db);
