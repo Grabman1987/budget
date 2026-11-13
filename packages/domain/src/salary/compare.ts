@@ -158,8 +158,9 @@ export interface VariablePayYear {
   /** Variable pay as a share of that base, in basis points; null without base. */
   shareOfBaseBp: number | null;
   /**
-   * SV and wage tax on the variable pay, only when every variable amount of the year was paid on
-   * payslips carrying nothing but variable pay; otherwise the slip does not separate them: null.
+   * SV and wage tax on the variable pay of the comparable months, only when every such amount was
+   * paid on payslips carrying nothing but variable pay; otherwise the slip does not separate
+   * them: null.
    */
   attributable: { svCents: number; taxCents: number; netCents: number } | null;
 }
@@ -171,16 +172,24 @@ export function variablePayByYear(
   const componentsBySlip = new Map(
     payslips.map((s) => [s.id, payslipComponents(s, rules).components]),
   );
+  const comparable = new Set(series.filter((m) => m.comparable).map((m) => m.month));
   return salaryYears(series)
     .filter((y) => y.components.variable !== 0)
     .map((y) => {
+      // Only payslips of the year's comparable months, the same population as the gross.
       const slips = payslips.filter(
-        (s) => yearOf(s.month) === y.year && (componentsBySlip.get(s.id)?.variable ?? 0) !== 0,
+        (s) =>
+          yearOf(s.month) === y.year &&
+          comparable.has(s.month) &&
+          (componentsBySlip.get(s.id)?.variable ?? 0) !== 0,
       );
-      const separated = slips.every((s) => {
-        const c = componentsBySlip.get(s.id)!;
-        return c.base === 0 && c.special === 0 && c.benefit_in_kind === 0;
-      });
+      const separated =
+        slips.every((s) => {
+          const c = componentsBySlip.get(s.id)!;
+          return c.base === 0 && c.special === 0 && c.benefit_in_kind === 0;
+        }) &&
+        slips.reduce((n, s) => n + componentsBySlip.get(s.id)!.variable, 0) ===
+          y.components.variable;
       const totals = payrollTotals(slips);
       return {
         year: y.year,

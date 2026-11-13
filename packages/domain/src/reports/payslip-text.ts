@@ -102,9 +102,10 @@ export function classifyWageLabel(plain: string): WageKind | undefined {
 
 /**
  * Every printed wage line of a payroll run (#1066), kept beside the legacy draft. `section` is the
- * parser's reading, not the owner's salary component: `benefit_in_kind` is an earning inside the
- * printed gross that is not paid out (Sachbezug), `memo` an information or employer line outside
- * the payout, `unknown` a line the parser could not place.
+ * parser's reading, not the owner's salary component: `memo` is an information or employer line
+ * outside the payout, `unknown` a line the parser could not place. `benefit_in_kind` is reserved
+ * for an explicit, non-label source; the parsers never derive it from a label (a Sachbezug line is
+ * an `earning` until the owner maps its wage type).
  */
 export const WAGE_LINE_SECTIONS = [
   'earning',
@@ -143,8 +144,6 @@ export interface StatutorySplit {
 }
 /** Why the wage lines do not reconcile with the printed gross; the upload is never refused for it. */
 export type WageLineIssue = 'gross_mismatch' | 'no_gross';
-/** Sachbezug: a taxable earning in kind inside the printed gross. */
-export const isBenefitInKindLabel = (plain: string) => /sachbezug/.test(plain);
 /** Payout effect of a legacy line amount (deductions and corrections are stored as charges). */
 export const payoutEffect = (section: WageLineSection, legacyAmount: number) =>
   section === 'deduction' || section === 'tax_adjustment' || section === 'sv_adjustment'

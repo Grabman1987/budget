@@ -5,7 +5,6 @@ import {
   classifyWageLabel,
   detectPeriod,
   finishPayslip,
-  isBenefitInKindLabel,
   normalize,
   payoutEffect,
   quantityAndRate,
@@ -127,8 +126,6 @@ export const lgvPayrollAdapter: PayslipAdapter = {
           ...quantityAndRate(amounts.map((a) => m[4]!.slice(a.start, a.end))),
           amountCents: payoutEffect(section, legacyAmount),
         });
-      const earned = (): WageLineSection =>
-        isBenefitInKindLabel(plain) ? 'benefit_in_kind' : 'earning';
       if (below) {
         if (owner === 'earning' || Number(code) >= 9000 || kind === 'info') wage('memo', amount);
         else wage('deduction', -amount);
@@ -141,12 +138,12 @@ export const lgvPayrollAdapter: PayslipAdapter = {
         });
         continue;
       }
-      if (owner === 'earning') wage(earned(), amount);
+      if (owner === 'earning') wage('earning', amount);
       else if (!owner && kind === 'info') wage('memo', amount);
       else if (owner === 'reimbursement' || (!owner && kind === 'reimbursement'))
         wage('reimbursement', amount);
       else if (owner) wage(owner, amount);
-      else if (kind === 'earning') wage(earned(), amount);
+      else if (kind === 'earning') wage('earning', amount);
       else wage('unknown', amount);
       if (owner === 'earning' || (!owner && kind === 'info')) continue;
       if (owner === 'reimbursement' || (!owner && kind === 'reimbursement')) {

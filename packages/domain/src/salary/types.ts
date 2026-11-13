@@ -32,13 +32,14 @@ export interface SalaryWageLine {
   code: string | null;
   label: string;
   section: WageLineSection;
+  /** Month the line is paid for when printed (back pay); null otherwise. */
+  referenceMonth: string | null;
   amountCents: number;
 }
 /** A payslip with its legacy fields and, when it was read, its wage lines. */
 export interface SalaryPayslip extends CapturedPayslip {
+  /** Employer contact, resolved through merges (#871) by the reader. */
   employerContactId: string | null;
-  /** Document type of the source when known (a bonus payroll run); null otherwise. */
-  documentType: 'payslip' | 'bonus' | null;
   /** The wage reading (#1066); null when the payslip has none. */
   wage: {
     lineCheck: 'ok' | 'gross_mismatch' | 'no_gross';

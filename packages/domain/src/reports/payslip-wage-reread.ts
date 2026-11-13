@@ -16,7 +16,16 @@ export type WageRereadOutcome =
   | 'unreadable'
   | 'no_wage_lines'
   | 'totals_differ';
-export type WageRereadField = 'month' | 'gross' | 'sv' | 'tax' | 'net' | 'reimbursements';
+export type WageRereadField =
+  | 'month'
+  | 'kind'
+  | 'gross'
+  | 'sv'
+  | 'tax'
+  | 'net'
+  | 'reimbursements'
+  | 'deductions'
+  | 'adjustments';
 export type WageRereadSource =
   | { status: 'parsed'; parsed: ParsedPayrollDocument }
   | { status: 'file_missing' | 'password' | 'unreadable' };
@@ -60,16 +69,25 @@ export function planWageReread(
   if (parsed.documentType === 'unknown') return item('unreadable');
   const draft = parsed.draft;
   if (!draft || !parsed.wageLines) return item('no_wage_lines');
-  const stored = payrollTotals([slip]).reimbursementsCents;
-  const reread = payrollTotals([draft]).reimbursementsCents;
+  const stored = payrollTotals([slip]),
+    reread = payrollTotals([draft]);
+  const adjustments = (lines: CapturedPayslip['lines']) =>
+    ['sv_adjustment', 'tax_adjustment'].map((section) =>
+      lines.filter((l) => l.section === section).reduce((n, l) => n + l.amountCents, 0),
+    );
+  const [svAdjStored, taxAdjStored] = adjustments(slip.lines);
+  const [svAdjReread, taxAdjReread] = adjustments(draft.lines);
   const differences = (
     [
       ['month', slip.month === draft.month],
+      ['kind', slip.kind === draft.kind && slip.specialType === draft.specialType],
       ['gross', slip.grossCents === draft.grossCents],
       ['sv', slip.svCents === draft.svCents],
       ['tax', slip.taxCents === draft.taxCents],
       ['net', slip.netCents === draft.netCents],
-      ['reimbursements', stored === reread],
+      ['reimbursements', stored.reimbursementsCents === reread.reimbursementsCents],
+      ['deductions', stored.otherCents === reread.otherCents],
+      ['adjustments', svAdjStored === svAdjReread && taxAdjStored === taxAdjReread],
     ] as const
   )
     .filter(([, same]) => !same)

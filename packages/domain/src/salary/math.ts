@@ -19,8 +19,8 @@ const toNumber = (value: bigint) => {
 /** `numerator / denominator` in basis points (10 000 = 100 %); null without a denominator. */
 export const ratioBp = (numerator: number, denominator: number): number | null =>
   denominator === 0 ? null : toNumber(divRound(BigInt(numerator) * 10_000n, BigInt(denominator)));
-/** Change from `from` to `to` in basis points; null when `from` is zero. */
-export const changeBp = (from: number, to: number) => ratioBp(to - from, from);
+/** Change from `from` to `to` in basis points; null when `from` is zero or negative. */
+export const changeBp = (from: number, to: number) => (from <= 0 ? null : ratioBp(to - from, from));
 /** `a × b / c` rounded to an integer (cents or micro units). */
 export const mulDiv = (a: number | bigint, b: number | bigint, c: number | bigint): number =>
   toNumber(divRound(BigInt(a) * BigInt(b), BigInt(c)));

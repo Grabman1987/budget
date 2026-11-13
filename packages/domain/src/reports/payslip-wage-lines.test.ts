@@ -89,7 +89,7 @@ describe('wage lines of the columnar layout (#1066)', () => {
     expect(parsed.wageLineIssue).toBe('gross_mismatch');
   });
 
-  it('follows the owner section mapping and marks a benefit in kind', () => {
+  it('follows the owner section mapping; a Sachbezug label stays an earning', () => {
     const parsed = parsePayrollDocument(
       columnarText({
         extra: wageRow('777', 'Sachbezug Wohnung', rightAt(82, '100,00')),
@@ -99,7 +99,7 @@ describe('wage lines of the columnar layout (#1066)', () => {
       { salaryAccountId: null, wageTypes: { '777': 'earning' } },
     );
     expect(parsed.wageLines?.find((l) => l.code === '777')).toMatchObject({
-      section: 'benefit_in_kind',
+      section: 'earning',
       amountCents: 10_000,
     });
     expect(parsed.wageLines?.find((l) => l.code === '870')).toMatchObject({
@@ -145,11 +145,11 @@ describe('wage lines of the label layout (#1066)', () => {
     expect(payoutOf(parsed)).toBe(297_500);
   });
 
-  it('separates a benefit in kind inside the gross', () => {
+  it('never derives a benefit in kind from a label', () => {
     const parsed = parsePayrollDocument(labelBenefitText(), 'synthetic.pdf', empty);
     expect(parsed.wageLines?.map((l) => [l.code, l.section, l.amountCents])).toEqual([
       ['810', 'earning', 300_000],
-      ['820', 'benefit_in_kind', 20_000],
+      ['820', 'earning', 20_000],
       ['830', 'earning', 30_000],
       [null, 'deduction', -20_000],
     ]);
@@ -184,5 +184,20 @@ describe('wage lines of the label layout (#1066)', () => {
     const parsed = parsePayrollDocument('Pensionskasse 2030\nEUR 1,00', 'synthetic.pdf', empty);
     expect(parsed).not.toHaveProperty('wageLines');
     expect(parsed).not.toHaveProperty('statutorySplit');
+  });
+  it('keeps "Zulage statt Sachbezug" an earning inside the development lines (#1082)', () => {
+    const parsed = parsePayrollDocument(
+      labelBenefitText().replace('820 Sachbezug Dienstwagen', '820 Zulage statt Sachbezug'),
+      'synthetic.pdf',
+      empty,
+    );
+    expect(parsed.wageLines?.find((l) => l.code === '820')?.section).toBe('earning');
+    expect(
+      parsePayrollDocument(
+        columnarText({ extra: wageRow('777', 'Zulage statt Sachbezug', rightAt(82, '100,00')) }),
+        'synthetic.pdf',
+        { salaryAccountId: null, wageTypes: { '777': 'earning' } },
+      ).wageLines?.find((l) => l.code === '777')?.section,
+    ).toBe('earning');
   });
 });

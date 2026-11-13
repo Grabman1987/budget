@@ -6,7 +6,6 @@ import {
   classifyWageLabel,
   detectPeriod,
   finishPayslip,
-  isBenefitInKindLabel,
   normalize,
   payoutEffect,
   printedCents,
@@ -185,11 +184,7 @@ export const austrianPayrollAdapter: PayslipAdapter = {
         else if (/sonstige.*abzuge|betriebsratsumlage/.test(plain)) section = 'deduction';
       }
       const wageSection: WageLineSection =
-        section === 'earning'
-          ? isBenefitInKindLabel(plain)
-            ? 'benefit_in_kind'
-            : 'earning'
-          : (section ?? (classifyWageLabel(plain) === 'info' ? 'memo' : 'unknown'));
+        section ?? (classifyWageLabel(plain) === 'info' ? 'memo' : 'unknown');
       wageLines.push({
         code: code ?? null,
         label: description.slice(0, 160),

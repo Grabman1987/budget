@@ -58,7 +58,16 @@ export function realDevelopment(input: {
   endMonth?: string;
 }): RealDevelopment | null {
   const values = new Map(input.values.map((v) => [v.month, BigInt(v.cents)]));
-  const index = new Map(input.index.map((p) => [p.month, BigInt(p.indexMicro)]));
+  // Only positive integer index levels count; anything else is a missing point, never repaired.
+  const index = new Map(
+    input.index
+      .filter((p) =>
+        typeof p.indexMicro === 'bigint'
+          ? p.indexMicro > 0n
+          : Number.isSafeInteger(p.indexMicro) && p.indexMicro > 0,
+      )
+      .map((p) => [p.month, BigInt(p.indexMicro)]),
+  );
   const v0 = values.get(input.startMonth),
     i0 = index.get(input.startMonth);
   if (!v0 || v0 <= 0n || !i0 || i0 <= 0n) return null;
@@ -115,6 +124,15 @@ export const baseSalaryValues = (series: readonly SalaryMonth[]): MonthValue[] =
 /** Development total (base + special + variable) per comparable month. */
 export const developmentValues = (series: readonly SalaryMonth[]): MonthValue[] =>
   series.filter((m) => m.comparable).map((m) => ({ month: m.month, cents: m.developmentCents }));
-/** Personal inflation index points (4 decimals) as micro units, exactly. */
+/**
+ * Personal inflation index points (4 decimals, `personalInflation`) as micro units. The number is
+ * read through its 4-decimal text and scaled by digits, without float multiplication; points that
+ * are not finite and positive are left out (missing, never repaired).
+ */
 export const personalIndexMicro = (points: readonly { month: string; index: number }[]) =>
-  points.map((p) => ({ month: p.month, indexMicro: BigInt(Math.round(p.index * 10_000)) * 100n }));
+  points.flatMap((p) => {
+    if (!Number.isFinite(p.index) || p.index <= 0) return [];
+    const [whole, fraction = ''] = p.index.toFixed(4).split('.');
+    const indexMicro = BigInt(whole!) * 1_000_000n + BigInt(fraction.padEnd(6, '0'));
+    return indexMicro > 0n ? [{ month: p.month, indexMicro }] : [];
+  });
