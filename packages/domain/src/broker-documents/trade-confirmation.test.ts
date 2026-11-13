@@ -21,6 +21,7 @@ const doc = (o: {
   positionTotal: string;
   costs?: string[] | undefined;
   booking: string;
+  girosammel?: boolean;
 }) =>
   [
     'Beispiel Broker AG Musterweg 1 00000 Beispielstadt',
@@ -39,9 +40,12 @@ const doc = (o: {
     'BUCHUNG',
     'VERRECHNUNGSKONTO WERTSTELLUNG BETRAG',
     o.booking,
-    'Die Wertpapiere werden in Ihrem Depot verwahrt.',
-    'Dieses Dokument wurde maschinell erstellt und wird nicht unterschrieben.',
-    'Sofern keine Umsatzsteuer ausgewiesen ist, handelt es sich um eine steuerfreie Leistung.',
+    // The custody note starts with the instrument name of the (first) row.
+    `${/^(.*?)\s[\d.,]+\s+Stk\./s.exec(o.row)![1]!.replace(/\s+/g, ' ')} ${
+      o.girosammel ? 'in Girosammelverwahrung in Deutschland.' : 'nicht in Sammelverwahrung'
+    }`,
+    'Diese Abrechnung wird maschinell erstellt und daher nicht unterschrieben.',
+    'Wird keine Umsatzsteuer ausgewiesen, handelt es sich gemäß § 4 Nr. 8 UStG um eine umsatzsteuerfreie Leistung.',
   ].join('\n');
 
 const savingsPlan = (overrides: Partial<Parameters<typeof doc>[0]> = {}) =>
@@ -49,7 +53,7 @@ const savingsPlan = (overrides: Partial<Parameters<typeof doc>[0]> = {}) =>
     title: 'WERTPAPIERABRECHNUNG SPARPLAN',
     header: ['DATUM 09.11.2026', 'AUSFÜHRUNG 1a2b-3c4d', 'SPARPLAN 9f8e-7d6c', 'DEPOT 0123456789'],
     sentence: 'Sparplanausführung am 09.11.2026 an der Beispiel Exchange.',
-    row: 'Synthetic World Equity UCITS ETF (Acc) 0,339443 Stk. 294,60 EUR 100,00 EUR',
+    row: 'Synthetic Index 100 3x Lev USD (Acc) 0,339443 Stk. 294,60 EUR 100,00 EUR',
     positionTotal: '100,00 EUR',
     booking: `${IBAN} 2026-11-11 -100,00 EUR`,
     ...overrides,
@@ -71,7 +75,7 @@ describe('trade confirmation reader (#1057)', () => {
       orderId: null,
       depotHint: '6789',
       venue: 'Beispiel Exchange',
-      instrument: { name: 'Synthetic World Equity UCITS ETF (Acc)', isin: ISIN },
+      instrument: { name: 'Synthetic Index 100 3x Lev USD (Acc)', isin: ISIN },
       quantity: '0.339443',
       unitsE8: 33_944_300,
       price: { value: '294.60', currency: 'EUR' },
@@ -92,10 +96,11 @@ describe('trade confirmation reader (#1057)', () => {
         title: 'WERTPAPIERABRECHNUNG',
         header: ['DATUM 03.11.2026', 'AUSFÜHRUNG 5e6f-7a8b', 'DEPOT 0123456789'],
         sentence: 'Ausführung von Round up am 03.11.2026 an der Beispiel Exchange.',
-        row: 'Synthetic Bond Fund 0,012345 Stk. 99,64 EUR 1,23 EUR',
+        row: 'Synthetic Bond Fund 2030 0,012345 Stk. 99,64 EUR 1,23 EUR',
         isin: 'IE00SYNTH016',
         positionTotal: '1,23 EUR',
         booking: `${IBAN} 2026-11-05 -1,23 EUR`,
+        girosammel: true,
       }),
       SHA,
     );
@@ -120,7 +125,7 @@ describe('trade confirmation reader (#1057)', () => {
         title: 'WERTPAPIERABRECHNUNG',
         header: ['DATUM 02.11.2026', 'AUSFÜHRUNG 0a0b-1c1d', 'ORDER 2e2f-3a3b', 'DEPOT 0123456789'],
         sentence: 'Market-Order Kauf am 02.11.2026, um 10:15 Uhr an der Beispiel Exchange.',
-        row: 'Synthetic Industrials AG 5 Stk. 200,00 EUR 1.000,00 EUR',
+        row: 'Synthetic Industrials 2 AG 5 Stk. 200,00 EUR 1.000,00 EUR',
         isin: 'LU00SYNTH024',
         positionTotal: '1.000,00 EUR',
         costs: ['Fremdkostenzuschlag -1,00 EUR', 'GESAMT -1.001,00 EUR'],
@@ -150,7 +155,7 @@ describe('trade confirmation reader (#1057)', () => {
         title: 'WERTPAPIERABRECHNUNG',
         header: ['DATUM 06.11.2026', 'AUSFÜHRUNG 4c4d-5e5f', 'DEPOT 0123456789'],
         sentence: 'Market-Order Verkauf am 06.11.2026, um 15:42 Uhr an der Beispiel Exchange.',
-        row: 'Synthetic Industrials AG 10 Stk. 52,35 EUR 523,50 EUR',
+        row: 'Synthetic Industrials 2 AG 10 Stk. 52,35 EUR 523,50 EUR',
         isin: 'LU00SYNTH024',
         positionTotal: '523,50 EUR',
         costs: [
@@ -189,7 +194,7 @@ describe('trade confirmation reader (#1057)', () => {
         'DEPOT',
         '0123456789',
       ],
-      row: 'Synthetic World Equity UCITS ETF (Acc)\n0,339443  Stk.\n294,60 EUR\t100,00 EUR',
+      row: 'Synthetic Index 100 3x Lev USD (Acc)\n0,339443  Stk.\n294,60 EUR\t100,00 EUR',
       booking: `${IBAN}\n2026-11-11\n-100,00 EUR`,
     });
     expect(parseTradeConfirmation(text, SHA)).toMatchObject({
@@ -208,7 +213,7 @@ describe('trade confirmation reader (#1057)', () => {
   it('flags a wrong ISIN check digit without repairing it', () => {
     const parsed = parseTradeConfirmation(savingsPlan({ isin: 'IE00SYNTH009' }), SHA);
     expect(parsed.instrument).toEqual({
-      name: 'Synthetic World Equity UCITS ETF (Acc)',
+      name: 'Synthetic Index 100 3x Lev USD (Acc)',
       isin: 'IE00SYNTH009',
     });
     expect(parsed.verified).toBe(false);
@@ -229,7 +234,7 @@ describe('trade confirmation reader (#1057)', () => {
   it('flags a position total and a quantity × price that do not match the amount', () => {
     const parsed = parseTradeConfirmation(
       savingsPlan({
-        row: 'Synthetic World Equity UCITS ETF (Acc) 0,339443 Stk. 290,00 EUR 100,00 EUR',
+        row: 'Synthetic Index 100 3x Lev USD (Acc) 0,339443 Stk. 290,00 EUR 100,00 EUR',
         positionTotal: '101,00 EUR',
       }),
       SHA,
@@ -241,7 +246,7 @@ describe('trade confirmation reader (#1057)', () => {
   it('flags an unknown cost line and an extra position row', () => {
     const parsed = parseTradeConfirmation(
       savingsPlan({
-        row: 'Synthetic World Equity UCITS ETF (Acc) 0,339443 Stk. 294,60 EUR 100,00 EUR\nSynthetic Extra 1 Stk. 1,00 EUR 1,00 EUR',
+        row: 'Synthetic Index 100 3x Lev USD (Acc) 0,339443 Stk. 294,60 EUR 100,00 EUR\nSynthetic Extra 1 Stk. 1,00 EUR 1,00 EUR',
         costs: ['Sonderentgelt -1,00 EUR', 'GESAMT -101,00 EUR'],
         booking: `${IBAN} 2026-11-11 -101,00 EUR`,
       }),
@@ -304,7 +309,7 @@ const buyOrder = (overrides: Partial<Parameters<typeof doc>[0]> = {}) =>
     title: 'WERTPAPIERABRECHNUNG',
     header: ['DATUM 02.11.2026', 'AUSFÜHRUNG 0a0b-1c1d', 'DEPOT 0123456789'],
     sentence: 'Market-Order Kauf am 02.11.2026, um 10:15 Uhr an der Beispiel Exchange.',
-    row: 'Synthetic Industrials AG 5 Stk. 200,00 EUR 1.000,00 EUR',
+    row: 'Synthetic Industrials 2 AG 5 Stk. 200,00 EUR 1.000,00 EUR',
     isin: 'LU00SYNTH024',
     positionTotal: '1.000,00 EUR',
     costs: ['Fremdkostenzuschlag -1,00 EUR', 'GESAMT -1.001,00 EUR'],
@@ -333,7 +338,7 @@ describe('trade confirmation reader: review findings (#1058)', () => {
   it('refuses a price printed without decimals', () => {
     const parsed = parseTradeConfirmation(
       buyOrder({
-        row: 'Synthetic Industrials AG 100 Stk. 1 EUR 149,00 EUR',
+        row: 'Synthetic Industrials 2 AG 100 Stk. 1 EUR 149,00 EUR',
         positionTotal: '149,00 EUR',
         costs: undefined,
         booking: `${IBAN} 2026-11-04 -149,00 EUR`,
@@ -348,7 +353,7 @@ describe('trade confirmation reader: review findings (#1058)', () => {
     expect(
       reasons(
         buyOrder({
-          row: 'Synthetic Industrials AG 100 Stk. 1,00 EUR 100,40 EUR',
+          row: 'Synthetic Industrials 2 AG 100 Stk. 1,00 EUR 100,40 EUR',
           positionTotal: '100,40 EUR',
           costs: undefined,
           booking: `${IBAN} 2026-11-04 -100,40 EUR`,
@@ -362,7 +367,7 @@ describe('trade confirmation reader: review findings (#1058)', () => {
       reasons(
         buyOrder({
           sentence: 'Market-Order Verkauf am 02.11.2026, um 10:15 Uhr an der Beispiel Exchange.',
-          row: 'Synthetic Industrials AG 1 Stk. 1,00 EUR 1,00 EUR',
+          row: 'Synthetic Industrials 2 AG 1 Stk. 1,00 EUR 1,00 EUR',
           positionTotal: '1,00 EUR',
           costs: ['Fremdkostenzuschlag -1,00 EUR', 'GESAMT 0,00 EUR'],
           booking: `${IBAN} 2026-11-04 0,00 EUR`,
@@ -378,7 +383,7 @@ describe('trade confirmation reader: review findings (#1058)', () => {
     expect(
       reasons(
         savingsPlan({
-          row: 'Synthetic World Equity UCITS ETF (Acc) 0,339443 Stk. 294,60 USD 100,00 EUR',
+          row: 'Synthetic Index 100 3x Lev USD (Acc) 0,339443 Stk. 294,60 USD 100,00 EUR',
         }),
       ),
     ).toEqual(['price_currency_differs']);
@@ -464,7 +469,7 @@ describe('trade confirmation reader: review findings (#1058)', () => {
     expect(
       parseTradeConfirmation(
         savingsPlan({
-          row: 'Synthetic World Equity UCITS ETF (Acc) 0,3394430001 Stk. 294,60 EUR 100,00 EUR',
+          row: 'Synthetic Index 100 3x Lev USD (Acc) 0,3394430001 Stk. 294,60 EUR 100,00 EUR',
         }),
         SHA,
       ),
@@ -477,7 +482,7 @@ describe('trade confirmation reader: review findings (#1058)', () => {
     expect(
       parseTradeConfirmation(
         buyOrder({
-          row: 'Synthetic Industrials AG 1.000.000 Stk. 1.234,56 EUR 1.234.560.000,00 EUR',
+          row: 'Synthetic Industrials 2 AG 1.000.000 Stk. 1.234,56 EUR 1.234.560.000,00 EUR',
           positionTotal: '1.234.560.000,00 EUR',
           costs: undefined,
           booking: `${IBAN} 2026-11-04 -1.234.560.000,00 EUR`,
@@ -523,7 +528,7 @@ describe('trade confirmation reader: review findings (#1058)', () => {
       reasons(
         buyOrder({
           sentence: 'Market-Order Verkauf am 02.11.2026, um 10:15 Uhr an der Beispiel Exchange.',
-          row: 'Synthetic Industrials AG 10 Stk. 52,35 EUR 523,50 EUR',
+          row: 'Synthetic Industrials 2 AG 10 Stk. 52,35 EUR 523,50 EUR',
           positionTotal: '523,50 EUR',
           costs: [
             'Fremdkostenzuschlag -1,00 EUR',
@@ -545,8 +550,8 @@ describe('trade confirmation reader: review findings (#1058)', () => {
       ),
     ).toEqual(['unrecognized_table_line']);
     const footerRow = savingsPlan().replace(
-      'Dieses Dokument wurde',
-      'Sonderposten 5,00 EUR\nDieses Dokument wurde',
+      'Diese Abrechnung wird',
+      'Sonderposten 5,00 EUR\nDiese Abrechnung wird',
     );
     expect(reasons(footerRow)).toEqual(['unrecognized_table_line']);
   });
@@ -556,7 +561,7 @@ describe('trade confirmation reader: review findings (#1058)', () => {
     expect(
       reasons(
         buyOrder({
-          row: 'Synthetic Industrials AG 10.000 Stk. 0,05 EUR 500,00 EUR',
+          row: 'Synthetic Industrials 2 AG 10.000 Stk. 0,05 EUR 500,00 EUR',
           positionTotal: '500,00 EUR',
           costs: undefined,
           booking: `${IBAN} 2026-11-04 -500,00 EUR`,
@@ -571,7 +576,7 @@ describe('trade confirmation reader: review findings (#1058)', () => {
     expect(
       parseTradeConfirmation(
         savingsPlan({
-          row: 'Synthetic World Equity UCITS ETF (Acc) 9,560229 Stk. 5,23 EUR 50,00 EUR',
+          row: 'Synthetic Index 100 3x Lev USD (Acc) 9,560229 Stk. 5,23 EUR 50,00 EUR',
           positionTotal: '50,00 EUR',
           booking: `${IBAN} 2026-11-11 -50,00 EUR`,
         }),
@@ -579,7 +584,7 @@ describe('trade confirmation reader: review findings (#1058)', () => {
       ),
     ).toMatchObject({
       kind: 'savings_plan',
-      instrument: { name: 'Synthetic World Equity UCITS ETF (Acc)', isin: ISIN },
+      instrument: { name: 'Synthetic Index 100 3x Lev USD (Acc)', isin: ISIN },
       quantity: '9.560229',
       unitsE8: 956_022_900,
       price: { value: '5.23', currency: 'EUR' },
@@ -590,5 +595,20 @@ describe('trade confirmation reader: review findings (#1058)', () => {
       verified: false,
       reasons: ['price_precision_insufficient'],
     });
+  });
+
+  it('allows the known footer sentences but flags table data among them', () => {
+    const text = savingsPlan();
+    expect(text).toContain('Synthetic Index 100 3x Lev USD (Acc) nicht in Sammelverwahrung');
+    expect(reasons(text)).toEqual([]);
+    expect(reasons(text.replace('Diese Abrechnung', `${IBAN}\nDiese Abrechnung`))).toEqual([
+      'unrecognized_table_line',
+    ]);
+    expect(reasons(text.replace('Diese Abrechnung', '12.11.2026\nDiese Abrechnung'))).toEqual([
+      'unrecognized_table_line',
+    ]);
+    // A custody note naming another instrument is not a known sentence; without table data it
+    // is ignored like any other prose.
+    expect(reasons(text.replace('USD (Acc) nicht', 'USD (Dist) nicht'))).toEqual([]);
   });
 });

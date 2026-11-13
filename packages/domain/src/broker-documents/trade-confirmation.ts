@@ -163,6 +163,27 @@ export function tradeValueConsistent(
   return twiceDiff <= (twiceBound > 2n * unit ? twiceBound : 2n * unit) ? 'ok' : 'mismatch';
 }
 
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const MACHINE_NOTE = 'Diese Abrechnung wird maschinell erstellt und daher nicht unterschrieben.';
+const VAT_NOTE =
+  'Wird keine Umsatzsteuer ausgewiesen, handelt es sich gemäß § 4 Nr. 8 UStG um eine umsatzsteuerfreie Leistung.';
+const TABLE_DATA = new RegExp(
+  String.raw`${AMOUNT} ${CURRENCY}\b|\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){3,}|\d{4}-\d{2}-\d{2}|\b${DATE}\b`,
+);
+/** Footer text without the known sentences; the custody note starts with the parsed name. */
+const footerLeftover = (tail: string, instrument: string | null) => {
+  let rest = tail.split(MACHINE_NOTE).join(' ').split(VAT_NOTE).join(' ');
+  if (instrument)
+    rest = rest.replace(
+      new RegExp(
+        `${escapeRegExp(instrument)} (?:nicht in Sammelverwahrung|in Girosammelverwahrung in Deutschland)\\.?`,
+        'g',
+      ),
+      ' ',
+    );
+  return rest;
+};
+
 /** Cheap, bounded signature check for the document classifier. */
 export function acceptsTradeConfirmation(text: string): boolean {
   if (text.length > TRADE_CONFIRMATION_MAX_TEXT) return false;
@@ -399,10 +420,12 @@ export function parseTradeConfirmation(text: string, sha256: string): TradeConfi
       const iban = row[1]!.replace(/ /g, '');
       doc.booking = { accountHint: iban.slice(-4), valueDate, signedCents };
       currencies.add(row[4]!);
-      // Only the footer sentences may follow and they carry no digits; any digit means a table-like
-      // leftover (fail-safe: a footer printing digits is left unverified, never misread).
+      // Only footer sentences may follow. The known ones (custody note, machine-generated note,
+      // VAT note) contain digits and are removed first; anything else that looks like table data
+      // (amount with currency, IBAN, ISO or de-AT date) is an unrecognised line.
       const tail = body.slice(row[0].length).trim();
-      if (/\d/.test(tail)) issue('unrecognized_table_line');
+      if (TABLE_DATA.test(footerLeftover(tail, doc.instrument?.name ?? null)))
+        issue('unrecognized_table_line');
       if (new RegExp(String.raw`\d{4}-\d{2}-\d{2} ${AMOUNT} ${CURRENCY}\b`).test(tail))
         issue('booking_ambiguous');
       if (doc.executionDate && valueDate < doc.executionDate) issue('value_date_before_execution');
