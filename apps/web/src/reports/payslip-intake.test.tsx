@@ -470,3 +470,93 @@ it('offers section choices only for unknown wage types and reparses the selected
   fireEvent.click(screen.getByRole('button', { name: 'Zuordnen und neu auswerten' }));
   await waitFor(() => expect(mappingBody).toEqual({ wageTypes: { '899': 'reimbursement' } }));
 });
+
+it('lays the review out as grouped lines, one summary block and one action bar', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) =>
+      String(url).includes('pdf-preview')
+        ? new Response(null, { status: 503 })
+        : Response.json({
+            id: 'intake',
+            receiptId: 'receipt',
+            status: 'pending',
+            matches: [],
+            payoutAccountId: 'a',
+            proposedPayoutDate: '2026-09-30',
+            proposedPayeeId: null,
+            selectedExpectedOccurrenceId: 'occ',
+            expectedPayouts: [
+              {
+                occurrenceId: 'occ',
+                paymentId: 'pay',
+                name: 'Gehalt',
+                dueDate: '2026-09-30',
+                amountCents: 285000,
+                currency: 'EUR',
+                accountId: 'a',
+                payeeId: null,
+                payeeName: null,
+              },
+            ],
+            payees: [],
+            accounts: [account('a', 'Giro A')],
+            parsed: {
+              documentType: 'payslip',
+              periodSource: 'content',
+              differenceCents: 0,
+              warnings: [],
+              draft: {
+                month: '2026-09',
+                kind: 'regular',
+                grossCents: 400000,
+                svCents: 70000,
+                taxCents: 50000,
+                netCents: 280000,
+                lines: [
+                  { section: 'reimbursement', label: 'Synthetic Zuschuss', amountCents: 7550 },
+                  { section: 'deduction', label: 'Synthetic Entgelt', amountCents: 2685 },
+                  { section: 'tax_adjustment', label: 'Synthetic Aufrollung', amountCents: -3020 },
+                ],
+              },
+            },
+          }),
+    ),
+  );
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <ToastProvider>
+        <PayslipIntakeDetail id="intake" inline />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  const group = async (name: string) => within(await screen.findByRole('table', { name }));
+  expect((await group('Abzüge')).getByRole('row', { name: /Synthetic Entgelt/ }).textContent).toBe(
+    'Synthetic Entgelt26,85 €',
+  );
+  expect(
+    (await group('Steuerfreie Erstattungen'))
+      .getByRole('row', { name: /Synthetic Zuschuss/ })
+      .textContent?.endsWith('75,50 €'),
+  ).toBe(true);
+  expect(
+    (await group('Korrekturen')).getByRole('row', { name: /Synthetic Aufrollung/ }).textContent,
+  ).toBe('Synthetic Aufrollung−30,20 €');
+  expect(screen.queryByText(/· steuerfreie Erstattung/)).toBeNull();
+  const summary = within(screen.getByRole('region', { name: 'Zusammenfassung' }));
+  expect(summary.getByText('Erwarteter Bezug')).toBeTruthy();
+  expect(summary.getByText('Auszahlung laut Gehaltszettel').nextElementSibling?.textContent).toBe(
+    '2.800,00 €',
+  );
+  expect(summary.getByText('Differenz').nextElementSibling?.textContent).toBe('50,00 €');
+  const actions = document.querySelector('.payslip-review-actions') as HTMLElement;
+  expect(Array.from(actions.querySelectorAll('button, a')).map((node) => node.textContent)).toEqual(
+    ['Erneut auswerten', 'Original-PDF herunterladen', 'Ablehnen', 'Bestätigen'],
+  );
+  expect(
+    summary.getByText(/Die neue Auszahlung wird vorgemerkt/).compareDocumentPosition(actions) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+});
