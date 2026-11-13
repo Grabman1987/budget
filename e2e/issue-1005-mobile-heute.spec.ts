@@ -181,8 +181,15 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(controls.getByRole('button', { name: 'Bis Gehalt', exact: true })).toBeDisabled();
     const month = (await controls.locator('.month-switch').boundingBox())!;
     const period = (await controls.locator('.seg').boundingBox())!;
-    expect(month.y + month.height / 2).toBe(period.y + period.height / 2);
-    expect(month.x + month.width).toBeLessThanOrEqual(period.x);
+    if (isMobile) {
+      // 44px arrows + return control + body-size month do not share a 375px row with the segments
+      // (#1065): the segments then take their own full-width line below the stepper.
+      expect(month.y + month.height).toBeLessThanOrEqual(period.y);
+      expect(month.x + month.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+    } else {
+      expect(month.y + month.height / 2).toBe(period.y + period.height / 2);
+      expect(month.x + month.width).toBeLessThanOrEqual(period.x);
+    }
     expect(period.x + period.width).toBeLessThanOrEqual(page.viewportSize()!.width);
     await controls.getByRole('button', { name: 'Zum aktuellen Monat' }).click();
     await expect(page).toHaveURL(/monat=2026-09/);

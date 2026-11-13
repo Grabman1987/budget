@@ -514,7 +514,7 @@
 @media (max-width: 767px) {
   .sheet:has(> .heute-screen),
   .sheet:has(> .heute-detail-screen) {
-    padding: 0 16px calc(var(--tabbar-h) + 90px);
+    padding: 0 16px calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 16px);
   }
   .hv-head-phone {
     display: grid;
@@ -811,8 +811,9 @@
     overflow-wrap: anywhere;
   }
 }
-/* Keep full words and amounts readable beside the reserved FAB column. */
-@media (max-width: 399px) {
+/* Phone (every width up to 767px, including 402/430px iPhones): two-line task rows. Line 1 is
+   marker, task and amount, line 2 the action. The header row stays for screen readers. */
+@media (max-width: 767px) {
   .hv-revisions,
   .hv-revisions tbody {
     display: block;
@@ -826,17 +827,19 @@
   }
   .hv-revisions tbody tr {
     display: grid;
-    grid-template-columns: 30px minmax(0, 1fr);
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 4px;
     border-top: 1px solid var(--rule);
     padding-top: 6px;
   }
   .hv-revisions td {
     border: 0;
     min-width: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
   .hv-revisions td:last-child {
-    grid-column: 2;
+    grid-column: 2 / -1;
     text-align: left;
   }
 }
@@ -1082,15 +1085,6 @@
     display: inline;
   }
 }
-@media (max-width: 399px) {
-  .hv-revisions tbody tr {
-    grid-template-columns: 26px minmax(0, 1fr) auto;
-  }
-  .hv-revisions td:last-child {
-    grid-column: 2 / -1;
-  }
-}
-
 /* Keep action labels out of the floating capture target and let the final row scroll clear. */
 @media (max-width: 767px) {
   .heute-screen {
@@ -1103,7 +1097,6 @@
     overflow-wrap: break-word;
   }
   .hv-revisions td:last-child {
-    padding-right: 48px;
     padding-left: 4px;
   }
   .hv-revisions td:first-child {
@@ -1198,5 +1191,44 @@
   .hv-head .seg-slide button {
     height: 44px;
     min-height: 44px;
+  }
+}
+
+/* Phone period row (ON): month stepper and "Monat | Bis Gehalt" are one pair. Both are 44px tall
+   with the same hairline outline and the same body-size label; they share the row and wrap to two
+   full-width lines only when "September 2026" and the segments do not fit side by side. */
+@media (max-width: 767px) {
+  .hv-head-phone {
+    align-items: center;
+    column-gap: var(--space-xs);
+    row-gap: var(--space-xs);
+  }
+  .hv-head-phone .month-switch {
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    width: auto;
+    min-width: 0;
+    height: var(--touch);
+    border-radius: var(--radius-md);
+    box-shadow: inset 0 0 0 var(--stroke-hairline) var(--rule-strong);
+  }
+  .hv-head-phone .month-switch .month-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: center;
+    white-space: nowrap;
+    font-size: var(--fs-body);
+    font-weight: 650;
+  }
+  .hv-head-phone .seg.seg.seg-slide {
+    display: flex;
+    flex: 1 1 auto;
+    margin-left: 0;
+    height: var(--touch);
+    border-radius: var(--radius-md);
+  }
+  .hv-head-phone .seg-slide button {
+    flex: 1 1 auto;
+    white-space: nowrap;
   }
 }
