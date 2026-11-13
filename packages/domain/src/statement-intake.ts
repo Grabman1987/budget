@@ -373,6 +373,14 @@ export function parseStatementText(text: string, sha256: string): StatementPropo
       }
     }
     if (summary) {
+      // A masked card number printed above the table (first six/last four digits) is a hint.
+      const table = lines.findIndex((l) => /^\s*Karte\s+Umsatz\s+Buchung\s+Buchungstext\b/.test(l));
+      lines.slice(0, table < 0 ? lines.length : table).forEach((text, line) => {
+        for (const h of text.matchAll(
+          /(?<![\d\p{L}])\d{4} ?\d{2}[X*]{2} ?[X*]{4} ?(\d{4})(?![\d\p{L}])/gu,
+        ))
+          add('accountHint', `****${h[1]}`, line, 'card_hint');
+      });
       // Only an explicit final-amount table heading supplies currency, not merchant text.
       lines.forEach((text, line) => {
         const header =

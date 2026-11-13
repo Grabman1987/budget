@@ -3,7 +3,7 @@ import { parseScaledDecimal } from './money/scaled';
 import { mulDivRound } from './wealth/int';
 
 export type CardLayout = 'issued_card' | 'company_card';
-export type CardRowKind = 'purchase' | 'refund' | 'payment' | 'fee' | 'unknown';
+export type CardRowKind = 'purchase' | 'refund' | 'credit' | 'payment' | 'fee' | 'unknown';
 export type CardDocumentIdentity = {
   kind: 'printed_reference' | 'issued_date';
   key: string;
@@ -30,7 +30,7 @@ export type CardRow = {
   accountId: string | null;
   transactionDate: string | null;
   bookingDate: string | null;
-  dateOrigin: 'printed' | 'statement_boundaries';
+  dateOrigin: 'printed' | 'statement_boundaries' | 'issue_date';
   description: string;
   currency: string;
   amountCents: number;
@@ -147,8 +147,18 @@ const issue = (doc: CardDocument, reason: string) => {
   if (!doc.reasons.includes(reason)) doc.reasons.push(reason);
 };
 function rowDate(raw: string, previous: CardBoundary | null, current: string | null) {
-  if (!previous || !current || !/^\d{2}\.\d{2}\.?$/.test(raw.trim())) return null;
+  if (!current || !/^\d{2}\.\d{2}\.?$/.test(raw.trim())) return null;
   const short = raw.trim().replace(/\.$/, '');
+  if (!previous) {
+    // Without a prior boundary: the latest such day not after the issue date, within 62 days.
+    const year = Number(current.slice(0, 4));
+    const date = [year, year - 1]
+      .map((y) => day(`${short}.${y}`))
+      .find((d): d is string => d !== null && d <= current);
+    if (!date) return null;
+    const age = (Date.parse(current + 'T00:00:00Z') - Date.parse(date + 'T00:00:00Z')) / 86400000;
+    return age <= 62 ? date : null;
+  }
   const possible: string[] = [];
   const from = Number(previous.issueDate.slice(0, 4)),
     to = Number(current.slice(0, 4));
@@ -178,6 +188,17 @@ function kind(description: string, amount: number): CardRowKind {
   if (amount < 0 && /\b(?:gebühr|entgelt|fee)\b/i.test(description)) return 'fee';
   return amount < 0 ? 'purchase' : 'unknown';
 }
+/** A positive card row without payment/refund wording is a credit left for owner review. */
+const cardKind = (description: string, amount: number): CardRowKind => {
+  const rowKind = kind(description, amount);
+  return rowKind === 'unknown' &&
+    amount > 0 &&
+    !/\b(?:bargeld(?:behebung|abhebung)|cash\s+(?:advance|withdrawal)|umbuchung|überweisung|transfer|zahlungsrückbuchung|payment\s+(?:reversal|return)|zahlung|einzahlung|payment|bankeinzug|storno|reversal)\b/i.test(
+      description,
+    )
+    ? 'credit'
+    : rowKind;
+};
 
 /** Pure, finite layout readers. Unknown columns/rows never become guessed financial actions. */
 export function parseCardDocument(
@@ -296,15 +317,11 @@ export function parseCardDocument(
           continue;
         }
         const printed = signed(`${total[1]}${total[2]}`);
-        // The printed table total is the new card balance: prior balance plus every row.
+        // The printed table total is the new card balance, the same figure as the summary Saldo.
         if (
-          doc.previous &&
-          (printed === null ||
-            BigInt(printed) !==
-              doc.rows.reduce(
-                (n, row) => n + BigInt(row.amountCents),
-                -BigInt(doc.previous.payableCents),
-              ))
+          printed === null ||
+          f.payableCents.value === null ||
+          BigInt(printed) !== -BigInt(f.payableCents.value)
         )
           issue(doc, 'table_total_unverified');
         inTable = false;
@@ -383,18 +400,23 @@ export function parseCardDocument(
       const transactionDate = rowDate(rawDate!, doc.previous, current),
         bookingDate = rowDate(rawBooked!, doc.previous, current);
       if (!transactionDate || !bookingDate) issue(doc, 'row_year_unavailable');
-      const rowKind = kind(description, amount);
+      let rowKind = kind(description, amount);
+      // A payment printed without a card index settles the card account, not one card.
+      const accountLevel = !printedCard && rowKind === 'payment';
+      if (printedCard) rowKind = cardKind(description, amount);
       if (rowKind === 'unknown') issue(doc, 'row_kind_unavailable');
       doc.rows.push({
         key: `${sha256}:${i + 1}`,
         line: i + 1,
         kind: rowKind,
-        cardToken: card.fingerprint,
-        cardHint: card.hint,
-        accountId: context.mappedCardAccounts[card.fingerprint] ?? null,
+        cardToken: accountLevel ? '' : card.fingerprint,
+        cardHint: accountLevel ? 'Karte' : card.hint,
+        accountId: accountLevel
+          ? context.accountId
+          : (context.mappedCardAccounts[card.fingerprint] ?? null),
         transactionDate,
         bookingDate,
-        dateOrigin: 'statement_boundaries',
+        dateOrigin: doc.previous ? 'statement_boundaries' : 'issue_date',
         description,
         currency: currency[1]!,
         amountCents: amount,
@@ -615,10 +637,23 @@ export function parseCardDocument(
   if (!doc.rows.length) issue(doc, 'rows_unavailable');
   if (doc.rows.length > 1000 || doc.rows.some((row) => row.description.length > 1024))
     issue(doc, 'row_text_limit');
-  if (doc.rows.some((row) => !row.cardToken || row.accountId !== context.accountId))
+  const accountLevel = (row: CardRow) =>
+    doc.layout === 'issued_card' &&
+    row.kind === 'payment' &&
+    !row.cardToken &&
+    row.accountId === context.accountId;
+  if (
+    doc.rows.some(
+      (row) => !accountLevel(row) && (!row.cardToken || row.accountId !== context.accountId),
+    )
+  )
     issue(doc, 'card_mapping_required');
   if (doc.layout === 'issued_card' && doc.previous) {
-    const actual = [...new Set(doc.rows.map((row) => normalize(row.cardToken)))].sort();
+    const actual = [
+      ...new Set(
+        doc.rows.filter((row) => !accountLevel(row)).map((row) => normalize(row.cardToken)),
+      ),
+    ].sort();
     const previous = [...new Set(doc.previous.cardTokens.map(normalize))].sort();
     if (JSON.stringify(actual) !== JSON.stringify(previous)) issue(doc, 'previous_card_mismatch');
   }
@@ -696,6 +731,7 @@ export function planCardRows(
     )
       return pending('document_proof_incomplete');
     if (row.kind === 'payment') return pending('settlement_match_required');
+    if (row.kind === 'credit') return pending('credit_review_required');
     if (!['purchase', 'fee', 'refund'].includes(row.kind)) return pending('row_kind_unavailable');
     if (competing.has(row.key)) return pending('rows_compete_for_existing_booking');
     const plausible = eligibleFor(row);

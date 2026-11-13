@@ -73,9 +73,10 @@ const row = (
     ...(foreign ? ([[66, foreign]] as const) : []),
     [118 - final.length, final],
   ]);
-const statement = (saldo = '372,18-') =>
+const statement = (saldo = '368,68-') =>
   [
     'Synthetic Card Service',
+    '     Kartenkonto                                            4000 12XX XXXX 1111',
     '     Kartentyp                                              Synthetic Classic',
     '     Datum                                                  04.01.2031',
     '     Datum n ä chste Umsatznachricht                        04.02.2031',
@@ -100,6 +101,7 @@ const statement = (saldo = '372,18-') =>
     row('1', '22.12', 'Gutschrift Shop', 'Versand', 'example.test', '20,00 +'),
     ...header(),
     row('1', '02.01', 'Synthetic Fuel', 'Tankst.', 'Musterort', '45,00 -'),
+    row('1', '02.01', 'Synthetic Bonus', 'Diverses', 'example.test/ab', '3,50 +'),
     row(
       '1',
       '03.01',
@@ -110,7 +112,7 @@ const statement = (saldo = '372,18-') =>
       '25,00 EUR 1,000000     25,00 - 0,38 -',
     ),
     columns([[108, '__________']]),
-    columns([[109, '372,18 -']]),
+    columns([[109, '368,68 -']]),
     '   *) Synthetic footnote about reference rates (+) / (-).',
     '   **) Synthetic second footnote.',
   ].join('\n');
@@ -119,7 +121,7 @@ describe('issued-card rows whose columns do not line up with the header (#1056)'
   it('reads every row by token order and verifies the closing total', () => {
     const doc = parseCardDocument(statement(), SHA, context());
     expect(doc.layout).toBe('issued_card');
-    expect(doc.summary.fields.payableCents.value).toBe(37218);
+    expect(doc.summary.fields.payableCents.value).toBe(36868);
     expect(
       doc.rows.map((r) => [
         r.line,
@@ -132,11 +134,11 @@ describe('issued-card rows whose columns do not line up with the header (#1056)'
         r.amountCents,
       ]),
     ).toEqual([
-      [13, 'payment', 'Karte', '2030-12-10', '2030-12-10', 'Zahlung erhalten', 'EUR', 10000],
-      [14, 'purchase', '****1111', '2030-12-12', '2030-12-12', 'Synthetic Bakery', 'EUR', -1240],
-      [15, 'purchase', '****1111', '2030-12-14', '2030-12-14', 'Synthetic Hotel', 'EUR', -7484],
+      [14, 'payment', 'Karte', '2030-12-10', '2030-12-10', 'Zahlung erhalten', 'EUR', 10000],
+      [15, 'purchase', '****1111', '2030-12-12', '2030-12-12', 'Synthetic Bakery', 'EUR', -1240],
+      [16, 'purchase', '****1111', '2030-12-14', '2030-12-14', 'Synthetic Hotel', 'EUR', -7484],
       [
-        16,
+        17,
         'purchase',
         '****1111',
         '2030-12-18',
@@ -145,27 +147,33 @@ describe('issued-card rows whose columns do not line up with the header (#1056)'
         'EUR',
         -23456,
       ],
-      [19, 'refund', '****1111', '2030-12-22', '2030-12-22', 'Gutschrift Shop', 'EUR', 2000],
-      [25, 'purchase', '****1111', '2031-01-02', '2031-01-02', 'Synthetic Fuel', 'EUR', -4500],
-      [26, 'purchase', '****1111', '2031-01-03', '2031-01-03', 'Synthetic Museum', 'EUR', -2538],
+      [20, 'refund', '****1111', '2030-12-22', '2030-12-22', 'Gutschrift Shop', 'EUR', 2000],
+      [26, 'purchase', '****1111', '2031-01-02', '2031-01-02', 'Synthetic Fuel', 'EUR', -4500],
+      [27, 'credit', '****1111', '2031-01-02', '2031-01-02', 'Synthetic Bonus', 'EUR', 350],
+      [28, 'purchase', '****1111', '2031-01-03', '2031-01-03', 'Synthetic Museum', 'EUR', -2538],
     ]);
-    // -100,00 previous + 100,00 - 12,40 - 74,84 - 234,56 + 20,00 - 45,00 - 25,38 = -372,18.
+    // -100,00 previous + 100,00 - 12,40 - 74,84 - 234,56 + 20,00 - 45,00 + 3,50 - 25,38 = -368,68.
     expect(doc.totalsVerified).toBe(true);
-    // The payment row prints no card index, so it stays unmapped exactly as before.
-    expect(doc.reasons).toEqual(['card_mapping_required', 'previous_card_mismatch']);
-    expect(planCardRows(doc, [], []).every((a) => a.kind === 'pending')).toBe(true);
+    // The payment row prints no card index: it is an account-level payment, not an unmapped card.
+    expect(doc.rows[0]).toMatchObject({ cardToken: '', accountId: 'synthetic-card' });
+    expect(doc.rows.every((r) => r.dateOrigin === 'statement_boundaries')).toBe(true);
+    expect(doc.summary.fields.accountHint.value).toBe('****1111');
+    expect(doc.reasons).toEqual([]);
+    const actions = planCardRows(doc, [], []);
+    expect(actions[0]).toMatchObject({ kind: 'pending', reason: 'settlement_match_required' });
+    expect(actions[6]).toMatchObject({ kind: 'pending', reason: 'credit_review_required' });
   });
 
   it('keeps the closing total unverified when the summary balance disagrees', () => {
-    const doc = parseCardDocument(statement('372,19-'), SHA, context());
-    expect(doc.rows).toHaveLength(7);
+    const doc = parseCardDocument(statement('368,69-'), SHA, context());
+    expect(doc.rows).toHaveLength(8);
     expect(doc.totalsVerified).toBe(false);
     expect(doc.reasons).toContain('closing_total_unverified');
   });
 
   it('flags a printed table total that differs from the parsed rows', () => {
-    const doc = parseCardDocument(statement().replace('372,18 -', '372,17 -'), SHA, context());
-    expect(doc.rows).toHaveLength(7);
+    const doc = parseCardDocument(statement().replace('368,68 -', '368,67 -'), SHA, context());
+    expect(doc.rows).toHaveLength(8);
     expect(doc.reasons).toContain('table_total_unverified');
     expect(planCardRows(doc, [], []).every((a) => a.kind === 'pending')).toBe(true);
   });
@@ -177,7 +185,7 @@ describe('issued-card rows whose columns do not line up with the header (#1056)'
     ['a malformed foreign rate', '1,085000', '1.085,0x'],
   ])('rejects a row with %s instead of guessing', (_label, from, to) => {
     const doc = parseCardDocument(statement().replace(from, to), SHA, context());
-    expect(doc.rows).toHaveLength(6);
+    expect(doc.rows).toHaveLength(7);
     expect(doc.reasons).toContain('row_amount_or_fee_unavailable');
     expect(planCardRows(doc, [], []).every((a) => a.kind === 'pending')).toBe(true);
   });
@@ -191,7 +199,7 @@ describe('issued-card rows whose columns do not line up with the header (#1056)'
       ]),
     );
     const doc = parseCardDocument(hidden, SHA, context());
-    expect(doc.rows).toHaveLength(7);
+    expect(doc.rows).toHaveLength(8);
     expect(doc.reasons).toContain('unrecognized_table_row');
     const after = parseCardDocument(
       statement() + '\n' + row('1', '03.01', 'Synthetic Late', 'Kultur', 'Musterort', '1,00 -'),
@@ -199,6 +207,44 @@ describe('issued-card rows whose columns do not line up with the header (#1056)'
       context(),
     );
     expect(after.reasons).toContain('transaction_outside_table');
-    expect(after.rows).toHaveLength(7);
+    expect(after.rows).toHaveLength(8);
+  });
+
+  it('derives row years from the printed issue date alone when no previous statement exists', () => {
+    const doc = parseCardDocument(statement(), SHA, { ...context(), previous: null });
+    expect(doc.rows.map((r) => [r.transactionDate, r.dateOrigin])).toEqual([
+      ['2030-12-10', 'issue_date'],
+      ['2030-12-12', 'issue_date'],
+      ['2030-12-14', 'issue_date'],
+      ['2030-12-18', 'issue_date'],
+      ['2030-12-22', 'issue_date'],
+      ['2031-01-02', 'issue_date'],
+      ['2031-01-02', 'issue_date'],
+      ['2031-01-03', 'issue_date'],
+    ]);
+    expect(doc.totalsVerified).toBe(false);
+    expect(doc.reasons).toEqual(['previous_source_required', 'closing_total_unverified']);
+    expect(planCardRows(doc, [], []).every((a) => a.kind === 'pending')).toBe(true);
+    // 03.11. is 62 days before 04.01.2031; 02.11. is 63 days and stays without a year.
+    const edge = (date: string) =>
+      parseCardDocument(statement().replaceAll('12.12', date), SHA, {
+        ...context(),
+        previous: null,
+      });
+    expect(edge('03.11').rows[1]!.bookingDate).toBe('2030-11-03');
+    expect(edge('03.11').reasons).not.toContain('row_year_unavailable');
+    expect(edge('02.11').rows[1]!.bookingDate).toBeNull();
+    expect(edge('02.11').reasons).toContain('row_year_unavailable');
+  });
+
+  it('keeps a positive row without card index or payment wording unresolved', () => {
+    const doc = parseCardDocument(
+      statement().replace('Zahlung erhalten', 'Synthetic credit'),
+      SHA,
+      context(),
+    );
+    expect(doc.rows[0]!.kind).toBe('unknown');
+    expect(doc.reasons).toContain('row_kind_unavailable');
+    expect(doc.reasons).toContain('card_mapping_required');
   });
 });
