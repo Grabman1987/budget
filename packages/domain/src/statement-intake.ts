@@ -377,7 +377,7 @@ export function parseStatementText(text: string, sha256: string): StatementPropo
       const table = lines.findIndex((l) => /^\s*Karte\s+Umsatz\s+Buchung\s+Buchungstext\b/.test(l));
       lines.slice(0, table < 0 ? lines.length : table).forEach((text, line) => {
         for (const h of text.matchAll(
-          /(?<![\d\p{L}])\d{4} ?\d{2}[X*]{2} ?[X*]{4} ?(\d{4})(?![\d\p{L}])/gu,
+          /(?<![\d\p{L}])\d{4} ?\d{2}[Xx*]{2} ?[Xx*]{4} ?(\d{4})(?![\d\p{L}])/gu,
         ))
           add('accountHint', `****${h[1]}`, line, 'card_hint');
       });

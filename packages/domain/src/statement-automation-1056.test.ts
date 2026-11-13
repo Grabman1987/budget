@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { parseCardDocument, planCardRows, type CardParseContext } from './statement-automation';
+import {
+  parseCardDocument,
+  planCardRows,
+  type CardAssignment,
+  type CardBookingCandidate,
+  type CardDocument,
+  type CardParseContext,
+} from './statement-automation';
 
 // Invented merchants and amounts. The column geometry models extractor output in which the
 // single-spaced header does not line up with the data rows (rows start left/right of the
 // header words), with foreign-currency, fee and final-amount columns and a page break.
 const SHA = 'e'.repeat(64),
-  TOKEN = 'c'.repeat(64);
+  TOKEN = 'c'.repeat(64),
+  OTHER = 'd'.repeat(64);
 const columns = (cells: readonly (readonly [number, string])[]) => {
   let line = '';
   for (const [at, text] of cells) {
@@ -158,6 +166,10 @@ describe('issued-card rows whose columns do not line up with the header (#1056)'
     expect(doc.rows[0]).toMatchObject({ cardToken: '', accountId: 'synthetic-card' });
     expect(doc.rows.every((r) => r.dateOrigin === 'statement_boundaries')).toBe(true);
     expect(doc.summary.fields.accountHint.value).toBe('****1111');
+    expect(
+      parseCardDocument(statement().replace('12XX XXXX', '12xx xxxx'), SHA, context()).summary
+        .fields.accountHint.value,
+    ).toBe('****1111');
     expect(doc.reasons).toEqual([]);
     const actions = planCardRows(doc, [], []);
     expect(actions[0]).toMatchObject({ kind: 'pending', reason: 'settlement_match_required' });
@@ -171,9 +183,10 @@ describe('issued-card rows whose columns do not line up with the header (#1056)'
     expect(doc.reasons).toContain('closing_total_unverified');
   });
 
-  it('flags a printed table total that differs from the parsed rows', () => {
+  it('flags a printed table total that differs from the printed summary balance', () => {
     const doc = parseCardDocument(statement().replace('368,68 -', '368,67 -'), SHA, context());
     expect(doc.rows).toHaveLength(8);
+    expect(doc.totalsVerified).toBe(false);
     expect(doc.reasons).toContain('table_total_unverified');
     expect(planCardRows(doc, [], []).every((a) => a.kind === 'pending')).toBe(true);
   });
@@ -246,5 +259,187 @@ describe('issued-card rows whose columns do not line up with the header (#1056)'
     expect(doc.rows[0]!.kind).toBe('unknown');
     expect(doc.reasons).toContain('row_kind_unavailable');
     expect(doc.reasons).toContain('card_mapping_required');
+  });
+
+  it('plans purchases beside a credit and an index-less payment exactly as beside a card payment', () => {
+    const candidate = (patch: Partial<CardBookingCandidate>): CardBookingCandidate => ({
+      id: 'existing-bakery',
+      revision: 'booking-revision',
+      accountId: 'synthetic-card',
+      currency: 'EUR',
+      date: '2030-12-12',
+      amountCents: -1240,
+      counterpartyKey: 'synthetic bakery',
+      rebateConsumed: false,
+      creditCategoryIds: [],
+      singleExpenseCategoryId: 'food',
+      singleExpenseSplitId: 'existing-split',
+      singleExpenseSplitRevision: 'split-revision',
+      ...patch,
+    });
+    const plan = (doc: CardDocument) => {
+      const assignments: CardAssignment[] = doc.rows
+        .filter((r) => r.kind === 'purchase')
+        .map((r) => ({
+          rowKey: r.key,
+          categoryId: 'synthetic-category',
+          ruleId: 'synthetic-rule',
+          ruleRevision: 'rule-revision',
+        }));
+      return planCardRows(doc, [candidate({})], assignments).map((a) => [
+        a.row.description,
+        a.row.amountCents,
+        a.kind,
+        a.kind === 'pending' ? a.reason : a.kind === 'link' ? a.booking.id : null,
+      ]);
+    };
+    const withCredit = parseCardDocument(statement(), SHA, context());
+    const cardPayment = parseCardDocument(
+      statement('372,18-')
+        .replace('      10.12 10.12 Zahlung', '    1 10.12 10.12 Zahlung')
+        .replace(/\n.*Synthetic Bonus.*/, '')
+        .replace('368,68 -', '372,18 -'),
+      SHA,
+      context(),
+    );
+    expect(withCredit.reasons).toEqual([]);
+    expect(cardPayment.reasons).toEqual([]);
+    expect(cardPayment.rows[0]!.cardToken).toBe(TOKEN);
+    const purchases = (rows: ReturnType<typeof plan>) =>
+      rows.filter(([, amount]) => (amount as number) < 0);
+    expect(purchases(plan(withCredit))).toEqual(purchases(plan(cardPayment)));
+    expect(purchases(plan(withCredit)).map(([, , kind]) => kind)).toEqual([
+      'link',
+      'create',
+      'create',
+      'create',
+      'create',
+    ]);
+    const nonPurchases = plan(withCredit).filter(([, amount]) => (amount as number) > 0);
+    expect(nonPurchases).toEqual([
+      ['Zahlung erhalten', 10000, 'pending', 'settlement_match_required'],
+      ['Gutschrift Shop', 2000, 'pending', 'credit_original_evidence_required'],
+      ['Synthetic Bonus', 350, 'pending', 'credit_review_required'],
+    ]);
+    expect(plan(cardPayment)[0]).toEqual(nonPurchases[0]);
+  });
+
+  it('appends only short digit-free wrapped text and ends the table at a footer sentence', () => {
+    const at = (text: string) =>
+      statement().replace(
+        columns([[18, 'order synthetic']]),
+        columns([[18, 'order synthetic']]) + '\n' + text,
+      );
+    for (const text of [columns([[18, 'Uebertrag 500 -']]), columns([[18, 'order 42']])]) {
+      const doc = parseCardDocument(at(text), SHA, context());
+      expect(doc.reasons).toContain('unrecognized_table_row');
+      expect(doc.rows[3]!.description).toBe('Synthetic Webshop order synthetic');
+    }
+    const footer = parseCardDocument(
+      at(columns([[18, 'Synthetic footer sentence about the card account and its terms']])),
+      SHA,
+      context(),
+    );
+    expect(footer.rows[3]!.description).toBe('Synthetic Webshop order synthetic');
+    expect(footer.reasons).toContain('transaction_outside_table');
+    const gap = parseCardDocument(
+      statement().replace(
+        columns([[18, 'order synthetic']]),
+        '  10560_1/2_000002\n' + columns([[18, 'order synthetic']]),
+      ),
+      SHA,
+      context(),
+    );
+    expect(gap.rows[3]!.description).toBe('Synthetic Webshop');
+  });
+
+  it('reads a row that starts with a masked card number instead of ending the table', () => {
+    const doc = parseCardDocument(
+      statement().replace(
+        '    1 12.12 12.12 Synthetic Bakery',
+        '****1111 12.12 12.12 Synthetic Bakery',
+      ),
+      SHA,
+      context(),
+    );
+    expect(doc.rows).toHaveLength(8);
+    expect(doc.rows[1]).toMatchObject({ description: 'Synthetic Bakery', amountCents: -1240 });
+    expect(doc.reasons).toEqual([]);
+  });
+
+  it('rejects a space thousands separator but reads dotted thousands and trailing numbers', () => {
+    const spaced = parseCardDocument(
+      statement().replace('     234,56 -', '   1 234,56 -'),
+      SHA,
+      context(),
+    );
+    expect(spaced.rows.map((r) => r.description)).not.toContain('Synthetic Webshop');
+    expect(spaced.reasons).toContain('row_amount_or_fee_unavailable');
+    const dotted = parseCardDocument(
+      statement().replace('     234,56 -', '   1.234,56 -'),
+      SHA,
+      context(),
+    );
+    expect(dotted.rows[3]!.amountCents).toBe(-123456);
+    const numbered = parseCardDocument(
+      statement().replace(
+        row('1', '02.01', 'Synthetic Fuel', 'Tankst.', 'Musterort', '45,00 -'),
+        '    1 02.01 02.01 SHOP 24 12,50 -',
+      ),
+      SHA,
+      context(),
+    );
+    expect(numbered.rows[5]).toMatchObject({ description: 'SHOP 24', amountCents: -1250 });
+  });
+
+  it('dates 29.02. only in a leap year', () => {
+    const noPrevious = { ...context(), previous: null };
+    const leap = parseCardDocument(
+      statement()
+        .replace('04.01.2031', '04.03.2028')
+        .replace('04.02.2031', '04.04.2028')
+        .replace('12.01.2031', '12.03.2028')
+        .replaceAll('12.12', '29.02'),
+      SHA,
+      noPrevious,
+    );
+    expect(leap.rows[1]!.bookingDate).toBe('2028-02-29');
+    const common = parseCardDocument(statement().replaceAll('12.12', '29.02'), SHA, noPrevious);
+    expect(common.rows[1]!.bookingDate).toBeNull();
+    expect(common.reasons).toContain('row_year_unavailable');
+    const bounded = parseCardDocument(statement().replaceAll('12.12', '29.02'), SHA, context());
+    expect(bounded.rows[1]!.bookingDate).toBeNull();
+    expect(bounded.reasons).toContain('row_year_unavailable');
+  });
+
+  it('keeps two card indexes in one table apart', () => {
+    const twoCards: CardParseContext = {
+      ...context(),
+      mappedCardAccounts: { [TOKEN]: 'synthetic-card', [OTHER]: 'synthetic-card' },
+      cardIdentity: (raw) =>
+        raw === '2'
+          ? { fingerprint: OTHER, hint: '****2222' }
+          : { fingerprint: TOKEN, hint: '****1111' },
+      previous: { ...context().previous!, cardTokens: [TOKEN, OTHER] },
+    };
+    const doc = parseCardDocument(
+      statement().replace('    1 02.01 02.01 Synthetic Fuel', '    2 02.01 02.01 Synthetic Fuel'),
+      SHA,
+      twoCards,
+    );
+    expect(doc.rows.map((r) => r.cardHint)).toEqual([
+      'Karte',
+      '****1111',
+      '****1111',
+      '****1111',
+      '****1111',
+      '****2222',
+      '****1111',
+      '****1111',
+    ]);
+    expect(doc.reasons).toEqual([]);
+    expect(parseCardDocument(statement(), SHA, twoCards).reasons).toContain(
+      'previous_card_mismatch',
+    );
   });
 });

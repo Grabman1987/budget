@@ -135,6 +135,7 @@ const ISSUED_ROW_TAIL = new RegExp(
   'u',
 );
 const ISSUED_TABLE_TOTAL = new RegExp(String.raw`^\s*${SIGNED_CELL}\s*$`, 'u');
+const SPACED_THOUSANDS = /\d \d{3},\d{2}\s?[+−-]$/u;
 /** Digit-free lines directly above a repeated header are its captions. */
 const headerFollows = (lines: readonly string[], at: number) => {
   for (let j = at + 1; j < Math.min(lines.length, at + 4); j++) {
@@ -271,7 +272,9 @@ export function parseCardDocument(
       inTable = true,
       rowsSinceHeader = 0,
       descriptionColumn: number | null = null,
-      totalPending = false;
+      totalPending = false,
+      totalMismatch = false,
+      afterRow = false;
     for (let i = consumer + 1; i < lines.length; i++) {
       const line = lines[i]!;
       if (ISSUED_HEADER.test(line)) {
@@ -279,6 +282,7 @@ export function parseCardDocument(
         inTable = true;
         rowsSinceHeader = 0;
         descriptionColumn = null;
+        afterRow = false;
         continue;
       }
       // The header only proves the column vocabulary and currency. Extracted rows are not
@@ -308,6 +312,8 @@ export function parseCardDocument(
         continue;
       }
       if (!line.trim()) continue;
+      const followsRow = afterRow;
+      afterRow = false;
       if (totalPending) {
         totalPending = false;
         const total = ISSUED_TABLE_TOTAL.exec(line);
@@ -322,12 +328,15 @@ export function parseCardDocument(
           printed === null ||
           f.payableCents.value === null ||
           BigInt(printed) !== -BigInt(f.payableCents.value)
-        )
+        ) {
           issue(doc, 'table_total_unverified');
+          totalMismatch = true;
+        }
         inTable = false;
         continue;
       }
-      if (/^\s*\*+/.test(line) && line.search(/\S/) < dateAt) {
+      // A footnote marker ends the table only when the line is not itself a row.
+      if (!head && /^\s*\*+/.test(line) && line.search(/\S/) < dateAt) {
         inTable = false;
         continue;
       }
@@ -345,18 +354,27 @@ export function parseCardDocument(
         const text = line.trim(),
           start = line.search(/\S/),
           last = doc.rows.at(-1);
+        // Wrapped description text: short, digit-free, sign-free, directly below a row.
         if (
           last &&
+          followsRow &&
           descriptionColumn !== null &&
           Math.abs(start - descriptionColumn) <= 2 &&
+          text.length <= 40 &&
           !/\s{2,}/.test(text) &&
-          !/\d[.,]\d|\d{2}\.\d{2}/.test(text)
+          !/\d|[+−-]$/u.test(text)
         ) {
           last.description = `${last.description} ${text}`;
+          afterRow = true;
           continue;
         }
         // Header captions and sub-headers are finite, digit-free and cannot hide a financial row.
         if (!/\d/.test(line) && (!rowsSinceHeader || headerFollows(lines, i))) continue;
+        // Any other digit-free text after rows is a footer: the table ends, later rows are refused.
+        if (!/\d/.test(line)) {
+          inTable = false;
+          continue;
+        }
         issue(doc, 'unrecognized_table_row');
         continue;
       }
@@ -387,7 +405,11 @@ export function parseCardDocument(
           amount = null;
       }
       const description = text.split(/\s{2,}/)[0] ?? '';
+      // `1 234,56`: a space thousands separator would otherwise read as 234,56.
+      const spacedThousands =
+        cells !== null && /(?:^|\s)\d{1,3}$/.test(text) && SPACED_THOUSANDS.test(rest.trimEnd());
       if (
+        spacedThousands ||
         amount === null ||
         currency[1] !== context.currency ||
         !description ||
@@ -397,6 +419,7 @@ export function parseCardDocument(
         continue;
       }
       descriptionColumn = line.length - rest.length + (rest.length - rest.trimStart().length);
+      afterRow = true;
       const transactionDate = rowDate(rawDate!, doc.previous, current),
         bookingDate = rowDate(rawBooked!, doc.previous, current);
       if (!transactionDate || !bookingDate) issue(doc, 'row_year_unavailable');
@@ -428,7 +451,7 @@ export function parseCardDocument(
         (n, row) => n + BigInt(row.amountCents),
         -BigInt(doc.previous.payableCents),
       );
-      doc.totalsVerified = closing === -BigInt(f.payableCents.value);
+      doc.totalsVerified = closing === -BigInt(f.payableCents.value) && !totalMismatch;
     }
   } else {
     doc.layout = 'company_card';
