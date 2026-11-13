@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { ToastProvider } from '@budget/ui';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { InfiniteQueryObserver, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createMemoryHistory,
   createRootRoute,
@@ -9,11 +9,19 @@ import {
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { LEDGER_KEY } from '../ledger/queries';
 import { useInboxCount } from '../shell/inbox';
-import { INBOX_KEY, inboxCountQuery, type InboxStored } from './api';
+import {
+  INBOX_KEY,
+  inboxCountQuery,
+  inboxPagesQuery,
+  syncInboxCount,
+  useInboxRefreshing,
+  type InboxStored,
+} from './api';
 import { InboxPage } from './inbox-page';
 import { validateInboxSearch } from './navigation';
 
@@ -70,7 +78,7 @@ const json = (value: unknown) =>
 
 /** Server state: `umsaetze` open bank candidates plus `aufgaben` open tasks; one definition for both reads. */
 function server(
-  state: { umsaetze: number; aufgaben: number },
+  state: { umsaetze: number; aufgaben: number; failList?: boolean | undefined },
   gate: { wait: Promise<void> | null },
 ) {
   vi.stubGlobal('fetch', async (input: string | URL | Request) => {
@@ -80,6 +88,7 @@ function server(
     if (url.pathname === '/api/inbox') {
       const snapshot = { ...state };
       await gate.wait;
+      if (state.failList) return new Response('{}', { status: 503 });
       const entries = Array.from({ length: snapshot.umsaetze }, (_, i) => candidate(`c${i}`));
       return json({
         asOf: '2026-10-20',
@@ -153,12 +162,15 @@ const headerCount = () => {
 };
 
 it('never shows a header total that differs from the sum of the tab counts while the list reloads after a write', async () => {
-  const state = { umsaetze: 2, aufgaben: 1 };
+  const state: { umsaetze: number; aufgaben: number; failList?: boolean } = {
+    umsaetze: 2,
+    aufgaben: 1,
+  };
   const gate: { wait: Promise<void> | null } = { wait: null };
   server(state, gate);
   const client = mount();
   await waitFor(() => expect(tabTotal()).toBe(3));
-  expect(screen.getByText(/Kryptobewegungen zur Prüfung werden getrennt/)).toBeTruthy();
+  expect(screen.getByText(/aus Datenquellen, etwa der Krypto-Lesequelle/)).toBeTruthy();
   await waitFor(() => expect(headerCount()).toBe(3));
 
   const seen: string[] = [];
@@ -202,4 +214,142 @@ it('never shows a header total that differs from the sum of the tab counts while
   observer.disconnect();
   expect(seen).toEqual([]);
   expect(client.getQueryData([...INBOX_KEY, 'count'])).toMatchObject({ count: 2 });
+});
+
+const wrapper = (client: QueryClient) =>
+  function Wrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  };
+const newClient = () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  clients.push(client);
+  return client;
+};
+const countOf = (client: QueryClient) =>
+  (client.getQueryData(inboxCountQuery().queryKey) as { count: number } | undefined)?.count;
+
+it('does not let an older queue response regress a newer count', async () => {
+  const state: { umsaetze: number; aufgaben: number; failList?: boolean } = {
+    umsaetze: 2,
+    aufgaben: 1,
+  };
+  const gate: { wait: Promise<void> | null } = { wait: null };
+  server(state, gate);
+  const client = newClient();
+  syncInboxCount(client);
+  let release!: () => void;
+  gate.wait = new Promise<void>((resolve) => (release = resolve));
+  // A poll of the queue starts with the old state; a write then lands and the count is re-read.
+  const poll = client.fetchInfiniteQuery(inboxPagesQuery());
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  state.umsaetze = 1;
+  await client.fetchQuery({ ...inboxCountQuery(), staleTime: 0 });
+  expect(countOf(client)).toBe(2);
+  release();
+  await poll;
+  expect(countOf(client)).toBe(2);
+});
+
+it('lets a scoped queue neither overwrite the count nor mark the inbox as refreshing', async () => {
+  const state = { umsaetze: 7, aufgaben: 1 };
+  server(state, { wait: null });
+  const client = newClient();
+  syncInboxCount(client);
+  client.setQueryData(inboxCountQuery().queryKey, { asOf: '2026-10-20', count: 5 });
+  await client.fetchInfiniteQuery(inboxPagesQuery('all', '72400000-0000-4000-8000-000000000099'));
+  await client.fetchInfiniteQuery(
+    inboxPagesQuery('all', undefined, undefined, undefined, 'umsaetze', undefined, 'acc'),
+  );
+  expect(countOf(client)).toBe(5);
+  const { result } = renderHook(() => useInboxRefreshing(), { wrapper: wrapper(client) });
+  const gate: { wait: Promise<void> | null } = { wait: null };
+  let release!: () => void;
+  gate.wait = new Promise<void>((resolve) => (release = resolve));
+  server(state, gate);
+  await act(async () => {
+    void client.invalidateQueries({
+      queryKey: [...INBOX_KEY, 'pages', 100, 'all', '72400000-0000-4000-8000-000000000099'],
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  expect(result.current).toBe(false);
+  release();
+});
+
+it('marks only a refetch triggered by an invalidation of the global queue or count, not polling', async () => {
+  const state: { umsaetze: number; aufgaben: number; failList?: boolean } = {
+    umsaetze: 2,
+    aufgaben: 1,
+  };
+  const gate: { wait: Promise<void> | null } = { wait: null };
+  server(state, gate);
+  const client = newClient();
+  await client.fetchInfiniteQuery(inboxPagesQuery());
+  // The mounted queue is an active observer; invalidations refetch only active queries.
+  const observer = new InfiniteQueryObserver(client, inboxPagesQuery());
+  const unsubscribe = observer.subscribe(() => undefined);
+  const { result } = renderHook(() => useInboxRefreshing(), { wrapper: wrapper(client) });
+  let release!: () => void;
+  const hold = () => (gate.wait = new Promise<void>((resolve) => (release = resolve)));
+  // Polling does not flicker.
+  hold();
+  await act(async () => {
+    void client.refetchQueries({ queryKey: INBOX_KEY });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  expect(result.current).toBe(false);
+  await act(async () => {
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  // Invalidated without refetch, later polled: still no flicker.
+  await act(async () => {
+    await client.invalidateQueries({ queryKey: INBOX_KEY, refetchType: 'none' });
+  });
+  hold();
+  await act(async () => {
+    void client.refetchQueries({ queryKey: INBOX_KEY });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  expect(result.current).toBe(false);
+  await act(async () => {
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  // A write that invalidates the global queue is marked until it has been re-read.
+  hold();
+  await act(async () => {
+    void client.invalidateQueries({ queryKey: LEDGER_KEY });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  expect(result.current).toBe(true);
+  await act(async () => {
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  });
+  expect(result.current).toBe(false);
+  unsubscribe();
+});
+
+it('keeps the old number in the header and the tabs when the queue cannot be re-read', async () => {
+  const state: { umsaetze: number; aufgaben: number; failList?: boolean } = {
+    umsaetze: 2,
+    aufgaben: 1,
+  };
+  server(state, { wait: null });
+  const client = mount();
+  await waitFor(() => expect(tabTotal()).toBe(3));
+  await waitFor(() => expect(headerCount()).toBe(3));
+  state.umsaetze = 1;
+  state.failList = true;
+  await act(async () => {
+    await client.invalidateQueries({ queryKey: LEDGER_KEY });
+  });
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  });
+  expect(client.getQueryData(inboxCountQuery().queryKey)).toMatchObject({ count: 2 });
+  expect(tabTotal()).toBe(3);
+  expect(headerCount()).toBe(3);
+  expect(document.querySelector('.inbox-segments')?.textContent).not.toContain('…');
 });

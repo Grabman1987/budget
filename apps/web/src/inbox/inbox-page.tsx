@@ -697,11 +697,11 @@ function PaginatedInboxBodyContent({
             options={[
               {
                 value: 'umsaetze',
-                label: `Umsätze${REDESIGN_ENABLED ? '' : ' ·'} ${segmentCounts.counts.umsaetze}${refreshing ? ' …' : ''}`,
+                label: `Umsätze${REDESIGN_ENABLED ? '' : ' ·'} ${segmentCounts.counts.umsaetze}`,
               },
               {
                 value: 'aufgaben',
-                label: `Aufgaben${REDESIGN_ENABLED ? '' : ' ·'} ${segmentCounts.counts.aufgaben}${refreshing ? ' …' : ''}`,
+                label: `Aufgaben${REDESIGN_ENABLED ? '' : ' ·'} ${segmentCounts.counts.aufgaben}`,
               },
             ]}
             onChange={(teil) =>
@@ -758,7 +758,7 @@ function PaginatedInboxBodyContent({
               )}
               <h2 className={REDESIGN_ENABLED ? 'sr-only' : undefined}>
                 Offene Aufgaben · {segmentCounts.counts.aufgaben}
-                {refreshing ? ' (wird aktualisiert …)' : ''}
+                {refreshing && <span aria-hidden="true"> (wird aktualisiert …)</span>}
               </h2>
               <p className={REDESIGN_ENABLED ? 'sr-only' : undefined}>
                 Der Zeitraum gilt für Plan, Gehaltszettel und Weitere Aufgaben. Kontoprüfungen und
@@ -827,16 +827,16 @@ function PaginatedInboxBodyContent({
  */
 function InboxCountRule({ refreshing }: { refreshing: boolean }) {
   return (
-    <div className="inbox-count-rule">
-      <p role="status" className="inbox-counts-status">
+    <div className="inbox-count-rule" aria-busy={refreshing}>
+      <p className="inbox-counts-status" aria-hidden="true">
         {refreshing ? 'Zahlen werden aktualisiert …' : ''}
       </p>
       <details>
         <summary>Was zählt bei Prüfen?</summary>
         <p>
-          Die Zahl bei „Prüfen“ ist die Summe aus Umsätzen und Aufgaben. Kryptobewegungen zur
-          Prüfung werden getrennt unter Aufgaben, bei den Datenquellen, mit eigener Anzahl
-          aufgeführt und sind in dieser Zahl nicht enthalten.
+          Die Zahl bei „Prüfen“ ist die Summe aus Umsätzen und Aufgaben. „Bewegungen zu prüfen“ aus
+          Datenquellen, etwa der Krypto-Lesequelle, stehen getrennt unter Aufgaben mit eigener
+          Anzahl und sind in dieser Zahl nicht enthalten.
         </p>
       </details>
     </div>
@@ -989,7 +989,12 @@ function InboxBodyContent({
                 ? segmentCounts.counts[segmentCounts.shown]
                 : count;
           if (open === undefined) return undefined;
-          return countsRefreshing ? `${open} offen · wird aktualisiert …` : `${open} offen`;
+          return (
+            <>
+              {open} offen
+              {countsRefreshing && <span aria-hidden="true"> · wird aktualisiert …</span>}
+            </>
+          );
         })()}
       />
       {!REDESIGN_ENABLED && reviewProgress}
