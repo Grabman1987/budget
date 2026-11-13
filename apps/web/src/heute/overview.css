@@ -1194,41 +1194,120 @@
   }
 }
 
-/* Phone period row (ON): month stepper and "Monat | Bis Gehalt" are one pair. Both are 44px tall
-   with the same hairline outline and the same body-size label; they share the row and wrap to two
-   full-width lines only when "September 2026" and the segments do not fit side by side. */
+/* Phone period row (ON), variant B "Reiter mit Maßlinie": the month stepper is plain text, the
+   Zeitraum switch is two text tabs on a hairline baseline with a 2px line under the active tab.
+   Visible rows are 32px; every control keeps a 44px box through negative block margins, and the
+   12px row gap keeps neighbouring 44px boxes from overlapping. */
 @media (max-width: 767px) {
   .hv-head-phone {
-    align-items: center;
-    column-gap: var(--space-xs);
-    row-gap: var(--space-xs);
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 12px;
+    min-height: 0;
+    padding-top: 6px;
   }
   .hv-head-phone .month-switch {
-    flex: 1 1 auto;
-    flex-wrap: nowrap;
-    width: auto;
-    min-width: 0;
-    height: var(--touch);
-    border-radius: var(--radius-md);
-    box-shadow: inset 0 0 0 var(--stroke-hairline) var(--rule-strong);
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    align-items: center;
+    width: 100%;
+    min-height: 32px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+  .hv-head-phone .month-switch .icon-btn {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    margin-block: -6px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--ink-2);
+  }
+  .hv-head-phone .month-switch .icon-btn:first-child {
+    margin-left: -16px;
   }
   .hv-head-phone .month-switch .month-name {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 0;
-    text-align: center;
-    white-space: nowrap;
+    margin-left: -4px;
+    text-align: left;
+    overflow-wrap: anywhere;
     font-size: var(--fs-body);
-    font-weight: 650;
+    font-weight: 550;
+    color: var(--ink);
+  }
+  .hv-head-phone .month-switch .icon-btn:nth-child(3) {
+    margin-left: -4px;
+  }
+  .hv-head-phone .month-switch .month-now {
+    display: inline-flex;
+    width: auto;
+    margin-left: auto;
+    margin-right: -8px;
+    padding-inline: 8px;
+    gap: 0;
+    font-size: var(--fs-label);
+    color: var(--ink-2);
+  }
+  .hv-head-phone .month-switch .month-now svg {
+    display: none;
+  }
+  .hv-head-phone .month-switch .month-now::after {
+    content: 'Aktueller Monat';
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
   .hv-head-phone .seg.seg.seg-slide {
     display: flex;
-    flex: 1 1 auto;
-    margin-left: 0;
-    height: var(--touch);
-    border-radius: var(--radius-md);
+    flex: none;
+    gap: var(--space-lg);
+    width: 100%;
+    height: 32px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-bottom: var(--stroke-hairline) solid var(--rule);
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+  .hv-head-phone .seg-thumb {
+    display: none;
   }
   .hv-head-phone .seg-slide button {
-    flex: 1 1 auto;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex: none;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    margin-block: -6px;
+    padding-inline: 0;
+    border-radius: 0;
+    background: transparent;
     white-space: nowrap;
+    font-size: var(--fs-meta) !important;
+    font-weight: 500;
+    color: var(--ink-2);
+  }
+  .hv-head-phone .seg-slide button[aria-pressed='true'] {
+    font-weight: 550;
+    color: var(--ink);
+  }
+  .hv-head-phone .seg-slide button[aria-pressed='true']::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: calc(6px - var(--stroke-hairline));
+    height: 2px;
+    background: var(--line);
   }
 }

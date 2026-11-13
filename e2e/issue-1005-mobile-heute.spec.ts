@@ -50,24 +50,19 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(page.locator('.hv-lead-value')).toHaveCSS('font-size', '40px');
       const top = (await header.boundingBox())!.y;
       const lead = (await page.getByTestId('heute-lead-value').boundingBox())!;
-      expect(lead.y - top).toBeLessThanOrEqual(140);
+      // Variant B (#1065) stacks stepper and tabs (2 x 32px + 12px gap) instead of one 44px row.
+      expect(lead.y - top).toBeLessThanOrEqual(176);
       const month = (await page.locator('.hv-head-phone .month-switch').boundingBox())!;
       const period = (await page.locator('.hv-head-phone .seg').boundingBox())!;
-      expect(month.y).toBe(period.y);
-      expect(month.x + month.width).toBeLessThanOrEqual(period.x);
+      // Variant B (#1065): plain stepper above text tabs on a baseline, 32px visible rows.
+      expect(month.y + month.height).toBeLessThanOrEqual(period.y);
       await expect(page.locator('.hv-head-phone .month-name')).toHaveText('September 2026');
-      await expect(page.locator('.hv-head-phone .seg')).toHaveCSS('height', '44px');
-      {
-        // The sliding pill fills the selected segment, inside the 44px control.
-        const group = page.locator('.hv-head-phone .seg');
-        const pill = (await group.locator('.seg-thumb').boundingBox())!;
-        const selected = (await group.locator('button[aria-pressed="true"]').boundingBox())!;
-        expect(Math.abs(pill.x - selected.x)).toBeLessThanOrEqual(1);
-        expect(Math.abs(pill.width - selected.width)).toBeLessThanOrEqual(1);
-        expect(pill.height).toBeGreaterThanOrEqual(36);
-        expect(pill.y).toBeGreaterThanOrEqual(period.y);
-        expect(pill.y + pill.height).toBeLessThanOrEqual(period.y + period.height);
-      }
+      await expect(page.locator('.hv-head-phone .month-name')).toHaveCSS('font-size', '16px');
+      await expect(page.locator('.hv-head-phone .seg')).toHaveCSS('height', '32px');
+      await expect(page.locator('.hv-head-phone .seg button[aria-pressed="true"]')).toHaveCSS(
+        'font-size',
+        '13px',
+      );
       await expect(page.locator('.hv-chain-bar')).toHaveCSS('height', '1px');
 
       const dock = page.locator('.tabbar');
@@ -182,8 +177,7 @@ for (const theme of ['light', 'dark'] as const) {
     const month = (await controls.locator('.month-switch').boundingBox())!;
     const period = (await controls.locator('.seg').boundingBox())!;
     if (isMobile) {
-      // 44px arrows + return control + body-size month do not share a 375px row with the segments
-      // (#1065): the segments then take their own full-width line below the stepper.
+      // Phone (#1065, variant B): the tabs always sit on their own line below the stepper.
       expect(month.y + month.height).toBeLessThanOrEqual(period.y);
       expect(month.x + month.width).toBeLessThanOrEqual(page.viewportSize()!.width);
     } else {

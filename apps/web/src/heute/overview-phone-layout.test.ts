@@ -12,16 +12,26 @@ function phoneBlock(needle: string) {
 }
 
 describe('Heute phone layout (#1065)', () => {
-  it('sets the month label in the body size, like the segment labels (styles.css forces body size there)', () => {
+  it('sets the month label in the body size, above the tab labels', () => {
     const block = phoneBlock('.hv-head-phone .month-switch .month-name');
     expect(block).toMatch(/\.month-name \{[^}]*font-size: var\(--fs-body\)/);
+    expect(block).toMatch(/\.seg-slide button \{[^}]*font-size: var\(--fs-meta\) !important/);
   });
 
-  it('gives stepper and segmented control one 44px height and one outline', () => {
+  it('draws the stepper without a box and the tabs on a hairline baseline with a 2px active line', () => {
     const block = phoneBlock('.hv-head-phone .seg.seg.seg-slide');
-    expect(block).toMatch(/\.month-switch \{[^}]*height: var\(--touch\)/);
-    expect(block).toMatch(/\.seg\.seg\.seg-slide \{[^}]*height: var\(--touch\)/);
-    expect(block).toMatch(/\.month-switch \{[^}]*box-shadow: inset 0 0 0 var\(--stroke-hairline\)/);
+    expect(block).toMatch(/\.month-switch \{[^}]*border: 0[^}]*box-shadow: none/);
+    expect(block).toMatch(
+      /\.seg\.seg\.seg-slide \{[^}]*border-bottom: var\(--stroke-hairline\) solid var\(--rule\)/,
+    );
+    expect(block).toMatch(/\[aria-pressed='true'\]::after \{[^}]*height: 2px/);
+  });
+
+  it('keeps 44px boxes on 32px rows, with a row gap that stops them overlapping', () => {
+    const block = phoneBlock('.hv-head-phone .seg.seg.seg-slide');
+    expect(block).toMatch(/\.icon-btn \{[^}]*height: 44px;[^}]*margin-block: -6px/);
+    expect(block).toMatch(/\.seg-slide button \{[^}]*height: 44px;[^}]*margin-block: -6px/);
+    expect(block).toMatch(/\.hv-head-phone \{[^}]*gap: 12px/);
   });
 
   it('turns the task table into two-line rows for the whole phone range, not only below 400px', () => {
