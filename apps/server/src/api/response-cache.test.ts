@@ -257,6 +257,55 @@ describe('readModelCache', () => {
     expect(computed()).toBe(3);
   });
 
+  it('lets concurrent requests for the same model share one computation (#956)', async () => {
+    const { db } = createTestDatabase();
+    let computed = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((done) => (release = done));
+    const app = new Hono();
+    app.use(
+      '*',
+      readModelCache(db, () => '2026-03-18'),
+    );
+    app.get('/api/heute', async (c) => {
+      await gate; // computed elsewhere (the read-model worker)
+      return c.json({ n: ++computed });
+    });
+    const first = app.request('/api/heute');
+    const second = app.request('/api/heute');
+    const third = app.request('/api/heute?period=payday');
+    release();
+    const bodies = await Promise.all([first, second, third].map(async (r) => (await r).json()));
+    expect(computed).toBe(2);
+    expect(bodies[0]).toEqual(bodies[1]);
+    expect(bodies[2]).toEqual({ n: 2 });
+  });
+
+  it('does not share a computation across a write that landed while it ran', async () => {
+    const { db } = createTestDatabase();
+    let computed = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((done) => (release = done));
+    const app = new Hono();
+    app.use(
+      '*',
+      readModelCache(db, () => '2026-03-18'),
+    );
+    app.get('/api/heute', async (c) => {
+      const n = ++computed;
+      if (n === 1) await gate;
+      return c.json({ n });
+    });
+    const first = app.request('/api/heute');
+    const waiting = app.request('/api/heute');
+    sqliteOf(db).prepare("insert into app_setting (id, value) values ('w', 'v')").run();
+    release();
+    expect(await (await first).json()).toEqual({ n: 1 });
+    // The waiter asked before the write but is answered after it: never with the older body.
+    expect(await (await waiting).json()).toEqual({ n: 2 });
+    expect(await (await app.request('/api/heute')).json()).toEqual({ n: 2 });
+  });
+
   it('never caches routes outside the allow-list, writes or failures', async () => {
     const { app, computed } = setup();
     await app.request('/api/search');

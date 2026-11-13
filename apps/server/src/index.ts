@@ -3,7 +3,8 @@ import { startBankWorker } from './bank-sync/worker-process';
 import { mkdirSync } from 'node:fs';
 import type { Server } from 'node:http';
 import { dirname, resolve } from 'node:path';
-import { ensureDefaultRules, migrateDatabase, openDatabase } from '@budget/db';
+import { databaseStamp, ensureDefaultRules, migrateDatabase, openDatabase } from '@budget/db';
+import { todayInVienna } from '@budget/domain';
 import { serve } from '@hono/node-server';
 import { createApp } from './app';
 import { authConfigFromEnv } from './auth/config';
@@ -17,6 +18,7 @@ import { cryptoReadSource } from './sources/crypto-api';
 import { refreshReadSourceIfDue } from './sources/refresh';
 import { todayFromEnv } from './today';
 import { startPlanSnapshotTimer } from './plan-snapshots';
+import { readModelOffload, startReadModelRefresh } from './api/read-model-offload';
 
 const port = Number(process.env['PORT'] ?? 3000);
 const webDir = resolve(process.env['WEB_DIR'] ?? resolve(import.meta.dirname, '../../web/dist'));
@@ -61,6 +63,14 @@ const importJobs = new ImportJobs(db);
 
 // Heute's two balance-period read models are computed once after start for the first visit.
 let warmUp: (() => Promise<number>) | undefined;
+let stopRefresh = () => {};
+
+// The Heute read model is computed in a worker thread, off the event loop (#956);
+// BUDGET_READ_WORKER=0 computes it on the server thread as before.
+const offload =
+  process.env['BUDGET_READ_WORKER'] === '0'
+    ? undefined
+    : readModelOffload(databasePath, today ?? (() => todayInVienna()));
 
 // The debug endpoint is opt-in, read-only (seed check) and behind the session guard.
 const app = createApp({
@@ -70,7 +80,12 @@ const app = createApp({
   ledger: {
     db,
     jobs: importJobs,
-    onApi: (api) => (warmUp = api.warm),
+    onApi: (api) => {
+      warmUp = api.warm;
+      // Recompute what a visitor read recently once the database settles after a change.
+      if (offload) stopRefresh = startReadModelRefresh(api, () => databaseStamp(db), offload);
+    },
+    offload,
     ...(today ? { today } : {}),
   },
   database: process.env['BUDGET_DEBUG_API'] === '1' ? db : undefined,
@@ -155,6 +170,8 @@ function shutdown(signal: NodeJS.Signals): void {
   stopPlanSnapshots();
   if (stopping) return;
   stopping = true;
+  stopRefresh();
+  void offload?.close();
   stopBankWorker();
   for (const timer of fuelTimers) clearTimeout(timer);
   for (const timer of backupTimers) clearTimeout(timer);
