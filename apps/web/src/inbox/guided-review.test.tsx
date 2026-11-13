@@ -335,3 +335,34 @@ it('drops a stale stored session instead of adding its count', async () => {
   await waitFor(() => expect(screen.getByText(/0 erledigt/)).toBeTruthy());
   expect(screen.getByText('1 von 3', { exact: false })).toBeTruthy();
 });
+
+it('counts one confirm once even when the refetched queue renders before the confirm continues', async () => {
+  queue = queue.slice(0, 1);
+  const user = userEvent.setup();
+  view();
+  await screen.findByRole('heading', { name: 'Shop A' });
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Bestätigen' })).toHaveProperty('disabled', false),
+  );
+  await user.click(screen.getByRole('button', { name: 'Bestätigen' }));
+  const summary = await screen.findByRole('heading', { name: 'Alle Umsätze geprüft' });
+  // Let any late continuation or second refetch settle before reading the count.
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  expect(within(summary.parentElement!).getByText('Erledigt').nextElementSibling?.textContent).toBe(
+    '1',
+  );
+});
+
+it('a failed confirm is not counted and the line stays', async () => {
+  confirmStatus = 409;
+  const user = userEvent.setup();
+  view();
+  await screen.findByRole('heading', { name: 'Shop A' });
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Bestätigen' })).toHaveProperty('disabled', false),
+  );
+  await user.click(screen.getByRole('button', { name: 'Bestätigen' }));
+  await screen.findByText(/Der Umsatz bleibt offen/);
+  expect(screen.getByText(/0 erledigt/)).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'Shop A' })).toBeTruthy();
+});

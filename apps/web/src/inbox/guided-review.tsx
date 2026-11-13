@@ -52,7 +52,10 @@ export function GuidedReview() {
   const [initial] = useState(loadProgress);
   const [currentId, setCurrentId] = useState(initial.currentId);
   const [deferred, setDeferred] = useState(initial.deferred);
-  const [resolved, setResolved] = useState(initial.resolved);
+  // Resolved ids are counted once each, whichever path notices first (confirm or refetch).
+  const [resolvedBase, setResolvedBase] = useState(initial.resolved);
+  const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set());
+  const resolved = resolvedBase + resolvedIds.size;
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [finished, setFinished] = useState(false);
   const [deferring, setDeferring] = useState(false);
@@ -99,16 +102,16 @@ export function GuidedReview() {
     const before = known.current;
     known.current = now;
     if (!before) return;
-    const gone = [...before].filter((id) => !now.has(id) && !hidden.has(id)).length;
-    if (gone) setResolved((count) => count + gone);
-  }, [queue.isSuccess, queue.isFetching, received, hidden]);
+    const gone = [...before].filter((id) => !now.has(id));
+    if (gone.length) setResolvedIds((set) => new Set([...set, ...gone]));
+  }, [queue.isSuccess, queue.isFetching, received]);
 
   // A stored position that is gone (other session, queue worked off elsewhere) is stale: start
   // fresh so old counts never leak into "n von m".
   if (!validated && queue.isSuccess && !queue.isFetching) {
     setValidated(true);
     if (!hasMore && !(initial.currentId && ids.includes(initial.currentId))) {
-      setResolved(0);
+      setResolvedBase(0);
       setDeferred({});
       setCurrentId(null);
     }
@@ -244,7 +247,7 @@ export function GuidedReview() {
         if (rule?.actions.categoryId || rule?.actions.splits) setLearnBookingId(done.bookingId);
       }
       setHidden((set) => new Set(set).add(item.id));
-      setResolved((count) => count + 1);
+      setResolvedIds((set) => new Set(set).add(item.id));
     } catch (error) {
       // The item stays on screen and actionable; nothing was confirmed.
       setFailure({ id: item.id, message: errorText(error, 'Das Bestätigen hat nicht geklappt.') });
