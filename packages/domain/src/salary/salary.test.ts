@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { addMonths, monthsBetween } from '../date';
-import { divRound, changeBp } from './math';
+import { divRound, changeBp, ratioBp } from './math';
 import {
+  paidTotal,
   baseLevelMonths,
   baseSalaryAnchor,
   baseSalarySteps,
@@ -51,7 +52,9 @@ function slip(
   month: string,
   base: number,
   extras: Extra[] = [],
-  o: Partial<Pick<SalaryPayslip, 'kind' | 'specialType' | 'id' | 'svCents' | 'taxCents'>> = {},
+  o: Partial<
+    Pick<SalaryPayslip, 'kind' | 'specialType' | 'id' | 'svCents' | 'taxCents' | 'grossCents'>
+  > & { lineCheck?: 'ok' | 'gross_mismatch' | 'no_gross' } = {},
 ): SalaryPayslip {
   const lines: SalaryWageLine[] = [
     ...(base
@@ -73,9 +76,13 @@ function slip(
       amountCents: e.cents,
     })),
   ];
-  const gross = lines
-    .filter((l) => l.section !== 'reimbursement')
-    .reduce((n, l) => n + l.amountCents, 0);
+  // The fixture's own gross: earning and benefit lines, unless given (a printed gross the lines
+  // do not explain).
+  const gross =
+    o.grossCents ??
+    lines
+      .filter((l) => l.section === 'earning' || l.section === 'benefit_in_kind')
+      .reduce((n, l) => n + l.amountCents, 0);
   const reimbursed = lines
     .filter((l) => l.section === 'reimbursement')
     .reduce((n, l) => n + l.amountCents, 0);
@@ -97,7 +104,7 @@ function slip(
     lines: reimbursed
       ? [{ section: 'reimbursement', label: 'Telearbeit', amountCents: reimbursed }]
       : [],
-    wage: { lineCheck: 'ok', split: null, lines },
+    wage: { lineCheck: o.lineCheck ?? 'ok', split: null, lines },
   };
 }
 const special = (month: string, gross: number, type: 'salary13' | 'salary14') =>
@@ -152,9 +159,15 @@ describe('component classifier (#1066)', () => {
     expect(classifyWageLine({ ...earning('1'), section: 'reimbursement' }, regular, [])).toBe(
       'reimbursement',
     );
+    // 13th/14th: special only as the single earning line of the payslip.
+    expect(
+      classifyWageLine(earning('1'), { ...regular, kind: 'special', specialType: 'salary14' }, [], {
+        singleEarningLine: true,
+      }),
+    ).toBe('special');
     expect(
       classifyWageLine(earning('1'), { ...regular, kind: 'special', specialType: 'salary14' }, []),
-    ).toBe('special');
+    ).toBe('unmapped');
     expect(
       classifyWageLine(earning('1'), { ...regular, kind: 'special', specialType: 'other' }, []),
     ).toBe('unmapped');
@@ -259,6 +272,8 @@ describe('salary series, steps and comparisons: scenario A (#1066)', () => {
       benefit_in_kind: 240_000,
       reimbursement: 30_000,
       unmapped: 0,
+      unreconciled: 0,
+      undecomposed: 0,
     });
     expect(years[1]!.development.cents).toEqual({
       base: 3_827_250,
@@ -315,6 +330,8 @@ describe('salary series, steps and comparisons: scenario A (#1066)', () => {
       benefit_in_kind: 20_000,
       reimbursement: 2_500,
       unmapped: 0,
+      unreconciled: 0,
+      undecomposed: 0,
     };
     expect(yearToDate(series, '2031')).toEqual({
       year: '2031',
@@ -481,31 +498,24 @@ describe('gaps, unmapped wage types and partial months: scenario B (#1066)', () 
   it('blocks payslips without wage lines or with an unreconciled reading', () => {
     const legacy: SalaryPayslip = { ...slip('2032-01', 300_000), wage: null };
     const legacySpecial: SalaryPayslip = { ...special('2032-06', 300_000, 'salary14'), wage: null };
-    const mismatch: SalaryPayslip = {
-      ...slip('2032-02', 300_000),
-      wage: { ...slip('2032-02', 300_000).wage!, lineCheck: 'gross_mismatch' },
-    };
+    const mismatch = slip('2032-02', 300_000, [], { lineCheck: 'gross_mismatch' });
     const s = salaryMonthlySeries({
       payslips: [legacy, mismatch, legacySpecial],
       rules,
       to: '2032-06',
     });
-    expect(s[0]!.unmapped).toEqual([
-      {
-        payslipId: 'p-2032-01',
-        code: null,
-        label: null,
-        amountCents: 300_000,
-        reason: 'no_wage_lines',
-      },
-    ]);
-    expect(s[1]!.unmapped.map((u) => u.reason)).toEqual(['line_check']);
-    // A month holding only a special payslip is a gap for base comparisons (still reported).
-    expect(s[5]).toMatchObject({
+    expect(s[0]).toMatchObject({
       comparable: false,
-      isGap: true,
-      components: { special: 300_000 },
+      issues: ['no_wage_lines'],
+      paid: { base: 0, undecomposed: 300_000 },
     });
+    expect(s[1]).toMatchObject({
+      comparable: false,
+      issues: ['line_check'],
+      paid: { base: 300_000, unreconciled: 0 },
+    });
+    // A month holding only a special payslip is a gap for base comparisons (still reported).
+    expect(s[5]).toMatchObject({ comparable: false, isGap: true, paid: { special: 300_000 } });
   });
 
   it('attributes deductions only to payslips that carry nothing but variable pay', () => {
@@ -740,6 +750,8 @@ describe('review blockers of PR #1082', () => {
             benefit_in_kind: 0,
             reimbursement: 0,
             unmapped: 0,
+            unreconciled: 0,
+            undecomposed: 0,
           },
         },
       ],
@@ -788,6 +800,8 @@ describe('review blockers of PR #1082', () => {
               benefit_in_kind: 0,
               reimbursement: 0,
               unmapped: 1_000,
+              unreconciled: 0,
+              undecomposed: 0,
             },
           },
         ],
@@ -846,7 +860,10 @@ describe('review blockers of PR #1082', () => {
       amountCents: 1,
     };
     expect(classifyWageLine(mapped, special14, rules)).toBe('base');
-    expect(classifyWageLine({ ...mapped, code: '503' }, special14, rules)).toBe('special');
+    expect(
+      classifyWageLine({ ...mapped, code: '503' }, special14, rules, { singleEarningLine: true }),
+    ).toBe('special');
+    expect(classifyWageLine({ ...mapped, code: '503' }, special14, rules)).toBe('unmapped');
   });
 
   it('minor: change of a non-positive start is null; divRound rounds ties away from zero', () => {
@@ -1151,6 +1168,7 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
     ).toBe('unmapped');
     const fourteenth = {
       ...special('2030-06', 400_000, 'salary14'),
+      grossCents: 405_000,
       wage: {
         lineCheck: 'ok' as const,
         split: null,
@@ -1174,6 +1192,8 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
       benefit_in_kind: 0,
       reimbursement: 0,
       unmapped: 5_000,
+      unreconciled: 0,
+      undecomposed: 0,
     });
   });
 
@@ -1386,6 +1406,152 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
     });
   });
 
+  it('blocker: an unreconciled payslip keeps every cent in paid and blocks its month', () => {
+    const unknown: Extra = { code: '777', label: 'Unbekannt', section: 'unknown', cents: 20_000 };
+    const memo: Extra = {
+      code: '9770',
+      label: 'MA-Vorsorge Beitrag',
+      section: 'memo',
+      cents: 8_415,
+    };
+    const series = salaryMonthlySeries({
+      payslips: [
+        slip('2030-01', 280_000, [unknown, memo], {
+          grossCents: 300_000,
+          lineCheck: 'gross_mismatch',
+        }),
+      ],
+      rules,
+    });
+    expect(series[0]).toMatchObject({
+      comparable: false,
+      issues: ['line_check'],
+      paid: { base: 280_000, unmapped: 0, unreconciled: 20_000, undecomposed: 0 },
+      unmapped: [
+        {
+          payslipId: 'p-2030-01',
+          code: '777',
+          label: 'Unbekannt',
+          amountCents: 20_000,
+          reason: 'unknown_line',
+        },
+        {
+          payslipId: 'p-2030-01',
+          code: '9770',
+          label: 'MA-Vorsorge Beitrag',
+          amountCents: 8_415,
+          reason: 'memo_line',
+        },
+      ],
+    });
+    expect(paidTotal(series[0]!.paid)).toBe(300_000);
+    expect(salaryYears(series)[0]!.development.excluded).toEqual([
+      {
+        month: '2030-01',
+        reasons: ['line_check'],
+        cents: {
+          base: 280_000,
+          special: 0,
+          variable: 0,
+          benefit_in_kind: 0,
+          reimbursement: 0,
+          unmapped: 0,
+          unreconciled: 20_000,
+          undecomposed: 0,
+        },
+      },
+    ]);
+    // A memo line alone does not block: the gross is reconciled.
+    const memoOnly = salaryMonthlySeries({ payslips: [slip('2030-01', 280_000, [memo])], rules });
+    expect(memoOnly[0]).toMatchObject({ comparable: true, issues: [], paid: { unreconciled: 0 } });
+    // Without a known gross the lines are all there is: flagged, not comparable.
+    const noGross = salaryMonthlySeries({
+      payslips: [slip('2030-01', 280_000, [], { lineCheck: 'no_gross' })],
+      rules,
+    });
+    expect(noGross[0]).toMatchObject({
+      comparable: false,
+      issues: ['gross_unknown'],
+      paid: { base: 280_000 },
+    });
+  });
+
+  it('major (i): a payslip without wage lines is paid only; its month is not comparable', () => {
+    const legacy14: SalaryPayslip = { ...special('2030-06', 405_000, 'salary14'), wage: null };
+    const [june] = salaryMonthlySeries({ payslips: [slip('2030-06', 400_000), legacy14], rules });
+    expect(june).toMatchObject({
+      comparable: false,
+      issues: ['no_wage_lines'],
+      paid: { base: 400_000, special: 405_000, undecomposed: 0 },
+    });
+    // A year made only of legacy payslips: paid complete, development empty with reasons.
+    const legacyYear = monthsBetween('2031-01', '2031-12').map((m): SalaryPayslip => ({
+      ...slip(m, 400_000, [reimbursement(1_000)]),
+      wage: null,
+    }));
+    const [year] = salaryYears(salaryMonthlySeries({ payslips: legacyYear, rules }));
+    expect(year!.paid).toEqual({
+      base: 0,
+      special: 0,
+      variable: 0,
+      benefit_in_kind: 0,
+      reimbursement: 12_000,
+      unmapped: 0,
+      unreconciled: 0,
+      undecomposed: 4_800_000,
+    });
+    expect(year!.development.cents).toEqual({ base: 0, special: 0, variable: 0, total: 0 });
+    expect(year!.development.excluded.map((e) => [e.month, e.reasons, paidTotal(e.cents)])).toEqual(
+      monthsBetween('2031-01', '2031-12').map((m) => [m, ['no_wage_lines'], 401_000]),
+    );
+  });
+
+  it('major (ii): further earnings on a 13th/14th payslip are unmapped, never special', () => {
+    const fourteenth = slip(
+      '2030-06',
+      0,
+      [
+        { code: '503', label: 'Sonderzahlung', section: 'earning', cents: 400_000 },
+        { code: '140', label: 'Überstunden', section: 'earning', cents: 30_000 },
+      ],
+      { kind: 'special', specialType: 'salary14', id: 's-2030-06' },
+    );
+    const [june] = salaryMonthlySeries({ payslips: [slip('2030-06', 400_000), fourteenth], rules });
+    expect(june).toMatchObject({
+      comparable: false,
+      issues: ['unmapped'],
+      paid: { base: 400_000, special: 0, unmapped: 430_000 },
+    });
+    // With an owner mapping for the 14th, only the overtime stays unmapped.
+    const mapped = salaryMonthlySeries({
+      payslips: [slip('2030-06', 400_000), fourteenth],
+      rules: [
+        ...rules,
+        { employerContactId: null, wageCode: '503', labelNorm: null, component: 'special' },
+      ],
+    });
+    expect(mapped[0]!.paid).toMatchObject({ special: 400_000, unmapped: 30_000 });
+  });
+
+  it('minor: ratios out of the safe range are null', () => {
+    expect(ratioBp(Number.MAX_SAFE_INTEGER, 1)).toBeNull();
+    expect(ratioBp(1.5, 1)).toBeNull();
+    expect(
+      realDevelopment({
+        values: [
+          { month: '2030-01', cents: 100 },
+          { month: '2030-02', cents: 0.5 },
+        ],
+        index: [
+          { month: '2030-01', indexMicro: 100 },
+          { month: '2030-02', indexMicro: 100 },
+        ],
+        startMonth: '2030-01',
+        endMonth: '2030-02',
+      })!.points[1],
+    ).toMatchObject({ valueCents: null, realChangeBp: null });
+  });
+
   // --- Invariants over seeded synthetic series ---------------------------------------------------
   /** Deterministic 32-bit generator (mulberry32). */
   const generator = (seed: number) => () => {
@@ -1394,76 +1560,95 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
   };
-  function syntheticSeries(seed: number): SalaryPayslip[] {
+  /** A synthetic payslip with the fixture's own money: what it paid (gross + reimbursements). */
+  type Fixture = { slip: SalaryPayslip; paidCents: number };
+  function syntheticSeries(seed: number): Fixture[] {
     const r = generator(seed);
     const int = (min: number, max: number) => min + Math.floor(r() * (max - min + 1));
-    // Every third series is clean (no gaps, unmapped lines or partial months) and long enough
-    // to hold complete consecutive years, so year changes are exercised too.
+    // Every third series is clean (no gaps, unmapped/unknown lines, legacy or partial months) and
+    // long enough to hold complete consecutive years, so year changes are exercised too.
     const clean = seed % 3 === 0;
     const start = `${int(2027, 2030)}-${String(int(1, 12)).padStart(2, '0')}`;
     const months = monthsBetween(start, addMonths(start, clean ? int(30, 47) : int(12, 35)));
     let level = int(250, 450) * 1_000;
-    const slips: SalaryPayslip[] = [];
+    const out: Fixture[] = [];
+    // `gross` and `reimbursed` are tracked here, independent of the module's line handling.
+    const add = (s: SalaryPayslip, gross: number, reimbursed: number) => {
+      expect(s.grossCents).toBe(gross);
+      out.push({ slip: s, paidCents: gross + reimbursed });
+    };
     for (const month of months) {
       if (r() < 0.06) level += int(-20, 50) * 1_000;
       if (!clean && r() < 0.08) continue; // gap
+      const base = !clean && r() < 0.05 ? Math.floor(level / 2) : level;
+      let gross = base,
+        reimbursed = 0;
       const extras: Extra[] = [];
-      if (r() < 0.3) extras.push(reimbursement(int(1, 9_000)));
-      if (r() < 0.3) extras.push(benefit(int(1, 30_000)));
-      if (!clean && r() < 0.07)
-        extras.push({
-          code: '777',
-          label: 'Sonderleistung',
-          section: 'earning',
-          cents: int(1, 50_000),
-        });
+      const earn = (e: Extra) => {
+        extras.push(e);
+        gross += e.cents;
+      };
+      if (r() < 0.3) {
+        const cents = int(1, 9_000);
+        extras.push(reimbursement(cents));
+        reimbursed += cents;
+      }
+      if (r() < 0.3) earn(benefit(int(1, 30_000)));
       if (r() < 0.1)
-        extras.push({ code: '129', label: 'Bonus', section: 'earning', cents: int(1, 80_000) });
+        earn({ code: '129', label: 'Bonus', section: 'earning', cents: int(1, 80_000) });
       if (r() < 0.08)
-        extras.push({
+        earn({
           code: r() < 0.7 ? '105' : '129',
           label: 'Nachzahlung',
           section: 'earning',
           cents: int(1, 20_000) * (r() < 0.2 ? -1 : 1),
           referenceMonth: addMonths(month, -int(1, 3)),
         });
-      const base = !clean && r() < 0.05 ? Math.floor(level / 2) : level;
-      slips.push(slip(month, base, extras));
+      if (!clean && r() < 0.07)
+        earn({ code: '777', label: 'Sonderleistung', section: 'earning', cents: int(1, 50_000) });
+      if (r() < 0.2)
+        extras.push({ code: '9770', label: 'MA-Vorsorge', section: 'memo', cents: int(1, 9_000) });
+      let lineCheck: 'ok' | 'gross_mismatch' = 'ok';
+      if (!clean && r() < 0.06) {
+        // A line the parser could not place, inside the printed gross.
+        const cents = int(1, 30_000);
+        extras.push({ code: '888', label: 'Unbekannt', section: 'unknown', cents });
+        gross += cents;
+        lineCheck = 'gross_mismatch';
+      }
+      const regular = slip(month, base, extras, { grossCents: gross, lineCheck });
+      if (!clean && r() < 0.05) add({ ...regular, wage: null }, gross, reimbursed);
+      else add(regular, gross, reimbursed);
       const mm = month.slice(5);
       if ((mm === '06' || mm === '11') && r() < 0.8) {
         const type = mm === '06' ? 'salary14' : 'salary13';
-        if (r() < 0.1) slips.push({ ...special(month, level, type), wage: null });
+        const s14 = special(month, level, type);
+        if (!clean && r() < 0.1) add({ ...s14, wage: null }, level, 0);
         else {
-          const s14 = special(month, level, type);
-          if (r() < 0.2) s14.wage!.lines.push({ ...benefitSection, amountCents: int(1, 9_000) });
-          slips.push(s14);
+          let g = level;
+          if (r() < 0.2) {
+            const cents = int(1, 9_000);
+            s14.wage!.lines.push({ ...benefitSection, amountCents: cents });
+            g += cents;
+          }
+          add({ ...s14, grossCents: g }, g, 0);
         }
       }
-      if (r() < 0.05)
-        slips.push(
-          slip(
-            month,
-            0,
-            [{ code: '900', label: 'Bonus', section: 'earning', cents: int(1, 200_000) }],
-            {
-              kind: 'special',
-              specialType: 'other',
-              id: `b-${month}`,
-            },
-          ),
+      if (r() < 0.06) {
+        const cents = int(1, 200_000);
+        add(
+          slip(month, 0, [{ code: '900', label: 'Bonus', section: 'earning', cents }], {
+            kind: 'special',
+            specialType: 'other',
+            id: `b-${month}`,
+          }),
+          cents,
+          0,
         );
+      }
     }
-    return slips;
+    return out;
   }
-  /** Every cent a payslip carries by the parser's definition (wage lines, or legacy totals). */
-  const slipCents = (p: SalaryPayslip) =>
-    p.wage
-      ? p.wage.lines
-          .filter((l) => ['earning', 'benefit_in_kind', 'reimbursement'].includes(l.section))
-          .reduce((n, l) => n + l.amountCents, 0)
-      : p.grossCents +
-        p.lines.filter((l) => l.section === 'reimbursement').reduce((n, l) => n + l.amountCents, 0);
-  const paidSum = (c: { [k: string]: number }) => Object.values(c).reduce((n, v) => n + v, 0);
   const developmentView = (slips: SalaryPayslip[]) => {
     const series = salaryMonthlySeries({ payslips: slips, rules });
     const years = salaryYears(series);
@@ -1485,38 +1670,43 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
     };
   };
   const SEEDS = Array.from({ length: 222 }, (_, i) => 1_066 + i);
+  /** The fixture's money of one month: gross plus reimbursements of its payslips. */
+  const fixtureMonth = (fixtures: Fixture[], month: string) =>
+    fixtures.filter((f) => f.slip.month === month).reduce((n, f) => n + f.paidCents, 0);
 
-  it('invariant a: paid sums contain every cent per year and for the whole series', () => {
+  it("invariant a: paid sums equal the fixtures' gross and reimbursements, per year and overall", () => {
     for (const seed of SEEDS) {
-      const slips = syntheticSeries(seed);
-      const series = salaryMonthlySeries({ payslips: slips, rules });
-      const years = salaryYears(series);
+      const fixtures = syntheticSeries(seed);
+      const years = salaryYears(
+        salaryMonthlySeries({ payslips: fixtures.map((f) => f.slip), rules }),
+      );
       for (const y of years)
-        expect([seed, y.year, paidSum(y.paid)]).toEqual([
+        expect([seed, y.year, paidTotal(y.paid)]).toEqual([
           seed,
           y.year,
-          slips.filter((p) => p.month.startsWith(y.year)).reduce((n, p) => n + slipCents(p), 0),
+          fixtures
+            .filter((f) => f.slip.month.startsWith(y.year))
+            .reduce((n, f) => n + f.paidCents, 0),
         ]);
-      expect(years.reduce((n, y) => n + paidSum(y.paid), 0)).toBe(
-        slips.reduce((n, p) => n + slipCents(p), 0),
+      expect(years.reduce((n, y) => n + paidTotal(y.paid), 0)).toBe(
+        fixtures.reduce((n, f) => n + f.paidCents, 0),
       );
     }
   });
 
   it('invariant b: reimbursements, benefits in kind and unmapped amounts never move development', () => {
     for (const seed of SEEDS) {
-      const slips = syntheticSeries(seed);
+      const slips = syntheticSeries(seed).map((f) => f.slip);
       const r = generator(seed ^ 0x5eed);
       const changed = slips.map((p) => {
         if (!p.wage) return p;
-        const lines = p.wage.lines.map((l) =>
-          l.code === '1260' ||
-          l.code === '820' ||
-          l.code === '777' ||
-          l.section === 'benefit_in_kind'
-            ? { ...l, amountCents: l.amountCents + 1 + Math.floor(r() * 5_000) }
-            : l,
-        );
+        let extra = 0;
+        const lines = p.wage.lines.map((l) => {
+          if (!['1260', '820', '777', '830', '9770'].includes(l.code ?? '')) return l;
+          const delta = 1 + Math.floor(r() * 5_000);
+          if (l.section !== 'reimbursement' && l.section !== 'memo') extra += delta;
+          return { ...l, amountCents: l.amountCents + delta };
+        });
         if (r() < 0.3)
           lines.push({
             code: '1260',
@@ -1525,7 +1715,7 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
             referenceMonth: null,
             amountCents: 777,
           });
-        if (r() < 0.3)
+        if (r() < 0.3) {
           lines.push({
             code: '820',
             label: 'Sachbezug',
@@ -1533,34 +1723,62 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
             referenceMonth: null,
             amountCents: 999,
           });
-        return { ...p, wage: { ...p.wage, lines } };
+          extra += 999;
+        }
+        // The printed gross moves with the earning lines, as on a real payslip.
+        return { ...p, grossCents: p.grossCents + extra, wage: { ...p.wage, lines } };
       });
       expect([seed, developmentView(changed)]).toEqual([seed, developmentView(slips)]);
     }
   });
 
-  it('invariant c: every month is comparable or excluded with its paid amounts', () => {
+  it("invariant c: every month is comparable or excluded with the fixture's amounts", () => {
     for (const seed of SEEDS) {
-      const series = salaryMonthlySeries({ payslips: syntheticSeries(seed), rules });
+      const fixtures = syntheticSeries(seed);
+      const series = salaryMonthlySeries({ payslips: fixtures.map((f) => f.slip), rules });
+      const years = salaryYears(series);
       const excluded = new Map(
-        salaryYears(series).flatMap((y) =>
-          y.development.excluded.map((e) => [e.month, e] as const),
-        ),
+        years.flatMap((y) => y.development.excluded.map((e) => [e.month, e] as const)),
       );
       for (const m of series) {
         if (m.comparable) expect(excluded.has(m.month)).toBe(false);
-        else expect([seed, excluded.get(m.month)?.cents]).toEqual([seed, m.paid]);
+        else
+          expect([seed, m.month, paidTotal(excluded.get(m.month)!.cents)]).toEqual([
+            seed,
+            m.month,
+            fixtureMonth(fixtures, m.month),
+          ]);
+      }
+      for (const y of years) {
+        const ytd = yearToDate(series, y.year)!;
+        for (const e of ytd.development.excluded)
+          expect([seed, e.month, paidTotal(e.cents)]).toEqual([
+            seed,
+            e.month,
+            fixtureMonth(fixtures, e.month),
+          ]);
+        const ytdMonths = ytd.months.map((mm) => `${y.year}-${mm}`);
+        expect(paidTotal(ytd.paid.current)).toBe(
+          ytdMonths.reduce((n, m) => n + fixtureMonth(fixtures, m), 0),
+        );
+      }
+      for (const row of sameMonthPreviousYear(series)) {
+        expect(paidTotal(row.paid.current)).toBe(fixtureMonth(fixtures, row.month));
+        if (row.paid.previous)
+          expect(paidTotal(row.paid.previous)).toBe(fixtureMonth(fixtures, row.previousMonth));
       }
     }
   });
 
   it('invariant d: no step, change or index from fewer months than documented', () => {
     for (const seed of SEEDS) {
-      const series = salaryMonthlySeries({ payslips: syntheticSeries(seed), rules });
+      const series = salaryMonthlySeries({
+        payslips: syntheticSeries(seed).map((f) => f.slip),
+        rules,
+      });
       const byMonth = new Map(series.map((m) => [m.month, m]));
       const level = new Set(baseLevelMonths(series).map((m) => m.month));
       for (const step of baseSalarySteps(series)) {
-        // At least one level month on each side; a certain step has no edge level beside it.
         expect(level.has(step.previousMonth) && level.has(step.effectiveMonth)).toBe(true);
         if (step.uncertain === null)
           expect([
@@ -1569,54 +1787,50 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
           ]).toEqual([false, false]);
       }
       for (const y of salaryYears(series))
-        if (y.development.change) {
-          // A year change needs twelve comparable months in both years.
+        if (y.development.change)
           for (const year of [y.year, String(Number(y.year) - 1)])
             expect(series.filter((m) => m.month.startsWith(year) && m.comparable)).toHaveLength(12);
-        }
       const anchor = baseSalaryAnchor(series);
       if (anchor) {
-        // The anchor level is held by at least two consecutive months.
         const next = byMonth.get(addMonths(anchor, 1));
         expect(level.has(anchor) && next !== undefined && level.has(next.month)).toBe(true);
         expect(next!.baseLevelCents).toBe(byMonth.get(anchor)!.baseLevelCents);
       }
       expect(baseSalaryValues(series).every((v) => !byMonth.get(v.month)!.edgeLevel)).toBe(true);
-      for (const y of salaryYears(series)) {
-        const d = yearToDate(series, y.year)!.development;
-        for (const mm of d.months)
+      for (const y of salaryYears(series))
+        for (const mm of yearToDate(series, y.year)!.development.months)
           for (const year of [y.year, String(Number(y.year) - 1)]) {
             const m = byMonth.get(`${year}-${mm}`)!;
             expect(m.comparable && !m.partialBase && !m.edgeLevel).toBe(true);
           }
-      }
     }
   });
+
   it('the generated series cover every case the invariants speak about', () => {
-    const c = {
-      gap: 0,
-      partial: 0,
-      unmapped: 0,
-      backPay: 0,
-      clawback: 0,
-      legacy: 0,
-      edge: 0,
-      certain: 0,
-      yearChange: 0,
-    };
+    const c: Record<string, number> = {};
+    const count = (key: string, n: number) => (c[key] = (c[key] ?? 0) + n);
     for (const seed of SEEDS) {
-      const slips = syntheticSeries(seed);
+      const fixtures = syntheticSeries(seed);
+      const slips = fixtures.map((f) => f.slip);
       const s = salaryMonthlySeries({ payslips: slips, rules });
-      c.gap += s.filter((m) => m.isGap).length;
-      c.partial += s.filter((m) => m.partialBase).length;
-      c.unmapped += s.filter((m) => m.hasUnmapped).length;
-      c.backPay += s.filter((m) => m.hasBackPay).length;
-      c.clawback += s.filter((m) => m.backPayCents.base < 0).length;
-      c.legacy += slips.filter((p) => !p.wage).length;
-      c.edge += s.filter((m) => m.edgeLevel).length;
-      c.certain += baseSalarySteps(s).filter((x) => !x.uncertain).length;
-      c.yearChange += salaryYears(s).filter((y) => y.development.change).length;
+      const lines = slips.flatMap((p) => p.wage?.lines ?? []);
+      count('gap', s.filter((m) => m.isGap).length);
+      count('partial', s.filter((m) => m.partialBase).length);
+      count('unmappedMonth', s.filter((m) => m.hasUnmapped).length);
+      count('lineCheckNotOk', slips.filter((p) => p.wage && p.wage.lineCheck !== 'ok').length);
+      count('unknownLine', lines.filter((l) => l.section === 'unknown').length);
+      count('memoLine', lines.filter((l) => l.section === 'memo').length);
+      count('benefitSection', lines.filter((l) => l.section === 'benefit_in_kind').length);
+      count('bonusSlip', slips.filter((p) => p.specialType === 'other').length);
+      count('legacyRegular', slips.filter((p) => !p.wage && p.kind === 'regular').length);
+      count('legacySpecial', slips.filter((p) => !p.wage && p.kind === 'special').length);
+      count('backPay', s.filter((m) => m.hasBackPay).length);
+      count('clawback', s.filter((m) => m.backPayCents.base < 0).length);
+      count('edge', s.filter((m) => m.edgeLevel).length);
+      count('certainStep', baseSalarySteps(s).filter((x) => !x.uncertain).length);
+      count('yearChange', salaryYears(s).filter((y) => y.development.change).length);
     }
+    expect(Object.keys(c)).toHaveLength(15);
     expect(Object.entries(c).filter(([, n]) => n < 10)).toEqual([]);
   });
 });

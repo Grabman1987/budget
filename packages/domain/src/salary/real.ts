@@ -1,5 +1,5 @@
 import { monthsBetween } from '../date';
-import { divRound, mulDiv } from './math';
+import { divRound, mulDiv, toNumber } from './math';
 import { baseLevelMonths, type SalaryMonth } from './series';
 
 /**
@@ -57,7 +57,12 @@ export function realDevelopment(input: {
   startMonth: string;
   endMonth?: string;
 }): RealDevelopment | null {
-  const values = new Map(input.values.map((v) => [v.month, BigInt(v.cents)]));
+  // Only whole, safe-integer cents count; anything else is a missing point.
+  const values = new Map(
+    input.values
+      .filter((v) => Number.isSafeInteger(v.cents))
+      .map((v) => [v.month, BigInt(v.cents)]),
+  );
   // Only positive integer index levels count; anything else is a missing point, never repaired.
   const index = new Map(
     input.index
@@ -95,13 +100,13 @@ export function realDevelopment(input: {
     const priceAdjusted = mulDiv(v0, i, i0);
     return {
       month,
-      valueCents: Number(v),
+      valueCents: toNumber(v),
       nominalIndexMicro: mulDiv(v, 1_000_000n, v0),
       priceIndexMicro: mulDiv(i, 1_000_000n, i0),
-      realIndexMicro: Number(divRound(v * i0 * 1_000_000n, v0 * i)),
-      realChangeBp: Number(divRound((v * i0 - v0 * i) * 10_000n, v0 * i)),
+      realIndexMicro: toNumber(divRound(v * i0 * 1_000_000n, v0 * i)),
+      realChangeBp: toNumber(divRound((v * i0 - v0 * i) * 10_000n, v0 * i)),
       priceAdjustedCents: priceAdjusted,
-      gapCents: Number(v) - priceAdjusted,
+      gapCents: toNumber(v) - priceAdjusted,
     };
   });
   const years = [...new Set(points.map((p) => p.month.slice(0, 4)))].map((year) => {

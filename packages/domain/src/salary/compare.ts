@@ -39,7 +39,15 @@ export interface DevelopmentCents {
   total: number;
 }
 export type DevelopmentDeltas = Record<keyof DevelopmentCents, ComponentDelta>;
-export type ExcludedReason = 'gap' | 'unmapped' | 'partial' | 'edge' | 'no_counterpart';
+export type ExcludedReason =
+  | 'gap'
+  | 'unmapped'
+  | 'line_check'
+  | 'gross_unknown'
+  | 'no_wage_lines'
+  | 'partial'
+  | 'edge'
+  | 'no_counterpart';
 export interface ExcludedMonth {
   month: string;
   reasons: ExcludedReason[];
@@ -77,7 +85,7 @@ const yearOf = (month: string) => month.slice(0, 4);
 /** Why a month is not comparable (empty when it is). */
 const baseReasons = (m: SalaryMonth): ExcludedReason[] => [
   ...(m.isGap ? (['gap'] as const) : []),
-  ...(m.hasUnmapped ? (['unmapped'] as const) : []),
+  ...m.issues,
 ];
 /** Like for like: comparable, not partial, not an edge level. */
 const likeReasons = (m: SalaryMonth): ExcludedReason[] => [
