@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { monthsBetween } from '../date';
+import { addMonths, monthsBetween } from '../date';
 import { divRound, changeBp } from './math';
 import {
+  baseLevelMonths,
   baseSalaryAnchor,
   baseSalarySteps,
   baseSalaryValues,
@@ -78,8 +79,9 @@ function slip(
   const reimbursed = lines
     .filter((l) => l.section === 'reimbursement')
     .reduce((n, l) => n + l.amountCents, 0);
-  const sv = o.svCents ?? (gross * 18) / 100,
-    tax = o.taxCents ?? (gross * 10) / 100;
+  // Integer arithmetic only (exact percent of whole cents, rounded half away from zero).
+  const sv = o.svCents ?? Number(divRound(BigInt(gross) * 18n, 100n)),
+    tax = o.taxCents ?? Number(divRound(BigInt(gross) * 10n, 100n));
   return {
     id: o.id ?? `p-${month}`,
     month,
@@ -245,27 +247,32 @@ describe('salary series, steps and comparisons: scenario A (#1066)', () => {
 
   it('compares complete years per component; benefits and reimbursements stay outside', () => {
     const years = salaryYears(series);
-    expect(years.map((y) => [y.year, y.complete, y.developmentCents])).toEqual([
+    expect(years.map((y) => [y.year, y.development.complete, y.development.cents.total])).toEqual([
       ['2029', true, 4_355_000],
       ['2030', true, 4_473_000],
       ['2031', false, 330_750],
     ]);
-    expect(years[1]!.components).toEqual({
+    expect(years[1]!.paid).toEqual({
       base: 3_827_250,
       special: 645_750,
       variable: 0,
       benefit_in_kind: 240_000,
       reimbursement: 30_000,
+      unmapped: 0,
     });
-    expect(years[1]!.change).toEqual({
+    expect(years[1]!.development.cents).toEqual({
+      base: 3_827_250,
+      special: 645_750,
+      variable: 0,
+      total: 4_473_000,
+    });
+    expect(years[1]!.development.change).toEqual({
       base: { deltaCents: 137_250, deltaBp: 372 },
       special: { deltaCents: 30_750, deltaBp: 500 },
       variable: { deltaCents: -50_000, deltaBp: -10_000 },
-      benefit_in_kind: { deltaCents: 240_000, deltaBp: null },
-      reimbursement: { deltaCents: 0, deltaBp: 0 },
-      development: { deltaCents: 118_000, deltaBp: 271 },
+      total: { deltaCents: 118_000, deltaBp: 271 },
     });
-    expect(years[2]!.change).toBeNull();
+    expect(years[2]!.development.change).toBeNull();
   });
 
   it('benefits in kind and reimbursements never move a development figure', () => {
@@ -274,8 +281,8 @@ describe('salary series, steps and comparisons: scenario A (#1066)', () => {
       s.map((m) => [m.month, m.developmentCents, m.components.base, m.comparable, m.partialBase]);
     expect(strip(other)).toEqual(strip(series));
     expect(baseSalarySteps(other)).toEqual(baseSalarySteps(series));
-    expect(salaryYears(other).map((y) => [y.developmentCents, y.change?.development])).toEqual(
-      salaryYears(series).map((y) => [y.developmentCents, y.change?.development]),
+    expect(salaryYears(other).map((y) => y.development)).toEqual(
+      salaryYears(series).map((y) => y.development),
     );
   });
 
@@ -288,43 +295,45 @@ describe('salary series, steps and comparisons: scenario A (#1066)', () => {
       previousHasVariable: true,
       hasVariable: false,
     });
-    expect(march.change?.development).toEqual({ deltaCents: -35_000, deltaBp: -1_000 });
+    expect(march.change?.total).toEqual({ deltaCents: -35_000, deltaBp: -1_000 });
     const january = rows.find((r) => r.month === '2031-01')!;
     expect(january.previousMonth).toBe('2030-01');
     expect(january.change?.base).toEqual({ deltaCents: 15_750, deltaBp: 500 });
     expect(rows.find((r) => r.month === '2029-01')).toMatchObject({
       previousMonth: '2028-01',
       comparable: false,
-      previous: null,
+      paid: { previous: null },
+      reasons: { current: [], previous: ['gap'] },
       change: null,
     });
   });
 
   it('compares year to date on the same months', () => {
+    const paidMonth = {
+      special: 0,
+      variable: 0,
+      benefit_in_kind: 20_000,
+      reimbursement: 2_500,
+      unmapped: 0,
+    };
     expect(yearToDate(series, '2031')).toEqual({
       year: '2031',
       months: ['01'],
-      current: {
-        base: 330_750,
-        special: 0,
-        variable: 0,
-        benefit_in_kind: 20_000,
-        reimbursement: 2_500,
+      paid: {
+        current: { base: 330_750, ...paidMonth },
+        previous: { base: 315_000, ...paidMonth },
       },
-      previous: {
-        base: 315_000,
-        special: 0,
-        variable: 0,
-        benefit_in_kind: 20_000,
-        reimbursement: 2_500,
-      },
-      change: {
-        base: { deltaCents: 15_750, deltaBp: 500 },
-        special: { deltaCents: 0, deltaBp: null },
-        variable: { deltaCents: 0, deltaBp: null },
-        benefit_in_kind: { deltaCents: 0, deltaBp: 0 },
-        reimbursement: { deltaCents: 0, deltaBp: 0 },
-        development: { deltaCents: 15_750, deltaBp: 500 },
+      development: {
+        months: ['01'],
+        current: { base: 330_750, special: 0, variable: 0, total: 330_750 },
+        previous: { base: 315_000, special: 0, variable: 0, total: 315_000 },
+        change: {
+          base: { deltaCents: 15_750, deltaBp: 500 },
+          special: { deltaCents: 0, deltaBp: null },
+          variable: { deltaCents: 0, deltaBp: null },
+          total: { deltaCents: 15_750, deltaBp: 500 },
+        },
+        excluded: [],
       },
     });
   });
@@ -333,11 +342,13 @@ describe('salary series, steps and comparisons: scenario A (#1066)', () => {
     expect(variablePayByYear(series, slips, rules)).toEqual([
       {
         year: '2029',
+        paidVariableCents: 50_000,
         complete: true,
         grossCents: 50_000,
         annualBaseCents: 3_690_000,
         shareOfBaseBp: 136,
         attributable: null,
+        excluded: [],
       },
     ]);
   });
@@ -434,10 +445,36 @@ describe('gaps, unmapped wage types and partial months: scenario B (#1066)', () 
     // 2031-01/02 have comparable months a year before, but 2030-01 rests on one month at the
     // series start (edge) and 2030-02 is partial: no like-for-like month is left.
     expect(series.find((m) => m.month === '2030-01')?.edgeLevel).toBe(true);
-    expect(yearToDate(series, '2031')).toBeNull();
-    expect(salaryYears(series).map((y) => [y.year, y.complete, y.excludedMonths.length])).toEqual([
-      ['2030', false, 8],
-      ['2031', false, 2],
+    const ytd = yearToDate(series, '2031')!;
+    expect(ytd.development).toMatchObject({ months: [], change: null });
+    expect(ytd.development.excluded.map((e) => [e.month, e.reasons, e.cents.base])).toEqual([
+      ['2031-01', ['no_counterpart'], 310_000],
+      ['2030-01', ['edge'], 300_000],
+      ['2031-02', ['no_counterpart'], 310_000],
+      ['2030-02', ['partial'], 150_000],
+      ['2031-03', ['gap'], 0],
+      ['2030-03', ['no_counterpart'], 300_000],
+      ['2031-04', ['unmapped'], 310_000],
+      ['2030-04', ['no_counterpart'], 300_000],
+      ['2031-05', ['edge'], 310_000],
+      ['2030-05', ['gap'], 0],
+    ]);
+    expect(
+      salaryYears(series).map((y) => [
+        y.year,
+        y.development.complete,
+        y.development.excluded.map((e) => [e.month, e.reasons, e.cents.base, e.cents.unmapped]),
+      ]),
+    ).toEqual([
+      ['2030', false, monthsBetween('2030-05', '2030-12').map((m) => [m, ['gap'], 0, 0])],
+      [
+        '2031',
+        false,
+        [
+          ['2031-03', ['gap'], 0, 0],
+          ['2031-04', ['unmapped'], 310_000, 10_000],
+        ],
+      ],
     ]);
   });
 
@@ -486,11 +523,13 @@ describe('gaps, unmapped wage types and partial months: scenario B (#1066)', () 
     expect(variablePayByYear(salaryMonthlySeries({ payslips: s, rules }), s, rules)).toEqual([
       {
         year: '2032',
+        paidVariableCents: 100_000,
         complete: false,
         grossCents: 100_000,
         annualBaseCents: 300_000,
         shareOfBaseBp: 3_333,
         attributable: { svCents: 18_000, taxCents: 10_000, netCents: 72_000 },
+        excluded: [],
       },
     ]);
   });
@@ -685,7 +724,27 @@ describe('review blockers of PR #1082', () => {
       components: { base: 0, special: 400_000 },
     });
     const [year] = salaryYears(series);
-    expect(year).toMatchObject({ complete: false, excludedMonths: ['2030-06'], change: null });
+    // Paid: every cent, the 14th included. Development: June excluded with its amounts.
+    expect(year!.paid).toMatchObject({ base: 4_400_000, special: 400_000 });
+    expect(year!.development).toEqual({
+      complete: false,
+      cents: { base: 4_400_000, special: 0, variable: 0, total: 4_400_000 },
+      excluded: [
+        {
+          month: '2030-06',
+          reasons: ['gap'],
+          cents: {
+            base: 0,
+            special: 400_000,
+            variable: 0,
+            benefit_in_kind: 0,
+            reimbursement: 0,
+            unmapped: 0,
+          },
+        },
+      ],
+      change: null,
+    });
   });
 
   it('3: attributable deductions use comparable months only', () => {
@@ -712,11 +771,26 @@ describe('review blockers of PR #1082', () => {
     expect(variablePayByYear(series, slips, rules)).toEqual([
       {
         year: '2031',
+        paidVariableCents: 600_000,
         complete: false,
         grossCents: 100_000,
         annualBaseCents: 4_400_000,
         shareOfBaseBp: 227,
         attributable: { svCents: 14_000, taxCents: 30_000, netCents: 56_000 },
+        excluded: [
+          {
+            month: '2031-03',
+            reasons: ['unmapped'],
+            cents: {
+              base: 400_000,
+              special: 0,
+              variable: 500_000,
+              benefit_in_kind: 0,
+              reimbursement: 0,
+              unmapped: 1_000,
+            },
+          },
+        ],
       },
     ]);
   });
@@ -834,12 +908,9 @@ describe('money re-review of PR #1082: cash basis, edges, raise effect', () => {
     const reimbursed = own.flatMap((p) => p.lines).filter((l) => l.section === 'reimbursement');
     return {
       components:
-        y.components.base +
-        y.components.special +
-        y.components.variable +
-        y.components.benefit_in_kind,
+        y.paid.base + y.paid.special + y.paid.variable + y.paid.benefit_in_kind + y.paid.unmapped,
       gross: own.reduce((n, p) => n + p.grossCents, 0),
-      reimbursement: y.components.reimbursement,
+      reimbursement: y.paid.reimbursement,
       reimbursed: reimbursed.reduce((n, l) => n + l.amountCents, 0),
     };
   };
@@ -867,7 +938,12 @@ describe('money re-review of PR #1082: cash basis, edges, raise effect', () => {
     expect(series.every((m) => m.baseLevelCents === 400_000)).toBe(true);
     expect(baseSalarySteps(series)).toEqual([]);
     const [year] = salaryYears(series);
-    expect(year).toMatchObject({ year: '2030', complete: true, components: { base: 4_810_000 } });
+    expect(year).toMatchObject({
+      year: '2030',
+      paid: { base: 4_810_000 },
+      paidBackPay: { base: 10_000 },
+      development: { complete: true, cents: { base: 4_810_000 } },
+    });
     expect(sumCheck(slips, '2030')).toEqual({
       components: 4_810_000,
       gross: 4_810_000,
@@ -1039,11 +1115,508 @@ describe('money re-review of PR #1082: cash basis, edges, raise effect', () => {
     ];
     const series = salaryMonthlySeries({ payslips: slips, rules });
     // February 2030 is partial; March 2030 rests on one month beside a gap (edge).
-    expect(yearToDate(series, '2031')).toMatchObject({ months: ['01'] });
+    expect(yearToDate(series, '2031')!.development.months).toEqual(['01']);
     // Without December 2029, January 2030 rests on one month at the series start: excluded too.
     const edge = salaryMonthlySeries({ payslips: slips.slice(1), rules });
     expect(series.find((m) => m.month === '2030-01')?.edgeLevel).toBe(false);
     expect(edge.find((m) => m.month === '2030-01')?.edgeLevel).toBe(true);
-    expect(yearToDate(edge, '2031')).toBeNull();
+    expect(yearToDate(edge, '2031')!.development).toMatchObject({ months: [], change: null });
+  });
+});
+
+describe('third money review of PR #1082: two layers, literal cases, invariants', () => {
+  const regular = { kind: 'regular', specialType: null, employerContactId: 'emp' } as const;
+  const benefitSection: SalaryWageLine = {
+    code: '830',
+    label: 'Sachbezug Wohnung',
+    section: 'benefit_in_kind',
+    referenceMonth: null,
+    amountCents: 5_000,
+  };
+
+  it('blocker 1: an unmapped benefit-section line is never special or bonus pay', () => {
+    expect(
+      classifyWageLine(
+        benefitSection,
+        { ...regular, kind: 'special', specialType: 'salary14' },
+        rules,
+      ),
+    ).toBe('unmapped');
+    expect(
+      classifyWageLine(
+        benefitSection,
+        { ...regular, kind: 'special', specialType: 'other' },
+        rules,
+      ),
+    ).toBe('unmapped');
+    const fourteenth = {
+      ...special('2030-06', 400_000, 'salary14'),
+      wage: {
+        lineCheck: 'ok' as const,
+        split: null,
+        lines: [
+          {
+            code: '503',
+            label: 'Sonderzahlung',
+            section: 'earning' as const,
+            referenceMonth: null,
+            amountCents: 400_000,
+          },
+          benefitSection,
+        ],
+      },
+    };
+    const [june] = salaryMonthlySeries({ payslips: [fourteenth], rules });
+    expect(june!.paid).toEqual({
+      base: 0,
+      special: 400_000,
+      variable: 0,
+      benefit_in_kind: 0,
+      reimbursement: 0,
+      unmapped: 5_000,
+    });
+  });
+
+  it('blocker 3: edge levels stay out of the real series', () => {
+    const series = salaryMonthlySeries({
+      payslips: [slip('2030-01', 400_000), slip('2030-02', 400_000), slip('2030-03', 200_000)],
+      rules,
+    });
+    expect(baseSalaryValues(series)).toEqual([
+      { month: '2030-01', cents: 400_000 },
+      { month: '2030-02', cents: 400_000 },
+    ]);
+    const real = realDevelopment({
+      values: baseSalaryValues(series),
+      index: monthsBetween('2030-01', '2030-03').map((month) => ({
+        month,
+        indexMicro: 100_000_000,
+      })),
+      startMonth: baseSalaryAnchor(series)!,
+      endMonth: '2030-03',
+    })!;
+    expect(real.points.map((p) => p.realChangeBp)).toEqual([0, 0, null]);
+    // The exit month stays in the paid layer.
+    expect(salaryYears(series)[0]!.paid.base).toBe(1_000_000);
+  });
+
+  it('minor: the raise effect uses only the runs adjacent to the step', () => {
+    // Old level 400.000 three times, a different level, then 410.000 once before the step.
+    const months = [
+      ...monthsBetween('2030-01', '2030-03').map((m) => slip(m, 400_000)),
+      slip('2030-04', 410_000),
+      slip('2030-05', 410_000),
+      ...monthsBetween('2030-06', '2030-08').map((m) => slip(m, 430_000)),
+    ];
+    const effect = lastRaiseNetEffect(salaryMonthlySeries({ payslips: months, rules }));
+    expect(effect).toMatchObject({ effectiveMonth: '2030-06', reason: 'too_few_months' });
+  });
+
+  it('minor: same-month rows carry partial and edge markers', () => {
+    const series = salaryMonthlySeries({
+      payslips: [
+        slip('2029-01', 400_000),
+        slip('2029-02', 200_000),
+        slip('2029-03', 400_000),
+        slip('2030-01', 400_000),
+        slip('2030-02', 400_000),
+        slip('2030-03', 400_000),
+      ],
+      rules,
+    });
+    const rows = sameMonthPreviousYear(series);
+    expect(rows.find((r) => r.month === '2030-02')).toMatchObject({
+      comparable: false,
+      reasons: { current: [], previous: ['partial'] },
+      change: null,
+    });
+  });
+
+  it('minor: equal owner rules resolve the same in any input order', () => {
+    const a: WageComponentRule = {
+      employerContactId: null,
+      wageCode: '1',
+      labelNorm: null,
+      component: 'base',
+      id: 'b',
+    };
+    const b: WageComponentRule = { ...a, component: 'variable', id: 'a' };
+    const c: WageComponentRule = { ...a, component: 'special', id: null };
+    const line: SalaryWageLine = {
+      code: '1',
+      label: 'X',
+      section: 'earning',
+      referenceMonth: null,
+      amountCents: 1,
+    };
+    const orders = [
+      [a, b, c],
+      [c, b, a],
+      [b, c, a],
+    ];
+    expect(orders.map((o) => classifyWageLine(line, regular, o))).toEqual([
+      'variable',
+      'variable',
+      'variable',
+    ]);
+    const noId = [
+      { ...a, id: null },
+      { ...a, component: 'variable' as const, id: null },
+    ];
+    expect([
+      classifyWageLine(line, regular, noId),
+      classifyWageLine(line, regular, [...noId].reverse()),
+    ]).toEqual(['base', 'base']);
+  });
+
+  it('literal: non-base back pay, clawback and a reference month equal to the payment month', () => {
+    const series = salaryMonthlySeries({
+      payslips: [
+        slip('2030-01', 400_000),
+        slip('2030-02', 400_000, [
+          {
+            code: '129',
+            label: 'Bonus',
+            section: 'earning',
+            cents: 30_000,
+            referenceMonth: '2029-12',
+          },
+        ]),
+        slip('2030-03', 400_000, [
+          {
+            code: '105',
+            label: 'Grundgehalt',
+            section: 'earning',
+            cents: -10_000,
+            referenceMonth: '2030-02',
+          },
+        ]),
+        slip('2030-04', 400_000, [
+          {
+            code: '105',
+            label: 'Grundgehalt',
+            section: 'earning',
+            cents: 5_000,
+            referenceMonth: '2030-04',
+          },
+        ]),
+      ],
+      rules,
+    });
+    expect(
+      series.map((m) => [
+        m.month,
+        m.paid.base,
+        m.paid.variable,
+        m.backPayCents.base,
+        m.backPayCents.variable,
+        m.baseLevelCents,
+      ]),
+    ).toEqual([
+      ['2030-01', 400_000, 0, 0, 0, 400_000],
+      ['2030-02', 400_000, 30_000, 0, 30_000, 400_000],
+      ['2030-03', 390_000, 0, -10_000, 0, 400_000],
+      // Same reference month: ordinary pay, part of the level.
+      ['2030-04', 405_000, 0, 0, 0, 405_000],
+    ]);
+    expect(
+      baseSalarySteps(series).map((x) => [x.effectiveMonth, x.deltaCents, x.uncertain]),
+    ).toEqual([['2030-04', 5_000, 'edge']]);
+    expect(salaryYears(series)[0]!.paidBackPay).toEqual({
+      base: -10_000,
+      special: 0,
+      variable: 30_000,
+      benefit_in_kind: 0,
+      reimbursement: 0,
+    });
+  });
+
+  it('literal: 400.000, gap, 420.000, 420.000', () => {
+    const series = salaryMonthlySeries({
+      payslips: [slip('2030-01', 400_000), slip('2030-03', 420_000), slip('2030-04', 420_000)],
+      rules,
+    });
+    expect(baseSalarySteps(series)).toEqual([
+      {
+        effectiveMonth: '2030-03',
+        previousMonth: '2030-01',
+        oldCents: 400_000,
+        newCents: 420_000,
+        deltaCents: 20_000,
+        deltaBp: 500,
+        uncertain: 'edge',
+        retroactiveFrom: null,
+      },
+    ]);
+    expect(baseSalaryAnchor(series)).toBe('2030-03');
+    expect(baseSalaryValues(series).map((v) => v.month)).toEqual(['2030-03', '2030-04']);
+  });
+
+  it('literal: six months at 400.000 and six at 420.000', () => {
+    const series = salaryMonthlySeries({
+      payslips: monthsBetween('2030-01', '2030-12').map((m) =>
+        slip(m, m < '2030-07' ? 400_000 : 420_000),
+      ),
+      rules,
+    });
+    expect(baseSalarySteps(series)).toEqual([
+      {
+        effectiveMonth: '2030-07',
+        previousMonth: '2030-06',
+        oldCents: 400_000,
+        newCents: 420_000,
+        deltaCents: 20_000,
+        deltaBp: 500,
+        uncertain: null,
+        retroactiveFrom: null,
+      },
+    ]);
+    const [year] = salaryYears(series);
+    expect(year!.paid.base).toBe(4_920_000);
+    expect(year!.development).toMatchObject({
+      complete: true,
+      cents: { total: 4_920_000 },
+      excluded: [],
+    });
+    expect(lastRaiseNetEffect(series)).toMatchObject({
+      deltaGrossCents: 60_000,
+      deltaNetCents: 43_200,
+      netPerGrossBp: 7_200,
+      reason: null,
+    });
+  });
+
+  // --- Invariants over seeded synthetic series ---------------------------------------------------
+  /** Deterministic 32-bit generator (mulberry32). */
+  const generator = (seed: number) => () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
+  };
+  function syntheticSeries(seed: number): SalaryPayslip[] {
+    const r = generator(seed);
+    const int = (min: number, max: number) => min + Math.floor(r() * (max - min + 1));
+    // Every third series is clean (no gaps, unmapped lines or partial months) and long enough
+    // to hold complete consecutive years, so year changes are exercised too.
+    const clean = seed % 3 === 0;
+    const start = `${int(2027, 2030)}-${String(int(1, 12)).padStart(2, '0')}`;
+    const months = monthsBetween(start, addMonths(start, clean ? int(30, 47) : int(12, 35)));
+    let level = int(250, 450) * 1_000;
+    const slips: SalaryPayslip[] = [];
+    for (const month of months) {
+      if (r() < 0.06) level += int(-20, 50) * 1_000;
+      if (!clean && r() < 0.08) continue; // gap
+      const extras: Extra[] = [];
+      if (r() < 0.3) extras.push(reimbursement(int(1, 9_000)));
+      if (r() < 0.3) extras.push(benefit(int(1, 30_000)));
+      if (!clean && r() < 0.07)
+        extras.push({
+          code: '777',
+          label: 'Sonderleistung',
+          section: 'earning',
+          cents: int(1, 50_000),
+        });
+      if (r() < 0.1)
+        extras.push({ code: '129', label: 'Bonus', section: 'earning', cents: int(1, 80_000) });
+      if (r() < 0.08)
+        extras.push({
+          code: r() < 0.7 ? '105' : '129',
+          label: 'Nachzahlung',
+          section: 'earning',
+          cents: int(1, 20_000) * (r() < 0.2 ? -1 : 1),
+          referenceMonth: addMonths(month, -int(1, 3)),
+        });
+      const base = !clean && r() < 0.05 ? Math.floor(level / 2) : level;
+      slips.push(slip(month, base, extras));
+      const mm = month.slice(5);
+      if ((mm === '06' || mm === '11') && r() < 0.8) {
+        const type = mm === '06' ? 'salary14' : 'salary13';
+        if (r() < 0.1) slips.push({ ...special(month, level, type), wage: null });
+        else {
+          const s14 = special(month, level, type);
+          if (r() < 0.2) s14.wage!.lines.push({ ...benefitSection, amountCents: int(1, 9_000) });
+          slips.push(s14);
+        }
+      }
+      if (r() < 0.05)
+        slips.push(
+          slip(
+            month,
+            0,
+            [{ code: '900', label: 'Bonus', section: 'earning', cents: int(1, 200_000) }],
+            {
+              kind: 'special',
+              specialType: 'other',
+              id: `b-${month}`,
+            },
+          ),
+        );
+    }
+    return slips;
+  }
+  /** Every cent a payslip carries by the parser's definition (wage lines, or legacy totals). */
+  const slipCents = (p: SalaryPayslip) =>
+    p.wage
+      ? p.wage.lines
+          .filter((l) => ['earning', 'benefit_in_kind', 'reimbursement'].includes(l.section))
+          .reduce((n, l) => n + l.amountCents, 0)
+      : p.grossCents +
+        p.lines.filter((l) => l.section === 'reimbursement').reduce((n, l) => n + l.amountCents, 0);
+  const paidSum = (c: { [k: string]: number }) => Object.values(c).reduce((n, v) => n + v, 0);
+  const developmentView = (slips: SalaryPayslip[]) => {
+    const series = salaryMonthlySeries({ payslips: slips, rules });
+    const years = salaryYears(series);
+    return {
+      years: years.map((y) => [
+        y.year,
+        y.development.complete,
+        y.development.cents,
+        y.development.change,
+      ]),
+      steps: baseSalarySteps(series),
+      ytd: years.map((y) => {
+        const d = yearToDate(series, y.year)!.development;
+        return [d.months, d.current, d.previous, d.change];
+      }),
+      months: sameMonthPreviousYear(series).map((m) => [m.month, m.comparable, m.change]),
+      values: baseSalaryValues(series),
+      anchor: baseSalaryAnchor(series),
+    };
+  };
+  const SEEDS = Array.from({ length: 222 }, (_, i) => 1_066 + i);
+
+  it('invariant a: paid sums contain every cent per year and for the whole series', () => {
+    for (const seed of SEEDS) {
+      const slips = syntheticSeries(seed);
+      const series = salaryMonthlySeries({ payslips: slips, rules });
+      const years = salaryYears(series);
+      for (const y of years)
+        expect([seed, y.year, paidSum(y.paid)]).toEqual([
+          seed,
+          y.year,
+          slips.filter((p) => p.month.startsWith(y.year)).reduce((n, p) => n + slipCents(p), 0),
+        ]);
+      expect(years.reduce((n, y) => n + paidSum(y.paid), 0)).toBe(
+        slips.reduce((n, p) => n + slipCents(p), 0),
+      );
+    }
+  });
+
+  it('invariant b: reimbursements, benefits in kind and unmapped amounts never move development', () => {
+    for (const seed of SEEDS) {
+      const slips = syntheticSeries(seed);
+      const r = generator(seed ^ 0x5eed);
+      const changed = slips.map((p) => {
+        if (!p.wage) return p;
+        const lines = p.wage.lines.map((l) =>
+          l.code === '1260' ||
+          l.code === '820' ||
+          l.code === '777' ||
+          l.section === 'benefit_in_kind'
+            ? { ...l, amountCents: l.amountCents + 1 + Math.floor(r() * 5_000) }
+            : l,
+        );
+        if (r() < 0.3)
+          lines.push({
+            code: '1260',
+            label: 'Telearbeit',
+            section: 'reimbursement',
+            referenceMonth: null,
+            amountCents: 777,
+          });
+        if (r() < 0.3)
+          lines.push({
+            code: '820',
+            label: 'Sachbezug',
+            section: 'earning',
+            referenceMonth: null,
+            amountCents: 999,
+          });
+        return { ...p, wage: { ...p.wage, lines } };
+      });
+      expect([seed, developmentView(changed)]).toEqual([seed, developmentView(slips)]);
+    }
+  });
+
+  it('invariant c: every month is comparable or excluded with its paid amounts', () => {
+    for (const seed of SEEDS) {
+      const series = salaryMonthlySeries({ payslips: syntheticSeries(seed), rules });
+      const excluded = new Map(
+        salaryYears(series).flatMap((y) =>
+          y.development.excluded.map((e) => [e.month, e] as const),
+        ),
+      );
+      for (const m of series) {
+        if (m.comparable) expect(excluded.has(m.month)).toBe(false);
+        else expect([seed, excluded.get(m.month)?.cents]).toEqual([seed, m.paid]);
+      }
+    }
+  });
+
+  it('invariant d: no step, change or index from fewer months than documented', () => {
+    for (const seed of SEEDS) {
+      const series = salaryMonthlySeries({ payslips: syntheticSeries(seed), rules });
+      const byMonth = new Map(series.map((m) => [m.month, m]));
+      const level = new Set(baseLevelMonths(series).map((m) => m.month));
+      for (const step of baseSalarySteps(series)) {
+        // At least one level month on each side; a certain step has no edge level beside it.
+        expect(level.has(step.previousMonth) && level.has(step.effectiveMonth)).toBe(true);
+        if (step.uncertain === null)
+          expect([
+            byMonth.get(step.previousMonth)!.edgeLevel,
+            byMonth.get(step.effectiveMonth)!.edgeLevel,
+          ]).toEqual([false, false]);
+      }
+      for (const y of salaryYears(series))
+        if (y.development.change) {
+          // A year change needs twelve comparable months in both years.
+          for (const year of [y.year, String(Number(y.year) - 1)])
+            expect(series.filter((m) => m.month.startsWith(year) && m.comparable)).toHaveLength(12);
+        }
+      const anchor = baseSalaryAnchor(series);
+      if (anchor) {
+        // The anchor level is held by at least two consecutive months.
+        const next = byMonth.get(addMonths(anchor, 1));
+        expect(level.has(anchor) && next !== undefined && level.has(next.month)).toBe(true);
+        expect(next!.baseLevelCents).toBe(byMonth.get(anchor)!.baseLevelCents);
+      }
+      expect(baseSalaryValues(series).every((v) => !byMonth.get(v.month)!.edgeLevel)).toBe(true);
+      for (const y of salaryYears(series)) {
+        const d = yearToDate(series, y.year)!.development;
+        for (const mm of d.months)
+          for (const year of [y.year, String(Number(y.year) - 1)]) {
+            const m = byMonth.get(`${year}-${mm}`)!;
+            expect(m.comparable && !m.partialBase && !m.edgeLevel).toBe(true);
+          }
+      }
+    }
+  });
+  it('the generated series cover every case the invariants speak about', () => {
+    const c = {
+      gap: 0,
+      partial: 0,
+      unmapped: 0,
+      backPay: 0,
+      clawback: 0,
+      legacy: 0,
+      edge: 0,
+      certain: 0,
+      yearChange: 0,
+    };
+    for (const seed of SEEDS) {
+      const slips = syntheticSeries(seed);
+      const s = salaryMonthlySeries({ payslips: slips, rules });
+      c.gap += s.filter((m) => m.isGap).length;
+      c.partial += s.filter((m) => m.partialBase).length;
+      c.unmapped += s.filter((m) => m.hasUnmapped).length;
+      c.backPay += s.filter((m) => m.hasBackPay).length;
+      c.clawback += s.filter((m) => m.backPayCents.base < 0).length;
+      c.legacy += slips.filter((p) => !p.wage).length;
+      c.edge += s.filter((m) => m.edgeLevel).length;
+      c.certain += baseSalarySteps(s).filter((x) => !x.uncertain).length;
+      c.yearChange += salaryYears(s).filter((y) => y.development.change).length;
+    }
+    expect(Object.entries(c).filter(([, n]) => n < 10)).toEqual([]);
   });
 });

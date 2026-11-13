@@ -45,8 +45,21 @@ export interface BackPayItem {
  * (`backPayCents`, shown as "Nachzahlung"): included in `components`, excluded from
  * `baseLevelCents`, the monthly base level used for steps, partial months and real development.
  */
+/** As-paid cents per component plus everything not assigned (`unmapped`). */
+export type PaidCents = ComponentCents & { unmapped: number };
+export const zeroPaid = (): PaidCents => ({ ...zeroComponents(), unmapped: 0 });
+export const addPaid = (target: PaidCents, source: PaidCents) => {
+  for (const key of [...SALARY_COMPONENTS, 'unmapped'] as const) target[key] += source[key];
+  return target;
+};
+
 export interface SalaryMonth {
   month: string;
+  /**
+   * Paid layer: every cent of every payslip of the month, mapped components (back pay included)
+   * plus `unmapped` (unmapped lines and legacy payslips without wage lines).
+   */
+  paid: PaidCents;
   /** No regular payslip for this month: a gap for every comparison, never filled or extrapolated. */
   isGap: boolean;
   payslipIds: string[];
@@ -127,7 +140,8 @@ export function payslipComponents(
       payslipId: slip.id,
       code: null,
       label: null,
-      amountCents: slip.grossCents,
+      // A flag only: the lines themselves are classified and counted below.
+      amountCents: 0,
       reason: 'line_check',
     });
   for (const line of slip.wage.lines) {
@@ -189,6 +203,10 @@ export function salaryMonthlySeries(input: {
     const isGap = !own.some((s) => s.kind === 'regular');
     return {
       month,
+      paid: {
+        ...components,
+        unmapped: unmapped.reduce((n, u) => n + u.amountCents, 0),
+      },
       isGap,
       payslipIds: own.map((s) => s.id),
       components,
@@ -220,7 +238,8 @@ export function salaryMonthlySeries(input: {
       m.baseLevelCents < before.baseLevelCents &&
       m.baseLevelCents < after.baseLevelCents;
   });
-  for (const run of levelRuns(months)) if (run.edge) for (const m of run.months) m.edgeLevel = true;
+  for (const run of baseLevelRuns(months))
+    if (run.edge) for (const m of run.months) m.edgeLevel = true;
   return months;
 }
 
@@ -229,7 +248,7 @@ const isLevel = (m: SalaryMonth) => m.comparable && !m.partialBase && m.baseLeve
  * Runs of calendar-consecutive level months with the same base level. A run of one month whose
  * calendar neighbour is missing (series start/end, gap, unmapped) is an `edge` run.
  */
-function levelRuns(months: readonly SalaryMonth[]) {
+export function baseLevelRuns(months: readonly SalaryMonth[]) {
   const runs: { months: SalaryMonth[]; edge: boolean }[] = [];
   months.forEach((m, i) => {
     if (!isLevel(m)) return;
@@ -278,7 +297,7 @@ export const baseLevelMonths = (series: readonly SalaryMonth[]) => series.filter
 
 /** Every change of the monthly base level between consecutive level runs. */
 export function baseSalarySteps(series: readonly SalaryMonth[]): BaseStep[] {
-  const runs = levelRuns(series);
+  const runs = baseLevelRuns(series);
   const steps: BaseStep[] = [];
   for (let i = 1; i < runs.length; i++) {
     const before = runs[i - 1]!,
@@ -316,5 +335,5 @@ export function baseSalarySteps(series: readonly SalaryMonth[]): BaseStep[] {
 
 /** First month of the first base level supported by at least two months (real-index anchor). */
 export function baseSalaryAnchor(series: readonly SalaryMonth[]): string | null {
-  return levelRuns(series).find((r) => r.months.length >= 2)?.months[0]?.month ?? null;
+  return baseLevelRuns(series).find((r) => r.months.length >= 2)?.months[0]?.month ?? null;
 }

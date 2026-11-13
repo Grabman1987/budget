@@ -16,7 +16,8 @@ import {
  * the reimbursement section or a payslip explicitly marked as 13th/14th salary. A benefit in kind
  * comes only from an owner mapping (no parser emits a structural benefit-in-kind section today;
  * a line in that section without a mapping is unmapped). Document types and labels decide nothing.
- * Equally specific mappings: the most recently updated wins, then the first given.
+ * Equally specific mappings: the newest `updatedAt` wins, then the smallest `id`, then the
+ * component name, so the result never depends on the input order.
  */
 export type LineComponent = SalaryComponent | 'unmapped' | 'none';
 
@@ -34,6 +35,8 @@ export function classifyWageLine(
   const owner = ownerRule(line, slip.employerContactId, rules);
   if (owner) return owner.component;
   if (line.section === 'reimbursement') return 'reimbursement';
+  // Checked before any whole-slip fallback: never folded into special pay.
+  if (line.section === 'benefit_in_kind') return 'unmapped';
   if (
     slip.kind === 'special' &&
     (slip.specialType === 'salary13' || slip.specialType === 'salary14')
@@ -41,6 +44,15 @@ export function classifyWageLine(
     return 'special';
   return 'unmapped';
 }
+/** Equal specificity: newest `updatedAt`, then smallest `id`, then component name (stable). */
+const wins = (a: WageComponentRule, b: WageComponentRule) => {
+  const key = (r: WageComponentRule) => [r.updatedAt ?? '', r.id ?? '', r.component] as const;
+  const [au, ai, ac] = key(a),
+    [bu, bi, bc] = key(b);
+  if (au !== bu) return au > bu;
+  if (ai !== bi) return ai !== '' && (bi === '' || ai < bi);
+  return ac < bc;
+};
 function ownerRule(
   line: SalaryWageLine,
   employer: string | null,
@@ -58,10 +70,7 @@ function ownerRule(
       (rule.employerContactId !== null ? 4 : 0) +
       (rule.wageCode !== null ? 2 : 0) +
       (rule.labelNorm !== null ? 1 : 0);
-    if (
-      score > bestScore ||
-      (score === bestScore && (rule.updatedAt ?? '') > (best?.updatedAt ?? ''))
-    ) {
+    if (score > bestScore || (score === bestScore && best && wins(rule, best))) {
       best = rule;
       bestScore = score;
     }

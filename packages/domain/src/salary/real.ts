@@ -120,10 +120,14 @@ export function realDevelopment(input: {
 
 /**
  * Base salary level (without back pay) per reliable month: the lead figure for the real
- * comparison. Anchor it at `baseSalaryAnchor`: the first level supported by at least two months.
+ * comparison. Edge-uncertain levels (one month at the series start/end or beside a gap) are left
+ * out; they stay in the paid layer. Anchor at `baseSalaryAnchor`: the first level supported by at
+ * least two months.
  */
 export const baseSalaryValues = (series: readonly SalaryMonth[]): MonthValue[] =>
-  baseLevelMonths(series).map((m) => ({ month: m.month, cents: m.baseLevelCents }));
+  baseLevelMonths(series)
+    .filter((m) => !m.edgeLevel)
+    .map((m) => ({ month: m.month, cents: m.baseLevelCents }));
 /** Development total (base + special + variable) per comparable month. */
 export const developmentValues = (series: readonly SalaryMonth[]): MonthValue[] =>
   series.filter((m) => m.comparable).map((m) => ({ month: m.month, cents: m.developmentCents }));
