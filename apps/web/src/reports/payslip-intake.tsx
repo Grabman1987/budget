@@ -383,11 +383,14 @@ export function PayslipIntakeDetail({
   id,
   inline = false,
   duplicate = false,
+  onMonth,
 }: {
   id: string;
   /** Render the expanded review inside the upload dialog instead of opening another dialog. */
   inline?: boolean;
   duplicate?: boolean;
+  /** Reports the parsed month (YYYY-MM) so the hosting dialog can title the review. */
+  onMonth?: (month: string | null) => void;
 }) {
   useAmountPrivacy();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -426,6 +429,10 @@ export function PayslipIntakeDetail({
       : '');
   const p = data?.parsed,
     totals = p?.draft ? payrollTotals([p.draft]) : null;
+  const parsedMonth = p?.draft?.month ?? null;
+  useEffect(() => {
+    onMonth?.(parsedMonth);
+  }, [onMonth, parsedMonth]);
   const selectedMatch = data?.matches.find((m) => m.id === match);
   const splitPreview = selectedMatch?.splitPreview;
   const splitAccepted =
@@ -746,12 +753,6 @@ export function PayslipIntakeDetail({
                   </Select>
                 )}
               </Field>
-              {selectedMatch && (
-                <p>
-                  Buchung: {eur(selectedMatch.amountCents)} · Differenz zur Auszahlung:{' '}
-                  {eur(selectedMatch.differenceCents)}
-                </p>
-              )}
               {splitPreview?.status === 'eligible' && data.status === 'pending' && (
                 <div>
                   <label className="check-row">
@@ -778,25 +779,6 @@ export function PayslipIntakeDetail({
                   </p>
                 </div>
               )}
-              {splitPreview?.status === 'locked' && (
-                <p className="panel-sub">
-                  Diese Auszahlung ist geprüft. Sie wird nur verknüpft; ihre Aufteilung bleibt
-                  erhalten.
-                </p>
-              )}
-              {splitPreview?.status === 'unavailable' && (
-                <p className="panel-sub">
-                  Eine unveränderte ursprüngliche Zuordnung ist nicht vollständig nachgewiesen. Die
-                  Auszahlung wird nur verknüpft; bestehende Korrekturen und Zuordnungen bleiben
-                  erhalten.
-                </p>
-              )}
-              {!data.matches.length && (
-                <p>
-                  Keine Gehaltsbuchung im Zeitfenster gefunden. Nach der Bestätigung wird die
-                  Auszahlung auf dem gewählten Konto gebucht.
-                </p>
-              )}
             </>
           )}
         </>
@@ -804,9 +786,13 @@ export function PayslipIntakeDetail({
     </>
   );
   const confirmSentence = selectedMatch
-    ? splitAccepted
-      ? 'Die nachgewiesene ursprüngliche Auszahlung wird aufgeteilt und verknüpft.'
-      : 'Die vorhandene Buchung wird verknüpft. Ihre Zuordnung bleibt erhalten.'
+    ? splitPreview?.status === 'locked'
+      ? 'Diese Auszahlung ist geprüft. Sie wird nur verknüpft; ihre Aufteilung bleibt erhalten.'
+      : splitPreview?.status === 'unavailable'
+        ? 'Die Auszahlung wird nur verknüpft; bestehende Korrekturen und Zuordnungen bleiben erhalten.'
+        : splitAccepted
+          ? 'Die nachgewiesene ursprüngliche Auszahlung wird aufgeteilt und verknüpft.'
+          : 'Die vorhandene Buchung wird verknüpft. Ihre Zuordnung bleibt erhalten.'
     : payoutAccount?.type === 'cash'
       ? 'Die neue Bargeldauszahlung wird sofort bestätigt.'
       : 'Die neue Auszahlung wird vorgemerkt. Gehalt und steuerfreie Erstattungen werden getrennt zugeordnet.';
@@ -840,6 +826,15 @@ export function PayslipIntakeDetail({
               <dt>Auszahlung laut Gehaltszettel</dt>
               <dd>{eur(totals.netCents)}</dd>
             </div>
+            {selectedMatch && (
+              <div>
+                <dt>Gewählte Buchung</dt>
+                <dd>
+                  {eur(selectedMatch.amountCents)} · Differenz zur Auszahlung{' '}
+                  {eur(selectedMatch.differenceCents)}
+                </dd>
+              </div>
+            )}
             <div>
               <dt>Differenz</dt>
               <dd>

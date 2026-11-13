@@ -162,7 +162,7 @@ dialog.overlay.modal.is-wide:has(.payslip-review-layout) {
 }
 .payslip-review-summary dl {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px 24px;
   margin: 0;
 }
