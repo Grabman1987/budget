@@ -59,7 +59,7 @@ test('central upload: a payslip ends in a result summary with a link to Prüfen'
     .setInputFiles({ name: 'synthetic-payslip.pdf', mimeType: 'application/pdf', buffer: bytes });
   await expect(dialog.getByText(/Erkannt: Gehaltszettel/)).toBeVisible();
   await dialog.getByRole('button', { name: 'Weiter' }).click();
-  const flow = page.getByRole('dialog', { name: 'Gehaltszettel hochladen' });
+  const flow = page.getByRole('dialog', { name: /^Gehaltszettel (hochladen|prüfen)/ });
   const summary = flow.getByRole('region', { name: 'Ergebnis des Uploads' });
   await expect(summary).toContainText('Erkannt: Gehaltszettel');
   await expect(summary.getByRole('link', { name: 'Zu Prüfen' })).toHaveAttribute(

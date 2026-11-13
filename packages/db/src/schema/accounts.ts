@@ -59,6 +59,11 @@ export const contact = sqliteTable('contact', {
   note: text('note'),
   /** Set while the contact is archived (#870): hidden from pickers, kept in history and reports. */
   archivedAt: text('archived_at'),
+  /**
+   * Set when the contact was merged into another one (#871): a pointer, never a rewrite. All
+   * history keeps this id; readers resolve to the target. Never equal to `id` (repo-enforced).
+   */
+  mergedIntoId: text('merged_into_id').references((): AnySQLiteColumn => contact.id),
   ...timestamps(),
 });
 

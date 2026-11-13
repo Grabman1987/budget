@@ -1,5 +1,7 @@
 import {
   addContactAlias,
+  commitContactMerge,
+  previewContactMerge,
   archiveContact,
   assertFresh,
   removeContactAlias,
@@ -19,7 +21,7 @@ import {
   updateEntity,
   type Db,
 } from '@budget/db';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { and, eq, isNull } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -146,6 +148,27 @@ export function contactRoutes(db: Db, today: () => string): Hono {
       );
       return c.json({ contact: row, groupId: ctx.groupId });
     });
+  // Stateless merge token (#871): the secret lives per process, a restart expires open previews.
+  const mergeSecret = randomBytes(32).toString('hex');
+  app.post('/:id/merge/preview', async (c) => {
+    const input = await readBody(c, z.object({ targetId: z.string().min(1).max(100) }).strict());
+    return c.json(
+      previewContactMerge(db, c.req.param('id'), input.targetId, { secret: mergeSecret }),
+    );
+  });
+  app.post('/:id/merge', async (c) => {
+    const input = await readBody(
+      c,
+      z
+        .object({ targetId: z.string().min(1).max(100), token: z.string().min(1).max(200) })
+        .strict(),
+    );
+    const ctx = audit();
+    const row = commitContactMerge(db, c.req.param('id'), input.targetId, input.token, ctx, {
+      secret: mergeSecret,
+    });
+    return c.json({ contact: row, groupId: ctx.groupId });
+  });
   app.post('/:id/settlements', async (c) => {
     const input = await readBody(c, receipt);
     if (input.date > today())

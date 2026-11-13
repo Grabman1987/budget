@@ -11,15 +11,40 @@
 .payslip-upload .btn {
   min-height: 44px;
 }
+/* The review needs more room than the standard wide dialog: preview left, form right. */
+dialog.overlay.modal.is-wide:has(.payslip-review-layout) {
+  width: min(1120px, calc(100vw - 48px));
+}
 .payslip-review-dialog {
-  width: min(100%, 920px);
-  max-width: 920px;
+  width: 100%;
+}
+/* The review owns its body padding, so the sticky bar needs no knowledge of the dialog's own:
+   --payslip-pad is the one value for the side padding and the bar's bleed. */
+dialog.overlay .panel-body:has(.payslip-review-layout) {
+  padding: 20px 0 0;
+  /* A focused field is never hidden behind the sticky bar. */
+  scroll-padding-bottom: 96px;
+}
+.payslip-review-layout {
+  --payslip-pad: 24px;
+  min-width: 0;
+  padding-inline: var(--payslip-pad);
 }
 .payslip-document-review {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
   align-items: start;
   gap: 24px;
+}
+/* The preview stays in view while the long form scrolls, so the left column is never empty. */
+@media (min-width: 768px) {
+  .payslip-document-original {
+    position: sticky;
+    top: 0;
+  }
+  .payslip-document-original .receipt-pdf-frame {
+    max-height: max(240px, calc(85dvh - 400px));
+  }
 }
 .payslip-document-original,
 .payslip-document-fields {
@@ -91,10 +116,111 @@
 .payslip-intake-review select {
   max-width: 100%;
 }
+/* One column: the selects use the full width of the form column and show their whole value. */
 .payslip-review-fields {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+}
+.payslip-document-fields select {
+  width: 100%;
+  max-width: 100%;
+}
+.payslip-lines {
+  width: 100%;
+  margin-block: 16px 0;
+  border-collapse: collapse;
+}
+.payslip-lines caption {
+  padding-block: 0 4px;
+  text-align: left;
+  font-family: var(--font-tech);
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+.payslip-lines th,
+.payslip-lines td {
+  padding-block: 8px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: baseline;
+}
+.payslip-lines th {
+  text-align: left;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.payslip-lines td {
+  padding-inline-start: 16px;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.payslip-review-summary {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule-strong);
+  overflow-wrap: normal;
+}
+.payslip-review-summary dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px 24px;
+  margin: 0;
+}
+.payslip-review-summary dt {
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
+}
+.payslip-review-summary dd {
+  margin: 4px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+.payslip-review-summary p {
+  margin: 12px 0 0;
+}
+/* Sticky bar over the full dialog width (the body pads 24 px sideways and 32 px at the bottom). */
+.payslip-review-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 16px calc(-1 * var(--payslip-pad)) 0;
+  padding: 12px var(--payslip-pad);
+  border-top: 1px solid var(--rule-strong);
+  background: var(--ground);
+  overflow-wrap: normal;
+}
+.payslip-review-actions-secondary,
+.payslip-review-actions-primary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.payslip-review-actions .btn {
+  min-height: 44px;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+@media (max-width: 767px) {
+  .payslip-review-summary dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .payslip-review-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .payslip-review-actions-secondary > *,
+  .payslip-review-actions-primary > * {
+    flex: 1 1 auto;
+  }
 }
 .payslip-intake-review .sources-actions {
   display: flex;
@@ -137,9 +263,6 @@
   margin-block: 8px;
 }
 @media (max-width: 600px) {
-  .payslip-review-fields {
-    grid-template-columns: minmax(0, 1fr);
-  }
   .payslip-intake-review .sources-actions {
     flex-wrap: wrap;
   }
