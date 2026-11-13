@@ -11,11 +11,6 @@
 .payslip-upload .btn {
   min-height: 44px;
 }
-.payslip-upload .payslip-drop-hint {
-  margin: 0;
-  padding: 12px;
-  border: 1px dashed var(--line-2);
-}
 .payslip-review-dialog {
   width: min(100%, 920px);
   max-width: 920px;
@@ -151,4 +146,27 @@
   .payslip-intake-review .sources-actions > * {
     flex: 1 1 44%;
   }
+}
+.payslip-upload .payslip-drop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-basis: 100%;
+  padding: var(--space-md);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.payslip-upload .payslip-drop[aria-busy='true'],
+.payslip-upload[aria-busy='true'] .payslip-drop {
+  cursor: progress;
+}
+.payslip-upload .payslip-drop-hint,
+.payslip-upload .payslip-drop-hint-order {
+  display: block;
+  flex-basis: 100%;
+}
+.payslip-upload .payslip-drop-hint-order {
+  color: var(--ink-2);
 }
