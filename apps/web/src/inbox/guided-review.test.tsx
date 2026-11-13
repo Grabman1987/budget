@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '@budget/ui';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -127,6 +127,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
   nav.navigate.mockClear();
 });
+/** Enter is armed shortly after an item's checks resolved. */
+const armed = () => new Promise((resolve) => setTimeout(resolve, 320));
+const posts = () => requests.filter((r) => r.method === 'POST').map((r) => r.path);
 const view = () =>
   render(
     <QueryClientProvider client={client}>
@@ -187,6 +190,7 @@ it('keeps the line actionable and shows the error when confirming fails', async 
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Bestätigen' })).toHaveProperty('disabled', false),
   );
+  await armed();
   await user.keyboard('{Enter}');
   const alert = await screen.findByText(/Der Umsatz bleibt offen/);
   expect(alert.getAttribute('role')).toBe('alert');
@@ -261,4 +265,73 @@ it('model: only a single usable rule without merge or transfer confirms directly
   expect(nextOpenIndex(['a'], { a: 'x' }, 0)).toBe(-1);
   window.sessionStorage.setItem('budget.pruefen.gefuehrt', '{broken');
   expect(loadProgress()).toEqual({ currentId: null, deferred: {}, resolved: 0 });
+});
+
+it('a held Enter confirms exactly one item and repeats never reach the next one', async () => {
+  view();
+  await screen.findByRole('heading', { name: 'Shop A' });
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Bestätigen' })).toHaveProperty('disabled', false),
+  );
+  await armed();
+  fireEvent.keyDown(document.body, { key: 'Enter' });
+  for (let i = 0; i < 4; i++) fireEvent.keyDown(document.body, { key: 'Enter', repeat: true });
+  await screen.findByRole('heading', { name: 'Zweiter Shop' });
+  await armed();
+  fireEvent.keyDown(document.body, { key: 'Enter', repeat: true });
+  expect(posts()).toEqual(['/api/bank-sync/candidates/c-1/confirm']);
+});
+
+it('two rapid Enter presses send one request, and the next item needs a settled fresh press', async () => {
+  view();
+  await screen.findByRole('heading', { name: 'Shop A' });
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Bestätigen' })).toHaveProperty('disabled', false),
+  );
+  await armed();
+  fireEvent.keyDown(document.body, { key: 'Enter' });
+  fireEvent.keyDown(document.body, { key: 'Enter' });
+  await screen.findByRole('heading', { name: 'Zweiter Shop' });
+  // A press right after the advance (before the item settled) is ignored.
+  fireEvent.keyDown(document.body, { key: 'Enter' });
+  expect(posts()).toEqual(['/api/bank-sync/candidates/c-1/confirm']);
+});
+
+it('Esc that closes a dialog does not leave guided mode', async () => {
+  view();
+  await screen.findByRole('heading', { name: 'Shop A' });
+  const dialog = document.createElement('dialog');
+  dialog.setAttribute('open', '');
+  // Like the panel: the dialog handles Esc itself and is gone by the time it bubbles up.
+  dialog.addEventListener('keydown', () => dialog.remove());
+  document.body.append(dialog);
+  fireEvent.keyDown(dialog, { key: 'Escape' });
+  expect(nav.navigate).not.toHaveBeenCalled();
+  fireEvent.keyDown(document.body, { key: 'Escape' });
+  expect(nav.navigate).toHaveBeenCalledTimes(1);
+});
+
+it('Esc with the defer panel open only cancels it and returns focus to Später', async () => {
+  const user = userEvent.setup();
+  view();
+  await screen.findByRole('heading', { name: 'Shop A' });
+  await user.click(screen.getByRole('button', { name: 'Später' }));
+  expect(screen.getByLabelText('Grund für später')).toBeTruthy();
+  await user.keyboard('{Escape}');
+  expect(nav.navigate).not.toHaveBeenCalled();
+  expect(screen.queryByLabelText('Grund für später')).toBeNull();
+  await waitFor(() =>
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Später' })),
+  );
+});
+
+it('drops a stale stored session instead of adding its count', async () => {
+  window.sessionStorage.setItem(
+    'budget.pruefen.gefuehrt',
+    JSON.stringify({ currentId: 'gone', deferred: { gone: 'x' }, resolved: 7 }),
+  );
+  view();
+  await screen.findByRole('heading', { name: 'Shop A' });
+  await waitFor(() => expect(screen.getByText(/0 erledigt/)).toBeTruthy());
+  expect(screen.getByText('1 von 3', { exact: false })).toBeTruthy();
 });

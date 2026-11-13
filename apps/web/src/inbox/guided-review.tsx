@@ -62,6 +62,12 @@ export function GuidedReview() {
   const [editing, setEditing] = useState<ListedBooking | null>(null);
   const [learnBookingId, setLearnBookingId] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  // Enter confirms only on a fresh keydown for an item that has been on screen with its checks
+  // resolved; `inFlight` is set synchronously so two rapid presses send one request.
+  const inFlight = useRef(false);
+  const armed = useRef(false);
+  const dialogAtKeydown = useRef(false);
+  const [validated, setValidated] = useState(false);
   const reasonRef = useRef<HTMLSelectElement>(null);
   const editTrigger = useRef<HTMLElement | null>(null);
 
@@ -97,6 +103,16 @@ export function GuidedReview() {
     if (gone) setResolved((count) => count + gone);
   }, [queue.isSuccess, queue.isFetching, received, hidden]);
 
+  // A stored position that is gone (other session, queue worked off elsewhere) is stale: start
+  // fresh so old counts never leak into "n von m".
+  if (!validated && queue.isSuccess && !queue.isFetching) {
+    setValidated(true);
+    if (!hasMore && !(initial.currentId && ids.includes(initial.currentId))) {
+      setResolved(0);
+      setDeferred({});
+      setCurrentId(null);
+    }
+  }
   const [lastIndex, setLastIndex] = useState(0);
   let index = currentId ? ids.indexOf(currentId) : -1;
   if (index < 0) index = nextOpenIndex(ids, deferred, currentId ? lastIndex : 0);
@@ -104,6 +120,8 @@ export function GuidedReview() {
   // The vanished item's slot is where the next one now sits.
   if (index >= 0 && index !== lastIndex) setLastIndex(index);
   const deferredHere = items.filter((item) => item.id in deferred);
+  // After a confirm `items` drops the line while `received`/`totalEntries` still hold it, so m
+  // stays constant until the refetch removes it from both.
   const totalOpen =
     items.length + (hasMore ? Math.max((firstPage?.totalEntries ?? 0) - received.length, 0) : 0);
   const total = resolved + totalOpen;
@@ -168,8 +186,21 @@ export function GuidedReview() {
   const bookingConfirmable = current?.kind === 'booking' && current.pending;
   const canConfirm = Boolean(current && !acting && (facts ? facts.canConfirm : bookingConfirmable));
 
+  // Arm Enter 250 ms after the shown item's checks have resolved; changing items disarms it.
+  const checking = facts?.loading ?? false;
+  const shownItemId = current?.id;
+  useEffect(() => {
+    armed.current = false;
+    if (!shownItemId || checking || summary) return;
+    const timer = setTimeout(() => {
+      armed.current = true;
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [shownItemId, checking, summary]);
+
   const go = (target: number) => {
     setDeferring(false);
+    setLearnBookingId(null);
     if (target < 0) return;
     if (target >= items.length) {
       if (!hasMore) setFinished(true);
@@ -179,8 +210,11 @@ export function GuidedReview() {
     setCurrentId(items[target]!.id);
   };
   const confirm = async () => {
-    if (!current || !canConfirm) return;
+    if (!current || !canConfirm || inFlight.current) return;
+    inFlight.current = true;
+    armed.current = false;
     const item = current;
+    setLearnBookingId(null);
     setActing(true);
     setFailure(null);
     let problem: unknown;
@@ -215,12 +249,14 @@ export function GuidedReview() {
       // The item stays on screen and actionable; nothing was confirmed.
       setFailure({ id: item.id, message: errorText(error, 'Das Bestätigen hat nicht geklappt.') });
     } finally {
+      inFlight.current = false;
       setActing(false);
     }
   };
   const defer = () => {
     if (!current) return;
     const next = { ...deferred, [current.id]: reason };
+    setLearnBookingId(null);
     setDeferred(next);
     setDeferring(false);
     const target = nextOpenIndex(ids, next, index + 1);
@@ -247,21 +283,43 @@ export function GuidedReview() {
   };
 
   // Keys act on the pass only while no dialog is open and focus is not on a field.
-  const latest = useRef({ confirm, go, leave, index, deferring });
+  const cancelDefer = () => {
+    setDeferring(false);
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLElement>('[data-guided-later]')?.focus(),
+    );
+  };
+  const latest = useRef({ confirm, go, leave, index, deferring, cancelDefer });
   useEffect(() => {
-    latest.current = { confirm, go, leave, index, deferring };
+    latest.current = { confirm, go, leave, index, deferring, cancelDefer };
   });
   useEffect(() => {
+    // Capture phase runs before a dialog closes itself, so Esc that closes a dialog is never
+    // taken for "leave" by the bubble-phase handler below.
+    const onCapture = () => {
+      dialogAtKeydown.current = Boolean(document.querySelector('[role="dialog"], dialog[open]'));
+    };
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
-      if (document.querySelector('[role="dialog"], dialog[open]')) return;
-      if (isTyping(event.target)) return;
+      if (dialogAtKeydown.current || isTyping(event.target)) {
+        // A select in the defer panel: Esc still only cancels the defer.
+        if (event.key === 'Escape' && !dialogAtKeydown.current && latest.current.deferring) {
+          event.preventDefault();
+          latest.current.cancelDefer();
+        }
+        return;
+      }
       const now = latest.current;
       if (event.key === 'Escape') {
         event.preventDefault();
-        now.leave();
+        if (now.deferring) now.cancelDefer();
+        else now.leave();
       } else if (event.key === 'Enter') {
-        if (isControl(event.target) || now.deferring) return;
+        if (event.repeat) {
+          event.preventDefault();
+          return;
+        }
+        if (isControl(event.target) || now.deferring || !armed.current || inFlight.current) return;
         event.preventDefault();
         void now.confirm();
       } else if (['ArrowRight', 'ArrowDown', 'j', 'J'].includes(event.key)) {
@@ -272,8 +330,12 @@ export function GuidedReview() {
         now.go(now.index - 1);
       }
     };
+    document.addEventListener('keydown', onCapture, true);
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onCapture, true);
+      document.removeEventListener('keydown', onKey);
+    };
   }, []);
 
   const label = summary
@@ -296,7 +358,7 @@ export function GuidedReview() {
       {loading && !fatal && <LoadingNote what="Umsätze" />}
       {!fatal && !loading && !summary && current && (
         <>
-          <nav className="guided-progress" aria-label="Fortschritt">
+          <div className="guided-progress" aria-hidden="true">
             <p>
               <strong>{position}</strong> von {total}
               <small>
@@ -304,12 +366,8 @@ export function GuidedReview() {
                 · {resolved} erledigt · {deferredHere.length} zurückgestellt
               </small>
             </p>
-            <progress
-              max={total}
-              value={Math.min(position, total)}
-              aria-label={`Umsatz ${position} von ${total}`}
-            />
-          </nav>
+            <progress max={total} value={Math.min(position, total)} />
+          </div>
           <GuidedCard
             item={current}
             facts={facts}
@@ -330,7 +388,7 @@ export function GuidedReview() {
               setDeferring(true);
               requestAnimationFrame(() => reasonRef.current?.focus());
             }}
-            onCancelDefer={() => setDeferring(false)}
+            onCancelDefer={cancelDefer}
             onDefer={defer}
             onBack={() => go(index - 1)}
           />
@@ -353,6 +411,7 @@ export function GuidedReview() {
           deferred={deferredHere.map((item) => ({ item, reason: deferred[item.id]! }))}
           remaining={Math.max(totalOpen - deferredHere.length, 0)}
           tasksOpen={tasksOpen}
+          headingRef={headingRef}
           onReview={(id) => {
             setFinished(false);
             setCurrentId(id);
@@ -514,7 +573,7 @@ function GuidedCard({
               Bearbeiten
             </Button>
           )}
-          <Button variant="ghost" disabled={acting} onClick={onStartDefer}>
+          <Button data-guided-later="" variant="ghost" disabled={acting} onClick={onStartDefer}>
             Später
           </Button>
           <Button variant="ghost" disabled={acting || isFirst} onClick={onBack}>
@@ -531,6 +590,7 @@ function GuidedSummary({
   deferred,
   remaining,
   tasksOpen,
+  headingRef,
   onReview,
   onDone,
 }: {
@@ -538,12 +598,13 @@ function GuidedSummary({
   deferred: { item: GuidedItem; reason: string }[];
   remaining: number;
   tasksOpen: number;
+  headingRef: React.RefObject<HTMLHeadingElement | null>;
   onReview: (id: string) => void;
   onDone: () => void;
 }) {
   return (
     <div className="guided-card guided-summary">
-      <h3 tabIndex={-1} className="guided-payee">
+      <h3 ref={headingRef} tabIndex={-1} className="guided-payee">
         {remaining === 0 && deferred.length === 0 ? 'Alle Umsätze geprüft' : 'Zusammenfassung'}
       </h3>
       <dl className="guided-counts">

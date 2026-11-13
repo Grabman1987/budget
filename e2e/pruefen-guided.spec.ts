@@ -101,7 +101,8 @@ test('guided Prüfen: one line at a time, failed confirm stays actionable, summa
   const card = page.locator('.guided-card');
   await expect(card.getByRole('heading', { name: 'Shop A' })).toBeVisible();
   await expect(page.locator('.guided-progress')).toContainText('1 von 3');
-  const viewport = page.viewportSize()!;
+  // Facts and primary actions fit the viewport without scrolling (measured after fonts settle).
+  await page.evaluate(() => document.fonts.ready);
   for (const locator of [
     card.getByRole('heading', { name: 'Shop A' }),
     card.getByText('−12,01 €'),
@@ -109,14 +110,21 @@ test('guided Prüfen: one line at a time, failed confirm stays actionable, summa
     card.getByText('Shop A zuordnen'),
     card.getByRole('button', { name: 'Bestätigen' }),
     card.getByRole('button', { name: 'Später' }),
-  ]) {
-    const box = (await locator.boundingBox())!;
-    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
-  }
+  ])
+    await expect(locator).toBeInViewport({ ratio: 1 });
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
+
+  // Esc inside the edit dialog closes only the dialog and keeps the guided pass.
+  await card.getByRole('button', { name: 'Bearbeiten' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Buchung übernehmen' });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(page).toHaveURL(/modus=gefuehrt/);
+  await expect(card.getByRole('heading', { name: 'Shop A' })).toBeVisible();
 
   // A failed confirmation keeps the line, shows the error and stays actionable.
   const confirm = card.getByRole('button', { name: 'Bestätigen' });
@@ -140,16 +148,18 @@ test('guided Prüfen: one line at a time, failed confirm stays actionable, summa
 
   // Keyboard: Enter confirms the last line, which ends the pass in the summary.
   await expect(card.getByRole('button', { name: 'Bestätigen' })).toBeEnabled();
-  await page.keyboard.press('Enter');
   const summary = page.locator('.guided-summary');
+  // Enter is armed shortly after the line settled; retry until it is.
+  await expect(async () => {
+    await page.keyboard.press('Enter');
+    await expect(summary).toBeVisible({ timeout: 400 });
+  }).toPass();
   await expect(summary.getByRole('heading', { name: 'Zusammenfassung' })).toBeVisible();
   await expect(summary.locator('.guided-counts')).toContainText('Erledigt');
-  await expect(summary.getByText('Erledigt').locator('xpath=following-sibling::dd')).toHaveText(
-    '2',
-  );
-  await expect(
-    summary.getByText('Zurückgestellt', { exact: true }).locator('xpath=following-sibling::dd'),
-  ).toHaveText('1');
+  // Counts in order: erledigt, zurückgestellt, noch offen.
+  const counts = summary.locator('.guided-counts dd');
+  await expect(counts.nth(0)).toHaveText('2');
+  await expect(counts.nth(1)).toHaveText('1');
   await expect(summary).toContainText('Shop B');
   await expect(summary.getByRole('link', { name: 'Zu den Aufgaben (2)' })).toBeVisible();
   await expect(summary.getByRole('link', { name: 'Zu Heute' })).toBeVisible();
