@@ -67,6 +67,7 @@ export function findReceiptMatches(
       (row) =>
         row.transferId === null &&
         row.amountCents === -input.totalCents &&
+        // booking.currency is the account currency that amount_cents is stated in
         row.currency === input.currency &&
         !receipted.has(row.id),
     )

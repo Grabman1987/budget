@@ -6,6 +6,7 @@ import { PrivacyButton } from './privacy-button';
 import { InboxHeaderLink } from '../inbox/navigation';
 import { useInboxCount } from './inbox';
 import { PanelLink } from './panel-link';
+import { DocumentUploadButton } from '../document-intake/document-upload';
 import { MobileProfile } from './mobile-chrome';
 import { captureControlsFocus, restoreControlsFocus } from './controls-focus';
 import './page-header.css';
@@ -102,7 +103,7 @@ export function PageHeader({
   const DetailTitle = mobileHeading ? 'h1' : 'p';
   return (
     <header className={`page-header ${phone ? 'm-head' : 'topbar'}`}>
-      <div className="page-header-row">
+      <div className="page-header-row" data-profile={phone && showProfile ? 'true' : 'false'}>
         {!phone && (
           <button
             type="button"
@@ -124,6 +125,7 @@ export function PageHeader({
         </div>
         <div className="page-header-actions topbar-actions">
           <PrivacyButton />
+          <DocumentUploadButton compact label="Neues Dokument hochladen" />
           <InboxHeaderLink className="review-pill" aria-label={inbox.label}>
             {!phone && <span className="page-header-review-label">Prüfen</span>}
             {inbox.count !== undefined && inbox.count > 0 && (
@@ -154,9 +156,9 @@ export function PageHeader({
             <span>Buchung</span>
           </PanelLink>
         </div>
-        {phone && (
+        {phone && showProfile && (
           <div className="page-header-profile">
-            {showProfile && <MobileProfile privacy={false} />}
+            <MobileProfile privacy={false} />
           </div>
         )}
       </div>

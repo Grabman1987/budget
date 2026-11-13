@@ -1,3 +1,4 @@
+import { useIsPhone } from '@budget/ui';
 import { PanelLeft, Plus } from 'lucide-react';
 import { GlobalSearch } from './global-search';
 import { PanelLink } from './panel-link';
@@ -24,6 +25,7 @@ export function Topbar({
   onToggle: () => void;
   onSearchChange?: (open: boolean) => void;
 }) {
+  const phone = useIsPhone();
   const inbox = useInboxCount();
   const pathname = useLocation({ select: (location) => location.pathname });
   const settings = REDESIGN_ENABLED && pathname.startsWith('/einstellungen');
@@ -44,7 +46,9 @@ export function Topbar({
         <GlobalSearch compact={settings} onOpenChange={onSearchChange} />
         <div className="topbar-actions">
           <PrivacyButton />
-          {REDESIGN_ENABLED && <DocumentUploadButton compact label="Neues Dokument hochladen" />}
+          {REDESIGN_ENABLED && !phone && (
+            <DocumentUploadButton compact label="Neues Dokument hochladen" />
+          )}
           <InboxHeaderLink className="review-pill" aria-label={inbox.label}>
             Prüfen{inbox.count !== undefined && inbox.count > 0 ? ` · ${inbox.count}` : ''}
           </InboxHeaderLink>

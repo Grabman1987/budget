@@ -97,3 +97,27 @@ it('skips very long lines instead of running regexes over them', () => {
   expect(extractReceiptProposal(long + '\nGesamt 12,40').totalCents).toBe(1240);
   expect(Date.now() - started).toBeLessThan(500);
 });
+
+it('only counts a trailing minus at the end of the line and a leading minus touching the digits', () => {
+  expect(extractReceiptProposal('Gesamt 12,40 - Danke').totalCents).toBe(1240);
+  expect(extractReceiptProposal('Total: EUR - 12,40').totalCents).toBe(1240);
+  expect(extractReceiptProposal('Total: EUR -12,40').totalCents).toBe(-1240);
+  expect(extractReceiptProposal('Gesamt 12,40 -  ').totalCents).toBe(-1240);
+});
+
+it('reads a single total as gross when only included tax is printed', () => {
+  expect(
+    extractReceiptProposal('Muster Markt\nSumme 12,40\nenthaltene MwSt 20 % 2,07').totalCents,
+  ).toBe(1240);
+  expect(extractReceiptProposal('Muster Markt\nSumme 12,40\ninkl. 20 % MwSt 2,07').totalCents).toBe(
+    1240,
+  );
+  expect(extractReceiptProposal('Muster Markt\nGesamt 12,40\ndavon MwSt 2,07').totalCents).toBe(
+    1240,
+  );
+});
+
+it('treats "Summe inkl. USt" as gross and leaves net versus gross undecided without it', () => {
+  expect(extractReceiptProposal('Summe 10,33\nSumme inkl. USt 12,40').totalCents).toBe(1240);
+  expect(extractReceiptProposal('Netto 10,33\nSumme 12,40').totalCents).toBeNull();
+});

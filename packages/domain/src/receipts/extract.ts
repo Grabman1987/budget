@@ -20,13 +20,18 @@ export type ReceiptProposal = {
 const MAX_LINE = 200;
 const SIGN = '[-\u2212]';
 const AMOUNT = String.raw`(\d{1,3}(?:\.\d{3})+,\d{2}|\d+,\d{2})`;
+// A leading minus must touch the digits; a trailing minus only counts at the end of the line, so
+// "Gesamt 12,40 - Danke" and "Total: EUR - 12,40" stay positive.
 const AMOUNT_SIGNED = new RegExp(
-  String.raw`(?<![\d.,])(${SIGN}\s?)?${AMOUNT}(\s?${SIGN})?(?![\d,])`,
+  String.raw`(?<![\d.,])(${SIGN})?${AMOUNT}(?:\s*(${SIGN})(?=\s*$))?(?![\d,])`,
   'g',
 );
-// Gross wording wins; plain "Gesamt/Total" is next; a bare "Summe" only when no tax is shown.
-const GROSS =
-  /zu\s+zahlen|zahlbetrag|rechnungsbetrag|gesamtbetrag|endbetrag|total\s+eur|amount\s+due|\binkl\b\.?|\bbrutto\b/i;
+// Gross wording wins; plain "Gesamt/Total" is next; a bare "Summe" only when no net or separate
+// tax line is shown. Lines that only state included tax ("enthaltene MwSt", "inkl. 20 % MwSt")
+// are never totals and do not make a plain total ambiguous.
+const STRONG_GROSS =
+  /zu\s+zahlen|zahlbetrag|rechnungsbetrag|gesamtbetrag|endbetrag|total\s+eur|amount\s+due|\bbrutto\b/i;
+const INCLUDED = /\binkl\b\.?|enthalten|davon/i;
 const TOTAL = /\bgesamt\b|\btotal\b/i;
 const SUM = /\bsumme\b/i;
 const NET_OR_PART = /zwischensumme|nettosumme|\bnetto\b|\bnet\b|davon|enthalten/i;
@@ -36,7 +41,13 @@ const CURRENCY = /\b(EUR|USD|CHF|GBP)\b|(€)|(\$)|(£)/;
 const DATE_LABEL = /\b(?:rechnungsdatum|belegdatum|datum|date)\b/i;
 const NOISE =
   /^(rechnung|beleg|kassenbon|kassabon|quittung|lieferschein|seite|page|invoice|receipt|danke|vielen dank)\b/i;
-const TOTAL_TIERS = [GROSS, TOTAL, SUM];
+const isGross = (line: string) =>
+  STRONG_GROSS.test(line) || (INCLUDED.test(line) && (TOTAL.test(line) || SUM.test(line)));
+const TIERS: ((line: string) => boolean)[] = [
+  isGross,
+  (line) => TOTAL.test(line),
+  (line) => SUM.test(line),
+];
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -60,13 +71,13 @@ function datesIn(line: string): string[] {
 }
 
 function totalOf(lines: string[]): { cents: number | null; currency: string } {
-  const taxShown = lines.some((line) => TAX_HINT.test(line));
-  for (const [index, tier] of TOTAL_TIERS.entries()) {
-    if (index === 2 && taxShown) break; // net or gross cannot be told apart
+  const separateTax = lines.some((line) => TAX_HINT.test(line) && !INCLUDED.test(line));
+  for (const [index, tier] of TIERS.entries()) {
+    if (index === 2 && separateTax) break; // net or gross cannot be told apart
     const hits: { cents: number; currency: string }[] = [];
     for (const line of lines) {
-      if (!tier.test(line) || NET_OR_PART.test(line)) continue;
-      if (!(index === 0 && GROSS.test(line)) && CASH_OR_TAX.test(line)) continue;
+      if (!tier(line) || NET_OR_PART.test(line)) continue;
+      if (index !== 0 && CASH_OR_TAX.test(line)) continue;
       const found = [...line.matchAll(AMOUNT_SIGNED)].at(-1);
       if (!found) continue;
       // The printed total is the last amount of its line ("Gesamt 3 Artikel 12,50 EUR").
@@ -112,7 +123,7 @@ function payee(lines: string[]): string | null {
       /@|www\.|^\+?\d[\d\s/-]+$/.test(line)
     )
       continue;
-    if (TOTAL_TIERS.some((tier) => tier.test(line))) continue;
+    if (TIERS.some((tier) => tier(line))) continue;
     return line;
   }
   return null;
