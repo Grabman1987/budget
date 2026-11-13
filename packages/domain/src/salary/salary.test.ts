@@ -54,7 +54,7 @@ function slip(
   extras: Extra[] = [],
   o: Partial<
     Pick<SalaryPayslip, 'kind' | 'specialType' | 'id' | 'svCents' | 'taxCents' | 'grossCents'>
-  > & { lineCheck?: 'ok' | 'gross_mismatch' | 'no_gross' } = {},
+  > & { lineCheck?: 'ok' | 'gross_mismatch' | 'no_gross'; legacyEarningCents?: number } = {},
 ): SalaryPayslip {
   const lines: SalaryWageLine[] = [
     ...(base
@@ -101,9 +101,21 @@ function slip(
     netCents: gross - sv - tax + reimbursed,
     bookingId: null,
     receiptId: null,
-    lines: reimbursed
-      ? [{ section: 'reimbursement', label: 'Telearbeit', amountCents: reimbursed }]
-      : [],
+    lines: [
+      ...(reimbursed
+        ? [{ section: 'reimbursement' as const, label: 'Telearbeit', amountCents: reimbursed }]
+        : []),
+      // A legacy earning line: part of the stored gross by `payrollTotals`, not of `grossCents`.
+      ...(o.legacyEarningCents
+        ? [
+            {
+              section: 'earning' as const,
+              label: 'Nachverrechnung',
+              amountCents: o.legacyEarningCents,
+            },
+          ]
+        : []),
+    ],
     wage: { lineCheck: o.lineCheck ?? 'ok', split: null, lines },
   };
 }
@@ -809,7 +821,7 @@ describe('review blockers of PR #1082', () => {
     ]);
   });
 
-  it('5: a benefit in kind only through the owner mapping, never from a label', () => {
+  it('4: a benefit in kind only through the owner mapping, never from a label', () => {
     const line: SalaryWageLine = {
       code: '830',
       label: 'Zulage statt Sachbezug',
@@ -826,7 +838,7 @@ describe('review blockers of PR #1082', () => {
     ).toBe('benefit_in_kind');
   });
 
-  it('6: owner mappings precede whole-slip rules; a bonus document is classified per line', () => {
+  it('5: owner mappings precede whole-slip rules; a bonus document is classified per line', () => {
     const bonusDocument = slip(
       '2030-05',
       400_000,
@@ -1533,6 +1545,43 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
     expect(mapped[0]!.paid).toMatchObject({ special: 400_000, unmapped: 30_000 });
   });
 
+  it('blocker: the paid anchor is the stored gross with legacy earning lines (payrollTotals)', () => {
+    const legacy: SalaryPayslip = {
+      ...slip('2030-01', 300_000, [], { legacyEarningCents: 5_000 }),
+      wage: null,
+    };
+    const [jan] = salaryMonthlySeries({ payslips: [legacy], rules });
+    expect(jan).toMatchObject({ grossCents: 305_000, paid: { undecomposed: 305_000 } });
+    expect(paidTotal(jan!.paid)).toBe(305_000);
+    expect(deductionRateByYear([legacy])[0]!.grossCents).toBe(305_000);
+    // The same payslip read with wage lines totalling 305.000: reconciled, comparable.
+    const read = slip('2030-01', 305_000, [], { grossCents: 300_000, legacyEarningCents: 5_000 });
+    const [withLines] = salaryMonthlySeries({ payslips: [read], rules });
+    expect(withLines).toMatchObject({
+      comparable: true,
+      issues: [],
+      grossCents: 305_000,
+      paid: { base: 305_000, unreconciled: 0 },
+    });
+  });
+
+  it('deviation: a line mapped to a benefit in kind leaves the single 14th line special', () => {
+    const fourteenth = slip(
+      '2030-06',
+      0,
+      [
+        { code: '503', label: 'Sonderzahlung', section: 'earning', cents: 400_000 },
+        { code: '820', label: 'Sachbezug Dienstwagen', section: 'earning', cents: 5_000 },
+      ],
+      { kind: 'special', specialType: 'salary14', id: 's-2030-06' },
+    );
+    const [june] = salaryMonthlySeries({ payslips: [slip('2030-06', 400_000), fourteenth], rules });
+    expect(june).toMatchObject({
+      comparable: true,
+      paid: { base: 400_000, special: 400_000, benefit_in_kind: 5_000, unmapped: 0 },
+    });
+  });
+
   it('minor: ratios out of the safe range are null', () => {
     expect(ratioBp(Number.MAX_SAFE_INTEGER, 1)).toBeNull();
     expect(ratioBp(1.5, 1)).toBeNull();
@@ -1573,10 +1622,8 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
     let level = int(250, 450) * 1_000;
     const out: Fixture[] = [];
     // `gross` and `reimbursed` are tracked here, independent of the module's line handling.
-    const add = (s: SalaryPayslip, gross: number, reimbursed: number) => {
-      expect(s.grossCents).toBe(gross);
+    const add = (s: SalaryPayslip, gross: number, reimbursed: number) =>
       out.push({ slip: s, paidCents: gross + reimbursed });
-    };
     for (const month of months) {
       if (r() < 0.06) level += int(-20, 50) * 1_000;
       if (!clean && r() < 0.08) continue; // gap
@@ -1616,9 +1663,15 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
         gross += cents;
         lineCheck = 'gross_mismatch';
       }
-      const regular = slip(month, base, extras, { grossCents: gross, lineCheck });
-      if (!clean && r() < 0.05) add({ ...regular, wage: null }, gross, reimbursed);
-      else add(regular, gross, reimbursed);
+      // A legacy earning line (manual capture) belongs to the stored gross by `payrollTotals`.
+      const legacyEarning = r() < 0.06 ? int(1, 20_000) : 0;
+      const regular = slip(month, base, extras, {
+        grossCents: gross,
+        lineCheck,
+        legacyEarningCents: legacyEarning,
+      });
+      if (!clean && r() < 0.05) add({ ...regular, wage: null }, gross + legacyEarning, reimbursed);
+      else add(regular, gross + legacyEarning, reimbursed);
       const mm = month.slice(5);
       if ((mm === '06' || mm === '11') && r() < 0.8) {
         const type = mm === '06' ? 'salary14' : 'salary13';
@@ -1761,6 +1814,10 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
         expect(paidTotal(ytd.paid.current)).toBe(
           ytdMonths.reduce((n, m) => n + fixtureMonth(fixtures, m), 0),
         );
+        const prior = String(Number(y.year) - 1);
+        expect(paidTotal(ytd.paid.previous)).toBe(
+          ytd.months.reduce((n, mm) => n + fixtureMonth(fixtures, `${prior}-${mm}`), 0),
+        );
       }
       for (const row of sameMonthPreviousYear(series)) {
         expect(paidTotal(row.paid.current)).toBe(fixtureMonth(fixtures, row.month));
@@ -1824,13 +1881,17 @@ describe('third money review of PR #1082: two layers, literal cases, invariants'
       count('bonusSlip', slips.filter((p) => p.specialType === 'other').length);
       count('legacyRegular', slips.filter((p) => !p.wage && p.kind === 'regular').length);
       count('legacySpecial', slips.filter((p) => !p.wage && p.kind === 'special').length);
+      count(
+        'legacyEarningLine',
+        slips.filter((p) => p.lines.some((l) => l.section === 'earning')).length,
+      );
       count('backPay', s.filter((m) => m.hasBackPay).length);
       count('clawback', s.filter((m) => m.backPayCents.base < 0).length);
       count('edge', s.filter((m) => m.edgeLevel).length);
       count('certainStep', baseSalarySteps(s).filter((x) => !x.uncertain).length);
       count('yearChange', salaryYears(s).filter((y) => y.development.change).length);
     }
-    expect(Object.keys(c)).toHaveLength(15);
+    expect(Object.keys(c)).toHaveLength(16);
     expect(Object.entries(c).filter(([, n]) => n < 10)).toEqual([]);
   });
 });

@@ -10,6 +10,11 @@
  * compensation line assigned, lines reconciled with the gross). A line is special pay only by owner
  * mapping, or as the single earning line of a payslip explicitly marked 13th/14th salary (lines the
  * owner maps to a benefit in kind or a reimbursement do not count).
+ *
+ * Payslip totals: the stored reader (`listSalaryPayslips` → `listPayslips`) hands over the header
+ * `grossCents` and the legacy `payslip_line` rows unchanged; it does not fold legacy earning lines
+ * into `grossCents`. The module therefore takes every payslip total from `payrollTotals([slip])`
+ * (gross = header gross + legacy earning lines; reimbursements; net), the one existing definition.
  */
 import { addMonths, monthsBetween } from '../date';
 import { payrollTotals } from '../reports/payroll-projects';
@@ -162,15 +167,16 @@ export function payslipComponents(
     for (const key of SALARY_COMPONENTS) components[key] = paid[key];
     return { paid, components, backPayCents, unmapped, backPay, baseCodes, issues: [...issues] };
   };
+  // The payslip's own totals by the single existing definition (`payrollTotals`): the stored
+  // gross plus its legacy earning lines, and its legacy reimbursement lines.
+  const totals = payrollTotals([slip]);
   if (!slip.wage) {
-    paid.reimbursement = slip.lines
-      .filter((l) => l.section === 'reimbursement')
-      .reduce((n, l) => n + l.amountCents, 0);
+    paid.reimbursement = totals.reimbursementsCents;
     const special =
       slip.kind === 'special' &&
       (slip.specialType === 'salary13' || slip.specialType === 'salary14');
-    if (special) paid.special = slip.grossCents;
-    else paid.undecomposed = slip.grossCents;
+    if (special) paid.special = totals.grossCents;
+    else paid.undecomposed = totals.grossCents;
     issues.add('no_wage_lines');
     return result();
   }
@@ -225,7 +231,7 @@ export function payslipComponents(
   }
   if (slip.wage.lineCheck === 'no_gross') issues.add('gross_unknown');
   else {
-    paid.unreconciled = slip.grossCents - compensation;
+    paid.unreconciled = totals.grossCents - compensation;
     if (slip.wage.lineCheck !== 'ok' || paid.unreconciled !== 0) issues.add('line_check');
   }
   return result();
