@@ -70,3 +70,4 @@ export * from './wealth/strategy-plan';
 export * from './wealth/us-equity-calendar';
 export * from './ledger/bulk-field-protection';
 export * from './receipts';
+export * from './broker-documents/trade-confirmation';

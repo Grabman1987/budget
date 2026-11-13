@@ -136,11 +136,22 @@
   }
 }
 
+/* Konten draws the drafting grid (precision.css) as the .main background; .main::before stays
+   hidden here as before. axe treats a large ancestor pseudo-element as unknown background and
+   skips the contrast check of everything below it, so these pages keep their contrast coverage. */
 [data-budget-redesign='1']:has(.konten-frame) .main {
-  background: var(--ground);
+  background-color: var(--ground);
+  background-image: var(--drafting-grid);
+  background-size: var(--drafting-grid-size);
+  background-position: 0 0;
 }
 [data-budget-redesign='1']:has(.konten-frame) .main::before {
   display: none;
+}
+@media print {
+  [data-budget-redesign='1']:has(.konten-frame) .main {
+    background-image: none;
+  }
 }
 
 @media (max-width: 767px) {
