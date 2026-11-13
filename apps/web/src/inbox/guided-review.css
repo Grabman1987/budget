@@ -1,0 +1,177 @@
+/* Guided Prüfen (#1054): blueprint drafting language, opaque cards on the grid. */
+.guided {
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+}
+.guided-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.guided-head h2 {
+  margin: 0;
+}
+.guided-progress {
+  display: grid;
+  gap: 6px;
+}
+.guided-progress p {
+  margin: 0;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.guided-progress small,
+.guided-keys {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.guided-progress progress {
+  display: block;
+  width: 100%;
+  height: var(--bar-progress);
+  accent-color: var(--line);
+}
+.guided-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  background: var(--surface);
+  border: var(--stroke-hairline) solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 2px rgba(15, 34, 64, 0.04);
+}
+.guided-payee {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
+}
+.guided-payee:focus-visible {
+  outline: var(--stroke-focus) solid var(--line);
+  outline-offset: 2px;
+}
+.guided-amount {
+  margin: 0;
+  font-size: var(--fs-title);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.guided-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin: 0;
+}
+.guided-facts > div:last-child {
+  grid-column: 1 / -1;
+}
+.guided-facts dt {
+  color: var(--ink-2);
+  font-size: var(--fs-label);
+}
+.guided-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.guided-reason,
+.guided-deferred,
+.guided-error,
+.guided-defer p {
+  margin: 0;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+.guided-error {
+  color: var(--minus-ink);
+  border-inline-start: var(--stroke-measure) solid var(--minus-ink);
+  padding-inline-start: 8px;
+}
+.guided-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.guided-actions .guided-confirm {
+  grid-column: 1 / -1;
+}
+.guided-defer {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.guided-defer legend {
+  padding: 0;
+  font-weight: 600;
+}
+.guided-defer .guided-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.guided-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.guided-counts dt {
+  color: var(--ink-2);
+  font-size: var(--fs-label);
+}
+.guided-counts dd {
+  margin: 0;
+  font-size: var(--fs-title);
+  font-variant-numeric: tabular-nums;
+}
+.guided-deferred-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.guided-deferred-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: var(--stroke-hairline) solid var(--rule);
+  padding-block: 4px;
+}
+.guided-summary .guided-actions {
+  grid-template-columns: 1fr;
+}
+.guided-keys {
+  margin: 0;
+}
+.inbox-guided-entry {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+@media (max-width: 767px) {
+  .guided-card {
+    padding: 12px;
+    gap: 8px;
+  }
+  .guided-keys {
+    display: none;
+  }
+  .guided-actions .btn {
+    min-height: 44px;
+  }
+}
+@media (min-width: 768px) {
+  .guided-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .guided-actions .guided-confirm {
+    grid-column: auto;
+    order: 4;
+  }
+  .guided-summary .guided-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
