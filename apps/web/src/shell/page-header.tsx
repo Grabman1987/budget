@@ -149,16 +149,19 @@ export function PageHeader({
               />
             )}
           </InboxHeaderLink>
-          <PanelLink
-            className="btn btn-primary page-header-booking"
-            panel="buchung"
-            aria-label="Buchung"
-            aria-keyshortcuts="n"
-            title="Buchung erfassen (N)"
-          >
-            <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
-            <span>Buchung</span>
-          </PanelLink>
+          {/* Phone: the floating + is the only capture entry (owner decision 13.11.2026). */}
+          {!phone && (
+            <PanelLink
+              className="btn btn-primary page-header-booking"
+              panel="buchung"
+              aria-label="Buchung"
+              aria-keyshortcuts="n"
+              title="Buchung erfassen (N)"
+            >
+              <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
+              <span>Buchung</span>
+            </PanelLink>
+          )}
         </div>
         {phone && (
           <div className="page-header-profile">

@@ -142,7 +142,7 @@
   }
   .page-header-row {
     height: auto;
-    grid-template-columns: minmax(0, 1fr) 44px 140px 44px;
+    grid-template-columns: minmax(0, 1fr) 44px 92px 44px;
     gap: var(--space-xs);
     min-height: 52px;
     padding: var(--space-xs) max(var(--space-lg), env(safe-area-inset-right)) var(--space-xs)
@@ -163,7 +163,7 @@
   }
   .page-header .page-header-actions {
     grid-column: 3;
-    grid-template-columns: repeat(3, 44px);
+    grid-template-columns: repeat(2, 44px);
     gap: var(--space-xs);
   }
   .page-header .review-pill,

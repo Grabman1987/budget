@@ -150,7 +150,6 @@ test('detail has one name, one return path and keyboard-only focus in both theme
             header.locator('.page-header-search button'),
             header.getByRole('button', { name: 'Beträge verbergen' }),
             header.locator('.review-pill'),
-            header.getByRole('link', { name: 'Buchung', exact: true }),
           ]) {
             await page.keyboard.press('Tab');
             await expect(next).toBeFocused();

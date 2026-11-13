@@ -41,7 +41,8 @@ for (const theme of ['light', 'dark'] as const) {
           header.locator('.page-header-actions'),
           header.getByRole('button', { name: 'Beträge verbergen' }),
           header.locator('.review-pill'),
-          header.getByRole('link', { name: 'Buchung', exact: true }),
+          // The phone has no header + (owner decision 13.11.2026); the floating + is checked below.
+          ...(isMobile ? [] : [header.getByRole('link', { name: 'Buchung', exact: true })]),
         ];
         const boxes = await Promise.all(elements.map(box));
         // The whole bar keeps one height and the page body starts at the same offset everywhere.
@@ -109,7 +110,11 @@ test('shared utilities preserve page context and phone safe-area clearance', asy
     'true',
   );
   await header.getByRole('button', { name: 'Beträge verbergen' }).click();
-  await header.getByRole('link', { name: 'Buchung', exact: true }).click();
+  await (
+    isMobile
+      ? page.getByRole('link', { name: 'Buchung erfassen', exact: true })
+      : header.getByRole('link', { name: 'Buchung', exact: true })
+  ).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');
   if (isMobile) {
