@@ -1,0 +1,291 @@
+// @vitest-environment jsdom
+import { ToastProvider } from '@budget/ui';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { DistributeFlow } from './distribute-flow';
+import { validatePlanFilterSearch } from './plan-filters';
+import type { BudgetMonthView, EnvelopeSummary } from './budget-api';
+
+/** #1055: guided "Geld verteilen" with synthetic figures; amounts are literal expectations. */
+
+vi.mock('../shell/app-link', () => ({
+  AppLink: ({
+    children,
+    to,
+    className,
+  }: {
+    children: ReactNode;
+    to: string;
+    className?: string;
+  }) => (
+    <a href={to} className={className}>
+      {children}
+    </a>
+  ),
+}));
+
+const envelope = (id: string, values: Partial<EnvelopeSummary>): EnvelopeSummary => ({
+  categoryId: id,
+  carryCents: 0,
+  assignedCents: 0,
+  activityCents: 0,
+  availableCents: 0,
+  overspentCents: 0,
+  cashOverspentCents: 0,
+  creditOverspentCents: 0,
+  fundedCardCents: 0,
+  goalCents: 0,
+  needCents: 0,
+  dueMonth: null,
+  target: null,
+  ...values,
+});
+
+const CATEGORIES = [
+  ['fun', 7, 'variable'],
+  ['rent', 1, 'variable'],
+  ['food', 2, 'variable'],
+  ['card', 1, 'card_payment'],
+  ['spare', 8, 'variable'],
+] as const;
+
+function view(summary: Partial<BudgetMonthView['summary']>, extra: EnvelopeSummary[] = []) {
+  const envelopes = [
+    envelope('fun', { needCents: 5_000 }),
+    envelope('rent', { needCents: 80_000 }),
+    envelope('food', {
+      assignedCents: 10_000,
+      activityCents: -12_340,
+      availableCents: -2_340,
+      overspentCents: 2_340,
+      cashOverspentCents: 2_340,
+      needCents: 12_550,
+    }),
+    envelope('card', { needCents: 9_900 }),
+    envelope('spare', { assignedCents: 20_000, availableCents: 20_000, freeCents: 15_000 }),
+    ...extra,
+  ];
+  return {
+    previewBasis: 'synthetic-basis',
+    groups: [{ id: 'g', name: 'Synthetic group', sortOrder: 0 }],
+    categories: CATEGORIES.map(([id, stage, kind], sortOrder) => ({
+      id,
+      name: `Synthetic ${id}`,
+      icon: null,
+      groupId: 'g',
+      class: 'need' as const,
+      kind,
+      stage,
+      cardAccountId: null,
+      rolloverOverspending: false,
+      sortOrder,
+      hiddenAt: null,
+      splitCount: 0,
+    })),
+    summary: {
+      month: '2026-10',
+      carryInCents: 50_000,
+      incomeCents: 250_000,
+      uncoveredCents: 1_500,
+      heldCents: 0,
+      assignedCents: 200_000,
+      activityCents: -12_340,
+      availableCents: 0,
+      toBeAssignedCents: 98_500,
+      creditOverspentCents: 0,
+      cashOverspentCents: 2_340,
+      envelopes,
+      cards: [],
+      ...summary,
+    },
+  } as BudgetMonthView;
+}
+
+const income = {
+  month: '2026-10',
+  receivedCents: 240_000,
+  expectedCents: 260_000,
+  byIncomeType: [],
+  byPayment: [],
+};
+
+let client: QueryClient;
+let assign: ReturnType<typeof vi.fn>;
+let onClose: ReturnType<typeof vi.fn>;
+beforeEach(() => {
+  sessionStorage.clear();
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  assign = vi.fn(async () => ({ groupId: 'synthetic-group' }));
+  onClose = vi.fn();
+});
+afterEach(() => {
+  cleanup();
+  client.clear();
+});
+
+function flow(data: BudgetMonthView) {
+  return (
+    <QueryClientProvider client={client}>
+      <ToastProvider>
+        <DistributeFlow
+          month="2026-10"
+          data={data}
+          monthIncome={income}
+          assign={assign as never}
+          onIncome={() => {}}
+          onClose={onClose as never}
+        />
+      </ToastProvider>
+    </QueryClientProvider>
+  );
+}
+const next = () => fireEvent.click(screen.getByRole('button', { name: /^Weiter:/ }));
+const stepTitle = () => screen.getByRole('heading', { level: 3 }).textContent;
+
+it('step 1 shows received income, expected income apart and the uncovered carry-over', () => {
+  render(flow(view({})));
+  const stepper = screen.getByRole('navigation', { name: 'Geld verteilen' });
+  expect(within(stepper).getAllByRole('listitem')).toHaveLength(4);
+  expect(within(stepper).getByRole('button', { name: /1\. Eingang prüfen/ })).toHaveProperty(
+    'ariaCurrent',
+    'step',
+  );
+  expect(stepTitle()).toBe('1. Eingang prüfen');
+  expect(screen.getByTestId('distribute-tba').textContent).toBe('985,00 €');
+  expect(screen.getByTestId('distribute-income').textContent).toBe('2.500,00 €');
+  expect(screen.getByTestId('distribute-expected').textContent).toBe(
+    'erhalten 2.400,00 € von erwartet 2.600,00 €',
+  );
+  expect(screen.getByTestId('distribute-uncovered').textContent).toBe('15,00 €');
+  expect(screen.getByText(/nie als verfügbares Geld verteilt/)).toBeTruthy();
+});
+
+it('step 2 orders overspent and underfunded envelopes by waterfall with amounts needed', () => {
+  render(flow(view({})));
+  next();
+  expect(stepTitle()).toBe('2. Lücken');
+  const over = screen.getByTestId('distribute-overspent');
+  expect(within(over).getByRole('heading').textContent).toBe('Überzogen · 23,40 €');
+  expect(
+    within(over)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent),
+  ).toEqual(['Synthetic foodÜberzogenfehlt 23,40 €']);
+  const under = screen.getByTestId('distribute-underfunded');
+  expect(within(under).getByRole('heading').textContent).toBe('Unterfinanziert · 975,50 €');
+  expect(
+    within(under)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent),
+  ).toEqual([
+    'Synthetic rentStufe 1 · Fixkostenfehlt 800,00 €',
+    'Synthetic foodStufe 2 · Laufendfehlt 125,50 €',
+    'Synthetic funStufe 7 · Sparzielefehlt 50,00 €',
+  ]);
+});
+
+it('step 3 assigns per category and "alle nach Plan" through the existing assignment call', async () => {
+  render(flow(view({})));
+  next();
+  next();
+  expect(stepTitle()).toBe('3. Zuweisen');
+  expect(screen.getByTestId('distribute-left').textContent).toBe(
+    'Danach bleiben 9,50 € ohne Ziel in „Zu verteilen“.',
+  );
+  fireEvent.click(screen.getByRole('button', { name: '800,00 € an Synthetic rent zuweisen' }));
+  await waitFor(() => expect(assign).toHaveBeenCalledTimes(1));
+  expect(assign).toHaveBeenLastCalledWith([{ categoryId: 'rent', assignedCents: 80_000 }]);
+  // The existing budget toast announces the audited write (role=status).
+  expect(await screen.findByText('Synthetic rent: 800,00 € zugewiesen')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Alle nach Plan zuweisen · 975,50 €' }));
+  await waitFor(() => expect(assign).toHaveBeenCalledTimes(2));
+  expect(assign).toHaveBeenLastCalledWith([
+    { categoryId: 'rent', assignedCents: 80_000 },
+    { categoryId: 'food', assignedCents: 22_550 },
+    { categoryId: 'fun', assignedCents: 5_000 },
+  ]);
+  // The existing audited undo is offered in the flow.
+  expect(await screen.findByRole('button', { name: 'Letzte Änderung rückgängig' })).toBeTruthy();
+});
+
+it('a failed assignment keeps the error visible and stays retryable', async () => {
+  assign.mockRejectedValueOnce(new Error('synthetic offline'));
+  render(flow(view({})));
+  next();
+  next();
+  fireEvent.click(screen.getByRole('button', { name: '50,00 € an Synthetic fun zuweisen' }));
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toMatch(/^Synthetic fun: 50,00 € zugewiesen – fehlgeschlagen\./);
+  fireEvent.click(within(alert).getByRole('button', { name: 'Erneut versuchen' }));
+  await waitFor(() => expect(assign).toHaveBeenCalledTimes(2));
+  expect(assign).toHaveBeenLastCalledWith([{ categoryId: 'fun', assignedCents: 5_000 }]);
+  await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+});
+
+it('when over-assigned it guides taking money back from free balances only', async () => {
+  render(flow(view({ toBeAssignedCents: -12_000 })));
+  expect(screen.getByTestId('distribute-tba').textContent).toBe('−120,00 €');
+  expect(screen.getByText('Zu viel zugewiesen · Zu verteilen')).toBeTruthy();
+  next();
+  next();
+  const list = screen.getByTestId('distribute-takeback');
+  expect(
+    within(list)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent),
+  ).toEqual(['Synthetic sparefrei 150,00 €120,00 € zurücknehmen']);
+  fireEvent.click(within(list).getByRole('button', { name: '120,00 € zurücknehmen' }));
+  await waitFor(() => expect(assign).toHaveBeenCalledTimes(1));
+  expect(assign).toHaveBeenLastCalledWith([{ categoryId: 'spare', assignedCents: 8_000 }]);
+  cleanup();
+  sessionStorage.clear();
+  render(flow(view({ toBeAssignedCents: -20_000 })));
+  next();
+  next();
+  expect(screen.getByTestId('distribute-missing').textContent).toMatch(
+    /^Freies Guthaben reicht nicht: es fehlen weiterhin 50,00 €\./,
+  );
+});
+
+it('step 4 summarizes the pass, keeps the unfunded state explicit and resumes', async () => {
+  const { rerender } = render(flow(view({})));
+  for (let i = 0; i < 3; i += 1) next();
+  expect(stepTitle()).toBe('4. Rest und Zusammenfassung');
+  // The server answered a partial pass: only rent was assigned.
+  rerender(
+    flow(
+      view({ assignedCents: 280_000, toBeAssignedCents: 18_500 }, [
+        envelope('rent', { assignedCents: 80_000, availableCents: 80_000 }),
+      ]),
+    ),
+  );
+  const summary = screen.getByTestId('distribute-summary');
+  expect([...summary.querySelectorAll('div')].map((d) => d.textContent)).toEqual([
+    'In diesem Durchgang zugewiesen800,00 €',
+    'Zu verteilen jetzt185,00 €',
+    'Noch unterfinanziert175,50 € in 2 Kategorien',
+    'Noch überzogen23,40 € in 1 Kategorie',
+  ]);
+  expect(screen.getByTestId('distribute-state').textContent).toBe(
+    'Noch nicht alles verteilt. Der Rest bleibt in „Zu verteilen“.',
+  );
+  expect(screen.getByRole('link', { name: 'Zu Heute' }).getAttribute('href')).toBe('/');
+
+  // Resume: a remount in the same tab opens the saved step with the original start figure.
+  cleanup();
+  render(flow(view({ assignedCents: 280_000, toBeAssignedCents: 18_500 })));
+  expect(stepTitle()).toBe('4. Rest und Zusammenfassung');
+  expect(screen.getByTestId('distribute-summary').querySelector('dd')?.textContent).toBe(
+    '800,00 €',
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Zurück zum Plan' }));
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(sessionStorage.getItem('budget.geld-verteilen.2026-10')).toBeNull();
+});
+
+it('keeps only the known guided routine in the Plan search', () => {
+  expect(validatePlanFilterSearch({ ablauf: 'verteilen' }).ablauf).toBe('verteilen');
+  expect('ablauf' in validatePlanFilterSearch({ ablauf: 'other' })).toBe(false);
+});

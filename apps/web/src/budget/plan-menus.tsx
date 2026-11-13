@@ -295,6 +295,7 @@ export function VerteilenMenu({
   distributeBlock,
   onDistribute,
   onFillTargets,
+  onGuided,
   cover,
   dock = false,
 }: {
@@ -307,6 +308,8 @@ export function VerteilenMenu({
   distributeBlock: string | null;
   onDistribute: () => void;
   onFillTargets: () => void;
+  /** ON (#1055): opens the guided "Geld verteilen" routine for the shown month. */
+  onGuided?: (() => void) | undefined;
   cover: CoverAction | null;
   /** Phone (#1007): the menu is the fixed bottom "Verteilen" button. */
   dock?: boolean;
@@ -321,6 +324,12 @@ export function VerteilenMenu({
       dock={dock}
       title={distributeBlock ?? undefined}
     >
+      {REDESIGN_ENABLED && onGuided && (
+        <>
+          <MenuAction onSelect={onGuided}>Schritt für Schritt verteilen</MenuAction>
+          <hr className="plan-menu-sep" />
+        </>
+      )}
       <MenuAction
         disabled={quick.busy || multi || !emptyIds.length}
         reason={

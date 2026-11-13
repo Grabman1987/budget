@@ -54,6 +54,7 @@ import { MultiTable } from './plan-multi';
 import { ActivityLink } from './activity-link';
 import { PlanUncategorizedRows } from './plan-uncategorized';
 import { PlanAssignSheet } from './plan-assign-sheet';
+import { DistributeFlow } from './distribute-flow';
 import {
   categoryNameMatches,
   filterPlanRows,
@@ -691,6 +692,16 @@ function PlanBody({
     setDistribute(true);
     setView('stage');
   };
+  // #1055: the guided routine lives on the same URL (`?ablauf=verteilen`), ON only.
+  const guided = REDESIGN_ENABLED && search.ablauf === 'verteilen';
+  const setGuided = (open: boolean) =>
+    void navigate({
+      to: '/plan/monat',
+      search: (previous: Record<string, unknown>) => ({
+        ...previous,
+        ablauf: open ? 'verteilen' : undefined,
+      }),
+    });
   const sug = targetPreview
     ? Object.fromEntries(
         rows
@@ -878,6 +889,7 @@ function PlanBody({
       distributeBlock={distributeBlock}
       dock={phoneRedesign}
       onDistribute={startDistribute}
+      onGuided={() => setGuided(true)}
       onFillTargets={() => {
         targetPreviewReturn.current = document.querySelector<HTMLElement>(
           '.plan-menu-verteilen > summary',
@@ -1118,6 +1130,17 @@ function PlanBody({
       />
     </div>
   );
+  if (guided)
+    return (
+      <DistributeFlow
+        month={month}
+        data={data}
+        monthIncome={monthIncome}
+        assign={computedAssign}
+        onIncome={onIncome}
+        onClose={() => setGuided(false)}
+      />
+    );
   return (
     <div
       onClickCapture={(event) => {
