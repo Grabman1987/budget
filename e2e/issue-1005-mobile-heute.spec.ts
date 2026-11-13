@@ -50,12 +50,14 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(page.locator('.hv-lead-value')).toHaveCSS('font-size', '40px');
       const top = (await header.boundingBox())!.y;
       const lead = (await page.getByTestId('heute-lead-value').boundingBox())!;
-      // Variant B (#1065) stacks stepper and tabs (2 x 32px + 12px gap) instead of one 44px row.
-      expect(lead.y - top).toBeLessThanOrEqual(176);
+      expect(lead.y - top).toBeLessThanOrEqual(140);
       const month = (await page.locator('.hv-head-phone .month-switch').boundingBox())!;
       const period = (await page.locator('.hv-head-phone .seg').boundingBox())!;
-      // Variant B (#1065): plain stepper above text tabs on a baseline, 32px visible rows.
-      expect(month.y + month.height).toBeLessThanOrEqual(period.y);
+      // Owner chose variant B on 2026-11-13 (#1065): at 390px stepper and tabs share one row, the
+      // month stepper on the LEFT and the tabs on the RIGHT (the old spec expected the month right of
+      // the period control; the approved order is now month left, tabs right).
+      expect(month.y + month.height / 2).toBeCloseTo(period.y + period.height / 2, 0);
+      expect(month.x + month.width).toBeLessThanOrEqual(period.x);
       await expect(page.locator('.hv-head-phone .month-name')).toHaveText('September 2026');
       await expect(page.locator('.hv-head-phone .month-name')).toHaveCSS('font-size', '16px');
       await expect(page.locator('.hv-head-phone .seg')).toHaveCSS('height', '32px');
@@ -177,9 +179,30 @@ for (const theme of ['light', 'dark'] as const) {
     const month = (await controls.locator('.month-switch').boundingBox())!;
     const period = (await controls.locator('.seg').boundingBox())!;
     if (isMobile) {
-      // Phone (#1065, variant B): the tabs always sit on their own line below the stepper.
+      // Owner chose variant B (tabs on their own row when the return link is shown below 430px) on
+      // 2026-11-13: at 375px with the return link the tabs sit below the stepper (this stacked case
+      // is up to 176px from header top to lead; the one-row case keeps the original 140px).
       expect(month.y + month.height).toBeLessThanOrEqual(period.y);
       expect(month.x + month.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+      const targets = [
+        controls.getByRole('button', { name: 'Vormonat' }),
+        controls.getByRole('button', { name: 'Nächster Monat' }),
+        controls.getByRole('button', { name: 'Monat', exact: true }),
+        controls.getByRole('button', { name: 'Bis Gehalt', exact: true }),
+        controls.getByRole('button', { name: 'Zum aktuellen Monat' }),
+      ];
+      for (const target of targets) {
+        const box = (await target.boundingBox())!;
+        expect(box.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+        expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+      }
+      await expect(controls.getByRole('button', { name: 'Zum aktuellen Monat' })).toContainText(
+        'Zum aktuellen Monat',
+      );
+      // The focus ring of a tab must not be clipped by the group or the header band.
+      await controls.getByRole('button', { name: 'Monat', exact: true }).focus();
+      await expect(controls.locator('.seg')).toHaveCSS('overflow', 'visible');
+      await expect(controls).toHaveCSS('overflow', 'visible');
     } else {
       expect(month.y + month.height / 2).toBe(period.y + period.height / 2);
       expect(month.x + month.width).toBeLessThanOrEqual(period.x);

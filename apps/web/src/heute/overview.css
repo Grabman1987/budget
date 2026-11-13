@@ -1194,32 +1194,39 @@
   }
 }
 
-/* Phone period row (ON), variant B "Reiter mit Maßlinie": the month stepper is plain text, the
-   Zeitraum switch is two text tabs on a hairline baseline with a 2px line under the active tab.
-   Visible rows are 32px; every control keeps a 44px box through negative block margins, and the
-   12px row gap keeps neighbouring 44px boxes from overlapping. */
+/* Phone period row (ON only), variant B "Reiter mit Maßlinie": one header band on the opaque
+   ground (text never sits on the grid). Row: plain month stepper left, text tabs right, a hairline
+   under the whole row; the active tab has a 2px line on it. Visible rows are 32px, every control
+   keeps a 44px box through negative block margins. Stepper and tabs stack (tabs below, left)
+   at <= 374px and, with the return link shown, below 430px; the 12px row gap keeps the boxes of
+   stacked rows from overlapping. Every selector carries the ON gate so the OFF build is untouched. */
 @media (max-width: 767px) {
-  .hv-head-phone {
-    flex-direction: column;
-    flex-wrap: nowrap;
-    align-items: stretch;
-    gap: 12px;
-    min-height: 0;
-    padding-top: 6px;
-  }
-  .hv-head-phone .month-switch {
-    display: flex;
-    flex: none;
+  :root:has([data-budget-redesign='1']) .hv-head-phone {
+    flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
-    width: 100%;
+    justify-content: space-between;
+    gap: 12px var(--space-lg);
+    min-height: 0;
+    margin-inline: -16px;
+    padding: 6px 16px 0;
+    border-bottom: var(--stroke-hairline) solid var(--rule);
+    background: var(--ground);
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch {
+    display: flex;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    width: auto;
+    min-width: 0;
     min-height: 32px;
     border: 0;
     border-radius: 0;
     box-shadow: none;
     background: transparent;
   }
-  .hv-head-phone .month-switch .icon-btn {
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .icon-btn {
     flex: none;
     width: 44px;
     height: 44px;
@@ -1229,10 +1236,10 @@
     box-shadow: none;
     color: var(--ink-2);
   }
-  .hv-head-phone .month-switch .icon-btn:first-child {
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .icon-btn:first-child {
     margin-left: -16px;
   }
-  .hv-head-phone .month-switch .month-name {
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .month-name {
     flex: 0 1 auto;
     min-width: 0;
     margin-left: -4px;
@@ -1242,45 +1249,41 @@
     font-weight: 550;
     color: var(--ink);
   }
-  .hv-head-phone .month-switch .icon-btn:nth-child(3) {
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .icon-btn:nth-child(3) {
     margin-left: -4px;
   }
-  .hv-head-phone .month-switch .month-now {
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .month-now {
     display: inline-flex;
     width: auto;
     margin-left: auto;
     margin-right: -8px;
     padding-inline: 8px;
-    gap: 0;
     font-size: var(--fs-label);
     color: var(--ink-2);
   }
-  .hv-head-phone .month-switch .month-now svg {
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .month-now svg {
     display: none;
   }
-  .hv-head-phone .month-switch .month-now::after {
-    content: 'Aktueller Monat';
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .month-now-label {
     text-decoration: underline;
     text-underline-offset: 3px;
   }
-  .hv-head-phone .seg.seg.seg-slide {
+  :root:has([data-budget-redesign='1']) .hv-head-phone .seg.seg.seg-slide {
     display: flex;
     flex: none;
     gap: var(--space-lg);
-    width: 100%;
     height: 32px;
     margin: 0;
     padding: 0;
     border: 0;
-    border-bottom: var(--stroke-hairline) solid var(--rule);
     border-radius: 0;
     box-shadow: none;
     background: transparent;
   }
-  .hv-head-phone .seg-thumb {
+  :root:has([data-budget-redesign='1']) .hv-head-phone .seg-thumb {
     display: none;
   }
-  .hv-head-phone .seg-slide button {
+  :root:has([data-budget-redesign='1']) .hv-head-phone .seg-slide button {
     position: relative;
     display: flex;
     align-items: center;
@@ -1294,20 +1297,33 @@
     border-radius: 0;
     background: transparent;
     white-space: nowrap;
-    font-size: var(--fs-meta) !important;
+    font-size: var(--fs-meta);
     font-weight: 500;
     color: var(--ink-2);
   }
-  .hv-head-phone .seg-slide button[aria-pressed='true'] {
+  :root:has([data-budget-redesign='1']) .hv-head-phone .seg-slide button[aria-pressed='true'] {
     font-weight: 550;
     color: var(--ink);
   }
-  .hv-head-phone .seg-slide button[aria-pressed='true']::after {
+  :root:has([data-budget-redesign='1'])
+    .hv-head-phone
+    .seg-slide
+    button[aria-pressed='true']::after {
     content: '';
     position: absolute;
     inset-inline: 0;
     bottom: calc(6px - var(--stroke-hairline));
     height: 2px;
     background: var(--line);
+  }
+}
+@media (max-width: 374px) {
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch {
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 429px) {
+  :root:has([data-budget-redesign='1']) .hv-head-phone:has(.month-now) .month-switch {
+    flex-basis: 100%;
   }
 }

@@ -25,7 +25,7 @@
   :root:not(:has([data-budget-redesign='1'])) .tabbar a,
   .registers a,
   .registers button,
-  .seg button {
+  .seg:not(.hv-period-tabs) button {
     font-size: var(--fs-body) !important;
   }
 
