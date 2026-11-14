@@ -372,6 +372,13 @@
       "when": 1794345491773,
       "tag": "0052_contact_merge",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "6",
+      "when": 1794606519448,
+      "tag": "0053_payslip_wage_lines",
+      "breakpoints": true
     }
   ]
 }
