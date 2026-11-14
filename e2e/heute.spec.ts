@@ -930,14 +930,17 @@ ledgerTest(
       await page.goto(heuteReviewUrl(redesign, `/?monat=${month}`));
       await expect(page.getByTestId('heute-lead-value')).toBeVisible();
       await page.getByRole('button', { name: 'Herleitung zeigen', exact: true }).click();
-      await page.getByRole('button', { name: /^Bedarf/ }).click();
+      await page.getByRole('button', { name: /^Kontostand/ }).click();
       const envelope = page.locator('.heute-breakdown li').filter({ hasText: categoryName });
-      await expect(envelope.locator('strong')).toHaveText('100,00 €');
-      const assertFresh = async (data: Heute, availableCents: number, text: string) => {
-        expect(data.lead.items.need.find((item) => item.id === category.id)?.availableCents).toBe(
-          availableCents,
+      const startBalance = (
+        (await (await page.request.get('/api/heute')).json()) as Heute
+      ).lead.items.accounts.find((item) => item.id === account.id)!.balanceCents;
+      await expect(envelope.locator('strong')).toHaveText(eur(startBalance));
+      const assertFresh = async (data: Heute, balanceCents: number) => {
+        expect(data.lead.items.accounts.find((item) => item.id === account.id)?.balanceCents).toBe(
+          balanceCents,
         );
-        await expect(envelope.locator('strong')).toHaveText(text);
+        await expect(envelope.locator('strong')).toHaveText(eur(balanceCents));
         await expect(page.getByTestId('heute-lead-value')).toHaveText(eur(data.lead.freeCents));
       };
       const refreshed = () =>
@@ -956,12 +959,12 @@ ledgerTest(
       await captureSaveControl(panel).click();
       liveBookingGroup = (await (await written).json()).groupId;
       let data: Heute = await (await refresh).json();
-      await assertFresh(data, 7930, '79,30 €');
+      await assertFresh(data, startBalance - 2070);
       refresh = refreshed();
       await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
       liveBookingGroup = undefined;
       data = await (await refresh).json();
-      await assertFresh(data, 10_000, '100,00 €');
+      await assertFresh(data, startBalance);
       refresh = refreshed();
       const redone = page.waitForResponse(
         (response) => response.url().endsWith('/api/undo') && response.ok(),
@@ -969,7 +972,7 @@ ledgerTest(
       await toast(page).getByRole('button', { name: 'Wiederholen' }).click();
       liveBookingGroup = (await (await redone).json()).groupId;
       data = await (await refresh).json();
-      await assertFresh(data, 7930, '79,30 €');
+      await assertFresh(data, startBalance - 2070);
       // A prior-month uncategorized entry remains actionable; tomorrow's entry stays outside
       // the Today count and the linked view. The categorised capture is filtered out there.
       const priorMemo = `${categoryName} vorheriger Monat`;

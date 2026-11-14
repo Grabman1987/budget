@@ -248,7 +248,7 @@ it('keeps the forecast, net-worth liquidity and free budget on their distinct ac
       debtCents: -20_000,
       totalCents: 170_000,
     });
-    expect(data.lead.freeCents).toBe(0);
+    expect(data.lead.freeCents).toBe(80_000);
   } finally {
     scope.close();
   }
@@ -390,23 +390,46 @@ describe('GET /heute', () => {
   it('derives daily cents from the existing lead and rule-based payday, independent of chart period', async () => {
     const month = (await call('GET', '/heute?period=month')).body;
     const payday = (await call('GET', '/heute?period=payday')).body;
-    expect(month.lead.freeCents).toBe(28_000);
+    expect(month.lead.freeCents).toBe(398_000);
     expect(month.stand.payday.day).toBe('2026-04-15');
-    expect(month.dailyBudget).toEqual({ remainingDays: 28, perDayCents: 1_000 });
+    expect(month.dailyBudget).toEqual({ remainingDays: 28, perDayCents: 14_214 });
     expect(payday.dailyBudget).toEqual(month.dailyBudget);
     expect(payday.lead.freeCents).toBe(month.lead.freeCents);
   });
-  it.each([72_000, 71_999])(
-    'suppresses the daily figure when the existing lead is nonpositive (%i assigned)',
-    async (assignedCents) => {
-      await call('PUT', '/budget/2026-03/assigned', {
-        items: [{ categoryId: 'miete', assignedCents }],
+  it.each([398_000, 398_001])(
+    'suppresses the daily figure when the lead is nonpositive (%i spent)',
+    async (spentCents) => {
+      await call('POST', '/bookings', {
+        type: 'booking',
+        accountId: 'giro',
+        date: TODAY,
+        categoryId: 'essen',
+        amountCents: -spentCents,
+        status: 'confirmed',
       });
       const result = await call('GET', '/heute');
-      expect(result.body.lead.freeCents).toBe(assignedCents - 72_000);
+      expect(result.body.lead.freeCents).toBe(398_000 - spentCents);
       expect(result.body.dailyBudget).toEqual({ remainingDays: 28, perDayCents: null });
     },
   );
+  it('an activated Dispo counts as available money; unticked it counts fully negative', async () => {
+    await call('POST', '/bookings', {
+      type: 'booking',
+      accountId: 'giro',
+      date: TODAY,
+      categoryId: 'essen',
+      amountCents: -500_000,
+      status: 'confirmed',
+    });
+    const off = (await call('GET', '/heute')).body.lead;
+    expect(off).toMatchObject({ balanceCents: -312_000, overdraftCents: 0, freeCents: -102_000 });
+    expect((await call('PATCH', '/accounts/giro', { overdraftLimitCents: 500_000 })).status).toBe(
+      200,
+    );
+    const on = (await call('GET', '/heute')).body.lead;
+    expect(on).toMatchObject({ overdraftCents: 500_000, freeCents: 398_000 });
+    expect(on.chain.map((t: { label: string }) => t.label)).toContain('Dispo-Rahmen');
+  });
   it.each([
     ['month', '2026-10-05', '2026-09-21', '2026-11-02'],
     ['payday', '2026-10-05', '2026-09-21', '2026-10-17'],
@@ -519,10 +542,14 @@ describe('GET /heute', () => {
       budgetBalanceCents: 188_000,
     });
     // Miete (900 EUR, due the 25th) is the one bill open before the payday (15 April)
-    expect(res.body.lead).toMatchObject({ openCents: 90_000, daysToPayday: 28 });
-    expect(res.body.lead.freeCents).toBe(
-      res.body.lead.needCents + res.body.lead.wantCents - 90_000,
-    );
+    expect(res.body.lead).toMatchObject({
+      balanceCents: 188_000,
+      inflowCents: 300_000,
+      openCents: 90_000,
+      overdraftCents: 0,
+      daysToPayday: 28,
+    });
+    expect(res.body.lead.freeCents).toBe(188_000 + 300_000 - 90_000);
     expect(res.body.lead.items.open).toHaveLength(1);
     expect(res.body.balance.actual.at(-1)).toEqual({ day: TODAY, balanceCents: 188_000 });
     expect(res.body.balance.salary).toEqual({ day: '2026-03-31', cents: 300_000 });

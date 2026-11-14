@@ -15,7 +15,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ApiError } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
-import { AccountFormPanel, hasRate, percentToBp } from '../ledger/account-form';
+import {
+  AccountFormPanel,
+  DispoField,
+  hasOverdraft,
+  hasRate,
+  percentToBp,
+} from '../ledger/account-form';
 import { groupAccounts } from '../ledger/account-groups';
 import { useOrderedAccounts, useReorder } from '../ledger/account-order';
 import {
@@ -59,7 +65,6 @@ const DEFAULT_ON_BUDGET: Partial<Record<AccountType, boolean>> = {
   credit_card: true,
 };
 
-const hasOverdraft = (t: AccountType) => t === 'checking';
 const hasCreditLimit = (t: AccountType) => t === 'credit_card';
 const hasFee = (t: AccountType) => t === 'checking' || t === 'credit_card' || t === 'loan';
 const isLoan = (t: AccountType) => t === 'loan';
@@ -805,12 +810,7 @@ function AccountEditForm({
         <AmountInput label="Kartenlimit" value={limit} onChange={setLimit} error={errors.limit} />
       )}
       {hasOverdraft(type) && (
-        <AmountInput
-          label="Überziehungsrahmen"
-          value={overdraft}
-          onChange={setOverdraft}
-          error={errors.overdraft}
-        />
+        <DispoField value={overdraft} onChange={setOverdraft} error={errors.overdraft} />
       )}
       {hasRate(type) && (
         <Field label="Zinssatz in Prozent" error={errors.rate}>

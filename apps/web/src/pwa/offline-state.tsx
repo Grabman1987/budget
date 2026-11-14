@@ -174,12 +174,12 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
                   <dd>{eur(heute.lead.freeCents)}</dd>
                 </div>
                 <div>
-                  <dt>Bedarf</dt>
-                  <dd>{eur(heute.lead.needCents)}</dd>
+                  <dt>Kontostand</dt>
+                  <dd>{eur(heute.lead.balanceCents)}</dd>
                 </div>
                 <div>
-                  <dt>Wunsch</dt>
-                  <dd>{eur(heute.lead.wantCents)}</dd>
+                  <dt>Erwartete Eingänge</dt>
+                  <dd>{eur(heute.lead.inflowCents)}</dd>
                 </div>
                 <div>
                   <dt>Offene Zahlungen</dt>
@@ -393,12 +393,12 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
                   </div>
                 </dl>
               )}
-              <h3>Verfügbarer Bedarf und Wunsch</h3>
+              <h3>Budget-Konten</h3>
               <ul>
-                {[...heute.lead.items.need, ...heute.lead.items.want].map((row) => (
+                {heute.lead.items.accounts.map((row) => (
                   <li key={row.id}>
                     <span>{row.name}</span>
-                    <strong>{eur(row.availableCents)}</strong>
+                    <strong>{eur(row.balanceCents)}</strong>
                   </li>
                 ))}
               </ul>

@@ -23,7 +23,8 @@ import {
   overspentEnvelopes,
   summarizeMonth,
   type BudgetMonth,
-  type FreeEnvelope,
+  type ExpectedInflow,
+  type FreeAccount,
   type FreeUntilPayday,
   type HeutePeriod,
   type LowPoint,
@@ -550,16 +551,28 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   const window = heuteWindow(query.period ?? 'month', month, today, payday.day);
 
   // ---- lead: free until payday ----
-  const envelopes: FreeEnvelope[] = [];
-  for (const c of facts.categories) {
-    if (c.class !== 'need' && c.class !== 'want') continue;
-    envelopes.push({
-      id: c.id,
-      name: c.name,
-      class: c.class,
-      availableCents: todayBudget?.envelopes[c.id]?.availableCents ?? 0,
-    });
-  }
+  const accounts: FreeAccount[] = budgetAccounts.map((a) => ({
+    id: a.id,
+    name: a.name,
+    balanceCents: budgetValues[a.id] ?? 0,
+    overdraftLimitCents: a.overdraftLimitCents,
+  }));
+  // Expected = still to arrive (not overdue), paused salaries excluded, like the cash forecast.
+  const expectedInflows: ExpectedInflow[] = all
+    .filter(
+      (o) =>
+        o.kind === 'inflow' &&
+        o.status === 'expected' &&
+        o.amountCents > 0 &&
+        o.dueDate >= today &&
+        !pausedSalaryDates.has(`${o.paymentId}|${o.dueDate}`),
+    )
+    .map((o) => ({
+      id: o.occurrenceId ?? `${o.paymentId}|${o.dueDate}`,
+      label: o.name,
+      day: o.dueDate,
+      cents: o.amountCents,
+    }));
   // Open = still expected, not covered by a Zukunft envelope (those are transfers, not spending).
   const openOutflows: OpenOutflow[] = all
     .filter((o) => o.kind === 'outflow' && o.status === 'expected' && o.categoryClass !== 'future')
@@ -569,7 +582,13 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
       day: o.dueDate,
       cents: -o.amountCents,
     }));
-  const lead = freeUntilPayday({ envelopes, openOutflows, payday: payday.day, today });
+  const lead = freeUntilPayday({
+    accounts,
+    expectedInflows,
+    openOutflows,
+    payday: payday.day,
+    today,
+  });
 
   // ---- balance: actual up to today, forecast after ----
   const actualDays: string[] = [];

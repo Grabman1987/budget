@@ -45,8 +45,8 @@ test('lead → exact terms → category/payment → return retains viewed month 
   ).toBeFocused();
   const detail = page.locator('.heute-dimension');
   for (const amount of [
-    data.lead.needCents,
-    data.lead.wantCents,
+    data.lead.balanceCents,
+    data.lead.inflowCents,
     data.lead.openCents,
     data.lead.freeCents,
   ]) {
@@ -54,8 +54,12 @@ test('lead → exact terms → category/payment → return retains viewed month 
   }
   await expect(detail).toContainText('EUR');
   await expect(detail).toContainText('35 Tagen');
-  const need = page.getByRole('region', { name: 'Bedarf', exact: true }).getByRole('link').first();
+  const need = page
+    .getByRole('region', { name: 'Offen bis Gehalt', exact: true })
+    .getByRole('link')
+    .first();
   const target = new URL((await need.getAttribute('href'))!, page.url());
+  expect(target.pathname).toMatch(/^\/plan\/erwartet\//);
   expect(target.searchParams.get('monat')).toBe('2026-09');
   await need.click();
   await expect(page.getByRole('link', { name: 'Zurück zur Heute-Herleitung' })).toBeVisible();

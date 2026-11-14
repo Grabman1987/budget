@@ -421,8 +421,8 @@ it.each(['month', 'payday'] as const)(
     await screen.findByTestId('heute-wealth-history');
     await ready();
     const primary = screen.getByRole('region', { name: /^Frei bis Gehalt$/ });
-    // Empty envelopes give zero free money; the independently seeded cash remains 1234.56.
-    expect(within(primary).getByTestId('heute-lead-value').textContent).toBe('0,00 €');
+    // Cash-flow figure: the seeded cash 1234.56, no inflows, no open bills, no Dispo.
+    expect(within(primary).getByTestId('heute-lead-value').textContent).toBe('1.234,56 €');
     expect(
       within(primary)
         .getByRole('link', { name: /Frei verfügbar bis Gehalt/ })
