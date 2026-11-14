@@ -514,7 +514,7 @@
 @media (max-width: 767px) {
   .sheet:has(> .heute-screen),
   .sheet:has(> .heute-detail-screen) {
-    padding: 0 16px calc(var(--tabbar-h) + 90px);
+    padding: 0 16px calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 16px);
   }
   .hv-head-phone {
     display: grid;
@@ -811,8 +811,9 @@
     overflow-wrap: anywhere;
   }
 }
-/* Keep full words and amounts readable beside the reserved FAB column. */
-@media (max-width: 399px) {
+/* Phone (every width up to 767px, including 402/430px iPhones): two-line task rows. Line 1 is
+   marker, task and amount, line 2 the action. The header row stays for screen readers. */
+@media (max-width: 767px) {
   .hv-revisions,
   .hv-revisions tbody {
     display: block;
@@ -826,17 +827,19 @@
   }
   .hv-revisions tbody tr {
     display: grid;
-    grid-template-columns: 30px minmax(0, 1fr);
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 4px;
     border-top: 1px solid var(--rule);
     padding-top: 6px;
   }
   .hv-revisions td {
     border: 0;
     min-width: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
   .hv-revisions td:last-child {
-    grid-column: 2;
+    grid-column: 2 / -1;
     text-align: left;
   }
 }
@@ -1082,15 +1085,6 @@
     display: inline;
   }
 }
-@media (max-width: 399px) {
-  .hv-revisions tbody tr {
-    grid-template-columns: 26px minmax(0, 1fr) auto;
-  }
-  .hv-revisions td:last-child {
-    grid-column: 2 / -1;
-  }
-}
-
 /* Keep action labels out of the floating capture target and let the final row scroll clear. */
 @media (max-width: 767px) {
   .heute-screen {
@@ -1103,7 +1097,6 @@
     overflow-wrap: break-word;
   }
   .hv-revisions td:last-child {
-    padding-right: 48px;
     padding-left: 4px;
   }
   .hv-revisions td:first-child {
@@ -1198,5 +1191,139 @@
   .hv-head .seg-slide button {
     height: 44px;
     min-height: 44px;
+  }
+}
+
+/* Phone period row (ON only), variant B "Reiter mit Maßlinie": one header band on the opaque
+   ground (text never sits on the grid). Row: plain month stepper left, text tabs right, a hairline
+   under the whole row; the active tab has a 2px line on it. Visible rows are 32px, every control
+   keeps a 44px box through negative block margins. Stepper and tabs stack (tabs below, left)
+   at <= 374px and, with the return link shown, below 430px; the 12px row gap keeps the boxes of
+   stacked rows from overlapping. Every selector carries the ON gate so the OFF build is untouched. */
+@media (max-width: 767px) {
+  :root:has([data-budget-redesign='1']) .hv-head-phone {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px var(--space-lg);
+    min-height: 0;
+    margin-inline: -16px;
+    padding: 6px 16px 0;
+    border-bottom: var(--stroke-hairline) solid var(--rule);
+    background: var(--ground);
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch {
+    display: flex;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    width: auto;
+    min-width: 0;
+    min-height: 32px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .icon-btn {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    margin-block: -6px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--ink-2);
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .icon-btn:first-child {
+    margin-left: -16px;
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .month-name {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: -4px;
+    text-align: left;
+    overflow-wrap: anywhere;
+    font-size: var(--fs-body);
+    font-weight: 550;
+    color: var(--ink);
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .icon-btn:nth-child(3) {
+    margin-left: -4px;
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .month-now {
+    display: inline-flex;
+    width: auto;
+    margin-left: auto;
+    margin-right: -8px;
+    padding-inline: 8px;
+    font-size: var(--fs-label);
+    color: var(--ink-2);
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .month-now svg {
+    display: none;
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .month-now-label {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .seg.seg.seg-slide {
+    display: flex;
+    flex: none;
+    gap: var(--space-lg);
+    height: 32px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .seg-thumb {
+    display: none;
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .seg-slide button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex: none;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    margin-block: -6px;
+    padding-inline: 0;
+    border-radius: 0;
+    background: transparent;
+    white-space: nowrap;
+    font-size: var(--fs-meta);
+    font-weight: 500;
+    color: var(--ink-2);
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .seg-slide button[aria-pressed='true'] {
+    font-weight: 550;
+    color: var(--ink);
+  }
+  :root:has([data-budget-redesign='1'])
+    .hv-head-phone
+    .seg-slide
+    button[aria-pressed='true']::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: calc(6px - var(--stroke-hairline));
+    height: 2px;
+    background: var(--line);
+  }
+}
+@media (max-width: 374px) {
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch {
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 429px) {
+  :root:has([data-budget-redesign='1']) .hv-head-phone:has(.month-now) .month-switch {
+    flex-basis: 100%;
   }
 }

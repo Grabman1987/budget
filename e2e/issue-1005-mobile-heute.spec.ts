@@ -53,21 +53,18 @@ for (const theme of ['light', 'dark'] as const) {
       expect(lead.y - top).toBeLessThanOrEqual(140);
       const month = (await page.locator('.hv-head-phone .month-switch').boundingBox())!;
       const period = (await page.locator('.hv-head-phone .seg').boundingBox())!;
-      expect(month.y).toBe(period.y);
+      // Owner chose variant B on 2026-11-13 (#1065): at 390px stepper and tabs share one row, the
+      // month stepper on the LEFT and the tabs on the RIGHT (the old spec expected the month right of
+      // the period control; the approved order is now month left, tabs right).
+      expect(month.y + month.height / 2).toBeCloseTo(period.y + period.height / 2, 0);
       expect(month.x + month.width).toBeLessThanOrEqual(period.x);
       await expect(page.locator('.hv-head-phone .month-name')).toHaveText('September 2026');
-      await expect(page.locator('.hv-head-phone .seg')).toHaveCSS('height', '44px');
-      {
-        // The sliding pill fills the selected segment, inside the 44px control.
-        const group = page.locator('.hv-head-phone .seg');
-        const pill = (await group.locator('.seg-thumb').boundingBox())!;
-        const selected = (await group.locator('button[aria-pressed="true"]').boundingBox())!;
-        expect(Math.abs(pill.x - selected.x)).toBeLessThanOrEqual(1);
-        expect(Math.abs(pill.width - selected.width)).toBeLessThanOrEqual(1);
-        expect(pill.height).toBeGreaterThanOrEqual(36);
-        expect(pill.y).toBeGreaterThanOrEqual(period.y);
-        expect(pill.y + pill.height).toBeLessThanOrEqual(period.y + period.height);
-      }
+      await expect(page.locator('.hv-head-phone .month-name')).toHaveCSS('font-size', '16px');
+      await expect(page.locator('.hv-head-phone .seg')).toHaveCSS('height', '32px');
+      await expect(page.locator('.hv-head-phone .seg button[aria-pressed="true"]')).toHaveCSS(
+        'font-size',
+        '13px',
+      );
       await expect(page.locator('.hv-chain-bar')).toHaveCSS('height', '1px');
 
       const dock = page.locator('.tabbar');
@@ -181,8 +178,35 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(controls.getByRole('button', { name: 'Bis Gehalt', exact: true })).toBeDisabled();
     const month = (await controls.locator('.month-switch').boundingBox())!;
     const period = (await controls.locator('.seg').boundingBox())!;
-    expect(month.y + month.height / 2).toBe(period.y + period.height / 2);
-    expect(month.x + month.width).toBeLessThanOrEqual(period.x);
+    if (isMobile) {
+      // Owner chose variant B (tabs on their own row when the return link is shown below 430px) on
+      // 2026-11-13: at 375px with the return link the tabs sit below the stepper (this stacked case
+      // is up to 176px from header top to lead; the one-row case keeps the original 140px).
+      expect(month.y + month.height).toBeLessThanOrEqual(period.y);
+      expect(month.x + month.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+      const targets = [
+        controls.getByRole('button', { name: 'Vormonat' }),
+        controls.getByRole('button', { name: 'Nächster Monat' }),
+        controls.getByRole('button', { name: 'Monat', exact: true }),
+        controls.getByRole('button', { name: 'Bis Gehalt', exact: true }),
+        controls.getByRole('button', { name: 'Zum aktuellen Monat' }),
+      ];
+      for (const target of targets) {
+        const box = (await target.boundingBox())!;
+        expect(box.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+        expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+      }
+      await expect(controls.getByRole('button', { name: 'Zum aktuellen Monat' })).toContainText(
+        'Zum aktuellen Monat',
+      );
+      // The focus ring of a tab must not be clipped by the group or the header band.
+      await controls.getByRole('button', { name: 'Monat', exact: true }).focus();
+      await expect(controls.locator('.seg')).toHaveCSS('overflow', 'visible');
+      await expect(controls).toHaveCSS('overflow', 'visible');
+    } else {
+      expect(month.y + month.height / 2).toBe(period.y + period.height / 2);
+      expect(month.x + month.width).toBeLessThanOrEqual(period.x);
+    }
     expect(period.x + period.width).toBeLessThanOrEqual(page.viewportSize()!.width);
     await controls.getByRole('button', { name: 'Zum aktuellen Monat' }).click();
     await expect(page).toHaveURL(/monat=2026-09/);
