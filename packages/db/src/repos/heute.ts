@@ -551,18 +551,25 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   const window = heuteWindow(query.period ?? 'month', month, today, payday.day);
 
   // ---- lead: free until payday ----
-  const accounts: FreeAccount[] = budgetAccounts.map((a) => ({
-    id: a.id,
-    name: a.name,
-    balanceCents: budgetValues[a.id] ?? 0,
-    overdraftLimitCents: a.overdraftLimitCents,
-  }));
+  // A closed account keeps its stored limit; it must not lend headroom.
+  const leadIds = new Set(budgetIds);
+  const onLeadAccount = (o: { accountId: string | null }) =>
+    o.accountId === null || leadIds.has(o.accountId);
+  const accounts: FreeAccount[] = budgetAccounts
+    .filter((a) => a.closedAt === null)
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      balanceCents: budgetValues[a.id] ?? 0,
+      overdraftLimitCents: a.overdraftLimitCents,
+    }));
   // Expected = still to arrive (not overdue), paused salaries excluded, like the cash forecast.
   const expectedInflows: ExpectedInflow[] = all
     .filter(
       (o) =>
         o.kind === 'inflow' &&
         o.status === 'expected' &&
+        onLeadAccount(o) &&
         o.amountCents > 0 &&
         o.dueDate >= today &&
         !pausedSalaryDates.has(`${o.paymentId}|${o.dueDate}`),
@@ -575,7 +582,13 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     }));
   // Open = still expected, not covered by a Zukunft envelope (those are transfers, not spending).
   const openOutflows: OpenOutflow[] = all
-    .filter((o) => o.kind === 'outflow' && o.status === 'expected' && o.categoryClass !== 'future')
+    .filter(
+      (o) =>
+        o.kind === 'outflow' &&
+        o.status === 'expected' &&
+        onLeadAccount(o) &&
+        o.categoryClass !== 'future',
+    )
     .map((o) => ({
       id: o.occurrenceId ?? `${o.paymentId}|${o.dueDate}`,
       label: o.name,

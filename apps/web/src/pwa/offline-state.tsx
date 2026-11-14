@@ -395,7 +395,7 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
               )}
               <h3>Budget-Konten</h3>
               <ul>
-                {heute.lead.items.accounts.map((row) => (
+                {(heute.lead.items.accounts ?? []).map((row) => (
                   <li key={row.id}>
                     <span>{row.name}</span>
                     <strong>{eur(row.balanceCents)}</strong>
@@ -404,7 +404,7 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
               </ul>
               <h3>Offen bis Gehalt</h3>
               <ul>
-                {heute.lead.items.open.map((row) => (
+                {(heute.lead.items.open ?? []).map((row) => (
                   <li key={row.id}>
                     <span>
                       {row.day} · {row.label}
