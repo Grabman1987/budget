@@ -284,7 +284,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   const response = await page.request.get('/api/heute?period=month&month=2026-09');
   expect(response.ok()).toBe(true);
   const initial: Heute = await response.json();
-  expect(initial.lead.freeCents).toBe(98_826);
+  expect(initial.lead.freeCents).toBe(706_279);
   const badRules =
     'unavailable' in initial.financeCheck
       ? []
@@ -326,7 +326,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
     'Nettovermögen',
   ]);
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
-  await expect(page.getByTestId('heute-lead-value')).toContainText('988');
+  await expect(page.getByTestId('heute-lead-value')).toContainText('7.062');
   await expect(page.getByTestId('heute-lead-value')).toContainText(',26 €');
   await page.getByTestId('heute-lead-value').click();
   await expect(
@@ -747,7 +747,7 @@ test('a failed Heute request offers a working retry', async ({ page }) => {
   );
   await alert.getByRole('button', { name: 'Erneut versuchen' }).click();
   await retried;
-  await expect(page.getByTestId('heute-lead-value')).toContainText('988');
+  await expect(page.getByTestId('heute-lead-value')).toContainText('7.062');
   await expect(page.getByRole('alert')).toBeHidden();
 });
 

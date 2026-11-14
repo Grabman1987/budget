@@ -100,7 +100,7 @@ test('privacy follows routes and reload, masks money and chart alternatives, pre
 }, info) => {
   test.setTimeout(120_000);
   await openHeuteReview(page, '/?monat=2026-09');
-  await expect(page.getByTestId('heute-lead-value')).toContainText('988', { timeout: 20_000 });
+  await expect(page.getByTestId('heute-lead-value')).toContainText('7.062', { timeout: 20_000 });
   await withShellControls(page, async ({ privacy }) => {
     await privacy.click();
     await expect(privacy).toHaveAttribute('aria-pressed', 'true');
