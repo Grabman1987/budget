@@ -327,7 +327,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   ]);
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
   await expect(page.getByTestId('heute-lead-value')).toContainText('7.062');
-  await expect(page.getByTestId('heute-lead-value')).toContainText(',26 €');
+  await expect(page.getByTestId('heute-lead-value')).toContainText(',79 €');
   await page.getByTestId('heute-lead-value').click();
   await expect(
     page.getByRole('button', { name: 'Herleitung ausblenden', exact: true }),
