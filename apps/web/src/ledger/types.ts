@@ -219,6 +219,7 @@ export interface Lookups {
     id: string;
     name: string;
     archived?: boolean;
+    mergedIntoId?: string | null;
     updatedAt?: string;
     aliases?: { id: string; alias: string; updatedAt: string }[];
   }[];

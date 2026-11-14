@@ -320,4 +320,20 @@ describe('authenticated payslip intake HTTP boundary', () => {
     expect((await put('synthetic-new')).status).toBe(200);
     expect(opened.sqlite.serialize().includes(Buffer.from('synthetic-new'))).toBe(false);
   });
+  it('#1066 re-reads wage lines only on an authenticated, explicit owner call', async () => {
+    const call = (body: unknown, h: Record<string, string> = headers) =>
+      app.request('/api/payslip-intake/wage-lines/reread', {
+        method: 'POST',
+        headers: { ...h, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    expect((await call({ dryRun: true }, { origin })).status).toBe(401);
+    expect((await call({})).status).toBe(400);
+    expect((await call({ dryRun: true, extra: 1 })).status).toBe(400);
+    const dry = await call({ dryRun: true });
+    expect(dry.status).toBe(200);
+    expect(await dry.json()).toEqual({ dryRun: true, groupId: null, items: [] });
+    const run = await call({ dryRun: false });
+    expect(await run.json()).toEqual({ dryRun: false, groupId: null, items: [] });
+  });
 });

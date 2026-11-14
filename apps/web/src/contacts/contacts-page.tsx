@@ -92,6 +92,8 @@ export function useContactWrite() {
       });
     }, failed);
   return async (run: () => Promise<{ groupId: string }>, message: string) => {
+    // A previous Undo must not remain actionable while a newer write or its reads are pending.
+    toast.dismiss();
     try {
       const result = await run();
       await refresh();

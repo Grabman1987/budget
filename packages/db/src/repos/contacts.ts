@@ -26,7 +26,12 @@ import {
 } from './bookings';
 import { ensureAdvanceCategory } from './categories';
 import { contactCreditRecords, saveContactCreditRecord } from './contact-credit';
-import { listContactAliases } from './contact-label';
+import {
+  contactIdentityIds,
+  listContactAliases,
+  resolveContactForWrite,
+  resolveContactRoot,
+} from './contact-label';
 import { assertContactAllocationUnlocked, releaseContactCredit } from './contact-reallocation';
 import { assertLedgerInvariants } from './invariants';
 export { getContactRepaymentAllocation, reallocateContactRepayment } from './contact-reallocation';
@@ -41,11 +46,35 @@ import type { ContactAllocationOptions } from './contact-allocation-lock';
 export { adoptContactRepayment } from './contact-reallocation';
 export { waiveContactOutlay } from './contact-waiver';
 
+/**
+ * The statement of an identity: a merged source id resolves to its target (#871) and the result
+ * is the plain union of the original rows of both ids (`resolvedFromId` names the asked id).
+ */
 export function getContactStatement(
   db: Executor,
-  id: string,
+  askedId: string,
   asOf: string,
   records = contactCreditRecords(db),
+) {
+  const id = resolveContactRoot(db, askedId);
+  return contactStatementOf(
+    db,
+    id,
+    contactIdentityIds(db, id),
+    asOf,
+    records,
+    askedId !== id ? askedId : undefined,
+  );
+}
+
+/** Statement of `id` over exactly the rows of `ids` (merge preview passes the future union). */
+export function contactStatementOf(
+  db: Executor,
+  id: string,
+  ids: readonly string[],
+  asOf: string,
+  records = contactCreditRecords(db),
+  resolvedFromId?: string,
 ) {
   const row = db
     .select()
@@ -53,15 +82,15 @@ export function getContactStatement(
     .where(and(eq(contact.id, id), isNull(contact.deletedAt)))
     .get();
   if (!row) throw new EntityNotFoundError('contact', id);
-  const movements = actualContactMovements(db, id, asOf, records);
+  const movements = actualContactMovements(db, ids, asOf, records);
   if (movements.some((m) => m.currency !== 'EUR'))
     throw new BookingInvariantError('Contact statements require EUR movements');
   const statement = (() => {
     try {
       return contactStatement(
         movements,
-        savedContactSettlements(db, id, asOf, records),
-        actualContactMovements(db, id, undefined, records),
+        savedContactSettlements(db, ids, asOf, records),
+        actualContactMovements(db, ids, undefined, records),
       );
     } catch (error) {
       throw new BookingInvariantError(
@@ -110,6 +139,13 @@ export function getContactStatement(
       name: row.name,
       note: row.note,
       archivedAt: row.archivedAt,
+      mergedIntoId: row.mergedIntoId,
+      mergedFrom: ids
+        .filter((other) => other !== id)
+        .map((other) => ({
+          id: other,
+          name: db.select().from(contact).where(eq(contact.id, other)).get()?.name ?? other,
+        })),
       aliases: listContactAliases(db, row.id).map((a) => ({
         id: a.id,
         alias: a.alias,
@@ -117,6 +153,7 @@ export function getContactStatement(
       })),
     },
     asOf,
+    ...(resolvedFromId ? { resolvedFromId } : {}),
     currency: 'EUR' as const,
     ...statement,
     receipts: statement.receipts.map((r) => ({
@@ -136,7 +173,7 @@ export function listContactStatements(db: Executor, asOf: string, history = fals
   return db
     .select()
     .from(contact)
-    .where(isNull(contact.deletedAt))
+    .where(and(isNull(contact.deletedAt), isNull(contact.mergedIntoId)))
     .all()
     .map((c) => {
       const s = getContactStatement(db, c.id, asOf, records);
@@ -165,7 +202,7 @@ export function readOverdueContactReminders(db: Executor, today: string) {
   for (const row of db
     .select({ id: contact.id })
     .from(contact)
-    .where(isNull(contact.deletedAt))
+    .where(and(isNull(contact.deletedAt), isNull(contact.mergedIntoId)))
     .all()) {
     let statement: ReturnType<typeof getContactStatement>;
     try {
@@ -220,6 +257,7 @@ export function chooseContactCredit(
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
+    contactId = resolveContactForWrite(tx, contactId);
     const records = contactCreditRecords(tx);
     const current = getContactStatement(tx, contactId, today, records);
     const credit = current.creditChoices.find((c) => c.receiptSplitId === input.receiptSplitId);
@@ -353,6 +391,7 @@ export function convertContactOutlayToGift(
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
+    contactId = resolveContactForWrite(tx, contactId);
     const outlay = getContactStatement(tx, contactId, today).outlays.find(
       (o) => o.splitId === outlaySplitId,
     );
@@ -427,6 +466,7 @@ export function writeOffContact(
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
+    contactId = resolveContactForWrite(tx, contactId);
     const records = contactCreditRecords(tx);
     const current = getContactStatement(tx, contactId, today, records).balanceCents;
     const dated = getContactStatement(tx, contactId, input.date, records).balanceCents;
@@ -527,6 +567,7 @@ export function settleContact(
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
+    contactId = resolveContactForWrite(tx, contactId);
     if (!Number.isSafeInteger(input.amountCents) || input.amountCents <= 0)
       throw new BookingInvariantError('A contact receipt must be positive integer cents');
     const cash = tx

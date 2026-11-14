@@ -154,6 +154,59 @@ most once; positions under 1k price rows). On the small #956 fixture (3 years of
 log) Heute is unchanged; the remaining Heute time is the audit replays (account review chronology
 and goal lifecycle, about a third), 13 month-end valuations, the Finanz-Check and the budget facts.
 
+## Heute off the event loop, cache misses (#956, 2026-11-13)
+
+Production (2026-11-13, owner session): first Heute 5.3 s, positions 4.2 s, `/api/auth/status`
+and `/api/profile` 3 s in the same window; Heute uncached again about 20 s after a cached answer.
+
+**Why the cache missed.** The read-model cache (`api/response-cache.ts`) keys every answer by the
+database stamp (`request-memo.ts` `databaseStamp`: `total_changes()` of the server connection and
+`PRAGMA data_version`, which moves on any commit of another connection). Litestream 0.5.17 runs
+next to the server and, after it has shipped new WAL frames, checkpoints and writes its own
+`_litestream_seq` row: a commit of another connection. Measured locally with the pinned 0.5.17
+binary on the synthetic ledger: one write of the server, then about 40 s later (on Litestream's
+one-minute checkpoint tick) `data_version` moved with no write of the app. So every write,
+including the session touch (`auth/routes.ts`, at most every 10 minutes) and auth event counters,
+costs the cache twice: once at the write, once up to a minute later. Nothing else in a Heute page
+load writes (checked: no GET of the page moves the stamp). The stamp itself is right (it must also
+see bank-worker and import-worker commits), so it stays; the misses are made cheap instead.
+
+**What changed.**
+
+1. Heute is computed in a worker thread (`api/read-model-offload.ts`, `api/read-model-worker.ts`)
+   on its own `query_only` connection, inside one read transaction per request
+   (`runInReadSnapshot`), so every read of a request sees one committed state while the server
+   writes. The worker serves the same ledger API, so the bytes are the same
+   (`heute-positions-956.test.ts` checks the stock digests through the worker). A worker failure
+   falls back to the server thread. `BUDGET_READ_WORKER=0` switches it off.
+2. Concurrent requests for the same key and stamp share one computation (the cache awaits the
+   first one; never across a write).
+3. After the stamp has settled (one 5 s check without change), the Heute variants a visitor asked
+   for in the last 30 minutes are recomputed in the worker once per stamp, so the miss after
+   Litestream's commit (or any write) is paid in the background.
+
+The cold computation itself is unchanged (1207 SQL statements; Plan month 88). Its largest parts
+(profile on the synthetic ledger): the whole-picture month change, account review chronology
+(audit replay), goal lifecycles (audit replay), Finanz-Check and 11 month-end valuations; about
+40 % of the time is SQLite, statement-level duplicates are under 5 %.
+
+```bash
+npx tsx scripts/perf/heute-offload-956.ts --database data/heute-956.sqlite --samples 7
+```
+
+Linux, 2 vCPU shared with other jobs (load average 9-14 during the run, so absolute numbers are
+roughly 2-3x the quiet ones), Node 22, ms:
+
+| | Before (server thread) | After (worker) |
+| --- | ---: | ---: |
+| Heute cold, median / min | 3715 / 2600 | 3029 / 2691 |
+| Heute warm | 1 | 0 |
+| Plan month cold, median / min | 595 / 350 | unchanged (server thread) |
+| Longest event-loop stall while Heute computes | 4159 | 40-103 |
+| `/profile` while Heute computes, worst | 4142 | 89-956 (CPU contention, not the event loop) |
+
+Memory: the worker adds about 80 MB RSS (built server on the synthetic ledger after the warm-up: 325 MB without, 403 MB with; heap limit 192 MB old space). It ends after 5 idle minutes and starts again on the next ask.
+
 ## CI flakes
 
 - `e2e/shell.spec.ts` route sweep (`main` landmark within 5 s on `/reports/finanzcheck`,

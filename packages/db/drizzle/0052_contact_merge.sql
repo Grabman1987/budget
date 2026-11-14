@@ -1,0 +1,1 @@
+ALTER TABLE `contact` ADD `merged_into_id` text REFERENCES contact(id);

@@ -33,6 +33,7 @@ export interface IdentityContact {
   name: string;
   updatedAt?: string | undefined;
   archived?: boolean | undefined;
+  mergedIntoId?: string | null | undefined;
   aliases?: { id: string; alias: string; updatedAt: string }[] | undefined;
 }
 

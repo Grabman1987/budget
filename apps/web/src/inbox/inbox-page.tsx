@@ -13,6 +13,7 @@ import {
 } from './bank-candidate';
 import { BankBulkActions, isBankInboxRow } from './bank-bulk-actions';
 import { BankSyncRecap } from './bank-sync-recap';
+import { GuidedReview } from './guided-review';
 import { AssignmentLearnOffer, BookingAssignmentReview } from '../assignment/review';
 import {
   PayslipIntakeDetail,
@@ -135,7 +136,24 @@ export function InboxPage() {
           </AppLink>
         </div>
       )}
-      <InboxWorkflow bankSource={search.bankSource} />
+      {REDESIGN_ENABLED && search.modus === 'gefuehrt' && !search.bankSource ? (
+        <GuidedReview />
+      ) : (
+        <>
+          {REDESIGN_ENABLED && !search.bankSource && (
+            <div className="inbox-guided-entry">
+              <AppLink
+                className="btn"
+                to="/konten/pruefen"
+                search={{ ...search, modus: 'gefuehrt' }}
+              >
+                Prüfen durchgehen
+              </AppLink>
+            </div>
+          )}
+          <InboxWorkflow bankSource={search.bankSource} />
+        </>
+      )}
       {REDESIGN_ENABLED && !isPhone && sourceStatus}
     </KontenFrame>
   );

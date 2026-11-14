@@ -7,6 +7,8 @@ import {
   ContactArchivedError,
   ContactBlockedError,
   ContactLabelTakenError,
+  ContactMergeConflictError,
+  StalePreviewError,
   EntityNotFoundError,
   StaleError,
   MissingFxRateError,
@@ -123,6 +125,10 @@ export function errorAnswer(error: unknown): ErrorAnswer {
     );
   if (error instanceof StaleError)
     return answer({ error: 'stale', message: error.message, current: error.current }, 409);
+  if (error instanceof ContactMergeConflictError)
+    return answer({ error: 'merge_conflict', message: error.message, reasons: error.reasons }, 409);
+  if (error instanceof StalePreviewError)
+    return answer({ error: 'stale_preview', message: error.message }, 409);
   if (error instanceof ConflictError)
     return answer({ error: 'conflict', message: error.message }, 409);
   if (error instanceof AuditError)

@@ -2,7 +2,7 @@ import { bookingIncomeDefault } from './income-month';
 import { contactStatement } from '@budget/domain';
 import { actualContactMovements, savedContactSettlements } from './contact-invariants';
 import { contactCreditRecords, saveContactCreditRecord } from './contact-credit';
-import { assertContactActive } from './contact-label';
+import { assertContactActive, resolveContactForWrite } from './contact-label';
 import { ensureAdvanceCategory } from './categories';
 import { manualTransferStatus, type ManualBankStatus } from '@budget/domain';
 import { assertContactBookingWrite, assertContactSettlementInvariants } from './contact-invariants';
@@ -338,7 +338,16 @@ function insertBooking(
   transferId: string | null,
   ctx: GroupedContext,
   contactModel = false,
+  /** Contact settlement bookings carry the exact owner chosen by their caller (#871). */
+  resolveContacts = true,
 ): string {
+  if (resolveContacts)
+    input = {
+      ...input,
+      splits: input.splits.map((s) =>
+        s.contactId ? { ...s, contactId: resolveContactForWrite(tx, s.contactId) } : s,
+      ),
+    };
   assertDate(input.date);
   assertProjectAssignment(tx, input.projectId);
   assertSplits(input.amountCents, input.splits);
@@ -563,7 +572,7 @@ export function createContactSettlementBooking(
 ): string {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    const id = insertBooking(tx, input, null, grouped);
+    const id = insertBooking(tx, input, null, grouped, false, false);
     assertLedgerInvariants(tx, [id], false);
     return id;
   });
@@ -884,7 +893,15 @@ function updateBookingImpl(
     const amountChanged = amount !== cur.amountCents;
     let nextSplits: SplitInput[];
     if (patch.splits) {
-      nextSplits = patch.splits;
+      // New contact references resolve to the merge target; ones the booking already had stay.
+      // A booking that already carries the source id may add another split under it: the identity
+      // statement is the union of both ids, so totals are equal either way (#871, pinned by test).
+      const had = new Set(curSplits.flatMap((old) => (old.contactId ? [old.contactId] : [])));
+      nextSplits = patch.splits.map((s) =>
+        s.contactId && !had.has(s.contactId)
+          ? { ...s, contactId: resolveContactForWrite(tx, s.contactId) }
+          : s,
+      );
     } else if (amountChanged && curSplits.length === 1) {
       nextSplits = [{ ...curSplits[0]!, amountCents: amount }];
     } else if (amountChanged) {

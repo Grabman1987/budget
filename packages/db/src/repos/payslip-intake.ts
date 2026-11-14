@@ -47,6 +47,7 @@ import { upcoming } from './expected';
 import { runInTransaction, type Executor } from './types';
 import { addReceipt, getReceipt, linkReceipt } from './receipts';
 import { listPayslips, savePayslip } from './payroll-projects';
+import { storePayslipWageRead } from './payslip-wages';
 import { earliestAccountDate } from './portfolio';
 import { listEntities } from './entities';
 import { createBooking } from './bookings';
@@ -798,6 +799,14 @@ export function decidePayslipIntake(
         saved = savePayslip(tx, capture, grouped, undefined, row.id);
       }
       payslipId = saved.id;
+      // #1066: the full wage lines and the statutory split, additive beside the legacy capture.
+      storePayslipWageRead(
+        tx,
+        saved.id,
+        p,
+        { origin: 'intake', receiptId: row.receiptId },
+        grouped,
+      );
       if (payoutId) linkReceipt(tx, row.receiptId, payoutId, grouped);
     }
     updateTracked(

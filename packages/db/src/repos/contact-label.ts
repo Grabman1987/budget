@@ -49,15 +49,27 @@ export function assertNoActiveAlias(tx: Executor, norm: string, exceptAliasId?: 
   throw new ContactLabelTakenError(hit.contactId, owner?.name ?? '?', 'alias');
 }
 
+/**
+ * Write-time resolution (#871): a writer that names a merged source id lands on the target, so no
+ * new data is created under a merged id. Ids that are not merged pass through unchanged.
+ */
+export function resolveContactForWrite<T extends string | null | undefined>(
+  tx: Executor,
+  contactId: T,
+): T {
+  return (contactId ? resolveContactRoot(tx, contactId) : contactId) as T;
+}
+
 /** Writers must not attach new data to an archived contact. */
 export function assertContactActive(tx: Executor, contactId: string | null | undefined): void {
   if (!contactId) return;
   const row = tx
-    .select({ archivedAt: contact.archivedAt })
+    .select({ archivedAt: contact.archivedAt, mergedIntoId: contact.mergedIntoId })
     .from(contact)
     .where(eq(contact.id, contactId))
     .get();
-  if (row?.archivedAt) throw new ContactArchivedError(contactId);
+  // A merged source is archived by the merge but its identity is live: writers resolve it (#871).
+  if (row?.archivedAt && !row.mergedIntoId) throw new ContactArchivedError(contactId);
 }
 
 export function listContactAliases(db: Executor, contactId?: string) {
@@ -71,4 +83,27 @@ export function listContactAliases(db: Executor, contactId?: string) {
     )
     .orderBy(asc(contactAlias.aliasNorm), asc(contactAlias.id))
     .all();
+}
+
+/** `merged_into_id ?? id`: the identity a (possibly merged) contact id resolves to (#871). */
+export function resolveContactRoot(tx: Executor, contactId: string): string {
+  const row = tx
+    .select({ mergedIntoId: contact.mergedIntoId })
+    .from(contact)
+    .where(eq(contact.id, contactId))
+    .get();
+  return row?.mergedIntoId ?? contactId;
+}
+
+/** The root plus every contact merged into it; the ids whose rows form the root's statement. */
+export function contactIdentityIds(tx: Executor, contactId: string): string[] {
+  const root = resolveContactRoot(tx, contactId);
+  const sources = tx
+    .select({ id: contact.id })
+    .from(contact)
+    .where(eq(contact.mergedIntoId, root))
+    .orderBy(asc(contact.id))
+    .all()
+    .map((r) => r.id);
+  return [root, ...sources];
 }

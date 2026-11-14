@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
+import { setTheme } from './theme';
 
 test('596 native selected total, protected skips and one exact Undo', async ({
   page,
@@ -70,7 +71,7 @@ test('596 native selected total, protected skips and one exact Undo', async ({
   await expect(bar).toContainText('−18,57 €');
   await expect(bar.getByRole('combobox', { name: 'Projekt für die Auswahl setzen' })).toBeEnabled();
   for (const theme of ['light', 'dark'] as const) {
-    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    await setTheme(page, theme);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );

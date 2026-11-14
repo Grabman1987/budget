@@ -7,6 +7,7 @@ import { getContactStatement } from './contacts';
 import {
   AuditError,
   BookingInvariantError,
+  ConflictError,
   ContactBlockedError,
   ContactLabelTakenError,
   EntityNotFoundError,
@@ -175,6 +176,11 @@ export function reopenContact(
     const row = liveContact(tx, contactId);
     assertFresh(row, options.expectedUpdatedAt);
     if (!row.archivedAt) return row;
+    // A merged source stays archived: its merge is only taken back through Undo (#871).
+    if (row.mergedIntoId)
+      throw new ConflictError(
+        'Der Kontakt wurde zusammengeführt und kann nur per Rückgängig zurück.',
+      );
     updateTracked(tx, contact, [contactId], { archivedAt: null }, grouped);
     return liveContact(tx, contactId);
   });

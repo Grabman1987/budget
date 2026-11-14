@@ -1,6 +1,7 @@
+import { contactIdentityIds, resolveContactForWrite } from './contact-label';
 import { randomUUID } from 'node:crypto';
 import { allocateContactReceipt, type ContactAllocation } from '@budget/domain';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { account, bookingSplit, category, contactAllocation, contactSettlement } from '../schema';
 import {
   insertTracked,
@@ -263,7 +264,7 @@ function repayment(db: Executor, contactId: string, receiptSplitId: string, toda
     .from(contactSettlement)
     .where(
       and(
-        eq(contactSettlement.contactId, contactId),
+        inArray(contactSettlement.contactId, contactIdentityIds(db, contactId)),
         eq(contactSettlement.receiptSplitId, receiptSplitId),
         isNull(contactSettlement.deletedAt),
       ),
@@ -289,6 +290,7 @@ export function adoptContactRepayment(
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
+    contactId = resolveContactForWrite(tx, contactId);
     const { statement, saved, source, record } = repayment(tx, contactId, receiptSplitId, today);
     if (record?.repayments?.includes(receiptSplitId))
       return { bookingId: source.bookingId, groupId: grouped.groupId, adopted: false };
@@ -322,7 +324,13 @@ export function adoptContactRepayment(
           contactSettlement,
           {
             id,
-            contactId,
+            // The settlement belongs to whoever owns the receipt split (a merged source or the root).
+            contactId:
+              tx
+                .select({ contactId: bookingSplit.contactId })
+                .from(bookingSplit)
+                .where(eq(bookingSplit.id, receiptSplitId))
+                .get()?.contactId ?? contactId,
             bookingId: source.bookingId,
             receiptSplitId,
             creditCents: current.creditCents,
@@ -412,6 +420,7 @@ export function reallocateContactRepayment(
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
+    contactId = resolveContactForWrite(tx, contactId);
     if (!repayment(tx, contactId, receiptSplitId, today).saved)
       adoptContactRepayment(tx, contactId, receiptSplitId, grouped, today, options);
     const before = getContactStatement(tx, contactId, today);

@@ -8,6 +8,8 @@ import {
 } from './expected-lifecycle-invariants';
 import { assertContactName, assertContactUndoDependencies } from './contact-invariants';
 import { assertContactIdentityUndo, assertContactIdentityUndoBefore } from './contact-identity';
+import { assertContactMergeUndo } from './contact-merge';
+import { retirePayslipWageRead } from './payslip-wages';
 import { isDuplicatePayslip } from '@budget/domain';
 import { assertReceiptUndo } from './receipts';
 import {
@@ -639,6 +641,7 @@ export function undo(
     const originals = loadTarget(tx, target);
     assertStatementUndoTarget(tx, originals, 'auditId' in target);
     assertContactIdentityUndoBefore(tx, originals);
+    assertContactMergeUndo(tx, originals, 'auditId' in target);
     // Protocol state cannot be replayed by undo: callbacks are one-shot and remote consent is external.
     if (
       originals.some((entry) =>
@@ -686,6 +689,9 @@ export function undo(
           .get()
       )
         throw new AuditError('Gehaltszettel-Aufnahme nur als gesamte Aktion rückgängig machen.');
+      // #1066: a reading and its lines only exist together.
+      if (['payslip_wage_read', 'payslip_wage_line'].includes(entry.entityType))
+        throw new AuditError('Gehaltszeilen nur als gesamte Aktion rückgängig machen.');
       if (['security_asset_exposure', 'security_exposure_version'].includes(entry.entityType))
         throw new AuditError('Klassenzuordnung nur als gesamte Aktion rückgängig machen.');
       if (entry.entityType === 'app_setting' && entry.entityId.startsWith('contacts.credit.'))
@@ -759,6 +765,49 @@ export function undo(
       if (batch.length > 0) revertCreations(tx, batch, grouped, force);
       batch = [];
     };
+    // #1066: restoring a retired wage reading (undo of a header edit or delete) retires the
+    // reading written since; it described the totals this undo replaces. One live reading only.
+    for (const entry of originals) {
+      if (entry.entityType !== 'payslip_wage_read' || entry.before?.['deleted_at'] != null)
+        continue;
+      if (entry.after?.['deleted_at'] == null) continue;
+      const payslipId = String(entry.before?.['payslip_id'] ?? '');
+      const other = tx
+        .select({ id: schema.payslipWageRead.id })
+        .from(schema.payslipWageRead)
+        .where(
+          and(
+            eq(schema.payslipWageRead.payslipId, payslipId),
+            isNull(schema.payslipWageRead.deletedAt),
+          ),
+        )
+        .get();
+      // A reading the same group deletes or restores itself is left to the group.
+      if (
+        other &&
+        other.id !== entry.entityId &&
+        !originals.some((o) => o.entityType === 'payslip_wage_read' && o.entityId === other.id)
+      )
+        retirePayslipWageRead(tx, payslipId, grouped);
+      const still = tx
+        .select({ id: schema.payslipWageRead.id })
+        .from(schema.payslipWageRead)
+        .where(
+          and(
+            eq(schema.payslipWageRead.payslipId, payslipId),
+            isNull(schema.payslipWageRead.deletedAt),
+          ),
+        )
+        .get();
+      if (
+        still &&
+        still.id !== entry.entityId &&
+        !originals.some((o) => o.entityType === 'payslip_wage_read' && o.entityId === still.id)
+      )
+        throw new AuditError(
+          'Rückgängig nicht möglich: Für diesen Gehaltszettel besteht bereits eine neuere Auswertung der Gehaltszeilen.',
+        );
+    }
     for (const entry of originals.reverse()) {
       const table = tableFor(entry.entityType);
       const bulk = entry.before === null && tableMeta(table).keyProps.length === 1;

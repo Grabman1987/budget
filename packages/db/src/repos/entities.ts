@@ -1,4 +1,8 @@
-import { assertContactActive, assertContactLabelFree } from './contact-label';
+import {
+  assertContactActive,
+  assertContactLabelFree,
+  resolveContactForWrite,
+} from './contact-label';
 import { assertContactName, assertContactSettlementInvariants } from './contact-invariants';
 import { assertStatementSettlementInvariants } from './statement-settlement-invariants';
 import { randomUUID } from 'node:crypto';
@@ -68,18 +72,21 @@ const CONTACT_REF: Record<string, string> = {
 };
 
 /** New data must not point at an archived contact (#870); an unchanged reference is left alone. */
-function assertContactRefActive(
+function assertContactRefActive<V extends object>(
   tx: Executor,
   table: IdTable,
-  values: object,
+  values: V,
   current?: object,
-): void {
+): V {
   const prop = CONTACT_REF[tableMeta(table).name];
-  if (!prop) return;
+  if (!prop) return values;
   const next = (values as Record<string, unknown>)[prop];
-  if (typeof next !== 'string') return;
-  if (current && (current as Record<string, unknown>)[prop] === next) return;
-  assertContactActive(tx, next);
+  if (typeof next !== 'string') return values;
+  if (current && (current as Record<string, unknown>)[prop] === next) return values;
+  // A merged source id lands on its target (#871), then the target must be active.
+  const root = resolveContactForWrite(tx, next);
+  assertContactActive(tx, root);
+  return root === next ? values : { ...values, [prop]: root };
 }
 
 /** Insert a row (audit `create`). Returns the stored row. */
@@ -91,7 +98,7 @@ export function createEntity<T extends IdTable>(
 ): T['$inferSelect'] {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    assertContactRefActive(tx, table, values);
+    values = assertContactRefActive(tx, table, values);
     if (tableMeta(table).name === tableMeta(account).name) {
       const row = values as Partial<typeof account.$inferInsert>;
       assertBudgetAccountCurrency(row.onBudget ?? false, row.currency ?? 'EUR');
@@ -157,7 +164,7 @@ export function updateEntity<T extends IdTable>(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const current = requireLive(tx, table, id);
-    assertContactRefActive(tx, table, patch, current);
+    patch = assertContactRefActive(tx, table, patch, current);
     if (tableMeta(table).name === tableMeta(account).name) {
       const before = current as typeof account.$inferSelect;
       const change = patch as Partial<typeof account.$inferInsert>;
