@@ -288,6 +288,7 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
         : [dialog.getByRole('button', { name: 'Abbrechen', exact: true })]),
       ...(phone ? [captureSaveControl(dialog)] : []),
       dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
+      ...(phone ? [dialog.getByRole('button', { name: 'Dokument hochladen', exact: true })] : []),
       ...(!phone ? [captureSaveControl(dialog)] : []),
       ...(phone ? [dialog.getByRole('button', { name: 'Blatt schließen', exact: true })] : []),
       dialog.getByRole('button', { name: 'Datei anhängen', exact: true }),
@@ -320,6 +321,7 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
         dialog.getByRole('button', { name: 'Foto aufnehmen', exact: true }),
         dialog.getByRole('button', { name: 'Datei anhängen', exact: true }),
         dialog.getByRole('button', { name: 'Blatt schließen', exact: true }),
+        dialog.getByRole('button', { name: 'Dokument hochladen', exact: true }),
         dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
         captureSaveControl(dialog),
       ]) {
