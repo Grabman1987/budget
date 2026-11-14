@@ -7,6 +7,7 @@ import { syntheticPayslipPdf } from '../apps/server/src/payslips/testing';
 import { inspectReport } from './spending-helpers';
 import { toast } from './ledger-helpers';
 import { openPruefenPart, openPruefenSource } from './pruefen-part';
+import { setTheme } from './theme';
 
 test.describe.configure({ timeout: 120000 });
 
@@ -37,8 +38,8 @@ async function captureReviewViewport(page: Page, info: TestInfo) {
   const dir = process.env['BUDGET_SPENDING_EVIDENCE'];
 
   if (dir) mkdirSync(dir, { recursive: true });
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+  for (const theme of ['light', 'dark'] as const) {
+    await setTheme(page, theme);
     expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
       [],
     );

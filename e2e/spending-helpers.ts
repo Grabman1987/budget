@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, type TestInfo } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { setTheme } from './theme';
 
 /**
  * Checks shared by the specs of the spending reports (group 2): axe without serious or critical
@@ -15,8 +16,8 @@ export async function inspectReport(page: Page, info: TestInfo, label: string) {
     window.scrollTo(0, 0);
     for (const el of document.querySelectorAll('.sr-scroll')) el.scrollTo(0, 0);
   });
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+  for (const theme of ['light', 'dark'] as const) {
+    await setTheme(page, theme);
     const axe = await new AxeBuilder({ page }).analyze();
     expect(
       axe.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? '')),

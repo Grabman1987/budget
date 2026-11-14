@@ -176,3 +176,7 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+/* A plain .btn is transparent: on the drafting grid its text would sit on an unknown gradient. */
+.inbox-guided-entry .btn {
+  background-color: var(--ground);
+}
