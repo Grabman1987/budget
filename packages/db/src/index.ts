@@ -16,6 +16,6 @@ export { incomeExpenseReport } from './repos/report-tables';
 export { goalsReport } from './repos/goals';
 export * from './repos/account-preview';
 
-export { databaseStamp } from './repos/request-memo';
+export { databaseStamp, runInReadSnapshot } from './repos/request-memo';
 export * from './repos/booking-views';
 export * from './repos/operator-contact-allocate';
