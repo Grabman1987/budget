@@ -30,9 +30,31 @@ interface Memo {
 }
 
 const storage = new AsyncLocalStorage<Memo>();
+/** Connections inside `runInReadSnapshot`: their open transaction is a read-only snapshot. */
+const snapshots = new WeakSet<object>();
 
 export function runWithRequestMemo<T>(fn: () => T): T {
   return storage.run({ byConnection: new WeakMap() }, fn);
+}
+
+/**
+ * Runs `fn` inside one read transaction of `db`'s connection, so every read of `fn` sees the same
+ * committed state even while other connections write. Only for a connection that never writes
+ * (the read-model worker sets `query_only`): the plain handle may then memoise inside the
+ * transaction, because nothing can roll back what it read. Callers must not overlap on one
+ * connection (the worker answers one request at a time).
+ */
+export async function runInReadSnapshot<T>(db: Executor, fn: () => Promise<T>): Promise<T> {
+  const connection = connectionOf(db);
+  if (!connection || connection.inTransaction) return fn();
+  connection.exec('BEGIN');
+  snapshots.add(connection);
+  try {
+    return await fn();
+  } finally {
+    snapshots.delete(connection);
+    if (connection.inTransaction) connection.exec('ROLLBACK');
+  }
 }
 
 /** The connection under a database or transaction handle (`session.client` on both). */
@@ -66,7 +88,12 @@ export function memoizedShared<T>(db: Executor, key: string, compute: () => T): 
 function memoizedEntry<T>(db: Executor, key: string, compute: () => T, clone: boolean): T {
   const memo = storage.getStore();
   const connection = connectionOf(db);
-  if (!memo || !connection || (!isTransaction(db) && connection.inTransaction)) return compute();
+  if (
+    !memo ||
+    !connection ||
+    (!isTransaction(db) && connection.inTransaction && !snapshots.has(connection))
+  )
+    return compute();
   const stamp = databaseStamp(db);
   const transaction = isTransaction(db);
   if (transaction) {

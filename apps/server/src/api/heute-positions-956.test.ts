@@ -8,6 +8,7 @@ import { migrateDatabase, openDatabase, type OpenedDatabase } from '@budget/db';
 import { FIXTURE_DAY } from '../../../../scripts/perf/api-read-fixture';
 import { seedHeuteFixture } from '../../../../scripts/perf/heute-fixture-956';
 import { createLedgerApi } from './index';
+import { readModelOffload } from './read-model-offload';
 import baseline from './heute-positions-956.responses.json';
 
 // Pin the restart epoch of preview tokens at its input; never normalize an API answer.
@@ -19,6 +20,7 @@ vi.setConfig({ testTimeout: 60_000 });
 
 let opened: OpenedDatabase;
 let directory: string;
+let file: string;
 const api = () =>
   createLedgerApi({
     db: opened.db,
@@ -29,7 +31,7 @@ const api = () =>
 
 beforeAll(() => {
   directory = mkdtempSync(join(tmpdir(), 'budget-heute-956-'));
-  const file = join(directory, 'synthetic.sqlite');
+  file = join(directory, 'synthetic.sqlite');
   const seed = openDatabase(file);
   migrateDatabase(seed.db);
   seedHeuteFixture(seed.db);
@@ -88,4 +90,69 @@ it('reads the price and rate history at most once per Heute request', async () =
 it('finds the latest quotes for positions without reading the price history', async () => {
   const rows = await rowsRead('/portfolio/positions');
   expect(rows.price).toBeLessThan(1_000);
+});
+
+const digestOf = (body: Buffer) =>
+  `${body.length}:${createHash('sha256').update(body).digest('hex')}`;
+
+it('answers Heute from the read-model worker with the same bytes and never stale after a write', async () => {
+  const offload = readModelOffload(file, () => FIXTURE_DAY);
+  try {
+    const cached = createLedgerApi({
+      db: opened.db,
+      today: () => FIXTURE_DAY,
+      bankSync: null,
+      stepUp: async (_c, next) => next(),
+      offload,
+    });
+    const read = async (path: string) => {
+      const response = await cached.request(path);
+      expect(response.status).toBe(200);
+      return Buffer.from(await response.arrayBuffer());
+    };
+    for (const path of ['/heute?period=month', '/heute?period=payday']) {
+      const expected = baseline.responses.find((r) => r.path === path)!.digest;
+      // Two concurrent cold requests share one computation; the repeat comes from the cache.
+      const [a, b] = await Promise.all([read(path), read(path)]);
+      expect(digestOf(a)).toBe(expected);
+      expect(digestOf(b)).toBe(expected);
+      expect(digestOf(await read(path))).toBe(expected);
+      expect(offload.recent(0)).toContain(path);
+    }
+    // One worker computation per period: the concurrent twin and the repeat did not compute.
+    expect(offload.served()).toBe(2);
+
+    // A write on the server's connection and one of another connection (bank worker, Litestream)
+    // both move the stamp: the next answer is computed on the new state, equal to a fresh
+    // server-thread computation.
+    const writers = [opened.sqlite, openDatabase(file).sqlite];
+    try {
+      for (const [i, writer] of writers.entries()) {
+        const before = await read('/heute?period=month');
+        writer
+          .prepare(
+            `update account set opening_balance_cents = opening_balance_cents + ?
+             where id = (select id from account where on_budget = 1 and role = 'budget'
+                         and deleted_at is null order by id limit 1)`,
+          )
+          .run(1_000 * (i + 1));
+        const after = await read('/heute?period=month');
+        expect(after.equals(before)).toBe(false);
+        const fresh = Buffer.from(await (await api().request('/heute?period=month')).arrayBuffer());
+        expect(after.equals(fresh)).toBe(true);
+      }
+      expect(offload.served()).toBe(4);
+    } finally {
+      writers[0]!
+        .prepare(
+          `update account set opening_balance_cents = opening_balance_cents - 3000
+         where id = (select id from account where on_budget = 1 and role = 'budget'
+                     and deleted_at is null order by id limit 1)`,
+        )
+        .run();
+      writers[1]!.close();
+    }
+  } finally {
+    await offload.close();
+  }
 });

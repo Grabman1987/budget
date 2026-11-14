@@ -48,6 +48,7 @@ export type AppOptions = BaseOptions &
               jobs?: ImportJobs | undefined;
               receiptsDir?: string | undefined;
               strategyEvidence?: LedgerApiOptions['strategyEvidence'];
+              offload?: LedgerApiOptions['offload'];
               /** Gets the ledger API once it exists (the start-up warm-up uses it). */
               onApi?: ((api: LedgerApi) => void) | undefined;
             }

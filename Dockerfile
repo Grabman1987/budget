@@ -65,6 +65,8 @@ WORKDIR /app
 COPY --from=build /repo/apps/server/dist/index.js ./server.js
 # Import tasks (YNAB dry run, commit, revert) run in a worker thread loaded from this file.
 COPY --from=build /repo/apps/server/dist/import-worker.js ./import-worker.js
+# The Heute read model is computed in a worker thread loaded from this file (#956).
+COPY --from=build /repo/apps/server/dist/read-model-worker.js ./read-model-worker.js
 COPY --from=build /repo/apps/server/dist/bank-sync-worker.js ./bank-sync-worker.js
 COPY --from=build /repo/apps/server/dist/pdf-thread.js ./pdf-thread.js
 COPY --from=build /repo/apps/server/dist/pdf-preview-thread.js ./pdf-preview-thread.js
