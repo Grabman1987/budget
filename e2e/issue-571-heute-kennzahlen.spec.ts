@@ -138,7 +138,7 @@ test('Frei bis Gehalt is the existing lead figure of the API', async ({ page }) 
   })
     .format(Math.abs(cents) / 100)
     // Node's de-AT groups with a space; the app groups with a dot.
-    .replace(/s/g, '.')} €`;
+    .replace(/\s/g, '.')} €`;
   await expect(lead).toHaveText(expected);
 });
 
