@@ -20,7 +20,7 @@ export * from './cash-valuation';
 export * from './queries';
 export * from './portfolio';
 export * from './valuation-notes';
-export { databaseStamp } from './request-memo';
+export { databaseStamp, runInReadSnapshot } from './request-memo';
 export * from './allocation';
 export * from './ledger-queries';
 export * from './payees';
@@ -83,6 +83,7 @@ export * from './cpi';
 export * from './book-settings';
 export * from './payroll-projects';
 export * from './payslip-intake';
+export * from './payslip-wages';
 
 export * from './read-source';
 export * from './assignment-rules';

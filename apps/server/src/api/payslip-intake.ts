@@ -251,6 +251,24 @@ export function payslipIntakeRoutes(
     const row = getPayslipIntake(db, z.string().uuid().parse(c.req.param('id')));
     return c.json({ ...intakeView(db, row), groupId: result.groupId });
   });
+  /**
+   * #1066: re-read the wage lines of stored payslips from their stored PDFs. Only ever by this
+   * explicit owner call (never on deploy); `dryRun` reports per payslip without writing.
+   */
+  api.post('/wage-lines/reread', async (c) => {
+    const { dryRun } = await readBody(c, z.strictObject({ dryRun: z.boolean() }));
+    try {
+      return c.json(await service.rereadWageLines({ dryRun, actor: ACTOR }));
+    } catch (error) {
+      if (error instanceof Error && error.name === 'ConflictError')
+        throw new ApiError(
+          409,
+          'conflict',
+          'Die Gehaltszettel wurden zwischenzeitlich geändert. Bitte erneut starten.',
+        );
+      throw error;
+    }
+  });
   api.post('/:id/retry', async (c) => {
     const options = await readBody(
       c,

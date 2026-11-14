@@ -27,6 +27,21 @@ function predecessorFolder(root: string): string {
   return folder;
 }
 
+/** Migration folder that stops at 0052 itself, so later migrations stay out of this test. */
+function throughFolder(root: string): string {
+  const source = defaultMigrationsFolder();
+  const folder = join(root, 'through-0052');
+  mkdirSync(join(folder, 'meta'), { recursive: true });
+  const journal = JSON.parse(readFileSync(join(source, 'meta', '_journal.json'), 'utf8')) as {
+    entries: { tag: string }[];
+  };
+  journal.entries = journal.entries.filter((e) => e.tag <= TAG);
+  writeFileSync(join(folder, 'meta', '_journal.json'), JSON.stringify(journal));
+  for (const e of journal.entries)
+    copyFileSync(join(source, `${e.tag}.sql`), join(folder, `${e.tag}.sql`));
+  return folder;
+}
+
 const tableNames = (o: OpenedDatabase) =>
   (
     o.sqlite
@@ -77,8 +92,9 @@ it('#871 migration 0052 on a copy of a genuine 0051 database: data preserved, ro
     const before = dump(opened);
     const beforeMigrations = applied(opened);
 
-    migrateDatabase(opened.db); // applies exactly 0052
-    migrateDatabase(opened.db); // idempotent
+    const through0052 = throughFolder(root);
+    migrateDatabase(opened.db, through0052); // applies exactly 0052
+    migrateDatabase(opened.db, through0052); // idempotent
     expect(applied(opened)).toBe(beforeMigrations + 1);
     expect(columns(opened, 'contact')).toContain('merged_into_id');
     expect(dump(opened, 'merged_into_id')).toEqual(before);
@@ -101,7 +117,7 @@ it('#871 migration 0052 on a copy of a genuine 0051 database: data preserved, ro
     expect(columns(opened, 'contact')).not.toContain('merged_into_id');
     expect(applied(opened)).toBe(beforeMigrations);
     expect(dump(opened)).toEqual(before);
-    migrateDatabase(opened.db);
+    migrateDatabase(opened.db, through0052);
     expect(columns(opened, 'contact')).toContain('merged_into_id');
 
     // A merged contact refuses the downgrade atomically (bytes unchanged).

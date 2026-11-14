@@ -25,6 +25,7 @@ import {
 import { receiptDirectory } from '../receipts/files';
 import { receiptRoutes } from './receipts';
 import { readModelCache } from './response-cache';
+import type { ReadModelOffload } from './read-model-offload';
 import { todayInVienna } from '@budget/domain';
 import type { MarketSources } from '@budget/market';
 import { Hono, type MiddlewareHandler } from 'hono';
@@ -109,6 +110,10 @@ export interface LedgerApiOptions {
   jobs?: ImportJobs | undefined;
   receiptsDir?: string | undefined;
   strategyEvidence?: StrategyEvidenceProvider | undefined;
+  /** Computes the Heute read model in a worker thread (`read-model-offload.ts`); server only. */
+  offload?: ReadModelOffload | undefined;
+  /** The read-model cache (default on); the worker thread has none of its own. */
+  cache?: boolean;
 }
 
 /**
@@ -126,9 +131,12 @@ export function createLedgerApi({
   jobs,
   receiptsDir = receiptDirectory(sqliteOf(db).name),
   strategyEvidence = storedStrategyEvidenceProvider(db),
+  offload,
+  cache = true,
 }: LedgerApiOptions): LedgerApi {
   const api = new Hono();
-  api.use('*', readModelCache(db, today));
+  if (cache) api.use('*', readModelCache(db, today));
+  if (offload) api.use('*', offload.middleware);
   // A valuation that had to estimate or skip a position (no quote) reports it while it runs; the
   // answer then carries them as `incomplete` and the page shows "Bewertung teilweise geschätzt".
   api.use('*', async (c, next) => {
