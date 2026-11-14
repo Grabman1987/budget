@@ -83,6 +83,7 @@ export * from './cpi';
 export * from './book-settings';
 export * from './payroll-projects';
 export * from './payslip-intake';
+export * from './payslip-wages';
 
 export * from './read-source';
 export * from './assignment-rules';
