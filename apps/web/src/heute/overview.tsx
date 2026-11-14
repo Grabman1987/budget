@@ -128,9 +128,10 @@ export function HeuteHeader({
         <h1 className="sr-only">Heute</h1>
         {showStand && <span title={STAND_TITLE}>{standText(data, updatedAt)}</span>}
       </div>
-      <MonthSwitch heading={monthLabel(month)} headingAs="span" />
+      <MonthSwitch heading={monthLabel(month)} headingAs="span" returnLabel />
       <Segmented
         label="Zeitraum"
+        className="hv-period-tabs"
         slide={REDESIGN_ENABLED}
         value={period}
         onChange={setPeriod}
@@ -680,31 +681,42 @@ function NextWork({
         Keine vorrangigen Aufgaben. <DetailLink kind="tasks">Alle Grundlagen →</DetailLink>
       </p>
     );
+  // Explicit roles keep the table semantics where the phone CSS turns the table into a grid
+  // (Safari/VoiceOver drop them otherwise).
+  /* eslint-disable jsx-a11y/no-redundant-roles, jsx-a11y/no-interactive-element-to-noninteractive-role */
   return (
-    <table className="hv-revisions">
+    <table className="hv-revisions" role="table">
       <caption className="sr-only">Als Nächstes</caption>
-      <thead>
-        <tr>
-          <th scope="col">Rev.</th>
-          <th scope="col">Aufgabe</th>
-          <th scope="col" className="hv-task-amount">
+      <thead role="rowgroup">
+        <tr role="row">
+          <th scope="col" role="columnheader">
+            Rev.
+          </th>
+          <th scope="col" role="columnheader">
+            Aufgabe
+          </th>
+          <th scope="col" role="columnheader" className="hv-task-amount">
             Betrag
           </th>
-          <th scope="col">Aktion</th>
+          <th scope="col" role="columnheader">
+            Aktion
+          </th>
         </tr>
       </thead>
-      <tbody>
+      <tbody role="rowgroup">
         {tasks.slice(0, 4).map((task, i) => (
-          <tr key={task.id} className={task.urgent ? 'is-urgent' : undefined}>
-            <td>
+          <tr key={task.id} role="row" className={task.urgent ? 'is-urgent' : undefined}>
+            <td role="cell">
               <RevisionTriangle
                 letter={String.fromCharCode(65 + i)}
                 urgent={task.urgent ?? false}
               />
             </td>
-            <td>{task.title}</td>
-            <td className="hv-task-amount">{task.amount}</td>
-            <td>
+            <td role="cell">{task.title}</td>
+            <td role="cell" className="hv-task-amount">
+              {task.amount}
+            </td>
+            <td role="cell">
               <AppLink to={task.to} search={task.search}>
                 {task.label} →
               </AppLink>
@@ -715,3 +727,4 @@ function NextWork({
     </table>
   );
 }
+/* eslint-enable jsx-a11y/no-redundant-roles, jsx-a11y/no-interactive-element-to-noninteractive-role */

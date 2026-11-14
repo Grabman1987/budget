@@ -37,9 +37,12 @@ export function useMonthKeys(shift: (delta: number) => void, enabled = true) {
 export function MonthSwitch({
   heading,
   headingAs = 'h1',
+  returnLabel = false,
 }: {
   heading: ReactNode;
   headingAs?: 'h1' | 'span';
+  /** Also show the return control's name as visible text (a page styles when it is visible). */
+  returnLabel?: boolean;
 }) {
   const [month, shift, setMonth] = useMonth();
   useMonthKeys(shift);
@@ -67,6 +70,7 @@ export function MonthSwitch({
           onClick={() => setMonth(current)}
         >
           <CalendarCheck size={16} strokeWidth={1.75} aria-hidden="true" />
+          {returnLabel && <span className="month-now-label">Zum aktuellen Monat</span>}
         </button>
       )}
     </div>
