@@ -643,6 +643,8 @@ function NextWork({
       title: `${data.attention.inboxCount} unter Prüfen`,
       label: 'Zuordnen',
       to: '/konten/pruefen',
+      // The guided pass takes the open bookings one at a time (#1054).
+      search: { modus: 'gefuehrt' },
     });
   if (tasks.length < 4 && model.tasks.some((task) => task.kind === 'rules'))
     tasks.push({
