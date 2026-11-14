@@ -358,6 +358,10 @@
     grid-template-columns: 44px minmax(0, 1fr) 44px;
   }
 }
+.settings-redesign .settings-contacts-v2 {
+  --control-height: var(--touch);
+  --control-small-height: var(--touch);
+}
 .settings-redesign .settings-contacts-v2 .settings-surface {
   overflow: visible;
 }

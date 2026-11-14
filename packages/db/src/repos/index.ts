@@ -47,6 +47,7 @@ export * from './planning-accuracy';
 
 export * from './contacts';
 export * from './contact-identity';
+export * from './contact-merge';
 export * from './contact-label';
 export * from './portfolio-positions';
 export * from './global-search';
@@ -82,6 +83,7 @@ export * from './cpi';
 export * from './book-settings';
 export * from './payroll-projects';
 export * from './payslip-intake';
+export * from './payslip-wages';
 
 export * from './read-source';
 export * from './assignment-rules';

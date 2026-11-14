@@ -11,6 +11,9 @@ import {
   getPayslipIntake,
   getPayslipSourceConfig,
   getReceipt,
+  applyPayslipWageReread,
+  listPayslipWageReads,
+  listPayslips,
   payslipScope,
   payslipScopeReason,
   replaceParsedPayslip,
@@ -20,6 +23,10 @@ import {
 } from '@budget/db';
 import {
   parsePayrollDocument,
+  planWageReread,
+  wageRereadNeedsSource,
+  type WageRereadPlanItem,
+  type WageRereadSource,
   type ParsedPayrollDocument,
   type PayslipSourceConfig,
   type PayslipAutomationOutcome,
@@ -360,5 +367,68 @@ export class PayslipIntakeService {
     return replacePayslipMappings(this.db, id, before, row.parsed, next, parsed, {
       actor: 'owner',
     });
+  }
+  /**
+   * #1066: owner-triggered re-read of stored payslips. Opens each stored PDF that has no wage
+   * reading yet (password order: remembered app password, server secret) and adds only its wage
+   * lines and statutory split. Header values, legacy lines, bookings and receipts never change; a
+   * payslip whose stored totals differ from the re-read is left alone and reported. Idempotent.
+   */
+  async rereadWageLines(options: {
+    dryRun: boolean;
+    actor: string;
+  }): Promise<{ dryRun: boolean; groupId: string | null; items: WageRereadPlanItem[] }> {
+    // A `skipped` reading records why lines could not be stored; a re-read may replace it.
+    const read = new Set(
+      listPayslipWageReads(this.db)
+        .filter((r) => r.lineCheck !== 'skipped')
+        .map((r) => r.payslipId),
+    );
+    const planned: { item: WageRereadPlanItem; parsed: ParsedPayrollDocument | null }[] = [];
+    const slips = listPayslips(this.db);
+    for (const slip of slips) {
+      const hasRead = read.has(slip.id);
+      const source = wageRereadNeedsSource(slip, hasRead)
+        ? await this.storedSource(slip.receiptId!)
+        : null;
+      planned.push({
+        item: planWageReread(slip, hasRead, source),
+        parsed: source?.status === 'parsed' ? source.parsed : null,
+      });
+    }
+    if (options.dryRun) return { dryRun: true, groupId: null, items: planned.map((p) => p.item) };
+    const writes = planned
+      .filter((p) => p.item.outcome === 'add' && p.parsed)
+      .map((p) => ({ payslip: slips.find((s) => s.id === p.item.payslipId)!, parsed: p.parsed! }));
+    const applied = writes.length
+      ? applyPayslipWageReread(this.db, writes, { actor: options.actor })
+      : { groupId: null, written: [], skipped: [] };
+    const skipped = new Set(applied.skipped);
+    return {
+      dryRun: false,
+      groupId: applied.groupId,
+      // A payslip changed or read in the meantime is reported as already read / unchanged.
+      items: planned.map(({ item }) =>
+        skipped.has(item.payslipId)
+          ? { ...item, outcome: 'already_read' as const, lineCount: 0, lineCheck: null }
+          : item,
+      ),
+    };
+  }
+  private async storedSource(receiptId: string): Promise<WageRereadSource> {
+    let bytes: Buffer;
+    try {
+      const receipt = getReceipt(this.db, receiptId);
+      if (!receipt.sha256) return { status: 'file_missing' };
+      bytes = await readFile(await verifyReceiptFile(this.dir, receipt.sha256, receipt.sizeBytes));
+      const { parsed } = await this.evaluate(bytes, receipt.originalFilename ?? '');
+      if (parsed.documentType === 'unknown' && /^PDF-Passwort/.test(parsed.warnings[0] ?? ''))
+        return { status: 'password' };
+      if (parsed.documentType === 'unknown' && /^PDF/.test(parsed.warnings[0] ?? ''))
+        return { status: 'unreadable' };
+      return { status: 'parsed', parsed };
+    } catch {
+      return { status: 'file_missing' };
+    }
   }
 }
