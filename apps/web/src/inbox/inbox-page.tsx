@@ -58,6 +58,7 @@ import {
   resolveInbox,
   readSourceMovementsQuery,
   useInboxRefreshing,
+  usePublishInboxQueueTotal,
   type InboxEntry,
   type InboxEnvelope,
   type InboxKind,
@@ -597,6 +598,8 @@ function PaginatedInboxBodyContent({
   const pages = queue.data?.pages ?? [];
   const entries = pages.flatMap((page) => page.entries);
   const firstPage = pages[0];
+  const queueSegments = bankSource ? undefined : firstPage?.segments;
+  usePublishInboxQueueTotal(queueSegments && queueSegments.umsaetze + queueSegments.aufgaben);
   const shown = REDESIGN_ENABLED && bankSource ? 'umsaetze' : (search.teil ?? firstPage?.segment);
   const resolved = firstPage?.segment;
   if (!search.teil && !pinned && resolved) setPinned(resolved);

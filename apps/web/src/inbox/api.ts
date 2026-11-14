@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import {
   infiniteQueryOptions,
   notifyManager,
@@ -242,24 +242,44 @@ export function useInboxRefreshing(): boolean {
   );
 }
 
+type TotalStore = { total: number | undefined; listeners: Set<() => void> };
+const totalStores = new WeakMap<QueryClient, TotalStore>();
+const totalStoreOf = (client: QueryClient): TotalStore => {
+  let store = totalStores.get(client);
+  if (!store) totalStores.set(client, (store = { total: undefined, listeners: new Set() }));
+  return store;
+};
+
 /**
- * Total of the mounted unscoped queue (Umsätze + Aufgaben): while the Prüfen parts are on screen
- * the header follows them, so both always show the same data state. Undefined without such a queue.
+ * Total of the mounted unscoped queue (Umsätze + Aufgaben), published by the Prüfen parts: while
+ * they are on screen the header follows them, so both always show the same data state. This is a
+ * plain store (not a query-cache subscription), so headers on other pages cost nothing.
  */
+export function usePublishInboxQueueTotal(total: number | undefined): void {
+  const client = useQueryClient();
+  useEffect(() => {
+    const store = totalStoreOf(client);
+    store.total = total;
+    store.listeners.forEach((listener) => listener());
+    return () => {
+      store.total = undefined;
+      store.listeners.forEach((listener) => listener());
+    };
+  }, [client, total]);
+}
+
+/** Undefined while no Prüfen parts with an unscoped queue are mounted. */
 export function useInboxQueueTotal(): number | undefined {
   const client = useQueryClient();
-  return useSyncExternalStore(subscribeCache(client), () => {
-    let best: { at: number; total: number } | undefined;
-    for (const query of client.getQueryCache().findAll({ queryKey: [...INBOX_KEY, 'pages'] })) {
-      if (!isGlobalPagesKey(query.queryKey) || !query.getObserversCount()) continue;
-      const segments = (query.state.data as InfiniteData<InboxPage> | undefined)?.pages[0]
-        ?.segments;
-      if (!segments) continue;
-      if (!best || query.state.dataUpdatedAt > best.at)
-        best = { at: query.state.dataUpdatedAt, total: segments.umsaetze + segments.aufgaben };
-    }
-    return best?.total;
-  });
+  const store = totalStoreOf(client);
+  const subscribe = useCallback(
+    (notify: () => void) => {
+      store.listeners.add(notify);
+      return () => void store.listeners.delete(notify);
+    },
+    [store],
+  );
+  return useSyncExternalStore(subscribe, () => store.total);
 }
 export const resolveInbox = (id: string) =>
   request<{ groupId: string }>('POST', `/api/inbox/${encodeURIComponent(id)}/resolve`, {});
