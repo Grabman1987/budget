@@ -275,6 +275,30 @@
 .inbox-segments button {
   min-height: 44px;
 }
+.inbox-counts-stale button {
+  font-style: italic;
+}
+.inbox-counts-status {
+  margin: 0 0 var(--space-xs);
+  color: var(--ink-2);
+}
+.inbox-counts-status:empty {
+  display: none;
+}
+.inbox-count-rule {
+  grid-column: 1 / -1;
+  margin-bottom: var(--space-sm);
+  color: var(--ink-2);
+}
+.inbox-count-rule summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.inbox-count-rule details p {
+  margin: 0 0 var(--space-xs);
+}
 .bank-review-progress {
   margin-block: var(--space-sm);
 }
