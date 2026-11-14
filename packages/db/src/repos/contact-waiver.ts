@@ -1,6 +1,7 @@
+import { resolveContactForWrite } from './contact-label';
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import { category, contactAllocation, contactSettlement } from '../schema';
+import { bookingSplit, category, contactAllocation, contactSettlement } from '../schema';
 import { insertTracked, withGroup, type AuditContext } from './audit';
 import { createContactSettlementBooking, getBooking } from './bookings';
 import { ensureAdvanceCategory } from './categories';
@@ -24,6 +25,7 @@ export function waiveContactOutlay(
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
+    contactId = resolveContactForWrite(tx, contactId);
     const outlay = getContactStatement(tx, contactId, today).outlays.find(
       (o) => o.splitId === outlaySplitId && !o.creditSourceSplitId,
     );
@@ -37,6 +39,14 @@ export function waiveContactOutlay(
         'Bitte höchstens den offenen Kontaktanteil als Geschenk übernehmen.',
       );
     const source = assertContactAllocationUnlocked(tx, outlay.bookingId, options, grouped);
+    // After a merge the outlay may be owned by the merged source: the waiver receipt belongs to
+    // the outlay's owner so receipt and outlay keep one contact (#871).
+    contactId =
+      tx
+        .select({ contactId: bookingSplit.contactId })
+        .from(bookingSplit)
+        .where(eq(bookingSplit.id, outlaySplitId))
+        .get()?.contactId ?? contactId;
     const categoryId = outlay.categoryId ?? input.categoryId;
     const expense =
       categoryId && tx.select().from(category).where(eq(category.id, categoryId)).get();

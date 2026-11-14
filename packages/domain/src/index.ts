@@ -34,6 +34,8 @@ export * from './planned-events';
 export * from './assignment-rules';
 export * from './reports/payslip-intake';
 export * from './reports/payslip-automation';
+export * from './reports/payslip-wage-reread';
+export * from './salary';
 
 export * from './report-range';
 export * from './income-targets';
@@ -69,3 +71,4 @@ export * from './wealth/strategy-trend';
 export * from './wealth/strategy-plan';
 export * from './wealth/us-equity-calendar';
 export * from './ledger/bulk-field-protection';
+export * from './broker-documents/trade-confirmation';

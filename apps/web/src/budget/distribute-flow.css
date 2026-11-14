@@ -1,0 +1,192 @@
+/* Guided "Geld verteilen" (#1055): blueprint card on the grid, month-close stepper pattern. */
+.distribute-flow {
+  display: grid;
+  gap: var(--space-md);
+  max-width: var(--page-max);
+  margin-block: var(--space-md) var(--space-xl);
+}
+.distribute-crumb {
+  padding: 0;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.distribute-crumb:focus-visible {
+  outline: var(--stroke-focus) solid var(--line);
+  outline-offset: 2px;
+}
+.distribute-head p {
+  margin: var(--space-xs) 0 0;
+  color: var(--ink-2);
+}
+.distribute-title {
+  margin: 0;
+  font-size: var(--fs-title);
+}
+.distribute-stepper ol {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.distribute-card {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--surface);
+  border: var(--stroke-hairline) solid var(--card-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--card-shadow);
+}
+.distribute-card h3 {
+  margin: 0;
+  font-size: var(--fs-title);
+}
+.distribute-card h3:focus {
+  outline: none;
+}
+.distribute-card h4 {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-size: var(--fs-body);
+}
+.distribute-card h4 span {
+  color: var(--ink-2);
+  font-weight: 400;
+}
+.distribute-lead {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+  padding-block: var(--space-sm);
+  border-bottom: var(--stroke-hairline) solid var(--rule);
+}
+.distribute-lead span {
+  color: var(--ink-2);
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+}
+.distribute-lead strong {
+  font-size: var(--fs-figure);
+  font-variant-numeric: tabular-nums;
+}
+.distribute-lead.is-positive strong {
+  color: var(--good-ink);
+}
+.distribute-lead.is-negative strong,
+.distribute-facts .is-negative dd,
+.distribute-verdict.is-negative {
+  color: var(--red);
+}
+.distribute-facts {
+  display: grid;
+  margin: 0;
+}
+.distribute-facts > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  padding-block: var(--space-xs);
+  border-bottom: var(--stroke-hairline) solid var(--rule);
+}
+.distribute-facts dt {
+  color: var(--ink-2);
+}
+.distribute-facts dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.distribute-note {
+  margin: 0;
+  color: var(--ink-2);
+}
+.distribute-alert {
+  margin: 0;
+  padding: var(--space-sm);
+  color: var(--red);
+  background: var(--red-soft);
+  border-radius: var(--radius-sm);
+}
+.distribute-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.distribute-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--touch);
+  border-bottom: var(--stroke-hairline) solid var(--rule);
+}
+.distribute-name {
+  overflow-wrap: anywhere;
+}
+.distribute-meta {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.distribute-amount {
+  font-variant-numeric: tabular-nums;
+}
+.distribute-ghost {
+  padding-inline: var(--space-xs);
+  border: var(--stroke-hairline) dashed var(--line);
+  border-radius: var(--radius-xs);
+  font-variant-numeric: tabular-nums;
+}
+.distribute-row-action,
+.distribute-failure {
+  display: grid;
+  gap: var(--space-xs);
+  justify-items: start;
+}
+.distribute-row-action p,
+.distribute-failure p {
+  margin: 0;
+}
+.distribute-failure {
+  padding: var(--space-sm);
+  border: var(--stroke-hairline) solid var(--red);
+  border-radius: var(--radius-sm);
+}
+.distribute-log {
+  margin: 0;
+  padding-inline-start: var(--space-lg);
+  color: var(--ink-2);
+}
+.distribute-links,
+.distribute-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+.distribute-footer {
+  justify-content: space-between;
+}
+.distribute-card .btn,
+.distribute-footer .btn,
+.distribute-links .btn {
+  min-height: var(--touch);
+}
+@media (max-width: 767px) {
+  .distribute-stepper ol {
+    grid-template-columns: 1fr;
+  }
+  .distribute-list li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .distribute-list li > .btn {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+  .distribute-footer {
+    position: sticky;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    padding-block: var(--space-xs);
+    background: var(--surface);
+    z-index: 2;
+  }
+}

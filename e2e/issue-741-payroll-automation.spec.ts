@@ -211,7 +211,7 @@ for (const profile of ['desktop', 'phone'] as const)
         const pdf = await syntheticPayslipPdf(syntheticWageRows, ''),
           result = await choose(page, pdf);
         expect(result.automation).toMatchObject({ status: 'booked', reason: 'unambiguous_source' });
-        const dialog = page.getByRole('dialog', { name: 'Gehaltszettel hochladen', exact: true });
+        const dialog = page.getByRole('dialog', { name: /^Gehaltszettel (hochladen|prüfen)/ });
         const undo = dialog.getByRole('button', { name: 'Rückgängig', exact: true });
         // Ordinary focus pauses the existing toast expiry; it does not change any timer.
         await undo.focus();
@@ -400,7 +400,7 @@ test('741 links an existing payout, opens its actual booking route and reloads i
     const pdf = await syntheticPayslipPdf(syntheticWageRows, ''),
       result = await choose(page, pdf);
     expect(result.automation).toMatchObject({ status: 'linked', bookingId: seeded.originalId });
-    const dialog = page.getByRole('dialog', { name: 'Gehaltszettel hochladen', exact: true });
+    const dialog = page.getByRole('dialog', { name: /^Gehaltszettel (hochladen|prüfen)/ });
     const undo = dialog.getByRole('button', { name: 'Rückgängig', exact: true });
     await undo.focus();
     // Dismiss only the focused toast using its real Escape handler, before leaving the page.

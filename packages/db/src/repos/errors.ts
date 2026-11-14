@@ -102,6 +102,32 @@ export class ContactBlockedError extends Error {
   }
 }
 
+export type ContactMergeReason =
+  | 'same_contact'
+  | 'source_merged'
+  | 'target_merged'
+  | 'source_archived'
+  | 'target_archived'
+  | 'source_has_sources'
+  | 'both_receivable_account'
+  | 'label_taken'
+  | 'would_net'
+  | 'statement_invalid';
+
+/** A contact merge is refused (#871); nothing was written. */
+export class ContactMergeConflictError extends ConflictError {
+  constructor(readonly reasons: ContactMergeReason[]) {
+    super('Die Kontakte können nicht zusammengeführt werden.');
+  }
+}
+
+/** The merge preview is expired or the data changed since it was shown (#871). */
+export class StalePreviewError extends ConflictError {
+  constructor() {
+    super('Die Vorschau ist nicht mehr aktuell. Bitte die Zusammenführung neu prüfen.');
+  }
+}
+
 /** The row changed since the client read it (`expectedUpdatedAt` differs). */
 export class StaleError extends Error {
   override readonly name = 'StaleError';

@@ -41,6 +41,8 @@ export function validateInboxSearch(search: Record<string, unknown>) {
     teil: (search['teil'] === 'umsaetze' || search['teil'] === 'aufgaben'
       ? search['teil']
       : undefined) as 'umsaetze' | 'aufgaben' | undefined,
+    /** Guided pass through the open Umsätze (#1054). */
+    modus: (search['modus'] === 'gefuehrt' ? 'gefuehrt' : undefined) as 'gefuehrt' | undefined,
     gruppe:
       typeof search['gruppe'] === 'string' && search['gruppe'].length <= 100
         ? search['gruppe']

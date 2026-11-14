@@ -6,7 +6,11 @@ import {
   detectPeriod,
   finishPayslip,
   normalize,
+  payoutEffect,
+  quantityAndRate,
   squash,
+  type WageLineDraft,
+  type WageLineSection,
 } from './payslip-text';
 
 /**
@@ -89,17 +93,18 @@ export const lgvPayrollAdapter: PayslipAdapter = {
 
     // Wage-type block.
     const lines: PayslipInput['lines'] = [];
+    const wageLines: WageLineDraft[] = [];
     let reimbursed = 0;
     const blockEnd = tableAt >= 0 ? tableAt : rows.length;
     for (let i = head + 1; i < blockEnd; i++) {
       if (i === sumAt) continue;
       // Optional reference month (e.g. 32024 = 03/2024) in front of the wage type.
-      const m = rows[i]!.trim().match(/^(?:\d{1,2}20\d{2}\s+)?(\d{3,4})\s+(\S.*)$/);
+      const m = rows[i]!.trim().match(/^(?:(\d{1,2})(20\d{2})\s+)?(\d{3,4})\s+(\S.*)$/);
       if (!m) continue;
-      const amounts = amountsOf(m[2]!);
+      const amounts = amountsOf(m[4]!);
       if (!amounts.length) continue;
-      const code = m[1]!;
-      const label = m[2]!
+      const code = m[3]!;
+      const label = m[4]!
         .slice(0, amounts[0]!.start)
         .replace(/\s+/g, ' ')
         .replace(/^\*+/, '')
@@ -110,7 +115,20 @@ export const lgvPayrollAdapter: PayslipAdapter = {
       const kind = classifyWageLabel(plain);
       const owner = config.wageTypes[code];
       const below = sumAt >= 0 && i > sumAt;
+      const referenceMonth =
+        m[1] && Number(m[1]) >= 1 && Number(m[1]) <= 12 ? `${m[2]}-${m[1].padStart(2, '0')}` : null;
+      const wage = (section: WageLineSection, legacyAmount: number) =>
+        wageLines.push({
+          code,
+          label: label || `Lohnart ${code}`,
+          section,
+          referenceMonth,
+          ...quantityAndRate(amounts.map((a) => m[4]!.slice(a.start, a.end))),
+          amountCents: payoutEffect(section, legacyAmount),
+        });
       if (below) {
+        if (owner === 'earning' || Number(code) >= 9000 || kind === 'info') wage('memo', amount);
+        else wage('deduction', -amount);
         // Personal deductions print with a trailing minus; memo and employer lines have 9xxx codes.
         if (owner === 'earning' || Number(code) >= 9000 || kind === 'info') continue;
         lines.push({
@@ -120,6 +138,13 @@ export const lgvPayrollAdapter: PayslipAdapter = {
         });
         continue;
       }
+      if (owner === 'earning') wage('earning', amount);
+      else if (!owner && kind === 'info') wage('memo', amount);
+      else if (owner === 'reimbursement' || (!owner && kind === 'reimbursement'))
+        wage('reimbursement', amount);
+      else if (owner) wage(owner, amount);
+      else if (kind === 'earning') wage('earning', amount);
+      else wage('unknown', amount);
       if (owner === 'earning' || (!owner && kind === 'info')) continue;
       if (owner === 'reimbursement' || (!owner && kind === 'reimbursement')) {
         reimbursed += amount;
@@ -139,7 +164,13 @@ export const lgvPayrollAdapter: PayslipAdapter = {
     // Statutory deductions by column.
     let sv = 0,
       tax = 0,
-      net: number | null = null;
+      net: number | null = null,
+      statutorySplit: {
+        svCurrentCents: number;
+        svSpecialCents: number;
+        taxCurrentCents: number;
+        taxOtherCents: number;
+      } | null = null;
     const starts = tableAt >= 0 ? columnStarts(rows[tableAt]!) : null;
     if (!starts || deductAt < 0) {
       warnings.push('Tabelle der Abzüge (SV, Lohnsteuer) nicht erkannt.');
@@ -170,6 +201,27 @@ export const lgvPayrollAdapter: PayslipAdapter = {
       tax = sums[2]! + sums[3]!;
       const svAdjustment = adjustments[0]! + adjustments[1]!;
       const taxAdjustment = adjustments[2]! + adjustments[3]!;
+      if (!unplaced)
+        statutorySplit = {
+          svCurrentCents: sums[0]!,
+          svSpecialCents: sums[1]!,
+          taxCurrentCents: sums[2]!,
+          taxOtherCents: sums[3]!,
+        };
+      for (const [section, label, value] of [
+        ['sv_adjustment', 'Aufrollung Sozialversicherung', svAdjustment],
+        ['tax_adjustment', 'Aufrollung Lohnsteuer', taxAdjustment],
+      ] as const)
+        if (value)
+          wageLines.push({
+            code: null,
+            label,
+            section,
+            referenceMonth: null,
+            quantity: null,
+            rate: null,
+            amountCents: payoutEffect(section, value),
+          });
       if (svAdjustment)
         lines.push({
           section: 'sv_adjustment',
@@ -210,6 +262,8 @@ export const lgvPayrollAdapter: PayslipAdapter = {
       lines,
       warnings,
       unmappedWageTypes,
+      wageLines,
+      statutorySplit,
     });
   },
 };
