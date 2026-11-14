@@ -25,6 +25,7 @@ import {
   StalePreviewError,
   type ContactMergeReason,
 } from './errors';
+import { mergeWageMappings, planWageMappingMerge } from './payslip-wages';
 import { runInTransaction, type Executor } from './types';
 
 /**
@@ -70,6 +71,11 @@ export interface ContactMergePreview {
   };
   /** Live configuration rows that are repointed to the target. */
   moves: { payees: number; expectedPayments: number; accounts: number };
+  /**
+   * Wage-type → component mappings of the source employer (#1066): `moves` go to the target;
+   * `keptTarget` source mappings are retired because the target maps the same wage type.
+   */
+  wageMappings: { moves: number; keptTarget: number };
   /** The source name that becomes an alias of the target. */
   newAlias: string;
   conflicts: ContactMergeReason[];
@@ -252,6 +258,7 @@ function computePreview(
     .where(and(eq(bookingSplit.contactId, sourceId), isNull(booking.deletedAt)))
     .all();
   const aliasCount = (id: string) => listContactAliases(tx, id).length;
+  const wagePlan = planWageMappingMerge(tx, sourceId, targetId);
   const preview = {
     source: { ...sourceSide, aliases: aliasCount(sourceId) },
     target: { ...targetSide, aliases: aliasCount(targetId) },
@@ -286,6 +293,7 @@ function computePreview(
       accounts: sourceConfig.accounts.length,
     },
     newAlias: source.name,
+    wageMappings: { moves: wagePlan.moves, keptTarget: wagePlan.keptTarget },
     conflicts,
   };
   const fingerprint = {
@@ -298,6 +306,7 @@ function computePreview(
     cents: [preview.source, preview.target].map((s) => [s.receivableCents, s.creditCents]),
     stamps: [sourceId, targetId].map((id) => referenceStamps(tx, id)),
     config: [sourceConfig, targetConfig],
+    wageMappings: wagePlan.rows.map((r) => [r.row.id, r.row.updatedAt, r.keepTarget]),
     // Allocations and credit records may change with equal cents: stamp their exact content.
     allocations: createHash('sha256')
       .update(
@@ -399,6 +408,7 @@ export function commitContactMerge(
       grouped,
     );
     const rows = configRows(tx, sourceId);
+    mergeWageMappings(tx, sourceId, targetId, grouped);
     for (const [table, ids] of [
       [payee, rows.payees],
       [expectedPayment, rows.expected],
@@ -434,6 +444,7 @@ const SOURCE_COLUMNS: [string, string][] = [
   ['expected_payment', 'contact_id'],
   ['account', 'contact_id'],
   ['payslip', 'employer_contact_id'],
+  ['wage_component_mapping', 'employer_contact_id'],
 ];
 
 /**
