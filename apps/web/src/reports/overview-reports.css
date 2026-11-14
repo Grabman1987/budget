@@ -201,10 +201,18 @@
 
 /* Heat cells (diverging per row vs the row mean, SPEC §6): pastel, the figure stays the signal */
 .ov-hc.is-bad {
-  background: color-mix(in srgb, var(--heat-red) calc(var(--h, 0.5) * 100%), transparent);
+  background: color-mix(
+    in srgb,
+    var(--heat-red) calc(var(--h, 0.5) * var(--heat-max)),
+    transparent
+  );
 }
 .ov-hc.is-good {
-  background: color-mix(in srgb, var(--heat-green) calc(var(--h, 0.5) * 100%), transparent);
+  background: color-mix(
+    in srgb,
+    var(--heat-green) calc(var(--h, 0.5) * var(--heat-max)),
+    transparent
+  );
 }
 
 /* Segmented controls in a card head */

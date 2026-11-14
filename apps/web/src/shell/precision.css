@@ -64,10 +64,9 @@
 }
 
 /* ON drafting grid (owner decision 2026-11-11): 8 px minor and 40 px major lines over the whole main
-   surface, no mask. The pseudo-element spans the full height of .main, so long pages scroll over
-   one continuous grid. Key figures, cards, panels, dialogs and tables are opaque and never show it.
-   The image is shared through custom properties: Konten draws it as the .main background instead
-   (konten-frame.css). */
+   surface, no mask. An ordinary background keeps opaque descendants measurable by axe; an
+   ancestor pseudo-element makes even covered text an unknown background (pseudoContent).
+   Key figures, cards, panels, dialogs and tables are opaque and never show the grid. */
 .app[data-budget-redesign='1'] {
   --drafting-grid:
     linear-gradient(var(--grid-ink) 1px, transparent 1px),
@@ -80,21 +79,58 @@
     );
   --drafting-grid-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
 }
-.app[data-budget-redesign='1'] .main::before {
-  inset: 0;
-  width: auto;
-  height: auto;
+.app[data-budget-redesign='1'] .main {
+  background-color: var(--ground);
   background-image: var(--drafting-grid);
   background-size: var(--drafting-grid-size);
   background-position: 0 0;
-  mask-image: none;
-  /* A full-height leaf box would be picked as the scroll anchor; content loading above the
-     viewport would then push focused targets out of view. */
-  overflow-anchor: none;
+}
+.app[data-budget-redesign='1'] .main::before {
+  display: none;
+}
+/* Text-bearing page chrome needs a known backing too. The grid remains visible in the gaps;
+   in particular the Plan income reference and Konten view selector must not sit on a gradient. */
+.app[data-budget-redesign='1']
+  .main
+  :is(
+    .hv-head,
+    .hv-more,
+    .page-stand-line,
+    .m-status,
+    .m-title-text,
+    .topbar-inner,
+    .plan-v2-page-head,
+    .plan-v2-source,
+    .year-instructions,
+    .payments-reference-source,
+    .kstate,
+    .konten-view-bar,
+    .konten-status-details,
+    .inbox-bank-status,
+    .inbox-source-date,
+    .titleblock,
+    .settings-primary-head,
+    .settings-source-stamp,
+    .settings-nav,
+    .settings-body,
+    .settings-shell-title,
+    .wealth-stand,
+    .wealth-details,
+    .wealth-details > summary,
+    .bookings-redesign > p
+  ) {
+  background-color: var(--ground);
+}
+/* Direct page actions have no surrounding card; retain the stronger hover/active treatments. */
+:where(.app[data-budget-redesign='1'] .main [data-redesign='inbox']) > .btn-ghost {
+  background-color: var(--ground);
+}
+.app[data-budget-redesign='1']:has(.settings-redesign) .main .topbar {
+  background-color: var(--ground);
 }
 @media print {
-  .app[data-budget-redesign='1'] .main::before {
-    display: none;
+  .app[data-budget-redesign='1'] .main {
+    background: var(--surface);
   }
 }
 /* Heute lead block carries the key figure: opaque so it never sits on the grid (ON only). The
