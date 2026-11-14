@@ -12,7 +12,7 @@ import { useBlocker } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
-import { eur } from '../ledger/format';
+import { eur, monthName } from '../ledger/format';
 import type { PayrollData } from './payroll-projects-api';
 import {
   PayslipIntakeDetail,
@@ -410,6 +410,7 @@ export function PayslipUploadDialog({
 }) {
   const [busy, setBusy] = useState(false);
   const [uploaded, setUploaded] = useState<PayslipUploadResult>();
+  const [reviewMonth, setReviewMonth] = useState<string | null>(null);
   const blocker = useBlocker({
     shouldBlockFn: () => busy,
     withResolver: true,
@@ -419,7 +420,16 @@ export function PayslipUploadDialog({
     if (blocker.status === 'blocked') blocker.reset();
   }, [blocker]);
   return (
-    <WideDialog open title="Gehaltszettel hochladen" onClose={onClose} beforeClose={() => !busy}>
+    <WideDialog
+      open
+      title={
+        uploaded && reviewMonth
+          ? `Gehaltszettel prüfen · ${monthName(`${reviewMonth}-01`)} ${reviewMonth.slice(0, 4)}`
+          : 'Gehaltszettel hochladen'
+      }
+      onClose={onClose}
+      beforeClose={() => !busy}
+    >
       <div className="pp-upload-form payslip-review-dialog">
         {!uploaded && (
           <PayslipUpload onBusyChange={setBusy} onUploaded={setUploaded} handoff={handoff} />
@@ -439,7 +449,12 @@ export function PayslipUploadDialog({
             {uploaded.passwordRemember === 'not_opened' && (
               <p role="status">Passwort nicht gemerkt: Es hat dieses PDF nicht geöffnet.</p>
             )}
-            <PayslipIntakeDetail id={uploaded.id} inline duplicate={uploaded.duplicate} />
+            <PayslipIntakeDetail
+              id={uploaded.id}
+              inline
+              duplicate={uploaded.duplicate}
+              onMonth={setReviewMonth}
+            />
           </>
         )}
       </div>
