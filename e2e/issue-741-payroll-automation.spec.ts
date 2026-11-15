@@ -109,7 +109,7 @@ async function choose(page: Page, pdf: Buffer): Promise<Uploaded> {
       response.request().method() === 'POST',
   );
   const chooserReady = page.waitForEvent('filechooser');
-  await dialog.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Gehaltszettel: PDF auswählen', exact: true }).click();
   const chooser = await chooserReady;
   expect(chooser.isMultiple()).toBe(false);
   await chooser.setFiles({

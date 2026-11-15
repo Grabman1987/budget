@@ -463,6 +463,23 @@ it('an exact fit assigns every need and leaves nothing over', async () => {
   ]);
 });
 
+it('a retry dismisses the conflict when the rebuilt plan has nothing left to assign', async () => {
+  assign.mockRejectedValueOnce(new ApiError(409, 'plan_preview_changed'));
+  const { rerender } = render(flow(view({})));
+  next();
+  next();
+  fireEvent.click(screen.getByRole('button', { name: 'Alle nach Plan zuweisen · 975,50 €' }));
+  await screen.findByRole('alert');
+  rerender(flow(view({ toBeAssignedCents: 0 })));
+  fireEvent.click(
+    within(screen.getByRole('alert')).getByRole('button', { name: 'Erneut versuchen' }),
+  );
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(screen.getByTestId('distribute-nothing').textContent).toBe('Nichts zu verteilen.');
+  expect(assign).toHaveBeenCalledTimes(1);
+  expect(posts).toEqual([]);
+});
+
 it('a 409 plan change shows the message and the retry uses the rebuilt plan', async () => {
   assign.mockRejectedValueOnce(new ApiError(409, 'plan_preview_changed'));
   const { rerender } = render(flow(view({})));
@@ -652,6 +669,11 @@ it('a write in flight when the pass is left is reconciled on reopen', async () =
     'In diesem Durchgang zugewiesen800,00 €',
     'Zu verteilen jetzt185,00 €',
   ]);
+  const marker = 'Synthetic rent: 800,00 € zugewiesen (nach Neuladen abgeglichen)';
+  expect(screen.getByText(marker)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Letzte Änderung rückgängig' })).toBeNull();
+  reload(() => render(flow(after())));
+  expect(screen.getByText(marker)).toBeTruthy();
 
   // The same pending write that never landed (rent unchanged) is dropped, not counted.
   cleanup();
@@ -678,18 +700,30 @@ it("a toast undo of the flow's write removes it from the pass", async () => {
   expect(screen.getByTestId('distribute-summary').querySelector('dd')!.textContent).toBe('0,00 €');
 });
 
-it('rejects a stored pass with a broken start marker', () => {
-  sessionStorage.setItem(
-    'budget.geld-verteilen.2026-10',
-    JSON.stringify({
-      month: '2026-10',
-      startedAt: 'not-a-date',
-      step: 4,
-      reached: 4,
-      startAssignedCents: 1,
-      log: [],
-    }),
-  );
-  render(flow(view({})));
-  expect(stepTitle()).toBe('1. Eingang prüfen');
-});
+it.each(['not-a-date', '2026-10-01T00:00:00.000Z', 'malformed-json', 'null'])(
+  'replaces an invalid saved pass (%s), resumes the new pass and clears it on exit',
+  (marker) => {
+    const key = 'budget.geld-verteilen.2026-10';
+    sessionStorage.setItem(
+      key,
+      marker === 'malformed-json' || marker === 'null'
+        ? marker
+        : JSON.stringify({
+            month: '2026-10',
+            startedAt: marker,
+            step: 4,
+            reached: 4,
+            startAssignedCents: 1,
+            log: marker === 'not-a-date' ? [] : null,
+          }),
+    );
+    render(flow(view({})));
+    expect(stepTitle()).toBe('1. Eingang prüfen');
+    next();
+    expect(JSON.parse(sessionStorage.getItem(key)!).step).toBe(2);
+    reload(() => render(flow(view({}))));
+    expect(stepTitle()).toBe('2. Lücken');
+    cleanup();
+    expect(sessionStorage.getItem(key)).toBeNull();
+  },
+);

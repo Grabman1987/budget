@@ -90,8 +90,10 @@ function readSaved(month: string): Saved | null {
       typeof value.reached !== 'number' ||
       typeof value.startAssignedCents !== 'number' ||
       !Array.isArray(value.log)
-    )
+    ) {
+      window.sessionStorage.removeItem(storageKey(month));
       return null;
+    }
     const step = Math.min(4, Math.max(1, Math.trunc(value.step)));
     return {
       month,
@@ -112,6 +114,11 @@ function readSaved(month: string): Saved | null {
         .slice(-50),
     };
   } catch {
+    try {
+      window.sessionStorage.removeItem(storageKey(month));
+    } catch {
+      // Blocked storage must not prevent starting a new pass.
+    }
     return null;
   }
 }
@@ -146,7 +153,7 @@ function reconcile(saved: Saved | null, data: BudgetMonthView): Saved | null {
       return [
         {
           id: entry.id,
-          text: entry.text,
+          text: `${entry.text} (nach Neuladen abgeglichen)`,
           kind: entry.kind,
           cents: entry.cents,
           items: entry.items,
@@ -377,11 +384,12 @@ export function DistributeFlow({
 
   const perform = async (action: Action) => {
     if (action.kind === 'undo') return undo();
+    if (busyRef.current) return;
     const plan = operation(action);
-    if (busyRef.current || !plan) return;
+    setFailure(null);
+    if (!plan) return;
     busyRef.current = true;
     setBusy(true);
-    setFailure(null);
     // Stored before the request leaves, so a reload mid-write can reconcile it on reopen.
     const id = newId();
     const pendingEntry: LogEntry = {

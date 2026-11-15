@@ -16,8 +16,9 @@ documents, including closed accounts. No funding-account setup is required.
 The app retains the original PDF and its receipt metadata before the document is
 reviewed. Downloads use the existing authenticated **Original-PDF herunterladen**
 link; there is no inline PDF renderer. Upload accepts one PDF up to 15 MiB. A
-request-local password can be supplied for extraction; it is not remembered or
-borrowed from payroll settings.
+password can be supplied for extraction. Owner decision 2026-11-13: if none is typed
+(or it does not open the file), the remembered payroll password and then the server
+secret are tried, like payslips; nothing new is remembered.
 
 Inspect the proposed reference, dates, period, amount and explicit currency
 against the original. Printed facts and owner-entered corrections have distinct

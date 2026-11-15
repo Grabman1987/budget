@@ -24,10 +24,13 @@ test('one review pill on desktop; three phone header items and linked status bel
     if (redesign) {
       await expect(header.locator('.page-header-title')).toHaveText('Reports');
       await expect(header.locator('.page-header-search button')).toHaveCount(1);
+      // Owner decision 13.11.2026: the floating + is the only phone capture entry, so the header
+      // keeps privacy and review count.
       await expect(
         header.locator('.page-header-actions > button, .page-header-actions > a'),
-      ).toHaveCount(3);
-      await expect(header.locator('.page-header-profile')).toHaveCount(1);
+      ).toHaveCount(2);
+      // The profile wrapper exists only where a profile control is shown (Heute); Reports has none.
+      await expect(header.locator('.page-header-profile')).toHaveCount(0);
       await expect(header.locator('.m-profile')).toHaveCount(0);
     } else {
       await expect(

@@ -38,7 +38,7 @@ export function extractStatementText(
     worker.once('exit', () => finish({ error: 'pdf' }));
   });
 }
-/** Request-local password only; no remembered payroll password, DB, network or document logging. */
+/** Extraction with the request-local password only (callers add the fallbacks). */
 export async function extractStatement(
   bytes: Buffer,
   password?: string,

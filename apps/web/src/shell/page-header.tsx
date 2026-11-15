@@ -6,6 +6,7 @@ import { PrivacyButton } from './privacy-button';
 import { InboxHeaderLink } from '../inbox/navigation';
 import { useInboxCount } from './inbox';
 import { PanelLink } from './panel-link';
+import { DocumentUploadButton } from '../document-intake/document-upload';
 import { MobileProfile } from './mobile-chrome';
 import { captureControlsFocus, restoreControlsFocus } from './controls-focus';
 import './page-header.css';
@@ -122,6 +123,11 @@ export function PageHeader({
         <div className="page-header-search">
           <GlobalSearch mobile={phone} compactLabel onOpenChange={onSearchChange} />
         </div>
+        {!phone && (
+          <div className="page-header-upload">
+            <DocumentUploadButton compact label="Neues Dokument hochladen" />
+          </div>
+        )}
         <div className="page-header-actions topbar-actions">
           <PrivacyButton />
           <InboxHeaderLink className="review-pill" aria-label={inbox.label}>
@@ -143,20 +149,23 @@ export function PageHeader({
               />
             )}
           </InboxHeaderLink>
-          <PanelLink
-            className="btn btn-primary page-header-booking"
-            panel="buchung"
-            aria-label="Buchung"
-            aria-keyshortcuts="n"
-            title="Buchung erfassen (N)"
-          >
-            <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
-            <span>Buchung</span>
-          </PanelLink>
+          {/* Phone: the floating + is the only capture entry (owner decision 13.11.2026). */}
+          {!phone && (
+            <PanelLink
+              className="btn btn-primary page-header-booking"
+              panel="buchung"
+              aria-label="Buchung"
+              aria-keyshortcuts="n"
+              title="Buchung erfassen (N)"
+            >
+              <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
+              <span>Buchung</span>
+            </PanelLink>
+          )}
         </div>
-        {phone && (
+        {phone && showProfile && (
           <div className="page-header-profile">
-            {showProfile && <MobileProfile privacy={false} />}
+            <MobileProfile privacy={false} />
           </div>
         )}
       </div>

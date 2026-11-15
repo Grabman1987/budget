@@ -198,9 +198,8 @@ export async function verifyPhoneTextReflow(page: Page, origin: string, output: 
         await lastControl.focus();
         await expect(lastControl).toBeFocused();
         await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
-        // Focus can already have scrolled to the bottom. Observe the resulting hidden state
-        // before reversing: WebKit may deliver that native scroll after animation frames.
-        await expect(page.locator('.fab')).toBeHidden();
+        // The redesign keeps the phone's only capture entry visible, including at the bottom.
+        await expect(page.locator('.fab')).toBeVisible();
         await page.evaluate(() => scrollBy(0, -1));
         await expect(page.locator('.fab')).toBeVisible();
         const last = await rect(lastControl);
