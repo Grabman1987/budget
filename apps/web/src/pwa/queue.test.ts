@@ -7,7 +7,8 @@ import { queueReason, sendQueue, submitCapture } from './queue';
 
 const memory = vi.hoisted(() => ({ rows: [] as QueuedBooking[], failWrite: false }));
 const post = vi.hoisted(() => vi.fn());
-vi.mock('../ledger/api', () => ({ createBooking: post }));
+const check = vi.hoisted(() => vi.fn());
+vi.mock('../ledger/api', () => ({ createBooking: post, readBookingDelivery: check }));
 vi.mock('./queue-store', () => ({
   listQueue: async () => structuredClone(memory.rows),
   putQueued: async (row: QueuedBooking) => {
@@ -16,9 +17,10 @@ vi.mock('./queue-store', () => ({
       (a, b) => a.createdAt - b.createdAt,
     );
   },
-  deleteQueued: async (id: string) => {
+  completeQueued: async ({ id }: { id: string }) => {
     memory.rows = memory.rows.filter((x) => x.id !== id);
   },
+  setQueuedSending: vi.fn(),
   withQueueLock: <T>(fn: () => Promise<T>) => fn(),
 }));
 
@@ -38,6 +40,7 @@ beforeEach(() => {
   memory.rows = [];
   memory.failWrite = false;
   post.mockReset();
+  check.mockReset().mockResolvedValue({ result: null });
   online(true);
 });
 describe('durable booking delivery', () => {
@@ -69,6 +72,27 @@ describe('durable booking delivery', () => {
     expect(post.mock.calls[1]).toEqual([original.input, original.id]);
     expect(memory.rows).toEqual([]);
     expect(sent).toHaveBeenCalledWith(result);
+  });
+  it('checks a committed result first and never POSTs it again', async () => {
+    post.mockRejectedValueOnce(new ApiError(0, 'network'));
+    await submitCapture(input, draft);
+    const original = memory.rows[0]!;
+    check.mockResolvedValueOnce({ result });
+    const sent = vi.fn();
+    await sendQueue(sent);
+    expect(check).toHaveBeenCalledExactlyOnceWith(original.id, { type: 'create', input });
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(sent).toHaveBeenCalledWith(result);
+    expect(memory.rows).toEqual([]);
+  });
+  it('retains uncertain intent without POST when the server check fails', async () => {
+    post.mockRejectedValueOnce(new ApiError(0, 'network'));
+    await submitCapture(input, draft);
+    const original = memory.rows[0]!;
+    check.mockRejectedValueOnce(new ApiError(401, 'unauthorized'));
+    await sendQueue(vi.fn());
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(memory.rows[0]).toMatchObject({ id: original.id, input, uncertain: true });
   });
   it('retains an expired session and retries after login in FIFO order', async () => {
     online(false);

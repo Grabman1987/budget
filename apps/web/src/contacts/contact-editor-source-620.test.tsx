@@ -10,6 +10,22 @@ import { createLedgerApi } from '../../../server/src/api';
 import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
 import { LEDGER_KEY } from '../ledger/queries';
 import { ContactStatementPage, ContactsPage } from './contacts-page';
+import type { QueuedBooking } from '../pwa/queue-store';
+
+// jsdom has no IndexedDB. Keep real queue decisions, HTTP and SQLite; inject only device storage.
+const device = vi.hoisted(() => ({ rows: [] as QueuedBooking[] }));
+vi.mock('../pwa/queue-store', async (original) => ({
+  ...(await original<object>()),
+  listQueue: async () => structuredClone(device.rows),
+  putQueued: async (item: QueuedBooking) => {
+    device.rows = [...device.rows.filter((row) => row.id !== item.id), structuredClone(item)];
+  },
+  completeQueued: async ({ id }: { id: string }) => {
+    device.rows = device.rows.filter((row) => row.id !== id);
+  },
+  withQueueLock: <T,>(run: () => Promise<T>) => run(),
+  setQueuedSending: vi.fn(),
+}));
 
 vi.mock('../pages/placeholder-page', () => ({
   PageFrame: ({ children }: { children: ReactNode }) => <main>{children}</main>,
@@ -29,6 +45,7 @@ const dialogMethods = ['showModal', 'close'].map(
   (name) => [name, Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name)] as const,
 );
 beforeEach(() => {
+  device.rows = [];
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
     addEventListener() {},

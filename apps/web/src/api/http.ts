@@ -104,7 +104,13 @@ export async function request<T>(
   if (
     method !== 'GET' &&
     offlineReadOnly() &&
-    !(method === 'POST' && path === '/api/bookings' && headers?.['Idempotency-Key']) &&
+    !(
+      ((method === 'POST' &&
+        (path === '/api/bookings' ||
+          /^\/api\/bookings\/delivery\/[a-zA-Z0-9-]{16,80}$/.test(path))) ||
+        (method === 'PATCH' && /^\/api\/bookings\/[^/]+$/.test(path))) &&
+      headers?.['Idempotency-Key']
+    ) &&
     !queuedReceipt &&
     !(
       method === 'POST' &&
@@ -178,7 +184,8 @@ export async function request<T>(
     );
   }
   // File delivery notifies only after a validated acknowledgement and epoch-checked device cleanup.
-  if (method !== 'GET' && !queuedReceipt) notifyApiWrite();
+  if (method !== 'GET' && !queuedReceipt && !path.startsWith('/api/bookings/delivery/'))
+    notifyApiWrite();
   if (
     authGeneration !== null &&
     snapshotGeneration() === authGeneration &&

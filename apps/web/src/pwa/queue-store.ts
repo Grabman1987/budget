@@ -1,15 +1,17 @@
-import type { BookingCreate } from '../ledger/api';
+import type { BookingCreate, BookingPatch } from '../ledger/api';
 import type { BookingDraft } from '../ledger/booking-model';
 import type { AccountType } from '../ledger/types';
 
 export interface QueuedBooking {
   id: string;
   createdAt: number;
-  input: BookingCreate;
+  input: BookingCreate | { type: 'change'; bookingId: string };
   draft: BookingDraft;
+  change?: { bookingId: string; patch: BookingPatch };
   reason?: string;
   /** A lost response might already have booked this exact payload. Resolve before editing. */
   uncertain: boolean;
+  sending?: boolean;
 }
 
 // Only form choices, never balances, API responses, cookies or authentication material.
@@ -130,6 +132,7 @@ export async function editQueued(id: string, input: BookingCreate, draft: Bookin
       );
     const { reason, ...rest } = current;
     void reason;
+    if (current.change) throw new Error('Diese Änderung kann nur gesendet oder gelöscht werden.');
     await putQueued({ ...rest, input, draft });
   });
 }
@@ -143,3 +146,85 @@ export async function removeQueued(id: string) {
     await deleteQueued(id);
   });
 }
+
+export interface BookingAcknowledgement {
+  id: string;
+  bookingIds: string[];
+  savedAt: string;
+}
+
+/** One readonly transaction prevents a pending intent and its confirmation appearing together. */
+export async function readQueueState() {
+  const db = await database();
+  try {
+    const snapshot = await new Promise<{
+      items: QueuedBooking[];
+      acknowledgements: BookingAcknowledgement[];
+    }>((resolve, reject) => {
+      const tx = db.transaction(['bookings', 'choices'], 'readonly');
+      const items = tx.objectStore('bookings').getAll();
+      const acknowledgements = tx.objectStore('choices').get('acknowledgements');
+      tx.oncomplete = () =>
+        resolve({
+          items: (items.result as QueuedBooking[]).sort(
+            (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id),
+          ),
+          acknowledgements: acknowledgements.result ?? [],
+        });
+      tx.onerror = tx.onabort = () =>
+        reject(new Error('Speicherstatus konnte nicht gelesen werden.'));
+    });
+    const locks = await navigator.locks?.query();
+    const held = locks?.held?.some((lock) => lock.name === 'budget-capture') ?? false;
+    return {
+      ...snapshot,
+      items: snapshot.items.map((item) => ({
+        ...item,
+        sending: Boolean(item.sending && held),
+      })),
+    };
+  } finally {
+    db.close();
+  }
+}
+
+/** Remove the pending intent and retain its small confirmation in the same device transaction. */
+export async function completeQueued(ack: BookingAcknowledgement) {
+  const db = await database();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(['bookings', 'choices'], 'readwrite');
+      const choices = tx.objectStore('choices');
+      const previous = choices.get('acknowledgements');
+      previous.onsuccess = () => {
+        const rows = (previous.result ?? []) as BookingAcknowledgement[];
+        choices.put(
+          [ack, ...rows.filter((row) => row.id !== ack.id)].slice(0, 20),
+          'acknowledgements',
+        );
+        tx.objectStore('bookings').delete(ack.id);
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = tx.onabort = () =>
+        reject(new Error('Speicherbestätigung konnte nicht auf dem Gerät gesichert werden.'));
+    });
+  } finally {
+    db.close();
+  }
+  changed();
+}
+
+// Sending is a live state only: after a crash a persisted uncertain intent needs checking again.
+const sendingIds = new Set<string>();
+export const isQueuedSending = (id: string) => sendingIds.has(id);
+export function setQueuedSending(id: string, sending: boolean) {
+  if (sending) sendingIds.add(id);
+  else sendingIds.delete(id);
+  changed();
+}
+export const queuedStatus = (item: QueuedBooking) =>
+  isQueuedSending(item.id) || item.sending
+    ? 'Wird gesendet'
+    : item.reason || item.uncertain
+      ? 'Fehlgeschlagen'
+      : 'Lokal gespeichert';

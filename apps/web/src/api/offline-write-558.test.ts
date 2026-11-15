@@ -21,3 +21,27 @@ it('does not send an offline financial write outside the existing idempotent cap
   ).resolves.toEqual({ ok: true });
   expect(fetch).toHaveBeenCalledTimes(1);
 });
+
+it('allows only keyed booking edits and receipt checks through the existing offline delivery gate', async () => {
+  const fetch = vi.fn().mockImplementation(async () => new Response('{"result":null}'));
+  vi.stubGlobal('navigator', { onLine: false });
+  vi.stubGlobal('fetch', fetch);
+  for (const [method, path] of [
+    ['PATCH', '/api/bookings/synthetic-booking'],
+    ['POST', '/api/bookings/delivery/synthetic-delivery-key'],
+  ] as const) {
+    await expect(request(method, path, {})).rejects.toMatchObject({ code: 'offline_read_only' });
+    await expect(
+      request(method, path, {}, { 'Idempotency-Key': 'synthetic-delivery-key' }),
+    ).resolves.toEqual({ result: null });
+  }
+  await expect(
+    request(
+      'PATCH',
+      '/api/accounts/synthetic-account',
+      {},
+      { 'Idempotency-Key': 'synthetic-delivery-key' },
+    ),
+  ).rejects.toMatchObject({ code: 'offline_read_only' });
+  expect(fetch).toHaveBeenCalledTimes(2);
+});

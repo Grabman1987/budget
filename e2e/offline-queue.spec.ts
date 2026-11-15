@@ -104,6 +104,12 @@ test('lost POST response retries the same key with no duplicate booking', async 
   const keys: string[] = [];
   let lose = true;
   let recovered = false;
+  let checks = 0;
+  await page.route('**/api/bookings/delivery/*', async (route) => {
+    checks++;
+    if (!recovered) await route.abort('failed');
+    else await route.continue();
+  });
   await page.route('**/api/bookings', async (route) => {
     if (route.request().method() !== 'POST') return route.continue();
     keys.push(route.request().headers()['idempotency-key']!);
@@ -121,9 +127,78 @@ test('lost POST response retries the same key with no duplicate booking', async 
   recovered = true;
   await waiting(page).getByRole('button', { name: 'Jetzt senden' }).click();
   await expect(waiting(page)).toHaveCount(0);
-  expect(keys.length).toBeGreaterThanOrEqual(2);
+  expect(checks).toBeGreaterThanOrEqual(1);
+  expect(keys).toHaveLength(1);
+  const confirmed = page.getByRole('region', { name: 'Buchungsstatus', exact: true });
+  await expect(confirmed).toContainText('Auf dem Server gespeichert');
+  await expect(confirmed).toContainText('Buchungs-ID:');
+  await expect(confirmed.locator('time')).toHaveAttribute('datetime', /T/);
+  expect(
+    (await new AxeBuilder({ page }).include('[aria-label="Buchungsstatus"]').analyze()).violations,
+  ).toEqual([]);
+  await confirmed.screenshot({ path: `test-results/save-status-${info.project.name}-light.png` });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  expect(
+    (await new AxeBuilder({ page }).include('[aria-label="Buchungsstatus"]').analyze()).violations,
+  ).toEqual([]);
+  await confirmed.screenshot({ path: `test-results/save-status-${info.project.name}-dark.png` });
+  await page.reload();
+  await expect(confirmed).toContainText('Buchungs-ID:');
   expect(new Set(keys).size).toBe(1);
   expect(await bookings(page, accountId)).toHaveLength(1);
+});
+
+test('a connection drop before commit retains one intent through reload and confirms recovery', async ({
+  page,
+}, info) => {
+  const { accountId, panel } = await prepare(page, info);
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const keys: string[] = [];
+  let recovered = false;
+  let checks = 0;
+  await page.route('**/api/bookings/delivery/*', async (route) => {
+    checks++;
+    if (!recovered) await route.abort('failed');
+    else await route.continue();
+  });
+  await page.route('**/api/bookings', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    keys.push(route.request().headers()['idempotency-key']!);
+    if (!recovered) {
+      await held;
+      await route.abort('failed');
+    } else await route.continue();
+  });
+  await captureSaveControl(panel).click();
+  try {
+    await expect(panel.locator('p[role="status"]')).toHaveText('Wird gesendet…');
+    // A repeated save gesture during delivery cannot enqueue another intent.
+    await panel.getByLabel('Betrag', { exact: true }).press('Control+Enter');
+    expect(keys).toHaveLength(1);
+  } finally {
+    release();
+  }
+  await expect(panel).toBeHidden();
+  await expect(waiting(page).getByRole('status')).toHaveText('Fehlgeschlagen');
+  expect(await bookings(page, accountId)).toEqual([]);
+  await page.reload();
+  await expect(waiting(page)).toContainText('Serverempfang unklar');
+  recovered = true;
+  // Reload is itself a supported retry trigger; do not race its automatic sender with a click.
+  await page.reload();
+  const confirmed = page.getByRole('region', { name: 'Buchungsstatus', exact: true });
+  await expect(confirmed).toContainText('Auf dem Server gespeichert');
+  await expect(waiting(page)).toHaveCount(0);
+  const rows = await bookings(page, accountId);
+  expect(rows.map((row: { amountCents: number }) => row.amountCents)).toEqual([-1250]);
+  await expect(confirmed).toContainText(rows[0].id);
+  await expect(confirmed.locator('time')).toHaveAttribute('datetime', /T/);
+  expect(checks).toBeGreaterThanOrEqual(1);
+  expect(keys).toHaveLength(2);
+  expect(new Set(keys).size).toBe(1);
 });
 
 test('closed-account conflict and expired session retain the capture until retry', async ({

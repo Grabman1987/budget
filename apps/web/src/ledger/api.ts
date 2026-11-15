@@ -204,8 +204,23 @@ export interface BookingPatch {
   unlockReconciled?: boolean;
 }
 
+export type BookingSaveResult = { bookings: ListedBooking[]; savedAt?: string } & WriteResult;
+
+export const readBookingDelivery = (
+  key: string,
+  intent:
+    | { type: 'create'; input: BookingCreate }
+    | { type: 'patch'; bookingId: string; patch: BookingPatch },
+) =>
+  request<{ result: BookingSaveResult | null }>(
+    'POST',
+    `/api/bookings/delivery/${encodeURIComponent(key)}`,
+    intent,
+    { 'Idempotency-Key': key },
+  );
+
 export const createBooking = (input: BookingCreate, key?: string) =>
-  request<{ bookings: ListedBooking[] } & WriteResult>(
+  request<BookingSaveResult>(
     'POST',
     '/api/bookings',
     input,
@@ -213,7 +228,7 @@ export const createBooking = (input: BookingCreate, key?: string) =>
   );
 
 export const patchBooking = (id: string, patch: BookingPatch, key?: string) =>
-  request<{ bookings: ListedBooking[] } & WriteResult>(
+  request<BookingSaveResult>(
     'PATCH',
     `/api/bookings/${encodeURIComponent(id)}`,
     patch,

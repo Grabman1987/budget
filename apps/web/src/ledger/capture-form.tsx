@@ -252,7 +252,6 @@ export function CaptureForm({
   const [memory] = useState(readMemory);
   const editing = state.mode === 'edit' ? state.booking : null;
   const editDraft = editing ? draftFromBooking(editing) : null;
-  const repeatKey = useRef(crypto.randomUUID());
   const [statusChosen, setStatusChosen] = useState(false);
   // Restore explicit queued intent before choices load; shared draft.status is never that intent.
   const queuedBankIntent: BankIntent | null =
@@ -675,7 +674,16 @@ export function CaptureForm({
           await writes.patch.mutateAsync({
             id: editing.id,
             patch: built.value,
-            ...(draft.repeat ? { key: repeatKey.current } : {}),
+            capture: {
+              input: {
+                type: 'booking',
+                accountId,
+                date: filled.date,
+                amountCents: built.value.amountCents ?? editing.amountCents,
+                splits: built.value.splits ?? editing.splits,
+              },
+              draft: filled,
+            },
           });
         if (
           editing.source === 'bank' &&
@@ -730,6 +738,7 @@ export function CaptureForm({
         formRef.current?.querySelector<HTMLElement>('.amount-input')?.focus(),
       );
     } catch (error) {
+      if (error instanceof ApiError && error.code === 'booking_queued') return onDone();
       setErrors({
         form:
           error instanceof ApiError && error.code === 'reconciled_locked'
@@ -1436,6 +1445,7 @@ export function CaptureForm({
           </div>
         </div>
 
+        {busy && <p role="status">Wird gesendet…</p>}
         {errors.form && (
           <p className="field-error" role="alert">
             {maskMoneyText(errors.form)}

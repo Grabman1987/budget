@@ -106,6 +106,8 @@ export function errorText(
   error: unknown,
   fallback = 'Das hat nicht geklappt. Versuch es noch einmal.',
 ) {
+  if (error instanceof Error && 'code' in error && error.code === 'booking_queued')
+    return 'Änderung auf diesem Gerät gespeichert. Status in der Warteschlange prüfen.';
   if (error instanceof Error && ('detail' in error || 'status' in error || 'code' in error)) {
     const like = error as { detail?: unknown; status?: unknown; code?: unknown };
     if (
