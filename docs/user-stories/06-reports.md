@@ -6,6 +6,22 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 
 **Aufteilungen:** RP-05, RP-07, RP-11, RP-12, RP-13, RP-15, RP-16, RP-17, RP-18, RP-21 und RP-23 sind in a/b(/c) geteilt, weil sie unabhängige Berichte bündeln. Namen folgen dem Katalog der App: RP-05b „Einnahmen und Cashflow“ (früher „Einnahmen und Ausgaben“), RP-11a „Prognosegenauigkeit“ (in der alten Tabelle als Budgettreue geführt), RP-11b „Budgettreue“, RP-13a „Verträge und Kosten“, RP-18a „Portfolio-Auswertung“.
 
+### RP-00 – Zeitraum zwischen Reports behalten
+- **Story:** Als Nutzer möchte ich meinen Zeitraum beim Reportwechsel behalten, damit ich mehrere Berichte ohne erneute Auswahl lesen kann.
+- **Ausgangslage:** Redesign aktiv; ein Report mit frei wählbarem Zeitraum ist geöffnet.
+- **Ablauf:**
+  1. Einen Zeitraum über Segmente, Schnellauswahl, Monatsbereich oder Vor/Zurück wählen.
+  2. Über „Bericht wechseln“, den Katalog oder einen direkten Link ohne Zeitraum einen anderen Zeitraumbericht öffnen. Die Auswahl bleibt auf diesem Gerät gemerkt, auch nach erneutem Öffnen.
+  3. Die aktive Auswahl am Steuerelement lesen; ein eigener Monatsbereich steht zusätzlich ausgeschrieben darunter.
+  4. „Zeitraum zurücksetzen“ wählen: Die lokale Vorbelegung wird gelöscht und der bisherige Standard des aktuellen Reports angezeigt.
+- **Ergebnis:** Passende Reports übernehmen denselben Zeitraum. Ein Link mit explizitem `zeitraum` hat Vorrang und wird zur nächsten Vorbelegung.
+- **Abnahmekriterien:**
+  - Gilt gemeinsam für die Zeitraumberichte dieser Stories sowie freie Explorer-Auswertungen und Zeitraumvorlagen aus RP-23; Monatsansichten wie Einnahmen bleiben separat.
+  - Monats-, Jahres- und feste Berichte einschließlich Kontakte, Portfolio-Verteilung, Freiheit und Explorer-Jahresansicht behalten ihre bisherigen Zeitgrenzen. Gespeicherte Explorer-Ansichten behalten ihre eigene Definition.
+  - Ein Reset benötigt einen Klick, erhält andere Ansichtsfilter und setzt keine Buchungen oder gespeicherten Auswertungen zurück.
+  - Die Vorbelegung bleibt lokal im Browser; gesperrter Browserspeicher verhindert keine Reportanzeige. Finanzberechnungen, Audit und Rückgängig bleiben unverändert.
+- **Status:** implementiert für Review (#1100); CI und Live-Abnahme offen.
+
 ### RP-01 – Monats-One-Pager
 - **Story:** Als Nutzer möchte ich den Monat auf einem Blatt mit Ergebniskette und 50/30/20 sehen und drucken, damit ich am Monatsende ohne Suchen entscheide, ob der Monat gut lief und was ich im nächsten ändere.
 - **Ausgangslage:** Monatsende oder laufender Monat; Buchungen und Plan des Monats sind vorhanden.
@@ -467,6 +483,7 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Status:** live · **Verweis:** 4.5
 
 ### RP-20 – Jahresreport
+- **Extension:** Owner decision #1118 extends this report; delivery scope and remaining acceptance are tracked in RP-20a below.
 - **Story:** Als Nutzer möchte ich das Jahr auf zwei A4-Seiten drucken, damit ich ein Ablagedokument für Steuer, Überblick und Jahresabschluss habe.
 - **Ausgangslage:** Mindestens ein abgeschlossenes Jahr.
 - **Ablauf:**
@@ -482,6 +499,22 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
   - Amount privacy also hides the wealth-change percentage. Full and partial years still print on two A4 pages.
   - Randfall: Nur volle Monate zählen; ein laufendes Jahr ist als Teiljahr erkennbar; Gehaltserhöhungen und Preisänderungen gibt es noch nicht als Befunde.
 - **Status:** existing report live; wealth-change extension implemented, review/live acceptance pending (#1118). Investments/trading, with/without market, split savings rate, complete prior-year comparisons and context from #1118 remain open. · **Verweis:** 5.1
+
+### RP-20a – Jahreskennzahlen und Vermögenszuwachs (#1118, first slice)
+- **Story:** Als Nutzer möchte ich Vermögenszuwachs und die Veränderung meiner bisherigen Jahreskennzahlen sehen, damit ich das Jahr beurteilen kann.
+- **Ausgangslage:** Mindestens ein voller Monat im Hauptbuch; Redesign aktiv.
+- **Ablauf:**
+  1. Reports › Jahresreport öffnen und das Jahr wählen; ein Teiljahr ist mit seinem letzten vollen Monat markiert.
+  2. Im Vermögensreport Anfang, Ende und Vermögensänderung in Euro und Prozent lesen; dieselbe Änderung steht neben der Vermögenskette im A4-Druckblatt.
+  3. In der Zusammenfassung Einnahmen, Konsum, Gespart und Kapitalerträge gegenüber genau denselben Vorjahresmonaten vergleichen; die Sparquote in Prozentpunkten vergleichen.
+  4. Die gewählte Darstellung weiterhin auf zwei A4-Seiten drucken.
+- **Abnahmekriterien:**
+  - Anfang und Ende stammen unverändert aus dem bestehenden Nettovermögens-Read-Model; Prozentänderung nutzt die gemeinsame Berechnung, auch bei negativem Anfangsvermögen.
+  - Anfangsvermögen null: Euroänderung bleibt sichtbar, Prozentänderung ist „nicht ermittelbar“ mit Grund. Fehlende oder geschätzte Bewertungen ergeben keine geschätzte neue Änderungskennzahl.
+  - Vorjahreswerte nutzen die gemeinsamen Monatsfiguren und die gemeinsame Sparquote. Fehlende Vorjahresmonate werden nicht auf ein Jahr hochgerechnet; der Vergleich ist dann „nicht ermittelbar“ mit Grund. Ein Vorjahreswert null verhindert nur dessen Prozentänderung.
+  - Die Summe der Geldwerte bleibt centgenau; keine Buchung und keine zentrale Finanzkennzahl wird geändert.
+- **Status:** implemented locally; PR review and live acceptance pending · **Verweis:** 5.1, #1118
+- **Remaining scope:** Investment values/contributions/TTWROR/money-weighted return; trading activity/results/costs/hit rate; household with/without market; investment/cash savings split; prior-year comparisons for wealth and the new investment/trading figures (including relative savings-rate change). Slice 2 context (inflation, benchmark, debt, income sources, spending changes, reserves, goals) remains open. RP-20's existing live status does not imply these additions are live.
 
 ### RP-21a – Finanz-Check-Verlauf
 - **Story:** Als Nutzer möchte ich sehen, welche Regeln verletzt sind und seit wann, damit ich zuerst die offene Regel der aktuellen Stufe behebe.
