@@ -1434,11 +1434,13 @@ function InboxRow({
                 </AppLink>
               )}
               <SourceLink item={item} />
-              <Button size="sm" variant="ghost" disabled={busy} onClick={onResolve}>
-                {item.refType === 'bank-sync-candidate'
-                  ? 'Nicht übernehmen'
-                  : 'Als erledigt markieren'}
-              </Button>
+              {item.refType !== 'account-reconciliation' && (
+                <Button size="sm" variant="ghost" disabled={busy} onClick={onResolve}>
+                  {item.refType === 'bank-sync-candidate'
+                    ? 'Nicht übernehmen'
+                    : 'Als erledigt markieren'}
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -1675,6 +1677,16 @@ function BankInboxRow({
 /** Offer only connected repair views; unknown/legacy references stay readable without inert links. */
 function SourceLink({ item }: { item: InboxStored }) {
   useAmountPrivacy();
+  if (item.refType === 'account-reconciliation' && item.refId)
+    return (
+      <AppLink
+        className="btn btn-ghost btn-sm"
+        to={`/konten/${encodeURIComponent(item.refId)}`}
+        search={{ pruefen: 'reconcile' }}
+      >
+        Kontostand prüfen
+      </AppLink>
+    );
   if (
     item.refType === 'bank-sync' &&
     item.refId &&
