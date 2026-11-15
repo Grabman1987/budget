@@ -30,12 +30,14 @@ import {
   explorerTemplate,
   explorerTemplateYears,
   isExplorerTemplate,
+  isReportPeriod,
   lastDayOfMonth,
   overviewHeat,
   explorerTableHeaders,
   type ExplorerQuery,
   type ExplorerResult,
   type PersistedExplorerView,
+  type Period,
 } from '@budget/domain';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Bookmark, Download, Pencil, X } from 'lucide-react';
@@ -60,6 +62,7 @@ import { explorerTemplateQuery } from './explorer-template-api';
 import { ExplorerTemplates } from './explorer-templates';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import { useExplorerViews } from './use-explorer-views';
+import { rememberReportPeriod } from './remembered-period';
 import { savedExplorerEntryQuery } from './explorer-view-api';
 import { EXPLORER_CSV_CHANGED_MESSAGE, explorerQuery, fetchExplorerCsv } from './overview-api';
 import { euroCellText, monthLong, monthShortYear, wholeText } from './overview-format';
@@ -94,6 +97,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
     zelle?: string;
     spalte?: string;
     darstellung?: string;
+    zeitraum?: unknown;
   };
   const template = !search.ansicht
     ? isExplorerTemplate(search.vorlage)
@@ -103,12 +107,14 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
         : undefined
     : undefined;
   const navigate = useNavigate();
-  const changeTemplateSearch = (patch: Record<string, unknown>) =>
+  const changeTemplateSearch = (patch: Record<string, unknown>, periodOnly = false) =>
     void navigate({
       to: '.',
       search: ((previous: Record<string, unknown>) => ({ ...previous, ...patch })) as never,
+      // A period edit keeps the entire draft; it does not discard or leave the editor.
+      ...(periodOnly ? { ignoreBlocker: true, replace: true } : {}),
     });
-  const chooseTemplate = (id: typeof template) => {
+  const chooseTemplate = (id: typeof template, period?: Period) => {
     if (REDESIGN_ENABLED) {
       if (
         draftState.current.busy ||
@@ -130,7 +136,9 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
       spalte: undefined,
       ...(id
         ? { zeitraum: EXPLORER_TEMPLATES.find((candidate) => candidate.id === id)!.period }
-        : {}),
+        : REDESIGN_ENABLED && period
+          ? { zeitraum: period }
+          : {}),
     });
     return true;
   };
@@ -153,7 +161,20 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
         })
       : undefined;
   }, [template, templateRead.data, templatePeriod, templateCategory, search.exakt]);
-  const [query, setQuery] = useState<ExplorerQuery>(DEFAULT_EXPLORER_QUERY);
+  const [query, setQuery] = useState<ExplorerQuery>(() => ({
+    ...DEFAULT_EXPLORER_QUERY,
+    ...(REDESIGN_ENABLED && !search.ansicht && isReportPeriod(search.zeitraum)
+      ? { period: search.zeitraum }
+      : {}),
+  }));
+  const [observedPeriod, setObservedPeriod] = useState(search.zeitraum);
+  // Only a new URL period may replace the draft period, never a template/view adoption.
+  if (observedPeriod !== search.zeitraum) {
+    setObservedPeriod(search.zeitraum);
+    if (REDESIGN_ENABLED && !template && !search.ansicht && isReportPeriod(search.zeitraum)) {
+      setQuery({ ...query, period: search.zeitraum });
+    }
+  }
   const entryInstance = useId();
   const [observedEntry, setObservedEntry] = useState({ id: search.ansicht, generation: 0 });
   const entry = useQuery(
@@ -256,8 +277,13 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
       setExporting(false);
     }
   };
-  const set = <K extends keyof ExplorerQuery>(key: K, value: ExplorerQuery[K]) =>
+  const set = <K extends keyof ExplorerQuery>(key: K, value: ExplorerQuery[K]) => {
     setQuery((q) => ({ ...q, [key]: value }));
+    if (REDESIGN_ENABLED && key === 'period') {
+      rememberReportPeriod(value);
+      changeTemplateSearch({ zeitraum: value }, true);
+    }
+  };
 
   const persist = async (id?: string) => {
     const clean = name.trim();
@@ -468,6 +494,9 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                       options={EXPLORER_PERIODS.map((value) => ({ value, label: value }))}
                       value={query.period}
                       onChange={(period) => set('period', period)}
+                      onReset={() =>
+                        setQuery((q) => ({ ...q, period: DEFAULT_EXPLORER_QUERY.period }))
+                      }
                       trend={false}
                     />
                   ),
@@ -562,7 +591,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                   className="ex-chip"
                   aria-pressed={!template && sameQuery(preset.query, query)}
                   onClick={() => {
-                    if (!chooseTemplate(undefined)) return;
+                    if (!chooseTemplate(undefined, preset.query.period)) return;
                     setQuery(preset.query);
                   }}
                 >
@@ -577,7 +606,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                     className="ex-chip"
                     aria-pressed={!template && sameQuery(view.query, query)}
                     onClick={() => {
-                      if (!chooseTemplate(undefined)) return;
+                      if (!chooseTemplate(undefined, view.query.period)) return;
                       setQuery(view.query);
                     }}
                   >
@@ -590,7 +619,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                     aria-label={`Ansicht ${view.name} bearbeiten`}
                     disabled={saved.busy}
                     onClick={() => {
-                      if (!chooseTemplate(undefined)) return;
+                      if (!chooseTemplate(undefined, view.query.period)) return;
                       setEditingId(view.id);
                       setName(view.name);
                       setQuery(view.query);

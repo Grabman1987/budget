@@ -1,6 +1,11 @@
 .inbox-redesign {
   min-width: 0;
 }
+/* Closed native menus do not paint their controls. WebKit can leave their theme
+   transitions unfinished; keep transitions on visible controls only. */
+.konten-frame-inbox .konten-menu:not([open]) .konten-menu-content * {
+  transition: none;
+}
 /* The count explanation is page chrome outside the opaque task table. */
 .app[data-budget-redesign='1'] .inbox-count-rule {
   background-color: var(--ground);

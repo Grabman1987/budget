@@ -8,7 +8,7 @@ import {
   LineLegend,
   type Point,
 } from '@budget/ui';
-import { monthResult, type YearMonthRow } from '@budget/domain';
+import { changeBp, monthResult, yearWealthChange, type YearMonthRow } from '@budget/domain';
 import type { ReactNode } from 'react';
 import { useElementWidth } from '../charts/use-element-width';
 import { chartPoints } from '../charts/tooltip-data';
@@ -364,6 +364,14 @@ export function YearSummary({ data }: { data: YearReportRead }) {
     futureCents: t.futureCents,
   });
   const period = `${r.year}${r.partial ? ` · bis ${monthShort(r.months.at(-1)!)}` : ''}`;
+  const previous = r.previousTotals;
+  const previousResult = previous
+    ? monthResult({
+        earnedCents: previous.incomeCents,
+        consumptionCents: previous.consumptionCents,
+        futureCents: previous.futureCents,
+      })
+    : null;
   return (
     <div className="period-summary period-year-summary" data-testid="r5-year-summary">
       <Paper title="Jahresbericht" period={period} source={data.today} page={1} pages={2}>
@@ -444,6 +452,7 @@ export function YearSummary({ data }: { data: YearReportRead }) {
           <SummaryNetWorth data={data} />
         </div>
         <h3 className="period-summary-label">Vermögensreport</h3>
+        <YearWealthChange data={data} />
         <dl className="period-wealth-rows">
           {[
             ['Nettovermögen', n ? eur(n.endCents) : '—'],
@@ -477,8 +486,68 @@ export function YearSummary({ data }: { data: YearReportRead }) {
           Eigenleistung enthält auch Tilgungen. Kapitalerträge zählen nicht zu den Einnahmen oder
           zur Sparquote.
         </p>
+        <section aria-label="Vorjahresvergleich" data-testid="r5-year-comparison">
+          <h3 className="period-summary-label">
+            Gegenüber {r.year - 1} · gleiche {r.months.length} Monate
+          </h3>
+          {previous && previousResult ? (
+            <dl className="period-wealth-rows">
+              {(
+                [
+                  ['Einnahmen', t.incomeCents, previous.incomeCents],
+                  ['Konsum', t.consumptionCents, previous.consumptionCents],
+                  ['Gespart', result.savedCents, previousResult.savedCents],
+                  ['Kapitalerträge', t.capitalCents, previous.capitalCents],
+                ] satisfies [string, number, number][]
+              ).map(([label, current, prior]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>
+                    {eur(current - prior, { sign: true })} ·{' '}
+                    {prior === 0
+                      ? 'nicht ermittelbar (Vorjahreswert null)'
+                      : bpText(changeBp(current, prior), { sign: true })}
+                  </dd>
+                </div>
+              ))}
+              <div>
+                <dt>Sparquote</dt>
+                <dd>
+                  {t.savingsRateBp === null || previous.savingsRateBp === null
+                    ? 'nicht ermittelbar (kein Haushaltseinkommen)'
+                    : `${bpText(t.savingsRateBp - previous.savingsRateBp, { sign: true }).replace(' %', '')} Prozentpunkte`}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="period-summary-note">
+              nicht ermittelbar: Die gleichen Vorjahresmonate liegen nicht vollständig im Hauptbuch.
+            </p>
+          )}
+        </section>
       </Paper>
       <PrintSettings pages={2} />
     </div>
+  );
+}
+
+export function YearWealthChange({ data }: { data: YearReportRead }) {
+  useAmountPrivacy();
+  const n = data.report.netWorth;
+  const change = yearWealthChange(n);
+  return (
+    <p className="period-summary-note" data-testid="r5-year-wealth-change">
+      {n && change && !data.incomplete?.length ? (
+        <>
+          Anfang {eur(n.startCents)} → Ende {eur(n.endCents)} · Vermögensänderung{' '}
+          {eur(change.deltaCents, { sign: true })} ·{' '}
+          {change.changeBp === null
+            ? 'nicht ermittelbar (Anfangsvermögen null)'
+            : bpText(change.changeBp, { sign: true })}
+        </>
+      ) : (
+        'Vermögensänderung nicht ermittelbar: Die Bewertung ist unvollständig; es fehlt ein Kurs, Wechselkurs oder Anfangswert.'
+      )}
+    </p>
   );
 }
