@@ -9,7 +9,7 @@ import {
 } from '@budget/db';
 import { setAmountsHidden } from '@budget/ui';
 import { afterEach, expect, it, vi } from 'vitest';
-import { YearWealthChange } from './year-wealth-change';
+import { YearWealthChangeValue } from './year-wealth-change';
 import { YearSummary } from './period-report-summary';
 
 vi.mock('../charts/use-element-width', () => ({ useElementWidth: () => [vi.fn(), 0] }));
@@ -30,7 +30,7 @@ it.each([
   'shows exact wealth change from %i to %i without inventing a percentage basis',
   (startCents, endCents, text) => {
     const { container } = render(
-      <YearWealthChange
+      <YearWealthChangeValue
         netWorth={{
           startCents,
           endCents,

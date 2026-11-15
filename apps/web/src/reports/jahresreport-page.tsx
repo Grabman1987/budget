@@ -32,7 +32,7 @@ import {
   wholeText,
 } from './overview-format';
 import { YearCashflowChart, YearNetWorthChart } from './year-charts';
-import { YearWealthChange } from './year-wealth-change';
+import { YearWealthChangeValue } from './year-wealth-change';
 import './overview-reports.css';
 import './jahresreport-page.css';
 
@@ -267,7 +267,7 @@ function SheetOne({
           <div className="ov-sheet-fig">
             <span className="tech">Nettovermögen</span>
             <strong data-testid="yr-networth-end">{eur(nw.endCents, { cents: false })}</strong>
-            <YearWealthChange netWorth={nw} />
+            <YearWealthChangeValue netWorth={nw} />
           </div>
         ) : null}
       </header>
