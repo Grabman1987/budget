@@ -1,3 +1,4 @@
+import { setTheme } from './theme';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { join } from 'node:path';
@@ -132,6 +133,7 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
     fullPage: true,
   });
   await page.emulateMedia({ colorScheme: 'dark' });
+  await setTheme(page, 'dark');
   await expect(page.locator('html')).toHaveCSS('--ground', '#0b3152');
   const darkAxe = await new AxeBuilder({ page }).analyze();
   expect(

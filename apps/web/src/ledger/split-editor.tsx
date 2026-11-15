@@ -156,13 +156,17 @@ export function SplitEditor({
       variant="ghost"
       aria-label={compact && !multiple ? 'Kategorie hinzufügen' : undefined}
       onClick={() => {
+        const focused = document.activeElement;
         update([...lines, { ...newSplit(), shares: [] }]);
         if (compact)
-          requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            // The add control can unmount, but a delayed frame must not steal new field focus.
+            if (document.activeElement !== focused && document.activeElement !== document.body)
+              return;
             editorRef.current
               ?.querySelector<HTMLInputElement>('.bk-line:last-of-type input')
-              ?.focus(),
-          );
+              ?.focus();
+          });
       }}
     >
       {contactHost ? (

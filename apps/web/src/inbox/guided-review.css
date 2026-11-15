@@ -179,4 +179,5 @@
 /* A plain .btn is transparent: on the drafting grid its text would sit on an unknown gradient. */
 .inbox-guided-entry .btn {
   background-color: var(--ground);
+  color: var(--ink);
 }

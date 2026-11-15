@@ -1,3 +1,4 @@
+import { setTheme } from './theme';
 import { minimumControlHeight } from './control-geometry';
 import { withShellControls } from './shell-actions';
 import { redesignEnabled } from './plan-redesign-controls';
@@ -171,10 +172,8 @@ test('514 selected assignment preview is read-only, funds full target need and s
   await expect(preview.getByRole('button')).toHaveCount(0);
   await preview.getByLabel('Vorschau für').selectOption('reset');
   await expect(category.locator('dd')).toHaveText(['4,00 €', '−4,00 €', '0,00 €', '0,00 €']);
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => {
-      document.documentElement.dataset['theme'] = value;
-    }, theme);
+  for (const theme of ['light', 'dark'] as const) {
+    await setTheme(page, theme);
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
@@ -202,10 +201,8 @@ test('592 automatic panel themes, privacy and selected assignment preserve liter
   const side = page.getByRole('complementary', { name: 'Plan-Inspektor' });
   await side.getByText('Automatisch zuweisen', { selector: 'summary', exact: true }).click();
   const automatic = side.getByRole('region', { name: 'Automatisch zuweisen', exact: true });
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => {
-      document.documentElement.dataset['theme'] = value;
-    }, theme);
+  for (const theme of ['light', 'dark'] as const) {
+    await setTheme(page, theme);
     await checkPanel(page, info.project.name !== 'desktop');
     await automatic.scrollIntoViewIfNeeded();
     await page.screenshot({ path: info.outputPath(`automatic-${theme}.png`), fullPage: false });
@@ -329,10 +326,8 @@ test('593 preselected cover is capped, one click/Undo restores both categories, 
   await expect.poll(state).toEqual([700, 0, 9300]);
   await expect(heading).toHaveAttribute('title', /Bedarf · Tempo:/);
   await expect(side.locator('.inspector-pace')).toHaveCount(0);
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => {
-      document.documentElement.dataset['theme'] = value;
-    }, theme);
+  for (const theme of ['light', 'dark'] as const) {
+    await setTheme(page, theme);
     await checkPanel(page, info.project.name !== 'desktop');
     await heading.scrollIntoViewIfNeeded();
     await page.screenshot({ path: info.outputPath(`selected-${theme}.png`), fullPage: false });

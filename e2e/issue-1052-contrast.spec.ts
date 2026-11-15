@@ -96,6 +96,20 @@ for (const theme of ['light', 'dark'] as const) {
             ),
           )
           .map((node) => node.target[0] as string);
+        if (area === 'Prüfen') {
+          for (const selector of ['.inbox-guided-entry > a', '.inbox-count-rule summary']) {
+            expect(
+              await page
+                .locator(selector)
+                .evaluate(
+                  (element, selectors) =>
+                    selectors.some((candidate) => document.querySelector(candidate) === element),
+                  measured,
+                ),
+              selector,
+            ).toBe(true);
+          }
+        }
         const sentinels = page
           .locator(
             '.main #overview-lead-title:visible, [data-testid="budget-accounts-balance"]:visible, .main h1:not(.sr-only):visible, .main .area-page-menu > summary:not(:has(.sr-only)):visible, .main .month-reference-income:visible, [data-testid="heute-lead-value"]:visible, [data-testid="report-frame-result"]:visible, [data-testid="r5-month-income"]:visible, [data-testid="r5-year-income"]:visible',

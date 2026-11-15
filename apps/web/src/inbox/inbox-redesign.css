@@ -1,6 +1,10 @@
 .inbox-redesign {
   min-width: 0;
 }
+/* The count explanation is page chrome outside the opaque task table. */
+.app[data-budget-redesign='1'] .inbox-count-rule {
+  background-color: var(--ground);
+}
 .inbox-redesign .inbox-source-date {
   margin: 0 0 12px;
   color: var(--ink-2);
