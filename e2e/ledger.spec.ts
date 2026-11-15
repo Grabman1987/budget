@@ -294,7 +294,31 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
     await edit.getByLabel('Betrag', { exact: true }).press('Control+Enter');
   } else await captureSaveControl(edit).click();
   await expect(edit.getByRole('alert')).toContainText('geprüft');
-  await edit.getByLabel('Trotzdem ändern').check();
+  await edit.getByLabel('Trotzdem ändern').click();
+  if (await redesignLoaded(page)) {
+    const release = edit.getByRole('alertdialog', {
+      name: 'Geprüfte Buchung wirklich bearbeiten?',
+    });
+    await expect(release).toContainText('geprüften Kontostand');
+    await expect(release.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(release).toBeHidden();
+    await expect(edit).toBeVisible();
+    await expect(edit.getByLabel('Trotzdem ändern')).not.toBeChecked();
+    await expect(balance(page)).toHaveText('475,00 €');
+    await expect(edit.getByLabel('Trotzdem ändern')).toBeFocused();
+    await page.keyboard.press('Space');
+    await expect(release).toBeVisible();
+    await page.keyboard.press('Tab');
+    await expect(release.getByRole('button', { name: 'Bearbeitung freigeben' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(release.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Enter');
+    await expect(release).toBeHidden();
+    await expect(edit.getByLabel('Trotzdem ändern')).toBeChecked();
+    await expect(balance(page)).toHaveText('475,00 €');
+  }
   await captureSaveControl(edit).click();
   await expect(balance(page)).toHaveText('474,00 €');
 

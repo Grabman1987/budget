@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@budget/ui';
@@ -8,6 +8,7 @@ import { CaptureForm } from './capture-form';
 import * as ledgerApi from './api';
 import type * as Http from '../api/http';
 import type * as ReceiptModule from '../receipts/receipt-section';
+import type { ListedBooking } from './types';
 
 // jsdom has no native media query implementation.
 Object.defineProperty(window, 'matchMedia', {
@@ -123,6 +124,92 @@ beforeEach(() => {
   http.request.mockResolvedValue({ groupId: 'synthetic-receipt' });
   patch.mockResolvedValue({ groupId: 'synthetic-patch' });
   create.mockResolvedValue({ bookings: [], groupId: 'synthetic-group' });
+});
+
+it('requires confirmation before releasing a reconciled edit and cancels without writes', async () => {
+  flags.REDESIGN_ENABLED = true;
+  const booking: ListedBooking = {
+    id: 'synthetic-checked',
+    accountId: 'giro',
+    accountName: 'Giro Muster',
+    date: '2026-10-01',
+    amountCents: -1000,
+    status: 'reconciled',
+    payeeId: null,
+    payeeName: null,
+    memo: null,
+    flag: null,
+    transferId: null,
+    transferAccountId: null,
+    transferAccountName: null,
+    projectId: null,
+    currency: 'EUR',
+    originalAmountCents: null,
+    originalCurrency: null,
+    balanceAfterCents: null,
+    splits: [
+      {
+        id: 'synthetic-split',
+        categoryId: null,
+        categoryName: null,
+        amountCents: -1000,
+        contactId: null,
+        incomeTypeId: null,
+        memo: null,
+        transferId: null,
+      },
+    ],
+  };
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <ToastProvider>
+        <CaptureForm
+          state={{ mode: 'edit', booking }}
+          onDone={vi.fn()}
+          dirtyRef={{ current: false }}
+          requestClose={vi.fn()}
+          discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+        />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByRole('option', { name: 'Giro Muster' });
+  const user = userEvent.setup();
+  const release = screen.getByLabelText('Trotzdem ändern') as HTMLInputElement;
+  await user.click(release);
+  expect(release.checked).toBe(false);
+  const body = document.querySelector<HTMLElement>('.bk-body')!;
+  expect(body.inert).toBe(true);
+  expect(screen.getByRole('alertdialog').textContent).toContain('geprüften Kontostand');
+  expect(document.activeElement).toBe(
+    within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Abbrechen' }),
+  );
+  await user.keyboard('{Escape}');
+  expect(screen.queryByRole('alertdialog')).toBeNull();
+  expect(body.inert).toBe(false);
+  expect(document.activeElement).toBe(release);
+  expect(release.checked).toBe(false);
+  expect(patch).not.toHaveBeenCalled();
+  await user.click(release);
+  await user.tab();
+  expect(document.activeElement).toBe(
+    screen.getByRole('button', { name: 'Bearbeitung freigeben' }),
+  );
+  await user.keyboard('{Enter}');
+  expect(release.checked).toBe(true);
+  expect(screen.queryByRole('alertdialog')).toBeNull();
+  expect(patch).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
+    target: { value: '15,00' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+  await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+  expect(patch.mock.calls[0]![0]).toMatchObject({
+    id: booking.id,
+    patch: { amountCents: -1500, unlockReconciled: true },
+  });
 });
 
 it('shifts mobile keypad digits into cents and retains paste, validation and save semantics', async () => {
