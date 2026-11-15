@@ -39,6 +39,7 @@ const intake = (
     feeCents: 100,
     taxCents: 0,
     currency: 'EUR',
+    settlementHint: '1234',
     open: [],
     unchecked: false,
     ...proposal,
@@ -59,10 +60,12 @@ const classified = (trade: TradeConfirmationIntake): Classification => ({
 let result: Classification;
 let plans: unknown[];
 let writes: { path: string; body: Record<string, unknown> }[];
+let depotReference: string | null = null;
 let tradeReply: { status: number; body: Record<string, unknown> };
 beforeEach(() => {
   plans = [];
   writes = [];
+  depotReference = null;
   tradeReply = {
     status: 201,
     body: {
@@ -102,6 +105,7 @@ beforeEach(() => {
             currency: 'EUR',
             closedAt: null,
             institutionId: null,
+            referenceAccountId: depotReference,
           },
         ],
       });
@@ -299,4 +303,84 @@ it('records a savings plan execution as a plain trade when no open plan month fi
   expect(
     await within(dialog).findByText(/Keine eindeutig passende offene Sparplanausführung gefunden/),
   ).toBeTruthy();
+});
+
+it('offers no counter booking by default and writes none', async () => {
+  const user = await upload(intake());
+  await user.click(screen.getByRole('button', { name: 'Weiter' }));
+  const dialog = await form();
+  await within(dialog).findByLabelText('Stück');
+  expect(value(dialog, /^Verrechnungskonto/)).toBe('');
+  expect(
+    within(dialog).getByText(
+      'Ohne Auswahl entsteht nur der Handel, das Verrechnungskonto bleibt unverändert.',
+    ),
+  ).toBeTruthy();
+  expect(within(dialog).getByText(/Konto mit Endung 1234/)).toBeTruthy();
+  await user.click(within(dialog).getByRole('button', { name: 'Handel erfassen' }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]!.body).not.toHaveProperty('settlementAccountId');
+});
+
+it('sends the chosen settlement account and names the transfer before confirming', async () => {
+  tradeReply = { status: 201, body: { ...tradeReply.body, transferId: 'synthetic-transfer' } };
+  const user = await upload(intake());
+  await user.click(screen.getByRole('button', { name: 'Weiter' }));
+  const dialog = await form();
+  await within(dialog).findByLabelText('Stück');
+  await user.selectOptions(within(dialog).getByLabelText(/^Verrechnungskonto/), 'synthetic-giro');
+  expect(
+    within(dialog).getByText(/Umbuchung über 101,00 € von Muster Giro; Rückgängig nimmt Handel/),
+  ).toBeTruthy();
+  expect(writes).toEqual([]);
+  await user.click(within(dialog).getByRole('button', { name: 'Handel erfassen' }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]!.body).toMatchObject({
+    importKey: 'wpa:1a2b-3c4d',
+    settlementAccountId: 'synthetic-giro',
+  });
+});
+
+it('preselects the Verrechnungskonto stored on the depot and points a sale to it', async () => {
+  depotReference = 'synthetic-giro';
+  const user = await upload(
+    intake({ source: 'sell', kind: 'sell', amountCents: 50_000, feeCents: 100, taxCents: 0 }),
+  );
+  await user.click(screen.getByRole('button', { name: 'Weiter' }));
+  const dialog = await form();
+  await within(dialog).findByLabelText('Stück');
+  expect(value(dialog, /^Verrechnungskonto/)).toBe('synthetic-giro');
+  expect(within(dialog).getByText(/Umbuchung über 499,00 € auf Muster Giro/)).toBeTruthy();
+});
+
+it('sends the settlement account with a savings plan confirmation', async () => {
+  plans = [
+    {
+      type: 'savings',
+      id: 'savings:synthetic-plan:2026-11',
+      kind: 'revision',
+      urgent: false,
+      planId: 'synthetic-plan',
+      month: '2026-11',
+      securityId: SECURITY,
+      accountId: DEPOT,
+      securityName: 'Synthetic Index Fund',
+      accountName: 'Muster Depot',
+      sourceAccountName: null,
+      currency: 'EUR',
+      date: '2026-11-10',
+      amountCents: 10_000,
+    },
+  ];
+  const user = await upload(intake({ source: 'savings_plan', feeCents: 0 }));
+  await user.click(screen.getByRole('button', { name: 'Weiter' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Sparplanausführung bestätigen' });
+  await within(dialog).findByLabelText('Stück');
+  await user.selectOptions(within(dialog).getByLabelText(/^Verrechnungskonto/), 'synthetic-giro');
+  await user.click(within(dialog).getByRole('button', { name: 'Ausführung bestätigen' }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]!.body).toMatchObject({
+    importKey: 'wpa:1a2b-3c4d',
+    settlementAccountId: 'synthetic-giro',
+  });
 });

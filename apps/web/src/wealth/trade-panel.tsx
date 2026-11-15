@@ -259,10 +259,30 @@ function TradeForm({
   const [errors, setErrors] = useState<TradeErrors>({});
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Counter booking (#1099): only offered for a proposal from a broker confirmation. The owner's
+  // pick wins; untouched, the depot's stored Verrechnungskonto is preselected, else none.
+  const [settlementPick, setSettlementPick] = useState<string | null>(null);
   const saving = useRef(false);
   const qc = useQueryClient();
   const toast = useToast();
   const account = accounts.find((account) => account.id === draft.accountId);
+  const settlementOptions =
+    prefill && !trade
+      ? accounts.filter(
+          (row) =>
+            row.id !== account?.id &&
+            !row.closedAt &&
+            row.currency === account?.currency &&
+            // Other depots are no usual Verrechnungskonto, unless stored on this depot.
+            (row.role !== 'investment' || row.id === account?.referenceAccountId),
+        )
+      : [];
+  const storedSettlement = account?.referenceAccountId ?? '';
+  const settlementId = settlementOptions.some(
+    (row) => row.id === (settlementPick ?? storedSettlement),
+  )
+    ? (settlementPick ?? storedSettlement)
+    : '';
   const changed = JSON.stringify(draft) !== JSON.stringify(original);
   const update = (key: keyof TradeDraft, value: string) => {
     const next = {
@@ -297,9 +317,13 @@ function TradeForm({
     setBusy(true);
     onBusy(true);
     try {
+      const extra = {
+        ...(prefill && !trade ? { importKey: prefill.importKey } : {}),
+        ...(settlementId ? { settlementAccountId: settlementId } : {}),
+      };
       const result = proposal
-        ? await confirmSavings(proposal, validated.values)
-        : await saveTrade(validated.values, trade?.id, trade ? undefined : prefill?.importKey);
+        ? await confirmSavings(proposal, validated.values, extra)
+        : await saveTrade(validated.values, trade?.id, trade ? {} : extra);
       if ('duplicate' in result && result.duplicate) {
         // The import key was taken meanwhile: the server wrote nothing.
         setErrors({
@@ -312,10 +336,14 @@ function TradeForm({
       onSaved(result.trade.securityId);
       toast.show({
         message: proposal
-          ? 'Sparplanausführung erfasst.'
+          ? settlementId
+            ? 'Sparplanausführung und Gegenbuchung erfasst.'
+            : 'Sparplanausführung erfasst.'
           : trade
             ? 'Handel gespeichert.'
-            : 'Handel erfasst.',
+            : settlementId
+              ? 'Handel und Gegenbuchung erfasst.'
+              : 'Handel erfasst.',
         actionLabel: 'Rückgängig',
         onAction: () => reverse(result.groupId),
       });
@@ -563,6 +591,41 @@ function TradeForm({
             Kontobuchung: {sourceMoney(preview.settlement, account.currency)}
           </p>
         )}
+        {settlementOptions.length > 0 &&
+          preview.settlement !== undefined &&
+          preview.settlement !== 0 && (
+            <>
+              <Field
+                label="Verrechnungskonto (Gegenbuchung)"
+                hint={
+                  prefill?.proposal.settlementHint
+                    ? `Auf der Abrechnung steht ein Konto mit Endung ${prefill.proposal.settlementHint}. Die App ordnet es nicht selbst zu.`
+                    : undefined
+                }
+              >
+                {({ id, describedBy }) => (
+                  <Select
+                    id={id}
+                    value={settlementId}
+                    aria-describedby={describedBy}
+                    onChange={(event) => setSettlementPick(event.target.value)}
+                  >
+                    <option value="">Keine Gegenbuchung</option>
+                    {settlementOptions.map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.name} ({row.currency})
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+              <p className="vnote" role="status">
+                {settlementId
+                  ? `Beim Bestätigen entsteht zusätzlich eine Umbuchung über ${sourceMoney(Math.abs(preview.settlement), account!.currency)} ${preview.settlement < 0 ? 'von' : 'auf'} ${settlementOptions.find((row) => row.id === settlementId)!.name}; Rückgängig nimmt Handel und Umbuchung zusammen zurück. Steht diese Zahlung schon als Buchung auf dem Verrechnungskonto (etwa aus dem Bankabruf), keine Gegenbuchung wählen.`
+                  : 'Ohne Auswahl entsteht nur der Handel, das Verrechnungskonto bleibt unverändert.'}
+              </p>
+            </>
+          )}
         <Field label="Notiz" hint="Optional, etwa eine Belegreferenz.">
           {({ id, describedBy }) => (
             <TextInput

@@ -68,6 +68,7 @@ describe('trade form proposal from a broker trade confirmation (#1099)', () => {
       feeCents: 0,
       taxCents: 0,
       currency: 'EUR',
+      settlementHint: '1234',
       open: [],
       unchecked: false,
     });

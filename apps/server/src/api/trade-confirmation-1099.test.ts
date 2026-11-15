@@ -163,6 +163,7 @@ it('turns a savings plan confirmation into a trade proposal without writing anyt
       feeCents: 0,
       taxCents: 0,
       currency: 'EUR',
+      settlementHint: '1234',
       open: [],
       unchecked: false,
     },
@@ -253,4 +254,96 @@ it('offers a deleted confirmation again under a fresh key', async () => {
   const second = await book({ importKey: again.trade!.importKey });
   expect(second.status).toBe(201);
   expect((await classify(await confirmation())).trade?.duplicate).not.toBeNull();
+});
+
+const json = (path: string, body: unknown) =>
+  app.request(path, {
+    method: 'POST',
+    headers: { ...headers, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+const bookings = () => opened.db.select().from(schema.booking).all();
+
+it('books the counter booking on the chosen settlement account and undoes everything as one group', async () => {
+  const saved = await book({
+    feeCents: 100,
+    importKey: 'wpa:1a2b-3c4d',
+    settlementAccountId: 'giro',
+  });
+  expect(saved.status).toBe(201);
+  const body = (await saved.json()) as { groupId: string; transferId: string | null };
+  expect(body.transferId).toBeTruthy();
+  const rows = bookings();
+  expect(rows.filter((r) => r.accountId === 'giro').map((r) => r.amountCents)).toEqual([-10_100]);
+  expect(rows).toHaveLength(3);
+
+  const undone = await json('/api/undo', { groupId: body.groupId });
+  expect(undone.status).toBe(200);
+  expect(bookings().filter((r) => r.deletedAt === null)).toHaveLength(0);
+  expect(
+    opened.db
+      .select()
+      .from(schema.trade)
+      .all()
+      .every((t) => t.deletedAt !== null),
+  ).toBe(true);
+});
+
+it('books no counter booking without a chosen settlement account', async () => {
+  expect((await book({ feeCents: 100 })).status).toBe(201);
+  expect(bookings().map((r) => r.accountId)).toEqual([DEPOT]);
+});
+
+it('refuses a settlement account in another currency without writing anything', async () => {
+  const before = tables();
+  const refused = await book({ settlementAccountId: 'usd' });
+  expect(refused.status).toBeGreaterThanOrEqual(400);
+  expect(refused.status).toBeLessThan(500);
+  expect(tables()).toBe(before);
+});
+
+it('confirms a savings plan month with the confirmation key and counter booking', async () => {
+  const plan = await json('/api/savings-plans', {
+    securityId: SECURITY,
+    accountId: DEPOT,
+    sourceAccountId: 'giro',
+    amountCents: 10_000,
+    dayOfMonth: 9,
+    validFrom: '2026-11-01',
+  });
+  expect(plan.status).toBe(201);
+  const { plan: created } = (await plan.json()) as { plan: { id: string } };
+  const confirm = (extra: Record<string, unknown> = {}) =>
+    json(`/api/savings-plans/${created.id}/confirm-execution`, {
+      month: '2026-11',
+      date: '2026-11-09',
+      plannedDate: '2026-11-09',
+      plannedAmountCents: 10_000,
+      plannedCurrency: 'EUR',
+      unitsE8: 33_944_300,
+      amountCents: 10_000,
+      feeCents: 0,
+      note: null,
+      importKey: 'wpa:1a2b-3c4d',
+      settlementAccountId: 'giro',
+      ...extra,
+    });
+  const first = await confirm();
+  expect(first.status).toBe(201);
+  expect(
+    bookings()
+      .filter((r) => r.accountId === 'giro')
+      .map((r) => r.amountCents),
+  ).toEqual([-10_000]);
+  // The key is stored: the same confirmation is recognised even after the figures were edited.
+  const upload = await classify(await confirmation());
+  expect(upload.trade?.proposal.reference).toBe('wpa:1a2b-3c4d');
+  expect(
+    opened.db
+      .select()
+      .from(schema.trade)
+      .all()
+      .map((t) => t.importKey),
+  ).toEqual(['wpa:1a2b-3c4d']);
+  expect(upload.trade?.duplicate?.date).toBe('2026-11-09');
 });

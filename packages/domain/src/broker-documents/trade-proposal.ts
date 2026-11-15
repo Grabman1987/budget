@@ -31,6 +31,8 @@ export type ConfirmationTradeProposal = {
   /** Sum of the printed withheld tax lines, positive cents; 0 without a cost table. */
   taxCents: number | null;
   currency: string | null;
+  /** Last four characters of the settlement account as printed; a hint for the owner only. */
+  settlementHint: string | null;
   /** Fields without a value, in form order. */
   open: TradeProposalField[];
   /**
@@ -154,6 +156,7 @@ export function tradeProposalFromConfirmation(doc: TradeConfirmation): Confirmat
     feeCents: value.fee,
     taxCents: value.tax,
     currency: doc.currency,
+    settlementHint: doc.booking?.accountHint ?? null,
     open: FIELDS.filter((field) => value[field] === null),
     unchecked:
       doc.reasons.includes('price_precision_insufficient') &&

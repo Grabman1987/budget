@@ -17,6 +17,7 @@ import {
 } from './audit';
 import {
   createBooking,
+  createTransfer,
   deleteTradeSettlementBooking,
   getBooking,
   updateTradeSettlementBooking,
@@ -73,6 +74,61 @@ export function tradeCashTransferInput(t: TradeInput, cashAccountId: string): Tr
     source: 'import',
     importKey: `${t.importKey}:cash`,
   };
+}
+
+/**
+ * Owner-confirmed counter booking of a trade (#1099): the cash moves by one transfer between the
+ * settlement account (Verrechnungskonto) and the investment account, for exactly the settlement
+ * amount of the trade (a buy's gross plus fee, a sale's gross less fee and tax). The fee stays in
+ * the trade (cost basis, cost report); no separate fee booking exists, so nothing counts twice.
+ * Written in the caller's audit group: one undo reverts trade, depot booking and transfer.
+ */
+function settleTradeCash(
+  tx: Executor,
+  input: TradeInput,
+  cashAccountId: string,
+  ctx: ReturnType<typeof withGroup>,
+): string | null {
+  const cash = tx
+    .select()
+    .from(account)
+    .where(and(eq(account.id, cashAccountId), isNull(account.deletedAt)))
+    .get();
+  if (!cash) throw new EntityNotFoundError('account', cashAccountId);
+  if (cash.id === input.accountId)
+    throw new TradeRuleError('The settlement account must differ from the investment account');
+  if (cash.closedAt) throw new TradeRuleError('The settlement account is closed');
+  const transferInput = tradeCashTransferInput(input, cashAccountId);
+  if (!transferInput) return null;
+  return createTransfer(
+    tx,
+    {
+      ...transferInput,
+      source: 'manual',
+      memo: 'Verrechnung',
+      importKey: input.importKey ? `${input.importKey}:cash` : null,
+    },
+    ctx,
+  ).transferId;
+}
+
+/**
+ * `createTrade` plus the counter booking on `settlementAccountId`, in one transaction and one
+ * audit group. A repeated `importKey` writes nothing (no second transfer either).
+ */
+export function createTradeWithCashTransfer(
+  db: Executor,
+  input: TradeInput,
+  settlementAccountId: string,
+  ctx: AuditContext,
+): TradeResult & { transferId: string | null } {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const result = createTrade(tx, input, grouped);
+    if (result.duplicate) return { ...result, transferId: null };
+    const transferId = settleTradeCash(tx, input, settlementAccountId, grouped);
+    return { ...result, transferId };
+  });
 }
 
 /** Income in kind: the dividend funds an equal buy without moving platform cash. */

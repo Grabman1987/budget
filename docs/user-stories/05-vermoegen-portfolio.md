@@ -138,6 +138,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
 - **Ergebnis:** Plan, Ausführungen und Abweichungen sind je Monat sichtbar; es ist kein Bankauftrag ausgelöst.
 - **Abnahmekriterien:**
   - Nach Bestätigung zeigt der Monat „Zugeordnet ausgeführt“, und der Kauf steht im Handelsverlauf des Instruments.
+  - Die Bestätigung einer Ausführung aus einer hochgeladenen Abrechnung kann zugleich die Umbuchung vom Verrechnungskonto schreiben (V-15); „Rückgängig“ nimmt Ausführung und Umbuchung gemeinsam zurück.
   - Eine hochgeladene Sparplan-Abrechnung ohne eindeutig passende offene Ausführung wird als normaler Kauf vorgeschlagen; der Dialog sagt „Der Handel wird ohne Zuordnung zum Sparplan erfasst.“
   - „Monatlich gesamt“ ist die Summe der laufenden Raten.
   - Eine Ratenänderung gilt ab Datum; frühere Monate behalten die alte Rate (Verlauf).
@@ -297,10 +298,17 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   3. Unter „Gelesene Angaben“ stehen Handelsart, Instrument mit ISIN, Handelsdatum, Stück, Bruttobetrag, Gebühren und einbehaltene Steuer. Was nicht sicher gelesen wurde, steht dort als „nicht sicher gelesen“. Gespeichert ist noch nichts.
   4. „Weiter“ öffnet „Handel erfassen“ (V-02) als Vorschlag: Instrument per ISIN, Anlagekonto, wenn genau eines in der Währung der Abrechnung offen ist, dazu die gelesenen Werte. Nicht sicher gelesene Felder bleiben leer und werden im Dialog namentlich genannt („Nicht sicher gelesen und deshalb leer, bitte selbst eintragen: …“).
   5. Bei einer Sparplan-Abrechnung mit genau einer passenden offenen Ausführung öffnet sich stattdessen „Sparplanausführung bestätigen“ mit denselben Werten (V-07).
-  6. Ich vergleiche mit der Abrechnung und bestätige mit „Handel erfassen“ bzw. „Ausführung bestätigen“; erst dann entstehen Handel und Kontobuchung, mit „Rückgängig“.
+  6. Unter „Verrechnungskonto (Gegenbuchung)“ steht „Keine Gegenbuchung“ oder ein offenes Konto in derselben Währung (vorbelegt, wenn am Anlagekonto ein Verrechnungskonto hinterlegt ist). Die Kontoendung der Abrechnung steht nur als Hinweis da; die App ordnet sie nicht selbst zu. Eine Zeile sagt vorab, welche Umbuchung entsteht.
+  7. Ich vergleiche mit der Abrechnung und bestätige mit „Handel erfassen“ bzw. „Ausführung bestätigen“; erst dann entstehen Handel, Kontobuchung am Anlagekonto und, wenn gewählt, die Umbuchung vom bzw. auf das Verrechnungskonto. „Rückgängig“ nimmt alles gemeinsam zurück.
 - **Ergebnis:** Der Handel ist ohne Tippen erfasst; es wird nichts automatisch gebucht und nichts geschätzt.
 - **Abnahmekriterien:**
   - Dasselbe PDF liefert immer dasselbe Ergebnis.
+  - Ohne gewähltes Verrechnungskonto wird nur der Handel gebucht; das Verrechnungskonto bleibt unverändert. Nichts wird vor der Bestätigung gebucht.
+  - Mit gewähltem Verrechnungskonto bewegt die Umbuchung genau den Abrechnungsbetrag: bei einem Kauf Bruttobetrag plus Gebühr vom Verrechnungskonto aufs Anlagekonto, bei einem Verkauf Bruttobetrag minus Gebühr und Steuer zurück. Das Anlagekonto bleibt bei 0 Barbestand. Die Gebühr bleibt im Handel (Einstand und Kosten-Report „Orders“); es gibt keine zweite Gebührenbuchung, nichts wird doppelt gezählt.
+  - Handel, Anlagekonto-Buchung und Umbuchung stehen in einer Gruppe; ein „Rückgängig“ nimmt alle drei zurück. Eine wiederholte Bestätigung derselben Abrechnung schreibt nichts (auch keine zweite Umbuchung).
+  - Eine Umbuchung in anderer Währung, auf das Anlagekonto selbst oder auf ein geschlossenes Konto wird abgelehnt, ohne etwas zu schreiben.
+  - Randfall: Steht die Zahlung schon als Buchung auf dem Verrechnungskonto (etwa aus dem Bankabruf), „Keine Gegenbuchung“ wählen; der Dialog weist darauf hin. Ein späteres Löschen des Handels lässt die Umbuchung bestehen (wie bei V-02).
+  - Eine über den Sparplan bestätigte Ausführung trägt die Ausführungs-ID der Abrechnung; dieselbe PDF wird danach auch nach geänderten Werten als erfasst erkannt.
   - Eine vollständig gelesene und geprüfte Abrechnung füllt alle Felder; der Bruttobetrag samt Gebühren entspricht der Kontobuchung des Verrechnungskontos.
   - Widersprechen sich Stück, Kurs und Betrag, bleiben Stück und Bruttobetrag leer; bei unbekannter Kostenzeile oder fehlender Buchungszeile bleiben Gebühren und Steuer leer. Ein leeres Pflichtfeld verhindert das Speichern.
   - Ist der gedruckte Kurs zu grob gerundet, um Stück × Kurs zu prüfen, bleiben die gedruckten Werte stehen und der Dialog weist darauf hin.
@@ -310,7 +318,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Randfall: Ein abweichendes Layout wird nicht als Wertpapierabrechnung erkannt und lässt sich nur als Beleg ablegen.
   - Dividenden, Zinsen und Steuerberichte sind ausdrücklich nicht Teil dieser Story.
 - **Status:** teilweise · **Verweis:** #1057, #1099
-  Fehlt noch: Vorschlag als Eintrag unter Konten › Prüfen (heute direkt aus dem Upload), Ablage der PDF als Beleg am Handel, Verknüpfung mit der Umbuchung vom Verrechnungskonto, Prüfung von Kauf/Verkauf-Orders an echten Mustern (Wortlaut bisher angenommen), Mehrfach-Upload.
+  Fehlt noch: Vorschlag als Eintrag unter Konten › Prüfen (heute direkt aus dem Upload), Ablage der PDF als Beleg am Handel, automatischer Abgleich mit einer bereits gebuchten Zahlung auf dem Verrechnungskonto, Prüfung von Kauf/Verkauf-Orders an echten Mustern (Wortlaut bisher angenommen), Mehrfach-Upload.
 
 ### V-16 – Pensions- und Rentenlücke prüfen (zurückgestellt)
 - **Story:** Als Nutzer möchte ich die Pensions- und Rentenlücke prüfen, damit ich sehe, ob die erwartete Rente ein gewähltes Ausgabenziel zum Pensionsdatum deckt.

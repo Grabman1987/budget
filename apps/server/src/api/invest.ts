@@ -12,6 +12,7 @@ import {
   createSavingsPlan,
   createSecurity,
   createTrade,
+  createTradeWithCashTransfer,
   deleteAssetClass,
   deleteSavingsPlan,
   deleteSecurity,
@@ -460,6 +461,8 @@ const tradeCreate = z
     feeCents: z.int().min(0).optional(),
     taxCents: z.int().min(0).optional(),
     importKey: z.string().min(1).max(200).nullable().optional(),
+    /** Verrechnungskonto: the trade is written together with its counter booking (#1099). */
+    settlementAccountId: id.nullable().optional(),
     note: text.nullable().optional(),
   })
   .refine(oneUnits, 'Give either unitsE8 or units');
@@ -509,16 +512,15 @@ export function tradeRoutes(db: Db): Hono {
   app.get('/:id', (c) => c.json({ trade: getTrade(db, c.req.param('id')) }));
 
   app.post('/', async (c) => {
-    const { units, unitsE8, ...rest } = await readBody(c, tradeCreate);
+    const { units, unitsE8, settlementAccountId, ...rest } = await readBody(c, tradeCreate);
     const account = accounts.get(db, rest.accountId);
     if (account?.closedAt)
       throw new ApiError(409, 'account_closed', 'The account is closed; reopen it first');
     const ctx = audit();
-    const result = createTrade(
-      db,
-      defined<TradeInput>({ ...rest, unitsE8: unitsOf({ units, unitsE8 }) }),
-      ctx,
-    );
+    const input = defined<TradeInput>({ ...rest, unitsE8: unitsOf({ units, unitsE8 }) });
+    const result = settlementAccountId
+      ? createTradeWithCashTransfer(db, input, settlementAccountId, ctx)
+      : createTrade(db, input, ctx);
     return c.json({ ...result, groupId: ctx.groupId }, result.duplicate ? 200 : 201);
   });
   app.patch('/:id', async (c) => {
@@ -609,6 +611,8 @@ export function savingsPlanRoutes(db: Db, today: () => string): Hono {
         unitsE8: z.int().positive(),
         amountCents: z.int().positive(),
         feeCents: z.int().min(0),
+        importKey: z.string().min(1).max(200).nullable().optional(),
+        settlementAccountId: id.nullable().optional(),
         note: text.nullable(),
       }),
     );

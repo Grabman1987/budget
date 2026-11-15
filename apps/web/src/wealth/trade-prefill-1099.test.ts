@@ -18,6 +18,7 @@ const intake = (
     feeCents: 100,
     taxCents: 1250,
     currency: 'EUR',
+    settlementHint: '1234',
     open: [],
     unchecked: false,
     ...proposal,
