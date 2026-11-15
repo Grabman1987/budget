@@ -1,10 +1,15 @@
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { auditLog, booking, expectedOccurrence, inboxItem } from '../schema';
+import { auditLog, booking, expectedOccurrence, inboxItem, payee } from '../schema';
 import { undo } from './audit';
 import { createBooking } from './bookings';
-import { createExpectedPayment, linkOccurrence, matchOccurrences } from './expected';
+import {
+  createExpectedPayment,
+  linkOccurrence,
+  matchOccurrences,
+  unlinkOccurrence,
+} from './expected';
 import { LINK_PROPOSAL_REF } from './expected-auto-link';
 import { heute } from './heute';
 import { readInbox, resolveInboxItem } from './inbox';
@@ -169,6 +174,61 @@ describe('automatic link of recurring debits (#1102)', () => {
     expect(proposals().find((p) => p.resolvedAt === null)!.refId).not.toBe(proposal!.refId);
   });
 
+  it('never links on its own a booking of another payee that only shares the category', () => {
+    const rent = payment('Miete', 40_000);
+    db.insert(payee).values({ id: 'p2', name: 'Anderer Empfänger' }).run();
+    createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-03-20',
+        amountCents: -40_000,
+        payeeId: 'p2',
+        splits: [{ amountCents: -40_000, categoryId: 'miete' }],
+      },
+      ctx,
+    );
+    const summary = matchOccurrences(db, TODAY);
+    expect(summary).toMatchObject({ links: [], proposed: 1 });
+    expect(march(rent.id).bookingId).toBeNull();
+  });
+
+  it('shows a proposal again when the pairing it was closed for falls away', () => {
+    const a = payment('Abo A', 2_800);
+    const b = payment('Abo B', 2_800);
+    const bookingId = debit('2026-03-22', -2_800);
+    matchOccurrences(db, TODAY);
+    const [first] = proposals();
+    const other = first!.refId === march(a.id).id ? march(b.id) : march(a.id);
+    // The owner settles the other occurrence: this proposal is superseded ...
+    linkOccurrence(db, other.id, bookingId, ctx);
+    expect(proposals().find((p) => p.id === first!.id)!.resolvedAt).not.toBeNull();
+    // ... and when that link is removed, the pairing is a task again.
+    unlinkOccurrence(db, other.id, ctx);
+    matchOccurrences(db, TODAY);
+    expect(proposals().filter((p) => p.resolvedAt === null).length).toBeGreaterThan(0);
+  });
+
+  it('keeps income in the forecast like before and a debit booked after the start day too', () => {
+    payment('Gehalt', 200_000, { kind: 'inflow', categoryId: null, dueDay: 21 });
+    createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-03-20',
+        amountCents: 200_000,
+        payeeId: 'p1',
+        splits: [{ amountCents: 200_000, categoryId: null }],
+      },
+      ctx,
+    );
+    payment('Miete', 40_000);
+    debit('2026-03-25', -40_000);
+    matchOccurrences(db, TODAY);
+    expect(forecastDays('Gehalt')).toContain('2026-03-21');
+    expect(forecastDays('Miete')).toContain('2026-03-22');
+  });
+
   it('leaves recurring income to the existing matching (no proposal, no own group)', () => {
     const salary = payment('Gehalt', 200_000, { kind: 'inflow', categoryId: null, payeeId: 'p1' });
     createBooking(
@@ -185,6 +245,6 @@ describe('automatic link of recurring debits (#1102)', () => {
     const summary = matchOccurrences(db, TODAY);
     expect(summary.links).toEqual([]);
     expect(proposals()).toEqual([]);
-    expect(salary.id).toBeTruthy();
+    expect(march(salary.id)).toMatchObject({ status: 'received' });
   });
 });

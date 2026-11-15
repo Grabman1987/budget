@@ -79,6 +79,8 @@ import { statementForecastLegs, statementLegacyKeys } from './statement-settleme
 type AccountRow = typeof account.$inferSelect;
 type CategoryRow = typeof category.$inferSelect;
 type PaymentRow = typeof expectedPayment.$inferSelect;
+/** A marked occurrence: taken out of the plan, or settled by a booking dated `settledOn`. */
+type PlanMark = 'skipped' | 'missed' | { settledOn: string };
 type VersionRow = typeof expectedPaymentVersion.$inferSelect;
 
 interface IncomeSplit {
@@ -103,7 +105,7 @@ export interface RuleFacts {
    * Live occurrences taken out of the plan, by `paymentId|dueDate`: `skipped` (gestrichen, a
    * deliberate plan change) and `missed` (ausgefallen). See `isPlannedOccurrence`.
    */
-  planMarks: Map<string, 'skipped' | 'missed' | 'settled'>;
+  planMarks: Map<string, PlanMark>;
   plannedEvents: (typeof plannedEvent.$inferSelect)[];
   securities: Map<string, typeof security.$inferSelect>;
   classNames: Record<string, string>;
@@ -179,14 +181,16 @@ function readFacts(db: Executor, upTo: string, ledger: ReturnType<typeof budgetL
     versions.set(v.expectedPaymentId, [...(versions.get(v.expectedPaymentId) ?? []), v]);
 
   const incomePauses = db.select().from(incomePause).where(isNull(incomePause.deletedAt)).all();
-  const planMarks = new Map<string, 'skipped' | 'missed' | 'settled'>();
+  const planMarks = new Map<string, PlanMark>();
   for (const o of db
     .select({
       paymentId: expectedOccurrence.expectedPaymentId,
       dueDate: expectedOccurrence.dueDate,
       status: expectedOccurrence.status,
+      bookedOn: booking.date,
     })
     .from(expectedOccurrence)
+    .leftJoin(booking, eq(booking.id, expectedOccurrence.bookingId))
     .where(
       and(
         isNull(expectedOccurrence.deletedAt),
@@ -197,7 +201,7 @@ function readFacts(db: Executor, upTo: string, ledger: ReturnType<typeof budgetL
     planMarks.set(
       `${o.paymentId}|${o.dueDate}`,
       o.status === 'received' || o.status === 'deviating'
-        ? 'settled'
+        ? { settledOn: o.bookedOn ?? o.dueDate }
         : (o.status as 'skipped' | 'missed'),
     );
 
@@ -345,17 +349,19 @@ function targetOf(f: RuleFacts, categoryId: string, month: string): CategoryTarg
  * forecast, the Heute chart, R07, the reports and the cover limits. A `skipped` (gestrichen)
  * occurrence never is. A `missed` (ausgefallen) one is not either, unless `keepMissed`: Heute
  * still lists a missed payment of the past as a gap. A settled one (`received`/`deviating`, linked
- * to a booking) stays planned, except with `skipSettled`: cash forecasts start from the balance,
- * which already contains that booking, so counting the occurrence again would pay it twice (#1102).
+ * to a booking) stays planned, except with `skipSettledBy` (the forecast's start day) when its
+ * booking is dated on or before that day: the balance already contains it, so counting the
+ * occurrence again would pay it twice (#1102). A booking dated later is not in the balance yet.
  */
 export function isPlannedOccurrence(
   f: Pick<RuleFacts, 'planMarks'>,
   paymentId: string,
   dueDate: string,
-  options: { keepMissed?: boolean; skipSettled?: boolean } = {},
+  options: { keepMissed?: boolean; skipSettledBy?: string | undefined } = {},
 ): boolean {
   const mark = f.planMarks.get(`${paymentId}|${dueDate}`);
-  if (mark === 'settled') return options.skipSettled !== true;
+  if (typeof mark === 'object')
+    return options.skipSettledBy === undefined || mark.settledOn > options.skipSettledBy;
   return mark === undefined || (mark === 'missed' && options.keepMissed === true);
 }
 
@@ -368,7 +374,7 @@ export function scheduled(
   from: string,
   to: string,
   asOf: string,
-  options: { applyIncomePauses?: boolean; keepMissed?: boolean; skipSettled?: boolean } = {},
+  options: { applyIncomePauses?: boolean; keepMissed?: boolean; skipSettledBy?: string } = {},
 ) {
   const out: {
     payment: PaymentRow;
@@ -389,7 +395,14 @@ export function scheduled(
       to,
     )) {
       if (replaced.has(p.id + '|' + occ.dueDate)) continue;
-      if (!isPlannedOccurrence(f, p.id, occ.dueDate, options)) continue;
+      // Only a settled outflow leaves the forecast; income keeps its established treatment.
+      if (
+        !isPlannedOccurrence(f, p.id, occ.dueDate, {
+          ...options,
+          skipSettledBy: p.kind === 'outflow' ? options.skipSettledBy : undefined,
+        })
+      )
+        continue;
       const v = versionOn(versions, occ.dueDate);
       const pause = options.applyIncomePauses
         ? f.incomePauses.find(
@@ -490,7 +503,7 @@ export function forecastInputs(
       kind: 'event' as const,
       label: l.kind === 'settlement' ? 'Abrechnungsausgleich' : 'Ausgabengutschrift',
     })),
-    ...scheduled(f, addDays(asOf, 1), to, asOf, { applyIncomePauses: true, skipSettled: true })
+    ...scheduled(f, addDays(asOf, 1), to, asOf, { applyIncomePauses: true, skipSettledBy: asOf })
       .filter((o) => o.onBudget)
       .map((o) => ({
         day: o.dueDate,

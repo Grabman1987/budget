@@ -1,5 +1,5 @@
 import { cents, formatEuro } from '@budget/domain';
-import { and, eq, inArray, isNotNull, isNull, like, or } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, like, or, sql } from 'drizzle-orm';
 import {
   auditLog,
   bankSyncCandidate,
@@ -166,9 +166,40 @@ export function rejectedLinkPairs(tx: Executor, occurrenceIds: readonly string[]
   return rejected;
 }
 
+/**
+ * Bookings that were linked to an occurrence before and are not any more (unlinked, undone):
+ * the owner revisited that decision, so they are never linked on their own again, only proposed.
+ */
+export function previouslyLinkedBookingIds(
+  tx: Executor,
+  bookingIds: readonly string[],
+): Set<string> {
+  const result = new Set<string>();
+  for (const part of chunks(bookingIds))
+    for (const row of tx
+      .select({ id: sql<string>`json_extract(${auditLog.beforeJson}, '$.booking_id')` })
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.entityType, 'expected_occurrence'),
+          sql`json_extract(${auditLog.beforeJson}, '$.booking_id') IN (${sql.join(
+            part.map((id) => sql`${id}`),
+            sql`, `,
+          )})`,
+        ),
+      )
+      .all())
+      result.add(row.id);
+  return result;
+}
+
 /** A booking the owner rejected once is never linked on its own again, only proposed. */
 export const rejectedBookingIds = (rejected: ReadonlySet<string>): Set<string> =>
   new Set([...rejected].map((pair) => pair.slice(pair.indexOf(':') + 1)));
+
+/** An occurrence the owner rejected a booking for is never linked on its own again. */
+export const rejectedOccurrenceIds = (rejected: ReadonlySet<string>): Set<string> =>
+  new Set([...rejected].map((pair) => pair.slice(0, pair.indexOf(':'))));
 
 export const isRejectedPair = (
   rejected: ReadonlySet<string>,
@@ -179,7 +210,7 @@ export const isRejectedPair = (
 const money = (amountCents: number, currency: string) =>
   currency === 'EUR'
     ? formatEuro(cents(amountCents))
-    : `${(amountCents / 100).toFixed(2).replace('.', ',')} ${currency}`;
+    : `${(amountCents / 100).toFixed(2).replace('.', ',').replace('-', '−')} ${currency}`;
 
 /** Open the proposal task of a pairing unless it exists; returns its id. */
 export function ensureLinkProposal(
@@ -193,8 +224,20 @@ export function ensureLinkProposal(
   ctx: GroupedContext,
 ): { id: string; created: boolean } {
   const id = linkProposalId(input.occurrence.id, input.booking.id);
-  if (tx.select({ id: inboxItem.id }).from(inboxItem).where(eq(inboxItem.id, id)).get())
+  const existing = tx.select().from(inboxItem).where(eq(inboxItem.id, id)).get();
+  if (existing) {
+    // Closed by the system (superseded link, stale): the pairing is open again, show it again.
+    // Closed by the owner: a dismissal stands.
+    if (
+      existing.resolvedAt !== null &&
+      existing.resolution !== null &&
+      SYSTEM_RESOLUTIONS.has(existing.resolution)
+    ) {
+      updateTracked(tx, inboxItem, [id], { resolvedAt: null, resolution: null }, ctx);
+      return { id, created: true };
+    }
     return { id, created: false };
+  }
   insertTracked(
     tx,
     inboxItem,

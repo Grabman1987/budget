@@ -49,7 +49,9 @@ import {
   closeStaleLinkProposals,
   ensureLinkProposal,
   isRejectedPair,
+  previouslyLinkedBookingIds,
   rejectedBookingIds,
+  rejectedOccurrenceIds,
   rejectedLinkPairs,
   resolveLinkProposals,
   RESOLUTION_AUTO,
@@ -877,7 +879,29 @@ export function matchOccurrences(
       tx,
       debits.map((r) => r.occ.id),
     );
-    const rejectedBookings = rejectedBookingIds(rejected);
+    const rejectedBookings = new Set([
+      ...rejectedBookingIds(rejected),
+      ...previouslyLinkedBookingIds(
+        tx,
+        bookings.map((b) => b.id),
+      ),
+    ]);
+    const rejectedOccurrences = rejectedOccurrenceIds(rejected);
+    const bookingById = new Map(bookings.map((b) => [b.id, b]));
+    /**
+     * A booking with a counterparty of its own must have the payment's one; a booking without any
+     * (a transfer leg, a manual entry) fits through the payment's category as before.
+     */
+    const sameCounterparty = (payment: Payment, bookingId: string) => {
+      const facts = bookingById.get(bookingId);
+      if (!facts || payment.accountId === null) return false;
+      const known = { ...facts.facts, ...bankPayees.get(bookingId) };
+      if (known.payeeId === null && known.payeeContactId === null) return true;
+      return (
+        (payment.payeeId !== null && known.payeeId === payment.payeeId) ||
+        (payment.contactId !== null && known.payeeContactId === payment.contactId)
+      );
+    };
     const bankPayees = debits.length > 0 ? bankPayeeFacts(tx, bookings) : new Map<string, never>();
     const debitFacts = (b: BookingRow): BookingFacts => ({ ...b.facts, ...bankPayees.get(b.id) });
 
@@ -915,7 +939,14 @@ export function matchOccurrences(
     for (const { occ, payment } of open) {
       const match = matches.get(occ.id);
       const debit = payment.kind === 'outflow';
-      if (match && !(debit && (match.doubt || rejectedBookings.has(match.candidate.id)))) {
+      const needsOwner =
+        debit &&
+        !!match &&
+        (match.doubt !== null ||
+          rejectedBookings.has(match.candidate.id) ||
+          rejectedOccurrences.has(occ.id) ||
+          !sameCounterparty(payment, match.candidate.id));
+      if (match && !needsOwner) {
         // A recurring debit is one decision of its own: undoing it must not touch other links.
         const linkCtx = debit ? withGroup({ actor: grouped.actor }) : grouped;
         updateTracked(
@@ -926,11 +957,12 @@ export function matchOccurrences(
           linkCtx,
         );
         if (debit) {
+          // In the run's group, not the link's: undoing the link must not reopen the proposal.
           resolveLinkProposals(
             tx,
             { occurrenceId: occ.id, bookingId: match.candidate.id },
             RESOLUTION_AUTO,
-            linkCtx,
+            grouped,
           );
           summary.links.push({
             occurrenceId: occ.id,
