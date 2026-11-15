@@ -583,7 +583,14 @@ export function createTransfer(
   db: Executor,
   input: TransferInput,
   ctx: AuditContext,
-  options: { manualCashBank?: { bankStatus?: ManualBankStatus } } = {},
+  options: {
+    manualCashBank?: { bankStatus?: ManualBankStatus };
+    /** Explicit bank-side facts, including a pending receipt while the debit is confirmed. */
+    bankLegs?: {
+      from: { date: string; status: ManualBankStatus };
+      to: { date: string; status: ManualBankStatus };
+    };
+  } = {},
 ): TransferResult {
   const grouped = withGroup(ctx);
   if (!isCents(input.amountCents)) {
@@ -604,6 +611,14 @@ export function createTransfer(
       throw new BookingInvariantError(
         `Transfers between different currencies (${from.currency}, ${to.currency}) are not supported`,
       );
+    }
+    const bankLegs = options.bankLegs;
+    if (bankLegs) {
+      const bank = (type: string) => type === 'checking' || type === 'savings';
+      if (!bank(from.type) || !bank(to.type) || options.manualCashBank?.bankStatus !== undefined)
+        throw new BookingInvariantError(
+          'Independent bank legs require two bank accounts and no bankStatus',
+        );
     }
     // Only the manual whole-transfer API opts in. Import/operator callers retain their policy.
     const manual = options.manualCashBank
@@ -630,6 +645,7 @@ export function createTransfer(
       {
         ...common,
         ...(manual ? { status: manual.fromStatus } : {}),
+        ...(bankLegs ? bankLegs.from : {}),
         accountId: input.fromAccountId,
         amountCents: -input.amountCents,
         importKey: input.importKey ?? null,
@@ -643,6 +659,7 @@ export function createTransfer(
       {
         ...common,
         ...(manual ? { status: manual.toStatus } : {}),
+        ...(bankLegs ? bankLegs.to : {}),
         accountId: input.toAccountId,
         amountCents: input.amountCents,
         importKey: input.toImportKey ?? input.importKey ?? null,
