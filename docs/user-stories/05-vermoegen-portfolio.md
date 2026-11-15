@@ -196,7 +196,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
 - **Status:** teilweise · **Verweis:** I16
   Fehlt noch: Aktionen im Sparplan, privat abgenommene Umschichtungsabläufe.
 
-### V-10 – Monatliche Trendallokation mit täglicher Sparplanvorschau (geplant)
+### V-10 – Monatliche Trendallokation mit täglicher Sparplanvorschau (teilweise)
 - **Story:** Als Nutzer möchte ich eine monatlich verbindliche Trendallokation und eine tägliche Vorschau des nächsten Sparplans mit getrenntem Rebalancing sehen, damit ich täglich weiß, wie viel ich beim nächsten Sparplan in welches Wertpapier investieren würde, ohne dass die Vorschau die verbindliche Allokation still ändert.
 - **Ausgangslage:** Strategie ist unter Portfolio konfiguriert (vier Kategorien, Zuordnung der Wertpapiere, Sparrate selbst eingegeben); der ungehebelte Nasdaq-100-Index liefert abgeschlossene Handelstage.
 - **Ablauf:** (geplant)
@@ -211,8 +211,9 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Eine tägliche Signaländerung ändert die verbindliche Allokation erst zum Monatswechsel.
   - Randfall: Fehlen Indexdaten, entsteht kein neues Signal, es bleibt das letzte bekannte mit Hinweis.
   - Ein gehaltenes, nicht mehr bespartes Wertpapier zählt zu Depotwert und Istgewicht.
-- **Status:** geplant · **Verweis:** #762
-  Fehlt noch: gesamte Funktion (Strategie-Seite, Signalberechnung, Vorschau).
+- **Status:** teilweise · **Verweis:** #762
+  Umgesetzt (nur Lesen): Abschnitt „Trendsignal · Grundlage“ unter Vermögen › Portfolio › Sparpläne › Trendstrategie zeigt für die tägliche Vorschau, das Monatssignal des laufenden Monats und die gespeicherte verbindliche Entscheidung jeweils Ergebnis, Schlusstag, Schlusskurs, 200-Tage-Durchschnitt und den Durchschnitt 20 US-Handelstage zuvor (Anzeige auf zwei Stellen gerundet, verglichen wird exakt), Quelle, Index, US-Kalender und Erfassungszeit. Fehlt die Reihe, ist sie lückenhaft oder veraltet, steht „Nicht ermittelbar“ mit Grund und fehlenden Tagen, nie eine Schätzung.
+  Fehlt noch: Abnahme am echten Abruf (erster Kurslauf nach Einschalten), Prüfung der Kaufaufteilung und des Rebalancings am Live-Depot, Geräteabnahme.
 
 ### V-11 – Nettovermögen mit Eigenanteil und Marktanteil sehen
 - **Story:** Als Nutzer möchte ich das Nettovermögen als Anfang plus Gespart plus Markt mit Zusammensetzung sehen, damit ich weiß, ob mein Vermögen durch Sparen oder durch den Markt gewachsen ist.
