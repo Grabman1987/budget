@@ -21,14 +21,14 @@ Die Status stammen aus `docs/FEATURES.md`, `docs/STATUS.md`, dem Code und dem Is
 | [Plan (Budget)](user-stories/02-plan.md) | 13 | 9 | 2 | 2 | 0 | 0 |
 | [Konten und Buchungen](user-stories/03-konten-buchungen.md) | 17 | 12 | 2 | 2 | 1 | 0 |
 | [Kontakte](user-stories/04-kontakte.md) | 6 | 2 | 4 | 0 | 0 | 0 |
-| [Vermögen und Portfolio](user-stories/05-vermoegen-portfolio.md) | 20 | 3 | 11 | 3 | 3 | 0 |
+| [Vermögen und Portfolio](user-stories/05-vermoegen-portfolio.md) | 20 | 3 | 12 | 2 | 3 | 0 |
 | [Reports](user-stories/06-reports.md) | 37 | 35 | 0 | 2 | 0 | 0 |
 | [Prüfen und Dokument-Upload](user-stories/07-pruefen-upload.md) | 12 | 6 | 1 | 5 | 0 | 0 |
 | [Monatsabschluss](user-stories/08-monatsabschluss.md) | 5 | 1 | 3 | 0 | 0 | 1 |
 | [Regelwerk und Finanz-Check](user-stories/09-regelwerk.md) | 26 | 24 | 1 | 0 | 1 | 0 |
 | [Einstellungen](user-stories/10-einstellungen.md) | 19 | 11 | 4 | 2 | 2 | 0 |
 | [App allgemein](user-stories/11-app-allgemein.md) | 12 | 1 | 5 | 5 | 1 | 0 |
-| **Summe** | **173** | **109** | **33** | **22** | **8** | **1** |
+| **Summe** | **173** | **109** | **34** | **21** | **8** | **1** |
 
 Eine Analyse aller Abläufe nach Aufwand für den Nutzer steht in [EFFIZIENZ.md](user-stories/EFFIZIENZ.md).
 
