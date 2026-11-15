@@ -20,8 +20,12 @@ export const savingsProposalsQuery = () =>
         '/api/savings-plans/execution-proposals',
       ),
   });
-export const confirmSavings = (proposal: SavingsExecutionProposal, values: ManualTrade) =>
-  request<{ trade: TradeRow; groupId: string }>(
+export const confirmSavings = (
+  proposal: SavingsExecutionProposal,
+  values: ManualTrade,
+  extra: { importKey?: string; settlementAccountId?: string } = {},
+) =>
+  request<{ trade: TradeRow; groupId: string; transferId?: string | null; duplicate?: boolean }>(
     'POST',
     `/api/savings-plans/${encodeURIComponent(proposal.planId)}/confirm-execution`,
     {
@@ -34,6 +38,7 @@ export const confirmSavings = (proposal: SavingsExecutionProposal, values: Manua
       amountCents: values.amountCents,
       feeCents: values.feeCents,
       note: values.note,
+      ...extra,
     },
   );
 export type { SavingsPlanRecord } from '@budget/db';

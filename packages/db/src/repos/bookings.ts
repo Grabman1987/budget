@@ -37,6 +37,7 @@ import {
 import { BookingInvariantError, EntityNotFoundError, ReconciledLockedError } from './errors';
 import {
   assertLedgerInvariants,
+  assertCounterTransferRestore,
   assertTradeSettlementBookingWrite,
   relatedTransferBookings,
   connectedTransferBookings,
@@ -1313,7 +1314,9 @@ export function restoreBooking(db: Executor, id: string, ctx: AuditContext): voi
     assertContactBookingWrite(tx, id, 'restore');
     assertStatementBookingWrite(tx, id, 'restore');
     assertTradeSettlementBookingWrite(tx, id, 'restore');
+    assertCounterTransferRestore(tx, cur);
     for (const leg of transferLegs(tx, cur)) {
+      assertCounterTransferRestore(tx, leg);
       assertTradeSettlementBookingWrite(tx, leg.id, 'restore');
       if (leg.deletedAt !== null)
         updateTracked(tx, booking, [leg.id], { deletedAt: null }, grouped, 'restore');
