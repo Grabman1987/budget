@@ -42,6 +42,7 @@ export interface AccountSummary {
   name: string;
   type: string;
   role: string;
+  purpose?: typeof account.$inferSelect.purpose;
   onBudget: boolean;
   contactId: string | null;
   /** Verrechnungskonto of a depot (its cash account). */
@@ -118,6 +119,7 @@ export function accountSummaries(db: Executor, asOf: string): AccountSummary[] {
     name: r.account.name,
     type: r.account.type,
     role: r.account.role,
+    purpose: r.account.purpose,
     onBudget: r.account.onBudget,
     allocationScope: r.account.allocationScope,
     allocationAssetClassId: r.account.allocationAssetClassId,
