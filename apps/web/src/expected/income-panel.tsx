@@ -132,7 +132,7 @@ export function IncomeBody({
                     <strong>{l.name}</strong>
                     <span className="xp-sub">{longDay(l.dueDate)}</span>
                     {canClose && l.bookingId === null && l.status !== 'skipped' && (
-                      <CloseIncome line={l} />
+                      <AcknowledgeIncome line={l} />
                     )}
                   </span>
                   <span className="xp-occ-amt">
@@ -159,7 +159,7 @@ export function IncomeBody({
       {(data.closedPayments?.length ?? 0) > 0 && (
         <section aria-labelledby="xp-inc-closed">
           <h3 id="xp-inc-closed" className="panel-h">
-            Kommt nicht mehr
+            Bereits erhalten
           </h3>
           <ul className="xp-occ xp-inc" aria-label="Abgeschlossene Einnahmen des Monats">
             {data.closedPayments?.map((l) => (
@@ -169,9 +169,9 @@ export function IncomeBody({
                   <span className="xp-sub">{longDay(l.dueDate)}</span>
                 </span>
                 <span className="xp-occ-amt">
-                  Fehlbetrag {nativeCurrency(l.expectedCents, l.currency)}
+                  Planwert {nativeCurrency(l.expectedCents, l.currency)}
                 </span>
-                <span className="xp-status">Kommt nicht mehr</span>
+                <span className="xp-status">Bereits erhalten</span>
               </li>
             ))}
           </ul>
@@ -191,8 +191,8 @@ export function IncomeBody({
   );
 }
 
-/** Reuse the audited single-occurrence cancellation; never edit the recurring rule or cash. */
-function CloseIncome({ line }: { line: MonthIncomeLine }) {
+/** Acknowledge receipt without a booking link via the audited single-occurrence action. */
+function AcknowledgeIncome({ line }: { line: MonthIncomeLine }) {
   const write = useBudgetWrite();
   const [pending, setPending] = useState(false);
   return (
@@ -205,14 +205,14 @@ function CloseIncome({ line }: { line: MonthIncomeLine }) {
         try {
           await write(
             () => skipOccurrence(line.paymentId, line.dueDate),
-            () => `${line.name}: Kommt nicht mehr.`,
+            () => `${line.name}: Bereits erhalten.`,
           );
         } finally {
           setPending(false);
         }
       }}
     >
-      Kommt nicht mehr
+      Bereits erhalten
     </Button>
   );
 }

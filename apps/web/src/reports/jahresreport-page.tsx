@@ -10,7 +10,7 @@ import {
   type YearReport,
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { YearSummary } from './period-report-summary';
+import { YearSummary, YearWealthChange } from './period-report-summary';
 import { PeriodPresentation, usePaperView } from './period-presentation';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { Printer } from 'lucide-react';
@@ -296,6 +296,7 @@ function SheetOne({
             : 'Für dieses Jahr liegt kein Nettovermögen vor.'}
         </p>
       )}
+      {REDESIGN_ENABLED && <YearWealthChange data={data} />}
       <div className="ov-sheet-kpis">
         <div>
           <span className="tech">Einkommen</span>
