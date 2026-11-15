@@ -6,6 +6,17 @@ const KEY_DATE = /budget-(\d{4}-\d{2}-\d{2})\.(?:sqlite|tar)\.age$/;
 /** The UTC day (`YYYY-MM-DD`) of a backup key, undefined for anything else. */
 export const backupDay = (key: string): string | undefined => KEY_DATE.exec(key)?.[1];
 
+/** The newest completed receipt-aware night copy (`budget-YYYY-MM-DD.tar.age`) below `prefix`. */
+export const latestArchiveKey = (keys: string[], prefix: string): string | undefined =>
+  keys
+    .filter(
+      (key) =>
+        key.startsWith(prefix) &&
+        /^budget-\d{4}-\d{2}-\d{2}\.tar\.age$/.test(key.slice(prefix.length)),
+    )
+    .sort()
+    .at(-1);
+
 export interface RetentionPolicy {
   daily: number;
   monthly: number;

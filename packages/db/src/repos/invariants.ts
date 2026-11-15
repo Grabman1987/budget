@@ -376,3 +376,27 @@ export function connectedTransferBookings(tx: Executor, bookingId: string): stri
   }
   return queue;
 }
+
+const COUNTER_KEY = /^(.+):cash:([^:]+)$/;
+
+/**
+ * A counter transfer (#1099) is revived only together with its trade. Its legs carry the key
+ * `<trade reference>:cash:<depot id>`; restoring one of them while that trade is deleted would
+ * leave an orphan transfer, so it is refused (undo of the whole group restores both together).
+ */
+export function assertCounterTransferRestore(
+  tx: Executor,
+  leg: { importKey: string | null },
+): void {
+  const parts = leg.importKey ? COUNTER_KEY.exec(leg.importKey) : null;
+  if (!parts) return;
+  const owner = tx
+    .select({ deletedAt: trade.deletedAt })
+    .from(trade)
+    .where(and(eq(trade.accountId, parts[2]!), eq(trade.importKey, parts[1]!)))
+    .get();
+  if (owner && owner.deletedAt !== null)
+    throw new BookingInvariantError(
+      'Cannot restore the counter transfer of a deleted trade; restore the trade instead',
+    );
+}

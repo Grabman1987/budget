@@ -140,7 +140,6 @@ function StrategyPreview({
   const contribution = data.contribution,
     candidate = data.monthlyCandidate;
   const daily = data.dailyPreview;
-  const missingSessions = daily.status === 'unavailable' ? (daily.missingSessions ?? []) : [];
   const record = async () => {
     if (!fresh || !candidate?.canRecord || saving.current) return;
     saving.current = true;
@@ -225,74 +224,37 @@ function StrategyPreview({
           sources={data.valuation.sources}
           label="Strategieportfolio · Bewertungsstand"
         />
-        {data.binding && (
-          <details>
-            <summary>Verbindliche Signalgrundlage</summary>
-            <p>
-              Entscheidung gespeichert am{' '}
-              {new Date(data.binding.knownAt).toLocaleString('de-AT', {
-                timeZone: 'Europe/Vienna',
-              })}{' '}
-              · Schluss {longDay(data.binding.signalDate)} · Quelle {data.binding.sourceId} · Index{' '}
-              {data.binding.indexId} · US-Kalender {data.binding.calendarId} (
-              {data.binding.calendarSourceId}).
-            </p>
-          </details>
-        )}
-        {data.provider && (
-          <p className="strategy-stand">
-            Signalquelle {data.provider.source.sourceId} · Index {data.provider.source.indexId} ·
-            USD-Kursindex, ungehebelt · US-Kalender {data.provider.calendarId}
-          </p>
-        )}
-        {daily.status === 'available' && (
-          <p className="strategy-stand">
-            Signalabruf{' '}
-            <time dateTime={daily.asOf}>{new Date(daily.asOf).toLocaleString('de-AT')}</time> ·
-            Kursbeobachtung{' '}
-            <time dateTime={daily.latestClose.observedAt}>
-              {new Date(daily.latestClose.observedAt).toLocaleString('de-AT')}
-            </time>
-            . Die Tagesvorschau ändert keine verbindlichen Ziele.
-          </p>
-        )}
-        {daily.status === 'unavailable' && (
-          <p className="strategy-stand">
-            {daily.reason === 'trusted_provider_unconfigured'
-              ? 'Die verlässliche Quelle für USD-Kursindex und US-Handelskalender ist noch nicht angeschlossen.'
-              : daily.reason === 'insufficient-history'
-                ? 'Weniger als 220 vollständige abgeschlossene US-Handelstage liegen vor.'
-                : daily.reason === 'missing-close'
-                  ? 'In der benötigten Kursreihe fehlen Schlusskurse.'
-                  : 'Die vorliegenden Signalgrundlagen sind nicht vollständig oder nicht passend.'}
-            {missingSessions.length > 0 && (
-              <>
-                {' '}
-                Fehlende Tage: {missingSessions.slice(0, 5).map(longDay).join(', ')}
-                {missingSessions.length > 5 ? ' …' : ''}.
-              </>
-            )}
-          </p>
-        )}
-        <p className="strategy-stand">
-          Die Trendregel vergleicht den letzten abgeschlossenen Schlusskurs mit dem
-          200-Tage-Durchschnitt und diesen mit dem Durchschnitt 20 US-Handelstage zuvor. Verwendet
-          wird der ungehebelte USD-Kursindex.
-        </p>
-        {candidate && (
-          <p>
-            Monatssignal: Schluss {longDay(candidate.signalDate)} · wirksam ab{' '}
-            {longDay(candidate.effectiveDate)}.{' '}
-            {candidate.signal.status === 'available'
-              ? TREND[candidate.signal.trend]
-              : 'Noch nicht verlässlich bestimmbar.'}
-          </p>
-        )}
         {candidate?.canRecord && (
           <Button disabled={!fresh || busy || !data.config?.enabled} onClick={() => void record()}>
             Verbindliche Monatsentscheidung speichern
           </Button>
         )}
+      </section>
+      <section aria-labelledby="strategy-signal-title">
+        <h2 id="strategy-signal-title">Trendsignal · Grundlage</h2>
+        <p className="strategy-stand">
+          Die Trendregel vergleicht den letzten abgeschlossenen Schlusskurs mit dem
+          200-Tage-Durchschnitt und diesen mit dem Durchschnitt 20 US-Handelstage zuvor. Verwendet
+          wird der ungehebelte USD-Kursindex. Angezeigte Werte sind auf zwei Stellen gerundet;
+          verglichen wird ungerundet.
+        </p>
+        <div className="strategy-signals">
+          <SignalBasis
+            title="Tägliche Trendvorschau"
+            note="Die Tagesvorschau ändert keine verbindlichen Ziele."
+            entry={data.signalBasis.daily}
+          />
+          <SignalBasis
+            title="Monatssignal · laufender Monat"
+            note="Verbindlich wird es erst durch die gespeicherte Monatsentscheidung."
+            entry={data.signalBasis.monthly}
+          />
+          <SignalBasis
+            title="Verbindliche Monatsentscheidung"
+            note="Gespeicherte Grundlage; spätere Kursdaten ändern sie nicht."
+            entry={data.signalBasis.binding}
+          />
+        </div>
       </section>
       {data.diagnostics.length > 0 && (
         <section aria-labelledby="strategy-open-title">
@@ -513,6 +475,108 @@ function StrategyPreview({
       </p>
       <AppLink to="/vermoegen/portfolio">Zum Portfolio und zur Trade-Erfassung</AppLink>
     </>
+  );
+}
+
+type SignalEntry = PortfolioStrategyView['signalBasis']['daily'];
+const SIGNAL_UNAVAILABLE: Record<Extract<SignalEntry, { status: 'unavailable' }>['kind'], string> =
+  {
+    provider_missing:
+      'Die verlässliche Quelle für USD-Kursindex und US-Handelskalender ist noch nicht angeschlossen.',
+    not_captured:
+      'Die Signalreihe ist noch nicht erfasst. Der erste Abruf erfolgt mit dem nächsten Kurslauf, sobald die Strategie eingeschaltet ist.',
+    insufficient_history: 'Weniger als 220 vollständige abgeschlossene US-Handelstage liegen vor.',
+    session_gap: 'In der benötigten Kursreihe fehlen Schlusskurse.',
+    stale: 'Die Signalreihe ist veraltet: Abgeschlossene US-Handelstage sind noch nicht erfasst.',
+    conflict:
+      'Ein gespeicherter Schlusskurs weicht von einem späteren Abruf ab. Das Signal bleibt gesperrt, bis der Eintrag bereinigt ist.',
+    untrusted_data:
+      'Die gespeicherte Signalreihe entspricht nicht dem festgelegten USD-Kursindex oder enthält nicht verlässliche Kurse.',
+    calendar_out_of_range: 'Der hinterlegte US-Handelskalender deckt diesen Zeitraum nicht ab.',
+    signal_date_pending: 'Der Signaltag ist noch nicht abgeschlossen.',
+    invalid: 'Die vorliegenden Signalgrundlagen sind nicht vollständig oder nicht passend.',
+  };
+const CLOSE_VS_SMA = {
+  above: 'über dem 200-Tage-Durchschnitt',
+  equal: 'genau auf dem 200-Tage-Durchschnitt',
+  below: 'unter dem 200-Tage-Durchschnitt',
+};
+const SMA_VS_PAST = {
+  rising: 'höher als 20 US-Handelstage zuvor',
+  equal: 'gleich wie 20 US-Handelstage zuvor',
+  falling: 'niedriger als 20 US-Handelstage zuvor',
+};
+const points = (centipoints: number) => `${formatDecimal(cents(centipoints))} Punkte`;
+const stamp = (iso: string) => (
+  <time dateTime={iso}>{new Date(iso).toLocaleString('de-AT', { timeZone: 'Europe/Vienna' })}</time>
+);
+
+/** Read-only: one dated signal with its inputs, or the reason why it cannot be determined. */
+function SignalBasis({
+  title,
+  note,
+  entry,
+}: {
+  title: string;
+  note: string;
+  entry: SignalEntry | null;
+}) {
+  return (
+    <section className="strategy-signal">
+      <h3>{title}</h3>
+      {entry === null ? (
+        <p>Noch keine verbindliche Monatsentscheidung gespeichert.</p>
+      ) : entry.status === 'unavailable' ? (
+        <p>
+          Nicht ermittelbar · {SIGNAL_UNAVAILABLE[entry.kind]}
+          {entry.signalDate && ` Signaltag: ${longDay(entry.signalDate)}.`}
+          {entry.missingSessions.length > 0 &&
+            ` Fehlende Tage: ${entry.missingSessions.slice(0, 5).map(longDay).join(', ')}${
+              entry.missingSessions.length > 5 ? ' …' : ''
+            }.`}
+        </p>
+      ) : (
+        <dl className="strategy-facts">
+          <div>
+            <dt>Ergebnis</dt>
+            <dd>
+              {TREND[entry.trend]} · Schluss {longDay(entry.sessionDate)}
+              {entry.effectiveDate && ` · gültig ab ${longDay(entry.effectiveDate)}`}
+            </dd>
+          </div>
+          <div>
+            <dt>Schlusskurs</dt>
+            <dd>
+              {points(entry.closeCentipoints)}
+              <small>{CLOSE_VS_SMA[entry.closeVsSma]}</small>
+            </dd>
+          </div>
+          <div>
+            <dt>200-Tage-Durchschnitt</dt>
+            <dd>
+              {points(entry.currentSmaCentipoints)}
+              <small>{SMA_VS_PAST[entry.smaVsPast]}</small>
+            </dd>
+          </div>
+          <div>
+            <dt>Durchschnitt 20 US-Handelstage zuvor</dt>
+            <dd>{points(entry.pastSmaCentipoints)}</dd>
+          </div>
+          <div>
+            <dt>Quelle und Datenstand</dt>
+            <dd>
+              {entry.sourceId} · {entry.indexId}
+              <small>
+                USD-Kursindex, ungehebelt · US-Kalender {entry.calendarId} · Schlusskurs erfasst{' '}
+                {stamp(entry.observedAt)}
+                {entry.knownAt && <> · Entscheidung gespeichert {stamp(entry.knownAt)}</>}
+              </small>
+            </dd>
+          </div>
+        </dl>
+      )}
+      <p className="strategy-stand">{note}</p>
+    </section>
   );
 }
 

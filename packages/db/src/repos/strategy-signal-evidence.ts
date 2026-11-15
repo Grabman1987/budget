@@ -188,11 +188,16 @@ export function storedStrategyEvidence(db: Executor, asOf: string): StrategyEvid
     if (!scheduled) return unavailable('holiday_table_out_of_range');
     const due = scheduled.filter((day) => usEquitySessionCompletedAt(day) <= limit).at(-1);
     if (!due) continue;
-    if (due > latest)
-      return unavailable(
-        'stale',
-        scheduled.filter((day) => day > latest && day <= due),
-      );
+    if (due > latest) {
+      // Every scheduled session after the newest stored one, also across a month boundary.
+      const overdue: string[] = [];
+      for (let month = monthOf(latest); month <= m; month = nextMonth(month)) {
+        const days = usEquityScheduledSessions(month);
+        if (!days) return unavailable('holiday_table_out_of_range');
+        overdue.push(...days.filter((day) => day > latest && day <= due));
+      }
+      return unavailable('stale', overdue);
+    }
     break;
   }
 

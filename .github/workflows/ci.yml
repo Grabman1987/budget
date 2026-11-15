@@ -15,8 +15,9 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}-${{ github.event_name }}
-  # Never cancel the run on main that a deploy may be waiting for.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # A newer push to main supersedes the older run: releases are cut by hand from the current main
+  # head (scripts/queue/release.sh), so no deploy waits for an older run.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 
 jobs:
   plan:
@@ -39,7 +40,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          HIGH_RISK: ${{ contains(github.event.pull_request.labels.*.name, 'risk:high') }}
+          HIGH_RISK: ${{ contains(github.event.pull_request.labels.*.name, 'ci:full') }}
         run: node scripts/ci/change-plan.mjs
 
   # Push to main only: when this exact tree already passed its selected suite as a pull request (same
@@ -48,7 +49,9 @@ jobs:
   # proceeds. Anything missing or unreadable means reuse=false, i.e. the full suite. Pull request
   # runs skip this job and are unaffected. Logic and tests: scripts/ci/reuse-validated-tree.mjs.
   reuse:
-    if: github.event_name == 'push'
+    # Package mode (2026-11-15): pull requests run the quick lane only, so a PR run no longer proves
+    # the tree. The reuse shortcut is off and every run on main executes the full suite.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -130,7 +133,7 @@ jobs:
   # The UI lane uses one job, mapped specs and enabled screenshot assertions instead.
   e2e:
     needs: [reuse, plan, static]
-    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' && needs.plan.result == 'success' && needs.plan.outputs.lane != 'docs' && needs.static.result == 'success' }}
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' && needs.plan.result == 'success' && needs.plan.outputs.lane != 'docs' && needs.plan.outputs.lane != 'quick' && needs.static.result == 'success' }}
     runs-on: ubuntu-24.04
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
