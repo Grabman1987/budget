@@ -9,6 +9,12 @@ import { serve } from '@hono/node-server';
 import { createApp } from './app';
 import { authConfigFromEnv } from './auth/config';
 import { backupConfigFromEnv, BackupScheduler } from './backup/backup';
+import {
+  litestreamRestorer,
+  replicationEnabled,
+  RestoreTestScheduler,
+  runRestoreTest,
+} from './backup/restore-test';
 import { safeBackupMessage } from './backup/s3';
 import { createAuth } from './auth/routes';
 import { ImportJobs } from './imports/jobs';
@@ -128,6 +134,19 @@ if (backupConfig) {
       ),
   );
   backupTimers.push(setTimeout(tick, 2 * 60_000), setInterval(tick, 15 * 60_000));
+  // Monthly restore test of the Litestream replica plus a read-back of the newest night copy
+  // (docs/ops.md section 8.4). Runs at night, never touches the live database, never throws.
+  if (replicationEnabled()) {
+    const restorer = litestreamRestorer({ databasePath });
+    const restoreTest = new RestoreTestScheduler({
+      db,
+      run: () => runRestoreTest({ db, databasePath, config: backupConfig, restorer }),
+    });
+    backupTimers.push(setInterval(() => void restoreTest.tick(), 15 * 60_000));
+    console.log('Monthly restore test on');
+  } else {
+    console.warn('Monthly restore test is off (replication is not configured).');
+  }
   for (const timer of backupTimers) timer.unref();
 } else {
   console.warn('Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).');
