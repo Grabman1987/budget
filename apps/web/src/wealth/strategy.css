@@ -62,6 +62,13 @@
   .strategy-signal dd {
     overflow-wrap: anywhere;
   }
+  .strategy-position-signal {
+    margin: 0 0 12px;
+    color: var(--ink-2);
+    font-size: var(--fs-meta);
+    font-weight: 400;
+    overflow-wrap: anywhere;
+  }
   .strategy-page summary {
     min-height: 44px;
     display: flex;
