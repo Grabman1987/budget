@@ -13,6 +13,7 @@ import { copyFile, mkdir, mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+import { acquireMaintenanceLock, lockPathFor } from './lock';
 import { backupDay, backupKey, backupsToDelete } from './retention';
 import { S3Client, safeBackupMessage, type S3Config } from './s3';
 import { receiptDirectory, receiptPath, verifyReceiptFile } from '../receipts/files';
@@ -198,6 +199,9 @@ export class BackupScheduler {
     if (this.running || !this.due(now) || writesHeld(this.deps.db)) return undefined;
     // After a failure wait an hour before the next attempt.
     if (now.getTime() - this.lastRetry < HOUR) return undefined;
+    // The monthly restore test (or its operator command) holds the same lock: wait for the next check.
+    const release = await acquireMaintenanceLock(lockPathFor(this.deps.sqlite.name));
+    if (!release) return undefined;
     this.running = true;
     try {
       const result = await runBackup(this.deps.sqlite, this.deps.config, now, this.client);
@@ -217,6 +221,7 @@ export class BackupScheduler {
       return undefined;
     } finally {
       this.running = false;
+      await release().catch(() => undefined);
     }
   }
 
