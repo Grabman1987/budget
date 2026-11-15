@@ -3,6 +3,7 @@ import { createBooking, patchBooking, readBookingDelivery } from '../ledger/api'
 import type { BookingDraft } from '../ledger/booking-model';
 import {
   completeQueued,
+  deleteQueued,
   setQueuedSending,
   listQueue,
   putQueued,
@@ -128,6 +129,13 @@ export async function submitCapture(
     }
   });
 }
+
+/** Explicitly discarding a refused edit must not leave it blocking later captures. */
+export const discardRejectedChange = (bookingId: string) =>
+  withQueueLock(async () => {
+    const item = (await listQueue()).find((row) => row.change?.bookingId === bookingId);
+    if (item?.reason && !item.uncertain && !item.sending) await deleteQueued(item.id);
+  });
 
 /** Strict FIFO: a rejected item holds later captures until edited or removed by the owner. */
 export const sendQueue = (

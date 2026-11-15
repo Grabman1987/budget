@@ -85,6 +85,27 @@ const booking: ListedBooking = {
 };
 const client = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
+it('discards an unsent edit without accessing unavailable device storage', async () => {
+  const discard = vi.fn();
+  // This fixture deliberately has no IndexedDB or queue storage implementation.
+  render(
+    <QueryClientProvider client={client()}>
+      <ToastProvider>
+        <CaptureForm
+          state={{ mode: 'edit', booking }}
+          onDone={vi.fn()}
+          dirtyRef={{ current: false }}
+          discard={{ asking: true, keep: vi.fn(), discard }}
+          requestClose={vi.fn()}
+        />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Verwerfen' }));
+  await waitFor(() => expect(discard).toHaveBeenCalledOnce());
+  expect(patch).not.toHaveBeenCalled();
+});
+
 it.each(['reconciliation_adjustment', 'manual_adjustment'])(
   'labels negative explicit %s as Zu verteilen',
   (payeeSystemKind) => {
@@ -136,6 +157,13 @@ it.each([true, false])(
     fireEvent.change(screen.getByLabelText('Notiz'), { target: { value: 'Synthetische Notiz' } });
     fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(done).toHaveBeenCalledOnce());
-    expect(patch).toHaveBeenCalledWith({ id: booking.id, patch: { memo: 'Synthetische Notiz' } });
+    expect(patch).toHaveBeenCalledWith({
+      id: booking.id,
+      patch: { memo: 'Synthetische Notiz' },
+      capture: {
+        input: expect.objectContaining({ type: 'booking', amountCents: booking.amountCents }),
+        draft: expect.objectContaining({ memo: 'Synthetische Notiz' }),
+      },
+    });
   },
 );

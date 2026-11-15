@@ -37,6 +37,7 @@ import {
   type MutableRefObject,
 } from 'react';
 import { ApiError, request } from '../api/http';
+import { discardRejectedChange } from '../pwa/queue';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { DocumentUploadButton } from '../document-intake/document-upload';
 import './capture-redesign.css';
@@ -481,7 +482,10 @@ export function CaptureForm({
       ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(editDraft!))
       : captureDirty(draft, keptPayee) ||
         Boolean(draft.repeat || draft.lines?.some((line) => line.shares.length));
-  const dirty = draftDirty || JSON.stringify(bankIntent) !== JSON.stringify(queuedBankIntent);
+  // A refused queued edit still needs an explicit discard, even after reverting its fields.
+  const [refusedEdit, setRefusedEdit] = useState(false);
+  const dirty =
+    refusedEdit || draftDirty || JSON.stringify(bankIntent) !== JSON.stringify(queuedBankIntent);
 
   useEffect(() => {
     dirtyRef.current = dirty;
@@ -685,6 +689,7 @@ export function CaptureForm({
               draft: filled,
             },
           });
+        else if (refusedEdit) await discardRejectedChange(editing.id);
         if (
           editing.source === 'bank' &&
           !isTransfer &&
@@ -739,6 +744,14 @@ export function CaptureForm({
       );
     } catch (error) {
       if (error instanceof ApiError && error.code === 'booking_queued') return onDone();
+      if (
+        editing &&
+        error instanceof ApiError &&
+        error.status > 0 &&
+        error.status < 500 &&
+        error.code !== 'idempotency_conflict'
+      )
+        setRefusedEdit(true);
       setErrors({
         form:
           error instanceof ApiError && error.code === 'reconciled_locked'
@@ -1496,7 +1509,19 @@ export function CaptureForm({
           <Button size="sm" variant="ghost" onClick={discard.keep}>
             Weiter bearbeiten
           </Button>
-          <Button size="sm" onClick={discard.discard}>
+          <Button
+            size="sm"
+            onClick={() => {
+              void (async () => {
+                try {
+                  if (editing && refusedEdit) await discardRejectedChange(editing.id);
+                  discard.discard();
+                } catch (error) {
+                  setErrors({ form: errorText(error) });
+                }
+              })();
+            }}
+          >
             Verwerfen
           </Button>
         </div>

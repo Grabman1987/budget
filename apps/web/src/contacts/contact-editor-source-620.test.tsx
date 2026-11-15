@@ -23,6 +23,9 @@ vi.mock('../pwa/queue-store', async (original) => ({
   completeQueued: async ({ id }: { id: string }) => {
     device.rows = device.rows.filter((row) => row.id !== id);
   },
+  deleteQueued: async (id: string) => {
+    device.rows = device.rows.filter((row) => row.id !== id);
+  },
   withQueueLock: <T,>(run: () => Promise<T>) => run(),
   setQueuedSending: vi.fn(),
 }));
@@ -165,61 +168,77 @@ async function mount(page: 'list' | 'statement') {
   };
 }
 
-it('retains the real booking draft and localized allocation refusal while refreshed statement money is withheld', async () => {
-  const view = await mount('statement');
-  const original = (await (await view.api.request(`/bookings/${view.older.id}`)).json()).booking;
-  fireEvent.click(
-    screen.getByRole('button', { name: /Ursprungsbuchung öffnen.*Ältere offene Auslage/ }),
-  );
-  const dialog = await screen.findByRole('dialog', { name: 'Buchung bearbeiten' });
-  const category = await within(dialog).findByRole('combobox', { name: 'Kategorie' });
-  const user = userEvent.setup();
-  await user.clear(category);
-  await user.type(category, 'Reise');
-  await user.click(await within(dialog).findByRole('option', { name: /Reise/ }));
-  category.focus();
-  view.block();
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
-  await waitFor(() =>
-    expect(view.refusals).toEqual([
-      {
-        status: 422,
-        message:
-          'Undo the related contact settlement before changing its receipt or allocated outlay',
-      },
-    ]),
-  );
-  const refusal =
-    'Diese Buchung ist bereits einer Rückzahlung zugeordnet. Mache zuerst die zugehörige Rückzahlung rückgängig, bevor du Betrag oder Zuordnung änderst.';
-  await waitFor(() => expect(view.container.querySelector('.contacts-balance')).toBeNull());
-  expect(view.container.querySelector('.contact-movements')).toBeNull();
-  await waitFor(() => expect(within(dialog).getByRole('alert').textContent).toBe(refusal));
-  expect(within(dialog).getByRole('combobox', { name: 'Kategorie' })).toBe(category);
-  expect((category as HTMLInputElement).value).toBe('Reise');
-  expect(document.activeElement).toBe(category);
-  await act(async () => {
-    view.release(
-      new Response(JSON.stringify({ error: 'unavailable', message: 'Synthetische Lesepause' }), {
-        status: 503,
-      }),
+it.each(['discard', 'save'] as const)(
+  'retains the real booking draft and localized allocation refusal through read failure, then clears the reverted refusal on %s',
+  async (finish) => {
+    const view = await mount('statement');
+    const original = (await (await view.api.request(`/bookings/${view.older.id}`)).json()).booking;
+    fireEvent.click(
+      screen.getByRole('button', { name: /Ursprungsbuchung öffnen.*Ältere offene Auslage/ }),
     );
-  });
-  await screen.findByRole('button', { name: 'Erneut versuchen' });
-  expect(view.container.querySelector('.contacts-balance')).toBeNull();
-  expect(within(dialog).getByRole('alert').textContent).toBe(refusal);
-  fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
-  await waitFor(() =>
-    expect(view.container.querySelector('.contacts-balance')?.textContent).toBe(
-      'Schuldet dir 20,00 €',
-    ),
-  );
-  expect(within(dialog).getByRole('combobox', { name: 'Kategorie' })).toBe(category);
-  expect((category as HTMLInputElement).value).toBe('Reise');
-  expect(within(dialog).getByRole('alert').textContent).toBe(refusal);
-  expect((await (await view.api.request(`/bookings/${view.older.id}`)).json()).booking).toEqual(
-    original,
-  );
-});
+    const dialog = await screen.findByRole('dialog', { name: 'Buchung bearbeiten' });
+    const category = await within(dialog).findByRole('combobox', { name: 'Kategorie' });
+    const user = userEvent.setup();
+    await user.clear(category);
+    await user.type(category, 'Reise');
+    await user.click(await within(dialog).findByRole('option', { name: /Reise/ }));
+    category.focus();
+    view.block();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() =>
+      expect(view.refusals).toEqual([
+        {
+          status: 422,
+          message:
+            'Undo the related contact settlement before changing its receipt or allocated outlay',
+        },
+      ]),
+    );
+    const refusal =
+      'Diese Buchung ist bereits einer Rückzahlung zugeordnet. Mache zuerst die zugehörige Rückzahlung rückgängig, bevor du Betrag oder Zuordnung änderst.';
+    await waitFor(() => expect(view.container.querySelector('.contacts-balance')).toBeNull());
+    expect(view.container.querySelector('.contact-movements')).toBeNull();
+    await waitFor(() => expect(within(dialog).getByRole('alert').textContent).toBe(refusal));
+    expect(within(dialog).getByRole('combobox', { name: 'Kategorie' })).toBe(category);
+    expect((category as HTMLInputElement).value).toBe('Reise');
+    expect(document.activeElement).toBe(category);
+    await act(async () => {
+      view.release(
+        new Response(JSON.stringify({ error: 'unavailable', message: 'Synthetische Lesepause' }), {
+          status: 503,
+        }),
+      );
+    });
+    await screen.findByRole('button', { name: 'Erneut versuchen' });
+    expect(view.container.querySelector('.contacts-balance')).toBeNull();
+    expect(within(dialog).getByRole('alert').textContent).toBe(refusal);
+    fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
+    await waitFor(() =>
+      expect(view.container.querySelector('.contacts-balance')?.textContent).toBe(
+        'Schuldet dir 20,00 €',
+      ),
+    );
+    expect(within(dialog).getByRole('combobox', { name: 'Kategorie' })).toBe(category);
+    expect((category as HTMLInputElement).value).toBe('Reise');
+    expect(within(dialog).getByRole('alert').textContent).toBe(refusal);
+    expect((await (await view.api.request(`/bookings/${view.older.id}`)).json()).booking).toEqual(
+      original,
+    );
+    expect(device.rows).toHaveLength(1);
+    // Reverting the fields still requires discarding the persisted refusal.
+    await user.clear(category);
+    await user.type(category, 'Freund');
+    await user.click(await within(dialog).findByRole('option', { name: /Freund/ }));
+    if (finish === 'discard') {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Schließen' }));
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Verwerfen' }));
+    } else fireEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(device.rows).toEqual([]));
+    expect((await (await view.api.request(`/bookings/${view.older.id}`)).json()).booking).toEqual(
+      original,
+    );
+  },
+);
 
 it.each(['parent', 'target', 'accounts'] as const)(
   'retains receipt inputs but withholds source previews and submission through %s read failure and recovery',
