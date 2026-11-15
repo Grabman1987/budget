@@ -36,6 +36,7 @@ import { ConflictError } from './errors';
 import { fxRateOnOrBefore } from './prices';
 import { runInTransaction, type Executor } from './types';
 import { currentValuationSources } from './portfolio';
+import { strategySignalBasis } from './strategy-signal-basis';
 
 const CONFIG = 'portfolio_trend_strategy.v1';
 const DECISION = 'portfolio_trend_decision.';
@@ -453,10 +454,9 @@ export function portfolioStrategyView(
     const binding = valid.at(-1) ?? null;
     if (!binding) diagnostics.push('binding_decision_unavailable');
     if (evidence.status === 'verified') assertEvidence(evidence, asOf);
-    const signal =
-      evidence.status === 'verified'
-        ? jsonSignal(calculateStrategyTrend(evidence.input))
-        : evidence;
+    const dailyTrend =
+      evidence.status === 'verified' ? calculateStrategyTrend(evidence.input) : null;
+    const signal = evidence.status === 'verified' ? jsonSignal(dailyTrend!) : evidence;
     const calendars =
       evidence.status === 'verified' ? evidence.months.map(strategyMonthSchedule) : [];
     const nextDecision =
@@ -608,6 +608,12 @@ export function portfolioStrategyView(
       binding,
       dailyPreview: signal,
       monthlyCandidate,
+      signalBasis: strategySignalBasis({
+        evidence,
+        daily: dailyTrend,
+        monthly: candidate,
+        binding,
+      }),
       nextDecision,
       nextContribution: { ...next, provisional },
       diagnostics,

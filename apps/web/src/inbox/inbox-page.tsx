@@ -24,6 +24,7 @@ import { InboxTypeIcon } from './type-icon';
 import { ReadSourceDetail, sourceWarningReason } from './read-source-detail';
 import { QuoteCause } from './quote-cause';
 import { ReadSourceSummaries } from './read-source-summaries';
+import { AutoResolvedHistory } from './auto-resolved-history';
 import { inboxCause, type InboxSegment } from '@budget/domain';
 import { useLocation, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { InboxBack, type InboxSearch } from './navigation';
@@ -780,6 +781,7 @@ function PaginatedInboxBodyContent({
                 </section>
               )}
               {taskSource === 'receipts' && <ReceiptSection />}
+              <AutoResolvedHistory items={firstPage.autoResolved ?? []} />
             </>
           )}
         </section>

@@ -71,6 +71,12 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(
       table.getByRole('row').filter({ hasText: 'Kurzlaufende EUR-Staatsanleihen' }),
     ).toContainText('94,87');
+    // Synthetic series: every close is 100 points, so close and both averages are equal (weak).
+    const signal = scope.locator('.strategy-signal').filter({ hasText: 'Tägliche Trendvorschau' });
+    await expect(signal).toContainText('Schwach · Schluss 29.09.2026');
+    await expect(signal).toContainText('100,00 Punkte');
+    await expect(signal).toContainText('genau auf dem 200-Tage-Durchschnitt');
+    await expect(signal).toContainText('synthetic-source');
     const category = table.getByText('Globale Aktien', { exact: true });
     await category.focus();
     await page.keyboard.press('Enter');
@@ -115,6 +121,14 @@ test('strategy exposes missing evidence without guessed buys and recovers from a
   data.monthlyCandidate = null;
   data.provider = null;
   data.dailyPreview = { status: 'unavailable', reason: 'trusted_provider_unconfigured' };
+  const missing = {
+    status: 'unavailable' as const,
+    kind: 'provider_missing' as const,
+    reason: 'trusted_provider_unconfigured',
+    missingSessions: [],
+    signalDate: null,
+  };
+  data.signalBasis = { daily: missing, monthly: missing, binding: null };
   data.diagnostics = ['binding_decision_unavailable'];
   let failed = true;
   await page.route('**/api/portfolio-strategy', (route) =>
@@ -134,8 +148,9 @@ test('strategy exposes missing evidence without guessed buys and recovers from a
   failed = false;
   await scope.getByRole('button', { name: /Erneut|Wiederholen/ }).click();
   await expect(scope).toContainText(
-    'Die verlässliche Quelle für USD-Kursindex und US-Handelskalender ist noch nicht angeschlossen.',
+    'Nicht ermittelbar · Die verlässliche Quelle für USD-Kursindex und US-Handelskalender ist noch nicht angeschlossen.',
   );
+  await expect(scope).toContainText('Noch keine verbindliche Monatsentscheidung gespeichert.');
   await expect(
     scope.getByRole('button', { name: 'Verbindliche Monatsentscheidung speichern' }),
   ).toHaveCount(0);
