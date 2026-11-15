@@ -13,14 +13,21 @@ const booking = {
   date: '2026-10-04',
   amountCents: -1234,
   status: 'confirmed',
+  payeeId: 'old-payee',
+  splits: [{ categoryId: 'category', amountCents: -1234 }],
 } as ListedBooking;
-const setup = (field: 'date' | 'amountCents', status = booking.status) => {
+const setup = (
+  field: 'date' | 'amountCents' | 'payeeId',
+  status = booking.status,
+  overrides: Partial<ListedBooking> = {},
+) => {
   const onSave = vi.fn().mockResolvedValue(undefined);
   const onOpen = vi.fn();
   render(
     <InlineBookingCell
-      booking={{ ...booking, status }}
+      booking={{ ...booking, status, ...overrides }}
       field={field}
+      payees={[{ id: 'new-payee', name: 'Anderer Musterladen' }]}
       onSave={onSave}
       onOpen={onOpen}
     >
@@ -30,6 +37,48 @@ const setup = (field: 'date' | 'amountCents', status = booking.status) => {
   return { onSave, onOpen };
 };
 describe('inline booking cells', () => {
+  it('changes only the payee on Enter, including removal, without applying a default category', async () => {
+    const { onSave } = setup('payeeId');
+    await userEvent.click(screen.getByRole('button'));
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'new-payee');
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' });
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ payeeId: 'new-payee' }));
+    await waitFor(() => expect(screen.queryByRole('combobox')).toBeNull());
+    await userEvent.click(screen.getByRole('button'));
+    await userEvent.selectOptions(screen.getByRole('combobox'), '');
+    fireEvent.blur(screen.getByRole('combobox'));
+    await waitFor(() => expect(onSave).toHaveBeenLastCalledWith({ payeeId: null }));
+  });
+  it('cancels a payee choice with Escape and returns focus', async () => {
+    const { onSave } = setup('payeeId');
+    await userEvent.click(screen.getByRole('button'));
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'new-payee');
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' });
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button'));
+  });
+  it.each([
+    { transferId: 'transfer' },
+    { splits: [...booking.splits, ...booking.splits] },
+    { status: 'reconciled' as const },
+  ])('keeps protected payees on the existing dialog path: %j', async (overrides) => {
+    const { onOpen, onSave } = setup('payeeId', 'confirmed', overrides);
+    expect(screen.getByRole('button').title).toMatch(/Umbuchung|Aufgeteilte|Geprüft/);
+    await userEvent.click(screen.getByRole('button'));
+    expect(onOpen).toHaveBeenCalledOnce();
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.queryByRole('combobox')).toBeNull();
+  });
+  it('retains a failed payee choice for correction', async () => {
+    const { onSave } = setup('payeeId');
+    onSave.mockRejectedValue(new ApiError(422, 'invalid', 'Empfänger prüfen.'));
+    await userEvent.click(screen.getByRole('button'));
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'new-payee');
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' });
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    expect(screen.getByRole('combobox')).toBeTruthy();
+  });
   it.each(['date', 'amountCents'] as const)('saves %s on Enter and blur', async (field) => {
     const { onSave } = setup(field);
     const user = userEvent.setup();

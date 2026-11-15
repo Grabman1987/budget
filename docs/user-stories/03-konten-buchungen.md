@@ -20,12 +20,12 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
 - **Status:** live — **Verweis:** Y01
 
 ### K-02 – Kontoregister direkt bearbeiten
-- **Story:** Als Nutzer möchte ich im Kontoregister Datum und Betrag direkt in der Zeile ändern und Status und Markierungen sehen, damit ich Buchungen schnell pflege, ohne jedes Mal einen Dialog zu öffnen.
-- **Ausgangslage:** Ich sehe in einem Konto einen falschen Betrag oder ein falsches Datum.
+- **Story:** Als Nutzer möchte ich im Kontoregister und in „Alle Buchungen“ Datum, Betrag, Kategorie und Empfänger direkt in der Zeile ändern, damit ich Buchungen schnell pflege, ohne jedes Mal einen Dialog zu öffnen.
+- **Ausgangslage:** Ich sehe in einem Konto oder in „Alle Buchungen“ einen falschen Betrag, ein falsches Datum, eine falsche Kategorie oder einen falschen Empfänger.
 - **Ablauf:**
   1. Ich öffne ein Konto unter „Konten“ und scrolle zur Tabelle „Buchungen“.
-  2. Ich tippe auf das Datum oder den Betrag einer Zeile; das Feld wird editierbar.
-  3. Ich tippe den neuen Wert und bestätige mit Enter (Escape verwirft).
+  2. Ich tippe auf Datum, Betrag oder Kategorie einer Zeile oder auf den Stift neben dem Empfänger; das Feld wird editierbar. Der Empfängername öffnet weiterhin den vollständigen Buchungsdialog.
+  3. Ich tippe den neuen Wert bzw. wähle einen vorhandenen Empfänger und bestätige mit Enter oder verlasse das Feld (Escape verwirft). Eine Kategorie wird bei der Auswahl sofort gespeichert.
   4. Die App speichert und aktualisiert Saldo und Zeile; Status (vorgemerkt/bestätigt/geprüft) und Markierungen bleiben sichtbar.
   5. Über „Status“ filtere ich nach vorgemerkt oder bestätigt.
 - **Ergebnis:** Die Buchung ist geändert; Saldo, Plan und Heute folgen.
@@ -35,7 +35,9 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   3. Eine geprüfte (gesperrte) Buchung lässt sich nicht still überschreiben; die App erklärt die Sperre.
   4. Ein ungültiger Betrag wird abgelehnt, der alte Wert bleibt.
   5. Auf dem Handy lässt sich die Zeile antippen und bearbeiten.
-- **Status:** live — **Verweis:** Y02
+  6. Kategorie und Empfänger sind bei Splitbuchungen und Umbuchungen nicht inline änderbar; ein Hinweis erklärt den Dialogweg. Geprüfte Buchungen bleiben durch die bestehende Freigabe geschützt.
+  7. Jede Änderung ist protokolliert und rückgängig machbar. Eine Empfängeränderung übernimmt keine Standardkategorie und ändert weder Betrag noch Saldo.
+- **Status:** teilweise — bestehendes Register live; Inline-Erweiterung lokal implementiert (#1098). Fehlt noch: Integration, Veröffentlichung und Nutzerabnahme. — **Verweis:** Y02, #1098
 
 ### K-03 – Saldenverlauf mit Vorschau
 - **Story:** Als Nutzer möchte ich in einem Konto den Saldoverlauf mit Vorschau auf Geplantes sehen, damit ich künftige Kontostände abschätze und merke, wenn ein Limit berührt wird.
@@ -113,14 +115,15 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   2. Ich hake die Zeilen an (höchstens 500).
   3. In der Leiste „Sammeländerung“ wähle ich „Kategorie“, „Status“, „Projekt“, „Datum ändern“, „Empfänger ändern“ oder „Notiz ändern“.
   4. Die App wendet die Änderung an und zeigt „Ergebnis der Sammeländerung“.
-  5. Ich tippe „Fertig“ bzw. „Auswahl beenden“.
+  5. Ich tippe „Fertig“ bzw. „Auswahl beenden“. Danach kann ich Kategorie und Empfänger wieder einzeln direkt in der Zeile korrigieren.
 - **Ergebnis:** Alle gewählten Buchungen sind geändert; die Aktion ist als Gruppe rückgängig machbar.
 - **Abnahmekriterien:**
   1. Die Sammelaktion wirkt auf alle gewählten Zeilen.
   2. Über 500 Zeilen wird abgewiesen: „Höchstens 500 Buchungen pro Sammeländerung auswählen.“
   3. Gesperrte (geprüfte) Buchungen werden nicht stillschweigend geändert; das Ergebnis nennt sie.
   4. Ist eine Buchung inzwischen weg, steht „Buchung nicht mehr verfügbar“.
-- **Status:** live — **Verweis:** Y04
+  5. Eine Inline-Korrektur wirkt nur auf ihre Zeile und erhält angehakte Zeilen. Im ausdrücklichen Auswahlmodus bleiben die Inline-Felder geschlossen; die Sammelaktion bleibt der Schreibweg.
+- **Status:** live (Sammelaktion); Zusammenspiel mit Inline-Empfänger lokal implementiert (#1098), Veröffentlichung und Nutzerabnahme ausständig. — **Verweis:** Y04, #1098
 
 ### K-06 – Kontostand prüfen und sperren
 - **Story:** Als Nutzer möchte ich den App-Saldo mit dem Kontostand meiner Bank vergleichen und bestätigte Buchungen sperren, damit ein geprüfter Stand fix bleibt und nicht versehentlich verändert wird.

@@ -272,10 +272,10 @@ describe('occurrences, refresh, link, unlink, missed', () => {
     book(700, INCOME_TYPES.refund.id, '2026-03-21');
     await call('POST', '/expected/refresh');
     const income = await call('GET', '/expected/income?month=2026-03');
-    // received = booked household income (salary + side); capital and refund stay out
+    // Expected = received household income plus open remainders (#1109); capital and refund stay out
     expect(income.body).toMatchObject({
       month: '2026-03',
-      expectedCents: 300_000,
+      expectedCents: 312_345,
       receivedCents: 312_345,
     });
     expect(income.body.byIncomeType.map((t: any) => t.incomeTypeId)).not.toContain(
