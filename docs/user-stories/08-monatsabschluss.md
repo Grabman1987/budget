@@ -21,7 +21,9 @@ Bildschirm: `/monatsabschluss/<Monat>` (z. B. 2026-10). Einstieg: Plan › Kopfz
   4. Liegt der Stichtag noch in der Zukunft, steht „Der Monatsletzte steht noch bevor. Du kannst vorbereiten und später fortsetzen.“
   5. Lädt der Schritt nicht, zeigt die App eine Fehlermeldung mit Wiederholen statt eines leeren Schritts.
   6. Bankstände werden nur für den passenden Stichtag vorbelegt. Jede Bestätigung prüft die Abschlussrevision und bleibt gemeinsam rückgängig; Differenzen erzeugen keinen automatischen Ausgleich.
-- **Status:** teilweise; Bankstand-Vorbelegung und Einzelbestätigung lokal implementiert (#1095), Veröffentlichung und Nutzerabnahme ausständig. — **Verweis:** Y24, #1095
+  7. Bei verbleibender Differenz zeigt Schritt 2 den Betrag neben „Ausgleich buchen und abschließen“. Ein ausdrücklicher Klick erstellt Ausgleich und Kontoprüfung gemeinsam. Unter dem anfangs zugeklappten „Mehr“ bleiben Grund (optional, leer ohne Platzhalter) und Ausgleichsdatum verfügbar. Bereits geprüfte Zeiträume verlangen weiterhin die ausdrückliche Freigabe. Einmal Rückgängig entfernt Ausgleich und Kontoprüfung gemeinsam.
+- **Ergänzter Ablauf (#1163):** Nach dem Vergleich in Schritt 2 kann der Nutzer die sichtbare Differenz direkt mit „Ausgleich buchen und abschließen“ bestätigen oder zuvor „Mehr“ öffnen.
+- **Status:** teilweise; Bankstand-Vorbelegung und Einzelbestätigung (#1095) sowie Ein-Klick-Ausgleich mit optionalem Grund (#1163) lokal implementiert, Veröffentlichung und Nutzerabnahme ausständig. — **Verweis:** Y24, #1095, #1163
   Fehlt noch: Einbindung der Hintergrundaufgabe „Job E“ und die Abnahme im Parallelbetrieb durch den Nutzer (Gate 4); die anderen Routinen siehe M-03.
 
 ### M-01a – Offene Arbeit mit Grund aufschieben

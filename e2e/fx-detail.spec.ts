@@ -124,7 +124,7 @@ test('native detail, dated EUR history and reconciliation undo', async ({
   // The pending USD booking must be reviewed before the existing correction is offered.
   await expect(panel.getByRole('heading', { name: 'Kandidaten zuerst prüfen' })).toBeVisible();
   await panel.getByRole('button', { name: 'Ignorieren', exact: true }).click();
-  await panel.getByRole('button', { name: /Differenz ausgleichen/ }).click();
+  await panel.getByRole('button', { name: /Ausgleich buchen und abschließen/ }).click();
   await expect(page.getByTestId('account-balance')).toHaveText('76,43 €');
   await expect(toast(page)).toContainText('USD');
   await toast(page).getByRole('button', { name: 'Rückgängig' }).click();

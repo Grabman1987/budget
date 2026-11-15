@@ -346,7 +346,7 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
   const second = page.getByRole('dialog', { name: `Kontostand prüfen · ${name}` });
   await second.getByLabel('Saldo laut Bank', { exact: true }).fill('470');
   await expect(second.getByText(/Es fehlt eine Ausgabe/)).toBeVisible();
-  await second.getByRole('button', { name: /Differenz ausgleichen/ }).click();
+  await second.getByRole('button', { name: /Ausgleich buchen und abschließen/ }).click();
   await expect(toast(page)).toContainText('Ausgleich');
   await expect(balance(page)).toHaveText('470,00 €');
   await expect(

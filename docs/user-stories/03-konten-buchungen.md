@@ -135,17 +135,17 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   1. Ich öffne ein Konto und tippe „Kontostand prüfen“ (oder in Heute „Konten prüfen“ › „Abgleichen“).
   2. Im Dialog „Kontostand prüfen · <Konto>“ ist „Saldo laut Bank“ mit dem bekannten Bankstand von heute vorbelegt, mit sichtbarem Datum. Ohne passenden Bankstand gebe ich den Betrag ein (Schuld als Minus); geprüft wird heute.
   3. Die App zeigt „App-Saldo gebucht“ und „Differenz“; Vorgemerktes wird nicht gezählt.
-  4. Bei Differenz prüfe ich „Kandidaten zuerst prüfen“ (mögliche doppelte Buchung, fehlende Buchung) oder gebe „Grund für den Ausgleich“ und „Kategorie für den Ausgleich“ an.
-  5. Ich tippe „Bestätigen“. Passt der Stand, sperrt die App die bestätigten Buchungen bis zum Stichtag („bis heute“ ist die Obergrenze).
+  4. Bei Differenz prüfe ich zuerst angebotene Kandidaten. Bleibt eine Differenz, sehe ich den Betrag neben „Ausgleich buchen und abschließen“. Unter „Mehr“ kann ich optional einen Grund und ein früheres Ausgleichsdatum angeben; die Kategorie bleibt wählbar.
+  5. Ein Klick auf „Ausgleich buchen und abschließen“ erstellt den Ausgleich und sperrt die bestätigten Buchungen bis zum Stichtag. Ohne Differenz bestätige ich den passenden Stand wie bisher.
 - **Ergebnis:** Prüfstand und Sperre sind gespeichert; die Kontoübersicht zeigt „Prüfstand“ mit Datum; Änderung nur mit Entsperrung, rückgängig machbar.
 - **Abnahmekriterien:**
   1. Bankstand, Datum und Abrufzeit sind sichtbar.
   2. Passt der bekannte Bankstand von heute, bestätigt „Abgleich sperren bis heute“ mit einem Klick über die bestehende Bank-Sperraktion. Ohne passenden Bankstand bleibt die manuelle Prüfung erhalten.
   3. Ein Stichtag in der Zukunft wird abgewiesen („Geprüft wird höchstens bis heute.“).
   4. Ein ungültiger Betrag meldet „Bitte einen gültigen Betrag eingeben.“
-  5. Bei Differenz ohne Ausgleichsgrund wird nicht gesperrt.
+  5. Der Ausgleichsgrund ist optional; leer bleibt er ohne Platzhalter gespeichert. „Mehr“ ist anfangs zugeklappt. Ein Ausgleich in einem bereits geprüften Zeitraum erfordert weiterhin die ausdrückliche Freigabe.
   6. Die Differenz wird vor der Bestätigung angezeigt; Vorbelegen allein bucht und sperrt nichts. Rückgängig stellt Prüfstand und Buchungsstatus gemeinsam wieder her.
-- **Status:** live (bisherige Prüfung); Bankstand-Vorbelegung lokal implementiert (#1095), Veröffentlichung und Nutzerabnahme ausständig. — **Verweis:** Y05, #1095
+- **Status:** live (bisherige Prüfung); Bankstand-Vorbelegung (#1095) und Ein-Klick-Ausgleich mit optionalem Grund (#1163) lokal implementiert, Veröffentlichung und Nutzerabnahme ausständig. — **Verweis:** Y05, #1095, #1163
 
 ### K-07 – Zuordnungsregeln („Immer so zuordnen“)
 - **Story:** Als Nutzer möchte ich Zuordnungsregeln pflegen, damit wiederkehrende Bankbuchungen automatisch dem richtigen Empfänger und der richtigen Kategorie zugeordnet werden und ich sie nicht jeden Monat neu zuordne.
