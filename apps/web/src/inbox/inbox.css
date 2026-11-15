@@ -431,3 +431,18 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.quote-cause {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.quote-cause dd {
+  margin-inline-start: 0;
+  margin-block-end: var(--space-sm);
+}
+.quote-cause dt {
+  font-weight: 600;
+}
+.quote-cause summary {
+  min-height: var(--touch);
+  cursor: pointer;
+}

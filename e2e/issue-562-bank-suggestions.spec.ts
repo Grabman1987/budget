@@ -5,6 +5,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase, schema } from '@budget/db';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
+import { setTheme } from './theme';
 
 test.use({ ledgerToday: '2026-10-20', bankingConfigured: true });
 
@@ -150,10 +151,8 @@ test('three prepared bank rows are explicitly reviewed with progress and individ
       (path) => path.includes('/matches') || path.includes('/assignment-rules/candidates/'),
     ),
   ).toBe(false);
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => {
-      document.documentElement.dataset['theme'] = value;
-    }, theme);
+  for (const theme of ['light', 'dark'] as const) {
+    await setTheme(page, theme);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );

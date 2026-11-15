@@ -45,6 +45,7 @@ import { TotalTableReport } from '../reports/total-table-report';
 import { PortfolioDepotsReport } from './portfolio-depots-report';
 import { PortfolioReportViews } from '../reports/portfolio-report-views';
 import { PortfolioCostsReport } from './portfolio-costs-report';
+import { rememberReportPeriod, supportsReportPeriod } from '../reports/remembered-period';
 
 const CONTROL_LABEL = { month: 'Monat', year: 'Jahr', period: 'Zeitraum' } as const;
 
@@ -201,7 +202,17 @@ export function ReportGroupRoute() {
 
 export function ReportRoute() {
   const { reportId } = useParams({ strict: false }) as { reportId: string };
-  const search = useSearch({ strict: false }) as { trend?: boolean; darstellung?: string };
+  const search = useSearch({ strict: false }) as {
+    trend?: boolean;
+    darstellung?: string;
+    zeitraum?: unknown;
+    ansicht?: string;
+    vorlage?: string;
+  };
+  const periodSupported = supportsReportPeriod(reportId, search);
+  useEffect(() => {
+    if (REDESIGN_ENABLED && periodSupported) rememberReportPeriod(search.zeitraum);
+  }, [periodSupported, search.zeitraum]);
   useEffect(() => {
     rememberReport(reportId);
   }, [reportId]);
