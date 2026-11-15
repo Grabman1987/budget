@@ -1,3 +1,4 @@
+import type * as AccountSchema from './schema/accounts';
 import { createHash } from 'node:crypto';
 import {
   copyFileSync,
@@ -10,7 +11,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { vi, afterEach, beforeEach, expect, it } from 'vitest';
 import { parseCardDocument, parseStatementText } from '@budget/domain';
 import {
   defaultMigrationsFolder,
@@ -608,4 +609,15 @@ it('preserves whole card47 financial Undo and redo after48 without touching the 
       .all(),
   ).toEqual(goalAudits);
   integrity();
+});
+
+// Keep the ORM account projection at the genuine historical schema level under test.
+vi.mock('./schema/accounts', async (importOriginal) => {
+  const original = await importOriginal<typeof AccountSchema>();
+  const { getTableColumns } = await import('drizzle-orm');
+  const columns = { ...getTableColumns(original.account) };
+  delete (columns as Partial<typeof columns>).purpose;
+  const account = Object.create(original.account);
+  account[Symbol.for('drizzle:Columns')] = columns;
+  return { ...original, account };
 });

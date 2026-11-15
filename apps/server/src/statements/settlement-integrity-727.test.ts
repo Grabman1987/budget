@@ -1,3 +1,4 @@
+import type * as AccountSchema from '../../../../packages/db/src/schema/accounts';
 import { afterEach, expect, it, vi } from 'vitest';
 import {
   copyFileSync,
@@ -458,4 +459,15 @@ it('refuses a corrupt represented bonus or a partial46 family before producing a
     createBackupArchive(partial.sqlite, join(f.dir, 'partial-backup'), f.blobs),
   ).rejects.toThrow();
   expect(rows(partial)).toBe(before);
+});
+
+// Keep the ORM account projection at the genuine historical schema level under test.
+vi.mock('../../../../packages/db/src/schema/accounts', async (importOriginal) => {
+  const original = await importOriginal<typeof AccountSchema>();
+  const { getTableColumns } = await import('drizzle-orm');
+  const columns = { ...getTableColumns(original.account) };
+  delete (columns as Partial<typeof columns>).purpose;
+  const account = Object.create(original.account);
+  account[Symbol.for('drizzle:Columns')] = columns;
+  return { ...original, account };
 });

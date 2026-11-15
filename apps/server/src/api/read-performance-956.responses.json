@@ -15,8 +15,8 @@
     },
     {
       "path": "/accounts",
-      "bytes": 34352,
-      "sha256": "e53f7f99d3b08005035aab482717cd6d996147206d6453819bd014e7b8f2102f"
+      "bytes": 34674,
+      "sha256": "169c91e061d1fc643abde25e39b669285c59e7dceb29afc97c768e6d7fa0f1b2"
     },
     {
       "path": "/payslip-intake/status",
