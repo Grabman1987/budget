@@ -38,6 +38,7 @@ import {
 } from 'react';
 import { ApiError, request } from '../api/http';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { DocumentUploadButton } from '../document-intake/document-upload';
 import './capture-redesign.css';
 import { budgetQuery } from '../budget/budget-api';
 import {
@@ -1464,6 +1465,13 @@ export function CaptureForm({
           </p>
         )}
         {mobileRedesign && formActions}
+        {mobileRedesign && !editing && (
+          // The phone header has no room for a global upload action; the + sheet carries it. It
+          // sits after the form actions so date, kind and amount keep their place above the fold.
+          <div className="bk-editor-document-row">
+            <DocumentUploadButton label="Dokument hochladen" />
+          </div>
+        )}
         <p className={REDESIGN_ENABLED ? 'khint sr-only' : 'khint'} aria-hidden="true">
           {CAPTURE_SHORTCUT_HINT}
         </p>

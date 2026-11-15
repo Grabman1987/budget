@@ -1,3 +1,4 @@
+import { useIsPhone } from '@budget/ui';
 import { PanelLeft, Plus } from 'lucide-react';
 import { GlobalSearch } from './global-search';
 import { PanelLink } from './panel-link';
@@ -6,6 +7,7 @@ import { useInboxCount } from './inbox';
 import { PrivacyButton } from './privacy-button';
 import { useLocation } from '@tanstack/react-router';
 import { REDESIGN_ENABLED } from './redesign-flag';
+import { DocumentUploadButton } from '../document-intake/document-upload';
 
 /**
  * Desktop top bar. The bar spans the window, its content (`.topbar-inner`) is as wide as the page
@@ -23,6 +25,7 @@ export function Topbar({
   onToggle: () => void;
   onSearchChange?: (open: boolean) => void;
 }) {
+  const phone = useIsPhone();
   const inbox = useInboxCount();
   const pathname = useLocation({ select: (location) => location.pathname });
   const settings = REDESIGN_ENABLED && pathname.startsWith('/einstellungen');
@@ -43,6 +46,9 @@ export function Topbar({
         <GlobalSearch compact={settings} onOpenChange={onSearchChange} />
         <div className="topbar-actions">
           <PrivacyButton />
+          {REDESIGN_ENABLED && !phone && (
+            <DocumentUploadButton compact label="Neues Dokument hochladen" />
+          )}
           <InboxHeaderLink className="review-pill" aria-label={inbox.label}>
             Prüfen{inbox.count !== undefined && inbox.count > 0 ? ` · ${inbox.count}` : ''}
           </InboxHeaderLink>
