@@ -81,6 +81,17 @@ for (const theme of ['light', 'dark'] as const) {
     await category.focus();
     await page.keyboard.press('Enter');
     await expect(table.getByText(/Testfonds global/)).toBeVisible();
+    await expect(table.getByText(/Ziel 50 % in jedem Trendzustand/)).toBeVisible();
+    await expect(
+      table.getByText(/Testfonds global.*Ziel unabhängig vom Trendsignal/),
+    ).toBeVisible();
+    await table.getByText('Nasdaq-100 · täglich 2×', { exact: true }).click();
+    const nasdaq = table.getByText(/Ziel 5 %, weil der Trend Schwach ist/);
+    await expect(nasdaq).toBeVisible();
+    await expect(nasdaq).toContainText('genau auf dem 200-Tage-Durchschnitt');
+    await expect(nasdaq).toContainText('Schwach 5 % · Gemischt 15 % · Stark 30 %');
+    await expect(nasdaq).toContainText('Berechnet am');
+    await expect(nasdaq).toContainText('verkauft oder kauft nichts automatisch');
     await expect(
       scope.getByRole('heading', { name: 'Rebalancing · getrennt von der Sparrate' }),
     ).toBeVisible();
@@ -151,6 +162,9 @@ test('strategy exposes missing evidence without guessed buys and recovers from a
     'Nicht ermittelbar · Die verlässliche Quelle für USD-Kursindex und US-Handelskalender ist noch nicht angeschlossen.',
   );
   await expect(scope).toContainText('Noch keine verbindliche Monatsentscheidung gespeichert.');
+  await expect(scope.getByRole('table').first()).toContainText(
+    'Nicht ermittelbar · Es gibt keine verbindliche Monatsentscheidung, daher wird kein Zielgewicht angenommen.',
+  );
   await expect(
     scope.getByRole('button', { name: 'Verbindliche Monatsentscheidung speichern' }),
   ).toHaveCount(0);

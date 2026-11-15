@@ -7,6 +7,7 @@ import {
   parseAmount,
   parseScaledDecimal,
   strategyConfigurationSchema,
+  strategyPositionSignal,
   type StrategyCategory,
   type StrategyConfiguration,
 } from '@budget/domain';
@@ -309,12 +310,14 @@ function StrategyPreview({
                   (entry) => entry.category === category,
                 )!;
                 const weight = valuation.weightBp;
+                const trendDriven = strategyPositionSignal(category, null).trendDriven;
                 const target = data.binding ? STRATEGY_TARGETS[data.binding.trend][category] : null;
                 return (
                   <tr key={category}>
                     <th scope="row">
                       <details>
                         <summary>{NAMES[category]}</summary>
+                        <PositionSignalNote category={category} data={data} />
                         <ul>
                           {[
                             ...new Set([
@@ -345,6 +348,10 @@ function StrategyPreview({
                                   : valuation.valueCents === null
                                     ? 'nicht vollständig bewertbar'
                                     : eur(0)}
+                                {' · '}
+                                {trendDriven
+                                  ? 'Ziel folgt dem Trendsignal'
+                                  : 'Ziel unabhängig vom Trendsignal'}
                                 {route ? (
                                   <> · Kaufgewicht {percent(route.weightBp)}</>
                                 ) : (
@@ -577,6 +584,52 @@ function SignalBasis({
       )}
       <p className="strategy-stand">{note}</p>
     </section>
+  );
+}
+
+/** Read-only: why this position has its current target weight, with the signal's calculation date. */
+function PositionSignalNote({
+  category,
+  data,
+}: {
+  category: StrategyCategory;
+  data: PortfolioStrategyView;
+}) {
+  const basis = data.signalBasis.binding;
+  const signal = strategyPositionSignal(category, data.binding?.trend ?? null);
+  if (!data.binding || !basis || basis.status !== 'available' || signal.targetBp === null) {
+    const daily = data.signalBasis.daily;
+    return (
+      <p className="strategy-position-signal">
+        Nicht ermittelbar · Es gibt keine verbindliche Monatsentscheidung, daher wird kein
+        Zielgewicht angenommen.
+        {daily.status === 'unavailable' && ` ${SIGNAL_UNAVAILABLE[daily.kind]}`}
+      </p>
+    );
+  }
+  const table = signal.byTrend
+    .map((row) => `${TREND[row.trend]} ${percent(row.targetBp)}`)
+    .join(' · ');
+  return (
+    <p className="strategy-position-signal">
+      {signal.trendDriven ? (
+        <>
+          Ziel {percent(signal.targetBp)}, weil der Trend {TREND[basis.trend]} ist: Schluss{' '}
+          {points(basis.closeCentipoints)} {CLOSE_VS_SMA[basis.closeVsSma]} (
+          {points(basis.currentSmaCentipoints)}); dieser Durchschnitt ist{' '}
+          {SMA_VS_PAST[basis.smaVsPast]} ({points(basis.pastSmaCentipoints)}). Je stärker der Trend,
+          desto {signal.strongerTrend === 'up' ? 'höher' : 'niedriger'} das Ziel: {table}.
+        </>
+      ) : (
+        <>
+          Ziel {percent(signal.targetBp)} in jedem Trendzustand ({table}). Das Signal ändert diese
+          Position nicht; es steuert nur Nasdaq-100 und Anleihen.
+        </>
+      )}{' '}
+      Berechnet am {stamp(basis.knownAt ?? basis.observedAt)} aus dem Schluss vom{' '}
+      {longDay(basis.sessionDate)}, wirksam ab {longDay(basis.effectiveDate ?? basis.sessionDate)}.
+      Das Signal verkauft oder kauft nichts automatisch.
+    </p>
   );
 }
 
