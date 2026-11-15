@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { WideDialog } from '@budget/ui';
 import { ErrorNote, LoadingNote, EmptyNote } from '../ledger/states';
-import { createPortal } from 'react-dom';
 import { accountsQuery } from '../ledger/queries';
 import { useQuery } from '@tanstack/react-query';
 import { standQuery } from './api';
@@ -54,23 +53,7 @@ export function WealthFrame({
 }
 
 function WealthTitle() {
-  const [host, setHost] = useState<Element | null>(null);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => setHost(document.querySelector('.topbar-inner')));
-    return () => cancelAnimationFrame(frame);
-  }, []);
-  return (
-    <>
-      <h1 className={host ? 'sr-only' : 'wealth-title'}>Vermögen</h1>
-      {host &&
-        createPortal(
-          <span className="wealth-top-title" aria-hidden="true">
-            Vermögen
-          </span>,
-          host,
-        )}
-    </>
-  );
+  return <h1 className="sr-only">Vermögen</h1>;
 }
 
 function WealthToolbar({

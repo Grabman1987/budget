@@ -103,6 +103,15 @@ test('inspector discloses month figures and reuses category writes, quick values
   await expect(inspector.locator('.sb-note').first()).toBeVisible();
   const category = page.getByRole('button', { name: 'Musterziel', exact: true });
   await category.click();
+  // #1007: on a phone the category opens "Zuweisen"; its Details button opens the inspector.
+  if (
+    page.viewportSize()!.width < 768 &&
+    (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+  )
+    await page
+      .getByRole('dialog', { name: /^Zuweisen für / })
+      .getByRole('button', { name: 'Details', exact: true })
+      .click();
   await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-10$/);
   await expect(inspector.getByRole('heading', { name: 'Musterziel' })).toBeVisible();
   await expect(inspector.getByText('fehlt 100,01 €')).toBeVisible();

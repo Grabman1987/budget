@@ -12,9 +12,14 @@ import { useBlocker } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
-import { eur } from '../ledger/format';
+import { eur, monthName } from '../ledger/format';
 import type { PayrollData } from './payroll-projects-api';
-import { PayslipIntakeDetail, PayslipUpload, type PayslipUploadResult } from './payslip-intake';
+import {
+  PayslipIntakeDetail,
+  PayslipUpload,
+  type PayslipHandoff,
+  type PayslipUploadResult,
+} from './payslip-intake';
 
 export function PayslipPanel({
   initial,
@@ -396,9 +401,16 @@ export function PayslipPanel({
   );
 }
 
-export function PayslipUploadDialog({ onClose }: { onClose: () => void }) {
+export function PayslipUploadDialog({
+  onClose,
+  handoff,
+}: {
+  onClose: () => void;
+  handoff?: PayslipHandoff | undefined;
+}) {
   const [busy, setBusy] = useState(false);
   const [uploaded, setUploaded] = useState<PayslipUploadResult>();
+  const [reviewMonth, setReviewMonth] = useState<string | null>(null);
   const blocker = useBlocker({
     shouldBlockFn: () => busy,
     withResolver: true,
@@ -408,9 +420,20 @@ export function PayslipUploadDialog({ onClose }: { onClose: () => void }) {
     if (blocker.status === 'blocked') blocker.reset();
   }, [blocker]);
   return (
-    <WideDialog open title="Gehaltszettel hochladen" onClose={onClose} beforeClose={() => !busy}>
+    <WideDialog
+      open
+      title={
+        uploaded && reviewMonth
+          ? `Gehaltszettel prüfen · ${monthName(`${reviewMonth}-01`)} ${reviewMonth.slice(0, 4)}`
+          : 'Gehaltszettel hochladen'
+      }
+      onClose={onClose}
+      beforeClose={() => !busy}
+    >
       <div className="pp-upload-form payslip-review-dialog">
-        {!uploaded && <PayslipUpload onBusyChange={setBusy} onUploaded={setUploaded} />}
+        {!uploaded && (
+          <PayslipUpload onBusyChange={setBusy} onUploaded={setUploaded} handoff={handoff} />
+        )}
         {uploaded && (
           <>
             {uploaded.dropboxCopy === 'saved' && <p role="status">In Dropbox abgelegt</p>}
@@ -426,7 +449,12 @@ export function PayslipUploadDialog({ onClose }: { onClose: () => void }) {
             {uploaded.passwordRemember === 'not_opened' && (
               <p role="status">Passwort nicht gemerkt: Es hat dieses PDF nicht geöffnet.</p>
             )}
-            <PayslipIntakeDetail id={uploaded.id} inline duplicate={uploaded.duplicate} />
+            <PayslipIntakeDetail
+              id={uploaded.id}
+              inline
+              duplicate={uploaded.duplicate}
+              onMonth={setReviewMonth}
+            />
           </>
         )}
       </div>

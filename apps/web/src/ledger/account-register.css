@@ -45,9 +45,6 @@
   font-size: var(--fs-table);
   line-height: var(--lh-table);
 }
-.ktx-account .kcol-flag {
-  width: var(--space-gutter);
-}
 .ktx-account .kcol-date {
   width: 10%;
 }
@@ -133,16 +130,6 @@
     height: calc(var(--touch) - var(--space-sm));
   }
 }
-@media (pointer: coarse) {
-  .ktx-account .kcol-flag {
-    width: var(--touch);
-  }
-  .ktx-account .kflagpick.in-list .kflagbtn {
-    min-width: var(--touch);
-    min-height: var(--touch);
-    margin: 0;
-  }
-}
 @media (max-width: 767px) {
   .kacct-register {
     /* Let the last booking scroll clear of fixed navigation and feedback. */
@@ -159,11 +146,11 @@
   }
   /* The extra .ktx class outranks the stacked foreign-currency grid of ledger.css. */
   .kacct-register .ktx.ktx-account tr[data-booking]:not(.is-upcoming) {
-    grid-template-columns: var(--touch) minmax(0, 1fr) minmax(var(--touch), 35%) var(--touch);
-    grid-template-areas: 'flag payee amount status';
+    grid-template-columns: minmax(0, 1fr) minmax(var(--touch), 35%) var(--touch);
+    grid-template-areas: 'payee amount status';
     align-items: stretch;
     gap: 0 var(--space-xs);
-    padding: 0 var(--space-sm) 0 0;
+    padding: 0 var(--space-sm);
   }
   .ktx-account tr[data-booking]:not(.is-upcoming) td {
     padding: 0;
@@ -172,19 +159,8 @@
   .ktx-account tr[data-booking]:not(.is-upcoming) :is(.kx-date, .kx-cat, .kx-run) {
     display: none;
   }
-  /* The flag stays editable in the table: a full touch target in the first column. */
-  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-flag {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .ktx-account .kflagpick.in-list .kflagbtn {
-    min-width: var(--touch);
-    min-height: var(--touch);
-    margin: 0;
-  }
   /* Fixed cell heights keep every phone row at one touch target, whatever the content does. */
-  .ktx-account tr[data-booking]:not(.is-upcoming) :is(.kx-flag, .kx-payee, .kx-status),
+  .ktx-account tr[data-booking]:not(.is-upcoming) :is(.kx-payee, .kx-status),
   .ktx-account tr[data-booking]:not(.is-upcoming) .kx-amount:not(:has(.kfx-money)) {
     height: var(--touch);
   }
@@ -303,8 +279,8 @@
 }
 @media (max-width: 767px) {
   .kacct-register .ktx.ktx-account tr.is-upcoming {
-    grid-template-columns: 44px minmax(0, 1fr) auto;
-    grid-template-areas: 'flag payee amount' '. cat run' '. date status';
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'payee amount' 'cat run' 'date status';
     gap: 4px 8px;
   }
   .ktx-account .is-upcoming .kx-payee {

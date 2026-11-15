@@ -966,6 +966,7 @@ describe('payees', () => {
       'essen',
       'miete',
     ]);
+    expect(lookups['categories'].every((c: object) => 'icon' in c)).toBe(true);
     expect(lookups['groups']).toEqual([{ id: 'g', name: 'Fixkosten', sortOrder: 0 }]);
     expect(lookups['incomeTypes'].length).toBeGreaterThan(0);
   });

@@ -5,6 +5,7 @@ import {
   heute,
   monthOnePager,
   planMonthViews,
+  portfolioPositions,
   readInbox,
   readInboxCount,
   reportTables,
@@ -42,6 +43,7 @@ const reads: Record<string, () => unknown> = {
   onePager: () => monthOnePager(db, TODAY, '2026-09'),
   inbox: () => readInbox(db, TODAY),
   inboxCount: () => readInboxCount(db, TODAY),
+  positions: () => portfolioPositions(db, TODAY),
 };
 
 describe('request memo does not change any figure', () => {

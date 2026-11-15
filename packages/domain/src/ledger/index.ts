@@ -107,6 +107,7 @@ export {
 } from './assets-debts';
 
 export * from './cover';
+export * from './distribute';
 export * from './quick-assign';
 export {
   RECONCILE_ADJUST_CATEGORY_KINDS,

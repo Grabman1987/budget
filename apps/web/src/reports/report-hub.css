@@ -275,3 +275,38 @@
     display: none;
   }
 }
+
+/* Redesign: bookmarks as one single row; report rows separated by a hairline with chevron. */
+[data-budget-redesign='1'] .report-hub-v2 .saved-explorer-links {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+[data-budget-redesign='1'] .report-hub-v2 .saved-explorer-links h2 {
+  flex: none;
+  font-size: var(--fs-table);
+  color: var(--ink-2);
+}
+[data-budget-redesign='1'] .report-hub-v2 .saved-explorer-chips {
+  flex: 1;
+  min-width: 0;
+}
+
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-list {
+  border-top: 0;
+}
+[data-budget-redesign='1'] .report-hub-v2 .report-hub-list > li {
+  border-bottom: 1px solid var(--rule);
+}
+
+/* ON: the catalog and the moved-reports line are opaque cards, so list text never sits directly on
+   the drafting grid. */
+.app[data-budget-redesign='1'] .report-hub-catalog,
+.app[data-budget-redesign='1'] .report-hub-moved {
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}

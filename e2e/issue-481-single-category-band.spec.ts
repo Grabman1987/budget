@@ -8,6 +8,7 @@ import { test } from './isolated-ledger';
 import { writeFileSync } from 'node:fs';
 import { cents, formatEuro } from '@budget/domain';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
+import { openDetailsFromPhoneSheet } from './plan-phone-sheet';
 
 /** Phone-only equivalents for the owner-approved explicit selection controls. */
 async function enterPhoneSelection(page: Page) {
@@ -453,6 +454,7 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   const inspector = page.getByRole('complementary', { name: 'Plan-Inspektor' });
   await name.focus();
   await page.keyboard.press('Enter');
+  await openDetailsFromPhoneSheet(page);
   await expect(inspector.getByRole('heading', { name: 'Musterposten' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(name).toBeFocused();
@@ -476,7 +478,17 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   await page.keyboard.press('g');
   await expect(page.getByRole('dialog', { name: 'Gruppe anlegen' })).toBeVisible();
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Alle einklappen', exact: true }).click();
+  // #1007: the phone table head is gone; the Optionen menu collapses all.
+  if (
+    page.viewportSize()!.width < 768 &&
+    (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+  )
+    await page.locator('.plan-menu-optionen > summary').click();
+  await page
+    .locator('.plan-menu-optionen, .plan-month-v2')
+    .getByRole('button', { name: 'Alle einklappen', exact: true })
+    .first()
+    .click();
   if (phoneHeadings) {
     await expect(name).toBeHidden();
     await heading.locator('.grp-toggle').click();
@@ -512,6 +524,7 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
         : '.spending-status',
     )
     .click();
+  await openDetailsFromPhoneSheet(page);
   await expect(inspector.getByRole('heading', { name: 'Musterposten' })).toBeVisible();
   const writes: { path: string; body: unknown }[] = [];
   page.on('request', (r) => {
@@ -532,6 +545,7 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   await expect(assigned).toContainText('100,01 €');
   writes.length = 0;
   await band.locator('.pname').click();
+  await openDetailsFromPhoneSheet(page);
   await inspector.getByLabel('Zugewiesen', { exact: true }).fill('10+0,01');
   await inspector.getByRole('button', { name: 'Übernehmen', exact: true }).click();
   expect(writes[0]).toEqual({
@@ -647,6 +661,7 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
     ).not.toBeVisible();
   }
   await firstCategory.locator('.pname').click();
+  await openDetailsFromPhoneSheet(page);
   await expect(inspector.getByRole('heading', { name: 'Musterposten', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   if (page.viewportSize()!.width < 768) {

@@ -4,7 +4,7 @@ import {
   parseContactCreditRecord,
 } from './contact-credit';
 import { contactStatement } from '@budget/domain';
-import { and, eq, isNull, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import {
   account,
   category,
@@ -17,6 +17,7 @@ import {
   auditLog,
 } from '../schema';
 import { BookingInvariantError, ConflictError, ReconciledLockedError } from './errors';
+import { assertNoActiveAlias, contactIdentityIds, normalizeContactLabel } from './contact-label';
 import { memoizedShared } from './request-memo';
 import type { Executor } from './types';
 import { CONTACT_UNLOCK_PREFIX } from './contact-allocation-lock';
@@ -33,6 +34,8 @@ export function assertContactName(tx: Executor, id: string) {
       .get()
   )
     throw new ConflictError('Ein aktiver Kontakt mit diesem Namen ist bereits vorhanden.');
+  // An alias of any contact owns its label: a name cannot collide with it (#870).
+  assertNoActiveAlias(tx, normalizeContactLabel(row.name));
 }
 
 /** A zero booking with contact shares reclassifies money already held, never earned cash. */
@@ -65,9 +68,14 @@ function readCashlessContactBookingIds(db: Executor): Set<string> {
   );
 }
 
+/** An explicit id list is used as is (merge preview); one id expands to its merge identity (#871). */
+function identityIds(tx: Executor, contactId: string | readonly string[]): string[] {
+  return typeof contactId === 'string' ? contactIdentityIds(tx, contactId) : [...contactId];
+}
+
 export function actualContactMovements(
   tx: Executor,
-  contactId: string,
+  contactId: string | readonly string[],
   asOf?: string,
   records = contactCreditRecords(tx),
 ) {
@@ -95,7 +103,7 @@ export function actualContactMovements(
     .leftJoin(category, eq(category.id, bookingSplit.categoryId))
     .where(
       and(
-        eq(bookingSplit.contactId, contactId),
+        inArray(bookingSplit.contactId, identityIds(tx, contactId)),
         isNull(booking.deletedAt),
         asOf ? sql`${booking.date} <= ${asOf}` : undefined,
       ),
@@ -135,7 +143,7 @@ export function actualContactMovements(
 
 export function savedContactSettlements(
   tx: Executor,
-  contactId: string,
+  contactId: string | readonly string[],
   asOf?: string,
   records = contactCreditRecords(tx),
 ) {
@@ -145,7 +153,7 @@ export function savedContactSettlements(
     .innerJoin(booking, eq(booking.id, contactSettlement.bookingId))
     .where(
       and(
-        eq(contactSettlement.contactId, contactId),
+        inArray(contactSettlement.contactId, identityIds(tx, contactId)),
         isNull(contactSettlement.deletedAt),
         asOf ? sql`${booking.date} <= ${asOf}` : undefined,
       ),
@@ -353,7 +361,7 @@ function assertNoLaterWriteOff(tx: Executor, bookingId: string): void {
       .innerJoin(bookingSplit, eq(bookingSplit.bookingId, booking.id))
       .where(
         and(
-          eq(bookingSplit.contactId, contactId),
+          inArray(bookingSplit.contactId, identityIds(tx, contactId)),
           isNull(booking.deletedAt),
           eq(booking.amountCents, 0),
           sql`${booking.date} >= ${row.date}`,

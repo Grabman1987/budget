@@ -3,7 +3,7 @@ import { parseScaledDecimal } from './money/scaled';
 import { mulDivRound } from './wealth/int';
 
 export type CardLayout = 'issued_card' | 'company_card';
-export type CardRowKind = 'purchase' | 'refund' | 'payment' | 'fee' | 'unknown';
+export type CardRowKind = 'purchase' | 'refund' | 'credit' | 'payment' | 'fee' | 'unknown';
 export type CardDocumentIdentity = {
   kind: 'printed_reference' | 'issued_date';
   key: string;
@@ -30,7 +30,7 @@ export type CardRow = {
   accountId: string | null;
   transactionDate: string | null;
   bookingDate: string | null;
-  dateOrigin: 'printed' | 'statement_boundaries';
+  dateOrigin: 'printed' | 'statement_boundaries' | 'issue_date';
   description: string;
   currency: string;
   amountCents: number;
@@ -122,12 +122,44 @@ const cellDecimal = (text: string, left: number, right: number, scale: number) =
   const raw = numericField(text, left, right);
   return raw === null ? null : decimal(raw.replace(/%$/, ''), scale);
 };
+const ISSUED_HEADER = /^\s*Karte\s+Umsatz\s+Buchung\s+Buchungstext\b/;
+// Optional card index, transaction and booking day (DD.MM or DD.MM.), then the remaining cells.
+const ISSUED_ROW_HEAD =
+  /^\s*(?:([\d*]{1,19})\s+)?(\d{2}\.\d{2}\.?)\s+(\d{2}\.\d{2}\.?)(?:\s+(.*))?$/u;
+const AMOUNT_CELL = String.raw`\d{1,3}(?:\.\d{3})+,\d{2}|\d+,\d{2}`;
+const SIGNED_CELL = String.raw`(${AMOUNT_CELL})\s?([+−-])`;
+// Text (description, optional branch/location), then optionally foreign amount, ISO currency,
+// rate, converted amount and fee, and always the signed final amount at the end of the line.
+const ISSUED_ROW_TAIL = new RegExp(
+  String.raw`^(.*?)(?:\s+(${AMOUNT_CELL})\s+([A-Z]{3})\s+(\d+,\d+)\s+${SIGNED_CELL}(?:\s+${SIGNED_CELL})?)?\s+${SIGNED_CELL}$`,
+  'u',
+);
+const ISSUED_TABLE_TOTAL = new RegExp(String.raw`^\s*${SIGNED_CELL}\s*$`, 'u');
+const SPACED_THOUSANDS = /\d \d{3},\d{2}\s?[+−-]$/u;
+/** Digit-free lines directly above a repeated header are its captions. */
+const headerFollows = (lines: readonly string[], at: number) => {
+  for (let j = at + 1; j < Math.min(lines.length, at + 4); j++) {
+    if (ISSUED_HEADER.test(lines[j]!)) return true;
+    if (!lines[j]!.trim() || /\d/.test(lines[j]!)) return false;
+  }
+  return false;
+};
 const issue = (doc: CardDocument, reason: string) => {
   if (!doc.reasons.includes(reason)) doc.reasons.push(reason);
 };
 function rowDate(raw: string, previous: CardBoundary | null, current: string | null) {
-  if (!previous || !current || !/^\d{2}\.\d{2}\.?$/.test(raw.trim())) return null;
+  if (!current || !/^\d{2}\.\d{2}\.?$/.test(raw.trim())) return null;
   const short = raw.trim().replace(/\.$/, '');
+  if (!previous) {
+    // Without a prior boundary: the latest such day not after the issue date, within 62 days.
+    const year = Number(current.slice(0, 4));
+    const date = [year, year - 1]
+      .map((y) => day(`${short}.${y}`))
+      .find((d): d is string => d !== null && d <= current);
+    if (!date) return null;
+    const age = (Date.parse(current + 'T00:00:00Z') - Date.parse(date + 'T00:00:00Z')) / 86400000;
+    return age <= 62 ? date : null;
+  }
   const possible: string[] = [];
   const from = Number(previous.issueDate.slice(0, 4)),
     to = Number(current.slice(0, 4));
@@ -157,6 +189,17 @@ function kind(description: string, amount: number): CardRowKind {
   if (amount < 0 && /\b(?:gebühr|entgelt|fee)\b/i.test(description)) return 'fee';
   return amount < 0 ? 'purchase' : 'unknown';
 }
+/** A positive card row without payment/refund wording is a credit left for owner review. */
+const cardKind = (description: string, amount: number): CardRowKind => {
+  const rowKind = kind(description, amount);
+  return rowKind === 'unknown' &&
+    amount > 0 &&
+    !/\b(?:bargeld(?:behebung|abhebung)|cash\s+(?:advance|withdrawal)|umbuchung|überweisung|transfer|zahlungsrückbuchung|payment\s+(?:reversal|return)|zahlung|einzahlung|payment|bankeinzug|storno|reversal)\b/i.test(
+      description,
+    )
+    ? 'credit'
+    : rowKind;
+};
 
 /** Pure, finite layout readers. Unknown columns/rows never become guessed financial actions. */
 export function parseCardDocument(
@@ -213,7 +256,7 @@ export function parseCardDocument(
     doc.previous = prior;
   else if (prior) issue(doc, 'previous_source_changed');
   const lines = text.split(/\r?\n/);
-  const consumer = lines.findIndex((l) => /^\s*Karte\s+Umsatz\s+Buchung\s+Buchungstext\b/.test(l));
+  const consumer = lines.findIndex((l) => ISSUED_HEADER.test(l));
   const company = lines.findIndex(
     (l) => /\bMenge\b/.test(l) && /\b(?:Total|Toial)\s+Brut(?:to|o)\b/i.test(l),
   );
@@ -226,14 +269,24 @@ export function parseCardDocument(
     if (!doc.previous) issue(doc, 'previous_source_required');
     let header = lines[consumer]!,
       card = { fingerprint: '', hint: 'Karte' },
-      inTable = true;
+      inTable = true,
+      rowsSinceHeader = 0,
+      descriptionColumn: number | null = null,
+      totalPending = false,
+      totalMismatch = false,
+      afterRow = false;
     for (let i = consumer + 1; i < lines.length; i++) {
       const line = lines[i]!;
-      if (/^\s*Karte\s+Umsatz\s+Buchung\s+Buchungstext\b/.test(line)) {
+      if (ISSUED_HEADER.test(line)) {
         header = line;
         inTable = true;
+        rowsSinceHeader = 0;
+        descriptionColumn = null;
+        afterRow = false;
         continue;
       }
+      // The header only proves the column vocabulary and currency. Extracted rows are not
+      // aligned with its single-spaced words, so cells are read by token order and shape.
       const dateAt = header.indexOf('Umsatz'),
         bookedAt = header.indexOf('Buchung'),
         descriptionAt = header.indexOf('Buchungstext'),
@@ -253,17 +306,37 @@ export function parseCardDocument(
         issue(doc, 'columns_unavailable');
         break;
       }
-      const amountAt = rateAt + currency.index,
-        feeAt = amountAt + currency[0].length;
-      const rawDate = field(line, dateAt, bookedAt),
-        rawBooked = field(line, bookedAt, descriptionAt);
-      const dated = /^\d{2}\.\d{2}\.?$/.test(rawDate) && /^\d{2}\.\d{2}\.?$/.test(rawBooked);
+      const head = ISSUED_ROW_HEAD.exec(line);
       if (!inTable) {
-        if (dated) issue(doc, 'transaction_outside_table');
+        if (head) issue(doc, 'transaction_outside_table');
         continue;
       }
       if (!line.trim()) continue;
-      if (/^\s*\*+/.test(line) && line.search(/\S/) < dateAt) {
+      const followsRow = afterRow;
+      afterRow = false;
+      if (totalPending) {
+        totalPending = false;
+        const total = ISSUED_TABLE_TOTAL.exec(line);
+        if (!total) {
+          issue(doc, 'unrecognized_table_row');
+          inTable = false;
+          continue;
+        }
+        const printed = signed(`${total[1]}${total[2]}`);
+        // The printed table total is the new card balance, the same figure as the summary Saldo.
+        if (
+          printed === null ||
+          f.payableCents.value === null ||
+          BigInt(printed) !== -BigInt(f.payableCents.value)
+        ) {
+          issue(doc, 'table_total_unverified');
+          totalMismatch = true;
+        }
+        inTable = false;
+        continue;
+      }
+      // A footnote marker ends the table only when the line is not itself a row.
+      if (!head && /^\s*\*+/.test(line) && line.search(/\S/) < dateAt) {
         inTable = false;
         continue;
       }
@@ -271,53 +344,102 @@ export function parseCardDocument(
         inTable = false;
         continue;
       }
-      if (!dated) {
-        const continuation = field(line, descriptionAt, branchAt);
-        const last = doc.rows.at(-1);
+      // A printed page/form marker carries no amount and leaves the table open.
+      if (/^\s*\d+_\d+\/\d+_\d+\s*$/.test(line)) continue;
+      if (/^\s*_{3,}\s*$/.test(line)) {
+        totalPending = true;
+        continue;
+      }
+      if (!head) {
+        const text = line.trim(),
+          start = line.search(/\S/),
+          last = doc.rows.at(-1);
+        // Wrapped description text: short, digit-free, sign-free, directly below a row.
         if (
           last &&
-          continuation &&
-          !line.slice(0, descriptionAt).trim() &&
-          !line.slice(branchAt).trim()
+          followsRow &&
+          descriptionColumn !== null &&
+          Math.abs(start - descriptionColumn) <= 2 &&
+          text.length <= 40 &&
+          !/\s{2,}/.test(text) &&
+          !/\d|[+−-]$/u.test(text)
         ) {
-          last.description = `${last.description} ${continuation}`;
+          last.description = `${last.description} ${text}`;
+          afterRow = true;
           continue;
         }
-        // A caption is finite, numeric-free, and cannot hide a financial row.
-        if (
-          !doc.rows.length &&
-          !/\d/.test(line) &&
-          /\b(?:entgelt|betrag|bearbeitung|behebung)\b/i.test(line)
-        )
+        // Header captions and sub-headers are finite, digit-free and cannot hide a financial row.
+        if (!/\d/.test(line) && (!rowsSinceHeader || headerFollows(lines, i))) continue;
+        // Any other digit-free text after rows is a footer: the table ends, later rows are refused.
+        if (!/\d/.test(line)) {
+          inTable = false;
           continue;
+        }
         issue(doc, 'unrecognized_table_row');
         continue;
       }
-      const printedCard = field(line, 0, dateAt);
+      rowsSinceHeader++;
+      descriptionColumn = null;
+      const [, printedCard, rawDate, rawBooked] = head;
+      const rest = head[4] ?? '';
       if (printedCard) card = cardIdentity(printedCard, context);
-      const description = field(line, descriptionAt, branchAt);
-      const rawAmount = numericField(line, amountAt, feeAt + 1);
-      const amount = rawAmount === null ? null : signed(rawAmount);
-      const extra = line.slice(feeAt + 1).trim();
-      if (amount === null || currency[1] !== context.currency || !description || /\d/.test(extra)) {
+      // Bounded input keeps the backtracking row grammar linear in practice.
+      const cells = rest.length <= 512 ? ISSUED_ROW_TAIL.exec(rest.trimEnd()) : null;
+      const text = cells?.[1]!.trim() ?? '';
+      let amount = cells ? signed(`${cells[9]}${cells[10]}`) : null;
+      if (cells?.[2] !== undefined) {
+        const foreign = cents(cells[2]),
+          rate = decimal(cells[4]!, 9),
+          converted = signed(`${cells[5]}${cells[6]}`),
+          fee = cells[7] === undefined ? 0 : signed(`${cells[7]}${cells[8]}`);
+        if (
+          foreign === null ||
+          foreign <= 0 ||
+          rate === null ||
+          rate <= 0 ||
+          converted === null ||
+          fee === null ||
+          amount === null ||
+          BigInt(converted) + BigInt(fee) !== BigInt(amount)
+        )
+          amount = null;
+      }
+      const description = text.split(/\s{2,}/)[0] ?? '';
+      // `1 234,56`: a space thousands separator would otherwise read as 234,56.
+      const spacedThousands =
+        cells !== null && /(?:^|\s)\d{1,3}$/.test(text) && SPACED_THOUSANDS.test(rest.trimEnd());
+      if (
+        spacedThousands ||
+        amount === null ||
+        currency[1] !== context.currency ||
+        !description ||
+        /\d,\d|[+−-]$/u.test(text)
+      ) {
         issue(doc, 'row_amount_or_fee_unavailable');
         continue;
       }
-      const transactionDate = rowDate(rawDate, doc.previous, current),
-        bookingDate = rowDate(rawBooked, doc.previous, current);
+      descriptionColumn = line.length - rest.length + (rest.length - rest.trimStart().length);
+      afterRow = true;
+      const transactionDate = rowDate(rawDate!, doc.previous, current),
+        bookingDate = rowDate(rawBooked!, doc.previous, current);
       if (!transactionDate || !bookingDate) issue(doc, 'row_year_unavailable');
-      const rowKind = kind(description, amount);
+      let rowKind = kind(description, amount);
+      // A payment printed without a card index settles the card account, not one card.
+      const accountLevel = !printedCard && rowKind === 'payment';
+      if (printedCard) rowKind = cardKind(description, amount);
       if (rowKind === 'unknown') issue(doc, 'row_kind_unavailable');
       doc.rows.push({
         key: `${sha256}:${i + 1}`,
         line: i + 1,
         kind: rowKind,
-        cardToken: card.fingerprint,
-        cardHint: card.hint,
-        accountId: context.mappedCardAccounts[card.fingerprint] ?? null,
+        cardToken: accountLevel ? '' : card.fingerprint,
+        cardHint: accountLevel ? 'Karte' : card.hint,
+        accountId: accountLevel
+          ? context.accountId
+          : (context.mappedCardAccounts[card.fingerprint] ?? null),
         transactionDate,
         bookingDate,
-        dateOrigin: 'statement_boundaries',
+        dateOrigin: doc.previous ? 'statement_boundaries' : 'issue_date',
         description,
         currency: currency[1]!,
         amountCents: amount,
@@ -329,7 +451,7 @@ export function parseCardDocument(
         (n, row) => n + BigInt(row.amountCents),
         -BigInt(doc.previous.payableCents),
       );
-      doc.totalsVerified = closing === -BigInt(f.payableCents.value);
+      doc.totalsVerified = closing === -BigInt(f.payableCents.value) && !totalMismatch;
     }
   } else {
     doc.layout = 'company_card';
@@ -538,10 +660,23 @@ export function parseCardDocument(
   if (!doc.rows.length) issue(doc, 'rows_unavailable');
   if (doc.rows.length > 1000 || doc.rows.some((row) => row.description.length > 1024))
     issue(doc, 'row_text_limit');
-  if (doc.rows.some((row) => !row.cardToken || row.accountId !== context.accountId))
+  const accountLevel = (row: CardRow) =>
+    doc.layout === 'issued_card' &&
+    row.kind === 'payment' &&
+    !row.cardToken &&
+    row.accountId === context.accountId;
+  if (
+    doc.rows.some(
+      (row) => !accountLevel(row) && (!row.cardToken || row.accountId !== context.accountId),
+    )
+  )
     issue(doc, 'card_mapping_required');
   if (doc.layout === 'issued_card' && doc.previous) {
-    const actual = [...new Set(doc.rows.map((row) => normalize(row.cardToken)))].sort();
+    const actual = [
+      ...new Set(
+        doc.rows.filter((row) => !accountLevel(row)).map((row) => normalize(row.cardToken)),
+      ),
+    ].sort();
     const previous = [...new Set(doc.previous.cardTokens.map(normalize))].sort();
     if (JSON.stringify(actual) !== JSON.stringify(previous)) issue(doc, 'previous_card_mismatch');
   }
@@ -619,6 +754,7 @@ export function planCardRows(
     )
       return pending('document_proof_incomplete');
     if (row.kind === 'payment') return pending('settlement_match_required');
+    if (row.kind === 'credit') return pending('credit_review_required');
     if (!['purchase', 'fee', 'refund'].includes(row.kind)) return pending('row_kind_unavailable');
     if (competing.has(row.key)) return pending('rows_compete_for_existing_booking');
     const plausible = eligibleFor(row);

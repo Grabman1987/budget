@@ -128,8 +128,18 @@ export function IncomeBody({
                     <span className="xp-sub">{longDay(l.dueDate)}</span>
                   </span>
                   <span className="xp-occ-amt">
-                    {eur(l.receivedCents)}{' '}
-                    <span className="xp-sub">von {eur(l.expectedCents)}</span>
+                    {l.bookingId !== null && l.receivedCents === 0 ? (
+                      // Linked, but the booking does not count in this month (other month, after
+                      // today, capital or refund): do not read it as "nothing received".
+                      <span className="xp-sub">
+                        Gebucht, zählt nicht in diesem Monat · erwartet {eur(l.expectedCents)}
+                      </span>
+                    ) : (
+                      <>
+                        {eur(l.receivedCents)}{' '}
+                        <span className="xp-sub">von {eur(l.expectedCents)}</span>
+                      </>
+                    )}
                   </span>
                   <StatusStamp status={l.status} alert={l.status === 'missed'} />
                 </li>

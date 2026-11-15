@@ -1,4 +1,10 @@
-import { BENCHMARKS } from '@budget/db';
+import {
+  BENCHMARKS,
+  isSignalInstrument,
+  signalCaptureActive,
+  SIGNAL_INDEX,
+  storeSignalCloses,
+} from '@budget/db';
 import {
   cpiFetchedAt,
   foreignCurrencies,
@@ -49,6 +55,8 @@ export interface RefreshOptions {
   today: string;
   /** Only ever gets error classes and counts, never URLs or response bodies. */
   log?: (message: string) => void;
+  /** Clock for "is this session completed"; tests pin it. */
+  now?: Date;
 }
 
 export interface PriceRefreshResult {
@@ -62,6 +70,8 @@ export interface PriceRefreshResult {
   protectedManual: number;
   /** Securities for which every source failed (an inbox item is open for each). */
   failed: Array<{ securityId: string; errors: MarketErrorKind[] }>;
+  /** Signal-series closes that disagree with the stored value (kept, see `storeSignalCloses`). */
+  conflicts: number;
 }
 
 export interface FxRefreshResult {
@@ -115,7 +125,7 @@ const quoteChain = (sources: MarketSources): QuoteSource[] => [
 export async function refreshPrices(
   db: Db,
   sources: MarketSources,
-  { today, log = () => undefined }: RefreshOptions,
+  { today, log = () => undefined, now = new Date() }: RefreshOptions,
 ): Promise<PriceRefreshResult> {
   const result: PriceRefreshResult = {
     tracked: 0,
@@ -128,8 +138,12 @@ export async function refreshPrices(
     },
     protectedManual: 0,
     failed: [],
+    conflicts: 0,
   };
+  const signalActive = signalCaptureActive(db);
   for (const row of trackedSecurities(db)) {
+    // The strategy's signal series is fetched only while the strategy is explicitly enabled.
+    if (isSignalInstrument(row.id) && !signalActive) continue;
     result.tracked++;
     const last = lastQuotedDay(db, row.id);
     const benchmark = BENCHMARKS.some((b) => b.id === row.id);
@@ -142,11 +156,29 @@ export async function refreshPrices(
           .filter((date) => date <= today)
           .sort()[0]
       : undefined;
-    const from = last
-      ? addDays(last, 1)
-      : benchmark && firstAccountDay
-        ? addDays(firstAccountDay, -3)
-        : addDays(today, -BACKFILL_DAYS);
+    const signal = isSignalInstrument(row.id);
+    // The signal series refetches its evidence window (about 260 sessions) every run: omitted
+    // days are backfilled and identical values are left alone (see `storeSignalCloses`).
+    const signalDates = signal
+      ? db
+          .select({ date: schema.price.date })
+          .from(schema.price)
+          .where(eq(schema.price.securityId, row.id))
+          .orderBy(schema.price.date)
+          .all()
+          .map((p) => p.date)
+      : [];
+    const signalFrom =
+      signalDates.length >= SIGNAL_INDEX.maxSessions
+        ? signalDates[signalDates.length - SIGNAL_INDEX.maxSessions]
+        : undefined;
+    const from = signal
+      ? (signalFrom ?? addDays(today, -SIGNAL_INDEX.backfillDays))
+      : last
+        ? addDays(last, 1)
+        : benchmark && firstAccountDay
+          ? addDays(firstAccountDay, -3)
+          : addDays(today, -BACKFILL_DAYS);
     if (from > today) {
       result.upToDate++;
       continue;
@@ -173,6 +205,17 @@ export async function refreshPrices(
         }
         let rows = 0;
         db.transaction((tx) => {
+          if (signal) {
+            const stored = storeSignalCloses(
+              tx,
+              quotes,
+              source.id as 'ariva' | 'yfinance',
+              now.toISOString(),
+            );
+            rows = stored.rows;
+            result.conflicts += stored.conflicts;
+            return;
+          }
           for (const q of quotes) {
             const existing = tx
               .select({ securityId: schema.price.securityId })

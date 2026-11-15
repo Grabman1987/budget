@@ -126,3 +126,104 @@ test('515 note preflight, protected skips and one exact Undo', async ({
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect.poll(readRows).toEqual(before);
 });
+
+for (const field of ['date', 'payee'] as const) {
+  test(`515 bulk ${field}: preview, protected skip and one exact Undo`, async ({
+    page,
+    isolatedLedger,
+  }, info) => {
+    const origin = isolatedLedger.origin;
+    const post = async (path: string, data: unknown) => {
+      const response = await page.request.post(`${origin}/api${path}`, {
+        headers: { origin },
+        data,
+      });
+      expect(response.ok(), await response.text()).toBe(true);
+      return response.json();
+    };
+    const account = (
+      await post('/accounts', {
+        name: 'Synthetic Giro',
+        type: 'checking',
+        openingDate: '2026-09-01',
+      })
+    ).account;
+    const lockedAccount = (
+      await post('/accounts', {
+        name: 'Synthetic protected',
+        type: 'checking',
+        openingDate: '2026-09-01',
+      })
+    ).account;
+    const payee = (await post('/payees', { name: 'Synthetic Shop' })).payee;
+    const booking = (memo: string, amountCents: number, extra = {}) =>
+      post('/bookings', {
+        type: 'booking',
+        accountId: account.id,
+        date: '2026-09-30',
+        amountCents,
+        memo,
+        status: 'pending',
+        ...extra,
+      });
+    const a = await booking('Synthetic one', -1234);
+    const b = await booking('Synthetic two', -567);
+    const locked = await booking('Synthetic reconciled', -890, {
+      accountId: lockedAccount.id,
+      status: 'confirmed',
+    });
+    await post(`/accounts/${lockedAccount.id}/reconciliation`, {
+      date: '2026-09-30',
+      statementBalanceCents: -890,
+    });
+    const ids = [a.id, b.id, locked.id];
+    const readRows = async () => {
+      const response = await page.request.get(`${origin}/api/bookings?ids=${ids.join(',')}`);
+      expect(response.ok()).toBe(true);
+      return (await response.json()).items;
+    };
+    const before = await readRows();
+    await page.goto('/konten/buchungen');
+    if (info.project.name !== 'desktop')
+      await page.getByRole('button', { name: 'Auswählen', exact: true }).click();
+    for (const id of ids) {
+      const row = page.locator(`tr[data-booking="${id}"]`);
+      if (info.project.name === 'desktop') await row.getByRole('checkbox').check();
+      else await row.locator('.kname-btn').click();
+    }
+    const bar = page.getByRole('group', { name: 'Auswahl bearbeiten', exact: true });
+    await bar
+      .getByRole('button', {
+        name: field === 'date' ? 'Datum ändern' : 'Empfänger ändern',
+        exact: true,
+      })
+      .click();
+    const dialog = page.getByRole('dialog', {
+      name: field === 'date' ? 'Datum gesammelt ändern' : 'Empfänger gesammelt ändern',
+      exact: true,
+    });
+    if (field === 'date') await dialog.getByLabel('Neues Datum').fill('2026-10-03');
+    else await dialog.getByLabel('Neuer Empfänger').selectOption(payee.id);
+    await dialog.getByRole('button', { name: 'Änderungen prüfen', exact: true }).click();
+    const preview = dialog.getByRole('region', { name: 'Vorschau der Änderung' });
+    await expect(preview).toContainText('3 ausgewählt · 2 werden geändert · 1 geschützt');
+    await expect(preview).toContainText('Synthetic protected');
+    if (field === 'date') await expect(preview).toContainText('09/2026');
+    expect(await readRows()).toEqual(before);
+    for (const theme of ['light', 'dark'] as const) {
+      await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+      expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
+        [],
+      );
+    }
+    await dialog.getByRole('button', { name: 'Änderungen übernehmen', exact: true }).click();
+    await expect(bar).toContainText('1 ausgewählt');
+    const changed = await readRows();
+    for (const row of changed.filter((r: { id: string }) => [a.id, b.id].includes(r.id)))
+      expect(field === 'date' ? row.date : row.payeeId).toBe(
+        field === 'date' ? '2026-10-03' : payee.id,
+      );
+    await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+    await expect.poll(readRows).toEqual(before);
+  });
+}

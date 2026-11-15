@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import type { OpenedDatabase } from '../client';
 import { accounts, categories, createEntity } from './entities';
 import { categoryGroup, contact, payee } from '../schema';
@@ -5,7 +6,10 @@ import { categoryGroup, contact, payee } from '../schema';
 export const testCtx = { actor: 'tester' };
 
 /** Synthetic fixture for repository tests: three accounts, a group, three categories, a payee. */
-export function seedBasics(db: OpenedDatabase['db']) {
+export function seedBasics(
+  db: OpenedDatabase['db'],
+  options: { predecessorSchema?: boolean } = {},
+) {
   const ctx = testCtx;
   accounts.create(
     db,
@@ -58,6 +62,11 @@ export function seedBasics(db: OpenedDatabase['db']) {
     ctx,
   );
   createEntity(db, payee, { id: 'p1', name: 'Vermieter' }, ctx);
-  createEntity(db, contact, { id: 'k1', name: 'Freund' }, ctx);
+  if (options.predecessorSchema) {
+    // Older schema levels lack newer contact columns the repo writer inserts: seed with raw SQL.
+    db.run(sql`INSERT INTO contact (id, name) VALUES ('k1', 'Freund')`);
+  } else {
+    createEntity(db, contact, { id: 'k1', name: 'Freund' }, ctx);
+  }
   return { ctx };
 }

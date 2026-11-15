@@ -2,12 +2,12 @@ import { BookingStatusIcon, ClassSwatch, type SwatchKind } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { TriangleAlert, ArrowLeftRight, Check, CircleCheck, Clock, Split } from 'lucide-react';
 import { bookingCounterparty } from './booking-counterparty';
-import { FlagGlyph, FlagPicker } from './flag-picker';
-import { FLAG_LABEL, STATUS_LABEL } from './labels';
+import { STATUS_LABEL } from './labels';
 import { accountsQuery, lookupsQuery } from './queries';
 import { depotTradesQuery } from './depot-queries';
-import type { BookingFlag, BookingStatus, ListedBooking } from './types';
+import type { BookingStatus, ListedBooking } from './types';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { CategoryIcon } from '../budget/category-icon';
 
 const STATUS_ICON = { pending: Clock, confirmed: Check, reconciled: CircleCheck } as const;
 
@@ -57,35 +57,6 @@ export function StatusCell({
   );
 }
 
-/**
- * Flag column (first column of booking tables and lists): a coloured flag glyph that opens the
- * flag popover and saves at once. Transfers carry no flag and show it read-only. The colour name
- * is the text for screen readers and the tooltip.
- */
-export function FlagCell({
-  booking,
-  label,
-  onChange,
-}: {
-  booking: ListedBooking;
-  label: string;
-  onChange: (flag: BookingFlag | '') => void;
-}) {
-  if (booking.transferId) {
-    return (
-      <span
-        className="kflag"
-        title={
-          booking.flag ? `Markierung ${FLAG_LABEL[booking.flag]}` : 'Umbuchung: ohne Markierung'
-        }
-      >
-        <FlagGlyph flag={booking.flag} size={16} />
-      </span>
-    );
-  }
-  return <FlagPicker value={booking.flag ?? ''} onChange={onChange} context={label} />;
-}
-
 /** Class of every category (Bedarf, Wunsch, Zukunft) for the swatch in front of its name. */
 export function useCategoryClasses(): Map<string, SwatchKind> {
   const lookups = useQuery(lookupsQuery());
@@ -111,6 +82,7 @@ export function CategoryCell({
   showClass?: boolean;
 }) {
   const accounts = useQuery(accountsQuery());
+  const lookups = useQuery({ ...lookupsQuery(), enabled: REDESIGN_ENABLED });
   const investment =
     accounts.data?.accounts.find((a) => a.id === booking.accountId)?.role === 'investment';
   const missingExpenseSplit = booking.splits.some(
@@ -195,6 +167,12 @@ export function CategoryCell({
   return (
     <span className="kcat">
       {showClass && kind && <ClassSwatch kind={kind} />}
+      {REDESIGN_ENABLED && (
+        <CategoryIcon
+          icon={lookups.data?.categories.find((c) => c.id === only.categoryId)?.icon ?? null}
+          name={only.categoryName}
+        />
+      )}
       {only.categoryName}
     </span>
   );

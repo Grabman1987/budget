@@ -206,6 +206,8 @@ export const bulkBody = z.discriminatedUnion('action', [
     set: z
       .object({
         memo: nullableText,
+        date: day,
+        payeeId: id.nullable(),
         categoryId: id.nullable(),
         flag: flag.nullable(),
         status: writableStatus,
@@ -213,7 +215,12 @@ export const bulkBody = z.discriminatedUnion('action', [
       })
       .partial()
       .refine((s) => Object.keys(s).length > 0, 'Nothing to set')
-      .refine((s) => s.memo === undefined || Object.keys(s).length === 1, 'Notes change alone'),
+      .refine(
+        (s) =>
+          Object.keys(s).length === 1 ||
+          (s.memo === undefined && s.date === undefined && s.payeeId === undefined),
+        'Notes, dates and payees change alone',
+      ),
     unlockReconciled: z.boolean().default(false),
   }),
   z.object({

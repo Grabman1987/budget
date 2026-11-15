@@ -1,15 +1,14 @@
 # Bounded register note change (#515)
 
-This slice implements booking memo only, from the existing register selection bar
-(#479 / #596). Date and payee remain unsupported bulk API/UI fields. No migration,
-capture, Plan, contact writer or financial calculation changes.
+Bulk memo, date and payee run from the existing register selection bar
+(#479 / #596) through one shared preview/apply path. No migration, capture, Plan,
+contact writer or financial calculation changes; amounts and categories never change.
 
 ## Field-by-record protection table
 
 The pure `bulk-field-protection.ts` module records the conservative bulk policy.
 The database reader gathers the following facts; first matching reason wins.
-“Skip” applies to memo, date and payee alike; the latter two are policy inventory,
-not implemented write permissions.
+“Skip” applies to memo, date and payee alike (same ownership reader, same precedence).
 
 | Record / persisted evidence | Memo | Date | Payee | Reason |
 | --- | --- | --- | --- | --- |
@@ -24,7 +23,7 @@ not implemented write permissions.
 | Bank source ID, bank-sync candidate/import key, or bank-source booking | Skip | Skip | Skip | `linked_bank` |
 | Unsafe integer-cent amount | Skip | Skip | Skip | `invalid` |
 | Missing/deleted booking or account | Skip | Skip | Skip | `not_found` |
-| Ordinary booking, including category splits or plain receipt attachment | Eligible | Deferred | Deferred | None |
+| Ordinary booking, including category splits or plain receipt attachment | Eligible | Eligible | Eligible | None |
 
 This is deliberately stricter than individual editing: `updateBooking` allows
 some reconciled/linked metadata edits, but bulk exposes no unlock. Existing bulk
@@ -60,5 +59,16 @@ offers one Undo only after actual changes. No-op batches create no audit entries
 - New isolated redesign browser spec: preview counts/reasons, input invalidation,
   actual apply and one exact Undo, light/dark accessibility and responsive evidence.
 
-Date/payee behavior and wider #515 acceptance remain open. This is a draft delivery,
-not a production release; exact revision and executed checks belong in the PR.
+## Date and payee (second slice)
+
+- `POST /api/bookings/date-preview` and `/payee-preview` (ids <= 500; `date` YYYY-MM-DD or `payeeId` / null).
+  Unknown payee or invalid date: 400. Preview adds `monthShifts` (cents leaving/entering each
+  month per currency) so a date move across months is visible before applying.
+- Apply uses `/api/bookings/bulk` with `set.date` or `set.payeeId` alone plus the preview
+  revision (hash tagged per field, so a date revision cannot authorise a payee write).
+- Writer is `updateBooking` with `{ date }` / `{ payeeId }`: transfers (both legs), split transfers,
+  reconciled and all linked bookings are skipped by policy before any write; a payee change
+  does not apply the payee default category. One audit group, one Undo, one transaction.
+- Closed months: the single-booking writer has no month-close guard, so none is added here.
+- Tests: `booking-date-payee-515.test.ts`, `booking-field-dialog-515.test.tsx`, e2e cases in
+  `issue-515-bulk-note.spec.ts` (run by CI).

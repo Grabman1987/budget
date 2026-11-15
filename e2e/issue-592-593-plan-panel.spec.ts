@@ -5,6 +5,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 import { test } from './isolated-ledger';
+import { openDetailsFromPhoneSheet } from './plan-phone-sheet';
 
 test.use({ ledgerToday: '2026-10-15' });
 async function togglePrivacy(page: Page) {
@@ -148,6 +149,7 @@ test('514 selected assignment preview is read-only, funds full target need and s
       writes.push(`${req.method()} ${new URL(req.url()).pathname}`);
   });
   await page.locator(`.pname[data-category-id="${ids[0]}"]`).click();
+  await openDetailsFromPhoneSheet(page);
   const side = page.getByRole('complementary', { name: 'Plan-Inspektor' });
   const disclosure = side.getByText('Zuweisungsvorschau', { selector: 'summary', exact: true });
   if (!(await redesignEnabled(page))) {
@@ -222,6 +224,7 @@ test('592 automatic panel themes, privacy and selected assignment preserve liter
   await expect(automatic).toBeVisible();
   await expect.poll(state).toEqual({ assigned: [400, 0, 250], tba: 500 });
   await page.locator(`.pname[data-category-id="${ids[1]}"]`).click();
+  await openDetailsFromPhoneSheet(page);
   const selected = side.getByRole('region', { name: 'Automatisch zuweisen', exact: true });
   await expect(
     selected.getByRole('button', { name: 'Auf 0 zurücksetzen 0,00 €', exact: true }),
@@ -293,6 +296,7 @@ test('593 preselected cover is capped, one click/Undo restores both categories, 
   };
   await page.goto('/plan/monat?monat=2026-10');
   await page.locator(`.pname[data-category-id="${ids[1]}"]`).click();
+  await openDetailsFromPhoneSheet(page);
   const side = page.getByRole('complementary', { name: 'Plan-Inspektor' });
   const heading = side.getByRole('heading', { name: 'Synthetic target', exact: true });
   await expect(heading).toBeVisible();

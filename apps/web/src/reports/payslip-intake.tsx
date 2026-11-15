@@ -18,7 +18,7 @@ import {
   WideDialog,
 } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ApiError, notifyApiWrite, request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { AccountOptions } from '../ledger/account-options';
@@ -119,12 +119,20 @@ export type PayslipUploadResult = {
   passwordRemember?: RememberResult;
   automation?: PayslipAutomationOutcome;
 };
+export type PayslipHandoff = {
+  file: File;
+  password?: string | undefined;
+  remember?: boolean | undefined;
+};
 export function PayslipUpload({
   onBusyChange,
   onUploaded,
+  handoff,
 }: {
   onBusyChange?: (busy: boolean) => void;
   onUploaded?: (result: PayslipUploadResult) => void;
+  /** Central document upload: the same File goes through this normal upload. */
+  handoff?: PayslipHandoff | undefined;
 } = {}) {
   const picker = useRef<HTMLInputElement>(null),
     [busy, setBusy] = useState(false),
@@ -150,7 +158,7 @@ export function PayslipUpload({
     }
     void upload(file);
   }
-  async function upload(file?: File) {
+  async function upload(file?: File, typedPassword = password, typedRemember = remember) {
     if (!file || busy) return;
     setBusy(true);
     onBusyChange?.(true);
@@ -162,9 +170,9 @@ export function PayslipUpload({
       const body = new FormData();
       body.set('file', file);
       body.set('automation', 'eligible');
-      if (password) {
-        body.set('password', password);
-        if (remember) body.set('remember', '1');
+      if (typedPassword) {
+        body.set('password', typedPassword);
+        if (typedRemember) body.set('remember', '1');
       }
       const response = await fetch(PATH + '/upload', {
         method: 'POST',
@@ -225,6 +233,14 @@ export function PayslipUpload({
       onBusyChange?.(false);
     }
   }
+  const handedOff = useRef(false);
+  useEffect(() => {
+    if (!handoff || handedOff.current) return;
+    handedOff.current = true;
+    void upload(handoff.file, handoff.password ?? '', Boolean(handoff.remember));
+    // Runs once per mounted instance; `upload` only reads current state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoff]);
   return (
     <div
       className="payslip-upload"
@@ -329,15 +345,60 @@ type Intake = {
   }[];
   payees: { id: string; name: string }[];
 };
+const SECTION_GROUPS: { sections: string[]; heading: string }[] = [
+  { sections: ['earning'], heading: 'Bezüge' },
+  { sections: ['deduction'], heading: 'Abzüge' },
+  { sections: ['reimbursement'], heading: 'Steuerfreie Erstattungen' },
+  { sections: ['tax_adjustment', 'sv_adjustment'], heading: 'Korrekturen' },
+];
+/** Parsed lines grouped by section: label left, amount right in tabular figures. */
+const KNOWN_SECTIONS = SECTION_GROUPS.flatMap((g) => g.sections);
+function PayslipLines({
+  lines,
+}: {
+  lines: { section: string; label: string; amountCents: number }[];
+}) {
+  return (
+    <>
+      {[
+        ...SECTION_GROUPS,
+        // Any section this view does not know is still shown, never dropped.
+        {
+          sections: lines.filter((l) => !KNOWN_SECTIONS.includes(l.section)).map((l) => l.section),
+          heading: 'Weitere Zeilen',
+        },
+      ].map(({ sections, heading }) => {
+        const rows = lines.filter((l) => sections.includes(l.section));
+        if (!rows.length) return null;
+        return (
+          <table className="payslip-lines" key={heading}>
+            <caption>{heading}</caption>
+            <tbody>
+              {rows.map((l, i) => (
+                <tr key={i}>
+                  <th scope="row">{l.label}</th>
+                  <td>{eur(l.amountCents)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        );
+      })}
+    </>
+  );
+}
 export function PayslipIntakeDetail({
   id,
   inline = false,
   duplicate = false,
+  onMonth,
 }: {
   id: string;
   /** Render the expanded review inside the upload dialog instead of opening another dialog. */
   inline?: boolean;
   duplicate?: boolean;
+  /** Reports the parsed month (YYYY-MM) so the hosting dialog can title the review. */
+  onMonth?: (month: string | null) => void;
 }) {
   useAmountPrivacy();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -376,6 +437,10 @@ export function PayslipIntakeDetail({
       : '');
   const p = data?.parsed,
     totals = p?.draft ? payrollTotals([p.draft]) : null;
+  const parsedMonth = p?.draft?.month ?? null;
+  useEffect(() => {
+    onMonth?.(parsedMonth);
+  }, [onMonth, parsedMonth]);
   const selectedMatch = data?.matches.find((m) => m.id === match);
   const splitPreview = selectedMatch?.splitPreview;
   const splitAccepted =
@@ -544,12 +609,7 @@ export function PayslipIntakeDetail({
                   ? ' · 1 Cent wird als Rundungszeile gespeichert.'
                   : ''}
               </p>
-              {p?.draft?.lines.map((l, i) => (
-                <p key={i}>
-                  {l.label}: {eur(l.amountCents)}
-                  {l.section === 'reimbursement' ? ' · steuerfreie Erstattung' : ''}
-                </p>
-              ))}
+              <PayslipLines lines={p?.draft?.lines ?? []} />
               <Field label="Auszahlungskonto">
                 {({ id: fieldId }) => (
                   <Select
@@ -622,16 +682,6 @@ export function PayslipIntakeDetail({
                   )}
                 </Field>
               </div>
-              {selectedExpectation && (
-                <p>
-                  Erwarteter Bezug: {selectedExpectation.name} ·{' '}
-                  {eur(selectedExpectation.amountCents)} am {longDay(selectedExpectation.dueDate)}
-                  {selectedExpectation.payeeName ? ` · Von ${selectedExpectation.payeeName}` : ''}
-                  {selectedExpectation.amountCents !== p?.draft?.netCents
-                    ? ` · Differenz zur Auszahlung ${eur(selectedExpectation.amountCents - (p?.draft?.netCents ?? 0))}`
-                    : ''}
-                </p>
-              )}
               {!validEffectiveDate && <p>Bitte ein gültiges Auszahlungsdatum eintragen.</p>}
               {(p?.unmappedWageTypes?.length ?? 0) > 0 && (
                 <section aria-label="Unbekannte Lohnarten">
@@ -711,12 +761,6 @@ export function PayslipIntakeDetail({
                   </Select>
                 )}
               </Field>
-              {selectedMatch && (
-                <p>
-                  Buchung: {eur(selectedMatch.amountCents)} · Differenz zur Auszahlung:{' '}
-                  {eur(selectedMatch.differenceCents)}
-                </p>
-              )}
               {splitPreview?.status === 'eligible' && data.status === 'pending' && (
                 <div>
                   <label className="check-row">
@@ -743,37 +787,92 @@ export function PayslipIntakeDetail({
                   </p>
                 </div>
               )}
-              {splitPreview?.status === 'locked' && (
-                <p className="panel-sub">
-                  Diese Auszahlung ist geprüft. Sie wird nur verknüpft; ihre Aufteilung bleibt
-                  erhalten.
-                </p>
-              )}
-              {splitPreview?.status === 'unavailable' && (
-                <p className="panel-sub">
-                  Eine unveränderte ursprüngliche Zuordnung ist nicht vollständig nachgewiesen. Die
-                  Auszahlung wird nur verknüpft; bestehende Korrekturen und Zuordnungen bleiben
-                  erhalten.
-                </p>
-              )}
-              {!data.matches.length && (
-                <p>
-                  Keine Gehaltsbuchung im Zeitfenster gefunden. Nach der Bestätigung wird die
-                  Auszahlung auf dem gewählten Konto gebucht.
-                </p>
-              )}
-              <p>
-                {selectedMatch
-                  ? splitAccepted
-                    ? 'Die nachgewiesene ursprüngliche Auszahlung wird aufgeteilt und verknüpft.'
-                    : 'Die vorhandene Buchung wird verknüpft. Ihre Zuordnung bleibt erhalten.'
-                  : payoutAccount?.type === 'cash'
-                    ? 'Die neue Bargeldauszahlung wird sofort bestätigt.'
-                    : 'Die neue Auszahlung wird vorgemerkt. Gehalt und steuerfreie Erstattungen werden getrennt zugeordnet.'}
-              </p>
             </>
           )}
-          <div className="sources-actions">
+        </>
+      )}
+    </>
+  );
+  const confirmSentence = selectedMatch
+    ? splitAccepted
+      ? 'Die nachgewiesene ursprüngliche Auszahlung wird aufgeteilt und verknüpft.'
+      : 'Die vorhandene Buchung wird verknüpft. Ihre Zuordnung bleibt erhalten.'
+    : payoutAccount?.type === 'cash'
+      ? 'Die neue Bargeldauszahlung wird sofort bestätigt.'
+      : 'Die neue Auszahlung wird vorgemerkt. Gehalt und steuerfreie Erstattungen werden getrennt zugeordnet.';
+  const pending = data?.status === 'pending';
+  const documentReview = (
+    <div className="payslip-review-layout">
+      <div className="payslip-document-review">
+        <div className="payslip-document-original">
+          {data && (
+            <ReceiptPdfPreview
+              key={`${id}:${data.receiptId}:${accountId ?? data.payoutAccountId ?? ''}`}
+              receiptId={data.receiptId}
+              visible={inline || dialogOpen}
+            />
+          )}
+        </div>
+        <div className="payslip-document-fields">{review}</div>
+      </div>
+      {data && totals && (
+        <section className="payslip-review-summary" aria-label="Zusammenfassung">
+          <dl>
+            <div>
+              <dt>Erwarteter Bezug</dt>
+              <dd>
+                {selectedExpectation
+                  ? `${eur(selectedExpectation.amountCents)} · ${selectedExpectation.name} am ${longDay(selectedExpectation.dueDate)}${selectedExpectation.payeeName ? ` · Von ${selectedExpectation.payeeName}` : ''}`
+                  : 'Keine Erwartung gewählt'}
+              </dd>
+            </div>
+            <div>
+              <dt>Auszahlung laut Gehaltszettel</dt>
+              <dd>{eur(totals.netCents)}</dd>
+            </div>
+            {selectedMatch && (
+              <div>
+                <dt>Gewählte Buchung</dt>
+                <dd>
+                  {eur(selectedMatch.amountCents)} · Differenz zur Auszahlung{' '}
+                  {eur(selectedMatch.differenceCents)}
+                </dd>
+              </div>
+            )}
+            <div>
+              <dt>Differenz</dt>
+              <dd>
+                {selectedExpectation ? eur(selectedExpectation.amountCents - totals.netCents) : '–'}
+              </dd>
+            </div>
+          </dl>
+          {!data.matches.length && (
+            <p>
+              Keine Gehaltsbuchung im Zeitfenster gefunden. Nach der Bestätigung wird die Auszahlung
+              auf dem gewählten Konto gebucht.
+            </p>
+          )}
+          {splitPreview?.status === 'locked' && (
+            <p className="panel-sub">
+              Diese Auszahlung ist geprüft. Sie wird nur verknüpft; ihre Aufteilung bleibt erhalten.
+            </p>
+          )}
+          {splitPreview?.status === 'unavailable' && (
+            <p className="panel-sub">
+              Eine unveränderte ursprüngliche Zuordnung ist nicht vollständig nachgewiesen. Die
+              Auszahlung wird nur verknüpft; bestehende Korrekturen und Zuordnungen bleiben
+              erhalten.
+            </p>
+          )}
+          <p>{confirmSentence}</p>
+        </section>
+      )}
+      {data && (
+        <div className="payslip-review-actions">
+          <div className="payslip-review-actions-secondary">
+            <Button variant="ghost" disabled={busy || !pending} onClick={() => void act('retry')}>
+              Erneut auswerten
+            </Button>
             <a className="btn btn-ghost" href={`/api/receipts/${data.receiptId}/download`}>
               Original-PDF herunterladen
             </a>
@@ -785,43 +884,17 @@ export function PayslipIntakeDetail({
                 Gespeicherte Auszahlung öffnen
               </a>
             )}
-            <Button
-              disabled={busy || !canConfirm || data.status !== 'pending'}
-              onClick={() => void act('confirm')}
-            >
-              Bestätigen
-            </Button>
-            <Button
-              variant="ghost"
-              disabled={busy || data.status !== 'pending'}
-              onClick={() => void act('reject')}
-            >
+          </div>
+          <div className="payslip-review-actions-primary">
+            <Button variant="ghost" disabled={busy || !pending} onClick={() => void act('reject')}>
               Ablehnen
             </Button>
-            <Button
-              variant="ghost"
-              disabled={busy || data.status !== 'pending'}
-              onClick={() => void act('retry')}
-            >
-              Erneut auswerten
+            <Button disabled={busy || !canConfirm || !pending} onClick={() => void act('confirm')}>
+              Bestätigen
             </Button>
           </div>
-        </>
+        </div>
       )}
-    </>
-  );
-  const documentReview = (
-    <div className="payslip-document-review">
-      <div className="payslip-document-original">
-        {data && (
-          <ReceiptPdfPreview
-            key={`${id}:${data.receiptId}:${accountId ?? data.payoutAccountId ?? ''}`}
-            receiptId={data.receiptId}
-            visible={inline || dialogOpen}
-          />
-        )}
-      </div>
-      <div className="payslip-document-fields">{review}</div>
     </div>
   );
   if (inline)

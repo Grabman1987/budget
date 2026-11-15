@@ -39,7 +39,9 @@ beforeAll(() => {
   seed.close();
   // Match the production read connection, not the fixture insertion counter.
   opened = openDatabase(file);
-});
+  // Migrating and seeding the synthetic ledger exceeds the 10 s default hook timeout on
+  // loaded Windows runners (#906); the timed assertions live in the tests, not here.
+}, 60_000);
 afterAll(() => {
   opened.close();
   rmSync(directory, { recursive: true, force: true });
@@ -50,6 +52,8 @@ afterEach(() => {
 
 // These are the literal response byte digests captured from the stock main API,
 // not expectations computed by the optimized financial/read implementation.
+// Only /profile changed on purpose: it now also carries the six-null `risk` object (#812) and the
+// five-null `family` object (#813).
 it.each(baseline.responses)(
   'preserves all stock response bytes for $path',
   async ({ path, bytes, sha256 }) => {

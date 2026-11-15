@@ -34,6 +34,7 @@ function showOctoberIncome() {
         status: 'expected',
         expectedCents: 30_000,
         receivedCents: 0,
+        bookingId: null,
       },
     ],
   };
@@ -75,4 +76,38 @@ it('keeps the scope explanation while amount privacy masks expected and booked v
   act(() => setAmountsHidden(false));
   expect(screen.getByRole('progressbar').getAttribute('max')).toBe('30000');
   expect(screen.getByRole('progressbar').getAttribute('value')).toBe('0');
+});
+
+it('does not show "0 von X" for a line linked to a booking that does not count this month', () => {
+  const month = '2026-10';
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const line = {
+    paymentId: 'synthetic-payment',
+    occurrenceId: 'synthetic-occurrence',
+    name: 'Gehalt',
+    incomeTypeId: 'salary',
+    incomeTypeName: 'Gehalt',
+    dueDate: '2026-10-31',
+    status: 'received' as const,
+    expectedCents: 30_000,
+    receivedCents: 0,
+    bookingId: 'synthetic-booking',
+  };
+  const income: MonthIncome = {
+    month,
+    expectedCents: 30_000,
+    receivedCents: 0,
+    byIncomeType: [],
+    byPayment: [line],
+  };
+  client.setQueryData(incomeQuery(month).queryKey, income);
+  render(
+    <QueryClientProvider client={client}>
+      <IncomeBody month={month} />
+    </QueryClientProvider>,
+  );
+  expect(screen.getByText(/Gebucht, zählt nicht in diesem Monat · erwartet 300,00 €/)).toBeTruthy();
+  expect(screen.queryByText(/^von 300,00 €$/)).toBeNull();
 });

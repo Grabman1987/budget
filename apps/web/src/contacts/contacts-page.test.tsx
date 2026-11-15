@@ -1,9 +1,17 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { setAmountsHidden, ToastProvider } from '@budget/ui';
+import { setAmountsHidden, ToastProvider, useToast } from '@budget/ui';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { ContactStatementPage, ContactsPage } from './contacts-page';
+import { ContactStatementPage, ContactsPage, useContactWrite } from './contacts-page';
 import { LEDGER_KEY } from '../ledger/queries';
 
 vi.mock('@tanstack/react-router', () => ({
@@ -228,3 +236,58 @@ it.each(['list', 'statement'])(
     }
   },
 );
+
+it('removes the previous Undo while a new contact write and its refresh are pending', async () => {
+  const client = new QueryClient();
+  let finishWrite!: (result: { groupId: string }) => void;
+  let finishRefresh!: () => void;
+  const pendingWrite = new Promise<{ groupId: string }>((resolve) => {
+    finishWrite = resolve;
+  });
+  const pendingRefresh = new Promise<void>((resolve) => {
+    finishRefresh = resolve;
+  });
+  vi.spyOn(client, 'invalidateQueries').mockReturnValue(pendingRefresh);
+  const previousUndo = vi.fn();
+  const { result } = renderHook(() => ({ write: useContactWrite(), toast: useToast() }), {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={client}>
+        <ToastProvider>{children}</ToastProvider>
+      </QueryClientProvider>
+    ),
+  });
+  act(() =>
+    result.current.toast.show({
+      message: 'Previous choice',
+      actionLabel: 'Rückgängig',
+      onAction: previousUndo,
+    }),
+  );
+  expect(screen.getByRole('button', { name: 'Rückgängig' })).toBeTruthy();
+  let writing!: Promise<boolean>;
+  act(() => {
+    writing = result.current.write(() => pendingWrite, 'Current choice');
+  });
+  // jsdom keeps inert descendants in role queries; the browser makes this body non-interactive.
+  expect(screen.getByRole('status').classList.contains('is-open')).toBe(false);
+  expect(screen.getByRole('status').querySelector('.toast-body')?.hasAttribute('inert')).toBe(true);
+  await act(async () => {
+    finishWrite({ groupId: 'synthetic-current-choice' });
+  });
+  expect(client.invalidateQueries).toHaveBeenCalledOnce();
+  expect(screen.getByRole('status').classList.contains('is-open')).toBe(false);
+  expect(screen.getByRole('status').querySelector('.toast-body')?.hasAttribute('inert')).toBe(true);
+  await act(async () => {
+    finishRefresh();
+    await writing;
+  });
+  expect(screen.getByText('Current choice')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Rückgängig' }));
+  await waitFor(() =>
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      '/api/undo',
+      expect.objectContaining({ body: JSON.stringify({ groupId: 'synthetic-current-choice' }) }),
+    ),
+  );
+  expect(previousUndo).not.toHaveBeenCalled();
+});

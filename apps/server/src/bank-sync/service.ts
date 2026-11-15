@@ -7,6 +7,7 @@ import {
   assignmentPatch,
   learnBankPayee,
   learnInboxAssignment,
+  linkReceipt,
   markBankBookingTransfer,
   readAssignmentCandidate,
   bookingIncomeDefault,
@@ -25,6 +26,7 @@ import {
   runInTransaction,
   withGroup,
   writesHeld,
+  type BookingPatch,
   type Db,
   type Executor,
   readInbox,
@@ -1074,6 +1076,12 @@ export class BankSync {
       revision?: string | undefined;
       candidateRevision?: string | undefined;
       actions?: AssignmentActions | undefined;
+      memo?: string | null | undefined;
+      projectId?: string | null | undefined;
+      splits?:
+        | { categoryId: string | null; amountCents: number; memo?: string | null | undefined }[]
+        | undefined;
+      receiptIds?: string[] | undefined;
     } = {},
     audit: { groupId?: string; actor?: string } = {},
   ) {
@@ -1092,7 +1100,14 @@ export class BankSync {
         options.candidateRevision !== review.candidateRevision
       )
         throw new ConflictError('Der Bankumsatz hat sich geändert. Bitte neu laden.');
+      const extras =
+        options.memo !== undefined ||
+        options.projectId !== undefined ||
+        options.splits !== undefined ||
+        (options.receiptIds?.length ?? 0) > 0;
       if (review.existingTransfer) {
+        if (extras)
+          throw new ConflictError('Dieser Umsatz ergänzt eine Umbuchung. Bitte neu laden.');
         const bookingId = review.existingTransfer.bookingId;
         updateTracked(
           tx,
@@ -1118,6 +1133,7 @@ export class BankSync {
       const rule = options.ruleId
         ? review.suggestions.find((r) => r.id === options.ruleId)
         : !options.actions &&
+            !options.splits &&
             options.payeeId === undefined &&
             categoryId === null &&
             review.suggestions[0]?.automatic
@@ -1136,9 +1152,32 @@ export class BankSync {
             payeeId: options.payeeId === undefined ? review.cleanup.payeeId : options.payeeId,
           },
       );
-      const patch = assignmentPatch(row.amountCents, actions);
+      const assigned = assignmentPatch(row.amountCents, actions);
       if (actions.accountId && actions.accountId !== row.accountId)
         throw new ConflictError('Das Bankkonto bleibt an seine Datenquelle gebunden.');
+      if (
+        options.splits &&
+        options.splits.reduce((sum, s) => sum + s.amountCents, 0) !== row.amountCents
+      )
+        throw new ConflictError('Die Aufteilung ergibt nicht den Bankbetrag.');
+      // Explicit "Alle Felder" values override rule metadata; manual split lines replace any
+      // single-category line (the schema refuses them together with a rule or category).
+      const patch = {
+        ...assigned,
+        // A blank note means "not given": the bank text stays, as on the create path.
+        ...(options.memo?.trim() ? { memo: options.memo.trim() } : {}),
+        ...(options.projectId !== undefined ? { projectId: options.projectId } : {}),
+        ...(options.splits
+          ? {
+              splits: options.splits.map(
+                ({ memo, ...s }): NonNullable<BookingPatch['splits']>[number] => ({
+                  ...s,
+                  ...(memo?.trim() ? { memo: memo.trim() } : {}),
+                }),
+              ),
+            }
+          : {}),
+      };
       // A transfer is attached after creation so both candidate and booking paths use one invariant.
       const lines = patch.splits?.map(({ transferAccountId, ...s }) => {
         void transferAccountId;
@@ -1173,11 +1212,17 @@ export class BankSync {
             ctx,
           );
         restoreBooking(tx, existing.id, ctx);
+        // The undone tombstone keeps its old columns. Set every column the create path sets so a
+        // re-confirmation yields the same booking as a first confirmation (#1048 B1).
         updateBooking(
           tx,
           existing.id,
           {
             ...patch,
+            memo: patch.memo ?? row.memo,
+            payeeId: patch.payeeId === undefined ? review.cleanup.payeeId : patch.payeeId,
+            flag: patch.flag ?? null,
+            projectId: patch.projectId ?? null,
             date: row.date,
             amountCents: row.amountCents,
             status: 'confirmed',
@@ -1205,6 +1250,7 @@ export class BankSync {
             memo: patch.memo ?? row.memo,
             payeeId: patch.payeeId === undefined ? review.cleanup.payeeId : patch.payeeId,
             flag: patch.flag ?? null,
+            ...(patch.projectId !== undefined ? { projectId: patch.projectId } : {}),
             bankRawText: row.memo,
             bankRawPayee: row.rawPayee,
             bankSourceId: row.sourceId,
@@ -1231,6 +1277,9 @@ export class BankSync {
           ctx,
         );
       learnInboxAssignment(tx, bookingId, ctx);
+      // Same audit group: one Undo returns the receipts to Prüfen together with the candidate.
+      for (const receiptId of new Set(options.receiptIds ?? []))
+        linkReceipt(tx, receiptId, bookingId, ctx);
       updateTracked(
         tx,
         inboxItem,

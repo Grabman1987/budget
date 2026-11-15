@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
+import { setTheme } from './theme';
 
 test('596 native selected total, protected skips and one exact Undo', async ({
   page,
@@ -70,7 +71,7 @@ test('596 native selected total, protected skips and one exact Undo', async ({
   await expect(bar).toContainText('−18,57 €');
   await expect(bar.getByRole('combobox', { name: 'Projekt für die Auswahl setzen' })).toBeEnabled();
   for (const theme of ['light', 'dark'] as const) {
-    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    await setTheme(page, theme);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
@@ -96,9 +97,13 @@ test('596 native selected total, protected skips and one exact Undo', async ({
   const response = page.waitForResponse(
     (r) => r.url().endsWith('/api/bookings/bulk') && r.request().method() === 'POST',
   );
+  // The flag bulk action is retired (#1040); the status action takes the same bulk path.
+  await expect(
+    bar.getByRole('combobox', { name: 'Markierung für die Auswahl setzen' }),
+  ).toHaveCount(0);
   await bar
-    .getByRole('combobox', { name: 'Markierung für die Auswahl setzen' })
-    .selectOption('orange');
+    .getByRole('combobox', { name: 'Status für die Auswahl setzen' })
+    .selectOption('confirmed');
   const result = await (await response).json();
   expect(result.changed).toEqual([a.id, b.id]);
   expect(

@@ -51,7 +51,7 @@ it('#607 migrates a real disposable amended48 copy, preserves all previous data 
   try {
     original = openDatabase(originalPath);
     migrateDatabase(original.db, stages[0]!);
-    seedBasics(original.db);
+    seedBasics(original.db, { predecessorSchema: true });
     const bookingId = createBooking(
       original.db,
       {

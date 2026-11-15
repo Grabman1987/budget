@@ -57,18 +57,8 @@ it.each([false, true])(
       [...container.querySelectorAll('thead th')].map((node) => node.textContent?.trim()),
     ).toEqual(
       enabled
-        ? [
-            'Markierung',
-            'Datum',
-            'Empfänger',
-            'Kategorie',
-            'Notiz',
-            'Ausgang',
-            'Eingang',
-            'Saldo',
-            'Status',
-          ]
-        : ['Markierung', 'Datum', 'Empfänger', 'Notiz', 'Kategorie', 'Betrag', 'Saldo', 'Status'],
+        ? ['Datum', 'Empfänger', 'Kategorie', 'Notiz', 'Ausgang', 'Eingang', 'Saldo', 'Status']
+        : ['Datum', 'Empfänger', 'Notiz', 'Kategorie', 'Betrag', 'Saldo', 'Status'],
     );
     if (enabled) {
       expect(container.querySelector('.kmonth')?.textContent).toBe('Oktober 2026');
@@ -84,10 +74,19 @@ it.each([false, true])(
   },
 );
 
+it.each([false, true])('shows no flag column or flag control (redesign %s)', (enabled) => {
+  flags.REDESIGN_ENABLED = enabled;
+  const { container } = setup([{ ...booking, flag: 'red' }]);
+  expect(container.querySelector('.kc-flag, .kx-flag, .kcol-flag, .kflagbtn, .kflag')).toBeNull();
+  expect(screen.queryByText(/Markierung/)).toBeNull();
+  flags.REDESIGN_ENABLED = false;
+});
+
 function setup(
   items: ListedBooking[] = [booking],
   variant: 'account' | 'all' = 'account',
   upcoming?: UpcomingModel,
+  overdraftLimitCents?: number | null,
 ) {
   const client = new QueryClient({ defaultOptions: { queries: { enabled: false } } });
   client.setQueryData(lookupsQuery().queryKey, {
@@ -114,6 +113,7 @@ function setup(
         variant={variant}
         onOpen={onOpen}
         {...(upcoming ? { upcoming } : {})}
+        {...(overdraftLimitCents !== undefined ? { overdraftLimitCents } : {})}
       />
     </QueryClientProvider>,
   );
@@ -212,7 +212,7 @@ it('uses the supplied closing day balance, one phone metadata line, and a final 
     '02.10. · ohne Kategorie',
   );
   expect(container.querySelector('thead th:last-child')!.textContent).toBe('Status');
-  expect(container.querySelector('colgroup')!.children).toHaveLength(8);
+  expect(container.querySelector('colgroup')!.children).toHaveLength(7);
   expect(container.querySelector('[data-booking] td:last-child')!.className).toContain('kx-status');
 });
 
@@ -371,4 +371,24 @@ it('dismisses the compact register context with Escape or an outside press and r
   fireEvent.pointerDown(document.body);
   expect(menu.open).toBe(false);
   flags.REDESIGN_ENABLED = false;
+});
+
+it('shows the Dispo hint behind the balance only for a positive limit, and masks it', () => {
+  flags.REDESIGN_ENABLED = true;
+  const dispo = (limit: number | null) =>
+    setup([booking], 'account', undefined, limit).container.querySelector('.kdispo');
+  expect(dispo(150_000)?.textContent).toContain('1.500,00');
+  document.body.replaceChildren();
+  expect(dispo(null)).toBeNull();
+  document.body.replaceChildren();
+  expect(dispo(0)).toBeNull();
+  document.body.replaceChildren();
+  try {
+    act(() => setAmountsHidden(true));
+    const hidden = dispo(150_000);
+    expect(hidden?.textContent).not.toContain('1.500');
+    expect(hidden?.textContent).toContain('•••');
+  } finally {
+    act(() => setAmountsHidden(false));
+  }
 });

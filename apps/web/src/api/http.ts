@@ -18,14 +18,23 @@ export class ApiError extends Error {
   readonly detail: string | undefined;
   /** Booking ids named by the server (`reconciled_locked`). */
   readonly bookingIds: string[];
+  /** What keeps a contact from being archived (`contact_blocked`). */
+  readonly blockers: { kind: string; count: number }[];
 
-  constructor(status: number, code: string, detail?: string, bookingIds: string[] = []) {
+  constructor(
+    status: number,
+    code: string,
+    detail?: string,
+    bookingIds: string[] = [],
+    blockers: { kind: string; count: number }[] = [],
+  ) {
     super(`API ${status}: ${code}`);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
     this.detail = detail;
     this.bookingIds = bookingIds;
+    this.blockers = blockers;
   }
 }
 
@@ -158,6 +167,14 @@ export async function request<T>(
       'error' in fields ? String(fields['error']) : 'unknown',
       typeof fields['message'] === 'string' ? fields['message'] : undefined,
       ids,
+      Array.isArray(fields['blockers'])
+        ? (fields['blockers'] as unknown[]).flatMap((b) => {
+            const row = b as { kind?: unknown; count?: unknown };
+            return typeof row.kind === 'string' && typeof row.count === 'number'
+              ? [{ kind: row.kind, count: row.count }]
+              : [];
+          })
+        : [],
     );
   }
   // File delivery notifies only after a validated acknowledgement and epoch-checked device cleanup.

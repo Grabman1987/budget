@@ -12,6 +12,12 @@ export interface ArivaOptions extends HttpOptions {
   now?: () => Date;
   /** Politeness: minimum pause between two requests. Default 1 s, tests pass 0. */
   minIntervalMs?: number;
+  /**
+   * Securities whose requested exchange must be the one the page shows as selected. Ariva silently
+   * falls back to its own indication when the exchange is not offered; for these a mismatch is an
+   * error instead of a quietly different series.
+   */
+  verifyExchange?: (ref: SecurityRef) => boolean;
 }
 
 /** What is taken from a stored Ariva quote URL. */
@@ -88,9 +94,17 @@ export function parseArivaHtml(
   ref: Pick<SecurityRef, 'currency'>,
   from: string,
   to: string,
+  expectExchange?: string,
 ): DailyQuote[] {
-  const [header, ...rows] = tableWithHeader(html, ['Datum', 'Schluss']);
-  const close = (header as string[]).indexOf('Schluss');
+  if (expectExchange !== undefined) {
+    const shown = /<option[^>]*value="(\d+)"[^>]*selected/.exec(html)?.[1];
+    if (shown !== expectExchange) throw new MarketError('parse', 'exchange');
+  }
+  // Index pages head the close column "Schluss (Pkt)" (index points, no currency in the cells).
+  const points = html.includes('Schluss (Pkt)');
+  const closeHeader = points ? 'Schluss (Pkt)' : 'Schluss';
+  const [header, ...rows] = tableWithHeader(html, ['Datum', closeHeader]);
+  const close = (header as string[]).indexOf(closeHeader);
   const byDate = new Map<string, number>();
   for (const cells of rows) {
     const date = isoDay(cells[0] ?? '');
@@ -189,13 +203,16 @@ export function arivaSource(options: ArivaOptions): QuoteSource {
       const today = now().toISOString().slice(0, 10);
       const query = exchange === undefined ? {} : { boerse_id: exchange };
       const quotes: DailyQuote[] = [];
+      const expect = options.verifyExchange?.(ref) ? exchange : undefined;
+      if (options.verifyExchange?.(ref) && exchange === undefined)
+        throw new MarketError('not_configured', 'exchange');
       if (from >= addDays(today, -RECENT_DAYS)) {
-        quotes.push(...parseArivaHtml(await fetchPage(target.path, query), ref, from, to));
+        quotes.push(...parseArivaHtml(await fetchPage(target.path, query), ref, from, to, expect));
       } else {
         const floor = addDays(to, -MAX_MONTHS * 31);
         for (const month of monthsBetween(from < floor ? floor : from, to)) {
           const html = await fetchPage(target.path, { ...query, month: monthEnd(month) });
-          quotes.push(...parseArivaHtml(html, ref, from, to));
+          quotes.push(...parseArivaHtml(html, ref, from, to, expect));
         }
       }
       return [...new Map(quotes.map((q) => [q.date, q])).values()].sort((a, b) =>

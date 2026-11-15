@@ -1,0 +1,65 @@
+{
+  "note": "Literal response digests (bytes:sha256) captured from stock main 61b0c87 on the heute-956 synthetic fixture, before the #956 read changes.",
+  "responses": [
+    {
+      "path": "/heute?period=month",
+      "digest": "52563:8464dce95cd93e36c589d8acfa95d0ed2c1cce48730dd2d6222022dd55aba55e"
+    },
+    {
+      "path": "/heute?period=payday",
+      "digest": "55064:a68c5ccc8cfdb91fcdff883e4c6693ea9f640d69dfd306014c2aec3c98d365b2"
+    },
+    {
+      "path": "/heute?period=month&month=2026-08",
+      "digest": "49977:0176dbf59e8c9ea21b0f2c9b063c0124c35da22e204a19141d30ffe4ad3090e6"
+    },
+    {
+      "path": "/portfolio/positions",
+      "digest": "43030:e49741035483c2d3c755a848f1b62f890b4c957ce45965a75289f7e32510dc2d"
+    },
+    {
+      "path": "/portfolio/positions?asOf=2025-12-31",
+      "digest": "42928:27e857a3eb49b49a69dcb40d72f9cf89a125b7d3c2f826ebc59d18929099e367"
+    },
+    {
+      "path": "/portfolio?period=1J",
+      "digest": "38225:6a002039e7073af76b1e8a850e891bb5a1db61c08b847fac2ae255d9a228036e"
+    },
+    {
+      "path": "/portfolio/depots",
+      "digest": "13519:da5c6ede933271bc416966948994e5a38550eb87c1c2791fb12b9e9cf6be8380"
+    },
+    {
+      "path": "/portfolio/costs-taxes",
+      "digest": "9653:c3cc05aca3ee02e237fa9532002ada6458a9e3367dd11441d8cf2f3f0654cd08"
+    },
+    {
+      "path": "/overview/whole-picture?period=1J",
+      "digest": "4276:733a25e708a9e6dce72b93143a630133e1fd4c7b240f44e912b007b638f5e10d"
+    },
+    {
+      "path": "/overview/whole-picture?period=Alles",
+      "digest": "22044:c7ce86b6436507f223dc5e2f07075a88021b25be9d605e6e7528afcfe98d10cf"
+    },
+    {
+      "path": "/wealth/networth?period=Alles",
+      "digest": "843147:0c179e2a81b0b8271ba2da9c776b13ecc5bf1a72d2ca1466e98a079843484186"
+    },
+    {
+      "path": "/networth-history",
+      "digest": "18339:99c619752ce3c5f6489c849e222609e92c3e60c2a466263b7beb79d3b8290778"
+    },
+    {
+      "path": "/accounts/series?from=2026-08-18&to=2026-09-17&quality=1",
+      "digest": "253316:7277d897efdcdee6b0273ff361a4c01c3cc22ae4b814a9282d4493cf7bc746bc"
+    },
+    {
+      "path": "/accounts/reminders",
+      "digest": "2567:d21014e9dd9275ab1db61450394b1942fdcc1a66fd52ad5a615655055b35d7fa"
+    },
+    {
+      "path": "/inbox/count",
+      "digest": "33:e1aed645b0ab5c5cdd54f70d26c9590dae5648f5a1b8b2aefa44f85fd8b67f4a"
+    }
+  ]
+}

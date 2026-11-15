@@ -1,5 +1,4 @@
 import { captureCloseControl } from './ledger-helpers';
-import { captureFlagControl } from './ledger-helpers';
 import type { Locator } from '@playwright/test';
 import { sampleTest as test, expect } from './sample';
 
@@ -52,9 +51,8 @@ test.describe('UX-3b touch controls', () => {
       ).toBeGreaterThanOrEqual(compactDock ? 11 : 13);
     }
     await expectTouchTargets(page.locator('button.kstatus-btn').first());
-    await expectTouchTargets(page.locator('.kflagpick.in-list .kflagbtn').first());
     const selectableId = await page
-      .locator('tr[data-booking]:has(button.kflagbtn)')
+      .locator('tr[data-booking]:has(button.kstatus-btn)')
       .first()
       .getAttribute('data-booking');
     await page.getByRole('button', { name: 'Auswählen', exact: true }).click();
@@ -96,20 +94,8 @@ test.describe('UX-3b touch controls', () => {
         await segment.evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
       ).toBeGreaterThanOrEqual(13);
     }
-    const flag = await captureFlagControl(dialog, 'Markierung: keine');
-    if (await dialog.locator('.bkform-redesign').count()) {
-      await expect(flag).toHaveCount(0);
-      await expect(dialog.getByLabel('Markierung', { exact: true })).toHaveCount(0);
-    } else {
-      await expect(flag).toHaveAccessibleName('Markierung: keine');
-      expect(await flag.evaluate((el) => getComputedStyle(el, '::after').content)).toContain(
-        'Markierung',
-      );
-      await flag.tap();
-      await expectTouchTargets(dialog.getByRole('menuitemradio'));
-      await page.keyboard.press('Escape');
-      await expect(flag).toBeFocused();
-    }
+    await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
+    await expect(dialog.getByLabel('Markierung', { exact: true })).toHaveCount(0);
     const close = captureCloseControl(dialog);
     if (await dialog.locator('.bkform-redesign').count())
       await expect(close).toHaveAccessibleName('Schließen');

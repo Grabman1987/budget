@@ -145,7 +145,8 @@ for (const [rhythm, date] of [
     await panel.getByLabel('Datum', { exact: true }).fill(date.split('-').reverse().join('.'));
     await panel.getByLabel('Empfänger', { exact: true }).fill('Kleine Kartenzahlung Muster');
     await pickCategory(panel, category.name);
-    await panel.locator('.kmore > summary').click();
+    if ((await panel.locator('.kmore > summary').count()) > 0)
+      await panel.locator('.kmore > summary').click();
     await panel.getByLabel('Wiederholen').selectOption(rhythm);
     const gets: string[] = [];
     page.on('request', (r) => {

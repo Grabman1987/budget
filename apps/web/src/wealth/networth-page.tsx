@@ -46,7 +46,8 @@ function NetWorthAnalysis() {
 export function NetWorthContent({
   fallbackPeriod = 'YTD',
   inReport = false,
-}: { fallbackPeriod?: Period; inReport?: boolean } = {}) {
+  dedupe = false,
+}: { fallbackPeriod?: Period; inReport?: boolean; dedupe?: boolean } = {}) {
   useAmountPrivacy();
   const [zeitraum] = useZeitraum(fallbackPeriod);
   const query = useQuery(netWorthQuery(zeitraum));
@@ -69,7 +70,7 @@ export function NetWorthContent({
       {view && !empty && (
         <>
           <ValuationHint incomplete={view.incomplete} />
-          <Course view={view} showPeriod={!inReport} />
+          <Course view={view} showPeriod={!inReport} dedupe={dedupe} />
           {view.assetComposition ? (
             <AssetComposition point={view.assetComposition} />
           ) : (
@@ -81,7 +82,19 @@ export function NetWorthContent({
   );
 }
 
-function Course({ view, showPeriod = true }: { view: NetWorthView; showPeriod?: boolean }) {
+/**
+ * `dedupe`: the report already shows the net worth figure, delta and Maßkette above, so this
+ * detail block keeps only what exists nowhere else (composition history, legend, notes).
+ */
+function Course({
+  view,
+  showPeriod = true,
+  dedupe = false,
+}: {
+  view: NetWorthView;
+  showPeriod?: boolean;
+  dedupe?: boolean;
+}) {
   useAmountPrivacy();
   const { chain } = view;
   const [historyMode, setHistoryMode] = useState<'total' | 'composition'>('total');
@@ -92,19 +105,27 @@ function Course({ view, showPeriod = true }: { view: NetWorthView; showPeriod?: 
 
   return (
     <section className="vnw vnw-wide" aria-labelledby="nw-title">
-      <div className="tbd-head">
-        <h2 id="nw-title">Nettovermögen</h2>
-        <span className="tbd-state">
-          <span className={up ? 'ok' : 'ink'} data-testid="nw-state">
-            <Arrow className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
-            {eurWhole(chain.deltaCents, true)} · {text}
-          </span>
-        </span>
-      </div>
-      <div className="tbd-fig" data-testid="nw-figure">
-        {whole}
-        <span className="cents">,{fraction} €</span>
-      </div>
+      {dedupe ? (
+        <div className="tbd-head">
+          <h2 id="nw-title">Verlauf und Zusammensetzung</h2>
+        </div>
+      ) : (
+        <>
+          <div className="tbd-head">
+            <h2 id="nw-title">Nettovermögen</h2>
+            <span className="tbd-state">
+              <span className={up ? 'ok' : 'ink'} data-testid="nw-state">
+                <Arrow className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
+                {eurWhole(chain.deltaCents, true)} · {text}
+              </span>
+            </span>
+          </div>
+          <div className="tbd-fig" data-testid="nw-figure">
+            {whole}
+            <span className="cents">,{fraction} €</span>
+          </div>
+        </>
+      )}
       {showPeriod && <ZeitraumSwitch />}
       {view.assetCompositionHistory && (
         <div className="composition-switch" role="group" aria-label="Verlauf anzeigen">
@@ -153,10 +174,12 @@ function Course({ view, showPeriod = true }: { view: NetWorthView; showPeriod?: 
           aktuelle Einzelwerte sind in der Zusammensetzung gekennzeichnet.
         </p>
       )}
-      <DimensionChain
-        terms={chainTerms(chain, view.from)}
-        label="Maßkette Nettovermögen im Zeitraum"
-      />
+      {!dedupe && (
+        <DimensionChain
+          terms={chainTerms(chain, view.from)}
+          label="Maßkette Nettovermögen im Zeitraum"
+        />
+      )}
       <p className="vnote">
         Gespart = was du eingezahlt hast (Einnahmen minus Ausgaben). Markt = alles andere: Kurse,
         Zinsen, Bewertungen.

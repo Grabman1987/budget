@@ -38,7 +38,7 @@ import {
 } from './bookings-search';
 import { pickableCategories } from './capture-model';
 import { eur, longDay, nativeCurrency, pluralBookings } from './format';
-import { FLAG_LABEL, STATUS_LABEL } from './labels';
+import { STATUS_LABEL } from './labels';
 import { useLedgerWrites } from './mutations';
 import { AccountOptions } from './account-options';
 import { accountsQuery, bookingsInfiniteQuery, lookupsQuery } from './queries';
@@ -48,14 +48,7 @@ import { BookingViews } from './booking-views';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './bookings-redesign.css';
 import { RegisterSummary, categoryNetLabel } from './register-summary';
-import {
-  BOOKING_FLAGS,
-  BOOKING_STATUSES,
-  type BookingFlag,
-  type BookingSort,
-  type AccountRow,
-  type Lookups,
-} from './types';
+import { BOOKING_STATUSES, type BookingSort, type AccountRow, type Lookups } from './types';
 
 /** Alle Buchungen: filters in the URL, search, day groups, multi-select with bulk edit and undo. */
 /** EUR sum of a non-EUR account for the summary line; amounts honour the privacy mask. */
@@ -346,7 +339,6 @@ export function BookingsPage() {
                       kategoriegruppe: undefined,
                       empfaenger: undefined,
                       status: undefined,
-                      markierung: undefined,
                       von: undefined,
                       bis: undefined,
                       q: undefined,
@@ -608,8 +600,6 @@ function filterChipLabel(
       return 'Ausgewählter Empfänger';
     case 'status':
       return `Status: ${STATUS_LABEL[value as keyof typeof STATUS_LABEL]}`;
-    case 'markierung':
-      return `Markierung: ${value === 'none' ? 'keine' : FLAG_LABEL[value as BookingFlag]}`;
     case 'von':
       return `Von: ${value.split('-').reverse().join('.')}`;
     case 'bis':
@@ -703,26 +693,6 @@ function FilterControls({
               {BOOKING_STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {STATUS_LABEL[s]}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
-      </div>
-      <div className="kf">
-        <Field label="Markierung">
-          {({ id }) => (
-            <Select
-              id={id}
-              className="select-sm"
-              value={search.markierung ?? ''}
-              onChange={(e) => setSearch({ markierung: e.target.value })}
-            >
-              <option value="">Alle</option>
-              <option value="none">keine</option>
-              {BOOKING_FLAGS.map((f) => (
-                <option key={f} value={f}>
-                  {FLAG_LABEL[f]}
                 </option>
               ))}
             </Select>

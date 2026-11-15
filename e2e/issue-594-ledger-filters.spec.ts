@@ -84,8 +84,8 @@ test('594 immediate URL filters, exact native sums, CSV and single-account Saldo
   await dialog.getByLabel('Von', { exact: true }).fill('2026-10-02');
   await dialog.getByLabel('Bis', { exact: true }).fill('2026-10-02');
   await dialog.getByLabel('Status', { exact: true }).selectOption('pending');
-  await dialog.getByLabel('Markierung', { exact: true }).selectOption('blue');
-  await expect(page).toHaveURL(/markierung=blue/);
+  // The flag filter is retired (#1040); bookings keep their stored flag.
+  await expect(dialog.getByLabel('Markierung', { exact: true })).toHaveCount(0);
   for (const theme of ['light', 'dark'] as const) {
     await dialog.evaluate(async (element: HTMLElement, value) => {
       document.documentElement.dataset['theme'] = value;

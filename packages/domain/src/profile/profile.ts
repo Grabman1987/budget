@@ -1,3 +1,6 @@
+import { EMPTY_FAMILY, type FamilySituation } from './family';
+import { EMPTY_RISK_ANSWERS, type RiskAnswers } from './risk';
+
 /**
  * Owner profile (Einstellungen › Profil). Purpose: later comparison of income and wealth with
  * Statistik Austria (age, household size, region). All values are optional; the public default is
@@ -31,6 +34,10 @@ export interface Profile {
   /** Number of persons in the household (including the owner), or `null`. */
   household: number | null;
   region: RegionCode | null;
+  /** Voluntary risk questionnaire answers (see `risk.ts`); `null` = no answer. */
+  risk: RiskAnswers;
+  /** Voluntary family situation (see `family.ts`); `null` = not given. */
+  family: FamilySituation;
 }
 
 export const EMPTY_PROFILE: Profile = {
@@ -39,6 +46,8 @@ export const EMPTY_PROFILE: Profile = {
   birthDate: '',
   household: null,
   region: null,
+  risk: EMPTY_RISK_ANSWERS,
+  family: EMPTY_FAMILY,
 };
 
 /** Fallbacks shown in the shell while no profile is filled in. */

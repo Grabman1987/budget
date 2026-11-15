@@ -162,7 +162,8 @@ describe('command palette', () => {
     expect(dialog.textContent).toContain(
       'Enter speichert gültige Eingaben · Strg Enter speichert · Strg Umschalt Enter speichert und beginnt neu · Esc schließt',
     );
-    expect(dialog.textContent).toContain('Violett');
+    // The flag shortcuts (1-6, 0) are retired with the flag UI (#1040).
+    expect(dialog.textContent).not.toContain('Violett');
     expect(dialog.querySelector<HTMLElement>('.panel-body')?.tabIndex).toBe(0);
     fireEvent.keyDown(dialog, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Tastenkürzel' })).toBeNull());

@@ -1,7 +1,5 @@
 import { StatusCell } from './booking-cells';
-import { FLAG_SHAPES, FlagGlyph } from './flag-picker';
-import { FLAG_LABEL } from './labels';
-import { BOOKING_FLAGS, BOOKING_STATUSES } from './types';
+import { BOOKING_STATUSES } from './types';
 import { Info } from 'lucide-react';
 import { KontenMenu } from './konten-menu';
 import type { ReactNode } from 'react';
@@ -24,27 +22,13 @@ export function BookingLegend({
           </li>
         ))}
       </ul>
-      <ul aria-label="Markierungen">
-        {BOOKING_FLAGS.map((flag) => (
-          <li key={flag}>
-            <FlagGlyph flag={flag} named={false} />
-            <span>
-              {FLAG_LABEL[flag]} · {FLAG_SHAPES[flag].label}
-            </span>
-          </li>
-        ))}
-        <li>
-          <FlagGlyph flag="" named={false} />
-          <span>keine Markierung</span>
-        </li>
-      </ul>
     </div>
   );
   if (compact)
     return (
       <KontenMenu
         className="kbooking-legend"
-        label="Status und Markierungen"
+        label="Status"
         icon={<Info size={16} strokeWidth={1.75} aria-hidden="true" />}
         iconOnly
       >
@@ -53,10 +37,7 @@ export function BookingLegend({
     );
   return (
     <details className="kbooking-legend">
-      <summary aria-label="Status und Markierungen">
-        <span className="klegend-full">Status und Markierungen</span>
-        <span className="klegend-short">Markierungen</span>
-      </summary>
+      <summary aria-label="Status">Status</summary>
       {body}
     </details>
   );

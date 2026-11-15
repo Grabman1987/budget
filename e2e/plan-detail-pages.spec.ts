@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
+import { openDetailsFromPhoneSheet } from './plan-phone-sheet';
 
 test('envelope details have a URL; browser back restores the scrolled list', async ({
   page,
@@ -17,6 +18,7 @@ test('envelope details have a URL; browser back restores the scrolled list', asy
   await page.evaluate(() => document.fonts.ready);
   await trigger.scrollIntoViewIfNeeded();
   await trigger.click();
+  await openDetailsFromPhoneSheet(page);
   const history = page.getByRole('link', { name: 'Verlauf und Buchungen' });
   await history.scrollIntoViewIfNeeded();
   const scroll = await page.evaluate(() => window.scrollY);

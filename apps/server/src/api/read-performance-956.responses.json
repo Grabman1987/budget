@@ -45,8 +45,8 @@
     },
     {
       "path": "/profile",
-      "bytes": 71,
-      "sha256": "3e47a13f9f66c54e9e6b7cf257098c2f7dcb930dbd7697961910b34972ec4c20"
+      "bytes": 283,
+      "sha256": "6904c7434812054d87a420f9f019e35a78fd0b531c4b272d77554eb2761f67c6"
     }
   ],
   "referenceBody": "{\"reference\":{\"series\":\"fixture\",\"source\":\"fixture\",\"fetchedAt\":\"2026-09-01T00:00:00.000Z\",\"lastMonth\":\"2026-08\"}}"

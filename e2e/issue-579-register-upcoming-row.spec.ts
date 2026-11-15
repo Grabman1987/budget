@@ -101,6 +101,8 @@ test('collapses "Kommend" to one row with hover-only actions and a full, keyboar
   const skip = scheduled.getByRole('button', { name: 'Überspringen' });
   const actions = scheduled.locator('.kschedule-actions');
   if (!touch) {
+    // The earlier toggle click can leave the pointer over the shorter (38px) rows.
+    await page.mouse.move(0, 0);
     // Neither visible nor clickable until the row is hovered or holds focus.
     await expect(actions).toHaveCSS('opacity', '0');
     await expect(actions).toHaveCSS('pointer-events', 'none');

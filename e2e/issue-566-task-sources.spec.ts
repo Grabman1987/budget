@@ -239,8 +239,7 @@ for (const [profile, desired, viewport] of [
       expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
       // Use an ordinary non-action heading click to clear focused skip-link UI, then capture
       // from the document top so fixed navigation is represented in its normal position.
-      if (await redesignLoaded(page))
-        await page.getByRole('heading', { name: 'Konten', exact: true }).click();
+      if (await redesignLoaded(page)) await page.locator('.page-header-title').click();
       else await page.getByRole('heading', { name: 'Offene Aufgaben · 5', exact: true }).click();
       await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
       await page.screenshot({

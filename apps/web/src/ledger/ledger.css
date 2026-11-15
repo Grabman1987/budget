@@ -35,12 +35,12 @@
     max-width: 100%;
   }
   .ktx:has(.kfx-money) tr:has(.kfx-money:not(:empty)) {
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas: 'flag payee' '. cat' '. amount' '. run' '. date' '. status';
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'payee' 'cat' 'amount' 'run' 'date' 'status';
   }
   .ktx-all:has(.kfx-money) tr:has(.kfx-money:not(:empty)) {
-    grid-template-columns: 28px auto minmax(0, 1fr);
-    grid-template-areas: 'check flag payee' '. . cat' '. . amount' '. . acct' '. . date' '. . status';
+    grid-template-columns: 28px minmax(0, 1fr);
+    grid-template-areas: 'check payee' '. cat' '. amount' '. acct' '. date' '. status';
   }
 }
 
@@ -538,11 +538,6 @@
   color: var(--ink);
   font-weight: 600;
 }
-.kflag {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-}
 .kc-run {
   color: var(--ink-2);
   font-weight: 500;
@@ -706,13 +701,9 @@
   .ktx tr.is-upcoming .kx-check {
     display: none;
   }
-  /* Scheduled rows have no flag button: keep the column as wide as the flag buttons above. */
-  .ktx tr.is-upcoming .kx-flag:empty {
-    min-width: var(--touch);
-  }
   .ktx-all tr.is-upcoming {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas: 'flag payee amount' '. cat acct' '. date run' '. . status';
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'payee amount' 'cat acct' 'date run' '. status';
   }
   .ktx-all .kx-run:empty {
     display: none;
@@ -1391,135 +1382,6 @@
   opacity: 0.7;
 }
 
-/* ---------- Flags (Markierung): six named colours, always with glyph and name ---------- */
-:root {
-  --flag-red: #d4352a;
-  --flag-orange: #c4630a;
-  --flag-yellow: #9c7300;
-  --flag-green: #2a8a4a;
-  --flag-blue: #2f6fd6;
-  --flag-purple: #7e4fc4;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --flag-red: #ff7b6e;
-    --flag-orange: #ffa04d;
-    --flag-yellow: #f2cc3b;
-    --flag-green: #58c47a;
-    --flag-blue: #6aa6ff;
-    --flag-purple: #b995f5;
-  }
-}
-:root[data-theme='dark'] {
-  --flag-red: #ff7b6e;
-  --flag-orange: #ffa04d;
-  --flag-yellow: #f2cc3b;
-  --flag-green: #58c47a;
-  --flag-blue: #6aa6ff;
-  --flag-purple: #b995f5;
-}
-.kflag-glyph {
-  fill: none;
-  color: var(--ink-3);
-}
-.kflag-glyph.is-red {
-  color: var(--flag-red);
-}
-.kflag-glyph.is-orange {
-  color: var(--flag-orange);
-}
-.kflag-glyph.is-yellow {
-  color: var(--flag-yellow);
-}
-.kflag-glyph.is-green {
-  color: var(--flag-green);
-}
-.kflag-glyph.is-blue {
-  color: var(--flag-blue);
-}
-.kflag-glyph.is-purple {
-  color: var(--flag-purple);
-}
-.kflag-glyph:not(.is-none) {
-  fill: currentColor;
-}
-.kc-flag {
-  width: 32px;
-  padding-right: 0 !important;
-}
-.kflag {
-  display: inline-grid;
-  place-items: center;
-}
-
-/* Flag button and its popover (booking dialog head) */
-.kflagpick {
-  position: relative;
-  flex: none;
-}
-.kflagbtn,
-.kcleared {
-  width: var(--touch);
-  height: var(--touch);
-  display: grid;
-  place-items: center;
-  flex: none;
-  border-radius: var(--radius-md);
-  color: var(--ink-2);
-}
-.kflagbtn:hover,
-.kcleared:hover {
-  background: var(--tint);
-  color: var(--ink);
-}
-.kflagbtn[aria-expanded='true'] {
-  background: var(--tint-2);
-}
-.kflagmenu {
-  position: absolute;
-  z-index: 8;
-  top: calc(100% + 4px);
-  left: 0;
-  min-width: 190px;
-  display: grid;
-  padding: 4px;
-  background: var(--raised);
-  border: 1px solid var(--rule-strong);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
-}
-.kflagitem {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 40px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  text-align: left;
-  font-size: var(--fs-table);
-}
-.kflagitem:hover,
-.kflagitem:focus-visible {
-  background: var(--tint-2);
-}
-.kflagitem[aria-checked='true'] {
-  font-weight: 620;
-  box-shadow: inset 0 0 0 1px var(--line);
-}
-.kflagitem-name {
-  flex: 1;
-}
-.kflagitem kbd {
-  min-width: 20px;
-  padding: 1px 5px;
-  border: 1px solid var(--rule-strong);
-  border-radius: 4px;
-  font-family: var(--font-tech);
-  font-size: var(--fs-label);
-  text-align: center;
-  color: var(--ink-2);
-}
-
 /* Cleared toggle (YNAB "C"): same size and weight as the close button. Neutral until pressed,
    then green (bestätigt); the lock marks a geprüft booking. */
 .kcleared {
@@ -1672,7 +1534,6 @@
   .bk-head .seg button {
     min-height: var(--touch);
   }
-  .kflagbtn,
   .kcleared {
     width: var(--touch);
     height: var(--touch);
@@ -1700,58 +1561,19 @@
     margin-right: 0;
   }
   .ktx tr {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas: 'flag payee amount' '. cat run' '. date status';
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'payee amount' 'cat run' 'date status';
   }
   .ktx-all tr {
-    grid-template-columns: 28px auto minmax(0, 1fr) auto;
-    grid-template-areas: 'check flag payee amount' '. . cat acct' '. . date status';
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-areas: 'check payee amount' '. cat acct' '. date status';
   }
   .ktx-all.has-running-balance tr[data-booking],
   .ktx-all.has-running-balance tr[data-occurrence] {
-    grid-template-areas: 'check flag payee amount' '. . cat acct' '. . date status' '. . . run';
-  }
-  .kx-flag {
-    grid-area: flag;
-  }
-  .kc-flag {
-    width: auto;
+    grid-template-areas: 'check payee amount' '. cat acct' '. date status' '. . run';
   }
   .kf-cat .combo-list {
     min-width: 0;
-  }
-}
-
-/* Flag button in booking tables: keep the empty outline visible, stronger on hover or focus. */
-.kflagpick.in-list .kflagbtn {
-  width: 32px;
-  height: 32px;
-  margin: -6px -4px;
-}
-.kflagpick.in-list .kflagbtn:not(.has-flag) {
-  opacity: 0.4;
-}
-.ktable tr:hover .kflagbtn,
-.kflagpick.in-list .kflagbtn:focus-visible,
-.kflagpick.in-list .kflagbtn[aria-expanded='true'] {
-  opacity: 1;
-}
-.kflagpick.in-list .kflagmenu {
-  z-index: 9;
-}
-@media (max-width: 767px) {
-  .kflagpick.in-list .kflagbtn {
-    width: var(--touch);
-    height: var(--touch);
-    margin: -10px;
-  }
-  .kflagpick.in-list .kflagbtn:not(.has-flag) {
-    opacity: 0.4;
-  }
-}
-@media (hover: none) {
-  .kflagpick.in-list .kflagbtn:not(.has-flag) {
-    opacity: 0.4;
   }
 }
 
@@ -1794,7 +1616,6 @@ button.kstatus-btn:focus-visible {
 .kstatus-chips .status {
   margin: 0;
 }
-.klegend-short,
 .kstatus-all-short {
   display: none;
 }
@@ -1856,11 +1677,9 @@ button.kstatus-btn:focus-visible {
     flex-shrink: 0;
     padding-inline: var(--space-sm);
   }
-  .klegend-full,
   .kstatus-all-full {
     display: none;
   }
-  .klegend-short,
   .kstatus-all-short {
     display: inline;
   }
@@ -2066,12 +1885,8 @@ button.kstatus-btn:focus-visible {
 .bkform .btn,
 .bkform .seg button,
 .bkform .chip,
-.bkform .combo-option,
-.bkform .kflagbtn {
+.bkform .combo-option {
   min-height: 44px;
-  min-width: 44px;
-}
-.bkform .kflagbtn {
   min-width: 44px;
 }
 @media (max-width: 767px) {

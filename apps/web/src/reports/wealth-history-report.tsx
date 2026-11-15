@@ -109,7 +109,7 @@ export function WealthHistoryReport({
           <EmptyNote>Noch keine Konten. Lege unter Konten ein Konto an.</EmptyNote>
         )}
         {history && history.rows.length > 0 && <Body history={history} />}
-        {REDESIGN_ENABLED && <WealthSourceAnalysis />}
+        {REDESIGN_ENABLED && <WealthSourceAnalysis dedupe />}
       </div>
     </PageFrame>
   );

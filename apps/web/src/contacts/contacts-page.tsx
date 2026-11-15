@@ -77,7 +77,7 @@ const META = PAGES.find((p) => p.path === '/konten/kontakte')!;
 const contactUrl = (id: string) => `/api/contacts/${encodeURIComponent(id)}`;
 const decimal = (value: number) => formatDecimal(cents(value));
 
-function useContactWrite() {
+export function useContactWrite() {
   const qc = useQueryClient();
   const toast = useToast();
   const refresh = () => qc.invalidateQueries();
@@ -92,6 +92,8 @@ function useContactWrite() {
       });
     }, failed);
   return async (run: () => Promise<{ groupId: string }>, message: string) => {
+    // A previous Undo must not remain actionable while a newer write or its reads are pending.
+    toast.dismiss();
     try {
       const result = await run();
       await refresh();

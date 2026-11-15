@@ -150,7 +150,15 @@ async function scene(
   }, theme);
   const filterMenu = page.locator('.plan-menu-optionen');
   const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  // #1007: on the phone the chip row is gone; the "Ansicht" menu holds the filters.
+  const phoneMenu = on && (page.viewportSize()?.width ?? 1440) < 768;
   const openFilters = async () => {
+    if (phoneMenu) {
+      if (!(await filterMenu.evaluate((el) => (el as HTMLDetailsElement).open)))
+        await filterMenu.locator('summary').click();
+      await expect(page.getByRole('group', { name: 'Weitere Filter', exact: true })).toBeVisible();
+      return;
+    }
     await expect(page.getByRole('group', { name: 'Kategoriefilter', exact: true })).toBeVisible();
   };
   const closeFilters = async () => {
@@ -175,7 +183,7 @@ async function scene(
     ).toBeVisible();
     await expect(filters.getByRole('button', { name: 'Überzogen (1)', exact: true })).toBeVisible();
     await expect(filters.getByRole('button', { name: 'Verfügbar (1)', exact: true })).toBeVisible();
-    if (on) await filterMenu.locator('summary').click();
+    if (on && !phoneMenu) await filterMenu.locator('summary').click();
     await expect(
       filters.getByRole('button', { name: 'Ohne Kategorie (1)', exact: true }),
     ).toBeVisible();
@@ -196,6 +204,15 @@ async function scene(
     );
     if (phoneReadUtilities) await clickPlanControl(readOptions);
     await clickPlanControl(page.locator(`.pname[data-category-id="${ids.recipientId}"]`));
+    // #1007: on a phone the category opens "Zuweisen"; its Details button opens the inspector.
+    if (
+      page.viewportSize()!.width < 768 &&
+      (await page.locator('.app').getAttribute('data-budget-redesign')) === '1'
+    )
+      await page
+        .getByRole('dialog', { name: /^Zuweisen für / })
+        .getByRole('button', { name: 'Details', exact: true })
+        .click();
     await expect(
       page.getByRole('heading', { name: 'Synthetic Recipient', exact: true }),
     ).toBeVisible();
@@ -225,7 +242,7 @@ async function scene(
           return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right };
         }),
     }));
-    expect(initial.controls).toHaveLength(on ? 8 : 7);
+    expect(initial.controls).toHaveLength(phoneMenu ? 2 : on ? 8 : 7);
     expect(initial.scrollWidth).toBeLessThanOrEqual(initial.viewport.width);
     if (profile === 'desktop') {
       expect(initial.viewport).toEqual({ width: 1440, height: 900 });
@@ -334,7 +351,7 @@ async function scene(
     'aria-pressed',
     'true',
   );
-  if (on) await filterMenu.locator('summary').click();
+  if (on && !phoneMenu) await filterMenu.locator('summary').click();
   await filters.getByRole('button', { name: 'Ohne Kategorie (1)', exact: true }).click();
   await closeFilters();
   const missing = page.getByRole('region', { name: 'Buchungen ohne Kategorie' });

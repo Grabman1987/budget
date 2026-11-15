@@ -617,7 +617,7 @@ test.describe('phone shell', () => {
     const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     await (
       redesign
-        ? page.locator('.konten-review-count')
+        ? page.locator('.page-header .review-pill')
         : page.locator('.m-status').getByRole('link', { name: '4 zu prüfen' })
     ).click();
     await expect(page).toHaveURL(/\/konten\/pruefen/);

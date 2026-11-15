@@ -3,6 +3,7 @@ import { and, asc, inArray, isNull } from 'drizzle-orm';
 import { account, category, contact, payee } from '../schema';
 import type { Executor } from './types';
 import { queryBookings } from './ledger-queries';
+import { listContactAliases } from './contact-label';
 
 export type SearchKind = 'account' | 'category' | 'payee' | 'contact' | 'booking';
 export interface GlobalSearchResult {
@@ -34,6 +35,11 @@ export function globalSearch(
   ] as const) {
     const ids = history.filter((r) => r.kind === kind).map((r) => r.id);
     if (!text && !ids.length) continue;
+    // Aliases of a contact are searchable names of the same contact (#870).
+    const aliasesOf = new Map<string, string[]>();
+    if (kind === 'contact')
+      for (const a of listContactAliases(db))
+        aliasesOf.set(a.contactId, [...(aliasesOf.get(a.contactId) ?? []), a.alias]);
     const rows = db
       .select({ id: table.id, name: table.name })
       .from(table)
@@ -47,7 +53,12 @@ export function globalSearch(
       .orderBy(asc(table.name), asc(table.id))
       .all()
       // ponytail: scan lookup names in memory; add an index if the owner's catalog outgrows this.
-      .filter((row) => !text || matchesSearch(row.name, text))
+      .filter(
+        (row) =>
+          !text ||
+          matchesSearch(row.name, text) ||
+          (aliasesOf.get(row.id) ?? []).some((alias) => matchesSearch(alias, text)),
+      )
       .sort((a, b) => rank(ids, a.id) - rank(ids, b.id))
       .slice(0, text ? GLOBAL_SEARCH_LIMIT : 8);
     results.push(...rows.map((row) => ({ kind, id: row.id, label: row.name, detail: null })));

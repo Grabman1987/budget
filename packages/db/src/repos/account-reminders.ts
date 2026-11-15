@@ -13,6 +13,7 @@ import { accountReconciliation, appSetting, auditLog, valuation } from '../schem
 import { getEntity } from './entities';
 import { accountSummaries, type AccountSummary } from './ledger-queries';
 import type { Executor } from './types';
+import { memoized } from './request-memo';
 import { accountReviewChronology, type ReviewCheckpoint } from './account-review-chronology';
 
 export function accountReminderDays(db: Executor): number {
@@ -112,8 +113,15 @@ export function accountReviewSummaries(
   return { accounts: summaries, reviews, latestValuations };
 }
 
-/** Derived hints: checking/value updates remove them without persisted inbox warnings. */
+/**
+ * Derived hints: checking/value updates remove them without persisted inbox warnings. Heute asks
+ * for them directly and again through the inbox count, so one request replays the audit log once.
+ */
 export function accountReminders(db: Executor, today: string) {
+  return memoized(db, `accountReminders|${today}`, () => readAccountReminders(db, today));
+}
+
+function readAccountReminders(db: Executor, today: string) {
   const model = accountReviewSummaries(db, today);
   return model.accounts.flatMap((row) => {
     const review = model.reviews.get(row.id)!;

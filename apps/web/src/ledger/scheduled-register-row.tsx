@@ -52,7 +52,6 @@ export function ScheduledRegisterRow({
       }}
     >
       {blankCheck && <td className="kc-check kx-check" />}
-      <td className="kc-flag kx-flag" />
       <td className="kc-date kx-date">{upcomingDate(s.dueDate, today)}</td>
       <td className="kx-payee">
         <div className={cx('kschedule-line', actionsOpen && 'is-open')}>

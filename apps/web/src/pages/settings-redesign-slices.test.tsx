@@ -180,6 +180,9 @@ it('shows loading source dates and reads only VPI reference metadata on settings
   expect(payslip.queryByText(/Letzter Erfolg:/)).toBeNull();
   expect(screen.queryByText(/Letzter Erfolg: Nicht verfügbar/)).toBeNull();
   expect(payslip.queryByText(/Letzter Scanversuch: Nicht verfügbar/)).toBeNull();
+  // The collapsed Kurse body must not report an unavailable run or "no run yet" while pending.
+  expect(screen.getByText(/Letzter Lauf: Wird geladen … · Status: Wird geladen …/)).toBeTruthy();
+  expect(screen.queryByText(/Letzter Lauf: Nicht verfügbar/)).toBeNull();
   await act(async () => release());
   await waitFor(() => expect(view.client.isFetching()).toBe(0));
   expect(paths).toContain('/api/inflation-basket/reference');
@@ -435,5 +438,22 @@ it('E3 ON captures the actual report entry and returns to its full selection wit
   await userEvent.click(back);
   await screen.findByRole('link', { name: 'Warenkorb bearbeiten' });
   expect(router.state.location.href).toBe(source);
+  expect(writes).toEqual([]);
+});
+it('E4 ON keeps the bank, crypto and payslip source forms inside their card detail groups', async () => {
+  const { writes } = mount(<DataSourcesPage />, '/einstellungen/datenquellen');
+  await screen.findByRole('heading', { name: 'Verbindungen' });
+  for (const [name, form] of [
+    ['Bank', '#bank-source-title'],
+    ['Krypto', '#crypto-source-title'],
+    ['Gehaltszettel', '#payslip-source-title'],
+  ] as const) {
+    const card = screen.getByRole('region', { name });
+    await userEvent.click(within(card).getByRole('button', { name: /Prüfen|Verwalten/ }));
+    const details = card.querySelector('.settings-source-details');
+    expect(details, name).not.toBeNull();
+    await waitFor(() => expect(details!.querySelector(form), name).not.toBeNull());
+  }
+  expect(document.querySelector('.data-sources > .data-source-section')).toBeNull();
   expect(writes).toEqual([]);
 });

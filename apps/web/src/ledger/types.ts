@@ -200,6 +200,8 @@ export interface BookingFilter {
 
 export interface Category {
   hiddenAt?: string | null;
+  /** Stored emoji; null falls back to the name-derived display emoji. */
+  icon?: string | null;
   id: string;
   name: string;
   groupId: string | null;
@@ -213,7 +215,14 @@ export interface Lookups {
   categories: Category[];
   projects: { id: string; name: string; archivedAt?: string | null }[];
   incomeTypes: { id: string; name: string }[];
-  contacts: { id: string; name: string }[];
+  contacts: {
+    id: string;
+    name: string;
+    archived?: boolean;
+    mergedIntoId?: string | null;
+    updatedAt?: string;
+    aliases?: { id: string; alias: string; updatedAt: string }[];
+  }[];
   institutions: { id: string; name: string; kind: string }[];
 }
 

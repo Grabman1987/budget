@@ -63,11 +63,36 @@ const fromView = (view: StatementIntakeView): Draft => {
 };
 
 /** The keyed boundary prevents a previous account's dialog/draft from migrating to another account. */
-export function AccountStatementIntake({ accountId }: { accountId: string }) {
-  return <AccountStatements key={accountId} accountId={accountId} />;
+export type StatementHandoff = { file: File; password?: string | undefined };
+export function AccountStatementIntake({
+  accountId,
+  handoff,
+  onHandoffClose,
+}: {
+  accountId: string;
+  /** Central document upload: the same File goes through this normal upload and review. */
+  handoff?: StatementHandoff | undefined;
+  onHandoffClose?: (() => void) | undefined;
+}) {
+  return (
+    <AccountStatements
+      key={accountId}
+      accountId={accountId}
+      handoff={handoff}
+      onHandoffClose={onHandoffClose}
+    />
+  );
 }
 
-function AccountStatements({ accountId }: { accountId: string }) {
+function AccountStatements({
+  accountId,
+  handoff,
+  onHandoffClose,
+}: {
+  accountId: string;
+  handoff?: StatementHandoff | undefined;
+  onHandoffClose?: (() => void) | undefined;
+}) {
   useAmountPrivacy();
   const qc = useQueryClient();
   const accounts = useQuery(accountsQuery());
@@ -81,7 +106,7 @@ function AccountStatements({ accountId }: { accountId: string }) {
       ),
   });
   const picker = useRef<HTMLInputElement>(null);
-  const [open, setOpen] = useState(false),
+  const [open, setOpen] = useState(Boolean(handoff)),
     [documentBusy, setBusy] = useState(false);
   const [settlementOpen, setSettlementOpen] = useState(false);
   const [settlementDirty, setSettlementDirty] = useState(false);
@@ -97,7 +122,7 @@ function AccountStatements({ accountId }: { accountId: string }) {
   const [current, setCurrent] = useState<StatementIntakeView | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null),
     [saved, setSaved] = useState<Draft | null>(null);
-  const [password, setPassword] = useState(''),
+  const [password, setPassword] = useState(handoff?.password ?? ''),
     [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState(''),
     [conflict, setConflict] = useState(false),
@@ -175,7 +200,7 @@ function AccountStatements({ accountId }: { accountId: string }) {
       setPassword('');
     }
   }
-  async function upload(next: File) {
+  async function upload(next: File, typedPassword = password) {
     if (busy || !readyAccount) return;
     if (automationDirty || linksDirty) {
       setError('Bitte Einrichtung oder Verknüpfungsauswahl zuerst speichern oder verwerfen.');
@@ -199,7 +224,7 @@ function AccountStatements({ accountId }: { accountId: string }) {
       body.set('file', next);
       body.set('accountId', accountId);
       body.set('automation', 'eligible');
-      if (password) body.set('password', password);
+      if (typedPassword) body.set('password', typedPassword);
       const response = await fetch(`${PATH}/upload`, {
         method: 'POST',
         body,
@@ -395,27 +420,45 @@ function AccountStatements({ accountId }: { accountId: string }) {
   const currencyConflict =
     (current?.proposal.fields.currency.candidates.length ?? 0) > 1 ||
     warnings.includes('ambiguous_currency');
+  const handedOff = useRef(false);
+  useEffect(() => {
+    if (!handoff || handedOff.current || !readyAccount) return;
+    handedOff.current = true;
+    void upload(handoff.file, handoff.password ?? '');
+    // The hand-off runs once per mounted instance; `upload` only reads current state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoff, readyAccount]);
   return (
     <div className="statement-intake-726">
-      <Button
-        variant="ghost"
-        disabled={!readyAccount || busy}
-        onClick={() => {
-          if (!mayDiscard()) return;
-          setSettlementOpen(false);
-          setCurrent(null);
-          setAutomation(null);
-          setDraft(null);
-          setSaved(null);
-          setError('');
-          setNote('');
-          setFile(null);
-          setPassword('');
-          setOpen(true);
-        }}
-      >
-        Abrechnung hochladen
-      </Button>
+      {handoff && !accounts.isPending && !readyAccount && (
+        <div role="alert">
+          <p>Das gewählte Konto ist nicht verfügbar. Die Datei wurde nicht gespeichert.</p>
+          <Button variant="ghost" onClick={() => onHandoffClose?.()}>
+            Schließen
+          </Button>
+        </div>
+      )}
+      {!handoff && (
+        <Button
+          variant="ghost"
+          disabled={!readyAccount || busy}
+          onClick={() => {
+            if (!mayDiscard()) return;
+            setSettlementOpen(false);
+            setCurrent(null);
+            setAutomation(null);
+            setDraft(null);
+            setSaved(null);
+            setError('');
+            setNote('');
+            setFile(null);
+            setPassword('');
+            setOpen(true);
+          }}
+        >
+          Abrechnung hochladen
+        </Button>
+      )}
       {list.isError && (
         <ErrorNote what="Abrechnungen" error={list.error} onRetry={() => void list.refetch()} />
       )}
@@ -436,6 +479,7 @@ function AccountStatements({ accountId }: { accountId: string }) {
           setOpen(false);
           setSettlementOpen(false);
           setPassword('');
+          onHandoffClose?.();
         }}
       >
         <div className="statement-dialog-726" aria-busy={busy}>

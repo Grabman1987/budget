@@ -1,3 +1,8 @@
+import {
+  assertContactActive,
+  assertContactLabelFree,
+  resolveContactForWrite,
+} from './contact-label';
 import { assertContactName, assertContactSettlementInvariants } from './contact-invariants';
 import { assertStatementSettlementInvariants } from './statement-settlement-invariants';
 import { randomUUID } from 'node:crypto';
@@ -59,6 +64,31 @@ function assertAllocationClass(db: Executor, id: string | null | undefined) {
     throw new BookingInvariantError('Bitte eine vorhandene aktive Anlageklasse wählen.');
 }
 
+const CONTACT_REF: Record<string, string> = {
+  payee: 'contactId',
+  expected_payment: 'contactId',
+  account: 'contactId',
+  payslip: 'employerContactId',
+};
+
+/** New data must not point at an archived contact (#870); an unchanged reference is left alone. */
+function assertContactRefActive<V extends object>(
+  tx: Executor,
+  table: IdTable,
+  values: V,
+  current?: object,
+): V {
+  const prop = CONTACT_REF[tableMeta(table).name];
+  if (!prop) return values;
+  const next = (values as Record<string, unknown>)[prop];
+  if (typeof next !== 'string') return values;
+  if (current && (current as Record<string, unknown>)[prop] === next) return values;
+  // A merged source id lands on its target (#871), then the target must be active.
+  const root = resolveContactForWrite(tx, next);
+  assertContactActive(tx, root);
+  return root === next ? values : { ...values, [prop]: root };
+}
+
 /** Insert a row (audit `create`). Returns the stored row. */
 export function createEntity<T extends IdTable>(
   db: Executor,
@@ -68,6 +98,7 @@ export function createEntity<T extends IdTable>(
 ): T['$inferSelect'] {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
+    values = assertContactRefActive(tx, table, values);
     if (tableMeta(table).name === tableMeta(account).name) {
       const row = values as Partial<typeof account.$inferInsert>;
       assertBudgetAccountCurrency(row.onBudget ?? false, row.currency ?? 'EUR');
@@ -80,7 +111,10 @@ export function createEntity<T extends IdTable>(
       { ...values, id: values.id ?? randomUUID() } as T['$inferInsert'],
       grouped,
     );
-    if (tableMeta(table).name === 'contact') assertContactName(tx, String(stored['id']));
+    if (tableMeta(table).name === 'contact') {
+      assertContactName(tx, String(stored['id']));
+      assertContactLabelFree(tx, String(stored['name']), { contactId: String(stored['id']) });
+    }
     return stored;
   });
 }
@@ -130,6 +164,7 @@ export function updateEntity<T extends IdTable>(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const current = requireLive(tx, table, id);
+    patch = assertContactRefActive(tx, table, patch, current);
     if (tableMeta(table).name === tableMeta(account).name) {
       const before = current as typeof account.$inferSelect;
       const change = patch as Partial<typeof account.$inferInsert>;
@@ -152,7 +187,12 @@ export function updateEntity<T extends IdTable>(
       );
     }
     updateTracked(tx, table, [id], patch as Record<string, unknown>, grouped);
-    if (tableMeta(table).name === 'contact') assertContactName(tx, id);
+    if (tableMeta(table).name === 'contact') {
+      assertContactName(tx, id);
+      const renamed = (patch as { name?: string }).name;
+      if (renamed !== undefined && renamed !== (current as { name: string }).name)
+        assertContactLabelFree(tx, renamed, { contactId: id });
+    }
     if (
       tableMeta(table).name === tableMeta(account).name &&
       (patch as Partial<typeof account.$inferInsert>).currency !== undefined &&

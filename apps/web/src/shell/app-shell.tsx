@@ -1,6 +1,6 @@
-import { MobileSheetContext, ToastProvider, cx } from '@budget/ui';
+import { MobileSheetContext, ToastProvider, cx, useIsPhone } from '@budget/ui';
 import { Outlet, useLocation } from '@tanstack/react-router';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { TITLE_ON_MOBILE_AREAS } from '../pages/area-head';
 import { MobileHeader, TabBar, phoneTitle } from './mobile-chrome';
 import { useActivePage } from './page-meta';
@@ -8,13 +8,16 @@ import { useCaptureShortcut } from './capture-shortcut';
 import { PanelHost } from './panel-host';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
+import { PageHeader } from './page-header';
+import { areaById } from '../nav/areas';
 import { useStoredFlag } from './use-stored-flag';
 import { useSidebarWidth } from './use-sidebar-width';
 import { QueueList } from '../pwa/queue-ui';
 import { useStorageProtection } from '../pwa/storage-protection';
 import { usePrivacyShortcut } from './privacy-button';
-import { OfflineStatus } from './header-status';
-import { HeuteShellHead } from '../heute/overview';
+import { MobileStatusLine, OfflineStatus } from './header-status';
+import { restoreControlsFocus } from './controls-focus';
+import { HeuteShellHead, HeuteStandLine } from '../heute/overview';
 import { HeuteSourceReturn } from '../heute/return-context';
 import { REDESIGN_ENABLED } from './redesign-flag';
 import './mobile-sheets.css';
@@ -43,10 +46,18 @@ export function AppShell() {
       analysis &&
       (pathname === '/vermoegen/nettovermoegen' || pathname === '/vermoegen/portfolio')
     );
+  const heuteControls = pathname === '/' || pathname.startsWith('/heute/details/');
+  const kontenPageHeading = page?.area === 'konten' && !pathname.startsWith('/konten/kontakte');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [controlsInBody, setControlsInBody] = useState(false);
+  const phone = useIsPhone();
   const searching = searchOpen || pathname === '/suche';
   const area = searching ? undefined : page?.area;
   const main = useRef<HTMLElement>(null);
+  const controlsRow = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (controlsInBody) restoreControlsFocus(controlsRow.current);
+  }, [controlsInBody]);
   const title = page?.title ?? APP_NAME;
   useCaptureShortcut();
 
@@ -79,24 +90,49 @@ export function AppShell() {
             collapsed={collapsed}
           />
           <div className="main">
-            <Topbar
-              leading={
-                REDESIGN_ENABLED && (pathname === '/' || pathname.startsWith('/heute/details/')) ? (
-                  <HeuteShellHead />
-                ) : undefined
-              }
-              {...(REDESIGN_ENABLED && area === 'plan' ? { title: 'Plan' } : {})}
-              collapsed={collapsed}
-              onToggle={() => setCollapsed(!collapsed)}
-              onSearchChange={setSearchOpen}
-            />
-            <MobileHeader
-              title={searching ? 'Suchen' : phoneTitle(page, title)}
-              asHeading={!(page && TITLE_ON_MOBILE_AREAS.has(page.area)) && !wealthPageHeading}
-              onSearchChange={setSearchOpen}
-            />
+            {REDESIGN_ENABLED && page && page.area !== 'einstellungen' ? (
+              <PageHeader
+                title={searching ? 'Suchen' : areaById(page.area).label}
+                mobileTitle={
+                  searching ? 'Suchen' : kontenPageHeading ? undefined : phoneTitle(page, title)
+                }
+                showProfile={pathname === '/'}
+                mobileHeading={
+                  !TITLE_ON_MOBILE_AREAS.has(page.area) && !wealthPageHeading && !kontenPageHeading
+                }
+                controls={heuteControls ? <HeuteShellHead showStand={false} /> : undefined}
+                onControlsPlacement={(place) => setControlsInBody(place === 'body')}
+                collapsed={collapsed}
+                onToggle={() => setCollapsed(!collapsed)}
+                onSearchChange={setSearchOpen}
+              />
+            ) : (
+              <>
+                <Topbar
+                  collapsed={collapsed}
+                  onToggle={() => setCollapsed(!collapsed)}
+                  onSearchChange={setSearchOpen}
+                />
+                <MobileHeader
+                  title={searching ? 'Suchen' : phoneTitle(page, title)}
+                  asHeading={!(page && TITLE_ON_MOBILE_AREAS.has(page.area)) && !wealthPageHeading}
+                  onSearchChange={setSearchOpen}
+                />
+              </>
+            )}
+            {REDESIGN_ENABLED &&
+              page &&
+              page.area !== 'einstellungen' &&
+              pathname !== '/' &&
+              !kontenPageHeading && <MobileStatusLine />}
             <OfflineStatus />
             <main className="sheet" id="main" tabIndex={-1} ref={main}>
+              {REDESIGN_ENABLED && heuteControls && controlsInBody && !phone && (
+                <div className="page-controls-row" ref={controlsRow}>
+                  <HeuteShellHead />
+                </div>
+              )}
+              {REDESIGN_ENABLED && heuteControls && !controlsInBody && !phone && <HeuteStandLine />}
               {(page?.area === 'heute' || page?.area === 'konten') && <QueueList />}
               {REDESIGN_ENABLED && <HeuteSourceReturn />}
               <Outlet />

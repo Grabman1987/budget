@@ -160,7 +160,7 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   ).toBeVisible({
     timeout: 25000,
   });
-  const review = page.getByRole('dialog', { name: 'Gehaltszettel hochladen' });
+  const review = page.getByRole('dialog', { name: /^Gehaltszettel (hochladen|prüfen)/ });
   await expect(review).toContainText('2.975,00');
   await review.getByLabel('Auszahlungsdatum').fill('30.09.2026');
   await expect(review.getByLabel('Gehaltsbuchung (±5 Tage)')).toHaveValue(salary.id);
@@ -280,7 +280,7 @@ for (const intakeMethod of ['chooser', 'drop'] as const) {
       timeout: 25000,
     });
     expect((await (await request.get('/api/bookings')).json()).items).toHaveLength(0);
-    const review = page.getByRole('dialog', { name: 'Gehaltszettel hochladen' });
+    const review = page.getByRole('dialog', { name: /^Gehaltszettel (hochladen|prüfen)/ });
     await expect(review.getByLabel('Auszahlungskonto')).toHaveValue(suggested.id);
     await review.getByLabel('Auszahlungskonto').selectOption(alternate.id);
     await expect(review.getByLabel('Auszahlungskonto')).toHaveValue(alternate.id);
@@ -363,7 +363,7 @@ test('proven original manual payout splits only after explicit acceptance and on
   expect(configured.ok()).toBe(true);
   await page.goto('/plan/monat/einnahmen?monat=2026-09');
   await page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Gehaltszettel hochladen', exact: true });
+  const dialog = page.getByRole('dialog', { name: /^Gehaltszettel (hochladen|prüfen)/ });
   const uploaded = page.waitForResponse(
     (response) =>
       response.url().endsWith('/api/payslip-intake/upload') &&

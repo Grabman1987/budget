@@ -5,10 +5,8 @@ import { keepSplit } from './booking-model';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, CalendarDays, ChevronDown, Info, Pencil } from 'lucide-react';
 import { Fragment, useId, useState, type ReactNode } from 'react';
-import { CategoryCell, FlagCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
+import { CategoryCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
 import { BookingLegend } from './booking-legend';
-import { FlagGlyph } from './flag-picker';
-import { FLAG_LABEL } from './labels';
 import {
   dayHeading,
   nativeCurrency,
@@ -27,7 +25,7 @@ import {
 import { flashRows, useFlashing } from './flash';
 import { useLedgerWrites } from './mutations';
 import { lookupsQuery } from './queries';
-import type { BookingFlag, BookingSort, ListedBooking } from './types';
+import type { BookingSort, ListedBooking } from './types';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './register-redesign.css';
 import { BookingInspector } from './booking-inspector';
@@ -59,6 +57,8 @@ export interface BookingTableProps {
   showTodayBalance?: boolean;
   /** Alle Buchungen may show a Saldo column only for an explicit single account. */
   showRunningBalance?: boolean;
+  /** Overdraft limit of a single checking account; shown in brackets behind the balance. */
+  overdraftLimitCents?: number | null;
 }
 
 const canEditCategory = (b: ListedBooking) =>
@@ -79,6 +79,7 @@ export function BookingTable({
   upcoming,
   showTodayBalance = true,
   showRunningBalance = false,
+  overdraftLimitCents = null,
   monthlyTotals,
   monthlyTotalsPending,
   monthlyKind,
@@ -97,20 +98,15 @@ export function BookingTable({
       patch: { splits: [keepSplit(b.splits[0], categoryId, b.amountCents)] },
     });
   };
-  // A flag is saved at once, with the usual undo toast.
-  const setFlag = (b: ListedBooking, flag: BookingFlag | null) => {
-    if (selection?.disabled || selection?.mode) return;
-    if ((b.flag ?? null) === flag) return;
-    writes.patch.mutate({ id: b.id, patch: { flag } });
-  };
   const all = variant === 'all';
   const sectionId = useId();
   const showUpcoming = upcoming?.open === true && upcoming.count > 0;
   // Retain the projected-row balance marker when Kommend is open. Historical All rows
   // show a balance value only for an explicit single account.
   const runColumn = !all || showRunningBalance || showUpcoming;
+  const dispo = REDESIGN_ENABLED && overdraftLimitCents ? overdraftLimitCents : null;
   const columns =
-    (selection ? 1 : 0) + 7 + (runColumn ? 1 : 0) + (REDESIGN_ENABLED ? (all ? 2 : 1) : 0);
+    (selection ? 1 : 0) + 6 + (runColumn ? 1 : 0) + (REDESIGN_ENABLED ? (all ? 2 : 1) : 0);
   const head = (label: string, key?: BookingSort, numeric = false): ReactNode => (
     <th
       className={cx('tech', numeric && 'kc-num', key === 'date' && 'kc-date')}
@@ -218,6 +214,7 @@ export function BookingTable({
           variant={variant}
           classes={classes}
           runColumn={runColumn}
+          dispoCents={dispo}
           showRunningBalance={showRunningBalance}
           {...(selection ? { selection } : {})}
           onOpen={onOpen}
@@ -225,7 +222,6 @@ export function BookingTable({
           categories={lookups.data?.categories ?? []}
           groups={lookups.data?.groups ?? []}
           onCategory={setCategory}
-          onFlag={setFlag}
           onPatch={(patch) =>
             selection?.disabled || selection?.mode
               ? Promise.reject(new Error('Bitte die laufende Auswahl zuerst beenden.'))
@@ -305,7 +301,6 @@ export function BookingTable({
         {(!all || REDESIGN_ENABLED) && (
           <colgroup>
             {selection && <col className="kcol-select" />}
-            <col className="kcol-flag" />
             <col className="kcol-date" />
             <col />
             {all && <col className="kcol-account" />}
@@ -314,7 +309,9 @@ export function BookingTable({
             {REDESIGN_ENABLED && <col className="kcol-note" />}
             {REDESIGN_ENABLED && <col className="kcol-money" />}
             <col className="kcol-money" />
-            {runColumn && <col className="kcol-money" />}
+            {runColumn && (
+              <col className={cx('kcol-money', 'kcol-run', dispo !== null && 'has-dispo')} />
+            )}
             <col className="kcol-status" />
           </colgroup>
         )}
@@ -331,9 +328,6 @@ export function BookingTable({
                 />
               </th>
             )}
-            <th className="kc-flag" scope="col">
-              <span className="sr-only">Markierung</span>
-            </th>
             {head('Datum', 'date')}
             {head('Empfänger', 'payee')}
             {all && head('Konto', 'account')}
@@ -404,12 +398,12 @@ export function BookingTable({
                       projectedBalance={upcoming.balances.get(entry.id) ?? null}
                       blankCheck={!!selection}
                       runColumn={runColumn}
+                      dispoCents={dispo}
                       onOpen={onOpen}
                       onInspect={setInspected}
                       categories={lookups.data?.categories ?? []}
                       groups={lookups.data?.groups ?? []}
                       onCategory={setCategory}
-                      onFlag={setFlag}
                       onPatch={(patch) => writes.patch.mutateAsync({ id: entry.id, patch })}
                       busy={writes.patch.isPending}
                     />
@@ -466,13 +460,13 @@ function Row({
   categories,
   groups,
   onCategory,
-  onFlag,
   onPatch,
   busy,
   upcomingToday,
   projectedBalance,
   blankCheck,
   runColumn,
+  dispoCents = null,
   showRunningBalance = false,
 }: {
   booking: ListedBooking;
@@ -484,7 +478,6 @@ function Row({
   categories: { id: string; name: string; groupId: string | null }[];
   groups: { id: string; name: string }[];
   onCategory: (b: ListedBooking, categoryId: string | null) => void;
-  onFlag: (b: ListedBooking, flag: BookingFlag | null) => void;
   onPatch: (patch: BookingPatch) => Promise<unknown>;
   busy: boolean;
   upcomingToday?: string;
@@ -492,6 +485,8 @@ function Row({
   /** Upcoming rows cannot be selected but keep the checkbox column aligned. */
   blankCheck?: boolean;
   runColumn: boolean;
+  /** Overdraft limit shown behind the balance (redesign, single checking account). */
+  dispoCents?: number | null;
   showRunningBalance?: boolean;
 }) {
   useAmountPrivacy();
@@ -532,8 +527,7 @@ function Row({
     // Individual cell controls handle keyboard access; the rest of the row opens the dialog.
     <tr
       onClick={(e) => {
-        if (!(e.target as HTMLElement).closest('button, input, select, .kflagmenu, .kinline'))
-          onOpen(b);
+        if (!(e.target as HTMLElement).closest('button, input, select, .kinline')) onOpen(b);
       }}
       className={cx(
         b.status === 'pending' && 'is-pending',
@@ -557,23 +551,6 @@ function Row({
           />
         </td>
       )}
-      <td className="kc-flag kx-flag">
-        {selectionMode ? (
-          <span
-            className="kflag"
-            role="img"
-            aria-label={b.flag ? `Markierung ${FLAG_LABEL[b.flag]}` : 'Keine Markierung'}
-          >
-            <FlagGlyph flag={b.flag} size={16} />
-          </span>
-        ) : (
-          <FlagCell
-            booking={b}
-            label={label}
-            onChange={(flag) => onFlag(b, flag === '' ? null : flag)}
-          />
-        )}
-      </td>
       <td className="kc-date kx-date">
         {selectionMode ? (
           <span>{upcomingToday ? upcomingDate(b.date, upcomingToday) : shortDay(b.date)}</span>
@@ -734,6 +711,13 @@ function Row({
                 ? ''
                 : valuedCurrency(b.balanceAfterCents, b.currency, b.balanceValuation)}
           </span>
+          {dispoCents !== null &&
+            (upcomingToday ? projectedBalance != null : b.balanceAfterCents !== null) && (
+              <span className="kdispo" title="Dispo-Rahmen">
+                {' '}
+                ({nativeCurrency(dispoCents, b.currency)})
+              </span>
+            )}
         </td>
       )}
       <td className="kc-status kx-status">

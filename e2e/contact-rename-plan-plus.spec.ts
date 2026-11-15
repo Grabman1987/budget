@@ -77,7 +77,14 @@ test('Plan month creates an empty group and categories through the existing form
   await page.goto('/plan/monat?monat=2026-10');
   // The table head carries the plus of the group list next to "Kategoriegruppe".
   const groupPlus = page.getByRole('button', { name: 'Gruppe anlegen', exact: true });
-  await groupPlus.first().click();
+  const phoneRedesign =
+    info.project.name === 'mobile' &&
+    (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  if (phoneRedesign) {
+    // #1007: the phone table head is gone; the "Ansicht" menu creates groups.
+    await page.locator('.plan-menu summary', { hasText: 'Optionen' }).click();
+    await page.getByRole('button', { name: '+ Kategoriegruppe', exact: true }).click();
+  } else await groupPlus.first().click();
   const groupDialog = page.getByRole('dialog', { name: 'Gruppe anlegen' });
   await groupDialog.getByLabel('Name', { exact: true }).fill(group);
   await groupDialog.getByRole('button', { name: 'Speichern', exact: true }).click();

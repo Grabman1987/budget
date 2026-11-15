@@ -430,7 +430,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   }
   await expect(
     (redesign && page.viewportSize()!.width < 768
-      ? page.getByRole('banner')
+      ? page.locator('.konten-phone-heading')
       : page.locator('.kacct-head')
     ).getByRole('heading', { name: 'Kredit', exact: true }),
   ).toBeVisible();

@@ -8,22 +8,6 @@
   gap: var(--space-md);
   min-width: 0;
 }
-.app[data-budget-redesign='1'] .plan-shell-topbar .topbar-inner {
-  padding-inline: calc(var(--space-xl) + var(--space-xs));
-}
-.app[data-budget-redesign='1'] .plan-shell-title {
-  min-height: var(--touch);
-  font-size: var(--fs-headline);
-  font-weight: 650;
-}
-.app[data-budget-redesign='1'] .plan-shell-topbar .global-search-launch {
-  margin-left: auto;
-  width: 200px;
-  flex: 0 0 200px;
-}
-.app[data-budget-redesign='1'] .plan-shell-topbar .topbar-actions {
-  margin-left: 0;
-}
 .plan-v2-page-head,
 .plan-v2-page-actions {
   display: flex;
@@ -95,19 +79,5 @@
   }
   .plan-v2-page-actions {
     gap: var(--space-sm);
-  }
-}
-@media (max-width: 767px) {
-  /* Retained report bodies must keep Plan's compact shell head. */
-  .app[data-budget-redesign='1']:has(.plan-v2-page) .m-head {
-    display: flex;
-  }
-  .app[data-budget-redesign='1']:has(.plan-v2-page) .m-title {
-    grid-column: auto;
-  }
-  .app[data-budget-redesign='1']:has(.plan-v2-page) .m-title-text {
-    white-space: nowrap;
-    overflow: hidden;
-    line-height: inherit;
   }
 }

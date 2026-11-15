@@ -807,7 +807,6 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
                       {status[row.status]}
                       {bookingCategories(row) && ` · ${bookingCategories(row)}`}
                       {row.memo && ` · ${row.memo}`}
-                      {row.flag && ` · Markierung ${row.flag}`}
                       {row.transferAccountName && ` · Umbuchung ${row.transferAccountName}`}
                       {row.splits.map(
                         (split) =>

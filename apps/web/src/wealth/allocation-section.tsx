@@ -16,6 +16,7 @@ import { percentText } from './portfolio-format';
 import { thresholdText } from '../rules/rules-model';
 import { AppLink } from '../shell/app-link';
 import './allocation.css';
+import { PortfolioRiskContext } from './portfolio-risk-context';
 
 export function PortfolioAllocation() {
   const query = useQuery(allocationQuery());
@@ -94,6 +95,7 @@ export function PortfolioAllocation() {
             )}
             <details className="wealth-details">
               <summary>Wie wird gerechnet?</summary>
+              <PortfolioRiskContext />
               <p className="vnote">
                 Netto-Allokationsuniversum:{' '}
                 {view.valueCents === null ? 'Wert nicht verfügbar' : eurWhole(view.valueCents)}.

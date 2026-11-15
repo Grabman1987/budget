@@ -45,7 +45,6 @@ export function MobileHeader({
   asHeading: boolean;
   onSearchChange?: (open: boolean) => void;
 }) {
-  const identity = useShellIdentity();
   const inbox = useInboxCount();
   const { pathname, search } = useLocation();
   const displayedTitle =
@@ -56,6 +55,32 @@ export function MobileHeader({
       : title;
   const showProfile = !REDESIGN_ENABLED || pathname === '/';
   const compactHeute = REDESIGN_ENABLED && pathname === '/';
+  return (
+    <>
+      <header className={`m-head${compactHeute ? ' m-head-heute' : ''}`}>
+        <div className="m-title">
+          {asHeading ? (
+            <h1 className="m-title-text">{displayedTitle}</h1>
+          ) : (
+            <p className="m-title-text">{displayedTitle}</p>
+          )}
+        </div>
+        <GlobalSearch mobile onOpenChange={onSearchChange} />
+        {compactHeute && (
+          <InboxHeaderLink className="m-review" aria-label={inbox.label}>
+            <span aria-hidden="true">{inbox.count ?? '…'}</span>
+          </InboxHeaderLink>
+        )}
+        {showProfile && <MobileProfile />}
+      </header>
+      {!compactHeute && <MobileStatusLine />}
+    </>
+  );
+}
+
+/** Shared phone profile menu, including Escape and outside-click focus handling. */
+export function MobileProfile({ privacy = true }: { privacy?: boolean }) {
+  const identity = useShellIdentity();
   const profileMenu = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const menu = profileMenu.current;
@@ -75,47 +100,27 @@ export function MobileHeader({
       menu?.removeEventListener('keydown', onKey);
       document.removeEventListener('pointerdown', onOutside);
     };
-  }, [showProfile]);
+  }, []);
   return (
-    <>
-      <header className={`m-head${compactHeute ? ' m-head-heute' : ''}`}>
-        <div className="m-title">
-          {asHeading ? (
-            <h1 className="m-title-text">{displayedTitle}</h1>
-          ) : (
-            <p className="m-title-text">{displayedTitle}</p>
-          )}
-        </div>
-        <GlobalSearch mobile onOpenChange={onSearchChange} />
-        {compactHeute && (
-          <InboxHeaderLink className="m-review" aria-label={inbox.label}>
-            <span aria-hidden="true">{inbox.count ?? '…'}</span>
-          </InboxHeaderLink>
-        )}
-        {showProfile && (
-          <details className="m-profile" ref={profileMenu}>
-            <summary
-              className="avatar"
-              aria-label={`${identity.initials} · ${identity.name}: Profilmenü`}
-            >
-              {identity.initials}
-            </summary>
-            <div className="m-profile-actions">
-              <PrivacyButton text />
-              <ThemeButton variant="side" />
-              <AppLink
-                className="btn btn-ghost"
-                to="/einstellungen"
-                onClick={(event) => event.currentTarget.closest('details')?.removeAttribute('open')}
-              >
-                Profil und Einstellungen
-              </AppLink>
-            </div>
-          </details>
-        )}
-      </header>
-      {!compactHeute && <MobileStatusLine />}
-    </>
+    <details className="m-profile" ref={profileMenu}>
+      <summary
+        className="avatar"
+        aria-label={`${identity.initials} · ${identity.name}: Profilmenü`}
+      >
+        {identity.initials}
+      </summary>
+      <div className="m-profile-actions">
+        {privacy && <PrivacyButton text />}
+        <ThemeButton variant="side" />
+        <AppLink
+          className="btn btn-ghost"
+          to="/einstellungen"
+          onClick={(event) => event.currentTarget.closest('details')?.removeAttribute('open')}
+        >
+          Profil und Einstellungen
+        </AppLink>
+      </div>
+    </details>
   );
 }
 

@@ -84,6 +84,21 @@ async function deliver(item: ReceiptIntent): Promise<ReceiptAcknowledgement | un
   }
 }
 
+/** Explicit single-file retry. Reuses the stored intent id (= Idempotency-Key), never a new one. */
+export async function retryReceiptIntent(id: string): Promise<ReceiptAcknowledgement | undefined> {
+  const epoch = receiptEpoch();
+  return withReceiptLock(epoch, async () => {
+    const item = (await listReceiptIntents(epoch)).find((row) => row.id === id);
+    return item ? deliver(item) : undefined;
+  });
+}
+
+/** Safe cancellation: removes only the local raw file. The saved booking is never touched. */
+export async function cancelReceiptIntent(id: string): Promise<boolean> {
+  const epoch = receiptEpoch();
+  return withReceiptLock(epoch, () => finishReceiptIntent(id, epoch));
+}
+
 /** Independent of the financial FIFO/lock: a file failure never rolls a booking back. */
 export async function sendReceiptQueue(
   onSent: (reply: ReceiptAcknowledgement) => void = () => {},

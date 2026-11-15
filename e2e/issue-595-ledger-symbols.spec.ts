@@ -51,7 +51,7 @@ async function fixture(request: APIRequestContext, origin: string) {
   return { account, category, ids, checkedId: checked.id };
 }
 
-test('six flags retain their saved values and undo; status shortcuts compose with existing URL filters', async ({
+test('no flag UI keeps stored flag values; status shortcuts compose with existing URL filters', async ({
   page,
   request,
   baseURL,
@@ -72,7 +72,6 @@ test('six flags retain their saved values and undo; status shortcuts compose wit
     for (const [name, control] of [
       ['payee', first.getByRole('button', { name: /bearbeiten/ })],
       ['amount', first.getByRole('button', { name: /Betrag ändern/ })],
-      ['flag', first.locator('.kflagbtn')],
     ] as const) {
       const box = (await control.boundingBox())!;
       expect(box.width).toBeGreaterThanOrEqual(44);
@@ -95,8 +94,9 @@ test('six flags retain their saved values and undo; status shortcuts compose wit
   const query = new URLSearchParams({
     konto: account.id,
     kategorie: category.id,
+    // A stale flag filter in the link is ignored (#1040); the text search narrows to one row.
     markierung: 'red',
-    q: 'Form Muster',
+    q: 'Form Muster 1',
     von: '2026-10-01',
     bis: '2026-10-02',
     sortierung: 'amount',
@@ -134,30 +134,9 @@ test('six flags retain their saved values and undo; status shortcuts compose wit
   await expect(rows).toHaveCount(7);
   await expect(rows.locator('.sw')).toHaveCount(0);
   const red = page.locator(`[data-booking="${ids[0]}"]`);
-  const flag = red.getByRole('button', { name: /Markierung ändern:.*aktuell Rot/ });
-  await flag.click();
-  await expect(page.getByRole('menuitemradio')).toHaveText([
-    'Rot1',
-    'Orange2',
-    'Gelb3',
-    'Grün4',
-    'Blau5',
-    'Violett6',
-    'keine0',
-  ]);
-  await page.keyboard.press('5');
-  await expect(red.getByRole('button', { name: /Markierung ändern:.*aktuell Blau/ })).toBeFocused();
-  const undo = page
-    .locator('.toast.is-open')
-    .getByRole('button', { name: 'Rückgängig', exact: true });
-  await undo.focus();
-  expect((await (await request.get(`/api/bookings/${ids[0]}`)).json()).booking).toMatchObject({
-    flag: 'blue',
-    amountCents: -101,
-    status: 'pending',
-  });
-  await undo.click();
-  await expect(flag).toBeVisible();
+  await expect(red.getByRole('button', { name: /Markierung/ })).toHaveCount(0);
+  await expect(page.getByRole('columnheader', { name: 'Markierung' })).toHaveCount(0);
+  // The stored flag stays untouched by the register.
   expect((await (await request.get(`/api/bookings/${ids[0]}`)).json()).booking).toMatchObject({
     flag: 'red',
     amountCents: -101,
@@ -219,11 +198,7 @@ test('register symbols and reachable legend remain accessible in both themes and
       version: browser.version(),
       ...profile,
     });
-    const shapes = await current
-      .locator('[data-booking] .kflag-glyph:not(.is-none)')
-      .evaluateAll((icons) => icons.map((icon) => icon.innerHTML));
-    expect(shapes).toHaveLength(6);
-    expect(new Set(shapes).size).toBe(6);
+    await expect(current.locator('[data-booking] .kflag-glyph, .kflagbtn')).toHaveCount(0);
     const summary = current.locator('.kbooking-legend > summary');
     for (const theme of ['light', 'dark']) {
       await current.evaluate((value) => {
@@ -244,15 +219,17 @@ test('register symbols and reachable legend remain accessible in both themes and
       expect(await summary.getAttribute('data-observed-pointer')).toBe(
         profile.width === 390 ? 'touch' : 'mouse',
       );
-      await expect(current.getByRole('list', { name: 'Markierungen', exact: true })).toBeVisible();
-      await expect(current.getByText('Rot · Dreieck', { exact: true })).toBeVisible();
+      await expect(
+        current.getByRole('list', { name: 'Buchungsstatus', exact: true }),
+      ).toBeVisible();
+      await expect(current.getByRole('list', { name: 'Markierungen', exact: true })).toHaveCount(0);
       expect((await new AxeBuilder({ page: current }).analyze()).violations).toEqual([]);
       expect(await current.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );
       if (current.viewportSize()!.width === 390) {
         for (const control of await current
-          .locator('.kstatus-chips > button, .kflagbtn, .kbooking-legend > summary')
+          .locator('.kstatus-chips > button, .kbooking-legend > summary')
           .all()) {
           const box = (await control.boundingBox())!;
           expect(box.width).toBeGreaterThanOrEqual(44);

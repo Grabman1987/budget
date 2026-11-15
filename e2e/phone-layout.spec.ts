@@ -145,21 +145,24 @@ test.describe('phone layout', () => {
     }
     const header = page.locator('.m-head');
     const menu = header.locator('.m-profile summary');
+    // Privacy lives once in the shared header actions, not again inside the profile menu.
     const toggle = header.getByRole('button', { name: 'Beträge verbergen', exact: true });
-    await expect(toggle).toBeHidden();
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveCount(1);
     const box = await menu.boundingBox();
     expect(box!.width).toBeGreaterThanOrEqual(44);
     expect(box!.height).toBeGreaterThanOrEqual(44);
     await menu.focus();
     await menu.press('Enter');
-    await expect(toggle).toBeVisible();
+    await expect(header.locator('.m-profile').getByTitle('Hell/Dunkel umschalten')).toBeVisible();
     await page.screenshot({ path: info.outputPath('mobile-profile-menu-light.png') });
-    await page.keyboard.press('Tab');
-    await expect(toggle).toBeFocused();
+    await toggle.focus();
     await toggle.press('Space');
     await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-    await toggle.press('Escape');
-    await expect(toggle).toBeHidden();
+    await toggle.press('Space');
+    await menu.focus();
+    await page.keyboard.press('Escape');
+    await expect(header.locator('.m-profile')).not.toHaveAttribute('open');
     await expect(menu).toBeFocused();
     await menu.press('Enter');
     await page.emulateMedia({ colorScheme: 'dark' });

@@ -1,6 +1,6 @@
 import { exposuresAsOf, splitAssetExposure } from './asset-exposure';
 import { cents, ratioBp, shareBps, type ChainTerm } from '@budget/domain';
-import { asc, desc, isNull, lte } from 'drizzle-orm';
+import { and, asc, eq, isNull, lte, max } from 'drizzle-orm';
 import { account, assetClass, institution, price, security } from '../schema';
 import type { Executor } from './types';
 import { holdingValuationExportAsOf } from './portfolio';
@@ -90,21 +90,32 @@ export function portfolioPositions(db: Executor, asOf: string): PortfolioPositio
       .all()
       .map((s) => [s.id, s]),
   );
-  const quotes = new Map<string, PositionQuote>();
-  for (const row of db
-    .select()
+  // The latest stored quote on or before the day per security; (security, date) is the primary
+  // key, so the newest date identifies one row. Searched by index instead of sorting all prices.
+  const latest = db
+    .select({ securityId: price.securityId, date: max(price.date).as('latest_date') })
     .from(price)
     .where(lte(price.date, asOf))
-    .orderBy(desc(price.date))
-    .all()) {
-    if (!quotes.has(row.securityId))
-      quotes.set(row.securityId, {
-        date: row.date,
-        currency: row.currency,
-        priceMicro: row.priceMicro,
-        source: row.source,
-      });
-  }
+    .groupBy(price.securityId)
+    .as('latest');
+  const quotes = new Map<string, PositionQuote>();
+  for (const row of db
+    .select({
+      securityId: price.securityId,
+      date: price.date,
+      currency: price.currency,
+      priceMicro: price.priceMicro,
+      source: price.source,
+    })
+    .from(price)
+    .innerJoin(latest, and(eq(price.securityId, latest.securityId), eq(price.date, latest.date)))
+    .all())
+    quotes.set(row.securityId, {
+      date: row.date,
+      currency: row.currency,
+      priceMicro: row.priceMicro,
+      source: row.source,
+    });
   const bySecurity = new Map<string, PortfolioPosition>();
   for (const holding of [
     ...valuation.values,

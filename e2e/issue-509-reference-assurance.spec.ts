@@ -4,6 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import { test } from './isolated-ledger';
+import { openDetailsFromPhoneSheet } from './plan-phone-sheet';
 
 type PointerProof = { pointerType: string; isTrusted: boolean };
 
@@ -89,6 +90,7 @@ for (const profile of [
 
       await page.goto('/plan/monat?monat=2026-09');
       await page.locator(`[data-category-id="${ids[0]}"]`).click();
+      await openDetailsFromPhoneSheet(page);
       const history = page.getByRole('link', { name: 'Verlauf und Buchungen', exact: true });
       await history.scrollIntoViewIfNeeded();
       await history.click();

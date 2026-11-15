@@ -49,7 +49,29 @@ sampleTest(
 
 test('Einstellungen › Profil fills name and initials in the shell', async ({ page }, testInfo) => {
   test.setTimeout(120_000); // two axe runs on a loaded machine
-  let saved = { name: '', initials: '', birthDate: '', household: null, region: null };
+  let saved = {
+    name: '',
+    initials: '',
+    birthDate: '',
+    household: null,
+    region: null,
+    // The API always returns the (empty) risk and family answers (#812/#813).
+    risk: {
+      horizon: null,
+      liquidity: null,
+      reserve: null,
+      income: null,
+      lossReaction: null,
+      acceptableLoss: null,
+    },
+    family: {
+      partnership: null,
+      partnerIncome: null,
+      dependants: null,
+      children: null,
+      support: null,
+    },
+  };
   await page.route('**/api/profile', async (route) => {
     if (route.request().method() === 'PATCH') {
       saved = { ...saved, ...(route.request().postDataJSON() as object) };

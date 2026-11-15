@@ -138,6 +138,7 @@ export function WealthOverview() {
         ),
       ]
     : [];
+  const hasTargets = groups.some((row) => assetTypeDeviation(allocation.data, row.key) !== null);
   const month = view
     ? new Intl.DateTimeFormat('de-AT', { month: 'long', timeZone: 'UTC' }).format(new Date(view.to))
     : '';
@@ -328,7 +329,7 @@ export function WealthOverview() {
                 <th>Anlageart</th>
                 <th className="num">Wert</th>
                 <th className="num">Anteil</th>
-                <th>Ist vs. Ziel</th>
+                {hasTargets && <th>Ist vs. Ziel</th>}
                 <th>
                   <span className="sr-only">Öffnen</span>
                 </th>
@@ -350,21 +351,23 @@ export function WealthOverview() {
                       {row.valueCents === null ? 'Nicht verfügbar' : eur(row.valueCents)}
                     </td>
                     <td className="num">{shareText(row.shareBp)}</td>
-                    <td>
-                      {deviation === null ? (
-                        <span title="Keine vergleichbare Zielquote für diese Anlageart im ausgewählten Anlageuniversum">
-                          —
-                        </span>
-                      ) : (
-                        <AppLink
-                          className="wealth-pill"
-                          to="/vermoegen/portfolio/allokation"
-                          title="Abweichung im ausgewählten Anlageuniversum, einschließlich Anlage-Kassa"
-                        >
-                          {shareText(deviation, true).replace('%', 'Pp')} zum Ziel
-                        </AppLink>
-                      )}
-                    </td>
+                    {hasTargets && (
+                      <td className="wealth-target-cell">
+                        {deviation === null ? (
+                          <span title="Keine vergleichbare Zielquote für diese Anlageart im ausgewählten Anlageuniversum">
+                            —
+                          </span>
+                        ) : (
+                          <AppLink
+                            className="wealth-pill"
+                            to="/vermoegen/portfolio/allokation"
+                            title="Abweichung im ausgewählten Anlageuniversum, einschließlich Anlage-Kassa"
+                          >
+                            {shareText(deviation, true).replace('%', 'Pp')} zum Ziel
+                          </AppLink>
+                        )}
+                      </td>
+                    )}
                     <td>
                       <AppLink
                         to={to}
@@ -393,7 +396,7 @@ export function WealthOverview() {
                 <tr>
                   <th>Nettovermögen</th>
                   <td className="num">{eur(view.chain.nowCents)}</td>
-                  <td colSpan={3} />
+                  <td colSpan={hasTargets ? 3 : 2} />
                 </tr>
               </tfoot>
             )}

@@ -59,6 +59,7 @@ export function AccountRegister({
             variant="account"
             upcoming={upcoming.model}
             showTodayBalance={showTodayBalance}
+            overdraftLimitCents={account.overdraftLimitCents}
             onOpen={(booking) => setPanel({ mode: 'edit', booking })}
           />
         </div>

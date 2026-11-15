@@ -212,8 +212,10 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
         }
       >
         <p>
-          Letzter Lauf: {sourceDate(market.data?.lastRun?.finishedAt)} · Status:{' '}
-          {market.data?.lastRun?.status ?? 'Noch kein Lauf'}
+          Letzter Lauf:{' '}
+          {market.isPending ? 'Wird geladen …' : sourceDate(market.data?.lastRun?.finishedAt)} ·
+          Status:{' '}
+          {market.isPending ? 'Wird geladen …' : (market.data?.lastRun?.status ?? 'Noch kein Lauf')}
         </p>
         <p>
           Kurse mit Lücken bleiben als unvollständig erkennbar. Der Abruf verwendet die vorhandenen

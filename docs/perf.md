@@ -104,6 +104,109 @@ trades, all FX rates) through the ORM and re-deriving the same budget several ti
 No migration and no new index were needed: no statement was slow on its own (the largest takes
 about 25 ms for 7k rows), the cost was repeated reading and mapping.
 
+## Heute and positions (#956, 2026-11)
+
+Production (2026-11-11, one owner session, browser timings): `GET /api/heute` 6.9 s, `GET
+/api/portfolio/positions` 6.4 s, every other read under 2 s. Measured on a production-shaped
+synthetic ledger (`scripts/perf/heute-fixture-956.ts`: 30 accounts, 10k bookings, 6.25k trades,
+36 securities, 121k prices over 13 years, 21.6k FX rates over 23 years, 15k audit entries with
+full row snapshots):
+
+```bash
+npx tsx scripts/perf/heute-positions-956.ts --database data/heute-956.sqlite --create
+npx tsx scripts/perf/heute-positions-956.ts --database data/heute-956.sqlite --samples 9 [--capture|--compare digests.json]
+```
+
+Causes, in order of weight:
+
+1. **Positions waits for Heute.** All handlers run synchronously on one Node thread. The sidebar
+   asks for positions once the account list answered, so it queues behind Heute; its own server
+   time was 0.3 s of the 3.5 s burst. Fixing Heute fixes most of the positions latency.
+2. **Whole price and rate histories, read repeatedly.** One Heute request read all FX rates 10 times
+   (`rateTable`, `ratesAsOf`), scanned all 121k prices twice (`valuationSeries` for the month
+   change), and searched the unsorted rate list linearly for every position of each of the ~15
+   valuation days. Positions sorted the whole price table to find the latest quote per security.
+   These costs grow with the imported history, not with the visible window.
+3. **Audit log replayed twice.** The account review chronology ran for Heute's reminders and again
+   inside the inbox count.
+
+Changes: rates are read once per request and shared (`rateTable`, `ratesAsOf`, per-currency binary
+search instead of the linear scan); a valuation window reads only the prices in the window plus the
+latest one before it (the only ones `pickPrice` can choose); positions finds the latest quote per
+security with an index-backed `max(date)` join; `valuationSeries` reuses the request's trade read;
+`accountReminders` is memoized per request. No index and no migration: none of the slow statements
+lacked an index; the cost was reading and mapping rows that cannot affect the answer.
+
+Server time per request, fresh read-model cache, Linux, 2 vCPU, Node 22 (median / min of 9, ms):
+
+| Endpoint | Before | After |
+| --- | ---: | ---: |
+| Heute (Monat) | 2932 / 2125 | 1308 / 1108 |
+| Heute (bis Gehalt) | 2044 / 1753 | 1285 / 1182 |
+| Positionen | 388 / 305 | 108 / 97 |
+| Depots | 2160 / 1972 | 818 / 705 |
+| Gesamtübersicht 1 J | 1039 / 935 | 314 / 270 |
+| Heute page burst (positions answered) | 3522 | 2502 |
+
+All 15 measured responses stay byte-identical (`heute-positions-956.test.ts` holds the digests
+captured on the stock main and a row budget: Heute reads under 5k price rows and the rate table at
+most once; positions under 1k price rows). On the small #956 fixture (3 years of prices, no audit
+log) Heute is unchanged; the remaining Heute time is the audit replays (account review chronology
+and goal lifecycle, about a third), 13 month-end valuations, the Finanz-Check and the budget facts.
+
+## Heute off the event loop, cache misses (#956, 2026-11-13)
+
+Production (2026-11-13, owner session): first Heute 5.3 s, positions 4.2 s, `/api/auth/status`
+and `/api/profile` 3 s in the same window; Heute uncached again about 20 s after a cached answer.
+
+**Why the cache missed.** The read-model cache (`api/response-cache.ts`) keys every answer by the
+database stamp (`request-memo.ts` `databaseStamp`: `total_changes()` of the server connection and
+`PRAGMA data_version`, which moves on any commit of another connection). Litestream 0.5.17 runs
+next to the server and, after it has shipped new WAL frames, checkpoints and writes its own
+`_litestream_seq` row: a commit of another connection. Measured locally with the pinned 0.5.17
+binary on the synthetic ledger: one write of the server, then about 40 s later (on Litestream's
+one-minute checkpoint tick) `data_version` moved with no write of the app. So every write,
+including the session touch (`auth/routes.ts`, at most every 10 minutes) and auth event counters,
+costs the cache twice: once at the write, once up to a minute later. Nothing else in a Heute page
+load writes (checked: no GET of the page moves the stamp). The stamp itself is right (it must also
+see bank-worker and import-worker commits), so it stays; the misses are made cheap instead.
+
+**What changed.**
+
+1. Heute is computed in a worker thread (`api/read-model-offload.ts`, `api/read-model-worker.ts`)
+   on its own `query_only` connection, inside one read transaction per request
+   (`runInReadSnapshot`), so every read of a request sees one committed state while the server
+   writes. The worker serves the same ledger API, so the bytes are the same
+   (`heute-positions-956.test.ts` checks the stock digests through the worker). A worker failure
+   falls back to the server thread. `BUDGET_READ_WORKER=0` switches it off.
+2. Concurrent requests for the same key and stamp share one computation (the cache awaits the
+   first one; never across a write).
+3. After the stamp has settled (one 5 s check without change), the Heute variants a visitor asked
+   for in the last 30 minutes are recomputed in the worker once per stamp, so the miss after
+   Litestream's commit (or any write) is paid in the background.
+
+The cold computation itself is unchanged (1207 SQL statements; Plan month 88). Its largest parts
+(profile on the synthetic ledger): the whole-picture month change, account review chronology
+(audit replay), goal lifecycles (audit replay), Finanz-Check and 11 month-end valuations; about
+40 % of the time is SQLite, statement-level duplicates are under 5 %.
+
+```bash
+npx tsx scripts/perf/heute-offload-956.ts --database data/heute-956.sqlite --samples 7
+```
+
+Linux, 2 vCPU shared with other jobs (load average 9-14 during the run, so absolute numbers are
+roughly 2-3x the quiet ones), Node 22, ms:
+
+| | Before (server thread) | After (worker) |
+| --- | ---: | ---: |
+| Heute cold, median / min | 3715 / 2600 | 3029 / 2691 |
+| Heute warm | 1 | 0 |
+| Plan month cold, median / min | 595 / 350 | unchanged (server thread) |
+| Longest event-loop stall while Heute computes | 4159 | 40-103 |
+| `/profile` while Heute computes, worst | 4142 | 89-956 (CPU contention, not the event loop) |
+
+Memory: the worker adds about 80 MB RSS (built server on the synthetic ledger after the warm-up: 325 MB without, 403 MB with; heap limit 192 MB old space). It ends after 5 idle minutes and starts again on the next ask.
+
 ## CI flakes
 
 - `e2e/shell.spec.ts` route sweep (`main` landmark within 5 s on `/reports/finanzcheck`,

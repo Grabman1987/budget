@@ -1,6 +1,7 @@
 import { maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Bookmark } from 'lucide-react';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { AppLink } from '../shell/app-link';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { savedExplorerViewsQuery } from './explorer-view-api';
@@ -17,6 +18,16 @@ export function SavedExplorerLinks() {
     saved.data.schemaVersion === 1
       ? saved.data.views
       : undefined;
+  // Redesign: no empty bookmark block; only the entry point to create one stays. Errors stay visible.
+  if (REDESIGN_ENABLED && !saved.isError && (!current || current.length === 0)) {
+    if (saved.isFetching) return null;
+    return (
+      <p className="saved-explorer-create" role={current ? undefined : 'status'}>
+        {current ? null : 'Gespeicherte Auswertungen sind nicht verfügbar. '}
+        <AppLink to="/reports/explorer">Auswertung erstellen</AppLink>
+      </p>
+    );
+  }
   return (
     <section className="saved-explorer-links" aria-labelledby="saved-explorer-title">
       <h2 id="saved-explorer-title">Meine Auswertungen</h2>

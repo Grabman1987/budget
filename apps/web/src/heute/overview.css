@@ -9,28 +9,6 @@
   padding: 10px 28px 28px;
   row-gap: 12px;
 }
-.topbar:has(.hv-head) {
-  background: var(--ground);
-  backdrop-filter: none;
-}
-.topbar:has(.hv-head) .topbar-inner {
-  max-width: none;
-  padding-inline: 28px;
-  gap: 8px;
-}
-.topbar:has(.hv-head) .search {
-  flex: none;
-  width: 44px;
-}
-.topbar:has(.hv-head) .global-search-launch {
-  width: 44px;
-  min-width: 44px;
-  padding: 0;
-  justify-content: center;
-}
-.topbar:has(.hv-head) .global-search-launch .kbd {
-  display: none;
-}
 .hv-head {
   display: flex;
   align-items: center;
@@ -80,6 +58,20 @@
 }
 .hv-head-phone {
   display: none;
+}
+/* ON, desktop/tablet: compact 34px segments (outer 38px) keep the 64px header. */
+@media (min-width: 768px) {
+  .hv-head .seg-slide {
+    --seg-pad: 1px;
+  }
+  .hv-head .seg.seg.seg-slide {
+    padding: var(--seg-pad);
+  }
+  .hv-head .seg-slide button {
+    height: 34px;
+    min-height: 34px;
+    padding-inline: 12px;
+  }
 }
 .hv-top,
 .hv-grid {
@@ -518,17 +510,11 @@
   .hv-head .seg button {
     min-width: 70px;
   }
-  .topbar:has(.hv-head) .topbar-inner {
-    padding-inline: 16px;
-  }
-  .topbar:has(.hv-head) .topbar-actions {
-    gap: 4px;
-  }
 }
 @media (max-width: 767px) {
   .sheet:has(> .heute-screen),
   .sheet:has(> .heute-detail-screen) {
-    padding: 0 16px calc(var(--tabbar-h) + 90px);
+    padding: 0 16px calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 16px);
   }
   .hv-head-phone {
     display: grid;
@@ -699,15 +685,6 @@
     min-height: 44px;
   }
 }
-
-.topbar:has(.hv-head) .global-search-launch > span:not(.kbd) {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
 .hv-head .month-switch .icon-btn {
   width: 44px;
   height: 44px;
@@ -834,8 +811,9 @@
     overflow-wrap: anywhere;
   }
 }
-/* Keep full words and amounts readable beside the reserved FAB column. */
-@media (max-width: 399px) {
+/* Phone (every width up to 767px, including 402/430px iPhones): two-line task rows. Line 1 is
+   marker, task and amount, line 2 the action. The header row stays for screen readers. */
+@media (max-width: 767px) {
   .hv-revisions,
   .hv-revisions tbody {
     display: block;
@@ -849,17 +827,19 @@
   }
   .hv-revisions tbody tr {
     display: grid;
-    grid-template-columns: 30px minmax(0, 1fr);
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 4px;
     border-top: 1px solid var(--rule);
     padding-top: 6px;
   }
   .hv-revisions td {
     border: 0;
     min-width: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
   .hv-revisions td:last-child {
-    grid-column: 2;
+    grid-column: 2 / -1;
     text-align: left;
   }
 }
@@ -1022,14 +1002,14 @@
   .hv-head-phone .month-switch .month-now {
     margin-left: 0;
   }
-  .hv-head-phone .seg {
+  :root:not(:has([data-budget-redesign='1'])) .hv-head-phone .seg {
     position: relative;
     border: 0;
     padding: 0 2px;
     gap: 0;
     isolation: isolate;
   }
-  .hv-head-phone .seg::before {
+  :root:not(:has([data-budget-redesign='1'])) .hv-head-phone .seg::before {
     content: '';
     position: absolute;
     inset: 4px 0;
@@ -1038,8 +1018,9 @@
     box-shadow: inset 0 0 0 1px var(--rule);
     z-index: -1;
   }
-  .hv-head-phone .seg button {
+  :root:not(:has([data-budget-redesign='1'])) .hv-head-phone .seg button {
     position: relative;
+    min-width: 44px;
     min-width: 44px;
     padding-inline: 2px;
     font-size: var(--fs-label);
@@ -1047,11 +1028,14 @@
     background: transparent;
     color: var(--ink-2);
   }
-  .hv-head-phone .seg button[aria-pressed='true'] {
+  :root:not(:has([data-budget-redesign='1'])) .hv-head-phone .seg button[aria-pressed='true'] {
     color: var(--ink);
     font-weight: 650;
   }
-  .hv-head-phone .seg button[aria-pressed='true']::before {
+  :root:not(:has([data-budget-redesign='1']))
+    .hv-head-phone
+    .seg
+    button[aria-pressed='true']::before {
     content: '';
     position: absolute;
     inset: 6px 0;
@@ -1059,6 +1043,22 @@
     border-radius: var(--radius-xs);
     box-shadow: var(--card-shadow);
     z-index: -1;
+  }
+  /* ON: the global 44px touch floor sizes the buttons, so the track outline is an inset shadow
+     (no border or padding) and the control is exactly 44px tall. */
+  .hv-head-phone .seg-slide {
+    --seg-pad: 0px;
+    --seg-gap: 0px;
+  }
+  .hv-head-phone .seg.seg.seg-slide {
+    padding: 0;
+    border: 0;
+    box-shadow: inset 0 0 0 var(--stroke-hairline) var(--rule-strong);
+  }
+  .hv-head-phone .seg-slide button {
+    min-width: 0;
+    padding-inline: 2px;
+    font-size: var(--fs-label);
   }
   .heute-screen {
     gap: 10px;
@@ -1085,15 +1085,6 @@
     display: inline;
   }
 }
-@media (max-width: 399px) {
-  .hv-revisions tbody tr {
-    grid-template-columns: 26px minmax(0, 1fr) auto;
-  }
-  .hv-revisions td:last-child {
-    grid-column: 2 / -1;
-  }
-}
-
 /* Keep action labels out of the floating capture target and let the final row scroll clear. */
 @media (max-width: 767px) {
   .heute-screen {
@@ -1106,7 +1097,6 @@
     overflow-wrap: break-word;
   }
   .hv-revisions td:last-child {
-    padding-right: 48px;
     padding-left: 4px;
   }
   .hv-revisions td:first-child {
@@ -1184,5 +1174,156 @@
 @media (min-width: 980px) {
   [data-heute-detail='wealth'] .heute-explanation > :is([role='status'], [role='alert']) {
     grid-column: 1 / -1;
+  }
+}
+
+/* ON, touch tablets: same 44px control as the phone. */
+@media (min-width: 768px) and (pointer: coarse) {
+  .hv-head .seg-slide {
+    --seg-pad: 0px;
+    --seg-gap: 0px;
+  }
+  .hv-head .seg.seg.seg-slide {
+    padding: 0;
+    border: 0;
+    box-shadow: inset 0 0 0 var(--stroke-hairline) var(--rule-strong);
+  }
+  .hv-head .seg-slide button {
+    height: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Phone period row (ON only), variant B "Reiter mit Maßlinie": one header band on the opaque
+   ground (text never sits on the grid). Row: plain month stepper left, text tabs right, a hairline
+   under the whole row; the active tab has a 2px line on it. Visible rows are 32px, every control
+   keeps a 44px box through negative block margins. Stepper and tabs stack (tabs below, left)
+   at <= 374px and, with the return link shown, below 430px; the 12px row gap keeps the boxes of
+   stacked rows from overlapping. Every selector carries the ON gate so the OFF build is untouched. */
+@media (max-width: 767px) {
+  :root:has([data-budget-redesign='1']) .hv-head-phone {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px var(--space-lg);
+    min-height: 0;
+    margin-inline: -16px;
+    padding: 6px 16px 0;
+    border-bottom: var(--stroke-hairline) solid var(--rule);
+    background: var(--ground);
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch {
+    display: flex;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    width: auto;
+    min-width: 0;
+    min-height: 32px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .icon-btn {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    margin-block: -6px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--ink-2);
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .icon-btn:first-child {
+    margin-left: -16px;
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .month-name {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: -4px;
+    text-align: left;
+    overflow-wrap: anywhere;
+    font-size: var(--fs-body);
+    font-weight: 550;
+    color: var(--ink);
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .icon-btn:nth-child(3) {
+    margin-left: -4px;
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .month-now {
+    display: inline-flex;
+    width: auto;
+    margin-left: auto;
+    margin-right: -8px;
+    padding-inline: 8px;
+    font-size: var(--fs-label);
+    color: var(--ink-2);
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .month-now svg {
+    display: none;
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch .month-now-label {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .seg.seg.seg-slide {
+    display: flex;
+    flex: none;
+    gap: var(--space-lg);
+    height: 32px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .seg-thumb {
+    display: none;
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .seg-slide button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex: none;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    margin-block: -6px;
+    padding-inline: 0;
+    border-radius: 0;
+    background: transparent;
+    white-space: nowrap;
+    font-size: var(--fs-meta);
+    font-weight: 500;
+    color: var(--ink-2);
+  }
+  :root:has([data-budget-redesign='1']) .hv-head-phone .seg-slide button[aria-pressed='true'] {
+    font-weight: 550;
+    color: var(--ink);
+  }
+  :root:has([data-budget-redesign='1'])
+    .hv-head-phone
+    .seg-slide
+    button[aria-pressed='true']::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: calc(6px - var(--stroke-hairline));
+    height: 2px;
+    background: var(--line);
+  }
+}
+@media (max-width: 374px) {
+  :root:has([data-budget-redesign='1']) .hv-head-phone .month-switch {
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 429px) {
+  :root:has([data-budget-redesign='1']) .hv-head-phone:has(.month-now) .month-switch {
+    flex-basis: 100%;
   }
 }

@@ -53,18 +53,18 @@ for (const theme of ['light', 'dark'] as const) {
       expect(lead.y - top).toBeLessThanOrEqual(140);
       const month = (await page.locator('.hv-head-phone .month-switch').boundingBox())!;
       const period = (await page.locator('.hv-head-phone .seg').boundingBox())!;
-      expect(month.y).toBe(period.y);
+      // Owner chose variant B on 2026-11-13 (#1065): at 390px stepper and tabs share one row, the
+      // month stepper on the LEFT and the tabs on the RIGHT (the old spec expected the month right of
+      // the period control; the approved order is now month left, tabs right).
+      expect(month.y + month.height / 2).toBeCloseTo(period.y + period.height / 2, 0);
       expect(month.x + month.width).toBeLessThanOrEqual(period.x);
       await expect(page.locator('.hv-head-phone .month-name')).toHaveText('September 2026');
-      await expect(page.locator('.hv-head-phone .seg')).toHaveCSS('height', '44px');
-      expect(
-        await page.locator('.hv-head-phone .seg').evaluate((el) => {
-          const style = getComputedStyle(el, '::before');
-          return (
-            el.getBoundingClientRect().height - parseFloat(style.top) - parseFloat(style.bottom)
-          );
-        }),
-      ).toBe(36);
+      await expect(page.locator('.hv-head-phone .month-name')).toHaveCSS('font-size', '16px');
+      await expect(page.locator('.hv-head-phone .seg')).toHaveCSS('height', '32px');
+      await expect(page.locator('.hv-head-phone .seg button[aria-pressed="true"]')).toHaveCSS(
+        'font-size',
+        '13px',
+      );
       await expect(page.locator('.hv-chain-bar')).toHaveCSS('height', '1px');
 
       const dock = page.locator('.tabbar');
@@ -178,12 +178,39 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(controls.getByRole('button', { name: 'Bis Gehalt', exact: true })).toBeDisabled();
     const month = (await controls.locator('.month-switch').boundingBox())!;
     const period = (await controls.locator('.seg').boundingBox())!;
-    expect(month.y + month.height / 2).toBe(period.y + period.height / 2);
-    expect(month.x + month.width).toBeLessThanOrEqual(period.x);
+    if (isMobile) {
+      // Owner chose variant B (tabs on their own row when the return link is shown below 430px) on
+      // 2026-11-13: at 375px with the return link the tabs sit below the stepper (this stacked case
+      // is up to 176px from header top to lead; the one-row case keeps the original 140px).
+      expect(month.y + month.height).toBeLessThanOrEqual(period.y);
+      expect(month.x + month.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+      const targets = [
+        controls.getByRole('button', { name: 'Vormonat' }),
+        controls.getByRole('button', { name: 'Nächster Monat' }),
+        controls.getByRole('button', { name: 'Monat', exact: true }),
+        controls.getByRole('button', { name: 'Bis Gehalt', exact: true }),
+        controls.getByRole('button', { name: 'Zum aktuellen Monat' }),
+      ];
+      for (const target of targets) {
+        const box = (await target.boundingBox())!;
+        expect(box.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+        expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+      }
+      await expect(controls.getByRole('button', { name: 'Zum aktuellen Monat' })).toContainText(
+        'Zum aktuellen Monat',
+      );
+      // The focus ring of a tab must not be clipped by the group or the header band.
+      await controls.getByRole('button', { name: 'Monat', exact: true }).focus();
+      await expect(controls.locator('.seg')).toHaveCSS('overflow', 'visible');
+      await expect(controls).toHaveCSS('overflow', 'visible');
+    } else {
+      expect(month.y + month.height / 2).toBe(period.y + period.height / 2);
+      expect(month.x + month.width).toBeLessThanOrEqual(period.x);
+    }
     expect(period.x + period.width).toBeLessThanOrEqual(page.viewportSize()!.width);
     await controls.getByRole('button', { name: 'Zum aktuellen Monat' }).click();
     await expect(page).toHaveURL(/monat=2026-09/);
-    await page.locator(isMobile ? '.m-review' : '.topbar .review-pill').click();
+    await page.locator('.page-header .review-pill').click();
     await expect(page).toHaveURL(/\/konten\/pruefen/);
     await page.getByRole('link', { name: 'Zurück zur vorherigen Ansicht' }).click();
     await expect(page).toHaveURL(/monat=2026-09/);

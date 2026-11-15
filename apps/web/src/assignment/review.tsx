@@ -58,23 +58,6 @@ export function AssignmentSummary({
         </span>
       )}
       {a.memo !== undefined && <span>Notiz: {a.memo || 'entfernen'}</span>}
-      {a.flag !== undefined && (
-        <span>
-          Markierung:{' '}
-          {a.flag === null
-            ? 'entfernen'
-            : (
-                {
-                  red: 'Rot',
-                  orange: 'Orange',
-                  yellow: 'Gelb',
-                  green: 'Grün',
-                  blue: 'Blau',
-                  purple: 'Violett',
-                } as const
-              )[a.flag]}
-        </span>
-      )}
       {rule.unavailable && <p role="alert">{rule.unavailable}</p>}
     </div>
   );

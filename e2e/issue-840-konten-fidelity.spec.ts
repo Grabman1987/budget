@@ -188,12 +188,12 @@ test('K1–K5: synthetic desktop and phone views retain read-only entry paths', 
           await expect(upcoming).toHaveClass(/is-upcoming/);
           await expect(upcoming).toContainText('22.09.');
 
-          // The six dated rows retain the 44–50px target; the upcoming row may wrap its date.
+          // The six dated rows use the compact 38px mouse height (#1008) up to 50px; the upcoming row may wrap its date.
           const heights = await dated.evaluateAll((rows) =>
             rows.map((row) => row.getBoundingClientRect().height),
           );
           expect(heights).toHaveLength(6);
-          expect(heights.every((height) => height >= 44 && height <= 50)).toBe(true);
+          expect(heights.every((height) => height >= 38 && height <= 50)).toBe(true);
         }
         if (view === 'booking-dialog') {
           const dialog = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });

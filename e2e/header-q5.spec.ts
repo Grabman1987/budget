@@ -21,11 +21,20 @@ test('one review pill on desktop; three phone header items and linked status bel
   ).summary.envelopes.filter((e) => e.availableCents < 0).length;
   if (isMobile) {
     const header = page.locator('.m-head');
-    await expect(
-      header.locator(':scope > .m-title, :scope > button, :scope > details'),
-    ).toHaveCount(redesign ? 2 : 3);
-    if (redesign) await expect(header.locator('.m-profile')).toHaveCount(0);
-    await expect(header.locator(':scope > a, .count, .overspent-chip')).toHaveCount(0);
+    if (redesign) {
+      await expect(header.locator('.page-header-title')).toHaveText('Reports');
+      await expect(header.locator('.page-header-search button')).toHaveCount(1);
+      await expect(
+        header.locator('.page-header-actions > button, .page-header-actions > a'),
+      ).toHaveCount(3);
+      await expect(header.locator('.page-header-profile')).toHaveCount(1);
+      await expect(header.locator('.m-profile')).toHaveCount(0);
+    } else {
+      await expect(
+        header.locator(':scope > .m-title, :scope > button, :scope > details'),
+      ).toHaveCount(3);
+    }
+    await expect(header.locator('.count, .overspent-chip')).toHaveCount(0);
     const status = page.getByRole('navigation', { name: 'Offene Aufgaben' });
     await expect(status).toHaveText(`4 zu prüfen·${count} überzogen`);
     await expect(status.getByRole('link', { name: '4 zu prüfen' })).toHaveAttribute(

@@ -139,14 +139,28 @@ test('detail has one name, one return path and keyboard-only focus in both theme
         await page.evaluate(() => document.fonts.ready);
         const badge = page.getByTestId('account-review-badge');
         if (phoneAccount) {
+          // Start the sequential focus order at the page header title, then walk the shared
+          // header utilities in visual order before reaching the account body.
+          await page.locator('.page-header-title').evaluate((el) => {
+            el.setAttribute('tabindex', '-1');
+            (el as HTMLElement).focus();
+          });
+          const header = page.locator('.page-header');
           for (const next of [
-            page.locator('#global-search-mobile'),
-            page.locator('.konten-review-count'),
-            badge,
+            header.locator('.page-header-search button'),
+            header.getByRole('button', { name: 'Beträge verbergen' }),
+            header.locator('.review-pill'),
+            header.getByRole('link', { name: 'Buchung', exact: true }),
           ]) {
             await page.keyboard.press('Tab');
             await expect(next).toBeFocused();
           }
+          for (
+            let step = 0;
+            step < 6 && !(await badge.evaluate((el) => el === document.activeElement));
+            step++
+          )
+            await page.keyboard.press('Tab');
         } else if (!redesign) await page.keyboard.press('Tab');
         await expect(badge).toBeFocused();
         await expect(focus).toHaveCSS('outline-width', '2px');

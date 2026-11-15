@@ -320,9 +320,18 @@ test('628 saved-view chips reload across contexts and resolve only the current s
     const other = await second.newPage();
     await retainExplorerReaders(other);
     await other.goto('/reports');
-    await expect(
-      other.getByText('Noch keine eigene Auswertung gespeichert.', { exact: false }),
-    ).toBeVisible();
+    await expect(other.locator('.report-hub')).toBeVisible();
+    // Redesign hides the empty bookmark block and keeps only the create entry point.
+    if ((await other.locator('[data-budget-redesign="1"]').count()) > 0) {
+      await expect(other.getByRole('link', { name: 'Auswertung erstellen' })).toBeVisible();
+      await expect(
+        other.getByRole('navigation', { name: 'Meine Auswertungen', exact: true }),
+      ).toHaveCount(0);
+    } else {
+      await expect(
+        other.getByText('Noch keine eigene Auswertung gespeichert.', { exact: false }),
+      ).toBeVisible();
+    }
     await openCustomExplorer(page);
     await page.getByLabel('Spalten', { exact: true }).selectOption('jahr');
     await page.getByLabel('Kennzahl', { exact: true }).selectOption('avg');
@@ -357,9 +366,13 @@ test('628 saved-view chips reload across contexts and resolve only the current s
       expect([...destination.searchParams.entries()]).toEqual([['ansicht', id]]);
       expect(
         await other.locator('.report-hub').evaluate((hub) => {
-          const recent = hub.querySelector('.report-hub-recent')!;
+          const recent = hub.querySelector('.report-hub-recent');
           const saved = hub.querySelector('.saved-explorer-links')!;
-          return Boolean(recent.compareDocumentPosition(saved) & Node.DOCUMENT_POSITION_FOLLOWING);
+          // Redesign hides the empty recents block; the order only applies when it exists.
+          return (
+            !recent ||
+            Boolean(recent.compareDocumentPosition(saved) & Node.DOCUMENT_POSITION_FOLLOWING)
+          );
         }),
       ).toBe(true);
       await inspect(other, info.project.name !== 'desktop');

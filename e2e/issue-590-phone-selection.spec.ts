@@ -7,6 +7,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { setTimeout as contactDuration } from 'node:timers/promises';
 import { test } from './isolated-ledger';
+import { openDetailsFromPhoneSheet } from './plan-phone-sheet';
 
 test.use({ ledgerToday: '2026-10-02' });
 const MONTH = '2026-10';
@@ -297,6 +298,7 @@ test('phone mode preserves category/group/all identity and read-only exit; deskt
   if (phone) {
     await expect(page.locator('.ptable input[type="checkbox"]:visible')).toHaveCount(0);
     await nameButton(page, firstId).tap();
+    await openDetailsFromPhoneSheet(page);
     await expect(selectionBar(page)).toHaveCount(0);
     await page
       .getByRole('complementary', { name: 'Plan-Inspektor' })
@@ -600,6 +602,7 @@ test('trusted native hold/release enters selection, real cancel and movement can
       targetIsOriginalCategory: boolean;
       targetIsExactOverlay: boolean;
       overlayUnderPoint: boolean;
+      targetIsSelectionToggle: boolean;
     };
   }[] = [];
   const protocolAcknowledgments: {
@@ -784,6 +787,9 @@ test('trusted native hold/release enters selection, real cancel and movement can
                     ? original.hasPointerCapture(event.pointerId)
                     : false,
                 targetIsOriginalCategory: element !== null && original.contains(element),
+                // The selection toggles mount under the held finger as the list reflows (#1007).
+                targetIsSelectionToggle:
+                  element !== null && element.closest('.plan-select-toggle') !== null,
                 targetIsExactOverlay:
                   element !== null && element === document.querySelector('.plan-selection-bar'),
                 overlayUnderPoint:
@@ -859,7 +865,8 @@ test('trusted native hold/release enters selection, real cancel and movement can
     expect(up?.coordinates).toEqual({ x: point.x, y: point.y });
     expect(
       (up?.origin.targetIsOriginalCategory && up.category === down?.category) ||
-        (up?.origin.targetIsExactOverlay && up.origin.overlayUnderPoint),
+        (up?.origin.targetIsExactOverlay && up.origin.overlayUnderPoint) ||
+        up?.origin.targetIsSelectionToggle,
     ).toBe(true);
     await expect
       .poll(

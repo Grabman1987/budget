@@ -1,4 +1,4 @@
-import { BOOKING_FLAGS, BOOKING_STATUSES, type BookingFilter, type BookingSort } from './types';
+import { BOOKING_STATUSES, type BookingFilter, type BookingSort } from './types';
 
 import { BOOKING_SEARCH_SORTS as SORTS, type BookingsSearch } from '@budget/domain';
 export { validateBookingsSearch, type BookingsSearch } from '@budget/domain';
@@ -10,7 +10,6 @@ const FILTER_KEYS = [
   'kategoriegruppe',
   'empfaenger',
   'status',
-  'markierung',
   'von',
   'bis',
 ] as const;
@@ -39,7 +38,6 @@ export function filterFromSearch(search: BookingsSearch): BookingFilter {
     categoryGroupId: search.kategoriegruppe,
     payeeId: search.empfaenger,
     status: oneOf(search.status, BOOKING_STATUSES),
-    flag: oneOf(search.markierung, [...BOOKING_FLAGS, 'none'] as const),
     from: search.von,
     to: search.bis,
     q: search.q,
@@ -57,7 +55,6 @@ export const hasFilter = (search: BookingsSearch): boolean =>
     search.kategoriegruppe ||
     search.empfaenger ||
     search.status ||
-    search.markierung ||
     search.von ||
     search.bis ||
     search.q,

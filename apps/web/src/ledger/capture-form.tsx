@@ -12,6 +12,7 @@ import {
   maskMoneyText,
   BookingStatusIcon,
   useIsPhone,
+  useToast,
 } from '@budget/ui';
 import { manualTransferStatus, todayInVienna, type ManualBankStatus } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -35,7 +36,7 @@ import {
   type KeyboardEvent,
   type MutableRefObject,
 } from 'react';
-import { ApiError } from '../api/http';
+import { ApiError, request } from '../api/http';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './capture-redesign.css';
 import { budgetQuery } from '../budget/budget-api';
@@ -72,16 +73,19 @@ import {
 } from './capture-model';
 import { CategoryCombobox } from './category-picker';
 import { Combobox } from './combobox';
-import { FlagPicker } from './flag-picker';
 import { SplitEditor, captureLines } from './split-editor';
 import { AccountOptions } from './account-options';
+import { ProjectField } from './project-field';
 
-import { ReceiptSection } from '../receipts/receipt-section';
-import { CAPTURE_SHORTCUT_HINT, FLAG_LABEL, SKIP_REASON_LABEL, errorText } from './labels';
+import {
+  AttachedReceipts,
+  ReceiptSection,
+  type AttachedReceipt,
+} from '../receipts/receipt-section';
+import { CAPTURE_SHORTCUT_HINT, SKIP_REASON_LABEL, errorText } from './labels';
 import { nativeCurrency } from './format';
-import { BOOKING_FLAGS, type BookingFlag } from './types';
 import { useLedgerWrites } from './mutations';
-import { accountsQuery, lookupsQuery, payeesQuery } from './queries';
+import { LEDGER_KEY, accountsQuery, lookupsQuery, payeesQuery } from './queries';
 import {
   editQueued,
   readChoices,
@@ -173,6 +177,74 @@ export function CaptureForm({
   const [receiptActionsHost, setReceiptActionsHost] = useState<HTMLDivElement | null>(null);
   const [contactHost, setContactHost] = useState<HTMLDivElement | null>(null);
   const accountRequest = useRef(0);
+  // Receipts attached to a NEW booking are already in Prüfen; they get linked once it is saved.
+  const toast = useToast();
+  const [attached, setAttached] = useState<AttachedReceipt[]>([]);
+  const attachedRef = useRef<AttachedReceipt[]>([]);
+  // Save is held back while a file is still uploading, so a late result cannot reach the next
+  // booking; the draft scope additionally ignores any result that belongs to a previous draft.
+  const [uploading, setUploading] = useState(false);
+  const uploadingRef = useRef(false);
+  const onUploadBusy = (value: boolean) => {
+    uploadingRef.current = value;
+    setUploading(value);
+  };
+  const [draftScope, setDraftScope] = useState(0);
+  const draftScopeRef = useRef(0);
+  const attach = (file: AttachedReceipt, scope = draftScopeRef.current) => {
+    if (scope !== draftScopeRef.current) {
+      toast.show({ message: 'Beleg bleibt unter Prüfen.' });
+      return;
+    }
+    if (attachedRef.current.some((r) => r.id === file.id)) return;
+    attachedRef.current = [...attachedRef.current, file];
+    setAttached(attachedRef.current);
+  };
+  const detach = async (id: string) => {
+    const file = attachedRef.current.find((r) => r.id === id);
+    if (!file) return;
+    attachedRef.current = attachedRef.current.filter((r) => r.id !== id);
+    setAttached(attachedRef.current);
+    try {
+      await request('DELETE', `/api/receipts/${encodeURIComponent(id)}`);
+      void qc.invalidateQueries({ queryKey: [...LEDGER_KEY, 'receipts'] });
+      toast.show({ message: 'Beleg verworfen.' });
+    } catch {
+      toast.show({ message: 'Beleg konnte nicht verworfen werden und bleibt unter Prüfen.' });
+    }
+  };
+  // Closing without a save leaves the files unlinked in Prüfen.
+  useEffect(
+    () => () => {
+      if (attachedRef.current.length) toast.show({ message: 'Beleg bleibt unter Prüfen.' });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+  const linkAttached = async (bookingId: string | undefined) => {
+    // Snapshot at submit time: the ids attached when Save was pressed are the only ones linked;
+    // a file arriving while the create request runs stays in Prüfen (and is ignored by the next draft).
+    const files = attachedRef.current;
+    attachedRef.current = [];
+    setAttached([]);
+    if (!files.length) return;
+    let failed = false;
+    for (const file of files) {
+      if (!bookingId) {
+        failed = true;
+        break;
+      }
+      try {
+        await request('POST', `/api/receipts/${encodeURIComponent(file.id)}/links`, { bookingId });
+      } catch (error) {
+        // 404: the receipt is gone (e.g. its upload was undone); nothing left to link or report.
+        if (!(error instanceof ApiError && error.status === 404)) failed = true;
+      }
+    }
+    void qc.invalidateQueries({ queryKey: [...LEDGER_KEY, 'receipts'] });
+    if (failed)
+      toast.show({ message: 'Beleg bleibt unter Prüfen und kann dort zugeordnet werden.' });
+  };
   const accountPayee = useRef('');
 
   const [today] = useState(todayInVienna);
@@ -267,9 +339,7 @@ export function CaptureForm({
       if (formRef.current) delete formRef.current.dataset.amountPointer;
     };
   }, [mobileRedesign]);
-  const [moreOpen, setMoreOpen] = useState(
-    !REDESIGN_ENABLED && Boolean(draft.projectId || draft.flag),
-  );
+  const [moreOpen, setMoreOpen] = useState(!REDESIGN_ENABLED && Boolean(draft.projectId));
   // The category the last chosen payee's default filled in; only that one is replaced by the next.
   const appliedByPayee = useRef<string | null>(null);
   const categoryRequest = useRef(0);
@@ -325,6 +395,14 @@ export function CaptureForm({
         : (offlineChoices?.categories ?? []),
     [budget.data, lookups.data, offlineChoices],
   );
+  // Async payee-history callbacks must see the categories and kind of the latest render, not the
+  // ones captured when the payee was picked (they may still be loading then).
+  const allRef = useRef(all);
+  const kindRef = useRef(draft.kind);
+  useLayoutEffect(() => {
+    allRef.current = all;
+    kindRef.current = draft.kind;
+  });
   // Archived categories are not offered; the field still names the one an old booking has.
   const pickable = useMemo(() => categoriesFor(all, draft.kind), [all, draft.kind]);
   useEffect(() => {
@@ -341,7 +419,9 @@ export function CaptureForm({
           closedAt,
         })),
       categories: all.map((c) => ({ ...c, availableCents: null })),
-      contacts: lookups.data.contacts.map(({ id, name }) => ({ id, name })),
+      contacts: lookups.data.contacts
+        .filter((c) => !c.archived)
+        .map(({ id, name }) => ({ id, name })),
       incomeTypes: lookups.data.incomeTypes.map(({ id, name }) => ({ id, name })),
       projects: lookups.data.projects.map(({ id, name, archivedAt }) => ({
         id,
@@ -372,7 +452,13 @@ export function CaptureForm({
   const advanceCategoryId =
     budget.data?.categories.find((c) => c.kind === 'advance' && !c.hiddenAt)?.id ??
     lookups.data?.categories.find((c) => c.kind === 'advance')?.id;
-  const contacts = lookups.data?.contacts ?? offlineChoices?.contacts ?? [];
+  // Archived contacts leave the pick list; a booking being edited keeps its own.
+  const keptContactIds = new Set(
+    editing?.splits.flatMap((x) => (x.contactId ? [x.contactId] : [])),
+  );
+  const contacts = (lookups.data?.contacts ?? offlineChoices?.contacts ?? []).filter(
+    (c) => !('archived' in c && c.archived) || keptContactIds.has(c.id),
+  );
   const trackingAccountIds = useMemo(
     () => new Set(open.filter((a) => !a.onBudget).map((a) => a.id)),
     [open],
@@ -401,6 +487,35 @@ export function CaptureForm({
     dirtyRef.current = dirty;
   }, [dirty, dirtyRef]);
 
+  /** Applies a payee-suggested category to a draft, only where it is still allowed and valid. */
+  const withPayeeCategory = (
+    d: typeof draft,
+    fallback: string | null | undefined,
+  ): typeof draft => {
+    if (d.splitOn || d.kind === 'transfer' || d.contactId) return d;
+    const next = categoryFromPayee(d.categoryId, appliedByPayee.current, fallback);
+    if (next === undefined || !categoriesFor(allRef.current, d.kind, '').some((c) => c.id === next))
+      return d;
+    appliedByPayee.current = next;
+    return {
+      ...d,
+      categoryId: next,
+      ...(d.lines?.length === 1 && d.lines[0]?.type === 'category'
+        ? { lines: [{ ...d.lines[0], categoryId: next }] }
+        : {}),
+    };
+  };
+  // A history answer that arrives before the categories are loaded waits for them.
+  const pendingCategory = useRef<{ request: number; ids: string[] } | null>(null);
+  useEffect(() => {
+    const pending = pendingCategory.current;
+    if (!pending || !all.length) return;
+    pendingCategory.current = null;
+    if (pending.request !== categoryRequest.current || categoryChosen.current) return;
+    const id = pending.ids.find((c) => categoriesFor(all, kindRef.current).some((i) => i.id === c));
+    if (id) setDraft((d) => withPayeeCategory(d, id));
+  }, [all]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /**
    * The payee's default category is applied when a payee is chosen (list pick or leaving the
    * field), not while typing: "Spar" on the way to "Sparkasse" must not set anything.
@@ -411,20 +526,7 @@ export function CaptureForm({
     const request = ++categoryRequest.current;
     const applyCategory = (fallback: string | null | undefined) => {
       if (request !== categoryRequest.current || categoryChosen.current) return;
-      setDraft((d) => {
-        if (d.splitOn || d.kind === 'transfer' || d.contactId) return d;
-        const next = categoryFromPayee(d.categoryId, appliedByPayee.current, fallback);
-        if (next === undefined || !categoriesFor(all, d.kind, '').some((c) => c.id === next))
-          return d;
-        appliedByPayee.current = next;
-        return {
-          ...d,
-          categoryId: next,
-          ...(d.lines?.length === 1 && d.lines[0]?.type === 'category'
-            ? { lines: [{ ...d.lines[0], categoryId: next }] }
-            : {}),
-        };
-      });
+      setDraft((d) => withPayeeCategory(d, fallback));
     };
     applyCategory(payee?.defaultCategoryId);
     const suggestAccount =
@@ -466,9 +568,17 @@ export function CaptureForm({
         if (!cursor) applyAccount(page.items[0]?.accountId);
         if (!suggestCategory || request !== categoryRequest.current || categoryChosen.current)
           return;
-        const category = page.items
-          .map((booking) => recentPayeeCategory(booking, draft.kind))
-          .find((id) => id && categoriesFor(all, draft.kind).some((item) => item.id === id));
+        const ids = page.items
+          .map((booking) => recentPayeeCategory(booking, kindRef.current))
+          .filter((id): id is string => Boolean(id));
+        if (!allRef.current.length) {
+          pendingCategory.current = { request, ids };
+          return;
+        }
+        const category = ids.find(
+          (id) =>
+            id && categoriesFor(allRef.current, kindRef.current).some((item) => item.id === id),
+        );
         if (category) return applyCategory(category);
         cursor = page.nextCursor ?? undefined;
       } while (cursor);
@@ -535,7 +645,7 @@ export function CaptureForm({
   };
 
   const save = async (andNew: boolean) => {
-    if (saving.current) return;
+    if (saving.current || uploadingRef.current) return;
     if (!editing && !from) return setErrors({ account: 'Bitte ein verfügbares Konto wählen.' });
     if (blocked) return setErrors({ splits: REMAINDER_SAVE_ERROR });
     const filled = {
@@ -588,13 +698,17 @@ export function CaptureForm({
             : built.value;
       if (queued) {
         await editQueued(queued.id, input, filled);
+        await linkAttached(undefined);
         return onDone();
       }
       const result = await writes.create.mutateAsync({ input, draft: filled });
       if (result) learnPayeeDefault();
+      await linkAttached(result?.bookings[0]?.id);
       remember(accountId, draft.categoryId || null);
       if (!andNew) return onDone();
       // The next booking keeps the context (kind, account, date, payee and its category).
+      draftScopeRef.current++;
+      setDraftScope(draftScopeRef.current);
       setStatusChosen(false);
       setBankIntent(null);
       categoryRequest.current++;
@@ -734,9 +848,7 @@ export function CaptureForm({
   const shownStatus = manualPair ? bankStatus : effectiveStatus;
   const bankAccount = manualPair?.cashSide === 'from' ? to : from;
   const cashAccount = manualPair?.cashSide === 'from' ? from : to;
-  const moreSummary = [draft.projectId && 'Projekt', !mobileRedesign && draft.flag && 'Markierung']
-    .filter(Boolean)
-    .join(', ');
+  const moreSummary = draft.projectId ? 'Projekt' : '';
   const statusControl = (id?: string, describedBy?: string) =>
     locked && !unlock ? (
       <span className="status">
@@ -802,6 +914,15 @@ export function CaptureForm({
       )}
     </Field>
   );
+  // Desktop context row: the repeat button joins the date control row (input, calendar, repeat)
+  // so Datum and Konto share one structure: label row, then one --touch-high control row.
+  const repeatInline = REDESIGN_ENABLED && !mobileRedesign && !isTransfer;
+  const repeatButton = (
+    <div className="bk-repeat-native" data-recurring={draft.repeat ? '1' : undefined}>
+      {repeatField}
+      <Repeat2 size={16} strokeWidth={1.75} aria-hidden="true" />
+    </div>
+  );
   const dateAndRepeat = (
     <div className="bk-dates" data-enter-skip>
       {mobileRedesign && (
@@ -814,16 +935,9 @@ export function CaptureForm({
           error={errors.date}
           inputRef={dateRef}
           year={today.slice(0, 4)}
+          trailing={repeatInline ? repeatButton : null}
         />
-        {!isTransfer &&
-          (REDESIGN_ENABLED ? (
-            <div className="bk-repeat-native" data-recurring={draft.repeat ? '1' : undefined}>
-              {repeatField}
-              <Repeat2 size={16} strokeWidth={1.75} aria-hidden="true" />
-            </div>
-          ) : (
-            repeatField
-          ))}
+        {!isTransfer && !repeatInline && (REDESIGN_ENABLED ? repeatButton : repeatField)}
       </div>
     </div>
   );
@@ -858,6 +972,7 @@ export function CaptureForm({
     />
   );
 
+  const hasMoreEntries = ((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0;
   const moreFields = (
     <details className="kmore" open={moreOpen} onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
       <summary>
@@ -874,52 +989,17 @@ export function CaptureForm({
         </span>
       </summary>
       <div className="kform">
-        {!isTransfer && !mobileRedesign && (
-          <Field label="Markierung">
-            {({ id }) => (
-              <Select
-                id={id}
-                value={draft.flag}
-                onChange={(e) => set('flag', e.target.value as BookingFlag | '')}
-              >
-                <option value="">keine</option>
-                {BOOKING_FLAGS.map((f) => (
-                  <option key={f} value={f}>
-                    {FLAG_LABEL[f]}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-        )}
-        {((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0 && (
-          <Field label="Projekt">
-            {({ id }) => (
-              <Select
-                id={id}
-                value={draft.projectId}
-                onChange={(e) => set('projectId', e.target.value)}
-              >
-                <option value="">kein Projekt</option>
-                {(lookups.data?.projects ?? offlineChoices?.projects ?? []).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                    {p.archivedAt ? ' · archiviert' : ''}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-        )}
+        <ProjectField
+          projects={lookups.data?.projects ?? offlineChoices?.projects ?? []}
+          value={draft.projectId}
+          onChange={(projectId) => set('projectId', projectId)}
+        />
       </div>
     </details>
   );
   const closeControl = <DialogClose onClick={requestClose} />;
   const kindHeader = (
     <div className="bk-head" data-kind={draft.kind} data-editing={editing ? 'true' : undefined}>
-      {!REDESIGN_ENABLED && !isTransfer && (
-        <FlagPicker title="Markieren" value={draft.flag} onChange={(flag) => set('flag', flag)} />
-      )}
       {REDESIGN_ENABLED && <span className="bk-kind-label">Art</span>}
       {legOfTransfer ? (
         <span className="bk-kind bk-kind-fixed">Umbuchung</span>
@@ -930,6 +1010,7 @@ export function CaptureForm({
           value={draft.kind}
           onChange={changeKind}
           stretch
+          slide={REDESIGN_ENABLED}
           className="bk-kind"
         />
       )}
@@ -998,8 +1079,10 @@ export function CaptureForm({
   const saveButton = (
     <Button
       type="submit"
-      disabled={busy || saveBlocked}
-      aria-describedby={showSaveReason ? 'booking-save-reason' : undefined}
+      disabled={busy || saveBlocked || uploading}
+      aria-describedby={
+        showSaveReason ? 'booking-save-reason' : uploading ? 'booking-upload-reason' : undefined
+      }
     >
       Speichern
     </Button>
@@ -1024,7 +1107,7 @@ export function CaptureForm({
         <Button
           variant="ghost"
           className={REDESIGN_ENABLED ? 'bk-save-new' : undefined}
-          disabled={busy || saveBlocked}
+          disabled={busy || saveBlocked || uploading}
           onClick={() => void save(true)}
         >
           {REDESIGN_ENABLED && (
@@ -1085,19 +1168,23 @@ export function CaptureForm({
         <div className="bk-editor-titlebar">
           <h2>{editing ? 'Buchung bearbeiten' : 'Buchung erfassen'}</h2>
           <div className="bk-editor-receipt-actions" ref={setReceiptActionsHost} />
-          {!isTransfer && !mobileRedesign && (
-            <FlagPicker
-              title="Markieren"
-              value={draft.flag}
-              onChange={(flag) => set('flag', flag)}
+          {hasMoreEntries && moreFields}
+          {closeControl}
+          {!editing && (
+            <ReceiptSection
+              uploadOnly
+              actionsHost={receiptActionsHost}
+              scope={draftScope}
+              onAttached={attach}
+              onBusyChange={onUploadBusy}
             />
           )}
-          {moreFields}
-          {closeControl}
-          {!editing && <ReceiptSection uploadOnly actionsHost={receiptActionsHost} />}
         </div>
       )}
       {!REDESIGN_ENABLED && kindHeader}
+      {REDESIGN_ENABLED && !editing && (
+        <AttachedReceipts items={attached} onRemove={(id) => void detach(id)} />
+      )}
       <div className="bk-body kform">
         {REDESIGN_ENABLED && !mobileRedesign && kindHeader}
         {editing?.source === 'bank' && editing.status !== 'reconciled' && (
@@ -1112,10 +1199,7 @@ export function CaptureForm({
         {locked && (
           <div className="kdiff is-ok" role="note">
             <span>
-              Diese Buchung ist <strong>geprüft</strong>.{' '}
-              {mobileRedesign
-                ? 'Nur die Notiz ist frei; alles andere'
-                : 'Nur Markierung und Notiz sind frei; alles andere'}{' '}
+              Diese Buchung ist <strong>geprüft</strong>. Nur die Notiz ist frei; alles andere{' '}
               braucht deine Freigabe.
             </span>
             <label className="kcheck">
@@ -1329,7 +1413,7 @@ export function CaptureForm({
             {REDESIGN_ENABLED && !isTransfer && (
               <div className="bk-contact-host" ref={setContactHost} />
             )}
-            {!REDESIGN_ENABLED && moreFields}
+            {!REDESIGN_ENABLED && hasMoreEntries && moreFields}
             {draft.kind === 'income' && (
               <Field label="Einnahmeart">
                 {({ id }) => (
@@ -1365,6 +1449,11 @@ export function CaptureForm({
           ) : (
             <ReceiptSection bookingId={editing.id} />
           ))}
+        {uploading && (
+          <p id="booking-upload-reason" className="bk-save-hint" role="status">
+            Beleg wird hochgeladen … Speichern ist gleich möglich.
+          </p>
+        )}
         {mobileRedesign && showSaveReason && (
           <p
             id="booking-save-reason"
@@ -1452,8 +1541,10 @@ export function CaptureForm({
           className="bk-keyboard-save"
           type="submit"
           aria-label="Buchung speichern"
-          disabled={busy || saveBlocked}
-          aria-describedby={showSaveReason ? 'booking-save-reason' : undefined}
+          disabled={busy || saveBlocked || uploading}
+          aria-describedby={
+            showSaveReason ? 'booking-save-reason' : uploading ? 'booking-upload-reason' : undefined
+          }
           onMouseDown={(event) => event.preventDefault()}
         >
           <Check size={20} strokeWidth={1.5} aria-hidden="true" />
@@ -1470,12 +1561,15 @@ function DateField({
   error,
   inputRef,
   year,
+  trailing = null,
 }: {
   draft: BookingDraft;
   set: <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) => void;
   error: string | undefined;
   inputRef: React.RefObject<HTMLInputElement | null>;
   year: string;
+  /** Rendered in the control row after the calendar button (desktop repeat button). */
+  trailing?: React.ReactNode;
 }) {
   useAmountPrivacy();
   const parsed = captureDate(draft.date, year);
@@ -1507,6 +1601,7 @@ function DateField({
                 onChange={(e) => set('date', e.target.value)}
               />
             </span>
+            {trailing}
           </div>
         )}
       </Field>

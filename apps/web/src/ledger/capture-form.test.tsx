@@ -6,6 +6,8 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@budget/ui';
 import { CaptureForm } from './capture-form';
 import * as ledgerApi from './api';
+import type * as Http from '../api/http';
+import type * as ReceiptModule from '../receipts/receipt-section';
 
 // jsdom has no native media query implementation.
 Object.defineProperty(window, 'matchMedia', {
@@ -21,7 +23,54 @@ vi.mock('../shell/redesign-flag', () => flags);
 
 const create = vi.hoisted(() => vi.fn());
 const patch = vi.hoisted(() => vi.fn());
-vi.mock('../receipts/receipt-section', () => ({ ReceiptSection: () => null }));
+const lateScope = vi.hoisted(() => ({ value: 0 }));
+const http = vi.hoisted(() => ({ request: vi.fn() }));
+vi.mock('../api/http', async (original) => ({
+  ...(await original<typeof Http>()),
+  request: http.request,
+}));
+// The real section uploads to the inbox; here a button stands in for one acknowledged upload.
+vi.mock('../receipts/receipt-section', async (original) => ({
+  ...(await original<typeof ReceiptModule>()),
+  ReceiptSection: ({
+    onAttached,
+    onBusyChange,
+    scope = 0,
+  }: {
+    onAttached?: (file: { id: string; name: string; sizeBytes: number }, scope: number) => void;
+    onBusyChange?: (busy: boolean) => void;
+    scope?: number;
+  }) => (
+    <>
+      <button
+        type="button"
+        onClick={() => onAttached?.({ id: 'receipt-1', name: 'beleg.pdf', sizeBytes: 2048 }, scope)}
+      >
+        Datei anhängen
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          lateScope.value = scope;
+          onBusyChange?.(true);
+        }}
+      >
+        Upload starten
+      </button>
+      <button type="button" onClick={() => onBusyChange?.(false)}>
+        Upload beenden
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onAttached?.({ id: 'receipt-late', name: 'spaet.pdf', sizeBytes: 1024 }, lateScope.value)
+        }
+      >
+        Spätes Ergebnis
+      </button>
+    </>
+  ),
+}));
 vi.mock('./mutations', () => ({
   useLedgerWrites: () => ({ create: { mutateAsync: create }, patch: { mutateAsync: patch } }),
 }));
@@ -70,6 +119,8 @@ beforeEach(() => {
   flags.phone = false;
   create.mockReset();
   patch.mockReset();
+  http.request.mockReset();
+  http.request.mockResolvedValue({ groupId: 'synthetic-receipt' });
   patch.mockResolvedValue({ groupId: 'synthetic-patch' });
   create.mockResolvedValue({ bookings: [], groupId: 'synthetic-group' });
 });
@@ -393,7 +444,6 @@ it.each([false, true])(
     fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
       target: { value: '12,34' },
     });
-    await user.click(screen.getByText('Mehr', { exact: true }));
     await user.selectOptions(screen.getByLabelText('Wiederholen'), 'weekly');
     await user.click(screen.getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
@@ -447,7 +497,17 @@ it('cash capture is immediately confirmed without a pending toggle', async () =>
 it('shows note and category lines outside Mehr and accepts direct dates without calculator keys', async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-05T12:00:00+02:00'));
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  // "Mehr" only exists while there is a project to pick (the flag entry is retired).
+  client.setQueryData(['lookups'], {
+    categories: [],
+    groups: [],
+    contacts: [],
+    incomeTypes: [],
+    projects: [{ id: 'project-muster', name: 'Projekt Muster', archivedAt: null }],
+  });
   const { container } = render(
     <QueryClientProvider client={client}>
       <ToastProvider>
@@ -860,4 +920,159 @@ it('continues past ambiguous recent bookings to the latest usable category', asy
   } finally {
     lookup.mockRestore();
   }
+});
+
+function renderCreate(redesign = true) {
+  flags.REDESIGN_ENABLED = redesign;
+  return render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <ToastProvider>
+        <CaptureForm
+          state={{ mode: 'create', accountId: 'wallet' }}
+          onDone={vi.fn()}
+          dirtyRef={{ current: false }}
+          discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+          requestClose={vi.fn()}
+        />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+}
+
+it.each([false, true])(
+  'has no flag picker, Markierung entry or empty "…" (redesign: %s)',
+  async (on) => {
+    renderCreate(on);
+    await screen.findByRole('option', { name: 'Bargeld Muster' });
+    expect(screen.queryByTitle('Markieren')).toBeNull();
+    expect(screen.queryByLabelText('Markierung')).toBeNull();
+    expect(document.querySelector('.kmore')).toBeNull();
+  },
+);
+
+it('keeps the stored flag of an edited booking untouched on save', async () => {
+  flags.REDESIGN_ENABLED = true;
+  const done = vi.fn();
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <ToastProvider>
+        <CaptureForm
+          state={{
+            mode: 'edit',
+            booking: {
+              id: 'booking-flagged',
+              accountId: 'wallet',
+              accountName: 'Bargeld Muster',
+              date: '2026-10-01',
+              amountCents: -1000,
+              payeeId: null,
+              payeeName: null,
+              memo: null,
+              status: 'confirmed',
+              flag: 'red',
+              transferId: null,
+              transferAccountId: null,
+              transferAccountName: null,
+              projectId: null,
+              currency: 'EUR',
+              originalAmountCents: null,
+              originalCurrency: null,
+              balanceAfterCents: null,
+              splits: [
+                {
+                  id: 'split-flagged',
+                  categoryId: 'category-existing',
+                  categoryName: 'Kategorie Muster',
+                  amountCents: -1000,
+                  contactId: null,
+                  incomeTypeId: null,
+                  memo: null,
+                  transferId: null,
+                },
+              ],
+            },
+          }}
+          onDone={done}
+          dirtyRef={{ current: false }}
+          discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+          requestClose={vi.fn()}
+        />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByRole('option', { name: 'Bargeld Muster' });
+  fireEvent.change(screen.getByLabelText('Notiz'), { target: { value: 'Notiz neu' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+  await waitFor(() => expect(done).toHaveBeenCalledTimes(1));
+  expect(patch.mock.calls[0]![0].patch).not.toHaveProperty('flag');
+});
+
+it('shows an attached receipt once, links it to the saved booking and clears it for save-and-new', async () => {
+  create.mockResolvedValue({ bookings: [{ id: 'booking-new' }], groupId: 'g' });
+  renderCreate();
+  await screen.findByRole('option', { name: 'Bargeld Muster' });
+  fireEvent.click(screen.getByRole('button', { name: 'Einnahme' }));
+  fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
+    target: { value: '12,34' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Datei anhängen' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Datei anhängen' }));
+  expect(screen.getAllByTestId('attached-receipt')).toHaveLength(1);
+  expect(screen.getByText('beleg.pdf')).toBeTruthy();
+  expect(http.request).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Speichern und neu' }));
+  await waitFor(() => expect(screen.queryByTestId('attached-receipt')).toBeNull());
+  expect(http.request).toHaveBeenCalledTimes(1);
+  expect(http.request).toHaveBeenCalledWith('POST', '/api/receipts/receipt-1/links', {
+    bookingId: 'booking-new',
+  });
+});
+
+it('discards a removed attachment and links nothing; cancelling leaves the rest in Prüfen with a toast', async () => {
+  const first = renderCreate();
+  await screen.findByRole('option', { name: 'Bargeld Muster' });
+  fireEvent.click(screen.getByRole('button', { name: 'Datei anhängen' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Beleg beleg.pdf entfernen' }));
+  await waitFor(() => expect(screen.queryByTestId('attached-receipt')).toBeNull());
+  expect(http.request).toHaveBeenCalledWith('DELETE', '/api/receipts/receipt-1');
+  expect(await screen.findByText('Beleg verworfen.')).toBeTruthy();
+  first.unmount();
+  const second = renderCreate();
+  await screen.findByRole('option', { name: 'Bargeld Muster' });
+  fireEvent.click(screen.getByRole('button', { name: 'Datei anhängen' }));
+  second.unmount();
+  expect(http.request).toHaveBeenCalledTimes(1);
+});
+
+it('holds Save back while an upload runs and ignores a result from the previous draft', async () => {
+  create.mockResolvedValue({ bookings: [{ id: 'booking-new' }], groupId: 'g' });
+  renderCreate();
+  await screen.findByRole('option', { name: 'Bargeld Muster' });
+  fireEvent.click(screen.getByRole('button', { name: 'Einnahme' }));
+  fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
+    target: { value: '12,34' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Upload starten' }));
+  const saveNew = screen.getByRole('button', { name: 'Speichern und neu' }) as HTMLButtonElement;
+  const save = screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement;
+  expect(saveNew.disabled).toBe(true);
+  expect(save.disabled).toBe(true);
+  expect(save.getAttribute('aria-describedby')).toBe('booking-upload-reason');
+  fireEvent.keyDown(screen.getByLabelText('Betrag', { exact: true }), {
+    key: 'Enter',
+    ctrlKey: true,
+  });
+  expect(create).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Upload beenden' }));
+  await waitFor(() => expect(saveNew.disabled).toBe(false));
+  fireEvent.click(saveNew);
+  await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+  // The upload of the previous draft reports late: it must not become a chip of the next one.
+  fireEvent.click(await screen.findByRole('button', { name: 'Spätes Ergebnis' }));
+  expect(screen.queryByTestId('attached-receipt')).toBeNull();
+  expect(http.request).not.toHaveBeenCalled();
 });

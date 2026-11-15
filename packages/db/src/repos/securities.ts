@@ -1,3 +1,4 @@
+import { SIGNAL_INDEX_ID } from './signal-index-id';
 import {
   todayInVienna,
   validateTargetPolicy,
@@ -71,8 +72,9 @@ function checkIsin(tx: Executor, isin: string | null | undefined, exceptId?: str
   if (clash) throw new ConflictError(`ISIN ${isin} belongs to another security`);
 }
 
+/** User-facing list: the system signal series is hidden (it stays in exports and price reads). */
 export const listSecurities = (db: Executor, options: { includeDeleted?: boolean } = {}) =>
-  securityRepo.list(db, options);
+  securityRepo.list(db, options).filter((s) => s.id !== SIGNAL_INDEX_ID);
 export const getSecurity = (db: Executor, id: string, options: { includeDeleted?: boolean } = {}) =>
   securityRepo.get(db, id, options);
 

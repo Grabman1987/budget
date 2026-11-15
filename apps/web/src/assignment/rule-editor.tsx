@@ -599,39 +599,6 @@ export function AssignmentEditor({
                   )}
                 </Field>
               )}
-              <Field label="Markierung setzen">
-                {({ id }) => (
-                  <Select
-                    id={id}
-                    value={actions.flag === undefined ? '' : (actions.flag ?? 'clear')}
-                    onChange={(e) =>
-                      setAction(
-                        'flag',
-                        e.target.value === ''
-                          ? undefined
-                          : e.target.value === 'clear'
-                            ? null
-                            : e.target.value,
-                      )
-                    }
-                  >
-                    <option value="">Keine Änderung</option>
-                    <option value="clear">Markierung entfernen</option>
-                    {[
-                      ['red', 'Rot'],
-                      ['orange', 'Orange'],
-                      ['yellow', 'Gelb'],
-                      ['green', 'Grün'],
-                      ['blue', 'Blau'],
-                      ['purple', 'Violett'],
-                    ].map(([key, label]) => (
-                      <option key={key} value={key}>
-                        {label}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </Field>
             </fieldset>
             <label className="assignment-check">
               <input

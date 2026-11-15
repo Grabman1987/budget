@@ -73,7 +73,9 @@ esac`,
           cwd: root,
           env: { ...process.env, STUB_ROOT: fwd(root), STUB_BIN: posix(bin) },
           encoding: 'utf8',
-          timeout: 10_000,
+          // Measured 3.0-6.3 s per child on loaded Windows runners (Git Bash startup is
+          // inherent); 10 s left no headroom (#906). Completion assertions are unchanged.
+          timeout: 45_000,
         },
         `review-${script}`,
       );

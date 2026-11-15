@@ -47,7 +47,7 @@ it('migrates a copied existing ledger additively, reverses only the empty cache 
   try {
     existing = openDatabase(sourcePath);
     migrateDatabase(existing.db, oldFolder);
-    seedBasics(existing.db);
+    seedBasics(existing.db, { predecessorSchema: true });
     createBooking(
       existing.db,
       {

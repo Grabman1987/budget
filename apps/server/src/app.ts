@@ -48,6 +48,7 @@ export type AppOptions = BaseOptions &
               jobs?: ImportJobs | undefined;
               receiptsDir?: string | undefined;
               strategyEvidence?: LedgerApiOptions['strategyEvidence'];
+              offload?: LedgerApiOptions['offload'];
               /** Gets the ledger API once it exists (the start-up warm-up uses it). */
               onApi?: ((api: LedgerApi) => void) | undefined;
             }
@@ -144,6 +145,8 @@ export function createApp({ webDir, database, auth, ledger, buildRevision }: App
     if (c.req.method === 'POST' && c.req.path === '/api/payslip-intake/upload')
       return receiptLimit(c, next);
     if (c.req.method === 'POST' && c.req.path === '/api/statement-intake/upload')
+      return receiptLimit(c, next);
+    if (c.req.method === 'POST' && c.req.path === '/api/document-intake/classify')
       return receiptLimit(c, next);
     if (importsEnabled && c.req.path === '/api/imports/ynab') return uploadLimit(c, next);
     if (importsEnabled && c.req.path.startsWith('/api/imports/')) return importLimit(c, next);

@@ -16,6 +16,7 @@ import { eur, longDay, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { ValuationSourceHint } from '../ledger/valuation-hint';
 import { AppLink } from '../shell/app-link';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { MonthSwitch } from '../shell/month-switch';
 import { useMonth } from '../shell/use-month';
 import { PAYDAY_ONLY_THIS_MONTH, useBalancePeriod } from './use-balance-period';
@@ -55,8 +56,7 @@ export const detailNames: Record<HeuteDetail, string> = {
   pinned: 'Angepinnte Kategorien',
 };
 
-/** Same cached query as the page; the shell does not invent a source clock. */
-export function HeuteShellHead() {
+function useShellRead() {
   const [month] = useMonth();
   const { period, setPeriod, paydayAvailable } = useBalancePeriod();
   const read = useQuery(heuteQuery(month, period));
@@ -68,14 +68,38 @@ export function HeuteShellHead() {
     read.data.stand.period === period
       ? read.data
       : undefined;
+  return { data, updatedAt: read.dataUpdatedAt, period, setPeriod, paydayAvailable };
+}
+
+/** Same cached query as the page; the shell does not invent a source clock. */
+export function HeuteShellHead({ showStand = true }: { showStand?: boolean }) {
+  const { data, updatedAt, period, setPeriod, paydayAvailable } = useShellRead();
   return (
     <HeuteHeader
       data={data}
-      updatedAt={read.dataUpdatedAt}
+      updatedAt={updatedAt}
       period={period}
       setPeriod={setPeriod}
       paydayAvailable={paydayAvailable}
+      showStand={showStand}
     />
+  );
+}
+
+const STAND_TITLE = 'Berechnung zum angezeigten Stichtag; Uhrzeit des erfolgreichen Abrufs';
+function standText(data: Heute | undefined, updatedAt: number) {
+  return data
+    ? `Stand ${shortDay(data.stand.today)}${updatedAt ? `, ${time.format(updatedAt)}` : ''}`
+    : 'Stand nicht verfügbar';
+}
+
+/** Data-freshness line at the top of the Heute body while the controls sit in the 64px header. */
+export function HeuteStandLine() {
+  const { data, updatedAt } = useShellRead();
+  return (
+    <p className="page-stand-line" title={STAND_TITLE}>
+      {standText(data, updatedAt)}
+    </p>
   );
 }
 
@@ -86,6 +110,7 @@ export function HeuteHeader({
   setPeriod,
   paydayAvailable,
   phone = false,
+  showStand = true,
 }: {
   data: Heute | undefined;
   updatedAt: number;
@@ -93,21 +118,21 @@ export function HeuteHeader({
   setPeriod: (value: HeutePeriod) => void;
   paydayAvailable: boolean;
   phone?: boolean;
+  /** False when the Stand line renders elsewhere (top of the body) so it appears once. */
+  showStand?: boolean;
 }) {
   const [month] = useMonth();
   return (
     <div className={`hv-head${phone ? ' hv-head-phone' : ''}`}>
       <div className="hv-head-title">
-        <h1 className={phone ? 'sr-only' : undefined}>Heute</h1>
-        <span title="Berechnung zum angezeigten Stichtag; Uhrzeit des erfolgreichen Abrufs">
-          {data
-            ? `Stand ${shortDay(data.stand.today)}${updatedAt ? `, ${time.format(updatedAt)}` : ''}`
-            : 'Stand nicht verfügbar'}
-        </span>
+        <h1 className="sr-only">Heute</h1>
+        {showStand && <span title={STAND_TITLE}>{standText(data, updatedAt)}</span>}
       </div>
-      <MonthSwitch heading={monthLabel(month)} headingAs="span" />
+      <MonthSwitch heading={monthLabel(month)} headingAs="span" returnLabel />
       <Segmented
         label="Zeitraum"
+        className="hv-period-tabs"
+        slide={REDESIGN_ENABLED}
         value={period}
         onChange={setPeriod}
         options={[
@@ -618,6 +643,8 @@ function NextWork({
       title: `${data.attention.inboxCount} unter Prüfen`,
       label: 'Zuordnen',
       to: '/konten/pruefen',
+      // The guided pass takes the open bookings one at a time (#1054).
+      search: { modus: 'gefuehrt' },
     });
   if (tasks.length < 4 && model.tasks.some((task) => task.kind === 'rules'))
     tasks.push({
@@ -654,31 +681,42 @@ function NextWork({
         Keine vorrangigen Aufgaben. <DetailLink kind="tasks">Alle Grundlagen →</DetailLink>
       </p>
     );
+  // Explicit roles keep the table semantics where the phone CSS turns the table into a grid
+  // (Safari/VoiceOver drop them otherwise).
+  /* eslint-disable jsx-a11y/no-redundant-roles, jsx-a11y/no-interactive-element-to-noninteractive-role */
   return (
-    <table className="hv-revisions">
+    <table className="hv-revisions" role="table">
       <caption className="sr-only">Als Nächstes</caption>
-      <thead>
-        <tr>
-          <th scope="col">Rev.</th>
-          <th scope="col">Aufgabe</th>
-          <th scope="col" className="hv-task-amount">
+      <thead role="rowgroup">
+        <tr role="row">
+          <th scope="col" role="columnheader">
+            Rev.
+          </th>
+          <th scope="col" role="columnheader">
+            Aufgabe
+          </th>
+          <th scope="col" role="columnheader" className="hv-task-amount">
             Betrag
           </th>
-          <th scope="col">Aktion</th>
+          <th scope="col" role="columnheader">
+            Aktion
+          </th>
         </tr>
       </thead>
-      <tbody>
+      <tbody role="rowgroup">
         {tasks.slice(0, 4).map((task, i) => (
-          <tr key={task.id} className={task.urgent ? 'is-urgent' : undefined}>
-            <td>
+          <tr key={task.id} role="row" className={task.urgent ? 'is-urgent' : undefined}>
+            <td role="cell">
               <RevisionTriangle
                 letter={String.fromCharCode(65 + i)}
                 urgent={task.urgent ?? false}
               />
             </td>
-            <td>{task.title}</td>
-            <td className="hv-task-amount">{task.amount}</td>
-            <td>
+            <td role="cell">{task.title}</td>
+            <td role="cell" className="hv-task-amount">
+              {task.amount}
+            </td>
+            <td role="cell">
               <AppLink to={task.to} search={task.search}>
                 {task.label} →
               </AppLink>
@@ -689,3 +727,4 @@ function NextWork({
     </table>
   );
 }
+/* eslint-enable jsx-a11y/no-redundant-roles, jsx-a11y/no-interactive-element-to-noninteractive-role */

@@ -127,6 +127,14 @@ describe('buildPatch keeps what the panel does not edit (review F1)', () => {
     ],
   });
 
+  it('an edit never sends the stored flag (the capture dialog no longer edits it)', () => {
+    const flagged = { ...salary, flag: 'red' as const };
+    const edit = { ...draftFromBooking(flagged), amount: '2.650,00' };
+    const built = buildPatch(flagged, edit, 'p1', false);
+    expect(built.ok).toBe(true);
+    if (built.ok) expect(built.value).not.toHaveProperty('flag');
+  });
+
   it('an amount change keeps income type and split memo', () => {
     const edit = { ...draftFromBooking(salary), amount: '2.650,00' };
     const built = buildPatch(salary, edit, 'p1', false);
